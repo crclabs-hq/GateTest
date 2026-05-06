@@ -5,6 +5,7 @@
  * Shows the public GateTest score for any scanned repository.
  * Embeddable badge available at /api/score?owner=X&repo=Y&format=badge
  */
+import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 interface ScoreData {
@@ -82,9 +83,9 @@ export default async function ScorePage({
     <main className="min-h-screen bg-black text-white">
       {/* Header */}
       <div className="border-b border-white/8 px-6 py-4 flex items-center justify-between max-w-5xl mx-auto">
-        <a href="/" className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm">
+        <Link href="/" className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm">
           <span className="text-lg">←</span> gatetest.ai
-        </a>
+        </Link>
         <span className="text-xs text-white/30 font-mono">public quality score</span>
       </div>
 

@@ -17,8 +17,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 
-const MAX_AGE_DAYS = 90;
-
 function computeScore(scan: {
   errors: number;
   warnings: number;
