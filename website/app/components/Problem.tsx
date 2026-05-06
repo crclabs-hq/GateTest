@@ -25,14 +25,14 @@ export default function Problem() {
             The Problem
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-            You're paying{" "}
+            You&apos;re paying{" "}
             <span className="text-red-400">${monthlyBurn}/month</span>
             <br />
             for 13 tools that still miss bugs.
           </h2>
           <p className="text-white/50 text-lg max-w-2xl mx-auto">
             Each tool covers one category. Each has its own config, dashboard, and bill.
-            Each has gaps the next tool doesn't cover. And none of them fix anything.
+            Each has gaps the next tool doesn&apos;t cover. And none of them fix anything.
           </p>
         </div>
 

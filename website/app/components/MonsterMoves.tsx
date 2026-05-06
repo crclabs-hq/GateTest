@@ -152,8 +152,8 @@ export default function MonsterMoves() {
             <span className="hero-accent-text">has shipped. Not even close.</span>
           </h2>
           <p className="text-white/50 text-lg max-w-2xl mx-auto">
-            We're not 10% better than SonarQube. We're not 30% better than Snyk.
-            These are capabilities that don't exist anywhere else in the market.
+            We&apos;re not 10% better than SonarQube. We&apos;re not 30% better than Snyk.
+            These are capabilities that don&apos;t exist anywhere else in the market.
           </p>
         </div>
 

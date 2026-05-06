@@ -19,7 +19,7 @@ const rows: { label: string; gatetest: string; sonar: boolean; snyk: boolean; co
   { label: "Pay only when PR delivered", gatetest: "unique", sonar: false, snyk: false, copilot: false, semgrep: false },
 ];
 
-const Icon = ({ yes, label }: { yes: boolean; label?: string }) =>
+const Icon = ({ yes }: { yes: boolean }) =>
   yes ? (
     <span className="text-emerald-400 text-sm font-bold">✓</span>
   ) : (
