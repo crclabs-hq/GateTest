@@ -266,6 +266,7 @@ const DEFAULT_CONFIG = {
       'aiReview',
       'agentic',
       'fakeFixDetector',
+      'sbom',
     ],
   },
 
