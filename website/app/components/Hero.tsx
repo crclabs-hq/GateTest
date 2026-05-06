@@ -67,7 +67,7 @@ export default function Hero() {
               <p className="text-white/70">{"  "}<span className="text-emerald-400">&#10003;</span> <span className="text-white/90 font-medium">moneyFloat</span> <span className="text-red-400">parseFloat(price) — trust-account drift risk</span></p>
               <p className="text-white/70">{"  "}<span className="text-emerald-400">&#10003;</span> <span className="text-white/90 font-medium">piiFlow</span> <span className="text-red-400">user.email → Datadog logs (GDPR Article 5)</span></p>
               <p className="text-white/70">{"  "}<span className="text-emerald-400">&#10003;</span> <span className="text-white/90 font-medium">ssrf</span> <span className="text-amber-400">req.body.url → fetch() — no validation</span></p>
-              <p className="text-white/70">{"  "}<span className="text-emerald-400">&#10003;</span> <span className="text-white/90 font-medium">tlsSecurity</span> <span className="text-red-400">rejectUnauthorized: false in prod path</span></p>
+              <p className="text-white/70">{"  "}<span className="text-emerald-400">&#10003;</span> <span className="text-white/90 font-medium">tlsSecurity</span> <span className="text-red-400">TLS cert validation disabled in prod config</span></p>
               <p className="text-white/50 text-xs">{"  "}...86 more modules</p>
               <p className="mt-2" />
               <p className="text-violet-300 text-xs">{"  "}🧠 Claude reasoning: &quot;moneyFloat + ssrf chain — untrusted decimal in downstream webhook call...&quot;</p>
