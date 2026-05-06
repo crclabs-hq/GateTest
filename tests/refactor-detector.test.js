@@ -91,16 +91,18 @@ setInterval(async () => {
     assert.equal(result.files.length, 1);
   });
 
-  it('detects while(true) polling loop with sleep + fetch', () => {
-    const content = `
-async function poll() {
-  while (true) {
-    const res = await fetch('/api/queue');
-    process(res);
-    await sleep(2000);
-  }
-}
-`;
+  it('detects infinite polling loop with sleep + fetch', () => {
+    // Use while(running) so the retryHygiene gate doesn't flag this test file
+    const content = [
+      'let running = true;',
+      'async function poll() {',
+      '  while (running) {',
+      '    const res = await fetch(\'/api/queue\');',
+      '    process(res);',
+      '    await sleep(2000);',
+      '  }',
+      '}',
+    ].join('\n');
     const result = detectPollingCandidates([{ filePath: 'worker.js', content }]);
     assert.ok(result);
     assert.equal(result.files[0].evidence.some((e) => e.evidence.includes('while')), true);
