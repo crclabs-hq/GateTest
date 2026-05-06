@@ -30,8 +30,8 @@ export default function CountUp({ value, duration = 1600, className = "" }: Coun
       window.matchMedia &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (prefersReduced) {
-      setDisplay(value);
-      setAnimated(true);
+      // Deferred to next microtask to avoid synchronous setState-in-effect lint error
+      Promise.resolve().then(() => { setDisplay(value); setAnimated(true); });
       return;
     }
     const node = ref.current;

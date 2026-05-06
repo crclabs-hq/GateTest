@@ -140,7 +140,10 @@ async function scanRepo(owner: string, repo: string, tier: string): Promise<Scan
   const fileContents: RepoFile[] = (await Promise.all(readPromises)).filter((f): f is RepoFile => f !== null);
 
   // Run the tier through the unified module registry — every module does real work.
-  const { modules, totalIssues } = await runTier(tier === "full" ? "full" : "quick", {
+  // nuclear + scan_fix get their own tier keys (which include mutationAnalysis).
+  const scanTier = tier === "nuclear" || tier === "scan_fix" ? tier
+    : tier === "full" ? "full" : "quick";
+  const { modules, totalIssues } = await runTier(scanTier, {
     owner,
     repo,
     files,
@@ -380,6 +383,15 @@ export async function POST(req: NextRequest) {
     authSource: result.authSource,
     error: result.error,
     fixableIssues,
+    // Phase 1.2b activation: per-module findings map so the fix API can
+    // run the cross-scanner re-validation gate without a separate fetch.
+    // The gate diffs post-fix findings against this baseline to detect
+    // new regressions introduced by a fix.
+    findingsByModule: Object.fromEntries(
+      finalModules
+        .filter((m) => Array.isArray(m.details) && (m.details as string[]).length > 0)
+        .map((m) => [m.name, m.details as string[]])
+    ),
     // Honest disclosure of what the brain hid / softened. Operator
     // dashboard (5.2.4) consumes the same shape via /admin/learning.
     confidenceAdjustments: {
