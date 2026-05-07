@@ -382,7 +382,8 @@ async function askClaude(fileContent: string, filePath: string, issues: string[]
     return issue;
   }));
 
-  const contextBlock = contextSummary ? `\nCODEBASE CONTEXT:\n${contextSummary}\n` : "";
+  const contextBlock = contextSummary ? `\nCODEBASE CONTEXT (architecture — use to understand how this file fits the broader project; do not copy patterns verbatim):\n${contextSummary}\n` : "";
+  const priorArtBlock = priorArtContext ? `\nCROSS-REPO CONTEXT (informational only — do not copy patterns; use to prioritise + sanity-check your fix):\n${priorArtContext}\n` : "";
 
   // Stable system instructions are cached — saves ~80% on input tokens across
   // the multi-file fix loop. User message carries the per-file variable content.
@@ -410,7 +411,7 @@ CRITICAL RULES — violations will cause re-scan failure:
   const userPrompt = `FILE: ${filePath}
 ISSUES TO FIX:
 ${enrichedIssues.map((i, idx) => `${idx + 1}. ${i}`).join("\n")}
-${contextBlock}
+${priorArtBlock}${contextBlock}
 CURRENT CODE:
 \`\`\`
 ${fileContent}
@@ -875,7 +876,20 @@ export async function POST(req: NextRequest) {
       const originalContent = await fetchBlob(owner, repo, filePath, "", token);
 
       if (!originalContent) {
-        errors.push(`Could not read ${filePath}`);
+        // Probe why — a quick HEAD/GET gives us an HTTP status for the error message
+        // so operators can see 403 (token scope) vs 404 (path wrong) vs other.
+        let reason = "file not found or empty";
+        try {
+          const probe = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,
+            { method: "HEAD", headers: { Authorization: `Bearer ${token}`, "User-Agent": "GateTest" } }
+          );
+          if (probe.status === 403) reason = "token lacks read access (403 — check GITHUB_TOKEN scope)";
+          else if (probe.status === 404) reason = "path not found (404 — file may have been renamed or is in a different location)";
+          else if (probe.status === 401) reason = "token invalid or expired (401)";
+          else if (!probe.ok) reason = `HTTP ${probe.status}`;
+        } catch { /* probe failed — use default reason */ }
+        errors.push(`Could not read ${filePath}: ${reason}`);
         return;
       }
 

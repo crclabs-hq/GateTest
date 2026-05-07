@@ -292,7 +292,33 @@ export default function ScanStatus() {
       });
   }, [params]);
 
-  function extractFixableIssues(modules: ModuleResult[]) {
+  function extractFixableIssues(modules: ModuleResult[], findingsByModule?: Record<string, string[]>) {
+    // Use unredacted findingsByModule for file-path extraction when available.
+    // modules[].details are redacted (file paths stripped) to prevent
+    // copy-paste bypass — findingsByModule retains full paths for the fix API.
+    if (findingsByModule && Object.keys(findingsByModule).length > 0) {
+      const failedModuleNames = new Set(modules.filter((m) => m.status === "failed").map((m) => m.name));
+      return Object.entries(findingsByModule).flatMap(([moduleName, details]) => {
+        if (!failedModuleNames.has(moduleName)) return [];
+        return details.map((d) => {
+          let file = "";
+          let issue = d;
+          const fileLineMatch = d.match(/^([\w./\-@+]+?\.[\w]{1,8}):(\d+)(?::\d+)?(?:\s*[-—:]\s*|\s+)(.+)$/);
+          if (fileLineMatch) { file = fileLineMatch[1]; issue = fileLineMatch[3]; }
+          else {
+            const fileOnly = d.match(/^([\w./\-@+]+?\.[\w]{1,8})\s*[:—-]\s*(.+)$/);
+            if (fileOnly) { file = fileOnly[1]; issue = fileOnly[2]; }
+          }
+          const missingMatch = d.match(/(?:missing|no|needs)\s+([.\w/\-]+\.(?:md|json|yml|yaml|toml|gitignore|env|example))/i);
+          if (!file && missingMatch) {
+            file = missingMatch[1].toLowerCase() === "gitignore" ? ".gitignore" : missingMatch[1];
+            issue = `CREATE_FILE: ${d}`;
+          }
+          return { file, issue, module: moduleName };
+        }).filter((i) => i.file);
+      });
+    }
+    // Fallback: parse from modules[].details (may be redacted — will yield fewer results)
     const failed = modules.filter((m) => m.status === "failed");
     return failed.flatMap((m) => {
       const details = m.details || [];
@@ -317,7 +343,7 @@ export default function ScanStatus() {
 
   async function runFix() {
     if (!scanResult || !params.repo) return;
-    const issues = extractFixableIssues(scanResult.modules);
+    const issues = extractFixableIssues(scanResult.modules, scanResult.findingsByModule);
     if (issues.length === 0) {
       setFixError("No auto-fixable issues found — these need manual review (config / infrastructure / architectural changes).");
       return;
@@ -408,7 +434,7 @@ export default function ScanStatus() {
     if (fixTriggered.current) return;
     if (scanResult?.status !== "complete") return;
     if ((scanResult.totalIssues || 0) === 0) return;
-    if (extractFixableIssues(scanResult.modules).length === 0) return;
+    if (extractFixableIssues(scanResult.modules, scanResult.findingsByModule).length === 0) return;
     fixTriggered.current = true;
     runFix();
   }, [scanResult]); // eslint-disable-line react-hooks/exhaustive-deps
