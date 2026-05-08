@@ -27,21 +27,12 @@
 // Helpers
 // ---------------------------------------------------------------------------
 
-function escapeRegex(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 /** Remove a whole line matching a pattern. */
 function removeLine(content, pattern) {
   return content
     .split('\n')
     .filter(line => !pattern.test(line))
     .join('\n');
-}
-
-/** Replace the first occurrence of a pattern in content. */
-function replaceFirst(content, pattern, replacement) {
-  return content.replace(pattern, replacement);
 }
 
 /** Replace all occurrences. */
