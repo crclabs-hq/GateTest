@@ -122,36 +122,36 @@ const moves = [
 ];
 
 const tagColor: Record<string, string> = {
-  "Unique":      "bg-violet-500/10 text-violet-400 border-violet-500/20",
-  "AI":          "bg-teal-500/10 text-teal-400 border-teal-500/20",
-  "Moat":        "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  "Depth":       "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  "Pricing":     "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  "Breadth":     "bg-rose-500/10 text-rose-400 border-rose-500/20",
-  "Testing":     "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
-  "Quality":     "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
-  "Automation":  "bg-orange-500/10 text-orange-400 border-orange-500/20",
-  "Security":    "bg-red-500/10 text-red-400 border-red-500/20",
-  "Compliance":  "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  "Reporting":   "bg-pink-500/10 text-pink-400 border-pink-500/20",
+  "Unique":      "bg-violet-100 text-violet-600 border-violet-200",
+  "AI":          "bg-teal-100 text-teal-600 border-teal-200",
+  "Moat":        "bg-blue-100 text-blue-600 border-blue-200",
+  "Depth":       "bg-amber-100 text-amber-600 border-amber-200",
+  "Pricing":     "bg-emerald-100 text-emerald-600 border-emerald-200",
+  "Breadth":     "bg-rose-100 text-rose-600 border-rose-200",
+  "Testing":     "bg-cyan-100 text-cyan-600 border-cyan-200",
+  "Quality":     "bg-indigo-100 text-indigo-600 border-indigo-200",
+  "Automation":  "bg-orange-100 text-orange-600 border-orange-200",
+  "Security":    "bg-red-100 text-red-600 border-red-200",
+  "Compliance":  "bg-purple-100 text-purple-600 border-purple-200",
+  "Reporting":   "bg-pink-100 text-pink-600 border-pink-200",
 };
 
 export default function MonsterMoves() {
   return (
-    <section className="py-24 px-6 border-t border-border/30 bg-[#0a0a12] relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-violet-500/3 to-transparent pointer-events-none" />
+    <section className="py-24 px-6 border-t border-border/30 bg-gray-50 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-violet-500/2 to-transparent pointer-events-none" />
 
       <div className="relative z-10 mx-auto max-w-6xl">
         <div className="text-center mb-16">
-          <span className="inline-block px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-semibold uppercase tracking-widest mb-4">
+          <span className="inline-block px-3 py-1 rounded-full bg-violet-100 border border-violet-200 text-violet-600 text-xs font-semibold uppercase tracking-widest mb-4">
             Why GateTest Wins
           </span>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
             20 capabilities no competitor
             <br />
             <span className="hero-accent-text">has shipped. Not even close.</span>
           </h2>
-          <p className="text-white/50 text-lg max-w-2xl mx-auto">
+          <p className="text-gray-500 text-lg max-w-2xl mx-auto">
             We&apos;re not 10% better than SonarQube. We&apos;re not 30% better than Snyk.
             These are capabilities that don&apos;t exist anywhere else in the market.
           </p>
@@ -161,26 +161,26 @@ export default function MonsterMoves() {
           {moves.map((move) => (
             <div
               key={move.num}
-              className="group relative rounded-xl border border-white/8 bg-white/[0.02] p-5 hover:border-white/15 hover:bg-white/[0.04] transition-all"
+              className="group relative rounded-xl border border-gray-200 bg-white p-5 hover:border-gray-300 hover:shadow-sm transition-all"
             >
               <div className="flex items-start justify-between mb-3">
-                <span className="text-2xl font-black text-white/10 font-mono leading-none">{move.num}</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded border font-semibold ${tagColor[move.tag] || "bg-white/5 text-white/40 border-white/10"}`}>
+                <span className="text-2xl font-black text-gray-200 font-mono leading-none">{move.num}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded border font-semibold ${tagColor[move.tag] || "bg-gray-100 text-gray-500 border-gray-200"}`}>
                   {move.tag}
                 </span>
               </div>
-              <h3 className="text-sm font-bold text-white mb-2 leading-snug">{move.title}</h3>
-              <p className="text-xs text-white/45 leading-relaxed">{move.body}</p>
+              <h3 className="text-sm font-bold text-gray-900 mb-2 leading-snug">{move.title}</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">{move.body}</p>
             </div>
           ))}
         </div>
 
         <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
           <a href="#pricing" className="hero-cta px-8 py-3.5 text-sm rounded-xl font-semibold">
-            Get started — From $29
+            Get started &mdash; From $29
           </a>
-          <a href="/fixes" className="text-sm text-white/50 hover:text-white transition-colors">
-            See real PRs we delivered →
+          <a href="/fixes" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+            See real PRs we delivered &rarr;
           </a>
         </div>
       </div>
