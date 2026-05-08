@@ -1,6 +1,6 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
-import { tryRuleBasedFix, applyRules, RULES } from '../website/app/lib/rule-based-fixer.js';
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
+const { tryRuleBasedFix, applyRules, RULES } = require('../website/app/lib/rule-based-fixer.js');
 
 // ---------------------------------------------------------------------------
 // applyRules — partial application
