@@ -1,3 +1,6 @@
+import { detectPlatform } from "./platform-detector";
+import { generatePlatformFix } from "./platform-fix-generator";
+
 /**
  * Website Scanner — scan a live deployed URL without needing source code.
  *
@@ -36,6 +39,17 @@ export interface WebScanResult {
     warnings: number;
     passed: number;
     score: number;        // 0-100
+  };
+  platform?: {
+    name: string;         // e.g. "WordPress", "Vercel"
+    canAutoFix: boolean;
+    fixFiles?: Array<{
+      filename: string;
+      language: string;
+      content: string;
+      instructions: string;
+    }>;
+    manualSteps?: string[];
   };
   error?: string;
 }
@@ -344,6 +358,18 @@ export async function scanWebsite(rawUrl: string): Promise<WebScanResult> {
     score: scoreFindings(findings),
   };
 
+  // Platform detection + fix generation
+  const platformInfo = detectPlatform(headers, html, finalUrl);
+  const platformFix = generatePlatformFix(platformInfo.platform, findings);
+  const platform = {
+    name: platformInfo.label,
+    canAutoFix: platformInfo.canAutoFix && platformFix.files.length > 0,
+    ...(platformFix.files.length > 0 ? { fixFiles: platformFix.files } : {}),
+    ...(platformFix.manualSteps && platformFix.manualSteps.length > 0
+      ? { manualSteps: platformFix.manualSteps }
+      : {}),
+  };
+
   return {
     url: rawUrl,
     finalUrl,
@@ -352,6 +378,7 @@ export async function scanWebsite(rawUrl: string): Promise<WebScanResult> {
     statusCode,
     findings,
     summary,
+    platform,
   };
 }
 

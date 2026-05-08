@@ -12,6 +12,13 @@ interface WebFinding {
   fix?: string;
 }
 
+interface FixFile {
+  filename: string;
+  language: string;
+  content: string;
+  instructions: string;
+}
+
 interface WebScanResult {
   url: string;
   finalUrl: string;
@@ -24,6 +31,12 @@ interface WebScanResult {
     warnings: number;
     passed: number;
     score: number;
+  };
+  platform?: {
+    name: string;
+    canAutoFix: boolean;
+    fixFiles?: FixFile[];
+    manualSteps?: string[];
   };
   error?: string;
 }
@@ -279,9 +292,13 @@ function UrlScanInner() {
                     </span>
                   )}
                 </div>
-                <div className="mt-2 text-xs text-white/30">
-                  {result.responseMs}ms response · HTTP {result.statusCode}
-                  {result.finalUrl !== result.url && " · followed redirect"}
+                <div className="mt-2 text-xs text-white/30 flex flex-wrap items-center gap-3">
+                  <span>{result.responseMs}ms response · HTTP {result.statusCode}{result.finalUrl !== result.url ? " · followed redirect" : ""}</span>
+                  {result.platform && (
+                    <span className="px-2 py-0.5 rounded-full bg-white/6 border border-white/10 text-white/50 text-[10px] font-medium">
+                      {result.platform.name}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -354,6 +371,62 @@ function UrlScanInner() {
                   {passes.map((f, i) => <FindingCard key={i} finding={f} />)}
                 </div>
               </details>
+            )}
+
+            {/* Platform fix files — downloadable configs */}
+            {result.platform?.canAutoFix && result.platform.fixFiles && result.platform.fixFiles.length > 0 && (
+              <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-emerald-400 text-lg">⚡</span>
+                  <h2 className="text-white font-semibold text-sm">
+                    We generated a fix file for your {result.platform.name} site
+                  </h2>
+                </div>
+                {result.platform.fixFiles.map((f, i) => (
+                  <div key={i} className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <code className="text-xs text-emerald-400 font-mono">{f.filename}</code>
+                      <button
+                        onClick={() => {
+                          const blob = new Blob([f.content], { type: "text/plain" });
+                          const a = document.createElement("a");
+                          a.href = URL.createObjectURL(blob);
+                          a.download = f.filename.split(" ")[0];
+                          a.click();
+                          URL.revokeObjectURL(a.href);
+                        }}
+                        className="text-xs px-3 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/25 transition-colors font-medium"
+                      >
+                        ↓ Download
+                      </button>
+                    </div>
+                    <pre className="text-[11px] text-white/60 bg-black/30 rounded-lg p-3 overflow-x-auto leading-relaxed border border-white/5">
+                      {f.content}
+                    </pre>
+                    <p className="mt-2 text-xs text-white/45 leading-relaxed">{f.instructions}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Manual steps for platforms where file injection isn't possible */}
+            {result.platform?.manualSteps && result.platform.manualSteps.length > 0 && !result.platform.canAutoFix && (
+              <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-blue-400 text-lg">🔧</span>
+                  <h2 className="text-white font-semibold text-sm">
+                    How to fix these issues on {result.platform.name}
+                  </h2>
+                </div>
+                <ol className="space-y-2">
+                  {result.platform.manualSteps.map((step, i) => (
+                    <li key={i} className="flex gap-3 text-sm text-white/60 leading-relaxed">
+                      <span className="shrink-0 w-5 h-5 rounded-full bg-blue-500/15 text-blue-400 text-[10px] font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
             )}
 
             {/* CTA — scan a repo for deeper analysis */}
