@@ -106,6 +106,10 @@ const BUILT_IN_MODULES = {
   // Supply chain trust
   sbom: '../modules/sbom.js',
   cveFeed: '../modules/cve-feed.js',
+  // Structural consistency
+  lockfileValidity: '../modules/lockfile-validity.js',
+  deploySecretSync: '../modules/deploy-secret-sync.js',
+  orphanTestImports: '../modules/orphan-test-imports.js',
 };
 
 class ModuleRegistry {

@@ -79,6 +79,9 @@ const DEFAULT_CONFIG = {
       'cookieSecurity',
       'crossFileTaint',
       'fakeFixDetector',
+      'lockfileValidity',
+      'deploySecretSync',
+      'orphanTestImports',
     ],
     standard: [
       'memory',
@@ -124,6 +127,9 @@ const DEFAULT_CONFIG = {
       'cookieSecurity',
       'crossFileTaint',
       'fakeFixDetector',
+      'lockfileValidity',
+      'deploySecretSync',
+      'orphanTestImports',
     ],
     full: [
       'memory',
@@ -192,6 +198,9 @@ const DEFAULT_CONFIG = {
       'agentic',
       'fakeFixDetector',
       'cveFeed',
+      'lockfileValidity',
+      'deploySecretSync',
+      'orphanTestImports',
     ],
     live: [
       'liveCrawler',
@@ -269,6 +278,9 @@ const DEFAULT_CONFIG = {
       'fakeFixDetector',
       'sbom',
       'cveFeed',
+      'lockfileValidity',
+      'deploySecretSync',
+      'orphanTestImports',
     ],
   },
 

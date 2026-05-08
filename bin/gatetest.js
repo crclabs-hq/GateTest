@@ -54,7 +54,8 @@ const HELP = `
     --dry              With --setup: preview what would be configured without writing
     --parallel         Run modules in parallel
     --stop-first       Stop on first module failure
-    --fix              Auto-fix safe issues (formatting, imports, etc.)
+    --fix              Show what would be auto-fixed (dry-run by default — does not write)
+    --apply            With --fix: actually write the fixes to disk
     --diff             Only scan git-changed files (fast pre-commit mode)
     --watch            Watch for file changes and re-scan continuously
     --sarif            Output results in SARIF format (for GitHub Security)
@@ -235,7 +236,8 @@ async function main() {
   const gatetest = new GateTest(projectRoot, {
     parallel: args.parallel || false,
     stopOnFirstFailure: args['stop-first'] || false,
-    autoFix: args.fix || false,
+    autoFix: (args.fix && args.apply) || false,
+    autoFixDryRun: args.fix && !args.apply,
     diffOnly: args.diff || false,
     sarif: args.sarif || false,
     junit: args.junit || false,
@@ -488,6 +490,11 @@ async function main() {
     }
   }
 
+  // Dry-run notice when --fix is used without --apply
+  if (args.fix && !args.apply) {
+    console.log('\n[GateTest] --fix (dry-run mode): showing what would be fixed. Pass --apply to write changes.\n');
+  }
+
   // Run tests
   let summary;
   if (args.module) {
@@ -517,6 +524,7 @@ function parseArgs(argv) {
     else if (arg === '--parallel') args.parallel = true;
     else if (arg === '--stop-first') args['stop-first'] = true;
     else if (arg === '--fix') args.fix = true;
+    else if (arg === '--apply') args.apply = true;
     else if (arg === '--diff') args.diff = true;
     else if (arg === '--watch') args.watch = true;
     else if (arg === '--sarif') args.sarif = true;
