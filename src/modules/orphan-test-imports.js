@@ -71,30 +71,75 @@ function findTestFiles(dir) {
 }
 
 // ---------------------------------------------------------------------------
+// String literal mask — marks characters that are INSIDE a string literal
+// so we can skip require() calls that appear within test-fixture strings.
+// ---------------------------------------------------------------------------
+
+function buildStringMask(src) {
+  const inStr = new Uint8Array(src.length);
+  let i = 0;
+  while (i < src.length) {
+    const ch = src[i];
+    if (ch === '"' || ch === "'") {
+      const q = ch;
+      const start = i;
+      i++;
+      while (i < src.length && src[i] !== q) {
+        if (src[i] === '\\') i++; // skip escaped char
+        i++;
+      }
+      i++; // skip closing quote
+      for (let j = start; j < Math.min(i, src.length); j++) inStr[j] = 1;
+    } else if (ch === '`') {
+      // template literal — simplified, doesn't handle nested ${}
+      const start = i;
+      i++;
+      while (i < src.length && src[i] !== '`') {
+        if (src[i] === '\\') i++;
+        i++;
+      }
+      i++;
+      for (let j = start; j < Math.min(i, src.length); j++) inStr[j] = 1;
+    } else {
+      i++;
+    }
+  }
+  return inStr;
+}
+
+// ---------------------------------------------------------------------------
 // Import extraction
 // ---------------------------------------------------------------------------
 
-function extractRelativeImports(src, filePath) {
+function extractRelativeImports(src) {
   const imports = [];
   // Strip block comments first (rough)
-  const stripped = src.replace(/\/\*[\s\S]*?\*\//g, '');
+  const stripped = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  const mask = buildStringMask(stripped);
 
   // ES import: import ... from './path' or import './path'
+  // Anchored to start of line so almost never inside a string, but we still check.
   const esImport = /^import\s+(?:[\s\S]*?\s+from\s+)?['"](\.[^'"]+)['"]/gm;
   for (const m of stripped.matchAll(esImport)) {
-    imports.push({ specifier: m[1], line: lineOf(src, m.index) });
+    if (!mask[m.index]) {
+      imports.push({ specifier: m[1], line: lineOf(src, m.index) });
+    }
   }
 
-  // require('./path')
+  // require('./path') — must NOT be inside a string literal
   const cjsRequire = /\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g;
   for (const m of stripped.matchAll(cjsRequire)) {
-    imports.push({ specifier: m[1], line: lineOf(src, m.index) });
+    if (!mask[m.index]) {
+      imports.push({ specifier: m[1], line: lineOf(src, m.index) });
+    }
   }
 
   // export ... from './path'
   const esReexport = /^export\s+(?:[\s\S]*?\s+)?from\s+['"](\.[^'"]+)['"]/gm;
   for (const m of stripped.matchAll(esReexport)) {
-    imports.push({ specifier: m[1], line: lineOf(src, m.index) });
+    if (!mask[m.index]) {
+      imports.push({ specifier: m[1], line: lineOf(src, m.index) });
+    }
   }
 
   return imports;
@@ -229,7 +274,7 @@ class OrphanTestImportsModule extends BaseModule {
       if (!src) continue;
 
       const relTest = path.relative(root, testFile);
-      const imports = extractRelativeImports(src, testFile);
+      const imports = extractRelativeImports(src);
 
       for (const { specifier, line } of imports) {
         checkedCount++;

@@ -54,7 +54,9 @@ function findFiles(dir, pattern) {
   return results;
 }
 
-// Known runtime-injected vars that don't need to be in .env.example
+// Known runtime-injected or CI-pipeline-only vars that don't need to be in .env.example.
+// Application runtime vars go here when they are injected by the platform (not the developer)
+// OR when they're only ever used inside a CI publish/release workflow, never locally.
 const RUNTIME_ALLOWLIST = new Set([
   'CI', 'NODE_ENV', 'PORT', 'HOST', 'PATH', 'HOME', 'USER', 'SHELL',
   'PWD', 'TMPDIR', 'TMP', 'TEMP', 'LOGNAME',
@@ -75,6 +77,19 @@ const RUNTIME_ALLOWLIST = new Set([
   'HEROKU_APP_NAME', 'DYNO', 'WEB_CONCURRENCY',
   'K_SERVICE', 'K_REVISION', 'GOOGLE_CLOUD_PROJECT',
   'npm_package_version', 'npm_lifecycle_event',
+  // CI-pipeline-only publishing / release vars — never needed locally
+  'NPM_TOKEN', 'NPM_AUTH_TOKEN', 'NODE_AUTH_TOKEN',
+  'PRERELEASE', 'RELEASE', 'RELEASE_TYPE', 'RELEASE_TAG',
+  'PUBLISH_TOKEN', 'PYPI_TOKEN', 'CARGO_REGISTRY_TOKEN',
+  'RUBYGEMS_API_KEY', 'GRADLE_PUBLISH_KEY', 'GRADLE_PUBLISH_SECRET',
+  'CODECOV_TOKEN', 'COVERALLS_REPO_TOKEN',
+  'SNYK_TOKEN', 'SONAR_TOKEN', 'DEEPSOURCE_DSN',
+  'SLACK_WEBHOOK_URL', 'SLACK_BOT_TOKEN',
+  'TELEGRAM_TOKEN', 'DISCORD_WEBHOOK_URL',
+  'DOCKER_USERNAME', 'DOCKER_PASSWORD', 'DOCKER_HUB_TOKEN',
+  'GHCR_TOKEN', 'REGISTRY_TOKEN',
+  'GH_TOKEN', 'GH_PAT', 'PERSONAL_ACCESS_TOKEN',
+  'HOMEBREW_GITHUB_API_TOKEN', 'HOMEBREW_TOKEN',
 ]);
 
 function isAllowlisted(name) {
