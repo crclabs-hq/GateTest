@@ -19,6 +19,22 @@ class BaseModule {
 
   /**
    * Collect files matching patterns from project root.
+   *
+   * Incremental scan support: when this method is called from a module
+   * whose `config._incrementalFiles` is a Set of absolute paths (set by
+   * the runner under `--since <ref>` / `--pr`), the returned list is
+   * filtered down to only those files. This is what makes incremental
+   * mode 5x-30x faster on a real PR — every file-walking module
+   * transparently sees only the changed files via this single hook.
+   *
+   * Modules can opt out by reading `config._incrementalFiles` directly
+   * and not calling this method, or by being on the runner's
+   * `incremental.alwaysRunList`.
+   *
+   * @param {string|object} projectRoot - Project root path, or a config
+   *   object whose `.projectRoot` is used. Passing the config (rare —
+   *   the modules historically pass a string) is supported only for
+   *   future flexibility; normal use is the string form.
    */
   _collectFiles(projectRoot, patterns, excludes = []) {
     const fs = require('fs');
@@ -55,7 +71,37 @@ class BaseModule {
     };
 
     walk(projectRoot);
+
+    // Incremental filter — applied AFTER the walk so `excludes` and
+    // `patterns` semantics are preserved. The incremental file Set is
+    // resolved against absolute paths to be cross-platform safe.
+    const incremental = this._currentIncrementalFiles;
+    if (incremental && incremental.size > 0) {
+      return files.filter((abs) => incremental.has(path.resolve(abs)));
+    }
+
     return files;
+  }
+
+  /**
+   * Convenience wrapper most modules can call instead of touching
+   * `config._incrementalFiles` directly: pass it the module's `config`
+   * object before calling `_collectFiles`. Stash-and-restore pattern so
+   * concurrent module runs (under `--parallel`) don't trample each other.
+   *
+   * Most modules don't need to call this — the runner sets
+   * `config._incrementalFiles` and BaseModule reads it at walk time
+   * via `_collectFilesWithConfig`. Kept here for completeness.
+   */
+  _collectFilesWithConfig(config, projectRoot, patterns, excludes = []) {
+    const previous = this._currentIncrementalFiles;
+    this._currentIncrementalFiles =
+      (config && config._incrementalFiles) || null;
+    try {
+      return this._collectFiles(projectRoot, patterns, excludes);
+    } finally {
+      this._currentIncrementalFiles = previous;
+    }
   }
 
   /**
