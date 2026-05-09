@@ -2,20 +2,22 @@
  * Auto-Fix Agent — Claude reads scan issues, generates fixes, creates a PR.
  *
  * POST /api/scan/fix
- * Body: { repoUrl, issues: [{ file, issue, module }] }
+ * Body: { repoUrl, issues: [{ file, issue, module }], tier? }
  *
- * Flow:
- * 1. Reads each file from GitHub API
- * 2. Sends file + issue to Claude with "fix this" prompt
- * 3. Gets back corrected code
- * 4. Creates a new branch on the repo
- * 5. Commits all fixed files
- * 6. Opens a pull request
- * 7. Returns the PR URL
+ * Two response modes — chosen by the caller:
+ *   1. Single JSON   — default. Same shape this endpoint has always returned.
+ *      Used by admin-panel, MCP, anything that does a plain fetch().
+ *   2. SSE stream    — opt-in via `?stream=1` OR `Accept: text/event-stream`.
+ *      Emits per-file checkpoint events so the customer-facing scan page
+ *      can render a live "auth.ts ✓ syntax ✓ scanner ✓" progress list
+ *      instead of staring at a 4-minute spinner. The final `done` event
+ *      carries the same JSON shape the JSON path returns, so the page-side
+ *      handler can branch on it identically.
  *
- * Requires: ANTHROPIC_API_KEY, GitHub auth (either GITHUB_TOKEN PAT, or
- *           GATETEST_APP_ID + GATETEST_PRIVATE_KEY GitHub App — App is preferred
- *           because it's already what the webhook uses for commit statuses.)
+ * The work body lives in app/lib/fix-core.js with all I/O dependencies
+ * injected, so the route file is small and the pipeline is unit-testable.
+ *
+ * Requires: ANTHROPIC_API_KEY, Gluecron PAT (or GitHub PAT fallback).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -30,16 +32,60 @@ import {
   upsertFile,
 } from "../../../lib/gluecron-client";
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { executeFixCore } = require("@/app/lib/fix-core") as {
+  executeFixCore: (args: {
+    input: { repoUrl?: string; issues?: IssueInput[]; tier?: string };
+    deps: FixCoreDeps;
+    emitter?: ProgressEmitter | null;
+  }) => Promise<{ payload: Record<string, unknown>; status: number }>;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createEmitter } = require("@/app/lib/progress-emitter") as {
+  createEmitter: (opts: { enabled: boolean }) => ProgressEmitter;
+};
+
+interface ProgressEmitter {
+  enabled: boolean;
+  emit: (eventName: string, data: object) => void;
+  end: (finalData?: object) => Promise<void>;
+  response: Response | null;
+}
+
+interface FixCoreDeps {
+  hasAnthropicKey: boolean;
+  resolveRepoAuth: typeof resolveRepoAuth;
+  fetchBlob: typeof fetchBlob;
+  resolveBaseBranchSha: typeof resolveBaseBranchSha;
+  createBranch: typeof createBranch;
+  fetchFileSha: typeof fetchFileSha;
+  upsertFile: typeof upsertFile;
+  openPullRequest: typeof openPullRequest;
+  postPrComment: typeof postPrComment;
+  askClaude: (fileContent: string, filePath: string, issues: string[]) => Promise<string>;
+  askClaudeCreate: (filePath: string, context: string[]) => Promise<string>;
+  validateFix: (original: string, fixed: string) => { ok: boolean; reason?: string };
+  verifyFixQuality: (fixed: string, filePath: string) => { clean: boolean; newIssues: string[] };
+  composePrBody: (args: { fixes: FixForBody[]; errors: string[]; totalIssuesFixed: number; totalChecks: number }) => string;
+}
+
+interface FixForBody {
+  file: string;
+  issues: string[];
+}
+
+interface IssueInput {
+  file: string;
+  issue: string;
+  module: string;
+}
+
 // Vercel Pro allows up to 300s. Fix runs 44 issues across ~10 files, each file
 // needs a Claude call + GitHub read + commit. 300s gives headroom for retries
 // without pushing browser into connection-reset territory.
 export const maxDuration = 300;
 export const runtime = "nodejs";
-
-// Hard time budget (ms). We STOP accepting new files at 80% of maxDuration so
-// commits + PR creation have time to run. Worst case we ship a partial fix PR
-// with what we managed to complete.
-const TIME_BUDGET_MS = 240_000;
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
 
@@ -55,8 +101,6 @@ function isRetryableNetworkError(err: unknown): boolean {
   const code = (err as { code?: string; cause?: { code?: string } }).code
     || (err as { cause?: { code?: string } }).cause?.code
     || "";
-  // AbortError from our 45s timeout — the file may be large or Anthropic slow;
-  // treat as transient so it goes into the retry queue rather than hard-failing.
   if (name === "AbortError" || /aborted|abort/i.test(msg)) return true;
   const retryableCodes = [
     "EPROTO", "ECONNRESET", "ECONNREFUSED", "ETIMEDOUT",
@@ -65,7 +109,6 @@ function isRetryableNetworkError(err: unknown): boolean {
     "UND_ERR_BODY_TIMEOUT", "UND_ERR_RESPONSE_STATUS_CODE",
   ];
   if (retryableCodes.includes(code)) return true;
-  // Match text shapes too — undici sometimes surfaces them in the message
   if (/EPROTO|ECONNRESET|ETIMEDOUT|ssl.*alert|handshake|fetch failed|socket hang up|TLS/i.test(msg)) {
     return true;
   }
@@ -74,9 +117,8 @@ function isRetryableNetworkError(err: unknown): boolean {
 
 async function anthropicCall(body: string): Promise<{ status: number; data: Record<string, unknown> }> {
   const controller = new AbortController();
-  // Anthropic max_tokens=8192 at sonnet speeds rarely exceeds 30s. 45s is a
-  // safe per-request ceiling that leaves room for retries inside the 300s
-  // function budget and won't let a single stuck request monopolise.
+  // 45s is a safe per-request ceiling that leaves room for retries inside the
+  // 300s function budget and won't let a single stuck request monopolise.
   const timer = setTimeout(() => controller.abort(), 45_000);
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -105,10 +147,6 @@ async function anthropicCall(body: string): Promise<{ status: number; data: Reco
 // Retry wrapper — handles both HTTP-status retries (429/5xx) and raw network
 // errors (EPROTO, ECONNRESET, TLS handshake). Jittered exponential backoff so
 // parallel retries don't synchronise and re-overwhelm the remote.
-//
-// 6 attempts with backoff 1s, 2s, 4s, 8s, 16s (+jitter) — total ceiling ~32s
-// per file. Bumped from 3 after prod observed cascading SSL alert 80 failures
-// where Anthropic needed more time than 1.5s of retries allowed.
 async function anthropicCallWithRetry(body: string, maxAttempts = 6): Promise<{ status: number; data: Record<string, unknown> }> {
   let lastError: unknown = null;
   let lastResponse: { status: number; data: Record<string, unknown> } | null = null;
@@ -121,17 +159,13 @@ async function anthropicCallWithRetry(body: string, maxAttempts = 6): Promise<{ 
     }
     try {
       const res = await anthropicCall(body);
-      // Success
       if (res.status === 200) return res;
-      // Non-retryable client error — stop immediately
       if (res.status !== 429 && res.status < 500) {
         return res;
       }
-      // Retryable HTTP status (429 / 5xx) — continue loop
       lastResponse = res;
     } catch (err) {
       if (!isRetryableNetworkError(err)) {
-        // Unknown non-transient error — don't burn all retries on it
         throw err;
       }
       lastError = err;
@@ -152,7 +186,6 @@ async function askClaude(fileContent: string, filePath: string, issues: string[]
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [, _fullUrl, owner, repo, _path] = brokenMatch;
       try {
-        // Check what releases actually exist
         const relRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases`, {
           headers: { "User-Agent": "GateTest", "Accept": "application/vnd.github.v3+json" },
         });
@@ -257,37 +290,25 @@ function verifyFixQuality(fixed: string, filePath: string): { clean: boolean; ne
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Skip comments and strings for some checks
     if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
 
-    // console.log/debug/info in non-test files
     if (!filePath.includes(".test.") && !filePath.includes(".spec.") && !filePath.includes("__test")) {
       if (/\bconsole\.(log|debug|info)\s*\(/.test(line)) {
         issues.push(`Line ${i + 1}: console.log/debug/info introduced`);
       }
     }
-
-    // debugger statements
     if (/^\s*debugger\s*;?\s*$/.test(line)) {
       issues.push(`Line ${i + 1}: debugger statement introduced`);
     }
-
-    // TODO/FIXME/HACK/XXX
     if (/\/\/\s*(TODO|FIXME|HACK|XXX)\b/i.test(line)) {
       issues.push(`Line ${i + 1}: TODO/FIXME comment introduced`);
     }
-
-    // eval()
     if (/\beval\s*\(/.test(line) && !trimmed.startsWith("//")) {
       issues.push(`Line ${i + 1}: eval() introduced`);
     }
-
-    // var declarations
     if (/^\s*var\s+\w/.test(line)) {
       issues.push(`Line ${i + 1}: var declaration introduced (use const/let)`);
     }
-
-    // Empty catch blocks
     if (/catch\s*\([^)]*\)\s*\{\s*\}/.test(line)) {
       issues.push(`Line ${i + 1}: empty catch block introduced`);
     }
@@ -295,14 +316,6 @@ function verifyFixQuality(fixed: string, filePath: string): { clean: boolean; ne
 
   return { clean: issues.length === 0, newIssues: issues };
 }
-
-// Concurrency cap for parallel file fixing — balances Vercel time budget vs API rate.
-// Dropped from 4 → 2 after prod hit cascading EPROTO / TLS alert 80 failures under
-// heavy undici keep-alive pressure. Two parallel requests + keepalive:false on each
-// keeps fresh sockets without pool-poisoning a whole batch when one goes bad.
-const FIX_CONCURRENCY = 2;
-// Max file size we'll send to Claude (bigger risks output truncation at 8192 tokens).
-const MAX_FILE_BYTES = 400 * 1024;
 
 /**
  * Ask Claude to generate a NEW file (when it doesn't exist yet).
@@ -343,313 +356,18 @@ Rules:
   return newFile;
 }
 
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let cursor = 0;
-  async function worker() {
-    while (cursor < items.length) {
-      const idx = cursor++;
-      results[idx] = await fn(items[idx]);
-    }
-  }
-  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
-  await Promise.all(workers);
-  return results;
-}
-
-// Shared mutable state for adaptive concurrency — when Anthropic starts rejecting
-// with SSL alerts, parallel requests just poison each other. Drop to serial and
-// let the retry backoff do the work, rather than burning the whole budget in
-// parallel failures.
-interface AdaptiveState {
-  consecutiveNetworkErrors: number;
-  activeConcurrency: number;
-  haltRun: boolean;
-}
-
-async function mapWithAdaptiveConcurrency<T, R>(
-  items: T[],
-  initialLimit: number,
-  fn: (item: T, state: AdaptiveState) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  const state: AdaptiveState = {
-    consecutiveNetworkErrors: 0,
-    activeConcurrency: initialLimit,
-    haltRun: false,
-  };
-  let cursor = 0;
-  let activeWorkers = 0;
-
-  async function worker() {
-    activeWorkers++;
-    while (cursor < items.length && !state.haltRun) {
-      // Respect dynamic throttling — if another worker dropped concurrency
-      // below our count, this worker exits until only `activeConcurrency`
-      // remain.
-      if (activeWorkers > state.activeConcurrency) {
-        activeWorkers--;
-        return;
-      }
-      const idx = cursor++;
-      results[idx] = await fn(items[idx], state);
-    }
-    activeWorkers--;
-  }
-
-  const workers = Array.from(
-    { length: Math.min(initialLimit, items.length) },
-    () => worker(),
-  );
-  await Promise.all(workers);
-  return results;
-}
-
-interface IssueInput {
-  file: string;
-  issue: string;
-  module: string;
-}
-
-export async function POST(req: NextRequest) {
-  let input: { repoUrl?: string; issues?: IssueInput[] };
-  try {
-    input = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-  }
-
-  const { repoUrl, issues } = input;
-
-  if (!repoUrl || !issues || issues.length === 0) {
-    return NextResponse.json({ error: "Missing repoUrl or issues" }, { status: 400 });
-  }
-
-  if (!ANTHROPIC_API_KEY) {
-    return NextResponse.json({ error: "AI not configured (ANTHROPIC_API_KEY)" }, { status: 503 });
-  }
-
-  // Accept gluecron.com URLs first; fall back to github.com for links
-  // still in customer bookmarks during the migration window.
-  const gluecronMatch = repoUrl.match(/gluecron\.com\/([^/]+)\/([^/?#]+)/);
-  const githubMatch = repoUrl.match(/github\.com\/([^/]+)\/([^/?#]+)/);
-  const repoMatch = gluecronMatch || githubMatch;
-  if (!repoMatch) {
-    return NextResponse.json({ error: "Invalid repo URL (expected gluecron.com/<owner>/<repo>)" }, { status: 400 });
-  }
-
-  const owner = repoMatch[1];
-  const repo = repoMatch[2].replace(/\.git$/, "");
-
-  // Resolve Gluecron PAT and confirm repo access with a probe request.
-  const auth = await resolveRepoAuth(owner, repo);
-  if (!auth.token) {
-    return NextResponse.json(
-      {
-        error:
-          auth.error ||
-          "Gluecron access not configured — set GLUECRON_API_TOKEN (PAT, scope 'repo')",
-        hint: "Generate a PAT at https://gluecron.com/settings/tokens and set GLUECRON_API_TOKEN.",
-      },
-      { status: 503 }
-    );
-  }
-  const token = auth.token;
-  const authSource = auth.source;
-
-  // Group issues by file
-  const issuesByFile = new Map<string, string[]>();
-  for (const issue of issues) {
-    if (!issue.file) continue;
-    const existing = issuesByFile.get(issue.file) || [];
-    existing.push(issue.issue);
-    issuesByFile.set(issue.file, existing);
-  }
-
-  if (issuesByFile.size === 0) {
-    return NextResponse.json({ error: "No fixable issues (issues must have file paths)" }, { status: 400 });
-  }
-
-  type Fix = { file: string; original: string; fixed: string; issues: string[] };
-  const fixes: Fix[] = [];
-  const errors: string[] = [];
-
-  // Time budget — start the clock so per-file workers can bail early if the
-  // remaining budget won't fit another Claude round-trip + retries.
-  const startedAt = Date.now();
-  const budgetExceeded = () => Date.now() - startedAt > TIME_BUDGET_MS;
-  let skippedForBudget = 0;
-  // Files that failed specifically due to Anthropic network/TLS errors — the UI
-  // surfaces these as a "Retry Failed" list since they're usually transient and
-  // re-running the same payload works without re-running the whole scan.
-  const failedFiles: Array<{ file: string; issues: string[]; reason: string }> = [];
-
-  // Process files in parallel (capped concurrency) — major UX win over sequential
-  const fileEntries = Array.from(issuesByFile.entries());
-  await mapWithAdaptiveConcurrency(fileEntries, FIX_CONCURRENCY, async ([filePath, fileIssues], state) => {
-    if (budgetExceeded() || state.haltRun) {
-      skippedForBudget += 1;
-      return;
-    }
-    // Handle CREATE_FILE issues — the file doesn't exist, generate it from scratch
-    const createIssues = fileIssues.filter((i) => i.startsWith("CREATE_FILE:"));
-    if (createIssues.length > 0) {
-      try {
-        const newContent = await askClaudeCreate(filePath, createIssues.map((i) => i.replace("CREATE_FILE: ", "")));
-        if (newContent && newContent.length > 10) {
-          fixes.push({ file: filePath, original: "", fixed: newContent, issues: fileIssues });
-        } else {
-          errors.push(`Could not generate ${filePath}: empty response`);
-        }
-      } catch (err) {
-        errors.push(`Could not generate ${filePath}: ${err instanceof Error ? err.message : "unknown"}`);
-      }
-      return;
-    }
-
-    try {
-      // fetchBlob already routes through Gluecron-first / GitHub-fallback so
-      // a GitHub PAT can read files when Gluecron is unavailable.
-      const originalContent = await fetchBlob(owner, repo, filePath, "", token);
-      if (!originalContent) {
-        errors.push(`Could not read ${filePath}`);
-        return;
-      }
-
-      if (originalContent.length > MAX_FILE_BYTES) {
-        errors.push(`Skipped ${filePath}: file too large (${originalContent.length} bytes, limit ${MAX_FILE_BYTES})`);
-        return;
-      }
-
-      // First pass: generate fix
-      let fixedContent = await askClaude(originalContent, filePath, fileIssues);
-      let validation = validateFix(originalContent, fixedContent);
-      if (!validation.ok) {
-        errors.push(`Skipped ${filePath}: ${validation.reason}`);
-        return;
-      }
-
-      // Verify fix doesn't introduce new issues
-      let verify = verifyFixQuality(fixedContent, filePath);
-      if (!verify.clean) {
-        // Second pass: tell Claude to fix its own mistakes
-        const retryIssues = [
-          ...fileIssues,
-          ...verify.newIssues.map((i) => `YOUR FIX INTRODUCED: ${i} — fix this too`),
-        ];
-        fixedContent = await askClaude(originalContent, filePath, retryIssues);
-        validation = validateFix(originalContent, fixedContent);
-        if (!validation.ok) {
-          errors.push(`Skipped ${filePath} after retry: ${validation.reason}`);
-          return;
-        }
-        verify = verifyFixQuality(fixedContent, filePath);
-        if (!verify.clean) {
-          errors.push(`Skipped ${filePath}: fix still introduces issues after retry: ${verify.newIssues.join("; ")}`);
-          return;
-        }
-      }
-
-      fixes.push({ file: filePath, original: originalContent, fixed: fixedContent, issues: fileIssues });
-      // Reset the rolling network-error counter on any success — only sustained
-      // failure across multiple files should drop concurrency.
-      state.consecutiveNetworkErrors = 0;
-    } catch (err) {
-      const raw = err instanceof Error ? err.message : "unknown";
-      const isAbortErr = err instanceof Error && (err.name === "AbortError" || /aborted|abort/i.test(raw));
-      const isNetworkErr = isAbortErr || /EPROTO|ECONNRESET|ETIMEDOUT|ssl.*alert|handshake|fetch failed|socket hang up|unreachable/i.test(raw);
-
-      if (isNetworkErr) {
-        state.consecutiveNetworkErrors += 1;
-        // After 3 consecutive API network errors, drop concurrency to 1 — parallel
-        // requests against a degraded Anthropic endpoint just poison each other.
-        if (state.consecutiveNetworkErrors === 3 && state.activeConcurrency > 1) {
-          state.activeConcurrency = 1;
-        }
-        // After 8 consecutive failures, halt the run — Anthropic is down, keep
-        // remaining files as a retryable queue so the UI can resume later.
-        if (state.consecutiveNetworkErrors >= 8) {
-          state.haltRun = true;
-        }
-        failedFiles.push({ file: filePath, issues: fileIssues, reason: "api-unavailable" });
-        const msg = isAbortErr
-          ? `${filePath}: request timed out (file may be too large) — queued for retry`
-          : `${filePath}: Anthropic API temporarily unavailable — queued for retry`;
-        errors.push(msg);
-      } else {
-        errors.push(`Failed to fix ${filePath}: ${raw}`);
-      }
-    }
-  });
-
-  if (skippedForBudget > 0) {
-    errors.push(`Skipped ${skippedForBudget} file${skippedForBudget > 1 ? "s" : ""} — function time budget exhausted. Re-run fix to process the remainder.`);
-  }
-
-  if (fixes.length === 0) {
-    const apiDegraded = failedFiles.length > 0 && failedFiles.length === fileEntries.length;
-    return NextResponse.json({
-      status: apiDegraded ? "api_unavailable" : "no_fixes",
-      message: apiDegraded
-        ? `Anthropic API is temporarily degraded — every file failed with a network/TLS error. All ${failedFiles.length} files are queued for retry. Click "Retry Failed" in 1-2 minutes; if the problem persists, Anthropic is likely having an incident (check status.anthropic.com).`
-        : skippedForBudget > 0
-        ? `All ${skippedForBudget} files skipped — function time budget exhausted before Claude could finish. Try again — the second run will typically complete since results cache and retries kick in faster.`
-        : "No fixes could be generated",
-      errors,
-      skippedForBudget,
-      failedFiles,
-    });
-  }
-
-  // Create a branch, commit fixes, open PR
-  try {
-    // Resolve the default branch + its tip SHA. Tries Gluecron first, falls
-    // back to GitHub when the token is GitHub-shaped or Gluecron returns no
-    // sha — used to silently 500 with "Could not get base branch SHA from
-    // Gluecron" even when a GitHub PAT was available and the API would have
-    // worked. See gluecron-client.ts:resolveBaseBranchSha.
-    const baseRef = await resolveBaseBranchSha(owner, repo, "", token);
-    const defaultBranch = baseRef.defaultBranch;
-    const baseSha = baseRef.sha;
-
-    if (!baseSha) {
-      return NextResponse.json({
-        error: "Could not resolve base branch SHA from Gluecron or GitHub",
-        hint: "Confirm the repo is reachable and GLUECRON_API_TOKEN / GITHUB_TOKEN has read access.",
-        defaultBranch,
-      }, { status: 500 });
-    }
-
-    // Create branch via Gluecron.
-    const branchName = `gatetest/auto-fix-${Date.now()}`;
-    const branchRes = await createBranch(owner, repo, branchName, baseSha, token);
-
-    if (branchRes.status !== 201) {
-      return NextResponse.json({
-        error: "Could not create branch — check Gluecron token permissions",
-        details: branchRes.data,
-      }, { status: 500 });
-    }
-
-    // Commit each fixed file (parallel, capped). New files have no SHA.
-    await mapWithConcurrency(fixes, FIX_CONCURRENCY, async (fix) => {
-      const isNewFile = fix.original === "";
-      const message = isNewFile
-        ? `feat: create ${fix.file}`
-        : `fix: ${fix.issues[0]}${fix.issues.length > 1 ? ` (+${fix.issues.length - 1} more)` : ""}`;
-      const existingSha = isNewFile
-        ? ""
-        : await fetchFileSha(owner, repo, fix.file, branchName, token);
-      await upsertFile(owner, repo, fix.file, fix.fixed, message, branchName, existingSha, token);
-    });
-
-    // Open PR with premium report
-    const totalIssuesFixed = fixes.reduce((sum, f) => sum + f.issues.length, 0);
-    const prBody = `## GateTest Auto-Fix Report
+function composePrBody({
+  fixes,
+  errors,
+  totalIssuesFixed,
+  totalChecks,
+}: {
+  fixes: FixForBody[];
+  errors: string[];
+  totalIssuesFixed: number;
+  totalChecks: number;
+}): string {
+  return `## GateTest Auto-Fix Report
 
 > **${totalIssuesFixed} issues fixed** across **${fixes.length} files** — verified before commit.
 
@@ -666,7 +384,7 @@ ${errors.length > 0 ? `\n### ⚠️ Could Not Fix\n${errors.map((e) => `- ${e}`)
 
 ### How This Works
 
-1. **Scan** — GateTest scanned the repo with ${issues.length} checks
+1. **Scan** — GateTest scanned the repo with ${totalChecks} checks
 2. **AI Fix** — Claude AI generated fixes for each issue
 3. **Verify** — Each fix was re-scanned before commit to prevent regressions
 4. **PR** — Clean fixes committed to this branch
@@ -680,72 +398,61 @@ ${errors.length > 0 ? `\n### ⚠️ Could Not Fix\n${errors.map((e) => `- ${e}`)
 ---
 
 <sub>Scanned and fixed by <a href="https://gatetest.ai">GateTest</a> — 90 modules, AI-powered, verify-before-commit</sub>`;
-
-    // Open the PR. NOTE: Gluecron uses `headBranch` / `baseBranch` (NOT
-    // GitHub's `head` / `base`) — our openPullRequest helper handles the
-    // translation for us.
-    const prRes = await openPullRequest(
-      owner,
-      repo,
-      `GateTest: Fix ${fixes.reduce((sum, f) => sum + f.issues.length, 0)} issues across ${fixes.length} files`,
-      prBody,
-      branchName,
-      defaultBranch,
-      token
-    );
-
-    if (prRes.status !== 201) {
-      return NextResponse.json({
-        status: "fixes_committed",
-        message: `Fixes committed to branch ${branchName} but PR creation failed`,
-        branch: branchName,
-        filesFixed: fixes.length,
-        issuesFixed: totalIssuesFixed,
-        errors: [...errors, `PR creation failed: ${JSON.stringify(prRes.data)}`],
-      });
-    }
-
-    const prNumber = prRes.data.number as number;
-    const prUrl = (prRes.data.html_url as string) || "";
-
-    // Post verification comment on the PR
-    try {
-      const remainingIssues: string[] = [];
-      for (const fix of fixes) {
-        const verify = verifyFixQuality(fix.fixed, fix.file);
-        if (!verify.clean) {
-          remainingIssues.push(`**${fix.file}**: ${verify.newIssues.join(", ")}`);
-        }
-      }
-
-      const verifyBody = remainingIssues.length === 0
-        ? `## ✅ GateTest Verification Passed\n\nAll ${totalIssuesFixed} fixes have been verified against GateTest's pattern scanner. No new issues introduced.\n\n**This PR is safe to merge.**`
-        : `## ⚠️ GateTest Verification Warning\n\n${remainingIssues.length} file(s) may still have issues:\n${remainingIssues.map((i) => `- ${i}`).join("\n")}\n\nPlease review these files carefully before merging.`;
-
-      await postPrComment(owner, repo, prNumber, verifyBody, token);
-    } catch {
-      // Non-critical — PR was created successfully, comment failed
-    }
-
-    return NextResponse.json({
-      status: "pr_created",
-      prUrl,
-      prNumber,
-      branch: branchName,
-      filesFixed: fixes.length,
-      issuesFixed: totalIssuesFixed,
-      fixes: fixes.map((f) => ({ file: f.file, issues: f.issues })),
-      authSource,
-      errors,
-      failedFiles,
-    });
-  } catch (err) {
-    return NextResponse.json({
-      status: "error",
-      error: err instanceof Error ? err.message : "Failed to create PR",
-      fixesGenerated: fixes.length,
-      errors,
-    }, { status: 500 });
-  }
 }
 
+function buildDeps(): FixCoreDeps {
+  return {
+    hasAnthropicKey: Boolean(ANTHROPIC_API_KEY),
+    resolveRepoAuth,
+    fetchBlob,
+    resolveBaseBranchSha,
+    createBranch,
+    fetchFileSha,
+    upsertFile,
+    openPullRequest,
+    postPrComment,
+    askClaude,
+    askClaudeCreate,
+    validateFix,
+    verifyFixQuality,
+    composePrBody,
+  };
+}
+
+function wantsStream(req: NextRequest): boolean {
+  if (req.nextUrl.searchParams.get("stream") === "1") return true;
+  const accept = req.headers.get("accept") || "";
+  return accept.includes("text/event-stream");
+}
+
+export async function POST(req: NextRequest): Promise<Response> {
+  let input: { repoUrl?: string; issues?: IssueInput[]; tier?: string };
+  try {
+    input = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const deps = buildDeps();
+
+  if (!wantsStream(req)) {
+    const result = await executeFixCore({ input, deps, emitter: null });
+    return NextResponse.json(result.payload, { status: result.status });
+  }
+
+  // Streaming path — open the SSE response immediately, run work in the
+  // background, and end the stream when work resolves.
+  const emitter = createEmitter({ enabled: true });
+  // Best-effort scheduling; never await (we'd block the Response).
+  void executeFixCore({ input, deps, emitter })
+    .then((result) => emitter.end({ ...result.payload, __innerStatus: result.status }))
+    .catch(async (err: unknown) => {
+      const message = err instanceof Error ? err.message : "fix-core failed";
+      try {
+        emitter.emit("error", { message });
+      } catch { /* swallow — emitter may already be closed */ }
+      await emitter.end({ error: message, __innerStatus: 500 });
+    });
+
+  return emitter.response as Response;
+}

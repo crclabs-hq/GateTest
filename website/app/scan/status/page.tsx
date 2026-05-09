@@ -4,6 +4,16 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import FindingsPanel from "@/app/components/FindingsPanel";
 import LiveScanTerminal from "@/app/components/LiveScanTerminal";
+// Page-side SSE consumer — parses the per-event stream emitted by
+// /api/scan/fix when called with `?stream=1`. CommonJS interop because
+// the helper is shared with the server-side route.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { parseSseStream } = require("@/app/lib/progress-emitter") as {
+  parseSseStream: (
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    onEvent: (ev: { name: string; data: unknown }) => void,
+  ) => Promise<void>;
+};
 
 interface ModuleResult {
   name: string;
@@ -42,6 +52,15 @@ interface FixResult {
   failedFiles?: Array<{ file: string; issues: string[]; reason: string }>;
 }
 
+// Per-file progress entry the live checklist renders. Maintained in a Map
+// keyed by file path so events arriving in any order produce a stable UI.
+interface FileProgress {
+  status: "pending" | "in-flight" | "success" | "failed";
+  attempts: number;
+  durationMs?: number;
+  reason?: string;
+}
+
 const MODULE_LABELS: Record<string, string> = {
   syntax: "Syntax validation",
   lint: "Linting checks",
@@ -76,6 +95,13 @@ export default function ScanStatus() {
   const [fixing, setFixing] = useState(false);
   const [fixResult, setFixResult] = useState<FixResult | null>(null);
   const [fixError, setFixError] = useState("");
+  // Per-file progress map for the live checklist that renders while
+  // /api/scan/fix is in flight. Keyed by file path so events arriving
+  // in any order land on the right row.
+  const [fileProgress, setFileProgress] = useState<Map<string, FileProgress>>(new Map());
+  // Headline event payload (from scan-fix:start) — drives the checklist
+  // header counters.
+  const [fixTotals, setFixTotals] = useState<{ totalFiles: number; totalIssues: number } | null>(null);
   // eslint-disable-next-line react-hooks/purity
   const startTimeRef = useRef(Date.now());
   const scanTriggered = useRef(false);
@@ -231,14 +257,123 @@ export default function ScanStatus() {
     setFixing(true);
     setFixResult(null);
     setFixError("");
+    setFileProgress(new Map());
+    setFixTotals(null);
+
+    // Pre-seed the checklist with one row per affected file so the
+    // customer sees the full plan immediately, not just the files
+    // currently in flight.
+    const filesInPlan = Array.from(new Set(issues.map((i) => i.file)));
+    setFileProgress((prev) => {
+      const next = new Map(prev);
+      for (const f of filesInPlan) {
+        next.set(f, { status: "pending", attempts: 0 });
+      }
+      return next;
+    });
+
     try {
-      const res = await fetch("/api/scan/fix", {
+      const res = await fetch("/api/scan/fix?stream=1", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repoUrl: params.repo, issues }),
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+        },
+        body: JSON.stringify({ repoUrl: params.repo, issues, tier: params.tier }),
       });
-      const data = await res.json() as FixResult;
-      setFixResult(data);
+
+      if (!res.ok || !res.body) {
+        // Streaming endpoint refused to open — read the JSON error body and
+        // surface it. Pre-flight failures (400/503) come through this path.
+        try {
+          const data = (await res.json()) as FixResult;
+          setFixResult(data);
+        } catch {
+          setFixError(`Fix endpoint returned ${res.status}`);
+        }
+        return;
+      }
+
+      const reader = res.body.getReader();
+      let finalPayload: FixResult | null = null;
+
+      await parseSseStream(reader, (ev) => {
+        const data = ev.data as Record<string, unknown>;
+        switch (ev.name) {
+          case "scan-fix:start": {
+            setFixTotals({
+              totalFiles: Number(data.totalFiles) || 0,
+              totalIssues: Number(data.totalIssues) || 0,
+            });
+            break;
+          }
+          case "file:start": {
+            const file = String(data.file || "");
+            if (!file) break;
+            setFileProgress((prev) => {
+              const next = new Map(prev);
+              const existing = next.get(file) || { status: "pending", attempts: 0 };
+              next.set(file, { ...existing, status: "in-flight", attempts: existing.attempts });
+              return next;
+            });
+            break;
+          }
+          case "file:attempt": {
+            const file = String(data.file || "");
+            if (!file) break;
+            const attemptNumber = Number(data.attemptNumber) || 1;
+            setFileProgress((prev) => {
+              const next = new Map(prev);
+              const existing = next.get(file) || { status: "in-flight", attempts: 0 };
+              next.set(file, { ...existing, attempts: Math.max(existing.attempts, attemptNumber) });
+              return next;
+            });
+            break;
+          }
+          case "file:complete": {
+            const file = String(data.file || "");
+            if (!file) break;
+            const success = Boolean(data.success);
+            setFileProgress((prev) => {
+              const next = new Map(prev);
+              const existing = next.get(file) || { status: "pending", attempts: 0 };
+              next.set(file, {
+                ...existing,
+                status: success ? "success" : "failed",
+                attempts: Number(data.attempts) || existing.attempts,
+                durationMs: typeof data.durationMs === "number" ? data.durationMs : existing.durationMs,
+                reason: typeof data.reason === "string" ? data.reason : existing.reason,
+              });
+              return next;
+            });
+            break;
+          }
+          case "done": {
+            // Final payload; mirror the JSON-mode FixResult shape. The
+            // wire-format includes `__innerStatus` for the streaming
+            // surface — strip it before handing the payload to React.
+            const { __innerStatus: _ignored, ...rest } = data;
+            void _ignored;
+            // FixResult.status is optional in practice — pre-flight
+            // failures reach here without one. Cast through unknown
+            // because the wire-format keys are `unknown`-typed.
+            finalPayload = rest as unknown as FixResult;
+            break;
+          }
+          case "error": {
+            setFixError(String((data && (data as { message?: string }).message) || "Fix stream errored"));
+            break;
+          }
+          default:
+            // gate:* and pr:open events update the per-file UI implicitly
+            // (file:complete already drove status). No extra state needed.
+            break;
+        }
+      });
+
+      if (finalPayload) {
+        setFixResult(finalPayload);
+      }
     } catch (err) {
       setFixError(err instanceof Error ? err.message : "Fix failed");
     } finally {
@@ -481,12 +616,60 @@ export default function ScanStatus() {
                 )}
 
                 {fixing && (
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
-                    <span className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
-                    <div>
-                      <p className="text-sm font-semibold text-amber-800">Claude is reading your code and generating fixes…</p>
-                      <p className="text-xs text-amber-700 mt-0.5">Typically 30&ndash;90 seconds. Each fix is re-scanned before commit.</p>
+                  <div className="rounded-lg bg-amber-50 border border-amber-200 overflow-hidden">
+                    <div className="flex items-center gap-3 p-4 border-b border-amber-200">
+                      <span className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-amber-800">
+                          Claude is fixing your code
+                          {fixTotals && ` — ${fixTotals.totalFiles} file${fixTotals.totalFiles === 1 ? "" : "s"}, ${fixTotals.totalIssues} issue${fixTotals.totalIssues === 1 ? "" : "s"}`}
+                        </p>
+                        <p className="text-xs text-amber-700 mt-0.5">Each fix is re-scanned before commit. Live progress below.</p>
+                      </div>
                     </div>
+
+                    {/* Live per-file checklist — updated by SSE events */}
+                    {fileProgress.size > 0 && (
+                      <ul className="divide-y divide-amber-100 max-h-96 overflow-y-auto">
+                        {Array.from(fileProgress.entries()).map(([file, p]) => (
+                          <li key={file} className="flex items-center gap-3 px-4 py-2.5 text-sm bg-white/60">
+                            <span
+                              className={`inline-flex items-center justify-center w-5 h-5 shrink-0 rounded-full text-xs font-bold ${
+                                p.status === "success"
+                                  ? "bg-green-100 text-green-700"
+                                  : p.status === "failed"
+                                  ? "bg-red-100 text-red-700"
+                                  : p.status === "in-flight"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
+                              aria-label={p.status}
+                            >
+                              {p.status === "success" ? "✓" :
+                               p.status === "failed" ? "✗" :
+                               p.status === "in-flight" ? (
+                                 <span className="w-2.5 h-2.5 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                               ) : "○"}
+                            </span>
+                            <code className="font-mono text-xs text-foreground truncate flex-1">{file}</code>
+                            <span className={`text-xs shrink-0 ${
+                              p.status === "success" ? "text-green-700" :
+                              p.status === "failed" ? "text-red-700" :
+                              p.status === "in-flight" ? "text-amber-700" :
+                              "text-slate-500"
+                            }`}>
+                              {p.status === "success" && p.durationMs != null
+                                ? `${p.attempts} attempt${p.attempts === 1 ? "" : "s"}, ${(p.durationMs / 1000).toFixed(1)}s`
+                                : p.status === "failed"
+                                ? `failed${p.attempts ? ` after ${p.attempts} attempt${p.attempts === 1 ? "" : "s"}` : ""}${p.reason ? ` — ${p.reason}` : ""}`
+                                : p.status === "in-flight"
+                                ? `in flight${p.attempts ? `, attempt ${p.attempts}` : ""}`
+                                : "pending"}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 )}
 
