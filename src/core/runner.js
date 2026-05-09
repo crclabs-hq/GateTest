@@ -182,18 +182,20 @@ class GateTestRunner extends EventEmitter {
       } else if (incremental.files.length === 0) {
         // No source files changed — green outcome. Print a clear note
         // and return a tiny summary rather than running 90 modules over
-        // an unchanged tree.
+        // an unchanged tree. We use console.error (stderr) for the
+        // user-facing CLI message — matches the existing
+        // GateTestConfig pattern for tool-emitted notes.
         this.emit('incremental:empty', { ref });
-        // eslint-disable-next-line no-console
-        console.log(
+        // error-ok — user-facing CLI announcement on stderr
+        console.error(
           `[GateTest] No relevant files changed since ${ref} — nothing to scan.`,
         );
         const endTime = Date.now();
         return this._buildEmptyIncrementalSummary(startTime, endTime, ref);
       } else {
         this.options.incrementalFiles = new Set(incremental.files);
-        // eslint-disable-next-line no-console
-        console.log(
+        // error-ok — user-facing CLI announcement on stderr
+        console.error(
           `[GateTest] Incremental scan: ${incremental.files.length} file(s) ` +
           `changed since ${ref}`,
         );
