@@ -48,7 +48,6 @@ const scanPlans = [
     ],
     cta: "Run Full Scan",
     highlight: true,
-    unavailable: true,
   },
   {
     id: "scan_fix",
@@ -70,7 +69,6 @@ const scanPlans = [
     ],
     cta: "Run Scan + Fix",
     highlight: false,
-    unavailable: true,
   },
   {
     id: "nuclear",
@@ -92,7 +90,6 @@ const scanPlans = [
     ],
     cta: "Run Nuclear",
     highlight: false,
-    unavailable: true,
   },
 ];
 
@@ -212,31 +209,17 @@ export default function Pricing() {
               </div>
               <p className="text-sm text-muted mb-5">{plan.description}</p>
 
-              {plan.unavailable ? (
-                <div className="mb-6">
-                  <button
-                    disabled
-                    className="block w-full text-center py-3 px-5 rounded-xl font-semibold text-sm mb-2 cursor-not-allowed bg-surface-dark text-muted border border-border"
-                  >
-                    Temporarily unavailable
-                  </button>
-                  <p className="text-xs text-muted text-center leading-snug">
-                    Surgical-fix delivery upgrade in progress. Back online shortly.
-                  </p>
-                </div>
-              ) : (
-                <button
-                  onClick={() => handleCheckout(plan.id)}
-                  disabled={loading === plan.id}
-                  className={`block w-full text-center py-3 px-5 rounded-xl font-semibold text-sm transition-all mb-6 cursor-pointer disabled:opacity-50 ${
-                    plan.highlight
-                      ? "btn-primary"
-                      : "btn-secondary"
-                  }`}
-                >
-                  {loading === plan.id ? "Redirecting..." : plan.cta}
-                </button>
-              )}
+              <button
+                onClick={() => handleCheckout(plan.id)}
+                disabled={loading === plan.id}
+                className={`block w-full text-center py-3 px-5 rounded-xl font-semibold text-sm transition-all mb-6 cursor-pointer disabled:opacity-50 ${
+                  plan.highlight
+                    ? "btn-primary"
+                    : "btn-secondary"
+                }`}
+              >
+                {loading === plan.id ? "Redirecting..." : plan.cta}
+              </button>
 
               <ul className="space-y-2.5 mt-auto">
                 {plan.features.map((feature) => (
