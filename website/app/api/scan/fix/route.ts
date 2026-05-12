@@ -215,6 +215,30 @@ const { mapWithAdaptiveConcurrency } = require("@/app/lib/adaptive-concurrency")
   ) => Promise<R[]>;
 };
 
+// Contextual Grounding — injects the customer's own project conventions
+// (CLAUDE.md, AGENTS.md, ARCHITECTURE.md, .cursorrules, README.md,
+// CONTRIBUTING.md) into every Claude fix prompt so Claude doesn't suggest
+// fixes that contradict documented project patterns.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { extractConventions, formatGroundingHeader, summariseGrounding } = require("@lib/contextual-grounding") as {
+  extractConventions: (opts: {
+    files?: string[];
+    fileContents?: Array<{ path: string; content: string }>;
+    maxBytesPerFile?: number;
+    maxTotalBytes?: number;
+  }) => {
+    found: Array<{ path: string; excerpt: string; bytes: number }>;
+    totalBytes: number;
+    omitted: string[];
+  };
+  formatGroundingHeader: (found: Array<{ path: string; excerpt: string; bytes: number }>) => string;
+  summariseGrounding: (result: {
+    found: Array<{ path: string; bytes: number }>;
+    totalBytes: number;
+    omitted: string[];
+  }) => string;
+};
+
 // Default attempt ceiling — set higher than the old hardcoded "1+1 retry"
 // so the loop has room to learn from its own mistakes. Configurable via
 // GATETEST_FIX_MAX_ATTEMPTS env var if a deployment wants tighter cost
@@ -335,7 +359,7 @@ async function anthropicCallWithRetry(body: string, maxAttempts = 6): Promise<{ 
     : new Error(`Anthropic API unreachable after ${maxAttempts} attempts`);
 }
 
-async function askClaude(fileContent: string, filePath: string, issues: string[]): Promise<string> {
+async function askClaude(fileContent: string, filePath: string, issues: string[], conventionsHeader = ""): Promise<string> {
   // Enrich broken-link issues with context about what actually exists
   const enrichedIssues = await Promise.all(issues.map(async (issue) => {
     const brokenMatch = issue.match(/BROKEN LINK \(404\):\s*(https:\/\/github\.com\/([^/]+)\/([^/]+)\/([^\s]+))/i);
@@ -362,7 +386,7 @@ async function askClaude(fileContent: string, filePath: string, issues: string[]
     return issue;
   }));
 
-  const prompt = `You are an expert code fixer for GateTest, an AI-powered QA platform with 90 scanning modules.
+  const prompt = `${conventionsHeader}You are an expert code fixer for GateTest, an AI-powered QA platform with 90 scanning modules.
 
 Fix ALL of the following issues in this file. Every fix must pass GateTest's re-scan.
 
@@ -692,6 +716,18 @@ export async function POST(req: NextRequest) {
   };
   const attemptHistoryByFile: Record<string, { attempts: AttemptLog[]; summary: string; success: boolean }> = {};
 
+  // Contextual Grounding — build ONCE before the per-file loop from whatever
+  // file contents the caller already passed in (no extra network call). An
+  // empty header means no convention files were found; askClaude treats that
+  // as a no-op so the prompt is unchanged. Cached here; both the whole-file
+  // and surgical Claude paths use the same header.
+  const groundingExtract = extractConventions({
+    files: (input.originalFileContents || []).map((f) => f.path),
+    fileContents: input.originalFileContents || [],
+  });
+  const conventionsHeader = formatGroundingHeader(groundingExtract.found);
+  const groundingSummary  = summariseGrounding(groundingExtract);
+
   // Time budget — start the clock so per-file workers can bail early if the
   // remaining budget won't fit another Claude round-trip + retries.
   const startedAt = Date.now();
@@ -762,13 +798,16 @@ export async function POST(req: NextRequest) {
           for (let attempt = 1; attempt <= DEFAULT_MAX_ATTEMPTS; attempt++) {
             const startedAtAttempt = Date.now();
             try {
-              const prompt = surgicalFix.buildSurgicalPrompt({
+              const rawSurgicalPrompt = surgicalFix.buildSurgicalPrompt({
                 filePath,
                 slice: ctx.slice,
                 startLine: ctx.startLine,
                 endLine: ctx.endLine,
                 issues: [issue.text],
               });
+              // Prepend grounding header so Claude respects project conventions
+              // even when it only sees a ±20-line slice of the file.
+              const prompt = conventionsHeader + rawSurgicalPrompt;
               const claudeText = await askClaudeForTest(prompt);
               const replacement = surgicalFix.parseReplacementBlock(claudeText);
               const newContent = surgicalFix.spliceReplacement(
@@ -853,7 +892,7 @@ export async function POST(req: NextRequest) {
       // existing iterative loop, BUT the result is now run through the
       // mutation guard before being accepted.
       const loopResult = await attemptFixWithRetries({
-        askClaude: (currentIssues: string[]) => askClaude(originalContent, filePath, currentIssues),
+        askClaude: (currentIssues: string[]) => askClaude(originalContent, filePath, currentIssues, conventionsHeader),
         validateFix,
         verifyFixQuality,
         originalContent,
@@ -1232,6 +1271,10 @@ export async function POST(req: NextRequest) {
       architecture: architectureSummary
         ? { summary: architectureSummary }
         : { skipped: true, reason: "tier is not scan_fix or originalFileContents not supplied — architecture annotation is a $199-tier value-add" },
+      grounding: {
+        summary: groundingSummary,
+        filesUsed: groundingExtract.found.map((f) => f.path),
+      },
       attemptHistory: attemptHistoryByFile,
     });
   } catch (err) {

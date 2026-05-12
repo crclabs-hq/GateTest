@@ -35,6 +35,42 @@ const https = require('https');
 // whole repo and both directories are present at runtime.
 const surgicalFix  = require('../../lib/surgical-fix');
 const mutationGuard = require('../../lib/whole-file-mutation-guard');
+const { KNOWN_CONVENTION_FILES, extractConventions, formatGroundingHeader } = require('../../lib/contextual-grounding');
+
+// ─── per-process grounding cache ─────────────────────────────────────────────
+// Scanned once per process (the CLI runs one aiFix per check result, but the
+// convention files are the same for every call in a single scan run). A Map
+// keyed by project root so tests with different temp dirs don't collide.
+const _groundingCache = new Map();
+
+/**
+ * Load and cache the grounding header for a given project root directory.
+ * Reads KNOWN_CONVENTION_FILES from disk if present. Never throws.
+ *
+ * @param {string} projectRoot
+ * @returns {string}  — markdown grounding header, or "" if nothing found
+ */
+function _buildGroundingHeader(projectRoot) {
+  if (_groundingCache.has(projectRoot)) return _groundingCache.get(projectRoot);
+
+  const fileContents = [];
+  const files = [];
+  for (const name of KNOWN_CONVENTION_FILES) {
+    const candidate = path.join(projectRoot, name);
+    try {
+      const content = fs.readFileSync(candidate, 'utf-8');
+      fileContents.push({ path: name, content });
+      files.push(name);
+    } catch {
+      // File doesn't exist — skip silently.
+    }
+  }
+
+  const extract = extractConventions({ files, fileContents });
+  const header  = formatGroundingHeader(extract.found);
+  _groundingCache.set(projectRoot, header);
+  return header;
+}
 
 const ANTHROPIC_HOST   = 'api.anthropic.com';
 const MODEL_FAST       = 'claude-haiku-4-5-20251001';   // small/simple fixes
@@ -145,16 +181,27 @@ async function aiFix(opts) {
 
   const model = Buffer.byteLength(originalContent) > SMART_THRESHOLD ? MODEL_SMART : MODEL_FAST;
 
+  // ── CONTEXTUAL GROUNDING ──────────────────────────────────────────────────
+  // Resolve project root (use opts.projectRoot if supplied, else walk up from
+  // filePath until we're one level above the file's directory, defaulting to
+  // process.cwd()). KNOWN_CONVENTION_FILES are read from disk and cached for
+  // the lifetime of this process.
+  const projectRoot = opts.projectRoot || process.cwd();
+  const conventionsHeader = _buildGroundingHeader(projectRoot);
+
   // ── SURGICAL MODE (lineNumber provided) ───────────────────────────────────
   if (Number.isInteger(lineNumber) && lineNumber > 0) {
     const ctx = surgicalFix.extractIssueContext(originalContent, lineNumber, 20);
-    const prompt = surgicalFix.buildSurgicalPrompt({
+    const rawSurgicalPrompt = surgicalFix.buildSurgicalPrompt({
       filePath,
       slice: ctx.slice,
       startLine: ctx.startLine,
       endLine: ctx.endLine,
       issues: [issueMessage],
     });
+    // Prepend grounding so Claude respects project conventions even when it
+    // only sees the ±20-line window around the offending line.
+    const prompt = conventionsHeader + rawSurgicalPrompt;
 
     let rawResponse;
     try {
@@ -218,7 +265,7 @@ async function aiFix(opts) {
 
   const systemPrompt = `You are a precise code fixer. You receive a source file with a specific issue and you fix ONLY that issue — nothing else. You do not reformat, rename, or improve unrelated code. You return JSON only.`;
 
-  const userMessage = `Fix this issue in the file below:
+  const userMessage = `${conventionsHeader}Fix this issue in the file below:
 
 Issue: ${issueTitle}
 Description: ${issueMessage}${fixHint}
