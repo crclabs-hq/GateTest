@@ -218,6 +218,14 @@ const { attemptFixWithRetries, summariseAttempts } = require("@/app/lib/fix-atte
   }>;
   summariseAttempts: (attempts: Array<{ outcome: string; durationMs: number }>) => string;
 };
+// Shape of the shared adaptive-concurrency state object. Mirrors the JS
+// source at website/app/lib/adaptive-concurrency.js — workers may mutate
+// `activeConcurrency` (throttle) or `haltRun` (abort) and the pool reacts.
+type AdaptiveState = {
+  consecutiveNetworkErrors: number;
+  activeConcurrency: number;
+  haltRun: boolean;
+};
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { mapWithAdaptiveConcurrency } = require("@/app/lib/adaptive-concurrency") as {
   mapWithAdaptiveConcurrency: <T, R>(
@@ -803,7 +811,64 @@ export async function POST(req: NextRequest) {
     files: (input.originalFileContents || []).map((f) => f.path),
     fileContents: input.originalFileContents || [],
   });
-  const conventionsHeader = formatGroundingHeader(groundingExtract.found);
+  // Stack auto-detection — reads package.json / requirements.txt / Cargo.toml /
+  // composer.json / pom.xml / build.gradle / vercel.json / Dockerfile / etc.
+  // from the in-memory file map, infers (language, framework, db, deploy, ci),
+  // and renders a "STACK: TypeScript (Next.js, React) + Prisma on Vercel"
+  // prompt header. Claude sees the customer's actual stack upfront, so fix
+  // recommendations land on-target instead of asking the customer to adapt
+  // a generic snippet.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { detectStack, formatStackHeader } = require("@lib/stack-detector") as {
+    detectStack: (opts: { projectRoot: string; fileContents?: Record<string, string> }) => {
+      summary: string;
+      languages: Array<{ language: string }>;
+      frameworks: Array<{ label: string }>;
+      databases: Array<{ label: string }>;
+      deploy: string[];
+      ci: string[];
+      testTools: Array<{ label: string }>;
+    };
+    formatStackHeader: (stack: { summary?: string; testTools?: Array<{ label: string }>; ci?: string[] }) => string;
+  };
+  const stackFileContents: Record<string, string> = {};
+  for (const f of input.originalFileContents || []) {
+    stackFileContents[f.path] = f.content;
+  }
+  const stack = detectStack({ projectRoot: "/", fileContents: stackFileContents });
+  const stackHeader = formatStackHeader(stack);
+
+  // Prior-art recall — surfaces the customer's own .gatetest/memory/fix-patterns.json
+  // (when committed) so Claude sees "you fixed this kind of issue 4 times before,
+  // here's how" before generating the new fix. Per-customer compounding moat;
+  // central cross-customer brain is the Boss-Rule Tier 2 unlock.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { buildPriorArtHeader, summarisePriorArt } = require("@lib/fix-pattern-recall") as {
+    buildPriorArtHeader: (opts: {
+      fileContents: Array<{ path: string; content: string }>;
+      findings: string[];
+      maxPatterns?: number;
+      maxExamplesPerPattern?: number;
+    }) => string;
+    summarisePriorArt: (opts: {
+      fileContents: Array<{ path: string; content: string }>;
+      findings: string[];
+    }) => { available: boolean; reason?: string; totalPatternsInStore?: number; matchedThisScan?: number; matchedKeys?: string[] };
+  };
+  const priorArtHeader = buildPriorArtHeader({
+    fileContents: input.originalFileContents || [],
+    findings: (input.issues || []).map((i) => `${i.module}: ${i.issue}`),
+  });
+  const priorArtSummary = summarisePriorArt({
+    fileContents: input.originalFileContents || [],
+    findings: (input.issues || []).map((i) => `${i.module}: ${i.issue}`),
+  });
+
+  // Order in the conventionsHeader passed to Claude:
+  //   1. STACK — what tools the customer uses
+  //   2. PROJECT CONVENTIONS — how they configure those tools (README/AGENTS/ARCHITECTURE)
+  //   3. PRIOR FIXES — how they've fixed similar issues before
+  const conventionsHeader = stackHeader + formatGroundingHeader(groundingExtract.found) + priorArtHeader;
   const groundingSummary  = summariseGrounding(groundingExtract);
 
   // Time budget — start the clock so per-file workers can bail early if the
@@ -1346,6 +1411,25 @@ export async function POST(req: NextRequest) {
     const prNumber = prRes.data.number as number;
     const prUrl = (prRes.data.html_url as string) || "";
 
+    // Audit-log the PR-open event. Fire-and-forget. Includes the budget
+    // snapshot so finance / support can reconcile spend against the scan.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { recordEventIfConfigured } = require("@lib/audit-log-store");
+    void recordEventIfConfigured({
+      actor: input.tier ? `tier:${input.tier}` : "anonymous",
+      action: "fix.pr_opened",
+      resourceType: "pr",
+      resourceId: prUrl || `${owner}/${repo}#${prNumber}`,
+      metadata: {
+        repo: `${owner}/${repo}`,
+        prNumber,
+        tier: input.tier || "full",
+        issuesFixed: totalIssuesFixed,
+        filesFixed: fixes.length,
+        budget: tracker.snapshot(),
+      },
+    });
+
     // Post verification comment on the PR
     try {
       const remainingIssues: string[] = [];
@@ -1513,6 +1597,31 @@ export async function POST(req: NextRequest) {
   }
 
   } catch (outerErr) { // error-ok — outer guard: catches auth / file-fetch / gate throws that bypassed inner handler
+    // Budget-exceeded is a customer-visible quota event, not a server crash.
+    // Return 402 (Payment Required) with the tracker snapshot so support can
+    // see exactly which scan hit the cap and how much it had spent.
+    if ((outerErr as { code?: string })?.code === "BUDGET_EXCEEDED") {
+      const snap = (outerErr as { tracker?: Record<string, unknown> }).tracker || tracker.snapshot();
+      console.warn("[GateTest] scan/fix budget exhausted:", JSON.stringify(snap));
+      // Audit-log the budget exhaustion — high-value finance signal.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { recordEventIfConfigured } = require("@lib/audit-log-store");
+      void recordEventIfConfigured({
+        actor: "scan_fix",
+        action: "fix.budget_exceeded",
+        resourceType: "scan",
+        resourceId: typeof snap === "object" && snap && "label" in snap ? String((snap as { label?: string }).label || "scan-fix") : "scan-fix",
+        metadata: snap as Record<string, unknown>,
+      });
+      return NextResponse.json(
+        {
+          status: "error",
+          error: "Scan exceeded its AI spend budget. The work completed up to the cap is preserved; please retry with a smaller issue set or contact support.",
+          budget: snap,
+        },
+        { status: 402 }
+      );
+    }
     const msg = outerErr instanceof Error ? outerErr.message : "Unexpected fix-route error";
     console.error("[GateTest] scan/fix route crashed:", msg);
     return NextResponse.json(
