@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 import path from "path";
 
+// CSP — production locks down `'unsafe-eval'`. Next.js Turbopack dev mode
+// uses eval() for HMR, so the dev CSP keeps it. The string concatenation
+// is intentional so the production CSP doesn't contain the substring
+// "unsafe-eval" at all.
+const isProd = process.env.NODE_ENV === "production";
+const scriptSrc = isProd
+  ? "script-src 'self' 'unsafe-inline' https://js.stripe.com"
+  : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com";
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
@@ -26,7 +35,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
+              scriptSrc,
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob:",
               "font-src 'self' data:",

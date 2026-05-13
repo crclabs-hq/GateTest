@@ -40,17 +40,113 @@ describe('MCP server — protocol shape', () => {
     assert.strictEqual(typeof server.dispatch, 'function');
   });
 
-  it('exposes the three v1 tools with valid JSON Schema', () => {
+  it('exposes the v1 tools with valid JSON Schema', () => {
     const names = Object.keys(server.TOOLS);
     assert.ok(names.includes('gatetest_version'));
     assert.ok(names.includes('gatetest_list_modules'));
     assert.ok(names.includes('gatetest_scan'));
+    assert.ok(names.includes('gatetest_explain_check'));
     for (const [, def] of Object.entries(server.TOOLS)) {
       assert.strictEqual(def.inputSchema.type, 'object');
       assert.strictEqual(typeof def.description, 'string');
       assert.ok(def.description.length > 0);
       assert.strictEqual(typeof def.handler, 'function');
     }
+  });
+});
+
+describe('MCP server — tools/call gatetest_explain_check', () => {
+  it('returns an exact-match explanation for a known module + check', async () => {
+    const responses = await captureSends(() =>
+      server.dispatch({
+        jsonrpc: '2.0',
+        id: 100,
+        method: 'tools/call',
+        params: {
+          name: 'gatetest_explain_check',
+          arguments: { module: 'tlsSecurity', checkId: 'js-reject-unauthorized' },
+        },
+      }),
+    );
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    assert.strictEqual(payload.match, 'exact');
+    assert.strictEqual(payload.explanation.module, 'tlsSecurity');
+    assert.strictEqual(payload.explanation.checkId, 'js-reject-unauthorized');
+    assert.ok(payload.explanation.whatItMeans.length > 0);
+    assert.ok(payload.explanation.whyItMatters.length > 0);
+    assert.ok(Array.isArray(payload.explanation.fixSteps));
+    assert.ok(payload.explanation.fixSteps.length > 0);
+    assert.match(payload.explanation.learnMore, /CWE-295/);
+  });
+
+  it('returns every entry for a module when no checkId is passed', async () => {
+    const responses = await captureSends(() =>
+      server.dispatch({
+        jsonrpc: '2.0',
+        id: 101,
+        method: 'tools/call',
+        params: { name: 'gatetest_explain_check', arguments: { module: 'tlsSecurity' } },
+      }),
+    );
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    assert.strictEqual(payload.match, 'module');
+    assert.ok(Array.isArray(payload.explanations));
+    assert.ok(payload.explanations.length >= 2);
+    for (const e of payload.explanations) {
+      assert.strictEqual(e.module, 'tlsSecurity');
+    }
+  });
+
+  it('falls back to a generic explanation when the check ID is unknown', async () => {
+    const responses = await captureSends(() =>
+      server.dispatch({
+        jsonrpc: '2.0',
+        id: 102,
+        method: 'tools/call',
+        params: {
+          name: 'gatetest_explain_check',
+          arguments: { module: 'security', checkId: 'nonexistent-rule-xyz' },
+        },
+      }),
+    );
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    // 'security' is a real module; it has no structured entries → generic.
+    assert.strictEqual(payload.match, 'generic');
+    assert.ok(payload.explanation.whatItMeans.length > 0);
+  });
+
+  it('returns isError for an unknown module name', async () => {
+    const responses = await captureSends(() =>
+      server.dispatch({
+        jsonrpc: '2.0',
+        id: 103,
+        method: 'tools/call',
+        params: {
+          name: 'gatetest_explain_check',
+          arguments: { module: 'not_a_real_module_xyz' },
+        },
+      }),
+    );
+    assert.strictEqual(responses[0].result.isError, true);
+    assert.match(responses[0].result.content[0].text, /Unknown module/);
+  });
+
+  it('partial-matches when the checkId is a prefix of a registered rule', async () => {
+    const responses = await captureSends(() =>
+      server.dispatch({
+        jsonrpc: '2.0',
+        id: 104,
+        method: 'tools/call',
+        params: {
+          name: 'gatetest_explain_check',
+          // "reject-unauthorized" is a substring of "js-reject-unauthorized"
+          arguments: { module: 'tlsSecurity', checkId: 'reject-unauthorized' },
+        },
+      }),
+    );
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    assert.strictEqual(payload.match, 'partial');
+    assert.strictEqual(payload.explanation.checkId, 'js-reject-unauthorized');
   });
 });
 

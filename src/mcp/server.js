@@ -19,6 +19,7 @@ const fs = require('fs');
 const { GateTest } = require('../index');
 const { GateTestRunner } = require('../core/runner');
 const { BUILT_IN_MODULES } = require('../core/registry');
+const { explainCheck } = require('./explanations');
 
 const PROTOCOL_VERSION = '2024-11-05';
 const SERVER_NAME = 'gatetest';
@@ -145,6 +146,35 @@ const TOOLS = {
       // taint the parent process.
       process.exitCode = 0;
       return summary;
+    },
+  },
+
+  gatetest_explain_check: {
+    description:
+      'Given a module name (and optionally a check ID), returns a structured explanation: ' +
+      'what the rule means, why it matters in production, vulnerable + safe code examples, ' +
+      'a step-by-step fix recipe, the suppression marker (if any), and a CWE / OWASP / vendor ' +
+      'reference. Use this AFTER gatetest_scan returns a finding to write the actual fix.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        module: {
+          type: 'string',
+          description:
+            'Module name (one of the values from gatetest_list_modules). E.g. "tlsSecurity", "ssrf", "logPii".',
+        },
+        checkId: {
+          type: 'string',
+          description:
+            'Optional check ID — the second segment of a finding name. E.g. for "tls:js-reject-unauthorized:src/x.js:12" pass "js-reject-unauthorized". When omitted, returns every explanation registered for the module.',
+        },
+      },
+      required: ['module'],
+      additionalProperties: false,
+    },
+    handler: async (params) => {
+      const gt = new GateTest(process.cwd()).init();
+      return explainCheck(params.module, params.checkId, gt.registry);
     },
   },
 };

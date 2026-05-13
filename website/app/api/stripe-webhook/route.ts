@@ -24,6 +24,12 @@ import crypto from "crypto";
 import https from "https";
 import { runScanJob } from "../../lib/scan-executor";
 import { getDb } from "../../lib/db";
+
+// Stripe expects the webhook handler to ack within seconds. We do the
+// idempotency stamp inline and offload the scan via after() — the scan
+// itself runs to ~60s on a separate function invocation. This cap is the
+// upper bound for the acknowledgement path.
+export const maxDuration = 30;
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { verifyStripeSignature: verifyStripeSig } = require(
   "../../lib/stripe-webhook-verify",

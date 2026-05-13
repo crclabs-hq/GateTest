@@ -31,6 +31,10 @@ import {
 } from "@/app/lib/api-key";
 import { runScan } from "@/app/lib/scan-executor";
 
+// Public API scan — synchronous, returns the full envelope. Same budget as
+// the website-driven scan path so behaviour is consistent across surfaces.
+export const maxDuration = 60;
+
 const ALLOWED_TIERS = new Set(["quick", "full"]);
 
 function problem(status: number, error: string, extra?: Record<string, unknown>) {

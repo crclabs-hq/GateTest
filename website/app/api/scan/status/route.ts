@@ -15,6 +15,10 @@ import { NextRequest, NextResponse } from "next/server";
 import https from "https";
 import { getDb } from "../../../lib/db";
 
+// Read-only Stripe metadata lookup. Polled by the browser every ~2s while
+// a scan is running. Should always be sub-second; keep budget tight.
+export const maxDuration = 10;
+
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 
 function stripeGet(path: string): Promise<Record<string, unknown>> {

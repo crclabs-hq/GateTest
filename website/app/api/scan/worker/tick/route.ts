@@ -40,6 +40,11 @@ import { isAdminRequest } from "@/app/lib/admin-auth";
 import { runScan } from "@/app/lib/scan-executor";
 import { sendGluecronCallback } from "@/app/lib/gluecron-callback";
 
+// Queue worker: reclaims stuck jobs + runs the next pending scan. A full
+// scan can hit 60s; we cap there. The cron fires every minute so any
+// scan that would exceed this gets retried on the next tick.
+export const maxDuration = 60;
+
 // CommonJS interop.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const scanWorker = require("@/app/lib/scan-worker");

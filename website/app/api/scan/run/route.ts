@@ -19,6 +19,12 @@ import https from "https";
 import { isAdminRequest } from "@/app/lib/admin-auth";
 import { fetchBlob, fetchTree, resolveRepoAuth } from "@/app/lib/gluecron-client";
 import { runTier, type RepoFile } from "@/app/lib/scan-modules";
+
+// Vercel hard timeout for the scan. Bible target: quick scan <15s, full
+// scan <60s. We give ourselves 60s headroom for the slowest path (full
+// suite on a large repo). Without this pin, Vercel's plan-default kicks
+// in mid-scan. Bumping requires Pro plan — keep at 60 for Hobby compat.
+export const maxDuration = 60;
 // Wire contract reference: Gluecron.com/GATETEST_HOOK.md — each repo keeps its
 // own copy per the HTTP-only coupling rule.
 import { sendGluecronCallback } from "@/app/lib/gluecron-callback";

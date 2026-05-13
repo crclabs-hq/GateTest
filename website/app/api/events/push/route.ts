@@ -47,6 +47,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
 
+// Inbound event receiver — verifies HMAC, enqueues, returns 202. The kick
+// to /api/scan/worker/tick is fire-and-forget so this stays fast.
+export const maxDuration = 10;
+
 // CommonJS interop — the helpers are .js and our lib/* use require-style.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const eventsPush = require("@/app/lib/events-push");

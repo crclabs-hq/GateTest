@@ -70,6 +70,7 @@ The next time the agent reasons, it sees three new tools:
 | `gatetest_version` | Returns version, total module count, list of every module name. Use for capability discovery. |
 | `gatetest_list_modules` | Returns every module with name + one-line description. |
 | `gatetest_scan` | Runs a scan on a local project directory. Either supply a `suite` (quick / standard / full) or an explicit `modules` array. Returns the full scan summary. |
+| `gatetest_explain_check` | Given a module name (and optionally a check ID), returns a structured explanation: what the rule means, why it matters in production, vulnerable + safe code examples, a step-by-step fix recipe, the suppression marker (if any), and a CWE / OWASP / vendor reference. **This is what makes GateTest AI-native — agents can call us with a finding and get back a fix recipe, not just a description.** |
 
 ## Example prompts (Claude Code)
 
@@ -145,7 +146,7 @@ version payload listing all 67 modules.
 | `gatetest_version` | shipped |
 | `gatetest_list_modules` | shipped |
 | `gatetest_scan` | shipped |
-| `gatetest_explain_check` (deep-dive a single check by name) | planned |
+| `gatetest_explain_check` | shipped |
 | `gatetest_apply_fix` (run a single module's auto-fix) | planned |
 | `gatetest_review_diff` (Claude-powered review of a git diff) | planned |
 | `gatetest_query_memory` (query the codebase-memory moat) | planned |

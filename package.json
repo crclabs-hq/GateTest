@@ -1,12 +1,20 @@
 {
   "name": "gatetest",
-  "version": "1.0.0",
-  "description": "GateTest - Advanced QA gate between Claude and GitHub. Nothing ships unless it's pristine.",
+  "version": "1.41.0",
+  "description": "67 modules. One gate. One decision. AI-native QA — kills SonarQube, Snyk, and every fragmented quality tool. Ships an MCP server so Claude Code, Cursor, Cline, Windsurf, and Continue can invoke it natively. Zero dependencies.",
   "main": "src/index.js",
   "bin": {
     "gatetest": "./bin/gatetest.js",
     "gatetest-mcp": "./bin/gatetest-mcp.js"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "docs/MCP.md",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "test": "node --test tests/**/*.test.js",
     "app": "node src/app-server.js",
@@ -41,11 +49,35 @@
     "seo",
     "mcp",
     "model-context-protocol",
+    "mcp-server",
     "ai-tools",
     "claude-code",
     "cursor",
-    "agent"
+    "cline",
+    "windsurf",
+    "continue",
+    "agent",
+    "sonarqube-alternative",
+    "snyk-alternative",
+    "static-analysis",
+    "linter",
+    "sast",
+    "owasp",
+    "redos",
+    "ssrf",
+    "n-plus-one",
+    "import-cycle",
+    "feature-flags",
+    "secret-detection"
   ],
+  "homepage": "https://gatetest.ai",
+  "bugs": {
+    "url": "https://github.com/ccantynz-alt/gatetest/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ccantynz-alt/gatetest.git"
+  },
   "author": "GateTest Team",
   "license": "MIT",
   "engines": {

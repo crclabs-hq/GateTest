@@ -173,11 +173,34 @@ class CiSecurityModule extends BaseModule {
         issues += this._scanRunInjection(line, lines, i, rel, result);
       }
 
-      // continue-on-error: true on the gate step
+      // continue-on-error: true on the gate step.
+      //
+      // The rule scopes to "steps that actually invoke gatetest", NOT
+      // adjacent steps that merely reference a `.gatetest/` artifact path
+      // (those are SARIF / report uploads and per Bible Known Issue #10
+      // legitimately use continue-on-error so a flaky upload doesn't fail
+      // the build after the gate already passed). We look back through the
+      // current step's lines for an actual invocation pattern.
       if (/^\s*continue-on-error\s*:\s*true\b/i.test(line)) {
-        // Look back a handful of lines for a gatetest reference (name or run)
-        const lookback = lines.slice(Math.max(0, i - 8), i).join('\n');
-        if (/gatetest/i.test(lookback)) {
+        const lookback = lines.slice(Math.max(0, i - 8), i);
+        const invokesGatetest = lookback.some((ln) => {
+          const t = ln.replace(/#.*$/, '');
+          // run: command containing the gatetest CLI invocation
+          if (/^\s*(?:-\s*)?run\s*:.*\b(?:npx\s+gatetest|node\s+.*gatetest\.js|gatetest\s+--|gatetest:)/i.test(t)) {
+            return true;
+          }
+          // uses: a gatetest action (any gatetest/* or */gatetest@*)
+          if (/^\s*(?:-\s*)?uses\s*:.*\bgatetest[\w-]*\/[\w-]+@/i.test(t)) {
+            return true;
+          }
+          // name: contains GateTest as a word (step heading)
+          if (/^\s*(?:-\s*)?name\s*:.*\b[Gg]ate[Tt]est\b/.test(t) &&
+              !/\.gatetest\b/.test(t)) {
+            return true;
+          }
+          return false;
+        });
+        if (invokesGatetest) {
           issues += this._flag(result, `ci-security:soft-fail-gate:${rel}:${i + 1}`, {
             severity: 'error',
             file: rel,
