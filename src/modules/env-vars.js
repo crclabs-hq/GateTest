@@ -89,6 +89,11 @@ const TEST_PATH_RE = /(?:^|\/)(?:tests?|__tests__|spec|fixtures?|stories|storybo
 // that CI sets at runtime; they don't need `.env.example` entries.
 const DEV_CONFIG_BASENAME_RE = /^(?:playwright|vitest|jest|cypress|webpack|vite|rollup|next|tailwind|postcss|babel|eslint|prettier)\.config\.(?:js|mjs|cjs|ts|mts|cts)$/i;
 
+// Paths whose `process.env.*` references describe how customers (not us) read
+// env vars — these are template strings rendered inside docs pages and SHOULD
+// NOT count as our codebase's env-var consumption.
+const DOCS_PATH_RE = /(?:^|\/)(?:app\/docs|pages\/docs|docs\/)/;
+
 function isInString(line, idx) {
   let inS = false; let inD = false; let inT = false;
   for (let i = 0; i < idx && i < line.length; i += 1) {
@@ -327,6 +332,7 @@ class EnvVarsModule extends BaseModule {
         const rel = path.relative(projectRoot, full);
         if (TEST_PATH_RE.test(rel)) continue;
         if (DEV_CONFIG_BASENAME_RE.test(entry.name)) continue;
+        if (DOCS_PATH_RE.test(rel)) continue;
         this._scanReferences(full, projectRoot, referenced);
       }
     };

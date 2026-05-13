@@ -24,42 +24,19 @@ import crypto from "crypto";
 import https from "https";
 import { runScanJob } from "../../lib/scan-executor";
 import { getDb } from "../../lib/db";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { verifyStripeSignature: verifyStripeSig } = require(
+  "../../lib/stripe-webhook-verify",
+);
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
 
 function verifyStripeSignature(payload: string, sigHeader: string): boolean {
-  // FAIL CLOSED — if the webhook secret is missing from env, refuse the
-  // event. Accepting unverified Stripe events = attacker can forge payment
-  // captures. Bible Forbidden #15 + security-audit 2026-04-18.
-  if (!STRIPE_WEBHOOK_SECRET) return false;
-  if (!sigHeader) return false;
-
-  const parts = sigHeader.split(",").reduce(
-    (acc, part) => {
-      const [key, val] = part.split("=");
-      if (key === "t") acc.timestamp = val;
-      if (key === "v1") acc.signatures.push(val);
-      return acc;
-    },
-    { timestamp: "", signatures: [] as string[] }
-  );
-
-  if (parts.signatures.length === 0) return false;
-
-  const signedPayload = `${parts.timestamp}.${payload}`;
-  const expected = crypto
-    .createHmac("sha256", STRIPE_WEBHOOK_SECRET)
-    .update(signedPayload)
-    .digest("hex");
-
-  return parts.signatures.some((sig) => {
-    try {
-      return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig));
-    } catch {
-      return false;
-    }
-  });
+  // Shared, unit-tested implementation. Fails closed on missing secret,
+  // empty header, malformed timestamp, or signatures older than 5 minutes
+  // (replay-attack defence).
+  return verifyStripeSig(payload, sigHeader, STRIPE_WEBHOOK_SECRET);
 }
 
 function stripeApi(

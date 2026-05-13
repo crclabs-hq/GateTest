@@ -18,8 +18,9 @@
  * ('pending' | 'success' | 'failure' | 'error') because it is the most
  * widely-adopted status taxonomy. Non-GitHub bridges translate internally.
  *
- * TODO(gluecron): when Gluecron ships, add `GluecronBridge` extending this
- * class and `registerBridge('gluecron', GluecronBridge)` at module load.
+ * Both `GitHubBridge` (src/core/github-bridge.js) and `GluecronBridge`
+ * (src/core/gluecron-bridge.js) extend this class and are registered at
+ * load time by src/index.js. Add new hosts the same way.
  */
 
 const CANONICAL_COMMIT_STATES = ['pending', 'success', 'failure', 'error'];

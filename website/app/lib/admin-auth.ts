@@ -18,7 +18,7 @@
  *     accidentally open.
  */
 
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
 
 const COOKIE_NAME = "gt_admin";
@@ -34,15 +34,17 @@ function deriveToken(password: string): string {
 }
 
 /**
- * Constant-time string comparison that tolerates differing lengths by first
- * padding to the same length. Returns false if either input is empty.
+ * Constant-time string comparison. Hashes both inputs to a fixed 32-byte
+ * digest before comparing so length differences cannot leak via timing
+ * (the naive `bufA.length !== bufB.length → return false` shortcut reveals
+ * the expected secret's length to a remote attacker who can measure
+ * response latency).
  */
 function safeEqual(a: string, b: string): boolean {
   if (!a || !b) return false;
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return timingSafeEqual(bufA, bufB);
+  const hashA = createHash("sha256").update(a).digest();
+  const hashB = createHash("sha256").update(b).digest();
+  return timingSafeEqual(hashA, hashB);
 }
 
 /**

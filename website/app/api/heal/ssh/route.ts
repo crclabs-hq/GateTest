@@ -56,6 +56,9 @@ interface Playbook {
   }>;
 }
 
+// The `localhost` URLs in the command strings below execute on the REMOTE
+// target server (via SSH) to verify a heal action worked. They are not our
+// deployment's host. Each affected line carries `// hardcoded-url-ok`.
 const PLAYBOOKS: Playbook[] = [
   {
     match: (i) => i.category === "SSL" || (i.title.toLowerCase().includes("ssl") && i.detail.includes("failed")),
@@ -66,7 +69,7 @@ const PLAYBOOKS: Playbook[] = [
       { label: "Restart Caddy (auto-renews TLS)", cmd: "sudo systemctl restart caddy 2>&1 || echo 'caddy not installed'" },
       { label: "Restart nginx + certbot renew", cmd: "sudo systemctl restart nginx 2>&1 && (sudo certbot renew --force-renewal 2>&1 | tail -5) || echo 'nginx/certbot not available'" },
       { label: "Check app services", cmd: "sudo systemctl list-units --type=service --state=running 2>&1 | grep -E 'caddy|nginx|crontech|node|bun|pm2' | head -10" },
-      { label: "Verify HTTPS", cmd: "curl -sI https://localhost -k 2>&1 | head -5", verify: "curl -sI https://localhost -k 2>&1 | head -3" },
+      { label: "Verify HTTPS", cmd: "curl -sI https://localhost -k 2>&1 | head -5", verify: "curl -sI https://localhost -k 2>&1 | head -3" }, // hardcoded-url-ok
     ],
   },
   {
@@ -76,7 +79,7 @@ const PLAYBOOKS: Playbook[] = [
       { label: "Start Caddy", cmd: "sudo systemctl start caddy 2>&1 && sudo systemctl enable caddy 2>&1 || echo 'caddy not installed'" },
       { label: "Start nginx", cmd: "sudo systemctl start nginx 2>&1 && sudo systemctl enable nginx 2>&1 || echo 'nginx not installed'" },
       { label: "Check app processes", cmd: "sudo ss -tlnp | grep -E ':443|:80|:3000|:3001' 2>&1" },
-      { label: "Verify port 443", cmd: "sudo ss -tlnp | grep :443", verify: "curl -sI https://localhost -k 2>&1 | head -3" },
+      { label: "Verify port 443", cmd: "sudo ss -tlnp | grep :443", verify: "curl -sI https://localhost -k 2>&1 | head -3" }, // hardcoded-url-ok
     ],
   },
   {
@@ -93,7 +96,7 @@ const PLAYBOOKS: Playbook[] = [
       { label: "Check Caddy encode config", cmd: "cat /etc/caddy/Caddyfile 2>&1 | grep -A2 encode || echo 'no Caddyfile or no encode directive'" },
       { label: "Check nginx gzip config", cmd: "sudo nginx -T 2>&1 | grep -i gzip | head -5 || echo 'nginx not available'" },
       { label: "Add Caddy encode gzip", cmd: "sudo sed -i '/^[^#]*{$/a\\    encode gzip' /etc/caddy/Caddyfile 2>&1 && sudo systemctl reload caddy 2>&1 || echo 'Caddy config not found'" },
-      { label: "Verify compression", cmd: "curl -sI -H 'Accept-Encoding: gzip' https://localhost -k 2>&1 | grep -i content-encoding" },
+      { label: "Verify compression", cmd: "curl -sI -H 'Accept-Encoding: gzip' https://localhost -k 2>&1 | grep -i content-encoding" }, // hardcoded-url-ok
     ],
   },
   {
@@ -106,7 +109,7 @@ add_header X-Content-Type-Options "nosniff" always;
 add_header X-Frame-Options "SAMEORIGIN" always;
 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 EOFH' 2>&1 && sudo nginx -t 2>&1 && sudo systemctl reload nginx 2>&1` },
-      { label: "Verify headers", cmd: "curl -sI https://localhost -k 2>&1 | grep -iE 'strict-transport|x-content-type|x-frame'" },
+      { label: "Verify headers", cmd: "curl -sI https://localhost -k 2>&1 | grep -iE 'strict-transport|x-content-type|x-frame'" }, // hardcoded-url-ok
     ],
   },
   {
@@ -122,7 +125,7 @@ EOFH' 2>&1 && sudo nginx -t 2>&1 && sudo systemctl reload nginx 2>&1` },
     match: (i) => i.detail.toLowerCase().includes("http") && i.detail.toLowerCase().includes("redirect"),
     commands: [
       { label: "Check redirect config", cmd: "cat /etc/caddy/Caddyfile 2>&1 | head -20 || sudo nginx -T 2>&1 | grep -A5 'listen 80' | head -10" },
-      { label: "Verify redirect", cmd: "curl -sI http://localhost 2>&1 | head -5" },
+      { label: "Verify redirect", cmd: "curl -sI http://localhost 2>&1 | head -5" }, // hardcoded-url-ok
     ],
   },
   {
@@ -133,7 +136,7 @@ EOFH' 2>&1 && sudo nginx -t 2>&1 && sudo systemctl reload nginx 2>&1` },
       { label: "Check Caddy logs", cmd: "sudo journalctl -u caddy -n 30 --no-pager 2>&1 | tail -20" },
       { label: "Check crontech service logs", cmd: "sudo journalctl -u crontech-web -n 20 --no-pager 2>&1 || sudo journalctl -u crontech-api -n 20 --no-pager 2>&1 || echo 'no crontech services found'" },
       { label: "Restart all crontech services", cmd: "sudo systemctl restart caddy 2>&1; sudo systemctl restart crontech-web 2>&1 || true; sudo systemctl restart crontech-api 2>&1 || true" },
-      { label: "Verify HTTP", cmd: "curl -sI http://localhost:3000 2>&1 | head -3 || curl -sI http://localhost 2>&1 | head -3" },
+      { label: "Verify HTTP", cmd: "curl -sI http://localhost:3000 2>&1 | head -3 || curl -sI http://localhost 2>&1 | head -3" }, // hardcoded-url-ok
     ],
   },
 ];

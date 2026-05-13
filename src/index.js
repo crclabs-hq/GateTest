@@ -23,11 +23,13 @@ const {
   createBridge,
   listBridges,
 } = require('./core/host-bridge');
-// Importing github-bridge registers the 'github' bridge in the HostBridge
-// registry so callers of createBridge('github', ...) get a concrete
-// implementation without needing to import it manually.
-// TODO(gluecron): when GluecronBridge ships, require it here too.
+// Importing the bridges registers each one in the HostBridge registry so
+// callers of createBridge('github' | 'gluecron', ...) get a concrete
+// implementation without needing to import it manually. Order matters only
+// for the registry's "first wins on conflict" behaviour, which doesn't apply
+// here since each bridge claims its own key.
 const { GitHubBridge } = require('./core/github-bridge');
+const { GluecronBridge } = require('./core/gluecron-bridge');
 
 class GateTest {
   constructor(projectRoot, options = {}) {
@@ -134,6 +136,7 @@ module.exports = {
   // Host abstraction — Gluecron-first (CLAUDE.md → STRATEGIC DIRECTION).
   HostBridge,
   GitHubBridge,
+  GluecronBridge,
   NotImplemented,
   CANONICAL_COMMIT_STATES,
   registerBridge,

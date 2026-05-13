@@ -82,7 +82,7 @@ const categories: ModuleCategory[] = [
     modules: [
       { name: "Dead code", desc: "Unused exports, orphaned files, rotting commented-out blocks." },
       { name: "Feature flags", desc: "Stale flags collapsed to constants, dead branches." },
-      { name: "Log PII", desc: "console.log(password), logger.info(req.body), stringify(user)." },
+      { name: "Log PII", desc: "Catches credentials, tokens, and request objects logged in plaintext." },
       { name: "OpenAPI drift", desc: "Spec ↔ Express / Fastify / Next.js route cross-reference." },
       { name: "PR size", desc: "File / line / directory-sprawl limits with lockfile auto-exclude." },
       { name: "Fake-fix detector", desc: "Catches AI symptom patches on diffs — the chicken-scratch killer." },

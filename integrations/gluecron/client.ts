@@ -55,13 +55,18 @@ function sleep(ms: number): Promise<void> {
 }
 
 function normalizeBaseUrl(raw: string | undefined): string {
-  const resolved = raw ?? process.env.GLUECRON_API_URL ?? process.env.GLUECRON_BASE_URL ?? DEFAULT_BASE_URL;
+  // Canonical name: GLUECRON_BASE_URL (per CLAUDE.md ENVIRONMENT VARIABLES
+  // table and root .env.example). The legacy GLUECRON_API_URL alias has
+  // been removed — if a deployment was using it, update to the canonical
+  // name (no behaviour change beyond the variable name).
+  const resolved = raw ?? process.env.GLUECRON_BASE_URL ?? DEFAULT_BASE_URL;
   return resolved.replace(/\/+$/, '');
 }
 
 function resolveToken(explicit?: string): string | null {
   if (explicit) return explicit;
-  return process.env.GLUECRON_TOKEN || process.env.GLUECRON_API_TOKEN || null;
+  // Canonical name: GLUECRON_API_TOKEN. Legacy GLUECRON_TOKEN alias removed.
+  return process.env.GLUECRON_API_TOKEN || null;
 }
 
 /** Redact secrets from a headers object for safe logging. */

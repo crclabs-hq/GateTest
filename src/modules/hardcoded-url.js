@@ -88,6 +88,12 @@ const DEV_CONTEXT_LINE_RE = /\b(?:DEV|LOCAL|DEVELOPMENT|TEST|DEBUG|E2E_BASE_URL|
 // on the current or a recent line.
 const DEV_GUARD_RE = /\bprocess\.env\.NODE_ENV\s*(?:===|!==|==|!=)\s*['"`](?:development|dev|test|local|staging)['"`]|NODE_ENV\s*(?:===|!==|==|!=)\s*['"`]production['"`]|__DEV__\b|isDev(?:elopment)?\b|isLocal\b|isTest\b/;
 
+// Suppression marker. Matches sibling modules' vocabulary
+// (`// log-safe`, `// tls-ok`, `// cookie-ok`, `// redos-ok`, etc.).
+// Place on the same line or the preceding line of an intentional hit
+// (e.g. remote-server health-check curls to https://localhost).
+const SUPPRESS_RE = /\bhardcoded-url-ok\b/;
+
 // Documentation-URL allowlist — common examples.
 const DOC_ALLOWLIST = new Set([
   'example.com',
@@ -200,6 +206,10 @@ class HardcodedUrlModule extends BaseModule {
       // Skip lines under a dev-guard on the current or last 3 lines.
       const guardWindow = lines.slice(Math.max(0, i - 3), i + 1).join('\n');
       if (DEV_GUARD_RE.test(guardWindow)) continue;
+
+      // Explicit suppression marker on this or the preceding line.
+      if (SUPPRESS_RE.test(line)) continue;
+      if (i > 0 && SUPPRESS_RE.test(lines[i - 1])) continue;
 
       // Reset regex state.
       URL_RE.lastIndex = 0;
