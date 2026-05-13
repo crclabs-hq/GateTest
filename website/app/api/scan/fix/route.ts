@@ -745,7 +745,35 @@ async function _doPost(req: NextRequest, tracker: BudgetTrackerInstance) {
     files: (input.originalFileContents || []).map((f) => f.path),
     fileContents: input.originalFileContents || [],
   });
-  const conventionsHeader = formatGroundingHeader(groundingExtract.found);
+  // Stack auto-detection — reads package.json / requirements.txt / Cargo.toml /
+  // composer.json / pom.xml / build.gradle / vercel.json / Dockerfile / etc.
+  // from the in-memory file map, infers (language, framework, db, deploy, ci),
+  // and renders a "STACK: TypeScript (Next.js, React) + Prisma on Vercel"
+  // prompt header. Claude sees the customer's actual stack upfront, so fix
+  // recommendations land on-target instead of asking the customer to adapt
+  // a generic snippet.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { detectStack, formatStackHeader } = require("@lib/stack-detector") as {
+    detectStack: (opts: { projectRoot: string; fileContents?: Record<string, string> }) => {
+      summary: string;
+      languages: Array<{ language: string }>;
+      frameworks: Array<{ label: string }>;
+      databases: Array<{ label: string }>;
+      deploy: string[];
+      ci: string[];
+      testTools: Array<{ label: string }>;
+    };
+    formatStackHeader: (stack: { summary?: string; testTools?: Array<{ label: string }>; ci?: string[] }) => string;
+  };
+  const stackFileContents: Record<string, string> = {};
+  for (const f of input.originalFileContents || []) {
+    stackFileContents[f.path] = f.content;
+  }
+  const stack = detectStack({ projectRoot: "/", fileContents: stackFileContents });
+  const stackHeader = formatStackHeader(stack);
+  // STACK comes before PROJECT CONVENTIONS so Claude reads "what tools" before
+  // "what conventions for those tools."
+  const conventionsHeader = stackHeader + formatGroundingHeader(groundingExtract.found);
   const groundingSummary  = summariseGrounding(groundingExtract);
 
   // Time budget — start the clock so per-file workers can bail early if the
