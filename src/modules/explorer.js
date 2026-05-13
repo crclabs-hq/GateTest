@@ -375,10 +375,11 @@ class ExplorerModule extends BaseModule {
 
           // Track console errors triggered by click
           const clickErrors = [];
+          // error-swallow-ok block (next 100 lines): autonomous explorer probes — individual click/fill failures must NOT abort the whole exploration
           const onError = (err) => { clickErrors.push(err.message); };
           page.on('pageerror', onError);
 
-          await el.click({ timeout: 5000 }).catch(() => {});
+          await el.click({ timeout: 5000 }).catch(() => {}); // error-swallow-ok: explorer probe
           await page.waitForTimeout(800);
 
           page.removeListener('request', onRequest);
@@ -445,20 +446,20 @@ class ExplorerModule extends BaseModule {
           if (!el) return interaction;
 
           if (element.inputType === 'email') {
-            await el.fill('test@gatetest.ai').catch(() => {});
+            await el.fill('test@gatetest.ai').catch(() => {}); // error-swallow-ok: explorer probe
           } else if (element.inputType === 'number') {
-            await el.fill('42').catch(() => {});
+            await el.fill('42').catch(() => {}); // error-swallow-ok: explorer probe
           } else if (element.inputType === 'url') {
-            await el.fill('https://gatetest.ai').catch(() => {});
+            await el.fill('https://gatetest.ai').catch(() => {}); // error-swallow-ok: explorer probe
           } else if (element.inputType === 'tel') {
-            await el.fill('+1234567890').catch(() => {});
+            await el.fill('+1234567890').catch(() => {}); // error-swallow-ok: explorer probe
           } else if (element.inputType === 'search' || element.inputType === 'text') {
-            await el.fill('GateTest QA').catch(() => {});
+            await el.fill('GateTest QA').catch(() => {}); // error-swallow-ok: explorer probe
           } else if (element.inputType === 'select') {
             // Select first non-empty option
-            await page.selectOption(element.selector, { index: 1 }).catch(() => {});
+            await page.selectOption(element.selector, { index: 1 }).catch(() => {}); // error-swallow-ok: explorer probe
           } else if (element.inputType === 'textarea') {
-            await el.fill('GateTest automated exploration test').catch(() => {});
+            await el.fill('GateTest automated exploration test').catch(() => {}); // error-swallow-ok: explorer probe
           }
           break;
         }
@@ -466,7 +467,7 @@ class ExplorerModule extends BaseModule {
         case 'toggle': {
           const el = await page.$(element.selector);
           if (!el) return interaction;
-          await el.click({ timeout: 3000 }).catch(() => {});
+          await el.click({ timeout: 3000 }).catch(() => {}); // error-swallow-ok: explorer probe
           await page.waitForTimeout(300);
           break;
         }
@@ -474,7 +475,7 @@ class ExplorerModule extends BaseModule {
         case 'disclosure': {
           const el = await page.$(element.selector);
           if (!el) return interaction;
-          await el.click({ timeout: 3000 }).catch(() => {});
+          await el.click({ timeout: 3000 }).catch(() => {}); // error-swallow-ok: explorer probe
           await page.waitForTimeout(300);
           break;
         }

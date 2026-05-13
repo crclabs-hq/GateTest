@@ -141,7 +141,7 @@ async function main() {
     try {
       const auth = await bridge.verifyAuth();
       console.log(`  Auth:       ${auth.type} — ${auth.login || auth.name}`);
-    } catch (err) {
+    } catch (err) { // error-swallow-ok: health probe prints error inline, never re-throws
       console.log(`  Auth:       ${err.message}`);
     }
 
@@ -462,7 +462,7 @@ async function runWatchMode(gatetest, args) {
       } else {
         await gatetest.runSuite(args.suite || 'quick');
       }
-    } catch (err) {
+    } catch (err) { // error-swallow-ok: watch-mode top-level catch — print and loop to next tick
       console.error(`[GateTest] Error: ${err.message}`);
     }
 

@@ -221,7 +221,7 @@ export async function runScanJob(params: {
     ) {
       return { skipped: true, reason: "already_processed" };
     }
-  } catch (err) {
+  } catch (err) { // error-swallow-ok: idempotency lookup failure → fall through, never double-cancel a live hold
     console.error("[GateTest] Idempotency check failed:", err);
     // Proceed — we'd rather run the scan than double-cancel a live hold.
   }
@@ -237,7 +237,7 @@ export async function runScanJob(params: {
         "metadata[scan_status]": "running",
       }).toString()
     );
-  } catch (err) {
+  } catch (err) { // error-swallow-ok: stamping job id is best-effort; scan still proceeds
     console.error("[GateTest] Failed to stamp job id:", err);
   }
 
@@ -298,7 +298,7 @@ export async function runScanJob(params: {
       `/v1/payment_intents/${paymentIntentId}`,
       updateParams.toString()
     );
-  } catch (err) {
+  } catch (err) { // error-swallow-ok: Stripe metadata update is best-effort once result returned
     console.error("[GateTest] Stripe metadata update failed:", err);
   }
 
@@ -334,7 +334,7 @@ export async function runScanJob(params: {
           total_spent_usd = total_spent_usd + ${spent}
         WHERE email = ${customerEmail}`;
       }
-    } catch (dbErr) {
+    } catch (dbErr) { // error-swallow-ok: DB update best-effort; Stripe metadata is the source of truth
       console.error("[GateTest] DB update failed (scan-executor):", dbErr);
     }
   }
@@ -354,7 +354,7 @@ export async function runScanJob(params: {
         `/v1/payment_intents/${paymentIntentId}/cancel`
       );
     }
-  } catch (err) {
+  } catch (err) { // error-swallow-ok: capture/cancel is idempotent on Stripe side; logged for ops
     console.error("[GateTest] Stripe capture/cancel failed:", err);
   }
 

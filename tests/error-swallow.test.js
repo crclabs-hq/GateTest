@@ -375,3 +375,59 @@ describe('ErrorSwallowModule — clean baseline', () => {
     assert.match(s.message, /1 file\(s\)/);
   });
 });
+
+describe('ErrorSwallowModule — // error-swallow-ok suppression marker', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-es-supp-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('suppresses an empty catch when marker is on the same line', async () => {
+    write(tmp, 'src/a.js',
+      'function f() {\n' +
+      '  try { dangerous(); } catch {} // error-swallow-ok intentional best-effort\n' +
+      '}\n');
+    const r = await run(tmp);
+    const errors = r.checks.filter((c) => !c.passed && c.severity === 'error');
+    assert.strictEqual(errors.length, 0, 'no errors with same-line marker');
+  });
+
+  it('suppresses an empty catch when marker is on the preceding line', async () => {
+    write(tmp, 'src/a.js',
+      'function f() {\n' +
+      '  // error-swallow-ok intentional\n' +
+      '  try { dangerous(); } catch {}\n' +
+      '}\n');
+    const r = await run(tmp);
+    const errors = r.checks.filter((c) => !c.passed && c.severity === 'error');
+    assert.strictEqual(errors.length, 0, 'no errors with preceding-line marker');
+  });
+
+  it('does NOT suppress when marker is two lines before (window is 1)', async () => {
+    write(tmp, 'src/a.js',
+      'function f() {\n' +
+      '  // error-swallow-ok\n' +
+      '  let x = 1;\n' +
+      '  try { dangerous(); } catch {}\n' +
+      '}\n');
+    const r = await run(tmp);
+    const errors = r.checks.filter((c) => !c.passed && c.severity === 'error');
+    assert.ok(errors.length > 0, 'marker too far away should not suppress');
+  });
+
+  it('still flags un-marked catches elsewhere in the same file', async () => {
+    // Note: marker on line N suppresses line N AND line N+1 (matches the
+    // suppression semantics in tls-security, log-pii, hardcoded-url, etc.)
+    // — so we put a separator line between the marked catch and the
+    // un-marked one so the un-marked one isn't accidentally covered.
+    write(tmp, 'src/a.js',
+      'function f() {\n' +
+      '  try { a(); } catch {} // error-swallow-ok\n' +
+      '  let separator = 1;\n' +
+      '  let another = 2;\n' +
+      '  try { b(); } catch {}\n' +
+      '}\n');
+    const r = await run(tmp);
+    const errors = r.checks.filter((c) => !c.passed && c.severity === 'error');
+    assert.ok(errors.length > 0, 'un-marked catch must still flag');
+  });
+});

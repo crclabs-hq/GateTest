@@ -173,7 +173,7 @@ async function processPushEvent({
   let depth = 0;
   try {
     depth = await queueStore.getQueueDepth(sql);
-  } catch (err) {
+  } catch (err) { // error-swallow-ok: fail-open on backpressure check — better to enqueue than reject a real event
     console.error('[events-push] getQueueDepth failed:', err && err.message ? err.message : err);
     // Fail open — if we can't read depth, still try to enqueue.
   }

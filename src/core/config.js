@@ -435,7 +435,7 @@ class GateTestConfig {
       try {
         const raw = fs.readFileSync(rootConfigPath, 'utf-8');
         fileConfig = JSON.parse(raw);
-      } catch (err) {
+      } catch (err) { // error-swallow-ok: corrupted config → fall back to defaults, warn the user
         console.error(`[GateTest] Warning: Failed to parse ${rootConfigPath}: ${err.message}`);
       }
     }
@@ -444,7 +444,7 @@ class GateTestConfig {
       try {
         const raw = fs.readFileSync(this.configPath, 'utf-8');
         fileConfig = JSON.parse(raw);
-      } catch (err) {
+      } catch (err) { // error-swallow-ok: corrupted legacy config → fall back to defaults, warn the user
         console.error(`[GateTest] Warning: Failed to parse ${this.configPath}: ${err.message}`);
       }
     }

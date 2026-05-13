@@ -218,7 +218,7 @@ export async function POST(req: NextRequest) {
           });
         }
       }
-    } catch (err) {
+    } catch (err) { // error-swallow-ok: idempotency lookup failure must not block legit scan
       // Don't block a scan on an idempotency-check lookup failure — log
       // and fall through to the normal scan path.
       console.error("[GateTest] Idempotency check failed:", err);
@@ -269,7 +269,7 @@ export async function POST(req: NextRequest) {
           await stripeApi("POST", `/v1/payment_intents/${session.payment_intent}/cancel`);
         }
       }
-    } catch (err) {
+    } catch (err) { // error-swallow-ok: Stripe metadata update is best-effort — scan result already returned to user
       console.error("[GateTest] Stripe update failed:", err);
     }
   }
@@ -289,7 +289,7 @@ export async function POST(req: NextRequest) {
         ref,
         scanResult: result,
       });
-    } catch (err) {
+    } catch (err) { // error-swallow-ok: callback is fire-and-forget — Gluecron will reconcile on its next poll
       console.error("[GateTest] Gluecron callback failed:", err);
     }
   }

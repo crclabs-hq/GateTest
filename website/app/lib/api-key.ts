@@ -166,7 +166,7 @@ export async function recordApiCall(params: {
       SET last_used_at = NOW(), total_calls = total_calls + 1
       WHERE id = ${params.apiKeyId}
     `;
-  } catch (err) {
+  } catch (err) { // error-swallow-ok: stats update is best-effort, never block the API request on telemetry write failure
     console.error("[GateTest] recordApiCall failed:", err);
   }
 }

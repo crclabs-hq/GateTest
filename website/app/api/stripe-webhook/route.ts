@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
       const piMeta = (pi.metadata || {}) as Record<string, string>;
       tier = tier || piMeta.tier || "";
       repoUrl = repoUrl || piMeta.repo_url || "";
-    } catch (err) {
+    } catch (err) { // error-swallow-ok: PI lookup augments metadata; webhook still acks 200
       console.error("[GateTest] PI metadata lookup failed:", err);
     }
   }
@@ -190,8 +190,7 @@ export async function POST(req: NextRequest) {
     await sql`INSERT INTO scans (id, session_id, payment_intent_id, customer_email, repo_url, tier, status, tier_price_usd)
       VALUES (${scanId}, ${sessionId}, ${paymentIntentId}, ${emailOrNull}, ${repoUrl}, ${tier}, 'pending', ${tierPriceUsd})
       ON CONFLICT (id) DO NOTHING`;
-  } catch (dbErr) {
-    // DB write is best-effort — scan still proceeds via Stripe metadata fallback
+  } catch (dbErr) { // error-swallow-ok: DB write is best-effort — scan still proceeds via Stripe metadata fallback
     console.error("[GateTest] DB write failed (webhook):", dbErr);
   }
 
@@ -228,7 +227,7 @@ export async function POST(req: NextRequest) {
           "POST",
           `/v1/payment_intents/${paymentIntentId}/cancel`
         );
-      } catch (cancelErr) {
+      } catch (cancelErr) { // error-swallow-ok: fallback cancel is the last-resort cleanup; Stripe auto-cancels uncaptured PIs at 7 days
         console.error("[GateTest] Fallback cancel failed:", cancelErr);
       }
       // Mark scan as failed in DB

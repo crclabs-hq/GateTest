@@ -73,6 +73,13 @@ const DEFAULT_EXCLUDES = [
 const SOURCE_EXTS = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts']);
 const TEST_PATH_RE = /(?:^|\/)(?:tests?|__tests__|spec)(?:\/|$)|\.(?:test|spec)\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts)$/i;
 
+// Suppression marker. Place `// error-swallow-ok` on the same line or the
+// preceding line of an intentional swallow (best-effort module loading,
+// graceful-fallback iteration, autonomous probe-failure tolerance, etc.).
+// Match other modules' vocabulary (`// log-safe`, `// tls-ok`, `// cookie-ok`,
+// `// hardcoded-url-ok`, `// redos-ok`, etc.).
+const SUPPRESS_RE = /\berror-swallow-ok\b/;
+
 // Function names whose invocation returns a Promise commonly enough
 // that calling without await/then/catch is a smell. Deliberately
 // narrow — we'd rather miss cases than shout false positives.
@@ -166,6 +173,12 @@ class ErrorSwallowModule extends BaseModule {
       const line = lines[i];
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith('//')) continue;
+
+      // Explicit suppression marker on this or the preceding line. Skip the
+      // entire per-line rule pass — every flag below would attribute to this
+      // same line index.
+      if (SUPPRESS_RE.test(line)) continue;
+      if (i > 0 && SUPPRESS_RE.test(lines[i - 1])) continue;
 
       // 1. Empty catch block — `catch (err) {}` or `catch {}` on one
       //    line, OR `catch (err) {` followed immediately by `}`.

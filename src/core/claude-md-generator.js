@@ -123,7 +123,7 @@ class ClaudeMdGenerator {
         else if (fs.existsSync(path.join(this.root, 'yarn.lock'))) s.yarn = true;
         else s.npm = true;
 
-      } catch {}
+      } catch {} // error-swallow-ok: lockfile detection best-effort
     }
 
     // Python
@@ -148,7 +148,7 @@ class ClaudeMdGenerator {
           const env = fs.readFileSync(envPath, 'utf-8');
           const match = env.match(/NEXT_PUBLIC_(?:APP_|SITE_)?URL\s*=\s*["']?([^\s"']+)/);
           if (match) this.siteUrl = match[1];
-        } catch {}
+        } catch {} // error-swallow-ok: env-file site-URL hint best-effort
       }
     }
   }
@@ -334,7 +334,7 @@ EOJSON
 
     const healthPath = path.join(claudeDir, 'session-health-check.sh');
     fs.writeFileSync(healthPath, healthScript);
-    try { fs.chmodSync(healthPath, '755'); } catch {}
+    try { fs.chmodSync(healthPath, '755'); } catch {} // error-swallow-ok: chmod best-effort, generator script still works without exec bit
 
     // Settings with hooks
     const settings = {
@@ -376,12 +376,12 @@ console.log('[GateTest] Scanning ${this.projectName}...\\n');
 // Run code scan
 try {
   execSync(\`node \${path.join(GATETEST_DIR, 'bin/gatetest.js')} --suite standard --project \${PROJECT_DIR}\`, { stdio: 'inherit' });
-} catch {}
+} catch {} // error-swallow-ok: this is inside a generated-script template literal, not generator code
 
 ${this.siteUrl ? `// Crawl live site
 try {
   execSync(\`node \${path.join(GATETEST_DIR, 'src/ai-loop.js')} \${SITE_URL}\`, { stdio: 'inherit', cwd: PROJECT_DIR });
-} catch {}` : ''}
+} catch {} // error-swallow-ok: same — generated-script template body` : ''}
 `;
 
     fs.writeFileSync(path.join(this.root, 'gatetest-scan.js'), scanScript);

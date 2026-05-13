@@ -127,7 +127,7 @@ const SEV_BAR: Record<Finding["severity"], string> = {
 
 function copyToClipboard(text: string): void {
   if (typeof navigator !== "undefined" && navigator.clipboard) {
-    navigator.clipboard.writeText(text).catch(() => {});
+    navigator.clipboard.writeText(text).catch(() => {}); // error-swallow-ok: clipboard write is a UX nicety, never block on permission denial
   }
 }
 

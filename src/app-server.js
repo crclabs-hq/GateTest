@@ -232,7 +232,7 @@ async function cloneAndScan(owner, name, branch, token) {
     const reportPath = path.join(tmpDir, '.gatetest/reports/gatetest-report-latest.json');
     let report = null;
     if (fs.existsSync(reportPath)) {
-      try { report = JSON.parse(fs.readFileSync(reportPath, 'utf-8')); } catch {}
+      try { report = JSON.parse(fs.readFileSync(reportPath, 'utf-8')); } catch {} // error-swallow-ok: corrupted report file → null is acceptable, falls through to fresh scan
     }
 
     if (report) {
@@ -265,7 +265,7 @@ async function cloneAndScan(owner, name, branch, token) {
 
   } finally {
     // Cleanup
-    try { execSync(`rm -rf ${tmpDir}`, { stdio: 'pipe' }); } catch {}
+    try { execSync(`rm -rf ${tmpDir}`, { stdio: 'pipe' }); } catch {} // error-swallow-ok: cleanup in finally — rm failure must not abort the parent request
   }
 }
 
@@ -366,7 +366,7 @@ const server = http.createServer(async (req, res) => {
         } else {
           console.log(`[GateTest] Ignoring event: ${eventType}`);
         }
-      } catch (err) {
+      } catch (err) { // error-swallow-ok: webhook handler — log and 200 OK so the sender doesn't retry forever
         console.error(`[GateTest] Error processing webhook:`, err.message);
       }
     });
