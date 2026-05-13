@@ -498,10 +498,12 @@ GateTest/
 ├── MARKETING.md            ← Positioning, pricing, website copy
 ├── package.json            ← CLI tool (name: gatetest, bin: gatetest)
 ├── bin/gatetest.js         ← CLI entry point (20+ flags)
+├── bin/gatetest-mcp.js     ← MCP stdio server entry point (Claude Code / Cursor / Cline / Windsurf)
 ├── src/
 │   ├── index.js            ← Main library entry
 │   ├── core/               ← Config, runner, registry, cache, CI gen, GitHub bridge
-│   ├── modules/            ← 53 TEST MODULES (24 core + 9 universal language checkers + 1 polyglot dependency scanner + 1 Dockerfile scanner + 1 CI-security scanner + 1 shell-script scanner + 1 SQL-migration safety scanner + 1 Terraform/IaC scanner + 1 Kubernetes manifest scanner + 1 Prompt/LLM-safety scanner + 1 dead-code / unused-export scanner + 1 secret-rotation / key-age scanner + 1 web-headers / CORS scanner + 1 TypeScript-strictness scanner + 1 flaky-test detector + 1 error-swallow detector + 1 N+1 query detector + 1 retry-hygiene scanner + 1 race-condition detector + 1 resource-leak detector + 1 SSRF / URL-validation gap detector + 1 hardcoded-URL / localhost / private-IP leak detector + 1 env-var contract scanner + 1 async-iteration detector + 1 homoglyph / Unicode-lookalike detector + 1 OpenAPI drift detector)
+│   ├── mcp/                ← Model Context Protocol stdio server (zero-dep, JSON-RPC 2.0, protocol 2024-11-05)
+│   ├── modules/            ← 67 TEST MODULES (see VERSION section for the full breakdown)
 │   ├── reporters/          ← Console, JSON, HTML, SARIF, JUnit
 │   ├── scanners/           ← Continuous scanner
 │   └── hooks/              ← Pre-commit, pre-push
@@ -579,7 +581,11 @@ GateTest/
 | `src/modules/homoglyph.js` | Homoglyph / Unicode-lookalike detector — flags bidirectional-override / isolate characters (U+202A..U+202E, U+2066..U+2069) as Trojan Source attack shape (error, CVE-2021-42574), Cyrillic / Greek letters embedded inside otherwise-Latin identifiers (error: supply-chain / code-review bypass vector; covers `а` U+0430, `е` U+0435, `о` U+043E, `р` U+0440, `с` U+0441, `х` U+0445, `у` U+0443, `ѕ` U+0455, Greek `ο` U+03BF, `ρ` U+03C1, etc.), zero-width chars U+200B/U+200C/U+200D/U+2060/U+FEFF mid-file (warning: identifier-shadow vector), and other non-printable control chars (warning). Identifier scan uses a string-and-comment stripper so translation-string contents don't false-positive. Locale paths (`locales/`, `i18n/`, `lang/`, `translations/`, `intl/`, `l10n/`), locale extensions (`.po`/`.pot`/`.xliff`/`.arb`/`.mo`), and doc extensions (`.md`/`.mdx`/`.rst`) are exempt. BOM on the first byte of the first line is allowed | Adding new lookalike letters, locale-path patterns, or control-char allowlist |
 | `src/core/host-bridge.js` | Abstract `HostBridge` base, bridge registry (`createBridge`/`registerBridge`), canonical commit-status vocabulary, shared PR/MR markdown formatter | Before adding a new host integration or touching cross-host logic |
 | `src/core/github-bridge.js` | Concrete `GitHubBridge` extending `HostBridge` — GitHub-specific REST calls, circuit breaker, retry, JWT auth | Anything GitHub-specific; prefer `HostBridge` for cross-host work |
-| `bin/gatetest.js` | CLI flags, help text, watch mode | Adding CLI features |
+| `bin/gatetest.js` | CLI flags, help text, watch mode, `gatetest mcp` subcommand dispatch | Adding CLI features |
+| `bin/gatetest-mcp.js` | Standalone MCP stdio server entry — what MCP clients spawn | Changing how MCP clients launch the server |
+| `src/mcp/server.js` | Zero-dep MCP (Model Context Protocol) stdio server. JSON-RPC 2.0 over stdin/stdout, protocol 2024-11-05. Exposes three tools: `gatetest_version`, `gatetest_list_modules`, `gatetest_scan`. **CRITICAL: uses a bare GateTestRunner with zero reporters** — if a future change wires `gt._run()` here, ConsoleReporter will write to stdout and silently corrupt the protocol channel for every AI client (Claude Code, Cursor, Cline, Windsurf). | Adding tools, changing wire format, touching reporter wiring |
+| `tests/mcp-server.test.js` | Protocol-contract tests — without these a regression in `src/mcp/server.js` would silently break every AI-client integration | Before changing the MCP server surface |
+| `docs/MCP.md` | Setup guide for Claude Code / Cursor / Cline / Windsurf / Continue | Adding a new MCP client or new tool |
 | `website/app/api/scan/run/route.ts` | The actual scan execution | Changing scan logic |
 | `website/app/scan/status/page.tsx` | Live scan page | Changing scan UX |
 | `website/app/api/checkout/route.ts` | Stripe checkout creation | Changing payment flow |
@@ -637,6 +643,9 @@ GateTest/
 | 24 | **GitHub file-tree fetch is unbounded** on `?recursive=1` — monorepos with 100k+ files will exhaust Vercel's per-function budget. | MEDIUM | Post-launch — add pagination / file-count ceiling / graceful degradation message when a repo is too large. |
 | 25 | **Rate-limit wait cap** in `github-bridge.js:138` only waits if backoff < 120s. GitHub resets can be 60 minutes out, meaning we skip the wait and hammer 429. | MEDIUM | Post-launch — queue and respect longer resets, or refuse scans during the cool-down window. |
 | 26 | **No `vercel.json` maxDuration** for `/api/scan/run` — full scan targets <60s but no hard cap is pinned at the platform layer. If a scan hangs it'll be killed mid-way at Vercel's plan-default. | MEDIUM | Craig action — pin `maxDuration: 300` once deployment plan is confirmed (Boss Rule #5 / deployment config). |
+| 27 | **`gatetest` not yet published to npm** — `npm view gatetest` returns 404. Until it ships, `npm install -g gatetest` (the one-line install in the MCP doc and on the website) does not work; users have to clone and `npm link`. Distribution channel blocked. | HIGH | Craig action — first-time `npm publish` is Boss Rule #9 (public-facing release). Code is launch-ready; tests green, zero-dep, MIT licensed, `bin/gatetest` + `bin/gatetest-mcp` declared. Recommend running `npm publish --dry-run` first to verify the tarball. |
+| 28 | **Version drift Bible ↔ package.json** — Bible says `v1.41.0`, `package.json` still says `"version": "1.0.0"`. `gatetest --version` and the MCP `gatetest_version` tool both report 1.0.0 so customers will see the wrong number. | MEDIUM | Craig action — version bump is adjacent to release strategy (semver, changelog) so pairing it with the `npm publish` decision. Suggest bumping to `1.41.0` to match the Bible at the same time as publish. |
+| 29 | **MCP server shipped — needs distribution channels lined up** to actually reach AI-coding-agent users. Channels: (a) submit to Claude Code MCP registry / awesome-mcp-servers list, (b) Cursor's `mcp.json` examples in their docs, (c) Cline / Windsurf / Continue plugin galleries, (d) `mcp-server` + `model-context-protocol` npm keywords (done), (e) Show HN / Product Hunt post on launch day. | HIGH | Craig action — every channel is brand/marketing (Boss Rule #8) + public-facing comms (Boss Rule #9). I can draft the copy for each channel; Craig posts. |
 
 ---
 
@@ -687,7 +696,11 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.40.0 — 67 modules (24 core + 9 universal language checkers
+GateTest v1.41.0 — **MCP server shipped** (Model Context Protocol stdio
+server, zero-dep, protocol 2024-11-05 — lets Claude Code, Cursor, Cline,
+Windsurf, Continue and any MCP-capable agent invoke GateTest natively;
+three tools exposed: `gatetest_version`, `gatetest_list_modules`,
+`gatetest_scan`). 67 modules (24 core + 9 universal language checkers
 for Python, Go, Rust, Java, Ruby, PHP, C#, Kotlin, Swift + 7 **infra
 & supply-chain hardening scanners** — dependencies (npm/pip/Pipenv/
 Poetry/go.mod/Cargo/Bundler/Composer/Maven/Gradle), Dockerfile,
@@ -1047,4 +1060,4 @@ shared PR/MR markdown, registry-based bridge factory). `GitHubBridge`
 is the first concrete implementation; `GluecronBridge` will be the
 second.
 
-Date last updated: 2026-04-18
+Date last updated: 2026-05-13

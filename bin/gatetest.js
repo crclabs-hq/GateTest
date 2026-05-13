@@ -25,6 +25,8 @@ const HELP = `
 
   USAGE
     gatetest [options]
+    gatetest mcp                        Run as a Model Context Protocol stdio server
+                                        (for Claude Code, Cursor, Cline, Windsurf, etc.)
 
   OPTIONS
     --suite <name>     Run a test suite: quick, standard, full (default: standard)
@@ -82,6 +84,15 @@ const HELP = `
 `;
 
 async function main() {
+  // Subcommand: `gatetest mcp` launches the Model Context Protocol stdio server.
+  // Must be the first positional arg; everything after is ignored — the MCP
+  // server reads JSON-RPC over stdin and writes responses to stdout.
+  if (process.argv[2] === 'mcp') {
+    const { start } = require('../src/mcp/server');
+    start();
+    return;
+  }
+
   const args = parseArgs(process.argv.slice(2));
 
   if (args.help) {

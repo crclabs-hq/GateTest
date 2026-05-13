@@ -4,12 +4,14 @@
   "description": "GateTest - Advanced QA gate between Claude and GitHub. Nothing ships unless it's pristine.",
   "main": "src/index.js",
   "bin": {
-    "gatetest": "./bin/gatetest.js"
+    "gatetest": "./bin/gatetest.js",
+    "gatetest-mcp": "./bin/gatetest-mcp.js"
   },
   "scripts": {
     "test": "node --test tests/**/*.test.js",
     "app": "node src/app-server.js",
     "gatetest": "node bin/gatetest.js",
+    "gatetest:mcp": "node bin/gatetest-mcp.js",
     "gatetest:full": "node bin/gatetest.js --suite full",
     "gatetest:quick": "node bin/gatetest.js --suite quick",
     "gatetest:security": "node bin/gatetest.js --module security",
@@ -36,7 +38,13 @@
     "accessibility",
     "performance",
     "visual-regression",
-    "seo"
+    "seo",
+    "mcp",
+    "model-context-protocol",
+    "ai-tools",
+    "claude-code",
+    "cursor",
+    "agent"
   ],
   "author": "GateTest Team",
   "license": "MIT",
