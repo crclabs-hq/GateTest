@@ -198,6 +198,14 @@ const { attemptFixWithRetries, summariseAttempts } = require("@/app/lib/fix-atte
   }>;
   summariseAttempts: (attempts: Array<{ outcome: string; durationMs: number }>) => string;
 };
+// Shape of the shared adaptive-concurrency state object. Mirrors the JS
+// source at website/app/lib/adaptive-concurrency.js — workers may mutate
+// `activeConcurrency` (throttle) or `haltRun` (abort) and the pool reacts.
+type AdaptiveState = {
+  consecutiveNetworkErrors: number;
+  activeConcurrency: number;
+  haltRun: boolean;
+};
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { mapWithAdaptiveConcurrency } = require("@/app/lib/adaptive-concurrency") as {
   mapWithAdaptiveConcurrency: <T, R>(
