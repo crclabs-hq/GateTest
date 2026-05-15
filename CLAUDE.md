@@ -503,7 +503,7 @@ When something breaks:
 | They use | GateTest replaces it with |
 |----------|--------------------------|
 | Jest/Vitest/Mocha | `gatetest --module unitTests` |
-| Playwright/Cypress | `gatetest --module e2e` |
+| Cypress / BrowserStack / Sauce Labs | `gatetest --module e2e` |
 | ESLint/Stylelint | `gatetest --module lint` |
 | Snyk/npm audit | `gatetest --module security` |
 | Renovate/Dependabot (hygiene only) | `gatetest --module dependencies` |
@@ -1210,3 +1210,5 @@ Both routes now compute health score + cluster the findings + show preview-vs-fu
 **Module count: 91** (was 90 — +1 runtimeErrors). CLI `node bin/gatetest.js --list` shows 106 lines (94 modules + header lines). `npx tsc --noEmit` clean on `website/`.
 
 Headless browser path: in the serverless production environment Chromium typically can't launch — the module returns an info-level "playwright not available" skip and the rest of the scan continues uninterrupted. Real runtime capture lights up when the same engine runs on a worker / local CLI / dedicated infra. The hooks for that worker pipeline already exist (`scan-queue`).
+
+**Playwright-as-internal-dep decision (Craig 2026-05-15):** Playwright is an open-source browser-automation library (Microsoft, free) used internally by `chaos.js` and `runtime-errors.js` to drive Chromium. It is NOT one of our paid revenue competitors (those are Cypress Cloud, BrowserStack, Sauce Labs — listed in the "we replace" table). Marketing copy in CLAUDE.md and README.md previously listed "Playwright/Cypress → replaces it" which was contradictory; updated to "Cypress / BrowserStack / Sauce Labs → replaces it" so the claim matches reality. README.md:81 and MARKETING.md:58 saying *"e2e module integrates with Playwright/Cypress/Puppeteer"* stays as-is — that describes the implementation honestly. **Future sessions:** do NOT rip Playwright out as a competitor concern; Craig has explicitly authorized the internal use after weighing options A (rip out for CDP), B (soften marketing — chosen), and C (drop headless entirely).
