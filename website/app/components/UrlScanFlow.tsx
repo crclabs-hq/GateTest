@@ -90,8 +90,22 @@ interface ScanResult {
 interface UrlScanFlowProps {
   suite: "web" | "wp";
   endpoint: string;
+  /**
+   * Optional streaming endpoint. When set, the component opens an SSE
+   * stream and updates a live module-by-module ticker as the scan runs.
+   * Falls back to the non-streaming endpoint if the stream errors.
+   */
+  streamEndpoint?: string;
   placeholderUrl?: string;
   brandLabel?: string;
+}
+
+interface ModuleProgress {
+  name: string;
+  state: "queued" | "running" | "done" | "skipped";
+  errors?: number;
+  warnings?: number;
+  duration?: number;
 }
 
 const MODULE_TICKER: Record<"web" | "wp", string[]> = {
@@ -437,6 +451,77 @@ function PaywallCard({ paywall, targetUrl }: { paywall: NonNullable<ScanResult["
   );
 }
 
+/**
+ * Real-module ticker — renders the actual modules the engine is running.
+ * When the SSE stream is feeding `liveModules`, we render those state
+ * transitions directly. Falls back to the suite-specific fake list when
+ * the caller hasn't wired streaming yet.
+ */
+function LiveModuleTicker({ modules, elapsedSec }: { modules: ModuleProgress[]; elapsedSec: number }) {
+  return (
+    <div className="rounded-3xl border border-border bg-white p-6 sm:p-8" role="status" aria-live="polite">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <span className="w-3 h-3 rounded-full bg-accent animate-pulse" aria-hidden />
+          <p className="font-semibold text-foreground">Live scan in progress…</p>
+        </div>
+        <p className="text-sm text-muted font-mono tabular-nums">{elapsedSec.toFixed(1)}s</p>
+      </div>
+      <ul className="space-y-2.5 max-h-[400px] overflow-y-auto pr-2">
+        {modules.map((m) => {
+          const done = m.state === "done";
+          const skipped = m.state === "skipped";
+          const running = m.state === "running";
+          const hasIssues = (m.errors || 0) + (m.warnings || 0) > 0;
+          return (
+            <li key={m.name} className="flex items-center gap-3 text-sm">
+              <span
+                className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${
+                  done && hasIssues
+                    ? "bg-amber-500 text-white"
+                    : done
+                    ? "bg-emerald-500 text-white"
+                    : skipped
+                    ? "bg-slate-200 text-slate-500"
+                    : running
+                    ? "bg-accent/15 text-accent"
+                    : "bg-slate-100 text-slate-400"
+                }`}
+                aria-hidden
+              >
+                {done ? (
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : skipped ? (
+                  <span className="text-[10px] font-bold">—</span>
+                ) : running ? (
+                  <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                ) : null}
+              </span>
+              <span className={`flex-1 ${done ? "text-foreground" : running ? "text-foreground font-medium" : "text-muted"}`}>
+                {m.name}
+              </span>
+              {done && hasIssues && (
+                <span className="text-xs font-mono text-amber-700">
+                  {m.errors ? `${m.errors}E` : ""}
+                  {m.errors && m.warnings ? " · " : ""}
+                  {m.warnings ? `${m.warnings}W` : ""}
+                </span>
+              )}
+              {done && !hasIssues && <span className="text-xs font-mono text-emerald-700">clean</span>}
+              {skipped && <span className="text-xs text-muted italic">skipped</span>}
+              {done && typeof m.duration === "number" && m.duration > 100 && (
+                <span className="text-xs font-mono text-muted tabular-nums">{(m.duration / 1000).toFixed(1)}s</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function ProgressTicker({ suite, elapsedSec }: { suite: "web" | "wp"; elapsedSec: number }) {
   const items = MODULE_TICKER[suite];
   const activeIndex = Math.min(items.length - 1, Math.floor(elapsedSec / 1.6));
@@ -536,14 +621,16 @@ function RuntimePending({ pollUrl, onComplete }: { pollUrl: string; onComplete: 
   );
 }
 
-export function UrlScanFlow({ suite, endpoint, placeholderUrl = "https://yoursite.com", brandLabel }: UrlScanFlowProps) {
+export function UrlScanFlow({ suite, endpoint, streamEndpoint, placeholderUrl = "https://yoursite.com", brandLabel }: UrlScanFlowProps) {
   type Phase = "idle" | "scanning" | "results" | "error";
   const [phase, setPhase] = useState<Phase>("idle");
   const [url, setUrl] = useState("");
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [liveModules, setLiveModules] = useState<ModuleProgress[]>([]);
   const tickerRef = useRef<NodeJS.Timeout | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (phase === "scanning") {
@@ -561,34 +648,171 @@ export function UrlScanFlow({ suite, endpoint, placeholderUrl = "https://yoursit
     };
   }, [phase]);
 
+  /**
+   * Read an SSE stream line by line and dispatch each event to onEvent.
+   * Implements a minimal text/event-stream parser — enough for our shape
+   * (event: ... \n data: ... \n \n). Keep-alive comment lines (":...") are
+   * ignored. Returns when the server closes the stream.
+   */
+  async function consumeSseStream(
+    res: Response,
+    onEvent: (event: string, data: unknown) => void,
+    signal: AbortSignal
+  ): Promise<void> {
+    if (!res.body) throw new Error("Stream response had no body");
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let currentEvent = "message";
+    let currentData = "";
+    const flush = () => {
+      if (currentData) {
+        try {
+          const parsed = JSON.parse(currentData);
+          onEvent(currentEvent, parsed);
+        } catch {
+          onEvent(currentEvent, currentData);
+        }
+      }
+      currentEvent = "message";
+      currentData = "";
+    };
+    while (true) {
+      if (signal.aborted) {
+        try { await reader.cancel(); } catch { /* ignore */ }
+        return;
+      }
+      const { done, value } = await reader.read();
+      if (done) {
+        if (currentData) flush();
+        return;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.startsWith(":")) continue;            // keep-alive comment
+        if (line === "") { flush(); continue; }
+        if (line.startsWith("event:")) currentEvent = line.slice(6).trim();
+        else if (line.startsWith("data:")) currentData += (currentData ? "\n" : "") + line.slice(5).trim();
+      }
+    }
+  }
+
+  async function runStreaming(targetUrl: string, abort: AbortController) {
+    if (!streamEndpoint) throw new Error("no-stream-endpoint");
+    const res = await fetch(streamEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify({ url: targetUrl }),
+      signal: abort.signal,
+    });
+    if (!res.ok) {
+      // Server returned an error JSON instead of a stream
+      let errMsg = `Scan failed (HTTP ${res.status})`;
+      try {
+        const j = await res.json();
+        errMsg = j?.error || errMsg;
+      } catch { /* ignore */ }
+      throw new Error(errMsg);
+    }
+
+    let completed: ScanResult | null = null;
+    await consumeSseStream(res, (event, data) => {
+      if (event === "module:start") {
+        const d = data as { module: string };
+        setLiveModules((prev) => {
+          const i = prev.findIndex((m) => m.name === d.module);
+          if (i >= 0) {
+            const copy = [...prev];
+            copy[i] = { ...copy[i], state: "running" };
+            return copy;
+          }
+          return [...prev, { name: d.module, state: "running" }];
+        });
+      } else if (event === "module:end") {
+        const d = data as { module: string; errors?: number; warnings?: number; duration?: number };
+        setLiveModules((prev) => {
+          const i = prev.findIndex((m) => m.name === d.module);
+          const updated: ModuleProgress = { name: d.module, state: "done", errors: d.errors, warnings: d.warnings, duration: d.duration };
+          if (i >= 0) {
+            const copy = [...prev];
+            copy[i] = updated;
+            return copy;
+          }
+          return [...prev, updated];
+        });
+      } else if (event === "module:skip") {
+        const d = data as { module: string };
+        setLiveModules((prev) => {
+          const i = prev.findIndex((m) => m.name === d.module);
+          const updated: ModuleProgress = { name: d.module, state: "skipped" };
+          if (i >= 0) {
+            const copy = [...prev];
+            copy[i] = updated;
+            return copy;
+          }
+          return [...prev, updated];
+        });
+      } else if (event === "complete") {
+        completed = data as ScanResult;
+      } else if (event === "error") {
+        const d = data as { error?: string };
+        throw new Error(d?.error || "Scan errored mid-stream");
+      }
+    }, abort.signal);
+
+    if (!completed) throw new Error("Scan stream closed without a complete event");
+    return completed;
+  }
+
+  async function runNonStreaming(targetUrl: string): Promise<ScanResult> {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: targetUrl }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || "Scan failed. Please try a different URL.");
+    return data as ScanResult;
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!url.trim()) return;
+    const targetUrl = url.trim();
     setError(null);
+    setLiveModules([]);
     setPhase("scanning");
+    const abort = new AbortController();
+    abortRef.current = abort;
     try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data?.error || "Scan failed. Please try a different URL.");
-        setPhase("error");
-        return;
-      }
-      setResult(data as ScanResult);
+      const data = streamEndpoint
+        ? await runStreaming(targetUrl, abort)
+        : await runNonStreaming(targetUrl);
+      setResult(data);
       setPhase("results");
     } catch (err) {
+      if ((err as Error)?.name === "AbortError") {
+        // User cancelled — return to idle
+        setPhase("idle");
+        return;
+      }
       setError(err instanceof Error ? err.message : "Network error — please try again.");
       setPhase("error");
+    } finally {
+      abortRef.current = null;
     }
   }
 
   function reset() {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
     setResult(null);
     setError(null);
+    setLiveModules([]);
     setPhase("idle");
     setUrl("");
   }
@@ -654,10 +878,17 @@ export function UrlScanFlow({ suite, endpoint, placeholderUrl = "https://yoursit
         </p>
       )}
 
-      {/* SCANNING STATE — cinematic progress ticker */}
+      {/* SCANNING STATE — cinematic progress ticker.
+          Streaming endpoint feeds the real module list; otherwise a
+          suite-appropriate fake ticker animates while the non-streaming
+          scan returns. */}
       {phase === "scanning" && (
         <div className="mt-10 max-w-2xl mx-auto">
-          <ProgressTicker suite={suite} elapsedSec={elapsedSec} />
+          {streamEndpoint && liveModules.length > 0 ? (
+            <LiveModuleTicker modules={liveModules} elapsedSec={elapsedSec} />
+          ) : (
+            <ProgressTicker suite={suite} elapsedSec={elapsedSec} />
+          )}
         </div>
       )}
 

@@ -35,7 +35,12 @@ export default function WordPressLanding() {
           Plain-English report you can act on yourself or hand to your developer.
         </p>
 
-        <UrlScanFlow suite="wp" endpoint="/api/wp/scan" brandLabel="WordPress scan" />
+        <UrlScanFlow
+          suite="wp"
+          endpoint="/api/wp/scan"
+          streamEndpoint="/api/wp/scan/stream"
+          brandLabel="WordPress scan"
+        />
       </section>
 
       <section className="px-6 py-16 max-w-5xl mx-auto border-t border-border">
