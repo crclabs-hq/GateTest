@@ -595,3 +595,279 @@ test('flywheel: loadFlywheel returns { available: false } gracefully when layers
   assert.ok(result);
   assert.equal(typeof result.available, 'boolean');
 });
+
+// ── Smart default activation (Task 1) ──────────────────────────────────────
+// The fixer is enabled whenever ANTHROPIC_API_KEY is present. The
+// GATETEST_AI_CI_FIXER variable is an OPT-OUT escape hatch — only "0"
+// disables. Any other value (including unset / "1" / "true") leaves the
+// fixer enabled.
+
+test('readEnv: ANTHROPIC_API_KEY present + GATETEST_AI_CI_FIXER undefined → enabled', () => {
+  const cfg = fixer.readEnv({
+    ANTHROPIC_API_KEY: 'k',
+    GITHUB_TOKEN:      't',
+    GITHUB_REPOSITORY: 'o/r',
+    WORKFLOW_RUN_ID:   '1',
+    // GATETEST_AI_CI_FIXER deliberately omitted
+  });
+  assert.equal(cfg.ok, true);
+});
+
+test('readEnv: GATETEST_AI_CI_FIXER="0" + key present → disabled with explicit-opt-out reason', () => {
+  const cfg = fixer.readEnv({
+    ANTHROPIC_API_KEY:    'k',
+    GITHUB_TOKEN:         't',
+    GITHUB_REPOSITORY:    'o/r',
+    WORKFLOW_RUN_ID:      '1',
+    GATETEST_AI_CI_FIXER: '0',
+  });
+  assert.equal(cfg.ok, false);
+  assert.match(cfg.reason, /opted out/i);
+  assert.match(cfg.reason, /GATETEST_AI_CI_FIXER/);
+});
+
+test('readEnv: GATETEST_AI_CI_FIXER="1" + key present → enabled (no different from undefined)', () => {
+  const cfg = fixer.readEnv({
+    ANTHROPIC_API_KEY:    'k',
+    GITHUB_TOKEN:         't',
+    GITHUB_REPOSITORY:    'o/r',
+    WORKFLOW_RUN_ID:      '1',
+    GATETEST_AI_CI_FIXER: '1',
+  });
+  assert.equal(cfg.ok, true);
+});
+
+test('readEnv: no ANTHROPIC_API_KEY → disabled regardless of GATETEST_AI_CI_FIXER flag', () => {
+  // Flag set to "1" should NOT enable the fixer without the key.
+  const cfg1 = fixer.readEnv({
+    GITHUB_TOKEN:         't',
+    GITHUB_REPOSITORY:    'o/r',
+    WORKFLOW_RUN_ID:      '1',
+    GATETEST_AI_CI_FIXER: '1',
+  });
+  assert.equal(cfg1.ok, false);
+  assert.match(cfg1.reason, /ANTHROPIC_API_KEY/);
+
+  // Flag set to "0" → still ANTHROPIC_API_KEY error path (key check runs first).
+  const cfg2 = fixer.readEnv({
+    GITHUB_TOKEN:         't',
+    GITHUB_REPOSITORY:    'o/r',
+    WORKFLOW_RUN_ID:      '1',
+    GATETEST_AI_CI_FIXER: '0',
+  });
+  assert.equal(cfg2.ok, false);
+  assert.match(cfg2.reason, /ANTHROPIC_API_KEY/);
+});
+
+// ── Branch-collision handling (Task 2) ─────────────────────────────────────
+// When a previous AI fix-PR for the same workflow run still exists, rotate
+// the branch name through ai-fix/<runId>-attempt-2 … -attempt-10 until a
+// free slot is found. Cap at 10, then give up.
+
+/**
+ * Build a transport that returns the given status for the canonical branch
+ * name and for each `-attempt-N` variant. Map keys are branch names; values
+ * are HTTP statuses (200 = exists, 404 = free, anything else = treated as
+ * exists per the spec).
+ */
+function branchTransport(statusByBranch) {
+  return {
+    request(opts, cb) {
+      // path looks like /repos/o/r/branches/<branch> (URL-encoded)
+      const m = /\/repos\/[^/]+\/[^/]+\/branches\/(.+)$/.exec(opts.path);
+      const branch = m ? decodeURIComponent(m[1]) : '';
+      const status = statusByBranch[branch] ?? 404;
+      const body = status === 200
+        ? { name: branch, commit: { sha: 'abc' } }
+        : { message: status === 404 ? 'Branch not found' : 'error' };
+      setImmediate(() => {
+        const raw = JSON.stringify(body);
+        const res = {
+          statusCode: status,
+          headers: { 'content-type': 'application/json' },
+          on(event, fn) {
+            if (event === 'data') fn(Buffer.from(raw));
+            if (event === 'end')  fn();
+          },
+        };
+        cb(res);
+      });
+      return { on() {}, write() {}, end() {}, destroy() {} };
+    },
+  };
+}
+
+test('findFreeBranchName: free branch on first try returns ai-fix/<runId>', async () => {
+  const transport = branchTransport({}); // every branch 404 = free
+  const result = await fixer.findFreeBranchName({
+    token: 't', repo: 'o/r', baseRunId: '100', transport,
+  });
+  assert.deepEqual(result, { branch: 'ai-fix/100', attemptNumber: 1 });
+});
+
+test('findFreeBranchName: canonical branch taken, attempt-2 free → ai-fix/<runId>-attempt-2', async () => {
+  const transport = branchTransport({
+    'ai-fix/200': 200,
+  });
+  const result = await fixer.findFreeBranchName({
+    token: 't', repo: 'o/r', baseRunId: '200', transport,
+  });
+  assert.deepEqual(result, { branch: 'ai-fix/200-attempt-2', attemptNumber: 2 });
+});
+
+test('findFreeBranchName: through attempt-9, free on attempt-10', async () => {
+  const statusMap = { 'ai-fix/300': 200 };
+  for (let n = 2; n <= 9; n++) {
+    statusMap[`ai-fix/300-attempt-${n}`] = 200;
+  }
+  const transport = branchTransport(statusMap);
+  const result = await fixer.findFreeBranchName({
+    token: 't', repo: 'o/r', baseRunId: '300', transport,
+  });
+  assert.deepEqual(result, { branch: 'ai-fix/300-attempt-10', attemptNumber: 10 });
+});
+
+test('findFreeBranchName: all 10 attempts taken → returns null', async () => {
+  const statusMap = { 'ai-fix/400': 200 };
+  for (let n = 2; n <= 10; n++) {
+    statusMap[`ai-fix/400-attempt-${n}`] = 200;
+  }
+  const transport = branchTransport(statusMap);
+  const result = await fixer.findFreeBranchName({
+    token: 't', repo: 'o/r', baseRunId: '400', transport,
+  });
+  assert.equal(result, null);
+});
+
+test('findFreeBranchName: API error on every check → returns null (every branch treated as exists)', async () => {
+  // Every call returns 429 — per the spec, "any other status" is treated as
+  // exists (safer to rotate than to clobber). After cycling through all 10
+  // candidates, we return null.
+  const transport = {
+    request(opts, cb) {
+      setImmediate(() => {
+        const raw = JSON.stringify({ message: 'rate limited' });
+        const res = {
+          statusCode: 429,
+          headers: { 'content-type': 'application/json' },
+          on(event, fn) {
+            if (event === 'data') fn(Buffer.from(raw));
+            if (event === 'end')  fn();
+          },
+        };
+        cb(res);
+      });
+      return { on() {}, write() {}, end() {}, destroy() {} };
+    },
+  };
+  const result = await fixer.findFreeBranchName({
+    token: 't', repo: 'o/r', baseRunId: '500', transport,
+  });
+  assert.equal(result, null);
+});
+
+test('findFreeBranchName: transport that throws is treated as exists, eventually returns null', async () => {
+  // A transport that throws synchronously simulates a hard network error
+  // mid-call. branchExists must catch and treat as exists; findFreeBranchName
+  // must walk through all 10 candidates without crashing and return null.
+  const transport = {
+    request() {
+      throw new Error('network down');
+    },
+  };
+  const result = await fixer.findFreeBranchName({
+    token: 't', repo: 'o/r', baseRunId: '600', transport,
+  });
+  assert.equal(result, null);
+});
+
+test('openFixPr: uses findFreeBranchName and rotates title when attempt > 1', async () => {
+  const dir = makeTmpDir();
+  try {
+    // GitHub responses: canonical branch exists, -attempt-2 free, pulls 201.
+    const transport = fakeTransport([
+      { match: /\/branches\/ai-fix%2F700$/,           status: 200, body: { name: 'ai-fix/700' } },
+      { match: /\/branches\/ai-fix%2F700-attempt-2$/, status: 404, body: { message: 'not found' } },
+      { match: /\/pulls$/,                            status: 201, body: { number: 11, html_url: 'http://example/pr/11' } },
+    ]);
+
+    let createdPrPayload = null;
+    const captureTransport = {
+      request(opts, cb) {
+        // Capture POST /pulls body so we can assert the title.
+        if (opts.method === 'POST' && opts.path.endsWith('/pulls')) {
+          // We need to capture writes to the request body.
+          let bodyChunks = '';
+          const reqShim = {
+            on() {},
+            write(chunk) { bodyChunks += chunk; },
+            end() {
+              try { createdPrPayload = JSON.parse(bodyChunks); } catch { /* ignore */ }
+              setImmediate(() => {
+                const raw = JSON.stringify({ number: 11, html_url: 'http://example/pr/11' });
+                const res = {
+                  statusCode: 201,
+                  headers: { 'content-type': 'application/json' },
+                  on(event, fn) {
+                    if (event === 'data') fn(Buffer.from(raw));
+                    if (event === 'end')  fn();
+                  },
+                };
+                cb(res);
+              });
+            },
+            destroy() {},
+          };
+          return reqShim;
+        }
+        // Branch checks fall through to fakeTransport-style routing.
+        return transport.request(opts, cb);
+      },
+    };
+
+    const gitCalls = [];
+    const result = await fixer.openFixPr({
+      token: 't', repo: 'o/r', runId: '700',
+      runUrl: 'http://example/run/700',
+      logExcerpt: 'log',
+      attempt: 1,
+      model: 'claude-sonnet-4-5',
+      baseRef: 'main',
+      git: (args) => { gitCalls.push(args); return { ok: true, stdout: '', stderr: '' }; },
+      transport: captureTransport,
+    });
+    assert.equal(result.status, 201);
+    assert.ok(createdPrPayload, 'PR creation payload should have been captured');
+    assert.match(createdPrPayload.title, /\(attempt 2\)/);
+    assert.equal(createdPrPayload.head, 'ai-fix/700-attempt-2');
+    // Verify git checkout used the rotated branch name.
+    const checkoutCall = gitCalls.find((a) => a[0] === 'checkout');
+    assert.ok(checkoutCall, 'expected git checkout');
+    assert.equal(checkoutCall[checkoutCall.length - 1], 'ai-fix/700-attempt-2');
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('openFixPr: returns all-branches-taken when every slot is occupied', async () => {
+  // Build a transport that returns 200 for ai-fix/800 AND every
+  // -attempt-N variant. findFreeBranchName will return null and
+  // openFixPr should short-circuit before touching git.
+  const statusMap = { 'ai-fix/800': 200 };
+  for (let n = 2; n <= 10; n++) statusMap[`ai-fix/800-attempt-${n}`] = 200;
+  const transport = branchTransport(statusMap);
+
+  let gitCallCount = 0;
+  const result = await fixer.openFixPr({
+    token: 't', repo: 'o/r', runId: '800',
+    runUrl: 'http://example/run/800',
+    logExcerpt: 'log',
+    attempt: 1,
+    model: 'claude-sonnet-4-5',
+    baseRef: 'main',
+    git: () => { gitCallCount += 1; return { ok: true, stdout: '', stderr: '' }; },
+    transport,
+  });
+  assert.equal(result.status, 'all-branches-taken');
+  assert.equal(gitCallCount, 0, 'should not invoke git when no free branch exists');
+});
