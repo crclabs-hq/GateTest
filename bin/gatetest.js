@@ -25,6 +25,15 @@ const HELP = `
 
   USAGE
     gatetest [options]
+    gatetest sweep [sweep-options]   Run the Bible's pre-merge sweep (tests +
+                                     build + module load + gate + secrets +
+                                     TODOs + self-scan) and exit 0 if green,
+                                     1 if any blocking step failed. See
+                                     "gatetest sweep --help" for details.
+    gatetest scan  [options]         Explicit alias for the default scan flow
+                                     (same as running gatetest with no
+                                     subcommand). Useful for unambiguous
+                                     scripts.
 
   OPTIONS
     --suite <name>     Run a test suite: quick, standard, full (default: standard)
@@ -72,6 +81,8 @@ const HELP = `
 
   EXAMPLES
     gatetest                          Run standard checks
+    gatetest sweep                    Run the Bible's full pre-merge sweep
+    gatetest sweep --fast             Sweep gate-only (skip tests + build)
     gatetest --suite full             Run every single check
     gatetest --module security        Security scan only
     gatetest --module visual          Visual regression only
@@ -105,7 +116,29 @@ const HELP = `
 `;
 
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  // Subcommand routing (backwards-compatible).
+  //   gatetest sweep [...]   → run the Bible's pre-merge sweep locally
+  //   gatetest scan  [...]   → alias for the default scan flow (current
+  //                            behavior; the word "scan" is consumed and the
+  //                            rest of the flags are parsed as usual)
+  //   gatetest <other>       → if the first arg is not a recognised
+  //                            subcommand, fall through to flag parsing so
+  //                            every existing invocation keeps working.
+  const rawArgs = process.argv.slice(2);
+  const first = rawArgs[0];
+  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'scan']);
+  if (first === 'sweep') {
+    const { runSweep } = require('./gatetest-sweep');
+    const code = await runSweep(rawArgs.slice(1));
+    process.exit(code);
+  }
+  // 'scan' is an explicit alias for the default behavior. Consume it.
+  const effectiveArgv = first === 'scan' ? rawArgs.slice(1) : rawArgs;
+  const args = parseArgs(effectiveArgv);
+  // Ignore stale "scan" token if it somehow re-appears later.
+  if (args._subcommand === 'scan') delete args._subcommand;
+  // (KNOWN_SUBCOMMANDS export only used to keep the route table in one place.)
+  void KNOWN_SUBCOMMANDS;
 
   if (args.help) {
     console.log(HELP);
