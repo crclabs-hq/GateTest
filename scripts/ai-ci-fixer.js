@@ -26,7 +26,25 @@
 
 'use strict';
 
+const path = require('path');
+const fs = require('fs');
 const core = require('../lib/ai-ci-fixer-core');
+
+// Flywheel layers — try deterministic fixes BEFORE paying for Claude.
+// Imports are wrapped because they live under website/app/lib/ which may
+// not exist in every checkout (e.g. test contexts that stub the script).
+function loadFlywheel() {
+  try {
+    const astFixer  = require('../website/app/lib/ast-fixer');
+    const ruleFixer = require('../website/app/lib/rule-based-fixer');
+    const distill   = require('../website/app/lib/auto-distill');
+    const telemetry = require('../website/app/lib/fix-telemetry');
+    return { astFixer, ruleFixer, distill, telemetry, available: true };
+  } catch (err) {
+    core.logErr('flywheel layers not available — falling back to Claude-only', err);
+    return { available: false };
+  }
+}
 
 const USAGE = `\
 ai-ci-fixer — watches for failing CI runs and proposes a Claude-generated fix.
@@ -81,12 +99,136 @@ async function openFixPr({ token, repo, branch, runUrl, logExcerpt, attempt, mod
 }
 
 /**
- * Try one fix-attempt: call Claude → parse → apply → run gate.
- * Returns { ok, patches, gate, response, error }.
+ * Try deterministic flywheel layers (AST + Rule) per-file BEFORE Claude.
+ * Returns the patch list (possibly empty) and a flag of whether any
+ * layer fired. Telemetry is recorded for every attempt regardless of
+ * outcome — see `website/app/lib/fix-telemetry.js`.
+ *
+ * Each failing file is tried independently. A win on one file is kept
+ * even if other files still need Claude — the orchestrator concatenates
+ * the deterministic wins with the eventual Claude patches.
+ */
+function tryFlywheel({ files, repoRoot, flywheel }) {
+  if (!flywheel || !flywheel.available) return { patches: [], filesHandled: new Set() };
+
+  const patches = [];
+  const filesHandled = new Set();
+
+  for (const f of files) {
+    const filePath = path.isAbsolute(f.path) ? f.path : path.join(repoRoot, f.path);
+    const content = f.content;
+    if (typeof content !== 'string' || content.length === 0) continue;
+
+    // AST layer — operates on JS/TS only.
+    if (flywheel.astFixer.isJsOrTs && flywheel.astFixer.isJsOrTs(filePath)) {
+      const t0 = Date.now();
+      try {
+        const fixed = flywheel.astFixer.tryAstFix(content, filePath, []);
+        if (fixed && fixed !== content) {
+          patches.push({ path: f.path, content: fixed });
+          filesHandled.add(f.path);
+          recordTelemetry(flywheel, { layer: 'ast', success: true, file: f.path, durationMs: Date.now() - t0 });
+          core.log(`  flywheel/ast: fixed ${f.path}`);
+          continue;
+        }
+        recordTelemetry(flywheel, { layer: 'ast', success: false, file: f.path, durationMs: Date.now() - t0 });
+      } catch (err) {
+        core.logErr(`  flywheel/ast crash on ${f.path}`, err);
+        recordTelemetry(flywheel, { layer: 'ast', success: false, file: f.path, durationMs: Date.now() - t0, reason: 'crash' });
+      }
+    }
+
+    // Rule layer — language-agnostic regex.
+    const t0 = Date.now();
+    try {
+      const fixed = flywheel.ruleFixer.tryRuleBasedFix(content, filePath, []);
+      if (fixed && fixed !== content) {
+        patches.push({ path: f.path, content: fixed });
+        filesHandled.add(f.path);
+        recordTelemetry(flywheel, { layer: 'rule', success: true, file: f.path, durationMs: Date.now() - t0 });
+        core.log(`  flywheel/rule: fixed ${f.path}`);
+        continue;
+      }
+      recordTelemetry(flywheel, { layer: 'rule', success: false, file: f.path, durationMs: Date.now() - t0 });
+    } catch (err) {
+      core.logErr(`  flywheel/rule crash on ${f.path}`, err);
+      recordTelemetry(flywheel, { layer: 'rule', success: false, file: f.path, durationMs: Date.now() - t0, reason: 'crash' });
+    }
+  }
+
+  return { patches, filesHandled };
+}
+
+function recordTelemetry(flywheel, entry) {
+  try { flywheel.telemetry.recordFixAttempt({ ...entry, issueRuleKey: 'ci-failure', module: 'ai-ci-fixer' }); }
+  catch { /* telemetry is best-effort */ }
+}
+
+/**
+ * After a successful Claude fix, distill it into a recipe so the next
+ * time the same pattern fires, the recipe-store layer can serve it for
+ * free. Honest scope: only distills when the diff is "templatey" per
+ * the auto-distill heuristic.
+ */
+function distillClaudeWins(flywheel, patches, originalContents, model) {
+  if (!flywheel || !flywheel.available || !flywheel.distill) return;
+  for (const p of patches) {
+    const original = originalContents[p.path];
+    if (!original) continue;
+    try {
+      flywheel.distill.distillClaudeFix({
+        issue: { ruleKey: 'ci-failure', module: 'ai-ci-fixer', file: p.path },
+        originalContent: original,
+        patchedContent: p.content,
+        provenance: { originalModel: model, originalRuleKey: 'ci-failure' },
+      });
+    } catch (err) {
+      core.logErr(`auto-distill on ${p.path}`, err);
+    }
+  }
+}
+
+/**
+ * Try one fix-attempt: flywheel deterministic layers → Claude (if needed)
+ * → apply → run gate. Returns { ok, patches, gate, response, error }.
  */
 async function tryAttempt({ cfg, files, logExcerpt, attempt, deps }) {
-  const user = core.buildClaudePrompt(logExcerpt, files);
+  // Capture original contents per-file for auto-distill after a Claude win.
+  const originalContents = {};
+  for (const f of files) originalContents[f.path] = f.content;
+
+  // ── Layer 1+2: flywheel (AST + Rule) ──
+  let allPatches = [];
+  let claudeNeeded = files;
+  if (deps.flywheel && deps.flywheel.available) {
+    const flywheelResult = tryFlywheel({ files, repoRoot: deps.repoRoot, flywheel: deps.flywheel });
+    allPatches = flywheelResult.patches;
+    claudeNeeded = files.filter((f) => !flywheelResult.filesHandled.has(f.path));
+    core.log(`attempt ${attempt}: flywheel handled ${allPatches.length}/${files.length} file(s); ${claudeNeeded.length} need Claude`);
+
+    // If flywheel handled everything, apply + try the gate without paying Claude.
+    if (claudeNeeded.length === 0 && allPatches.length > 0) {
+      if (attempt > 1) deps.git(['checkout', '--', '.']);
+      const written = core.applyPatches(allPatches, deps.repoRoot);
+      core.log(`attempt ${attempt}: applied ${written.length} flywheel patch(es), no Claude call`);
+      const gateResult = deps.gate();
+      if (gateResult.ok) return { ok: true, patches: allPatches, gate: gateResult, flywheelOnly: true };
+      // Flywheel patches didn't make the gate green — roll back and fall through to Claude on ALL files.
+      deps.git(['checkout', '--', '.']);
+      allPatches = [];
+      claudeNeeded = files;
+      core.log(`attempt ${attempt}: flywheel patches didn't pass gate — falling through to Claude`);
+    }
+  }
+
+  // ── Layer 4: Claude ──
+  // Note: we don't have a recipe-store layer wired here yet (the recipe
+  // layer needs the gate's structured findings, which the CI log doesn't
+  // give us). Recipe-store activation comes from website/app/lib/try-fix
+  // when called from the scan/fix route — see auto-distill flow above.
+  const user = core.buildClaudePrompt(logExcerpt, claudeNeeded);
   let responseText;
+  const t0 = Date.now();
   try {
     responseText = await deps.callClaude({
       apiKey:    cfg.apiKey,
@@ -98,21 +240,39 @@ async function tryAttempt({ cfg, files, logExcerpt, attempt, deps }) {
     });
   } catch (err) {
     core.logErr(`Claude call attempt ${attempt}`, err);
+    recordTelemetry(deps.flywheel, { layer: 'claude', success: false, file: '<batch>', durationMs: Date.now() - t0, reason: 'call-failed', model: cfg.model });
     return { ok: false, patches: [], error: err };
   }
 
-  const patches = core.parseClaudeResponse(responseText);
-  if (patches.length === 0) {
+  const claudePatches = core.parseClaudeResponse(responseText);
+  if (claudePatches.length === 0) {
     core.log(`attempt ${attempt}: unparseable / GIVE_UP response`);
+    recordTelemetry(deps.flywheel, { layer: 'claude', success: false, file: '<batch>', durationMs: Date.now() - t0, reason: 'unparseable', model: cfg.model });
     return { ok: false, patches: [] };
   }
+
+  // Merge flywheel patches + Claude patches. Claude wins on overlap (it saw
+  // the more complete log context).
+  const byPath = new Map();
+  for (const p of allPatches) byPath.set(p.path, p);
+  for (const p of claudePatches) byPath.set(p.path, p);
+  const patches = [...byPath.values()];
 
   if (attempt > 1) deps.git(['checkout', '--', '.']);
 
   const written = core.applyPatches(patches, deps.repoRoot);
-  core.log(`attempt ${attempt}: applied ${written.length} patch(es)`);
+  core.log(`attempt ${attempt}: applied ${written.length} patch(es) (${allPatches.length} flywheel + ${claudePatches.length} Claude)`);
 
   const gateResult = deps.gate();
+
+  // Auto-distill Claude wins regardless of gate outcome — even partial
+  // wins teach the flywheel. The distiller's templatey-heuristic decides
+  // what's worth keeping.
+  if (claudePatches.length > 0) {
+    distillClaudeWins(deps.flywheel, claudePatches, originalContents, cfg.model);
+    recordTelemetry(deps.flywheel, { layer: 'claude', success: gateResult.ok, file: '<batch>', durationMs: Date.now() - t0, model: cfg.model });
+  }
+
   return { ok: gateResult.ok, patches, gate: gateResult };
 }
 
@@ -167,10 +327,12 @@ async function runFixer(deps = {}) {
     return { status: 'no-files' };
   }
 
-  // Attempt loop
+  // Attempt loop — wire the flywheel so deterministic layers fire BEFORE
+  // paying for Claude. Tests can override via `deps.flywheel`.
+  const flywheel = deps.flywheel !== undefined ? deps.flywheel : loadFlywheel();
   const attempted = [];
   let lastError = null;
-  const tryDeps = { callClaude: _callClaude, git: _git, gate: _gate, transport, repoRoot };
+  const tryDeps = { callClaude: _callClaude, git: _git, gate: _gate, transport, repoRoot, flywheel };
   for (let attempt = 1; attempt <= cfg.maxAttempts; attempt++) {
     core.log(`attempt ${attempt}/${cfg.maxAttempts}`);
     const r = await tryAttempt({ cfg, files, logExcerpt, attempt, deps: tryDeps });
@@ -236,4 +398,11 @@ module.exports = {
   runFixer,
   openFixPr,
   tryAttempt,
+  // exposed for tests
+  _tryFlywheel: tryFlywheel,
+  _distillClaudeWins: distillClaudeWins,
+  _loadFlywheel: loadFlywheel,
 };
+
+// Suppress "fs is unused" lint warning — kept for future patch-validation hook
+void fs;

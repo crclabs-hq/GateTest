@@ -461,3 +461,137 @@ test('buildPrBody and buildIssueBody render the expected content', () => {
   assert.match(issue, /attempt 2: 1 patch/);
   assert.match(issue, /gate red/);
 });
+
+// ── Flywheel integration ────────────────────────────────────────────────────
+
+test('flywheel: AST layer fix is taken before Claude is ever called', () => {
+  // The flywheel try is direct — no async, no I/O. We verify that for a
+  // file the AST fixer can handle, the flywheel returns a patch and the
+  // file is marked as handled, so the orchestrator wouldn't send it to
+  // Claude.
+  const flywheel = {
+    available: true,
+    astFixer: {
+      isJsOrTs: (p) => p.endsWith('.js'),
+      tryAstFix: (content) => content.replace('rejectUnauthorized: false', 'rejectUnauthorized: true'),
+    },
+    ruleFixer: { tryRuleBasedFix: () => null },
+    telemetry: { recordFixAttempt: () => {} },
+    distill: { distillClaudeFix: () => {} },
+  };
+  const result = fixer._tryFlywheel({
+    files: [{ path: 'src/x.js', content: 'const opts = { rejectUnauthorized: false };' }],
+    repoRoot: '/tmp',
+    flywheel,
+  });
+  assert.equal(result.patches.length, 1);
+  assert.equal(result.patches[0].path, 'src/x.js');
+  assert.match(result.patches[0].content, /rejectUnauthorized: true/);
+  assert.ok(result.filesHandled.has('src/x.js'));
+});
+
+test('flywheel: Rule layer is tried when AST returns no change', () => {
+  const flywheel = {
+    available: true,
+    astFixer: {
+      isJsOrTs: () => true,
+      tryAstFix: (content) => content, // no change
+    },
+    ruleFixer: {
+      tryRuleBasedFix: (content) => content + '\n// fixed-by-rule',
+    },
+    telemetry: { recordFixAttempt: () => {} },
+    distill: { distillClaudeFix: () => {} },
+  };
+  const result = fixer._tryFlywheel({
+    files: [{ path: 'src/y.js', content: 'console.log("hi");' }],
+    repoRoot: '/tmp',
+    flywheel,
+  });
+  assert.equal(result.patches.length, 1);
+  assert.match(result.patches[0].content, /fixed-by-rule/);
+});
+
+test('flywheel: returns empty when neither layer fires', () => {
+  const flywheel = {
+    available: true,
+    astFixer: { isJsOrTs: () => true, tryAstFix: () => null },
+    ruleFixer: { tryRuleBasedFix: () => null },
+    telemetry: { recordFixAttempt: () => {} },
+    distill: { distillClaudeFix: () => {} },
+  };
+  const result = fixer._tryFlywheel({
+    files: [{ path: 'src/z.js', content: 'novel pattern' }],
+    repoRoot: '/tmp',
+    flywheel,
+  });
+  assert.equal(result.patches.length, 0);
+  assert.equal(result.filesHandled.size, 0);
+});
+
+test('flywheel: crash in AST falls through to Rule, no throw', () => {
+  const flywheel = {
+    available: true,
+    astFixer: {
+      isJsOrTs: () => true,
+      tryAstFix: () => { throw new Error('boom'); },
+    },
+    ruleFixer: { tryRuleBasedFix: (c) => c + '\n// rule-recovered' },
+    telemetry: { recordFixAttempt: () => {} },
+    distill: { distillClaudeFix: () => {} },
+  };
+  const result = fixer._tryFlywheel({
+    files: [{ path: 'src/q.js', content: 'x' }],
+    repoRoot: '/tmp',
+    flywheel,
+  });
+  assert.equal(result.patches.length, 1);
+  assert.match(result.patches[0].content, /rule-recovered/);
+});
+
+test('flywheel: distillClaudeWins calls auto-distill for every patched file', () => {
+  const distilled = [];
+  const flywheel = {
+    available: true,
+    distill: {
+      distillClaudeFix: (entry) => distilled.push(entry),
+    },
+  };
+  fixer._distillClaudeWins(
+    flywheel,
+    [
+      { path: 'a.js', content: 'fixed a' },
+      { path: 'b.js', content: 'fixed b' },
+    ],
+    { 'a.js': 'orig a', 'b.js': 'orig b' },
+    'claude-sonnet-4-5',
+  );
+  assert.equal(distilled.length, 2);
+  assert.equal(distilled[0].patchedContent, 'fixed a');
+  assert.equal(distilled[0].originalContent, 'orig a');
+  assert.equal(distilled[0].provenance.originalModel, 'claude-sonnet-4-5');
+});
+
+test('flywheel: distill silently skips when no original captured', () => {
+  const distilled = [];
+  const flywheel = {
+    available: true,
+    distill: { distillClaudeFix: (e) => distilled.push(e) },
+  };
+  fixer._distillClaudeWins(
+    flywheel,
+    [{ path: 'unknown.js', content: 'fixed' }],
+    {}, // no original
+    'claude-sonnet-4-5',
+  );
+  assert.equal(distilled.length, 0);
+});
+
+test('flywheel: loadFlywheel returns { available: false } gracefully when layers missing', () => {
+  // The real loadFlywheel uses require — it'll find the real flywheel files
+  // in this repo. So this test just verifies the function exists and
+  // returns the expected shape.
+  const result = fixer._loadFlywheel();
+  assert.ok(result);
+  assert.equal(typeof result.available, 'boolean');
+});
