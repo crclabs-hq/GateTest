@@ -66,6 +66,24 @@ node bin/gatetest.js --suite quick
 
 > The package is not yet on npm. `npm install -g gatetest` will work after the first publish — track [issue tracker](https://github.com/ccantynz-alt/gatetest/issues) for the release tag.
 
+### Pre-push sweep
+
+Run the full pre-merge sweep locally in one command:
+
+```bash
+npm run sweep          # ~30-60s — tests + build + gate + secrets + self-scan
+```
+
+This runs the same seven checks that block a merge in CI. Verdict is green or red. Exit code is 0 or 1, matching CI exactly.
+
+Fast path during iteration:
+
+```bash
+npm run sweep -- --fast    # skip tests + build, gate-only, ~3-5s
+```
+
+See `gatetest sweep --help` for every flag.
+
 ### Website — no install at all
 
 Visit [gatetest.ai/web](https://gatetest.ai/web) and paste any URL. You get a free preview and a paid full report. For WordPress sites use [gatetest.ai/wp](https://gatetest.ai/wp).
