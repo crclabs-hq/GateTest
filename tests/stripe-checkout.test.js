@@ -137,10 +137,13 @@ describe('buildStripeCheckoutParams', () => {
 
     assert.strictEqual(params.get('payment_method_types[0]'), 'card');
     assert.strictEqual(params.get('mode'), 'payment');
+    // Per Craig 2026-05-18 we moved off capture_method:manual to per-scan
+    // upfront charge — the hold-then-capture flow invited chargeback abuse.
+    // Assertion: the manual-capture param is NOT present anymore.
     assert.strictEqual(
       params.get('payment_intent_data[capture_method]'),
-      'manual',
-      'manual capture is the whole pay-on-completion model'
+      null,
+      'per-scan upfront charge — no hold-then-capture'
     );
 
     // Line item — price, quantity, product metadata
@@ -268,7 +271,8 @@ describe('createCheckoutSession', () => {
     assert.strictEqual(sent.get('metadata[repo_url]'), VALID_REPO);
     assert.strictEqual(
       sent.get('payment_intent_data[capture_method]'),
-      'manual'
+      null,
+      'per-scan upfront charge — no hold-then-capture flow'
     );
     assert.strictEqual(
       sent.get('line_items[0][price_data][unit_amount]'),
