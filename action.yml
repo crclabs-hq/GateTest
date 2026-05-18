@@ -2,7 +2,7 @@
 # GateTest — Composite GitHub Action
 # ============================================================================
 # Lets any repo run the GateTest gate (102 modules) with a single
-# `uses: crclabs-hq/gatetest@v1` line in their workflow.
+# `uses: crclabs-hq/GateTest@v1.1.1` line in their workflow.
 #
 # Optional AI auto-repair: when `auto-fix: true` AND the gate blocks AND
 # the workflow exposes ANTHROPIC_API_KEY, the action invokes the AI

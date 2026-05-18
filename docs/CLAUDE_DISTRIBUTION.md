@@ -45,7 +45,7 @@ exist):
   "mcpServers": {
     "gatetest": {
       "command": "npx",
-      "args": ["--yes", "-p", "github:crclabs-hq/gatetest", "gatetest-mcp"]
+      "args": ["--yes", "-p", "github:crclabs-hq/GateTest", "gatetest-mcp"]
     }
   }
 }

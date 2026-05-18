@@ -2,12 +2,12 @@
 
 ### One gate. 102 modules. Self-healing CI.
 
-**AI-powered code quality. Pay only when the scan delivers.**
+**AI-powered code quality. Pay per scan via Stripe.**
 
 <!-- npm-version badge — re-enable after first `npm publish`:
 [![npm](https://img.shields.io/npm/v/gatetest.svg)](https://www.npmjs.com/package/gatetest)
 -->
-[![CI](https://github.com/crclabs-hq/gatetest/actions/workflows/ci.yml/badge.svg)](https://github.com/crclabs-hq/gatetest/actions/workflows/ci.yml)
+[![CI](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml/badge.svg)](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Modules](https://img.shields.io/badge/modules-102-purple.svg)](#what-it-replaces)
 [![Tests](https://img.shields.io/badge/tests-3500%2B-brightgreen.svg)](#real-repo-proofs)
@@ -24,7 +24,7 @@
 
 **It is different because the cost trends to zero.** Deterministic AST and rule-based layers run first — these are free and ship the fix in milliseconds. Claude only runs on patterns nothing else has seen. Every Claude win is distilled into a reusable recipe, so the next time the same pattern appears anywhere in the network it is handled for free. The longer you run GateTest, the less of it is paid work.
 
-**What you get depends on the tier.** A pull request with the fixes, regression tests pinned to each fix, an architecture-shape critique, a cross-finding attack-chain analysis, and a CTO-readable executive summary — in whichever combination the tier you bought includes. The card is held when you check out and only captured if the scan delivers; if it fails, the hold is released.
+**What you get depends on the tier.** A pull request with the fixes, regression tests pinned to each fix, an architecture-shape critique, a cross-finding attack-chain analysis, and a CTO-readable executive summary — in whichever combination the tier you bought includes. One-time payment per scan via Stripe at checkout. No subscription, no auto-renew.
 
 ---
 
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: crclabs-hq/gatetest@v1
+      - uses: crclabs-hq/GateTest@v1.1.1
         with:
           suite: full
           auto-fix: ${{ github.event_name == 'pull_request' }}
@@ -56,15 +56,15 @@ The action is a composite — no Docker pull, no container build. It installs Ga
 
 ```bash
 # Run against the current directory, no install:
-npx github:crclabs-hq/gatetest --suite quick
+npx github:crclabs-hq/GateTest --suite quick
 
 # Or clone and run from source:
-git clone https://github.com/crclabs-hq/gatetest
+git clone https://github.com/crclabs-hq/GateTest
 cd gatetest && npm install
 node bin/gatetest.js --suite quick
 ```
 
-> The package is not yet on npm. `npm install -g gatetest` will work after the first publish — track [issue tracker](https://github.com/crclabs-hq/gatetest/issues) for the release tag.
+> The package is not yet on npm. `npm install -g gatetest` will work after the first publish — track [issue tracker](https://github.com/crclabs-hq/GateTest/issues) for the release tag.
 
 ### Pre-push sweep
 
@@ -175,12 +175,12 @@ One config, one bill, one gate decision. Twelve-plus tools dissolve into single 
 
 ## Tiers and pricing
 
-Pay-on-completion. The card is held at checkout and only captured if the scan delivers a report; if it fails, the hold is released.
+One-time payment per scan via Stripe at checkout. No subscription, no auto-renew. Refunds only at our discretion for scans that failed to start or crashed mid-way without producing a report (contact `hello@gatetest.ai`).
 
 | Tier              | Price   | What you get                                                                                                                                       |
 | ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Quick Scan**    | $29     | 4 modules — syntax, linting, secrets, code quality. Fastest path to a first signal.                                                                |
-| **Full Scan**     | $99     | All 102 modules. Auto-fix PR included. SARIF + JUnit reports.                                                                                      |
+| **Quick Scan**    | $29     | 4 modules — syntax, linting, secrets, code quality. Fastest path to a first signal. Scan-only — no auto-fix.                                       |
+| **Full Scan**     | $99     | All 102 modules. SARIF + JUnit reports. Scan-only — auto-fix ships at the Scan + Fix tier.                                                         |
 | **Scan + Fix**    | $199    | Everything in Full, plus a second-Claude pair-review critique on every fix and an architecture-shape design-observations report.                   |
 | **Nuclear**       | $399    | Everything in Scan + Fix, plus real Claude diagnosis on every finding, cross-finding attack-chain correlation, board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (`mutation: true` / `chaos: true`) — they need a CI runner to execute your test suite and a headless browser, so they ship with the Action rather than the website-only scan. |
 
@@ -192,9 +192,7 @@ Live prices and Stripe checkout at [gatetest.ai](https://gatetest.ai).
 
 GateTest is not magic. The things it does not yet do, said out loud:
 
-- **The npm package is not yet published.** Install today is via the GitHub Action (composite, recommended), `npx github:crclabs-hq/gatetest`, or a `git clone`. The first `npm publish` is queued, not shipped.
 - **Headless-browser modules (`liveCrawler`, `runtimeErrors`, `explorer`, `chaos`) degrade gracefully on Vercel serverless.** Chromium cannot launch inside the function. The modules emit an info-level skip and the rest of the scan continues — full power requires the CLI, a worker, or local dev.
-- **The GitHub Marketplace listing is drafted, not approved.** Approval is in progress (the action itself works regardless — `crclabs-hq/gatetest@v1` resolves today).
 - **`installation_id` is not persisted across GitHub App installs.** Multi-org customers cannot yet be correlated to a single billing account; this is tracked as Known Issue #22 in [CLAUDE.md](CLAUDE.md).
 - **PR comments are not idempotent.** A busy PR with many pushes will collect duplicate scan comments. Tracked as Known Issue #23.
 
@@ -204,9 +202,9 @@ The full Known Issues table (with severity and status) lives in [CLAUDE.md](CLAU
 
 ## Architecture
 
-**Static engine.** Ninety-one modules, every one extending `BaseModule`. Each module is a self-contained scanner that emits checks at three severity levels (error blocks the gate, warning reports, info is informational). The runner is `EventEmitter`-based, supports parallel execution, diff-mode (`--diff` scans only git-changed files), watch mode, and five output formats (Console, JSON, HTML, SARIF for the GitHub Security tab, JUnit XML for any CI). The gate has zero runtime dependencies aside from one MCP SDK pin — `node bin/gatetest.js --list` runs anywhere Node 20+ runs.
+**Static engine.** 102 modules, every one extending `BaseModule`. Each module is a self-contained scanner that emits checks at three severity levels (error blocks the gate, warning reports, info is informational). The runner is `EventEmitter`-based, supports parallel execution, diff-mode (`--diff` scans only git-changed files), watch mode, and five output formats (Console, JSON, HTML, SARIF for the GitHub Security tab, JUnit XML for any CI). The gate has zero runtime dependencies aside from one MCP SDK pin — `node bin/gatetest.js --list` runs anywhere Node 20+ runs.
 
-**Website and payments.** [gatetest.ai](https://gatetest.ai) is Next.js 16 with the App Router, Tailwind 4, and Stripe in hold-then-charge mode via Payment Intents with manual capture. All scan state is persisted in Stripe metadata so the serverless functions stay stateless across requests — there is no shared in-memory state and no webhook is required for the critical user flow. The scan executes inside the function response and reports back directly.
+**Website and payments.** [gatetest.ai](https://gatetest.ai) is Next.js 16 with the App Router, Tailwind 4, and Stripe in per-scan upfront-charge mode. One-time payment per scan at checkout — no subscription, no auto-renew, no hold-then-capture flow. All scan state is persisted in Stripe metadata so the serverless functions stay stateless across requests — there is no shared in-memory state and no webhook is required for the critical user flow. The scan executes inside the function response and reports back directly.
 
 **AI layer.** Claude (Anthropic). On the GitHub Action the customer brings their own `ANTHROPIC_API_KEY` and pays Anthropic directly. On the website the key is managed and the cost is folded into the tier price. Every Claude success is distilled into a recipe by the flywheel orchestrator (see [`lib/`](lib/) and the AI CI-fixer at [`scripts/ai-ci-fixer.js`](scripts/ai-ci-fixer.js)) so subsequent runs on the same pattern are deterministic and free.
 
@@ -233,7 +231,7 @@ Total Anthropic spend across the four external real-repo Nuclear proofs: roughly
 ## Develop and contribute
 
 ```bash
-git clone https://github.com/crclabs-hq/gatetest
+git clone https://github.com/crclabs-hq/GateTest
 cd gatetest
 npm install
 (cd website && npm install)
@@ -243,7 +241,7 @@ node bin/gatetest.js --list
 
 The Bible — [CLAUDE.md](CLAUDE.md) — is required reading for contributors. It defines the architecture, the quality bar, the forbidden list, the protected platforms, and the authorization rules that apply to anything touching money, user data, or public-facing communication.
 
-Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/crclabs-hq/gatetest/issues). Small PRs that fix one thing and add a test are merged fastest. The pre-commit and pre-push hooks under [`src/hooks/`](src/hooks/) run the gate locally — running them before pushing keeps CI green.
+Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/crclabs-hq/GateTest/issues). Small PRs that fix one thing and add a test are merged fastest. The pre-commit and pre-push hooks under [`src/hooks/`](src/hooks/) run the gate locally — running them before pushing keeps CI green.
 
 ---
 
@@ -255,5 +253,5 @@ MIT — see [LICENSE](LICENSE).
 
 <sub>
 GateTest is built and maintained at <a href="https://gatetest.ai">gatetest.ai</a>.
-Talk to the team via the chat on the site. File bugs at <a href="https://github.com/crclabs-hq/gatetest/issues">GitHub Issues</a>.
+Talk to the team via the chat on the site. File bugs at <a href="https://github.com/crclabs-hq/GateTest/issues">GitHub Issues</a>.
 </sub>

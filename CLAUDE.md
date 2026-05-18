@@ -252,8 +252,8 @@ Every tool here was chosen because it is the **best in its class right now.** If
 ### Payments
 | Layer | Choice | Why |
 |---|---|---|
-| **Billing** | Stripe | Hold-then-charge via Payment Intents with manual capture |
-| **Model** | Pay on completion | Customer only charged after scan delivers |
+| **Billing** | Stripe | Per-scan upfront charge — one-time payment at checkout |
+| **Model** | Per-scan payment | Charged at checkout; no subscription; non-delivery handled by support (re-run or credit at our discretion). Hold-then-capture deprecated 2026-05-18 per Craig — invited chargeback abuse. |
 
 ### AI Layer
 | Layer | Choice | Why |
@@ -549,12 +549,12 @@ When something breaks:
 
 Plus 12 more modules they don't have: AI code review, **fake-fix detector (catches AI chicken-scratching symptom patches)**, mutation testing, chaos testing, autonomous exploration, live crawling, data integrity, documentation validation, compatibility analysis, integration test detection, CI generation, and SARIF output.
 
-### Revenue model: Pay on completion
+### Revenue model: Per-scan upfront payment
 | Tier | Price | Modules |
 |------|-------|---------|
-| Quick Scan | $29 | 4 modules |
-| Full Scan | $99 | All 90 modules |
-| Scan + Fix | $199 | 90 modules + auto-fix PR |
+| Quick Scan | $29 | 4 modules (scan-only, no auto-fix) |
+| Full Scan | $99 | All 102 modules (scan-only, no auto-fix) |
+| Scan + Fix | $199 | 102 modules + auto-fix PR + pair-review + architecture annotator |
 | Nuclear | $399 | Everything on the website-only scan: 102-module deep scan, per-finding Claude diagnosis, cross-finding correlation, auto-fix PR, pair-review, executive summary, board-ready CISO report. Mutation testing + chaos / fuzz pass are NOT part of the website-only flow — they ship via the GitHub Action (`mutation: true` / `chaos: true`) because they need a CI runner to execute the customer's test suite and a headless browser. |
 | Continuous | $49/mo | Scan every push |
 
@@ -1166,7 +1166,7 @@ AI code review (memory-enriched, fix-pattern-aware), agentic
 exploration, codebase memory (compounding moat: issue history +
 fix-pattern database), memory-aware auto-fix, fake-fix detector,
 diff-mode, watch mode, mutation testing, CI generation, caching,
-SARIF/JUnit output, Stripe pay-on-completion, GitHub App, legal pages.
+SARIF/JUnit output, Stripe per-scan upfront charge, GitHub App, legal pages.
 **Gluecron-ready `HostBridge` abstraction**: every git host
 integration plugs into one contract (canonical commit-status states,
 shared PR/MR markdown, registry-based bridge factory). `GitHubBridge`

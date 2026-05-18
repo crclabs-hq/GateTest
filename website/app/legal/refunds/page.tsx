@@ -11,61 +11,66 @@ export default function Refunds() {
     <div className="min-h-screen grid-bg px-6 py-24">
       <div className="max-w-3xl mx-auto prose-invert">
         <h1 className="text-3xl font-bold mb-2">Refund &amp; Cancellation Policy</h1>
-        <p className="text-sm text-muted mb-8">Effective date: April 9, 2026</p>
+        <p className="text-sm text-muted mb-8">Effective date: May 18, 2026</p>
 
-        {/* DRAFT — requires attorney review. Priority review items: (1) chargeback-waiver language
-        (may be unenforceable against some card-network rules and consumer-protection regimes);
-        (2) the characterisation of a delivered scan as "service rendered" for digital-services
-        refund exceptions under EU Consumer Rights Directive Art. 16(m); (3) consumer cooling-off
-        overrides for consumers in NZ, EU/UK, and Australia; (4) subscription cancellation terms
-        for Continuous tier vs state-level automatic-renewal laws (California SB-313, etc.). */}
+        {/* DRAFT — requires attorney review. Priority review items:
+        (1) the characterisation of a delivered scan as "service rendered" for digital-services
+        refund exceptions under EU Consumer Rights Directive Art. 16(m);
+        (2) consumer cooling-off overrides for consumers in NZ, EU/UK, and Australia;
+        (3) subscription cancellation terms for Continuous tier vs state-level
+        automatic-renewal laws (California SB-313, etc.).
+        Policy posture updated 2026-05-18 per Craig: moved from hold-then-capture
+        to per-scan upfront charge to eliminate the chargeback-abuse vector that
+        the prior model invited. Refunds are now discretionary exceptions,
+        not automatic entitlements. */}
 
         <div className="space-y-6 text-sm text-muted leading-relaxed">
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">1. Payment Model — Pay on Completion Explained</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-2">1. Payment Model — Per-Scan Upfront Charge</h2>
             <p>
-              GateTest uses a <strong>hold-then-charge (pay-on-completion)</strong> payment model
-              for per-scan purchases. Here is exactly how it works:
+              GateTest uses a <strong>per-scan upfront charge</strong> payment model for per-scan
+              purchases. Here is exactly how it works:
             </p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li>
-                <strong>Step 1 — Hold.</strong> When you initiate a scan, your payment method is
-                authorised for the full scan amount. This is a Stripe authorisation, not a
-                capture; no money moves yet.
+                <strong>Step 1 — Charge.</strong> When you purchase a scan, the full scan amount
+                is charged to your payment method at checkout via Stripe. This is a one-time
+                payment per scan.
               </li>
               <li>
-                <strong>Step 2 — Run.</strong> GateTest attempts to run the scan you purchased. The
-                scan either completes and produces a report, or it fails and produces no report.
+                <strong>Step 2 — Run.</strong> GateTest runs the scan you purchased and delivers
+                the report via the web UI, email, PR comment, or API response.
               </li>
               <li>
-                <strong>Step 3A — Success.</strong> If the scan completes and a scan report is
-                delivered to you (via the web UI, email, PR comment, or API response), the hold is
-                <strong> captured</strong> and you are billed the full scan amount. Delivery of
-                the report is the service rendered. See Section 3 below for what
-                &quot;delivery&quot; means and what it does <em>not</em> mean.
-              </li>
-              <li>
-                <strong>Step 3B — Failure.</strong> If the scan cannot be completed for any reason
-                attributable to us (see Section 2), the hold is <strong>released</strong> and you
-                are not billed. You do not need to request a release — it is automatic.
+                <strong>Step 3 — Service rendered.</strong> Once the scan delivers a report, the
+                Service is considered <strong>rendered and fulfilled</strong>. The payment is
+                non-refundable. See Section 3 below for what &quot;delivery&quot; means.
               </li>
             </ul>
             <p className="mt-2">
-              This model is designed so that you pay only for scans that actually produce a
-              report. It is not a money-back guarantee on the contents of the report and does not
-              entitle you to a refund if you are dissatisfied with the findings.
+              There is no subscription, no auto-renew, no recurring charge from per-scan purchases.
+              Each scan is a discrete one-time transaction. Continuous-plan subscriptions are
+              covered separately in Section 6.
             </p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">2. Scan Failure = Automatic Release (No Refund Request Needed)</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-2">2. Scan Did Not Complete — Contact Support</h2>
             <p>
-              When a scan cannot complete, the Stripe authorisation expires without capture and
-              you are <strong>NOT charged</strong>. <strong>No refund request is required.</strong>
-              The release is automatic and driven by the Stripe hold lifecycle. You will never be
-              billed for a scan that did not produce a report.
+              If a scan you paid for fails to start, crashes before any report is delivered, or
+              produces no output for reasons attributable to us (see list below), contact{" "}
+              <a href="mailto:hello@gatetest.ai" className="text-accent-light hover:underline">
+                hello@gatetest.ai
+              </a>{" "}
+              within <strong>seven (7) days</strong> of the scan attempt with your scan ID or
+              Stripe receipt. We will, at our sole discretion, either:
             </p>
-            <p className="mt-2">Circumstances that trigger automatic release include:</p>
+            <ul className="list-disc pl-5 space-y-1 mt-2">
+              <li>Re-run the scan at no additional cost; or</li>
+              <li>Issue a credit toward a future scan equal to the amount charged; or</li>
+              <li>In exceptional cases at our discretion, issue a cash refund.</li>
+            </ul>
+            <p className="mt-2">Circumstances under which we will treat a scan as non-delivered:</p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li>The scan cannot access your repository (permissions error, private repo without access, authentication failure, GitHub App uninstalled mid-flight)</li>
               <li>The scan fails due to a GateTest infrastructure or technical error</li>
@@ -75,23 +80,20 @@ export default function Refunds() {
               <li>Any other failure on our side that prevents delivery of a scan report</li>
             </ul>
             <p className="mt-2">
-              The hold typically drops from your statement within three (3) to seven (7) business
-              days, depending on your bank or card issuer. Some institutions may show the hold
-              for up to fourteen (14) days before it clears. We have no control over this clearing
-              timeline; if the hold persists beyond fourteen (14) days, contact your card issuer
-              and, if needed, email hello@gatetest.ai so we can confirm the authorisation was not
-              captured.
+              We do not offer automatic refunds. The previous hold-then-capture flow was
+              deprecated on 2026-05-18 because it created a structural opportunity for
+              chargeback abuse. The discretionary support model above protects the long-term
+              viability of the service for all customers.
             </p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">3. Scan Success = Report Delivered = Service Rendered (No Refund)</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-2">3. Scan Delivered = Service Rendered = No Refund</h2>
             <p>
               Once a scan has completed successfully and a report has been delivered, the payment
-              is captured and the Service is considered <strong>rendered and fulfilled</strong>.
-              Because scan reports are digital services that are generated on demand and delivered
-              instantly, <strong>completed scans are non-refundable except as provided in Section 4
-              below and as required by applicable consumer-protection law.</strong>
+              is the price of a digital service generated on demand and delivered instantly.
+              <strong> Delivered scans are non-refundable except as required by non-waivable
+              consumer-protection law in your jurisdiction.</strong>
             </p>
             <p className="mt-2">
               <strong>What counts as &quot;delivered&quot;.</strong> The Service is delivered when
@@ -122,23 +124,23 @@ export default function Refunds() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-foreground mb-2">4. Exceptions — When We Will Issue a Refund</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-2">4. Billing Errors — Always Corrected</h2>
             <p>
-              We will issue a full refund for a completed scan if:
+              We will always correct billing errors regardless of delivery status. These include:
             </p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li>The scan report was materially incomplete (e.g., major modules failed to run but were listed as included in your tier)</li>
               <li>You were charged a different amount than the price displayed at the time of purchase</li>
               <li>A duplicate charge occurred due to a technical error</li>
-              <li>The auto-fix tier was purchased but no pull request was delivered</li>
+              <li>You were charged for a scan you did not authorise</li>
             </ul>
             <p className="mt-2">
-              Refund requests must be submitted within <strong>7 days</strong> of the scan delivery date
-              to{" "}
+              Billing-error corrections are a legal requirement under standard payment-processor
+              and consumer-protection rules and are not exceptions to Section 3 above. Email{" "}
               <a href="mailto:hello@gatetest.ai" className="text-accent-light hover:underline">
                 hello@gatetest.ai
               </a>{" "}
-              with your scan ID or Stripe receipt. We will review and respond within 3 business days.
+              with your Stripe receipt and we will refund the disputed amount within 3 business
+              days.
             </p>
           </section>
 
@@ -151,6 +153,7 @@ export default function Refunds() {
               <li>You did not review auto-fix changes before merging and they caused issues — review responsibility is yours (see Terms of Service, Section 7)</li>
               <li>You purchased a higher tier than needed — you received the service described for that tier</li>
               <li>Your repository had no issues and the scan &quot;didn&apos;t find anything&quot; — a clean scan is a valid result</li>
+              <li>You no longer want the scan after the report has been delivered — buyer&apos;s remorse is not a refund condition</li>
             </ul>
           </section>
 
@@ -214,17 +217,17 @@ export default function Refunds() {
                 hello@gatetest.ai
               </a>{" "}
               before filing a chargeback with your bank or card issuer. We resolve most billing
-              issues within one (1) business day and we can typically issue a refund or credit
-              faster than the chargeback process.
+              issues within one (1) business day and we can typically issue a credit faster than
+              the chargeback process.
             </p>
             <p className="mt-2">
               <strong>8.2 Waiver of chargeback for scans rendered.</strong> To the maximum extent
               permitted by applicable law and your card-network rules, and without limiting any
               non-waivable statutory right, you agree <strong>not to file a chargeback or payment
               dispute for any scan for which a report was delivered to you</strong>, unless you
-              have first contacted us with a good-faith refund request under Section 4 and we
-              have declined or failed to respond within ten (10) business days. This waiver does
-              not apply to unauthorised transactions, clear billing errors (duplicate charges,
+              have first contacted us with a good-faith refund request under Section 2 or 4 and
+              we have declined or failed to respond within ten (10) business days. This waiver
+              does not apply to unauthorised transactions, clear billing errors (duplicate charges,
               wrong amount), or any dispute reserved to you by law.
             </p>
             <p className="mt-2">
@@ -246,16 +249,17 @@ export default function Refunds() {
           <section>
             <h2 className="text-lg font-semibold text-foreground mb-2">9. How Refunds Are Processed</h2>
             <p>
-              Approved refunds are processed via Stripe to the original payment method. Refunds
-              typically appear on your statement within 5-10 business days, depending on your bank.
-              We will send email confirmation when a refund is initiated.
+              When we issue a discretionary refund or correct a billing error under this policy,
+              the refund is processed via Stripe to the original payment method. Refunds typically
+              appear on your statement within 5-10 business days, depending on your bank. We will
+              send email confirmation when a refund is initiated.
             </p>
           </section>
 
           <section>
             <h2 className="text-lg font-semibold text-foreground mb-2">10. Contact</h2>
             <p>
-              For billing questions, refund requests, or payment disputes:{" "}
+              For billing questions, support requests, or payment disputes:{" "}
               <a href="mailto:hello@gatetest.ai" className="text-accent-light hover:underline">
                 hello@gatetest.ai
               </a>
