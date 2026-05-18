@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import PreLaunchBanner from "./components/PreLaunchBanner";
 import { ChatWidget } from "./components/ChatWidget";
 
 export const viewport: Viewport = {
@@ -118,7 +117,6 @@ export default function RootLayout({
             }),
           }}
         />
-        <PreLaunchBanner />
         {children}
         <ChatWidget />
       </body>
