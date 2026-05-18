@@ -292,7 +292,7 @@ export default function EsLintPage() {
             Scan My Repo — From $29
           </Link>
           <p className="text-white/30 text-xs mt-6">
-            Card hold only. Charged after successful scan delivery.
+            One-time payment per scan via Stripe. No subscription, no auto-renew.
           </p>
         </section>
       </main>

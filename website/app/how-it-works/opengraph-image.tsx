@@ -130,7 +130,7 @@ export default async function Image() {
           }}
         >
           <span>gatetest.ai/how-it-works</span>
-          <span>From $29 · Pay on completion</span>
+          <span>From $29 · One-time per scan</span>
         </div>
       </div>
     ),

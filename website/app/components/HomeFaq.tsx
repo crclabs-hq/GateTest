@@ -66,15 +66,17 @@ const FAQS: Faq[] = [
     ),
   },
   {
-    q: "Pay-on-completion — what's the catch?",
+    q: "Per-scan pricing — what's the catch?",
     a: (
       <>
-        None. We hold your card via Stripe Payment Intent (manual capture),
-        run the scan, and capture only if the scan delivers a usable report.
-        If the scan crashes, times out, or returns garbage — the hold is
-        released and you pay zero. The model only works because the
-        scan-finish rate is well above 99% on real repos; we eat the cost of
-        the few that fail.
+        None. You pay once via Stripe at checkout, we run the scan, you get
+        the report. No subscription, no auto-renew, no per-seat billing. If
+        the scan fails to start or crashes mid-way, contact{" "}
+        <a href="mailto:hello@gatetest.ai" className="text-accent hover:underline">
+          hello@gatetest.ai
+        </a>{" "}
+        — we re-run it or issue a credit at our discretion. Scan-finish rate
+        is well above 99% on real repos, so this rarely happens.
       </>
     ),
   },

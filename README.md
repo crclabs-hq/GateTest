@@ -20,7 +20,7 @@
 
 ## The 30-second pitch
 
-**GateTest is a single CLI plus a composite GitHub Action that runs 91 static-analysis modules against any codebase, then uses Claude to repair the findings it can.** It replaces SonarQube, Snyk, ESLint, Cypress, Lighthouse, axe, pa11y, and twenty-plus other tools with one config, one gate decision, and one report.
+**GateTest is a single CLI plus a composite GitHub Action that runs 102 static-analysis modules against any codebase, then uses Claude to repair the findings it can.** It replaces SonarQube, Snyk, ESLint, Cypress, Lighthouse, axe, pa11y, and twenty-plus other tools with one config, one gate decision, and one report.
 
 **It is different because the cost trends to zero.** Deterministic AST and rule-based layers run first — these are free and ship the fix in milliseconds. Claude only runs on patterns nothing else has seen. Every Claude win is distilled into a reusable recipe, so the next time the same pattern appears anywhere in the network it is handled for free. The longer you run GateTest, the less of it is paid work.
 

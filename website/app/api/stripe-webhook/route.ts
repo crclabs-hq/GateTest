@@ -1,21 +1,23 @@
 /**
  * Stripe Webhook Handler — Acknowledges Stripe in <5s, runs scan async.
  *
- * ARCHITECTURE (decoupled — fixes the 60s-timeout double-charge bug):
+ * PAYMENT MODEL (Craig 2026-05-18 — per-scan upfront):
+ * - Customer pays at checkout. Charge captures immediately.
+ * - This webhook fires on checkout.session.completed and kicks off the scan.
+ * - Scan result is stamped on the payment intent metadata for support /
+ *   chargeback-defence purposes. NO capture or cancel call — the money
+ *   already moved at checkout.
+ * - If a scan crashes, support handles the customer manually (re-run or
+ *   credit at discretion). The previous auto-cancel-on-failure path
+ *   created a chargeback-abuse vector.
+ *
+ * ARCHITECTURE (decoupled — historical 60s-timeout fix):
  * - Webhook receives checkout.session.completed
- * - Verifies signature
+ * - Verifies signature (fail-closed per Bible Forbidden #15)
  * - Stamps the payment intent with a scan_job_id (Stripe metadata acts as
- *   the idempotency lock)
+ *   the idempotency lock so retries don't double-run the scan)
  * - Schedules the scan via `after()` so the response returns immediately
  * - Returns 200 to Stripe within milliseconds
- * - Background job captures or cancels the payment intent when the scan
- *   finishes. The capture/cancel step is idempotent — if Stripe retries
- *   the webhook (e.g. cold start dropped our response), the second run
- *   sees the stamped scan_job_id and bails out, so the customer is never
- *   double-charged.
- *
- * Prior behavior: scan ran inline, Vercel killed the function at 60s, Stripe
- * retried, second invocation double-captured.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -240,19 +242,12 @@ export async function POST(req: NextRequest) {
         console.log(`[GateTest] Scan job ${jobId} finished: ${outcome.result?.status}`);
       }
     } catch (err) {
-      // Green ecosystem mandate: never leave a capture hanging. If the
-      // whole scan job throws, cancel the payment intent so the customer
-      // is not charged for a scan they never got.
+      // Per-scan upfront model (Craig 2026-05-18): the payment already
+      // captured at checkout. If a scan job crashes mid-way, we mark it
+      // failed in DB so support can re-run or credit the customer at
+      // discretion. No automatic refund / cancel — that's the loophole
+      // the old hold-then-charge model created.
       console.error("[GateTest] Scan job crashed:", err);
-      try {
-        await stripeApi(
-          "POST",
-          `/v1/payment_intents/${paymentIntentId}/cancel`
-        );
-      } catch (cancelErr) { // error-ok — cancel is best-effort recovery; nothing left to do if this also fails
-        console.error("[GateTest] Fallback cancel failed:", cancelErr);
-      }
-      // Mark scan as failed in DB
       try {
         const sql = getDb();
         await sql`UPDATE scans SET status = 'failed', completed_at = NOW()

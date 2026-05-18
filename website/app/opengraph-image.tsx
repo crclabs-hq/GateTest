@@ -89,7 +89,7 @@ export default async function Image() {
             lineHeight: 1.5,
           }}
         >
-          102 modules scan your entire codebase. Security, supply chain, auth flaws, CI hardening, and AI code review. Pay only when delivered.
+          102 modules scan your entire codebase. Security, supply chain, auth flaws, CI hardening, and AI code review. Pay per scan via Stripe.
         </div>
 
         {/* Bottom bar */}
@@ -105,7 +105,7 @@ export default async function Image() {
         >
           <span>gatetest.ai</span>
           <span>From $29/scan</span>
-          <span>Pay on completion</span>
+          <span>One-time per scan</span>
         </div>
       </div>
     ),

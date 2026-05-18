@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GateTest vs SonarQube — The Smarter Alternative in 2026",
   description:
-    "GateTest replaces SonarQube with 102 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and pay-on-completion pricing. No complex setup. No per-seat licensing. Just results.",
+    "GateTest replaces SonarQube with 102 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing. Just results.",
   keywords: [
     "SonarQube alternative",
     "SonarQube vs GateTest",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs SonarQube — The Smarter Alternative in 2026",
     description:
-      "GateTest replaces SonarQube with 102 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and pay-on-completion pricing. No complex setup. No per-seat licensing.",
+      "GateTest replaces SonarQube with 102 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing.",
     url: "https://gatetest.ai/compare/sonarqube",
     siteName: "GateTest",
     type: "website",
@@ -133,7 +133,7 @@ export default function SonarQubePage() {
           <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
             SonarQube was built in 2006 — before AI, before cloud-native CI/CD, before modern
             security threats. GateTest is built for 2026: 102 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier ($199) and above,
-            zero server setup, and pay-on-completion pricing.
+            zero server setup, and per-scan pricing.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 mt-8">
@@ -259,7 +259,7 @@ export default function SonarQubePage() {
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
             Paste your repo URL and get a full 102-module scan in under 60 seconds. No server setup,
-            no config files, no per-seat pricing. Pay only when results are delivered.
+            no config files, no per-seat pricing. One-time payment per scan.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -277,7 +277,7 @@ export default function SonarQubePage() {
             </Link>
           </div>
           <p className="text-white/30 text-xs mt-6">
-            Card hold only. Charged after successful scan delivery. Released immediately if scan cannot complete.
+            One-time payment per scan via Stripe. No subscription, no auto-renew.
           </p>
         </section>
       </main>

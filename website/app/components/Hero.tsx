@@ -70,13 +70,13 @@ export default function Hero() {
 
           {/* Unfair-advantage hook */}
           <p className="text-center text-xl sm:text-2xl text-white/65 max-w-3xl mx-auto mb-3 leading-snug fade-up font-medium">
-            Pay only when the scan delivers.
+            One-time payment per scan. No subscription.
           </p>
           <p className="text-center text-base sm:text-lg text-white/45 max-w-2xl mx-auto mb-10 leading-relaxed fade-up">
             Scan your repo or any public site. We find bugs, security issues,
             and CI rot. On Scan + Fix and Nuclear tiers we open a PR with the
-            fixes we can ship. If the scan fails to complete, your card hold
-            is released.
+            fixes we can ship. Per-scan payment via Stripe &mdash; you pay
+            once and get the report.
           </p>
 
           {/* Primary CTA: the live URL scan, in-hero */}
@@ -130,10 +130,10 @@ export default function Hero() {
                 detail="every commit"
               />
               <StatusCell
-                label="If we fail"
-                value="$0"
+                label="Payment"
+                value="$29+"
                 tone="ok"
-                detail="card hold only"
+                detail="one-time per scan"
               />
             </div>
 

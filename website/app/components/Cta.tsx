@@ -10,10 +10,10 @@ export default function Cta() {
         <p className="text-lg text-muted mb-4 max-w-xl mx-auto">
           Point us at your repo. We scan 102 modules and deliver a detailed report.
           On Scan + Fix ($199) and Nuclear ($399) we also open a fix PR.
-          You only pay when the scan delivers.
+          One-time payment per scan.
         </p>
         <p className="text-sm text-success mb-10">
-          Card hold only &mdash; released if scan cannot complete. Zero risk.
+          Per-scan payment via Stripe &mdash; no subscription, no auto-renew.
         </p>
 
         {/* Two paths */}

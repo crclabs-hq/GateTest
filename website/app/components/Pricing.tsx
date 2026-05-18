@@ -18,7 +18,7 @@ const scanPlans = [
       "Code quality analysis",
       "Detailed report with file & line numbers",
       "Scan-only — auto-fix is a Scan + Fix tier feature",
-      "Pay only when scan completes",
+      "Per-scan payment — no subscription",
     ],
     cta: "Run Quick Scan",
     highlight: false,
@@ -176,9 +176,9 @@ export default function Pricing() {
             Pay when it&apos;s done. <span className="gradient-text">Not before.</span>
           </h2>
           <p className="text-muted text-lg max-w-2xl mx-auto">
-            We hold your card, run the scan, and deliver the report. On Scan + Fix
-            and Nuclear tiers Claude also opens the fix PR. If we can&apos;t complete
-            it, you pay nothing.
+            One-time payment per scan via Stripe. We run the scan and deliver the report.
+            On Scan + Fix and Nuclear tiers Claude also opens the fix PR. No subscription,
+            no auto-renew.
           </p>
         </div>
 
@@ -186,7 +186,7 @@ export default function Pricing() {
         <div className="flex justify-center mb-6">
           <div className="inline-flex items-center gap-2 badge-accent px-5 py-2 text-sm font-medium">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            Card hold only &mdash; charged after successful scan delivery
+            One-time payment via Stripe &mdash; no subscription
           </div>
         </div>
 
@@ -337,8 +337,9 @@ export default function Pricing() {
         {/* Bottom trust line */}
         <p className="text-center text-xs text-muted mt-10">
           All scans include a detailed report. The AI fix PR is included on the
-          Scan + Fix ($199) and Nuclear ($399) tiers. Payments processed securely
-          via Stripe. Card hold released immediately if scan cannot complete.
+          Scan + Fix ($199) and Nuclear ($399) tiers. Per-scan payment via Stripe.
+          Once a scan delivers, the service is rendered &mdash; refunds at our
+          discretion for non-delivery only.
         </p>
       </div>
     </section>

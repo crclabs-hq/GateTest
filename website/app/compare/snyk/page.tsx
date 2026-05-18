@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GateTest vs Snyk — One config, every QA tool in 2026",
   description:
-    "Snyk ships separate Open Source, Code, Container, and IaC products. GateTest unifies those plus quality, performance, accessibility, and AI safety into a single config and a single bill — 102 modules, pay-on-completion.",
+    "Snyk ships separate Open Source, Code, Container, and IaC products. GateTest unifies those plus quality, performance, accessibility, and AI safety into a single config and a single bill — 102 modules, per-scan pricing.",
   keywords: [
     "Snyk alternative",
     "Snyk vs GateTest",
@@ -279,7 +279,7 @@ export default function SnykPage() {
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
             Get 102 modules — dependencies, code, containers, IaC, AI safety, accessibility, performance,
-            and more — in a single scan. Pay only when results are delivered.
+            and more — in a single scan. One-time payment per scan.
           </p>
           <Link
             href="/"
@@ -289,7 +289,7 @@ export default function SnykPage() {
             Scan My Repo — From $29
           </Link>
           <p className="text-white/30 text-xs mt-6">
-            Card hold only. Charged after successful scan delivery.
+            One-time payment per scan via Stripe. No subscription, no auto-renew.
           </p>
         </section>
       </main>

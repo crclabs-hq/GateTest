@@ -492,12 +492,9 @@ async function _postImpl(req: NextRequest): Promise<ReturnType<typeof NextRespon
 
         await stripeApi("POST", `/v1/payment_intents/${session.payment_intent}`, params.toString());
 
-        // Capture or cancel payment
-        if (!result.error) {
-          await stripeApi("POST", `/v1/payment_intents/${session.payment_intent}/capture`);
-        } else {
-          await stripeApi("POST", `/v1/payment_intents/${session.payment_intent}/cancel`);
-        }
+        // No capture/cancel call — payment captures at checkout under the
+        // new per-scan upfront model (Craig 2026-05-18). Scan failures are
+        // a support touchpoint, not an automatic refund trigger.
       }
     } catch (err) { // error-ok — Stripe metadata update is best-effort; scan result already computed
       console.error("[GateTest] Stripe update failed:", err);

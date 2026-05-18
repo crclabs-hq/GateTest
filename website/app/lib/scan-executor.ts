@@ -381,24 +381,11 @@ export async function runScanJob(params: {
     }
   }
 
-  // Capture on success, cancel on failure. Both are idempotent on Stripe's
-  // side for a PI already in a terminal state — Stripe returns an error we
-  // log and swallow.
-  try {
-    if (result.status === "complete" && !result.error) {
-      await stripeApi(
-        "POST",
-        `/v1/payment_intents/${paymentIntentId}/capture`
-      );
-    } else {
-      await stripeApi(
-        "POST",
-        `/v1/payment_intents/${paymentIntentId}/cancel`
-      );
-    }
-  } catch (err) { // error-ok — Stripe PI already in terminal state is idempotent; log and move on
-    console.error("[GateTest] Stripe capture/cancel failed:", err);
-  }
+  // No capture/cancel call — payment captures at checkout under the
+  // per-scan upfront model (Craig 2026-05-18). Scan failures are
+  // a support touchpoint, not an automatic refund trigger. The
+  // metadata update above records scan outcome for support-side
+  // dispute defence.
 
   return { skipped: false, result };
 }

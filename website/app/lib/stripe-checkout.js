@@ -80,10 +80,12 @@ function validateCheckoutInput(input) {
  * }} args
  */
 function buildStripeCheckoutParams({ tier, tierKey, repoUrl, baseUrl }) {
+  // Per-scan upfront charge (Craig 2026-05-18). No capture_method:manual;
+  // payment captures at checkout. Scan-failure handling is a support
+  // touchpoint, not an automatic refund trigger.
   return new URLSearchParams({
     'payment_method_types[0]': 'card',
     mode: 'payment',
-    'payment_intent_data[capture_method]': 'manual',
     'payment_intent_data[metadata][tier]': tierKey,
     'payment_intent_data[metadata][repo_url]': repoUrl,
     'payment_intent_data[metadata][modules]': tier.modules,

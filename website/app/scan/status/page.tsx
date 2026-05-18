@@ -612,7 +612,7 @@ export default function ScanStatus() {
                     <p className="text-xs text-muted">Scan + Fix + Claude diagnosis per finding + attack-chain correlation + board-ready CISO report.</p>
                   </Link>
                 </div>
-                <p className="mt-4 text-xs text-muted">Pay-on-completion via Stripe. Card hold only — released if the scan can&apos;t complete.</p>
+                <p className="mt-4 text-xs text-muted">Per-scan payment via Stripe. One-time payment, no subscription.</p>
               </div>
             )}
 
@@ -657,7 +657,7 @@ export default function ScanStatus() {
           <div className="text-center">
             <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 mb-4">
               <p className="font-bold text-slate-700">{scanResult?.error || "This checkout session expired."}</p>
-              <p className="text-sm text-muted mt-1">No charge was made. Start a new scan when you&apos;re ready.</p>
+              <p className="text-sm text-muted mt-1">Checkout was not completed. Start a new scan when you&apos;re ready.</p>
             </div>
             <Link href="/#pricing" className="btn-primary px-6 py-3 text-sm">Start New Scan</Link>
           </div>
@@ -668,7 +668,7 @@ export default function ScanStatus() {
           <div className="text-center">
             <div className="p-5 rounded-xl bg-amber-50 border border-amber-200 mb-4">
               <p className="font-bold text-amber-700">{scanResult?.error || "Scan failed"}</p>
-              <p className="text-sm text-muted mt-1">No charge was made. Card hold released.</p>
+              <p className="text-sm text-muted mt-1">Contact support to re-run the scan or receive a credit.</p>
             </div>
             <Link href="/#pricing" className="btn-primary px-6 py-3 text-sm">Try Again</Link>
           </div>
@@ -677,7 +677,7 @@ export default function ScanStatus() {
         {/* Scanning notice */}
         {scanning && !isEndState && (
           <p className="text-center text-xs text-muted mt-4">
-            Card held, not charged. Payment captured only after scan delivery.
+            One-time payment per scan via Stripe.
           </p>
         )}
       </div>

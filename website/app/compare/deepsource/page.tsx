@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GateTest vs DeepSource — AI-Native Code Quality in 2026",
   description:
-    "DeepSource finds issues. GateTest finds them and — at the Scan + Fix tier ($199) and above — fixes them. 102 modules, pay-on-completion pricing, no per-seat licensing, AI auto-fix PRs created in seconds.",
+    "DeepSource finds issues. GateTest finds them and — at the Scan + Fix tier ($199) and above — fixes them. 102 modules, per-scan pricing, no per-seat licensing, AI auto-fix PRs created in seconds.",
   keywords: [
     "DeepSource alternative",
     "DeepSource vs GateTest",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs DeepSource — AI-Native Code Quality in 2026",
     description:
-      "DeepSource finds issues. GateTest finds them and — at the Scan + Fix tier ($199) and above — fixes them. 102 modules, pay-on-completion pricing, no per-seat licensing, AI auto-fix PRs.",
+      "DeepSource finds issues. GateTest finds them and — at the Scan + Fix tier ($199) and above — fixes them. 102 modules, per-scan pricing, no per-seat licensing, AI auto-fix PRs.",
     url: "https://gatetest.ai/compare/deepsource",
     siteName: "GateTest",
     type: "website",
@@ -130,7 +130,7 @@ export default function DeepSourcePage() {
           <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
             DeepSource is a solid static analysis tool. GateTest is an AI-native quality platform:
             102 modules, generative AI code review using Claude, AI auto-fix PRs that write real code at the Scan + Fix tier ($199) and Nuclear ($399),
-            and pay-on-completion pricing with no per-seat subscriptions.
+            and per-scan pricing with no per-seat subscriptions.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mt-8">
             <Link
@@ -265,7 +265,7 @@ export default function DeepSourcePage() {
             Find issues. Fix issues. Ship faster.
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
-            102 modules and AI-powered review on every paid tier. AI auto-fix PRs at Scan + Fix ($199) and Nuclear ($399). Pay only when results are delivered.
+            102 modules and AI-powered review on every paid tier. AI auto-fix PRs at Scan + Fix ($199) and Nuclear ($399). One-time payment per scan.
           </p>
           <Link
             href="/"
@@ -275,7 +275,7 @@ export default function DeepSourcePage() {
             Scan My Repo — From $29
           </Link>
           <p className="text-white/30 text-xs mt-6">
-            Card hold only. Charged after successful scan delivery.
+            One-time payment per scan via Stripe. No subscription, no auto-renew.
           </p>
         </section>
       </main>

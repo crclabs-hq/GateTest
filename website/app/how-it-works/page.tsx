@@ -21,7 +21,7 @@ const DATA_FLOW = [
   { label: "Frontend", value: "Next.js 16 (App Router) + Tailwind 4. Server Components everywhere except where interactivity demands client." },
   { label: "Runtime",  value: "Vercel serverless functions. Every function is stateless — no in-memory persistence between requests." },
   { label: "Database", value: "Postgres on Neon. Holds scan_queue, audit log, fix-recipe store, customer sessions." },
-  { label: "Payments", value: "Stripe with manual capture. Card is held when you start the scan and charged only after the report ships." },
+  { label: "Payments", value: "Stripe upfront-charge. One-time payment per scan at checkout. No subscription, no auto-renew." },
   { label: "AI layer", value: "Anthropic Claude Sonnet. Our key for managed scans; your key for the self-healing CI bot in your repo." },
   { label: "Git host",  value: "Dual-host: GitHub App webhook and Gluecron Signal Bus. HostBridge abstraction means new hosts plug in without rewiring." },
   { label: "Browser",   value: "Playwright (open-source, Microsoft) — used internally for chaos, explorer, and runtime-error modules. Not a paid competitor; an implementation detail." },
@@ -196,9 +196,9 @@ export default function HowItWorksPage() {
 
           <div className="mt-6 text-xs text-white/45 leading-relaxed max-w-3xl">
             <p>
-              <span className="text-white/65 font-semibold">Pay-on-completion</span> at every tier. We hold the card via
-              Stripe&apos;s manual-capture flow, run the scan, and only charge after the report ships. If we can&apos;t
-              complete it, the hold is released and you pay nothing.
+              <span className="text-white/65 font-semibold">Per-scan payment</span> at every tier. One-time charge via
+              Stripe at checkout, no subscription, no auto-renew. If a scan fails to start or crashes mid-way,
+              contact support &mdash; we re-run it or issue a credit at our discretion.
             </p>
           </div>
         </section>

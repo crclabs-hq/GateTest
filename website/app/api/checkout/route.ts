@@ -1,13 +1,18 @@
 /**
- * Stripe Checkout API — Creates a payment session with manual capture.
+ * Stripe Checkout API — Creates a per-scan payment session (charge upfront).
  *
  * Flow:
  * 1. Customer selects a scan tier and provides repo URL
- * 2. This route creates a Stripe Checkout Session with capture_method: manual
- * 3. Customer completes payment → Stripe holds the funds
+ * 2. This route creates a Stripe Checkout Session — charge captures at checkout
+ * 3. Customer completes payment → Stripe charges the card immediately
  * 4. GateTest runs the scan (and AI fix on Scan + Fix and Nuclear tiers)
- * 5. Scan succeeds → capture the payment
- * 6. Scan fails → cancel the payment intent (hold released)
+ * 5. If a scan fails to start or crashes mid-way, support handles the
+ *    exception (re-run or credit at our discretion) — NOT an automatic refund.
+ *
+ * Per Craig's call (2026-05-18): the previous hold-then-capture model
+ * invited "didn't deliver" chargeback abuse. Standard SaaS (Vercel,
+ * GitHub, Linear, Stripe itself) charges upfront and treats refunds
+ * as discretionary exceptions, not entitlements.
  *
  * Environment variables:
  *   STRIPE_SECRET_KEY — Stripe secret key (sk_live_... or sk_test_...)
@@ -169,11 +174,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Create Stripe Checkout Session with manual capture
+    // Create Stripe Checkout Session — charge captures at checkout (no
+    // manual capture / hold-then-charge). Refunds are discretionary, not
+    // an automatic-on-failure mechanism.
     const params = new URLSearchParams({
       "payment_method_types[0]": "card",
       mode: "payment",
-      "payment_intent_data[capture_method]": "manual",
       "payment_intent_data[metadata][tier]": input.tier || "",
       "payment_intent_data[metadata][repo_url]": input.repoUrl,
       "payment_intent_data[metadata][modules]": tier.modules,
@@ -229,7 +235,7 @@ export async function GET() {
       modules: tier.modules,
       description: tier.description,
     })),
-    paymentModel: "hold-then-charge",
-    note: "Card is held at checkout. Charged only after successful scan delivery. Hold released if scan fails.",
+    paymentModel: "per-scan-upfront",
+    note: "Card is charged at checkout. One-time payment per scan. No subscription, no auto-renew. Refunds discretionary — contact support if a scan fails to start or crashes mid-way.",
   });
 }

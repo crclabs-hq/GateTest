@@ -281,7 +281,7 @@ export default function NodeJsPage() {
             Find the bugs that survive code review.
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
-            SSRF, N+1, race conditions, resource leaks, ReDoS — GateTest catches every Node.js failure mode. Pay only when results are delivered.
+            SSRF, N+1, race conditions, resource leaks, ReDoS — GateTest catches every Node.js failure mode. One-time payment per scan.
           </p>
           <Link
             href="/"
@@ -291,7 +291,7 @@ export default function NodeJsPage() {
             Scan My Node.js App — From $29
           </Link>
           <p className="text-white/30 text-xs mt-6">
-            Card hold only. Charged after successful scan delivery.
+            One-time payment per scan via Stripe. No subscription, no auto-renew.
           </p>
         </section>
       </main>

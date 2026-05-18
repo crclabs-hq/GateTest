@@ -53,11 +53,10 @@ export default function Terms() {
           <section>
             <h2 className="text-lg font-semibold text-foreground mb-2">3. Payment Terms</h2>
             <p>
-              <strong>3.1 Hold-then-charge model.</strong> When you purchase a scan, a hold (authorisation)
-              is placed on your payment method for the full scan amount. The charge is captured only after
-              the scan completes and results are delivered. If the scan cannot be completed due to access
-              failure, service outage, or technical error on our part, the hold is released and no charge
-              is made.
+              <strong>3.1 Per-scan payment.</strong> When you purchase a scan, the full scan amount is
+              charged to your payment method at checkout. This is a one-time, per-scan payment. There is
+              no subscription, no auto-renew, and no recurring charge unless you explicitly subscribe to
+              the Continuous plan.
             </p>
             <p className="mt-2">
               <strong>3.2 Currency and processing.</strong> All prices are in US Dollars (USD). Payments
@@ -75,14 +74,25 @@ export default function Terms() {
               any sales tax, VAT, GST, or similar taxes applicable in your jurisdiction.
             </p>
             <p className="mt-2">
-              <strong>3.5 What &quot;delivery&quot; means.</strong> For the hold-then-charge model, the
-              Service is considered <strong>delivered</strong> when a scan completes and a scan report
-              is made available to you (via the web UI, email, PR comment, or API response). Delivery
-              means that the Service has run the scan modules purchased and produced output. It does
-              <strong> NOT</strong> mean (a) that the scan identified any specific number of issues,
-              (b) that the scan identified all issues present in your code, (c) that any finding is
-              correct or actionable, or (d) that your code is free of defects. Completion and delivery
-              of a report is the service rendered; the content of the report is not a warranty.
+              <strong>3.5 What &quot;delivery&quot; means.</strong> The Service is considered
+              <strong> delivered</strong> when a scan completes and a scan report is made available to you
+              (via the web UI, email, PR comment, or API response). Delivery means that the Service has
+              run the scan modules purchased and produced output. It does <strong>NOT</strong> mean (a)
+              that the scan identified any specific number of issues, (b) that the scan identified all
+              issues present in your code, (c) that any finding is correct or actionable, or (d) that
+              your code is free of defects. Completion and delivery of a report is the service rendered;
+              the content of the report is not a warranty.
+            </p>
+            <p className="mt-2">
+              <strong>3.6 Refunds.</strong> Once a scan has delivered a report, the Service is rendered
+              and the payment is non-refundable. If a scan fails to start, or crashes mid-way without
+              producing a report, contact{" "}
+              <a href="mailto:hello@gatetest.ai" className="text-accent-light hover:underline">
+                hello@gatetest.ai
+              </a>{" "}
+              within seven (7) days &mdash; we will, at our discretion, either re-run the scan at no
+              additional cost or issue a credit toward a future scan. Cash refunds are not issued except
+              where required by non-waivable consumer-protection law in your jurisdiction.
             </p>
           </section>
 

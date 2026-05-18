@@ -102,7 +102,7 @@ export default function WordPressLanding() {
         </div>
 
         <p className="text-center text-xs text-muted mt-8">
-          Pay-on-completion via Stripe. The scan delivers the findings; the charge captures only when results are returned.
+          Per-scan payment via Stripe. One-time payment, no subscription.
         </p>
       </section>
 
