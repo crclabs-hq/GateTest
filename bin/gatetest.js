@@ -25,6 +25,17 @@ const HELP = `
 
   USAGE
     gatetest [options]
+    gatetest sweep [sweep-options]   Run the Bible's pre-merge sweep (tests +
+                                     build + module load + gate + secrets +
+                                     TODOs + self-scan) and exit 0 if green,
+                                     1 if any blocking step failed. See
+                                     "gatetest sweep --help" for details.
+    gatetest scan  [options]         Explicit alias for the default scan flow
+                                     (same as running gatetest with no
+                                     subcommand). Useful for unambiguous
+                                     scripts.
+    gatetest replay <run-url>        Reproduce a failing CI run locally
+                                     (run 'gatetest replay --help' for detail)
 
   OPTIONS
     --suite <name>     Run a test suite: quick, standard, full (default: standard)
@@ -49,6 +60,15 @@ const HELP = `
     --junit            Output results in JUnit XML format (for CI)
     --ci-init <type>   Generate CI config: github, gitlab, circleci
     --project <path>   Set project root (default: cwd)
+    --confidence-threshold <0..1>
+                       Confidence threshold below which error-severity
+                       findings are downgraded to "soft errors" (visible
+                       in the report, don't block the gate). Default 0.7.
+                       Lower = stricter (more findings block). Higher =
+                       more lenient (more findings downgrade). Findings
+                       in test files, fixtures, docs, and inside string
+                       literals get a confidence multiplier <1 so they
+                       fall below threshold by default.
     --help, -h         Show this help message
     --doctor           Audit your environment — checks every prerequisite for
                        auto-fix to work (Node version, gh CLI, ANTHROPIC_API_KEY,
@@ -72,6 +92,8 @@ const HELP = `
 
   EXAMPLES
     gatetest                          Run standard checks
+    gatetest sweep                    Run the Bible's full pre-merge sweep
+    gatetest sweep --fast             Sweep gate-only (skip tests + build)
     gatetest --suite full             Run every single check
     gatetest --module security        Security scan only
     gatetest --module visual          Visual regression only
@@ -105,7 +127,35 @@ const HELP = `
 `;
 
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  // Subcommand routing (backwards-compatible).
+  //   gatetest sweep [...]   → run the Bible's pre-merge sweep locally
+  //   gatetest replay <url>  → reproduce a failing GitHub Actions run locally
+  //   gatetest scan  [...]   → alias for the default scan flow (current
+  //                            behavior; the word "scan" is consumed and the
+  //                            rest of the flags are parsed as usual)
+  //   gatetest <other>       → if the first arg is not a recognised
+  //                            subcommand, fall through to flag parsing so
+  //                            every existing invocation keeps working.
+  const rawArgs = process.argv.slice(2);
+  const first = rawArgs[0];
+  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan']);
+  if (first === 'sweep') {
+    const { runSweep } = require('./gatetest-sweep');
+    const code = await runSweep(rawArgs.slice(1));
+    process.exit(code);
+  }
+  if (first === 'replay') {
+    const replay = require('./gatetest-replay');
+    const code = await replay.main(rawArgs.slice(1));
+    process.exit(code || 0);
+  }
+  // 'scan' is an explicit alias for the default behavior. Consume it.
+  const effectiveArgv = first === 'scan' ? rawArgs.slice(1) : rawArgs;
+  const args = parseArgs(effectiveArgv);
+  // Ignore stale "scan" token if it somehow re-appears later.
+  if (args._subcommand === 'scan') delete args._subcommand;
+  // (KNOWN_SUBCOMMANDS export only used to keep the route table in one place.)
+  void KNOWN_SUBCOMMANDS;
 
   if (args.help) {
     console.log(HELP);
@@ -201,6 +251,9 @@ async function main() {
     diffOnly: args.diff || false,
     sarif: args.sarif || false,
     junit: args.junit || false,
+    ...(typeof args.confidenceThreshold === 'number'
+      ? { confidenceThreshold: args.confidenceThreshold }
+      : {}),
   });
 
   gatetest.init();
@@ -579,6 +632,10 @@ function parseArgs(argv) {
     else if (arg === '--sarif') args.sarif = true;
     else if (arg === '--junit') args.junit = true;
     else if (arg === '--ci-init' && argv[i + 1]) args.ciInit = argv[++i];
+    else if (arg === '--confidence-threshold' && argv[i + 1]) {
+      const v = parseFloat(argv[++i]);
+      if (!Number.isNaN(v) && v >= 0 && v <= 1) args.confidenceThreshold = v;
+    }
     else if (arg === '--suite' && argv[i + 1]) args.suite = argv[++i];
     else if (arg === '--module' && argv[i + 1]) args.module = argv[++i];
     else if (arg === '--project' && argv[i + 1]) args.project = argv[++i];
