@@ -36,6 +36,12 @@ const HELP = `
                                      scripts.
     gatetest replay <run-url>        Reproduce a failing CI run locally
                                      (run 'gatetest replay --help' for detail)
+    gatetest train [options]         Run all flywheel trainers locally —
+                                     pattern miner, recipe promoter,
+                                     regression-test generator, cross-repo
+                                     promoter, adversarial mutator. Outputs
+                                     land at ~/.gatetest/trainers/. See
+                                     'gatetest train --help' for options.
 
   OPTIONS
     --suite <name>     Run a test suite: quick, standard, full (default: standard)
@@ -150,7 +156,7 @@ async function main() {
   //                            every existing invocation keeps working.
   const rawArgs = process.argv.slice(2);
   const first = rawArgs[0];
-  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan']);
+  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan', 'train']);
   if (first === 'sweep') {
     const { runSweep } = require('./gatetest-sweep');
     const code = await runSweep(rawArgs.slice(1));
@@ -159,6 +165,11 @@ async function main() {
   if (first === 'replay') {
     const replay = require('./gatetest-replay');
     const code = await replay.main(rawArgs.slice(1));
+    process.exit(code || 0);
+  }
+  if (first === 'train') {
+    const train = require('./gatetest-train');
+    const code = await train.main(rawArgs.slice(1));
     process.exit(code || 0);
   }
   // 'scan' is an explicit alias for the default behavior. Consume it.

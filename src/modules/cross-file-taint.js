@@ -160,9 +160,25 @@ const SANITISE_RES = [
   /parseInt\s*\(|parseFloat\s*\(|Number\s*\(|Boolean\s*\(/,
   /\.trim\s*\(\s*\)|\.slice\s*\(|\.substring\s*\(/,
   /validator\.|xss\(|DOMPurify\./,
+  // Tagged-template SQL — Drizzle / Postgres.js / Prisma.sql / Kysely sql
+  // — these auto-parameterise every interpolation. Treat as sanitiser when
+  // visible on the sink line or in the context window.
+  /\bsql\s*`/,
+  /\bPrisma\.sql\s*`/,
+  /\bdb\.sql\s*`/,
 ];
 
 const SUPPRESS_TAINT_OK_RE = /\/\/\s*taint-ok\b/;
+
+// Parameterised-ORM imports — when one of these is imported in the file,
+// the `.query/.raw/.execute/.run/.all` sink is downgraded from error to
+// warning. Drizzle, Prisma, Kysely, Postgres.js, Slonik, TypeORM
+// (QueryBuilder), Sequelize (model methods), Mongoose, Knex (builder, not
+// .raw with concat) all parameterise by default. The downgrade prevents
+// false-positive blocking while keeping the finding visible. Knex `.raw()`
+// with template-literal concat is still caught by the standard sink rule
+// because the tagged-template sanitiser only matches `sql\``.
+const PARAMETERISED_ORM_RE = /(?:require\s*\(\s*['"]|from\s+['"])(?:drizzle-orm|@prisma\/client|kysely|postgres|slonik|typeorm|sequelize|mongoose|knex|@databases\/(?:pg|mysql|sqlite))(?:\/[^'"]*)?['"]/;
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
 const MAX_PROPAGATION_DEPTH = 5;
@@ -227,8 +243,17 @@ class CrossFileTaintModule extends BaseModule {
           (v) => this._lineReferencesVar(hit.rawLine, v),
         );
 
+        // Parameterised-ORM safe-harbour: downgrade sql-query sinks in
+        // files that import drizzle / prisma / kysely / etc. These ORMs
+        // parameterise every interpolation; raw-with-concat shapes are
+        // still caught by the tagged-template sanitiser (handled above).
+        let severity = isTest ? 'warning' : 'error';
+        if (hit.sink === 'sql-query' && data.hasParameterisedOrm) {
+          severity = isTest ? 'info' : 'warning';
+        }
+
         findings.push({
-          severity: isTest ? 'warning' : 'error',
+          severity,
           rel,
           line: hit.line,
           sink: hit.sink,
@@ -260,8 +285,12 @@ class CrossFileTaintModule extends BaseModule {
             if (this._lineReferencesVar(hit.rawLine, binding)) {
               if (!this._hasSanitiser(hit.rawLine, hit.contextLines)) {
                 const importeeRel = path.relative(projectRoot, importee).replace(/\\/g, '/');
+                let severity = isTest ? 'warning' : 'error';
+                if (hit.sink === 'sql-query' && data.hasParameterisedOrm) {
+                  severity = isTest ? 'info' : 'warning';
+                }
                 findings.push({
-                  severity: isTest ? 'warning' : 'error',
+                  severity,
                   rel,
                   line: hit.line,
                   sink: hit.sink,
@@ -325,6 +354,7 @@ class CrossFileTaintModule extends BaseModule {
       importedBindings: new Map(),  // importee absPath → Set<binding name>
       importedFrom: new Set(),      // which files this file imports
       sinkHits: [],                 // { line, rawLine, sink, contextLines }
+      hasParameterisedOrm: false,   // file imports drizzle / prisma / kysely / ...
     };
 
     let text;
@@ -334,6 +364,14 @@ class CrossFileTaintModule extends BaseModule {
       return data;
     }
     if (text.length > MAX_FILE_SIZE) return data;
+
+    // One-time scan for parameterised-ORM imports — when present, downgrade
+    // any sql-query sink in this file from error to warning (Drizzle &c.
+    // auto-parameterise; raw-with-concat is still caught because the
+    // tagged-template sanitiser in SANITISE_RES is shape-specific).
+    if (PARAMETERISED_ORM_RE.test(text)) {
+      data.hasParameterisedOrm = true;
+    }
 
     const lines = text.split('\n');
     const dir = path.dirname(abs);
@@ -508,7 +546,14 @@ class CrossFileTaintModule extends BaseModule {
   }
 
   _hasSanitiser(rawLine, contextLines) {
-    const combined = (contextLines || '') + '\n' + rawLine;
+    // Strip comments BEFORE matching — a `// uses sql\`...\` here` doc
+    // comment shouldn't falsely suppress a real injection finding.
+    const stripped = this._stripComments(rawLine);
+    const ctxStripped = (contextLines || '')
+      .split('\n')
+      .map((l) => this._stripComments(l))
+      .join('\n');
+    const combined = ctxStripped + '\n' + stripped;
     return SANITISE_RES.some((re) => re.test(combined));
   }
 

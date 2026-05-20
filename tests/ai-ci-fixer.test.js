@@ -754,7 +754,7 @@ test('buildPrBody and buildIssueBody render the expected content', () => {
     runUrl:     'http://example/run/1',
     logExcerpt: 'line1\nline2\nline3',
     attempt:    2,
-    model:      'claude-sonnet-4-5',
+    model:      'claude-opus-4-7',
   });
   assert.match(pr, /AI CI-fixer/);
   assert.match(pr, /Failing workflow.*http:\/\/example\/run\/1/);
@@ -766,7 +766,7 @@ test('buildPrBody and buildIssueBody render the expected content', () => {
     logExcerpt: 'failing log',
     attempted:  [{ attempt: 1, patchCount: 0 }, { attempt: 2, patchCount: 1 }],
     lastError:  new Error('gate red'),
-    model:      'claude-sonnet-4-5',
+    model:      'claude-opus-4-7',
   });
   assert.match(issue, /couldn't repair/);
   assert.match(issue, /attempt 1: 0 patch/);
@@ -887,12 +887,12 @@ test('flywheel: distillClaudeWins calls auto-distill for every patched file', ()
       { path: 'b.js', content: 'fixed b' },
     ],
     { 'a.js': 'orig a', 'b.js': 'orig b' },
-    'claude-sonnet-4-5',
+    'claude-opus-4-7',
   );
   assert.equal(distilled.length, 2);
   assert.equal(distilled[0].patchedContent, 'fixed a');
   assert.equal(distilled[0].originalContent, 'orig a');
-  assert.equal(distilled[0].provenance.originalModel, 'claude-sonnet-4-5');
+  assert.equal(distilled[0].provenance.originalModel, 'claude-opus-4-7');
 });
 
 test('flywheel: distill silently skips when no original captured', () => {
@@ -905,7 +905,7 @@ test('flywheel: distill silently skips when no original captured', () => {
     flywheel,
     [{ path: 'unknown.js', content: 'fixed' }],
     {}, // no original
-    'claude-sonnet-4-5',
+    'claude-opus-4-7',
   );
   assert.equal(distilled.length, 0);
 });
@@ -1187,7 +1187,7 @@ test('openFixPr: uses findFreeBranchName and rotates title when attempt > 1', as
       runUrl: 'http://example/run/700',
       logExcerpt: 'log',
       attempt: 1,
-      model: 'claude-sonnet-4-5',
+      model: 'claude-opus-4-7',
       baseRef: 'main',
       git: (args) => { gitCalls.push(args); return { ok: true, stdout: '', stderr: '' }; },
       transport: captureTransport,
@@ -1219,7 +1219,7 @@ test('openFixPr: returns all-branches-taken when every slot is occupied', async 
     runUrl: 'http://example/run/800',
     logExcerpt: 'log',
     attempt: 1,
-    model: 'claude-sonnet-4-5',
+    model: 'claude-opus-4-7',
     baseRef: 'main',
     git: () => { gitCallCount += 1; return { ok: true, stdout: '', stderr: '' }; },
     transport,

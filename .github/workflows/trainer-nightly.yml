@@ -1,0 +1,147 @@
+name: Flywheel Trainer — Nightly
+
+# Runs every night at 03:00 UTC. Ingests the last 24h of git history into
+# the session-fix corpus, runs the pattern-miner trainer, and opens a PR
+# (or appends to an existing one) with the markdown report.
+#
+# The trainer is read-only on source code. It NEVER modifies modules /
+# tests / rules. Downstream agents (recipe-promoter, regression-test
+# generator) consume the JSON output to propose actual changes.
+
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 03:00 UTC nightly
+  workflow_dispatch:       # manual run from Actions tab
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  train:
+    name: Train flywheel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for ingestion)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # we need the full git log
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install (no-op if no deps)
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --ignore-scripts || true
+          fi
+
+      - name: Ingest last 30d of git history into session-fix corpus
+        run: |
+          node -e "
+            const ST = require('./website/app/lib/session-telemetry.js');
+            const stats = ST.ingestGitHistory({ since: '30 days ago' });
+            console.log('ingest:', JSON.stringify(stats));
+          "
+
+      - name: Run pattern-miner trainer
+        id: train
+        run: |
+          mkdir -p .gatetest-train
+          node website/app/lib/trainers/pattern-miner.js > .gatetest-train/report.md
+          # Also dump the raw JSON next to the report
+          node -e "
+            const PM = require('./website/app/lib/trainers/pattern-miner.js');
+            PM.mine().then((r) => {
+              require('fs').writeFileSync('.gatetest-train/report.json', JSON.stringify(r, null, 2));
+            });
+          "
+          # Surface report length so a downstream step can decide whether to PR
+          echo "lines=$(wc -l < .gatetest-train/report.md)" >> "$GITHUB_OUTPUT"
+
+      - name: Run recipe-promoter trainer
+        run: |
+          node website/app/lib/trainers/recipe-promoter.js > .gatetest-train/recipe-promoter.md
+          node -e "
+            const RP = require('./website/app/lib/trainers/recipe-promoter.js');
+            RP.propose().then((r) => {
+              require('fs').writeFileSync('.gatetest-train/recipe-promoter.json', JSON.stringify(r, null, 2));
+            });
+          "
+
+      - name: Run regression-test-generator trainer
+        run: |
+          # Trainer writes pending tests under tests/auto-generated/.
+          # Files committed to the trainer PR for human review.
+          node website/app/lib/trainers/regression-test-generator.js > .gatetest-train/regression-test-generator.md
+          node -e "
+            const RTG = require('./website/app/lib/trainers/regression-test-generator.js');
+            RTG.generate().then((r) => {
+              require('fs').writeFileSync('.gatetest-train/regression-test-generator.json', JSON.stringify(r, null, 2));
+            });
+          "
+
+      - name: Run adversarial-mutator trainer (self-test the gate)
+        # Budgeted: 10 files × 5 mutations × quick suite. Caps wall time.
+        timeout-minutes: 30
+        run: |
+          node website/app/lib/trainers/adversarial-mutator.js > .gatetest-train/adversarial-mutator.md
+          # JSON written by the CLI's main() directly to ~/.gatetest/trainers/
+          # — copy it into the artifact bundle.
+          if [ -f "$HOME/.gatetest/trainers/adversarial-mutator-latest.json" ]; then
+            cp "$HOME/.gatetest/trainers/adversarial-mutator-latest.json" .gatetest-train/adversarial-mutator.json
+          fi
+
+      - name: Upload trainer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: flywheel-trainer-${{ github.run_id }}
+          path: .gatetest-train/
+          retention-days: 90
+
+      - name: Open / update trainer PR
+        if: steps.train.outputs.lines != '' && steps.train.outputs.lines != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          BRANCH="flywheel/trainer-report-$(date -u +%Y%m%d)"
+          git config user.name  "gatetest-trainer[bot]"
+          git config user.email "gatetest-trainer@users.noreply.github.com"
+          git checkout -b "$BRANCH" || git checkout "$BRANCH"
+
+          mkdir -p docs/trainer
+          DATE=$(date -u +%Y-%m-%d)
+          cp .gatetest-train/report.md                   "docs/trainer/${DATE}-pattern-miner.md"
+          cp .gatetest-train/report.json                 "docs/trainer/${DATE}-pattern-miner.json"
+          cp .gatetest-train/recipe-promoter.md          "docs/trainer/${DATE}-recipe-promoter.md"  2>/dev/null || true
+          cp .gatetest-train/recipe-promoter.json        "docs/trainer/${DATE}-recipe-promoter.json" 2>/dev/null || true
+          cp .gatetest-train/regression-test-generator.md "docs/trainer/${DATE}-regression-test-generator.md"  2>/dev/null || true
+          cp .gatetest-train/regression-test-generator.json "docs/trainer/${DATE}-regression-test-generator.json" 2>/dev/null || true
+          cp .gatetest-train/adversarial-mutator.md "docs/trainer/${DATE}-adversarial-mutator.md"  2>/dev/null || true
+          cp .gatetest-train/adversarial-mutator.json "docs/trainer/${DATE}-adversarial-mutator.json" 2>/dev/null || true
+
+          # If the regression-test-generator drafted any pending tests under
+          # tests/auto-generated/, include them in the trainer PR for review.
+          if [ -d tests/auto-generated ]; then
+            git add tests/auto-generated/ || true
+          fi
+
+          git add docs/trainer/
+          if git diff --cached --quiet; then
+            echo "no changes — skipping PR"
+            exit 0
+          fi
+          git -c commit.gpgsign=false commit -m "chore(trainer): pattern-miner report $(date -u +%Y-%m-%d)"
+          git push -u origin "$BRANCH" --force-with-lease
+
+          # Create PR (idempotent — gh fails harmlessly if PR exists)
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "Flywheel trainer report — $(date -u +%Y-%m-%d)" \
+            --body "Nightly pattern-miner output. Review recommendations and merge to land the report in docs/trainer/." \
+            --draft \
+          || gh pr edit "$BRANCH" --body "Updated $(date -u +%Y-%m-%dT%H:%M:%SZ)"

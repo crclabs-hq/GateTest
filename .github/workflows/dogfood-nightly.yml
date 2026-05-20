@@ -1,0 +1,99 @@
+name: Dogfood — Self-Scan Nightly
+
+# Runs GateTest's own modules against the GateTest repo nightly. If we
+# can't keep our own house clean, we can't sell the product. Each module
+# here is the one a customer pays for; running them on ourselves makes
+# every regression visible the next morning.
+
+on:
+  schedule:
+    - cron: '15 3 * * *'   # 03:15 UTC, just after trainer-nightly
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  dogfood:
+    name: Self-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify all modules load
+        run: node bin/gatetest.js --list | wc -l
+
+      - name: Run full test sweep
+        run: |
+          node --test tests/*.test.js 2>&1 | tee .dogfood/sweep.log || true
+          mkdir -p .dogfood
+          grep -E "^# (tests|pass|fail|skip)" .dogfood/sweep.log > .dogfood/sweep-summary.txt || true
+
+      - name: Self-scan — dependencies module
+        run: |
+          mkdir -p .dogfood
+          node bin/gatetest.js --module dependencies --json > .dogfood/dependencies.json 2>&1 || true
+          echo "## Dependencies" > .dogfood/report.md
+          jq -r '.checks // [] | length as $n | "\($n) checks"' .dogfood/dependencies.json >> .dogfood/report.md 2>/dev/null || true
+
+      - name: Self-scan — secrets module
+        run: |
+          node bin/gatetest.js --module secrets --json > .dogfood/secrets.json 2>&1 || true
+          echo "## Secrets" >> .dogfood/report.md
+          jq -r '.checks // [] | length as $n | "\($n) checks"' .dogfood/secrets.json >> .dogfood/report.md 2>/dev/null || true
+
+      - name: Self-scan — secret rotation module
+        run: |
+          node bin/gatetest.js --module secretRotation --json > .dogfood/secret-rotation.json 2>&1 || true
+          echo "## Secret rotation" >> .dogfood/report.md
+          jq -r '.checks // [] | length as $n | "\($n) checks"' .dogfood/secret-rotation.json >> .dogfood/report.md 2>/dev/null || true
+
+      - name: Self-scan — TypeScript strictness
+        run: |
+          node bin/gatetest.js --module typescriptStrictness --json > .dogfood/ts-strictness.json 2>&1 || true
+          echo "## TypeScript strictness" >> .dogfood/report.md
+          jq -r '.checks // [] | length as $n | "\($n) checks"' .dogfood/ts-strictness.json >> .dogfood/report.md 2>/dev/null || true
+
+      - name: Self-scan — log PII
+        run: |
+          node bin/gatetest.js --module logPii --json > .dogfood/log-pii.json 2>&1 || true
+          echo "## Log PII" >> .dogfood/report.md
+          jq -r '.checks // [] | length as $n | "\($n) checks"' .dogfood/log-pii.json >> .dogfood/report.md 2>/dev/null || true
+
+      - name: Upload dogfood artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dogfood-${{ github.run_id }}
+          path: .dogfood/
+          retention-days: 60
+
+      - name: Open issue if dependencies module flags errors
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          ERR_COUNT=$(jq -r '[.checks[]? | select(.severity=="error")] | length' .dogfood/dependencies.json 2>/dev/null)
+          if [ -n "$ERR_COUNT" ] && [ "$ERR_COUNT" -gt 0 ]; then
+            TITLE="Dogfood: $ERR_COUNT dependency error(s) in self-scan ($(date -u +%Y-%m-%d))"
+            BODY=$(printf '%s\n\nFull artifact: see %s actions run.' \
+              "Self-scan flagged $ERR_COUNT error-severity finding(s) in our own dependencies." \
+              "${{ github.run_id }}")
+            # gh fails harmlessly if an open issue with same title already exists.
+            gh issue list --label dogfood --search "$TITLE in:title" --limit 1 --state open --json title \
+              | jq -e 'length == 0' && gh issue create \
+                --title "$TITLE" --body "$BODY" --label dogfood,security \
+              || echo "issue exists or gh unavailable — skipping"
+          fi

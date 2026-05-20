@@ -14,3 +14,7 @@ website/playwright-report/
 
 # Sub-agent worktrees (Agent tool with isolation: "worktree")
 .claude/worktrees/
+
+# Sandbox-delivered apply-*.js bundles — generated when the container
+# proxy can't push, transferred to Craig's local machine for execution.
+apply-*.js
