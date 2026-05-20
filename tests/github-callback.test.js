@@ -339,9 +339,14 @@ describe('sendGithubCallback — happy path with PR', () => {
     });
     assert.strictEqual(result.statusSent, true);
     assert.strictEqual(result.commentSent, true);
-    assert.strictEqual(doFetch.calls.length, 2, 'expected two fetch calls (status + comment)');
+    // Three fetch calls now: status + idempotency-lookup (GET on existing
+    // PR comments) + comment POST. The GET was added in the Manifest #20
+    // hardening — the route now finds and PATCHes an existing bot comment
+    // if one is present, instead of stacking duplicates on every push.
+    assert.strictEqual(doFetch.calls.length, 3, 'expected three fetch calls (status + comment-lookup GET + comment POST)');
     assert.ok(doFetch.calls[0].url.includes('/statuses/'), `first call should be status`);
-    assert.ok(doFetch.calls[1].url.includes('/issues/42/comments'), `second call should be comment`);
+    assert.ok(doFetch.calls[1].url.includes('/issues/42/comments') && doFetch.calls[1].init.method === 'GET', `second call should be the idempotency GET`);
+    assert.ok(doFetch.calls[2].url.includes('/issues/42/comments') && doFetch.calls[2].init.method === 'POST', `third call should be the comment POST`);
   });
 
   it('uses Authorization Bearer header with the resolved token', async () => {

@@ -84,8 +84,8 @@ whose scan fails mid-way.
 > Fair. Repo is dogfooded — every push to crclabs-hq/GateTest runs
 > through GateTest's own gate, see the CI badge. The four real-repo
 > proofs in /docs/proofs cover external production codebases (Crontech,
-> Gluecron, MarcoReid) with full reports and Anthropic-spend numbers
-> attached. Total Anthropic spend across all four: ~$3-4. The flywheel
+> Gluecron) with full reports and Anthropic-spend numbers
+> attached. Total Anthropic spend across all three: ~$3. The flywheel
 > is real and the recipe store is on disk. The npm publish is queued
 > because I wanted real-customer feedback before committing to a public
 > package surface.
@@ -102,9 +102,9 @@ whose scan fails mid-way.
 
 > AST + rule + recipe layers handle the majority of findings
 > deterministically. Claude only fires on patterns nothing else has
-> seen. On the four external real-repo proofs that ran the Nuclear
-> pipeline against gatetest + Crontech + Gluecron + MarcoReid, total
-> Anthropic spend was ~$3-4. At $399 for Nuclear that's a 100x margin.
+> seen. On the three external real-repo proofs that ran the Nuclear
+> pipeline against gatetest + Crontech + Gluecron, total
+> Anthropic spend was ~$3. At $399 for Nuclear that's a 100x margin.
 > Quick ($29) and Full ($99) tiers don't even invoke Claude on the fix
 > path — they're scan-only.
 

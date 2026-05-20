@@ -282,37 +282,104 @@ interface GluecronTreeResponse {
  * actual auth comes from GLUECRON_API_TOKEN — a future refactor may
  * thread token-per-call through, today it's env-global.
  */
+export interface FetchTreeResult {
+  paths: string[];
+  truncated: boolean;
+  warning: string | null;
+}
+
+const TREE_SIZE_WARN_THRESHOLD = 50_000;
+
+/**
+ * Detailed tree fetch — returns paths PLUS truncation metadata so
+ * callers can surface a "we may have missed files" warning to the
+ * customer instead of silently losing coverage.
+ *
+ * Manifest #19 / Known Issue #24 fix: GitHub's git/trees endpoint
+ * returns up to ~100k entries in one shot; beyond that it sets
+ * `truncated: true`. Previously we read the partial list as if it
+ * were the full tree — silently dropping files. Now we detect that
+ * state and surface it explicitly. Callers should at minimum log the
+ * warning; ideally they fall back to per-directory traversal (out of
+ * scope for the MVP fix — flagged for future work).
+ */
+export async function fetchTreeWithMetadata(
+  owner: string,
+  repo: string,
+  ref: string,
+  token: string,
+): Promise<FetchTreeResult> {
+  const isGitHub =
+    !getToken() ||
+    token.startsWith("ghp_") ||
+    token.startsWith("gho_") ||
+    token === (process.env.GITHUB_TOKEN || "") ||
+    token === (process.env.GATETEST_GITHUB_TOKEN || "");
+
+  if (isGitHub && token) {
+    try {
+      const ghRes = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/git/trees/${ref}?recursive=1`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "User-Agent": "GateTest",
+            Accept: "application/vnd.github.v3+json",
+          },
+        },
+      );
+      if (ghRes.ok) {
+        const ghData = (await ghRes.json()) as {
+          tree?: Array<{ path: string; type: string }>;
+          truncated?: boolean;
+        };
+        const paths = (ghData.tree || [])
+          .filter((f) => f.type === "blob")
+          .map((f) => f.path);
+        const truncated = ghData.truncated === true;
+        let warning: string | null = null;
+        if (truncated) {
+          warning = `Repository tree exceeded GitHub's single-response limit (~100k entries). Returned ${paths.length} files; more exist but were not enumerated. Scans may miss findings in unenumerated paths.`;
+          // eslint-disable-next-line no-console
+          console.warn(`[fetchTree] ${owner}/${repo}@${ref}: ${warning}`);
+        } else if (paths.length > TREE_SIZE_WARN_THRESHOLD) {
+          warning = `Repository has ${paths.length} files — large repos may exceed Vercel function memory + time budgets. Consider scoping via .gatetestignore.`;
+        }
+        return { paths, truncated, warning };
+      }
+    } catch {
+      /* fall through to gluecron */
+    }
+  }
+
+  const res = await gluecronApi(
+    "GET",
+    `/api/v2/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/tree/${encodeURIComponent(ref)}?recursive=1`,
+  );
+  if (res.status !== 200) return { paths: [], truncated: false, warning: null };
+  const payload = res.data as unknown as GluecronTreeResponse & { truncated?: boolean };
+  if (!payload.tree) return { paths: [], truncated: false, warning: null };
+  const paths = payload.tree.filter((f) => f.type === "blob").map((f) => f.path);
+  const truncated = payload.truncated === true;
+  let warning: string | null = null;
+  if (truncated) {
+    warning = `Gluecron tree response truncated — ${paths.length} paths visible, more exist.`;
+    // eslint-disable-next-line no-console
+    console.warn(`[fetchTree] ${owner}/${repo}@${ref}: ${warning}`);
+  } else if (paths.length > TREE_SIZE_WARN_THRESHOLD) {
+    warning = `Repository has ${paths.length} files — consider scoping via .gatetestignore.`;
+  }
+  return { paths, truncated, warning };
+}
+
 export async function fetchTree(
   owner: string,
   repo: string,
   ref: string,
   token: string
 ): Promise<string[]> {
-  // GitHub fallback: if token looks like a GitHub PAT or starts with ghp_/gho_
-  const isGitHub = !getToken() || token.startsWith("ghp_") || token.startsWith("gho_") || token === (process.env.GITHUB_TOKEN || "") || token === (process.env.GATETEST_GITHUB_TOKEN || "");
-  if (isGitHub && token) {
-    try {
-      const ghRes = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/git/trees/${ref}?recursive=1`,
-        { headers: { Authorization: `Bearer ${token}`, "User-Agent": "GateTest", Accept: "application/vnd.github.v3+json" } }
-      );
-      if (ghRes.ok) {
-        const ghData = await ghRes.json() as { tree?: Array<{ path: string; type: string }> };
-        return (ghData.tree || []).filter((f) => f.type === "blob").map((f) => f.path);
-      }
-    } catch { /* fall through to gluecron */ }
-  }
-
-  const res = await gluecronApi(
-    "GET",
-    `/api/v2/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/tree/${encodeURIComponent(ref)}?recursive=1`
-  );
-  if (res.status !== 200) return [];
-  const payload = res.data as unknown as GluecronTreeResponse;
-  if (!payload.tree) return [];
-  return payload.tree
-    .filter((f) => f.type === "blob")
-    .map((f) => f.path);
+  const result = await fetchTreeWithMetadata(owner, repo, ref, token);
+  return result.paths;
 }
 
 interface GluecronContentsResponse {
