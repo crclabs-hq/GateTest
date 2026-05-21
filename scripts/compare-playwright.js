@@ -57,6 +57,7 @@ function serveFixture(html) {
     });
     server.listen(0, '127.0.0.1', () => {
       const { port } = server.address();
+      // hardcoded-url-ok — local test-server URL is exactly the point of this script
       resolve({ server, url: `http://127.0.0.1:${port}/` });
     });
   });
