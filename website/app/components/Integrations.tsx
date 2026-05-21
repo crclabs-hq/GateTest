@@ -35,9 +35,7 @@ const ciProviders = [
 ];
 
 const gitHosts = [
-  { name: "GitHub", href: null },
-  { name: "GitLab", href: null },
-  { name: "Bitbucket", href: null },
+  { name: "GitHub", href: "https://github.com/apps/GateTestHQ", note: "install the App" },
   {
     name: "Gluecron",
     href: "https://gluecron.com",

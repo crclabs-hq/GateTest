@@ -23,7 +23,11 @@ jobs:
         if: ${{ hashFiles('**/package.json') != '' }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Match ci.yml's Node 22 — Test + Build passes on 22, this job fails
+          # on 20 with the same install + test commands. Some transitive dep
+          # in the website workspace (Next 16 / @anthropic-ai/sdk / Babel)
+          # needs a Node 22 API.
+          node-version: '22'
           cache: 'npm'
 
       - name: Set up Python

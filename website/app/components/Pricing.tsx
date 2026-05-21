@@ -119,11 +119,6 @@ const continuousPlan = {
   comingSoon: true,
 };
 
-const comingSoon = [
-  "Live browser testing — real browser-powered page testing",
-  "Visual regression — screenshot comparison between deploys",
-  "Self-healing CI — agent reads failures and opens fix PRs",
-];
 
 export default function Pricing() {
   const [repoUrl, setRepoUrl] = useState("");
@@ -366,19 +361,6 @@ export default function Pricing() {
                 </a>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Coming Soon */}
-        <div className="max-w-2xl mx-auto text-center">
-          <h3 className="text-lg font-bold text-foreground mb-4">Coming Soon</h3>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {comingSoon.map((item) => (
-              <div key={item} className="flex items-start gap-2 text-left p-3 rounded-xl border border-dashed border-border bg-white">
-                <span className="text-xs font-medium text-muted bg-surface-dark border border-border rounded-full px-2 py-0.5 shrink-0 mt-0.5">Soon</span>
-                <span className="text-sm text-muted">{item}</span>
-              </div>
-            ))}
           </div>
         </div>
 
