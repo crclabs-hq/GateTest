@@ -34,6 +34,14 @@ class SarifReporter {
     const results = [];
     const ruleIndex = new Map();
 
+    // Project-level fallback URI for findings with no specific file:line
+    // anchor (config-level rules, repo-wide observations like "no .nvmrc",
+    // "PR size exceeded"). GitHub Code Scanning rejects the entire SARIF
+    // upload when ANY result is missing a `locations` array — error from
+    // the CI log: "locationFromSarifResult: expected at least one location".
+    // Resolve once at the project root so file-less findings still ride.
+    const projectLevelUri = this._resolveProjectLevelUri();
+
     for (const moduleResult of summary.results) {
       for (const check of moduleResult.checks) {
         if (check.passed) continue;
@@ -70,22 +78,24 @@ class SarifReporter {
           },
         };
 
-        // Add location if available
-        if (check.file) {
-          const line = parseInt(check.line) || 1;
-          sarifResult.locations = [{
-            physicalLocation: {
-              artifactLocation: {
-                uri: check.file,
-                uriBaseId: '%SRCROOT%',
-              },
-              region: {
-                startLine: line,
-                startColumn: 1,
-              },
+        // Always emit a locations array — GitHub Code Scanning rejects
+        // the whole upload when even one result has no location. File-less
+        // findings (config rules, repo-wide observations) get pointed at
+        // the project-level marker file resolved above.
+        const fileUri = check.file || projectLevelUri;
+        const startLine = check.file ? (parseInt(check.line) || 1) : 1;
+        sarifResult.locations = [{
+          physicalLocation: {
+            artifactLocation: {
+              uri: fileUri,
+              uriBaseId: '%SRCROOT%',
             },
-          }];
-        }
+            region: {
+              startLine,
+              startColumn: 1,
+            },
+          },
+        }];
 
         results.push(sarifResult);
       }
@@ -110,6 +120,24 @@ class SarifReporter {
         }],
       }],
     };
+  }
+
+  // Pick a stable repo-root file to point file-less findings at. Try
+  // canonical project markers in priority order; fall back to a synthetic
+  // marker URI (still a valid SARIF artifactLocation per spec — GitHub
+  // only requires the URI string to be present, not that the file exists).
+  _resolveProjectLevelUri() {
+    const candidates = ['package.json', 'README.md', 'README', '.gitignore', 'pyproject.toml', 'Cargo.toml', 'go.mod'];
+    for (const name of candidates) {
+      try {
+        if (fs.existsSync(path.join(this.config.projectRoot, name))) {
+          return name;
+        }
+      } catch {
+        // Filesystem hiccup — ignore and try next candidate
+      }
+    }
+    return '.gatetest-project';
   }
 
   _severityToSarif(severity) {
