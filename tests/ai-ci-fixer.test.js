@@ -186,6 +186,43 @@ test('applyPatches writes files to a tmpdir', () => {
   }
 });
 
+// Regression: applyPatches must snapshot pre-write originalContent +
+// newContent to `.gatetest/fix-patches.json` so the downstream
+// scripts/post-inline-suggestions.js helper can compute change hunks
+// AFTER the fix is applied. Without the snapshot, the helper reads
+// disk and gets the FIXED content as "original" → no diff → no
+// suggestion ever posted.
+test('applyPatches snapshots patches to .gatetest/fix-patches.json', () => {
+  const dir = makeTmpDir();
+  try {
+    // Seed an original file so the snapshot captures the BEFORE content.
+    fs.writeFileSync(path.join(dir, 'original.js'), 'console.log("before");\n');
+
+    fixer.applyPatches([
+      { file: 'original.js', content: 'console.log("after");\n', reason: 'remove debug log' },
+      { file: 'fresh.js',    content: 'export const x = 1;\n' }, // no prior file
+    ], dir);
+
+    const snapshotPath = path.join(dir, '.gatetest', 'fix-patches.json');
+    assert.ok(fs.existsSync(snapshotPath), 'fix-patches.json must be written');
+    const snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf-8'));
+    assert.equal(snapshot.length, 2);
+
+    const originalPatch = snapshot.find((s) => s.file === 'original.js');
+    assert.equal(originalPatch.originalContent, 'console.log("before");\n',
+      'snapshot must capture pre-write content for existing files');
+    assert.equal(originalPatch.newContent, 'console.log("after");\n');
+    assert.equal(originalPatch.reason, 'remove debug log');
+
+    const freshPatch = snapshot.find((s) => s.file === 'fresh.js');
+    assert.equal(freshPatch.originalContent, '',
+      'snapshot for net-new files must have empty originalContent');
+    assert.equal(freshPatch.newContent, 'export const x = 1;\n');
+  } finally {
+    cleanup(dir);
+  }
+});
+
 test('applyPatches refuses path-traversal patches', () => {
   const dir = makeTmpDir();
   try {
