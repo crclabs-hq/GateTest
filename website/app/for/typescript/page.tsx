@@ -296,7 +296,6 @@ export default function TypeScriptPage() {
           <div className="flex items-center gap-6">
             <Link href="/for/nextjs" className="hover:text-white/60 transition-colors">Next.js</Link>
             <Link href="/for/nodejs" className="hover:text-white/60 transition-colors">Node.js</Link>
-            <Link href="/for/python" className="hover:text-white/60 transition-colors">Python</Link>
           </div>
         </div>
       </footer>

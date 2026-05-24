@@ -58,7 +58,7 @@ const FAQS: Faq[] = [
           the full replacement table
         </a>{" "}
         or compare us{" "}
-        <Link href="/compare" className="text-accent hover:underline">
+        <Link href="#comparison" className="text-accent hover:underline">
           tool-by-tool
         </Link>
         .
