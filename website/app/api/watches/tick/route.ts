@@ -209,7 +209,13 @@ export async function GET(req: NextRequest) {
             }),
           });
           let fixData: { prUrl?: string; issuesFixed?: number; error?: string } = {};
-          try { fixData = await fixRes.json(); } catch { /* keep empty */ }
+          try {
+            fixData = await fixRes.json();
+          } catch (parseErr) {
+            // Non-fatal — record the parse failure so we see it, but keep
+            // going with empty data so we still write a heal_history row.
+            fixData = { error: `response parse: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}` };
+          }
           const prUrl = fixData.prUrl || null;
           await sql`
             INSERT INTO heal_history (watch_id, action, status, pr_url, details, completed_at)
