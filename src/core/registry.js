@@ -52,6 +52,7 @@ const BUILT_IN_MODULES = {
   secretRotation: '../modules/secret-rotation.js',
   webHeaders: '../modules/web-headers.js',
   typescriptStrictness: '../modules/typescript-strictness.js',
+  undefinedRef: '../modules/undefined-ref.js',
   flakyTests: '../modules/flaky-tests.js',
   errorSwallow: '../modules/error-swallow.js',
   nPlusOne: '../modules/n-plus-one.js',
