@@ -140,6 +140,78 @@ describe('SarifReporter', () => {
     );
   });
 
+  // Tier B #6 — enriched metadata: CWE / OWASP / security-severity tags
+  // on security-module findings so GitHub Code Scanning renders the
+  // findings with proper severity classification + filter tags. Without
+  // these properties, all SARIF findings appear as undifferentiated
+  // "warning" / "error" — no severity-threshold gating, no CWE lookup,
+  // no "external/cwe/cwe-918" filter on the Security tab.
+  it('enriches security-module rules with CWE / OWASP / security-severity', async () => {
+    const config = new GateTestConfig(tmpDir);
+    const runner = new GateTestRunner(config);
+    new SarifReporter(runner, config);
+
+    runner.register('ssrf', {
+      async run(result) {
+        result.addCheck('ssrf-user-input-to-fetch', false, {
+          severity: 'error',
+          file: 'src/api.ts',
+          line: 12,
+          message: 'User input handed to fetch() with no validation',
+          suggestion: 'Validate URL hostname against an allowlist',
+        });
+      },
+    });
+
+    await runner.run(['ssrf']);
+
+    const sarif = JSON.parse(fs.readFileSync(
+      path.join(tmpDir, '.gatetest', 'reports', 'gatetest-results.sarif'), 'utf-8'
+    ));
+
+    const rule = sarif.runs[0].tool.driver.rules[0];
+    assert.ok(rule.properties);
+    assert.strictEqual(rule.properties.cwe, 'CWE-918', 'SSRF must carry CWE-918');
+    assert.strictEqual(rule.properties.owasp, 'A10:2021', 'SSRF must carry OWASP A10:2021');
+    assert.strictEqual(rule.properties['security-severity'], '8.6',
+      'security-severity is required for GitHub branch-protection severity-threshold gating');
+    assert.ok(rule.properties.tags.includes('external/cwe/cwe-918'),
+      'tags must include external/cwe/<id> so GitHub Security tab filters work');
+    assert.ok(rule.properties.tags.includes('ssrf'));
+    assert.ok(rule.help.markdown.includes('cwe.mitre.org'),
+      'help.markdown must link to the MITRE CWE entry');
+  });
+
+  it('does not add security metadata to non-security modules', async () => {
+    const config = new GateTestConfig(tmpDir);
+    const runner = new GateTestRunner(config);
+    new SarifReporter(runner, config);
+
+    runner.register('flakyTests', {
+      async run(result) {
+        result.addCheck('committed-only', false, {
+          severity: 'warning',
+          file: 'tests/foo.test.js',
+          line: 5,
+          message: 'committed .only',
+        });
+      },
+    });
+
+    await runner.run(['flakyTests']);
+
+    const sarif = JSON.parse(fs.readFileSync(
+      path.join(tmpDir, '.gatetest', 'reports', 'gatetest-results.sarif'), 'utf-8'
+    ));
+    const rule = sarif.runs[0].tool.driver.rules[0];
+    // No CWE / OWASP — flakyTests isn't in the mapping
+    assert.strictEqual(rule.properties.cwe, undefined);
+    assert.strictEqual(rule.properties.owasp, undefined);
+    assert.strictEqual(rule.properties['security-severity'], undefined);
+    // Fallback tag is the module name
+    assert.ok(rule.properties.tags.includes('flakyTests'));
+  });
+
   it('falls back to synthetic marker URI when no project files present', async () => {
     // tmpDir starts empty — none of the canonical markers exist
     const config = new GateTestConfig(tmpDir);
