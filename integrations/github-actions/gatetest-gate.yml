@@ -7,7 +7,7 @@
 #
 # See the GateTest Bible (CLAUDE.md) → "PROTECTED PLATFORMS" section.
 # Install location in target repo: .github/workflows/gatetest-gate.yml
-# Source of truth: https://github.com/ccantynz-alt/gatetest
+# Source of truth: https://github.com/crclabs-hq/gatetest
 #                  /integrations/github-actions/gatetest-gate.yml
 # ============================================================================
 
@@ -60,9 +60,9 @@ jobs:
           GATETEST_TOKEN: ${{ secrets.GATETEST_TOKEN }}
         run: |
           if [ -n "$GATETEST_TOKEN" ]; then
-            git clone --depth 1 "https://x-access-token:${GATETEST_TOKEN}@github.com/ccantynz-alt/gatetest.git" "$RUNNER_TEMP/gatetest"
+            git clone --depth 1 "https://x-access-token:${GATETEST_TOKEN}@github.com/crclabs-hq/gatetest.git" "$RUNNER_TEMP/gatetest"
           else
-            git clone --depth 1 "https://github.com/ccantynz-alt/gatetest.git" "$RUNNER_TEMP/gatetest"
+            git clone --depth 1 "https://github.com/crclabs-hq/gatetest.git" "$RUNNER_TEMP/gatetest"
           fi
           echo "GATETEST_HOME=$RUNNER_TEMP/gatetest" >> $GITHUB_ENV
           echo "$RUNNER_TEMP/gatetest/bin" >> $GITHUB_PATH

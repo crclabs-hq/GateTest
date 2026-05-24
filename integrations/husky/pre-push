@@ -8,7 +8,7 @@
 # MUST NOT be removed, weakened, or bypassed without Craig's authorization.
 # See the GateTest Bible (CLAUDE.md) → "PROTECTED PLATFORMS" section.
 # Install location in target repo: .husky/pre-push (chmod +x)
-# Source of truth: https://github.com/ccantynz-alt/gatetest
+# Source of truth: https://github.com/crclabs-hq/gatetest
 #                  /integrations/husky/pre-push
 #
 # SPEED CONTRACT: this hook MUST complete in under 30 seconds on a typical
@@ -48,9 +48,10 @@ if [ ! -d "$GATETEST_CACHE/.git" ]; then
   echo "[GateTest] First-time setup — fetching GateTest into $GATETEST_CACHE in the background."
   echo "[GateTest] (This first push will skip the gate; subsequent pushes will run it.)"
   mkdir -p "$(dirname "$GATETEST_CACHE")"
-  # Background clone — don't block the push on the cold-cache case.
-  ( git clone --depth 1 https://github.com/ccantynz-alt/gatetest.git "$GATETEST_CACHE" >/dev/null 2>&1 & )
-  exit 0
+  git clone --depth 1 https://github.com/crclabs-hq/gatetest.git "$GATETEST_CACHE"
+else
+  echo "[GateTest] Updating local cache ..."
+  (cd "$GATETEST_CACHE" && git pull --ff-only --depth 1 origin HEAD >/dev/null 2>&1 || true)
 fi
 
 # Best-effort cache refresh — never block the push if `git pull` is slow.
