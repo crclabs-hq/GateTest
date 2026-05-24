@@ -89,6 +89,82 @@ describe('SarifReporter', () => {
     assert.strictEqual(result.locations[0].physicalLocation.artifactLocation.uri, 'src/main.js');
     assert.strictEqual(result.locations[0].physicalLocation.region.startLine, 10);
   });
+
+  // Regression: GitHub Code Scanning rejected SARIF uploads with
+  // "locationFromSarifResult: expected at least one location" when any
+  // single result was missing a `locations` array. File-less findings
+  // (config-rule violations, repo-wide observations like prSize) must
+  // still emit a locations entry — fall back to a project-level URI.
+  it('emits locations for findings with no file (uses project-level fallback)', async () => {
+    // Seed a package.json so the project-level resolver picks it
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name": "x"}');
+    const config = new GateTestConfig(tmpDir);
+    const runner = new GateTestRunner(config);
+    new SarifReporter(runner, config);
+
+    runner.register('config-mod', {
+      async run(result) {
+        result.addCheck('repo-wide-issue', false, {
+          severity: 'error',
+          message: 'PR exceeds 1000-line ceiling',
+          // intentionally no file / line — this is the bug shape
+        });
+        result.addCheck('also-no-file', false, {
+          severity: 'warning',
+          message: 'Another config-level finding',
+        });
+      },
+    });
+
+    await runner.run(['config-mod']);
+
+    const sarif = JSON.parse(fs.readFileSync(
+      path.join(tmpDir, '.gatetest', 'reports', 'gatetest-results.sarif'), 'utf-8'
+    ));
+
+    // Every result MUST have a non-empty locations array — this is what
+    // GitHub Code Scanning validates. Asserting it as an invariant
+    // prevents the bug from coming back.
+    for (const result of sarif.runs[0].results) {
+      assert.ok(Array.isArray(result.locations) && result.locations.length > 0,
+        `result "${result.ruleId}" missing locations`);
+      assert.ok(result.locations[0].physicalLocation.artifactLocation.uri,
+        `result "${result.ruleId}" missing artifactLocation.uri`);
+    }
+
+    // And specifically: the project-level URI should be package.json
+    // (first canonical marker that exists in the project root)
+    assert.strictEqual(
+      sarif.runs[0].results[0].locations[0].physicalLocation.artifactLocation.uri,
+      'package.json'
+    );
+  });
+
+  it('falls back to synthetic marker URI when no project files present', async () => {
+    // tmpDir starts empty — none of the canonical markers exist
+    const config = new GateTestConfig(tmpDir);
+    const runner = new GateTestRunner(config);
+    new SarifReporter(runner, config);
+
+    runner.register('empty-repo-mod', {
+      async run(result) {
+        result.addCheck('no-anchor', false, {
+          severity: 'error',
+          message: 'Project-level finding',
+        });
+      },
+    });
+
+    await runner.run(['empty-repo-mod']);
+
+    const sarif = JSON.parse(fs.readFileSync(
+      path.join(tmpDir, '.gatetest', 'reports', 'gatetest-results.sarif'), 'utf-8'
+    ));
+
+    const r = sarif.runs[0].results[0];
+    assert.ok(r.locations && r.locations.length > 0, 'must still emit a location');
+    assert.strictEqual(r.locations[0].physicalLocation.artifactLocation.uri, '.gatetest-project');
+  });
 });
 
 describe('JunitReporter', () => {
