@@ -3,9 +3,9 @@
 # ============================================================================
 # GATETEST HOMEBREW FORMULA — PROTECTED FILE
 # ============================================================================
-# Drop into a tap repo (e.g. ccantynz-alt/homebrew-gatetest) so users can:
+# Drop into a tap repo (e.g. crclabs-hq/homebrew-gatetest) so users can:
 #
-#   brew tap ccantynz-alt/gatetest
+#   brew tap crclabs-hq/gatetest
 #   brew install gatetest
 #
 # After every npm publish, regenerate the URL + sha256 below. The publish

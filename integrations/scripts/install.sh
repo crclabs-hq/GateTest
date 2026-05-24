@@ -5,7 +5,7 @@
 # Drops the full GateTest quality gate into a target repository.
 # Run this from the ROOT of the repo you want to protect.
 #
-#   curl -sSL https://raw.githubusercontent.com/ccantynz-alt/gatetest/main/integrations/scripts/install.sh | bash
+#   curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integrations/scripts/install.sh | bash
 #
 # Or, locally:
 #   bash /path/to/gatetest/integrations/scripts/install.sh
@@ -19,8 +19,8 @@
 # ============================================================================
 set -euo pipefail
 
-GATETEST_REPO="${GATETEST_REPO:-https://github.com/ccantynz-alt/gatetest.git}"
-GATETEST_RAW="${GATETEST_RAW:-https://raw.githubusercontent.com/ccantynz-alt/gatetest/main}"
+GATETEST_REPO="${GATETEST_REPO:-https://github.com/crclabs-hq/gatetest.git}"
+GATETEST_RAW="${GATETEST_RAW:-https://raw.githubusercontent.com/crclabs-hq/gatetest/main}"
 TARGET="${TARGET:-$(pwd)}"
 
 if [ ! -d "$TARGET/.git" ]; then
@@ -47,7 +47,7 @@ echo "  ✓ .husky/pre-push (executable)"
 cat > "$TARGET/.gatetest.json" <<'JSON'
 {
   "protected": true,
-  "gatetest_source": "https://github.com/ccantynz-alt/gatetest",
+  "gatetest_source": "https://github.com/crclabs-hq/gatetest",
   "do_not_remove": "This repo is protected by GateTest. See .github/workflows/gatetest-gate.yml and .husky/pre-push. Removing either breaks the quality gate. Requires Craig authorization.",
   "integration_version": 1
 }

@@ -61,7 +61,7 @@ const HELP = `
     --help, -h           Show this help
 
   EXAMPLES
-    gatetest replay https://github.com/ccantynz-alt/gatetest/actions/runs/26002454347
+    gatetest replay https://github.com/crclabs-hq/gatetest/actions/runs/26002454347
     gatetest replay 26002454347   # with GITHUB_REPOSITORY set
     GITHUB_TOKEN=ghp_... gatetest replay <url> --json
 
