@@ -568,15 +568,19 @@ Plus 12 more modules they don't have: AI code review, **fake-fix detector (catch
 
 ### Tier 1 — SHIP NOW (revenue-moving, low-risk, pre-authorised)
 
-1. **Contextual Grounding** — inject the customer's README + AGENTS.md + ARCHITECTURE.md (first ~2K chars each) into every fix prompt as a "PROJECT CONVENTIONS" header. Kills "Claude suggested Mongo when we use Postgres" failures. Applies to both `website/app/api/scan/fix/route.ts` and `src/core/ai-fix-engine.js`. Pure helper goes in `lib/contextual-grounding.js`.
+**STATUS: ALL FOUR SHIPPED AND WIRED (2026-05-24 verified — files exist, both fix paths import them).**
 
-2. **Shadow Scan Previews + Tiered Feature Redaction** (one feature, two angles) — the $29 customer's response shows COUNTS of issues found in the 86 modules they didn't pay for, with module names but redacted details. Upsell line: "12 of 43 issues hidden — upgrade to see and fix." Implemented as `lib/scan-redaction.js` consumed by `website/app/api/scan/run/route.ts`. No extra Claude cost — modules outside Quick's 4-tier still don't run for $29 customers; the COUNT comes from a lightweight non-AI scan pass.
+1. **Contextual Grounding** — `lib/contextual-grounding.js` (204 lines). Wired into `website/app/api/scan/fix/route.ts:340` AND `src/core/ai-fix-engine.js:38`. Injects README + AGENTS.md + ARCHITECTURE.md into every fix prompt as PROJECT CONVENTIONS. Kills "Claude suggested Mongo when we use Postgres" failures.
 
-3. **CVE-to-Fix Pipeline** — when `security` or `dependencies` modules emit a CVE-shaped finding (`CVE-YYYY-NNNNN` or `GHSA-…`), the fix path generates a `package.json` (or pip/Cargo/etc.) version-bump patch automatically. Headlines vs. Dependabot which only opens advisory PRs. Helper in `lib/cve-to-fix.js`.
+2. **Shadow Scan Previews + Tiered Feature Redaction** — `lib/scan-redaction.js` wired into `website/app/api/scan/run/route.ts:45`. $29 customers see counts of issues in the 86 modules they didn't pay for, with redacted detail and upsell prompts.
 
-4. **Confidence-Aware Reporting** — aggregate Claude's per-finding confidence (where available — pair-review 4-axis rubric, aiReview score) into a single number; only mark gate-blocking when ≥ threshold (configurable per tier, default 0.85). Helper in `lib/confidence-gate.js`.
+3. **CVE-to-Fix Pipeline** — `lib/cve-to-fix.js` (449 lines) wired into `website/app/api/scan/fix/route.ts:301`. CVE-shaped findings auto-generate `package.json` / `requirements.txt` / `Cargo.toml` version-bump patches. Headlines vs Dependabot.
 
-5. **(Item 4 of the roadmap rolls into Item 2 here)** — Tiered Feature Redaction is the Shadow Preview's machinery.
+4. **Confidence-Aware Reporting** — `lib/confidence-gate.js` (197 lines) wired into `website/app/api/scan/fix/route.ts:1790`. Aggregates per-finding confidence; gate-blocks only when ≥ threshold.
+
+5. **(Item 4 rolls into Item 2 here)** — Tiered Feature Redaction is the Shadow Preview's machinery. Same `scan-redaction.js` helper.
+
+**Future sessions:** do NOT re-implement these. If you think they're missing, grep for the lib file first.
 
 ### Tier 2 — REQUIRES CRAIG'S EXPLICIT OK (Boss Rule)
 

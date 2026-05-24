@@ -302,7 +302,6 @@ export default function NodeJsPage() {
           <div className="flex items-center gap-6">
             <Link href="/for/nextjs" className="hover:text-white/60 transition-colors">Next.js</Link>
             <Link href="/for/typescript" className="hover:text-white/60 transition-colors">TypeScript</Link>
-            <Link href="/for/python" className="hover:text-white/60 transition-colors">Python</Link>
           </div>
         </div>
       </footer>
