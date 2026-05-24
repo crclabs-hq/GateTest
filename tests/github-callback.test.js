@@ -471,3 +471,112 @@ describe('sendGithubCallback — commit status payload', () => {
     assert.ok(body.target_url.startsWith('https://gatetest.ai'), `unexpected target_url: ${body.target_url}`);
   });
 });
+
+// Regression: Known Issue #23 — every push spawned a new bot comment.
+// With the marker-based upsert in place, the second post on the same PR
+// must PATCH the prior comment in place (returns {action: 'updated'})
+// rather than POST a new one.
+describe('postPrComment — idempotent via signature marker', () => {
+  const {
+    postPrComment,
+    GATETEST_PR_COMMENT_MARKER,
+  } = require('../website/app/lib/github-callback');
+
+  function makeFetchSequence(responses) {
+    const calls = [];
+    let i = 0;
+    return {
+      calls,
+      doFetch: async (url, init) => {
+        calls.push({ url, init: init || {} });
+        const r = responses[i++] || { status: 200, json: async () => [] };
+        return {
+          status: r.status,
+          json: r.json || (async () => r.body || []),
+        };
+      },
+    };
+  }
+
+  it('POSTs a new comment when no prior bot comment exists', async () => {
+    const { doFetch, calls } = makeFetchSequence([
+      // First fetch: list comments (page 1) — empty
+      { status: 200, json: async () => [] },
+      // Second fetch: POST new comment
+      { status: 201, json: async () => ({ id: 999 }) },
+    ]);
+    const body = `${GATETEST_PR_COMMENT_MARKER}\n## Gate failed`;
+    const r = await postPrComment({
+      owner: 'a', repo: 'b', prNumber: 42, body, token: 'ghp_x', fetchImpl: doFetch,
+    });
+    assert.deepStrictEqual(r, { ok: true, status: 201, action: 'created' });
+    assert.strictEqual(calls[0].init.method, 'GET', 'first call must list comments');
+    assert.strictEqual(calls[1].init.method, 'POST', 'second call must POST');
+  });
+
+  it('PATCHes the prior comment in place when one with the marker exists', async () => {
+    const priorId = 777;
+    const { doFetch, calls } = makeFetchSequence([
+      // List page 1: one matching comment
+      { status: 200, json: async () => [{ id: priorId, body: `${GATETEST_PR_COMMENT_MARKER}\nold body` }] },
+      // PATCH that comment
+      { status: 200, json: async () => ({ id: priorId }) },
+    ]);
+    const body = `${GATETEST_PR_COMMENT_MARKER}\n## Gate passed`;
+    const r = await postPrComment({
+      owner: 'a', repo: 'b', prNumber: 42, body, token: 'ghp_x', fetchImpl: doFetch,
+    });
+    assert.deepStrictEqual(r, { ok: true, status: 200, action: 'updated' });
+    assert.strictEqual(calls[0].init.method, 'GET');
+    assert.strictEqual(calls[1].init.method, 'PATCH');
+    assert.match(calls[1].url, new RegExp(`/comments/${priorId}$`));
+    // Must NOT have fallen through to POST.
+    assert.strictEqual(calls.length, 2, `expected exactly 2 fetches, got ${calls.length}`);
+  });
+
+  it('falls back to POST when body has NO marker (legacy callers)', async () => {
+    const { doFetch, calls } = makeFetchSequence([
+      // No list/patch — first call should be the POST.
+      { status: 201, json: async () => ({ id: 1 }) },
+    ]);
+    const r = await postPrComment({
+      owner: 'a', repo: 'b', prNumber: 1, body: 'plain comment no marker', token: 'x', fetchImpl: doFetch,
+    });
+    assert.deepStrictEqual(r, { ok: true, status: 201, action: 'created' });
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].init.method, 'POST');
+  });
+
+  it('falls back to POST when list call fails (resilient to transient errors)', async () => {
+    const { doFetch, calls } = makeFetchSequence([
+      { status: 500, json: async () => ({}) }, // list fails
+      { status: 201, json: async () => ({ id: 1 }) }, // POST succeeds
+    ]);
+    const body = `${GATETEST_PR_COMMENT_MARKER}\nbody`;
+    const r = await postPrComment({
+      owner: 'a', repo: 'b', prNumber: 1, body, token: 'x', fetchImpl: doFetch,
+    });
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.action, 'created');
+    assert.strictEqual(calls[1].init.method, 'POST');
+  });
+
+  it('paginates through comment list (page 1 full, page 2 has match)', async () => {
+    // Page 1 has 100 non-matching comments → must request page 2
+    const page1 = Array.from({ length: 100 }, (_, i) => ({ id: i + 1, body: 'other-bot comment' }));
+    const page2 = [{ id: 9999, body: `${GATETEST_PR_COMMENT_MARKER}\nold` }];
+    const { doFetch, calls } = makeFetchSequence([
+      { status: 200, json: async () => page1 },
+      { status: 200, json: async () => page2 },
+      { status: 200, json: async () => ({ id: 9999 }) }, // PATCH
+    ]);
+    const body = `${GATETEST_PR_COMMENT_MARKER}\nnew`;
+    const r = await postPrComment({
+      owner: 'a', repo: 'b', prNumber: 1, body, token: 'x', fetchImpl: doFetch,
+    });
+    assert.strictEqual(r.action, 'updated');
+    assert.match(calls[0].url, /page=1/);
+    assert.match(calls[1].url, /page=2/);
+    assert.strictEqual(calls[2].init.method, 'PATCH');
+  });
+});

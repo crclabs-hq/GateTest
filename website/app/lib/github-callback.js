@@ -240,11 +240,80 @@ async function postCommitStatus({ owner, repo, sha, state, description, targetUr
   }
 }
 
+// Signature marker placed in every GateTest PR comment. Used to find a
+// prior comment via list-then-PATCH so busy PRs don't accumulate
+// duplicate bot comments on every push (Known Issue #23). Mirrors
+// src/core/host-bridge.js GATETEST_PR_COMMENT_MARKER — duplicated here
+// because the website worker doesn't import src/* (lives in a different
+// runtime). Keep in sync if either side changes.
+const GATETEST_PR_COMMENT_MARKER = '<!-- gatetest-bot:gate-summary:v1 -->';
+
 /**
- * POST a PR comment to GitHub.
- * @returns {Promise<{ok: boolean, status?: number, reason?: string}>}
+ * POST a PR comment to GitHub — idempotent via the GateTest signature
+ * marker. If a prior comment carrying the marker exists, PATCH it in
+ * place; otherwise POST a fresh one. `body` is expected to already
+ * include the marker (the bridge's `_formatGateResultMarkdown` prepends
+ * it). Falls through to non-idempotent POST if the marker is missing.
+ *
+ * @returns {Promise<{ok: boolean, status?: number, reason?: string, action?: 'created'|'updated'}>}
  */
 async function postPrComment({ owner, repo, prNumber, body, token, fetchImpl }) {
+  // Idempotent path — only when the body carries the marker.
+  if (typeof body === 'string' && body.includes(GATETEST_PR_COMMENT_MARKER)) {
+    try {
+      // Scan up to 10 pages (1000 comments) for a prior match. First-match-wins.
+      for (let page = 1; page <= 10; page += 1) {
+        const listRes = await fetchImpl(
+          `${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/comments?per_page=100&page=${page}`,
+          {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': USER_AGENT,
+            },
+          },
+        );
+        if (listRes.status !== 200) {
+          // List failed — fall through to POST so we never lose the comment.
+          console.error(`[github-callback] listPrComments non-200: ${listRes.status} — falling back to POST`);
+          break;
+        }
+        const comments = await listRes.json();
+        if (!Array.isArray(comments)) break;
+        for (const c of comments) {
+          if (c && typeof c.body === 'string' && c.body.includes(GATETEST_PR_COMMENT_MARKER)) {
+            const patchRes = await fetchImpl(
+              `${GITHUB_API}/repos/${owner}/${repo}/issues/comments/${c.id}`,
+              {
+                method: 'PATCH',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  Accept: 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'Content-Type': 'application/json',
+                  'User-Agent': USER_AGENT,
+                },
+                body: JSON.stringify({ body }),
+              },
+            );
+            if (patchRes.status !== 200) {
+              console.error(`[github-callback] patchPrComment non-200: ${patchRes.status} for ${owner}/${repo} comment ${c.id} — falling back to POST`);
+              break;
+            }
+            return { ok: true, status: 200, action: 'updated' };
+          }
+        }
+        if (!comments.length || comments.length < 100) break;
+      }
+    } catch (err) {
+      console.error('[github-callback] upsertPrComment fetch error:', err && err.message ? err.message : err);
+      // Fall through to POST below — never lose the comment due to a
+      // list-or-patch transient error.
+    }
+  }
+
   try {
     const res = await fetchImpl(`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/comments`, {
       method: 'POST',
@@ -261,7 +330,7 @@ async function postPrComment({ owner, repo, prNumber, body, token, fetchImpl }) 
       console.error(`[github-callback] addPrComment non-201: ${res.status} for ${owner}/${repo}#${prNumber}`);
       return { ok: false, status: res.status, reason: 'non-201' };
     }
-    return { ok: true, status: 201 };
+    return { ok: true, status: 201, action: 'created' };
   } catch (err) {
     console.error('[github-callback] addPrComment fetch error:', err && err.message ? err.message : err);
     return { ok: false, reason: 'fetch-error' };
@@ -338,4 +407,6 @@ module.exports = {
   buildMarkdownComment,
   linkifyFinding,
   sendGithubCallback,
+  postPrComment,
+  GATETEST_PR_COMMENT_MARKER,
 };
