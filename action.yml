@@ -221,6 +221,38 @@ runs:
         exit 0
 
     # ----------------------------------------------------------------------
+    # 4b. Post inline `suggestion` review comments on the source PR.
+    # Runs ONLY after auto-repair, ONLY when triggered from a pull_request
+    # event, and ONLY when the fix engine produced patches. Reads the
+    # snapshot at `.gatetest/fix-patches.json` written by applyPatches.
+    #
+    # GitHub renders ```suggestion``` blocks with a one-click "Commit
+    # suggestion" button. Reviewers apply fixes WITHOUT leaving the GitHub
+    # UI — no checkout, no rebase, no separate PR review cycle. This is
+    # the headline product surface for the launch.
+    #
+    # Failures are non-blocking. The consolidated auto-repair PR opens
+    # regardless; inline suggestions are an additive surface.
+    # ----------------------------------------------------------------------
+    - name: Post inline suggestion blocks on source PR
+      if: ${{ steps.gate.outputs.gate-status == 'blocked' && inputs.auto-fix == 'true' && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+      run: |
+        set -uo pipefail
+        if [ -z "${GATETEST_HOME:-}" ]; then
+          # npm-install branch — script not on disk. Inline suggestions
+          # only ship on the source-clone install path until @gatetest/cli
+          # is published. Quiet skip — auto-repair PR still ships.
+          exit 0
+        fi
+        cd "${{ inputs.working-directory }}"
+        # Non-blocking: the script ALWAYS exits 0. We just log.
+        node "$GATETEST_HOME/scripts/post-suggestions-from-snapshot.js" || true
+        exit 0
+
+    # ----------------------------------------------------------------------
     # 5a. Optional mutation testing. Runs only when explicitly enabled,
     # regardless of gate verdict, because mutation testing is a TEST-quality
     # signal — it tells you whether your tests actually catch bugs.

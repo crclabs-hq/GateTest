@@ -303,3 +303,129 @@ describe('CiSecurityModule — summary', () => {
     assert.match(summary.message, /1 file\(s\)/);
   });
 });
+
+// Regression: Crontech's ai-deploy-supervisor.yml (2026-05-24) ran on
+// `workflow_run` triggers from a deploy workflow, then tried to read the
+// upstream run's logs via `gh run view` / API. The default GITHUB_TOKEN
+// scope doesn't include `actions:` — every API call silently 403'd, and
+// the supervisor's own diagnosis disappeared behind the meta-failure.
+// This describe block guards the rule that catches this footgun before
+// it ships.
+describe('CiSecurityModule — workflow_run missing actions: read', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ci-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const findingName = (workflow) =>
+    `ci-security:workflow-run-missing-actions-read:.github/workflows/${workflow}`;
+
+  it('warns when workflow_run trigger has no actions: read', async () => {
+    writeWorkflow(tmp, 'supervisor.yml', `name: supervisor
+on:
+  workflow_run:
+    workflows: ['deploy']
+    types: [completed]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh run view \${{ github.event.workflow_run.id }} --log-failed
+`);
+    const r = await run(tmp);
+    const finding = r.checks.find((c) => c.name === findingName('supervisor.yml'));
+    assert.ok(finding, 'should flag missing actions: read');
+    assert.strictEqual(finding.severity, 'warning');
+    assert.match(finding.message, /silently 403/);
+  });
+
+  it('passes when actions: read is explicitly granted', async () => {
+    writeWorkflow(tmp, 'supervisor.yml', `name: supervisor
+on:
+  workflow_run:
+    workflows: ['deploy']
+    types: [completed]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh run view \${{ github.event.workflow_run.id }} --log-failed
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('supervisor.yml')), undefined);
+  });
+
+  it('passes when actions: write is explicitly granted', async () => {
+    writeWorkflow(tmp, 'supervisor.yml', `name: supervisor
+on:
+  workflow_run:
+    workflows: ['deploy']
+permissions:
+  actions: write
+jobs:
+  rerun:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh run rerun \${{ github.event.workflow_run.id }}
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('supervisor.yml')), undefined);
+  });
+
+  it('passes when permissions: read-all is set', async () => {
+    writeWorkflow(tmp, 'supervisor.yml', `name: supervisor
+on:
+  workflow_run:
+    workflows: ['deploy']
+permissions: read-all
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh run view \${{ github.event.workflow_run.id }}
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('supervisor.yml')), undefined);
+  });
+
+  it('does not fire when there is no workflow_run trigger', async () => {
+    writeWorkflow(tmp, 'normal.yml', `name: normal
+on: push
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('normal.yml')), undefined);
+  });
+
+  it('does not false-positive on workflow names containing "Actions"', async () => {
+    // The rule must match `actions:` as a permissions key, not as part of
+    // a workflow name like `name: GitHub Actions Deploy Check`.
+    writeWorkflow(tmp, 'noisy.yml', `name: GitHub Actions Deploy Check
+on:
+  workflow_run:
+    workflows: ['deploy']
+# permissions block intentionally missing — this MUST still flag
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo done
+`);
+    const r = await run(tmp);
+    assert.ok(
+      r.checks.find((c) => c.name === findingName('noisy.yml')),
+      'workflow name containing "Actions" must not satisfy the permission check',
+    );
+  });
+});

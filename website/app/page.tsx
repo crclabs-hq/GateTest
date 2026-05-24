@@ -24,6 +24,7 @@
 
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
+import BeforeAfterDemo from "./components/BeforeAfterDemo";
 import HomeKills from "./components/HomeKills";
 import HomeFlywheel from "./components/HomeFlywheel";
 import HomeSelfScan from "./components/HomeSelfScan";
@@ -39,6 +40,7 @@ export default function Home() {
       <Navbar />
       <main>
         <Hero />
+        <BeforeAfterDemo />
         <HomeKills />
         <HomeFlywheel />
         <HomeSelfScan />

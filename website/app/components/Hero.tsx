@@ -64,22 +64,27 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* Headline — the claim, not a slogan */}
+          {/* Headline — outcome-first, not feature-first. Tested against
+              "One gate. 102 modules. Self-healing CI." (which led with
+              features) — the new variant leads with the painkiller story
+              (you don't lose your evening to red CI). Per Craig's
+              priorities for HN launch: this is the line that ships in
+              every screenshot. */}
           <h1 className="text-center text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-6 fade-up text-white">
-            One gate. <span className="hero-accent-text">102 modules.</span>
+            Your CI just went red.
             <br />
-            Self-healing CI.
+            <span className="hero-accent-text">By morning, there&apos;s a PR with the fix.</span>
           </h1>
 
           {/* Unfair-advantage hook */}
           <p className="text-center text-xl sm:text-2xl text-white/65 max-w-3xl mx-auto mb-3 leading-snug fade-up font-medium">
-            One-time payment per scan. No subscription.
+            102 checks, one gate, auto-fix PRs in 60 seconds.
           </p>
           <p className="text-center text-base sm:text-lg text-white/45 max-w-2xl mx-auto mb-3 leading-relaxed fade-up">
-            Scan your repo or any public site. We find bugs, security issues,
-            and CI rot. On Scan + Fix and Nuclear tiers we open a PR with the
-            fixes we can ship. Per-scan payment via Stripe &mdash; you pay
-            once and get the report.
+            We catch the bugs, security issues, and CI rot that crash your
+            deploy. Then we open a pull request with the fix already written,
+            tested, and pair-reviewed by a second AI. Pay per scan &mdash; no
+            subscription, no minimum.
           </p>
           {/* Recipe-distillation moat, framed as a signal-quality story
               (not a price-cut promise — invites the wrong kind of email). */}
