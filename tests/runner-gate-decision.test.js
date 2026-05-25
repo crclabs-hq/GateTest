@@ -261,3 +261,51 @@ test('runner uses BLOCK_THRESHOLD when no override given', async () => {
   assert.equal(summary.gateStatus, 'BLOCKED');
   assert.equal(summary.confidenceThreshold, BLOCK_THRESHOLD);
 });
+
+// ─── reportOnly mode — gate PASSES regardless of error count/confidence ───
+// The new-customer install path: pre-existing findings shouldn't block CI
+// on day 1. Customers opt INTO blocking via --strict / `block: true`.
+
+test('reportOnly: 5 confident errors → gate PASSED', async () => {
+  const runner = makeRunner({ reportOnly: true });
+  runner.register('m', fakeModule([
+    { name: 'e1', confidence: 1.0 },
+    { name: 'e2', confidence: 1.0 },
+    { name: 'e3', confidence: 0.95 },
+    { name: 'e4', confidence: 0.9 },
+    { name: 'e5', confidence: 0.85 },
+  ]));
+  const summary = await runner.run(['m']);
+  assert.equal(summary.gateStatus, 'PASSED',
+    'report-only mode must downgrade every error to soft, gate PASSED');
+  // Confidence threshold should be Infinity (or equivalent) so no
+  // finding can satisfy the >= comparison.
+  assert.equal(summary.confidenceThreshold, Number.POSITIVE_INFINITY);
+});
+
+test('reportOnly: errors still appear in the report (visibility preserved)', async () => {
+  const runner = makeRunner({ reportOnly: true });
+  runner.register('m', fakeModule([
+    { name: 'visible', confidence: 1.0, severity: 'error', message: 'real bug' },
+  ]));
+  const summary = await runner.run(['m']);
+  // Gate passes, but the error is still counted + reported (nested
+  // under summary.checks per the established summary shape).
+  assert.equal(summary.gateStatus, 'PASSED');
+  assert.equal(summary.checks.errors, 1, 'error must still be visible in summary');
+  assert.equal(summary.checks.blockingErrors, 0, 'no errors block in report-only');
+  assert.ok(summary.checks.softErrors >= 1, 'errors land in the soft bucket');
+});
+
+test('reportOnly: module CRASH still BLOCKS (real bug, not a finding)', async () => {
+  // A module throwing an exception is GateTest itself failing — that
+  // remains a blocking condition even in report-only mode. We want to
+  // know when our own tool breaks.
+  const runner = makeRunner({ reportOnly: true });
+  runner.register('m', {
+    async run() { throw new Error('module crashed'); },
+  });
+  const summary = await runner.run(['m']);
+  assert.equal(summary.gateStatus, 'BLOCKED',
+    'module crashes must still block in report-only — that means GateTest itself is broken');
+});

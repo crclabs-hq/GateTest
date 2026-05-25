@@ -50,6 +50,10 @@ inputs:
     description: 'Open a GitHub Issue per error-severity finding the auto-fixer could not resolve. Idempotent — re-scans never duplicate. Default off.'
     required: false
     default: 'false'
+  block:
+    description: 'When true, the gate FAILS the workflow on any confident error finding. Default FALSE — fresh installs report findings as a PR comment but never block CI, so pre-existing rot in a mature codebase does not stop deploys on day 1. Flip to `true` once the team has triaged the baseline and wants the gate to actually enforce.'
+    required: false
+    default: 'false'
   share-learnings:
     description: 'OPT-IN: sync successful fix recipes (anonymised — no paths, no repo names, no source code outside the 2KB before/after snippet) to gatetest.ai so every other customer benefits from this fix. Default off. See https://gatetest.ai/trust for what is and is not shared.'
     required: false
@@ -160,9 +164,20 @@ runs:
             ;;
         esac
 
+        # Report-only mode controls whether the workflow exits non-zero
+        # on a blocking finding. The default for the action input
+        # `block` is FALSE — fresh installs report but never block.
+        # Customers flip `block: true` once they trust the findings.
+        BLOCK_FLAG=""
+        if [ "${{ inputs.block }}" = "true" ]; then
+          BLOCK_FLAG="--strict"
+        else
+          BLOCK_FLAG="--report-only"
+        fi
+
         # Run the gate, capture stdout for parsing.
         set +e
-        OUTPUT=$(${GATETEST_BIN} --suite "${{ inputs.suite }}" $EXTRA_FLAGS --project "$(pwd)" 2>&1)
+        OUTPUT=$(${GATETEST_BIN} --suite "${{ inputs.suite }}" $EXTRA_FLAGS $BLOCK_FLAG --project "$(pwd)" 2>&1)
         EXIT_CODE=$?
         set -e
         echo "$OUTPUT"
