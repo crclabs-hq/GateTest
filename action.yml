@@ -50,6 +50,14 @@ inputs:
     description: 'Open a GitHub Issue per error-severity finding the auto-fixer could not resolve. Idempotent — re-scans never duplicate. Default off.'
     required: false
     default: 'false'
+  share-learnings:
+    description: 'OPT-IN: sync successful fix recipes (anonymised — no paths, no repo names, no source code outside the 2KB before/after snippet) to gatetest.ai so every other customer benefits from this fix. Default off. See https://gatetest.ai/trust for what is and is not shared.'
+    required: false
+    default: 'false'
+  recipe-store-url:
+    description: 'HTTP endpoint to sync fix recipes to. Defaults to https://gatetest.ai/api/recipes when share-learnings is true. Set to your own URL for a private recipe store (the Action will sync there instead).'
+    required: false
+    default: ''
   mutation:
     description: 'Run mutation testing after the gate (Nuclear tier or opt-in). Requires the customer test suite to run.'
     required: false
@@ -203,6 +211,13 @@ runs:
       env:
         ANTHROPIC_API_KEY: ${{ env.ANTHROPIC_API_KEY }}
         GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+        # Memory-as-a-Service opt-in. When share-learnings is on, point the
+        # local recipe store at gatetest.ai/api/recipes (or the customer's
+        # own URL if they supplied one). The remote-store glue
+        # (website/app/lib/recipe-store-remote.js) reads this env var and
+        # syncs successful fixes there. Off by default — strictly opt-in.
+        # See https://gatetest.ai/trust for the privacy guarantees.
+        GATETEST_RECIPE_STORE_URL: ${{ inputs.share-learnings == 'true' && (inputs.recipe-store-url != '' && inputs.recipe-store-url || 'https://gatetest.ai/api/recipes') || '' }}
       run: |
         set -uo pipefail
         if [ -z "${ANTHROPIC_API_KEY:-}" ]; then

@@ -221,6 +221,77 @@ export default function TrustPage() {
         </div>
       </section>
 
+      {/* Memory-as-a-Service opt-in */}
+      <section className="px-6 py-16 border-t border-border/30">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-4">
+            Cross-customer fix learning <span className="text-accent-light">— opt-in</span>
+          </h2>
+          <p className="text-muted text-center max-w-2xl mx-auto mb-10">
+            We have a centralised fix-recipe store at{" "}
+            <code className="text-foreground">gatetest.ai/api/recipes</code>{" "}
+            so successful fixes from one customer can speed up the same
+            fix on every other customer&apos;s next scan. <strong>It is
+            OFF by default.</strong> Here&apos;s exactly what enabling it
+            means.
+          </p>
+
+          <div className="rounded-2xl border border-border bg-surface p-6 sm:p-8 mb-6">
+            <h3 className="text-lg font-semibold mb-4">How to enable</h3>
+            <p className="text-sm text-muted mb-4">
+              In your workflow (or <code className="text-foreground">.gatetest.json</code>):
+            </p>
+            <pre className="rounded-lg bg-black/40 border border-border p-4 font-[var(--font-mono)] text-xs sm:text-sm overflow-x-auto text-emerald-300 whitespace-pre-wrap">
+{`- uses: crclabs-hq/gatetest@v1
+  with:
+    auto-fix: true
+    share-learnings: true   # opt-in — see /trust
+`}
+            </pre>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+              <p className="text-sm font-semibold text-emerald-300 uppercase tracking-wider mb-3">
+                What WE store, anonymously
+              </p>
+              <ul className="space-y-2 text-sm text-foreground/90">
+                <li>&#10003; The module name (<code className="text-foreground">ssrf</code>, <code className="text-foreground">secrets</code>, etc.)</li>
+                <li>&#10003; The finding type slug (<code className="text-foreground">tainted-url-to-fetch</code>)</li>
+                <li>&#10003; The file extension (<code className="text-foreground">ts</code>, <code className="text-foreground">py</code>)</li>
+                <li>&#10003; Before/after code snippets, capped at 2KB each</li>
+                <li>&#10003; SHA-256 hash of the before snippet (dedup key)</li>
+                <li>&#10003; Confidence + usage count</li>
+              </ul>
+            </div>
+
+            <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-5">
+              <p className="text-sm font-semibold text-red-300 uppercase tracking-wider mb-3">
+                What we NEVER store
+              </p>
+              <ul className="space-y-2 text-sm text-foreground/90">
+                <li>&times; File paths or directory structure</li>
+                <li>&times; Repository names, URLs, or commit SHAs</li>
+                <li>&times; User identifiers, emails, or installation IDs</li>
+                <li>&times; Environment variables or secrets</li>
+                <li>&times; Source code outside the 2KB before/after snippet</li>
+                <li>&times; IP addresses (used only for in-memory rate limiting)</li>
+              </ul>
+            </div>
+          </div>
+
+          <p className="text-sm text-muted mt-6">
+            <strong className="text-foreground">Private alternative:</strong>{" "}
+            if you want the learning loop but don&apos;t want to share with the
+            cross-customer pool, set{" "}
+            <code className="text-foreground">recipe-store-url</code> to your
+            own HTTP endpoint that implements the{" "}
+            <code className="text-foreground">GET / PUT /recipes</code>{" "}
+            contract. Your fixes never touch our servers.
+          </p>
+        </div>
+      </section>
+
       {/* Independent verification */}
       <section className="px-6 py-16 max-w-4xl mx-auto">
         <h2 className="text-3xl font-bold text-center mb-4">
