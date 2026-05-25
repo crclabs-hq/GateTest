@@ -429,3 +429,115 @@ jobs:
     );
   });
 });
+
+// Regression: Crontech's stale-installed gatetest-gate.yml on 2026-05-25
+// silently failed every SARIF upload because the gatetest job's
+// permissions block didn't include `actions: read`. github/codeql-action/
+// upload-sarif calls /repos/.../actions/runs/... to attach results to
+// the right run; without the scope it errors with "Resource not
+// accessible by integration" and the Security tab never updates. OUR
+// OWN ci.yml had the same bug (caught + fixed in the same commit that
+// added this rule). Static catch ensures it can't ship again.
+describe('CiSecurityModule — codeql-action/upload-sarif missing actions: read', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ci-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const findingName = (workflow) =>
+    `ci-security:codeql-sarif-missing-actions-read:.github/workflows/${workflow}`;
+
+  it('ERRORS when upload-sarif is used without actions: read', async () => {
+    writeWorkflow(tmp, 'gate.yml', `name: gate
+on: push
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scan.sh
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+`);
+    const r = await run(tmp);
+    const f = r.checks.find((c) => c.name === findingName('gate.yml'));
+    assert.ok(f, 'must flag missing actions: read when upload-sarif present');
+    assert.strictEqual(f.severity, 'error',
+      'severity must be ERROR — silent SARIF drop is a hard product failure');
+    assert.match(f.message, /Resource not accessible by integration/);
+  });
+
+  it('passes when actions: read is explicitly granted alongside security-events: write', async () => {
+    writeWorkflow(tmp, 'gate.yml', `name: gate
+on: push
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scan.sh
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('gate.yml')), undefined);
+  });
+
+  it('passes when permissions: read-all is set (shorthand grants actions)', async () => {
+    writeWorkflow(tmp, 'gate.yml', `name: gate
+on: push
+permissions: read-all
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: github/codeql-action/upload-sarif@v3
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('gate.yml')), undefined);
+  });
+
+  it('does not fire when codeql-action is not used', async () => {
+    writeWorkflow(tmp, 'plain.yml', `name: plain
+on: push
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo done
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('plain.yml')), undefined);
+  });
+
+  it('matches any pinned version of upload-sarif (v3, v4, SHA)', async () => {
+    writeWorkflow(tmp, 'gate.yml', `name: gate
+on: push
+permissions:
+  security-events: write
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: github/codeql-action/upload-sarif@ab1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c
+`);
+    const r = await run(tmp);
+    assert.ok(
+      r.checks.find((c) => c.name === findingName('gate.yml')),
+      'SHA-pinned upload-sarif must still flag without actions: read',
+    );
+  });
+});

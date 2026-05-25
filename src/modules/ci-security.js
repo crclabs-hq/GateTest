@@ -26,6 +26,13 @@
  *     spends hours blaming the wrong layer. Crontech's ai-deploy-supervisor
  *     hit this in production 2026-05-24 — every failed-deploy diagnosis
  *     hid behind the supervisor's own 403.
+ *   - Workflow using `github/codeql-action/upload-sarif@*` but no
+ *     `actions: read` in `permissions:` — the upload step calls the
+ *     workflow-runs API to attach SARIF results to the right run.
+ *     Without the scope it fails with `"Resource not accessible by
+ *     integration"` and the GitHub Security tab never sees the SARIF.
+ *     Crontech's stale-installed GateTest workflow hit this 2026-05-25;
+ *     OUR OWN ci.yml had the same bug. Static catch prevents recurrence.
  *
  * TODO(gluecron): when Gluecron ships a CI model, mirror these heuristics
  * to Gluecron pipeline YAML (same attack surface, different filename).
@@ -109,6 +116,11 @@ class CiSecurityModule extends BaseModule {
     // `actions: read` to fetch the upstream run's logs/artifacts via API.
     // Default GITHUB_TOKEN omits the `actions:` scope.
     let hasWorkflowRunTrigger = false;
+    // `github/codeql-action/upload-sarif@*` also needs `actions: read`
+    // to attach SARIF results to the workflow run via the API. Without
+    // it, the SARIF upload step fails with "Resource not accessible by
+    // integration" and the customer's GitHub Security tab never updates.
+    let hasCodeqlSarifUpload = false;
     // Granted by an exact `actions: read` / `actions: write` line under a
     // `permissions:` block. We also accept `permissions: read-all` /
     // `write-all` (covered by the separate `hasReadAllOrWriteAll` flag) —
@@ -151,6 +163,11 @@ class CiSecurityModule extends BaseModule {
       // Downstream workflow trigger — silent-403 footgun if no actions: read.
       if (isGitHubActions && /^\s*workflow_run\s*:/.test(line)) {
         hasWorkflowRunTrigger = true;
+      }
+      // codeql-action/upload-sarif — same actions:read requirement as
+      // workflow_run, different failure mode. Matches any version pin.
+      if (isGitHubActions && /github\/codeql-action\/upload-sarif@/.test(line)) {
+        hasCodeqlSarifUpload = true;
       }
 
       // `uses: ...` pinning check
@@ -252,6 +269,21 @@ class CiSecurityModule extends BaseModule {
         file: rel,
         message: `${rel} triggers on \`workflow_run\` but \`permissions:\` does not grant \`actions: read\` — \`gh run view\`, \`gh run download\`, and direct \`/repos/.../actions/runs/*\` API calls will silently 403`,
         suggestion: 'Add `actions: read` to the workflow\'s `permissions:` block (or job-level `permissions:`). Without it, fetching logs / artifacts / status from the upstream run will fail with no useful error — your supervisor workflow runs but its own diagnosis hides behind a 403.',
+      });
+    }
+
+    // codeql-action/upload-sarif without actions:read = SARIF never
+    // reaches the Security tab. Different failure mode from workflow_run
+    // (this one fails loudly with a red step) but same root cause and
+    // same one-line fix. Error-severity because the customer's Security
+    // tab being empty is a HARD product failure — they paid for the
+    // scan, the SARIF was generated, GitHub silently dropped it.
+    if (hasCodeqlSarifUpload && !hasActionsScopeGranted && !hasReadAllOrWriteAll) {
+      issues += this._flag(result, `ci-security:codeql-sarif-missing-actions-read:${rel}`, {
+        severity: 'error',
+        file: rel,
+        message: `${rel} uses \`github/codeql-action/upload-sarif\` but \`permissions:\` does not grant \`actions: read\` — SARIF upload will fail with "Resource not accessible by integration" and the GitHub Security tab will not see the results`,
+        suggestion: 'Add `actions: read` to the job\'s `permissions:` block (alongside `security-events: write` and `contents: read`). The upload-sarif action calls the workflow-runs API to attach results to the right run — without the scope, every customer scan ends with a red CI step and an empty Security tab.',
       });
     }
 
