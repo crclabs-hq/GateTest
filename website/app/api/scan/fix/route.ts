@@ -19,7 +19,13 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { isAdminRequest } from "@/app/lib/admin-auth";
+import {
+  CUSTOMER_COOKIE_NAME,
+  getOAuthConfig,
+  verifyCustomerSession,
+} from "@/app/lib/customer-session";
 import {
   createBranch,
   fetchBlob,
@@ -915,16 +921,54 @@ export async function POST(req: NextRequest) {
   try {
 
   // Auth resolution — order of preference:
-  //   1. Customer-supplied PAT in request body (one-shot, per-request)
-  //   2. Server-side fallback (Gluecron PAT, then GITHUB_TOKEN env)
+  //   1. Logged-in customer session (OAuth access token from cookie)
+  //   2. Customer-supplied PAT in request body (one-shot, per-request)
+  //   3. Server-side fallback (Gluecron PAT, then GITHUB_TOKEN env)
   //
-  // The customer-PAT path is the "no install required" route — paste
-  // a token, get the PR. Token is probed against the repo first so we
-  // never waste Anthropic spend on an invalid auth. Token is NEVER
-  // persisted, logged, or returned in the response.
+  // Session path is the LAUNCH-DEFAULT path — customer clicks "Sign in
+  // with GitHub", we use their OAuth token for scan + fix. No PAT to
+  // paste, no App to install. Token is AES-256-GCM encrypted in the
+  // session cookie and decrypted only inside this Node handler.
   let token: string;
   let authSource: string;
 
+  // (1) Session cookie path — if logged in AND token reaches the repo,
+  // skip the PAT + server cascade entirely. Falls through to the next
+  // tier if the session doesn't grant access (revoked / scoped-out / etc).
+  let sessionResolvedToken: string | null = null;
+  try {
+    const oauthStatus = getOAuthConfig();
+    if (oauthStatus.ok && oauthStatus.config) {
+      const cookieStore = await cookies();
+      const sessionCookie = cookieStore.get(CUSTOMER_COOKIE_NAME);
+      if (sessionCookie && sessionCookie.value) {
+        const payload = verifyCustomerSession(sessionCookie.value, oauthStatus.config.sessionSecret);
+        if (payload && typeof payload.a === "string" && payload.a) {
+          // Probe — does the session's OAuth token actually grant access
+          // to THIS repo? OAuth tokens are user-scoped so the user might
+          // not have access to the pasted repo URL.
+          const probeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${payload.a}`,
+              Accept: "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "GateTest-Session-OAuth/1.0",
+            },
+          });
+          if (probeRes.status === 200) {
+            sessionResolvedToken = payload.a;
+          }
+          // 401 / 404 / other — fall through to PAT / server cascade.
+        }
+      }
+    }
+  } catch (sessionErr) {
+    // Session reading must never block the fix flow. Log + continue.
+    console.error("[/api/scan/fix] session resolution failed (continuing):", sessionErr);
+  }
+
+  // (2) Customer-PAT path
   const customerPat = typeof input.customerPat === "string" ? input.customerPat.trim() : "";
   // GitHub PAT shapes: classic `ghp_<40>`, fine-grained `github_pat_<...>`,
   // or app-installation `ghs_<...>`. Reject anything that doesn't match
@@ -932,7 +976,12 @@ export async function POST(req: NextRequest) {
   // key, or whatever else the customer might paste in the wrong field.
   const PAT_SHAPE = /^(?:ghp_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{60,}|ghs_[A-Za-z0-9]{36,})$/;
 
-  if (customerPat) {
+  if (sessionResolvedToken) {
+    // Logged-in customer's OAuth token already passed the repo probe.
+    // Use it for the fix and skip the PAT / server cascade.
+    token = sessionResolvedToken;
+    authSource = "customer-session";
+  } else if (customerPat) {
     if (!PAT_SHAPE.test(customerPat)) {
       return NextResponse.json(
         {
