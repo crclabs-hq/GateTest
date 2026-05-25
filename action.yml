@@ -46,6 +46,10 @@ inputs:
     description: 'When true, warning-severity findings also block the gate (default is errors-only).'
     required: false
     default: 'false'
+  track-non-fixable:
+    description: 'Open a GitHub Issue per error-severity finding the auto-fixer could not resolve. Idempotent — re-scans never duplicate. Default off.'
+    required: false
+    default: 'false'
   mutation:
     description: 'Run mutation testing after the gate (Nuclear tier or opt-in). Requires the customer test suite to run.'
     required: false
@@ -250,6 +254,39 @@ runs:
         cd "${{ inputs.working-directory }}"
         # Non-blocking: the script ALWAYS exits 0. We just log.
         node "$GATETEST_HOME/scripts/post-suggestions-from-snapshot.js" || true
+        exit 0
+
+    # ----------------------------------------------------------------------
+    # 4c. Track non-fixable findings as GitHub Issues. Opt-in via
+    # `track-non-fixable: true`. Runs whenever the gate has produced a
+    # JSON report (gate passed OR blocked — every error-severity finding
+    # gets surfaced), gated on a GITHUB_TOKEN being present and the
+    # source-clone install path (npm install of @gatetest/cli ships the
+    # CLI binary but not the tracking script).
+    #
+    # Idempotency: every issue carries a signature marker derived from
+    # (module, file, line, check) — re-scans match the marker and SKIP
+    # opening a duplicate. Auto-close is V2 (the issue stays open until
+    # the customer closes it manually).
+    #
+    # Failures are non-blocking — workflow proceeds regardless of any
+    # issue-creation error.
+    # ----------------------------------------------------------------------
+    - name: Track non-fixable findings as GitHub Issues
+      if: ${{ inputs.track-non-fixable == 'true' && (always() || steps.gate.outputs.gate-status == 'blocked') }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+      run: |
+        set -uo pipefail
+        if [ -z "${GATETEST_HOME:-}" ]; then
+          # npm-install branch — script not on disk. Quiet skip; the
+          # consolidated PR / inline suggestions still cover the
+          # auto-fixable surface.
+          exit 0
+        fi
+        cd "${{ inputs.working-directory }}"
+        node "$GATETEST_HOME/scripts/track-non-fixable.js" || true
         exit 0
 
     # ----------------------------------------------------------------------
