@@ -307,10 +307,14 @@ async function postPrComment({ owner, repo, prNumber, body, token, fetchImpl }) 
         }
         if (!comments.length || comments.length < 100) break;
       }
-    } catch (err) {
+    } catch (err) { // error-ok — deliberate fall-through to POST
       console.error('[github-callback] upsertPrComment fetch error:', err && err.message ? err.message : err);
       // Fall through to POST below — never lose the comment due to a
-      // list-or-patch transient error.
+      // list-or-patch transient error. This catch is INTENTIONALLY
+      // swallowed: the upsert path is best-effort (idempotency is a
+      // UX improvement, not a correctness requirement), and on any
+      // transient error we'd rather POST a (possibly duplicate)
+      // comment than silently drop the customer's gate verdict.
     }
   }
 

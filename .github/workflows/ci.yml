@@ -64,6 +64,11 @@ jobs:
     permissions:
       security-events: write
       contents: read
+      # Required by github/codeql-action/upload-sarif — it calls the
+      # workflow-runs API to attach SARIF results to the right run.
+      # Without this, the upload step fails with "Resource not accessible
+      # by integration", turning the job red even when the gate passed.
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -219,6 +224,10 @@ jobs:
     permissions:
       security-events: write
       contents: read
+      # Required by github/codeql-action/upload-sarif — see comment on
+      # the `gatetest` job above. Without this, every push to main has
+      # a red SARIF-upload step even when the gate verdict is green.
+      actions: read
     steps:
       - uses: actions/checkout@v4
 
