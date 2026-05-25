@@ -212,6 +212,88 @@ describe('SarifReporter', () => {
     assert.ok(rule.properties.tags.includes('flakyTests'));
   });
 
+  // Regression: Crontech's GateTest scan failed on 2026-05-25 with
+  // "'apps/web/src/routes/dashboard/compute/sites/[projectId].tsx' is
+  // not a valid URI" when uploading SARIF to GitHub Code Scanning.
+  // Files with `[...]` segments (SolidStart / Next.js dynamic routes)
+  // need percent-encoding per RFC 3986. Unencoded brackets fail
+  // GitHub's CodeQL upload validator.
+  it('percent-encodes bracketed dynamic-route file paths (Crontech regression)', async () => {
+    const config = new GateTestConfig(tmpDir);
+    const runner = new GateTestRunner(config);
+    new SarifReporter(runner, config);
+
+    runner.register('mod', {
+      async run(result) {
+        result.addCheck('bracket-path', false, {
+          severity: 'error',
+          file: 'apps/web/src/routes/dashboard/compute/sites/[projectId].tsx',
+          line: 12,
+          message: 'finding in a dynamic route',
+        });
+        result.addCheck('space-path', false, {
+          severity: 'warning',
+          file: 'docs/my notes.md',
+          line: 1,
+          message: 'finding in a path with spaces',
+        });
+        result.addCheck('parens-path', false, {
+          severity: 'warning',
+          file: 'app/(marketing)/page.tsx',
+          line: 1,
+          message: 'finding in a Next.js route group',
+        });
+      },
+    });
+
+    await runner.run(['mod']);
+
+    const sarif = JSON.parse(fs.readFileSync(
+      path.join(tmpDir, '.gatetest', 'reports', 'gatetest-results.sarif'), 'utf-8'
+    ));
+
+    const uris = sarif.runs[0].results.map(
+      (r) => r.locations[0].physicalLocation.artifactLocation.uri
+    );
+    assert.ok(
+      uris.includes('apps/web/src/routes/dashboard/compute/sites/%5BprojectId%5D.tsx'),
+      `bracketed segment must be encoded — got URIs: ${JSON.stringify(uris)}`,
+    );
+    assert.ok(
+      uris.includes('docs/my%20notes.md'),
+      'spaces in path segments must be encoded as %20',
+    );
+    assert.ok(
+      uris.includes('app/%28marketing%29/page.tsx'),
+      'route-group parentheses must be encoded',
+    );
+    // All URIs must NOT contain raw brackets / spaces / parens — those
+    // are exactly what GitHub Code Scanning rejects.
+    for (const uri of uris) {
+      assert.doesNotMatch(uri, /[\[\]() ]/, `URI "${uri}" contains unencoded reserved char`);
+    }
+  });
+
+  it('does not double-encode safe characters in normal paths', async () => {
+    const config = new GateTestConfig(tmpDir);
+    const runner = new GateTestRunner(config);
+    new SarifReporter(runner, config);
+    runner.register('m', {
+      async run(result) {
+        result.addCheck('x', false, { severity: 'error', file: 'src/main.ts', line: 1, message: 'x' });
+      },
+    });
+    await runner.run(['m']);
+    const sarif = JSON.parse(fs.readFileSync(
+      path.join(tmpDir, '.gatetest', 'reports', 'gatetest-results.sarif'), 'utf-8'
+    ));
+    assert.strictEqual(
+      sarif.runs[0].results[0].locations[0].physicalLocation.artifactLocation.uri,
+      'src/main.ts',
+      'plain ASCII path must round-trip unchanged',
+    );
+  });
+
   it('falls back to synthetic marker URI when no project files present', async () => {
     // tmpDir starts empty — none of the canonical markers exist
     const config = new GateTestConfig(tmpDir);

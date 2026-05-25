@@ -229,7 +229,16 @@ class SarifReporter {
         // the whole upload when even one result has no location. File-less
         // findings (config rules, repo-wide observations) get pointed at
         // the project-level marker file resolved above.
-        const fileUri = check.file || projectLevelUri;
+        //
+        // The URI must be RFC 3986-compliant: reserved characters like `[`,
+        // `]`, spaces, etc. must be percent-encoded. SolidStart / Next.js
+        // dynamic-route paths (`[projectId].tsx`, `[bucket].test.ts`)
+        // contain brackets that GitHub's SARIF validator rejects when
+        // unencoded ("X is not a valid URI"). encodePathAsUri() encodes
+        // each segment with encodeURIComponent and rejoins with `/` so
+        // path separators are preserved.
+        const rawFileUri = check.file || projectLevelUri;
+        const fileUri = this._encodePathAsUri(rawFileUri);
         const startLine = check.file ? (parseInt(check.line) || 1) : 1;
         sarifResult.locations = [{
           physicalLocation: {
@@ -267,6 +276,41 @@ class SarifReporter {
         }],
       }],
     };
+  }
+
+  // Encode a repo-relative path as a SARIF-valid URI per RFC 3986. Each
+  // path segment is strictly encoded — anything NOT in RFC 3986
+  // "unreserved characters" (`A-Z a-z 0-9 - . _ ~`) gets percent-encoded.
+  // Path separators (`/`) are preserved by splitting first, then
+  // encoding each segment, then rejoining.
+  //
+  // Stricter than encodeURIComponent (which leaves `! * ' ( )` unencoded).
+  // SARIF + GitHub Code Scanning is fussy about what counts as a "valid
+  // URI" — better to over-encode than risk a per-file validator reject.
+  //
+  // Examples:
+  //   "src/a.ts"                       → "src/a.ts"
+  //   "src/[id].tsx"                   → "src/%5Bid%5D.tsx"
+  //   "src/my file.ts"                 → "src/my%20file.ts"
+  //   "src/(group)/page.tsx"           → "src/%28group%29/page.tsx"
+  //   "src\\windows\\path.ts"          → "src/windows/path.ts"
+  _encodePathAsUri(rawPath) {
+    if (!rawPath || typeof rawPath !== 'string') return rawPath || '';
+    const normalised = rawPath.replace(/\\/g, '/');
+    // Canonical RFC 3986 trick: encodeURIComponent handles most chars
+    // correctly (including brackets and spaces) but leaves `!*'()`
+    // unencoded because they're in its "unreserved" set. Strictly per
+    // RFC 3986 those ARE reserved (sub-delims), so a second pass
+    // percent-encodes the missed five.
+    return normalised
+      .split('/')
+      .map((segment) =>
+        encodeURIComponent(segment).replace(
+          /[!*'()]/g,
+          (ch) => '%' + ch.charCodeAt(0).toString(16).toUpperCase(),
+        ),
+      )
+      .join('/');
   }
 
   // Pick a stable repo-root file to point file-less findings at. Try

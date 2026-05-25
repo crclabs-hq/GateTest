@@ -46,6 +46,7 @@ export default function Footer() {
             <h4 className="font-semibold text-sm mb-4">Company</h4>
             <ul className="space-y-2">
               <li><Link href="/#features" className="text-sm text-muted hover:text-foreground transition-colors">About</Link></li>
+              <li><Link href="/trust" className="text-sm text-muted hover:text-foreground transition-colors">Trust &amp; Security</Link></li>
               <li><a href="mailto:hello@gatetest.ai" className="text-sm text-muted hover:text-foreground transition-colors">Contact</a></li>
               <li><a href="/legal/privacy" className="text-sm text-muted hover:text-foreground transition-colors">Privacy Policy</a></li>
               <li><a href="/legal/terms" className="text-sm text-muted hover:text-foreground transition-colors">Terms of Service</a></li>
