@@ -112,14 +112,37 @@ const RUNTIME_ENV_ALLOWLIST = new Set([
   'VERCEL_GIT_REPO_OWNER', 'NEXT_RUNTIME', 'NEXT_PHASE',
   'RENDER', 'HEROKU', 'NETLIFY', 'AWS_LAMBDA_FUNCTION_NAME',
   'AWS_REGION', 'AWS_DEFAULT_REGION', 'AWS_EXECUTION_ENV',
-  'GITHUB_ACTIONS', 'GITHUB_WORKFLOW', 'GITHUB_REPOSITORY',
-  'GITHUB_SHA', 'GITHUB_REF', 'GITHUB_TOKEN', 'GITHUB_ACTOR',
   'GITLAB_CI', 'CI_COMMIT_SHA', 'CI_PIPELINE_ID',
   'DEBUG', '__NEXT_PRIVATE_ORIGIN',
   // Windows OS variables — never app-controlled
   'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'WINDIR', 'SYSTEMROOT',
   'COMPUTERNAME', 'USERNAME', 'USERDOMAIN', 'PROCESSOR_ARCHITECTURE',
 ]);
+
+// Runtime-allowlist by PREFIX — covers ecosystems where the runtime
+// sets a wide family of env vars and any of them might be read from
+// user code. Listing every `GITHUB_*` / `RUNNER_*` exhaustively is
+// brittle (GitHub adds new ones — GITHUB_REPOSITORY_ID, GITHUB_OUTPUT,
+// GITHUB_STEP_SUMMARY, GITHUB_TRIGGERING_ACTOR etc — without notice).
+// Prefix matching keeps the allowlist correct as GitHub evolves the
+// Actions runtime contract.
+//
+// References:
+//   GitHub Actions default env vars:
+//     https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
+//   Runner env vars: same page, RUNNER_* section.
+const RUNTIME_ENV_PREFIX_ALLOWLIST = [
+  'GITHUB_',   // GitHub Actions default env (GITHUB_RUN_ID, _EVENT_NAME, _EVENT_PATH, _WORKSPACE, _SERVER_URL, _HEAD_REF, etc.)
+  'RUNNER_',   // GitHub Actions runner env (RUNNER_OS, RUNNER_TEMP, RUNNER_TOOL_CACHE, RUNNER_ARCH, RUNNER_DEBUG, RUNNER_ENVIRONMENT, RUNNER_NAME)
+];
+
+function isRuntimeAllowed(key) {
+  if (RUNTIME_ENV_ALLOWLIST.has(key)) return true;
+  for (const prefix of RUNTIME_ENV_PREFIX_ALLOWLIST) {
+    if (key.startsWith(prefix)) return true;
+  }
+  return false;
+}
 
 // Env-key shape: UPPER_SNAKE, at least 2 chars.
 const ENV_KEY_RE = /^[A-Z][A-Z0-9_]{1,}$/;
@@ -164,7 +187,7 @@ class EnvVarsModule extends BaseModule {
 
     // Missing-from-example: referenced in code, not declared.
     for (const [key, refs] of referenced) {
-      if (RUNTIME_ENV_ALLOWLIST.has(key)) continue;
+      if (isRuntimeAllowed(key)) continue;
       if (declared.has(key)) continue;
       const firstRef = refs[0];
       issues += this._flag(result, `env-vars:missing-from-example:${key}`, {
@@ -180,7 +203,7 @@ class EnvVarsModule extends BaseModule {
 
     // Unused-in-code: declared in .env.example, not referenced.
     for (const key of declared) {
-      if (RUNTIME_ENV_ALLOWLIST.has(key)) continue;
+      if (isRuntimeAllowed(key)) continue;
       if (referenced.has(key)) continue;
       issues += this._flag(result, `env-vars:unused-in-code:${key}`, {
         severity: 'warning',
