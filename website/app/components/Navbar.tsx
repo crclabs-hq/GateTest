@@ -27,6 +27,19 @@ export default function Navbar() {
           <span className={`text-xl font-bold tracking-tight ${scrolled ? "text-foreground" : "text-white"}`}>
             Gate<span className="text-teal-400">Test</span>
           </span>
+          {/* BETA badge — sets the right expectation site-wide. Pre-launch
+              polish + product fit are still in flight. Remove this once
+              we hit GA. */}
+          <span
+            className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+              scrolled
+                ? "bg-amber-100 border-amber-300 text-amber-700"
+                : "bg-amber-400/15 border-amber-400/40 text-amber-300"
+            }`}
+            aria-label="Beta — the product is rough and getting polished daily"
+          >
+            Beta
+          </span>
         </Link>
 
         <div className="hidden md:flex items-center gap-8">

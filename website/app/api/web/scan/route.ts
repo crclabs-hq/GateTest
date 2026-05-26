@@ -23,6 +23,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminRequest } from "@/app/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -235,6 +236,15 @@ export async function POST(req: NextRequest) {
   let url: string | undefined;
   let fullReport = false;
 
+  // Admin bypass — when the request carries a valid admin cookie, we
+  // bypass the preview paywall entirely so the operator can see the
+  // full scan output without paying. Mirrors the same bypass on
+  // /api/scan/run and /api/scan/fix. Audited 2026-05-25 — without this
+  // every admin-internal QA pass got the truncated 3-finding preview,
+  // which made it impossible to verify the scanner was catching real
+  // bugs on our own platforms.
+  const isAdmin = isAdminRequest(req);
+
   const contentType = req.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
     let body: WebScanRequest;
@@ -249,6 +259,10 @@ export async function POST(req: NextRequest) {
     const form = await req.formData();
     url = String(form.get("url") || "");
   }
+
+  // Admin forces fullReport=true so the preview-cap path never trims
+  // the result on internal QA passes.
+  if (isAdmin) fullReport = true;
 
   const parsed = parseUrl(url || "");
   if (!parsed) {

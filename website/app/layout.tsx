@@ -117,6 +117,24 @@ export default function RootLayout({
             }),
           }}
         />
+        {/* Sitewide beta banner — sits ABOVE the navbar so it's the first
+            thing any visitor sees. Sets the expectation explicitly: this
+            is pre-launch, rough edges are real, your bug reports help us.
+            Removed at GA. */}
+        <div
+          role="status"
+          className="bg-amber-500/95 text-black text-center text-xs sm:text-sm font-medium px-4 py-2 border-b border-amber-600"
+        >
+          <strong>BETA</strong> · GateTest is in active polish ahead of public
+          launch. Some flows are rough. Found a bug?{" "}
+          <a
+            href="mailto:hello@gatetest.ai"
+            className="underline-offset-2 underline hover:no-underline"
+          >
+            hello@gatetest.ai
+          </a>
+          {" "}— we&apos;re reading every message.
+        </div>
         {children}
         <ChatWidget />
       </body>
