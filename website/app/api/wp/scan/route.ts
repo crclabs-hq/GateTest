@@ -21,6 +21,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminRequest } from "@/app/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -212,6 +213,12 @@ export async function POST(req: NextRequest) {
   let url: string | undefined;
   let fullReport = false;
 
+  // Admin bypass — operator gets the full unpaywalled report. Mirrors
+  // /api/web/scan + /api/scan/run + /api/scan/fix. Required for internal
+  // QA passes against real customer sites (the preview cap hid findings
+  // we needed to see to know whether the scanner was working).
+  const isAdmin = isAdminRequest(req);
+
   const contentType = req.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
     let body: WpScanRequest;
@@ -226,6 +233,8 @@ export async function POST(req: NextRequest) {
     const form = await req.formData();
     url = String(form.get("url") || "");
   }
+
+  if (isAdmin) fullReport = true;
 
   const parsed = parseUrl(url || "");
   if (!parsed) {
