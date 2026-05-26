@@ -197,6 +197,7 @@ const DEFAULT_CONFIG = {
       'aiReview',
       'agentic',
       'fakeFixDetector',
+      'claudeCompliance',
     ],
     live: [
       'liveCrawler',
@@ -274,6 +275,7 @@ const DEFAULT_CONFIG = {
       'aiReview',
       'agentic',
       'fakeFixDetector',
+      'claudeCompliance',
     ],
     // WordPress side product (wp.gatetest.ai) — Boss Rule D, Craig 2026-05-13.
     // Reuses some general-purpose modules from the developer suites where
