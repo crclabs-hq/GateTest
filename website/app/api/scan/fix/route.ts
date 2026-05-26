@@ -963,8 +963,7 @@ export async function POST(req: NextRequest) {
         }
       }
     }
-  } catch (sessionErr) {
-    // Session reading must never block the fix flow. Log + continue.
+  } catch (sessionErr) { // error-ok — session reading must never block the fix flow; log + continue
     console.error("[/api/scan/fix] session resolution failed (continuing):", sessionErr);
   }
 
