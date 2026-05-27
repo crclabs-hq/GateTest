@@ -196,7 +196,7 @@ async function scanRepo(owner: string, repo: string, tier: string): Promise<Scan
 
   // Engine selection — closes the 102-vs-22 module honesty gap.
   //
-  // Full / Scan+Fix / Nuclear tiers run the full CLI engine (102 modules)
+  // Full / Scan+Fix / Nuclear tiers run the full CLI engine (104 modules)
   // via cli-engine-runner.js — materialises fileContents to /tmp, runs
   // the same engine the CLI binary runs, translates the summary back.
   //

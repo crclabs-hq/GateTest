@@ -8,7 +8,7 @@
  *   - Sample-URL chips pre-fill so visitors can try the product without typing.
  *   - Honest counter row — no fabricated numbers; "Launching today" badge if no
  *     real data is available.
- *   - Substance over polish: every claim ties to a real artefact (102 modules,
+ *   - Substance over polish: every claim ties to a real artefact (104 modules,
  *     3500+ tests, self-scan green, pay-on-completion).
  *   - Dark theme preserved. Animated grid background retained.
  *   - Mobile-first; 320px ↔ 2560px.
@@ -60,12 +60,12 @@ export default function Hero() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
               </span>
-              <span>Launching today &middot; v1.42 &middot; 102 modules live</span>
+              <span>Launching today &middot; v1.42 &middot; 104 modules live</span>
             </div>
           </div>
 
           {/* Headline — outcome-first, not feature-first. Tested against
-              "One gate. 102 modules. Self-healing CI." (which led with
+              "One gate. 104 modules. Self-healing CI." (which led with
               features) — the new variant leads with the painkiller story
               (you don't lose your evening to red CI). Per Craig's
               priorities for HN launch: this is the line that ships in
@@ -135,7 +135,7 @@ export default function Hero() {
                 label="Self-scan"
                 value="GREEN"
                 tone="ok"
-                detail="102/102 modules"
+                detail="102/104 modules"
               />
               <StatusCell
                 label="Tests passing"

@@ -592,9 +592,9 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
                   className="px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 focus:border-emerald-500 focus:outline-none text-sm"
                 >
                   <option value="quick">Quick (39 modules)</option>
-                  <option value="full">Full (102 modules)</option>
-                  <option value="scan_fix">Scan + Fix (102 modules + pair-review + architecture)</option>
-                  <option value="nuclear">Nuclear (102 modules + Claude diagnosis + correlation + exec summary)</option>
+                  <option value="full">Full (104 modules)</option>
+                  <option value="scan_fix">Scan + Fix (104 modules + pair-review + architecture)</option>
+                  <option value="nuclear">Nuclear (104 modules + Claude diagnosis + correlation + exec summary)</option>
                 </select>
                 <button
                   onClick={runScan}

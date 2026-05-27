@@ -435,7 +435,7 @@ function UrlScanInner() {
                 This was a surface-level website check.
               </p>
               <p className="text-white/50 text-sm mb-4">
-                If you have a GitHub repo, GateTest can scan 102 modules — security
+                If you have a GitHub repo, GateTest can scan 104 modules — security
                 vulnerabilities, supply-chain risks, dependency issues, and more.
                 On Scan + Fix ($199) and Nuclear ($399) we also open a fix PR automatically.
               </p>

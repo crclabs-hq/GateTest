@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GateTest vs DeepSource — AI-Native Code Quality in 2026",
   description:
-    "DeepSource finds issues. GateTest finds them and — at the Scan + Fix tier ($199) and above — fixes them. 102 modules, per-scan pricing, no per-seat licensing, AI auto-fix PRs created in seconds.",
+    "DeepSource finds issues. GateTest finds them and — at the Scan + Fix tier ($199) and above — fixes them. 104 modules, per-scan pricing, no per-seat licensing, AI auto-fix PRs created in seconds.",
   keywords: [
     "DeepSource alternative",
     "DeepSource vs GateTest",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs DeepSource — AI-Native Code Quality in 2026",
     description:
-      "DeepSource finds issues. GateTest finds them and — at the Scan + Fix tier ($199) and above — fixes them. 102 modules, per-scan pricing, no per-seat licensing, AI auto-fix PRs.",
+      "DeepSource finds issues. GateTest finds them and — at the Scan + Fix tier ($199) and above — fixes them. 104 modules, per-scan pricing, no per-seat licensing, AI auto-fix PRs.",
     url: "https://gatetest.ai/compare/deepsource",
     siteName: "GateTest",
     type: "website",
@@ -34,7 +34,7 @@ const faqItems = [
   },
   {
     q: "DeepSource has a free tier. Does GateTest?",
-    a: "GateTest charges per scan: $29 quick scan (4 modules), $99 full scan (102 modules). No free tier currently. The key difference: GateTest's $99 scan includes AI code review, performance analysis, accessibility, visual regression, mutation testing, and 60+ other modules that require multi-tool subscriptions to replicate with DeepSource + extras.",
+    a: "GateTest charges per scan: $29 quick scan (4 modules), $99 full scan (104 modules). No free tier currently. The key difference: GateTest's $99 scan includes AI code review, performance analysis, accessibility, visual regression, mutation testing, and 60+ other modules that require multi-tool subscriptions to replicate with DeepSource + extras.",
   },
   {
     q: "Does GateTest's AI fix code like DeepSource's Autofix?",
@@ -69,7 +69,7 @@ const comparisonRows = [
   { feature: "Race condition / TOCTOU detection", gatetest: true, competitor: false },
   { feature: "N+1 query detection", gatetest: true, competitor: false },
   { feature: "Pay per scan (not per seat subscription)", gatetest: true, competitor: false },
-  { feature: "102 modules in one gate", gatetest: true, competitor: false },
+  { feature: "104 modules in one gate", gatetest: true, competitor: false },
 ];
 
 export default function DeepSourcePage() {
@@ -129,7 +129,7 @@ export default function DeepSourcePage() {
           </h1>
           <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
             DeepSource is a solid static analysis tool. GateTest is an AI-native quality platform:
-            102 modules, generative AI code review using Claude, AI auto-fix PRs that write real code at the Scan + Fix tier ($199) and Nuclear ($399),
+            104 modules, generative AI code review using Claude, AI auto-fix PRs that write real code at the Scan + Fix tier ($199) and Nuclear ($399),
             and per-scan pricing with no per-seat subscriptions.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mt-8">
@@ -219,7 +219,7 @@ export default function DeepSourcePage() {
               },
               {
                 title: "Pay for what you use",
-                body: "DeepSource charges a monthly subscription per seat. A 10-person team might run 5 scans a month or 500 — the bill is the same. GateTest charges per result: $99 for all 102 modules per scan. Scan before releases, scan after major features, scan daily — you control the spend.",
+                body: "DeepSource charges a monthly subscription per seat. A 10-person team might run 5 scans a month or 500 — the bill is the same. GateTest charges per result: $99 for all 104 modules per scan. Scan before releases, scan after major features, scan daily — you control the spend.",
               },
               {
                 title: "Coverage beyond code quality",
@@ -265,7 +265,7 @@ export default function DeepSourcePage() {
             Find issues. Fix issues. Ship faster.
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
-            102 modules and AI-powered review on every paid tier. AI auto-fix PRs at Scan + Fix ($199) and Nuclear ($399). One-time payment per scan.
+            104 modules and AI-powered review on every paid tier. AI auto-fix PRs at Scan + Fix ($199) and Nuclear ($399). One-time payment per scan.
           </p>
           <Link
             href="/"

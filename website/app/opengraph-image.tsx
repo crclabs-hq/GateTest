@@ -89,7 +89,7 @@ export default async function Image() {
             lineHeight: 1.5,
           }}
         >
-          102 modules scan your entire codebase. Security, supply chain, auth flaws, CI hardening, and AI code review. Pay per scan via Stripe.
+          104 modules scan your entire codebase. Security, supply chain, auth flaws, CI hardening, and AI code review. Pay per scan via Stripe.
         </div>
 
         {/* Bottom bar */}

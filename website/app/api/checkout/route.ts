@@ -51,9 +51,9 @@ const TIERS: Record<string, ScanTier> = {
   full: {
     name: "Full Scan",
     priceInCents: 9900,
-    modules: "all-102",
+    modules: "all-104",
     description:
-      "All 102 modules — security, supply chain, auth, CI hardening, AI review, and more. Scan-only (no auto-fix — that ships at Scan + Fix $199 and above).",
+      "All 104 modules — security, supply chain, auth, CI hardening, AI review, and more. Scan-only (no auto-fix — that ships at Scan + Fix $199 and above).",
   },
   // Phase 2.3 — $199 Scan + Fix tier. Wired in once Phase 2.1 (pair-review),
   // 2.2 (architecture annotator), and 2.4 (3 real-repo proofs validated:
@@ -64,7 +64,7 @@ const TIERS: Record<string, ScanTier> = {
   scan_fix: {
     name: "Scan + Fix",
     priceInCents: 19900,
-    modules: "all-102+pair-review+architecture",
+    modules: "all-104+pair-review+architecture",
     description:
       "Everything in Full Scan, plus a second-Claude pair-review critique on every fix (correctness/completeness/readability/test-coverage rubric) and a separate architecture-annotator report on codebase-shape design observations. Same PR, deeper deliverable.",
   },
@@ -76,7 +76,7 @@ const TIERS: Record<string, ScanTier> = {
   nuclear: {
     name: "Nuclear",
     priceInCents: 39900,
-    modules: "all-102+nuclear-stack",
+    modules: "all-104+nuclear-stack",
     description:
       "Everything in Scan + Fix, PLUS: real Claude diagnosis on every finding (no templated snippets), cross-finding attack-chain correlation (textbook session-forgery / supply-chain vectors no per-finding scanner can see), board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary report. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (mutation: true / chaos: true) — they need a CI runner so they ship wherever your CI runs.",
 
