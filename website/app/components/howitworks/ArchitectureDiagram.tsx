@@ -17,7 +17,7 @@ const NODES: Node[] = [
   { id: "push", label: "Customer push", detail: "git push / merge", y: 40, variant: "input" },
   { id: "host", label: "GitHub App webhook  OR  Gluecron Signal Bus", detail: "HMAC-verified, fail-closed", y: 130, variant: "input" },
   { id: "queue", label: "scan_queue (Postgres)", detail: "idempotent via delivery id", y: 220, variant: "queue" },
-  { id: "engine", label: "Worker fetches job  →  Gate runs 102 modules", detail: "deterministic, no AI by default", y: 310, variant: "engine" },
+  { id: "engine", label: "Worker fetches job  →  Gate runs 104 modules", detail: "deterministic, no AI by default", y: 310, variant: "engine" },
   { id: "cluster", label: "Findings clustered, ranked, capped per tier", detail: "root causes first, info-severity dropped", y: 410, variant: "engine" },
   { id: "fix", label: "Flywheel  ·  AST → Rule → Recipe → Claude", detail: "first layer that wins ships the patch", y: 510, variant: "fix" },
   { id: "gate", label: "Test gen  +  syntax gate  +  scanner re-validation", detail: "broken fixes never reach the PR", y: 610, variant: "fix" },

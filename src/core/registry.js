@@ -97,6 +97,16 @@ const BUILT_IN_MODULES = {
   // P2 — code quality (AI-specific)
   aiHallucination: '../modules/ai-hallucination.js',
   claudeCompliance: '../modules/claude-compliance.js',
+  // Pen Test tier — dormant. Registered so they're discoverable + testable,
+  // NOT in any tier suite. They refuse to send a payload unless the
+  // authorization-gate grants — see src/core/authorization-gate.js.
+  // Will ship customer-facing once the legal layer (lawyer-drafted ToS +
+  // RoE template + cyber insurance + DNS-TXT verification) is built.
+  liveSqlInjection: '../modules/live-sql-injection.js',
+  liveXss: '../modules/live-xss.js',
+  livePathTraversal: '../modules/live-path-traversal.js',
+  liveAuthBypass: '../modules/live-auth-bypass.js',
+  liveIdor: '../modules/live-idor.js',
   monorepoConstraints: '../modules/monorepo-constraints.js',
   zodSchemaPresence: '../modules/zod-schema.js',
   bundleSize: '../modules/bundle-size.js',

@@ -2,7 +2,7 @@
  * Module catalogue grouped by category for the /how-it-works page.
  *
  * Source of truth: `node bin/gatetest.js --list` against src/core/registry.js
- * at v1.42.0 (102 modules). Descriptions match the registered module
+ * at v1.42.0 (104 modules). Descriptions match the registered module
  * `description` field (kept short for card display).
  *
  * Examples are honest representative findings each module emits, drawn from
@@ -153,6 +153,8 @@ export const MODULE_CATEGORIES: ModuleCategory[] = [
       { name: "agentic", description: "Memory-driven AI investigation — picks hypotheses from past scans, walks the code.", example: "Recurring null-deref in user.profile — root cause traced to login flow" },
       { name: "memory", description: "Codebase memory — compounding intelligence across scans (issue history + fix patterns).", example: "This file had 14 prior findings — focus areas: auth, session" },
       { name: "aiHallucination", description: "Fake imports, invented APIs, non-existent methods.", example: "An import named { useFoo } from a library that has no such export" },
+      { name: "claudeCompliance", description: "AI-output rot — mock data in prod, not-implemented stubs, WHAT-not-WHY comment noise, `any` / `@ts-ignore` density.", example: "John Doe placeholder in src/users.ts:42 — mock data shipped to prod" },
+      { name: "undefinedRef", description: "Variables, functions, methods referenced before they're defined.", example: "ReferenceError: handleClick is not defined at line 47 — typo'd from handeClick" },
       { name: "architectureDrift", description: "AI flags code that violates documented architectural conventions.", example: "src/api/orders.ts bypasses repository layer — direct DB access" },
       { name: "mutation", description: "Modifies your source code to verify your tests actually catch bugs. Runs via the GitHub Action because it executes your test suite; the website-only Nuclear scan does not include it.", example: "Mutated return true → return false, 11/11 tests still pass" },
     ],
