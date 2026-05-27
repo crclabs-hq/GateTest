@@ -113,7 +113,7 @@ describe('postPrComment — backward compat (no idempotencyTag)', () => {
       fetchImpl,
     });
     assert.strictEqual(result.ok, true);
-    assert.strictEqual(result.mode, 'created');
+    assert.strictEqual(result.action, 'created');
     assert.strictEqual(calls.length, 1);
     assert.strictEqual(calls[0].method, 'POST');
   });
@@ -145,7 +145,7 @@ describe('postPrComment — idempotency (with tag)', () => {
       fetchImpl, idempotencyTag: 'gate-result',
     });
     assert.strictEqual(result.ok, true);
-    assert.strictEqual(result.mode, 'created');
+    assert.strictEqual(result.action, 'created');
     // Should have done at least one GET (look-up) + one POST
     assert.ok(calls.some((c) => c.method === 'GET'));
     assert.ok(calls.some((c) => c.method === 'POST'));
@@ -169,7 +169,7 @@ describe('postPrComment — idempotency (with tag)', () => {
       fetchImpl, idempotencyTag: 'gate-result',
     });
     assert.strictEqual(result.ok, true);
-    assert.strictEqual(result.mode, 'updated');
+    assert.strictEqual(result.action, 'updated');
     assert.ok(calls.some((c) => c.method === 'PATCH' && c.url.includes('/issues/comments/200')));
     // Must not have POSTed
     assert.ok(!calls.some((c) => c.method === 'POST'));
@@ -187,7 +187,7 @@ describe('postPrComment — idempotency (with tag)', () => {
       fetchImpl, idempotencyTag: 'gate-result',
     });
     assert.strictEqual(result.ok, true);
-    assert.strictEqual(result.mode, 'created');
+    assert.strictEqual(result.action, 'created');
     assert.ok(calls >= 2);
   });
 

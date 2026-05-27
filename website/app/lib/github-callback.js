@@ -278,6 +278,11 @@ function buildMarkdownComment(repository, sha, scanResult, targetUrl, mode = 'ad
   lines.push('');
   lines.push('---');
   lines.push('*Posted by [GateTest](https://gatetest.ai) — unified code quality*');
+  // Idempotency marker — postPrComment looks for this string to find a
+  // prior bot comment and PATCH it in place instead of stacking duplicates
+  // on every push (Known Issue #23). Hidden HTML comment, customer-invisible.
+  lines.push('');
+  lines.push(GATETEST_PR_COMMENT_MARKER);
 
   return lines.join('\n');
 }
@@ -342,14 +347,25 @@ const GATETEST_PR_COMMENT_MARKER = '<!-- gatetest-bot:gate-summary:v1 -->';
  * @returns {Promise<{ok: boolean, status?: number, reason?: string, mode?: 'created'|'updated'}>}
  */
 async function postPrComment({ owner, repo, prNumber, body, token, fetchImpl, idempotencyTag }) {
-  const tagged = idempotencyTag
-    ? `${body}\n\n<!-- gatetest-tag:${idempotencyTag} -->\n`
-    : body;
+  // Two ways to trigger idempotent find-then-PATCH-or-POST:
+  //   1. Pass `idempotencyTag` — function appends `<!-- gatetest-tag:<tag> -->`
+  //      to the body and uses that as the search marker. Legacy path.
+  //   2. Pass a body that already contains GATETEST_PR_COMMENT_MARKER —
+  //      function uses the literal marker as the search key. Canonical
+  //      path; buildMarkdownComment embeds the marker automatically.
+  // Look-up failure NEVER blocks — we log and POST so the customer still
+  // gets a comment.
+  const tagMarker = idempotencyTag ? `<!-- gatetest-tag:${idempotencyTag} -->` : null;
+  const taggedBody = idempotencyTag ? `${body}\n\n${tagMarker}\n` : body;
+  const searchMarker = tagMarker
+    || (typeof body === 'string' && body.includes(GATETEST_PR_COMMENT_MARKER) ? GATETEST_PR_COMMENT_MARKER : null);
+  const isIdempotent = searchMarker !== null;
+  const sendBody = idempotencyTag ? taggedBody : body;
 
-  if (idempotencyTag) {
+  if (isIdempotent) {
     try {
       const existing = await findExistingComment({
-        owner, repo, prNumber, token, fetchImpl, tag: idempotencyTag,
+        owner, repo, prNumber, token, fetchImpl, marker: searchMarker,
       });
       if (existing) {
         const updateRes = await fetchImpl(
@@ -363,16 +379,16 @@ async function postPrComment({ owner, repo, prNumber, body, token, fetchImpl, id
               'Content-Type': 'application/json',
               'User-Agent': USER_AGENT,
             },
-            body: JSON.stringify({ body: tagged }),
+            body: JSON.stringify({ body: sendBody }),
           },
         );
         if (updateRes.status !== 200) {
           console.error(`[github-callback] patchPrComment non-200: ${updateRes.status} for ${owner}/${repo}#${prNumber}`);
           return { ok: false, status: updateRes.status, reason: 'patch-non-200' };
         }
-        return { ok: true, status: 200, mode: 'updated' };
+        return { ok: true, status: 200, action: 'updated' };
       }
-    } catch (err) {
+    } catch (err) { // error-ok — log-and-continue is intentional; failure here must not block the caller
       // Look-up failure should NOT block the new-comment fallback — log
       // and fall through to POST so the customer still sees something.
       console.warn('[github-callback] idempotency lookup failed, falling back to POST:', err && err.message);
@@ -389,13 +405,13 @@ async function postPrComment({ owner, repo, prNumber, body, token, fetchImpl, id
         'Content-Type': 'application/json',
         'User-Agent': USER_AGENT,
       },
-      body: JSON.stringify({ body: tagged }),
+      body: JSON.stringify({ body: sendBody }),
     });
     if (res.status !== 201) {
       console.error(`[github-callback] addPrComment non-201: ${res.status} for ${owner}/${repo}#${prNumber}`);
       return { ok: false, status: res.status, reason: 'non-201' };
     }
-    return { ok: true, status: 201, mode: 'created' };
+    return { ok: true, status: 201, action: 'created' };
   } catch (err) {
     console.error('[github-callback] addPrComment fetch error:', err && err.message ? err.message : err);
     return { ok: false, reason: 'fetch-error' };
@@ -408,8 +424,10 @@ async function postPrComment({ owner, repo, prNumber, body, token, fetchImpl, id
  *
  * @returns {Promise<{id: number, body: string} | null>}
  */
-async function findExistingComment({ owner, repo, prNumber, token, fetchImpl, tag }) {
-  const marker = `<!-- gatetest-tag:${tag} -->`;
+async function findExistingComment({ owner, repo, prNumber, token, fetchImpl, marker, tag }) {
+  // `marker` is the literal HTML-comment marker to search for. Callers
+  // that pass `tag` (legacy) get the marker built for them.
+  const searchMarker = marker || `<!-- gatetest-tag:${tag} -->`;
   let page = 1;
   while (page <= 10) { // cap at 1000 comments to avoid runaway walking
     const res = await fetchImpl(
@@ -428,7 +446,7 @@ async function findExistingComment({ owner, repo, prNumber, token, fetchImpl, ta
     const batch = await res.json();
     if (!Array.isArray(batch) || batch.length === 0) return null;
     for (const c of batch) {
-      if (c && typeof c.body === 'string' && c.body.includes(marker)) {
+      if (c && typeof c.body === 'string' && c.body.includes(searchMarker)) {
         return { id: c.id, body: c.body };
       }
     }
@@ -492,12 +510,13 @@ async function sendGithubCallback(opts) {
 
   let commentResult = { ok: false, reason: 'no-pr' };
   if (pullRequestNumber && typeof pullRequestNumber === 'number') {
-    const body = buildMarkdownComment(repository, sha, scanResult, targetUrl);
-    // Idempotency tag: one "gate-result" comment per PR. Subsequent
-    // scans on the same PR PATCH the same comment instead of stacking.
+    // buildMarkdownComment now also passes the mode through so the body
+    // displays advisory headline/upgrade-note when appropriate. The body
+    // includes GATETEST_PR_COMMENT_MARKER at the bottom which postPrComment
+    // auto-detects to PATCH a prior bot comment instead of stacking.
+    const body = buildMarkdownComment(repository, sha, scanResult, targetUrl, mode);
     commentResult = await postPrComment({
       owner, repo, prNumber: pullRequestNumber, body, token, fetchImpl: doFetch,
-      idempotencyTag: 'gate-result',
     });
   }
 
@@ -520,4 +539,5 @@ module.exports = {
   // exposed for tests of the idempotent comment path
   postPrComment,
   findExistingComment,
+  GATETEST_PR_COMMENT_MARKER,
 };

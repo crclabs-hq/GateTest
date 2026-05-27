@@ -65,7 +65,7 @@ async function ensureSchema(): Promise<void> {
       )`;
       await sql`CREATE INDEX IF NOT EXISTS finding_dismissals_rule_idx ON finding_dismissals(rule)`;
       await sql`CREATE INDEX IF NOT EXISTS finding_dismissals_ts_idx ON finding_dismissals(ts DESC)`;
-    } catch (err) {
+    } catch (err) { // error-ok — log-and-continue is intentional; failure here must not block the caller
       // eslint-disable-next-line no-console
       console.warn("[finding-feedback] schema init failed:", (err as Error)?.message);
     }
