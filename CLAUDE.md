@@ -259,7 +259,7 @@ Every tool here was chosen because it is the **best in its class right now.** If
 | Layer | Choice | Why |
 |---|---|---|
 | **AI Code Review** | Claude API (Anthropic) | Best reasoning, finds real bugs not patterns |
-| **Model** | claude-sonnet-4-20250514 | Fast, accurate, cost-effective |
+| **Model** | claude-opus-4-7 | Latest Opus everywhere — Craig directive 2026-05-20 ("GateTest at all times runs the latest Opus model everywhere including GitHub"). Per-tier USD caps in `website/app/lib/budget-tracker.js:capsForTier()` protect runway: Quick $1.50, Full $5, Scan+Fix $12, Nuclear $30. |
 
 ### GitHub Integration
 | Layer | Choice | Why |
@@ -817,6 +817,96 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 ---
 
 ## VERSION
+
+GateTest v1.43.0 — 91 modules + intelligence pipeline (6 trainers,
+session-fix corpus capture, claude-opus-4-7 everywhere, per-tier
+budget caps, customer-feedback API).
+
+WAVE 1-6 SHIPPED 2026-05-20 — Craig directive "build everything,
+ASAP, under GitHub review." Year-2030 intelligence pipeline:
+
+- **Session telemetry** (`website/app/lib/session-telemetry.js`) —
+  every dev / Claude Code commit lands in the corpus via git-history
+  ingestion. Closes the gap where 80% of engineering work was
+  invisible to the production flywheel.
+
+- **6 trainers** under `website/app/lib/trainers/`:
+  1. `pattern-miner` — finds recurring patterns + under-tested
+     modules + Claude-vs-deterministic share signals
+  2. `recipe-promoter` — recurring patterns → recipe proposals
+     (with diff-shape plausibility scoring)
+  3. `regression-test-generator` — under-tested modules → drafted
+     `.pending.test.js` files (filename suffix prevents accidental
+     run; reviewer fills in assertions)
+  4. `cross-repo-promoter` — anonymised structural rewrite vectors
+     in `~/.gatetest/cross-repo-corpus/<fingerprint>.json` so fixes
+     captured on one customer's repo harden every other customer
+     WITHOUT leaking customer strings (SOC2-safe by construction)
+  5. `adversarial-mutator` — self-tests the gate by mutating
+     known-good code and reporting any mutation that slips through
+     as a coverage hole
+  6. `confidence-calibrator` — reads `finding_dismissals` (customer
+     suppressions) and recommends per-rule severity downgrades when
+     dismissal rates indicate a rule is treated as noise
+
+- **Nightly trainer workflow** (`.github/workflows/trainer-nightly.yml`)
+  runs all 6 at 03:00 UTC and opens a draft PR with the report +
+  any drafted pending tests + coverage-holes.json.
+
+- **Trainer CLI** (`gatetest train`) — same 6 trainers runnable on
+  laptop. Demoable for App Review. Outputs land at
+  `~/.gatetest/trainers/<name>-latest.json`.
+
+- **Customer feedback API** (`POST /api/finding/dismiss`) — feeds
+  the confidence-calibrator. Neon-backed (graceful degrade when
+  DATABASE_URL unset). Validates reason against VALID_REASONS set.
+
+- **claude-opus-4-7 everywhere** — Craig directive: "GateTest at
+  all times runs the latest Opus model everywhere including GitHub."
+  25 source files swept (modules, scripts, lib, routes, workflows).
+  Pricing constants in `budget-tracker.js` updated to Opus rates
+  ($15/MTok input, $75/MTok output).
+
+- **Per-tier USD budget caps** in `website/app/lib/budget-tracker.js`:
+  Quick $1.50, Full $5, Scan+Fix $12, Nuclear $30. `runWithTracker`
+  IIFE in `scan/fix/route.ts` wraps the whole request; `anthropicCall`
+  calls `tracker.preflight()` before and `tracker.record()` after.
+  BUDGET_EXCEEDED throws return 402 with a tracker snapshot for
+  finance reconciliation. Margins preserved on every tier (≥92%).
+
+- **Playwright stability + sandbox** (`src/core/playwright-stability.js`
+  + `src/core/playwright-sandbox.js`) — 3-strike retry, 30+ tracking
+  domain stubs, process-level sandbox with hard wallclock SIGKILL,
+  memory cap, stderr quarantine.
+
+- **Admin auth lockout** (`website/app/lib/admin-lockout.ts`) —
+  Neon-backed per-IP brute-force protection. 5 fails / 15min →
+  30min cooldown (429 + Retry-After). Audit log table.
+
+- **Cross-file-taint Drizzle false-positive fix** —
+  `src/modules/cross-file-taint.js` safe-harbours parameterised
+  ORMs (drizzle-orm, @prisma/client, kysely, postgres, slonik,
+  typeorm, sequelize, mongoose, knex). Also fixed a real pre-
+  existing bug where `// uses sql\`...\`` comments falsely
+  suppressed real injection findings.
+
+Total new tests in Wave 1-6: 190+. Sweep: 4249 pass / 0 fail / 1 skip.
+
+REMAINING TO DO (next sessions):
+- Recipe auto-promotion (high-confidence recipe-promoter vectors
+  become real rules in rule-based-fixer.js, gated by reviewer PR)
+- Marketing-claim verification tests (nightly suite asserts claims
+  on gatetest.ai still match shipping reality)
+- Dep hygiene dogfood workflow
+- Boss Rule items: edge / warm-pool scan workers, continuous
+  training run, Crontech as engine orchestrator, true compiler-
+  agnostic AST translation. All require explicit Craig auth.
+
+(Original v1.41/v1.42 content retained below for history.)
+
+---
+
+## v1.41 / v1.42 HISTORY
 
 GateTest v1.41.0 — 90 modules (24 core + 9 universal language checkers
 for Python, Go, Rust, Java, Ruby, PHP, C#, Kotlin, Swift + 7 **infra

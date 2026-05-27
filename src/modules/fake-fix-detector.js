@@ -24,8 +24,8 @@ const BaseModule = require('./base-module');
 const https = require('https');
 
 const ANTHROPIC_API_HOST = 'api.anthropic.com';
-const MODEL_SONNET = 'claude-sonnet-4-20250514';
-const MODEL_HAIKU = 'claude-haiku-4-5-20251022';
+const MODEL_SONNET = 'claude-opus-4-7';
+const MODEL_HAIKU = 'claude-opus-4-7';
 // Kept for backwards compatibility with tests that may reference it.
 const MODEL = MODEL_SONNET;
 const MAX_DIFF_SIZE = 120000; // 120KB — cap the payload sent to AI

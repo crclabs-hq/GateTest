@@ -21,6 +21,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { isAdminRequest } from "@/app/lib/admin-auth";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const {
+  createTrackerForTier,
+  runWithTracker,
+  getCurrentTracker,
+} = require("@/app/lib/budget-tracker");
 import {
   CUSTOMER_COOKIE_NAME,
   getOAuthConfig,
@@ -482,6 +488,16 @@ function isRetryableNetworkError(err: unknown): boolean {
 }
 
 async function anthropicCall(body: string): Promise<{ status: number; data: Record<string, unknown> }> {
+  // Budget guard — checks the per-tier USD/token cap BEFORE making the
+  // call. If the cap was already crossed on a prior call this throws a
+  // BUDGET_EXCEEDED Error carrying a snapshot for the route handler to
+  // surface as a clean 402. Caller does NOT need to wrap — the throw
+  // propagates through the retry layer to the POST handler's catch.
+  // When no tracker is in context (e.g. tests that don't wrap), this is
+  // a no-op.
+  const tracker = getCurrentTracker();
+  if (tracker) tracker.preflight();
+
   const controller = new AbortController();
   // Anthropic max_tokens=8192 at sonnet speeds rarely exceeds 30s. 45s is a
   // safe per-request ceiling that leaves room for retries inside the 300s
@@ -505,7 +521,12 @@ async function anthropicCall(body: string): Promise<{ status: number; data: Reco
     const text = await res.text();
     let data: Record<string, unknown>;
     try { data = JSON.parse(text); } catch { data = { raw: text }; }
-    return { status: res.status, data };
+    const response = { status: res.status, data };
+    // Account for spend AFTER receiving — uses Anthropic's exact token
+    // counts from the `usage` field when available, falls back to a
+    // char-based estimate when the response is malformed / errored.
+    if (tracker) tracker.record(body, response);
+    return response;
   } finally {
     clearTimeout(timer);
   }
@@ -611,7 +632,7 @@ CRITICAL RULES — violations will cause re-scan failure:
 - The fixed code will be automatically re-scanned. If it fails, the fix is rejected.`;
 
   const body = JSON.stringify({
-    model: "claude-sonnet-4-6",
+    model: "claude-opus-4-7",
     max_tokens: 8192,
     messages: [{ role: "user", content: prompt }],
   });
@@ -725,7 +746,7 @@ const MAX_FILE_BYTES = 400 * 1024;
  */
 async function askClaudeForTest(prompt: string): Promise<string> {
   const body = JSON.stringify({
-    model: "claude-sonnet-4-6",
+    model: "claude-opus-4-7",
     max_tokens: 4096,
     messages: [{ role: "user", content: prompt }],
   });
@@ -755,7 +776,7 @@ Rules:
 - Follow whatever format the file extension implies.`;
 
   const body = JSON.stringify({
-    model: "claude-sonnet-4-6",
+    model: "claude-opus-4-7",
     max_tokens: 4096,
     messages: [{ role: "user", content: prompt }],
   });
@@ -899,6 +920,13 @@ export async function POST(req: NextRequest) {
       });
     }
   }
+
+  // Budget tracker — caps Anthropic spend at the per-tier ceiling. Runs
+  // for the entire request via AsyncLocalStorage so anthropicCall() can
+  // reach it without explicit threading. Stored on the closure so the
+  // route's outer try/catch can attach a snapshot to any error response.
+  const _budgetTracker = createTrackerForTier(tierForCap);
+  return await runWithTracker(_budgetTracker, async (): Promise<NextResponse> => {
 
   // Accept gluecron.com URLs first; fall back to github.com for links
   // still in customer bookmarks during the migration window.
@@ -1824,9 +1852,7 @@ export async function POST(req: NextRequest) {
         tier: input.tier || "full",
         issuesFixed: totalIssuesFixed,
         filesFixed: fixes.length,
-        // TODO(budget-tracker): re-wire createBudgetTracker + runWithTracker
-        // around _doPost so we can attach a per-scan spend snapshot here.
-        // Lost during the AdaptiveState duplicate cleanup; tracked separately.
+        budget: _budgetTracker.snapshot(),
       },
     });
 
@@ -2019,13 +2045,12 @@ export async function POST(req: NextRequest) {
     // Return 402 (Payment Required) with the tracker snapshot so support can
     // see exactly which scan hit the cap and how much it had spent.
     if ((outerErr as { code?: string })?.code === "BUDGET_EXCEEDED") {
-      // The budget tracker is currently UNWIRED in this file (see TODO at
-      // the audit-log call upstream). Until it's re-introduced, this branch
-      // is defensive — it will only fire if BUDGET_EXCEEDED is thrown by a
-      // helper that brings its own tracker snapshot on the error. The local
-      // `tracker.snapshot()` fallback is removed because `tracker` is no
-      // longer in scope.
-      const snap = (outerErr as { tracker?: Record<string, unknown> }).tracker || { reason: "budget-tracker-unwired" };
+      // Budget tracker is wired (see runWithTracker IIFE at top of POST).
+      // Pull the snapshot off the thrown error first; fall back to the
+      // closure's tracker if for some reason the snapshot didn't ride
+      // along with the throw.
+      const snap = (outerErr as { tracker?: Record<string, unknown> }).tracker
+        || _budgetTracker.snapshot();
       console.warn("[GateTest] scan/fix budget exhausted:", JSON.stringify(snap));
       // Audit-log the budget exhaustion — high-value finance signal.
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -2053,5 +2078,6 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+  }); // close runWithTracker IIFE
 }
 
