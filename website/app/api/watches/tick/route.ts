@@ -86,16 +86,40 @@ async function scanRepo(target: string, baseUrl: string): Promise<ScanResult | n
   }
 }
 
-// Extract fixable {file, issue, module} triples from scan module details
+// Extract fixable {file, issue, module} triples from scan module details.
+//
+// Real-world detail strings come in many shapes — the legacy regex assumed
+// the file path was at the START of the line, but our scanners emit:
+//   "src/foo.ts:42: Missing return type"               ← file-first
+//   "<sev>: src/foo.ts:42: Missing return type"        ← infra.ts
+//   "hardcoded-url:localhost:src/foo.ts:62 ..."        ← module:rule prefix
+//   "syntax:parens:apps/api/src/foo.ts"                ← module:rule, no msg
+// The old regex matched ~0 of these in practice, so the watchdog auto-fix
+// loop silently extracted nothing → never opened a fix PR.
+//
+// New approach: search ANYWHERE in the line for a path-shaped substring
+// (one or more `/`-separated path segments ending in a 1-8 char file
+// extension, optionally followed by `:line[:col]`). Take everything to
+// the right of the match as the issue description.
 function extractFixableIssues(modules: Array<{ name: string; status: string; details?: string[] }>): Array<{ file: string; issue: string; module: string }> {
   const issues: Array<{ file: string; issue: string; module: string }> = [];
+  // Boundary requirement on the LEFT prevents matching "error:src/foo.ts"
+  // as the whole thing (we want just `src/foo.ts`).
+  const PATH_RE = /(?:^|[\s:(])((?:[\w@.+-]+\/)+[\w@.+-]+\.[A-Za-z0-9]{1,8}|[\w@.+-]+\.[A-Za-z0-9]{1,8})(?::(\d+))?(?::(\d+))?(?=[\s:)\],]|$)/;
   for (const mod of modules) {
     if (mod.status !== "failed") continue;
     for (const d of mod.details || []) {
-      const withLine = d.match(/^([\w./\-@+]+?\.[\w]{1,8})(?::\d+)?(?:\s*[-—:]\s*|\s+)(.+)$/);
-      if (withLine) { issues.push({ file: withLine[1], issue: withLine[2], module: mod.name }); continue; }
-      const fileOnly = d.match(/^([\w./\-@+]+?\.[\w]{1,8})\s*[:—-]\s*(.+)$/);
-      if (fileOnly) { issues.push({ file: fileOnly[1], issue: fileOnly[2], module: mod.name }); }
+      if (typeof d !== "string" || !d) continue;
+      const m = d.match(PATH_RE);
+      if (!m) continue;
+      const file = m[1];
+      // Skip obvious false-positives — bare filenames with no slash that
+      // look like module-rule keys (e.g. "no-empty.eslint" would match).
+      if (!file.includes("/") && file.split(".").length === 2 && file.length < 12) continue;
+      // Take everything AFTER the matched path+line as the issue text.
+      const start = (m.index ?? 0) + m[0].length;
+      const issue = (d.slice(start).replace(/^[\s:—-]+/, "").trim() || d.trim()).slice(0, 500);
+      issues.push({ file, issue, module: mod.name });
     }
   }
   return issues;
@@ -153,11 +177,28 @@ export async function GET(req: NextRequest) {
               ${JSON.stringify({ durationMs: Date.now() - scanStart, status: result.status })}, NOW())
     `;
 
-    // Trigger auto-fix for repos if issues found and auto-fix is enabled
+    // Trigger auto-fix for repos if issues found and auto-fix is enabled.
+    // Every branch of this block now writes a heal_history row so the admin
+    // panel always shows WHY auto-fix did or didn't open a PR — no more
+    // silent skips. The old empty `catch {}` was the reason watchdog
+    // appeared to do nothing on failing repos.
     if (watch.auto_fix_enabled && watch.target_type === "repo" && result.totalIssues > 0 && result.modules) {
       try {
         const fixableIssues = extractFixableIssues(result.modules);
-        if (fixableIssues.length > 0) {
+        if (fixableIssues.length === 0) {
+          // The scan found issues but the extractor couldn't turn any of
+          // them into {file, issue} triples. Log so we can see WHICH
+          // module's detail format we don't yet parse.
+          const moduleSamples = result.modules
+            .filter((m) => m.status === "failed")
+            .slice(0, 3)
+            .map((m) => ({ name: m.name, sampleDetail: (m.details || [])[0] || null }));
+          await sql`
+            INSERT INTO heal_history (watch_id, action, status, details, completed_at)
+            VALUES (${watch.id}, 'auto_fix_pr', 'skipped',
+                    ${JSON.stringify({ reason: "no fixable issues extracted from scan", issuesFound: result.totalIssues, moduleSamples })}, NOW())
+          `;
+        } else {
           const fixRes = await fetch(`${baseUrl}/api/scan/fix`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -167,16 +208,34 @@ export async function GET(req: NextRequest) {
               tier: "full",
             }),
           });
-          const fixData = await fixRes.json();
+          let fixData: { prUrl?: string; issuesFixed?: number; error?: string } = {};
+          try {
+            fixData = await fixRes.json();
+          } catch (parseErr) {
+            // Non-fatal — record the parse failure so we see it, but keep
+            // going with empty data so we still write a heal_history row.
+            fixData = { error: `response parse: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}` };
+          }
           const prUrl = fixData.prUrl || null;
           await sql`
             INSERT INTO heal_history (watch_id, action, status, pr_url, details, completed_at)
             VALUES (${watch.id}, 'auto_fix_pr', ${prUrl ? "success" : "failed"}, ${prUrl},
-                    ${JSON.stringify({ issuesFixed: fixData.issuesFixed || 0, issuesFound: fixableIssues.length })}, NOW())
+                    ${JSON.stringify({
+                      issuesFixed: fixData.issuesFixed || 0,
+                      issuesFound: fixableIssues.length,
+                      httpStatus: fixRes.status,
+                      error: fixData.error || null,
+                    })}, NOW())
           `;
         }
-      } catch {
-        // Non-fatal — scan result is still stored
+      } catch (err) {
+        // Record the real error so the admin panel shows what broke.
+        const message = err instanceof Error ? err.message : String(err);
+        await sql`
+          INSERT INTO heal_history (watch_id, action, status, details, completed_at)
+          VALUES (${watch.id}, 'auto_fix_pr', 'failed',
+                  ${JSON.stringify({ reason: "exception during auto-fix", error: message })}, NOW())
+        `;
       }
     }
 

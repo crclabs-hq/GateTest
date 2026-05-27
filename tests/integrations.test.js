@@ -55,7 +55,7 @@ describe('Protected integration artifacts', () => {
     );
     assert.match(
       wf,
-      /ccantynz-alt\/gatetest/,
+      /crclabs-hq\/gatetest/,
       'CI workflow must clone the canonical GateTest repository.',
     );
   });

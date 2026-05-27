@@ -186,6 +186,43 @@ test('applyPatches writes files to a tmpdir', () => {
   }
 });
 
+// Regression: applyPatches must snapshot pre-write originalContent +
+// newContent to `.gatetest/fix-patches.json` so the downstream
+// scripts/post-inline-suggestions.js helper can compute change hunks
+// AFTER the fix is applied. Without the snapshot, the helper reads
+// disk and gets the FIXED content as "original" → no diff → no
+// suggestion ever posted.
+test('applyPatches snapshots patches to .gatetest/fix-patches.json', () => {
+  const dir = makeTmpDir();
+  try {
+    // Seed an original file so the snapshot captures the BEFORE content.
+    fs.writeFileSync(path.join(dir, 'original.js'), 'console.log("before");\n');
+
+    fixer.applyPatches([
+      { file: 'original.js', content: 'console.log("after");\n', reason: 'remove debug log' },
+      { file: 'fresh.js',    content: 'export const x = 1;\n' }, // no prior file
+    ], dir);
+
+    const snapshotPath = path.join(dir, '.gatetest', 'fix-patches.json');
+    assert.ok(fs.existsSync(snapshotPath), 'fix-patches.json must be written');
+    const snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf-8'));
+    assert.equal(snapshot.length, 2);
+
+    const originalPatch = snapshot.find((s) => s.file === 'original.js');
+    assert.equal(originalPatch.originalContent, 'console.log("before");\n',
+      'snapshot must capture pre-write content for existing files');
+    assert.equal(originalPatch.newContent, 'console.log("after");\n');
+    assert.equal(originalPatch.reason, 'remove debug log');
+
+    const freshPatch = snapshot.find((s) => s.file === 'fresh.js');
+    assert.equal(freshPatch.originalContent, '',
+      'snapshot for net-new files must have empty originalContent');
+    assert.equal(freshPatch.newContent, 'export const x = 1;\n');
+  } finally {
+    cleanup(dir);
+  }
+});
+
 test('applyPatches refuses path-traversal patches', () => {
   const dir = makeTmpDir();
   try {
@@ -262,7 +299,7 @@ test('buildClaudePrompt includes the log and at least one file when within budge
   const files = [{ path: 'src/foo.js', content: 'function foo() {}' }];
   const prompt = fixer.buildClaudePrompt(log, files);
   assert.match(prompt, /an error happened/);
-  assert.match(prompt, /FILE: src\/foo\.js/);
+  assert.match(prompt, /src\/foo\.js/);
   assert.match(prompt, /function foo/);
 });
 
@@ -407,7 +444,7 @@ END_PATCH`;
     // Patch should have been written
     assert.equal(fs.readFileSync(path.join(dir, 'broken.js'), 'utf-8'), 'new content');
     assert.equal(result.status, 'pr-opened');
-    assert.equal(result.pr.status, 201);
+    assert.equal(result.pr.number, 42);
     // Git commit + push should have been attempted
     const commitCall = gitCalls.find((a) => a[0] === 'commit');
     const pushCall   = gitCalls.find((a) => a[0] === 'push');
@@ -1192,7 +1229,9 @@ test('openFixPr: uses findFreeBranchName and rotates title when attempt > 1', as
       git: (args) => { gitCalls.push(args); return { ok: true, stdout: '', stderr: '' }; },
       transport: captureTransport,
     });
-    assert.equal(result.status, 201);
+    assert.equal(result.status, 'pr-opened');
+    assert.equal(result.httpStatus, 201);
+    assert.equal(result.pr.number, 11);
     assert.ok(createdPrPayload, 'PR creation payload should have been captured');
     assert.match(createdPrPayload.title, /\(attempt 2\)/);
     assert.equal(createdPrPayload.head, 'ai-fix/700-attempt-2');
@@ -1226,4 +1265,143 @@ test('openFixPr: returns all-branches-taken when every slot is occupied', async 
   });
   assert.equal(result.status, 'all-branches-taken');
   assert.equal(gitCallCount, 0, 'should not invoke git when no free branch exists');
+});
+
+test('openFixPr: returns pr-failed when GitHub rejects the POST /pulls with non-201', async () => {
+  // Regression: this used to fall through as { status: 'pr-opened', pr: <error> }
+  // — the workflow reported success and the customer wondered where the PR was.
+  // Now any non-201 surfaces as a structured pr-failed result so the orchestrator
+  // can open a fallback issue with the real GitHub error attached.
+  const transport = fakeTransport([
+    { match: /\/branches\/ai-fix%2F900$/, status: 404, body: { message: 'not found' } },
+    { match: /\/pulls$/,                  status: 422, body: { message: 'Validation Failed: A pull request already exists for o:ai-fix/900.' } },
+  ]);
+  const result = await fixer.openFixPr({
+    token: 't', repo: 'o/r', runId: '900',
+    runUrl: 'http://example/run/900',
+    logExcerpt: 'log',
+    attempt: 1,
+    model: 'claude-sonnet-4-5',
+    baseRef: 'main',
+    git: () => ({ ok: true, stdout: '', stderr: '' }),
+    transport,
+  });
+  assert.equal(result.status, 'pr-failed');
+  assert.equal(result.httpStatus, 422);
+  assert.match(result.error, /already exists/);
+});
+
+test('openFixPr: returns push-failed with stderr when git push fails', async () => {
+  // Surfaces the actual git push error (e.g. "Permission to o/r.git denied")
+  // instead of pretending the PR opened.
+  const transport = fakeTransport([
+    { match: /\/branches\/ai-fix%2F901$/, status: 404, body: { message: 'not found' } },
+  ]);
+  const result = await fixer.openFixPr({
+    token: 't', repo: 'o/r', runId: '901',
+    runUrl: 'http://example/run/901',
+    logExcerpt: 'log',
+    attempt: 1,
+    model: 'claude-sonnet-4-5',
+    baseRef: 'main',
+    git: (args) => {
+      if (args[0] === 'push') {
+        return { ok: false, stdout: '', stderr: 'remote: Permission to o/r.git denied to bot' };
+      }
+      return { ok: true, stdout: '', stderr: '' };
+    },
+    transport,
+  });
+  assert.equal(result.status, 'push-failed');
+  assert.match(result.error, /Permission to/);
+});
+
+test('runFixer routes PR-failed through to fallback issue with real GitHub error', async () => {
+  // End-to-end: gate goes green, openFixPr fails with 422, the orchestrator
+  // must open a fallback issue containing the GitHub error message rather
+  // than silently report "pr-opened".
+  const dir = makeTmpDir();
+  try {
+    fs.writeFileSync(path.join(dir, 'broken.js'), 'old content');
+    const env = {
+      ANTHROPIC_API_KEY: 'k',
+      GITHUB_TOKEN:      't',
+      GITHUB_REPOSITORY: 'o/r',
+      WORKFLOW_RUN_ID:   '950',
+      MAX_FIX_ATTEMPTS:  '1',
+    };
+    const logText = `Error: bug\n    at ${dir}/broken.js:1`;
+    let issueBody = null;
+    const transport = {
+      request(opts, cb) {
+        // Capture the issue creation POST body so we can assert it contains
+        // the real GitHub error.
+        if (opts.method === 'POST' && opts.path.endsWith('/issues')) {
+          let bodyChunks = '';
+          const reqShim = {
+            on() {},
+            write(chunk) { bodyChunks += chunk; },
+            end() {
+              try { issueBody = JSON.parse(bodyChunks); } catch { /* ignore */ }
+              setImmediate(() => {
+                const raw = JSON.stringify({ number: 99, html_url: 'http://example/issue/99' });
+                const res = {
+                  statusCode: 201,
+                  headers: { 'content-type': 'application/json' },
+                  on(event, fn) {
+                    if (event === 'data') fn(Buffer.from(raw));
+                    if (event === 'end')  fn();
+                  },
+                };
+                cb(res);
+              });
+            },
+            destroy() {},
+          };
+          return reqShim;
+        }
+        // Everything else: scripted responses.
+        const responses = [
+          { match: /\/actions\/runs\/950$/,        status: 200, body: { html_url: 'http://example/run/950', head_branch: 'main' } },
+          { match: /\/actions\/runs\/950\/jobs/,   status: 200, body: { jobs: [{ id: 1, conclusion: 'failure' }] } },
+          { match: /\/actions\/jobs\/1\/logs/,     status: 200, body: logText },
+          { match: /\/branches\/ai-fix%2F950$/,    status: 404, body: { message: 'not found' } },
+          { match: /\/pulls$/,                     status: 403, body: { message: 'Resource not accessible by integration' } },
+        ];
+        const r = responses.find((x) => x.match.test(opts.path));
+        const payload = r || { status: 404, body: { message: 'unmatched: ' + opts.path }, headers: {} };
+        setImmediate(() => {
+          const raw = JSON.stringify(payload.body);
+          const res = {
+            statusCode: payload.status,
+            headers: { 'content-type': 'application/json' },
+            on(event, fn) {
+              if (event === 'data') fn(Buffer.from(raw));
+              if (event === 'end')  fn();
+            },
+          };
+          cb(res);
+        });
+        return { on() {}, write() {}, end() {}, destroy() {} };
+      },
+    };
+
+    const claudeResponse = `FILE: broken.js
+PATCH:
+new content
+END_PATCH`;
+
+    const result = await fixer.runFixer({
+      env, repoRoot: dir, transport,
+      callClaude: async () => claudeResponse,
+      git:  () => ({ ok: true, stdout: '', stderr: '' }),
+      gate: () => ({ ok: true, stdout: '', stderr: '' }),
+    });
+    assert.equal(result.status, 'gave-up');
+    assert.ok(issueBody, 'fallback issue should have been opened');
+    assert.match(issueBody.body, /HTTP 403/);
+    assert.match(issueBody.body, /Resource not accessible by integration/);
+  } finally {
+    cleanup(dir);
+  }
 });

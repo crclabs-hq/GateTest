@@ -70,7 +70,7 @@ npx -y gatetest --list          # smoke-test from a clean dir
 **Why:** `brew install gatetest` for Mac users.
 
 **One-time setup (once ever):**
-1. Create a public repo `ccantynz-alt/homebrew-gatetest`.
+1. Create a public repo `crclabs-hq/homebrew-gatetest`.
 2. Copy `integrations/homebrew/gatetest.rb` into the root of that repo as `Formula/gatetest.rb`.
 
 **Every release after npm publish:**

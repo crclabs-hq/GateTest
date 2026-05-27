@@ -7,7 +7,7 @@
 #
 # See the GateTest Bible (CLAUDE.md) → "PROTECTED PLATFORMS" section.
 # Install location in target repo: .github/workflows/gatetest-gate.yml
-# Source of truth: https://github.com/ccantynz-alt/gatetest
+# Source of truth: https://github.com/crclabs-hq/gatetest
 #                  /integrations/github-actions/gatetest-gate.yml
 # ============================================================================
 
@@ -24,6 +24,12 @@ permissions:
   pull-requests: write
   security-events: write
   checks: write
+  # Required by github/codeql-action/upload-sarif — it calls
+  # GET /repos/.../actions/runs/{id} for telemetry. Without this,
+  # the SARIF upload step fails with a 403 "Resource not accessible
+  # by integration" error, turning the whole job red even when the
+  # gate itself passed.
+  actions: read
 
 concurrency:
   group: gatetest-${{ github.ref }}
@@ -43,7 +49,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node 22 matches our baseline (.holdenmercer / dev). Node 20
+          # is EOL on the GH Actions deprecation list and emits noisy
+          # warnings on every run.
+          node-version: '22'
 
       - name: Clone GateTest (single source of truth)
         env:
@@ -51,9 +60,9 @@ jobs:
           GATETEST_TOKEN: ${{ secrets.GATETEST_TOKEN }}
         run: |
           if [ -n "$GATETEST_TOKEN" ]; then
-            git clone --depth 1 "https://x-access-token:${GATETEST_TOKEN}@github.com/ccantynz-alt/gatetest.git" "$RUNNER_TEMP/gatetest"
+            git clone --depth 1 "https://x-access-token:${GATETEST_TOKEN}@github.com/crclabs-hq/gatetest.git" "$RUNNER_TEMP/gatetest"
           else
-            git clone --depth 1 "https://github.com/ccantynz-alt/gatetest.git" "$RUNNER_TEMP/gatetest"
+            git clone --depth 1 "https://github.com/crclabs-hq/gatetest.git" "$RUNNER_TEMP/gatetest"
           fi
           echo "GATETEST_HOME=$RUNNER_TEMP/gatetest" >> $GITHUB_ENV
           echo "$RUNNER_TEMP/gatetest/bin" >> $GITHUB_PATH
@@ -74,17 +83,26 @@ jobs:
       # GithubAnnotationsReporter auto-attaches without a flag — findings
       # render as inline annotations on the PR diff (red squiggles on the
       # offending line) instead of being buried in the run log.
+      #
+      # NOTE: --report-only is the FRESH-INSTALL default. The gate runs,
+      # reports findings via SARIF + annotations + PR comments, but never
+      # fails the workflow on a finding. This prevents the canonical
+      # "scanner blocks production deploys on a mature codebase" failure
+      # mode (the one that hit Crontech 2026-05-25 — the founder had to
+      # disable GateTest to ship). Once the team has triaged the baseline
+      # and wants the gate to enforce, change `--report-only` to `--strict`
+      # in both invocations below.
       - name: GateTest — Quick (diff-mode) on PRs
         if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node "$GATETEST_HOME/bin/gatetest.js" --suite quick --diff --sarif --junit --parallel --project "$GITHUB_WORKSPACE"
+        run: node "$GATETEST_HOME/bin/gatetest.js" --suite quick --diff --sarif --junit --parallel --report-only --project "$GITHUB_WORKSPACE"
 
       - name: GateTest — Full on main push
         if: github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node "$GATETEST_HOME/bin/gatetest.js" --suite full --sarif --junit --parallel --project "$GITHUB_WORKSPACE"
+        run: node "$GATETEST_HOME/bin/gatetest.js" --suite full --sarif --junit --parallel --report-only --project "$GITHUB_WORKSPACE"
 
       - name: Upload SARIF to GitHub Security
         if: always()

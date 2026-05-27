@@ -276,3 +276,38 @@ describe('NotImplemented error', () => {
     assert.doesNotMatch(err.message, /for host/);
   });
 });
+
+// Regression: every GateTest PR comment must start with a signature
+// HTML-comment marker. PR-comment posters (github-bridge, github-callback)
+// rely on the marker to find prior comments and PATCH them in place
+// rather than POSTing a duplicate on every push (Known Issue #23).
+describe('HostBridge — PR comment signature marker', () => {
+  const { HostBridge, GATETEST_PR_COMMENT_MARKER } = require('../src/core/host-bridge');
+
+  it('exports the canonical marker string', () => {
+    assert.strictEqual(typeof GATETEST_PR_COMMENT_MARKER, 'string');
+    assert.ok(GATETEST_PR_COMMENT_MARKER.length > 0);
+    assert.ok(GATETEST_PR_COMMENT_MARKER.startsWith('<!--'),
+      'marker must be an HTML comment so it renders invisibly in GitHub UI');
+    assert.ok(GATETEST_PR_COMMENT_MARKER.includes('gatetest-bot'),
+      'marker must identify the bot owner unambiguously');
+  });
+
+  it('formatPullRequestComment output starts with the marker', () => {
+    class TestBridge extends HostBridge {
+      constructor() { super({ token: 'x' }); }
+    }
+    const b = new TestBridge();
+    const md = b._formatGateResultMarkdown({
+      status: 'passed',
+      totalChecks: 5,
+      passed: 5,
+      failed: 0,
+      skipped: 0,
+      duration: 1234,
+      modules: [],
+    });
+    assert.ok(md.startsWith(GATETEST_PR_COMMENT_MARKER),
+      `expected output to start with marker. got: ${md.slice(0, 80)}`);
+  });
+});

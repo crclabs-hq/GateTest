@@ -84,6 +84,31 @@ export default function ScanStatus() {
   const [fixing, setFixing] = useState(false);
   const [fixResult, setFixResult] = useState<FixResult | null>(null);
   const [fixError, setFixError] = useState("");
+  // Customer-supplied GitHub PAT — used for THIS request only, never
+  // stored, never logged. When the customer doesn't have our GitHub
+  // App installed AND isn't logged in via OAuth, this is the no-friction
+  // path to get a fix PR opened on their repo: paste token → run fix → PR.
+  const [customerPat, setCustomerPat] = useState("");
+  const [showPatInput, setShowPatInput] = useState(false);
+
+  // Logged-in customer (GitHub OAuth). When set, the fix flow uses the
+  // session's OAuth access token automatically — no PAT input needed.
+  // Probed via /api/auth/me on mount (which reads the encrypted session
+  // cookie and returns the GitHub login if valid).
+  const [signedInUser, setSignedInUser] = useState<{ login: string; email?: string } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data && typeof data.login === "string") {
+          setSignedInUser({ login: data.login, email: data.email });
+        }
+      })
+      .catch(() => { /* not signed in — leave null */ });
+    return () => { cancelled = true; };
+  }, []);
   const startTimeRef = useRef(Date.now());
   const scanTriggered = useRef(false);
   const fixTriggered = useRef(false);
@@ -229,7 +254,15 @@ export default function ScanStatus() {
       const res = await fetch("/api/scan/fix", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repoUrl: params.repo, issues, tier: params.tier || "full" }),
+        body: JSON.stringify({
+          repoUrl: params.repo,
+          issues,
+          tier: params.tier || "full",
+          // Optional one-shot PAT — server uses it ONLY for this request,
+          // never stores. When empty, server falls back to the GitHub
+          // App installation (if present) or the configured env token.
+          ...(customerPat ? { customerPat } : {}),
+        }),
       });
       const data = await res.json() as FixResult;
       setFixResult(data);
@@ -490,18 +523,108 @@ export default function ScanStatus() {
                 </p>
 
                 {!fixResult && !fixing && (
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <button
-                      onClick={runFix}
-                      className="btn-primary px-6 py-3 text-sm text-center"
-                      style={{ background: "#059669" }}
-                    >
-                      Fix {scanResult?.totalIssues} Issue{(scanResult?.totalIssues || 0) > 1 ? "s" : ""} with AI
-                    </button>
-                    <Link href="/#pricing" className="btn-secondary px-6 py-3 text-sm text-center">
-                      Scan Another Repo
-                    </Link>
-                  </div>
+                  <>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={runFix}
+                        className="btn-primary px-6 py-3 text-sm text-center"
+                        style={{ background: "#059669" }}
+                      >
+                        Fix {scanResult?.totalIssues} Issue{(scanResult?.totalIssues || 0) > 1 ? "s" : ""} with AI
+                      </button>
+                      <Link href="/#pricing" className="btn-secondary px-6 py-3 text-sm text-center">
+                        Scan Another Repo
+                      </Link>
+                    </div>
+
+                    {/* Authentication for fix-PR creation. Three paths, in
+                        order of preference:
+                          1. Signed in via GitHub OAuth — token used automatically
+                          2. GateTestHQ App installed on the repo — falls through
+                          3. One-shot PAT pasted by the customer */}
+                    <div className="mt-5 pt-5 border-t border-border/60">
+                      {signedInUser ? (
+                        <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 flex items-start gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" aria-hidden />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-emerald-900">
+                              Signed in as <code className="font-mono">{signedInUser.login}</code>
+                            </p>
+                            <p className="text-xs text-emerald-800/80 mt-0.5">
+                              The fix PR will open on your repo using your GitHub OAuth token.
+                              No PAT needed.
+                            </p>
+                          </div>
+                        </div>
+                      ) : !showPatInput ? (
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold text-foreground">
+                            To get the auto-fix PR on your repo:
+                          </p>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <a
+                              href={`/api/auth/github?next=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname + window.location.search : "/")}`}
+                              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-foreground text-background text-sm font-semibold hover:opacity-90 transition-opacity"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                              </svg>
+                              Sign in with GitHub
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => setShowPatInput(true)}
+                              className="text-xs text-muted hover:text-foreground underline-offset-2 hover:underline sm:self-center"
+                            >
+                              or paste a one-shot PAT instead &rarr;
+                            </button>
+                          </div>
+                          <p className="text-[11px] text-muted">
+                            Sign-in uses GitHub OAuth — we get a token scoped to your repos,
+                            you stay in control. See <Link href="/trust" className="text-accent-light hover:underline">/trust</Link>.
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="block text-xs font-semibold text-foreground mb-2">
+                            GitHub Personal Access Token (one-shot &mdash; never stored)
+                          </label>
+                          <input
+                            type="password"
+                            autoComplete="off"
+                            spellCheck={false}
+                            value={customerPat}
+                            onChange={(e) => setCustomerPat(e.target.value.trim())}
+                            placeholder="ghp_… or github_pat_…"
+                            className="w-full px-3 py-2 rounded-lg border border-border bg-white text-sm font-mono"
+                          />
+                          <p className="text-[11px] text-muted mt-2 leading-relaxed">
+                            Used <strong>only for this one fix request</strong>, never persisted,
+                            never logged. Generate one at{" "}
+                            <a
+                              href="https://github.com/settings/tokens/new?scopes=repo&description=GateTest+one-shot+fix"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-accent-light hover:underline"
+                            >
+                              github.com/settings/tokens
+                            </a>{" "}
+                            (classic, scope <code>repo</code>) or{" "}
+                            <a
+                              href="https://github.com/settings/personal-access-tokens/new"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-accent-light hover:underline"
+                            >
+                              fine-grained
+                            </a>{" "}
+                            (Contents: write + Pull requests: write, scoped to this one repo).
+                            See <Link href="/trust" className="text-accent-light hover:underline">/trust</Link> for the privacy contract.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
 
                 {fixing && (

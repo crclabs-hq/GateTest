@@ -424,9 +424,23 @@ class FakeFixDetectorModule extends BaseModule {
     const hunks = this._parseDiff(diff);
 
     for (const hunk of hunks) {
-      // Skip marketing / demo pages — they intentionally show examples of
-      // the patterns GateTest catches and should never trigger false positives.
-      const isDemo = /website\/app\/for\//.test(hunk.file);
+      // Files that INTENTIONALLY contain bug-shape patterns and must never
+      // hard-error:
+      //   - website/app/for/* — marketing demo pages showing the patterns
+      //     GateTest catches.
+      //   - corpus/*           — flywheel training fixtures: each "broken"
+      //     instance is a known anti-pattern that the harness replays
+      //     through the deterministic layers. The whole point is for those
+      //     patterns to be present.
+      //   - src/modules/fake-fix-detector.js — this file, which carries
+      //     the literal patterns in its rule definitions.
+      //   - src/modules/claude-compliance.js + its test — detector for the
+      //     same `@ts-ignore` / `as any` family; regex source contains the
+      //     literals, test fixtures need them verbatim.
+      //   - src/modules/ai-hallucination.js + its test — same self-reference.
+      const isDemo = /(?:^|\/)(?:website\/app\/for|corpus)\//.test(hunk.file)
+        || /(?:^|\/)src\/modules\/(?:fake-fix-detector|claude-compliance|ai-hallucination)\.js$/.test(hunk.file)
+        || /(?:^|\/)tests\/(?:fake-fix-detector|claude-compliance|ai-hallucination)\.test\.js$/.test(hunk.file);
 
       // Walk added / removed lines
       for (const line of hunk.lines) {
@@ -454,6 +468,7 @@ class FakeFixDetectorModule extends BaseModule {
       // Changed-line rules: look for a removed line matching `pattern` and an
       // added line matching `replacement` at a similar position.
       for (const rule of PATTERN_RULES.filter(r => r.direction === 'changed')) {
+        if (isDemo && rule.severity === 'error') continue; // same fixture exemption
         const removed = hunk.lines.filter(l => l.startsWith('-') && rule.pattern.test(l));
         const added = hunk.lines.filter(l => l.startsWith('+') && rule.replacement.test(l));
         if (removed.length > 0 && added.length > 0) {

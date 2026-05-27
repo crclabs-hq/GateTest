@@ -5,7 +5,7 @@
 # Drops the full GateTest quality gate into a target repository.
 # Run this from the ROOT of the repo you want to protect.
 #
-#   curl -sSL https://raw.githubusercontent.com/ccantynz-alt/gatetest/main/integrations/scripts/install.sh | bash
+#   curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integrations/scripts/install.sh | bash
 #
 # Or, locally:
 #   bash /path/to/gatetest/integrations/scripts/install.sh
@@ -19,8 +19,8 @@
 # ============================================================================
 set -euo pipefail
 
-GATETEST_REPO="${GATETEST_REPO:-https://github.com/ccantynz-alt/gatetest.git}"
-GATETEST_RAW="${GATETEST_RAW:-https://raw.githubusercontent.com/ccantynz-alt/gatetest/main}"
+GATETEST_REPO="${GATETEST_REPO:-https://github.com/crclabs-hq/gatetest.git}"
+GATETEST_RAW="${GATETEST_RAW:-https://raw.githubusercontent.com/crclabs-hq/gatetest/main}"
 TARGET="${TARGET:-$(pwd)}"
 
 if [ ! -d "$TARGET/.git" ]; then
@@ -43,16 +43,20 @@ curl -sSL "$GATETEST_RAW/integrations/husky/pre-push" \
 chmod +x "$TARGET/.husky/pre-push"
 echo "  ✓ .husky/pre-push (executable)"
 
-# 3. Protection marker — tells any future Claude session this repo is protected
+# 3. Protection marker — tells any future Claude session this repo is protected.
+#    Also carries the gate `mode`. Defaults to "advisory" on fresh install so
+#    a mature codebase isn't spammed red on day one. Flip to "strict" when the
+#    baseline is triaged and the team is ready for the gate to block on errors.
 cat > "$TARGET/.gatetest.json" <<'JSON'
 {
   "protected": true,
-  "gatetest_source": "https://github.com/ccantynz-alt/gatetest",
+  "gatetest_source": "https://github.com/crclabs-hq/gatetest",
   "do_not_remove": "This repo is protected by GateTest. See .github/workflows/gatetest-gate.yml and .husky/pre-push. Removing either breaks the quality gate. Requires Craig authorization.",
-  "integration_version": 1
+  "integration_version": 2,
+  "mode": "advisory"
 }
 JSON
-echo "  ✓ .gatetest.json (protection marker)"
+echo "  ✓ .gatetest.json (mode: advisory — flip to \"strict\" when ready)"
 
 echo
 echo "[GateTest] ✓ Installation complete."
@@ -63,6 +67,12 @@ echo "  2. Commit:         git add .github .husky .gatetest.json && git commit -
 echo "  3. Push:           git push"
 echo
 echo "On the next push or PR, GateTest will run the full quality gate."
+echo
+echo "GATE MODE: ADVISORY (soft-landing default)"
+echo "  • Findings are reported in the PR comment but the check stays GREEN."
+echo "  • A mature codebase can adopt GateTest without spamming every PR red."
+echo "  • When you're ready for the gate to block on error-severity findings:"
+echo "      edit .gatetest.json → set \"mode\": \"strict\""
 echo
 echo "AUTO-REPAIR is ON BY DEFAULT when ANTHROPIC_API_KEY is available:"
 echo "  • Failing runs automatically open a 'gatetest/auto-repair-<run-id>'"

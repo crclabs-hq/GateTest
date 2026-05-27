@@ -52,6 +52,7 @@ const BUILT_IN_MODULES = {
   secretRotation: '../modules/secret-rotation.js',
   webHeaders: '../modules/web-headers.js',
   typescriptStrictness: '../modules/typescript-strictness.js',
+  undefinedRef: '../modules/undefined-ref.js',
   flakyTests: '../modules/flaky-tests.js',
   errorSwallow: '../modules/error-swallow.js',
   nPlusOne: '../modules/n-plus-one.js',
@@ -95,6 +96,7 @@ const BUILT_IN_MODULES = {
   authBypass: '../modules/auth-bypass.js',
   // P2 — code quality (AI-specific)
   aiHallucination: '../modules/ai-hallucination.js',
+  claudeCompliance: '../modules/claude-compliance.js',
   monorepoConstraints: '../modules/monorepo-constraints.js',
   zodSchemaPresence: '../modules/zod-schema.js',
   bundleSize: '../modules/bundle-size.js',

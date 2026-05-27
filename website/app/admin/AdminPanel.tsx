@@ -593,6 +593,8 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
                 >
                   <option value="quick">Quick (39 modules)</option>
                   <option value="full">Full (102 modules)</option>
+                  <option value="scan_fix">Scan + Fix (102 modules + pair-review + architecture)</option>
+                  <option value="nuclear">Nuclear (102 modules + Claude diagnosis + correlation + exec summary)</option>
                 </select>
                 <button
                   onClick={runScan}

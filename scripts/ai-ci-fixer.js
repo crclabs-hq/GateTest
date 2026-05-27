@@ -115,7 +115,7 @@ async function openFixPr({ token, repo, runId, runUrl, logExcerpt, attempt, mode
   const commit = _git(['commit', '-m', `AI CI-fixer: repair workflow run ${runUrl} (attempt ${attempt})`]);
   if (!commit.ok) {
     core.logErr('git commit failed (maybe no changes?)', new Error(commit.stderr));
-    return { status: 'no-changes' };
+    return { status: 'no-changes', error: commit.stderr || 'git commit failed' };
   }
 
   // Branch is guaranteed free (we just checked the remote) so a plain push
@@ -124,16 +124,32 @@ async function openFixPr({ token, repo, runId, runUrl, logExcerpt, attempt, mode
   const push = _git(['push', '-u', 'origin', branch]);
   if (!push.ok) {
     core.logErr('git push failed', new Error(push.stderr));
-    return { status: 'push-failed' };
+    return { status: 'push-failed', error: push.stderr || 'git push failed' };
   }
 
   const titleSuffix = attemptNumber > 1 ? ` (attempt ${attemptNumber})` : '';
-  return core.createPullRequest({
+  const prResp = await core.createPullRequest({
     token, repo, head: branch, base: baseRef || 'main',
     title: `AI CI-fixer: repair workflow run #${runId}${titleSuffix}`,
     body:  core.buildPrBody({ runUrl, logExcerpt, attempt, model }),
     opts:  { transport },
   });
+  // GitHub returns 201 on a freshly-created PR. Anything else (401 invalid
+  // token, 403 missing `pull-requests: write` scope, 422 head ref not found /
+  // PR already exists / empty diff, 404 wrong repo) is a real failure that
+  // used to silently surface as "pr-opened" — the customer would see the
+  // workflow go green and then wonder where the PR is. Surface it instead so
+  // the orchestrator can fall through to opening a fallback issue with the
+  // actual GitHub error attached.
+  if (!prResp || prResp.status !== 201) {
+    const apiMsg = (prResp && prResp.body && typeof prResp.body === 'object' && prResp.body.message)
+      ? prResp.body.message
+      : (prResp && typeof prResp.raw === 'string' ? prResp.raw.slice(0, 500) : 'unknown error');
+    const httpStatus = prResp && typeof prResp.status === 'number' ? prResp.status : 0;
+    core.logErr(`PR creation rejected by GitHub (HTTP ${httpStatus})`, new Error(apiMsg));
+    return { status: 'pr-failed', httpStatus, error: apiMsg };
+  }
+  return { status: 'pr-opened', pr: prResp.body, httpStatus: prResp.status };
 }
 
 /**
@@ -310,7 +326,9 @@ async function tryAttempt({ cfg, files, logExcerpt, attempt, deps }) {
     return { ok: false, patches: [], error: err };
   }
 
-  const claudePatches = core.parseClaudeResponse(responseText);
+  // Pass the file allowlist so parseClaudeResponse rejects any smuggled
+  // file path Claude tries to write that wasn't in the original ask.
+  const claudePatches = core.parseClaudeResponse(responseText, claudeNeeded);
   if (claudePatches.length === 0) {
     core.log(`attempt ${attempt}: unparseable / GIVE_UP response`);
     recordTelemetry(deps.flywheel, { layer: 'claude', success: false, file: '<batch>', durationMs: Date.now() - t0, reason: 'unparseable', model: cfg.model });
@@ -413,13 +431,33 @@ async function runFixer(deps = {}) {
         baseRef: runResp.body?.head_branch || 'main',
         git: _git, transport,
       });
-      // If every branch slot is taken, fall through to the give-up branch so
-      // a fallback issue is opened. Otherwise return the PR result as before.
+      // Each openFixPr failure mode must route to the fallback-issue branch
+      // with a real error message — otherwise the customer sees the
+      // workflow report "done: pr-opened" with no PR anywhere. Silent
+      // failure here is the regression that killed the killer feature.
+      if (prResp && prResp.status === 'pr-opened') {
+        return { status: 'pr-opened', attempt, pr: prResp.pr };
+      }
+      if (prResp && prResp.status === 'pr-failed') {
+        lastError = new Error(`GitHub rejected PR creation (HTTP ${prResp.httpStatus}): ${prResp.error}`);
+        break;
+      }
+      if (prResp && prResp.status === 'push-failed') {
+        lastError = new Error(`git push failed: ${prResp.error}`);
+        break;
+      }
+      if (prResp && prResp.status === 'no-changes') {
+        lastError = new Error(`gate reported green but git commit found no changes to push: ${prResp.error}`);
+        break;
+      }
       if (prResp && prResp.status === 'all-branches-taken') {
         lastError = new Error(`all branch-attempt slots taken for run ${cfg.runId}`);
         break;
       }
-      return { status: 'pr-opened', attempt, pr: prResp };
+      // Defensive: anything else is an unknown openFixPr return shape — log
+      // and fall through so we still surface something to the customer.
+      lastError = new Error(`openFixPr returned unknown shape: ${JSON.stringify(prResp).slice(0, 200)}`);
+      break;
     }
     core.log(`attempt ${attempt}: gate still red`);
     lastError = new Error(`Gate still red after attempt ${attempt}`);

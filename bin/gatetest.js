@@ -66,6 +66,14 @@ const HELP = `
     --auto-pr-base <ref>    Base branch for the auto-PR (default: current branch)
     --auto-pr-branch <name> Override the auto-generated branch name
     --diff             Only scan git-changed files (fast pre-commit mode)
+    --report-only      Report findings but NEVER fail the gate. Use this
+                       on a fresh GateTest install so CI stays green from
+                       day 1 while the team triages pre-existing findings.
+                       Default for new installs; opt INTO strict mode.
+    --strict           Force blocking behaviour even when --report-only or
+                       a report-only env/config flag is set. Use once
+                       you've triaged the baseline and want the gate to
+                       enforce. Wins over --report-only when both pass.
     --watch            Watch for file changes and re-scan continuously
     --sarif            Output results in SARIF format (for GitHub Security)
     --junit            Output results in JUnit XML format (for CI)
@@ -275,6 +283,10 @@ async function main() {
     sarif: args.sarif || false,
     junit: args.junit || false,
     githubAnnotations: args.githubAnnotations || false,
+    // Report-only mode — gate reports findings but never fails the
+    // workflow on them. Strict mode (default OFF) reverses this and
+    // blocks on confident errors. See `runner.js` for the mechanism.
+    reportOnly: args.reportOnly === true && args.strict !== true,
     ...(typeof args.confidenceThreshold === 'number'
       ? { confidenceThreshold: args.confidenceThreshold }
       : {}),
@@ -653,6 +665,8 @@ function parseArgs(argv) {
     else if (arg === '--auto-pr-base' && argv[i + 1]) args.autoPrBase = argv[++i];
     else if (arg === '--auto-pr-branch' && argv[i + 1]) args.autoPrBranch = argv[++i];
     else if (arg === '--diff') args.diff = true;
+    else if (arg === '--report-only') args.reportOnly = true;
+    else if (arg === '--strict') args.strict = true;
     else if (arg === '--watch') args.watch = true;
     else if (arg === '--sarif') args.sarif = true;
     else if (arg === '--junit') args.junit = true;

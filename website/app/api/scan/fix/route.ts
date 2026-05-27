@@ -19,6 +19,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { isAdminRequest } from "@/app/lib/admin-auth";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const {
@@ -26,6 +27,11 @@ const {
   runWithTracker,
   getCurrentTracker,
 } = require("@/app/lib/budget-tracker");
+import {
+  CUSTOMER_COOKIE_NAME,
+  getOAuthConfig,
+  verifyCustomerSession,
+} from "@/app/lib/customer-session";
 import {
   createBranch,
   fetchBlob,
@@ -843,6 +849,22 @@ export async function POST(req: NextRequest) {
     originalFileContents?: OriginalFileInput[];
     originalFindingsByModule?: Record<string, string[]>;
     tier?: string;
+    // Customer-supplied GitHub PAT — used for ONE request only, never
+    // stored, never logged. When supplied AND validated, overrides the
+    // server-side resolveRepoAuth fallback so customers without our
+    // GitHub App installed can still get the fix PR opened on their repo.
+    //
+    // Expected shape: `ghp_*` (classic), `github_pat_*` (fine-grained),
+    // or any GH-issued token. Must have `repo` scope (or `contents:write`
+    // + `pull_requests:write` for fine-grained).
+    //
+    // Security:
+    //   - Validated against /repos/<owner>/<repo> via probe BEFORE we
+    //     waste any Anthropic tokens on the fix loop.
+    //   - Used only to push the branch + open the PR; not echoed anywhere.
+    //   - JavaScript can't truly zero memory but the variable goes out
+    //     of scope as soon as the request returns.
+    customerPat?: string;
   };
   try {
     input = await req.json();
@@ -926,21 +948,126 @@ export async function POST(req: NextRequest) {
   // unexpected throw so the customer always gets a JSON 500 instead of a crash.
   try {
 
-  // Resolve Gluecron PAT and confirm repo access with a probe request.
-  const auth = await resolveRepoAuth(owner, repo);
-  if (!auth.token) {
-    return NextResponse.json(
-      {
-        error:
-          auth.error ||
-          "Gluecron access not configured — set GLUECRON_API_TOKEN (PAT, scope 'repo')",
-        hint: "Generate a PAT at https://gluecron.com/settings/tokens and set GLUECRON_API_TOKEN.",
-      },
-      { status: 503 }
-    );
+  // Auth resolution — order of preference:
+  //   1. Logged-in customer session (OAuth access token from cookie)
+  //   2. Customer-supplied PAT in request body (one-shot, per-request)
+  //   3. Server-side fallback (Gluecron PAT, then GITHUB_TOKEN env)
+  //
+  // Session path is the LAUNCH-DEFAULT path — customer clicks "Sign in
+  // with GitHub", we use their OAuth token for scan + fix. No PAT to
+  // paste, no App to install. Token is AES-256-GCM encrypted in the
+  // session cookie and decrypted only inside this Node handler.
+  let token: string;
+  let authSource: string;
+
+  // (1) Session cookie path — if logged in AND token reaches the repo,
+  // skip the PAT + server cascade entirely. Falls through to the next
+  // tier if the session doesn't grant access (revoked / scoped-out / etc).
+  let sessionResolvedToken: string | null = null;
+  try {
+    const oauthStatus = getOAuthConfig();
+    if (oauthStatus.ok && oauthStatus.config) {
+      const cookieStore = await cookies();
+      const sessionCookie = cookieStore.get(CUSTOMER_COOKIE_NAME);
+      if (sessionCookie && sessionCookie.value) {
+        const payload = verifyCustomerSession(sessionCookie.value, oauthStatus.config.sessionSecret);
+        if (payload && typeof payload.a === "string" && payload.a) {
+          // Probe — does the session's OAuth token actually grant access
+          // to THIS repo? OAuth tokens are user-scoped so the user might
+          // not have access to the pasted repo URL.
+          const probeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${payload.a}`,
+              Accept: "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "GateTest-Session-OAuth/1.0",
+            },
+          });
+          if (probeRes.status === 200) {
+            sessionResolvedToken = payload.a;
+          }
+          // 401 / 404 / other — fall through to PAT / server cascade.
+        }
+      }
+    }
+  } catch (sessionErr) { // error-ok — session reading must never block the fix flow; log + continue
+    console.error("[/api/scan/fix] session resolution failed (continuing):", sessionErr);
   }
-  const token = auth.token;
-  const authSource = auth.source;
+
+  // (2) Customer-PAT path
+  const customerPat = typeof input.customerPat === "string" ? input.customerPat.trim() : "";
+  // GitHub PAT shapes: classic `ghp_<40>`, fine-grained `github_pat_<...>`,
+  // or app-installation `ghs_<...>`. Reject anything that doesn't match
+  // a known shape — prevents accidental use of an Anthropic key, an SSH
+  // key, or whatever else the customer might paste in the wrong field.
+  const PAT_SHAPE = /^(?:ghp_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{60,}|ghs_[A-Za-z0-9]{36,})$/;
+
+  if (sessionResolvedToken) {
+    // Logged-in customer's OAuth token already passed the repo probe.
+    // Use it for the fix and skip the PAT / server cascade.
+    token = sessionResolvedToken;
+    authSource = "customer-session";
+  } else if (customerPat) {
+    if (!PAT_SHAPE.test(customerPat)) {
+      return NextResponse.json(
+        {
+          error: "Supplied PAT doesn't match a recognised GitHub token shape",
+          hint: "Use a classic PAT (ghp_*), fine-grained PAT (github_pat_*), or installation token (ghs_*). Generate at https://github.com/settings/tokens",
+        },
+        { status: 400 }
+      );
+    }
+    // Probe — does this token actually grant repo access? Cheap GET that
+    // tells us yes/no without burning the fix budget.
+    const probeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${customerPat}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "GateTest-Customer-PAT/1.0",
+      },
+    });
+    if (probeRes.status === 401) {
+      return NextResponse.json(
+        { error: "GitHub PAT was rejected (401 unauthorised). Check the token is valid + not expired." },
+        { status: 401 }
+      );
+    }
+    if (probeRes.status === 404) {
+      return NextResponse.json(
+        { error: `Repo ${owner}/${repo} not found OR the PAT doesn't grant access to it.`, hint: "If the repo is private, ensure the PAT was issued with the repo selected (fine-grained) or full repo scope (classic)." },
+        { status: 404 }
+      );
+    }
+    if (probeRes.status !== 200) {
+      return NextResponse.json(
+        { error: `GitHub repo probe failed with HTTP ${probeRes.status}` },
+        { status: 502 }
+      );
+    }
+    token = customerPat;
+    authSource = "customer-pat";
+  } else {
+    // Fall through to server-side token resolution (Gluecron PAT, then
+    // GITHUB_TOKEN env). This is the GitHub-App-installed path — works
+    // when our App has been installed on the customer's repo.
+    const auth = await resolveRepoAuth(owner, repo);
+    if (!auth.token) {
+      return NextResponse.json(
+        {
+          error:
+            auth.error ||
+            "No write access to this repo. Install the GateTestHQ GitHub App OR paste a GitHub PAT (scope 'repo') in the customerPat field to authorise this one fix.",
+          hint: "Install: https://github.com/apps/GateTestHQ — or generate a PAT at https://github.com/settings/tokens (Classic) / https://github.com/settings/personal-access-tokens (Fine-grained).",
+        },
+        { status: 503 }
+      );
+    }
+    token = auth.token;
+    authSource = auth.source;
+  }
 
   // Group issues by file. Day-2: retain `line` per issue so the per-file
   // worker can choose surgical-fix vs whole-file mode.
@@ -1828,7 +1955,7 @@ export async function POST(req: NextRequest) {
           for (const f of fixesWithScores) {
             const conf = aggregateConfidence(f.scores);
             if (conf !== null && conf < 0.85) {
-              console.log(`[GateTest] low-confidence fix ${f.file}: ${conf.toFixed(2)} (scan_fix threshold 0.85)`);
+              console.warn(`[GateTest] low-confidence fix ${f.file}: ${conf.toFixed(2)} (scan_fix threshold 0.85)`);
             }
           }
           const confidenceMarkdown = formatConfidenceReport({ fixes: fixesWithScores, tier: confTier });

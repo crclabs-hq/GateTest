@@ -26,6 +26,15 @@ const CANONICAL_COMMIT_STATES = ['pending', 'success', 'failure', 'error'];
 
 const MARKDOWN_FOOTER_VERSION = 'v1.5.0';
 
+// Signature marker placed as the FIRST line of every GateTest PR comment.
+// PR-comment posters list existing comments, look for this marker, and
+// PATCH the matching comment in place rather than POSTing a new one on
+// every push. Without this, busy PRs accumulate one duplicate GateTest
+// comment per push (Known Issue #23). The version suffix lets us
+// upgrade the marker without colliding with old comments — change it
+// when the marker shape evolves.
+const GATETEST_PR_COMMENT_MARKER = '<!-- gatetest-bot:gate-summary:v1 -->';
+
 class NotImplemented extends Error {
   constructor(method, hostName) {
     super(
@@ -178,8 +187,13 @@ class HostBridge {
   /**
    * Format a GateTest summary object into a markdown PR/MR comment.
    * Host-agnostic — every bridge renders the same report.
+   *
+   * The first line is an HTML-comment signature marker. PR-comment posters
+   * use it to find a prior GateTest comment and PATCH-in-place rather than
+   * spawning a new comment on every push (idempotent commenting).
    */
   _formatGateResultMarkdown(summary) {
+    const lines = [GATETEST_PR_COMMENT_MARKER];
     const icon = summary.status === 'passed' ? ':white_check_mark:' : ':x:';
     const title = summary.status === 'passed'
       ? 'GateTest Quality Gate — PASSED'
@@ -189,7 +203,6 @@ class HostBridge {
       ? `${(summary.duration / 1000).toFixed(1)}s`
       : `${summary.duration}ms`;
 
-    const lines = [];
     lines.push(`## ${icon} ${title}`);
     lines.push('');
     lines.push('| Metric | Value |');
@@ -303,6 +316,7 @@ module.exports = {
   HostBridge,
   NotImplemented,
   CANONICAL_COMMIT_STATES,
+  GATETEST_PR_COMMENT_MARKER,
   registerBridge,
   createBridge,
   listBridges,
