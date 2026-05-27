@@ -963,8 +963,7 @@ export async function POST(req: NextRequest) {
         }
       }
     }
-  } catch (sessionErr) {
-    // Session reading must never block the fix flow. Log + continue.
+  } catch (sessionErr) { // error-ok — session reading must never block the fix flow; log + continue
     console.error("[/api/scan/fix] session resolution failed (continuing):", sessionErr);
   }
 
@@ -1930,7 +1929,7 @@ export async function POST(req: NextRequest) {
           for (const f of fixesWithScores) {
             const conf = aggregateConfidence(f.scores);
             if (conf !== null && conf < 0.85) {
-              console.log(`[GateTest] low-confidence fix ${f.file}: ${conf.toFixed(2)} (scan_fix threshold 0.85)`);
+              console.warn(`[GateTest] low-confidence fix ${f.file}: ${conf.toFixed(2)} (scan_fix threshold 0.85)`);
             }
           }
           const confidenceMarkdown = formatConfidenceReport({ fixes: fixesWithScores, tier: confTier });

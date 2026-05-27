@@ -432,7 +432,15 @@ class FakeFixDetectorModule extends BaseModule {
       //     instance is a known anti-pattern that the harness replays
       //     through the deterministic layers. The whole point is for those
       //     patterns to be present.
-      const isDemo = /(?:^|\/)(?:website\/app\/for|corpus)\//.test(hunk.file);
+      //   - src/modules/fake-fix-detector.js — this file, which carries
+      //     the literal patterns in its rule definitions.
+      //   - src/modules/claude-compliance.js + its test — detector for the
+      //     same `@ts-ignore` / `as any` family; regex source contains the
+      //     literals, test fixtures need them verbatim.
+      //   - src/modules/ai-hallucination.js + its test — same self-reference.
+      const isDemo = /(?:^|\/)(?:website\/app\/for|corpus)\//.test(hunk.file)
+        || /(?:^|\/)src\/modules\/(?:fake-fix-detector|claude-compliance|ai-hallucination)\.js$/.test(hunk.file)
+        || /(?:^|\/)tests\/(?:fake-fix-detector|claude-compliance|ai-hallucination)\.test\.js$/.test(hunk.file);
 
       // Walk added / removed lines
       for (const line of hunk.lines) {

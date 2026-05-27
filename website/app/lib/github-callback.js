@@ -36,13 +36,29 @@ function resolveGitHubToken(env) {
 
 /**
  * Map a scan result to a GitHub commit-status state.
+ *
+ * Mode handling (Option A — advisory by default, opt-in to strict):
+ *   - 'advisory' (default): findings DO NOT turn the check red. Customer
+ *     sees the count + advisory note. Their gate stays green so a mature
+ *     codebase can install GateTest without spamming every PR red on
+ *     install day. This matches the workflow's `--report-only` default.
+ *     Customer flips `.gatetest.json` `mode` to `strict` when ready.
+ *   - 'strict': any error-severity finding → failure check, branch
+ *     protection rules block the merge. The traditional gate behaviour.
+ *
+ * Scan-execution failures (scan errored, never completed, etc.) always
+ * return 'error' regardless of mode — that's a GateTest problem, not a
+ * customer-code finding, and the customer needs to know about it.
+ *
  * @param {object} scanResult
+ * @param {'advisory'|'strict'} [mode='advisory']
  * @returns {'success'|'failure'|'error'}
  */
-function toCommitState(scanResult) {
+function toCommitState(scanResult, mode = 'advisory') {
   if (!scanResult || scanResult.error) return 'error';
   if (scanResult.status !== 'complete') return 'error';
-  // Any error-severity issue → failure; warnings alone → success.
+  if (mode !== 'strict') return 'success';
+  // strict mode — any error-severity issue → failure; warnings alone → success.
   const modules = Array.isArray(scanResult.modules) ? scanResult.modules : [];
   const hasErrors = modules.some((m) => {
     const checks = Array.isArray(m.checks) ? m.checks : [];
@@ -54,19 +70,55 @@ function toCommitState(scanResult) {
 /**
  * Build the short status description (max 140 chars).
  * @param {object} scanResult
+ * @param {'advisory'|'strict'} [mode='advisory']
  * @returns {string}
  */
-function buildDescription(scanResult) {
+function buildDescription(scanResult, mode = 'advisory') {
   if (!scanResult || scanResult.error) {
     return String(scanResult && scanResult.error ? scanResult.error : 'Scan failed').slice(0, 140);
   }
   const totalIssues = typeof scanResult.totalIssues === 'number' ? scanResult.totalIssues : 0;
   const modules = Array.isArray(scanResult.modules) ? scanResult.modules : [];
   const moduleCount = modules.length;
+  const suffix = mode === 'strict' ? '' : ' · advisory mode';
   if (totalIssues === 0) {
-    return `All ${moduleCount} module${moduleCount === 1 ? '' : 's'} passed — 0 issues found`;
+    return `All ${moduleCount} module${moduleCount === 1 ? '' : 's'} passed — 0 issues found${suffix}`.slice(0, 140);
   }
-  return `${totalIssues} issue${totalIssues === 1 ? '' : 's'} found across ${moduleCount} module${moduleCount === 1 ? '' : 's'}`.slice(0, 140);
+  return `${totalIssues} issue${totalIssues === 1 ? '' : 's'} found across ${moduleCount} module${moduleCount === 1 ? '' : 's'}${suffix}`.slice(0, 140);
+}
+
+/**
+ * Fetch `.gatetest.json` from the repo's default branch to read the
+ * customer-configured mode. Fail-open: missing file, parse error, or
+ * API error all return 'advisory' (the soft-landing default).
+ *
+ * @param {string} owner
+ * @param {string} repo
+ * @param {string} token
+ * @param {typeof fetch} [fetchImpl]
+ * @returns {Promise<'advisory'|'strict'>}
+ */
+async function fetchRepoMode(owner, repo, token, fetchImpl = fetch) {
+  try {
+    const res = await fetchImpl(
+      `${GITHUB_API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/.gatetest.json`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'User-Agent': USER_AGENT,
+        },
+      },
+    );
+    if (!res.ok) return 'advisory';
+    const payload = await res.json();
+    if (!payload || typeof payload.content !== 'string') return 'advisory';
+    const raw = Buffer.from(payload.content, payload.encoding || 'base64').toString('utf-8');
+    const cfg = JSON.parse(raw);
+    return cfg && cfg.mode === 'strict' ? 'strict' : 'advisory';
+  } catch {
+    return 'advisory';
+  }
 }
 
 /**
@@ -106,13 +158,23 @@ function linkifyFinding(detail, owner, repo, sha) {
  * @param {string|null} [targetUrl]
  * @returns {string}
  */
-function buildMarkdownComment(repository, sha, scanResult, targetUrl) {
+function buildMarkdownComment(repository, sha, scanResult, targetUrl, mode = 'advisory') {
   const ownerRepoParts = String(repository || '').split('/');
   const owner = ownerRepoParts[0] || '';
   const repoName = ownerRepoParts[1] || '';
-  const state = toCommitState(scanResult);
-  const icon = state === 'success' ? '✅' : state === 'failure' ? '❌' : '⚠️';
-  const headline = state === 'success' ? 'All checks passed' : state === 'failure' ? 'Issues found' : 'Scan error';
+  const state = toCommitState(scanResult, mode);
+  const totalIssues = typeof (scanResult && scanResult.totalIssues) === 'number' ? scanResult.totalIssues : 0;
+  // Advisory mode with findings: surface them in the comment body, but
+  // ICON stays neutral and headline calls it out as advisory.
+  const advisoryWithFindings = mode !== 'strict' && totalIssues > 0 && state === 'success';
+  const icon = state === 'error' ? '⚠️' : advisoryWithFindings ? '🟡' : state === 'failure' ? '❌' : '✅';
+  const headline = state === 'error'
+    ? 'Scan error'
+    : advisoryWithFindings
+      ? `${totalIssues} finding${totalIssues === 1 ? '' : 's'} (advisory)`
+      : state === 'failure'
+        ? 'Issues found'
+        : 'All checks passed';
   const shortSha = sha ? sha.slice(0, 7) : '???????';
 
   const lines = [
@@ -182,7 +244,22 @@ function buildMarkdownComment(repository, sha, scanResult, targetUrl) {
   // who already set ANTHROPIC_API_KEY have nothing to do — their auto-fix
   // job runs server-side and posts its own annotation; the website-side
   // callback can't see that state, so we keep the CTA short and honest.
-  if (toCommitState(scanResult) === 'failure' && !scanResult?.autoFixPrUrl) {
+  if (mode !== 'strict' && totalIssues > 0) {
+    lines.push('');
+    lines.push('<details><summary>Why is this not red?</summary>');
+    lines.push('');
+    lines.push('GateTest is in **advisory mode** for this repo (the soft-landing default for fresh installs). Findings are reported but the check stays green so a mature codebase can adopt the gate without spamming every PR on day one.');
+    lines.push('');
+    lines.push('When you\'re ready for the gate to block on error-severity findings, edit `.gatetest.json`:');
+    lines.push('');
+    lines.push('```json');
+    lines.push('{ "mode": "strict" }');
+    lines.push('```');
+    lines.push('');
+    lines.push('</details>');
+  }
+
+  if (toCommitState(scanResult, mode) === 'failure' && !scanResult?.autoFixPrUrl) {
     lines.push('');
     lines.push('<details><summary>Want these fixed automatically?</summary>');
     lines.push('');
@@ -381,8 +458,13 @@ async function sendGithubCallback(opts) {
   const baseUrl = env.NEXT_PUBLIC_BASE_URL || 'https://gatetest.ai';
   const targetUrl = `${baseUrl}/scan/status`;
 
-  const state = toCommitState(scanResult);
-  const description = buildDescription(scanResult);
+  // Read repo's gate mode. Fresh installs default to 'advisory' so a
+  // mature codebase isn't spammed red on install day. Customer opts in
+  // to 'strict' via .gatetest.json when ready.
+  const mode = await fetchRepoMode(owner, repo, token, doFetch);
+
+  const state = toCommitState(scanResult, mode);
+  const description = buildDescription(scanResult, mode);
 
   const statusResult = await postCommitStatus({
     owner, repo, sha, state, description, targetUrl, token, fetchImpl: doFetch,
@@ -390,7 +472,7 @@ async function sendGithubCallback(opts) {
 
   let commentResult = { ok: false, reason: 'no-pr' };
   if (pullRequestNumber && typeof pullRequestNumber === 'number') {
-    const body = buildMarkdownComment(repository, sha, scanResult, targetUrl);
+    const body = buildMarkdownComment(repository, sha, scanResult, targetUrl, mode);
     commentResult = await postPrComment({
       owner, repo, prNumber: pullRequestNumber, body, token, fetchImpl: doFetch,
     });
@@ -410,6 +492,7 @@ module.exports = {
   buildDescription,
   buildMarkdownComment,
   linkifyFinding,
+  fetchRepoMode,
   sendGithubCallback,
   postPrComment,
   GATETEST_PR_COMMENT_MARKER,

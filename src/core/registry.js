@@ -96,6 +96,7 @@ const BUILT_IN_MODULES = {
   authBypass: '../modules/auth-bypass.js',
   // P2 — code quality (AI-specific)
   aiHallucination: '../modules/ai-hallucination.js',
+  claudeCompliance: '../modules/claude-compliance.js',
   monorepoConstraints: '../modules/monorepo-constraints.js',
   zodSchemaPresence: '../modules/zod-schema.js',
   bundleSize: '../modules/bundle-size.js',
