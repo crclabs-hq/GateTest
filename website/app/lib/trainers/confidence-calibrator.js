@@ -199,7 +199,7 @@ function renderMarkdown(report) {
 async function main() {
   const report = await calibrate();
   // eslint-disable-next-line no-console
-  console.log(renderMarkdown(report));
+  console.log(renderMarkdown(report)); // code-quality-ok — CLI trainer prints markdown report to stdout
   const outDir = path.join(os.homedir(), '.gatetest', 'trainers');
   try {
     fs.mkdirSync(outDir, { recursive: true });

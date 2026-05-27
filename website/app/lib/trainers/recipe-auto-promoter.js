@@ -423,7 +423,7 @@ function renderMarkdown(report) {
 async function main() {
   const result = await autoPromote();
   // eslint-disable-next-line no-console
-  console.log(renderMarkdown(result));
+  console.log(renderMarkdown(result)); // code-quality-ok — CLI trainer prints markdown report to stdout
   const outDir = path.join(os.homedir(), '.gatetest', 'trainers');
   try {
     fs.mkdirSync(outDir, { recursive: true });

@@ -1281,7 +1281,7 @@ test('openFixPr: returns pr-failed when GitHub rejects the POST /pulls with non-
     runUrl: 'http://example/run/900',
     logExcerpt: 'log',
     attempt: 1,
-    model: 'claude-sonnet-4-5',
+    model: 'claude-opus-4-7',
     baseRef: 'main',
     git: () => ({ ok: true, stdout: '', stderr: '' }),
     transport,
@@ -1302,7 +1302,7 @@ test('openFixPr: returns push-failed with stderr when git push fails', async () 
     runUrl: 'http://example/run/901',
     logExcerpt: 'log',
     attempt: 1,
-    model: 'claude-sonnet-4-5',
+    model: 'claude-opus-4-7',
     baseRef: 'main',
     git: (args) => {
       if (args[0] === 'push') {

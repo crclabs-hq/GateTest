@@ -73,7 +73,7 @@ async function ensureSchema(): Promise<void> {
         user_agent TEXT
       )`;
       await sql`CREATE INDEX IF NOT EXISTS admin_auth_audit_ts_idx ON admin_auth_audit(ts DESC)`;
-    } catch (err) {
+    } catch (err) { // error-ok — log-and-continue is intentional; failure here must not block the caller
       // Schema failures are not fatal — the helpers degrade.
       // eslint-disable-next-line no-console
       console.warn("[admin-lockout] schema init failed (DB unavailable?):", (err as Error)?.message);
@@ -218,7 +218,7 @@ export async function recordSuccess(ip: string, userAgent: string | null): Promi
       INSERT INTO admin_auth_audit (ip, result, user_agent)
       VALUES (${ip}, 'success', ${userAgent})
     `;
-  } catch (err) {
+  } catch (err) { // error-ok — log-and-continue is intentional; failure here must not block the caller
     // eslint-disable-next-line no-console
     console.warn("[admin-lockout] recordSuccess failed:", (err as Error)?.message);
   }
@@ -237,7 +237,7 @@ export async function recordLockedRejection(ip: string, userAgent: string | null
       INSERT INTO admin_auth_audit (ip, result, user_agent)
       VALUES (${ip}, 'locked', ${userAgent})
     `;
-  } catch (err) {
+  } catch (err) { // error-ok — log-and-continue is intentional; failure here must not block the caller
     // eslint-disable-next-line no-console
     console.warn("[admin-lockout] recordLockedRejection failed:", (err as Error)?.message);
   }
