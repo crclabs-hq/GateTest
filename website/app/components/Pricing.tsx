@@ -309,6 +309,51 @@ export default function Pricing() {
           </div>
         </div>
 
+        {/* Pen Test — coming soon. Engine is built (live SQL injection, XSS,
+            path traversal, auth bypass, IDOR); customer-facing launch
+            pending lawyer-drafted ToS / RoE / cyber insurance / DNS-TXT
+            ownership verification flow. Listing here as "coming soon" gives
+            us a teaser without taking money for a service that doesn't have
+            the legal cover yet. */}
+        <div className="max-w-3xl mx-auto mb-6">
+          <div className="rounded-2xl border-2 border-dashed border-rose-500/30 bg-gradient-to-br from-rose-500/[0.04] to-transparent p-6 sm:p-8 opacity-90">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold text-rose-600 uppercase tracking-wider">
+                    Active Testing
+                  </span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/30">
+                    Coming soon
+                  </span>
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-1">
+                  Pen Test &middot; live exploit probes &middot; $999
+                </h3>
+                <p className="text-sm text-muted">
+                  Everything in Nuclear, PLUS live active probing of your URL with industry-standard payload classes — SQL injection (error/boolean/timing), reflected XSS, path traversal, IDOR, auth-bypass headers, open redirect, CSRF. Signed Rules of Engagement, DNS-TXT ownership verification, full audit trail. Most of the value of a $5,000 human pen test for $999.
+                </p>
+              </div>
+              <div className="w-full sm:w-auto sm:max-w-md flex-1">
+                <ul className="space-y-1.5 mb-4 text-sm text-muted">
+                  <li>· Live payload probes (non-destructive)</li>
+                  <li>· DNS-TXT domain-ownership verification</li>
+                  <li>· Signed Rules of Engagement</li>
+                  <li>· Per-host rate limiting (don&apos;t take down your prod)</li>
+                  <li>· Cryptographic audit log of every probe</li>
+                </ul>
+                <button
+                  type="button"
+                  disabled
+                  className="btn-secondary block w-full text-center py-3 px-5 text-sm font-semibold opacity-60 cursor-not-allowed"
+                >
+                  Notify me when live
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Continuous subscription — separate card, different commercial shape */}
         <div className="max-w-3xl mx-auto mb-12">
           <div className="rounded-2xl border-2 border-dashed border-accent/30 bg-gradient-to-br from-accent/[0.04] to-transparent p-6 sm:p-8 opacity-90">
