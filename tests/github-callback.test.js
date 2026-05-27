@@ -16,6 +16,7 @@ const {
   buildDescription,
   buildMarkdownComment,
   linkifyFinding,
+  fetchRepoMode,
   sendGithubCallback,
 } = require(path.resolve(__dirname, '..', 'website', 'app', 'lib', 'github-callback.js'));
 
@@ -46,6 +47,14 @@ function makeFetch(statusCode = 201, body = {}) {
   return impl;
 }
 
+// Returns the parsed JSON body of the commit-status POST call, skipping
+// the contents/.gatetest.json mode-fetch that fires first.
+function statusBody(doFetch) {
+  const statusCall = doFetch.calls.find((c) => c.url.includes('/statuses/'));
+  if (!statusCall) throw new Error('no /statuses/ call found in fetch log');
+  return JSON.parse(statusCall.init.body);
+}
+
 // ---------------------------------------------------------------------------
 // resolveGitHubToken
 // ---------------------------------------------------------------------------
@@ -74,32 +83,47 @@ describe('resolveGitHubToken', () => {
 // ---------------------------------------------------------------------------
 
 describe('toCommitState', () => {
-  it('returns success for a clean scan', () => {
+  it('returns success for a clean scan in default (advisory) mode', () => {
     assert.strictEqual(toCommitState(makeScanResult()), 'success');
   });
 
-  it('returns failure when a module has error-severity checks', () => {
+  it('returns success in advisory mode even when errors are present', () => {
+    // Advisory mode never blocks the PR — the soft-landing default
+    // for fresh installs. Findings still surface in the comment body.
     const result = makeScanResult({
       totalIssues: 2,
       modules: [
         { name: 'lint', status: 'failed', issues: 2, checks: [{ severity: 'error' }], details: [] },
       ],
     });
-    assert.strictEqual(toCommitState(result), 'failure');
+    assert.strictEqual(toCommitState(result), 'success');
+    assert.strictEqual(toCommitState(result, 'advisory'), 'success');
   });
 
-  it('returns success when issues are warnings only', () => {
+  it('returns failure in STRICT mode when a module has error-severity checks', () => {
+    const result = makeScanResult({
+      totalIssues: 2,
+      modules: [
+        { name: 'lint', status: 'failed', issues: 2, checks: [{ severity: 'error' }], details: [] },
+      ],
+    });
+    assert.strictEqual(toCommitState(result, 'strict'), 'failure');
+  });
+
+  it('returns success in strict mode when issues are warnings only', () => {
     const result = makeScanResult({
       totalIssues: 1,
       modules: [
         { name: 'lint', status: 'passed', issues: 1, checks: [{ severity: 'warning' }], details: [] },
       ],
     });
-    assert.strictEqual(toCommitState(result), 'success');
+    assert.strictEqual(toCommitState(result, 'strict'), 'success');
   });
 
-  it('returns error for a crashed scan', () => {
+  it('returns error for a crashed scan regardless of mode', () => {
     assert.strictEqual(toCommitState({ status: 'failed', error: 'timeout' }), 'error');
+    assert.strictEqual(toCommitState({ status: 'failed', error: 'timeout' }, 'strict'), 'error');
+    assert.strictEqual(toCommitState({ status: 'failed', error: 'timeout' }, 'advisory'), 'error');
   });
 
   it('returns error for null', () => {
@@ -122,6 +146,16 @@ describe('buildDescription', () => {
     const desc = buildDescription(makeScanResult({ totalIssues: 5, modules: Array(3).fill({ name: 'x', issues: 1, checks: [], details: [], status: 'failed' }) }));
     assert.ok(desc.includes('5 issues'), `expected "5 issues" in: ${desc}`);
     assert.ok(desc.includes('3 modules'), `expected "3 modules" in: ${desc}`);
+  });
+
+  it('appends "advisory mode" suffix in default mode', () => {
+    const desc = buildDescription(makeScanResult({ totalIssues: 5, modules: [{ name: 'x', issues: 5, checks: [], details: [], status: 'failed' }] }));
+    assert.ok(desc.includes('advisory'), `expected "advisory" in: ${desc}`);
+  });
+
+  it('does NOT append advisory suffix in strict mode', () => {
+    const desc = buildDescription(makeScanResult({ totalIssues: 5, modules: [{ name: 'x', issues: 5, checks: [], details: [], status: 'failed' }] }), 'strict');
+    assert.ok(!desc.includes('advisory'), `did not expect "advisory" in: ${desc}`);
   });
 
   it('never exceeds 140 chars', () => {
@@ -174,7 +208,7 @@ describe('buildMarkdownComment', () => {
     assert.ok(md.includes('scan timeout'), `expected error message`);
   });
 
-  it('shows auto-fix CTA on gate failure when no autoFixPrUrl present', () => {
+  it('shows auto-fix CTA on gate failure in STRICT mode', () => {
     const result = makeScanResult({
       totalIssues: 1,
       modules: [{
@@ -185,7 +219,9 @@ describe('buildMarkdownComment', () => {
         details: ['issue'],
       }],
     });
-    const md = buildMarkdownComment('o/r', 'a'.repeat(40), result, null);
+    // CTA appears only when toCommitState === 'failure'; in advisory the
+    // state stays 'success' so we ask explicitly for strict mode here.
+    const md = buildMarkdownComment('o/r', 'a'.repeat(40), result, null, 'strict');
     assert.ok(md.includes('Want these fixed automatically?'), 'CTA appears on failure');
     assert.ok(md.includes('ANTHROPIC_API_KEY'), 'CTA names the secret');
     assert.ok(md.includes('console.anthropic.com'), 'CTA links to Anthropic');
@@ -231,6 +267,103 @@ describe('buildMarkdownComment', () => {
     const expectedUrl = `https://github.com/owner/repo/blob/${sha}/src/foo.js#L42`;
     assert.ok(md.includes(expectedUrl), `expected blob URL in markdown, got:\n${md}`);
     assert.ok(md.includes('[`src/foo.js:42`]'), `expected markdown link label`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildMarkdownComment — advisory-mode signals
+// ---------------------------------------------------------------------------
+
+describe('buildMarkdownComment — advisory mode', () => {
+  function makeResultWithIssues() {
+    return {
+      status: 'complete',
+      totalIssues: 3,
+      duration: 1200,
+      modules: [
+        { name: 'lint', status: 'failed', issues: 3, checks: [{ severity: 'error' }], details: ['oops'] },
+      ],
+    };
+  }
+
+  it('uses neutral 🟡 icon and advisory headline when findings exist in advisory mode', () => {
+    const md = buildMarkdownComment('o/r', 'a'.repeat(40), makeResultWithIssues(), null, 'advisory');
+    assert.ok(md.includes('🟡'), `expected 🟡 icon in advisory-with-findings`);
+    assert.ok(md.includes('advisory'), `expected "advisory" in headline`);
+  });
+
+  it('renders an upgrade-to-strict note in advisory mode with findings', () => {
+    const md = buildMarkdownComment('o/r', 'a'.repeat(40), makeResultWithIssues(), null, 'advisory');
+    assert.ok(md.includes('.gatetest.json'), `expected pointer to .gatetest.json`);
+    assert.ok(md.includes('"mode": "strict"'), `expected strict-mode upgrade snippet`);
+  });
+
+  it('uses ❌ icon and "Issues found" headline in STRICT mode with errors', () => {
+    const md = buildMarkdownComment('o/r', 'a'.repeat(40), makeResultWithIssues(), null, 'strict');
+    assert.ok(md.includes('❌'), `expected ❌ icon in strict-with-errors`);
+    assert.ok(md.includes('Issues found'), `expected "Issues found" headline`);
+  });
+
+  it('does NOT render the advisory note in strict mode', () => {
+    const md = buildMarkdownComment('o/r', 'a'.repeat(40), makeResultWithIssues(), null, 'strict');
+    assert.ok(!md.includes('Why is this not red?'), `did not expect advisory upgrade note in strict mode`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fetchRepoMode — .gatetest.json reader (fail-open to advisory)
+// ---------------------------------------------------------------------------
+
+describe('fetchRepoMode', () => {
+  function makeContentsResponse(json) {
+    const content = Buffer.from(JSON.stringify(json), 'utf-8').toString('base64');
+    return {
+      ok: true,
+      async json() {
+        return { content, encoding: 'base64' };
+      },
+    };
+  }
+
+  it('returns "strict" when .gatetest.json declares strict', async () => {
+    const fake = async () => makeContentsResponse({ mode: 'strict' });
+    const mode = await fetchRepoMode('o', 'r', 't', fake);
+    assert.strictEqual(mode, 'strict');
+  });
+
+  it('returns "advisory" when .gatetest.json declares advisory', async () => {
+    const fake = async () => makeContentsResponse({ mode: 'advisory' });
+    const mode = await fetchRepoMode('o', 'r', 't', fake);
+    assert.strictEqual(mode, 'advisory');
+  });
+
+  it('returns "advisory" when .gatetest.json omits mode (default)', async () => {
+    const fake = async () => makeContentsResponse({ protected: true });
+    const mode = await fetchRepoMode('o', 'r', 't', fake);
+    assert.strictEqual(mode, 'advisory');
+  });
+
+  it('returns "advisory" when .gatetest.json is absent (404)', async () => {
+    const fake = async () => ({ ok: false, status: 404 });
+    const mode = await fetchRepoMode('o', 'r', 't', fake);
+    assert.strictEqual(mode, 'advisory');
+  });
+
+  it('returns "advisory" when fetch throws', async () => {
+    const fake = async () => { throw new Error('network fail'); };
+    const mode = await fetchRepoMode('o', 'r', 't', fake);
+    assert.strictEqual(mode, 'advisory');
+  });
+
+  it('returns "advisory" when content is malformed JSON', async () => {
+    const fake = async () => ({
+      ok: true,
+      async json() {
+        return { content: Buffer.from('{not json', 'utf-8').toString('base64'), encoding: 'base64' };
+      },
+    });
+    const mode = await fetchRepoMode('o', 'r', 't', fake);
+    assert.strictEqual(mode, 'advisory');
   });
 });
 
@@ -321,8 +454,10 @@ describe('sendGithubCallback — happy path (no PR)', () => {
     });
     assert.strictEqual(result.statusSent, true);
     assert.strictEqual(result.commentSent, false);
-    assert.strictEqual(doFetch.calls.length, 1, 'expected exactly one fetch call (status only)');
-    assert.ok(doFetch.calls[0].url.includes('/statuses/'), `expected status URL, got ${doFetch.calls[0].url}`);
+    // Two calls: fetchRepoMode (.gatetest.json) + postCommitStatus.
+    assert.strictEqual(doFetch.calls.length, 2, 'expected two fetch calls (mode-fetch + status)');
+    assert.ok(doFetch.calls.some((c) => c.url.includes('/contents/.gatetest.json')), 'expected mode-fetch call');
+    assert.ok(doFetch.calls.some((c) => c.url.includes('/statuses/')), 'expected status call');
   });
 });
 
@@ -339,9 +474,11 @@ describe('sendGithubCallback — happy path with PR', () => {
     });
     assert.strictEqual(result.statusSent, true);
     assert.strictEqual(result.commentSent, true);
-    assert.strictEqual(doFetch.calls.length, 2, 'expected two fetch calls (status + comment)');
-    assert.ok(doFetch.calls[0].url.includes('/statuses/'), `first call should be status`);
-    assert.ok(doFetch.calls[1].url.includes('/issues/42/comments'), `second call should be comment`);
+    // Three calls: mode-fetch + status + comment.
+    assert.strictEqual(doFetch.calls.length, 3, 'expected three fetch calls (mode-fetch + status + comment)');
+    assert.ok(doFetch.calls.some((c) => c.url.includes('/contents/.gatetest.json')), 'expected mode-fetch call');
+    assert.ok(doFetch.calls.some((c) => c.url.includes('/statuses/')), 'expected status call');
+    assert.ok(doFetch.calls.some((c) => c.url.includes('/issues/42/comments')), 'expected comment call');
   });
 
   it('uses Authorization Bearer header with the resolved token', async () => {
@@ -409,7 +546,7 @@ describe('sendGithubCallback — failure cases', () => {
       env: { GATETEST_GITHUB_TOKEN: 'ghp_test' },
       fetchImpl: doFetch,
     });
-    const body = JSON.parse(doFetch.calls[0].init.body);
+    const body = statusBody(doFetch);
     assert.strictEqual(body.state, 'error');
   });
 
@@ -422,11 +559,38 @@ describe('sendGithubCallback — failure cases', () => {
       env: { GATETEST_GITHUB_TOKEN: 'ghp_test' },
       fetchImpl: doFetch,
     });
-    const body = JSON.parse(doFetch.calls[0].init.body);
+    const body = statusBody(doFetch);
     assert.strictEqual(body.state, 'success');
   });
 
-  it('maps scan with error-severity issues to "failure" commit state', async () => {
+  it('maps scan with error-severity issues to "failure" commit state in STRICT mode', async () => {
+    // Stub the contents fetch to return mode: "strict" so the callback
+    // enters strict-mode behaviour and turns errors into a failure check.
+    const strictContents = Buffer.from(JSON.stringify({ mode: 'strict' }), 'utf-8').toString('base64');
+    const calls = [];
+    const doFetch = async (url, init) => {
+      calls.push({ url, init });
+      if (url.includes('/contents/.gatetest.json')) {
+        return { ok: true, status: 200, json: async () => ({ content: strictContents, encoding: 'base64' }) };
+      }
+      return { ok: true, status: 201, json: async () => ({}) };
+    };
+    doFetch.calls = calls;
+    await sendGithubCallback({
+      repository: 'owner/repo',
+      sha: 'i'.repeat(40),
+      scanResult: makeScanResult({
+        totalIssues: 3,
+        modules: [{ name: 'lint', status: 'failed', issues: 3, checks: [{ severity: 'error' }], details: [] }],
+      }),
+      env: { GATETEST_GITHUB_TOKEN: 'ghp_test' },
+      fetchImpl: doFetch,
+    });
+    const body = statusBody(doFetch);
+    assert.strictEqual(body.state, 'failure');
+  });
+
+  it('maps scan with error-severity issues to "success" in ADVISORY mode (default)', async () => {
     const doFetch = makeFetch(201);
     await sendGithubCallback({
       repository: 'owner/repo',
@@ -438,8 +602,8 @@ describe('sendGithubCallback — failure cases', () => {
       env: { GATETEST_GITHUB_TOKEN: 'ghp_test' },
       fetchImpl: doFetch,
     });
-    const body = JSON.parse(doFetch.calls[0].init.body);
-    assert.strictEqual(body.state, 'failure');
+    const body = statusBody(doFetch);
+    assert.strictEqual(body.state, 'success', 'advisory default must NOT block on errors');
   });
 });
 
@@ -453,7 +617,7 @@ describe('sendGithubCallback — commit status payload', () => {
       env: { GATETEST_GITHUB_TOKEN: 'ghp_test' },
       fetchImpl: doFetch,
     });
-    const body = JSON.parse(doFetch.calls[0].init.body);
+    const body = statusBody(doFetch);
     assert.strictEqual(body.context, 'gatetest / scan');
   });
 
@@ -466,7 +630,7 @@ describe('sendGithubCallback — commit status payload', () => {
       env: { GATETEST_GITHUB_TOKEN: 'ghp_test', NEXT_PUBLIC_BASE_URL: 'https://gatetest.ai' },
       fetchImpl: doFetch,
     });
-    const body = JSON.parse(doFetch.calls[0].init.body);
+    const body = statusBody(doFetch);
     assert.ok(body.target_url, 'expected target_url in payload');
     assert.ok(body.target_url.startsWith('https://gatetest.ai'), `unexpected target_url: ${body.target_url}`);
   });
