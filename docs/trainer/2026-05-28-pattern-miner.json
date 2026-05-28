@@ -1,0 +1,158 @@
+{
+  "generatedAt": "2026-05-28T06:56:28.896Z",
+  "inputs": {
+    "sessionFixCount": 107,
+    "fixAttemptCount": 0
+  },
+  "topModulesByFixCount": [
+    {
+      "module": "ci",
+      "count": 14
+    },
+    {
+      "module": "(unattributed)",
+      "count": 9
+    },
+    {
+      "module": "types",
+      "count": 5
+    },
+    {
+      "module": "integrations",
+      "count": 4
+    },
+    {
+      "module": "gate",
+      "count": 4
+    },
+    {
+      "module": "ai-ci-fixer",
+      "count": 4
+    },
+    {
+      "module": "watchdog",
+      "count": 3
+    },
+    {
+      "module": "lint",
+      "count": 3
+    },
+    {
+      "module": "fix-engine",
+      "count": 3
+    },
+    {
+      "module": "fake-fix-detector",
+      "count": 2
+    }
+  ],
+  "topRuleKeysByAttempts": [],
+  "recurringSubjects": [],
+  "underTestedModules": [
+    {
+      "module": "(unattributed)",
+      "fixes": 9,
+      "tests": 3,
+      "testPerFix": 0.33
+    },
+    {
+      "module": "types",
+      "fixes": 5,
+      "tests": 0,
+      "testPerFix": 0
+    },
+    {
+      "module": "integrations",
+      "fixes": 4,
+      "tests": 0,
+      "testPerFix": 0
+    },
+    {
+      "module": "gate",
+      "fixes": 4,
+      "tests": 0,
+      "testPerFix": 0
+    },
+    {
+      "module": "watchdog",
+      "fixes": 3,
+      "tests": 0,
+      "testPerFix": 0
+    },
+    {
+      "module": "lint",
+      "fixes": 3,
+      "tests": 0,
+      "testPerFix": 0
+    }
+  ],
+  "layerStats": {
+    "layers": {
+      "ast": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "rule": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "recipe": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "claude": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "null": {
+        "attempts": 0,
+        "successes": 0
+      }
+    },
+    "total": 0,
+    "claudeShare": 0,
+    "deterministicShare": 0
+  },
+  "recommendations": [
+    {
+      "kind": "investigate-module",
+      "module": "ci",
+      "reason": "14 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "(unattributed)",
+      "reason": "9 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "types",
+      "reason": "5 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "(unattributed)",
+      "reason": "9 fixes / 3 tests added (0.33/fix) — lock down the pattern with a regression test"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "types",
+      "reason": "5 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "integrations",
+      "reason": "4 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "gate",
+      "reason": "4 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "watchdog",
+      "reason": "3 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    }
+  ]
+}
