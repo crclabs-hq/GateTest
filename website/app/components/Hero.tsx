@@ -78,7 +78,7 @@ export default function Hero() {
 
           {/* Unfair-advantage hook */}
           <p className="text-center text-xl sm:text-2xl text-white/65 max-w-3xl mx-auto mb-3 leading-snug fade-up font-medium">
-            102 checks, one gate, auto-fix PRs in 60 seconds.
+            104 checks, one gate, auto-fix PRs in 60 seconds.
           </p>
           <p className="text-center text-base sm:text-lg text-white/45 max-w-2xl mx-auto mb-3 leading-relaxed fade-up">
             We catch the bugs, security issues, and CI rot that crash your
