@@ -50,7 +50,7 @@ const faqItems = [
   },
   {
     q: "Can GateTest fix the issues it finds, like a PR suggestion?",
-    a: "GateTest goes further than suggestions. The AI-powered auto-fix mode (Scan + Fix, $199) creates an actual pull request with working code changes. SonarQube shows you the issue; GateTest writes the fix. The Nuclear tier ($399) adds Claude-driven diagnosis per finding, attack-chain correlation across findings, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing also ships via the GitHub Action with mutation: true — runs wherever your CI runs.",
+    a: "GateTest goes further than suggestions. The AI-powered auto-fix mode (Scan + Fix, $199) creates an actual pull request with working code changes. SonarQube shows you the issue; GateTest writes the fix. The Forensic Scan tier ($399) adds Claude-driven diagnosis per finding, attack-chain correlation across findings, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing also ships via the GitHub Action with mutation: true — runs wherever your CI runs.",
   },
 ];
 
@@ -204,7 +204,7 @@ export default function SonarQubePage() {
               },
               {
                 title: "Auto-fix PRs, not just reports",
-                body: "SonarQube tells you what's wrong and leaves you to fix it. At the Scan + Fix tier ($199) and Nuclear ($399), GateTest writes the fix and opens a pull request. You review, you merge. No debugging, no manual remediation, no guessing at the right fix.",
+                body: "SonarQube tells you what's wrong and leaves you to fix it. At the Scan + Fix tier ($199) and Forensic Scan ($399), GateTest writes the fix and opens a pull request. You review, you merge. No debugging, no manual remediation, no guessing at the right fix.",
               },
               {
                 title: "Zero server infrastructure",

@@ -74,7 +74,7 @@ const TIERS: Record<string, ScanTier> = {
   // all shipped. Stripe product already exists at $399 (Craig confirmed
   // via screenshot earlier this session).
   nuclear: {
-    name: "Nuclear",
+    name: "Forensic Scan",
     priceInCents: 39900,
     modules: "all-104+nuclear-stack",
     description:

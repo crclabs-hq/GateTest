@@ -9,7 +9,7 @@ export default function Cta() {
         </h2>
         <p className="text-lg text-muted mb-4 max-w-xl mx-auto">
           Point us at your repo. We scan 104 modules and deliver a detailed report.
-          On Scan + Fix ($199) and Nuclear ($399) we also open a fix PR.
+          On Scan + Fix ($199) and Forensic Scan ($399) we also open a fix PR.
           One-time payment per scan.
         </p>
         <p className="text-sm text-success mb-10">
