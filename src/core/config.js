@@ -567,6 +567,40 @@ const DEFAULT_CONFIG = {
     autoRollback: true,
     rollbackWindow: 900,  // seconds (15 minutes)
   },
+
+  // Incremental scan — used by --since <ref> / --pr to skip unchanged files.
+  // skipList: modules that must scan the whole tree (cross-file graph analysis
+  //   can't be scoped to a changed-file subset without producing false negatives).
+  // alwaysRunList: modules that must run even when no files in their scope changed
+  //   (e.g. secretRotation tracks git history; prSize measures the whole diff).
+  // sourceExtensions: file extensions that qualify as "source" for the diff filter;
+  //   non-listed extensions (images, binaries) are never flagged as "changed".
+  incremental: {
+    skipList: [
+      'importCycle',
+      'deadCode',
+      'crossFileTaint',
+      'openapiDrift',
+      'aiReview',
+      'agentic',
+      'architectureDrift',
+    ],
+    alwaysRunList: [
+      'secretRotation',
+      'prSize',
+      'prQuality',
+      'ciSecurity',
+      'secrets',
+    ],
+    sourceExtensions: [
+      '.js', '.jsx', '.mjs', '.cjs',
+      '.ts', '.tsx', '.mts', '.cts',
+      '.py', '.go', '.rs', '.java', '.rb', '.php', '.cs', '.kt', '.swift',
+      '.json', '.yaml', '.yml', '.toml', '.env', '.md', '.sh', '.bash',
+      '.tf', '.hcl', '.dockerfile', 'dockerfile',
+      '.sql', '.graphql',
+    ],
+  },
 };
 
 class GateTestConfig {

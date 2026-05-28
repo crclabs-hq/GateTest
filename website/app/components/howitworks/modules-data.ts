@@ -2,7 +2,7 @@
  * Module catalogue grouped by category for the /how-it-works page.
  *
  * Source of truth: `node bin/gatetest.js --list` against src/core/registry.js
- * at v1.42.0 (104 modules). Descriptions match the registered module
+ * at v1.43.0 (104 modules). Descriptions match the registered module
  * `description` field (kept short for card display).
  *
  * Examples are honest representative findings each module emits, drawn from
