@@ -12,7 +12,7 @@
 
 export default function BeforeAfterDemo() {
   return (
-    <section className="px-6 py-24 border-t border-white/5 bg-background relative overflow-hidden">
+    <section id="features" className="px-6 py-24 border-t border-white/5 bg-background relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-accent/[0.03] to-transparent pointer-events-none" />
 
       <div className="relative z-10 max-w-6xl mx-auto">

@@ -17,7 +17,7 @@ export default function Navbar() {
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
       scrolled
         ? "bg-white/92 backdrop-blur-xl border-b border-border shadow-sm"
-        : "bg-[#0a0a12]/40 backdrop-blur-md border-b border-white/10"
+        : "bg-[#14141d] border-b border-white/8"
     }`}>
       <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">

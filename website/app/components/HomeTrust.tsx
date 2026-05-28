@@ -41,6 +41,7 @@ const FRAMEWORKS = [
 export default function HomeTrust() {
   return (
     <section
+      id="integrations"
       aria-label="What we scan"
       className="py-16 px-6 border-t border-border bg-background-alt"
     >

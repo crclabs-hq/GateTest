@@ -34,7 +34,7 @@ const TILES: KillTile[] = [
 
 export default function HomeKills() {
   return (
-    <section id="kills" className="py-24 px-6 border-t border-border">
+    <section id="comparison" className="py-24 px-6 border-t border-border">
       <div className="mx-auto max-w-6xl">
         <div className="text-center mb-12">
           <span className="text-sm font-semibold text-accent uppercase tracking-wider">
