@@ -117,6 +117,27 @@ const RUNTIME_ENV_ALLOWLIST = new Set([
   // Windows OS variables — never app-controlled
   'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'WINDIR', 'SYSTEMROOT',
   'COMPUTERNAME', 'USERNAME', 'USERDOMAIN', 'PROCESSOR_ARCHITECTURE',
+  // Terminal — every shell sets this; never app-controlled.
+  'TERM', 'COLORTERM', 'TERM_PROGRAM', 'SHELL', 'EDITOR', 'VISUAL',
+  // Flask framework runtime vars — same role as NODE_ENV: framework
+  // reads them at boot. Never put in .env.example.
+  'FLASK_DEBUG', 'FLASK_ENV', 'FLASK_APP', 'FLASK_RUN_HOST',
+  'FLASK_RUN_PORT', 'FLASK_RUN_CERT', 'FLASK_RUN_KEY',
+  'FLASK_RUN_FROM_CLI', 'FLASK_SKIP_DOTENV',
+  // Django framework runtime vars
+  'DJANGO_SETTINGS_MODULE', 'DJANGO_ALLOW_ASYNC_UNSAFE',
+  // FastAPI / uvicorn / gunicorn runtime
+  'UVICORN_HOST', 'UVICORN_PORT', 'GUNICORN_CMD_ARGS',
+  // Python runtime
+  'PYTHONPATH', 'PYTHONSTARTUP', 'PYTHONDONTWRITEBYTECODE',
+  'PYTHONUNBUFFERED', 'PYTHONIOENCODING', 'PYTHONHASHSEED',
+  // Ruby / Rails runtime
+  'RAILS_ENV', 'RACK_ENV', 'BUNDLE_GEMFILE', 'BUNDLE_PATH',
+  // Go runtime
+  'GOPATH', 'GOROOT', 'GOPROXY', 'GOCACHE', 'GOMODCACHE',
+  // Node tooling
+  'NPM_CONFIG_LOGLEVEL', 'NPM_TOKEN', 'NODE_OPTIONS',
+  'NODE_PATH', 'NODE_TLS_REJECT_UNAUTHORIZED',
 ]);
 
 // Runtime-allowlist by PREFIX — covers ecosystems where the runtime

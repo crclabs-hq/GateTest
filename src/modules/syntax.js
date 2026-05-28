@@ -190,11 +190,15 @@ class SyntaxModule extends BaseModule {
     // Basic TOML validation
     const lines = content.split('\n');
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const raw = lines[i];
+      const line = raw.trim();
       if (!line || line.startsWith('#')) continue;
 
-      // Check for unclosed brackets in table headers
-      if (line.startsWith('[') && !line.includes(']')) {
+      // Check for unclosed brackets in TABLE HEADERS only. Table headers
+      // by spec start at column 0 (no leading whitespace). Indented `[`
+      // is an array element inside a multi-line array (e.g.
+      // `commands = [\n    [ "uv", "pip", ... ],\n]`) — not a table.
+      if (raw.startsWith('[') && !line.includes(']')) {
         result.addCheck(`toml:bracket:${relPath}:${i + 1}`, false, {
           file: relPath,
           line: i + 1,

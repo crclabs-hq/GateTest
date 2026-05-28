@@ -83,6 +83,36 @@ const PROMISE_METHOD_HINTS = [
   'write', 'flush', 'sync', 'upload', 'download',
 ];
 
+// Receivers whose `.send()` / `.delete()` / `.write()` / `.update()` etc.
+// are SYNC by convention and would produce a flood of false positives if
+// flagged. Express response object (`res.send()`), Express router
+// (`app.delete('/foo', ...)`), Koa context (`ctx.body = ...`), Fastify
+// reply (`reply.send()`), Hapi response toolkit (`h.response()`), Node
+// stream (`stream.write()` returns boolean), Buffer/string builders.
+//
+// When the receiver chain matches one of these names (top-level), skip
+// the floating-promise check entirely. Better to miss a genuine smell on
+// `res.send()` than to produce a 200-finding noise wall on every
+// Express app.
+const SYNC_RECEIVER_NAMES = new Set([
+  'res', 'response', 'reply', 'ctx', 'context', 'h',
+  'app', 'router', 'route', 'server', 'next',
+  'console', 'logger', 'log',
+  'stream', 'socket', 'ws', 'process', 'stdout', 'stderr', 'stdin',
+  'buffer', 'buf',
+  'xhr', 'xmlhttprequest',
+  // `this` / `self` are typically the route handler / response object in
+  // Express-style code. Better to miss a real DB-call-on-this than flood
+  // every middleware with FPs.
+  'this', 'self',
+]);
+
+function receiverTopLevel(receiverExpr) {
+  // For `a.b.c` return `a`. For `this.foo` return `this`.
+  const dot = receiverExpr.indexOf('.');
+  return dot === -1 ? receiverExpr : receiverExpr.slice(0, dot);
+}
+
 // String-aware "inside a string literal" guard (copied in spirit from
 // flaky-tests.js — kept local to avoid cross-module coupling).
 function isInString(line, idx) {
@@ -274,7 +304,13 @@ class ErrorSwallowModule extends BaseModule {
         const flt = line.match(/^(\s*)([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.([A-Za-z_$][\w$]*)\s*\(/);
         if (flt && !isInString(line, flt.index) && !this._isSuppressed(lines, i)) {
           const indent = flt[1];
+          const receiver = flt[2];
           const method = flt[3];
+          const topLevel = receiverTopLevel(receiver).toLowerCase();
+          // Skip well-known sync receivers (res.send, app.delete, ctx.body,
+          // stream.write, logger.send, etc.) — these would produce a flood
+          // of false positives on any Express / Koa / Fastify / Hapi app.
+          if (SYNC_RECEIVER_NAMES.has(topLevel)) continue;
           if (PROMISE_METHOD_HINTS.includes(method.toLowerCase())) {
             // Prefix check — is the statement preceded by await/return/void/= ?
             const before = line.slice(0, flt.index + indent.length);
