@@ -519,7 +519,7 @@ export default function ScanStatus() {
               <div className="p-5 rounded-xl border border-border bg-white">
                 <h2 className="font-bold text-foreground mb-2">Or let GateTest fix it for you</h2>
                 <p className="text-sm text-muted mb-4">
-                  Skip the copy-paste — Claude reads each finding, generates the fix, re-validates against the scanner, writes a regression test, and opens a pull request on your repo. Included with your {params.tier === "nuclear" ? "Nuclear" : "Scan + Fix"} tier.
+                  Skip the copy-paste — Claude reads each finding, generates the fix, re-validates against the scanner, writes a regression test, and opens a pull request on your repo. Included with your {params.tier === "nuclear" ? "Forensic Scan" : "Scan + Fix"} tier.
                 </p>
 
                 {!fixResult && !fixing && (
@@ -747,7 +747,7 @@ export default function ScanStatus() {
                       className="group p-5 rounded-lg border border-border bg-white hover:border-accent/40 hover:shadow-md transition-all block"
                     >
                       <p className="text-xs uppercase tracking-wider text-muted/70 font-semibold mb-1">For CTOs</p>
-                      <p className="font-bold text-foreground mb-1 text-base">Nuclear &mdash; $399</p>
+                      <p className="font-bold text-foreground mb-1 text-base">Forensic Scan &mdash; $399</p>
                       <p className="text-xs text-muted leading-relaxed">Scan + Fix + per-finding Claude diagnosis + attack-chain correlation + board-ready CISO executive summary.</p>
                     </Link>
                   </div>

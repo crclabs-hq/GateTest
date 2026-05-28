@@ -162,7 +162,7 @@ git add -A && git commit -m "test: trigger gate" && git push`}</CodeBlock>
                 back).
               </Bullet>
               <Bullet>
-                On Scan + Fix and Nuclear tiers: a pair-review comment from a
+                On Scan + Fix and Forensic Scan tiers: a pair-review comment from a
                 second Claude scoring the fix on 4 axes.
               </Bullet>
             </ul>
