@@ -299,6 +299,6 @@ export async function GET() {
     deadline: `${HARD_DEADLINE_MS / 1000}s hard timeout`,
     modulesRun: ["syntax", "lint", "secrets", "codeQuality"],
     tier: "free",
-    upgradePath: ["quick ($29)", "full ($99)", "scan_fix ($199)", "nuclear ($399)"],
+    upgradePath: ["quick ($29)", "full ($99)", "scan_fix ($199)", "forensic ($399)"],
   });
 }

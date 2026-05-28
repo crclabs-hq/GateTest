@@ -72,13 +72,13 @@ const scanPlans = [
   },
   {
     id: "nuclear",
-    name: "Nuclear",
+    name: "Forensic Scan",
     price: "$399",
     period: "per scan",
     badge: "Maximum depth",
     description:
       "The deepest scan we offer. Real Claude diagnosis, attack-chain correlation, board-ready CISO report, executive summary.",
-    modules: "All 104 + nuclear stack",
+    modules: "All 104 + forensic stack",
     features: [
       "Everything in Scan + Fix",
       "Real Claude diagnosis on every finding — no templated snippets, every fix reasoned from your specific evidence",
@@ -88,7 +88,7 @@ const scanPlans = [
       "Best margin if you're shipping money or PII — the $399 hits all the high-stakes bug classes",
       "Also available via the GitHub Action: mutation testing (mutates your source against your tests) and chaos / fuzz pass (adversarial inputs against HTTP routes, CLI args, file parsers) — runs wherever your CI runs, set mutation: true / chaos: true on the action",
     ],
-    cta: "Run Nuclear",
+    cta: "Run Forensic Scan",
     highlight: false,
   },
 ];
@@ -172,7 +172,7 @@ export default function Pricing() {
           </h2>
           <p className="text-muted text-lg max-w-2xl mx-auto">
             One-time payment per scan via Stripe. We run the scan and deliver the report.
-            On Scan + Fix and Nuclear tiers Claude also opens the fix PR. No subscription,
+            On Scan + Fix and Forensic Scan tiers Claude also opens the fix PR. No subscription,
             no auto-renew.
           </p>
         </div>
@@ -263,7 +263,7 @@ export default function Pricing() {
 
         {/* Enterprise — sales-led anchor tile. Different commercial shape
             (custom pricing, dedicated infra, SLA), positioned ABOVE the
-            scan tiers' ceiling so $399 Nuclear stops feeling like the
+            scan tiers' ceiling so $399 Forensic Scan stops feeling like the
             maximum. No checkout flow — mailto contact for qualification. */}
         <div className="max-w-3xl mx-auto mb-6">
           <div className="rounded-2xl border-2 border-dashed border-foreground/20 bg-gradient-to-br from-foreground/[0.03] to-transparent p-6 sm:p-8">
@@ -281,7 +281,7 @@ export default function Pricing() {
                   Self-hosted scanner &middot; private infra &middot; SLA
                 </h3>
                 <p className="text-sm text-muted">
-                  Everything in Nuclear, run inside your network or VPC. Dedicated account manager, signed SLA, custom modules, custom suppression policies, audit log export. For regulated industries (fintech, healthcare, defence) and orgs with strict data-residency rules.
+                  Everything in Forensic Scan, run inside your network or VPC. Dedicated account manager, signed SLA, custom modules, custom suppression policies, audit log export. For regulated industries (fintech, healthcare, defence) and orgs with strict data-residency rules.
                 </p>
               </div>
               <div className="w-full sm:w-auto sm:max-w-md flex-1">
@@ -331,7 +331,7 @@ export default function Pricing() {
                   Pen Test &middot; live exploit probes &middot; $999
                 </h3>
                 <p className="text-sm text-muted">
-                  Everything in Nuclear, PLUS live active probing of your URL with industry-standard payload classes — SQL injection (error/boolean/timing), reflected XSS, path traversal, IDOR, auth-bypass headers, open redirect, CSRF. Signed Rules of Engagement, DNS-TXT ownership verification, full audit trail. Most of the value of a $5,000 human pen test for $999.
+                  Everything in Forensic Scan, PLUS live active probing of your URL with industry-standard payload classes — SQL injection (error/boolean/timing), reflected XSS, path traversal, IDOR, auth-bypass headers, open redirect, CSRF. Signed Rules of Engagement, DNS-TXT ownership verification, full audit trail. Most of the value of a $5,000 human pen test for $999.
                 </p>
               </div>
               <div className="w-full sm:w-auto sm:max-w-md flex-1">
@@ -412,7 +412,7 @@ export default function Pricing() {
         {/* Bottom trust line */}
         <p className="text-center text-xs text-muted mt-10">
           All scans include a detailed report. The AI fix PR is included on the
-          Scan + Fix ($199) and Nuclear ($399) tiers. Per-scan payment via Stripe.
+          Scan + Fix ($199) and Forensic Scan ($399) tiers. Per-scan payment via Stripe.
           Once a scan delivers, the service is rendered &mdash; refunds at our
           discretion for non-delivery only.
         </p>

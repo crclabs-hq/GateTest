@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 const faqItems = [
   {
     q: "What does GateTest do that DeepSource doesn't?",
-    a: "GateTest's key advantages over DeepSource: AI-powered code review using Claude (DeepSource uses static analysis, not generative AI), AI auto-fix PRs at the Scan + Fix tier ($199) and Nuclear ($399) that write actual code changes (DeepSource shows issues, not fixes), pay-per-scan pricing (DeepSource is subscription per-seat), coverage of performance/visual regression/chaos testing/mutation testing (DeepSource is code quality and security only), and prompt/LLM safety scanning for AI apps.",
+    a: "GateTest's key advantages over DeepSource: AI-powered code review using Claude (DeepSource uses static analysis, not generative AI), AI auto-fix PRs at the Scan + Fix tier ($199) and Forensic Scan ($399) that write actual code changes (DeepSource shows issues, not fixes), pay-per-scan pricing (DeepSource is subscription per-seat), coverage of performance/visual regression/chaos testing/mutation testing (DeepSource is code quality and security only), and prompt/LLM safety scanning for AI apps.",
   },
   {
     q: "DeepSource has a free tier. Does GateTest?",
@@ -38,7 +38,7 @@ const faqItems = [
   },
   {
     q: "Does GateTest's AI fix code like DeepSource's Autofix?",
-    a: "GateTest's Scan + Fix tier ($199) goes further than DeepSource Autofix. DeepSource Autofix generates fixes for a specific subset of analysis issues. GateTest uses Claude to read your entire codebase context and write fixes for any issue it finds — security misconfigurations, logic bugs, N+1 queries, accessibility violations — and opens a pull request with complete, reviewable code. The Nuclear tier ($399) adds attack-chain correlation across findings, a board-ready CISO report, and an executive summary report you can hand to a CTO. Mutation testing on your existing tests also ships via the GitHub Action with mutation: true — runs wherever your CI runs.",
+    a: "GateTest's Scan + Fix tier ($199) goes further than DeepSource Autofix. DeepSource Autofix generates fixes for a specific subset of analysis issues. GateTest uses Claude to read your entire codebase context and write fixes for any issue it finds — security misconfigurations, logic bugs, N+1 queries, accessibility violations — and opens a pull request with complete, reviewable code. The Forensic Scan tier ($399) adds attack-chain correlation across findings, a board-ready CISO report, and an executive summary report you can hand to a CTO. Mutation testing on your existing tests also ships via the GitHub Action with mutation: true — runs wherever your CI runs.",
   },
   {
     q: "How do scan speeds compare?",
@@ -129,7 +129,7 @@ export default function DeepSourcePage() {
           </h1>
           <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
             DeepSource is a solid static analysis tool. GateTest is an AI-native quality platform:
-            104 modules, generative AI code review using Claude, AI auto-fix PRs that write real code at the Scan + Fix tier ($199) and Nuclear ($399),
+            104 modules, generative AI code review using Claude, AI auto-fix PRs that write real code at the Scan + Fix tier ($199) and Forensic Scan ($399),
             and per-scan pricing with no per-seat subscriptions.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mt-8">
@@ -215,7 +215,7 @@ export default function DeepSourcePage() {
             {[
               {
                 title: "Fixes, not just findings",
-                body: "DeepSource Autofix covers a subset of its own analysis rules. At the Scan + Fix tier ($199) and Nuclear ($399), GateTest's AI auto-fix covers everything it finds: security misconfigs, N+1 queries, accessibility violations, code quality issues, TypeScript strictness regressions — any issue GateTest detects, it can write a fix for and open as a PR.",
+                body: "DeepSource Autofix covers a subset of its own analysis rules. At the Scan + Fix tier ($199) and Forensic Scan ($399), GateTest's AI auto-fix covers everything it finds: security misconfigs, N+1 queries, accessibility violations, code quality issues, TypeScript strictness regressions — any issue GateTest detects, it can write a fix for and open as a PR.",
               },
               {
                 title: "Pay for what you use",
@@ -265,7 +265,7 @@ export default function DeepSourcePage() {
             Find issues. Fix issues. Ship faster.
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
-            104 modules and AI-powered review on every paid tier. AI auto-fix PRs at Scan + Fix ($199) and Nuclear ($399). One-time payment per scan.
+            104 modules and AI-powered review on every paid tier. AI auto-fix PRs at Scan + Fix ($199) and Forensic Scan ($399). One-time payment per scan.
           </p>
           <Link
             href="/"

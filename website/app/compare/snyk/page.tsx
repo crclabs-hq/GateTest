@@ -46,7 +46,7 @@ const faqItems = [
   },
   {
     q: "Can GateTest fix vulnerabilities automatically?",
-    a: "Yes. The Scan + Fix tier ($199) uses AI to create pull requests with working code changes that address the issues found. Snyk can suggest fix PRs for dependency upgrades in its paid tiers; GateTest auto-fixes source code vulnerabilities — SSRF guards, TLS config fixes, cookie security flags, and more. The Nuclear tier ($399) adds Claude-driven diagnosis on every finding, cross-finding attack-chain correlation, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass also ship via the GitHub Action (mutation: true / chaos: true) — runs wherever your CI runs.",
+    a: "Yes. The Scan + Fix tier ($199) uses AI to create pull requests with working code changes that address the issues found. Snyk can suggest fix PRs for dependency upgrades in its paid tiers; GateTest auto-fixes source code vulnerabilities — SSRF guards, TLS config fixes, cookie security flags, and more. The Forensic Scan tier ($399) adds Claude-driven diagnosis on every finding, cross-finding attack-chain correlation, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass also ship via the GitHub Action (mutation: true / chaos: true) — runs wherever your CI runs.",
   },
   {
     q: "Does GateTest work with private repos?",
@@ -236,7 +236,7 @@ export default function SnykPage() {
               },
               {
                 title: "Auto-fix for source code bugs",
-                body: "Snyk can open a PR to bump a dependency version. At the Scan + Fix tier ($199) and Nuclear ($399), GateTest writes a fix for the source code bug — adds the SSRF validation guard, removes the TLS bypass, restructures the N+1 query into a batched lookup — and opens the PR for your review.",
+                body: "Snyk can open a PR to bump a dependency version. At the Scan + Fix tier ($199) and Forensic Scan ($399), GateTest writes a fix for the source code bug — adds the SSRF validation guard, removes the TLS bypass, restructures the N+1 query into a batched lookup — and opens the PR for your review.",
               },
               {
                 title: "One bill, 104 modules",

@@ -437,7 +437,7 @@ function UrlScanInner() {
               <p className="text-white/50 text-sm mb-4">
                 If you have a GitHub repo, GateTest can scan 104 modules — security
                 vulnerabilities, supply-chain risks, dependency issues, and more.
-                On Scan + Fix ($199) and Nuclear ($399) we also open a fix PR automatically.
+                On Scan + Fix ($199) and Forensic Scan ($399) we also open a fix PR automatically.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
