@@ -23,8 +23,24 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { recordDismissal, clientIp, VALID_REASONS } from "@/app/lib/finding-feedback-store";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
+  createLimiter: (opts: { windowMs: number; maxRequests: number }) => {
+    guard: (req: NextRequest) => Promise<{ allowed: boolean; status?: number; body?: Record<string, unknown>; headers?: Record<string, string> }>;
+  };
+  PRESETS: Record<string, { windowMs: number; maxRequests: number }>;
+};
+
+const _dismissLimiter = createLimiter(PRESETS.dismiss);
 
 export async function POST(req: NextRequest) {
+  const _rl = await _dismissLimiter.guard(req);
+  if (!_rl.allowed) {
+    return NextResponse.json(_rl.body, {
+      status: _rl.status ?? 429,
+      headers: _rl.headers as Record<string, string>,
+    });
+  }
   let body: {
     scanId?: string;
     rule?: string;

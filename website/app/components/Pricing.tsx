@@ -78,7 +78,7 @@ const scanPlans = [
     badge: "Maximum depth",
     description:
       "The deepest scan we offer. Real Claude diagnosis, attack-chain correlation, board-ready CISO report, executive summary.",
-    modules: "All 102 + nuclear stack",
+    modules: "All 104 + nuclear stack",
     features: [
       "Everything in Scan + Fix",
       "Real Claude diagnosis on every finding — no templated snippets, every fix reasoned from your specific evidence",

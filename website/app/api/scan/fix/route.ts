@@ -878,6 +878,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing repoUrl or issues" }, { status: 400 });
   }
 
+  if (Array.isArray(input.originalFileContents) && input.originalFileContents.length > 500) {
+    return NextResponse.json(
+      { error: "originalFileContents too large (max 500 files)" },
+      { status: 400 },
+    );
+  }
+
   if (!ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: "AI not configured (ANTHROPIC_API_KEY)" }, { status: 503 });
   }

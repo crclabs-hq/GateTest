@@ -20,7 +20,18 @@ const COLORS: Record<string, string> = {
   default: "#10b981",
 };
 
-function generateBadge(label: string, message: string, color: string): string {
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function generateBadge(rawLabel: string, rawMessage: string, color: string): string {
+  const label = escapeXml(rawLabel.slice(0, 100));
+  const message = escapeXml(rawMessage.slice(0, 100));
   const labelWidth = label.length * 6.8 + 12;
   const messageWidth = message.length * 6.8 + 12;
   const totalWidth = labelWidth + messageWidth;

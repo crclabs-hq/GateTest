@@ -120,6 +120,7 @@ function deriveJobId(sessionId: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  try {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature") || "";
 
@@ -259,4 +260,8 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ received: true, jobId, scanId });
+  } catch (err) {
+    console.error("[GateTest] Stripe webhook handler crashed:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
 }
