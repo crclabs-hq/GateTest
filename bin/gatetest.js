@@ -65,6 +65,13 @@ const HELP = `
                        BUT here is a PR to merge."
     --auto-pr-base <ref>    Base branch for the auto-PR (default: current branch)
     --auto-pr-branch <name> Override the auto-generated branch name
+    --since <ref>      Incremental scan: only check files changed since <ref>
+                       (branch, tag, or commit SHA). Skips full-graph modules
+                       (importCycle, deadCode, crossFileTaint, openapiDrift).
+                       Security and PR-meta modules always run in full.
+    --pr               Incremental scan: auto-detect base branch from
+                       GITHUB_BASE_REF (CI) or fall back to origin/main.
+                       Shortcut for --since in pull-request workflows.
     --diff             Only scan git-changed files (fast pre-commit mode)
     --report-only      Report findings but NEVER fail the gate. Use this
                        on a fresh GateTest install so CI stays green from
@@ -275,6 +282,14 @@ async function main() {
     return;
   }
 
+  // Resolve the incremental base ref for --since / --pr
+  const incrementalSince = args.since
+    || (args.pr
+      ? (process.env.GITHUB_BASE_REF
+          ? `origin/${process.env.GITHUB_BASE_REF}`
+          : 'origin/main')
+      : undefined);
+
   const gatetest = new GateTest(projectRoot, {
     parallel: args.parallel || false,
     stopOnFirstFailure: args['stop-first'] || false,
@@ -287,6 +302,7 @@ async function main() {
     // workflow on them. Strict mode (default OFF) reverses this and
     // blocks on confident errors. See `runner.js` for the mechanism.
     reportOnly: args.reportOnly === true && args.strict !== true,
+    ...(incrementalSince ? { incrementalSince } : {}),
     ...(typeof args.confidenceThreshold === 'number'
       ? { confidenceThreshold: args.confidenceThreshold }
       : {}),
@@ -664,6 +680,8 @@ function parseArgs(argv) {
     else if (arg === '--auto-pr') args.autoPr = true;
     else if (arg === '--auto-pr-base' && argv[i + 1]) args.autoPrBase = argv[++i];
     else if (arg === '--auto-pr-branch' && argv[i + 1]) args.autoPrBranch = argv[++i];
+    else if (arg === '--since' && argv[i + 1]) args.since = argv[++i];
+    else if (arg === '--pr') args.pr = true;
     else if (arg === '--diff') args.diff = true;
     else if (arg === '--report-only') args.reportOnly = true;
     else if (arg === '--strict') args.strict = true;
