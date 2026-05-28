@@ -57,7 +57,7 @@ const scanPlans = [
     badge: "Deepest review",
     description:
       "Full Scan plus a second-Claude pair-review on every fix and a codebase-shape architecture report.",
-    modules: "All 102 + depth review",
+    modules: "All 104 + depth review",
     features: [
       "Everything in Full Scan",
       "Pair-review critique on every fix — second Claude scores correctness, completeness, readability, test coverage",

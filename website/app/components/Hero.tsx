@@ -9,7 +9,7 @@
  *   - Honest counter row — no fabricated numbers; "Launching today" badge if no
  *     real data is available.
  *   - Substance over polish: every claim ties to a real artefact (104 modules,
- *     3500+ tests, self-scan green, pay-on-completion).
+ *     4600+ tests, self-scan green, pay-on-completion).
  *   - Dark theme preserved. Animated grid background retained.
  *   - Mobile-first; 320px ↔ 2560px.
  *
@@ -60,7 +60,7 @@ export default function Hero() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
               </span>
-              <span>Launching today &middot; v1.42 &middot; 104 modules live</span>
+              <span>Launching today &middot; v1.43 &middot; 104 modules live</span>
             </div>
           </div>
 
@@ -139,7 +139,7 @@ export default function Hero() {
               />
               <StatusCell
                 label="Tests passing"
-                value="3,500+"
+                value="4,600+"
                 tone="ok"
                 detail="every commit"
               />
