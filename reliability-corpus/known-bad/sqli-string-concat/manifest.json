@@ -1,0 +1,20 @@
+{
+  "name": "sqli-string-concat",
+  "category": "known-bad",
+  "target": "code",
+  "tier": "full",
+  "description": "Classic SQL injection via string concatenation in an Express handler. Must trip cross-file-taint at minimum.",
+  "expected": {
+    "errors": {
+      "crossFileTaint": { "atLeast": 1 }
+    },
+    "totalErrorsAtLeast": 1
+  },
+  "budgets": {
+    "maxDurationMs": 30000,
+    "deterministic": true
+  },
+  "labels": ["cwe-89", "owasp-a3", "sqli"],
+  "source": "hand-crafted",
+  "createdAt": "2026-05-29T00:00:00Z"
+}
