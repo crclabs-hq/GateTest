@@ -34,8 +34,12 @@ function findLatestReport(projectRoot, _fs = fs) {
   const dir = path.join(projectRoot, ".gatetest", "reports");
   if (!_fs.existsSync(dir)) return null;
   const entries = _fs.readdirSync(dir);
+  // Only consider files matching the actual gatetest report pattern.
+  // The runner also writes `scan-history.json` (summary metadata) at
+  // the end of each run — that file is newer than the report but isn't
+  // the report. Picking the wrong one silently returns empty findings.
   const jsons = entries
-    .filter((n) => n.endsWith(".json"))
+    .filter((n) => n.endsWith(".json") && /gatetest-report/.test(n))
     .map((n) => ({ name: n, path: path.join(dir, n), mtimeMs: _fs.statSync(path.join(dir, n)).mtimeMs }))
     .sort((a, b) => b.mtimeMs - a.mtimeMs);
   return jsons.length > 0 ? jsons[0].path : null;
