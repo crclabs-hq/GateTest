@@ -20,6 +20,7 @@ const { loadCorpus, renderCorpusSummary } = require("./corpus-loader.js");
 const { runSuite } = require("./runner.js");
 const { createScannerAdapter } = require("./scanner-adapter.js");
 const { createCodeScannerAdapter } = require("./code-scanner-adapter.js");
+const { captureBaselines, compareCaseToBaseline } = require("./baseline-store.js");
 
 /**
  * Run the reliability sweep.
@@ -45,6 +46,10 @@ async function runReliabilityCli({
   urlOnly = false,
   codeOnly = false,
   json = false,
+  captureBaselines: shouldCaptureBaselines = false,
+  compareBaselines: shouldCompareBaselines = false,
+  capturedBy,
+  capturedFrom,
   _fetch,
   _fs,
   _exec,
@@ -94,7 +99,32 @@ async function runReliabilityCli({
     repeatForDeterminism,
   });
 
-  const output = json ? JSON.stringify(suite, null, 2) : renderSuiteMarkdown(suite, loaded);
+  // Optional: capture baselines
+  let captureResult = null;
+  if (shouldCaptureBaselines) {
+    captureResult = captureBaselines({
+      suiteRun: suite,
+      corpusRoot,
+      runMetadata: {
+        capturedBy: capturedBy || `gatetest-reliability@${process.platform}`,
+        capturedFrom: capturedFrom || null,
+      },
+      _fs,
+    });
+  }
+
+  // Optional: compare against existing baselines
+  let driftPerCase = null;
+  if (shouldCompareBaselines) {
+    driftPerCase = suite.results.map((r) => ({
+      name: r.name,
+      ...compareCaseToBaseline({ caseResult: r, corpusRoot, _fs }),
+    }));
+  }
+
+  const output = json
+    ? JSON.stringify({ suite, captureResult, driftPerCase }, null, 2)
+    : renderSuiteMarkdown(suite, loaded, { captureResult, driftPerCase });
   return {
     exitCode: 0, // never exit non-zero on case failures — painkiller philosophy
     output,
@@ -105,11 +135,14 @@ async function runReliabilityCli({
       passRate: suite.passRate,
       durationMs: suite.durationMs,
       invalidManifests: loaded.invalid.length,
+      baselinesWritten: captureResult ? captureResult.filter((r) => r.status === "written").length : null,
+      casesWithDrift: driftPerCase ? driftPerCase.filter((d) => d.status === "drift").length : null,
+      casesWithoutBaseline: driftPerCase ? driftPerCase.filter((d) => d.status === "no-baseline").length : null,
     },
   };
 }
 
-function renderSuiteMarkdown(suite, loaded) {
+function renderSuiteMarkdown(suite, loaded, extras = {}) {
   const lines = [];
   lines.push("# Reliability suite — run report");
   lines.push("");
@@ -142,6 +175,32 @@ function renderSuiteMarkdown(suite, loaded) {
   } else {
     lines.push("✅ All cases passed.");
   }
+
+  if (extras.captureResult) {
+    lines.push("");
+    const w = extras.captureResult.filter((r) => r.status === "written").length;
+    const e = extras.captureResult.filter((r) => r.status === "errored").length;
+    lines.push(`## Baselines captured: ${w} written${e > 0 ? `, ${e} errored` : ""}`);
+  }
+
+  if (extras.driftPerCase) {
+    const drifted = extras.driftPerCase.filter((d) => d.status === "drift");
+    const noBase = extras.driftPerCase.filter((d) => d.status === "no-baseline");
+    lines.push("");
+    if (drifted.length === 0) {
+      lines.push(`## Drift: 0 / ${extras.driftPerCase.length} cases differ from baseline`);
+    } else {
+      lines.push(`## ⚠️ Drift: ${drifted.length} / ${extras.driftPerCase.length} cases differ from baseline`);
+      for (const d of drifted) {
+        lines.push(`- **${d.name}**`);
+        for (const line of d.drift) lines.push(`  - ${line}`);
+      }
+    }
+    if (noBase.length > 0) {
+      lines.push(`- ${noBase.length} case(s) have no baseline yet — run with \`--capture-baselines\` to establish.`);
+    }
+  }
+
   return lines.join("\n");
 }
 

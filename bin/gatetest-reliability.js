@@ -34,6 +34,12 @@ Flags:
   --url-only              Only run url-* cases
   --code-only             Only run code-target cases
   --determinism           Run each scan twice and verify identical output
+  --capture-baselines     After the run, write per-case baselines to
+                          reliability-corpus/baselines/<name>.json.
+                          Use after accepting drift to lock in new shape.
+  --compare-baselines     Compare each case's result to its stored baseline
+                          and report drift. Cases with no baseline are
+                          flagged so you can run --capture-baselines.
   --json                  Emit JSON instead of markdown
   --help, -h              Show this usage
 
@@ -50,6 +56,8 @@ function parseArgs(argv) {
     urlOnly: false,
     codeOnly: false,
     repeatForDeterminism: false,
+    captureBaselines: false,
+    compareBaselines: false,
     json: false,
     help: false,
     errors: [],
@@ -68,6 +76,8 @@ function parseArgs(argv) {
       case "--url-only": out.urlOnly = true; break;
       case "--code-only": out.codeOnly = true; break;
       case "--determinism": out.repeatForDeterminism = true; break;
+      case "--capture-baselines": out.captureBaselines = true; break;
+      case "--compare-baselines": out.compareBaselines = true; break;
       case "--json": out.json = true; break;
       case "--help":
       case "-h": out.help = true; break;
@@ -100,6 +110,8 @@ async function main() {
       urlOnly: args.urlOnly,
       codeOnly: args.codeOnly,
       json: args.json,
+      captureBaselines: args.captureBaselines,
+      compareBaselines: args.compareBaselines,
     });
   } catch (err) {
     process.stderr.write(`[gatetest-reliability] fatal: ${err && err.stack ? err.stack : String(err)}\n`);
