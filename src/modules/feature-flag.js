@@ -77,7 +77,7 @@ const PY_EXTS = new Set(['.py']);
 
 const MINIFIED_RE = /\.(?:min|bundle|prod)\.[a-z]+$/i;
 
-const TEST_PATH_RE = /(?:^|\/)(?:test|tests|__tests__|spec|specs|e2e|fixtures?|stories)\//i;
+const TEST_PATH_RE = /(?:^|\/)(?:test|tests|__tests__|spec|specs|e2e|fixtures?|stories|reliability-corpus)\//i;
 const TEST_FILE_RE = /\.(?:test|spec|e2e|stories)\.[a-z0-9]+$/i;
 
 const SUPPRESS_RE = /\bflag-ok\b/;
