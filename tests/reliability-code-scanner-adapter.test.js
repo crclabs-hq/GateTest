@@ -120,12 +120,12 @@ test("findLatestReport: returns null when reports dir missing", () => {
 
 test("findLatestReport: picks newest .json by mtime", () => {
   const fs = makeFs({
-    "/repo/.gatetest/reports/old.json": JSON.stringify({ ts: 1 }),
-    "/repo/.gatetest/reports/new.json": JSON.stringify({ ts: 2 }),
+    "/repo/.gatetest/reports/gatetest-report-old.json": JSON.stringify({ ts: 1 }),
+    "/repo/.gatetest/reports/gatetest-report-new.json": JSON.stringify({ ts: 2 }),
     "/repo/.gatetest/reports/skip.html": "<html>",
   });
-  fs.setMtime("/repo/.gatetest/reports/old.json", 1000);
-  fs.setMtime("/repo/.gatetest/reports/new.json", 2000);
+  fs.setMtime("/repo/.gatetest/reports/gatetest-report-old.json", 1000);
+  fs.setMtime("/repo/.gatetest/reports/gatetest-report-new.json", 2000);
   const r = findLatestReport("/repo", fs);
   assert.match(r, /new\.json$/);
 });
@@ -205,9 +205,9 @@ test("scanCode: report not found → report-not-found", async () => {
 test("scanCode: malformed report JSON → report-parse-failed", async () => {
   const fs = makeFs({
     "/repo/src/x.js": "code",
-    "/repo/.gatetest/reports/r.json": "{ this is not json",
+    "/repo/.gatetest/reports/gatetest-report-r.json": "{ this is not json",
   });
-  fs.setMtime("/repo/.gatetest/reports/r.json", Date.now());
+  fs.setMtime("/repo/.gatetest/reports/gatetest-report-r.json", Date.now());
   const r = await scanCode({
     manifest: { tier: "quick" },
     target: { type: "code", codeRoot: "/repo" },
@@ -225,7 +225,7 @@ test("scanCode: malformed report JSON → report-parse-failed", async () => {
 test("scanCode: spawns gatetest with right args and parses report", async () => {
   const fs = makeFs({
     "/repo/src/x.js": "code",
-    "/repo/.gatetest/reports/latest.json": JSON.stringify({
+    "/repo/.gatetest/reports/gatetest-report-latest.json": JSON.stringify({
       gatetest: { gateStatus: "BLOCKED" },
       results: [
         {
@@ -260,7 +260,7 @@ test("scanCode: spawns gatetest with right args and parses report", async () => 
 test("scanCode: defaults tier to quick when manifest.tier missing", async () => {
   const fs = makeFs({
     "/repo/src/x.js": "code",
-    "/repo/.gatetest/reports/r.json": JSON.stringify({ results: [] }),
+    "/repo/.gatetest/reports/gatetest-report-r.json": JSON.stringify({ results: [] }),
   });
   const exec = makeExec(() => ({ exitCode: 0, stdout: "", stderr: "" }));
   await scanCode({
@@ -282,7 +282,7 @@ test("scanCode: defaults tier to quick when manifest.tier missing", async () => 
 test("createCodeScannerAdapter: returns an object with scan()", async () => {
   const fs = makeFs({
     "/repo/src/x.js": "code",
-    "/repo/.gatetest/reports/r.json": JSON.stringify({ results: [] }),
+    "/repo/.gatetest/reports/gatetest-report-r.json": JSON.stringify({ results: [] }),
   });
   const adapter = createCodeScannerAdapter({
     gatetestBin: "/bin/gatetest.js",
