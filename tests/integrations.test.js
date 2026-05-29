@@ -65,6 +65,33 @@ describe('Protected integration artifacts', () => {
     assert.match(hook, /gatetest\.js/, 'pre-push hook must invoke the GateTest CLI.');
   });
 
+  it('pre-push hook must NEVER block — always exits 0 (painkiller philosophy)', () => {
+    // Craig 2026-05-29: "GateTest needs to be the fixer, not the blocker."
+    // The local pre-push hook is advisory; the CI gate is the enforcement layer.
+    const hook = fs.readFileSync(path.join(ROOT, 'integrations/husky/pre-push'), 'utf8');
+
+    // The hook must NOT propagate the gate's exit code to git.
+    // Forbidden pattern: `exit "$status"` or `exit $status` on the gate path.
+    assert.doesNotMatch(
+      hook,
+      /exit\s+"?\$\{?(status|gate_status)\}?"?/,
+      'pre-push hook must not exit non-zero on gate findings — it is advisory only.',
+    );
+
+    // The hook must explicitly end with `exit 0` so the contract is obvious.
+    assert.match(
+      hook,
+      /exit\s+0\s*$/m,
+      'pre-push hook must end with an explicit `exit 0` to prove the never-block contract.',
+    );
+  });
+
+  it('pre-push hook recognises admin mode (silent pass on our own projects)', () => {
+    const hook = fs.readFileSync(path.join(ROOT, 'integrations/husky/pre-push'), 'utf8');
+    assert.match(hook, /GATETEST_ADMIN/, 'pre-push hook must honour GATETEST_ADMIN=1.');
+    assert.match(hook, /crclabs-hq/, 'pre-push hook must auto-detect owner=crclabs-hq as admin.');
+  });
+
   it('install script must write a .gatetest.json protection marker', () => {
     const sh = fs.readFileSync(path.join(ROOT, 'integrations/scripts/install.sh'), 'utf8');
     assert.match(sh, /\.gatetest\.json/, 'install.sh must write the protection marker.');
