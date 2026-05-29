@@ -242,8 +242,11 @@ test("runReliabilityCli: JSON mode emits valid JSON output", async () => {
   const fs = makeFs({ "/c/known-good/a/manifest.json": VALID_GOOD });
   const r = await runReliabilityCli({ corpusRoot: "/c", json: true, _fs: fs });
   const parsed = JSON.parse(r.output);
-  assert.ok(parsed.total >= 1);
-  assert.ok(Array.isArray(parsed.results));
+  // Output now wraps the suite under .suite (alongside .captureResult /
+  // .driftPerCase from the baseline pipeline).
+  assert.ok(parsed.suite);
+  assert.ok(parsed.suite.total >= 1);
+  assert.ok(Array.isArray(parsed.suite.results));
 });
 
 test("runReliabilityCli: category filter applied", async () => {
