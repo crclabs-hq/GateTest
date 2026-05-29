@@ -1,0 +1,18 @@
+{
+  "name": "bookaride-co-nz",
+  "capturedAt": "2026-05-29T00:55:00Z",
+  "capturedBy": "claude-code-container",
+  "capturedFrom": "GateTest Claude session sandbox — outbound .co.nz is proxy-blocked, response is NOT from the real site",
+  "url": "https://bookaride.co.nz",
+  "status": 403,
+  "durationMs": 444,
+  "findingsCount": 5,
+  "findings": [
+    { "module": "webHeaders", "severity": "error",   "rule": "missing-hsts",            "message": "Strict-Transport-Security (HSTS) header missing — protocol downgrade attacks possible" },
+    { "module": "webHeaders", "severity": "warning", "rule": "missing-csp",             "message": "Content-Security-Policy header missing — XSS payloads have free reign" },
+    { "module": "webHeaders", "severity": "warning", "rule": "missing-nosniff",         "message": "X-Content-Type-Options: nosniff missing — MIME-sniffing attacks possible" },
+    { "module": "webHeaders", "severity": "warning", "rule": "missing-x-frame-options", "message": "X-Frame-Options missing — clickjacking surface (unless CSP frame-ancestors covers it)" },
+    { "module": "webHeaders", "severity": "info",    "rule": "missing-referrer-policy", "message": "Referrer-Policy missing — Referer header leaks outbound URL to third parties" }
+  ],
+  "note": "This is the SANDBOX response, not the real site. The container's network proxy returned 403 for .co.nz. The real baseline must be captured from a machine with unrestricted outbound — typically Craig's laptop or production CI."
+}

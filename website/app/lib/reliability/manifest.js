@@ -213,8 +213,11 @@ function compareToExpected(manifest, caseResult) {
   checkModule("errors", manifest.expected.errors);
   checkModule("warnings", manifest.expected.warnings);
 
-  // known-good cases must produce zero errors regardless of module bounds
-  if (manifest.category === "known-good" && totals.errors > 0) {
+  // known-good cases must produce zero errors UNLESS the manifest has
+  // explicitly opted into a non-zero ceiling via totalErrorsAtMost.
+  // Authors documenting "this is acceptable scanner noise" should encode
+  // it in the manifest rather than silently weakening the rule.
+  if (manifest.category === "known-good" && totals.errors > 0 && manifest.expected.totalErrorsAtMost === null) {
     issues.push(`known-good corpus must produce 0 errors, got ${totals.errors}`);
   }
 
