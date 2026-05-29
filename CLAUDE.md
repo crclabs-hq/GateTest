@@ -422,22 +422,23 @@ BaseModule (abstract)
 6. **Never commit secrets.** Env vars only.
 7. **Never skip tests for "speed."** Untested code does not exist.
 8. **Never say "it's ready" without testing the actual user flow.** Click every button.
-9. **Never patch symptoms.** Find and fix the root cause.
-10. **Never make chicken scratchings.** Go big or go home.
+9. **Patch the root cause when possible; a documented mitigation that unblocks the customer NOW beats a perfect refactor in two weeks.** Wrapped retries, feature flags, and surgical guards are acceptable when (a) tracked as a Known Issue with a follow-up plan and (b) they actually unblock the customer's work. The wrong fix at the wrong time is worse than a small fix today.
+10. **Never make chicken scratchings on customer-facing products.** Internal tooling, one-line bug fixes, and surgical patches are fine — sometimes a five-line change IS the right change. "Go big or go home" applies to product surfaces, not every commit.
 11. **Never deploy to production without Craig's authorization.**
 12. **Never modify Stripe configuration without Craig's authorization.**
 13. **Never add a dependency not in the approved stack without authorization.**
 14. **Never delete user data without explicit user action.**
 15. **Never let an error bubble unhandled to the user.** Wrap, log, recover.
 16. **Never silently fail.** Errors are visible.
-17. **Never ship a feature without updating this file.**
+17. **Never ship a tier name change, module count change, or pricing change without updating the `## VERSION` section of this file.** Bug fixes and feature work do NOT require a Bible update — write the code, ship it, move on. The Bible is for source-of-truth facts, not changelogs.
 18. **Never approve something you didn't test end-to-end.**
 19. **Never build an 80s website.** We are AI builders. The output must be stunning.
-20. **Never ask Craig "do you want me to fix this?"** If it's broken, FIX IT.
+20. **Never ask Craig "do you want me to fix this?"** If it's broken, FIX IT. (Boss Rule items in the 9-item authorization list still require explicit go — that exception still applies.)
 21. **Never delete, rename, or weaken `integrations/`** — that directory protects Crontech and Gluecron. See **PROTECTED PLATFORMS**.
 22. **Never delete or weaken `tests/integrations.test.js`** — it is the tripwire that keeps protection intact across sessions.
 23. **Never remove the PROTECTED PLATFORMS section from this file.** It must be read at every session start.
-24. **Never soft-fail the gate** with `continue-on-error: true` on the GateTest step itself.
+24. **Never soft-fail the gate** with `continue-on-error: true` on the GateTest step **in CI workflows.** Local pre-push hooks may be advisory — they surface findings without blocking developer flow; the CI gate is the actual enforcement layer.
+25. **Never let GateTest block its own author or admin operators on admin-owned projects.** We are the painkiller, not the bottleneck. Admin paths (env `GATETEST_ADMIN=1`, or `.gatetest.json` with `"owner": "crclabs-hq"` or `"admin": true`) auto-fix and pass. Customer paths surface findings and let CI's auto-fix PR flow do the heavy lifting. The hard "blocked because broken" experience only ships when payment is owed and unpaid.
 
 ---
 
