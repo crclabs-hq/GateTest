@@ -13,7 +13,13 @@ const { spawn } = require('child_process');
 const path = require('path');
 
 const SERVER_PATH = path.resolve(__dirname, '..', 'bin', 'gatetest-mcp.mjs');
+// Test target: full repo for tools/list etc., tiny corpus dir for actual
+// scans. Scanning the full repo (~4900 tests + 100+ modules) takes ~48s
+// in isolation and times out under parallel-test load. We only need
+// "does the scan_local tool work end-to-end?" — a minimal target proves
+// that in <2s and is deterministic across machines.
 const SCAN_PATH   = path.resolve(__dirname, '..');   // GateTest repo root
+const TINY_SCAN_PATH = path.resolve(__dirname, '..', 'reliability-corpus', 'known-good', 'empty-js-module');
 
 // ---------------------------------------------------------------------------
 // Helper: send one JSON-RPC request, collect the response line
@@ -205,8 +211,8 @@ describe('MCP server — scan_local', () => {
   it('runs a quick scan and returns structured results', async () => {
     const res = await callMcp(
       'tools/call',
-      { name: 'scan_local', arguments: { path: SCAN_PATH, suite: 'quick' } },
-      60000
+      { name: 'scan_local', arguments: { path: TINY_SCAN_PATH, suite: 'quick' } },
+      30000
     );
     assert.ok(res.result, `expected result: ${JSON.stringify(res).slice(0, 200)}`);
     const text = res.result.content[0].text;
