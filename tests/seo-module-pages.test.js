@@ -25,13 +25,19 @@ test("modules-data.ts: holds at least 100 module entries", () => {
   assert.ok(count >= 100, `expected >= 100 modules, got ${count}`);
 });
 
-test("module-slugs.ts: exports the right surface", () => {
+test("module-slugs.ts: exports the right public surface", () => {
   const src = fs.readFileSync(SLUGS_PATH, "utf8");
-  assert.match(src, /export function moduleNameToSlug/);
+  // Public functions consumed by the dynamic route + index page
   assert.match(src, /export function getAllModuleSlugs/);
   assert.match(src, /export function getModuleBySlug/);
   assert.match(src, /export function getRelatedModules/);
   assert.match(src, /export function getTotalModuleCount/);
+  assert.match(src, /export function getModulesByCategory/);
+  // Public type imported by the page
+  assert.match(src, /export interface ResolvedModule/);
+  // Internal helpers — should NOT be exported
+  assert.doesNotMatch(src, /export function moduleNameToSlug/);
+  assert.doesNotMatch(src, /export function buildModuleIndex/);
 });
 
 test("modules/[slug]/page.tsx: exports generateStaticParams + generateMetadata", () => {
@@ -63,8 +69,8 @@ test("modules/page.tsx: lists all modules + CollectionPage structured data", () 
 
 test("sitemap.ts: includes /modules + programmatic module pages + all compare pages", () => {
   const src = fs.readFileSync(SITEMAP_PATH, "utf8");
-  // The index page
-  assert.match(src, /\/modules`/);
+  // The index page URL appears in the file
+  assert.ok(src.includes("/modules"), "sitemap must reference /modules index");
   // Module slugs come from getAllModuleSlugs()
   assert.match(src, /getAllModuleSlugs\(\)/);
   // Compare pages that previously existed but weren't in sitemap

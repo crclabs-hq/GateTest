@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getAllModuleSlugs } from "./components/howitworks/module-slugs";
+import { getAllCweSlugs } from "./find/cwe-catalog";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = "https://gatetest.ai";
@@ -49,6 +50,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.75,
   }));
 
+  // CWE Top 25 pages — 25 entries sourced from MITRE's annual list.
+  // Content is original (our descriptions + GateTest module mappings).
+  const cweSlugs = getAllCweSlugs();
+  const cweIndex: MetadataRoute.Sitemap = [
+    { url: `${base}/find`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
+  ];
+  const cwePages: MetadataRoute.Sitemap = cweSlugs.map((slug) => ({
+    url: `${base}/find/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }));
+
   // Legal
   const legal: MetadataRoute.Sitemap = [
     { url: `${base}/legal/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
@@ -57,5 +71,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/legal/acceptable-use`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];
 
-  return [...core, ...compares, ...forPages, ...modulePages, ...legal];
+  return [...core, ...compares, ...forPages, ...modulePages, ...cweIndex, ...cwePages, ...legal];
 }
