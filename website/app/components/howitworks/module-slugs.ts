@@ -14,8 +14,11 @@ import { MODULE_CATEGORIES, type ModuleDef, type ModuleCategory } from "./module
 
 /**
  * Convert camelCase / PascalCase to a URL-safe kebab-case slug.
+ * Internal — consumed by buildModuleIndex below. The all-urls.js
+ * worker re-implements this in plain JS; if the algorithm changes
+ * here, mirror it there.
  */
-export function moduleNameToSlug(name: string): string {
+function moduleNameToSlug(name: string): string {
   return name
     .replace(/([a-z])([A-Z])/g, "$1-$2")
     .replace(/([A-Z]+)([A-Z][a-z])/g, "$1-$2")
@@ -34,9 +37,10 @@ export interface ResolvedModule {
 }
 
 /**
- * Build a flat lookup of all 104 modules keyed by slug.
+ * Internal — consumed by getAllModuleSlugs / getModuleBySlug /
+ * getRelatedModules below. Not exported.
  */
-export function buildModuleIndex(): Map<string, ResolvedModule> {
+function buildModuleIndex(): Map<string, ResolvedModule> {
   const out = new Map<string, ResolvedModule>();
   for (const cat of MODULE_CATEGORIES) {
     for (const mod of cat.modules) {
