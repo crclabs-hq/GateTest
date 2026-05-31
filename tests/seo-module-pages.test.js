@@ -33,11 +33,11 @@ test("module-slugs.ts: exports the right public surface", () => {
   assert.match(src, /export function getRelatedModules/);
   assert.match(src, /export function getTotalModuleCount/);
   assert.match(src, /export function getModulesByCategory/);
-  // Internal helpers + the ResolvedModule shape — should NOT be
-  // exported; consumers receive the type via inferred return types.
+  // Public type imported by the page
+  assert.match(src, /export interface ResolvedModule/);
+  // Internal helpers — should NOT be exported
   assert.doesNotMatch(src, /export function moduleNameToSlug/);
   assert.doesNotMatch(src, /export function buildModuleIndex/);
-  assert.doesNotMatch(src, /export interface ResolvedModule/);
 });
 
 test("modules/[slug]/page.tsx: exports generateStaticParams + generateMetadata", () => {

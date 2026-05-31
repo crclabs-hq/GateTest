@@ -14,9 +14,10 @@ import { MODULE_CATEGORIES, type ModuleDef, type ModuleCategory } from "./module
 
 /**
  * Convert camelCase / PascalCase to a URL-safe kebab-case slug.
- * Internal — consumed by buildModuleIndex below. The all-urls.js
- * worker re-implements this in plain JS; if the algorithm changes
- * here, mirror it there.
+ *
+ * Internal — used by buildModuleIndex below. The all-urls.js worker
+ * re-implements this in plain JS to avoid pulling TypeScript into the
+ * runtime; if the algorithm changes here, mirror the change there.
  */
 function moduleNameToSlug(name: string): string {
   return name
@@ -41,15 +42,15 @@ interface ResolvedModule {
 }
 
 /**
- * Internal — consumed by getAllModuleSlugs / getModuleBySlug /
- * getRelatedModules below. Not exported.
+ * Build a flat lookup of all modules keyed by slug. Internal — consumed
+ * by getAllModuleSlugs / getModuleBySlug / getRelatedModules below.
  */
 function buildModuleIndex(): Map<string, ResolvedModule> {
   const out = new Map<string, ResolvedModule>();
   for (const cat of MODULE_CATEGORIES) {
     for (const mod of cat.modules) {
       const slug = moduleNameToSlug(mod.name);
-      // Avoid silent collisions — log + skip duplicates.
+      // Avoid silent collisions — first definition wins.
       if (out.has(slug)) continue;
       out.set(slug, {
         slug,
