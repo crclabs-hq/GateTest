@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "../../../lib/db";
+import { deriveAdminToken } from "../../../lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -42,9 +43,12 @@ function authorizedTick(req: NextRequest): boolean {
 
 async function scanServer(target: string, baseUrl: string): Promise<ScanResult | null> {
   try {
+    const adminToken = deriveAdminToken();
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (adminToken) headers["x-admin-token"] = adminToken;
     const res = await fetch(`${baseUrl}/api/scan/server`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ url: target }),
     });
     if (!res.ok) return null;
@@ -68,11 +72,16 @@ interface ScanResult {
 async function scanRepo(target: string, baseUrl: string): Promise<ScanResult | null> {
   try {
     const repoUrl = `https://github.com/${target}`;
+    const adminToken = deriveAdminToken();
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (adminToken) headers["x-admin-token"] = adminToken;
     const res = await fetch(`${baseUrl}/api/scan/run`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      // full tier so we get enough detail to generate meaningful fixes
-      body: JSON.stringify({ repoUrl, tier: "full" }),
+      headers,
+      // Use quick tier for scheduled health checks — fast (<15s), fits within
+      // the 60s maxDuration, and avoids rate-limiting on automated scans.
+      // Full-tier scans are available via the admin Watchdog "Scan & Fix" button.
+      body: JSON.stringify({ repoUrl, tier: "quick" }),
     });
     if (!res.ok) return null;
     const data = await res.json();
