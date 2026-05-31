@@ -6,7 +6,6 @@ import {
   getModuleBySlug,
   getRelatedModules,
   getTotalModuleCount,
-  type ResolvedModule,
 } from "../../components/howitworks/module-slugs";
 
 interface PageParams {
@@ -54,7 +53,7 @@ function prettify(name: string): string {
     .replace(/^./, (c) => c.toUpperCase());
 }
 
-function buildKeywords(mod: ResolvedModule): string[] {
+function buildKeywords(mod: { name: string }): string[] {
   const pretty = prettify(mod.name).toLowerCase();
   return [
     `${pretty} detection`,

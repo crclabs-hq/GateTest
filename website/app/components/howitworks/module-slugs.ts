@@ -29,7 +29,11 @@ function moduleNameToSlug(name: string): string {
     .replace(/^-|-$/g, "");
 }
 
-export interface ResolvedModule {
+/**
+ * Internal — the shape returned by getModuleBySlug / getRelatedModules /
+ * getModulesByCategory. Callers receive it via inferred return types.
+ */
+interface ResolvedModule {
   slug: string;
   name: string;
   description: string;
