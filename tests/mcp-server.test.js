@@ -12,6 +12,14 @@ const assert = require('node:assert');
 const { spawn } = require('child_process');
 const path = require('path');
 
+// Skip all tests immediately (no 60s timeouts) when the MCP SDK isn't installed.
+// In CI the SDK is present; locally it may not be. `describe.skip` registers
+// the suite as skipped synchronously so the runner never waits for child
+// processes that would fail to start.
+let hasSDK = false;
+try { require.resolve('@modelcontextprotocol/sdk'); hasSDK = true; } catch { /* not installed */ }
+const describeOrSkip = hasSDK ? describe : describe.skip;
+
 const SERVER_PATH = path.resolve(__dirname, '..', 'bin', 'gatetest-mcp.mjs');
 // Test target: full repo for tools/list etc., tiny corpus dir for actual
 // scans. Scanning the full repo (~4900 tests + 100+ modules) takes ~48s
@@ -87,7 +95,7 @@ function callMcp(method, params = {}, timeoutMs = 60000) {
 // tools/list
 // ---------------------------------------------------------------------------
 
-describe('MCP server — tools/list', () => {
+describeOrSkip('MCP server — tools/list', () => {
   it('returns exactly 9 tools', async () => {
     const res = await callMcp('tools/list', {});
     assert.ok(res.result, `expected result, got: ${JSON.stringify(res).slice(0, 200)}`);
@@ -125,7 +133,7 @@ describe('MCP server — tools/list', () => {
 // check_health
 // ---------------------------------------------------------------------------
 
-describe('MCP server — check_health', () => {
+describeOrSkip('MCP server — check_health', () => {
   it('returns operational status with module count', async () => {
     const res = await callMcp('tools/call', { name: 'check_health', arguments: {} });
     assert.ok(res.result, `expected result: ${JSON.stringify(res).slice(0, 200)}`);
@@ -146,7 +154,7 @@ describe('MCP server — check_health', () => {
 // list_modules
 // ---------------------------------------------------------------------------
 
-describe('MCP server — list_modules', () => {
+describeOrSkip('MCP server — list_modules', () => {
   it('returns a list containing modules', async () => {
     const res = await callMcp('tools/call', { name: 'list_modules', arguments: {} });
     const text = res.result.content[0].text;
@@ -166,7 +174,7 @@ describe('MCP server — list_modules', () => {
 // run_module
 // ---------------------------------------------------------------------------
 
-describe('MCP server — run_module', () => {
+describeOrSkip('MCP server — run_module', () => {
   it('runs the syntax module and returns a formatted result', async () => {
     const res = await callMcp(
       'tools/call',
@@ -207,7 +215,7 @@ describe('MCP server — run_module', () => {
 // scan_local
 // ---------------------------------------------------------------------------
 
-describe('MCP server — scan_local', () => {
+describeOrSkip('MCP server — scan_local', () => {
   it('runs a quick scan and returns structured results', async () => {
     const res = await callMcp(
       'tools/call',
@@ -237,7 +245,7 @@ describe('MCP server — scan_local', () => {
 // Silent mode — engine must not write to stdout during MCP calls
 // ---------------------------------------------------------------------------
 
-describe('MCP server — silent mode', () => {
+describeOrSkip('MCP server — silent mode', () => {
   it('does not leak engine console output to stdout (clean JSON-RPC)', async () => {
     const proc = spawn(process.execPath, [SERVER_PATH], { stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = '';
@@ -270,7 +278,7 @@ describe('MCP server — silent mode', () => {
 // Unknown tool name
 // ---------------------------------------------------------------------------
 
-describe('MCP server — unknown tool', () => {
+describeOrSkip('MCP server — unknown tool', () => {
   it('returns an error for an unknown tool name', async () => {
     const res = await callMcp(
       'tools/call',
