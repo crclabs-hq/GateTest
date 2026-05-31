@@ -183,11 +183,6 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
     loadDbData();
   }, [loadDbData]);
 
-  useEffect(() => {
-    if (activeTab === "keys") loadKeys();
-    if (activeTab === "watchdog") loadWatches();
-  }, [activeTab, loadKeys, loadWatches]);
-
   const loadWatches = useCallback(async () => {
     setWatchesLoading(true);
     try {
@@ -200,6 +195,11 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
       setWatchesLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "keys") loadKeys();
+    if (activeTab === "watchdog") loadWatches();
+  }, [activeTab, loadKeys, loadWatches]);
 
   async function createKey() {
     setKeyError("");
