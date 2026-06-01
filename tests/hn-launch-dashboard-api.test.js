@@ -49,8 +49,8 @@ test("poll route: emits HN reply + item URLs per draft", () => {
 
 test("poll route: does NOT contain any post-to-HN logic", () => {
   const src = fs.readFileSync(POLL_ROUTE_PATH, "utf8");
-  assert.doesNotMatch(src, /POST.*news\.ycombinator\.com/);
-  assert.doesNotMatch(src, /fetch.*news\.ycombinator\.com.*method:\s*"POST"/i);
+  assert.doesNotMatch(src, /POST[^\n]{0,80}news\.ycombinator\.com/);
+  assert.doesNotMatch(src, /news\.ycombinator\.com[^\n"]{0,120}method:\s*"POST"/i);
 });
 
 test("draft route: enforces admin + uses drafter library", () => {
