@@ -586,10 +586,11 @@ export default function ScanStatus() {
                         </div>
                       ) : (
                         <div>
-                          <label className="block text-xs font-semibold text-foreground mb-2">
+                          <label htmlFor="customer-pat" className="block text-xs font-semibold text-foreground mb-2">
                             GitHub Personal Access Token (one-shot &mdash; never stored)
                           </label>
                           <input
+                            id="customer-pat"
                             type="password"
                             autoComplete="off"
                             spellCheck={false}

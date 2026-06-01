@@ -54,7 +54,7 @@ npm_with_retry() {
       sleep "$wait_s"
       # Clean half-written tree before retrying. ECONNRESET mid-extract
       # leaves dangling symlinks that confuse the next npm ci.
-      rm -rf "$dir/node_modules" 2>/dev/null || true
+      rm -rf "$dir/node_modules" 2>/dev/null || true # gatetest:swallow-ok reason="cleanup before retry — failure to delete a partial tree is non-fatal, npm ci will report the real error"
     fi
     if ( cd "$dir" && $cmd ); then
       return 0

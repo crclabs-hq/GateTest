@@ -140,7 +140,7 @@ export function signCustomerSession(
   // ENCRYPT the payload before signing — the access token bytes must not
   // be readable from a stolen cookie. The encrypted blob ("v2." prefix)
   // is then HMAC-signed for tamper-detection.
-  const encrypted = encryptPayload(JSON.stringify(payload), secret);
+  const encrypted = encryptPayload(JSON.stringify(payload), secret); // pii-ok — AES-encrypting session payload; secret is the encryption key, not user PII being logged
   const blob = `v2.${encrypted}`;
   const sig = sign(blob, secret);
   return `${blob}.${sig}`;

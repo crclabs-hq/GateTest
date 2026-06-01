@@ -186,7 +186,9 @@ class PerformanceModule extends BaseModule {
     // Scanner modules / orchestrator libs / marketing-doc pages legitimately
     // contain literal "setInterval(" / "addEventListener(" pattern strings as
     // detection patterns or doc copy — they shouldn't trigger their own check.
-    const SCANNER_PATH_RE = /(?:^|\/)(?:src\/modules|src\/core|website\/app\/lib\/scan-modules|website\/app\/lib\/multi-file-refactor|website\/app\/for|tests|integrations\/infra)\//;
+    // End with (?:\/|$) so it matches both directories (/src/modules/foo.js)
+    // and top-level files (/website/app/lib/multi-file-refactor.js).
+    const SCANNER_PATH_RE = /(?:^|\/)(?:src\/modules|src\/core|website\/app\/lib\/scan-modules|website\/app\/lib\/multi-file-refactor(?:\.[a-z]+)?|website\/app\/for|tests|integrations\/infra)(?:\/|$)/;
     for (const file of jsFiles) {
       const relPath = path.relative(projectRoot, file);
       const normalised = relPath.replace(/\\/g, '/');

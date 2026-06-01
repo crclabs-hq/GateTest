@@ -168,16 +168,33 @@ class DataIntegrityModule extends BaseModule {
       { regex: /document\.cookie\s*=.*(?:token|password|auth)/gi, type: 'Sensitive data in cookies' },
     ];
 
+    // Suppression: a line containing `// pii-ok` or `// data-ok` is excluded.
+    const PII_OK = /\/\/\s*(pii-ok|data-ok)\b/;
+
     let piiCount = 0;
     for (const file of jsFiles) {
       const relPath = path.relative(projectRoot, file);
       if (relPath.includes('test') || relPath.includes('.test.')) continue;
+      // Skip GateTest's own scanner modules — they contain detection patterns
+      // (e.g. regex strings matching console.log(password)) that are not PII leaks.
+      if (/^src[\\/]modules[\\/]/.test(relPath)) continue;
 
       const content = fs.readFileSync(file, 'utf-8');
+      const lines = content.split('\n');
 
       for (const { regex, type } of piiPatterns) {
         regex.lastIndex = 0;
-        if (regex.test(content)) {
+        // Check each line individually so suppression comments can work.
+        // Also skip if the ENTIRE file has a file-level suppression.
+        let matched = false;
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const prevLine = i > 0 ? lines[i - 1] : '';
+          if (PII_OK.test(line) || PII_OK.test(prevLine)) continue;
+          regex.lastIndex = 0;
+          if (regex.test(line)) { matched = true; break; }
+        }
+        if (matched) {
           piiCount++;
           if (piiCount <= 5) {
             result.addCheck(`data:pii:${type}:${relPath}`, false, {
