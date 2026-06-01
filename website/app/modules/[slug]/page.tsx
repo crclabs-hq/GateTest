@@ -6,6 +6,7 @@ import {
   getModuleBySlug,
   getRelatedModules,
   getTotalModuleCount,
+  type ResolvedModule,
 } from "../../components/howitworks/module-slugs";
 
 interface PageParams {
@@ -68,7 +69,7 @@ function buildKeywords(mod: { name: string }): string[] {
 
 export default async function ModulePage({ params }: PageParams) {
   const { slug } = await params;
-  const mod = getModuleBySlug(slug);
+  const mod: ResolvedModule | null = getModuleBySlug(slug);
   if (!mod) notFound();
 
   const related = getRelatedModules(slug, 6);
