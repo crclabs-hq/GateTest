@@ -140,26 +140,56 @@ async function draftReply({
 }
 
 /**
- * Default Anthropic caller — calls the real SDK in production. Throws
- * if no API key set so tests don't accidentally hit the API.
+ * Default Anthropic caller — direct HTTPS call to api.anthropic.com.
+ *
+ * Uses the same pattern as the rest of the codebase (try-fix.js,
+ * fix-context-enricher.js) — direct fetch, no SDK dependency. Keeps
+ * the bundle small and avoids requiring an npm install in the
+ * production deploy.
+ *
+ * Throws if no API key set so tests don't accidentally hit the API.
  */
 async function defaultAnthropicCall({ systemPrompt, userPrompt }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
     throw new Error("ANTHROPIC_API_KEY not set — pass _anthropicCall in tests or set the env var");
   }
-  // eslint-disable-next-line global-require
-  const Anthropic = require("@anthropic-ai/sdk");
-  const client = new Anthropic.default ? new Anthropic.default({ apiKey: key }) : new Anthropic({ apiKey: key });
+  const fetchFn = typeof globalThis.fetch === "function" ? globalThis.fetch : null;
+  if (!fetchFn) throw new Error("no fetch available in runtime");
   const model = "claude-opus-4-7";
-  const res = await client.messages.create({
-    model,
-    max_tokens: 800,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }],
+
+  const res = await fetchFn("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01",
+      "x-api-key": key,
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 800,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    }),
   });
-  const text = (res.content || [])
-    .filter((c) => c.type === "text")
+
+  if (!res.ok) {
+    let errBody = "";
+    try { errBody = await res.text(); } catch { /* ignore */ }
+    throw new Error(`Anthropic API ${res.status}: ${errBody.slice(0, 200)}`);
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error("Anthropic API returned unparseable JSON");
+  }
+  if (!data || !Array.isArray(data.content)) {
+    throw new Error("Anthropic API response missing content array");
+  }
+  const text = data.content
+    .filter((c) => c && c.type === "text" && typeof c.text === "string")
     .map((c) => c.text)
     .join("\n")
     .trim();
