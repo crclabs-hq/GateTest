@@ -33,7 +33,7 @@ function moduleNameToSlug(name: string): string {
  * Internal — the shape returned by getModuleBySlug / getRelatedModules /
  * getModulesByCategory. Callers receive it via inferred return types.
  */
-interface ResolvedModule {
+export interface ResolvedModule {
   slug: string;
   name: string;
   description: string;
