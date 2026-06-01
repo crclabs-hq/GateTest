@@ -113,8 +113,7 @@ const DIVERGENCE_LABEL: Record<DivergencePoint, string> = {
 
 const STAGE_ORDER: StageName[] = ["source", "ci", "deploy", "live"];
 
-// Human-readable age. null → em-dash. Under a minute is "just now".
-// Minutes for < 1 hour, rounded hours for < 1 day, otherwise rounded days.
+// Human-readable age. null → em-dash; <1 → "just now"; minutes / hours / days.
 function humanAge(minutes: number | null): string {
   if (minutes === null || minutes === undefined || Number.isNaN(minutes)) {
     return "—";
@@ -125,8 +124,7 @@ function humanAge(minutes: number | null): string {
   return `${Math.round(minutes / 1440)} days`;
 }
 
-// Colour the CI conclusion / deploy state strings. Same palette as the
-// status dots so the page reads consistently.
+// Colour-class the CI conclusion / deploy state strings (same palette as status dots).
 function conclusionClass(value: string | null | undefined): string {
   if (!value) return "text-gray-500";
   const v = String(value).toLowerCase();
@@ -255,50 +253,26 @@ export default function PipelineTracePage() {
     }
   };
 
-  // Order the stages by the canonical pipeline order so the orchestrator's
-  // response can be unordered without changing the visual flow.
+  // Order stages by canonical pipeline order (orchestrator may be unordered).
   const orderedStages: Stage[] = result
     ? STAGE_ORDER.map((name) => result.stages.find((s) => s.name === name)).filter(
         (s): s is Stage => Boolean(s),
       )
     : [];
 
-  // Render the "gap" between two adjacent stages — the colour-coded arrow.
+  // Colour-coded gap arrow between adjacent stages.
   const renderGap = (a: Stage | undefined, b: Stage | undefined, key: string) => {
-    if (!a || !b) {
-      return (
-        <div key={key} className="flex items-center justify-center text-gray-300 text-2xl font-bold px-1 md:px-0">
-          <span className="md:rotate-0">→</span>
-        </div>
-      );
-    }
-    const sameSha = a.state.sha && b.state.sha && a.state.sha === b.state.sha;
     let colour = "text-gray-400";
-    let glyph = "→";
-    let label = "";
-    if (sameSha) {
-      colour = "text-emerald-600";
-      glyph = "→";
-      label = "in sync";
-    } else if (a.state.sha && b.state.sha) {
-      colour = "text-red-600";
-      glyph = "→";
-      label = `${b.name} on older SHA`;
-    } else {
-      colour = "text-gray-400";
-      label = "unknown";
+    let label = "unknown";
+    if (a && b) {
+      const sameSha = a.state.sha && b.state.sha && a.state.sha === b.state.sha;
+      if (sameSha) { colour = "text-emerald-600"; label = "in sync"; }
+      else if (a.state.sha && b.state.sha) { colour = "text-red-600"; label = `${b.name} on older SHA`; }
     }
     return (
-      <div
-        key={key}
-        className={`flex md:flex-col items-center justify-center text-center ${colour} px-1 md:px-0 py-2 md:py-0`}
-      >
-        <span className="text-2xl font-bold md:rotate-90 md:my-1" aria-hidden="true">
-          {glyph}
-        </span>
-        <span className="text-[10px] uppercase tracking-wider font-semibold whitespace-nowrap ml-2 md:ml-0">
-          {label}
-        </span>
+      <div key={key} className={`flex md:flex-col items-center justify-center text-center ${colour} px-1 md:px-0 py-2 md:py-0`}>
+        <span className="text-2xl font-bold md:rotate-90 md:my-1" aria-hidden="true">→</span>
+        <span className="text-[10px] uppercase tracking-wider font-semibold whitespace-nowrap ml-2 md:ml-0">{label}</span>
       </div>
     );
   };
