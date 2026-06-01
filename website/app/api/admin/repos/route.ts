@@ -85,9 +85,11 @@ interface RepoInfo {
   html_url: string;
   private: boolean;
   pushed_at: string;
+  pushedAgeDays: number | null;
   default_branch: string;
   latestRun: WorkflowRun | null;
-  ciStatus: "passing" | "failing" | "pending" | "none";
+  latestRunAgeDays: number | null;
+  ciStatus: "passing" | "failing" | "pending" | "none" | "stale";
 }
 
 export async function GET() {
@@ -133,17 +135,32 @@ export async function GET() {
   // Sort by most recently pushed
   repos.sort((a, b) => new Date(b.pushed_at).getTime() - new Date(a.pushed_at).getTime());
 
-  // Enrich with latest workflow run (parallel, capped at 30 repos to avoid rate-limit)
+  // Enrich with latest workflow run (parallel, capped at 30 repos to avoid rate-limit).
+  // We deliberately filter by the repo's default branch so a long-stale CI run on
+  // some abandoned feature branch can't masquerade as "current repo health" —
+  // that was the bug that caused April-dated "failing" rows to show up months
+  // later and the watchdog to try and fix code that had already moved on.
+  const now = Date.now();
+  const STALE_RUN_DAYS = 30;
+  const INACTIVE_PUSH_DAYS = 60;
   const enriched: RepoInfo[] = await Promise.all(
     repos.slice(0, 50).map(async (repo) => {
+      const branch = encodeURIComponent(repo.default_branch || "main");
       const runs = await githubFetch(
-        `/repos/${repo.full_name}/actions/runs?per_page=1&exclude_pull_requests=false`,
+        `/repos/${repo.full_name}/actions/runs?per_page=1&branch=${branch}&exclude_pull_requests=true`,
         token
       );
       const latestRun: WorkflowRun | null =
         Array.isArray(runs?.workflow_runs) && runs.workflow_runs.length > 0
           ? runs.workflow_runs[0]
           : null;
+
+      const latestRunAgeDays = latestRun
+        ? Math.floor((now - new Date(latestRun.created_at).getTime()) / 86_400_000)
+        : null;
+      const pushedAgeDays = repo.pushed_at
+        ? Math.floor((now - new Date(repo.pushed_at).getTime()) / 86_400_000)
+        : null;
 
       let ciStatus: RepoInfo["ciStatus"] = "none";
       if (latestRun) {
@@ -160,6 +177,16 @@ export async function GET() {
         }
       }
 
+      // Freshness gate. Anything older than STALE_RUN_DAYS is reported as
+      // "stale" so the operator can't accidentally batch-fix code that hasn't
+      // been touched in months. A genuinely inactive repo (no push in
+      // INACTIVE_PUSH_DAYS) collapses to "stale" even if it never had CI.
+      const isStaleRun = latestRunAgeDays !== null && latestRunAgeDays > STALE_RUN_DAYS;
+      const isInactive = pushedAgeDays !== null && pushedAgeDays > INACTIVE_PUSH_DAYS;
+      if (isStaleRun || (ciStatus === "none" && isInactive)) {
+        ciStatus = "stale";
+      }
+
       return {
         id: repo.id,
         full_name: repo.full_name,
@@ -167,8 +194,10 @@ export async function GET() {
         html_url: repo.html_url,
         private: repo.private,
         pushed_at: repo.pushed_at,
+        pushedAgeDays,
         default_branch: repo.default_branch,
         latestRun,
+        latestRunAgeDays,
         ciStatus,
       };
     })
@@ -176,12 +205,18 @@ export async function GET() {
 
   const failing = enriched.filter((r) => r.ciStatus === "failing").length;
   const passing = enriched.filter((r) => r.ciStatus === "passing").length;
+  const stale = enriched.filter((r) => r.ciStatus === "stale").length;
 
   return NextResponse.json({
     repos: enriched,
     total: enriched.length,
     failing,
     passing,
+    stale,
+    freshness: {
+      staleRunDays: STALE_RUN_DAYS,
+      inactivePushDays: INACTIVE_PUSH_DAYS,
+    },
     generated_at: new Date().toISOString(),
   });
 }
