@@ -137,16 +137,36 @@ function summariseLayer(raw, opts) {
       detail: typeof f.detail === 'string' ? f.detail.slice(0, 200) : '',
     }));
 
-  // Drop info if non-info available; sort by severity; cap at 5
+  // Drop info if non-info available; sort by severity; cap at 50 (was 5 —
+  // too tight when a scan returns 40+ issues; the UI surfaces a "show all"
+  // expander on the card so the cap mainly bounds JSON response size).
   const nonInfo = findings.filter((f) => f.severity !== 'info');
   const pool = nonInfo.length > 0 ? nonInfo : findings;
   pool.sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
+
+  // Per-module rollup — the UI needs this so the operator can see "42 issues
+  // are spread across these 4 modules" even when the underlying scan API
+  // didn't return per-issue detail strings for every issue.
+  let modulesBrief = [];
+  if (Array.isArray(raw.modules)) {
+    modulesBrief = raw.modules
+      .filter((m) => m && typeof m === 'object')
+      .map((m) => ({
+        name: typeof m.name === 'string' ? m.name : 'unknown',
+        status: typeof m.status === 'string' ? m.status : 'unknown',
+        issues: Number.isFinite(m.issues) ? m.issues : 0,
+      }))
+      .filter((m) => m.status === 'failed' || m.issues > 0)
+      .sort((a, b) => (b.issues || 0) - (a.issues || 0))
+      .slice(0, 25);
+  }
 
   return {
     ok,
     totalIssues,
     failedModules,
-    topFindings: pool.slice(0, 5),
+    topFindings: pool.slice(0, 50),
+    modulesBrief,
     error: raw.error || (ok ? undefined : 'scan failed'),
   };
 }
@@ -335,9 +355,15 @@ function renderVerdictMarkdown(verdict, layers) {
     const status = data.ok ? 'ok' : `failed${data.error ? ` (${data.error})` : ''}`;
     out.push(`- Status: ${status}`);
     out.push(`- Issues: ${data.totalIssues || 0} · Failed modules: ${data.failedModules || 0}`);
+    if (Array.isArray(data.modulesBrief) && data.modulesBrief.length > 0) {
+      out.push('- Module breakdown:');
+      for (const m of data.modulesBrief) {
+        out.push(`  - **${m.name}** (${m.status}) — ${m.issues} issue(s)`);
+      }
+    }
     if (Array.isArray(data.topFindings) && data.topFindings.length > 0) {
       out.push('- Top findings:');
-      for (const f of data.topFindings) {
+      for (const f of data.topFindings.slice(0, 25)) {
         out.push(`  - \`${f.severity}\` **${f.module}** — ${f.detail}`);
       }
     }
