@@ -76,19 +76,54 @@ function summariseLayer(raw, opts) {
     failedModules = raw.failedModules;
   }
 
-  // Collect findings from common shapes
+  // Collect findings from common shapes.
+  // The three downstream scan endpoints return different module-shape variants:
+  //   - /api/scan/run    → modules[].details: string[]
+  //   - /api/scan/server → modules[].details: string[] (prefixed "error:" / "warn:" / "pass:")
+  //   - /api/web/scan    → mixes both; runtime-errors uses checks[]
+  // Earlier versions of this helper only walked .checks[] which meant scan/run
+  // and scan/server findings were silently dropped — leading to "unknown / low"
+  // verdicts on triage runs where source/server had real errors. Both shapes
+  // are now honoured.
   let findings = [];
   if (Array.isArray(raw.topFindings)) findings = raw.topFindings.slice();
   else if (Array.isArray(raw.findings)) findings = raw.findings.slice();
   else if (Array.isArray(raw.modules)) {
     for (const m of raw.modules) {
-      if (!m || !Array.isArray(m.checks)) continue;
-      for (const c of m.checks) {
-        findings.push({
-          module: m.name || source,
-          severity: c.severity || 'warning',
-          detail: c.message || c.detail || '',
-        });
+      if (!m) continue;
+      const moduleName = typeof m.name === 'string' ? m.name : source;
+      const moduleStatus = typeof m.status === 'string' ? m.status : null;
+
+      // Modern shape — per-check severity available
+      if (Array.isArray(m.checks)) {
+        for (const c of m.checks) {
+          findings.push({
+            module: moduleName,
+            severity: c && c.severity ? c.severity : 'warning',
+            detail: (c && (c.message || c.detail)) || '',
+          });
+        }
+        continue;
+      }
+
+      // Legacy shape — details is a flat string[]. Infer severity from the
+      // string prefix (server-side scanner uses "error:" / "warn:" / "pass:")
+      // and fall back to the module's status for repo-scan output where the
+      // detail strings are descriptions ("src/foo.ts:42: missing return type").
+      if (Array.isArray(m.details)) {
+        for (const d of m.details) {
+          if (typeof d !== 'string' || !d) continue;
+          const lower = d.toLowerCase().trimStart();
+          let severity;
+          if (lower.startsWith('pass:')) continue; // not a finding
+          else if (lower.startsWith('error:')) severity = 'error';
+          else if (lower.startsWith('warn:') || lower.startsWith('warning:')) severity = 'warning';
+          else if (lower.startsWith('info:')) severity = 'info';
+          else if (moduleStatus === 'failed') severity = 'error';
+          else if (moduleStatus === 'warning') severity = 'warning';
+          else severity = 'warning';
+          findings.push({ module: moduleName, severity, detail: d });
+        }
       }
     }
   }
@@ -151,10 +186,12 @@ function correlate(input) {
   }
 
   const browserRuntime = hasDetailOrModule(browser, RE_BROWSER_RUNTIME);
-  const sourceErrors = errorCount(source) > 0;
+  // "has errors" now accepts BOTH the per-finding severity signal AND the
+  // failed-module signal — different scan endpoints surface one or the other.
+  const sourceErrors = errorCount(source) > 0 || (source.ok && source.failedModules > 0);
   const sourceRuntimeFamily = hasDetailOrModule(source, RE_SOURCE_RUNTIME_FAMILY);
-  const serverHealthy = server.ok && errorCount(server) === 0;
-  const browserHealthy = browser.ok && errorCount(browser) === 0;
+  const serverHealthy = server.ok && errorCount(server) === 0 && server.failedModules === 0;
+  const browserHealthy = browser.ok && errorCount(browser) === 0 && browser.failedModules === 0;
 
   // Rule 3 — browser runtime errors, source clean, server healthy → build/deploy skew
   if (browserRuntime && !sourceErrors && serverHealthy) {
@@ -201,15 +238,50 @@ function correlate(input) {
     };
   }
 
-  // Rule 7 — two or three layers each have ≥3 errors → mixed
-  const layersWith3Plus = [source, server, browser].filter((l) => errorCount(l) >= 3).length;
-  if (layersWith3Plus >= 2) {
+  // Rule 6.5 — browser scan itself was unreachable (our /api/web/scan endpoint
+  // crashed, OR the customer's site rejected the headless browser), but we
+  // still have signal from source and/or server. Pick the dominant layer
+  // (3x+ more findings than the other) rather than falling through to a
+  // useless "unknown / low" verdict.
+  const browserUnavailable = !browser.ok && browser.totalIssues === 0;
+  if (browserUnavailable && (source.totalIssues > 0 || server.totalIssues > 0)) {
+    const srcLoad = source.totalIssues || 0;
+    const srvLoad = server.totalIssues || 0;
+    const dominant = srcLoad >= srvLoad * 3 ? 'source' : srvLoad >= srcLoad * 3 ? 'server' : null;
+    if (dominant) {
+      return {
+        layer: dominant,
+        confidence: 'medium',
+        headline: dominant === 'source'
+          ? `Source layer dominates (${srcLoad} issues vs server ${srvLoad}); browser scan unavailable`
+          : `Server layer dominates (${srvLoad} issues vs source ${srcLoad}); browser scan unavailable`,
+        rationale: `The headless browser scan failed (${browser.error || 'no signal'}), but the static and probe layers both produced signal. The ${dominant} layer's finding load is at least 3x the other, so address it first. Re-run triage after the fix to get the browser layer included.`,
+        recommendedNext: dominant === 'source'
+          ? 'Work the source findings first, then re-run triage so the browser layer is available.'
+          : 'Work the server findings first (likely TLS / headers / CORS), then re-run triage.',
+      };
+    }
+    // Comparable load on both layers — fall through to mixed rule below.
+  }
+
+  // Rule 7 — two or three layers each have ≥1 failed module OR ≥3 errors → mixed.
+  // Lowered from "≥3 errors per layer" to also accept "module-failed signal"
+  // because /api/scan/run + /api/scan/server emit failed modules whose
+  // per-detail severity isn't always extractable.
+  const noisy = (l) => errorCount(l) >= 3 || (l.ok && l.failedModules >= 1);
+  const noisyLayers = [source, server, browser].filter(noisy).length;
+  if (noisyLayers >= 2) {
+    const layerLabels = [
+      source.failedModules ? `source (${source.totalIssues} issues, ${source.failedModules} failed modules)` : null,
+      server.failedModules ? `server (${server.totalIssues} issues, ${server.failedModules} failed modules)` : null,
+      browser.failedModules ? `browser (${browser.totalIssues} issues, ${browser.failedModules} failed modules)` : null,
+    ].filter(Boolean).join(', ');
     return {
       layer: 'mixed',
-      confidence: 'low',
-      headline: 'Multiple layers each have significant errors — cannot localise',
-      rationale: `Two or more layers (${layersWith3Plus} of 3) each have at least three error-severity findings. The correlator cannot point to a single root layer; operator must triage each layer in turn.`,
-      recommendedNext: 'Start with the server layer, then source, then browser — fixing the deepest layer first usually clears symptoms upstream.',
+      confidence: browserUnavailable ? 'low' : 'medium',
+      headline: 'Multiple layers each have significant errors — cannot localise to one',
+      rationale: `Two or more layers have failed modules: ${layerLabels || 'multiple layers with errors'}. The correlator cannot point to a single root layer; operator must triage each layer in turn.${browserUnavailable ? ' Browser scan was unavailable — confidence reduced.' : ''}`,
+      recommendedNext: 'Start with the server layer (auth/headers/TLS), then source (static bugs), then browser (runtime). Fixing the deepest layer first usually clears symptoms upstream.',
     };
   }
 

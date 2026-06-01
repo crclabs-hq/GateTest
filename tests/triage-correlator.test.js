@@ -204,7 +204,7 @@ test('rule 6 — source errors, server + browser healthy → source / medium (la
 });
 
 // ---------- Rule 7: three-way mess ----------
-test('rule 7 — two layers with 3+ errors each → mixed / low', () => {
+test('rule 7 — two layers with 3+ errors each → mixed / medium (all layers ran)', () => {
   const v = correlate({
     source: layer({
       ok: true,
@@ -228,7 +228,10 @@ test('rule 7 — two layers with 3+ errors each → mixed / low', () => {
   });
   assertValidVerdict(v);
   assert.equal(v.layer, 'mixed');
-  assert.equal(v.confidence, 'low');
+  // Browser ran successfully → we have full signal → medium confidence.
+  // Low confidence is reserved for the case where the browser scan itself
+  // failed and we're guessing from partial signal.
+  assert.equal(v.confidence, 'medium');
 });
 
 test('rule 7 — all three layers with 3+ errors each → mixed', () => {
@@ -445,4 +448,130 @@ test('module.exports — contract surface is exactly {correlate, summariseLayer,
   assert.equal(typeof mod.correlate, 'function');
   assert.equal(typeof mod.summariseLayer, 'function');
   assert.equal(typeof mod.renderVerdictMarkdown, 'function');
+});
+
+// ---------- modules[].details[] shape (the real-world bug Craig reported) ----------
+test('summariseLayer — extracts findings from modules[].details[] string shape (scan/run output)', () => {
+  // This is exactly the shape /api/scan/run + /api/scan/server return.
+  // Earlier the correlator's helper only walked modules[].checks[], so all
+  // these findings were silently dropped → "unknown / low" verdicts on
+  // real-world triages where source had real errors.
+  const raw = {
+    totalIssues: 42,
+    modules: [
+      { name: 'syntax', status: 'failed', details: ['src/foo.ts:42: parens mismatch', 'src/bar.ts:7: template-literal'] },
+      { name: 'lint', status: 'failed', details: ['error: src/baz.ts:99'] },
+      { name: 'links', status: 'passed', details: ['pass: 14 links checked'] },
+    ],
+  };
+  const sum = summariseLayer(raw, { source: 'source' });
+  assert.equal(sum.ok, true);
+  assert.equal(sum.totalIssues, 42);
+  assert.equal(sum.failedModules, 2); // syntax + lint
+  assert.ok(sum.topFindings.length >= 3);
+  // The "pass:" detail must NOT appear in topFindings
+  assert.ok(!sum.topFindings.some((f) => /pass:/.test(f.detail)));
+  // Findings from a failed module without explicit severity prefix get
+  // promoted to error severity (the module says "failed", so the details
+  // are bugs by contract).
+  assert.ok(sum.topFindings.some((f) => f.module === 'syntax' && f.severity === 'error'));
+  // Explicit "error:" prefix is honoured.
+  assert.ok(sum.topFindings.some((f) => f.module === 'lint' && f.severity === 'error'));
+});
+
+test('summariseLayer — server-style "warn:" prefix is recognised as warning', () => {
+  const raw = {
+    totalIssues: 3,
+    modules: [
+      { name: 'headers', status: 'failed', details: ['warn: missing CSP', 'warn: missing HSTS', 'error: TLS 1.0 enabled'] },
+    ],
+  };
+  const sum = summariseLayer(raw, { source: 'server' });
+  const cspWarn = sum.topFindings.find((f) => /CSP/.test(f.detail));
+  assert.equal(cspWarn && cspWarn.severity, 'warning');
+  const tlsErr = sum.topFindings.find((f) => /TLS 1\.0/.test(f.detail));
+  assert.equal(tlsErr && tlsErr.severity, 'error');
+});
+
+// ---------- Craig's real-world case: source 42 + server 3 + browser HTTP 500 ----------
+test('correlate — source 42 issues + server 3 + browser scan failed → source dominates (Craig scenario)', () => {
+  // This was the case that produced "unknown / low" on a real triage run.
+  // After the fixes it should localise to source with medium confidence
+  // (or mixed if server load is comparable — 42 vs 3 is 14x, well past
+  // the 3x dominance threshold).
+  const v = correlate({
+    source: {
+      ok: true,
+      totalIssues: 42,
+      failedModules: 4,
+      topFindings: [
+        { module: 'syntax', severity: 'error', detail: 'parens mismatch' },
+        { module: 'lint', severity: 'error', detail: 'unused-vars' },
+        { module: 'undefinedRef', severity: 'error', detail: 'foo undefined' },
+      ],
+    },
+    server: {
+      ok: true,
+      totalIssues: 3,
+      failedModules: 1,
+      topFindings: [
+        { module: 'headers', severity: 'warning', detail: 'missing CSP' },
+      ],
+    },
+    browser: {
+      ok: false,
+      totalIssues: 0,
+      failedModules: 0,
+      topFindings: [],
+      error: 'HTTP 500',
+    },
+  });
+  assertValidVerdict(v);
+  assert.equal(v.layer, 'source');
+  assert.equal(v.confidence, 'medium');
+  assert.match(v.headline, /source layer dominates/i);
+  assert.match(v.rationale, /browser scan failed|HTTP 500|no signal/i);
+});
+
+test('correlate — server-dominant + browser unavailable → server / medium', () => {
+  const v = correlate({
+    source: { ok: true, totalIssues: 1, failedModules: 0, topFindings: [] },
+    server: { ok: true, totalIssues: 30, failedModules: 5, topFindings: [
+      { module: 'headers', severity: 'error', detail: 'no CSP' },
+    ]},
+    browser: { ok: false, totalIssues: 0, failedModules: 0, topFindings: [], error: 'connection refused' },
+  });
+  assertValidVerdict(v);
+  assert.equal(v.layer, 'server');
+  assert.equal(v.confidence, 'medium');
+});
+
+test('correlate — comparable source vs server + browser unavailable → mixed / low', () => {
+  // Neither dominates by 3x → falls through to rule 7 → mixed.
+  // Confidence is low because browser scan was unavailable.
+  const v = correlate({
+    source: { ok: true, totalIssues: 10, failedModules: 2, topFindings: [
+      { module: 'lint', severity: 'error', detail: 'a' },
+    ]},
+    server: { ok: true, totalIssues: 8, failedModules: 1, topFindings: [
+      { module: 'headers', severity: 'error', detail: 'b' },
+    ]},
+    browser: { ok: false, totalIssues: 0, failedModules: 0, topFindings: [], error: 'HTTP 500' },
+  });
+  assertValidVerdict(v);
+  assert.equal(v.layer, 'mixed');
+  assert.equal(v.confidence, 'low');
+});
+
+test('correlate — single failed module on source layer triggers latent rule 6', () => {
+  // failedModules>=1 should be enough — we no longer need 3+ topFindings
+  // entries to recognise that a layer has errors.
+  const v = correlate({
+    source: { ok: true, totalIssues: 5, failedModules: 1, topFindings: [] },
+    server: { ok: true, totalIssues: 0, failedModules: 0, topFindings: [] },
+    browser: { ok: true, totalIssues: 0, failedModules: 0, topFindings: [] },
+  });
+  assertValidVerdict(v);
+  assert.equal(v.layer, 'source');
+  assert.match(v.headline, /latent/i);
 });
