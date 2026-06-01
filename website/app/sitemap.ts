@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { getAllModuleSlugs } from "./components/howitworks/module-slugs";
 import { getAllCweSlugs } from "./find/cwe-catalog";
+import { getAllRegulationSlugs } from "./regulation/catalog";
+import { getAllCountrySlugs } from "./for/countries";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = "https://gatetest.ai";
@@ -39,6 +41,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.85,
   }));
 
+  // Country-specific landing pages — compliance + stack framed by market.
+  // Each is a real piece of indexable content tied to a country in
+  // for/countries.ts.
+  const countrySlugs = getAllCountrySlugs();
+  const forIndex: MetadataRoute.Sitemap = [
+    { url: `${base}/for`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+  ];
+  const countryPages: MetadataRoute.Sitemap = countrySlugs.map((slug) => ({
+    url: `${base}/for/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+
   // Programmatic module pages — 104 entries from modules-data.ts.
   // Each is a real piece of indexable content tied to a registered
   // module in src/core/registry.js.
@@ -63,6 +79,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
+  // Regulation pages — compliance regime landing pages.
+  // Each is a real piece of indexable content tied to a regulation
+  // in regulation/catalog.ts.
+  const regulationSlugs = getAllRegulationSlugs();
+  const regulationIndex: MetadataRoute.Sitemap = [
+    { url: `${base}/regulation`, lastModified: now, changeFrequency: "monthly", priority: 0.85 },
+  ];
+  const regulationPages: MetadataRoute.Sitemap = regulationSlugs.map((slug) => ({
+    url: `${base}/regulation/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+
   // Legal
   const legal: MetadataRoute.Sitemap = [
     { url: `${base}/legal/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
@@ -71,5 +101,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/legal/acceptable-use`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];
 
-  return [...core, ...compares, ...forPages, ...modulePages, ...cweIndex, ...cwePages, ...legal];
+  return [
+    ...core,
+    ...compares,
+    ...forPages,
+    ...forIndex,
+    ...countryPages,
+    ...modulePages,
+    ...cweIndex,
+    ...cwePages,
+    ...regulationIndex,
+    ...regulationPages,
+    ...legal,
+  ];
 }

@@ -24,6 +24,17 @@ const COMPARISON_SLUGS = [
   "codeql",
 ];
 const FOR_SLUGS = ["nextjs", "typescript", "nodejs"];
+// Country-specific landing pages — kept in lockstep with
+// website/app/for/countries.ts. Tests assert no drift.
+const COUNTRY_SLUGS = [
+  "usa",
+  "uk",
+  "eu",
+  "australia",
+  "new-zealand",
+  "singapore",
+  "canada",
+];
 const LEGAL_SLUGS = ["terms", "privacy", "refunds", "acceptable-use"];
 
 // CWE Top 25 slugs — kept in lockstep with website/app/find/cwe-catalog.ts.
