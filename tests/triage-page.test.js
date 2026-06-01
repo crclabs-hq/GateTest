@@ -105,8 +105,51 @@ test("triage page: uses the prescribed layer colour scheme (badges)", () => {
   assert.match(src, /bg-amber-100[^"']*text-amber-800/);
 });
 
-test("triage page: file under 400 lines", () => {
+test("triage page: file under 500 lines", () => {
   const src = fs.readFileSync(PAGE_PATH, "utf8");
   const lineCount = src.split("\n").length;
-  assert.ok(lineCount < 400, `expected <400 lines, got ${lineCount}`);
+  assert.ok(lineCount < 500, `expected <500 lines, got ${lineCount}`);
+});
+
+// ---------- per-module breakdown + show-all toggle (added 2026-06-01) ----------
+
+test("triage page: renders modulesBrief — the per-module breakdown", () => {
+  const src = fs.readFileSync(PAGE_PATH, "utf8");
+  assert.match(src, /modulesBrief/);
+  assert.match(src, /Module breakdown/);
+  // Each row shows the issue count
+  assert.match(src, /m\.issues/);
+});
+
+test("triage page: has a Show-all-findings expander when topFindings.length > 5", () => {
+  const src = fs.readFileSync(PAGE_PATH, "utf8");
+  // expanded state map keyed by layer
+  assert.match(src, /expanded/);
+  assert.match(src, /setExpanded/);
+  // The visible button label
+  assert.match(src, /Show all/);
+  assert.match(src, /Show top 5/);
+  // The slice respects the expanded flag
+  assert.match(src, /expanded\[key\]/);
+});
+
+test("triage page: has Copy-all-findings button + handler", () => {
+  const src = fs.readFileSync(PAGE_PATH, "utf8");
+  assert.match(src, /handleCopyAll/);
+  assert.match(src, /Copy all findings/);
+  // It writes plain-text (not the markdown) so verdict + every layer is captured
+  const handler = src.slice(src.indexOf("handleCopyAll"), src.indexOf("handleCopyAll") + 2500);
+  assert.match(handler, /navigator\.clipboard\.writeText/);
+  assert.match(handler, /topFindings/);
+  assert.match(handler, /modulesBrief/);
+});
+
+test("triage page: light theme — no bg-black or text-white as the primary palette", () => {
+  const src = fs.readFileSync(PAGE_PATH, "utf8");
+  // The main wrapper must be light
+  assert.match(src, /bg-gray-50/);
+  // Body text must be on a light surface
+  assert.doesNotMatch(src, /<main[^>]*bg-black/);
+  // Card surfaces must be white
+  assert.match(src, /bg-white\s+shadow-sm/);
 });

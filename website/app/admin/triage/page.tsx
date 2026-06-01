@@ -23,11 +23,18 @@ interface Finding {
   detail: string;
 }
 
+interface ModuleBrief {
+  name: string;
+  status: string;
+  issues: number;
+}
+
 interface LayerResult {
   ok: boolean;
   totalIssues: number;
   failedModules: number;
   topFindings: Finding[];
+  modulesBrief?: ModuleBrief[];
   error?: string;
 }
 
@@ -79,7 +86,11 @@ export default function TriageDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<TriageResponse | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<false | "markdown" | "all">(false);
+  // Per-layer "show all findings" toggle. Map keyed by layer name so the
+  // three cards expand independently — pressing "Show all 42" on the source
+  // card shouldn't auto-expand the server card.
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -119,7 +130,52 @@ export default function TriageDashboard() {
     if (!result) return;
     try {
       await navigator.clipboard.writeText(result.markdown);
-      setCopied(true);
+      setCopied("markdown");
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setError("Clipboard write failed — long-press to copy manually.");
+    }
+  };
+
+  // "Copy all findings" — flattens every layer's full findings list into a
+  // plain-text block (no markdown formatting). Useful for pasting into a bug
+  // tracker, Slack, or an email. Includes per-module breakdown so the
+  // recipient can see all 42 issues in the source layer even when the API
+  // didn't return a detail string for every one.
+  const handleCopyAll = async () => {
+    if (!result) return;
+    const lines: string[] = [];
+    lines.push(`Triage verdict: ${result.verdict.layer.toUpperCase()} (${result.verdict.confidence} confidence)`);
+    lines.push(result.verdict.headline);
+    lines.push("");
+    lines.push(result.verdict.rationale);
+    lines.push("");
+    lines.push(`Recommended next: ${result.verdict.recommendedNext}`);
+    lines.push("");
+    lines.push("================================================================");
+    for (const key of ["source", "server", "browser"] as const) {
+      const layer = result.layers[key];
+      lines.push("");
+      lines.push(`[${key.toUpperCase()}] ${layer.ok ? "ran successfully" : `failed: ${layer.error || "unknown"}`}`);
+      lines.push(`  ${layer.totalIssues} issues across ${layer.failedModules} failed modules`);
+      if (layer.modulesBrief && layer.modulesBrief.length > 0) {
+        lines.push(`  Module breakdown:`);
+        for (const m of layer.modulesBrief) {
+          lines.push(`    - ${m.name} (${m.status}): ${m.issues} issue${m.issues === 1 ? "" : "s"}`);
+        }
+      }
+      if (layer.topFindings.length > 0) {
+        lines.push(`  Findings:`);
+        for (const f of layer.topFindings) {
+          lines.push(`    [${f.severity}] ${f.module}: ${f.detail}`);
+        }
+      }
+    }
+    lines.push("");
+    lines.push(`Triaged at ${result.triagedAt} (${(result.durationMs / 1000).toFixed(1)}s)`);
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setCopied("all");
       setTimeout(() => setCopied(false), 1500);
     } catch {
       setError("Clipboard write failed — long-press to copy manually.");
@@ -287,27 +343,72 @@ export default function TriageDashboard() {
                         <span className="text-gray-900 font-semibold">{layer.failedModules}</span> failed modules
                       </span>
                     </div>
+                    {/* Per-module breakdown — always shown when there ARE
+                        failed modules. This is the answer to "what are the
+                        42 issues?" when /api/scan/run can't return a detail
+                        string for every single issue. */}
+                    {layer.modulesBrief && layer.modulesBrief.length > 0 && (
+                      <div className="mb-3">
+                        <div className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1.5">
+                          Module breakdown
+                        </div>
+                        <ul className="space-y-0.5">
+                          {layer.modulesBrief.map((m, i) => (
+                            <li key={i} className="flex items-baseline gap-2 text-xs">
+                              <span
+                                className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${
+                                  m.status === "failed" ? "bg-red-500" : m.status === "warning" ? "bg-amber-500" : "bg-gray-300"
+                                }`}
+                                aria-label={m.status}
+                              />
+                              <span className="font-mono text-gray-700 truncate">{m.name}</span>
+                              <span className="text-gray-400 ml-auto whitespace-nowrap">
+                                {m.issues} issue{m.issues === 1 ? "" : "s"}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     {layer.topFindings.length === 0 ? (
-                      <div className="text-xs text-gray-400 italic">No findings</div>
+                      (!layer.modulesBrief || layer.modulesBrief.length === 0) && (
+                        <div className="text-xs text-gray-400 italic">No findings</div>
+                      )
                     ) : (
-                      <ul className="space-y-1.5">
-                        {layer.topFindings.slice(0, 5).map((f, i) => (
-                          <li key={i} className="flex items-start gap-2 text-xs">
-                            <span
-                              className={`inline-block w-2 h-2 rounded-full mt-1 shrink-0 ${SEVERITY_DOT[f.severity]}`}
-                              aria-label={f.severity}
-                            />
-                            <div className="min-w-0 flex-1">
-                              <div className="font-mono text-gray-500 text-[10px] uppercase tracking-wider">
-                                {f.module}
+                      <>
+                        <div className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1.5">
+                          Top findings
+                        </div>
+                        <ul className="space-y-1.5">
+                          {layer.topFindings.slice(0, expanded[key] ? layer.topFindings.length : 5).map((f, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs">
+                              <span
+                                className={`inline-block w-2 h-2 rounded-full mt-1 shrink-0 ${SEVERITY_DOT[f.severity]}`}
+                                aria-label={f.severity}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="font-mono text-gray-500 text-[10px] uppercase tracking-wider">
+                                  {f.module}
+                                </div>
+                                <div className="text-gray-700 break-words">
+                                  {f.detail.length > 140 ? `${f.detail.slice(0, 140)}…` : f.detail}
+                                </div>
                               </div>
-                              <div className="text-gray-700 break-words">
-                                {f.detail.length > 140 ? `${f.detail.slice(0, 140)}…` : f.detail}
-                              </div>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
+                            </li>
+                          ))}
+                        </ul>
+                        {layer.topFindings.length > 5 && (
+                          <button
+                            type="button"
+                            onClick={() => setExpanded((s) => ({ ...s, [key]: !s[key] }))}
+                            className="mt-2 text-xs text-emerald-700 hover:text-emerald-800 font-medium"
+                          >
+                            {expanded[key]
+                              ? `Show top 5`
+                              : `Show all ${layer.topFindings.length} findings →`}
+                          </button>
+                        )}
+                      </>
                     )}
                   </article>
                 );
@@ -320,12 +421,22 @@ export default function TriageDashboard() {
                 <span className="text-xs uppercase tracking-wider font-bold text-gray-700">
                   Markdown summary
                 </span>
-                <button
-                  onClick={handleCopy}
-                  className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium border border-emerald-200 transition-colors"
-                >
-                  {copied ? "Copied ✓" : "Copy markdown"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCopyAll}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold border border-emerald-600 transition-colors"
+                    title="Copy verdict + every layer + every finding as plain text"
+                  >
+                    {copied === "all" ? "Copied ✓" : "Copy all findings"}
+                  </button>
+                  <button
+                    onClick={handleCopy}
+                    className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium border border-emerald-200 transition-colors"
+                    title="Copy the markdown summary only"
+                  >
+                    {copied === "markdown" ? "Copied ✓" : "Copy markdown"}
+                  </button>
+                </div>
               </header>
               <pre className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap break-words font-mono bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-96 overflow-auto">
                 {result.markdown}

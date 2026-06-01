@@ -280,7 +280,7 @@ test('rule 9 — fallback when nothing matches → unknown / low', () => {
 });
 
 // ---------- summariseLayer ----------
-test('summariseLayer — extracts topFindings + caps at 5 + sorts by severity', () => {
+test('summariseLayer — extracts topFindings + drops info + sorts by severity (cap 50)', () => {
   const raw = {
     ok: true,
     totalIssues: 8,
@@ -295,8 +295,9 @@ test('summariseLayer — extracts topFindings + caps at 5 + sorts by severity', 
     ],
   };
   const out = summariseLayer(raw, { source: 'source' });
-  assert.equal(out.topFindings.length, 5);
-  // First should be error
+  // Cap is 50 now (was 5) — all 6 non-info findings survive
+  assert.equal(out.topFindings.length, 6);
+  // First should be error (sort-by-severity)
   assert.equal(out.topFindings[0].severity, 'error');
   // No info because non-info available
   assert.ok(!out.topFindings.some((f) => f.severity === 'info'));
@@ -561,6 +562,64 @@ test('correlate — comparable source vs server + browser unavailable → mixed 
   assertValidVerdict(v);
   assert.equal(v.layer, 'mixed');
   assert.equal(v.confidence, 'low');
+});
+
+test('summariseLayer — modulesBrief lists every failed module with issue counts', () => {
+  const raw = {
+    totalIssues: 42,
+    modules: [
+      { name: 'secrets', status: 'failed', issues: 1, details: ['DB string with credentials'] },
+      { name: 'webHeaders', status: 'failed', issues: 12, details: ['error: missing CSP'] },
+      { name: 'envVars', status: 'failed', issues: 8 },
+      { name: 'commitHistory', status: 'failed', issues: 21 },
+      { name: 'links', status: 'passed', issues: 0 },
+    ],
+  };
+  const sum = summariseLayer(raw, { source: 'source' });
+  assert.ok(Array.isArray(sum.modulesBrief));
+  // 4 failed modules; "links" (passed, 0 issues) is dropped
+  assert.equal(sum.modulesBrief.length, 4);
+  // Sorted by issue count, biggest first
+  assert.equal(sum.modulesBrief[0].name, 'commitHistory');
+  assert.equal(sum.modulesBrief[0].issues, 21);
+  assert.equal(sum.modulesBrief[1].name, 'webHeaders');
+  // Every entry preserves status + issues + name
+  for (const m of sum.modulesBrief) {
+    assert.equal(typeof m.name, 'string');
+    assert.equal(typeof m.status, 'string');
+    assert.equal(typeof m.issues, 'number');
+  }
+});
+
+test('summariseLayer — topFindings cap is now 50 (was 5)', () => {
+  // Generate 80 detail strings on a failed module and confirm we keep 50.
+  const details = Array.from({ length: 80 }, (_, i) => `error: finding ${i}`);
+  const sum = summariseLayer(
+    { totalIssues: 80, modules: [{ name: 'lint', status: 'failed', issues: 80, details }] },
+    { source: 'source' }
+  );
+  assert.equal(sum.topFindings.length, 50);
+});
+
+test('renderVerdictMarkdown — includes "Module breakdown" when modulesBrief present', () => {
+  const md = renderVerdictMarkdown(
+    { layer: 'source', confidence: 'medium', headline: 'h', rationale: 'r', recommendedNext: 'n' },
+    {
+      source: {
+        ok: true,
+        totalIssues: 5,
+        failedModules: 2,
+        topFindings: [],
+        modulesBrief: [
+          { name: 'secrets', status: 'failed', issues: 3 },
+          { name: 'webHeaders', status: 'failed', issues: 2 },
+        ],
+      },
+    }
+  );
+  assert.match(md, /Module breakdown/);
+  assert.match(md, /\*\*secrets\*\*.*3 issue/);
+  assert.match(md, /\*\*webHeaders\*\*.*2 issue/);
 });
 
 test('correlate — single failed module on source layer triggers latent rule 6', () => {
