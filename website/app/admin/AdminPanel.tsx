@@ -503,6 +503,12 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
               Triage
             </a>
             <a
+              href="/admin/pipeline-trace"
+              className="text-xs px-3 py-2 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors font-medium"
+            >
+              Pipeline
+            </a>
+            <a
               href="/admin/health"
               className="text-xs px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors font-medium"
             >
