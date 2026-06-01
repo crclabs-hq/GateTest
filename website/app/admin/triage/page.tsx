@@ -192,9 +192,14 @@ export default function TriageDashboard() {
             </div>
             <span className="text-lg font-semibold tracking-tight text-gray-900">Triage</span>
           </div>
-          <a href="/admin" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
-            Back to admin &rarr;
-          </a>
+          <div className="flex items-center gap-4">
+            <a href="/admin/pipeline-trace" className="text-sm text-emerald-700 hover:text-emerald-800 font-semibold transition-colors">
+              Pipeline Trace
+            </a>
+            <a href="/admin" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+              Back to admin &rarr;
+            </a>
+          </div>
         </div>
       </nav>
 
