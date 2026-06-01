@@ -26,7 +26,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const {
   pollForNewComments,
   fetchAuthorRecentComments,
@@ -59,7 +58,6 @@ const {
   resolveStoryId: (input: number | string) => number | null;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { draftReply } = require("@/app/lib/hn-reply-assistant/drafter.js") as {
   draftReply: (args: {
     comment: { id: number; author: string; text: string; parentAuthor?: string | null; parentText?: string | null };

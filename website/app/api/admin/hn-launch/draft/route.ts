@@ -14,7 +14,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { draftReply } = require("@/app/lib/hn-reply-assistant/drafter.js") as {
   draftReply: (args: {
     comment: { id: number; author: string; text: string; parentAuthor?: string | null; parentText?: string | null };
@@ -23,7 +22,6 @@ const { draftReply } = require("@/app/lib/hn-reply-assistant/drafter.js") as {
   }) => Promise<{ draft: string; model: string; comment: { id: number; author: string; textSnippet: string } }>;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { fetchAuthorRecentComments } = require("@/app/lib/hn-reply-assistant/watcher.js") as {
   fetchAuthorRecentComments: (args: { author: string; limit?: number }) => Promise<Array<{ text: string }>>;
 };
