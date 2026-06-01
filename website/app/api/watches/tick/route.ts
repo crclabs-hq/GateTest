@@ -95,6 +95,35 @@ async function scanRepo(target: string, baseUrl: string): Promise<ScanResult | n
   }
 }
 
+// Freshness gate for the auto-fix path. Even though every scan is fresh,
+// auto-fixing a repo that hasn't been pushed in months is almost always
+// wrong — the operator forgot it was in the watch table, the files in the
+// findings may have moved, and the patch lands as noise on a dead branch.
+// Tick still RECORDS the scan, it just won't auto-fix.
+const INACTIVE_PUSH_DAYS = 60;
+async function repoIsActiveOnGitHub(fullName: string): Promise<boolean | null> {
+  const token = process.env.GATETEST_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
+  if (!token) return null; // Unknown — fall back to the existing behaviour.
+  try {
+    const res = await fetch(`https://api.github.com/repos/${fullName}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "GateTest-Watchdog/1.0",
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const meta = await res.json() as { pushed_at?: string };
+    if (!meta?.pushed_at) return null;
+    const ageDays = (Date.now() - new Date(meta.pushed_at).getTime()) / 86_400_000;
+    return ageDays <= INACTIVE_PUSH_DAYS;
+  } catch {
+    return null;
+  }
+}
+
 // Extract fixable {file, issue, module} triples from scan module details.
 //
 // Real-world detail strings come in many shapes — the legacy regex assumed
@@ -192,6 +221,28 @@ export async function GET(req: NextRequest) {
     // silent skips. The old empty `catch {}` was the reason watchdog
     // appeared to do nothing on failing repos.
     if (watch.auto_fix_enabled && watch.target_type === "repo" && result.totalIssues > 0 && result.modules) {
+      // Freshness gate (added 2026-06-01): skip auto-fix on repos whose
+      // GitHub `pushed_at` is older than INACTIVE_PUSH_DAYS. Operator can
+      // re-enable by removing the watch and re-adding it (forces them to
+      // confirm the repo is current).
+      const isActive = await repoIsActiveOnGitHub(watch.target);
+      if (isActive === false) {
+        await sql`
+          INSERT INTO heal_history (watch_id, action, status, details, completed_at)
+          VALUES (${watch.id}, 'auto_fix_pr', 'skipped',
+                  ${JSON.stringify({ reason: "repo inactive — last push older than freshness window", inactivePushDays: INACTIVE_PUSH_DAYS })}, NOW())
+        `;
+        await sql`
+          UPDATE watches
+          SET last_checked_at = NOW(),
+              last_status = ${result.status},
+              last_issue_count = ${result.totalIssues},
+              updated_at = NOW()
+          WHERE id = ${watch.id}
+        `;
+        results.push({ id: watch.id, target: watch.target, outcome: "skipped-stale" });
+        continue;
+      }
       try {
         const fixableIssues = extractFixableIssues(result.modules);
         if (fixableIssues.length === 0) {
