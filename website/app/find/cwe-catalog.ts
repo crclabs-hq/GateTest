@@ -58,7 +58,7 @@ export const CWE_TOP_25: CweEntry[] = [
     slug: "cwe-89-sql-injection",
     shortDesc: "User input is concatenated directly into a SQL query, letting the attacker change the query's logic — read other users' data, drop tables, or execute arbitrary SQL.",
     modules: ["crossFileTaint", "security"],
-    example: "const q = 'SELECT * FROM users WHERE id = ' + req.params.id; client.query(q)",
+    example: "const q = 'SELECT * FROM users WHERE id = ' + req.params.id; client.query(q)", // taint-ok — educational example string, not real code
     remediation: "Use parameterised queries / prepared statements. Never concatenate user input into SQL. ORMs (Prisma, Sequelize, Drizzle) parameterise by default; if you use raw queries, parameterise them. crossFileTaint flags taint from req.body/query/params into query() calls.",
   },
   {
@@ -186,7 +186,7 @@ export const CWE_TOP_25: CweEntry[] = [
     slug: "cwe-918-ssrf",
     shortDesc: "An endpoint fetches a URL from user input without validating the destination, letting an attacker hit internal services (metadata endpoints, databases, admin panels).",
     modules: ["ssrf"],
-    example: "fetch(req.query.url) — attacker passes http://169.254.169.254/latest/meta-data/iam/security-credentials and exfiltrates AWS credentials.",
+    example: "fetch(req.query.url) — attacker passes http://169.254.169.254/latest/meta-data/iam/security-credentials and exfiltrates AWS credentials.", // hardcoded-url-ok taint-ok — educational example string, not real code
     remediation: "Never let user input determine the destination host. Use an allowlist of permitted hosts. Reject private IP ranges and cloud metadata endpoints. The ssrf module flags taint from req.* to fetch/axios/got/http.request without a validator.",
   },
   {
@@ -218,7 +218,7 @@ export const CWE_TOP_25: CweEntry[] = [
     slug: "cwe-94-code-injection",
     shortDesc: "User input is evaluated as code — eval(), Function(), exec(), or template engines that allow expression execution.",
     modules: ["security", "crossFileTaint"],
-    example: "const result = eval(req.body.expression) — attacker passes 'process.exit(1)' and your server falls over (best case).",
+    example: "const result = eval(req.body.expression) — attacker passes 'process.exit(1)' and your server falls over (best case).", // taint-ok — educational example string, not real code
     remediation: "Never use eval / new Function with user input. For dynamic logic, use a sandboxed expression evaluator (mathjs, jsep) with an explicit allowed-function list. security and crossFileTaint flag eval / new Function sinks.",
   },
   {
