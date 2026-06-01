@@ -497,6 +497,12 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
           </div>
           <div className="flex items-center gap-3">
             <a
+              href="/admin/triage"
+              className="text-xs px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors font-medium"
+            >
+              Triage
+            </a>
+            <a
               href="/admin/health"
               className="text-xs px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors font-medium"
             >
