@@ -125,6 +125,8 @@ function buildAllUrls({ modulesDataPath } = {}) {
     `${BASE}/dashboard`,
     ...COMPARISON_SLUGS.map((s) => `${BASE}/compare/${s}`),
     ...FOR_SLUGS.map((s) => `${BASE}/for/${s}`),
+    `${BASE}/for`,
+    ...COUNTRY_SLUGS.map((s) => `${BASE}/for/${s}`),
     ...moduleSlugs.map((s) => `${BASE}/modules/${s}`),
     ...CWE_SLUGS.map((s) => `${BASE}/find/${s}`),
     ...LEGAL_SLUGS.map((s) => `${BASE}/legal/${s}`),
@@ -140,4 +142,5 @@ module.exports = {
   FOR_SLUGS,
   LEGAL_SLUGS,
   CWE_SLUGS,
+  COUNTRY_SLUGS,
 };
