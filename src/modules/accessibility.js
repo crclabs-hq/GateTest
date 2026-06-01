@@ -95,17 +95,30 @@ class AccessibilityModule extends BaseModule {
   }
 
   _checkFormLabels(relPath, content, result) {
-    // Find <input> without associated <label> or aria-label
-    const inputRegex = /<input\b([^>]*?)>/gi;
-    let match;
-    while ((match = inputRegex.exec(content)) !== null) {
-      const attrs = match[1];
-      const type = (attrs.match(/type\s*=\s*["'](\w+)["']/i) || [])[1] || 'text';
+    // Find <input> without associated <label> or aria-label.
+    // JSX attributes can contain `>` inside arrow functions (e.g. onChange={() => ...}),
+    // so we look ahead up to 600 chars after <input to find label-related attributes
+    // rather than trying to capture all attrs in one regex stop-at->  pass.
+    const inputStart = /<input\b/gi;
+    let startMatch;
+    while ((startMatch = inputStart.exec(content)) !== null) {
+      const pos = startMatch.index;
+      // Grab a generous lookahead window (covers multiline JSX props + arrow fns)
+      const window = content.slice(pos, pos + 600);
+      // Determine type (default "text")
+      const typeMatch = window.match(/\btype\s*=\s*["'](\w+)["']/i);
+      const type = typeMatch ? typeMatch[1].toLowerCase() : 'text';
       if (['hidden', 'submit', 'button', 'reset'].includes(type)) continue;
 
-      const hasLabel = /aria-label\s*=/i.test(attrs) ||
-                       /aria-labelledby\s*=/i.test(attrs) ||
-                       /id\s*=/i.test(attrs); // Simplified check
+      // Element ends at the first self-closing /> or the first standalone >
+      // that isn't part of an arrow function (=>) or JSX expression.
+      // We look for the closing marker inside the window.
+      const closingSlash = window.search(/\/>/);
+      const snippet = closingSlash >= 0 ? window.slice(0, closingSlash + 2) : window;
+
+      const hasLabel = /aria-label\s*[={]/i.test(snippet) ||
+                       /aria-labelledby\s*[={]/i.test(snippet) ||
+                       /\bid\s*=\s*["'{]/i.test(snippet);
 
       if (!hasLabel) {
         result.addCheck(`a11y:input-label:${relPath}`, false, {
@@ -138,8 +151,11 @@ class AccessibilityModule extends BaseModule {
   }
 
   _checkAriaUsage(relPath, content, result) {
-    // Check for invalid ARIA roles
-    const roleRegex = /role\s*=\s*["'](\w+)["']/gi;
+    // Check for invalid ARIA roles.
+    // No space before = so we don't match TypeScript type declarations like
+    // `type Role = "user"` which the case-insensitive flag would otherwise
+    // turn into a false-positive "role = user".
+    const roleRegex = /\brole=["'](\w+)["']/gi;
     const validRoles = new Set([
       'alert', 'alertdialog', 'application', 'article', 'banner', 'button',
       'cell', 'checkbox', 'columnheader', 'combobox', 'complementary',
@@ -178,7 +194,11 @@ class AccessibilityModule extends BaseModule {
   }
 
   _checkLandmarks(relPath, content, result) {
-    if (!content.includes('<html')) return; // Only full HTML pages
+    // Only check standalone HTML files, not React/Vue/Svelte components.
+    // TSX/JSX files render as part of a component tree; the <main> will
+    // live in a child page component, not the layout wrapper.
+    if (!content.includes('<html')) return;
+    if (/\.(tsx?|jsx?|vue|svelte)$/i.test(relPath)) return;
 
     const landmarks = ['<main', 'role="main"', '<nav', 'role="navigation"'];
     const hasMain = landmarks.slice(0, 2).some(l => content.includes(l));
@@ -209,15 +229,19 @@ class AccessibilityModule extends BaseModule {
   }
 
   _checkReducedMotion(relPath, content, result) {
-    // Check JS for motion/animation without prefers-reduced-motion check
-    if (content.includes('animate(') || content.includes('requestAnimationFrame')) {
-      if (!content.includes('prefers-reduced-motion')) {
-        result.addCheck(`a11y:reduced-motion-js:${relPath}`, false, {
-          file: relPath,
-          message: 'Animations detected without prefers-reduced-motion check',
-          suggestion: 'Check window.matchMedia("(prefers-reduced-motion: reduce)") before animating',
-        });
-      }
+    // Check JS for animation loops without prefers-reduced-motion check.
+    // A single requestAnimationFrame call is often a one-shot DOM operation
+    // (e.g. focusing an input on the next paint) — only flag when rAF is
+    // called more than once (suggesting an animation loop) or when the file
+    // also calls .animate().
+    const rafCount = (content.match(/requestAnimationFrame/g) || []).length;
+    const hasAnimate = content.includes('.animate(') || content.includes('gsap.') || content.includes('tween.');
+    if ((rafCount > 1 || hasAnimate) && !content.includes('prefers-reduced-motion')) {
+      result.addCheck(`a11y:reduced-motion-js:${relPath}`, false, {
+        file: relPath,
+        message: 'Animations detected without prefers-reduced-motion check',
+        suggestion: 'Check window.matchMedia("(prefers-reduced-motion: reduce)") before animating',
+      });
     }
   }
 

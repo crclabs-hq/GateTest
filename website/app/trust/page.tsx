@@ -47,9 +47,9 @@ export default function TrustPage() {
       <section className="px-6 py-10 max-w-5xl mx-auto">
         <div className="grid md:grid-cols-2 gap-6">
           <div className="rounded-2xl border border-border bg-surface p-6">
-            <h3 className="text-sm font-semibold text-accent-light uppercase tracking-wider mb-3">
+            <h2 className="text-sm font-semibold text-accent-light uppercase tracking-wider mb-3">
               We run GateTest on GateTest
-            </h3>
+            </h2>
             <p className="text-sm text-muted mb-5">
               Every commit to <code className="text-foreground">main</code>{" "}
               runs the same 103-module gate we sell. The badge below is the
@@ -65,9 +65,9 @@ export default function TrustPage() {
           </div>
 
           <div className="rounded-2xl border border-border bg-surface p-6">
-            <h3 className="text-sm font-semibold text-accent-light uppercase tracking-wider mb-3">
+            <h2 className="text-sm font-semibold text-accent-light uppercase tracking-wider mb-3">
               At a glance
-            </h3>
+            </h2>
             <ul className="text-sm space-y-3">
               <Metric label="Modules in the gate" value="103" />
               <Metric label="Tests passing on main" value="4,100+" />
