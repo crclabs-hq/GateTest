@@ -67,6 +67,11 @@ interface PipelineVerdict {
   reasons: string[];
 }
 
+interface CommitDelta {
+  behind: number;
+  commits: Array<{ sha: string; message: string; author?: string }>;
+}
+
 interface TraceInput {
   source: StageReport;
   ci: StageReport;
@@ -284,8 +289,24 @@ async function gatherSource(
 }
 
 // ----------------------------------------------------------------------------
-// Stage 2 — CI
+// Stage 2 — CI (with failed-job peek when conclusion = failure)
 // ----------------------------------------------------------------------------
+
+type CIRun = {
+  id?: number;
+  head_sha?: string;
+  created_at?: string;
+  conclusion?: string | null;
+  status?: string;
+  html_url?: string;
+  name?: string;
+};
+
+type CIJob = {
+  name?: string;
+  conclusion?: string;
+  steps?: Array<{ name?: string; conclusion?: string }>;
+};
 
 async function gatherCI(
   parts: RepoParts,
@@ -310,16 +331,7 @@ async function gatherCI(
   if (!res.ok) {
     return { ...baseFail, error: res.error || `HTTP ${res.status}` };
   }
-  const data = res.data as {
-    workflow_runs?: Array<{
-      head_sha?: string;
-      created_at?: string;
-      conclusion?: string | null;
-      status?: string;
-      html_url?: string;
-      name?: string;
-    }>;
-  } | null;
+  const data = res.data as { workflow_runs?: CIRun[] } | null;
   const runs = Array.isArray(data?.workflow_runs) ? data!.workflow_runs : [];
   if (runs.length === 0) {
     return {
@@ -335,6 +347,25 @@ async function gatherCI(
   const run = runs[0];
   const sha = run.head_sha || null;
   const timestamp = run.created_at || null;
+  const details: string[] = run.name ? [`workflow: ${run.name}`] : [];
+
+  // When CI failed, fetch the first few failed job names + their failed step.
+  if (run.conclusion === "failure" && typeof run.id === "number") {
+    const jobsRes = await githubFetch(
+      `/repos/${encodeURIComponent(parts.owner)}/${encodeURIComponent(parts.repo)}/actions/runs/${run.id}/jobs?filter=latest&per_page=10`,
+      token
+    );
+    if (jobsRes.ok) {
+      const jobsData = jobsRes.data as { jobs?: CIJob[] } | null;
+      const failedJobs = (jobsData?.jobs || []).filter((j) => j.conclusion === "failure");
+      for (const job of failedJobs.slice(0, 3)) {
+        details.push(`✗ job: ${job.name || "unknown"}`);
+        const failedStep = (job.steps || []).find((s) => s.conclusion === "failure");
+        if (failedStep?.name) details.push(`  step: ${failedStep.name}`);
+      }
+    }
+  }
+
   return {
     stage: "ci",
     ok: true,
@@ -345,7 +376,7 @@ async function gatherCI(
     conclusion: run.conclusion ?? null,
     state: (run.status as StageState | undefined) ?? undefined,
     url: run.html_url || null,
-    details: run.name ? [`workflow: ${run.name}`] : [],
+    details,
   };
 }
 
@@ -451,8 +482,58 @@ async function gatherDeploy(
 }
 
 // ----------------------------------------------------------------------------
-// Stage 4 — Live URL probe
+// Stage 4 — Live URL probe (with cache diagnosis + service-worker detection)
 // ----------------------------------------------------------------------------
+
+// Cache diagnosis: reads CDN/edge response headers and produces human-readable
+// explanations of WHY the browser may be seeing stale content.
+function diagnoseCacheHeaders(headers: Headers): string[] {
+  const diagnoses: string[] = [];
+  const cc = (headers.get("cache-control") || "").toLowerCase();
+  const age = headers.get("age");
+  const vercelCache = headers.get("x-vercel-cache");
+  const cfCache = headers.get("cf-cache-status");
+  const cdnCache = headers.get("cdn-cache-status") || headers.get("x-cache-status");
+  const ageNum = age !== null ? Number(age) : NaN;
+
+  // CDN-specific status first (most informative).
+  if (vercelCache) {
+    const hit = vercelCache.toUpperCase() === "HIT";
+    diagnoses.push(`⚡ Vercel edge cache: ${vercelCache}${hit ? " — browser is getting a cached response" : ""}`);
+  }
+  if (cfCache) {
+    const hit = cfCache.toUpperCase() === "HIT";
+    diagnoses.push(`☁ Cloudflare cache: ${cfCache}${hit ? " — browser is getting a cached response" : ""}`);
+  }
+  if (cdnCache) {
+    diagnoses.push(`CDN cache: ${cdnCache}`);
+  }
+
+  // Age header: tells us how old the cached copy is.
+  if (!Number.isNaN(ageNum) && ageNum > 0) {
+    diagnoses.push(`⏱ Age: ${ageNum}s — this response was cached ${formatAgeHuman(ageNum)} ago`);
+  }
+
+  // Cache-Control directive diagnosis.
+  if (!cc) {
+    diagnoses.push("⚠ Cache-Control: MISSING — browser and CDN may cache HTML indefinitely");
+  } else if (cc.includes("no-store")) {
+    diagnoses.push("✓ Cache-Control: no-store (caching disabled)");
+  } else if (cc.includes("no-cache")) {
+    diagnoses.push("○ Cache-Control: no-cache (must revalidate before serving)");
+  } else if (cc.includes("max-age=0") || cc.includes("s-maxage=0")) {
+    diagnoses.push("○ Cache-Control: max-age=0 (always revalidate)");
+  } else {
+    const maxAgeMatch = cc.match(/max-age=(\d+)/);
+    const sMaxAgeMatch = cc.match(/s-maxage=(\d+)/);
+    const ttl = sMaxAgeMatch ? Number(sMaxAgeMatch[1]) : maxAgeMatch ? Number(maxAgeMatch[1]) : null;
+    if (ttl !== null && ttl > 0) {
+      diagnoses.push(`⚠ Cache-Control: max-age=${ttl}s (CDN/browser may serve this for ${formatAgeHuman(ttl)})`);
+    }
+  }
+
+  return diagnoses;
+}
 
 const SHA_RE_40 = /\b([a-f0-9]{40})\b/i;
 
@@ -521,30 +602,24 @@ async function gatherLive(liveUrl: string, now: number): Promise<StageReport> {
     clearTimeout(timeoutId);
 
     const details: string[] = [`status: ${res.status}`];
+
+    // Raw header collection (informational).
     const headerKeys = [
-      "x-vercel-id",
-      "x-vercel-cache",
-      "x-served-by",
-      "age",
-      "etag",
-      "last-modified",
-      "cache-control",
       "server",
       "x-powered-by",
+      "x-vercel-id",
+      "x-served-by",
+      "etag",
+      "last-modified",
     ];
     for (const k of headerKeys) {
       const v = res.headers.get(k);
-      if (v) {
-        if (k === "age") {
-          const ageSec = Number(v);
-          if (Number.isFinite(ageSec)) {
-            details.push(`age: ${v} (${formatAgeHuman(ageSec)})`);
-            continue;
-          }
-        }
-        details.push(`${k}: ${v}`);
-      }
+      if (v) details.push(`${k}: ${v}`);
     }
+
+    // Cache diagnosis (most actionable info first).
+    const cacheDiagnoses = diagnoseCacheHeaders(res.headers);
+    details.push(...cacheDiagnoses);
 
     if (!res.ok) {
       return {
@@ -558,6 +633,19 @@ async function gatherLive(liveUrl: string, now: number): Promise<StageReport> {
     const { sha, nextBuildId } = extractSha(body);
     if (!sha && nextBuildId) {
       details.push(`nextBuildId: ${nextBuildId}`);
+    }
+
+    // Service worker detection — if the page registers a SW, the browser may
+    // serve stale cached responses even in incognito mode if the SW was
+    // installed in a prior session.
+    const swPatterns = [
+      /navigator\.serviceWorker\.register\s*\(/i,
+      /['"](?:sw|service-worker|workbox(?:-precache)?(?:-v\d+)?)\.js['"]/i,
+    ];
+    if (swPatterns.some((re) => re.test(body))) {
+      details.push(
+        "⚠ service-worker: REGISTERED — SW may intercept requests and serve stale content, even in incognito"
+      );
     }
 
     const lastModified = res.headers.get("last-modified");
@@ -689,12 +777,60 @@ export async function POST(req: NextRequest) {
       };
     };
 
+    const sourceStage = sourceSettled.stage;
+    const deployStage = unwrap(deploySettled, "deploy");
+
     const stagesInput: TraceInput = {
-      source: sourceSettled.stage,
+      source: sourceStage,
       ci: unwrap(ciSettled, "ci"),
-      deploy: unwrap(deploySettled, "deploy"),
+      deploy: deployStage,
       live: unwrap(liveSettled, "live"),
     };
+
+    // Commit delta: list commits stuck between deploy SHA and source HEAD.
+    // Only computed when both SHAs are known and differ.
+    let commitDelta: CommitDelta | null = null;
+    if (
+      sourceStage.sha &&
+      deployStage.sha &&
+      sourceStage.sha !== deployStage.sha
+    ) {
+      const compareRes = await githubFetch(
+        `/repos/${encodeURIComponent(parts.owner)}/${encodeURIComponent(parts.repo)}/compare/${deployStage.sha}...${sourceStage.sha}`,
+        token
+      );
+      if (compareRes.ok) {
+        const cd = compareRes.data as {
+          ahead_by?: number;
+          commits?: Array<{
+            sha?: string;
+            commit?: { message?: string; author?: { name?: string } };
+          }>;
+        } | null;
+        const rawCommits = cd?.commits || [];
+        commitDelta = {
+          behind: cd?.ahead_by ?? rawCommits.length,
+          commits: rawCommits.slice(0, 5).map((c) => ({
+            sha: (c.sha || "").slice(0, 7),
+            message: (c.commit?.message || "").split("\n")[0].slice(0, 72),
+            author: c.commit?.author?.name,
+          })),
+        };
+        // Inject commit delta into deploy stage details for the markdown.
+        if (commitDelta.behind > 0) {
+          deployStage.details = deployStage.details || [];
+          deployStage.details.push(
+            `⚠ ${commitDelta.behind} commit(s) behind source HEAD:`
+          );
+          for (const c of commitDelta.commits) {
+            deployStage.details.push(`  [${c.sha}] ${c.message}${c.author ? ` — ${c.author}` : ""}`);
+          }
+          if (commitDelta.behind > 5) {
+            deployStage.details.push(`  … and ${commitDelta.behind - 5} more`);
+          }
+        }
+      }
+    }
 
     const { verdict, stages } = trace(stagesInput);
     const markdown = renderTraceMarkdown(verdict, stages);
@@ -706,6 +842,7 @@ export async function POST(req: NextRequest) {
       inputs: { repoUrl: repoUrlNormalised, liveUrl: liveUrlRaw },
       verdict,
       stages,
+      commitDelta,
       markdown,
     });
   } catch (err) {

@@ -97,6 +97,7 @@ class BaseModule {
         timeout: options.timeout || 60000,
         cwd: options.cwd || process.cwd(),
         stdio: ['pipe', 'pipe', 'pipe'],
+        maxBuffer: options.maxBuffer || 10 * 1024 * 1024,
       });
       return { stdout, stderr: '', exitCode: 0 };
     } catch (err) {
