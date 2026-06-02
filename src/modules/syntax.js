@@ -500,11 +500,8 @@ class SyntaxModule extends BaseModule {
         });
       }
 
-      // Unbalanced parentheses — uses a state-machine stripper that
-      // ignores strings, template literals (incl. multi-line), regex
-      // literals, and comments. Previous single-regex stripper was too
-      // naive and fired on any file with a few `(don't|do)` regexes.
-      const stripped = stripStringsAndComments(content);
+      // Unbalanced parentheses (rough check, skip strings)
+      const stripped = content.replace(/['"`](?:[^'"`\\]|\\.)*['"`]/g, '""');
       const parens = (stripped.match(/\(/g) || []).length - (stripped.match(/\)/g) || []).length;
       if (Math.abs(parens) > 2) {
         result.addCheck(`syntax:parens:${relPath}`, false, {
@@ -516,142 +513,6 @@ class SyntaxModule extends BaseModule {
       }
     }
   }
-}
-
-// State-machine source stripper. Walks char-by-char and replaces the
-// contents of strings / template literals / regex literals / comments
-// with a single space, leaving structural punctuation intact for
-// downstream paren-counting. Approximate (regex vs. division heuristic
-// is the standard one), but far more accurate than a single regex.
-function stripStringsAndComments(src) {
-  const out = [];
-  const STATE = {
-    NORMAL: 0,
-    LINE_COMMENT: 1,
-    BLOCK_COMMENT: 2,
-    SQ_STRING: 3,
-    DQ_STRING: 4,
-    TEMPLATE: 5,
-    TEMPLATE_EXPR: 6,
-    REGEX: 7,
-    REGEX_CLASS: 8,
-  };
-  let state = STATE.NORMAL;
-  let templateExprDepth = 0;
-  // Tokens after which `/` is interpreted as a regex literal (otherwise division).
-  const REGEX_PRECEDERS = /[=(,;:!&|?{}[\n+\-*<>%^~]/;
-  let lastSig = '\n';
-
-  for (let i = 0; i < src.length; i++) {
-    const c = src[i];
-    const next = src[i + 1] || '';
-    if (state === STATE.NORMAL || state === STATE.TEMPLATE_EXPR) {
-      if (c === '/' && next === '/') {
-        state = STATE.LINE_COMMENT;
-        out.push(' ', ' ');
-        i++;
-        continue;
-      }
-      if (c === '/' && next === '*') {
-        state = STATE.BLOCK_COMMENT;
-        out.push(' ', ' ');
-        i++;
-        continue;
-      }
-      if (c === "'") { state = STATE.SQ_STRING; out.push(c); continue; }
-      if (c === '"') { state = STATE.DQ_STRING; out.push(c); continue; }
-      if (c === '`') { state = STATE.TEMPLATE; out.push(c); continue; }
-      if (c === '/' && REGEX_PRECEDERS.test(lastSig)) {
-        state = STATE.REGEX;
-        out.push(c);
-        continue;
-      }
-      if (state === STATE.TEMPLATE_EXPR) {
-        if (c === '{') templateExprDepth++;
-        else if (c === '}') {
-          templateExprDepth--;
-          if (templateExprDepth === 0) {
-            state = STATE.TEMPLATE;
-            out.push(c);
-            continue;
-          }
-        }
-      }
-      out.push(c);
-      if (!/\s/.test(c)) lastSig = c;
-      continue;
-    }
-    if (state === STATE.LINE_COMMENT) {
-      if (c === '\n') { state = STATE.NORMAL; out.push(c); lastSig = '\n'; }
-      else out.push(' ');
-      continue;
-    }
-    if (state === STATE.BLOCK_COMMENT) {
-      if (c === '*' && next === '/') {
-        state = STATE.NORMAL;
-        out.push(' ', ' ');
-        i++;
-      } else {
-        out.push(c === '\n' ? '\n' : ' ');
-      }
-      continue;
-    }
-    if (state === STATE.SQ_STRING) {
-      if (c === '\\') { out.push(' '); if (next) { out.push(' '); i++; } continue; }
-      if (c === "'") { state = STATE.NORMAL; out.push(c); lastSig = c; continue; }
-      out.push(c === '\n' ? '\n' : ' ');
-      continue;
-    }
-    if (state === STATE.DQ_STRING) {
-      if (c === '\\') { out.push(' '); if (next) { out.push(' '); i++; } continue; }
-      if (c === '"') { state = STATE.NORMAL; out.push(c); lastSig = c; continue; }
-      out.push(c === '\n' ? '\n' : ' ');
-      continue;
-    }
-    if (state === STATE.TEMPLATE) {
-      if (c === '\\') { out.push(' '); if (next) { out.push(' '); i++; } continue; }
-      if (c === '`') { state = STATE.NORMAL; out.push(c); lastSig = c; continue; }
-      if (c === '$' && next === '{') {
-        state = STATE.TEMPLATE_EXPR;
-        templateExprDepth = 1;
-        out.push(c, next);
-        i++;
-        continue;
-      }
-      out.push(c === '\n' ? '\n' : ' ');
-      continue;
-    }
-    if (state === STATE.REGEX) {
-      if (c === '\\') { out.push(' '); if (next) { out.push(' '); i++; } continue; }
-      if (c === '[') { state = STATE.REGEX_CLASS; out.push(' '); continue; }
-      if (c === '/') {
-        state = STATE.NORMAL;
-        out.push(c);
-        // Consume any flag chars (gimsuy)
-        let j = i + 1;
-        while (j < src.length && /[gimsuy]/.test(src[j])) { out.push(src[j]); j++; }
-        i = j - 1;
-        lastSig = '/';
-        continue;
-      }
-      if (c === '\n') {
-        // Unterminated regex — bail back to NORMAL to avoid eating the rest of the file.
-        state = STATE.NORMAL;
-        out.push(c);
-        lastSig = '\n';
-        continue;
-      }
-      out.push(' ');
-      continue;
-    }
-    if (state === STATE.REGEX_CLASS) {
-      if (c === '\\') { out.push(' '); if (next) { out.push(' '); i++; } continue; }
-      if (c === ']') { state = STATE.REGEX; out.push(' '); continue; }
-      out.push(c === '\n' ? '\n' : ' ');
-      continue;
-    }
-  }
-  return out.join('');
 }
 
 module.exports = SyntaxModule;
