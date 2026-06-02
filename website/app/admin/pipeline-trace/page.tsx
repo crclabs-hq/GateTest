@@ -155,7 +155,9 @@ function StageBox({ stage }: { stage: Stage }) {
       <div className="space-y-1 text-xs">
         <div className="flex items-baseline gap-2">
           <span className="text-gray-500">sha</span>
-          <span className="font-mono text-gray-900">{stage.state.shortSha || (stage.state.sha ? stage.state.sha.slice(0, 7) : "—")}</span>
+          <span className="font-mono text-gray-900">
+            {stage.state.shortSha || (stage.state.sha ? stage.state.sha.slice(0, 7) : "—")}
+          </span>
         </div>
         <div className="flex items-baseline gap-2">
           <span className="text-gray-500">age</span>
@@ -164,7 +166,9 @@ function StageBox({ stage }: { stage: Stage }) {
         {stage.name === "ci" && stage.state.conclusion && (
           <div className="flex items-baseline gap-2">
             <span className="text-gray-500">conclusion</span>
-            <span className={`font-semibold ${conclusionClass(stage.state.conclusion)}`}>{stage.state.conclusion}</span>
+            <span className={`font-semibold ${conclusionClass(stage.state.conclusion)}`}>
+              {stage.state.conclusion}
+            </span>
           </div>
         )}
         {stage.name === "deploy" && stage.state.state && (
@@ -176,14 +180,20 @@ function StageBox({ stage }: { stage: Stage }) {
         {stage.name === "live" && stage.state.details && stage.state.details.length > 0 && (
           <ul className="space-y-0.5 mt-1">
             {stage.state.details.slice(0, 3).map((d, i) => (
-              <li key={i} className="text-[11px] text-gray-600 break-words font-mono">{d.length > 60 ? `${d.slice(0, 60)}…` : d}</li>
+              <li key={i} className="text-[11px] text-gray-600 break-words font-mono">
+                {d.length > 60 ? `${d.slice(0, 60)}…` : d}
+              </li>
             ))}
           </ul>
         )}
       </div>
       {stage.state.url && (
-        <a href={stage.state.url} target="_blank" rel="noopener noreferrer"
-          className="mt-3 inline-block text-xs text-emerald-700 hover:text-emerald-800 font-semibold">
+        <a
+          href={stage.state.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-block text-xs text-emerald-700 hover:text-emerald-800 font-semibold"
+        >
           View &rarr;
         </a>
       )}
