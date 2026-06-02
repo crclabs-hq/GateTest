@@ -11,10 +11,10 @@ const { probe, __test__ } = require('../src/modules/ai-guardrails/probe');
 // ============================================================
 
 test('expandEnv: ${VAR} placeholder expands from process.env', () => {
-  process.env.GATETEST_PROBE_TEST_TOKEN = 'shh-secret-123';
+  process.env.GATETEST_PROBE_TEST_TOKEN = 'placeholder-not-a-real-credential';
   assert.equal(
     __test__.expandEnv('Bearer ${GATETEST_PROBE_TEST_TOKEN}'),
-    'Bearer shh-secret-123',
+    'Bearer placeholder-not-a-real-credential',
   );
   delete process.env.GATETEST_PROBE_TEST_TOKEN;
 });
@@ -107,6 +107,7 @@ function startTestServer(handler) {
         }
       });
     });
+    // hardcoded-url-ok — test http server bound to loopback for the probe to hit
     server.listen(0, '127.0.0.1', () => {
       const port = server.address().port;
       resolve({ server, url: `http://127.0.0.1:${port}` });
@@ -226,7 +227,7 @@ test('probe: timeout → ok:false + timeout error code', async () => {
 });
 
 test('probe: env-expanded Authorization header is delivered to server', async () => {
-  process.env.GATETEST_PROBE_TEST_BEARER = 'tok-xyz';
+  process.env.GATETEST_PROBE_TEST_BEARER = 'placeholder-bearer-value';
   let sentAuth = null;
   const { server, url } = await startTestServer((req, res) => {
     sentAuth = req.headers['authorization'];
@@ -241,7 +242,7 @@ test('probe: env-expanded Authorization header is delivered to server', async ()
         headers: { Authorization: 'Bearer ${GATETEST_PROBE_TEST_BEARER}' },
       },
     );
-    assert.equal(sentAuth, 'Bearer tok-xyz');
+    assert.equal(sentAuth, 'Bearer placeholder-bearer-value');
   } finally {
     server.close();
     delete process.env.GATETEST_PROBE_TEST_BEARER;

@@ -40,6 +40,7 @@ function startTestServer(handler) {
         catch (err) { res.statusCode = 500; res.end(String(err && err.message)); }
       });
     });
+    // hardcoded-url-ok — test http server bound to loopback for the probe to hit
     server.listen(0, '127.0.0.1', () => {
       resolve({ server, url: `http://127.0.0.1:${server.address().port}` });
     });
@@ -154,6 +155,7 @@ test('module: unreachable endpoint surfaces probe-error checks but does not cras
   const m = new AiGuardrailsModule();
   const result = makeResult();
   // Pick an unroutable URL — connection will fail immediately.
+  // hardcoded-url-ok — intentional connection-refused fixture for the error path
   await m.run(result, makeConfig({
     endpoint: 'http://127.0.0.1:1/', // port 1 — connection refused
     categories: ['jailbreak'],
@@ -172,6 +174,7 @@ test('module: unreachable endpoint surfaces probe-error checks but does not cras
 test('module: empty category filter (after intersection with valid) skips all and reports no-scenarios', async () => {
   const m = new AiGuardrailsModule();
   const result = makeResult();
+  // hardcoded-url-ok — endpoint never reached; filter exits before any HTTP call
   await m.run(result, makeConfig({
     endpoint: 'http://127.0.0.1:65535/',
     categories: ['nonexistent-category'],
