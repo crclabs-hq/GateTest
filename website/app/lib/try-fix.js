@@ -37,9 +37,9 @@ const LAYER_TIMEOUT_MS = 30_000;
 // Anthropic pricing (approximate, USD per 1K tokens) — used for telemetry cost
 // roll-up. Treat as best-effort: the bill of record is the Anthropic console.
 const CLAUDE_PRICING = {
-  // claude-opus-4-7 — sonnet pricing as of 2026-04
-  'claude-opus-4-7':       { inputPer1K: 0.003, outputPer1K: 0.015 },
-  'claude-opus-4-7':{ inputPer1K: 0.003, outputPer1K: 0.015 },
+  // claude-sonnet-4-7 — sonnet pricing as of 2026-04
+  'claude-sonnet-4-7':       { inputPer1K: 0.003, outputPer1K: 0.015 },
+  'claude-sonnet-4-7':{ inputPer1K: 0.003, outputPer1K: 0.015 },
   default:                   { inputPer1K: 0.003, outputPer1K: 0.015 },
 };
 
@@ -293,7 +293,7 @@ async function runClaudeLayer(issue, opts) {
   if (!opts.anthropicApiKey) return { skipped: true, reason: 'no-api-key' };
   if (typeof issue.content !== 'string') return null;
 
-  const model = opts.claudeModel || 'claude-opus-4-7';
+  const model = opts.claudeModel || 'claude-sonnet-4-7';
   const fetchFn = opts.fetch || (typeof globalThis.fetch === 'function' ? globalThis.fetch : null);
   if (!fetchFn) return { skipped: true, reason: 'no-fetch' };
 
@@ -417,7 +417,7 @@ async function runLayer({ name, fn, issue, opts, telemetryFn, telemetryPath, ext
  * @param {object} [opts]
  * @param {boolean} [opts.enableClaude=false]
  * @param {string}  [opts.anthropicApiKey]
- * @param {string}  [opts.claudeModel='claude-opus-4-7']
+ * @param {string}  [opts.claudeModel='claude-sonnet-4-7']
  * @param {string}  [opts.recipeStorePath]
  * @param {function} [opts.fetch]       — override globalThis.fetch (tests)
  * @param {function} [opts.recordFixAttempt] — override telemetry sink (tests)
@@ -538,7 +538,7 @@ async function tryFix(issue, opts = {}) {
     telemetryPath,
   });
   if (claudeResult.ok) {
-    const model = (claudeResult.extra && claudeResult.extra.model) || opts.claudeModel || 'claude-opus-4-7';
+    const model = (claudeResult.extra && claudeResult.extra.model) || opts.claudeModel || 'claude-sonnet-4-7';
     // Best-effort auto-distill: write a recipe so the next time this shape
     // shows up, the recipe layer (free) wins instead of Claude (paid).
     if (opts.autoDistill !== false && opts.recipeStorePath) {

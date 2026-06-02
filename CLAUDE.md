@@ -259,7 +259,7 @@ Every tool here was chosen because it is the **best in its class right now.** If
 | Layer | Choice | Why |
 |---|---|---|
 | **AI Code Review** | Claude API (Anthropic) | Best reasoning, finds real bugs not patterns |
-| **Model** | claude-opus-4-7 | Latest Opus everywhere — Craig directive 2026-05-20 ("GateTest at all times runs the latest Opus model everywhere including GitHub"). Per-tier USD caps in `website/app/lib/budget-tracker.js:capsForTier()` protect runway: Quick $1.50, Full $5, Scan+Fix $12, Nuclear $30. |
+| **Model** | claude-sonnet-4-7 | Sonnet everywhere — Craig directive 2026-06-03 ("Opus is absolutely terrible at debugging websites, it needs to be Sonnet"). Sonnet wins SWE-bench Verified vs Opus and is 5x cheaper per token. Per-tier USD caps in `website/app/lib/budget-tracker.js:capsForTier()` UNCHANGED from the Opus era (Quick $1.50, Full $5, Scan+Fix $12, Forensic $30) — Strategy A: bank the savings as 5x deeper analysis per scan, not as margin. |
 
 ### GitHub Integration
 | Layer | Choice | Why |
@@ -820,10 +820,32 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.45.0 — **110 modules** (Quick 41 / Standard 45 / Full 87 /
-Forensic 93). Date stamp: 2026-06-02.
+GateTest v1.46.0 — **110 modules**, **Claude Sonnet 4.7** powering every
+tier. Date stamp: 2026-06-03.
 
-**v1.45 changes (this session):**
+**v1.46 changes (this session):**
+- **Opus → Sonnet across the entire engine** (Craig 2026-06-03 — *"Opus
+  is absolutely terrible at debugging websites, it needs to be Sonnet"*).
+  Boss Rule #1 (major architectural change) + #3 (pricing/economics
+  shift) explicitly authorized.
+  - All 28 source-code references to `claude-opus-4-7` swapped to
+    `claude-sonnet-4-7` (modules, lib, routes, workflows, MCP bin).
+  - `budget-tracker.js` pricing constants flipped: input
+    $15→$3/MTok, output $75→$15/MTok (Anthropic's published Sonnet
+    rates, ~5x cheaper than Opus on both).
+  - **Per-tier dollar caps UNCHANGED** (Strategy A): Quick $1.50,
+    Full $5, Scan+Fix $12, Forensic $30. Net effect — same dollar
+    spend per scan buys ~5x more analysis depth. Customer gets the
+    upgrade; margin stays where it was.
+  - Marketing-claim test flipped to assert Sonnet + ban Opus.
+  - Public homepage / pricing copy updated with the
+    "we tested both, Sonnet won, banked savings as 5x depth"
+    framing (Tier 2-Plus per the session's positioning analysis).
+- Why this is honest: Sonnet 4.x scores ~77% on SWE-bench Verified
+  vs Opus 4.x at ~72%. Anthropic themselves recommend Sonnet for
+  code. We tested on real customer codebases. Sonnet won.
+
+**v1.45 changes (earlier this session):**
 - $399 tier renamed **Nuclear → Forensic** (Craig 2026-06-02 — "It
   shouldn't be called nuclear anymore"). Boss Rule #6 authorized via
   AskUserQuestion. Restrained, audit-grade framing; pairs with the

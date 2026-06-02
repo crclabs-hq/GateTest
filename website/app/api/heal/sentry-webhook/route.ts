@@ -133,7 +133,7 @@ PATCH:
 CONFIDENCE: <LOW|MEDIUM|HIGH>`;
 
   const body = JSON.stringify({
-    model: "claude-opus-4-7",
+    model: "claude-sonnet-4-7",
     max_tokens: 1024,
     messages: [{ role: "user", content: userContent }],
   });
