@@ -93,7 +93,7 @@ export default function Hero() {
           <p className="text-center text-sm sm:text-base text-teal-300/80 max-w-2xl mx-auto mb-2 fade-up font-medium">
             Built on Claude Sonnet 4 &mdash; the model that wins SWE-bench
             Verified, not the most expensive one in the lineup. We tested.
-            We picked the better debugger.
+            We picked the model that actually fixes bugs.
           </p>
           <p className="text-center text-xs sm:text-sm text-white/55 max-w-2xl mx-auto mb-10 fade-up">
             Net effect: every tier ships ~5x deeper analysis at the same price.
