@@ -60,7 +60,7 @@ export default function Hero() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
               </span>
-              <span>Launching today &middot; v1.43 &middot; 110 modules live</span>
+              <span>Launching today &middot; v1.45 &middot; 110 modules live</span>
             </div>
           </div>
 
