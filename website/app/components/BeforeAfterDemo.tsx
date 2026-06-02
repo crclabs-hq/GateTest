@@ -49,7 +49,7 @@ export default function BeforeAfterDemo() {
   ::error file=apps/api/src/cdn/handler.ts,
     line=65::ReferenceError`}
                 </pre>
-                <p className="text-xs text-white/40 mt-3">
+                <p className="text-xs text-muted mt-3">
                   A real Crontech failure from 2026-05-24. The api crashed at
                   module load. Rollback also failed.
                 </p>
@@ -73,7 +73,7 @@ export default function BeforeAfterDemo() {
                   <Step state="done">Writes a regression test for the bug</Step>
                   <Step state="working">Pair-reviews the fix with a second Claude</Step>
                 </ul>
-                <p className="text-xs text-white/40">
+                <p className="text-xs text-muted">
                   ~38 seconds, ~$0.02 in Anthropic API spend per fix on the
                   $99 tier. Margin: 100x.
                 </p>
@@ -101,7 +101,7 @@ export default function BeforeAfterDemo() {
 
 ✓ Tests added (1)  ✓ Gate green`}
                 </pre>
-                <p className="text-xs text-white/40 mt-3">
+                <p className="text-xs text-muted mt-3">
                   One-click &ldquo;Commit suggestion&rdquo; in GitHub. CI re-runs
                   green. You wake up to a merged fix instead of a 47-message
                   Slack thread.
@@ -111,9 +111,9 @@ export default function BeforeAfterDemo() {
           />
         </div>
 
-        <p className="text-center text-base sm:text-lg text-white/55 mt-12 max-w-3xl mx-auto">
+        <p className="text-center text-base sm:text-lg text-muted mt-12 max-w-3xl mx-auto">
           No other tool ships{" "}
-          <strong className="text-white">scan + fix + regression test +
+          <strong className="text-foreground">scan + fix + regression test +
             pair-review + cross-finding correlation</strong>{" "}
           on pay-per-scan pricing. <span className="text-accent-light">We do.</span>
         </p>
@@ -156,11 +156,11 @@ function Panel({
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-white/35 uppercase tracking-wider">
+          <span className="text-xs font-mono text-muted uppercase tracking-wider">
             Step {stage}
           </span>
-          <span className="text-xs font-mono text-white/30">&middot;</span>
-          <span className="text-xs font-mono text-white/35">{timestamp}</span>
+          <span className="text-xs font-mono text-muted/60">&middot;</span>
+          <span className="text-xs font-mono text-muted">{timestamp}</span>
         </div>
         <span
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${badgeStyles[badgeColor]}`}
@@ -194,7 +194,7 @@ function Step({
 }) {
   if (state === "done") {
     return (
-      <li className="flex items-start gap-2 text-white/80">
+      <li className="flex items-start gap-2 text-foreground/85">
         <span className="text-accent-light text-xs mt-1" aria-hidden>
           &#10003;
         </span>
@@ -203,7 +203,7 @@ function Step({
     );
   }
   return (
-    <li className="flex items-start gap-2 text-white/80">
+    <li className="flex items-start gap-2 text-foreground/85">
       <span className="relative inline-flex h-3 w-3 mt-1 shrink-0" aria-hidden>
         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent/70 opacity-75" />
         <span className="relative inline-flex h-3 w-3 rounded-full bg-accent" />
