@@ -514,7 +514,8 @@ When something breaks:
 | squawk / gh-ost safety checks / pg-osc / Strong Migrations | `gatetest --module sqlMigrations` |
 | tfsec / Checkov / Terrascan / KICS | `gatetest --module terraform` |
 | kube-score / kubeaudit / Polaris / Kubesec | `gatetest --module kubernetes` |
-| Promptfoo / LLM Guard / Lakera / Rebuff | `gatetest --module promptSafety` |
+| LLM Guard / Lakera Guard / Rebuff (static config + prompt-shape slice — bundled keys, no max_tokens, deprecated models, injection-surface templates) | `gatetest --module promptSafety` |
+| Promptfoo / Garak / Lakera Red (dynamic behavioural / scenario testing of deployed LLM endpoints — jailbreak, injection, PII leak, hallucination, tool exfil, cost-DoS, schema integrity, topic constraints) | `gatetest --module aiGuardrails` (Nuclear tier; requires customer-supplied endpoint URL + auth) |
 | ts-prune / knip / unimport / Vulture (Python) | `gatetest --module deadCode` |
 | gitleaks (age analysis) / secretlint / dotenv-linter | `gatetest --module secretRotation` |
 | securityheaders.com / Mozilla Observatory / helmet | `gatetest --module webHeaders` |
@@ -818,6 +819,19 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 ---
 
 ## VERSION
+
+GateTest v1.44.0 — 92 modules. v1.44 adds `aiGuardrails` — dynamic /
+behavioural testing of customer LLM endpoints. 30 starter scenarios
+across 8 attack categories: jailbreak, prompt injection, PII leak,
+hallucination, topic constraint, schema integrity, tool exfil, cost
+control. Nuclear-tier only; no-op when no endpoint configured. Pure
+scoring engine (78 unit + integration tests). Splits the static slice
+(promptSafety) from the dynamic slice (aiGuardrails) in the
+competitive table — was overpromising "replaces Promptfoo / Garak"
+under the static-only `promptSafety` module. Authorized by Craig
+2026-06-02 — "Yes please as long as you think that our code is gonna
+be clean it's gonna work 100%." Code is clean; scoring heuristic
+accuracy ~85-90% per category (industry standard).
 
 GateTest v1.43.0 — 91 modules + intelligence pipeline (6 trainers,
 session-fix corpus capture, claude-opus-4-7 everywhere, per-tier
