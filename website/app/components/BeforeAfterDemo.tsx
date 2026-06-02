@@ -20,7 +20,7 @@ export default function BeforeAfterDemo() {
           <span className="text-sm font-semibold text-accent-light uppercase tracking-wider">
             What you get
           </span>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mt-4 mb-4 text-white">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mt-4 mb-4 text-foreground">
             From red CI to merged fix &mdash;{" "}
             <span className="gradient-text">while you sleep.</span>
           </h2>
@@ -178,7 +178,7 @@ function Panel({
         </span>
       </div>
 
-      <h3 className="text-lg font-semibold text-white mb-3">{title}</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-3">{title}</h3>
 
       {body}
     </div>
