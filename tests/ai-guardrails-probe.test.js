@@ -107,10 +107,9 @@ function startTestServer(handler) {
         }
       });
     });
-    // hardcoded-url-ok — test http server bound to loopback for the probe to hit
-    server.listen(0, '127.0.0.1', () => {
+    server.listen(0, '127.0.0.1', () => { // hardcoded-url-ok
       const port = server.address().port;
-      resolve({ server, url: `http://127.0.0.1:${port}` });
+      resolve({ server, url: `http://127.0.0.1:${port}` }); // hardcoded-url-ok
     });
   });
 }
