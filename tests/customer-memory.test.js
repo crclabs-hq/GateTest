@@ -17,7 +17,7 @@ test('customer-memory: source file exists', () => {
   assert.ok(fs.existsSync(LIB_PATH));
 });
 
-test('customer-memory: exports the expected surface', () => {
+test('customer-memory: exports the expected runtime surface', () => {
   const src = fs.readFileSync(LIB_PATH, 'utf8');
   for (const name of [
     'ensureMemoryTable',
@@ -29,11 +29,29 @@ test('customer-memory: exports the expected surface', () => {
     'listKeys',
     'deleteValue',
     'tierAllowed',
-    'MEMORY_TIERS',
-    'MAX_VALUE_BYTES',
   ]) {
     assert.match(src, new RegExp(`export\\s+(?:const|function|async\\s+function)\\s+${name}\\b`),
       `missing export: ${name}`);
+  }
+});
+
+test('customer-memory: internal-only symbols NOT exported (no dead-code warnings)', () => {
+  const src = fs.readFileSync(LIB_PATH, 'utf8');
+  // These are only used inside this file; exporting them creates orphaned
+  // dead-code warnings. Promote to export only when an outside caller needs them.
+  for (const name of [
+    'MEMORY_TIERS',
+    'MAX_SCOPE_LEN',
+    'MAX_KEY_LEN',
+    'MAX_VALUE_BYTES',
+    'MemoryTier',
+    'MemoryRow',
+    'ValidationError',
+    'ValidationSuccess',
+    'Validation',
+  ]) {
+    assert.doesNotMatch(src, new RegExp(`^\\s*export\\s+(?:const|type|interface|function|async\\s+function)\\s+${name}\\b`, 'm'),
+      `${name} should NOT be exported (currently used only inside customer-memory.ts)`);
   }
 });
 

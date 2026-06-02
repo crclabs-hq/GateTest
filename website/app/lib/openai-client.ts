@@ -9,7 +9,10 @@
  * opt-in via `consensus: true`). Quick / Full / Scan+Fix never call OpenAI.
  */
 
-export interface OpenAiCallOptions {
+// Types are internal — multi-agent-consensus.ts imports the functions and
+// gets the shapes via inference. Promote to export if a second consumer
+// needs them.
+interface OpenAiCallOptions {
   model: string;
   systemPrompt: string;
   userPrompt: string;
@@ -17,7 +20,7 @@ export interface OpenAiCallOptions {
   timeoutMs?: number;
 }
 
-export interface OpenAiResponse {
+interface OpenAiResponse {
   status: number;
   ok: boolean;
   text: string;
