@@ -61,7 +61,8 @@ export async function GET(req: NextRequest) {
   if (!scope.ok) return NextResponse.json({ error: scope.error }, { status: scope.status });
 
   await ensureMemoryTable();
-  recordApiCall({ apiKeyId: a.auth.key.id, statusCode: 200 }).catch(() => {});
+  // gatetest-fire-and-forget — usage telemetry must never block the API response
+  void recordApiCall({ apiKeyId: a.auth.key.id, statusCode: 200 });
 
   if (keyRaw === null) {
     const limitParam = Number(searchParams.get("limit") || "100");
@@ -93,7 +94,8 @@ export async function POST(req: NextRequest) {
   if (!value.ok) return NextResponse.json({ error: value.error }, { status: value.status });
 
   await ensureMemoryTable();
-  recordApiCall({ apiKeyId: a.auth.key.id, statusCode: 200 }).catch(() => {});
+  // gatetest-fire-and-forget — usage telemetry must never block the API response
+  void recordApiCall({ apiKeyId: a.auth.key.id, statusCode: 200 });
 
   await setValue(a.auth.key.customer_email!, scope.value, key.value, value.value);
   return NextResponse.json({ ok: true, scope: scope.value, key: key.value });
@@ -109,7 +111,8 @@ export async function DELETE(req: NextRequest) {
   if (!key.ok) return NextResponse.json({ error: key.error }, { status: key.status });
 
   await ensureMemoryTable();
-  recordApiCall({ apiKeyId: a.auth.key.id, statusCode: 200 }).catch(() => {});
+  // gatetest-fire-and-forget — usage telemetry must never block the API response
+  void recordApiCall({ apiKeyId: a.auth.key.id, statusCode: 200 });
 
   const deleted = await deleteValue(a.auth.key.customer_email!, scope.value, key.value);
   if (!deleted) return NextResponse.json({ error: "not found" }, { status: 404 });
