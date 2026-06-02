@@ -57,9 +57,13 @@ test("pipeline-trace page: has both Copy all and Copy markdown buttons with hand
   assert.match(src, /navigator\.clipboard\.writeText/);
 });
 
-test("pipeline-trace page: humanAge helper present at module scope", () => {
-  const src = fs.readFileSync(PAGE_PATH, "utf8");
-  assert.match(src, /function\s+humanAge\s*\(/);
+test("pipeline-trace page: humanAge helper exists (extracted to ./formatters)", () => {
+  const formattersPath = path.join(
+    ROOT,
+    "website/app/admin/pipeline-trace/formatters.ts",
+  );
+  const src = fs.readFileSync(formattersPath, "utf8");
+  assert.match(src, /export\s+function\s+humanAge\s*\(/);
   // The expected branches: just now / min / hr / days
   assert.match(src, /just now/);
   assert.match(src, /min/);
