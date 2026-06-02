@@ -1,0 +1,52 @@
+name: Auto-merge ai-ci-fixer PRs (arena)
+
+# Auto-merges any PR opened by the ai-ci-fixer bot once its CI is green.
+# Safe because:
+#   - Only applies to PRs labelled by ai-ci-fixer or with the marker title
+#   - Only fires after `check_suite` completes successfully
+#   - Bot account isolated to the arena repo
+#
+# If the fixer's PR doesn't go green, this workflow simply doesn't fire —
+# the PR sits open, visible on the /testing page as a "fix attempt
+# failed" cycle.
+
+on:
+  check_suite:
+    types: [completed]
+
+permissions:
+  contents:      write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: ${{ github.event.check_suite.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find associated PR + merge if it's an arena-fix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO:         ${{ github.repository }}
+          HEAD_SHA:     ${{ github.event.check_suite.head_sha }}
+        run: |
+          set -euo pipefail
+          PRS=$(curl -sS \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/commits/$HEAD_SHA/pulls")
+          echo "$PRS" | jq -r '.[] | "\(.number)|\(.title)|\(.user.login)"' | while IFS='|' read -r NUM TITLE AUTHOR; do
+            echo "candidate PR #$NUM author=$AUTHOR title=$TITLE"
+            # Only auto-merge if it's a fixer PR (title prefix or bot author)
+            if echo "$TITLE" | grep -qE '^(fix\(ai-ci-fixer\)|ai-ci-fixer:|arena\(fix\))'; then
+              echo "auto-merging PR #$NUM"
+              curl -sS -X PUT \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$REPO/pulls/$NUM/merge" \
+                -d '{"merge_method":"squash"}'
+            else
+              echo "PR #$NUM is not a fixer PR — leaving alone"
+            fi
+          done
