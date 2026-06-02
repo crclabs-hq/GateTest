@@ -1,5 +1,5 @@
 /**
- * Nuclear Scan — find ANYTHING and EVERYTHING wrong with a domain.
+ * Forensic Scan — find ANYTHING and EVERYTHING wrong with a domain.
  *
  * POST /api/scan/nuclear
  * Body: { url: string, repo?: string }

@@ -2,7 +2,7 @@
  * Multi-Agent Consensus — runs Claude and GPT-4o on the same fix prompt
  * in parallel, compares the structured outputs, and reports agreement.
  *
- * Use case (Nuclear tier opt-in): for the highest-value fixes, run BOTH
+ * Use case (Forensic tier opt-in): for the highest-value fixes, run BOTH
  * frontier models. When they agree, ship with high confidence. When they
  * diverge, surface the diff so the reviewer (or a third agent) decides.
  *

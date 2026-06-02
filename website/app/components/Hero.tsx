@@ -8,7 +8,7 @@
  *   - Sample-URL chips pre-fill so visitors can try the product without typing.
  *   - Honest counter row — no fabricated numbers; "Launching today" badge if no
  *     real data is available.
- *   - Substance over polish: every claim ties to a real artefact (104 modules,
+ *   - Substance over polish: every claim ties to a real artefact (110 modules,
  *     4600+ tests, self-scan green, pay-on-completion).
  *   - Dark theme preserved. Animated grid background retained.
  *   - Mobile-first; 320px ↔ 2560px.
@@ -60,12 +60,12 @@ export default function Hero() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
               </span>
-              <span>Launching today &middot; v1.43 &middot; 104 modules live</span>
+              <span>Launching today &middot; v1.43 &middot; 110 modules live</span>
             </div>
           </div>
 
           {/* Headline — outcome-first, not feature-first. Tested against
-              "One gate. 104 modules. Self-healing CI." (which led with
+              "One gate. 110 modules. Self-healing CI." (which led with
               features) — the new variant leads with the painkiller story
               (you don't lose your evening to red CI). Per Craig's
               priorities for HN launch: this is the line that ships in
@@ -78,7 +78,7 @@ export default function Hero() {
 
           {/* Unfair-advantage hook */}
           <p className="text-center text-xl sm:text-2xl text-white/65 max-w-3xl mx-auto mb-3 leading-snug fade-up font-medium">
-            104 checks, one gate, auto-fix PRs in 60 seconds.
+            110 checks, one gate, auto-fix PRs in 60 seconds.
           </p>
           <p className="text-center text-base sm:text-lg text-white/45 max-w-2xl mx-auto mb-3 leading-relaxed fade-up">
             We catch the bugs, security issues, and CI rot that crash your
@@ -135,7 +135,7 @@ export default function Hero() {
                 label="Self-scan"
                 value="GREEN"
                 tone="ok"
-                detail="102/104 modules"
+                detail="102/110 modules"
               />
               <StatusCell
                 label="Tests passing"

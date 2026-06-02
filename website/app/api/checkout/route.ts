@@ -5,7 +5,7 @@
  * 1. Customer selects a scan tier and provides repo URL
  * 2. This route creates a Stripe Checkout Session — charge captures at checkout
  * 3. Customer completes payment → Stripe charges the card immediately
- * 4. GateTest runs the scan (and AI fix on Scan + Fix and Nuclear tiers)
+ * 4. GateTest runs the scan (and AI fix on Scan + Fix and Forensic tiers)
  * 5. If a scan fails to start or crashes mid-way, support handles the
  *    exception (re-run or credit at our discretion) — NOT an automatic refund.
  *
@@ -51,9 +51,9 @@ const TIERS: Record<string, ScanTier> = {
   full: {
     name: "Full Scan",
     priceInCents: 9900,
-    modules: "all-104",
+    modules: "all-110",
     description:
-      "All 104 modules — security, supply chain, auth, CI hardening, AI review, and more. Scan-only (no auto-fix — that ships at Scan + Fix $199 and above).",
+      "All 110 modules — security, supply chain, auth, CI hardening, AI review, and more. Scan-only (no auto-fix — that ships at Scan + Fix $199 and above).",
   },
   // Phase 2.3 — $199 Scan + Fix tier. Wired in once Phase 2.1 (pair-review),
   // 2.2 (architecture annotator), and 2.4 (3 real-repo proofs validated:
@@ -64,11 +64,11 @@ const TIERS: Record<string, ScanTier> = {
   scan_fix: {
     name: "Scan + Fix",
     priceInCents: 19900,
-    modules: "all-104+pair-review+architecture",
+    modules: "all-110+pair-review+architecture",
     description:
       "Everything in Full Scan, plus a second-Claude pair-review critique on every fix (correctness/completeness/readability/test-coverage rubric) and a separate architecture-annotator report on codebase-shape design observations. Same PR, deeper deliverable.",
   },
-  // Phase 3.6 — $399 Nuclear tier. Wired in once 3.1 (Claude diagnoser),
+  // Phase 3.6 — $399 Forensic tier. Wired in once 3.1 (Claude diagnoser),
   // 3.2 (cross-finding correlator), 3.3 (mutation testing), 3.4 (chaos),
   // 3.5 (executive summary), and 3.7 (4/3 real-repo proofs validated)
   // all shipped. Stripe product already exists at $399 (Craig confirmed
@@ -76,7 +76,7 @@ const TIERS: Record<string, ScanTier> = {
   nuclear: {
     name: "Forensic Scan",
     priceInCents: 39900,
-    modules: "all-104+nuclear-stack",
+    modules: "all-110+nuclear-stack",
     description:
       "Everything in Scan + Fix, PLUS: real Claude diagnosis on every finding (no templated snippets), cross-finding attack-chain correlation (textbook session-forgery / supply-chain vectors no per-finding scanner can see), board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary report. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (mutation: true / chaos: true) — they need a CI runner so they ship wherever your CI runs.",
 

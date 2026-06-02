@@ -820,16 +820,31 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.44.0 — 92 modules. v1.44 adds `aiGuardrails` — dynamic /
-behavioural testing of customer LLM endpoints. 30 starter scenarios
-across 8 attack categories: jailbreak, prompt injection, PII leak,
-hallucination, topic constraint, schema integrity, tool exfil, cost
-control. Nuclear-tier only; no-op when no endpoint configured. Pure
-scoring engine (78 unit + integration tests). Splits the static slice
-(promptSafety) from the dynamic slice (aiGuardrails) in the
-competitive table — was overpromising "replaces Promptfoo / Garak"
-under the static-only `promptSafety` module. Authorized by Craig
-2026-06-02 — "Yes please as long as you think that our code is gonna
+GateTest v1.45.0 — **110 modules** (Quick 41 / Standard 45 / Full 87 /
+Forensic 93). Date stamp: 2026-06-02.
+
+**v1.45 changes (this session):**
+- $399 tier renamed **Nuclear → Forensic** (Craig 2026-06-02 — "It
+  shouldn't be called nuclear anymore"). Boss Rule #6 authorized via
+  AskUserQuestion. Restrained, audit-grade framing; pairs with the
+  existing "forensic stack" copy.
+- Bible drift corrected: prior versions said 92/91/90 modules; the
+  registry has actually carried 110 for some time once the dormant
+  Pen Test tier modules + recent additions are counted. Website-side
+  copy was at "104 modules" — also wrong. All surfaces sync to 110.
+- aiGuardrails (shipped previously this session in v1.44) remains
+  Forensic-tier only.
+
+**v1.44 (earlier today) — aiGuardrails module shipped:**
+30 starter scenarios across 8 attack categories: jailbreak, prompt
+injection, PII leak, hallucination, topic constraint, schema
+integrity, tool exfil, cost control. Forensic-tier only; no-op when
+no endpoint configured. Pure scoring engine (78 unit + integration
+tests). Splits the static slice (promptSafety) from the dynamic
+slice (aiGuardrails) in the competitive table — was overpromising
+"replaces Promptfoo / Garak" under the static-only `promptSafety`
+module. Authorized by Craig 2026-06-02 — "Yes please as long as you
+think that our code is gonna
 be clean it's gonna work 100%." Code is clean; scoring heuristic
 accuracy ~85-90% per category (industry standard).
 

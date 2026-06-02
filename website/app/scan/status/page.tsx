@@ -282,7 +282,7 @@ export default function ScanStatus() {
     if (scanResult?.status !== "complete") return;
     if ((scanResult.totalIssues || 0) === 0) return;
     if (extractFixableIssues(scanResult.modules).length === 0) return;
-    // Gate: only Scan+Fix ($199) and Nuclear ($399) get the auto-fix.
+    // Gate: only Scan+Fix ($199) and Forensic ($399) get the auto-fix.
     if (params.tier !== "scan_fix" && params.tier !== "nuclear") return;
     fixTriggered.current = true;
     runFix();
@@ -727,7 +727,7 @@ export default function ScanStatus() {
                       >
                         <p className="text-xs uppercase tracking-wider text-muted/70 font-semibold mb-1">Step 1</p>
                         <p className="font-bold text-foreground mb-1 text-base">Full Scan &mdash; $99</p>
-                        <p className="text-xs text-muted leading-relaxed">All 104 modules instead of 4. Same scan-only delivery, full coverage. You see every issue, then decide what to fix.</p>
+                        <p className="text-xs text-muted leading-relaxed">All 110 modules instead of 4. Same scan-only delivery, full coverage. You see every issue, then decide what to fix.</p>
                       </Link>
                     )}
                     <Link
@@ -763,8 +763,8 @@ export default function ScanStatus() {
               <div className="p-5 rounded-xl border border-border bg-white text-center">
                 <p className="text-sm text-muted mb-4">
                   {params.tier === "quick"
-                    ? "Passed the Quick Scan. Want to go deeper with all 104 modules?"
-                    : "Clean across all 104 modules."}
+                    ? "Passed the Quick Scan. Want to go deeper with all 110 modules?"
+                    : "Clean across all 110 modules."}
 
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
