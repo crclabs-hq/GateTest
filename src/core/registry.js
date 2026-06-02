@@ -48,6 +48,7 @@ const BUILT_IN_MODULES = {
   terraform: '../modules/terraform.js',
   kubernetes: '../modules/kubernetes.js',
   promptSafety: '../modules/prompt-safety.js',
+  aiGuardrails: '../modules/ai-guardrails.js',
   deadCode: '../modules/dead-code.js',
   secretRotation: '../modules/secret-rotation.js',
   webHeaders: '../modules/web-headers.js',

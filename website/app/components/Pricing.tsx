@@ -31,7 +31,7 @@ const scanPlans = [
     badge: "Most Popular",
     description:
       "Every module. Security, accessibility, SEO, AI code review, and more. Scan-only — no auto-fix.",
-    modules: "All 104 modules",
+    modules: "All 110 modules",
 
     features: [
       "Everything in Quick Scan",
@@ -57,7 +57,7 @@ const scanPlans = [
     badge: "Deepest review",
     description:
       "Full Scan plus a second-Claude pair-review on every fix and a codebase-shape architecture report.",
-    modules: "All 104 + depth review",
+    modules: "All 110 + depth review",
     features: [
       "Everything in Full Scan",
       "Pair-review critique on every fix — second Claude scores correctness, completeness, readability, test coverage",
@@ -78,7 +78,7 @@ const scanPlans = [
     badge: "Maximum depth",
     description:
       "The deepest scan we offer. Real Claude diagnosis, attack-chain correlation, board-ready CISO report, executive summary.",
-    modules: "All 104 + forensic stack",
+    modules: "All 110 + forensic stack",
     features: [
       "Everything in Scan + Fix",
       "Real Claude diagnosis on every finding — no templated snippets, every fix reasoned from your specific evidence",

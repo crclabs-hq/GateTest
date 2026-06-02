@@ -55,7 +55,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  // Programmatic module pages — 104 entries from modules-data.ts.
+  // Programmatic module pages — 110 entries from modules-data.ts.
   // Each is a real piece of indexable content tied to a registered
   // module in src/core/registry.js.
   const moduleSlugs = getAllModuleSlugs();

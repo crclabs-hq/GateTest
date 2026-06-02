@@ -46,6 +46,11 @@ interface Stage {
   comparedTo?: "source" | "ci" | "deploy";
 }
 
+interface CommitDelta {
+  behind: number;
+  commits: Array<{ sha: string; message: string; author?: string }>;
+}
+
 interface TraceResponse {
   ok: true;
   tracedAt: string;
@@ -60,6 +65,7 @@ interface TraceResponse {
     divergencePoint: DivergencePoint;
   };
   stages: Stage[];
+  commitDelta: CommitDelta | null;
   markdown: string;
 }
 
@@ -297,9 +303,7 @@ export default function PipelineTracePage() {
     lines.push("================================================================");
     for (const stage of result.stages) {
       lines.push("");
-      lines.push(
-        `[${stage.name.toUpperCase()}] status=${stage.status}${stage.comparedTo ? ` (vs ${stage.comparedTo})` : ""}`,
-      );
+      lines.push(`[${stage.name.toUpperCase()}] status=${stage.status}${stage.comparedTo ? ` (vs ${stage.comparedTo})` : ""}`);
       if (!stage.state.ok && stage.state.error) {
         lines.push(`  error: ${stage.state.error}`);
       }
@@ -325,6 +329,13 @@ export default function PipelineTracePage() {
       }
     }
     lines.push("");
+    if (result.commitDelta && result.commitDelta.behind > 0) {
+      lines.push(`COMMIT DELTA: ${result.commitDelta.behind} commit(s) stuck in pipeline`);
+      for (const c of result.commitDelta.commits) {
+        lines.push(`  [${c.sha}] ${c.message}${c.author ? ` — ${c.author}` : ""}`);
+      }
+      lines.push("");
+    }
     lines.push(`Traced at ${result.tracedAt} (${(result.durationMs / 1000).toFixed(1)}s)`);
     try {
       await navigator.clipboard.writeText(lines.join("\n"));
@@ -452,9 +463,7 @@ export default function PipelineTracePage() {
                 {result.verdict.rationale}
               </p>
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                <div className="text-[10px] uppercase tracking-wider text-emerald-700 font-bold mb-1">
-                  Recommended next
-                </div>
+                <div className="text-[10px] uppercase tracking-wider text-emerald-700 font-bold mb-1">Recommended next</div>
                 <div className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap">
                   {result.verdict.recommendedNext}
                 </div>
@@ -464,9 +473,7 @@ export default function PipelineTracePage() {
             {/* Pipeline visualisation — horizontal on md+, vertical on mobile */}
             <article className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 sm:p-6">
               <header className="mb-4">
-                <span className="text-xs uppercase tracking-wider font-bold text-gray-700">
-                  Pipeline flow
-                </span>
+                <span className="text-xs uppercase tracking-wider font-bold text-gray-700">Pipeline flow</span>
               </header>
               <div className="flex flex-col md:flex-row md:items-stretch md:gap-0 gap-0">
                 {orderedStages.map((stage, idx) => {
@@ -482,12 +489,34 @@ export default function PipelineTracePage() {
               </div>
             </article>
 
+            {/* Commit delta — shows commits stuck between deploy and source */}
+            {result.commitDelta && result.commitDelta.behind > 0 && (
+              <article className="rounded-xl border border-amber-200 bg-amber-50 shadow-sm p-4 sm:p-5">
+                <header className="flex items-center gap-2 mb-3">
+                  <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="text-xs uppercase tracking-wider font-bold text-amber-800">
+                    {result.commitDelta.behind} commit{result.commitDelta.behind !== 1 ? "s" : ""} stuck in pipeline
+                  </span>
+                </header>
+                <p className="text-xs text-amber-700 mb-3 leading-relaxed">
+                  These commits are on the source branch but have not yet reached the deployed version.
+                </p>
+                <ul className="space-y-1.5">
+                  {result.commitDelta.commits.map((c) => (
+                    <li key={c.sha} className="flex items-start gap-2 text-xs">
+                      <span className="font-mono text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded text-[11px] shrink-0">{c.sha}</span>
+                      <span className="text-gray-800 break-words">{c.message}</span>
+                      {c.author && <span className="text-gray-400 shrink-0 hidden sm:inline">— {c.author}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            )}
+
             {/* Per-stage details accordion */}
             <article className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 sm:p-5">
               <header className="mb-3">
-                <span className="text-xs uppercase tracking-wider font-bold text-gray-700">
-                  Per-stage details
-                </span>
+                <span className="text-xs uppercase tracking-wider font-bold text-gray-700">Per-stage details</span>
               </header>
               <div className="divide-y divide-gray-100">
                 {orderedStages.map((stage) => {
@@ -539,9 +568,7 @@ export default function PipelineTracePage() {
             {/* Markdown summary + copy buttons */}
             <article className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 sm:p-5">
               <header className="flex items-center justify-between mb-3">
-                <span className="text-xs uppercase tracking-wider font-bold text-gray-700">
-                  Markdown summary
-                </span>
+                <span className="text-xs uppercase tracking-wider font-bold text-gray-700">Markdown summary</span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleCopyAll}
