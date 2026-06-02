@@ -18,17 +18,20 @@ test('multi-agent-consensus: source files exist', () => {
   assert.ok(fs.existsSync(OPENAI_PATH));
 });
 
-test('multi-agent-consensus: exports the expected public surface', () => {
+test('multi-agent-consensus: exports the public surface (runConsensus + renderConsensusReport)', () => {
   const src = fs.readFileSync(LIB_PATH, 'utf8');
-  for (const name of [
-    'runConsensus',
-    'parseFixBlock',
-    'normaliseFix',
-    'summariseDifferences',
-    'classifyAgreement',
-    'renderConsensusReport',
-  ]) {
+  for (const name of ['runConsensus', 'renderConsensusReport']) {
     assert.match(src, new RegExp(`export\\s+(?:async\\s+)?function\\s+${name}\\b`), `missing export: ${name}`);
+  }
+});
+
+test('multi-agent-consensus: internal helpers NOT exported (no dead-code warnings)', () => {
+  const src = fs.readFileSync(LIB_PATH, 'utf8');
+  for (const name of ['parseFixBlock', 'normaliseFix', 'summariseDifferences', 'classifyAgreement']) {
+    assert.doesNotMatch(src, new RegExp(`^\\s*export\\s+(?:async\\s+)?function\\s+${name}\\b`, 'm'),
+      `${name} should be internal (used only inside multi-agent-consensus.ts)`);
+    // But the function must still exist
+    assert.match(src, new RegExp(`function\\s+${name}\\b`), `${name} should still be defined`);
   }
 });
 
