@@ -209,9 +209,10 @@ test('probe: custom responsePath drills into nested structure', async () => {
 });
 
 test('probe: timeout → ok:false + timeout error code', async () => {
-  const { server, url } = await startTestServer((req, res) => {
-    // Never respond — let the probe time out.
-    setTimeout(() => res.end('too late'), 5000);
+  const { server, url } = await startTestServer(() => {
+    // Never respond — the handler returns without calling res.end(), so the
+    // connection stays open until the probe's AbortController fires. No
+    // setTimeout needed (and no flake surface).
   });
   try {
     const r = await probe(
