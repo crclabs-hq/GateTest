@@ -563,7 +563,7 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
                 : tab === "server"
                 ? "Server Scan"
                 : tab === "nuclear"
-                ? "☢ Nuclear Scan"
+                ? "☢ Forensic Scan"
                 : tab === "watchdog"
                 ? "Watchdog"
                 : tab === "scans"
@@ -604,9 +604,9 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
                   className="px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 focus:border-emerald-500 focus:outline-none text-sm"
                 >
                   <option value="quick">Quick (39 modules)</option>
-                  <option value="full">Full (104 modules)</option>
-                  <option value="scan_fix">Scan + Fix (104 modules + pair-review + architecture)</option>
-                  <option value="nuclear">Nuclear (104 modules + Claude diagnosis + correlation + exec summary)</option>
+                  <option value="full">Full (110 modules)</option>
+                  <option value="scan_fix">Scan + Fix (110 modules + pair-review + architecture)</option>
+                  <option value="nuclear">Forensic (110 modules + Claude diagnosis + correlation + exec summary)</option>
                 </select>
                 <button
                   onClick={runScan}
@@ -1184,7 +1184,7 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
           <ServerScanPanel />
         )}
 
-        {/* Tab: Nuclear Scan */}
+        {/* Tab: Forensic Scan */}
         {activeTab === "nuclear" && (
           <NuclearScanPanel />
         )}
@@ -2177,7 +2177,7 @@ function NuclearScanPanel() {
         <div className="flex items-start gap-3 mb-3">
           <span className="text-2xl">☢</span>
           <div>
-            <h3 className="font-bold text-lg">Nuclear Scan</h3>
+            <h3 className="font-bold text-lg">Forensic Scan</h3>
             <p className="text-sm text-gray-500">Find <strong>anything</strong> and <strong>everything</strong> wrong with a domain. Full stack diagnosis — DNS, ports, SSL, headers, performance, availability, redirects, email auth. Root-cause pinpointed automatically.</p>
           </div>
         </div>
@@ -2196,7 +2196,7 @@ function NuclearScanPanel() {
             className="btn-primary px-6 py-3 text-sm font-bold disabled:opacity-50"
             style={{ background: "#dc2626" }}
           >
-            {scanning ? "Nuking..." : "☢ Nuclear Scan"}
+            {scanning ? "Scanning..." : "☢ Forensic Scan"}
           </button>
         </div>
         {error && <p className="text-danger text-sm mt-3">{error}</p>}

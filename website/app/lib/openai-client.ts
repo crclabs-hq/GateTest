@@ -5,7 +5,7 @@
  * direct HTTPS POST, short request timeout, classified errors. Bound to
  * `OPENAI_API_KEY`.
  *
- * Cost note: this is invoked only from `runConsensus()` (Nuclear tier
+ * Cost note: this is invoked only from `runConsensus()` (Forensic tier
  * opt-in via `consensus: true`). Quick / Full / Scan+Fix never call OpenAI.
  */
 

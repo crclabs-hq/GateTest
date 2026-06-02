@@ -104,7 +104,7 @@ test('memory route: gated behind authenticateApiKey + tierAllowed', () => {
   const src = fs.readFileSync(ROUTE_PATH, 'utf8');
   assert.match(src, /authenticateApiKey\(req\)/);
   assert.match(src, /tierAllowed\(/);
-  assert.match(src, /Scan\+Fix or Nuclear/);
+  assert.match(src, /Scan\+Fix or Forensic/);
 });
 
 test('memory route: declares Node runtime + dynamic', () => {

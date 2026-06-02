@@ -196,7 +196,7 @@ async function scanRepo(owner: string, repo: string, tier: string): Promise<Scan
 
   // Engine selection — closes the 102-vs-22 module honesty gap.
   //
-  // Full / Scan+Fix / Nuclear tiers run the full CLI engine (104 modules)
+  // Full / Scan+Fix / Forensic tiers run the full CLI engine (110 modules)
   // via cli-engine-runner.js — materialises fileContents to /tmp, runs
   // the same engine the CLI binary runs, translates the summary back.
   //
@@ -525,7 +525,7 @@ async function _postImpl(req: NextRequest): Promise<ReturnType<typeof NextRespon
   // For $29 customers we ran the FULL static-scan suite (minus AI-cost
   // modules). Now we redact the details for modules outside their paid
   // tier so they see counts + module names (with an upsell hint) but
-  // not the full findings. Paid Full / Scan+Fix / Nuclear tiers see
+  // not the full findings. Paid Full / Scan+Fix / Forensic tiers see
   // everything verbatim — redaction is a no-op when paidTier === full.
   const paidTier = tier || "quick";
   const paidTierModules: string[] = TIERS[paidTier] || TIERS.quick;
