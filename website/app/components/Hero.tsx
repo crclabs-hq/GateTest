@@ -20,6 +20,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { UrlScanFlow } from "./UrlScanFlow";
+import CountUp from "./CountUp";
 
 const SAMPLE_URLS = [
   { label: "example.com", url: "https://example.com" },
@@ -60,7 +61,7 @@ export default function Hero() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
               </span>
-              <span>Launching today &middot; v1.45 &middot; 110 modules live</span>
+              <span>Launching today &middot; v1.46 &middot; 110 modules live</span>
             </div>
           </div>
 
@@ -189,7 +190,7 @@ function StatusCell({
         {label}
       </div>
       <div className={`text-lg font-bold mt-1 tabular-nums ${valueColor}`}>
-        {value}
+        <CountUp value={value} duration={1400} />
       </div>
       <div className="text-[11px] text-white/40 mt-0.5">{detail}</div>
     </div>
