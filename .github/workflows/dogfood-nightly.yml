@@ -97,3 +97,35 @@ jobs:
                 --title "$TITLE" --body "$BODY" --label dogfood,security \
               || echo "issue exists or gh unavailable — skipping"
           fi
+
+      - name: Marketing-claim verification
+        # Runs tests/marketing-claim-verification.test.js nightly to catch
+        # drift between public-facing claims and the actual shipped code.
+        # Examples caught: module count in Hero.tsx doesn't match --list output,
+        # model name in copy doesn't match source, pricing tier missing from checkout.
+        # CI already runs this on every PR; this nightly run catches post-merge drift
+        # (e.g. a config change reduces module count without touching marketing copy).
+        id: claim_check
+        if: always()
+        run: |
+          node --test tests/marketing-claim-verification.test.js 2>&1 \
+            | tee .dogfood/claim-check.log || true
+          FAIL_COUNT=$(grep -c "^not ok" .dogfood/claim-check.log 2>/dev/null || echo 0)
+          echo "fail_count=${FAIL_COUNT}" >> "$GITHUB_OUTPUT"
+
+      - name: Open issue if marketing claims drifted
+        if: always() && steps.claim_check.outputs.fail_count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          FAIL_COUNT="${{ steps.claim_check.outputs.fail_count }}"
+          TITLE="Claim drift: $FAIL_COUNT marketing-claim test(s) failed ($(date -u +%Y-%m-%d))"
+          BODY=$(printf '## Marketing claim drift detected\n\n%s test(s) in `tests/marketing-claim-verification.test.js` failed the nightly check.\n\nThis means a public-facing claim (module count, model name, pricing, etc.) no longer matches the shipping code.\n\n**Action:** run `node --test tests/marketing-claim-verification.test.js` locally, read the failures, then update either the marketing copy or the code to match.\n\nFull log in dogfood artifact for run `%s`.' \
+            "$FAIL_COUNT" "${{ github.run_id }}")
+          gh issue list --label dogfood,marketing --search "$TITLE in:title" --limit 1 --state open --json title \
+            | jq -e 'length == 0' && gh issue create \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --label "dogfood,marketing" \
+            || echo "issue exists or gh unavailable — skipping"
