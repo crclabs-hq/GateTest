@@ -13,12 +13,8 @@
  */
 
 import { getDb } from "./db";
-// CommonJS audit-log-store — namespace import keeps the call-site free of
-// require() (which the gate's fake-fix-detector flags via the eslint-disable
-// trail) and is type-safe under `module: "esnext", esModuleInterop: true`.
-import * as auditStore from "./audit-log-store";
 
-interface ControlStatus {
+export interface ControlStatus {
   id: string;
   framework: "SOC2" | "HIPAA" | "BOTH";
   name: string;
@@ -26,7 +22,7 @@ interface ControlStatus {
   evidence: string;
 }
 
-interface ComplianceSnapshot {
+export interface ComplianceSnapshot {
   generatedAt: string;
   retention: {
     auditLogYears: number;
@@ -129,7 +125,7 @@ const CONTROLS: ControlStatus[] = [
   },
 ];
 
-function listControls(): ControlStatus[] {
+export function listControls(): ControlStatus[] {
   return CONTROLS.slice();
 }
 
@@ -235,17 +231,14 @@ async function verifyRecentChain(
   windowSize: number
 ): Promise<ChainProbe> {
   try {
+    // Lazy require so this file stays TS-pure for static analysis
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const auditStore = require("./audit-log-store");
     const max = (await sql`SELECT MAX(id)::int AS m FROM audit_log`) as Array<{ m: number | null }>;
     const top = max[0]?.m ?? 0;
     if (!top) return { ok: true, rowsChecked: 0 };
     const fromId = Math.max(1, top - windowSize + 1);
-    // verifyChain accepts numeric toId at runtime; the .js source's default
-    // `toId = null` narrows TS's inferred type. Cast through unknown to relax.
-    const verifyChain = auditStore.verifyChain as unknown as (
-      sql: unknown,
-      opts: { fromId: number; toId: number },
-    ) => Promise<{ ok: boolean; brokenAt?: number }>;
-    const result = await verifyChain(sql, { fromId, toId: top });
+    const result = await auditStore.verifyChain(sql, { fromId, toId: top });
     return {
       ok: Boolean(result?.ok),
       brokenAt: result?.brokenAt,

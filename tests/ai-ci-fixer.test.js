@@ -352,6 +352,9 @@ test('runFixer caps at MAX_FIX_ATTEMPTS when Claude returns unparseable response
       runner:      () => ({ status: 0, stdout: '', stderr: '' }),
       gate:        () => ({ ok: false, stdout: '', stderr: '' }),
       git:         () => ({ ok: true, status: 0, stdout: '', stderr: '' }),
+      // Stub diagnosis — it's a separate Claude call we don't want
+      // counted in this attempt-cap test.
+      diagnose:    async () => ({ rootCause: '', plan: '', confidence: 0, ok: false }),
     });
 
     assert.equal(claudeCalls, 2, `expected exactly 2 Claude calls (MAX_FIX_ATTEMPTS=2), got ${claudeCalls}`);
@@ -402,6 +405,8 @@ test('runFixer exits cleanly when Claude throws on every attempt', async () => {
       callClaude: async () => { claudeCalls += 1; throw new Error('Claude timed out'); },
       git:  () => ({ ok: true, stdout: '', stderr: '' }),
       gate: () => ({ ok: false, stdout: '', stderr: '' }),
+      // Stub diagnosis — separate from the attempt loop being tested here.
+      diagnose: async () => ({ rootCause: '', plan: '', confidence: 0, ok: false }),
     });
     assert.equal(claudeCalls, 2);
     assert.ok(['gave-up', 'gave-up-no-issue'].includes(result.status));
@@ -811,6 +816,52 @@ test('buildPrBody and buildIssueBody render the expected content', () => {
   assert.match(issue, /gate red/);
 });
 
+test('buildPrBody: renders diagnosis section when supplied', () => {
+  const pr = fixer.buildPrBody({
+    runUrl:     'http://example/run/1',
+    logExcerpt: 'log',
+    attempt:    1,
+    model:      'claude-sonnet-4-7',
+    diagnosis:  {
+      rootCause: 'The validator rejects subdomains.',
+      plan: 'Loosen the regex.',
+      confidence: 4,
+      confidenceReason: 'Single-file regex change.',
+      ok: true,
+    },
+  });
+  assert.match(pr, /Diagnosis/);
+  assert.match(pr, /Root cause.*validator rejects subdomains/);
+  assert.match(pr, /Fix plan.*Loosen the regex/);
+  assert.match(pr, /High.*4\/5/);
+  assert.match(pr, /Single-file regex change/);
+});
+
+test('buildPrBody: omits diagnosis section when none supplied', () => {
+  const pr = fixer.buildPrBody({
+    runUrl: 'x', logExcerpt: 'y', attempt: 1, model: 'm',
+  });
+  assert.equal(/Diagnosis/.test(pr), false);
+  // Body still produces all the core sections
+  assert.match(pr, /AI CI-fixer/);
+  assert.match(pr, /Failing workflow/);
+});
+
+test('buildPrBody: renders Files changed section with source tags', () => {
+  const pr = fixer.buildPrBody({
+    runUrl: 'x', logExcerpt: 'y', attempt: 1, model: 'm',
+    patches: [
+      { file: 'a.js', source: 'flywheel/ast'  },
+      { file: 'b.js', source: 'flywheel/rule' },
+      { file: 'c.js', source: 'claude'        },
+    ],
+  });
+  assert.match(pr, /Files changed/);
+  assert.match(pr, /`AST` `a\.js`/);
+  assert.match(pr, /`Rule` `b\.js`/);
+  assert.match(pr, /`Claude` `c\.js`/);
+});
+
 // ── Flywheel integration ────────────────────────────────────────────────────
 
 test('flywheel: AST layer fix is taken before Claude is ever called', () => {
@@ -839,7 +890,7 @@ test('flywheel: AST layer fix is taken before Claude is ever called', () => {
     logExcerpt: 'rejectUnauthorized: false',
   });
   assert.equal(result.patches.length, 1);
-  assert.equal(result.patches[0].path, 'src/x.js');
+  assert.equal(result.patches[0].file, 'src/x.js');
   assert.match(result.patches[0].content, /rejectUnauthorized: true/);
   assert.ok(result.filesHandled.has('src/x.js'));
 });
@@ -920,8 +971,8 @@ test('flywheel: distillClaudeWins calls auto-distill for every patched file', ()
   fixer._distillClaudeWins(
     flywheel,
     [
-      { path: 'a.js', content: 'fixed a' },
-      { path: 'b.js', content: 'fixed b' },
+      { file: 'a.js', content: 'fixed a' },
+      { file: 'b.js', content: 'fixed b' },
     ],
     { 'a.js': 'orig a', 'b.js': 'orig b' },
     'claude-sonnet-4-7',
@@ -940,7 +991,7 @@ test('flywheel: distill silently skips when no original captured', () => {
   };
   fixer._distillClaudeWins(
     flywheel,
-    [{ path: 'unknown.js', content: 'fixed' }],
+    [{ file: 'unknown.js', content: 'fixed' }],
     {}, // no original
     'claude-sonnet-4-7',
   );
@@ -978,6 +1029,73 @@ test('flywheel: REGRESSION — real AST fixer fires on CI log content (Agent G b
   assert.equal(result.patches.length, 1, 'AST should have produced a patch');
   assert.match(result.patches[0].content, /rejectUnauthorized: true/);
   assert.ok(result.filesHandled.has('src/server.js'));
+});
+
+test('REGRESSION: applyPatches now reads `file` key (matches flywheel + Claude output)', () => {
+  // The previous bug: flywheel emitted `{path, content}` but applyPatches
+  // read `patch.file` — every flywheel patch was silently skipped. The
+  // Map-merge step in tryAttempt also collapsed every Claude patch onto
+  // the same `undefined` key (because Claude emits `file`, not `path`),
+  // dropping all but the last fix in a batch. Both layers now emit
+  // `{file, content, source}` and the merge keys on `.file`.
+  const tmp = makeTmpDir();
+  try {
+    const patches = [
+      { file: 'a.txt', content: 'fixed a' },
+      { file: 'b.txt', content: 'fixed b' },
+      { file: 'c.txt', content: 'fixed c' },
+    ];
+    const written = fixer.applyPatches(patches, tmp);
+    assert.equal(written.length, 3, 'all three patches should be written');
+    assert.equal(fs.readFileSync(path.join(tmp, 'a.txt'), 'utf-8'), 'fixed a');
+    assert.equal(fs.readFileSync(path.join(tmp, 'b.txt'), 'utf-8'), 'fixed b');
+    assert.equal(fs.readFileSync(path.join(tmp, 'c.txt'), 'utf-8'), 'fixed c');
+  } finally {
+    cleanup(tmp);
+  }
+});
+
+test('REGRESSION: applyPatches silently skips legacy `path`-keyed patches (defensive)', () => {
+  // Anyone calling applyPatches with the legacy shape gets nothing — the
+  // shape mismatch is real, no silent fallback. This pins the contract so
+  // a future refactor that re-introduces `path` will fail this test.
+  const tmp = makeTmpDir();
+  try {
+    const written = fixer.applyPatches([{ path: 'a.txt', content: 'fixed' }], tmp);
+    assert.equal(written.length, 0);
+    assert.equal(fs.existsSync(path.join(tmp, 'a.txt')), false);
+  } finally {
+    cleanup(tmp);
+  }
+});
+
+test('REGRESSION: flywheel patches use `file` key — applyPatches contract honored', () => {
+  // End-to-end shape contract: the flywheel returns patches that applyPatches
+  // can write. The previous mismatch (path vs file) was a silent killer.
+  const flywheel = {
+    available: true,
+    astFixer: {
+      isJsOrTs: (p) => p.endsWith('.js'),
+      applyAstTransforms: (content) => ({
+        content: content + '\n// ast-fixed',
+        handled: ['issue-1'],
+        unhandled: [],
+      }),
+    },
+    ruleFixer: { tryRuleBasedFix: () => null },
+    telemetry: { recordFixAttempt: () => {} },
+    distill: { distillClaudeFix: () => {} },
+  };
+  const result = fixer._tryFlywheel({
+    files: [{ path: 'src/x.js', content: 'const x = 1;' }],
+    repoRoot: '/tmp',
+    flywheel,
+    logExcerpt: 'something',
+  });
+  assert.equal(result.patches.length, 1);
+  assert.equal(typeof result.patches[0].file, 'string', 'patch must have a `file` key');
+  assert.equal(result.patches[0].file, 'src/x.js');
+  assert.equal(result.patches[0].source, 'flywheel/ast');
 });
 
 test('flywheel: loadFlywheel returns { available: false } gracefully when layers missing', () => {

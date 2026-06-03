@@ -6,7 +6,7 @@
  *   POST   /api/memory                            — set { scope, key, value }
  *   DELETE /api/memory?scope=<scope>&key=<key>   — delete one value
  *
- * Auth: Authorization: Bearer gt_live_... (Scan+Fix or Forensic tier only).
+ * Auth: Authorization: Bearer gt_live_... (Scan+Fix or Nuclear tier only).
  *
  * Why one route file: Memory is a thin CRUD surface; the auth + tier guard
  * are identical for every verb so co-locating them keeps the policy in one
@@ -37,7 +37,7 @@ async function authorise(req: NextRequest) {
   if (!tierAllowed(auth.key.tier_allowed)) {
     return {
       fail: NextResponse.json(
-        { error: "Memory requires Scan+Fix or Forensic tier" },
+        { error: "Memory requires Scan+Fix or Nuclear tier" },
         { status: 403 }
       ),
     };

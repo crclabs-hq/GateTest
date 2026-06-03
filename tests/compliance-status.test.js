@@ -14,19 +14,10 @@ test('compliance-status: source file exists', () => {
   assert.ok(fs.existsSync(LIB_PATH));
 });
 
-test('compliance-status: exports buildComplianceSnapshot (the only route consumer)', () => {
+test('compliance-status: exports buildComplianceSnapshot + listControls', () => {
   const src = fs.readFileSync(LIB_PATH, 'utf8');
   assert.match(src, /export\s+async\s+function\s+buildComplianceSnapshot\b/);
-});
-
-test('compliance-status: internal helpers NOT exported (no dead-code warnings)', () => {
-  const src = fs.readFileSync(LIB_PATH, 'utf8');
-  // listControls + the two types are used only inside this file. Keep them
-  // internal so the deadCode module's orphaned-export rule stays quiet.
-  for (const name of ['listControls', 'ControlStatus', 'ComplianceSnapshot']) {
-    assert.doesNotMatch(src, new RegExp(`^\\s*export\\s+(?:function|interface|type)\\s+${name}\\b`, 'm'),
-      `${name} should NOT be exported (used only inside compliance-status.ts)`);
-  }
+  assert.match(src, /export\s+function\s+listControls\b/);
 });
 
 test('compliance-status: ships SOC2 + HIPAA controls', () => {

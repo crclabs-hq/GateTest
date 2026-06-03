@@ -5,14 +5,11 @@
  * direct HTTPS POST, short request timeout, classified errors. Bound to
  * `OPENAI_API_KEY`.
  *
- * Cost note: this is invoked only from `runConsensus()` (Forensic tier
+ * Cost note: this is invoked only from `runConsensus()` (Nuclear tier
  * opt-in via `consensus: true`). Quick / Full / Scan+Fix never call OpenAI.
  */
 
-// Types are internal — multi-agent-consensus.ts imports the functions and
-// gets the shapes via inference. Promote to export if a second consumer
-// needs them.
-interface OpenAiCallOptions {
+export interface OpenAiCallOptions {
   model: string;
   systemPrompt: string;
   userPrompt: string;
@@ -20,7 +17,7 @@ interface OpenAiCallOptions {
   timeoutMs?: number;
 }
 
-interface OpenAiResponse {
+export interface OpenAiResponse {
   status: number;
   ok: boolean;
   text: string;

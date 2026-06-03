@@ -10,13 +10,12 @@
 
 import { getDb } from "./db";
 
-// Tier allowlist + size caps — internal. Promote to exports when a caller
-// outside this file actually needs them.
-const MEMORY_TIERS = ["scan_fix", "nuclear"] as const;
+export const MEMORY_TIERS = ["scan_fix", "nuclear"] as const;
+export type MemoryTier = (typeof MEMORY_TIERS)[number];
 
-const MAX_SCOPE_LEN = 200;
-const MAX_KEY_LEN = 200;
-const MAX_VALUE_BYTES = 64 * 1024;
+export const MAX_SCOPE_LEN = 200;
+export const MAX_KEY_LEN = 200;
+export const MAX_VALUE_BYTES = 64 * 1024;
 
 const CREATE_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS customer_memory (
@@ -38,18 +37,18 @@ export async function ensureMemoryTable(): Promise<void> {
   await sql.unsafe(CREATE_TABLE_SQL);
 }
 
-interface ValidationError {
+export interface ValidationError {
   ok: false;
   status: number;
   error: string;
 }
 
-interface ValidationSuccess<T> {
+export interface ValidationSuccess<T> {
   ok: true;
   value: T;
 }
 
-type Validation<T> = ValidationSuccess<T> | ValidationError;
+export type Validation<T> = ValidationSuccess<T> | ValidationError;
 
 /** True if the tier is allowed to use Memory. */
 export function tierAllowed(tier: string | null | undefined): boolean {
@@ -108,7 +107,7 @@ export function validateValue(value: unknown): Validation<unknown> {
   return { ok: true, value };
 }
 
-interface MemoryRow {
+export interface MemoryRow {
   scope: string;
   key: string;
   value: unknown;
