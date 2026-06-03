@@ -33,6 +33,7 @@
 const path = require('path');
 const fs = require('fs');
 const core = require('../lib/ai-ci-fixer-core');
+const diagnoseLib = require('../lib/ai-ci-fixer-diagnose');
 
 // Flywheel layers — try deterministic fixes BEFORE paying for Claude.
 // Imports are wrapped because they live under website/app/lib/ which may
@@ -90,7 +91,7 @@ The fixer NEVER blocks CI. On any error it logs and exits 0.
  * If all 10 attempts are taken, we return `{ status: 'all-branches-taken' }`
  * and let the orchestrator open a fallback issue instead.
  */
-async function openFixPr({ token, repo, runId, runUrl, logExcerpt, attempt, model, baseRef, git: _git, transport }) {
+async function openFixPr({ token, repo, runId, runUrl, logExcerpt, attempt, model, baseRef, git: _git, transport, diagnosis, patches }) {
   // Pick a non-colliding branch name first. If every attempt slot is taken,
   // bail out gracefully so the caller can open an issue.
   const free = await core.findFreeBranchName({ token, repo, baseRunId: runId, transport });
@@ -128,10 +129,19 @@ async function openFixPr({ token, repo, runId, runUrl, logExcerpt, attempt, mode
   }
 
   const titleSuffix = attemptNumber > 1 ? ` (attempt ${attemptNumber})` : '';
+  // Surface the diagnosis confidence in the PR title so reviewers can triage
+  // the queue at a glance — high-confidence merges first, low-confidence
+  // ones get human attention. No prefix if no diagnosis available.
+  let titlePrefix = '';
+  if (diagnosis && diagnosis.confidence > 0) {
+    if (diagnosis.confidence >= 4) titlePrefix = '[High confidence] ';
+    else if (diagnosis.confidence === 3) titlePrefix = '[Review] ';
+    else titlePrefix = '[Needs review] ';
+  }
   const prResp = await core.createPullRequest({
     token, repo, head: branch, base: baseRef || 'main',
-    title: `AI CI-fixer: repair workflow run #${runId}${titleSuffix}`,
-    body:  core.buildPrBody({ runUrl, logExcerpt, attempt, model }),
+    title: `${titlePrefix}AI CI-fixer: repair workflow run #${runId}${titleSuffix}`,
+    body:  core.buildPrBody({ runUrl, logExcerpt, attempt, model, diagnosis, patches }),
     opts:  { transport },
   });
   // GitHub returns 201 on a freshly-created PR. Anything else (401 invalid
@@ -207,7 +217,7 @@ function tryFlywheel({ files, repoRoot, flywheel, logExcerpt }) {
       try {
         const ast = flywheel.astFixer.applyAstTransforms(content, filePath, issues);
         if (ast && ast.content !== content && ast.handled && ast.handled.length > 0) {
-          patches.push({ path: f.path, content: ast.content });
+          patches.push({ file: f.path, content: ast.content, source: 'flywheel/ast' });
           filesHandled.add(f.path);
           recordTelemetry(flywheel, { layer: 'ast', success: true, file: f.path, durationMs: Date.now() - t0 });
           core.log(`  flywheel/ast: fixed ${f.path} (${ast.handled.length} transform(s))`);
@@ -225,7 +235,7 @@ function tryFlywheel({ files, repoRoot, flywheel, logExcerpt }) {
     try {
       const fixed = flywheel.ruleFixer.tryRuleBasedFix(content, filePath, issues);
       if (fixed && fixed !== content) {
-        patches.push({ path: f.path, content: fixed });
+        patches.push({ file: f.path, content: fixed, source: 'flywheel/rule' });
         filesHandled.add(f.path);
         recordTelemetry(flywheel, { layer: 'rule', success: true, file: f.path, durationMs: Date.now() - t0 });
         core.log(`  flywheel/rule: fixed ${f.path}`);
@@ -255,17 +265,17 @@ function recordTelemetry(flywheel, entry) {
 function distillClaudeWins(flywheel, patches, originalContents, model) {
   if (!flywheel || !flywheel.available || !flywheel.distill) return;
   for (const p of patches) {
-    const original = originalContents[p.path];
+    const original = originalContents[p.file];
     if (!original) continue;
     try {
       flywheel.distill.distillClaudeFix({
-        issue: { ruleKey: 'ci-failure', module: 'ai-ci-fixer', file: p.path },
+        issue: { ruleKey: 'ci-failure', module: 'ai-ci-fixer', file: p.file },
         originalContent: original,
         patchedContent: p.content,
         provenance: { originalModel: model, originalRuleKey: 'ci-failure' },
       });
     } catch (err) {
-      core.logErr(`auto-distill on ${p.path}`, err);
+      core.logErr(`auto-distill on ${p.file}`, err);
     }
   }
 }
@@ -336,10 +346,13 @@ async function tryAttempt({ cfg, files, logExcerpt, attempt, deps }) {
   }
 
   // Merge flywheel patches + Claude patches. Claude wins on overlap (it saw
-  // the more complete log context).
+  // the more complete log context). Both layers now emit `{file, content}`
+  // — the previous mismatch (flywheel emitted `path`, Claude emitted `file`)
+  // collapsed every Claude patch onto the same `undefined` Map key,
+  // silently dropping all but the last fix in the batch.
   const byPath = new Map();
-  for (const p of allPatches) byPath.set(p.path, p);
-  for (const p of claudePatches) byPath.set(p.path, p);
+  for (const p of allPatches) byPath.set(p.file, p);
+  for (const p of claudePatches) byPath.set(p.file, { ...p, source: p.source || 'claude' });
   const patches = [...byPath.values()];
 
   if (attempt > 1) deps.git(['checkout', '--', '.']);
@@ -417,6 +430,25 @@ async function runFixer(deps = {}) {
   const attempted = [];
   let lastError = null;
   const tryDeps = { callClaude: _callClaude, git: _git, gate: _gate, transport, repoRoot, flywheel };
+
+  // Diagnosis step — runs ONCE before the fix loop. The structured
+  // root-cause + confidence-score output lands in the PR body so reviewers
+  // can triage the queue without reading the diff first. Failure is
+  // non-blocking: the fix loop runs whether diagnosis worked or not.
+  const diagnose = deps.diagnose || diagnoseLib.diagnose;
+  const diagnosis = await diagnose({
+    apiKey: cfg.apiKey,
+    model:  cfg.model,
+    logExcerpt,
+    files,
+    transport,
+    callClaude: _callClaude,
+  });
+  if (diagnosis.ok) {
+    core.log(`diagnosis: confidence=${diagnosis.confidence}/5 root-cause="${diagnosis.rootCause.slice(0, 80)}"`);
+  } else {
+    core.log('diagnosis: skipped or unparseable — proceeding without it');
+  }
   for (let attempt = 1; attempt <= cfg.maxAttempts; attempt++) {
     core.log(`attempt ${attempt}/${cfg.maxAttempts}`);
     const r = await tryAttempt({ cfg, files, logExcerpt, attempt, deps: tryDeps });
@@ -430,6 +462,8 @@ async function runFixer(deps = {}) {
         attempt, model: cfg.model,
         baseRef: runResp.body?.head_branch || 'main',
         git: _git, transport,
+        diagnosis,
+        patches: r.patches,
       });
       // Each openFixPr failure mode must route to the fallback-issue branch
       // with a real error message — otherwise the customer sees the
