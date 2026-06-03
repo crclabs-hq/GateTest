@@ -1,0 +1,135 @@
+# ============================================================================
+# GATETEST AI CI-FIXER — STANDALONE INTEGRATION TEMPLATE
+# ============================================================================
+# Drop-in workflow that watches the target repo's "CI" workflow and, when it
+# fails, asks Claude to repair the breakage and opens a fix PR.
+#
+# Unlike the in-repo `.github/workflows/ai-ci-fixer.yml` (which assumes the
+# fixer scripts live in the same repo), this template is SAFE to install in
+# ANY repository — even one with no Node setup, no package.json, and no
+# lockfile. It clones the GateTest source at runtime, installs only the
+# fixer's transitive deps, and runs the script against the failing run.
+#
+# INSTALL LOCATION in target repo: .github/workflows/ai-ci-fixer.yml
+# REQUIRED SECRET in target repo:  ANTHROPIC_API_KEY  (or set at org level)
+# OPT-OUT FLAG  (optional, repo variable): GATETEST_AI_CI_FIXER = "0"
+#
+# Source of truth:
+#   https://github.com/crclabs-hq/gatetest
+#   /integrations/github-actions/ai-ci-fixer.yml
+# ============================================================================
+
+name: AI CI Fixer
+
+# Triggered after the target repo's "CI" workflow completes. If your CI
+# workflow has a different name, change "CI" below to match.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+permissions:
+  contents:      write
+  pull-requests: write
+  issues:        write
+  actions:       read
+
+jobs:
+  ai-fixer:
+    name: AI CI Fixer
+    runs-on: ubuntu-latest
+    # Only run when the upstream CI workflow actually failed.
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    env:
+      ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
+      GATETEST_AI_CI_FIXER: ${{ vars.GATETEST_AI_CI_FIXER || '' }}
+    steps:
+      # ── Gate ────────────────────────────────────────────────────────────
+      # Bail out fast (and silently) when the customer hasn't set the API
+      # key OR has explicitly opted out. We NEVER want to red-X the
+      # workflow over a missing optional secret — opt-in is presence of
+      # the key, opt-out is the variable set to "0".
+      - name: Gate on ANTHROPIC_API_KEY + opt-out flag
+        id: gate
+        run: |
+          if [ -z "${ANTHROPIC_API_KEY}" ]; then
+            echo "AI CI-fixer disabled (no ANTHROPIC_API_KEY secret set)"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${GATETEST_AI_CI_FIXER}" = "0" ]; then
+            echo "AI CI-fixer disabled (GATETEST_AI_CI_FIXER=0 — explicitly opted out)"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      # ── Target repo checkout ────────────────────────────────────────────
+      # Pull the failing branch (not main) so the fixer sees the broken
+      # state. `persist-credentials: true` keeps the GITHUB_TOKEN around
+      # for the eventual `git push` of the fix branch.
+      - name: Checkout failing branch of target repo
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          ref:                 ${{ github.event.workflow_run.head_sha }}
+          fetch-depth:         0
+          persist-credentials: true
+
+      # ── Node setup ──────────────────────────────────────────────────────
+      # IMPORTANT: NO `cache: 'npm'` here. The target repo may not have a
+      # package-lock.json, and `cache: 'npm'` would fail the whole job
+      # with "Dependencies lock file is not found" in ~8 seconds — exactly
+      # the failure mode the arena demo was hitting. The cache helps the
+      # GateTest source repo (which has a lockfile); it's a footgun here.
+      - name: Setup Node.js
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # ── Clone GateTest ──────────────────────────────────────────────────
+      # The fixer scripts live in the GateTest repo, NOT in the target
+      # repo. We clone shallow and install only the deps the fixer needs.
+      # If the GateTest repo is private (it isn't today, but might be later),
+      # set GATETEST_TOKEN as a secret to authenticate the clone.
+      - name: Clone GateTest (single source of truth)
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          GATETEST_TOKEN: ${{ secrets.GATETEST_TOKEN }}
+        run: |
+          if [ -n "$GATETEST_TOKEN" ]; then
+            git clone --depth 1 "https://x-access-token:${GATETEST_TOKEN}@github.com/crclabs-hq/gatetest.git" "$RUNNER_TEMP/gatetest"
+          else
+            git clone --depth 1 "https://github.com/crclabs-hq/gatetest.git" "$RUNNER_TEMP/gatetest"
+          fi
+          echo "GATETEST_HOME=$RUNNER_TEMP/gatetest" >> "$GITHUB_ENV"
+
+      # ── Install fixer dependencies (from the GateTest checkout) ─────────
+      # `--omit=dev` keeps the install lean — we don't need test runners.
+      # `--ignore-scripts` avoids running arbitrary install hooks from
+      # transitive packages. The chained fallback handles the rare case
+      # where the lockfile drifts (npm ci is strict; npm install is not).
+      - name: Install fixer dependencies
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          cd "$GATETEST_HOME"
+          npm ci --omit=dev --ignore-scripts 2>/dev/null \
+            || npm install --production --ignore-scripts 2>/dev/null \
+            || true
+
+      # ── Run the fixer ───────────────────────────────────────────────────
+      # The fixer reads the failing run, asks Claude to diagnose + repair,
+      # then opens a PR with the fix + a confidence-scored root-cause
+      # explanation. cwd is the TARGET repo checkout so git push lands on
+      # the right remote.
+      - name: Run AI CI-fixer
+        if: steps.gate.outputs.skip != 'true' && env.ANTHROPIC_API_KEY != ''
+        env:
+          GITHUB_TOKEN:      ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          WORKFLOW_RUN_ID:   ${{ github.event.workflow_run.id }}
+          MAX_FIX_ATTEMPTS:  '3'
+          CLAUDE_MODEL:      'claude-sonnet-4-7'
+        run: node "$GATETEST_HOME/scripts/ai-ci-fixer.js"
