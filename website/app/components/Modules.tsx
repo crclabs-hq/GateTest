@@ -153,7 +153,7 @@ export default function Modules() {
           {activeModules.map((mod) => (
             <div
               key={mod.name}
-              className="card p-5"
+              className="card p-5 module-card-3d"
             >
               <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center font-[var(--font-mono)] font-bold text-accent text-sm mb-3">
                 {mod.icon}
