@@ -101,11 +101,11 @@ test('fetchWorkflowLogs returns empty text gracefully if redirect-follow fails',
       match:    /\/actions\/jobs\/42\/logs/,
       status:   302,
       body:     '',
-      headers:  { location: 'https://bad.host.example/missing', 'content-type': 'text/plain' },
+      headers:  { location: 'https://bad.example.com/missing', 'content-type': 'text/plain' },
     },
     // 404 on the redirect target
     {
-      hostname: 'bad.host.example',
+      hostname: 'bad.example.com',
       match:    /\/missing/,
       status:   404,
       body:     'Not Found',
@@ -180,7 +180,7 @@ test('fetchUrl makes a GET with no auth header and returns plain body', async ()
       return { on() {}, write() {}, end() {}, destroy() {} };
     },
   };
-  const res = await fixer.fetchUrl('https://blob.example.com/path?sig=abc', { transport });
+  const res = await fixer.fetchUrl('https://blob.example.com.com/path?sig=abc', { transport });
   assert.equal(res.status, 200);
   assert.equal(res.body, 'hello world');
   // No `Authorization` — signed URLs include their own credentials in
@@ -188,7 +188,7 @@ test('fetchUrl makes a GET with no auth header and returns plain body', async ()
   // would be a real bug.
   assert.equal(captured.headers.Authorization, undefined);
   assert.equal(captured.headers['User-Agent'], 'gatetest-ai-ci-fixer');
-  assert.equal(captured.hostname, 'blob.example.com');
+  assert.equal(captured.hostname, 'blob.example.com.com');
   assert.equal(captured.path, '/path?sig=abc');
 });
 
@@ -222,10 +222,10 @@ not ok 1 - add: positive integers
       match:    /\/actions\/jobs\/42\/logs/,
       status:   302,
       body:     '',
-      headers:  { location: 'https://blob.example/log.txt' },
+      headers:  { location: 'https://blob.example.com/log.txt' },
     },
     {
-      hostname: 'blob.example',
+      hostname: 'blob.example.com',
       match:    /\/log\.txt/,
       status:   200,
       body:     LOG_BODY,
