@@ -741,7 +741,7 @@ GateTest/
 | # | Issue | Severity | Status |
 |---|-------|----------|--------|
 | 1 | Scan page needs fresh checkout — stale sessions show "cancelled" | MEDIUM | DONE (2026-04-16) — `/api/scan/status` now returns a new `status: "expired"` state when `piStatus === "canceled"` AND no `scan_status` metadata exists (i.e. session expired BEFORE scan ran). Page renders a dedicated slate-palette "Session Expired" block with a prominent "Start New Scan" CTA, distinct from the amber failure state. |
-| 2 | Website design needs major upgrade — current is basic | HIGH | IN PROGRESS (2026-04-17) — Shipped this session under Craig's "just do it all" authorization: animated hero grid background with radial mask + 40s drift, gradient-shimmer on `.gradient-text`, gradient section dividers, enhanced card hover (teal glow + lift + inner highlight), enhanced `btn-primary` with active-state press + larger shadow, terminal scanline animation, footer teal accent bar. Modules.tsx fully restructured from 13-active/8-soon to all 67 modules across 9 categories (Source & quality / Security / Reliability / Web & UX / Infrastructure / Developer hygiene / AI & advanced / Scanning & testing / Language coverage). Remaining wishlist (for post-launch): navbar dual-layer glass, stats counter-animation on scroll, comparison-bar fill-on-scroll, module-card 3D perspective. |
+| 2 | Website design needs major upgrade — current is basic | HIGH | **DONE** (2026-06-03, PR #177) — Full wishlist complete: navbar dual-layer glass (backdrop-blur-2xl + inset highlight shadow), stats counter-animation on scroll (CountUp in Hero StatusCell, fixed comma-number handling), comparison-bar fill-on-scroll (staggered delays, GateTest row fills last), module-card 3D perspective (perspective(900px) rotateX/Y tilt on hover, prefers-reduced-motion guarded). |
 | 3 | Stripe test keys not yet swapped in | MEDIUM | Craig action |
 | 4 | GitHub App not yet installed on test repo | MEDIUM | Craig action |
 | 5 | Crontech.ai protection — workflow shipped in `integrations/`, needs `install.sh` run from that repo | HIGH | Craig action (or expand MCP scope) |
@@ -945,11 +945,15 @@ ASAP, under GitHub review." Year-2030 intelligence pipeline:
 Total new tests in Wave 1-6: 190+. Sweep: 4249 pass / 0 fail / 1 skip.
 
 REMAINING TO DO (next sessions):
-- Recipe auto-promotion (high-confidence recipe-promoter vectors
-  become real rules in rule-based-fixer.js, gated by reviewer PR)
-- Marketing-claim verification tests (nightly suite asserts claims
-  on gatetest.ai still match shipping reality)
-- Dep hygiene dogfood workflow
+- [x] Recipe auto-promotion — DONE (2026-06-03, PR #176): recipe-auto-
+  promoter wired into trainer-nightly.yml; pending rule files written to
+  rule-based-fixer-pending/ and committed to the trainer PR for reviewer
+  approval before becoming real rules.
+- [x] Marketing-claim verification tests — DONE (2026-06-03, PR #176):
+  dogfood-nightly.yml runs tests/marketing-claim-verification.test.js
+  every night and opens a GitHub Issue on any drift.
+- [x] Dep hygiene dogfood workflow — DONE: dogfood-nightly.yml already
+  ran the dependencies module nightly; confirmed complete.
 - Boss Rule items: edge / warm-pool scan workers, continuous
   training run, Crontech as engine orchestrator, true compiler-
   agnostic AST translation. All require explicit Craig auth.
