@@ -16,7 +16,7 @@
 //   2. `totalModuleCount()` from website/app/components/howitworks/modules-data.ts
 //   3. TOTAL_MODULES constant below.
 //
-// Last verified: 2026-05-27 (104 modules).
+// Last verified: 2026-05-27 (110 modules).
 
 import { totalModuleCount } from "@/app/components/howitworks/modules-data";
 

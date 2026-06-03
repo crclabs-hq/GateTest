@@ -109,7 +109,7 @@ const { runPairReview, renderReviewComment } = require("@/app/lib/pair-review") 
   ) => string;
 };
 
-// CISO report generator — Nuclear-tier ($399) deliverable. Wires the
+// CISO report generator — Forensic-tier ($399) deliverable. Wires the
 // existing helper into the Nuclear branch of the fix route so paying
 // customers actually receive the board-ready report the marketing
 // promises (OWASP Top 10, SOC2 TSC, CIS Controls v8, 30/60/90-day
@@ -138,10 +138,10 @@ const { generateCisoReport, cisoReportPath } = require("@/app/lib/ciso-report-ge
 };
 
 // Phase 3.2 — cross-finding correlation engine. Identifies attack
-// chains across the full Nuclear-tier findings set (one Claude call,
+// chains across the full Forensic-tier findings set (one Claude call,
 // independent of the per-finding diagnoser). Wired into /api/scan/fix
 // so the CISO report receives real chains instead of an empty array.
-// Failure is non-blocking — Nuclear deliverable still ships; CISO
+// Failure is non-blocking — Forensic deliverable still ships; CISO
 // report rendered with chains:[] and a placeholder note in the PR body.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { correlateForCisoChains } = require("@/app/lib/ciso-correlator-bridge") as {
@@ -176,7 +176,7 @@ const { composePrBody } = require("@/app/lib/pr-composer") as {
     repoUrl?: string;
     /** Pre-rendered CVE patches markdown section from composeCveFixPrSection. */
     cveSection?: string;
-    /** Nuclear-tier CISO report descriptor (path/riskLevel/complianceGaps/counts/failed). */
+    /** Forensic-tier CISO report descriptor (path/riskLevel/complianceGaps/counts/failed). */
     cisoReport?: {
       path?: string;
       riskLevel?: string;
@@ -632,7 +632,7 @@ CRITICAL RULES — violations will cause re-scan failure:
 - The fixed code will be automatically re-scanned. If it fails, the fix is rejected.`;
 
   const body = JSON.stringify({
-    model: "claude-opus-4-7",
+    model: "claude-sonnet-4-7",
     max_tokens: 8192,
     messages: [{ role: "user", content: prompt }],
   });
@@ -746,7 +746,7 @@ const MAX_FILE_BYTES = 400 * 1024;
  */
 async function askClaudeForTest(prompt: string): Promise<string> {
   const body = JSON.stringify({
-    model: "claude-opus-4-7",
+    model: "claude-sonnet-4-7",
     max_tokens: 4096,
     messages: [{ role: "user", content: prompt }],
   });
@@ -776,7 +776,7 @@ Rules:
 - Follow whatever format the file extension implies.`;
 
   const body = JSON.stringify({
-    model: "claude-opus-4-7",
+    model: "claude-sonnet-4-7",
     max_tokens: 4096,
     messages: [{ role: "user", content: prompt }],
   });
@@ -1676,7 +1676,7 @@ export async function POST(req: NextRequest) {
       await upsertFile(owner, repo, fix.file, fix.fixed, message, branchName, existingSha, token);
     });
 
-    // Nuclear-tier CISO board-report. Generated AFTER all fixes are
+    // Forensic-tier CISO board-report. Generated AFTER all fixes are
     // committed (so it reflects the post-fix landscape), BEFORE PR-body
     // composition (so the body can mention it). Committed to the same
     // branch as a markdown file the customer receives in the PR diff;
@@ -1721,7 +1721,7 @@ export async function POST(req: NextRequest) {
         // CISO report so chains can flow into the report's attack-chain
         // section. ONE Claude call, budget-bounded by a 30s timeout.
         // Fail-soft: any error / timeout / parse failure returns
-        // chains:[] with a human-readable note. The Nuclear deliverable
+        // chains:[] with a human-readable note. The Forensic deliverable
         // STILL ships either way — chains are an additive lift on top
         // of the per-finding diagnosis the CISO report already covers.
         const correlationResult = await correlateForCisoChains({
@@ -1743,7 +1743,7 @@ export async function POST(req: NextRequest) {
           // appear independent" (an honest outcome, not a failure).
           chains: correlationResult.chains,
           hostName: `${owner}/${repo}`,
-          tier: "Nuclear",
+          tier: "Forensic",
           askClaude: askClaudeForTest,
         });
 

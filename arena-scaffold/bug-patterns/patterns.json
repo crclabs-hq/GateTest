@@ -1,0 +1,75 @@
+{
+  "$comment": "Curated bug patterns the injector applies to src/math.js. Each pattern is a deterministic find-and-replace plus a human-readable signature. Patterns are chosen to be (a) simple enough that ai-ci-fixer should solve them in one shot, (b) varied enough that the trainer flywheel sees real diversity, and (c) caught by the existing tests in tests/math.test.js.",
+  "patterns": [
+    {
+      "id": "add-flip-sign",
+      "category": "math-operator",
+      "summary": "add() returns a - b instead of a + b",
+      "find": "function add(a, b) {\n  return a + b;\n}",
+      "replace": "function add(a, b) {\n  return a - b;\n}"
+    },
+    {
+      "id": "subtract-flip-sign",
+      "category": "math-operator",
+      "summary": "subtract() returns a + b instead of a - b",
+      "find": "function subtract(a, b) {\n  return a - b;\n}",
+      "replace": "function subtract(a, b) {\n  return a + b;\n}"
+    },
+    {
+      "id": "multiply-uses-add",
+      "category": "math-operator",
+      "summary": "multiply() uses + instead of *",
+      "find": "function multiply(a, b) {\n  return a * b;\n}",
+      "replace": "function multiply(a, b) {\n  return a + b;\n}"
+    },
+    {
+      "id": "divide-removes-zero-check",
+      "category": "error-handling",
+      "summary": "divide() loses its zero-divisor guard",
+      "find": "function divide(a, b) {\n  if (b === 0) throw new Error('division by zero');\n  return a / b;\n}",
+      "replace": "function divide(a, b) {\n  return a / b;\n}"
+    },
+    {
+      "id": "isPositive-includes-zero",
+      "category": "boundary",
+      "summary": "isPositive() flipped to >= which includes 0",
+      "find": "function isPositive(n) {\n  return n > 0;\n}",
+      "replace": "function isPositive(n) {\n  return n >= 0;\n}"
+    },
+    {
+      "id": "isPositive-negated",
+      "category": "boolean-logic",
+      "summary": "isPositive() returns ! of itself",
+      "find": "function isPositive(n) {\n  return n > 0;\n}",
+      "replace": "function isPositive(n) {\n  return !(n > 0);\n}"
+    },
+    {
+      "id": "clamp-swap-bounds",
+      "category": "boundary",
+      "summary": "clamp() returns min and max swapped",
+      "find": "function clamp(value, min, max) {\n  if (value < min) return min;\n  if (value > max) return max;\n  return value;\n}",
+      "replace": "function clamp(value, min, max) {\n  if (value < min) return max;\n  if (value > max) return min;\n  return value;\n}"
+    },
+    {
+      "id": "clamp-strict-becomes-loose",
+      "category": "boundary",
+      "summary": "clamp() < changed to <= (silently incorrect on the boundary)",
+      "find": "function clamp(value, min, max) {\n  if (value < min) return min;\n  if (value > max) return max;\n  return value;\n}",
+      "replace": "function clamp(value, min, max) {\n  if (value <= min) return min;\n  if (value >= max) return max;\n  return value;\n}"
+    },
+    {
+      "id": "uniqueSorted-drops-sort",
+      "category": "completeness",
+      "summary": "uniqueSorted() loses the .sort() so order is insertion-order, not ascending",
+      "find": "function uniqueSorted(arr) {\n  return Array.from(new Set(arr)).sort((a, b) => a - b);\n}",
+      "replace": "function uniqueSorted(arr) {\n  return Array.from(new Set(arr));\n}"
+    },
+    {
+      "id": "uniqueSorted-lexicographic-sort",
+      "category": "completeness",
+      "summary": "uniqueSorted() uses default lexicographic sort instead of numeric ascending",
+      "find": "function uniqueSorted(arr) {\n  return Array.from(new Set(arr)).sort((a, b) => a - b);\n}",
+      "replace": "function uniqueSorted(arr) {\n  return Array.from(new Set(arr)).sort();\n}"
+    }
+  ]
+}

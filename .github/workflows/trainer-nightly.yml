@@ -1,12 +1,21 @@
 name: Flywheel Trainer — Nightly
 
-# Runs every night at 03:00 UTC. Ingests the last 24h of git history into
-# the session-fix corpus, runs the pattern-miner trainer, and opens a PR
-# (or appends to an existing one) with the markdown report.
+# Runs every night at 03:00 UTC. Ingests the last 30d of git history into
+# the session-fix corpus, runs all 7 flywheel trainers, and opens a PR
+# (or appends to an existing one) with the combined report.
 #
-# The trainer is read-only on source code. It NEVER modifies modules /
-# tests / rules. Downstream agents (recipe-promoter, regression-test
-# generator) consume the JSON output to propose actual changes.
+# Trainer inventory:
+#   1. pattern-miner          — recurring patterns + under-tested modules
+#   2. recipe-promoter        — patterns → recipe proposals
+#   3. recipe-auto-promoter   — high-confidence swaps → pending rule files
+#   4. regression-test-generator — under-tested modules → .pending.test.js
+#   5. cross-repo-promoter    — anonymised structural rewrite vectors
+#   6. confidence-calibrator  — dismissal rates → severity downgrades
+#   7. adversarial-mutator    — self-tests the gate by mutating known-good code
+#
+# Read-only on source code. NEVER modifies modules / tests / rules directly.
+# Generated pending files (rule-based-fixer-pending/, tests/auto-generated/)
+# land in the trainer PR for human review before they become real rules.
 
 on:
   schedule:
@@ -94,6 +103,40 @@ jobs:
             cp "$HOME/.gatetest/trainers/adversarial-mutator-latest.json" .gatetest-train/adversarial-mutator.json
           fi
 
+      - name: Run recipe-auto-promoter trainer
+        # Reads recipe-promoter proposals → generates pending rule files
+        # under website/app/lib/rule-based-fixer-pending/ for human review.
+        # Only operates on high-confidence token-swap proposals (≥2 agreeing
+        # commits) — never auto-applies rules. Fails silently when corpus
+        # is thin (e.g. first run): no proposals → no pending files.
+        run: |
+          node website/app/lib/trainers/recipe-auto-promoter.js > .gatetest-train/recipe-auto-promoter.md || true
+          if [ -f "$HOME/.gatetest/trainers/recipe-auto-promoter-latest.json" ]; then
+            cp "$HOME/.gatetest/trainers/recipe-auto-promoter-latest.json" .gatetest-train/recipe-auto-promoter.json
+          fi
+
+      - name: Run cross-repo-promoter trainer
+        # Reads local session-fix corpus → builds anonymised structural
+        # rewrite vectors in ~/.gatetest/cross-repo-corpus/.
+        # No-op when corpus is empty. SOC2-safe: customer strings never
+        # leave the local store.
+        run: |
+          node website/app/lib/trainers/cross-repo-promoter.js > .gatetest-train/cross-repo-promoter.md || true
+          if [ -f "$HOME/.gatetest/trainers/cross-repo-promoter-latest.json" ]; then
+            cp "$HOME/.gatetest/trainers/cross-repo-promoter-latest.json" .gatetest-train/cross-repo-promoter.json
+          fi
+
+      - name: Run confidence-calibrator trainer
+        # Reads finding_dismissals from the DB (gracefully degrades when
+        # DATABASE_URL is unset) → recommends per-rule severity downgrades.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          node website/app/lib/trainers/confidence-calibrator.js > .gatetest-train/confidence-calibrator.md || true
+          if [ -f "$HOME/.gatetest/trainers/confidence-calibrator-latest.json" ]; then
+            cp "$HOME/.gatetest/trainers/confidence-calibrator-latest.json" .gatetest-train/confidence-calibrator.json
+          fi
+
       - name: Upload trainer artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -122,9 +165,19 @@ jobs:
           cp .gatetest-train/regression-test-generator.json "docs/trainer/${DATE}-regression-test-generator.json" 2>/dev/null || true
           cp .gatetest-train/adversarial-mutator.md "docs/trainer/${DATE}-adversarial-mutator.md"  2>/dev/null || true
           cp .gatetest-train/adversarial-mutator.json "docs/trainer/${DATE}-adversarial-mutator.json" 2>/dev/null || true
+          cp .gatetest-train/recipe-auto-promoter.md "docs/trainer/${DATE}-recipe-auto-promoter.md"  2>/dev/null || true
+          cp .gatetest-train/recipe-auto-promoter.json "docs/trainer/${DATE}-recipe-auto-promoter.json" 2>/dev/null || true
+          cp .gatetest-train/cross-repo-promoter.md "docs/trainer/${DATE}-cross-repo-promoter.md"  2>/dev/null || true
+          cp .gatetest-train/cross-repo-promoter.json "docs/trainer/${DATE}-cross-repo-promoter.json" 2>/dev/null || true
+          cp .gatetest-train/confidence-calibrator.md "docs/trainer/${DATE}-confidence-calibrator.md"  2>/dev/null || true
+          cp .gatetest-train/confidence-calibrator.json "docs/trainer/${DATE}-confidence-calibrator.json" 2>/dev/null || true
 
-          # If the regression-test-generator drafted any pending tests under
-          # tests/auto-generated/, include them in the trainer PR for review.
+          # recipe-auto-promoter writes pending rule files here for review
+          if [ -d website/app/lib/rule-based-fixer-pending ]; then
+            git add website/app/lib/rule-based-fixer-pending/ || true
+          fi
+
+          # regression-test-generator writes pending test stubs here
           if [ -d tests/auto-generated ]; then
             git add tests/auto-generated/ || true
           fi
@@ -134,14 +187,15 @@ jobs:
             echo "no changes — skipping PR"
             exit 0
           fi
-          git -c commit.gpgsign=false commit -m "chore(trainer): pattern-miner report $(date -u +%Y-%m-%d)"
+          git -c commit.gpgsign=false commit -m "chore(trainer): all-7-trainers report $(date -u +%Y-%m-%d)"
           git push -u origin "$BRANCH" --force-with-lease
 
           # Create PR (idempotent — gh fails harmlessly if PR exists)
+          PR_BODY=$(printf '## Nightly flywheel trainer report (%s)\n\nAll 7 trainers ran. Review each section and merge to land reports in docs/trainer/.\n\n**Pending rule files** (if any) are under `website/app/lib/rule-based-fixer-pending/` — verify the source SHAs in the header comment, then move the rule into `rule-based-fixer.js` RULES array.\n\n**Pending test stubs** (if any) are under `tests/auto-generated/*.pending.test.js` — fill in assertions and rename to `.test.js` to activate.' "$(date -u +%Y-%m-%d)")
           gh pr create \
             --base main \
             --head "$BRANCH" \
             --title "Flywheel trainer report — $(date -u +%Y-%m-%d)" \
-            --body "Nightly pattern-miner output. Review recommendations and merge to land the report in docs/trainer/." \
+            --body "$PR_BODY" \
             --draft \
           || gh pr edit "$BRANCH" --body "Updated $(date -u +%Y-%m-%dT%H:%M:%SZ)"

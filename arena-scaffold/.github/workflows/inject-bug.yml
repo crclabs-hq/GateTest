@@ -1,0 +1,44 @@
+name: Inject Bug (arena cron)
+
+# Schedules a fresh bug injection every 2 hours. Each run creates a
+# branch, applies one pattern to src/math.js, opens a PR. CI fails on
+# that PR — ai-ci-fixer.yml then takes over and (hopefully) opens the
+# follow-up fix PR.
+#
+# Manual trigger: workflow_dispatch supports a `pattern_id` input so
+# operators can reproduce a specific failure mode on demand.
+
+on:
+  schedule:
+    - cron: '17 */2 * * *'   # every 2 hours at :17 past
+  workflow_dispatch:
+    inputs:
+      pattern_id:
+        description: 'Force a specific bug-pattern id (default: random)'
+        required: false
+        default: ''
+
+permissions:
+  contents:      write
+  pull-requests: write
+
+jobs:
+  inject:
+    name: Inject one bug + open PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.ARENA_BOT_PAT || secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run injector
+        env:
+          GITHUB_TOKEN:       ${{ secrets.ARENA_BOT_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY:  ${{ github.repository }}
+          ARENA_PATTERN_ID:   ${{ inputs.pattern_id }}
+        run: node scripts/inject-bug.js

@@ -8,7 +8,7 @@
  *   - Sample-URL chips pre-fill so visitors can try the product without typing.
  *   - Honest counter row — no fabricated numbers; "Launching today" badge if no
  *     real data is available.
- *   - Substance over polish: every claim ties to a real artefact (104 modules,
+ *   - Substance over polish: every claim ties to a real artefact (110 modules,
  *     4600+ tests, self-scan green, pay-on-completion).
  *   - Dark theme preserved. Animated grid background retained.
  *   - Mobile-first; 320px ↔ 2560px.
@@ -20,6 +20,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { UrlScanFlow } from "./UrlScanFlow";
+import CountUp from "./CountUp";
 
 const SAMPLE_URLS = [
   { label: "example.com", url: "https://example.com" },
@@ -60,12 +61,12 @@ export default function Hero() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
               </span>
-              <span>Launching today &middot; v1.43 &middot; 104 modules live</span>
+              <span>Launching today &middot; v1.46 &middot; 110 modules live</span>
             </div>
           </div>
 
           {/* Headline — outcome-first, not feature-first. Tested against
-              "One gate. 104 modules. Self-healing CI." (which led with
+              "One gate. 110 modules. Self-healing CI." (which led with
               features) — the new variant leads with the painkiller story
               (you don't lose your evening to red CI). Per Craig's
               priorities for HN launch: this is the line that ships in
@@ -78,7 +79,7 @@ export default function Hero() {
 
           {/* Unfair-advantage hook */}
           <p className="text-center text-xl sm:text-2xl text-white/65 max-w-3xl mx-auto mb-3 leading-snug fade-up font-medium">
-            104 checks, one gate, auto-fix PRs in 60 seconds.
+            110 checks, one gate, auto-fix PRs in 60 seconds.
           </p>
           <p className="text-center text-base sm:text-lg text-white/45 max-w-2xl mx-auto mb-3 leading-relaxed fade-up">
             We catch the bugs, security issues, and CI rot that crash your
@@ -86,11 +87,17 @@ export default function Hero() {
             tested, and pair-reviewed by a second AI. Pay per scan &mdash; no
             subscription, no minimum.
           </p>
-          {/* Recipe-distillation moat, framed as a signal-quality story
-              (not a price-cut promise — invites the wrong kind of email). */}
-          <p className="text-center text-sm sm:text-base text-teal-300/80 max-w-2xl mx-auto mb-10 fade-up font-medium">
-            Gets sharper with every scan &mdash; recipe distillation means
-            fewer false positives and faster, more accurate fixes over time.
+          {/* Model-choice credibility note — engineers respect the
+              evidence-based call ("we tested both, Sonnet won"). The
+              "5x deeper at the same price" line is the customer-positive
+              consequence of running Sonnet on Opus-era dollar caps. */}
+          <p className="text-center text-sm sm:text-base text-teal-300/80 max-w-2xl mx-auto mb-2 fade-up font-medium">
+            Built on Claude Sonnet 4 &mdash; the model that wins SWE-bench
+            Verified, not the most expensive one in the lineup. We tested.
+            We picked the model that actually fixes bugs.
+          </p>
+          <p className="text-center text-xs sm:text-sm text-white/55 max-w-2xl mx-auto mb-10 fade-up">
+            Net effect: every tier ships ~5x deeper analysis at the same price.
           </p>
 
           {/* Primary CTA: the live URL scan, in-hero */}
@@ -135,7 +142,7 @@ export default function Hero() {
                 label="Self-scan"
                 value="GREEN"
                 tone="ok"
-                detail="102/104 modules"
+                detail="102/110 modules"
               />
               <StatusCell
                 label="Tests passing"
@@ -183,7 +190,7 @@ function StatusCell({
         {label}
       </div>
       <div className={`text-lg font-bold mt-1 tabular-nums ${valueColor}`}>
-        {value}
+        <CountUp value={value} duration={1400} />
       </div>
       <div className="text-[11px] text-white/40 mt-0.5">{detail}</div>
     </div>

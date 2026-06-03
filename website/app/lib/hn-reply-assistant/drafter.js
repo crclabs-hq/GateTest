@@ -13,7 +13,7 @@
  *
  * The drafter does NOT call Claude when `_anthropicCall` is injected
  * (tests). In production it invokes the Anthropic SDK with the
- * approved model (claude-opus-4-7 per Bible v1.43).
+ * approved model (claude-sonnet-4-7 per Bible v1.43).
  */
 
 "use strict";
@@ -156,7 +156,7 @@ async function defaultAnthropicCall({ systemPrompt, userPrompt }) {
   }
   const fetchFn = typeof globalThis.fetch === "function" ? globalThis.fetch : null;
   if (!fetchFn) throw new Error("no fetch available in runtime");
-  const model = "claude-opus-4-7";
+  const model = "claude-sonnet-4-7";
 
   const res = await fetchFn("https://api.anthropic.com/v1/messages", {
     method: "POST",

@@ -62,7 +62,7 @@ const { correlateFindings, renderCorrelationReport } = require("@/app/lib/cross-
 
 // Phase 3.1 — Nuclear diagnoser. Replaces the category-matched
 // shell-command templates below with real Claude-driven diagnosis
-// when the caller is on the $399 Nuclear tier.
+// when the caller is on the $399 Forensic tier.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { diagnoseFindings, renderDiagnosesReport } = require("@/app/lib/nuclear-diagnoser") as {
   diagnoseFindings: (opts: {
@@ -333,7 +333,7 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]`,
 async function askClaudeForDiagnosis(prompt: string): Promise<string> {
   if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not set");
   const body = JSON.stringify({
-    model: "claude-opus-4-7",
+    model: "claude-sonnet-4-7",
     max_tokens: 2048,
     messages: [{ role: "user", content: prompt }],
   });
@@ -400,7 +400,7 @@ export async function POST(req: NextRequest) {
   const hostname = body.hostname || "your-domain.com";
   const modules = body.modules || [];
 
-  // Phase 3.1 — Nuclear-tier diagnosis branch. When the caller's tier
+  // Phase 3.1 — Forensic-tier diagnosis branch. When the caller's tier
   // is `nuclear`, replace category-matched shell templates with
   // Claude-driven evidence-tied diagnosis. The Quick / Full flows
   // continue to use the legacy template generators below — they ship
@@ -422,7 +422,7 @@ export async function POST(req: NextRequest) {
         totalFixes: 0,
         diagnoses: [],
         summary: "Nuclear diagnoser: 0 findings (all modules passed)",
-        report: "## GateTest Nuclear Diagnosis Report\n\nNo error or warning findings to diagnose. All scanned modules passed.",
+        report: "## GateTest Forensic Diagnosis Report\n\nNo error or warning findings to diagnose. All scanned modules passed.",
       });
     }
     try {

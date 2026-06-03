@@ -174,7 +174,19 @@ jobs:
         run: bash scripts/install-workspaces.sh
 
       - name: All tests pass
-        run: node --test tests/*.test.js
+        run: |
+          set -o pipefail
+          node --test tests/*.test.js | tee /tmp/test-suite.tap
+          STATUS=${PIPESTATUS[0]}
+          if [ "$STATUS" -ne 0 ]; then
+            echo ""
+            echo "=========================================================="
+            echo "  TEST FAILURES (extracted for CI-log-tail visibility):"
+            echo "=========================================================="
+            grep -A 12 "^not ok " /tmp/test-suite.tap || echo "(no 'not ok' lines found — failure may be a process-level error)"
+            echo "=========================================================="
+            exit "$STATUS"
+          fi
 
       - name: Website builds clean
         run: cd website && npx next build

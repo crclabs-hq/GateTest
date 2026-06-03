@@ -225,6 +225,7 @@ const DEFAULT_CONFIG = {
     ],
     nuclear: [
       'memory',
+      'aiGuardrails',
       'syntax',
       'lint',
       'secrets',

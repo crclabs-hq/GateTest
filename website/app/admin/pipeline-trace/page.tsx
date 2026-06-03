@@ -4,6 +4,7 @@
 // deploy chain the latest update is stuck. Probes 4 stages in parallel.
 // Auth: operator must be logged in via /admin (POST 401s otherwise).
 import { useState } from "react";
+import { humanAge, conclusionClass } from "./formatters";
 
 type Layer =
   | "source"
@@ -196,31 +197,82 @@ function humanAge(minutes: number | null): string {
   if (minutes === null || minutes === undefined || Number.isNaN(minutes)) {
     return "—";
   }
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${Math.round(minutes)} min`;
-  if (minutes < 1440) return `${Math.round(minutes / 60)} hr`;
-  return `${Math.round(minutes / 1440)} days`;
+  return (
+    <div className={`flex md:flex-col items-center justify-center text-center ${colour} px-1 md:px-0 py-2 md:py-0`}>
+      <span className="text-2xl font-bold md:rotate-90 md:my-1" aria-hidden="true">→</span>
+      <span className="text-[10px] uppercase tracking-wider font-semibold whitespace-nowrap ml-2 md:ml-0">{label}</span>
+    </div>
+  );
 }
 
-// Colour-class the CI conclusion / deploy state strings (same palette as status dots).
-function conclusionClass(value: string | null | undefined): string {
-  if (!value) return "text-gray-500";
-  const v = String(value).toLowerCase();
-  if (v === "success" || v === "succeeded") return "text-emerald-700";
-  if (
-    v === "failure" ||
-    v === "failed" ||
-    v === "error" ||
-    v === "cancelled" ||
-    v === "timed_out"
-  ) {
-    return "text-red-700";
-  }
-  if (v === "in_progress" || v === "pending" || v === "queued" || v === "running") {
-    return "text-amber-700";
-  }
-  return "text-gray-700";
+function StageBox({ stage }: { stage: Stage }) {
+  return (
+    <div className="flex-1 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:p-4 flex flex-col">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] uppercase tracking-wider font-bold text-gray-700">{stage.name}</span>
+        <span
+          className={`inline-flex items-center gap-1 text-xs font-semibold ${STATUS_TEXT[stage.status]}`}
+          title={stage.comparedTo ? `compared to ${stage.comparedTo}` : undefined}
+        >
+          <span className={`inline-block w-2 h-2 rounded-full ${STATUS_DOT[stage.status]}`} aria-label={stage.status} />
+          <span>{STATUS_GLYPH[stage.status]}</span>
+          <span>{stage.status}</span>
+        </span>
+      </div>
+      {!stage.state.ok && stage.state.error && (
+        <div className="text-[11px] text-red-600 mb-2 break-words">{stage.state.error}</div>
+      )}
+      <div className="space-y-1 text-xs">
+        <div className="flex items-baseline gap-2">
+          <span className="text-gray-500">sha</span>
+          <span className="font-mono text-gray-900">
+            {stage.state.shortSha || (stage.state.sha ? stage.state.sha.slice(0, 7) : "—")}
+          </span>
+        </div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-gray-500">age</span>
+          <span className="text-gray-900">{humanAge(stage.state.ageMinutes)}</span>
+        </div>
+        {stage.name === "ci" && stage.state.conclusion && (
+          <div className="flex items-baseline gap-2">
+            <span className="text-gray-500">conclusion</span>
+            <span className={`font-semibold ${conclusionClass(stage.state.conclusion)}`}>
+              {stage.state.conclusion}
+            </span>
+          </div>
+        )}
+        {stage.name === "deploy" && stage.state.state && (
+          <div className="flex items-baseline gap-2">
+            <span className="text-gray-500">state</span>
+            <span className={`font-semibold ${conclusionClass(stage.state.state)}`}>{stage.state.state}</span>
+          </div>
+        )}
+        {stage.name === "live" && stage.state.details && stage.state.details.length > 0 && (
+          <ul className="space-y-0.5 mt-1">
+            {stage.state.details.slice(0, 3).map((d, i) => (
+              <li key={i} className="text-[11px] text-gray-600 break-words font-mono">
+                {d.length > 60 ? `${d.slice(0, 60)}…` : d}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {stage.state.url && (
+        <a
+          href={stage.state.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-block text-xs text-emerald-700 hover:text-emerald-800 font-semibold"
+        >
+          View &rarr;
+        </a>
+      )}
+    </div>
+  );
 }
+
+// Human-readable age + conclusion colour-class moved to ./formatters.ts to
+// keep this file under the 600-line size budget (see pipeline-trace-page test).
 
 export default function PipelineTracePage() {
   const [repoUrl, setRepoUrl] = useState("");

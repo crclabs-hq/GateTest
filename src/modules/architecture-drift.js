@@ -27,7 +27,7 @@ const path   = require('path');
 const BaseModule = require('./base-module');
 
 const ANTHROPIC_HOST = 'api.anthropic.com';
-const MODEL          = 'claude-opus-4-7';
+const MODEL          = 'claude-sonnet-4-7';
 const TIMEOUT_MS     = 50_000;
 const MAX_DOC_SIZE   = 8_000;
 const MAX_DIFF_SIZE  = 60_000;

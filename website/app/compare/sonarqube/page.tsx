@@ -34,7 +34,7 @@ const faqItems = [
   },
   {
     q: "How does GateTest pricing compare to SonarQube?",
-    a: "SonarQube Cloud charges per active user per month. SonarQube Community Edition requires you to run your own server. GateTest charges per scan — $29 for a quick scan, $99 for all 104 modules. You pay only when the scan completes and delivers results. No server to maintain, no per-seat licensing, no annual contracts.",
+    a: "SonarQube Cloud charges per active user per month. SonarQube Community Edition requires you to run your own server. GateTest charges per scan — $29 for a quick scan, $99 for all 110 modules. You pay only when the scan completes and delivers results. No server to maintain, no per-seat licensing, no annual contracts.",
   },
   {
     q: "Does GateTest post commit statuses and PR comments like SonarQube does?",
@@ -211,7 +211,7 @@ export default function SonarQubePage() {
                 body: "SonarQube requires a running server, a database, and ongoing maintenance. SonarQube Cloud still requires sonar-project.properties and scanner configuration per project. GateTest: paste URL, get results. No config files, no servers, no ops burden.",
               },
               {
-                title: "104 modules vs 1 focus",
+                title: "110 modules vs 1 focus",
                 body: "SonarQube focuses on code quality and security patterns. GateTest covers those plus accessibility, visual regression, performance, mutation testing, N+1 queries, race conditions, TLS misconfigs, PII in logs, homoglyph attacks, and 40+ more dimensions — all in one scan.",
               },
               {

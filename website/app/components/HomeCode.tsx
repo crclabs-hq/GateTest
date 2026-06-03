@@ -34,7 +34,7 @@ jobs:
 const CLI_BLOCK = `# scan a single repo locally
 $ npx gatetest --suite quick
 
-# all 104 modules, blocking gate
+# all 110 modules, blocking gate
 $ npx gatetest --suite full
 
 # scan a public website
