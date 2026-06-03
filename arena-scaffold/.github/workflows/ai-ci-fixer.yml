@@ -73,5 +73,5 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           WORKFLOW_RUN_ID:   ${{ github.event.workflow_run.id }}
           MAX_FIX_ATTEMPTS:  '3'
-          CLAUDE_MODEL:      'claude-opus-4-7'
+          CLAUDE_MODEL:      'claude-sonnet-4-7'
         run: node scripts/ai-ci-fixer.js

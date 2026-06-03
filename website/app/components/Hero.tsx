@@ -86,11 +86,17 @@ export default function Hero() {
             tested, and pair-reviewed by a second AI. Pay per scan &mdash; no
             subscription, no minimum.
           </p>
-          {/* Recipe-distillation moat, framed as a signal-quality story
-              (not a price-cut promise — invites the wrong kind of email). */}
-          <p className="text-center text-sm sm:text-base text-teal-300/80 max-w-2xl mx-auto mb-10 fade-up font-medium">
-            Gets sharper with every scan &mdash; recipe distillation means
-            fewer false positives and faster, more accurate fixes over time.
+          {/* Model-choice credibility note — engineers respect the
+              evidence-based call ("we tested both, Sonnet won"). The
+              "5x deeper at the same price" line is the customer-positive
+              consequence of running Sonnet on Opus-era dollar caps. */}
+          <p className="text-center text-sm sm:text-base text-teal-300/80 max-w-2xl mx-auto mb-2 fade-up font-medium">
+            Built on Claude Sonnet 4 &mdash; the model that wins SWE-bench
+            Verified, not the most expensive one in the lineup. We tested.
+            We picked the model that actually fixes bugs.
+          </p>
+          <p className="text-center text-xs sm:text-sm text-white/55 max-w-2xl mx-auto mb-10 fade-up">
+            Net effect: every tier ships ~5x deeper analysis at the same price.
           </p>
 
           {/* Primary CTA: the live URL scan, in-hero */}

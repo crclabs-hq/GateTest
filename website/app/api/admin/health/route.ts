@@ -281,7 +281,7 @@ async function checkAnthropic(): Promise<Check> {
   }
   try {
     const payload = JSON.stringify({
-      model: "claude-opus-4-7",
+      model: "claude-sonnet-4-7",
       max_tokens: 1,
       messages: [{ role: "user", content: "hi" }],
     });

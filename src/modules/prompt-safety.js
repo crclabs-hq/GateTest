@@ -211,7 +211,7 @@ class PromptSafetyModule extends BaseModule {
             line: i + 1,
             model: m,
             message: `Model \`${m}\` is deprecated / EOL — calls may fail or return degraded output`,
-            suggestion: 'Upgrade to a current model (e.g. `claude-opus-4-7`, `claude-opus-4-7`, or the latest GPT-4-class model).',
+            suggestion: 'Upgrade to a current model (e.g. `claude-sonnet-4-7`, `claude-sonnet-4-7`, or the latest GPT-4-class model).',
           });
           break;
         }

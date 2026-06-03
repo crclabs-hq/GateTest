@@ -181,7 +181,7 @@ describe('PromptSafetyModule — max_tokens', () => {
       'from anthropic import Anthropic',
       'client = Anthropic()',
       'resp = client.messages.create(',
-      '    model="claude-opus-4-7",',
+      '    model="claude-sonnet-4-7",',
       '    messages=[{"role": "user", "content": "hi"}],',
       ')',
       '',
@@ -195,7 +195,7 @@ describe('PromptSafetyModule — max_tokens', () => {
       'from anthropic import Anthropic',
       'client = Anthropic()',
       'resp = client.messages.create(',
-      '    model="claude-opus-4-7",',
+      '    model="claude-sonnet-4-7",',
       '    max_tokens=1024,',
       '    messages=[{"role": "user", "content": "hi"}],',
       ')',
@@ -302,7 +302,7 @@ describe('PromptSafetyModule — deprecated models', () => {
     write(tmp, 'src/a.js', [
       'const Anthropic = require("@anthropic-ai/sdk");',
       'const client = new Anthropic();',
-      'await client.messages.create({ model: "claude-opus-4-7", max_tokens: 100, messages: [] });',
+      'await client.messages.create({ model: "claude-sonnet-4-7", max_tokens: 100, messages: [] });',
       '',
     ].join('\n'));
     const r = await run(tmp);
