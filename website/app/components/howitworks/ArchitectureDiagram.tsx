@@ -22,7 +22,7 @@ const NODES: Node[] = [
   { id: "fix", label: "Flywheel  ·  AST → Rule → Recipe → Claude", detail: "first layer that wins ships the patch", y: 510, variant: "fix" },
   { id: "gate", label: "Test gen  +  syntax gate  +  scanner re-validation", detail: "broken fixes never reach the PR", y: 610, variant: "fix" },
   { id: "review", label: "Pair review  +  architecture annotation  ·  Tier 2+", detail: "second Claude critiques every fix", y: 700, variant: "review" },
-  { id: "nuclear", label: "Correlation  +  Claude diagnosis  +  executive summary  ·  Tier 3", detail: "attack chains across findings, per-finding diagnosis, CISO report (mutation + chaos run via GitHub Action)", y: 790, variant: "nuclear" },
+  { id: "nuclear", label: "Correlation  +  Claude diagnosis  +  executive summary  ·  Forensic", detail: "attack chains across findings, per-finding diagnosis, CISO report (mutation + chaos run via GitHub Action)", y: 790, variant: "nuclear" },
   { id: "pr", label: "PR composed and opened", detail: "before/after table, advisory, regression tests", y: 890, variant: "output" },
 ];
 
