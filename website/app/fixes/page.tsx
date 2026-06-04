@@ -56,7 +56,7 @@ const TIER_LABELS: Record<string, { label: string; color: string }> = {
   quick: { label: 'Quick', color: 'text-slate-400 bg-slate-400/10' },
   full: { label: 'Full', color: 'text-blue-400 bg-blue-400/10' },
   'scan_fix': { label: 'Scan+Fix', color: 'text-violet-400 bg-violet-400/10' },
-  nuclear: { label: 'Nuclear', color: 'text-rose-400 bg-rose-400/10' },
+  nuclear: { label: 'Forensic', color: 'text-rose-400 bg-rose-400/10' },
 };
 
 function formatDate(iso: string) {

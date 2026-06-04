@@ -77,7 +77,7 @@ export default function HomeKills() {
               ["tfsec / Checkov / Terrascan / KICS", "terraform"],
               ["kube-score / kubeaudit / Polaris / Kubesec", "kubernetes"],
               ["LLM Guard / Lakera Guard / Rebuff (static slice)", "promptSafety"],
-              ["Promptfoo / Garak / Lakera Red (dynamic scenario testing — Nuclear)", "aiGuardrails"],
+              ["Promptfoo / Garak / Lakera Red (dynamic scenario testing — Forensic tier)", "aiGuardrails"],
               ["ts-prune / knip / Vulture", "deadCode"],
               ["gitleaks / secretlint / dotenv-linter", "secretRotation"],
               ["securityheaders.com / Mozilla Observatory", "webHeaders"],
