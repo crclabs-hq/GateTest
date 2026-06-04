@@ -1,0 +1,110 @@
+name: AI CI Fixer — Remote
+
+# Triggered by the GateTest webhook when a workflow_run failure event
+# arrives from any repo that has the GateTest App installed.
+#
+# This workflow runs in the GateTest repo's Actions context so it has
+# access to ANTHROPIC_API_KEY and the App private key — neither needs
+# to be configured in the customer's repo.
+#
+# The App installation token is generated fresh per target repo and
+# scoped to only that repo, so credentials cannot bleed across customers.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repo:
+        description: "owner/repo of the failing repo (e.g. ccantynz-alt/voxlen)"
+        required: true
+      run_id:
+        description: "Numeric workflow run ID that failed"
+        required: true
+      head_sha:
+        description: "40-hex SHA of the failing commit"
+        required: true
+      head_branch:
+        description: "Branch name (e.g. main)"
+        required: false
+        default: "main"
+      workflow_name:
+        description: "Name of the failing workflow (informational)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  ai-fixer-remote:
+    name: AI CI Fixer — ${{ inputs.target_repo }}
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - name: Check prerequisites
+        id: gate
+        run: |
+          if [ -z "${ANTHROPIC_API_KEY}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "AI CI-fixer skipped — no ANTHROPIC_API_KEY secret in GateTest repo"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "Fixing ${{ inputs.target_repo }} run ${{ inputs.run_id }}"
+
+      # Checkout GateTest itself — we need the fixer script and libs.
+      - name: Checkout GateTest (fixer scripts)
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          path: gatetest
+
+      # Generate a scoped installation token for the target repo.
+      - name: Get App token for target repo
+        if: steps.gate.outputs.skip != 'true'
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.GATETEST_APP_ID }}
+          private-key: ${{ secrets.GATETEST_PRIVATE_KEY }}
+          repositories: ${{ inputs.target_repo }}
+
+      # Checkout the failing branch of the target repo into ./target.
+      - name: Checkout target repo at failing SHA
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.target_repo }}
+          token: ${{ steps.app-token.outputs.token }}
+          ref: ${{ inputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: true
+          path: target
+
+      - name: Setup Node
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: gatetest/package-lock.json
+
+      - name: Install GateTest dependencies
+        if: steps.gate.outputs.skip != 'true'
+        working-directory: gatetest
+        run: npm ci
+
+      # Run the fixer from inside the target repo checkout so process.cwd()
+      # resolves to the customer's code. The fixer script path is absolute.
+      - name: Run AI CI-fixer
+        if: steps.gate.outputs.skip != 'true'
+        working-directory: target
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ inputs.target_repo }}
+          WORKFLOW_RUN_ID: ${{ inputs.run_id }}
+          MAX_FIX_ATTEMPTS: "3"
+          CLAUDE_MODEL: "claude-sonnet-4-7"
+        run: node ../gatetest/scripts/ai-ci-fixer.js
