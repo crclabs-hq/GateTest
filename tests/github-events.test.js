@@ -284,3 +284,122 @@ describe('processGitHubEvent', () => {
     assert.strictEqual(r.status, 400);
   });
 });
+
+// ── workflow_run event tests ──────────────────────────────────────────────────
+
+function workflowRunPayload(overrides = {}) {
+  return {
+    action: 'completed',
+    workflow_run: {
+      id: 99887766,
+      name: 'Build & Release',
+      head_sha: 'c'.repeat(40),
+      head_branch: 'main',
+      conclusion: 'failure',
+    },
+    repository: { full_name: 'alice/webapp' },
+    ...overrides,
+  };
+}
+
+describe('extractGitHubEvent — workflow_run', () => {
+  it('returns ci_fix for a completed failure run', () => {
+    const r = extractGitHubEvent('workflow_run', DELIVERY, workflowRunPayload());
+    assert.strictEqual(r.kind, 'ci_fix');
+    assert.strictEqual(r.payload.repository, 'alice/webapp');
+    assert.strictEqual(r.payload.runId, 99887766);
+    assert.strictEqual(r.payload.headSha, 'c'.repeat(40));
+    assert.strictEqual(r.payload.headBranch, 'main');
+    assert.strictEqual(r.payload.workflowName, 'Build & Release');
+    assert.strictEqual(r.payload.eventId, DELIVERY);
+  });
+
+  it('ignores non-completed actions', () => {
+    const r = extractGitHubEvent('workflow_run', DELIVERY, workflowRunPayload({ action: 'requested' }));
+    assert.strictEqual(r.kind, 'ignore');
+  });
+
+  it('ignores non-failure conclusions', () => {
+    const p = workflowRunPayload();
+    p.workflow_run.conclusion = 'success';
+    const r = extractGitHubEvent('workflow_run', DELIVERY, p);
+    assert.strictEqual(r.kind, 'ignore');
+  });
+
+  it('ignores cancelled conclusion', () => {
+    const p = workflowRunPayload();
+    p.workflow_run.conclusion = 'cancelled';
+    const r = extractGitHubEvent('workflow_run', DELIVERY, p);
+    assert.strictEqual(r.kind, 'ignore');
+  });
+
+  it('errors on missing workflow_run object', () => {
+    const p = { action: 'completed', repository: { full_name: 'alice/webapp' } };
+    const r = extractGitHubEvent('workflow_run', DELIVERY, p);
+    assert.strictEqual(r.kind, 'error');
+  });
+
+  it('errors on bad head_sha', () => {
+    const p = workflowRunPayload();
+    p.workflow_run.head_sha = 'not-a-sha';
+    const r = extractGitHubEvent('workflow_run', DELIVERY, p);
+    assert.strictEqual(r.kind, 'error');
+  });
+});
+
+describe('processGitHubEvent — workflow_run ci_fix', () => {
+  function baseArgs() {
+    const payload = workflowRunPayload();
+    const rawBody = JSON.stringify(payload);
+    const kicks = [];
+    return {
+      rawBody,
+      eventType: 'workflow_run',
+      delivery: DELIVERY,
+      signatureHeader: hmacHeader(rawBody),
+      env: { GITHUB_WEBHOOK_SECRET: SECRET, CRON_SECRET: 'cron-secret-abc' },
+      sql: null,
+      queueStore: makeQueueStore(),
+      fetchImpl: (url, opts) => { kicks.push({ url, opts }); return Promise.resolve({ ok: true }); },
+      baseUrl: 'https://gatetest.ai',
+      _kicks: kicks,
+    };
+  }
+
+  it('returns 202 with kind ci_fix', async () => {
+    const args = baseArgs();
+    const r = await processGitHubEvent(args);
+    assert.strictEqual(r.status, 202);
+    assert.strictEqual(r.body.kind, 'ci_fix');
+  });
+
+  it('fires a kick to /api/scan/ci-fix', async () => {
+    const args = baseArgs();
+    await processGitHubEvent(args);
+    assert.ok(args._kicks.some(k => k.url.endsWith('/api/scan/ci-fix')));
+  });
+
+  it('kick uses Authorization Bearer CRON_SECRET', async () => {
+    const args = baseArgs();
+    await processGitHubEvent(args);
+    const kick = args._kicks.find(k => k.url.endsWith('/api/scan/ci-fix'));
+    assert.ok(kick);
+    assert.strictEqual(kick.opts.headers['Authorization'], 'Bearer cron-secret-abc');
+  });
+
+  it('kick body contains repository and runId', async () => {
+    const args = baseArgs();
+    await processGitHubEvent(args);
+    const kick = args._kicks.find(k => k.url.endsWith('/api/scan/ci-fix'));
+    const body = JSON.parse(kick.opts.body);
+    assert.strictEqual(body.repository, 'alice/webapp');
+    assert.strictEqual(body.runId, 99887766);
+    assert.strictEqual(body.headSha, 'c'.repeat(40));
+  });
+
+  it('does NOT enqueue a regular scan', async () => {
+    const args = baseArgs();
+    await processGitHubEvent(args);
+    assert.strictEqual(args.queueStore.calls.enqueueScan.length, 0);
+  });
+});

@@ -103,6 +103,45 @@ function extractGitHubEvent(eventType, delivery, parsed) {
     return { kind: 'error', reason: 'repository.full_name is required' };
   }
 
+  if (eventType === 'workflow_run') {
+    const action = typeof p.action === 'string' ? p.action : '';
+    if (action !== 'completed') {
+      return { kind: 'ignore', reason: `workflow_run action=${action || '<none>'}` };
+    }
+    const wr =
+      p.workflow_run && typeof p.workflow_run === 'object'
+        ? /** @type {Record<string, unknown>} */ (p.workflow_run)
+        : null;
+    if (!wr) {
+      return { kind: 'error', reason: 'workflow_run object is required' };
+    }
+    const conclusion = typeof wr.conclusion === 'string' ? wr.conclusion : null;
+    if (conclusion !== 'failure') {
+      return { kind: 'ignore', reason: `workflow_run conclusion=${conclusion || '<none>'}` };
+    }
+    const runId = typeof wr.id === 'number' ? wr.id : null;
+    if (!runId) {
+      return { kind: 'error', reason: 'workflow_run.id is required' };
+    }
+    const headSha = typeof wr.head_sha === 'string' ? wr.head_sha : null;
+    if (!headSha || !/^[0-9a-f]{40}$/i.test(headSha)) {
+      return { kind: 'error', reason: 'workflow_run.head_sha must be a 40-hex sha' };
+    }
+    const headBranch = typeof wr.head_branch === 'string' ? wr.head_branch : 'main';
+    const workflowName = typeof wr.name === 'string' ? wr.name : '';
+    return {
+      kind: 'ci_fix',
+      payload: {
+        eventId: delivery,
+        repository: fullName,
+        runId,
+        headSha,
+        headBranch,
+        workflowName,
+      },
+    };
+  }
+
   if (eventType === 'push') {
     const sha = typeof p.after === 'string' ? p.after : null;
     const ref = typeof p.ref === 'string' ? p.ref : null;
@@ -173,6 +212,8 @@ function extractGitHubEvent(eventType, delivery, parsed) {
   return { kind: 'ignore', reason: `unhandled event=${eventType || '<none>'}` };
 }
 
+// ── Exported for tests ──────────────────────────────────────────────────────
+
 /**
  * End-to-end handler for a POST /api/webhook request. Returns
  * `{ status, body, headers? }` so the route file stays thin.
@@ -226,6 +267,29 @@ async function processGitHubEvent({
   }
   if (extracted.kind === 'ignore') {
     return { status: 204, body: null };
+  }
+
+  // workflow_run failure — kick the CI-fix route (fire-and-forget, never blocks).
+  if (extracted.kind === 'ci_fix') {
+    if (fetchImpl && baseUrl) {
+      const ciFix = fetchImpl(`${baseUrl}/api/scan/ci-fix`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.CRON_SECRET || ''}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(extracted.payload),
+      });
+      if (ciFix && typeof ciFix.catch === 'function') {
+        ciFix.catch((err) => {
+          console.error(
+            '[github-webhook] ci-fix kick failed:',
+            err && err.message ? err.message : err
+          );
+        });
+      }
+    }
+    return { status: 202, body: { queued: true, kind: 'ci_fix', eventId: extracted.payload.eventId } };
   }
 
   const payload = extracted.payload;
