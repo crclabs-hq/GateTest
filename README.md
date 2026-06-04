@@ -224,8 +224,6 @@ GateTest is dogfooded against itself on every push, and the team runs the full F
 - **Pair-review and architecture annotator on the self-scan** — Phase 2 deliverables exercised end-to-end: [docs/proofs/phase-2-self-pair-review-and-architecture.md](docs/proofs/phase-2-self-pair-review-and-architecture.md)
 - **Full Forensic pipeline on the self-scan** — 12 of 12 findings diagnosed, four chains including a session-forgery vector: [docs/proofs/phase-3-self-nuclear.md](docs/proofs/phase-3-self-nuclear.md)
 
-Total Anthropic spend across the four external real-repo Forensic proofs: roughly three to four US dollars. At the $399 Forensic Scan tier that is a hundred-times-plus margin, before recipe distillation reduces it further on repeat scans.
-
 ---
 
 ## Develop and contribute
