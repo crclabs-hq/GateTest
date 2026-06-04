@@ -14,9 +14,12 @@
  * GitHub is the distribution channel NOW — turning it off before
  * Gluecron has paying customers was a commercial misstep.
  *
- * TODO(phase-2): Post commit-status + PR comment back to GitHub after the
- * scan completes. The worker currently calls the Gluecron callback only;
- * a GitHub-host branch needs GitHubBridge in src/core/github-bridge.js.
+ * Phase 2 (shipped 2026-04-23): commit-status + PR comment are posted
+ * back to GitHub after the scan completes. The `scan_queue.host` column
+ * tags each job ('github' here, 'gluecron' via /api/events/push) and the
+ * worker's dispatchCallback() branches on job.host — GitHub-host jobs go
+ * through website/app/lib/github-callback.js (commit status + formatted
+ * PR comment), Gluecron-host jobs through the Gluecron callback.
  *
  * Wire contract: see website/app/lib/github-events.js for the full
  * contract, HMAC format, and event-handling rules. Unit tests live at
