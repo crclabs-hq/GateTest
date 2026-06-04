@@ -35,10 +35,10 @@ function composeSystemPrompt({ voiceExamples = [], productContext = {} } = {}) {
     productName: productContext.productName || "GateTest",
     tagline: productContext.tagline ||
       "Most code-quality tools tell you what's broken. We open the pull request that fixes it.",
-    moduleCount: productContext.moduleCount || 104,
+    moduleCount: productContext.moduleCount || 110,
     tiers: productContext.tiers || [
       { name: "Quick", price: "$29", modules: "4" },
-      { name: "Full", price: "$99", modules: "all 104, scan-only" },
+      { name: "Full", price: "$99", modules: "all 110, scan-only" },
       { name: "Scan + Fix", price: "$199", modules: "auto-fix PR + pair-review" },
       { name: "Forensic Scan", price: "$399", modules: "per-finding Claude diagnosis + attack-chain correlation + CISO report" },
     ],
@@ -69,7 +69,7 @@ function composeSystemPrompt({ voiceExamples = [], productContext = {} } = {}) {
     `- Tagline: ${pc.tagline}`,
     `- ${pc.moduleCount} modules, one config, one bill`,
     `- Tiers: ${pc.tiers.map((t) => `${t.name} ${t.price} (${t.modules})`).join(" / ")}`,
-    "- Free CLI: npm i -g gatetest",
+    "- Free CLI (MIT), not yet on npm: npx github:crclabs-hq/GateTest --suite quick",
     "",
     "Honest limitations (raise these proactively when relevant — don't hide them):",
     ...pc.honestLimitations.map((l) => `- ${l}`),
