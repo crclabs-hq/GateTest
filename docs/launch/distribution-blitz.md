@@ -121,6 +121,12 @@ quick ./  Repo: https://github.com/crclabs-hq/GateTest  The hosted
 service adds the AI auto-fix PR, but the scanner itself is free + local.
 ```
 
+> ⏸️ **PARKED — DO NOT POST YET.** The `/web` and `/wp` pages have no
+> checkout button — WordPress/website visitors can scan free but currently
+> have **no way to pay**. Posting this drives unmonetizable traffic. Unpark
+> only after a URL-scan checkout is wired. (Decision 2026-06-04: dev audience
+> first, WP later.)
+
 **r/Wordpress** (the wedge — see §6) — Title: `Made a free no-signup WordPress security scanner — feedback wanted`
 ```
 Free, no signup: paste your site URL and it checks for plugin CVEs,
@@ -197,7 +203,9 @@ Distribution sends people; the site has to turn them into customers. Before the 
 - **Day 1:** Directories + awesome-list PRs (§6). Indie Hackers post (§1).
 - **Day 2:** dev.to article (§2). Start the X build-in-public thread (§4).
 - **Day 3:** r/SideProject + r/selfhosted (§3).
-- **Day 4:** r/Wordpress wedge post (§6/§3) — lead the WordPress push.
+- **Day 4:** ⏸️ WordPress push PARKED (no checkout on /web + /wp yet). Use the
+  day for a second dev-audience channel (r/opensource or a dev newsletter
+  submission) instead.
 - **Day 5:** r/SaaS + r/webdev (§3). Send HN second-chance email (§7).
 - **Following week:** Product Hunt launch (§5), tuned from the feedback.
 
