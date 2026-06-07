@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 const INSTALL_CMD = "curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integrations/scripts/install.sh | bash";
-const NPX_CMD = "npx gatetest@latest scan --suite quick --diff";
+const SCAN_CMD = "gatetest scan --suite quick --diff";
 
 function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
@@ -39,7 +39,7 @@ const CATCHES = [
 ];
 
 const TERMINAL_LINES = [
-  { t: "cmd",  text: "$ npx gatetest@latest scan --suite quick --diff" },
+  { t: "cmd",  text: "$ gatetest scan --suite quick --diff" },
   { t: "info", text: "  GateTest v1.46.0 — 110 modules, Claude Sonnet 4.7" },
   { t: "info", text: "  Scanning 14 changed files vs main..." },
   { t: "pass", text: "  [PASS] syntax" },
@@ -189,11 +189,17 @@ export default function DevelopersPage() {
             </div>
             <div className="border-t border-white/[0.06] pt-5">
               <p className="text-sm text-white/60 mb-3">
-                Any repo (public or private): run the CLI on your machine.
+                Any repo (public or private): install the CLI once, then scan locally.
               </p>
-              <div className="rounded-lg bg-black/40 border border-white/[0.06] px-4 py-3 font-mono text-xs text-emerald-300 flex items-center justify-between gap-3">
-                <span className="break-all">{NPX_CMD}</span>
-                <CopyButton text={NPX_CMD} />
+              <div className="space-y-2">
+                <div className="rounded-lg bg-black/40 border border-white/[0.06] px-4 py-3 font-mono text-xs text-emerald-300 flex items-center justify-between gap-3">
+                  <span className="break-all"><span className="text-white/30">$ </span>{INSTALL_CMD}</span>
+                  <CopyButton text={INSTALL_CMD} label="Copy" />
+                </div>
+                <div className="rounded-lg bg-black/40 border border-white/[0.06] px-4 py-3 font-mono text-xs text-teal-300 flex items-center justify-between gap-3">
+                  <span><span className="text-white/30">$ </span>{SCAN_CMD}</span>
+                  <CopyButton text={SCAN_CMD} label="Copy" />
+                </div>
               </div>
               <p className="mt-2 text-xs text-white/30">
                 Requires Node 20+. Scans in memory — code never leaves your machine.
