@@ -1,4 +1,6 @@
 {
+  "owner": "crclabs-hq",
+  "admin": true,
   "modules": {
     "codeQuality": {
       "excludePaths": [
