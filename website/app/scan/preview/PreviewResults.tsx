@@ -3,13 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 
-export interface ModuleSummary {
+interface ModuleSummary {
   module: string;
   status: string;
   issues: number;
 }
 
-export interface PreviewFinding {
+interface PreviewFinding {
   module: string;
   severity: "error" | "warning" | "info";
   file: string | null;
@@ -17,7 +17,7 @@ export interface PreviewFinding {
   message: string;
 }
 
-export interface PreviewResult {
+interface PreviewResult {
   ok: boolean;
   repo?: string;
   durationMs?: number;

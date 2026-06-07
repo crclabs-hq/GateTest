@@ -4,7 +4,19 @@ import React, { useState, FormEvent, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PreviewResults } from "./PreviewResults";
-import type { PreviewResult } from "./PreviewResults";
+
+interface PreviewResult {
+  ok: boolean;
+  repo?: string;
+  durationMs?: number;
+  findings?: { module: string; severity: "error" | "warning" | "info"; file: string | null; line: number | null; message: string }[];
+  moduleSummary?: { module: string; status: string; issues: number }[];
+  total?: number;
+  truncated?: boolean;
+  nextStep?: { price: string; message: string };
+  error?: string;
+  hint?: string;
+}
 
 const EXAMPLE_REPOS = [
   { label: "vercel/next.js",      url: "https://github.com/vercel/next.js",      note: "React framework" },
