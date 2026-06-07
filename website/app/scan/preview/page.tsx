@@ -49,6 +49,35 @@ const SEV_TERM = {
   info:    { bg: "bg-slate-900/60", badge: "bg-slate-600/30 text-slate-400 border border-slate-600/30", label: "INFO" },
 };
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className="shrink-0 text-white/30 hover:text-white transition-colors mt-0.5"
+      title="Copy to clipboard"
+    >
+      {copied ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 function PreviewPageContent() {
   const searchParams = useSearchParams();
   const [repoUrl, setRepoUrl] = useState("");
@@ -420,6 +449,28 @@ function PreviewPageContent() {
                 </Link>
               </div>
             )}
+
+            {/* Add to CI — the "I want this on my own repo" moment */}
+            <div className="rounded-xl bg-[#161b22] border border-white/[0.08] overflow-hidden">
+              <div className="px-5 py-3 border-b border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
+                <span className="text-xs font-mono text-white/50">add to your CI</span>
+                <span className="text-xs text-teal-400/80 font-mono">~30 seconds</span>
+              </div>
+              <div className="p-5 space-y-4">
+                <p className="text-sm text-white/60">
+                  Run this against <em>your</em> repo on every push. One curl command drops the workflow, pre-push hook, and protection marker.
+                </p>
+                <div className="rounded-lg bg-black/40 border border-white/[0.06] px-4 py-3 font-mono text-xs text-emerald-300 flex items-start justify-between gap-3 group">
+                  <span className="break-all">curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integrations/scripts/install.sh | bash</span>
+                  <CopyButton text="curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integrations/scripts/install.sh | bash" />
+                </div>
+                <p className="text-xs text-white/30">
+                  Or install the{" "}
+                  <Link href="/github/setup" className="text-teal-400 hover:underline">GitHub App</Link>
+                  {" "}for automatic scanning on every push and PR — no config needed.
+                </p>
+              </div>
+            </div>
 
             {/* Try another repo */}
             <div className="pt-2">
