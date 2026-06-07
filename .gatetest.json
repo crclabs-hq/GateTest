@@ -2,6 +2,12 @@
   "owner": "crclabs-hq",
   "admin": true,
   "modules": {
+    "prSize": {
+      "maxLinesChangedWarning": 1000,
+      "maxLinesChangedError": 3000,
+      "maxFilesChangedWarning": 80,
+      "maxFilesChangedError": 150
+    },
     "codeQuality": {
       "excludePaths": [
         "bin/",
