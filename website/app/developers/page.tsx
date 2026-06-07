@@ -8,10 +8,21 @@ const SCAN_CMD = "gatetest scan --suite quick --diff";
 
 function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Clipboard write failed:", err);
+    }
+  }
+
   return (
     <button
       type="button"
-      onClick={() => { navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }}
+      onClick={handleCopy}
       className="shrink-0 flex items-center gap-1.5 text-xs text-white/40 hover:text-teal-400 transition-colors"
     >
       {copied ? (
