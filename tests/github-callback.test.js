@@ -129,6 +129,26 @@ describe('toCommitState', () => {
   it('returns error for null', () => {
     assert.strictEqual(toCommitState(null), 'error');
   });
+
+  it('returns failure in ADMIN mode when a module has error-severity checks', () => {
+    const result = makeScanResult({
+      totalIssues: 3,
+      modules: [
+        { name: 'secrets', status: 'failed', issues: 3, checks: [{ severity: 'error' }], details: [] },
+      ],
+    });
+    assert.strictEqual(toCommitState(result, 'admin'), 'failure');
+  });
+
+  it('returns success in admin mode when issues are warnings only', () => {
+    const result = makeScanResult({
+      totalIssues: 1,
+      modules: [
+        { name: 'lint', status: 'passed', issues: 1, checks: [{ severity: 'warning' }], details: [] },
+      ],
+    });
+    assert.strictEqual(toCommitState(result, 'admin'), 'success');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -156,6 +176,11 @@ describe('buildDescription', () => {
   it('does NOT append advisory suffix in strict mode', () => {
     const desc = buildDescription(makeScanResult({ totalIssues: 5, modules: [{ name: 'x', issues: 5, checks: [], details: [], status: 'failed' }] }), 'strict');
     assert.ok(!desc.includes('advisory'), `did not expect "advisory" in: ${desc}`);
+  });
+
+  it('does NOT append advisory suffix in admin mode', () => {
+    const desc = buildDescription(makeScanResult({ totalIssues: 5, modules: [{ name: 'x', issues: 5, checks: [], details: [], status: 'failed' }] }), 'admin');
+    assert.ok(!desc.includes('advisory'), `did not expect "advisory" in admin mode: ${desc}`);
   });
 
   it('never exceeds 140 chars', () => {
@@ -364,6 +389,52 @@ describe('fetchRepoMode', () => {
     });
     const mode = await fetchRepoMode('o', 'r', 't', fake);
     assert.strictEqual(mode, 'advisory');
+  });
+
+  // Admin detection — mirrors the three signals in integrations/husky/pre-push.
+
+  it('returns "admin" when .gatetest.json has "admin": true', async () => {
+    const fake = async () => makeContentsResponse({ admin: true });
+    const mode = await fetchRepoMode('o', 'r', 't', fake);
+    assert.strictEqual(mode, 'admin');
+  });
+
+  it('returns "admin" when .gatetest.json has "owner": "crclabs-hq"', async () => {
+    const fake = async () => makeContentsResponse({ owner: 'crclabs-hq' });
+    const mode = await fetchRepoMode('o', 'r', 't', fake);
+    assert.strictEqual(mode, 'admin');
+  });
+
+  it('returns "admin" when owner is in GATETEST_ADMIN_ORGS env var (no API call)', async () => {
+    let callCount = 0;
+    const fake = async () => { callCount++; return makeContentsResponse({ mode: 'advisory' }); };
+    const mode = await fetchRepoMode('vapron-ai', 'r', 't', fake, { GATETEST_ADMIN_ORGS: 'vapron-ai,Gate-Test' });
+    assert.strictEqual(mode, 'admin');
+    assert.strictEqual(callCount, 0, 'should skip the API call for known admin org');
+  });
+
+  it('supports multiple orgs in GATETEST_ADMIN_ORGS', async () => {
+    const fake = async () => makeContentsResponse({ mode: 'advisory' });
+    const env = { GATETEST_ADMIN_ORGS: 'org-a, org-b , Gate-Test' };
+    assert.strictEqual(await fetchRepoMode('org-a', 'r', 't', fake, env), 'admin');
+    assert.strictEqual(await fetchRepoMode('org-b', 'r', 't', fake, env), 'admin');
+    assert.strictEqual(await fetchRepoMode('Gate-Test', 'r', 't', fake, env), 'admin');
+    assert.strictEqual(await fetchRepoMode('not-listed', 'r', 't', fake, env), 'advisory');
+  });
+
+  it('GATETEST_ADMIN_ORGS matching is case-sensitive', async () => {
+    const fake = async () => makeContentsResponse({ mode: 'advisory' });
+    const env = { GATETEST_ADMIN_ORGS: 'Vapron-AI' };
+    // Exact case must match
+    assert.strictEqual(await fetchRepoMode('Vapron-AI', 'r', 't', fake, env), 'admin');
+    assert.strictEqual(await fetchRepoMode('vapron-ai', 'r', 't', fake, env), 'advisory');
+  });
+
+  it('admin flag takes precedence over mode: "advisory" in .gatetest.json', async () => {
+    // A platform that set both admin:true and mode:"advisory" should still get admin
+    const fake = async () => makeContentsResponse({ admin: true, mode: 'advisory' });
+    const mode = await fetchRepoMode('o', 'r', 't', fake);
+    assert.strictEqual(mode, 'admin');
   });
 });
 
@@ -610,6 +681,58 @@ describe('sendGithubCallback — failure cases', () => {
     });
     const body = statusBody(doFetch);
     assert.strictEqual(body.state, 'success', 'advisory default must NOT block on errors');
+  });
+
+  it('recognises admin org via dbAdminOrgs and maps errors to "failure"', async () => {
+    // dbAdminOrgs bypasses the .gatetest.json fetch entirely — no API call needed.
+    const calls = [];
+    const doFetch = async (url, init) => {
+      calls.push({ url, init });
+      // Should NOT hit .gatetest.json because org is in dbAdminOrgs
+      if (url.includes('/contents/.gatetest.json')) {
+        throw new Error('should not fetch .gatetest.json for admin org');
+      }
+      return { ok: true, status: 201, json: async () => ({}) };
+    };
+    doFetch.calls = calls;
+    await sendGithubCallback({
+      repository: 'vapron-ai/myrepo',
+      sha: 'v'.repeat(40),
+      scanResult: makeScanResult({
+        totalIssues: 2,
+        modules: [{ name: 'secrets', status: 'failed', issues: 2, checks: [{ severity: 'error' }], details: [] }],
+      }),
+      env: { GATETEST_GITHUB_TOKEN: 'ghp_test' },
+      dbAdminOrgs: ['vapron-ai'],
+      fetchImpl: doFetch,
+    });
+    const body = statusBody(doFetch);
+    assert.strictEqual(body.state, 'failure', 'admin org with errors must be failure, not advisory success');
+    assert.ok(!body.description || !body.description.includes('advisory'), 'no "advisory" in description for admin org');
+  });
+
+  it('merges GATETEST_ADMIN_ORGS env var with dbAdminOrgs', async () => {
+    const calls = [];
+    const doFetch = async (url, init) => {
+      calls.push({ url, init });
+      if (url.includes('/contents/.gatetest.json')) throw new Error('should skip for admin org');
+      return { ok: true, status: 201, json: async () => ({}) };
+    };
+    doFetch.calls = calls;
+    // env has org-a, dbAdminOrgs has org-b — both should be admin
+    await sendGithubCallback({
+      repository: 'org-b/repo',
+      sha: 'w'.repeat(40),
+      scanResult: makeScanResult({
+        totalIssues: 1,
+        modules: [{ name: 'lint', status: 'failed', issues: 1, checks: [{ severity: 'error' }], details: [] }],
+      }),
+      env: { GATETEST_GITHUB_TOKEN: 'ghp_test', GATETEST_ADMIN_ORGS: 'org-a' },
+      dbAdminOrgs: ['org-b'],
+      fetchImpl: doFetch,
+    });
+    const body = statusBody(doFetch);
+    assert.strictEqual(body.state, 'failure', 'org-b from dbAdminOrgs should be admin → failure');
   });
 });
 
