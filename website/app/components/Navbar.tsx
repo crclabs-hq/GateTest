@@ -59,6 +59,14 @@ export default function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-4">
+          <Link
+            href="/scans"
+            className={`text-sm transition-colors ${
+              scrolled ? "text-muted hover:text-foreground" : "text-white/75 hover:text-white"
+            }`}
+          >
+            Hall of Scans
+          </Link>
           <a
             href="/dashboard"
             className={`text-sm transition-colors ${
@@ -77,16 +85,16 @@ export default function Navbar() {
           >
             Install GitHub App
           </a>
-          <a
-            href="#pricing"
+          <Link
+            href="/scan/preview"
             className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${
               scrolled
                 ? "btn-cta"
                 : "hero-cta"
             }`}
           >
-            Scan My Repo
-          </a>
+            Free Preview Scan
+          </Link>
         </div>
 
         <button
@@ -120,6 +128,13 @@ export default function Navbar() {
               {item}
             </a>
           ))}
+          <Link
+            href="/scans"
+            className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-white/60 hover:text-white"}`}
+            onClick={() => setMobileOpen(false)}
+          >
+            Hall of Scans
+          </Link>
           <a
             href="/dashboard"
             className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-white/60 hover:text-white"}`}
@@ -127,13 +142,13 @@ export default function Navbar() {
           >
             My Scans
           </a>
-          <a
-            href="#pricing"
+          <Link
+            href="/scan/preview"
             className={`block px-5 py-2.5 text-sm text-center rounded-lg font-semibold ${scrolled ? "btn-cta" : "hero-cta"}`}
             onClick={() => setMobileOpen(false)}
           >
-            Scan My Repo
-          </a>
+            Free Preview Scan
+          </Link>
         </div>
       )}
     </nav>
