@@ -65,12 +65,12 @@ export async function listAdminPlatforms(): Promise<AdminPlatform[]> {
   try {
     const sql = getDb();
     await ensureSchema();
-    const rows = await sql<AdminPlatform[]>`
+    const rows = await sql`
       SELECT id, github_org, display_url, added_at::text
       FROM admin_platforms
       ORDER BY added_at DESC
     `;
-    return rows;
+    return rows as AdminPlatform[];
   } catch {
     return [];
   }
