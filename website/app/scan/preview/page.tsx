@@ -252,12 +252,12 @@ export default function PreviewPage() {
                 </p>
                 <p className="text-sm text-muted mb-4">{result.nextStep?.message}</p>
                 <div className="flex flex-wrap gap-3">
-                  <a
-                    href={`/#pricing`}
+                  <Link
+                    href="/#pricing"
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent text-white font-semibold text-sm hover:bg-accent/90 transition-colors"
                   >
                     See full results — from $29 &rarr;
-                  </a>
+                  </Link>
                   <Link
                     href="/scans"
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-foreground font-semibold text-sm hover:bg-surface-dark transition-colors"
@@ -277,12 +277,12 @@ export default function PreviewPage() {
                   including security, supply chain, auth flaws, CI hardening,
                   and AI code review.
                 </p>
-                <a
+                <Link
                   href="/#pricing"
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent text-white font-semibold text-sm hover:bg-accent/90 transition-colors"
                 >
                   Run full scan — $99 &rarr;
-                </a>
+                </Link>
               </div>
             )}
 
@@ -295,12 +295,12 @@ export default function PreviewPage() {
                   pair-reviewed by a second Claude, and regression-tested. You review the diff,
                   you click merge.
                 </p>
-                <a
+                <Link
                   href="/#pricing"
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 text-white font-semibold text-sm hover:bg-red-700 transition-colors"
                 >
                   Fix these issues — from $99 &rarr;
-                </a>
+                </Link>
               </div>
             )}
           </div>

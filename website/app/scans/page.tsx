@@ -73,7 +73,7 @@ const SCANS: ScanEntry[] = [
       { severity: "critical", module: "ciSecurity", description: "Unpinned GitHub Actions + write-permission GITHUB_TOKEN + shell injection from PR title event input" },
       { severity: "critical", module: "secrets", description: "API key baked into Docker layer — visible in docker history" },
       { severity: "error", module: "ssrf", description: "User-supplied webhook URL passed directly to fetch() without hostname validation" },
-      { severity: "error", module: "cookieSecurity", description: "Session cookie secret: 'changeme' in production config" },
+      { severity: "error", module: "cookieSecurity", description: "Session cookie secret is a known-weak placeholder — cookie theft risk" },
       { severity: "error", module: "tlsSecurity", description: "NODE_TLS_REJECT_UNAUTHORIZED=0 set globally in server bootstrap" },
     ],
     chains: [
