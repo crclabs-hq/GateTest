@@ -16,7 +16,7 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
       await navigator.clipboard.writeText(text);
       setState("copied");
       setTimeout(() => setState("idle"), 2000);
-    } catch {
+    } catch (_err) {
       setState("failed");
       setTimeout(() => setState("idle"), 2000);
     }
