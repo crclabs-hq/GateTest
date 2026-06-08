@@ -37,6 +37,42 @@ const COUNTRY_SLUGS = [
 ];
 const LEGAL_SLUGS = ["terms", "privacy", "refunds", "acceptable-use"];
 
+// Glossary slugs — kept in lockstep with
+// website/app/glossary/glossary-catalog.ts. Drift test asserts no skew.
+const GLOSSARY_SLUGS = [
+  "sast",
+  "dast",
+  "sca",
+  "sarif",
+  "quality-gate",
+  "mutation-testing",
+  "false-positive-rate",
+  "supply-chain-security",
+  "sbom",
+  "secret-scanning",
+  "shift-left",
+  "technical-debt",
+];
+
+// Use-case slugs — kept in lockstep with
+// website/app/use-cases/use-cases-catalog.ts.
+const USE_CASE_SLUGS = [
+  "block-pull-requests-on-security-findings",
+  "ci-cd-quality-gate",
+  "auto-fix-vulnerabilities",
+  "monorepo-scanning",
+  "pre-push-gate",
+  "sarif-github-code-scanning",
+  "dependency-supply-chain-gate",
+];
+
+// Blog slugs — kept in lockstep with website/app/blog/blog-catalog.ts.
+const BLOG_SLUGS = [
+  "why-ai-generated-code-needs-a-qa-gate",
+  "sast-vs-dast-vs-sca",
+  "cutting-false-positives-in-static-analysis",
+];
+
 // CWE Top 25 slugs — kept in lockstep with website/app/find/cwe-catalog.ts.
 // Same numeric ids in the same order. Tests assert no drift.
 const CWE_SLUGS = [
@@ -121,9 +157,19 @@ function buildAllUrls({ modulesDataPath } = {}) {
     BASE,
     `${BASE}/modules`,
     `${BASE}/find`,
+    `${BASE}/how-it-works`,
+    `${BASE}/trust`,
+    `${BASE}/quickstart`,
     `${BASE}/github/setup`,
     `${BASE}/dashboard`,
+    `${BASE}/compare`,
     ...COMPARISON_SLUGS.map((s) => `${BASE}/compare/${s}`),
+    `${BASE}/glossary`,
+    ...GLOSSARY_SLUGS.map((s) => `${BASE}/glossary/${s}`),
+    `${BASE}/use-cases`,
+    ...USE_CASE_SLUGS.map((s) => `${BASE}/use-cases/${s}`),
+    `${BASE}/blog`,
+    ...BLOG_SLUGS.map((s) => `${BASE}/blog/${s}`),
     ...FOR_SLUGS.map((s) => `${BASE}/for/${s}`),
     `${BASE}/for`,
     ...COUNTRY_SLUGS.map((s) => `${BASE}/for/${s}`),
@@ -143,4 +189,7 @@ module.exports = {
   LEGAL_SLUGS,
   CWE_SLUGS,
   COUNTRY_SLUGS,
+  GLOSSARY_SLUGS,
+  USE_CASE_SLUGS,
+  BLOG_SLUGS,
 };

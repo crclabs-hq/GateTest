@@ -7,7 +7,7 @@ export default function Footer() {
       <div className="footer-accent-bar absolute top-0 left-0 right-0" aria-hidden="true" />
       <div className="mx-auto max-w-6xl">
         <StackBar currentProduct="GateTest" />
-        <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+        <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-5 gap-10 mb-12">
           <div>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-6 h-6 rounded bg-accent flex items-center justify-center">
@@ -29,6 +29,17 @@ export default function Footer() {
               <li><a href="#modules" className="text-sm text-muted hover:text-foreground transition-colors">Modules</a></li>
               <li><a href="#pricing" className="text-sm text-muted hover:text-foreground transition-colors">Pricing</a></li>
               <li><a href="#comparison" className="text-sm text-muted hover:text-foreground transition-colors">Compare</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-sm mb-4">Learn</h4>
+            <ul className="space-y-2">
+              <li><Link href="/glossary" className="text-sm text-muted hover:text-foreground transition-colors">Glossary</Link></li>
+              <li><Link href="/use-cases" className="text-sm text-muted hover:text-foreground transition-colors">Use cases</Link></li>
+              <li><Link href="/blog" className="text-sm text-muted hover:text-foreground transition-colors">Blog</Link></li>
+              <li><Link href="/compare" className="text-sm text-muted hover:text-foreground transition-colors">Comparisons</Link></li>
+              <li><Link href="/find" className="text-sm text-muted hover:text-foreground transition-colors">CWE Top 25</Link></li>
             </ul>
           </div>
 

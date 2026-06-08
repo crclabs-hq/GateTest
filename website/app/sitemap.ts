@@ -3,6 +3,9 @@ import { getAllModuleSlugs } from "./components/howitworks/module-slugs";
 import { getAllCweSlugs } from "./find/cwe-catalog";
 import { getAllRegulationSlugs } from "./regulation/catalog";
 import { getAllCountrySlugs } from "./for/countries";
+import { getAllGlossarySlugs } from "./glossary/glossary-catalog";
+import { getAllUseCaseSlugs } from "./use-cases/use-cases-catalog";
+import { getAllBlogSlugs } from "./blog/blog-catalog";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = "https://gatetest.ai";
@@ -13,7 +16,48 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/github/setup`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${base}/dashboard`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${base}/modules`, lastModified: now, changeFrequency: "weekly", priority: 0.95 },
+    { url: `${base}/how-it-works`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${base}/trust`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${base}/quickstart`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
   ];
+
+  // Comparison hub index — links every "X alternative" page.
+  const compareIndex: MetadataRoute.Sitemap = [
+    { url: `${base}/compare`, lastModified: now, changeFrequency: "monthly", priority: 0.85 },
+  ];
+
+  // Glossary — definitional pages (DefinedTerm schema) targeting "what is X".
+  const glossaryIndex: MetadataRoute.Sitemap = [
+    { url: `${base}/glossary`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+  ];
+  const glossaryPages: MetadataRoute.Sitemap = getAllGlossarySlugs().map((slug) => ({
+    url: `${base}/glossary/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+
+  // Use-case pages — high-intent "how do I X" queries.
+  const useCaseIndex: MetadataRoute.Sitemap = [
+    { url: `${base}/use-cases`, lastModified: now, changeFrequency: "monthly", priority: 0.85 },
+  ];
+  const useCasePages: MetadataRoute.Sitemap = getAllUseCaseSlugs().map((slug) => ({
+    url: `${base}/use-cases/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.75,
+  }));
+
+  // Blog — deep technical posts (BlogPosting schema).
+  const blogIndex: MetadataRoute.Sitemap = [
+    { url: `${base}/blog`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+  ];
+  const blogPages: MetadataRoute.Sitemap = getAllBlogSlugs().map((slug) => ({
+    url: `${base}/blog/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
 
   // Comparison pages — high-intent "X alternative" searches
   const comparisonSlugs = [
@@ -103,7 +147,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     ...core,
+    ...compareIndex,
     ...compares,
+    ...glossaryIndex,
+    ...glossaryPages,
+    ...useCaseIndex,
+    ...useCasePages,
+    ...blogIndex,
+    ...blogPages,
     ...forPages,
     ...forIndex,
     ...countryPages,
