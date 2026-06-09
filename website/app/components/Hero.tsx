@@ -92,7 +92,7 @@ export default function Hero() {
               "5x deeper at the same price" line is the customer-positive
               consequence of running Sonnet on Opus-era dollar caps. */}
           <p className="text-center text-sm sm:text-base text-teal-300/80 max-w-2xl mx-auto mb-2 fade-up font-medium">
-            Built on Claude Sonnet 4 &mdash; the model that wins SWE-bench
+            Built on Claude Sonnet 4.6 &mdash; the model that wins SWE-bench
             Verified, not the most expensive one in the lineup. We tested.
             We picked the model that actually fixes bugs.
           </p>

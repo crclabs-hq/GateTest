@@ -68,7 +68,7 @@ export default function BeforeAfterDemo() {
                 <ul className="text-sm space-y-2.5 mb-3">
                   <Step state="done">Re-runs the gate to isolate the failing module</Step>
                   <Step state="done">Reads the project conventions (README, AGENTS.md)</Step>
-                  <Step state="done">Generates the fix with Claude Sonnet 4</Step>
+                  <Step state="done">Generates the fix with Claude Sonnet 4.6</Step>
                   <Step state="done">Validates the fix re-passes the gate</Step>
                   <Step state="done">Writes a regression test for the bug</Step>
                   <Step state="working">Pair-reviews the fix with a second Claude</Step>
