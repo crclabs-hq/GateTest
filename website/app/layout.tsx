@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ChatWidget } from "./components/ChatWidget";
+import { organizationSchema, webSiteSchema, jsonLd } from "./lib/seo/schema";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -116,6 +117,14 @@ export default function RootLayout({
               ],
             }),
           }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLd(organizationSchema()) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLd(webSiteSchema()) }}
         />
         {/* Sitewide beta banner — sits ABOVE the navbar so it's the first
             thing any visitor sees. Sets the expectation explicitly: this

@@ -56,6 +56,14 @@ export default function Navbar() {
               {item}
             </a>
           ))}
+          <Link
+            href="/developers"
+            className={`text-sm transition-colors ${
+              scrolled ? "text-muted hover:text-foreground" : "text-white/75 hover:text-white"
+            }`}
+          >
+            Developers
+          </Link>
         </div>
 
         <div className="hidden md:flex items-center gap-4">
