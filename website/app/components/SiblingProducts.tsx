@@ -13,25 +13,25 @@ export default function SiblingProducts() {
         </p>
       </div>
       <h3 className="text-lg font-bold mb-2">
-        GateTest pairs well with Crontech and Gluecron
+        GateTest pairs well with Vapron and Gluecron
       </h3>
       <p className="text-sm text-muted mb-5">
-        GateTest keeps your code honest. Crontech runs your scheduled jobs.
+        GateTest keeps your code honest. Vapron runs your scheduled jobs.
         Gluecron hosts your git. Three small tools, one loose family — use
         whichever you need.
       </p>
 
       <div className="grid sm:grid-cols-2 gap-3">
         <a
-          href="https://crontech.ai"
+          href="https://vapron.ai"
           target="_blank"
           rel="noopener noreferrer"
           className="group rounded-xl border border-border hover:border-accent/50 bg-white p-4 transition-colors"
         >
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-bold text-foreground">Crontech</span>
+            <span className="text-sm font-bold text-foreground">Vapron</span>
             <span className="text-xs text-muted group-hover:text-accent transition-colors">
-              crontech.ai &rarr;
+              vapron.ai &rarr;
             </span>
           </div>
           <p className="text-xs text-muted">

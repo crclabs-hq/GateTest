@@ -40,7 +40,7 @@ export default function BeforeAfterDemo() {
             body={
               <>
                 <pre className="text-xs sm:text-sm font-mono text-red-300/90 whitespace-pre-wrap bg-black/40 rounded-md p-3 leading-relaxed">
-{`× crontech-api.service failed
+{`× vapron-api.service failed
   ReferenceError: resolveTenantCapForHotPath
     is not defined
   at apps/api/src/cdn/handler.ts:65:22
@@ -50,7 +50,7 @@ export default function BeforeAfterDemo() {
     line=65::ReferenceError`}
                 </pre>
                 <p className="text-xs text-muted mt-3">
-                  A real Crontech failure from 2026-05-24. The api crashed at
+                  A real Vapron failure from 2026-05-24. The api crashed at
                   module load. Rollback also failed.
                 </p>
               </>

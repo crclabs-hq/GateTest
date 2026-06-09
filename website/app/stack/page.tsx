@@ -7,9 +7,9 @@ import Link from "next/link";
 // on 2026-05-13.
 
 export const metadata = {
-  title: "One team, three products — GateTest · Gluecron · Crontech",
+  title: "One team, three products — GateTest · Gluecron · Vapron",
   description:
-    "GateTest audits your code and your site. Gluecron hosts your git. Crontech tells you when something breaks. All built by the same team. Use whichever solves your problem.",
+    "GateTest audits your code and your site. Gluecron hosts your git. Vapron tells you when something breaks. All built by the same team. Use whichever solves your problem.",
 };
 
 export default function StackPage() {
@@ -98,7 +98,7 @@ export default function StackPage() {
           </p>
           <p>
             So we built three small products that share a philosophy but not a billing surface.
-            Use GateTest without ever signing up for Gluecron. Use Crontech without ever touching
+            Use GateTest without ever signing up for Gluecron. Use Vapron without ever touching
             GateTest. Or use all three. The choice stays yours.
           </p>
           <p>
@@ -117,13 +117,13 @@ export default function StackPage() {
             but on a git host that Claude actually understands.
           </li>
           <li>
-            <span className="font-semibold text-foreground">Scheduled jobs on Crontech, audited by GateTest:</span>{" "}
+            <span className="font-semibold text-foreground">Scheduled jobs on Vapron, audited by GateTest:</span>{" "}
             the cron / background work that powers your product gets the same QA treatment as your
-            request-path code. GateTest scans the job definition; Crontech runs it at the edge.
+            request-path code. GateTest scans the job definition; Vapron runs it at the edge.
           </li>
           <li>
             <span className="font-semibold text-foreground">All three:</span>{" "}
-            code on Gluecron, gated by GateTest at push-time, scheduled jobs running on Crontech.
+            code on Gluecron, gated by GateTest at push-time, scheduled jobs running on Vapron.
             End-to-end coverage with three independent tools, three independent bills, three
             independent failure modes.
           </li>
@@ -168,19 +168,19 @@ const PRODUCTS = [
     external: true,
   },
   {
-    name: "Crontech",
+    name: "Vapron",
     badge: "Ct",
     badgeColor: "bg-amber-500",
     tagline: "AI-native. Edge-first. Zero ops.",
     body:
-      "Scheduled jobs, background tasks, and event-driven work that runs at the edge with zero infrastructure to manage. Designed for the agent era — describe what you want done; Crontech runs it.",
+      "Scheduled jobs, background tasks, and event-driven work that runs at the edge with zero infrastructure to manage. Designed for the agent era — describe what you want done; Vapron runs it.",
     bullets: [
       "Edge-first runtime — close to your users, close to your data",
       "Zero infra to provision, zero on-call rotation",
       "AI-native by design — Claude understands your jobs",
       "Pay only when work actually runs",
     ],
-    href: "https://crontech.ai",
+    href: "https://vapron.ai",
     external: true,
   },
 ];

@@ -71,7 +71,7 @@ export default function TrustPage() {
             <ul className="text-sm space-y-3">
               <Metric label="Modules in the gate" value="103" />
               <Metric label="Tests passing on main" value="4,100+" />
-              <Metric label="Auto-fix accuracy (Crontech dogfood)" value="100%" sub="3/3 prod crashes caught" />
+              <Metric label="Auto-fix accuracy (Vapron dogfood)" value="100%" sub="3/3 prod crashes caught" />
               <Metric label="GitHub Marketplace" value="In review" sub="week 1 of approval" />
               <Metric label="SOC2 Type II" value="Audit Q3 2026" sub="not certified today — see roadmap below" />
             </ul>

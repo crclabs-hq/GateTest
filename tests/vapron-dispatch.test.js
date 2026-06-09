@@ -10,7 +10,7 @@ const {
   dispatchRuntimeScan,
   SIGNATURE_HEADER,
   TIMESTAMP_HEADER,
-} = require('../website/app/lib/crontech-dispatch.js');
+} = require('../website/app/lib/vapron-dispatch.js');
 
 test('signBody — produces a hex digest', () => {
   const sig = signBody('hello', 'secret');
@@ -112,7 +112,7 @@ test('dispatchRuntimeScan — returns reason when env vars missing', async () =>
     deps: {},
   });
   assert.equal(r.ok, false);
-  assert.ok(/CRONTECH_BASE_URL/.test(r.reason));
+  assert.ok(/VAPRON_BASE_URL/.test(r.reason));
 });
 
 test('dispatchRuntimeScan — happy path with injected fetch', async () => {
@@ -122,7 +122,7 @@ test('dispatchRuntimeScan — happy path with injected fetch', async () => {
     return {
       ok: true,
       status: 201,
-      json: async () => ({ jobId: 'crontech-job-42', queuedAt: '2026-05-15T00:00:00Z' }),
+      json: async () => ({ jobId: 'vapron-job-42', queuedAt: '2026-05-15T00:00:00Z' }),
     };
   };
   const r = await dispatchRuntimeScan({
@@ -131,15 +131,15 @@ test('dispatchRuntimeScan — happy path with injected fetch', async () => {
     suite: 'web',
     callbackUrl: 'https://gatetest.ai/cb',
     deps: {
-      baseUrl: 'https://crontech.test',
+      baseUrl: 'https://vapron.test',
       apiToken: 'tok_xyz',
       dispatchSecret: 'sh',
       fetchFn: fakeFetch,
     },
   });
   assert.equal(r.ok, true);
-  assert.equal(r.jobId, 'crontech-job-42');
-  assert.equal(calledWith.url, 'https://crontech.test/api/jobs/web-runtime-scan');
+  assert.equal(r.jobId, 'vapron-job-42');
+  assert.equal(calledWith.url, 'https://vapron.test/api/jobs/web-runtime-scan');
   assert.equal(calledWith.opts.method, 'POST');
   assert.equal(calledWith.opts.headers['Authorization'], 'Bearer tok_xyz');
   // Signature header present + a valid hex digest
@@ -161,7 +161,7 @@ test('dispatchRuntimeScan — non-200 returns failure with status', async () => 
     suite: 'c',
     callbackUrl: 'd',
     deps: {
-      baseUrl: 'https://crontech.test',
+      baseUrl: 'https://vapron.test',
       apiToken: 'tok',
       dispatchSecret: 'sh',
       fetchFn: fakeFetch,
@@ -183,7 +183,7 @@ test('dispatchRuntimeScan — missing jobId in response counts as failure', asyn
     suite: 'c',
     callbackUrl: 'd',
     deps: {
-      baseUrl: 'https://crontech.test',
+      baseUrl: 'https://vapron.test',
       apiToken: 'tok',
       dispatchSecret: 'sh',
       fetchFn: fakeFetch,
@@ -205,7 +205,7 @@ test('dispatchRuntimeScan — non-JSON body counts as failure', async () => {
     suite: 'c',
     callbackUrl: 'd',
     deps: {
-      baseUrl: 'https://crontech.test',
+      baseUrl: 'https://vapron.test',
       apiToken: 'tok',
       dispatchSecret: 'sh',
       fetchFn: fakeFetch,
@@ -223,7 +223,7 @@ test('dispatchRuntimeScan — payload validation propagates', async () => {
     suite: 'c',
     callbackUrl: 'd',
     deps: {
-      baseUrl: 'https://crontech.test',
+      baseUrl: 'https://vapron.test',
       apiToken: 'tok',
       dispatchSecret: 'sh',
       fetchFn: fakeFetch,
@@ -241,7 +241,7 @@ test('dispatchRuntimeScan — fetch throw is caught', async () => {
     suite: 'c',
     callbackUrl: 'd',
     deps: {
-      baseUrl: 'https://crontech.test',
+      baseUrl: 'https://vapron.test',
       apiToken: 'tok',
       dispatchSecret: 'sh',
       fetchFn: fakeFetch,

@@ -31,9 +31,9 @@ const STACK_PRODUCTS = [
     badgeColor: "bg-indigo-500",
   },
   {
-    name: "Crontech",
+    name: "Vapron",
     tagline: "AI-native. Edge-first. Zero ops.",
-    href: "https://crontech.ai",
+    href: "https://vapron.ai",
     external: true,
     accent: "from-amber-500/20 to-orange-500/10",
     badge: "Ct",
@@ -46,7 +46,7 @@ interface Props {
    * When set, that product gets a subtle "you're here" indicator
    * instead of being a clickable link.
    */
-  currentProduct?: "GateTest" | "Gluecron" | "Crontech";
+  currentProduct?: "GateTest" | "Gluecron" | "Vapron";
 }
 
 export default function StackBar({ currentProduct = "GateTest" }: Props) {

@@ -5,7 +5,7 @@ const VERSION = process.env.APP_VERSION ?? "dev";
 const COMMIT = process.env.GIT_COMMIT ?? "unknown";
 
 const SIBLINGS = {
-  crontech: "https://crontech.ai/api/platform-status",
+  vapron: "https://vapron.ai/api/platform-status",
   gluecron: "https://gluecron.com/api/platform-status",
   gatetest: "https://gatetest.ai/api/platform-status",
 } as const;

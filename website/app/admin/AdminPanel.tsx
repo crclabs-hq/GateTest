@@ -2311,7 +2311,7 @@ function NuclearScanPanel() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") runNuclear(); }}
-            placeholder="https://crontech.ai"
+            placeholder="https://vapron.ai"
             className="flex-1 px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 text-sm"
           />
           <button
