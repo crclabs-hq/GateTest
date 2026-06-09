@@ -4,7 +4,7 @@
  * GET /api/admin/platform-siblings
  *
  * Fetches the public /api/platform-status endpoint on each of the three
- * sibling products (Crontech, Gluecron, GateTest) and returns a unified
+ * sibling products (Vapron, Gluecron, GateTest) and returns a unified
  * health report. Server-side fetch with a 3s per-product timeout, graceful
  * degradation (unreachable products become status: "unreachable" rather
  * than failing the whole response), and an in-memory 30s cache so this
@@ -12,7 +12,7 @@
  *
  * URLs are configurable via env vars — defaults mirror the contract in
  * docs/PLATFORM_STATUS.md:
- *   - CRONTECH_STATUS_URL  (default https://crontech.ai/api/platform-status)
+ *   - VAPRON_STATUS_URL  (default https://vapron.ai/api/platform-status)
  *   - GLUECRON_STATUS_URL  (default https://gluecron.com/api/platform-status)
  *   - GATETEST_STATUS_URL  (default https://gatetest.ai/api/platform-status)
  *
@@ -35,7 +35,7 @@ export const maxDuration = 10;
 const TIMEOUT_MS = 3000;
 const CACHE_TTL_MS = 30_000;
 
-type SiblingId = "crontech" | "gluecron" | "gatetest";
+type SiblingId = "vapron" | "gluecron" | "gatetest";
 
 interface SiblingResult {
   id: SiblingId;
@@ -59,10 +59,10 @@ interface AggregateReport {
 
 const SIBLINGS: Array<{ id: SiblingId; name: string; envVar: string; defaultUrl: string }> = [
   {
-    id: "crontech",
-    name: "Crontech",
-    envVar: "CRONTECH_STATUS_URL",
-    defaultUrl: "https://crontech.ai/api/platform-status",
+    id: "vapron",
+    name: "Vapron",
+    envVar: "VAPRON_STATUS_URL",
+    defaultUrl: "https://vapron.ai/api/platform-status",
   },
   {
     id: "gluecron",

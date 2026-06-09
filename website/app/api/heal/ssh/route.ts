@@ -69,7 +69,7 @@ const PLAYBOOKS: Playbook[] = [
       { label: "Check nginx status", cmd: "sudo systemctl status nginx --no-pager -l 2>&1 | head -20 || echo 'nginx not found'" },
       { label: "Restart Caddy (auto-renews TLS)", cmd: "sudo systemctl restart caddy 2>&1 || echo 'caddy not installed'" },
       { label: "Restart nginx + certbot renew", cmd: "sudo systemctl restart nginx 2>&1 && (sudo certbot renew --force-renewal 2>&1 | tail -5) || echo 'nginx/certbot not available'" },
-      { label: "Check app services", cmd: "sudo systemctl list-units --type=service --state=running 2>&1 | grep -E 'caddy|nginx|crontech|node|bun|pm2' | head -10" },
+      { label: "Check app services", cmd: "sudo systemctl list-units --type=service --state=running 2>&1 | grep -E 'caddy|nginx|vapron|crontech|node|bun|pm2' | head -10" },
       { label: "Verify HTTPS", cmd: "curl -sI https://localhost -k 2>&1 | head -5", verify: "curl -sI https://localhost -k 2>&1 | head -3" }, // hardcoded-url-ok
     ],
   },
@@ -132,11 +132,11 @@ EOFH' 2>&1 && sudo nginx -t 2>&1 && sudo systemctl reload nginx 2>&1` },
   {
     match: (i) => i.category === "HTTP" && i.detail.includes("failed"),
     commands: [
-      { label: "Check all services", cmd: "sudo systemctl list-units --type=service --state=running 2>&1 | grep -E 'caddy|nginx|crontech|node|bun|pm2|docker' | head -15" },
+      { label: "Check all services", cmd: "sudo systemctl list-units --type=service --state=running 2>&1 | grep -E 'caddy|nginx|vapron|crontech|node|bun|pm2|docker' | head -15" },
       { label: "Check app ports", cmd: "sudo ss -tlnp | grep -E ':3000|:3001|:8080|:443|:80' 2>&1" },
       { label: "Check Caddy logs", cmd: "sudo journalctl -u caddy -n 30 --no-pager 2>&1 | tail -20" },
-      { label: "Check crontech service logs", cmd: "sudo journalctl -u crontech-web -n 20 --no-pager 2>&1 || sudo journalctl -u crontech-api -n 20 --no-pager 2>&1 || echo 'no crontech services found'" },
-      { label: "Restart all crontech services", cmd: "sudo systemctl restart caddy 2>&1; sudo systemctl restart crontech-web 2>&1 || true; sudo systemctl restart crontech-api 2>&1 || true" },
+      { label: "Check vapron service logs", cmd: "sudo journalctl -u vapron-web -n 20 --no-pager 2>&1 || sudo journalctl -u vapron-api -n 20 --no-pager 2>&1 || sudo journalctl -u crontech-web -n 20 --no-pager 2>&1 || sudo journalctl -u crontech-api -n 20 --no-pager 2>&1 || echo 'no vapron services found'" },
+      { label: "Restart all vapron services", cmd: "sudo systemctl restart caddy 2>&1; sudo systemctl restart vapron-web 2>&1 || sudo systemctl restart crontech-web 2>&1 || true; sudo systemctl restart vapron-api 2>&1 || sudo systemctl restart crontech-api 2>&1 || true" },
       { label: "Verify HTTP", cmd: "curl -sI http://localhost:3000 2>&1 | head -3 || curl -sI http://localhost 2>&1 | head -3" }, // hardcoded-url-ok
     ],
   },

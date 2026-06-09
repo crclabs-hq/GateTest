@@ -1,18 +1,18 @@
 'use strict';
 
 /**
- * Crontech dispatch — POSTs a runtime-scan job from GateTest to Crontech.
+ * Vapron dispatch — POSTs a runtime-scan job from GateTest to Vapron.
  *
  * Why this exists:
  *   The /api/web/scan endpoint runs on Vercel-style serverless infra
  *   where Chromium binaries can't reliably launch. The runtime-errors
- *   module needs a real long-running container with Playwright. Crontech
+ *   module needs a real long-running container with Playwright. Vapron
  *   is the worker tier — purpose-built for this kind of work.
  *
- * Contract (Crontech side must implement):
- *   POST {CRONTECH_BASE_URL}/api/jobs/web-runtime-scan
+ * Contract (Vapron side must implement):
+ *   POST {VAPRON_BASE_URL}/api/jobs/web-runtime-scan
  *     headers:
- *       Authorization: Bearer {CRONTECH_API_TOKEN}
+ *       Authorization: Bearer {VAPRON_API_TOKEN}
  *       X-GateTest-Signature: hex(hmac-sha256(secret, body))
  *       X-GateTest-Timestamp: unix-seconds
  *     body (JSON):
@@ -24,17 +24,17 @@
  *         deadlineSec: 60
  *       }
  *     response:
- *       201 { jobId: "crontech-job-xyz", queuedAt: "..." }
+ *       201 { jobId: "vapron-job-xyz", queuedAt: "..." }
  *       4xx { error: "..." }
  *
- * Crontech eventually POSTs results back to callbackUrl. See
+ * Vapron eventually POSTs results back to callbackUrl. See
  * runtime-callback/route.ts for the inbound shape.
  *
  * Failure policy:
  *   - Dispatcher errors are NEVER customer-facing. We log + record the
  *     failure on the scan-queue row and the static-probe results still
  *     ship in the response. Runtime layer is "best effort augmentation."
- *   - If Crontech is down, the customer sees a graceful "runtime checks
+ *   - If Vapron is down, the customer sees a graceful "runtime checks
  *     unavailable right now" note alongside their static-probe report.
  *
  * Pure module. No I/O at import time. All env reads happen inside the
@@ -53,7 +53,7 @@ function getEnv(name) {
 
 /**
  * Hex-encoded HMAC-SHA256 of the raw body using the dispatch secret.
- * Crontech verifies this on receipt; if absent or invalid, Crontech
+ * Vapron verifies this on receipt; if absent or invalid, Vapron
  * must reject the job (fail-closed, Bible Forbidden #15).
  *
  * @param {string} body - the raw JSON string we POST
@@ -67,7 +67,7 @@ function signBody(body, secret) {
 }
 
 /**
- * Verify an inbound signature from Crontech using constant-time compare.
+ * Verify an inbound signature from Vapron using constant-time compare.
  * Returns true only when both digests are present + equal length + match.
  *
  * @param {string} body
@@ -114,7 +114,7 @@ function buildDispatchPayload({ scanId, targetUrl, suite, callbackUrl, deadlineS
 }
 
 /**
- * Dispatch a runtime-scan job to Crontech.
+ * Dispatch a runtime-scan job to Vapron.
  *
  * Never throws. Always returns a shape with `ok: boolean` and either
  * `jobId` (success) or `reason` (failure). The route handler that
@@ -137,15 +137,18 @@ function buildDispatchPayload({ scanId, targetUrl, suite, callbackUrl, deadlineS
  */
 async function dispatchRuntimeScan(opts) {
   const deps = (opts && opts.deps) || {};
-  const baseUrl = deps.baseUrl || getEnv('CRONTECH_BASE_URL');
-  const apiToken = deps.apiToken || getEnv('CRONTECH_API_TOKEN');
-  const dispatchSecret = deps.dispatchSecret || getEnv('CRONTECH_DISPATCH_SECRET');
+  // Canonical env vars are VAPRON_*; CRONTECH_* are read as a fallback so the
+  // deployment keeps working until the Vercel env is renamed. Remove the
+  // CRONTECH_* fallbacks once those vars are gone from the environment.
+  const baseUrl = deps.baseUrl || getEnv('VAPRON_BASE_URL') || getEnv('CRONTECH_BASE_URL');
+  const apiToken = deps.apiToken || getEnv('VAPRON_API_TOKEN') || getEnv('CRONTECH_API_TOKEN');
+  const dispatchSecret = deps.dispatchSecret || getEnv('VAPRON_DISPATCH_SECRET') || getEnv('CRONTECH_DISPATCH_SECRET');
   const fetchFn = deps.fetchFn || (typeof fetch === 'function' ? fetch : null);
   const timeoutMs = typeof deps.timeoutMs === 'number' ? deps.timeoutMs : DEFAULT_TIMEOUT_MS;
 
-  if (!baseUrl) return { ok: false, reason: 'CRONTECH_BASE_URL not configured' };
-  if (!apiToken) return { ok: false, reason: 'CRONTECH_API_TOKEN not configured' };
-  if (!dispatchSecret) return { ok: false, reason: 'CRONTECH_DISPATCH_SECRET not configured' };
+  if (!baseUrl) return { ok: false, reason: 'VAPRON_BASE_URL not configured' };
+  if (!apiToken) return { ok: false, reason: 'VAPRON_API_TOKEN not configured' };
+  if (!dispatchSecret) return { ok: false, reason: 'VAPRON_DISPATCH_SECRET not configured' };
   if (!fetchFn) return { ok: false, reason: 'fetch unavailable in this runtime' };
 
   let payload;
@@ -179,17 +182,17 @@ async function dispatchRuntimeScan(opts) {
     if (!resp.ok) {
       let detail = '';
       try { detail = (await resp.text()).slice(0, 300); } catch { /* ignore */ }
-      return { ok: false, status: resp.status, reason: `Crontech rejected dispatch: ${resp.status} ${detail}` };
+      return { ok: false, status: resp.status, reason: `Vapron rejected dispatch: ${resp.status} ${detail}` };
     }
 
     let data;
     try {
       data = await resp.json();
     } catch {
-      return { ok: false, status: resp.status, reason: 'Crontech returned non-JSON response' };
+      return { ok: false, status: resp.status, reason: 'Vapron returned non-JSON response' };
     }
     if (!data || typeof data.jobId !== 'string') {
-      return { ok: false, status: resp.status, reason: 'Crontech response missing jobId' };
+      return { ok: false, status: resp.status, reason: 'Vapron response missing jobId' };
     }
     return { ok: true, jobId: data.jobId, queuedAt: data.queuedAt || new Date().toISOString() };
   } catch (err) {

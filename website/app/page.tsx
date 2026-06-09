@@ -11,7 +11,7 @@
  *   6. HomeCode — install snippets (npx, GitHub Action, CLI cheat-sheet)
  *   7. Pricing — 4 tiers + Continuous subscription card
  *   8. HomeFaq — HN-skeptic FAQ
- *   9. HomeTrust — frameworks scanned + Crontech/Gluecron
+ *   9. HomeTrust — frameworks scanned + Vapron/Gluecron
  *  10. Footer
  *
  * Sections retained from the previous homepage are intentionally dropped:

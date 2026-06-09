@@ -17,14 +17,14 @@ export default function Navbar() {
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
       scrolled
         ? "bg-white/90 backdrop-blur-2xl border-b border-border/60 shadow-[0_1px_0_0_rgba(0,0,0,0.06),inset_0_1px_0_0_rgba(255,255,255,0.6)]"
-        : "bg-[#14141d]/80 backdrop-blur-md border-b border-white/8"
+        : "bg-[#f7f4ed]/70 backdrop-blur-md border-b border-black/5"
     }`}>
       <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
             <span className="text-white font-bold text-sm font-[var(--font-mono)]">G</span>
           </div>
-          <span className={`text-xl font-bold tracking-tight ${scrolled ? "text-foreground" : "text-white"}`}>
+          <span className={`text-xl font-bold tracking-tight ${scrolled ? "text-foreground" : "text-gray-900"}`}>
             Gate<span className="text-teal-400">Test</span>
           </span>
           {/* BETA badge — sets the right expectation site-wide. Pre-launch
@@ -34,7 +34,7 @@ export default function Navbar() {
             className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
               scrolled
                 ? "bg-amber-100 border-amber-300 text-amber-700"
-                : "bg-amber-400/15 border-amber-400/40 text-amber-300"
+                : "bg-amber-100 border-amber-300 text-amber-700"
             }`}
             aria-label="Beta — the product is rough and getting polished daily"
           >
@@ -50,7 +50,7 @@ export default function Navbar() {
               className={`text-sm transition-colors ${
                 scrolled
                   ? "text-muted hover:text-foreground"
-                  : "text-white/75 hover:text-white"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
               {item}
@@ -78,7 +78,7 @@ export default function Navbar() {
           <a
             href="/dashboard"
             className={`text-sm transition-colors ${
-              scrolled ? "text-muted hover:text-foreground" : "text-white/75 hover:text-white"
+              scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
             }`}
           >
             My Scans
@@ -88,7 +88,7 @@ export default function Navbar() {
             className={`px-5 py-2.5 text-sm font-medium rounded-lg border transition-colors ${
               scrolled
                 ? "border-border text-foreground hover:border-accent/50"
-                : "border-white/15 text-white/70 hover:text-white hover:border-white/30"
+                : "border-black/10 text-gray-700 hover:text-gray-900 hover:border-[#0f766e]/40"
             }`}
           >
             Install GitHub App
@@ -106,7 +106,7 @@ export default function Navbar() {
         </div>
 
         <button
-          className={`md:hidden ${scrolled ? "text-muted" : "text-white/60"} hover:text-white`}
+          className={`md:hidden ${scrolled ? "text-muted" : "text-gray-500"} hover:text-gray-900`}
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle menu"
         >
@@ -124,13 +124,13 @@ export default function Navbar() {
         <div className={`md:hidden border-t px-6 py-4 space-y-4 ${
           scrolled
             ? "border-border bg-white/95 backdrop-blur-xl"
-            : "border-white/10 bg-[#0a0a12]/95 backdrop-blur-xl"
+            : "border-black/5 bg-[#f7f4ed]/95 backdrop-blur-xl"
         }`}>
           {["Features", "Modules", "Install", "Compare", "Integrations", "Pricing"].map((item) => (
             <a
               key={item}
               href={`#${item.toLowerCase() === "compare" ? "comparison" : item.toLowerCase()}`}
-              className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-white/60 hover:text-white"}`}
+              className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"}`}
               onClick={() => setMobileOpen(false)}
             >
               {item}
@@ -145,7 +145,7 @@ export default function Navbar() {
           </Link>
           <a
             href="/dashboard"
-            className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-white/60 hover:text-white"}`}
+            className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"}`}
             onClick={() => setMobileOpen(false)}
           >
             My Scans
