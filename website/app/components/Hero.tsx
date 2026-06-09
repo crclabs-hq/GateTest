@@ -10,7 +10,7 @@
  *   - Two columns on desktop: outcome-first headline + live URL-scan CTA on
  *     the left, a polished dark product card (the auto-fix PR moment) on the
  *     right. Stacks on mobile.
- *   - Honesty preserved: every number is real (110 modules, 4,600+ tests,
+ *   - Honesty preserved: every number is real (110 modules, 5,600+ tests,
  *     self-scan green, pay-per-scan). No fabricated logos or customers.
  *
  * The `UrlScanFlow` component is the same one used by /web — it runs the real
@@ -199,7 +199,7 @@ export default function Hero() {
       {/* ── Bold full-bleed stats band — our answer to Klaviyo's green band ── */}
       <div className="stats-band relative z-10">
         <div className="mx-auto max-w-7xl px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-y-7 gap-x-6">
-          <BandStat num="4,600+" label="tests passing, every commit" />
+          <BandStat num="5,600+" label="tests passing, every commit" />
           <BandStat num="110" label="modules in one gate" />
           <BandStat num="102/110" label="green on our own repo" />
           <BandStat num="$29+" label="per scan · no subscription" />

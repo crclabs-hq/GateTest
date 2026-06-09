@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GateTest vs SonarQube — The Smarter Alternative in 2026",
   description:
-    "GateTest replaces SonarQube with 102 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing. Just results.",
+    "GateTest replaces SonarQube with 110 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing. Just results.",
   keywords: [
     "SonarQube alternative",
     "SonarQube vs GateTest",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs SonarQube — The Smarter Alternative in 2026",
     description:
-      "GateTest replaces SonarQube with 102 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing.",
+      "GateTest replaces SonarQube with 110 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing.",
     url: "https://gatetest.ai/compare/sonarqube",
     siteName: "GateTest",
     type: "website",
@@ -132,7 +132,7 @@ export default function SonarQubePage() {
           </h1>
           <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
             SonarQube was built in 2006 — before AI, before cloud-native CI/CD, before modern
-            security threats. GateTest is built for 2026: 102 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier ($199) and above,
+            security threats. GateTest is built for 2026: 110 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier ($199) and above,
             zero server setup, and per-scan pricing.
           </p>
 
@@ -216,7 +216,7 @@ export default function SonarQubePage() {
               },
               {
                 title: "Pay per scan, not per seat",
-                body: "SonarQube Cloud pricing scales with developer headcount — the more your team grows, the higher your bill. GateTest charges per result: $29 quick scan, $99 full 102-module scan. A 50-person team pays the same as a solo founder for the same scan.",
+                body: "SonarQube Cloud pricing scales with developer headcount — the more your team grows, the higher your bill. GateTest charges per result: $29 quick scan, $99 full 110-module scan. A 50-person team pays the same as a solo founder for the same scan.",
               },
               {
                 title: "Faster feedback loop",
@@ -258,7 +258,7 @@ export default function SonarQubePage() {
             Ready to replace SonarQube?
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
-            Paste your repo URL and get a full 102-module scan in under 60 seconds. No server setup,
+            Paste your repo URL and get a full 110-module scan in minutes. No server setup,
             no config files, no per-seat pricing. One-time payment per scan.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
