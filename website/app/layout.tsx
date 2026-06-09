@@ -1,7 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import { Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import { ChatWidget } from "./components/ChatWidget";
 import { organizationSchema, webSiteSchema, jsonLd } from "./lib/seo/schema";
+
+// Editorial display face for headlines — gives the marketing surfaces a
+// distinctive, premium voice without restyling body copy. Exposed as a CSS
+// variable so only elements that opt in (.font-display) use it.
+const displayFont = Bricolage_Grotesque({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-display",
+  display: "swap",
+});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -81,7 +92,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`h-full antialiased ${displayFont.variable}`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
       </head>
