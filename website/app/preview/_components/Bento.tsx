@@ -17,7 +17,7 @@ const BENTO = [
     title: "Type Verification",
     count: 14,
     blurb:
-      "tsconfig strictness regressions, any-leaks across exported signatures, contract drift, @ts-ignore abuse.",
+      "tsconfig strictness regressions, any-leaks across exported signatures, contract drift, unreasoned ts-ignore directives.",
     chips: ["strict", "no-any", "contracts"],
   },
   {
