@@ -96,9 +96,25 @@ export default function Hero() {
             Verified, not the most expensive one in the lineup. We tested.
             We picked the model that actually fixes bugs.
           </p>
-          <p className="text-center text-xs sm:text-sm text-white/55 max-w-2xl mx-auto mb-10 fade-up">
+          <p className="text-center text-xs sm:text-sm text-white/55 max-w-2xl mx-auto mb-8 fade-up">
             Net effect: every tier ships ~5x deeper analysis at the same price.
           </p>
+
+          {/* Trust signals strip — 4 developer-first facts above the CTA */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-w-3xl mx-auto mb-10 fade-up">
+            {[
+              { icon: "🔒", label: "Code never stored", sub: "Scanned in memory, discarded after" },
+              { icon: "🔀", label: "Every fix is a PR", sub: "You review it, you approve it" },
+              { icon: "🤖", label: "Claude Sonnet 4", sub: "Best SWE-bench score, not priciest" },
+              { icon: "👁", label: "Free preview", sub: "No card, no signup required" },
+            ].map((t) => (
+              <div key={t.label} className="glass-card rounded-xl px-3 py-3 text-center">
+                <div className="text-lg mb-1">{t.icon}</div>
+                <div className="text-xs font-semibold text-white/85 leading-tight mb-0.5">{t.label}</div>
+                <div className="text-[10px] text-white/45 leading-tight">{t.sub}</div>
+              </div>
+            ))}
+          </div>
 
           {/* Primary CTA: the live URL scan, in-hero */}
           <div className="max-w-2xl mx-auto fade-up">
@@ -159,11 +175,14 @@ export default function Hero() {
             </div>
 
             <p className="text-center text-xs text-white/35 mt-6">
-              Want a repo scan instead?{" "}
+              Scanning a GitHub repo?{" "}
+              <Link href="/scan/preview" className="text-teal-300 hover:text-teal-200 underline-offset-2 hover:underline">
+                Free repo preview &rarr;
+              </Link>{" "}
+              or{" "}
               <a href="#pricing" className="text-teal-300 hover:text-teal-200 underline-offset-2 hover:underline">
-                Pick a tier &darr;
-              </a>{" "}
-              or <Link href="/github/setup" className="text-teal-300 hover:text-teal-200 underline-offset-2 hover:underline">install the GitHub App</Link>.
+                pick a paid tier for full results &darr;
+              </a>
             </p>
           </div>
         </div>

@@ -329,6 +329,9 @@ export default function ScanStatus() {
           {params.repo && (
             <p className="text-sm text-muted font-mono">{params.repo}</p>
           )}
+          <p className="mt-2 text-xs text-slate-400">
+            🔒 Your code is scanned in memory and never stored on our servers.
+          </p>
         </div>
 
         {/* Progress */}

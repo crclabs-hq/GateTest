@@ -67,6 +67,14 @@ export default function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-4">
+          <Link
+            href="/scans"
+            className={`text-sm transition-colors ${
+              scrolled ? "text-muted hover:text-foreground" : "text-white/75 hover:text-white"
+            }`}
+          >
+            Hall of Scans
+          </Link>
           <a
             href="/dashboard"
             className={`text-sm transition-colors ${
@@ -74,6 +82,16 @@ export default function Navbar() {
             }`}
           >
             My Scans
+          </a>
+          <a
+            href="/github/setup"
+            className={`px-5 py-2.5 text-sm font-medium rounded-lg border transition-colors ${
+              scrolled
+                ? "border-border text-foreground hover:border-accent/50"
+                : "border-white/15 text-white/70 hover:text-white hover:border-white/30"
+            }`}
+          >
+            Install GitHub App
           </a>
           <Link
             href="/scan/preview"
@@ -83,7 +101,7 @@ export default function Navbar() {
                 : "hero-cta"
             }`}
           >
-            Free Preview →
+            Free Preview Scan
           </Link>
         </div>
 
@@ -119,11 +137,11 @@ export default function Navbar() {
             </a>
           ))}
           <Link
-            href="/developers"
+            href="/scans"
             className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-white/60 hover:text-white"}`}
             onClick={() => setMobileOpen(false)}
           >
-            Developers
+            Hall of Scans
           </Link>
           <a
             href="/dashboard"
@@ -137,7 +155,7 @@ export default function Navbar() {
             className={`block px-5 py-2.5 text-sm text-center rounded-lg font-semibold ${scrolled ? "btn-cta" : "hero-cta"}`}
             onClick={() => setMobileOpen(false)}
           >
-            Free Preview →
+            Free Preview Scan
           </Link>
         </div>
       )}
