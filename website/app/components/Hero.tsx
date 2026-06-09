@@ -63,7 +63,7 @@ export default function Hero() {
             <h1 className="font-display text-[2.7rem] leading-[1.04] sm:text-6xl lg:text-[4.1rem] font-extrabold text-gray-900 mb-6 fade-up">
               Your CI just went red.
               <br />
-              By morning, there&apos;s{" "}
+              Minutes later, there&apos;s{" "}
               <span className="text-[#0f766e]">a PR with the fix.</span>
             </h1>
 

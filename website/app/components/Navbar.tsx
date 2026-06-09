@@ -42,7 +42,7 @@ export default function Navbar() {
           </span>
         </Link>
 
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden xl:flex items-center gap-6">
           {["Features", "Modules", "Install", "Compare", "Integrations", "Pricing"].map((item) => (
             <a
               key={item}
@@ -58,26 +58,26 @@ export default function Navbar() {
           ))}
           <Link
             href="/developers"
-            className={`text-sm transition-colors ${
-              scrolled ? "text-muted hover:text-foreground" : "text-white/75 hover:text-white"
+            className={`text-sm whitespace-nowrap transition-colors ${
+              scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
             }`}
           >
             Developers
           </Link>
         </div>
 
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden xl:flex items-center gap-3">
           <Link
             href="/scans"
-            className={`text-sm transition-colors ${
-              scrolled ? "text-muted hover:text-foreground" : "text-white/75 hover:text-white"
+            className={`text-sm whitespace-nowrap transition-colors ${
+              scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
             }`}
           >
             Hall of Scans
           </Link>
           <a
             href="/dashboard"
-            className={`text-sm transition-colors ${
+            className={`text-sm whitespace-nowrap transition-colors ${
               scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
             }`}
           >
@@ -85,7 +85,7 @@ export default function Navbar() {
           </a>
           <a
             href="/github/setup"
-            className={`px-5 py-2.5 text-sm font-medium rounded-lg border transition-colors ${
+            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap rounded-lg border transition-colors ${
               scrolled
                 ? "border-border text-foreground hover:border-accent/50"
                 : "border-black/10 text-gray-700 hover:text-gray-900 hover:border-[#0f766e]/40"
@@ -95,7 +95,7 @@ export default function Navbar() {
           </a>
           <Link
             href="/scan/preview"
-            className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+            className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap rounded-lg transition-all ${
               scrolled
                 ? "btn-cta"
                 : "hero-cta"
@@ -106,7 +106,7 @@ export default function Navbar() {
         </div>
 
         <button
-          className={`md:hidden ${scrolled ? "text-muted" : "text-gray-500"} hover:text-gray-900`}
+          className={`xl:hidden ${scrolled ? "text-muted" : "text-gray-500"} hover:text-gray-900`}
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle menu"
         >
@@ -121,7 +121,7 @@ export default function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className={`md:hidden border-t px-6 py-4 space-y-4 ${
+        <div className={`xl:hidden border-t px-6 py-4 space-y-4 ${
           scrolled
             ? "border-border bg-white/95 backdrop-blur-xl"
             : "border-black/5 bg-[#f7f4ed]/95 backdrop-blur-xl"
@@ -138,7 +138,7 @@ export default function Navbar() {
           ))}
           <Link
             href="/scans"
-            className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-white/60 hover:text-white"}`}
+            className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"}`}
             onClick={() => setMobileOpen(false)}
           >
             Hall of Scans
