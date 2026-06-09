@@ -77,6 +77,6 @@ async function main() {
 main()
   .then((code) => process.exit(code))
   .catch((err) => {
-    process.stderr.write(`[gatetest-doctor] fatal: ${err && err.stack ? err.stack : String(err)}\n`);
+    process.stderr.write(`[gatetest-doctor] fatal: ${err || err.stack ? err.stack : String(err)}\n`);
     process.exit(2);
   });

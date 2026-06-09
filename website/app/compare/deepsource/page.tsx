@@ -42,7 +42,7 @@ const faqItems = [
   },
   {
     q: "How do scan speeds compare?",
-    a: "GateTest quick scans (4 modules) complete in under 15 seconds. Full 102-module scans complete in under 60 seconds. DeepSource runs asynchronously in the background and varies widely by repo size. GateTest gives you synchronous results within the CI timeout window — no waiting for background workers.",
+    a: "GateTest quick scans (4 modules) complete in seconds. Full 110-module scans typically complete in a few minutes, depending on repo size. DeepSource runs asynchronously in the background and varies widely by repo size. GateTest gives you synchronous results within the CI timeout window — no waiting for background workers.",
   },
   {
     q: "Does GateTest cover the same languages as DeepSource?",

@@ -10,7 +10,7 @@
 [![CI](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml/badge.svg)](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Modules](https://img.shields.io/badge/modules-110-purple.svg)](#what-it-replaces)
-[![Tests](https://img.shields.io/badge/tests-5500%2B-brightgreen.svg)](#real-repo-proofs)
+[![Tests](https://img.shields.io/badge/tests-5600%2B-brightgreen.svg)](#real-repo-proofs)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](https://nodejs.org/)
 <!-- Marketplace listing — re-enable when the GitHub Marketplace approval lands:
 [![GitHub Marketplace](https://img.shields.io/badge/marketplace-GateTest-2ea44f.svg)](https://github.com/marketplace/gatetest)

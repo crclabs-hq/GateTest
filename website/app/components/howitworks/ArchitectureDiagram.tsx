@@ -28,7 +28,7 @@ const NODES: Node[] = [
 
 const VARIANT_STYLES: Record<NonNullable<Node["variant"]>, { fill: string; stroke: string; label: string; detail: string }> = {
   input:   { fill: "rgba(20, 184, 166, 0.10)", stroke: "rgba(45, 212, 191, 0.55)", label: "#5eead4", detail: "rgba(94, 234, 212, 0.55)" },
-  queue:   { fill: "rgba(99, 102, 241, 0.10)", stroke: "rgba(129, 140, 248, 0.55)", label: "#a5b4fc", detail: "rgba(165, 180, 252, 0.55)" },
+  queue:   { fill: "rgba(99, 110, 241, 0.10)", stroke: "rgba(129, 140, 248, 0.55)", label: "#a5b4fc", detail: "rgba(165, 180, 252, 0.55)" },
   engine:  { fill: "rgba(255, 255, 255, 0.04)", stroke: "rgba(255, 255, 255, 0.20)", label: "#ffffff", detail: "rgba(255, 255, 255, 0.50)" },
   fix:     { fill: "rgba(245, 158, 11, 0.08)", stroke: "rgba(251, 191, 36, 0.45)", label: "#fcd34d", detail: "rgba(252, 211, 77, 0.55)" },
   review:  { fill: "rgba(168, 85, 247, 0.10)", stroke: "rgba(192, 132, 252, 0.50)", label: "#d8b4fe", detail: "rgba(216, 180, 254, 0.55)" },
@@ -48,7 +48,7 @@ export default function ArchitectureDiagram() {
       <svg
         viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
         role="img"
-        aria-label="GateTest scan pipeline architecture: customer push enters via GitHub App or Gluecron Signal Bus, lands in a Postgres scan queue, runs through 102 deterministic modules, clusters and ranks findings, applies the AST/Rule/Recipe/Claude flywheel, validates each fix through a syntax gate and scanner re-validation, adds pair review and architecture annotation for Tier 2 and up, adds cross-finding correlation, per-finding Claude diagnosis, and executive summary for Tier 3 (mutation testing and chaos / fuzz pass are available via the GitHub Action where a CI runner is present), and finally opens a pull request."
+        aria-label="GateTest scan pipeline architecture: customer push enters via GitHub App or Gluecron Signal Bus, lands in a Postgres scan queue, runs through 110 deterministic modules, clusters and ranks findings, applies the AST/Rule/Recipe/Claude flywheel, validates each fix through a syntax gate and scanner re-validation, adds pair review and architecture annotation for Tier 2 and up, adds cross-finding correlation, per-finding Claude diagnosis, and executive summary for Tier 3 (mutation testing and chaos / fuzz pass are available via the GitHub Action where a CI runner is present), and finally opens a pull request."
         className="w-full h-auto min-w-[640px]"
       >
         <defs>

@@ -34,7 +34,7 @@ const faqItems = [
   },
   {
     q: "Does GateTest also scan dependencies?",
-    a: "Yes — GateTest includes a polyglot dependency scanner covering npm, pip, Pipenv, Poetry, go.mod, Cargo, Bundler, Composer, Maven, and Gradle. It flags wildcard pins, 'latest' dependencies, missing lockfiles, and deprecated packages. Dependency scanning is one module out of 102.",
+    a: "Yes — GateTest includes a polyglot dependency scanner covering npm, pip, Pipenv, Poetry, go.mod, Cargo, Bundler, Composer, Maven, and Gradle. It flags wildcard pins, 'latest' dependencies, missing lockfiles, and deprecated packages. Dependency scanning is one module out of 110.",
   },
   {
     q: "How does GateTest pricing compare to Snyk?",

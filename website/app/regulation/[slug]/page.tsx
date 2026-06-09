@@ -272,7 +272,7 @@ export default async function RegulationPage({ params }: PageParams) {
         <section className="mb-12 rounded-2xl border border-teal-500/20 p-10 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
           <h2 className="text-3xl font-bold text-white mb-3">Try a $29 Quick scan on your repo</h2>
           <p className="text-white/60 mb-6 max-w-xl mx-auto">
-            See the {reg.name}-relevant findings on your own code in under 15 seconds. Free preview. Pay only if you ship the report.
+            See the {reg.name}-relevant findings on your own code in minutes. Free preview. Pay only if you ship the report.
           </p>
           <Link
             href="/scan"

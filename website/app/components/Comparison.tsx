@@ -127,7 +127,7 @@ export default function Comparison() {
                       transitionDelay: visible ? `${competitors.length * 40 + 400}ms` : "0ms",
                     }}
                   >
-                    102/102 — Everything. All of it. One gate.
+                    110/110 — Everything. All of it. One gate.
                   </span>
                 </div>
               </div>
