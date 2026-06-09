@@ -562,3 +562,41 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .card-float { animation: none; }
 }
+
+/* ===================================================================== */
+/* HERO PASS 2 — signature texture, bold stats band, browser frame       */
+/* ===================================================================== */
+
+/* Signature teal aurora — our answer to Klaviyo's iridescent shimmer.
+   Layered soft radial glows; calm, premium, unmistakably ours. */
+.hero-aurora {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 50% at 78% 8%, rgba(20, 184, 166, 0.16), transparent 70%),
+    radial-gradient(35% 45% at 12% 18%, rgba(45, 212, 191, 0.10), transparent 70%),
+    radial-gradient(50% 60% at 95% 90%, rgba(15, 118, 110, 0.08), transparent 70%);
+}
+
+/* Full-bleed stats band — refined DARK, not a loud color fill.
+   White display numbers + teal labels; gives the clean dark/light rhythm
+   without the bright band Craig (rightly) didn't want. */
+.stats-band {
+  background: linear-gradient(180deg, #11141b 0%, #0c0e14 100%);
+  border-top: 1px solid rgba(20, 184, 166, 0.22);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.stats-band .stat-num {
+  font-family: var(--font-display), var(--font-mono), monospace;
+  letter-spacing: -0.02em;
+}
+
+/* Browser-window frame for the product screenshot — makes the auto-fix PR
+   read as a real captured screenshot rather than a floating card. */
+.browser-frame .url-bar {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Marquee-free, accessible: the band is static. */

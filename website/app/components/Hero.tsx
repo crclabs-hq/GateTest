@@ -44,9 +44,10 @@ export default function Hero() {
 
   return (
     <section className="hero-warm relative overflow-hidden pt-20">
+      <div className="hero-aurora" aria-hidden="true" />
       <div className="hero-warm-grid" aria-hidden="true" />
 
-      <div className="relative z-10 mx-auto max-w-7xl px-6 pb-20 pt-14">
+      <div className="relative z-10 mx-auto max-w-7xl px-6 pb-12 pt-14">
         <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-10 items-center">
 
           {/* ── LEFT: editorial headline + live CTA ───────────────────── */}
@@ -115,16 +116,20 @@ export default function Hero() {
 
           {/* ── RIGHT: polished auto-fix PR product card ──────────────── */}
           <div className="relative fade-up">
-            <div className="product-card card-float p-1.5">
-              {/* window chrome */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-                <div className="flex items-center gap-2">
+            <div className="product-card browser-frame card-float p-1.5">
+              {/* browser chrome with URL bar — reads as a real screenshot */}
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
+                <div className="flex items-center gap-2 shrink-0">
                   <span className="h-3 w-3 rounded-full bg-red-400/80" />
                   <span className="h-3 w-3 rounded-full bg-amber-400/80" />
                   <span className="h-3 w-3 rounded-full bg-emerald-400/80" />
-                  <span className="ml-3 text-xs font-mono text-white/40">GateTest · auto-fix</span>
                 </div>
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
+                <div className="url-bar flex-1 flex items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-mono text-white/45 truncate">
+                  <span className="text-emerald-400/70" aria-hidden="true">&#128274;</span>
+                  github.com/your-org/your-repo
+                  <span className="text-white/25">/pull/248</span>
+                </div>
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 shrink-0">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   Gate green
                 </span>
@@ -171,7 +176,7 @@ export default function Hero() {
         </div>
 
         {/* ── "Replaces" strip — honest social proof in lieu of logos ── */}
-        <div className="mt-16 lg:mt-20 fade-up">
+        <div className="mt-12 fade-up">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
             <span className="text-xs uppercase tracking-[0.18em] text-gray-400 font-semibold shrink-0">
               One gate replaces
@@ -188,27 +193,29 @@ export default function Hero() {
               <span className="text-sm text-gray-400">+ 6 more</span>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Honest stat row */}
-          <div className="mt-8 grid grid-cols-3 gap-4 max-w-2xl">
-            <Stat value="4,600+" label="tests passing" detail="every commit" />
-            <Stat value="110" label="modules" detail="security · a11y · CI · supply chain" />
-            <Stat value="$29+" label="per scan" detail="one-time, no subscription" />
-          </div>
+      {/* ── Bold full-bleed stats band — our answer to Klaviyo's green band ── */}
+      <div className="stats-band relative z-10">
+        <div className="mx-auto max-w-7xl px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-y-7 gap-x-6">
+          <BandStat num="4,600+" label="tests passing, every commit" />
+          <BandStat num="110" label="modules in one gate" />
+          <BandStat num="102/110" label="green on our own repo" />
+          <BandStat num="$29+" label="per scan · no subscription" />
         </div>
       </div>
     </section>
   );
 }
 
-function Stat({ value, label, detail }: { value: string; label: string; detail: string }) {
+function BandStat({ num, label }: { num: string; label: string }) {
   return (
-    <div className="border-l-2 border-[#0f766e]/25 pl-4">
-      <div className="font-display text-2xl sm:text-3xl font-extrabold text-gray-900 tabular-nums">
-        <CountUp value={value} duration={1400} />
+    <div>
+      <div className="stat-num text-3xl sm:text-4xl lg:text-5xl font-extrabold tabular-nums leading-none text-white">
+        <CountUp value={num} duration={1400} />
       </div>
-      <div className="text-sm font-semibold text-gray-700 mt-0.5">{label}</div>
-      <div className="text-xs text-gray-400 mt-0.5">{detail}</div>
+      <div className="text-[13px] sm:text-sm font-medium text-teal-300/75 mt-2">{label}</div>
     </div>
   );
 }
