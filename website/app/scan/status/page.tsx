@@ -258,6 +258,15 @@ export default function ScanStatus() {
           repoUrl: params.repo,
           issues,
           tier: params.tier || "full",
+          // Phase 1.2b — baseline findings from THIS scan, so the
+          // cross-fix scanner gate diffs against what the customer
+          // actually paid to have found (server hydrates the workspace
+          // itself; sending file contents from the browser is wasteful).
+          originalFindingsByModule: Object.fromEntries(
+            scanResult.modules
+              .filter((m) => (m.details || []).length > 0)
+              .map((m) => [m.name, m.details as string[]])
+          ),
           // Optional one-shot PAT — server uses it ONLY for this request,
           // never stores. When empty, server falls back to the GitHub
           // App installation (if present) or the configured env token.

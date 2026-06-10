@@ -12,6 +12,58 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "../../../lib/db";
 import { deriveAdminToken } from "../../../lib/admin-auth";
 
+// Watchdog intelligence — anomaly detection + Claude diagnosis (pure JS, DI).
+const { detectAnomalies, diagnoseWatchEvent } = require("@/app/lib/watchdog-intelligence") as {
+  detectAnomalies: (opts: {
+    history: Array<{ status: string; totalIssues: number; durationMs: number }>;
+    current: { status: string; totalIssues: number; durationMs: number };
+    previousStatus: string | null;
+  }) => Array<{ kind: string; severity: string; detail: string }>;
+  diagnoseWatchEvent: (opts: {
+    watch: { target: string; target_type: string };
+    scanResult: { status: string; totalIssues: number; modules?: Array<{ name: string; status: string; details?: string[] }> };
+    anomalies: Array<{ kind: string; severity: string; detail: string }>;
+    recentHistory: Array<{ status: string; totalIssues: number; durationMs: number }>;
+    askClaude: (prompt: string) => Promise<string>;
+  }) => Promise<{ ok: boolean; diagnosis: Record<string, string | null> | null; reason: string | null }>;
+};
+
+// Hard ceiling on Claude diagnoses per tick. The tick has a 60s budget
+// and each diagnosis is bounded at 15s, so 2 keeps worst-case Claude
+// time at 30s while the scans themselves use the rest.
+const MAX_DIAGNOSES_PER_TICK = 2;
+
+// Single-attempt, 15s-bounded Claude call. The watchdog must never let a
+// slow Anthropic response starve the scan loop — a missed diagnosis is
+// recoverable on the next tick, a blown function budget is not.
+async function askClaudeBounded(prompt: string): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY || "";
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-7",
+        max_tokens: 1024,
+        messages: [{ role: "user", content: prompt }],
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`Anthropic API ${res.status}`);
+    const data = await res.json() as { content?: Array<{ type: string; text: string }> };
+    return data.content?.[0]?.text || "";
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -189,10 +241,36 @@ export async function GET(req: NextRequest) {
     LIMIT 10
   `) as unknown as WatchRow[];
 
-  const results: Array<{ id: number; target: string; outcome: string }> = [];
+  const results: Array<{ id: number; target: string; outcome: string; anomalies?: number; diagnosed?: boolean }> = [];
+  let diagnosesUsed = 0;
 
   for (const watch of due) {
     const scanFn = watch.target_type === "server" ? scanServer : scanRepo;
+
+    // Pull the watch's own scan history BEFORE recording the current scan,
+    // so the anomaly baselines never include the data point being judged.
+    let recentHistory: Array<{ status: string; totalIssues: number; durationMs: number }> = [];
+    try {
+      const rows = (await sql`
+        SELECT after_issue_count, details FROM heal_history
+        WHERE watch_id = ${watch.id} AND action = 'scan' AND status = 'success'
+        ORDER BY completed_at DESC
+        LIMIT 10
+      `) as unknown as Array<{ after_issue_count: number | null; details: Record<string, unknown> | string | null }>;
+      recentHistory = rows.map((r) => {
+        const det = typeof r.details === "string" ? JSON.parse(r.details || "{}") : (r.details || {});
+        return {
+          status: String(det.status || "healthy"),
+          totalIssues: Number(r.after_issue_count ?? 0),
+          durationMs: Number(det.durationMs ?? 0),
+        };
+      });
+    } catch {
+      // History is an enhancement, never a blocker — anomaly rules that
+      // need a baseline simply won't fire on this tick.
+      recentHistory = [];
+    }
+
     const scanStart = Date.now();
     const result = await scanFn(watch.target, baseUrl);
 
@@ -209,11 +287,61 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
+    const durationMs = Date.now() - scanStart;
     await sql`
       INSERT INTO heal_history (watch_id, action, status, before_issue_count, after_issue_count, details, completed_at)
       VALUES (${watch.id}, 'scan', 'success', ${watch.last_issue_count || 0}, ${result.totalIssues},
-              ${JSON.stringify({ durationMs: Date.now() - scanStart, status: result.status })}, NOW())
+              ${JSON.stringify({ durationMs, status: result.status })}, NOW())
     `;
+
+    // ── Intelligence layer ────────────────────────────────────────────
+    // Trend-aware anomaly detection against this watch's own history,
+    // then a budget-capped Claude diagnosis when the status worsened.
+    // Both are strictly additive: any failure here is recorded and the
+    // tick continues (Forbidden #15/#16 — recover, but never silently).
+    let anomalies: Array<{ kind: string; severity: string; detail: string }> = [];
+    let diagnosed = false;
+    try {
+      anomalies = detectAnomalies({
+        history: recentHistory,
+        current: { status: result.status, totalIssues: result.totalIssues, durationMs },
+        previousStatus: watch.last_status,
+      });
+      for (const a of anomalies) {
+        await sql`
+          INSERT INTO heal_history (watch_id, action, status, details, completed_at)
+          VALUES (${watch.id}, 'anomaly', 'recorded',
+                  ${JSON.stringify({ kind: a.kind, severity: a.severity, detail: a.detail, target: watch.target })}, NOW())
+        `;
+      }
+
+      const critical = anomalies.some((a) => a.severity === "critical");
+      if (critical && diagnosesUsed < MAX_DIAGNOSES_PER_TICK && process.env.ANTHROPIC_API_KEY) {
+        diagnosesUsed++;
+        const diag = await diagnoseWatchEvent({
+          watch: { target: watch.target, target_type: watch.target_type },
+          scanResult: result,
+          anomalies,
+          recentHistory,
+          askClaude: askClaudeBounded,
+        });
+        await sql`
+          INSERT INTO heal_history (watch_id, action, status, details, completed_at)
+          VALUES (${watch.id}, 'diagnosis', ${diag.ok ? "success" : "failed"},
+                  ${JSON.stringify({ target: watch.target, diagnosis: diag.diagnosis, reason: diag.reason })}, NOW())
+        `;
+        diagnosed = diag.ok;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      try {
+        await sql`
+          INSERT INTO heal_history (watch_id, action, status, details, completed_at)
+          VALUES (${watch.id}, 'anomaly', 'failed',
+                  ${JSON.stringify({ reason: "intelligence layer error", error: message })}, NOW())
+        `;
+      } catch { /* DB write of the error itself failed — nothing left to do */ }
+    }
 
     // Trigger auto-fix for repos if issues found and auto-fix is enabled.
     // Every branch of this block now writes a heal_history row so the admin
@@ -308,7 +436,7 @@ export async function GET(req: NextRequest) {
       WHERE id = ${watch.id}
     `;
 
-    results.push({ id: watch.id, target: watch.target, outcome: result.status });
+    results.push({ id: watch.id, target: watch.target, outcome: result.status, anomalies: anomalies.length, diagnosed });
   }
 
   return NextResponse.json({
