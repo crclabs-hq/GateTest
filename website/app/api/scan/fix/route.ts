@@ -36,7 +36,7 @@ import {
   createBranch,
   fetchBlob,
   fetchFileSha,
-
+  fetchTree,
   openPullRequest,
   postPrComment,
   resolveBaseBranchSha,
@@ -200,6 +200,33 @@ const { generateTestsForFixes } = require("@/app/lib/test-generator") as {
     summary: string;
   }>;
 };
+// Phase 1.2b production wiring — server-side hydration of the original
+// workspace + baseline findings when the caller didn't supply them.
+// This is what turns the scanner gate from a no-op into a live gate for
+// every production caller (scan page, admin Command Center, watchdog).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { hydrateFixWorkspace } = require("@/app/lib/fix-workspace-hydrator") as {
+  hydrateFixWorkspace: (opts: {
+    owner: string;
+    repo: string;
+    token: string;
+    tier?: string;
+    issueFiles: string[];
+    existingFileContents?: Array<{ path: string; content: string }>;
+    existingFindings?: Record<string, string[]> | null;
+    fetchTree: (owner: string, repo: string, ref: string, token: string) => Promise<string[]>;
+    fetchBlob: (owner: string, repo: string, path: string, ref: string, token: string) => Promise<string | null>;
+    runTier?: (tier: string, ctx: { owner: string; repo: string; files: string[]; fileContents: Array<{ path: string; content: string }> }) => Promise<{ modules: Array<{ name: string; details?: string[] }>; totalIssues: number }>;
+    maxFiles?: number;
+  }) => Promise<{
+    fileContents: Array<{ path: string; content: string }>;
+    findingsByModule: Record<string, string[]> | null;
+    hydratedFiles: boolean;
+    hydratedFindings: boolean;
+    reason: string | null;
+  }>;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { validateFixesAgainstScanner } = require("@/app/lib/cross-fix-scanner-gate") as {
   validateFixesAgainstScanner: (opts: {
@@ -1074,6 +1101,28 @@ export async function POST(req: NextRequest) {
     }
     token = auth.token;
     authSource = auth.source;
+  }
+
+  // Phase 1.2b — hydrate the original workspace + baseline findings when
+  // the caller didn't send them. Activates the cross-fix scanner gate,
+  // contextual grounding, stack detection and prior-art recall for every
+  // production caller. Failure degrades to the old behaviour (gate skips)
+  // and the reason is carried into the response below — never blocking.
+  const hydration = await hydrateFixWorkspace({
+    owner,
+    repo,
+    token,
+    tier: input.tier || "full",
+    issueFiles: [...new Set(issues.map((i) => i.file).filter((f): f is string => Boolean(f)))],
+    existingFileContents: input.originalFileContents || [],
+    existingFindings: input.originalFindingsByModule || null,
+    fetchTree,
+    fetchBlob,
+    runTier,
+  });
+  input.originalFileContents = hydration.fileContents;
+  if (hydration.findingsByModule) {
+    input.originalFindingsByModule = hydration.findingsByModule;
   }
 
   // Group issues by file. Day-2: retain `line` per issue so the per-file
@@ -2008,7 +2057,13 @@ export async function POST(req: NextRequest) {
       syntaxGate: { accepted: syntaxGate.accepted.length, rejected: syntaxGate.rejected.length, summary: syntaxGateSummary },
       scannerGate: scannerGateSummary
         ? { rolledBack: scannerGateRolledBack, summary: scannerGateSummary }
-        : { skipped: true, reason: "caller did not pass originalFileContents + originalFindingsByModule" },
+        : { skipped: true, reason: hydration.reason || "no baseline workspace/findings available (hydration yielded nothing)" },
+      workspaceHydration: {
+        files: input.originalFileContents?.length || 0,
+        hydratedFiles: hydration.hydratedFiles,
+        hydratedFindings: hydration.hydratedFindings,
+        reason: hydration.reason,
+      },
       testGeneration: { testsWritten: testGen.tests.length, skipped: testGen.skipped, summary: testGenSummary },
       pairReview: pairReviewSummary
         ? { summary: pairReviewSummary }
