@@ -39,7 +39,7 @@ export default function BeforeAfterDemo() {
             title="A test breaks on main"
             body={
               <>
-                <pre className="text-xs sm:text-sm font-mono text-red-300/90 whitespace-pre-wrap bg-black/40 rounded-md p-3 leading-relaxed">
+                <pre className="text-xs sm:text-sm font-mono text-red-300 whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-md p-3 leading-relaxed shadow-inner">
 {`× vapron-api.service failed
   ReferenceError: resolveTenantCapForHotPath
     is not defined
@@ -89,7 +89,7 @@ export default function BeforeAfterDemo() {
             title="A fix PR lands in your repo"
             body={
               <>
-                <pre className="text-xs sm:text-sm font-mono text-emerald-300/90 whitespace-pre-wrap bg-black/40 rounded-md p-3 leading-relaxed">
+                <pre className="text-xs sm:text-sm font-mono text-emerald-300 whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-md p-3 leading-relaxed shadow-inner">
 {`+ import { resolveTenantCapForHotPath }
 +   from "./quotas";
 
