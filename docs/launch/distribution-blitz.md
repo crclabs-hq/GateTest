@@ -177,6 +177,25 @@ Paste the 160-char one-liner. Set-and-forget + backlinks:
 
 ---
 
+## 6b. lobste.rs  (small but high-signal; invite-only to post)
+~1/10th of HN's traffic but far higher signal and friendlier to honest
+side projects. Posting requires an invite from an existing member — ask
+in their chat (#lobsters on libera.chat) or find a member in your
+network. Submit the DATA-STORY article (not a product announcement) with
+tags `web`, `security`, `testing`. Same first-hour comment protocol as HN.
+
+---
+
+## 6c. Companion packs (separate files in this directory)
+- `newsletters.md` — Console.dev / TLDR / Bytes / JS Weekly / Changelog
+  pitch templates. Highest-trust untouched channel; start with Console.dev.
+- `data-story.md` — the "we scanned N public sites" runbook + article
+  skeleton. The strongest relaunch card; needs the corpus scan to run first.
+- `hn-relaunch.md` — second-attempt HN playbook (two angles, first-hour
+  protocol, post-mortem template). Wait 2-3 weeks from the original post.
+
+---
+
 ## 7. HN second chance  (you already launched; don't re-submit blindly)
 Email **hn@ycombinator.com**, short + polite:
 ```
@@ -208,6 +227,11 @@ Distribution sends people; the site has to turn them into customers. Before the 
   submission) instead.
 - **Day 5:** r/SaaS + r/webdev (§3). Send HN second-chance email (§7).
 - **Following week:** Product Hunt launch (§5), tuned from the feedback.
+  Newsletter submissions start (one/day — `newsletters.md`), beginning
+  with Console.dev.
+- **Weeks 2-3:** run the corpus scan + publish the data story
+  (`data-story.md`), then fire the HN relaunch (`hn-relaunch.md`,
+  Angle A) and the lobste.rs submission (§6b) off the article.
 
 **Reality check on the money:** this is a weeks-to-months game, not a
 same-day one. The win signal isn't a traffic spike — it's people who run
