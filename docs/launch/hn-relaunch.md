@@ -2,15 +2,24 @@
 
 > **Boss Rule #8:** drafts for Craig to post himself. Nothing auto-posts.
 >
-> **Context:** the first Show HN landed ~3 points. Per the blitz pack it
-> was posted overnight NZ time = dead hours for the US audience that
-> decides /newest. That's a timing flop, not a verdict — at 3 points,
-> almost nobody saw the product. HN moderation explicitly allows
-> re-submission after a few weeks when a post got no traction.
-> Craig is retrieving the original post URL — review its title/time/
-> comments before firing this, and send the second-chance email
-> (blitz pack §7) FIRST; it costs nothing and sometimes revives the
-> original.
+> **Context — attempt #1 post-mortem (reviewed from screenshot 2026-06-10):**
+> "Show HN: GateTest – 110 QA checks in one scan, auto-fix PR for what it
+> finds" — 3 points, 1 comment, ~2026-06-05, account McCracken49 (1 karma).
+> What actually killed it, in order:
+> 1. **The pitch was a COMMENT and it got `[flagged]`** (auto spam-filter:
+>    new account + multiple links + pricing list). Readers saw a bare
+>    link with no story. The pitch text itself was good — honest
+>    "what's not there yet" section, strong closer.
+> 2. **1-karma account** — new accounts are heavily filtered on /newest.
+> 3. **Posted overnight NZ** = dead hours for the US audience.
+> Not a product verdict — the pitch was never visible.
+>
+> **Actions before attempt #2:**
+> - Email hn@ycombinator.com: first-time poster, pitch comment was
+>   auto-flagged (link item), ask for flag review + second-chance pool.
+> - Build 20-50 karma during the cooldown via genuine comments.
+> - Next time the pitch goes in the POST BODY (Show HN supports
+>   text + URL), never a comment.
 
 ---
 
