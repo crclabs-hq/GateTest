@@ -1,0 +1,50 @@
+{
+  "generatedAt": "2026-06-10T07:10:50.895Z",
+  "underTestedTargets": 9,
+  "draftsTotal": 8,
+  "drafted": 0,
+  "skipped": 8,
+  "failed": 0,
+  "drafts": [
+    {
+      "module": "ci",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/ci.js or website/app/lib/ci.js"
+    },
+    {
+      "module": "developers",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/developers.js or website/app/lib/developers.js"
+    },
+    {
+      "module": "gate",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/gate.js or website/app/lib/gate.js"
+    },
+    {
+      "module": "types",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/types.js or website/app/lib/types.js"
+    },
+    {
+      "module": "envvars",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/envvars.js or website/app/lib/envvars.js"
+    },
+    {
+      "module": "website",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/website.js or website/app/lib/website.js"
+    },
+    {
+      "module": "integrations",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/integrations.js or website/app/lib/integrations.js"
+    },
+    {
+      "module": "fake-fix-detector",
+      "status": "skipped-real-test-exists",
+      "path": "/home/runner/work/GateTest/GateTest/tests/fake-fix-detector.test.js"
+    }
+  ]
+}
