@@ -93,30 +93,28 @@ const scanPlans = [
   },
 ];
 
-// Continuous tier — listed in CLAUDE.md revenue model. Stripe subscription
-// wiring is pending Craig's authorization (Boss Rule #6), so the card is
-// shown as "Coming soon" and the CTA links to a notification sign-up
-// rather than monthly-billing checkout. Once subscriptions are live the
-// `comingSoon` flag here flips to false and the CTA returns to a real
-// install/checkout link.
+// Continuous tier — LIVE per Craig's green light 2026-06-12. Stripe
+// subscription checkout (mode=subscription, $49/mo, cancel anytime).
+// Economics: unlimited deterministic scans cost ~nothing; AI reviews are
+// metered by a monthly allowance (continuous_ai_ledger, default $10/mo)
+// so a hammered subscription still holds ~70%+ margin worst-case.
 const continuousPlan = {
   name: "Continuous",
   price: "$49",
   period: "/ month",
   description:
-    "Scan every push. Weekly scheduled deep scan. Email on score regression.",
-  modules: "Subscription · all tiers eligible",
+    "Scan every push. Unlimited deterministic scans, monthly AI-review allowance, cancel anytime.",
+  modules: "Subscription · 110 modules on every push",
   features: [
     "Scan on every push (GitHub App or Gluecron-host)",
-    "Weekly full-suite scheduled scan",
-    "Email + Slack on score regression",
+    "Unlimited deterministic scans — all 110 modules, never throttled",
+    "Monthly Claude AI-review allowance included",
     "Trend dashboard — see your gate getting greener week-over-week",
-    "Pricing applied on top of a one-shot tier on demand",
-    "Cancel anytime",
+    "Fix PRs available per-scan on top whenever you want them",
+    "Cancel anytime — no lock-in",
   ],
-  cta: "Notify me when live",
-  href: "mailto:hello@gatetest.ai?subject=Notify%20me%20when%20Continuous%20%2449%2Fmo%20is%20live",
-  comingSoon: true,
+  cta: "Start Continuous — $49/mo",
+  comingSoon: false,
 };
 
 
@@ -356,7 +354,7 @@ export default function Pricing() {
 
         {/* Continuous subscription — separate card, different commercial shape */}
         <div className="max-w-3xl mx-auto mb-12">
-          <div className="rounded-2xl border-2 border-dashed border-accent/30 bg-gradient-to-br from-accent/[0.04] to-transparent p-6 sm:p-8 opacity-90">
+          <div className="rounded-2xl border-2 border-accent/40 bg-gradient-to-br from-accent/[0.06] to-transparent p-6 sm:p-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
@@ -386,7 +384,7 @@ export default function Pricing() {
               </div>
               <div className="w-full sm:w-auto sm:max-w-md flex-1">
                 <ul className="space-y-1.5 mb-4">
-                  {continuousPlan.features.slice(0, 4).map((f) => (
+                  {continuousPlan.features.slice(0, 6).map((f) => (
                     <li
                       key={f}
                       className="flex items-start gap-2 text-xs text-muted"
@@ -398,12 +396,15 @@ export default function Pricing() {
                     </li>
                   ))}
                 </ul>
-                <a
-                  href={continuousPlan.href}
-                  className="btn-secondary block w-full text-center py-3 px-5 text-sm font-semibold"
+                <button
+                  onClick={() => handleCheckout("continuous")}
+                  disabled={loading === "continuous"}
+                  className="btn-secondary block w-full text-center py-3 px-5 text-sm font-semibold disabled:opacity-60"
                 >
-                  {continuousPlan.cta} &rarr;
-                </a>
+                  {loading === "continuous" ? "Redirecting…" : (
+                    <>{continuousPlan.cta} &rarr;</>
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -412,9 +413,10 @@ export default function Pricing() {
         {/* Bottom trust line */}
         <p className="text-center text-xs text-muted mt-10">
           All scans include a detailed report. The AI fix PR is included on the
-          Scan + Fix ($199) and Forensic Scan ($399) tiers. Per-scan payment via Stripe.
-          Once a scan delivers, the service is rendered &mdash; refunds at our
-          discretion for non-delivery only.
+          Scan + Fix ($199) and Forensic Scan ($399) tiers. Scan tiers are
+          one-time payments; Continuous is a monthly subscription you can cancel
+          anytime. Payment via Stripe. Once a scan delivers, the service is
+          rendered &mdash; refunds at our discretion for non-delivery only.
         </p>
       </div>
     </section>

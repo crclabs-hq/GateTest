@@ -135,6 +135,45 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  // Continuous-tier subscription lifecycle — keep the local record in sync
+  // so push-scan gating (findActiveByRepo) reflects Stripe truth. Graceful
+  // degrade: DB failures ack the event (Stripe retry won't fix a missing
+  // DATABASE_URL) but log loudly.
+  if (
+    event.type === "customer.subscription.updated" ||
+    event.type === "customer.subscription.deleted"
+  ) {
+    const sub = (event.data?.object || {}) as Record<string, unknown>;
+    const subId = typeof sub.id === "string" ? sub.id : "";
+    const stripeStatus = typeof sub.status === "string" ? sub.status : "";
+    // Map Stripe's status vocabulary onto ours: anything not clearly payable
+    // stops the scans-on-push entitlement.
+    const status =
+      event.type === "customer.subscription.deleted"
+        ? "canceled"
+        : stripeStatus === "active" || stripeStatus === "trialing"
+        ? "active"
+        : stripeStatus === "past_due"
+        ? "past_due"
+        : "canceled";
+    if (subId) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { setSubscriptionStatus } = require("@/app/lib/continuous-subscription-store");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { getDb } = require("@/app/lib/db");
+        await setSubscriptionStatus(getDb(), subId, status);
+      } catch (err) {
+        console.error("[GateTest] subscription status sync failed", {
+          subPrefix: subId.slice(0, 12) + "...",
+          status,
+          error: err instanceof Error ? err.message : "unknown",
+        });
+      }
+    }
+    return NextResponse.json({ received: true });
+  }
+
   if (event.type !== "checkout.session.completed") {
     return NextResponse.json({ received: true });
   }
@@ -145,6 +184,46 @@ export async function POST(req: NextRequest) {
     typeof session.payment_intent === "string" ? session.payment_intent : "";
   const sessionMetadata =
     (session.metadata as Record<string, string> | undefined) || {};
+
+  // Continuous-tier signup — subscription sessions carry no payment_intent;
+  // record the entitlement and stop (no one-shot scan to enqueue here; the
+  // value is delivered per push by the scan queue checking findActiveByRepo).
+  if (session.mode === "subscription") {
+    const subscriptionId =
+      typeof session.subscription === "string" ? session.subscription : "";
+    const customerId =
+      typeof session.customer === "string" ? session.customer : "";
+    const subRepoUrl = sessionMetadata.repo_url || "";
+    if (!subscriptionId || !subRepoUrl) {
+      console.error("[GateTest] subscription session missing data", {
+        sessionPrefix: sessionId ? sessionId.slice(0, 12) + "..." : null,
+        subscriptionPresent: Boolean(subscriptionId),
+        repoUrlPresent: Boolean(subRepoUrl),
+      });
+      return NextResponse.json({ received: true, note: "missing_subscription_metadata" });
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { upsertSubscription } = require("@/app/lib/continuous-subscription-store");
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getDb } = require("@/app/lib/db");
+      await upsertSubscription(getDb(), {
+        stripeSubscriptionId: subscriptionId,
+        stripeCustomerId: customerId,
+        repoUrl: subRepoUrl,
+        status: "active",
+      });
+    } catch (err) {
+      console.error("[GateTest] subscription record write failed", {
+        subPrefix: subscriptionId.slice(0, 12) + "...",
+        error: err instanceof Error ? err.message : "unknown",
+      });
+      // Do NOT ack — a transient DB failure here is worth a Stripe retry,
+      // otherwise the customer paid and gets no entitlement.
+      return NextResponse.json({ error: "persist_failed" }, { status: 500 });
+    }
+    return NextResponse.json({ received: true, subscription: true });
+  }
 
   let tier = sessionMetadata.tier || "";
   let repoUrl = sessionMetadata.repo_url || "";
