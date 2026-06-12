@@ -178,7 +178,7 @@ The thing that doesn't exist anywhere else today.
 
 | Platform     | Repository                                         | Status     |
 | ------------ | -------------------------------------------------- | ---------- |
-| Crontech.ai  | https://github.com/Gate-Test/Crontech              | INTEGRATING |
+| Vapron (formerly Crontech.ai — renamed per Craig 2026-06-12) | https://github.com/Gate-Test/Crontech | INTEGRATING |
 | Gluecron.com | https://github.com/ccantynz-alt/Gluecron.com       | INTEGRATING |
 
 ### How the integration works

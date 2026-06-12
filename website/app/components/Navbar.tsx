@@ -64,6 +64,14 @@ export default function Navbar() {
           >
             Developers
           </Link>
+          <Link
+            href="/stack"
+            className={`text-sm whitespace-nowrap transition-colors ${
+              scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            Stack
+          </Link>
         </div>
 
         <div className="hidden xl:flex items-center gap-3">
@@ -142,6 +150,13 @@ export default function Navbar() {
             onClick={() => setMobileOpen(false)}
           >
             Hall of Scans
+          </Link>
+          <Link
+            href="/stack"
+            className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"}`}
+            onClick={() => setMobileOpen(false)}
+          >
+            Stack
           </Link>
           <a
             href="/dashboard"
