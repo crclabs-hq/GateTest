@@ -57,7 +57,7 @@ export const COUNTRIES: Country[] = [
     popularStack: ["Next.js", "TypeScript", "Postgres", "Stripe", "Vercel"],
     popularHosts: ["Vercel", "AWS", "Cloudflare"],
     whyGateTestFits:
-      "US dev shops live inside four overlapping regimes — HIPAA for health, CCPA for consumer data, SOX for finance, PCI-DSS for cards. GateTest's 91 modules catch the technical findings each auditor looks for, in one scan, before code ships.",
+      "US dev shops live inside four overlapping regimes — HIPAA for health, CCPA for consumer data, SOX for finance, PCI-DSS for cards. GateTest's 110 modules catch the technical findings each auditor looks for, in one scan, before code ships.",
     topThreeModules: ["secrets", "logPii", "dependencies"],
     complianceBullets: [
       {
@@ -117,7 +117,7 @@ export const COUNTRIES: Country[] = [
     popularStack: ["Node.js", "TypeScript", "Postgres", "Stripe", "Next.js"],
     popularHosts: ["AWS London (eu-west-2)", "Vercel", "Cloudflare"],
     whyGateTestFits:
-      "UK GDPR and the NCSC's Cyber Essentials scheme set a high bar for software shipped to UK customers. GateTest's 91 modules surface the technical findings the ICO and Cyber Essentials assessors care about — secret hygiene, dependency safety, error swallowing, PII in logs.",
+      "UK GDPR and the NCSC's Cyber Essentials scheme set a high bar for software shipped to UK customers. GateTest's 110 modules surface the technical findings the ICO and Cyber Essentials assessors care about — secret hygiene, dependency safety, error swallowing, PII in logs.",
     topThreeModules: ["logPii", "secrets", "webHeaders"],
     complianceBullets: [
       {
@@ -171,7 +171,7 @@ export const COUNTRIES: Country[] = [
     popularStack: ["Next.js", "TypeScript", "Postgres", "Stripe", "Node.js"],
     popularHosts: ["Hetzner", "Vercel (eu region)", "AWS Frankfurt (eu-central-1)"],
     whyGateTestFits:
-      "GDPR is the floor. NIS2 widened the scope to thousands more 'essential' and 'important' entities in 2024. DORA hit financial entities in January 2025. GateTest's 91 modules cover the technical-control evidence each one asks for, without forcing a tool sprawl.",
+      "GDPR is the floor. NIS2 widened the scope to thousands more 'essential' and 'important' entities in 2024. DORA hit financial entities in January 2025. GateTest's 110 modules cover the technical-control evidence each one asks for, without forcing a tool sprawl.",
     topThreeModules: ["logPii", "envVars", "secrets"],
     complianceBullets: [
       {
@@ -225,7 +225,7 @@ export const COUNTRIES: Country[] = [
     popularStack: ["Next.js", "TypeScript", "Postgres", "Stripe", "Node.js"],
     popularHosts: ["AWS Sydney (ap-southeast-2)", "Vercel", "Cloudflare"],
     whyGateTestFits:
-      "The Privacy Act 1988 (as amended) and the ACSC Essential Eight together set the technical bar for Australian software. GateTest's 91 modules cover the secret-hygiene, dependency-safety, logging-discipline and configuration-hardening findings the OAIC and ACSC assessors look for.",
+      "The Privacy Act 1988 (as amended) and the ACSC Essential Eight together set the technical bar for Australian software. GateTest's 110 modules cover the secret-hygiene, dependency-safety, logging-discipline and configuration-hardening findings the OAIC and ACSC assessors look for.",
     topThreeModules: ["secrets", "dependencies", "tlsSecurity"],
     complianceBullets: [
       {
@@ -333,7 +333,7 @@ export const COUNTRIES: Country[] = [
     popularStack: ["Next.js", "TypeScript", "Postgres", "Stripe", "Node.js"],
     popularHosts: ["AWS Singapore (ap-southeast-1)", "Vercel", "Cloudflare"],
     whyGateTestFits:
-      "The PDPA and the IM8 Instruction Manual together govern what Singapore software must do at the technical layer. GateTest's 91 modules catch the secret-hygiene, configuration-hardening, and dependency-safety findings the PDPC and IM8 assessors look for in one scan.",
+      "The PDPA and the IM8 Instruction Manual together govern what Singapore software must do at the technical layer. GateTest's 110 modules catch the secret-hygiene, configuration-hardening, and dependency-safety findings the PDPC and IM8 assessors look for in one scan.",
     topThreeModules: ["secrets", "tlsSecurity", "dependencies"],
     complianceBullets: [
       {
@@ -387,7 +387,7 @@ export const COUNTRIES: Country[] = [
     popularStack: ["Next.js", "TypeScript", "Postgres", "Stripe", "Node.js"],
     popularHosts: ["Vercel", "AWS Canada (ca-central-1)", "Cloudflare"],
     whyGateTestFits:
-      "PIPEDA is the federal floor; Bill C-26 (the Critical Cyber Systems Protection Act) is layering critical-infrastructure obligations on top. GateTest's 91 modules cover the technical-control findings the OPC and CSE assessors look for under both regimes.",
+      "PIPEDA is the federal floor; Bill C-26 (the Critical Cyber Systems Protection Act) is layering critical-infrastructure obligations on top. GateTest's 110 modules cover the technical-control findings the OPC and CSE assessors look for under both regimes.",
     topThreeModules: ["secrets", "logPii", "dependencies"],
     complianceBullets: [
       {

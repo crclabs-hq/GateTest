@@ -772,6 +772,7 @@ GateTest/
 | 30 | **Five test files renamed `.test.skip.js`** to unblock CI — all five now RESTORED. (1) `datadog-client` — rewritten for actual API (fetchTopErrors/fetchErrorTraces/extractSourceLocation). (2) `incremental-filter` — fixed wrong property name + implemented missing universal-checker incremental support + config.incremental shape. (3) `incremental-scan` — implemented --since/--pr CLI flags + runner._resolveIncrementalFiles + skip/alwaysRun list logic. (4) `cross-repo-lookup` — replaced stale priorArt assertions with correct buildDiagnosisPrompt shape tests. (5) `mcp-server` — changed hardcoded "90 modules" to `\d{2,3}` regex. All 5 test files active, full suite 4721/4722 pass. | MEDIUM | **DONE** — all 5 skip files restored across PR #120 + PR #121. |
 | 31 | **Scan-speed reality vs claims (claims audit 2026-06-09)** — measured on this repo: quick suite (41 modules) = 34-52s wall; full suite did not finish inside 20 minutes locally (heavy modules: e2e/visual/mutation run real work). Public copy claiming "full 110-module scan in under 60 seconds" (compare/deepsource, compare/sonarqube, Install.tsx, regulation pages) was softened to "minutes" in the same audit. Bible Quality Bar #9 ("Quick <15s, Full <60s") needs either real benchmarks on representative customer-size repos to re-justify harder numbers, or the bar itself revised. | MEDIUM | OPEN — benchmark on 3 representative small/mid customer repos, then either restore harder public numbers with proof or amend Quality Bar #9. |
 | 32 | **Two fully-built modules never registered: `src/modules/cve-feed.js` + `src/modules/sbom.js`** (claims audit 2026-06-09) — both are complete BaseModule subclasses with `module.exports`, absent from `BUILT_IN_MODULES` in `src/core/registry.js` (registry = 110, module files = 117; other 5 unregistered files are base-module + 4 live-crawler helpers, which is correct). No public surface claims them, so no honesty violation — but they are dormant capability (or dead code our own deadCode module would flag). Decide: register (module count 110→112, Forbidden #17 VERSION update + copy sweep required; check cve-feed network-call policy first) or delete. | MEDIUM | OPEN — likely parked intentionally (CVE feed needs network access). Next session: confirm intent, then register-or-delete. |
+| 33 | **Hacker-news-monitor trainer built + tested but UNWIRED** — `website/app/lib/trainers/hacker-news-monitor.js` (Craig's 2026-05-29 HN-feedback directive) is absent from `trainer-nightly.yml` and the `bin/gatetest-train.js` TRAINERS array. The module's own header holds production wiring pending Craig's explicit Boss Rule #7 OK (third-party API — read-only HN Algolia search, never posts, drafts marked FOR CRAIG REVIEW). Wiring is one entry on each side once authorized. Found by the 2026-06-12 full-audit session. | HIGH | Craig action — authorize and the next session wires it into the nightly + CLI. |
 
 ---
 
@@ -822,10 +823,45 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.46.0 — **110 modules**, **Claude Sonnet 4.7** powering every
-tier. Date stamp: 2026-06-03.
+GateTest v1.46.1 — **110 modules**, **Claude Sonnet 4.7** powering every
+tier. Date stamp: 2026-06-12.
 
-**v1.46 changes (this session):**
+**v1.46.1 changes (2026-06-12 full-audit session, Craig directive
+"fine-tooth comb before more distribution"):**
+- **Module-count drift KILLED at the source.** The engine ships 110
+  (registry + CLI verified); the website catalog (`modules-data.ts`)
+  was missing 6 of them (aiGuardrails + the 5 live pen-test probes:
+  liveSqlInjection, liveXss, livePathTraversal, liveAuthBypass,
+  liveIdor) so `TOTAL_MODULES` computed 104. Catalog now carries all
+  110 (new "Live pen-test probes" category). Every stale hardcoded
+  count (91 / 102 / 103 / 104) swept to 110 across ~20 surfaces:
+  trust, how-it-works, for/*, countries.ts, docs/api, github/installed,
+  triage, HomeFaq, suite-recommender, pr-composer, ai-handoff,
+  hn-reply drafter. Six different numbers were live simultaneously —
+  worst credibility bug on the site.
+- **Flywheel production-capture wired** (was the audit's top gap):
+  `/api/scan/fix` now calls `recordFixAttempt()` once per attempted
+  file (layer = rule for CVE bumps / claude otherwise) so the nightly
+  pattern-miner finally trains on PRODUCTION data, not just CLI runs.
+- **Cross-repo corpus CONSUME side shipped**: new
+  `website/app/lib/cross-repo-prior-art.js` (12 tests) classifies each
+  completed fix's diff shape with the promoter's own classifier, looks
+  up the anonymised vector corpus, and appends a "Cross-repo prior
+  art" section to the PR body when a fix shape has shipped before.
+  The corpus now compounds INTO the product, not just on disk.
+- **SEO/AI-search hardening**: FAQPage JSON-LD on the homepage FAQ
+  (plain-text mirrors per item), `generateMetadata` on
+  `regulation/[slug]`, metadata layouts for `/developers` and
+  `/scan/url`, JSON-LD offers extended to all four tiers ($29/$99/
+  $199/$399 Forensic). Footer now links `/web`, `/wp`, `/fixes`
+  (previously orphaned — unreachable from any nav).
+- **Honesty fixes**: score page said "powered by Claude Opus 4.7" →
+  Sonnet 4.7. `statsByRule()` now warns when DATABASE_URL is unset
+  instead of silently feeding the confidence-calibrator zeros.
+- Known Issue #33 filed: hacker-news-monitor trainer built + tested
+  but unwired, held for Craig's Boss Rule #7 OK.
+
+**v1.46 changes (2026-06-03 session):**
 - **Opus → Sonnet across the entire engine** (Craig 2026-06-03 — *"Opus
   is absolutely terrible at debugging websites, it needs to be Sonnet"*).
   Boss Rule #1 (major architectural change) + #3 (pricing/economics

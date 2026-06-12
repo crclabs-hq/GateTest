@@ -121,7 +121,7 @@ const STAGE_ICONS = [
   {
     name: "SOURCE",
     role: "Static analysis of the repo",
-    detail: "91 modules — same as a Quick scan. Looks at the code on disk.",
+    detail: "110 modules — same engine as a repo scan. Looks at the code on disk.",
     color: "from-blue-500/20 to-blue-500/5",
     border: "border-blue-400/30",
     text: "text-blue-300",

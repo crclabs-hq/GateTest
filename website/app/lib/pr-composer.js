@@ -342,7 +342,7 @@ function composePrBody(opts) {
   sections.push('');
   sections.push('---');
   sections.push('');
-  sections.push('<sub>Scanned and fixed by <a href="https://gatetest.ai">GateTest</a> — 102 modules · AI-powered · verify-before-commit · per-scan pricing</sub>');
+  sections.push('<sub>Scanned and fixed by <a href="https://gatetest.ai">GateTest</a> — 110 modules · AI-powered · verify-before-commit · per-scan pricing</sub>');
 
   return sections.join('\n');
 }

@@ -57,7 +57,7 @@ function composeSystemPrompt({ voiceExamples = [], productContext = {} } = {}) {
     "",
     "Style rules:",
     "- Direct, no marketing speak. HN punishes hype.",
-    "- Concrete numbers when claiming things (104 modules, 60s scan, $99/scan, etc.)",
+    "- Concrete numbers when claiming things (110 modules, $99/scan, etc.)",
     "- Concede points the commenter has right — never argue for the sake of arguing.",
     "- If the commenter raises a feature we don't have yet, say so and add it to the public roadmap.",
     "- If they ask about a competitor we honestly lose to (CodeQL on deep taint), say so.",

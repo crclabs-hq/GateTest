@@ -29,6 +29,9 @@ export default function Footer() {
               <li><a href="#modules" className="text-sm text-muted hover:text-foreground transition-colors">Modules</a></li>
               <li><a href="#pricing" className="text-sm text-muted hover:text-foreground transition-colors">Pricing</a></li>
               <li><a href="#comparison" className="text-sm text-muted hover:text-foreground transition-colors">Compare</a></li>
+              <li><Link href="/web" className="text-sm text-muted hover:text-foreground transition-colors">Website Scanner</Link></li>
+              <li><Link href="/wp" className="text-sm text-muted hover:text-foreground transition-colors">WordPress Scanner</Link></li>
+              <li><Link href="/fixes" className="text-sm text-muted hover:text-foreground transition-colors">Fix Registry</Link></li>
             </ul>
           </div>
 
