@@ -64,6 +64,12 @@ const TRAINERS = [
     modulePath: '../website/app/lib/trainers/adversarial-mutator.js',
     method: 'run',
     slow: true },
+  // Read-only HN Algolia sweep — drafts replies FOR CRAIG REVIEW, never
+  // posts. Wiring authorized by Craig 2026-06-12 (Boss Rule #7).
+  { name: 'hacker-news-monitor',
+    flag: 'hn',
+    modulePath: '../website/app/lib/trainers/hacker-news-monitor.js',
+    method: 'monitor' },
 ];
 
 function parseTrainArgs(argv) {

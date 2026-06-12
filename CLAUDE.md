@@ -772,7 +772,7 @@ GateTest/
 | 30 | **Five test files renamed `.test.skip.js`** to unblock CI — all five now RESTORED. (1) `datadog-client` — rewritten for actual API (fetchTopErrors/fetchErrorTraces/extractSourceLocation). (2) `incremental-filter` — fixed wrong property name + implemented missing universal-checker incremental support + config.incremental shape. (3) `incremental-scan` — implemented --since/--pr CLI flags + runner._resolveIncrementalFiles + skip/alwaysRun list logic. (4) `cross-repo-lookup` — replaced stale priorArt assertions with correct buildDiagnosisPrompt shape tests. (5) `mcp-server` — changed hardcoded "90 modules" to `\d{2,3}` regex. All 5 test files active, full suite 4721/4722 pass. | MEDIUM | **DONE** — all 5 skip files restored across PR #120 + PR #121. |
 | 31 | **Scan-speed reality vs claims (claims audit 2026-06-09)** — measured on this repo: quick suite (41 modules) = 34-52s wall; full suite did not finish inside 20 minutes locally (heavy modules: e2e/visual/mutation run real work). Public copy claiming "full 110-module scan in under 60 seconds" (compare/deepsource, compare/sonarqube, Install.tsx, regulation pages) was softened to "minutes" in the same audit. Bible Quality Bar #9 ("Quick <15s, Full <60s") needs either real benchmarks on representative customer-size repos to re-justify harder numbers, or the bar itself revised. | MEDIUM | OPEN — benchmark on 3 representative small/mid customer repos, then either restore harder public numbers with proof or amend Quality Bar #9. |
 | 32 | **Two fully-built modules never registered: `src/modules/cve-feed.js` + `src/modules/sbom.js`** (claims audit 2026-06-09) — both are complete BaseModule subclasses with `module.exports`, absent from `BUILT_IN_MODULES` in `src/core/registry.js` (registry = 110, module files = 117; other 5 unregistered files are base-module + 4 live-crawler helpers, which is correct). No public surface claims them, so no honesty violation — but they are dormant capability (or dead code our own deadCode module would flag). Decide: register (module count 110→112, Forbidden #17 VERSION update + copy sweep required; check cve-feed network-call policy first) or delete. | MEDIUM | OPEN — likely parked intentionally (CVE feed needs network access). Next session: confirm intent, then register-or-delete. |
-| 33 | **Hacker-news-monitor trainer built + tested but UNWIRED** — `website/app/lib/trainers/hacker-news-monitor.js` (Craig's 2026-05-29 HN-feedback directive) is absent from `trainer-nightly.yml` and the `bin/gatetest-train.js` TRAINERS array. The module's own header holds production wiring pending Craig's explicit Boss Rule #7 OK (third-party API — read-only HN Algolia search, never posts, drafts marked FOR CRAIG REVIEW). Wiring is one entry on each side once authorized. Found by the 2026-06-12 full-audit session. | HIGH | Craig action — authorize and the next session wires it into the nightly + CLI. |
+| 33 | **Hacker-news-monitor trainer built + tested but UNWIRED** — `website/app/lib/trainers/hacker-news-monitor.js` (Craig's 2026-05-29 HN-feedback directive) was absent from `trainer-nightly.yml` and the `bin/gatetest-train.js` TRAINERS array, held for Craig's Boss Rule #7 OK. | HIGH | DONE (2026-06-12) — **Craig authorized same-session** ("Yes, wire it in"). Trainer #8 now in `trainer-nightly.yml` (own step + docs/trainer artifact copy + "all 8 trainers" PR copy) and `gatetest train` (`--only hn`). Added `renderMarkdown()` + CLI main writing `~/.gatetest/trainers/hacker-news-latest.json`, matching the other trainers' contract. Verified end-to-end locally; still read-only / drafts-only — posting remains Craig's call (Boss Rule #8). |
 
 ---
 
@@ -858,8 +858,11 @@ tier. Date stamp: 2026-06-12.
 - **Honesty fixes**: score page said "powered by Claude Opus 4.7" →
   Sonnet 4.7. `statsByRule()` now warns when DATABASE_URL is unset
   instead of silently feeding the confidence-calibrator zeros.
-- Known Issue #33 filed: hacker-news-monitor trainer built + tested
-  but unwired, held for Craig's Boss Rule #7 OK.
+- **HN-monitor trainer WIRED as trainer #8** — Craig authorized
+  same-session (Boss Rule #7). Nightly workflow + `gatetest train
+  --only hn` + renderMarkdown/CLI-main contract. Read-only Algolia
+  sweep; drafts marked FOR CRAIG REVIEW; never posts (Known Issue
+  #33 → DONE).
 
 **v1.46 changes (2026-06-03 session):**
 - **Opus → Sonnet across the entire engine** (Craig 2026-06-03 — *"Opus
