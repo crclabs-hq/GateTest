@@ -125,6 +125,22 @@ export default function RootLayout({
                   description:
                     "All 110 modules including AI code review, security, supply chain, auth flaws, and more",
                 },
+                {
+                  "@type": "Offer",
+                  name: "Scan + Fix",
+                  price: "199.00",
+                  priceCurrency: "USD",
+                  description:
+                    "All 110 modules plus an AI auto-fix pull request with regression tests, pair-review, and architecture annotations",
+                },
+                {
+                  "@type": "Offer",
+                  name: "Forensic Scan",
+                  price: "399.00",
+                  priceCurrency: "USD",
+                  description:
+                    "Deep scan with per-finding Claude diagnosis, cross-finding attack-chain correlation, auto-fix PR, pair-review, and an executive summary report",
+                },
               ],
             }),
           }}

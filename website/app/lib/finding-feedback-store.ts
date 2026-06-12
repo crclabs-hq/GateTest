@@ -165,7 +165,12 @@ export interface RuleDismissalStat {
  * @param ruleLimit max rules to return (default 200)
  */
 export async function statsByRule(sinceDays = 90, ruleLimit = 200): Promise<RuleDismissalStat[]> {
-  if (!process.env.DATABASE_URL) return [];
+  if (!process.env.DATABASE_URL) {
+    // Surface the degradation — otherwise the confidence-calibrator
+    // silently reports 0 recommendations and nobody knows why.
+    console.warn("[finding-feedback-store] DATABASE_URL unset — statsByRule returning empty (confidence-calibrator will see no dismissal data)");
+    return [];
+  }
   try {
     await ensureSchema();
     const sql = getDb();

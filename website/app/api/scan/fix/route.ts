@@ -314,6 +314,23 @@ const { attemptFixWithRetries, summariseAttempts } = require("@/app/lib/fix-atte
   }>;
   summariseAttempts: (attempts: Array<{ outcome: string; durationMs: number }>) => string;
 };
+// Flywheel telemetry — records WHICH layer handled each fix so the nightly
+// pattern-miner trains on production data, not just CLI runs. Best-effort,
+// never throws (resilience contract documented in the module).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { recordFixAttempt } = require("@/app/lib/fix-telemetry") as {
+  recordFixAttempt: (entry: {
+    layer: "ast" | "rule" | "recipe" | "claude" | null;
+    success: boolean;
+    issueRuleKey?: string;
+    module?: string;
+    durationMs?: number;
+    costUsd?: number;
+    reason?: string;
+    model?: string;
+    fileExt?: string;
+  }) => void;
+};
 // Shape of the shared adaptive-concurrency state object. Mirrors the JS
 // source at website/app/lib/adaptive-concurrency.js — workers may mutate
 // `activeConcurrency` (throttle) or `haltRun` (abort) and the pool reacts.
@@ -1559,6 +1576,21 @@ export async function POST(req: NextRequest) {
     errors.push(`Skipped ${skippedForBudget} file${skippedForBudget > 1 ? "s" : ""} — function time budget exhausted. Re-run fix to process the remainder.`);
   }
 
+  // Flywheel capture — one telemetry record per attempted file. CVE
+  // version-bumps ran without Claude (deterministic 'rule' layer);
+  // everything else that reached the loop is the 'claude' layer. Records
+  // ruleKey/module-free aggregates only (privacy contract in fix-telemetry).
+  for (const [filePath, history] of Object.entries(attemptHistoryByFile)) {
+    const deterministic = history.summary.includes("without Claude");
+    recordFixAttempt({
+      layer: deterministic ? "rule" : "claude",
+      success: history.success,
+      durationMs: history.attempts.reduce((acc, a) => acc + (a.durationMs || 0), 0),
+      reason: history.success ? undefined : (history.attempts[history.attempts.length - 1]?.outcome || "unknown"),
+      fileExt: (filePath.match(/\.[a-z0-9]+$/i) || [""])[0] || undefined,
+    });
+  }
+
   if (fixes.length === 0) {
     const apiDegraded = failedFiles.length > 0 && failedFiles.length === fileEntries.length;
     return NextResponse.json({
@@ -1860,11 +1892,22 @@ export async function POST(req: NextRequest) {
       cveSection: cvePrSection || undefined,
       cisoReport: cisoReportDescriptor,
     });
+    // Cross-repo flywheel CONSUME side — annotate fixes whose diff shape
+    // structurally matches anonymised vectors already shipped on other
+    // codebases. Best-effort: helper never throws, '' means no section.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { annotateFixesWithPriorArt, renderPriorArtSection } = require("@/app/lib/cross-repo-prior-art") as {
+      annotateFixesWithPriorArt: (fixes: Array<{ file: string; original: string; fixed: string }>) => Array<{ file: string; priorArt: { operatorClass: string; sampleSize: number } }>;
+      renderPriorArtSection: (annotations: Array<{ file: string; priorArt: { operatorClass: string; sampleSize: number } }>) => string;
+    };
+    const priorArtSection = renderPriorArtSection(annotateFixesWithPriorArt(fixes));
+
     // Append the advisory section (files the tier cap couldn't cover)
     // so customers see what was left on the table without paying for it.
-    const prBody = advisoryMarkdown
+    let prBody = advisoryMarkdown
       ? `${prBodyCore}\n\n---\n\n${advisoryMarkdown}`
       : prBodyCore;
+    if (priorArtSection) prBody = `${prBody}\n\n---\n\n${priorArtSection}`;
 
     // Open the PR. NOTE: Gluecron uses `headBranch` / `baseBranch` (NOT
     // GitHub's `head` / `base`) — our openPullRequest helper handles the
