@@ -28,12 +28,12 @@ import { totalModuleCount } from "@/app/components/howitworks/modules-data";
  */
 export const TOTAL_MODULES: number = totalModuleCount();
 
-/** Plain helper: "102 modules". */
+/** Plain helper: "110 modules". */
 export function modulesLabel(): string {
   return `${TOTAL_MODULES} modules`;
 }
 
-/** Plain helper: "All 102 modules". */
+/** Plain helper: "All 110 modules". */
 export function allModulesLabel(): string {
   return `All ${TOTAL_MODULES} modules`;
 }

@@ -89,7 +89,7 @@ export default async function Image() {
             marginBottom: 36,
           }}
         >
-          102 deterministic modules. <span style={{ color: "#2dd4bf" }}>One Claude pass when it&apos;s worth it.</span> Zero hype.
+          110 modules — deterministic first. <span style={{ color: "#2dd4bf" }}>One Claude pass when it&apos;s worth it.</span> Zero hype.
         </div>
 
         {/* Pillars row */}

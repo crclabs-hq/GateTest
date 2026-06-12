@@ -1,7 +1,7 @@
 name: Flywheel Trainer — Nightly
 
 # Runs every night at 03:00 UTC. Ingests the last 30d of git history into
-# the session-fix corpus, runs all 7 flywheel trainers, and opens a PR
+# the session-fix corpus, runs all 8 flywheel trainers, and opens a PR
 # (or appends to an existing one) with the combined report.
 #
 # Trainer inventory:
@@ -12,6 +12,9 @@ name: Flywheel Trainer — Nightly
 #   5. cross-repo-promoter    — anonymised structural rewrite vectors
 #   6. confidence-calibrator  — dismissal rates → severity downgrades
 #   7. adversarial-mutator    — self-tests the gate by mutating known-good code
+#   8. hacker-news-monitor    — HN mentions + competitor pain-points → drafts
+#                               FOR CRAIG REVIEW (read-only API, never posts;
+#                               wiring authorized by Craig 2026-06-12)
 #
 # Read-only on source code. NEVER modifies modules / tests / rules directly.
 # Generated pending files (rule-based-fixer-pending/, tests/auto-generated/)
@@ -137,6 +140,16 @@ jobs:
             cp "$HOME/.gatetest/trainers/confidence-calibrator-latest.json" .gatetest-train/confidence-calibrator.json
           fi
 
+      - name: Run hacker-news-monitor trainer
+        # Read-only sweep of the public HN Algolia API: GateTest mentions,
+        # competitor pain-points, draft replies marked FOR CRAIG REVIEW.
+        # Never posts anywhere. Authorized by Craig 2026-06-12 (Boss Rule #7).
+        run: |
+          node website/app/lib/trainers/hacker-news-monitor.js > .gatetest-train/hacker-news.md || true
+          if [ -f "$HOME/.gatetest/trainers/hacker-news-latest.json" ]; then
+            cp "$HOME/.gatetest/trainers/hacker-news-latest.json" .gatetest-train/hacker-news.json
+          fi
+
       - name: Upload trainer artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -171,6 +184,8 @@ jobs:
           cp .gatetest-train/cross-repo-promoter.json "docs/trainer/${DATE}-cross-repo-promoter.json" 2>/dev/null || true
           cp .gatetest-train/confidence-calibrator.md "docs/trainer/${DATE}-confidence-calibrator.md"  2>/dev/null || true
           cp .gatetest-train/confidence-calibrator.json "docs/trainer/${DATE}-confidence-calibrator.json" 2>/dev/null || true
+          cp .gatetest-train/hacker-news.md "docs/trainer/${DATE}-hacker-news.md"  2>/dev/null || true
+          cp .gatetest-train/hacker-news.json "docs/trainer/${DATE}-hacker-news.json" 2>/dev/null || true
 
           # recipe-auto-promoter writes pending rule files here for review
           if [ -d website/app/lib/rule-based-fixer-pending ]; then
@@ -187,11 +202,11 @@ jobs:
             echo "no changes — skipping PR"
             exit 0
           fi
-          git -c commit.gpgsign=false commit -m "chore(trainer): all-7-trainers report $(date -u +%Y-%m-%d)"
+          git -c commit.gpgsign=false commit -m "chore(trainer): all-8-trainers report $(date -u +%Y-%m-%d)"
           git push -u origin "$BRANCH" --force-with-lease
 
           # Create PR (idempotent — gh fails harmlessly if PR exists)
-          PR_BODY=$(printf '## Nightly flywheel trainer report (%s)\n\nAll 7 trainers ran. Review each section and merge to land reports in docs/trainer/.\n\n**Pending rule files** (if any) are under `website/app/lib/rule-based-fixer-pending/` — verify the source SHAs in the header comment, then move the rule into `rule-based-fixer.js` RULES array.\n\n**Pending test stubs** (if any) are under `tests/auto-generated/*.pending.test.js` — fill in assertions and rename to `.test.js` to activate.' "$(date -u +%Y-%m-%d)")
+          PR_BODY=$(printf '## Nightly flywheel trainer report (%s)\n\nAll 8 trainers ran. Review each section and merge to land reports in docs/trainer/.\n\n**Pending rule files** (if any) are under `website/app/lib/rule-based-fixer-pending/` — verify the source SHAs in the header comment, then move the rule into `rule-based-fixer.js` RULES array.\n\n**Pending test stubs** (if any) are under `tests/auto-generated/*.pending.test.js` — fill in assertions and rename to `.test.js` to activate.' "$(date -u +%Y-%m-%d)")
           gh pr create \
             --base main \
             --head "$BRANCH" \

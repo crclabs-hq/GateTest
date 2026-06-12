@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { getCountryBySlug } from "../countries";
 
-// Total live module count — sourced from CLAUDE.md v1.43.0 (91 modules).
-const MODULE_COUNT = 91;
+// Total live module count — sourced from CLAUDE.md v1.46.0 (110 modules).
+const MODULE_COUNT = 110;
 
 interface LayoutParams {
   params: Promise<{ country: string }>;

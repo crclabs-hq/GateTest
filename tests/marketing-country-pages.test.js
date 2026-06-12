@@ -263,9 +263,9 @@ describe("/for/[country]/page.tsx factory", () => {
     assert.match(src, /`GateTest for \$\{data\.name\}/, "country-specific title missing");
   });
 
-  it("uses the live module count (91, not stale 104 or 102)", () => {
-    assert.match(src, /MODULE_COUNT\s*=\s*91/, "stale module count");
-    assert.ok(!/\b104 modules\b/.test(src), "stale 104 modules reference");
+  it("uses the live module count (110, not stale 91/102/104)", () => {
+    assert.match(src, /MODULE_COUNT\s*=\s*110/, "stale module count");
+    assert.ok(!/\b(91|102|104) modules\b/.test(src), "stale module count reference");
   });
 
   it("contains no eslint-disable directives", () => {

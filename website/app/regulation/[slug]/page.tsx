@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -6,6 +7,7 @@ import {
   getRegulationBySlug,
   moduleNameToSlug,
 } from "../catalog";
+import { contentMetadata } from "../../lib/seo/schema";
 
 interface PageParams {
   params: Promise<{ slug: string }>;
@@ -13,6 +15,25 @@ interface PageParams {
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
   return getAllRegulationSlugs().map((slug) => ({ slug }));
+}
+
+export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
+  const { slug } = await params;
+  const reg = getRegulationBySlug(slug);
+  if (!reg) return { title: "Regulation not found — GateTest" };
+  return contentMetadata({
+    title: `${reg.name} compliance scanning for developers | GateTest`,
+    description: `Catch the code-level findings ${reg.name} (${reg.longName}) auditors look for — secret hygiene, PII in logs, TLS misconfig — in one GateTest scan.`.slice(0, 180),
+    path: `/regulation/${reg.slug}`,
+    ogType: "article",
+    keywords: [
+      `${reg.name.toLowerCase()} compliance`,
+      `${reg.name.toLowerCase()} code scanning`,
+      `${reg.name.toLowerCase()} developer checklist`,
+      "compliance scanner",
+      "code audit",
+    ],
+  });
 }
 
 const SHOW_HN_BADGE = process.env.NEXT_PUBLIC_LAUNCH_HN === "1";

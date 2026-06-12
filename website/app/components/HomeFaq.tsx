@@ -10,10 +10,13 @@
  */
 
 import Link from "next/link";
+import { faqSchema, jsonLd } from "../lib/seo/schema";
 
 interface Faq {
   q: string;
   a: React.ReactNode;
+  /** Plain-text mirror of `a` for the FAQPage JSON-LD rich result. */
+  plain: string;
 }
 
 const FAQS: Faq[] = [
@@ -21,16 +24,18 @@ const FAQS: Faq[] = [
     q: "Is this just another AI tool?",
     a: (
       <>
-        No. The static engine ships first: 91 deterministic modules — AST,
-        regex, file walkers — zero LLM calls. Claude only enters when the
-        deterministic layers can&apos;t resolve a finding (roughly 5% of
-        fixes). The 4-layer{" "}
+        No. The deterministic engine ships first — AST, regex, file
+        walkers across 110 modules, no LLM in the loop. Claude only
+        enters when the deterministic layers can&apos;t resolve a finding
+        (roughly 5% of fixes). The 4-layer{" "}
         <a href="#flywheel" className="text-accent hover:underline">
           flywheel architecture
         </a>{" "}
         is the moat.
       </>
     ),
+    plain:
+      "No. The deterministic engine ships first — AST, regex, file walkers across 110 modules, no LLM in the loop. Claude only enters when the deterministic layers can't resolve a finding (roughly 5% of fixes). The 4-layer flywheel architecture is the moat.",
   },
   {
     q: "Is my code stored anywhere?",
@@ -46,6 +51,8 @@ const FAQS: Faq[] = [
         </Link>
       </>
     ),
+    plain:
+      "No. Scans are ephemeral: we clone, run the engine, post the report, delete the clone. With the GitHub Action your repo never leaves your CI. For paid scans run from our infra, the working copy lives on a serverless function for the duration of the scan only.",
   },
   {
     q: "Why not just ESLint + Snyk + the other 10 tools?",
@@ -64,6 +71,8 @@ const FAQS: Faq[] = [
         .
       </>
     ),
+    plain:
+      "You can — most teams do. The question is who maintains the compose-of-ten and who pays the per-seat tax across all of them. GateTest replaces 30+ tools with one CLI, one config, one bill.",
   },
   {
     q: "Per-scan pricing — what's the catch?",
@@ -79,6 +88,8 @@ const FAQS: Faq[] = [
         is well above 99% on real repos, so this rarely happens.
       </>
     ),
+    plain:
+      "None. You pay once via Stripe at checkout, we run the scan, you get the report. No subscription, no auto-renew, no per-seat billing. If a scan fails to start or crashes, contact hello@gatetest.ai and we re-run it or issue a credit.",
   },
   {
     q: "Is the gate actually strict?",
@@ -97,6 +108,8 @@ const FAQS: Faq[] = [
         QA-platform marketing slip into prod anyway.
       </>
     ),
+    plain:
+      "Yes. Our rules outright ban continue-on-error on the gate step, and we dog-food it: our own self-scan is a hard gate on every push to main.",
   },
   {
     q: "Can I trust an AI to repair my CI?",
@@ -112,12 +125,20 @@ const FAQS: Faq[] = [
         <code className="font-mono text-accent text-xs">docs/proofs/</code>.
       </>
     ),
+    plain:
+      "The fix-flow is layered: AST, then rule recipe, then cached pattern, then Claude. Every fix passes a syntax gate and a scanner re-validation gate before the PR opens. Claude never auto-merges — it opens a PR you review. At $199+ tiers a second Claude pair-reviews every fix on a 4-axis rubric.",
   },
 ];
 
 export default function HomeFaq() {
   return (
     <section id="faq" className="py-24 px-6 border-t border-border">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLd(faqSchema(FAQS.map((f) => ({ q: f.q, a: f.plain })))),
+        }}
+      />
       <div className="mx-auto max-w-3xl">
         <div className="text-center mb-12">
           <span className="text-sm font-semibold text-accent uppercase tracking-wider">
