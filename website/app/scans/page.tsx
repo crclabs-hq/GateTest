@@ -324,12 +324,12 @@ export default function HallOfScans() {
             >
               Free preview scan &rarr;
             </Link>
-            <a
+            <Link
               href="/#pricing"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-border text-foreground font-semibold hover:bg-surface-dark transition-colors"
             >
               See full pricing
-            </a>
+            </Link>
           </div>
         </div>
 
