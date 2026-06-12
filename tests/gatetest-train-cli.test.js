@@ -24,12 +24,13 @@ describe('gatetest train — module shape', () => {
     assert.ok(Array.isArray(train.TRAINERS));
   });
 
-  it('TRAINERS catalogue lists the 7 Wave 1-6 trainers (incl recipe-auto-promoter)', () => {
+  it('TRAINERS catalogue lists all 8 trainers (incl hacker-news-monitor, Craig-authorized 2026-06-12)', () => {
     const names = train.TRAINERS.map((t) => t.name).sort();
     assert.deepStrictEqual(names, [
       'adversarial-mutator',
       'confidence-calibrator',
       'cross-repo-promoter',
+      'hacker-news-monitor',
       'pattern-miner',
       'recipe-auto-promoter',
       'recipe-promoter',

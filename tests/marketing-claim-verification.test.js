@@ -156,7 +156,7 @@ describe('marketing claim — flywheel intelligence pipeline', () => {
     assert.match(src, /recordSessionFix/);
   });
 
-  it('all 7 trainers exist as separate files', () => {
+  it('all 8 trainers exist as separate files', () => {
     const required = [
       'website/app/lib/trainers/pattern-miner.js',
       'website/app/lib/trainers/recipe-promoter.js',
@@ -165,6 +165,7 @@ describe('marketing claim — flywheel intelligence pipeline', () => {
       'website/app/lib/trainers/cross-repo-promoter.js',
       'website/app/lib/trainers/adversarial-mutator.js',
       'website/app/lib/trainers/confidence-calibrator.js',
+      'website/app/lib/trainers/hacker-news-monitor.js',
     ];
     for (const r of required) {
       assert.ok(fileExists(r), `trainer file ${r} should exist`);
@@ -182,11 +183,11 @@ describe('marketing claim — flywheel intelligence pipeline', () => {
     // the bulk artifact upload — we accept either shape here.
   });
 
-  it('gatetest train CLI lists all 7 trainers', () => {
+  it('gatetest train CLI lists all 8 trainers', () => {
     const train = require('../bin/gatetest-train.js');
     const names = train.TRAINERS.map((t) => t.name);
-    assert.strictEqual(names.length, 7);
-    for (const t of ['pattern-miner', 'recipe-promoter', 'recipe-auto-promoter', 'regression-test-generator', 'cross-repo-promoter', 'adversarial-mutator', 'confidence-calibrator']) {
+    assert.strictEqual(names.length, 8);
+    for (const t of ['pattern-miner', 'recipe-promoter', 'recipe-auto-promoter', 'regression-test-generator', 'cross-repo-promoter', 'adversarial-mutator', 'confidence-calibrator', 'hacker-news-monitor']) {
       assert.ok(names.includes(t), `CLI catalogue should include ${t}`);
     }
   });
