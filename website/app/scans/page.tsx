@@ -34,7 +34,7 @@ interface ScanEntry {
 
 const SCANS: ScanEntry[] = [
   {
-    repo: "crclabs-hq/gatetest",
+    repo: "GateTest — self-scan (this product's own repo)",
     url: "https://github.com/crclabs-hq/gatetest",
     tier: "Forensic ($399)",
     date: "2026-04-26",
@@ -62,7 +62,7 @@ const SCANS: ScanEntry[] = [
     highlight: "GateTest ran on itself. We found 37 real errors — all fixed before shipping. The CI continue-on-error violation was caught by the ciSecurity module dog-fooding its own rule.",
   },
   {
-    repo: "Gate-Test/Crontech (protected platform)",
+    repo: "Vapron — production scheduling platform (dogfood)",
     url: "#",
     tier: "Forensic ($399)",
     date: "2026-04-26",
@@ -91,7 +91,7 @@ const SCANS: ScanEntry[] = [
     highlight: "754 errors across a production scheduling platform. Two critical attack chains, both requiring less than 30 minutes to exploit. The supply-chain chain is the one that makes security engineers go quiet.",
   },
   {
-    repo: "ccantynz-alt/Gluecron.com",
+    repo: "Gluecron.com — workflow automation platform (dogfood)",
     url: "#",
     tier: "Forensic ($399)",
     date: "2026-04-26",
@@ -146,8 +146,33 @@ const SEVERITY_CONFIG = {
 
 export default function HallOfScans() {
   return (
-    <main className="min-h-screen bg-background px-6 py-16">
-      <div className="max-w-4xl mx-auto">
+    <main className="min-h-screen bg-background">
+      {/* Top nav — back to the main site (page previously had no way out) */}
+      <nav className="sticky top-0 z-20 border-b border-border/50 bg-background/90 backdrop-blur-md px-6 py-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
+              <span className="text-white font-bold text-sm font-mono">G</span>
+            </div>
+            <span className="text-xl font-bold tracking-tight">
+              Gate<span className="text-teal-500">Test</span>
+            </span>
+          </Link>
+          <div className="flex items-center gap-5 text-sm">
+            <Link href="/how-it-works" className="text-muted hover:text-foreground transition-colors">
+              How it works
+            </Link>
+            <Link href="/#pricing" className="text-muted hover:text-foreground transition-colors">
+              Pricing
+            </Link>
+            <Link href="/" className="text-muted hover:text-foreground transition-colors">
+              &larr; Back to home
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-4xl mx-auto px-6 py-16">
 
         {/* Header */}
         <div className="text-center mb-16">
@@ -300,7 +325,7 @@ export default function HallOfScans() {
               Free preview scan &rarr;
             </Link>
             <a
-              href="#pricing"
+              href="/#pricing"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-border text-foreground font-semibold hover:bg-surface-dark transition-colors"
             >
               See full pricing

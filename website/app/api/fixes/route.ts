@@ -8,9 +8,26 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { getDb } from "@/app/lib/db";
 
 const { recordFix, listFixes, getFixStats } = require("@/app/lib/fixes-store");
+
+// Public anonymisation (Craig 2026-06-12 — customers must not have their
+// repo details published). Raw repo_name / pr_url stay in the DB for
+// support and analytics; the public GET only ever exposes a stable
+// anonymous label so repeat fixes on the same repo still group visibly.
+function anonymizeFix(fix: { repo_name?: string; pr_url?: string } & Record<string, unknown>) {
+  const hash = createHash("sha256")
+    .update(String(fix.repo_name || ""))
+    .digest("hex")
+    .slice(0, 6);
+  return {
+    ...fix,
+    repo_name: `private repo · ${hash}`,
+    pr_url: null,
+  };
+}
 
 // Internal calls from /api/scan/fix authenticate with this token.
 // Falls back to GATETEST_ADMIN_PASSWORD so existing infra doesn't need a new env var.
@@ -28,7 +45,8 @@ export async function GET(req: NextRequest) {
 
     const page = Number(searchParams.get("page") || "1");
     const result = await listFixes({ sql, page });
-    return NextResponse.json({ ok: true, ...result });
+    const fixes = Array.isArray(result.fixes) ? result.fixes.map(anonymizeFix) : result.fixes;
+    return NextResponse.json({ ok: true, ...result, fixes });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });

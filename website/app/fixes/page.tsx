@@ -21,7 +21,7 @@ interface Fix {
   id: string;
   created_at: string;
   repo_name: string;
-  pr_url: string;
+  pr_url: string | null;
   tier: string;
   errors_fixed: number;
   warnings_fixed: number;
@@ -139,15 +139,19 @@ export default async function FixesPage() {
                     </div>
                     <div className="flex items-center gap-3 text-xs text-slate-500 shrink-0">
                       <span>{formatDate(fix.created_at)}</span>
-                      <a
-                        href={fix.pr_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-teal-400 hover:text-teal-300 transition-colors"
-                        aria-label={`View PR for ${fix.repo_name}`}
-                      >
-                        View PR →
-                      </a>
+                      {/* PR links are withheld on the public registry — they
+                          identify the customer's repo (Craig 2026-06-12). */}
+                      {fix.pr_url && (
+                        <a
+                          href={fix.pr_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-teal-400 hover:text-teal-300 transition-colors"
+                          aria-label={`View PR for ${fix.repo_name}`}
+                        >
+                          View PR →
+                        </a>
+                      )}
                     </div>
                   </div>
 
