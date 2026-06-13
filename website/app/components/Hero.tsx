@@ -10,8 +10,14 @@
  *   - Two columns on desktop: outcome-first headline + live URL-scan CTA on
  *     the left, a polished dark product card (the auto-fix PR moment) on the
  *     right. Stacks on mobile.
- *   - Honesty preserved: every number is real (110 modules, 5,600+ tests,
+ *   - Honesty preserved: every number is real (module count, tests passing,
  *     self-scan green, pay-per-scan). No fabricated logos or customers.
+ *     The numbers are NOT hardcoded — they're read from
+ *     website/app/data/site-stats.json, which scripts/generate-site-stats.js
+ *     regenerates from a real `node --test` run + `gatetest --list` + the
+ *     flywheel telemetry. Displayed counts are rounded DOWN, so the public
+ *     "N+" claim is always an under-statement. The dogfood-nightly workflow
+ *     re-runs the generator every night and opens a PR with the diff.
  *
  * The `UrlScanFlow` component is the same one used by /web — it runs the real
  * free scan, paywall, health score, and result rendering.
@@ -21,6 +27,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { UrlScanFlow } from "./UrlScanFlow";
 import CountUp from "./CountUp";
+import siteStats from "../data/site-stats.json";
 
 const SAMPLE_URLS = [
   { label: "example.com", url: "https://example.com" },
@@ -57,7 +64,7 @@ export default function Hero() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <span>Launching today &middot; 110 modules live</span>
+              <span>Launching today &middot; {siteStats.modules.total} modules live</span>
             </div>
 
             <h1 className="font-display text-[2.7rem] leading-[1.04] sm:text-6xl lg:text-[4.1rem] font-extrabold text-gray-900 mb-6 fade-up">
@@ -68,7 +75,7 @@ export default function Hero() {
             </h1>
 
             <p className="text-lg sm:text-xl text-gray-600 leading-relaxed mb-3 fade-up">
-              110 checks. One gate. We catch the bug, security hole, or CI rot
+              {siteStats.modules.total} checks. One gate. We catch the bug, security hole, or CI rot
               that crashes your deploy &mdash; then open a pull request with the
               fix already written, tested, and pair-reviewed by a second AI.
             </p>
@@ -166,7 +173,7 @@ export default function Hero() {
             {/* floating KPI chip for depth */}
             <div className="product-chip hidden sm:flex items-center gap-2.5 absolute -bottom-5 -left-5 px-4 py-3 rounded-xl">
               <div className="text-2xl font-extrabold text-[#0f766e] tabular-nums leading-none">
-                <CountUp value="102" duration={1400} />/110
+                <CountUp value={String(siteStats.modules.green)} duration={1400} />/{siteStats.modules.scanned}
               </div>
               <div className="text-[11px] text-gray-500 leading-tight">
                 modules green<br />on our own repo
@@ -199,9 +206,9 @@ export default function Hero() {
       {/* ── Bold full-bleed stats band — our answer to Klaviyo's green band ── */}
       <div className="stats-band relative z-10">
         <div className="mx-auto max-w-7xl px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-y-7 gap-x-6">
-          <BandStat num="5,600+" label="tests passing, every commit" />
-          <BandStat num="110" label="modules in one gate" />
-          <BandStat num="102/110" label="green on our own repo" />
+          <BandStat num={siteStats.tests.displayPassing} label="tests passing, every commit" />
+          <BandStat num={String(siteStats.modules.total)} label="modules in one gate" />
+          <BandStat num={siteStats.modules.displayGreen} label="green on our own repo" />
           <BandStat num="$29+" label="per scan · no subscription" />
         </div>
       </div>
