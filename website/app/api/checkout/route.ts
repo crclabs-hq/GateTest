@@ -39,6 +39,8 @@ interface ScanTier {
   priceInCents: number;
   modules: string;
   description: string;
+  /** Stripe Checkout mode — monthly subscription instead of one-time payment. */
+  recurring?: boolean;
 }
 
 const TIERS: Record<string, ScanTier> = {
@@ -80,6 +82,19 @@ const TIERS: Record<string, ScanTier> = {
     description:
       "Everything in Scan + Fix, PLUS: real Claude diagnosis on every finding (no templated snippets), cross-finding attack-chain correlation (textbook session-forgery / supply-chain vectors no per-finding scanner can see), board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary report. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (mutation: true / chaos: true) — they need a CI runner so they ship wherever your CI runs.",
 
+  },
+  // Continuous subscription — Craig green-light 2026-06-12. Unlimited
+  // deterministic scans on every push (near-zero marginal cost); AI reviews
+  // metered by the continuous_ai_ledger monthly allowance (default $10/mo,
+  // env CONTINUOUS_AI_BUDGET_USD). Fix PRs are NOT included — they remain
+  // the per-scan upsell.
+  continuous: {
+    name: "Continuous",
+    priceInCents: 4900,
+    modules: "subscription-continuous",
+    description:
+      "Scan every push. Unlimited deterministic scans across all 110 modules, plus a monthly Claude AI-review allowance. Cancel anytime.",
+    recurring: true,
   },
 };
 
@@ -177,23 +192,48 @@ export async function POST(req: NextRequest) {
     // Create Stripe Checkout Session — charge captures at checkout (no
     // manual capture / hold-then-charge). Refunds are discretionary, not
     // an automatic-on-failure mechanism.
-    const params = new URLSearchParams({
-      "payment_method_types[0]": "card",
-      mode: "payment",
-      "payment_intent_data[metadata][tier]": input.tier || "",
-      "payment_intent_data[metadata][repo_url]": input.repoUrl,
-      "payment_intent_data[metadata][modules]": tier.modules,
-      "metadata[tier]": input.tier || "",
-      "metadata[repo_url]": input.repoUrl,
-      "metadata[modules]": tier.modules,
-      "line_items[0][price_data][currency]": "usd",
-      "line_items[0][price_data][unit_amount]": String(tier.priceInCents),
-      "line_items[0][price_data][product_data][name]": `GateTest ${tier.name}`,
-      "line_items[0][price_data][product_data][description]": tier.description,
-      "line_items[0][quantity]": "1",
-      success_url: `${BASE_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${BASE_URL}/checkout/cancel`,
-    });
+    //
+    // Two commercial shapes share this endpoint:
+    //   one-time  (mode=payment)      — per-scan tiers, metadata on the PI
+    //   recurring (mode=subscription) — Continuous $49/mo; subscription mode
+    //     forbids payment_intent_data, so metadata rides on the session and
+    //     on subscription_data (→ lands on the Subscription object, which
+    //     the stripe-webhook lifecycle handlers read).
+    const params = tier.recurring
+      ? new URLSearchParams({
+          "payment_method_types[0]": "card",
+          mode: "subscription",
+          "metadata[tier]": input.tier || "",
+          "metadata[repo_url]": input.repoUrl,
+          "metadata[modules]": tier.modules,
+          "subscription_data[metadata][tier]": input.tier || "",
+          "subscription_data[metadata][repo_url]": input.repoUrl,
+          "line_items[0][price_data][currency]": "usd",
+          "line_items[0][price_data][unit_amount]": String(tier.priceInCents),
+          "line_items[0][price_data][recurring][interval]": "month",
+          "line_items[0][price_data][product_data][name]": `GateTest ${tier.name}`,
+          "line_items[0][price_data][product_data][description]": tier.description,
+          "line_items[0][quantity]": "1",
+          success_url: `${BASE_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${BASE_URL}/checkout/cancel`,
+        })
+      : new URLSearchParams({
+          "payment_method_types[0]": "card",
+          mode: "payment",
+          "payment_intent_data[metadata][tier]": input.tier || "",
+          "payment_intent_data[metadata][repo_url]": input.repoUrl,
+          "payment_intent_data[metadata][modules]": tier.modules,
+          "metadata[tier]": input.tier || "",
+          "metadata[repo_url]": input.repoUrl,
+          "metadata[modules]": tier.modules,
+          "line_items[0][price_data][currency]": "usd",
+          "line_items[0][price_data][unit_amount]": String(tier.priceInCents),
+          "line_items[0][price_data][product_data][name]": `GateTest ${tier.name}`,
+          "line_items[0][price_data][product_data][description]": tier.description,
+          "line_items[0][quantity]": "1",
+          success_url: `${BASE_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${BASE_URL}/checkout/cancel`,
+        });
 
     const session = await stripeRequest(
       "POST",
@@ -236,6 +276,6 @@ export async function GET() {
       description: tier.description,
     })),
     paymentModel: "per-scan-upfront",
-    note: "Card is charged at checkout. One-time payment per scan. No subscription, no auto-renew. Refunds discretionary — contact support if a scan fails to start or crashes mid-way.",
+    note: "Scan tiers are one-time payments charged at checkout — no auto-renew. The Continuous tier is a $49/month subscription (cancel anytime). Refunds discretionary — contact support if a scan fails to start or crashes mid-way.",
   });
 }

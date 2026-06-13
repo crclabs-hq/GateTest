@@ -558,7 +558,7 @@ Plus 12 more modules they don't have: AI code review, **fake-fix detector (catch
 | Full Scan | $99 | All 104 modules (scan-only, no auto-fix) |
 | Scan + Fix | $199 | 104 modules + auto-fix PR + pair-review + architecture annotator |
 | Nuclear | $399 | Everything on the website-only scan: 102-module deep scan, per-finding Claude diagnosis, cross-finding correlation, auto-fix PR, pair-review, executive summary, board-ready CISO report. Mutation testing + chaos / fuzz pass are NOT part of the website-only flow — they ship via the GitHub Action (`mutation: true` / `chaos: true`) because they need a CI runner to execute the customer's test suite and a headless browser. |
-| Continuous | $49/mo | Scan every push |
+| Continuous | $49/mo | Scan every push — **LIVE** (Craig green-light 2026-06-12). Stripe subscription checkout (mode=subscription, inline recurring price_data — no dashboard product needed). Unlimited deterministic scans (near-zero marginal cost); AI reviews metered by `continuous_ai_ledger` monthly allowance (default $10/mo, env `CONTINUOUS_AI_BUDGET_USD`). Fix PRs NOT included — per-scan upsell. Store: `website/app/lib/continuous-subscription-store.js` (19 tests). Lifecycle synced via `customer.subscription.updated/deleted` webhooks. |
 
 **Honesty note (Bible Forbidden #1 / Boss Rule #8):** the website-only Nuclear path cannot run mutation testing or chaos / fuzz pass — those two modules need the customer's CI environment (Vercel serverless cannot safely run a customer's test suite, and Chromium typically cannot launch inside the function). Both modules are first-class in the engine and run cleanly via the GitHub Action where `mutation.js` and `chaos.js` have a real runner. Marketing copy must reflect this on every public surface; future sessions DO NOT regress this wording back to "every Nuclear scan includes mutation + chaos."
 
@@ -733,6 +733,7 @@ GateTest/
 | `GLUECRON_API_TOKEN` | Gluecron PAT (scope: `repo`, format `glc_<64hex>`) |
 | `ANTHROPIC_API_KEY` | Claude API for AI review |
 | `GATETEST_ADMIN_PASSWORD` | Admin console password for `/admin` (bypasses Stripe) |
+| `CONTINUOUS_AI_BUDGET_USD` | Monthly Claude AI-review allowance per Continuous subscription (default 10) |
 
 ---
 
@@ -772,6 +773,7 @@ GateTest/
 | 30 | **Five test files renamed `.test.skip.js`** to unblock CI — all five now RESTORED. (1) `datadog-client` — rewritten for actual API (fetchTopErrors/fetchErrorTraces/extractSourceLocation). (2) `incremental-filter` — fixed wrong property name + implemented missing universal-checker incremental support + config.incremental shape. (3) `incremental-scan` — implemented --since/--pr CLI flags + runner._resolveIncrementalFiles + skip/alwaysRun list logic. (4) `cross-repo-lookup` — replaced stale priorArt assertions with correct buildDiagnosisPrompt shape tests. (5) `mcp-server` — changed hardcoded "90 modules" to `\d{2,3}` regex. All 5 test files active, full suite 4721/4722 pass. | MEDIUM | **DONE** — all 5 skip files restored across PR #120 + PR #121. |
 | 31 | **Scan-speed reality vs claims (claims audit 2026-06-09)** — measured on this repo: quick suite (41 modules) = 34-52s wall; full suite did not finish inside 20 minutes locally (heavy modules: e2e/visual/mutation run real work). Public copy claiming "full 110-module scan in under 60 seconds" (compare/deepsource, compare/sonarqube, Install.tsx, regulation pages) was softened to "minutes" in the same audit. Bible Quality Bar #9 ("Quick <15s, Full <60s") needs either real benchmarks on representative customer-size repos to re-justify harder numbers, or the bar itself revised. | MEDIUM | OPEN — benchmark on 3 representative small/mid customer repos, then either restore harder public numbers with proof or amend Quality Bar #9. |
 | 32 | **Two fully-built modules never registered: `src/modules/cve-feed.js` + `src/modules/sbom.js`** (claims audit 2026-06-09) — both are complete BaseModule subclasses with `module.exports`, absent from `BUILT_IN_MODULES` in `src/core/registry.js` (registry = 110, module files = 117; other 5 unregistered files are base-module + 4 live-crawler helpers, which is correct). No public surface claims them, so no honesty violation — but they are dormant capability (or dead code our own deadCode module would flag). Decide: register (module count 110→112, Forbidden #17 VERSION update + copy sweep required; check cve-feed network-call policy first) or delete. | MEDIUM | OPEN — likely parked intentionally (CVE feed needs network access). Next session: confirm intent, then register-or-delete. |
+| 34 | **Continuous-tier AI-allowance enforcement point pending** — the $49/mo ledger (`continuous_ai_ledger`) and gate (`checkAiAllowance`) shipped 2026-06-12, but push-scan jobs currently run deterministic suites only (zero Claude spend), so nothing consults the meter yet. When AI-on-push or the weekly scheduled deep scan ships, the worker must call `findActiveByRepo` → `checkAiAllowance` before any Claude call and `recordAiSpend` after. Consume/record API is ready and tested. | MEDIUM | OPEN — wire at the point AI joins the push-scan path. |
 | 33 | **Hacker-news-monitor trainer built + tested but UNWIRED** — `website/app/lib/trainers/hacker-news-monitor.js` (Craig's 2026-05-29 HN-feedback directive) was absent from `trainer-nightly.yml` and the `bin/gatetest-train.js` TRAINERS array, held for Craig's Boss Rule #7 OK. | HIGH | DONE (2026-06-12) — **Craig authorized same-session** ("Yes, wire it in"). Trainer #8 now in `trainer-nightly.yml` (own step + docs/trainer artifact copy + "all 8 trainers" PR copy) and `gatetest train` (`--only hn`). Added `renderMarkdown()` + CLI main writing `~/.gatetest/trainers/hacker-news-latest.json`, matching the other trainers' contract. Verified end-to-end locally; still read-only / drafts-only — posting remains Craig's call (Boss Rule #8). |
 
 ---
@@ -823,8 +825,32 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.46.1 — **110 modules**, **Claude Sonnet 4.7** powering every
-tier. Date stamp: 2026-06-12.
+GateTest v1.47.0 — **110 modules**, **Claude Sonnet 4.7**, **five tiers
+live** ($29 / $99 / $199 / $399 + $49/mo Continuous). Date stamp:
+2026-06-12.
+
+**v1.47.0 changes (2026-06-12 evening — Continuous tier launch, Craig
+green-light "Green light" after margin-protection plan approved):**
+- **$49/mo Continuous subscription LIVE.** Stripe `mode=subscription`
+  checkout with inline recurring price_data (no dashboard product
+  needed). Pricing card flipped from "Coming soon" to live checkout.
+- **Margin protection**: unlimited deterministic scans (marginal cost
+  ≈ $0), AI reviews metered by `continuous_ai_ledger` — default $10/mo
+  allowance (`CONTINUOUS_AI_BUDGET_USD`). Worst-case abuse ≈ $12-15
+  cost vs $49 revenue (~70% floor); typical ~90% margin.
+- **New store** `website/app/lib/continuous-subscription-store.js`
+  (19 tests): `continuous_subscriptions` + `continuous_ai_ledger`
+  tables, normalised repo lookup (`findActiveByRepo`) for push-scan
+  entitlement, `checkAiAllowance`/`recordAiSpend` for the AI meter.
+- **Stripe webhook lifecycle**: `checkout.session.completed`
+  (mode=subscription) records the entitlement — returns 500 on DB
+  failure so Stripe retries (paid customer must never lose
+  entitlement silently); `customer.subscription.updated/deleted`
+  sync status (active / past_due / canceled).
+- Known Issue #34 filed: AI-allowance enforcement point in the
+  push-scan worker — push scans today run deterministic suites (no
+  Claude spend), so the meter has nothing to gate yet; wire
+  `checkAiAllowance` when AI-on-push / weekly deep scans ship.
 
 **v1.46.1 changes (2026-06-12 full-audit session, Craig directive
 "fine-tooth comb before more distribution"):**
