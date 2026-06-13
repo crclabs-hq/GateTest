@@ -1,0 +1,177 @@
+{
+  "generatedAt": "2026-06-13T07:00:05.229Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 10,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 6,
+      "SonarQube": 1,
+      "Semgrep": 1,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48510296",
+        "author": "Folcon",
+        "type": "comment",
+        "title": null,
+        "text": "Ok, this is impressive in terms of gluing things togetherYea it's buggy and janky in places, but equally it's coherent from a 3d perspective and 2d UI oneI don't know how many people have been trying to get claude to vibe code games, but it's really not good at it, I've been fiddling about and trying to make it work for a few months nowYes, you can make flappy bird or snake level stuff, but anything much bigger honestly just falls over after a whileAnd that's after lots of prompting and feedbackNow what I'm really interested in here is how much of this was \"strongly steered\" vs oh that's cool, let's do that, ie trying to \"sculpt\" and fit an artistic vision of some kind that the driver is envisioning vs liking what it outputs and just asking for more of the sameThe distinction between using it as a tool vs just being excited to take whatever it gives youThe other thing I'm wondering is how much of this is strongly indicative of claude's capability with typescript, I personally don't use it, so that might be hampering me more than I realisedThis may be an unpopular thing to point out, but to those that are saying it's blindly copying code, I'm pretty sure most of the Wow code on the internet wasn't written in typescript, so there's some transformation going on there, how meaningful it is I'm less that certain aboutI'm beginning to feel like I just wasn't ambitious enough[0], I was thinking of this as a good opportunity to see if Fable was capable enough to teach an abstract skill like game designThough I am happy that the code it's generated so far is actually quite tractable, ie it's been working hard to keep itself maintainable, which honestly is new from my perspective, not sure what other people's experiences have been, but I tend to find that agent's in general are just a bit too willing to increase LOC without enough in the way of features to justify that line count in my mind, it makes the juice just not worth the squeeze in my mind-[0]: Here's what 45% gets you on a 5x plan (https:&#x2F;&#x2F;github.com&#x2F;Folcon&#x2F;inkstain-engine)",
+        "url": "https://news.ycombinator.com/item?id=48510296",
+        "points": null,
+        "numComments": null,
+        "storyId": 48509143,
+        "createdAt": "2026-06-12T22:50:39Z",
+        "createdAtUnix": 1781304639,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48507366",
+        "author": "Spartan-S63",
+        "type": "comment",
+        "title": null,
+        "text": "If we're evaluating a person, rote recall is not necessarily cheating. It's expected, but then you'd expect them to apply that rote-memorized information in a novel way later on and prove they understand how they applied their priors to the new situation.Models don't actually reason in the same sense, so recalling rote from their training data is \"cheating\" in the sense that the training data cheated, not the model. So many of those benches have snaked their way into training data to make them less useful benchmarks. That, I think, is going to be a long-term difficulty in quantitatively assessing model quality and \"intelligence.\" So it is cheating, in a sense of what we expect from the models and training data, but not in a human sense.",
+        "url": "https://news.ycombinator.com/item?id=48507366",
+        "points": null,
+        "numComments": null,
+        "storyId": 48492210,
+        "createdAt": "2026-06-12T18:03:07Z",
+        "createdAtUnix": 1781287387,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48505886",
+        "author": "cf100clunk",
+        "type": "story",
+        "title": "Sources: Gordie Howe Bridge ribbon-cutting to take place Friday",
+        "text": "Sources: Gordie Howe Bridge ribbon-cutting to take place Friday",
+        "url": "https://www.freep.com/story/news/local/michigan/detroit/2026/06/08/gordie-howe-international-bridge-ribbon-cutting-snyder-whitmer-trump/90458444007/",
+        "points": 1,
+        "numComments": 1,
+        "storyId": 48505886,
+        "createdAt": "2026-06-12T16:06:48Z",
+        "createdAtUnix": 1781280408,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48505459",
+        "author": "mindslight",
+        "type": "comment",
+        "title": null,
+        "text": "> famous for handing over data without warrants or court ordersMore concretely, famous for supplying bulk data to the surveillance industry for a nominal fee. That is ostensibly the goals behind this development - all of these companies demanding phone numbers for \"verification\" and snake oil \"2FA\" want to reliably dox 100% of their users rather than just 80%.",
+        "url": "https://news.ycombinator.com/item?id=48505459",
+        "points": null,
+        "numComments": null,
+        "storyId": 48504697,
+        "createdAt": "2026-06-12T15:33:48Z",
+        "createdAtUnix": 1781278428,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48503705",
+        "author": "db48x",
+        "type": "comment",
+        "title": null,
+        "text": "I was reminded more of the alien AI from Constellation Games, which spawned sub sub sub agents to interview humans.The protagonist sends a message to the aliens asking to be allowed to review the alien civilization’s computer games. An AI submind called Smoke-Cursive-Cytoplasm-Snakebite-Singsong-Polychromatic-Musteline is given the task of contacting him by IM to begin the conversation. Its job is only to verify that they are talking to the right human (since not every human has a unique name) so it is only a simple chatbot and can only understand YES and NO responses. It asks if the protagonist understands and gets a sarcastic NO. It has to contact its parent mind Smoke-Cursive-Cytoplasm-Snakebite-Singsong-Polychromatic to ask what to do next. After working his way up the tree of subminds by answering questions of increasing complexity asked by subminds of increasing capability, the protagonist briefly talks to Smoke-Cursive-Cytoplasm-Snakebite which sets him a task to prove that it’ll be worth an (alien) anthropologist’s time to talk to him. Smoke-ccs-762d: Well, if it isn’t Mr. Sarcasm ABlum: YES Smoke-ccs-762d: Don’t quit your day job. Smoke-ccs-762d: I’m Smoke-Cursive-Cytoplasm-Snakebite. Smoke-ccs-762d: Let’s get down to business.",
+        "url": "https://news.ycombinator.com/item?id=48503705",
+        "points": null,
+        "numComments": null,
+        "storyId": 48500012,
+        "createdAt": "2026-06-12T13:12:50Z",
+        "createdAtUnix": 1781269970,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48502395",
+        "author": "snakeman",
+        "type": "comment",
+        "title": null,
+        "text": "You are not. It's infuriating to the point I've used Gemini to make a readable summary of a video, which works pretty well since they have better access to all the video data&#x2F;metadata than OpenAI&#x2F;Anthropic.",
+        "url": "https://news.ycombinator.com/item?id=48502395",
+        "points": null,
+        "numComments": null,
+        "storyId": 48479314,
+        "createdAt": "2026-06-12T10:49:15Z",
+        "createdAtUnix": 1781261355,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [
+      {
+        "objectId": "48506418",
+        "author": "iodosite",
+        "type": "comment",
+        "title": null,
+        "text": "I don't think there's a good objective metric here, at least not like cyclomatic complexity or SonarQube-style checks, because it's difficult to tell whether the code is overcomplicated by AI, or whether the domain itself is just complicated.Code is derivative - it's modeling real behavior. So its quality depends closely on how well it captures what should actually happen.That's why measuring the actual outcome is more important than raw \"code quality\" metrics: do the important user flows and edge cases work, how the system behaves in these edge cases. I'd more use something like Journey SDK to fuzz edge cases and measure how well the system behaves, rather than measure some arbitrary properties of the code.",
+        "url": "https://news.ycombinator.com/item?id=48506418",
+        "points": null,
+        "numComments": null,
+        "storyId": 48488990,
+        "createdAt": "2026-06-12T16:48:09Z",
+        "createdAtUnix": 1781282889,
+        "intent": "neutral"
+      }
+    ],
+    "Semgrep": [
+      {
+        "objectId": "48505521",
+        "author": "AJ007",
+        "type": "comment",
+        "title": null,
+        "text": "I wonder how long before it's common knowledge that a LLM has no segregation of a user's instructions and any other text it reads?",
+        "url": "https://news.ycombinator.com/item?id=48505521",
+        "points": null,
+        "numComments": null,
+        "storyId": 48500012,
+        "createdAt": "2026-06-12T15:37:49Z",
+        "createdAtUnix": 1781278669,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48501705",
+        "author": "trashb",
+        "type": "comment",
+        "title": null,
+        "text": "yes it does seem fundamentally different. Most claims about AI are unmeasured marketing and favoritism. Similar to how management wants you to use eclipse or codeblocks to a developer that uses Emacs skillfully because it is shiny and new and they don't understand the requirements of the developer.",
+        "url": "https://news.ycombinator.com/item?id=48501705",
+        "points": null,
+        "numComments": null,
+        "storyId": 48489402,
+        "createdAt": "2026-06-12T09:09:58Z",
+        "createdAtUnix": 1781255398,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "48507594",
+        "author": "kouru225",
+        "type": "comment",
+        "title": null,
+        "text": "Hikaru Nakamura had a good comment on famous chess moves like this: All the famous chess moves are famous sacrifices, genius saves, and last minute checkmates, but when you plug the games into stockfish you find out that these scenarios only happened cause the players made a series of awful moves early on in the game",
+        "url": "https://news.ycombinator.com/item?id=48507594",
+        "points": null,
+        "numComments": null,
+        "storyId": 48498385,
+        "createdAt": "2026-06-12T18:22:18Z",
+        "createdAtUnix": 1781288538,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
