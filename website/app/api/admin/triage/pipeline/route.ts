@@ -32,6 +32,7 @@ import {
   SESSION_COOKIE_NAME,
 } from "@/app/lib/admin-session";
 import { ADMIN_COOKIE_NAME } from "@/app/lib/admin-auth";
+import { getBestGitHubToken } from "@/app/lib/admin-github-profiles";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -122,13 +123,7 @@ async function isAuthenticatedAdmin(): Promise<boolean> {
   return false;
 }
 
-function githubToken(): string {
-  return (
-    process.env.GATETEST_GITHUB_TOKEN ||
-    process.env.GITHUB_TOKEN ||
-    ""
-  );
-}
+// Token selection delegated to getBestGitHubToken(owner) from admin-github-profiles.
 
 async function githubFetch(path: string, token: string): Promise<{
   ok: boolean;
@@ -688,18 +683,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const token = githubToken();
-  if (!token) {
-    return NextResponse.json(
-      {
-        error: "no-github-token",
-        message:
-          "No GitHub token configured. Set GATETEST_GITHUB_TOKEN or GITHUB_TOKEN in Vercel env vars.",
-      },
-      { status: 503 }
-    );
-  }
-
   const startedAt = Date.now();
 
   let body: { repoUrl?: string; liveUrl?: string };
@@ -725,6 +708,18 @@ export async function POST(req: NextRequest) {
     );
   }
   const repoUrlNormalised = `https://github.com/${parts.owner}/${parts.repo}`;
+
+  const token = await getBestGitHubToken(parts.owner);
+  if (!token) {
+    return NextResponse.json(
+      {
+        error: "no-github-token",
+        message:
+          "No GitHub token configured. Add one in Admin → Connected Accounts, or set GATETEST_GITHUB_TOKEN in Vercel env vars.",
+      },
+      { status: 503 }
+    );
+  }
 
   const liveUrlRaw = String(body?.liveUrl || "").trim();
   if (!isValidLiveUrl(liveUrlRaw)) {
