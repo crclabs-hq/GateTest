@@ -304,3 +304,95 @@ describe('DeadCodeModule — commented-out code blocks', () => {
     );
   });
 });
+
+describe('DeadCodeModule — workspace package alias suppression', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dc-ws-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('does NOT flag exports in a workspace package that is imported by a sibling', async () => {
+    // Monorepo root with packages/* workspace
+    write(tmp, 'package.json', JSON.stringify({ name: 'root', workspaces: ['packages/*'] }));
+    write(tmp, 'packages/utils/package.json', JSON.stringify({ name: '@mono/utils' }));
+    write(tmp, 'packages/utils/index.js', [
+      'export function buildCaddyBlock() { return {}; }',
+      'export function helperUtil() { return 1; }',
+      '',
+    ].join('\n'));
+    // Sibling app imports the workspace package by name
+    write(tmp, 'packages/app/package.json', JSON.stringify({ name: '@mono/app' }));
+    write(tmp, 'packages/app/main.js', [
+      'import { buildCaddyBlock } from "@mono/utils";',
+      'buildCaddyBlock();',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.name.startsWith('dead-code:unused-export:'));
+    assert.strictEqual(hits.length, 0, `unexpected findings: ${JSON.stringify(hits.map((h) => h.name))}`);
+  });
+
+  it('does NOT flag orphaned file in a workspace package that is imported by a sibling', async () => {
+    write(tmp, 'package.json', JSON.stringify({ name: 'root', workspaces: ['packages/*'] }));
+    write(tmp, 'packages/lib/package.json', JSON.stringify({ name: '@mono/lib' }));
+    write(tmp, 'packages/lib/src/util.js', 'export function doThing() { return 42; }\n');
+    write(tmp, 'packages/lib/index.js', [
+      'export { doThing } from "./src/util";',
+      '',
+    ].join('\n'));
+    write(tmp, 'packages/web/package.json', JSON.stringify({ name: '@mono/web' }));
+    write(tmp, 'packages/web/index.js', [
+      'import { doThing } from "@mono/lib";',
+      'doThing();',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const orphans = r.checks.filter((c) => c.name.startsWith('dead-code:orphan-file:'));
+    assert.strictEqual(orphans.length, 0, `unexpected orphans: ${JSON.stringify(orphans.map((h) => h.name))}`);
+  });
+
+  it('still flags exports in a workspace package that is NEVER imported', async () => {
+    write(tmp, 'package.json', JSON.stringify({ name: 'root', workspaces: ['packages/*'] }));
+    write(tmp, 'packages/unused-lib/package.json', JSON.stringify({ name: '@mono/unused-lib' }));
+    write(tmp, 'packages/unused-lib/src/helpers.js', [
+      'export function trulyDeadFn() { return 0; }',
+      '',
+    ].join('\n'));
+    // No other package imports @mono/unused-lib
+    write(tmp, 'packages/app/package.json', JSON.stringify({ name: '@mono/app' }));
+    write(tmp, 'packages/app/main.js', 'console.log("hi");\n');
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.export === 'trulyDeadFn');
+    assert.ok(hits.length > 0, 'should still flag truly dead export in unimported workspace package');
+  });
+
+  it('reads pnpm-workspace.yaml patterns', async () => {
+    write(tmp, 'pnpm-workspace.yaml', 'packages:\n  - packages/*\n');
+    write(tmp, 'packages/tools/package.json', JSON.stringify({ name: '@pnpm/tools' }));
+    write(tmp, 'packages/tools/index.js', 'export function toolFn() { return 1; }\n');
+    write(tmp, 'packages/consumer/package.json', JSON.stringify({ name: '@pnpm/consumer' }));
+    write(tmp, 'packages/consumer/main.js', [
+      'import { toolFn } from "@pnpm/tools";',
+      'toolFn();',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.name.startsWith('dead-code:unused-export:'));
+    assert.strictEqual(hits.length, 0, `unexpected findings: ${JSON.stringify(hits.map((h) => h.name))}`);
+  });
+
+  it('handles scoped-package subpath imports (@scope/pkg/utils) correctly', async () => {
+    write(tmp, 'package.json', JSON.stringify({ name: 'root', workspaces: ['packages/*'] }));
+    write(tmp, 'packages/core/package.json', JSON.stringify({ name: '@acme/core' }));
+    write(tmp, 'packages/core/index.js', 'export function coreApi() { return {}; }\n');
+    // Consumer imports a subpath — GateTest sees the package name @acme/core prefix
+    write(tmp, 'packages/app/package.json', JSON.stringify({ name: '@acme/app' }));
+    write(tmp, 'packages/app/main.js', [
+      'import { something } from "@acme/core/utils";',
+      'something();',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.name.startsWith('dead-code:unused-export:'));
+    assert.strictEqual(hits.length, 0, `unexpected findings from subpath import`);
+  });
+});
