@@ -25,7 +25,7 @@
  *         "confidence": "low" | "stable",
  *         "applicationCount": 0,
  *         "provenance": {
- *           "originalModel": "claude-sonnet-4-7",
+ *           "originalModel": "claude-sonnet-4-6",
  *           "originalRuleKey": "js-reject-unauthorized",
  *           "createdAt": "2026-05-17T..Z",
  *           "lastAppliedAt": null

@@ -28,7 +28,7 @@ const ALS = (() => {
   }
 })();
 
-// Sonnet 4.7 pricing — Craig directive 2026-06-03 "Opus is absolutely
+// Sonnet 4.6 pricing — Craig directive 2026-06-03 "Opus is absolutely
 // terrible at debugging websites, it needs to be Sonnet." Sonnet wins
 // SWE-bench Verified vs Opus on real coding tasks; the cheaper model is
 // also the better debugger for our use case. Anthropic Sonnet 4 pricing:
