@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-16T08:54:34.327Z",
+  "generatedAt": "2026-06-15T09:33:51.352Z",
   "source": "scripts/generate-site-stats.js",
   "note": "Measured on every run. Displayed counts are rounded DOWN so the public \"N+\" claim is always an under-statement. Do not hand-edit — run the script.",
   "tests": {
