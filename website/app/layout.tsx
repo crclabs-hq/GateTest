@@ -1,6 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import { Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import { ChatWidget } from "./components/ChatWidget";
+import { organizationSchema, webSiteSchema, jsonLd } from "./lib/seo/schema";
+
+// Editorial display face for headlines — gives the marketing surfaces a
+// distinctive, premium voice without restyling body copy. Exposed as a CSS
+// variable so only elements that opt in (.font-display) use it.
+const displayFont = Bricolage_Grotesque({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-display",
+  display: "swap",
+});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -13,7 +25,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://gatetest.ai"),
   title: "GateTest — AI writes fast. GateTest keeps it honest.",
   description:
-    "104 modules scan your entire codebase. Security, accessibility, performance, and more. We find the bugs AND fix them. Pay per scan, no subscription.",
+    "110 modules scan your entire codebase. Security, accessibility, performance, and more. We find the bugs AND fix them. Pay per scan, no subscription.",
   keywords: [
     "QA",
     "testing",
@@ -42,7 +54,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest — AI writes fast. GateTest keeps it honest.",
     description:
-      "104 modules scan your entire codebase. We find the bugs AND fix them. Pay per scan, no subscription.",
+      "110 modules scan your entire codebase. We find the bugs AND fix them. Pay per scan, no subscription.",
     url: "https://gatetest.ai",
     siteName: "GateTest",
     type: "website",
@@ -52,7 +64,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "GateTest — AI writes fast. GateTest keeps it honest.",
     description:
-      "104 modules scan your entire codebase. We find the bugs AND fix them. Pay per scan, no subscription.",
+      "110 modules scan your entire codebase. We find the bugs AND fix them. Pay per scan, no subscription.",
   },
   robots: {
     index: true,
@@ -80,7 +92,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`h-full antialiased ${displayFont.variable}`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
       </head>
@@ -96,7 +108,7 @@ export default function RootLayout({
               operatingSystem: "Any",
               url: "https://gatetest.ai",
               description:
-                "AI-powered QA platform that scans your entire codebase with 104 modules — security, supply chain, auth flaws, CI hardening, and more. Pay per scan via Stripe. One-time payment, no subscription.",
+                "AI-powered QA platform that scans your entire codebase with 110 modules — security, supply chain, auth flaws, CI hardening, and more. Pay per scan via Stripe. One-time payment, no subscription.",
               offers: [
                 {
                   "@type": "Offer",
@@ -111,30 +123,36 @@ export default function RootLayout({
                   price: "99.00",
                   priceCurrency: "USD",
                   description:
-                    "All 104 modules including AI code review, security, supply chain, auth flaws, and more",
+                    "All 110 modules including AI code review, security, supply chain, auth flaws, and more",
+                },
+                {
+                  "@type": "Offer",
+                  name: "Scan + Fix",
+                  price: "199.00",
+                  priceCurrency: "USD",
+                  description:
+                    "All 110 modules plus an AI auto-fix pull request with regression tests, pair-review, and architecture annotations",
+                },
+                {
+                  "@type": "Offer",
+                  name: "Forensic Scan",
+                  price: "399.00",
+                  priceCurrency: "USD",
+                  description:
+                    "Deep scan with per-finding Claude diagnosis, cross-finding attack-chain correlation, auto-fix PR, pair-review, and an executive summary report",
                 },
               ],
             }),
           }}
         />
-        {/* Sitewide beta banner — sits ABOVE the navbar so it's the first
-            thing any visitor sees. Sets the expectation explicitly: this
-            is pre-launch, rough edges are real, your bug reports help us.
-            Removed at GA. */}
-        <div
-          role="status"
-          className="bg-amber-500/95 text-black text-center text-xs sm:text-sm font-medium px-4 py-2 border-b border-amber-600"
-        >
-          <strong>BETA</strong> · GateTest is in active polish ahead of public
-          launch. Some flows are rough. Found a bug?{" "}
-          <a
-            href="mailto:hello@gatetest.ai"
-            className="underline-offset-2 underline hover:no-underline"
-          >
-            hello@gatetest.ai
-          </a>
-          {" "}— we&apos;re reading every message.
-        </div>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLd(organizationSchema()) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLd(webSiteSchema()) }}
+        />
         {children}
         <ChatWidget />
       </body>

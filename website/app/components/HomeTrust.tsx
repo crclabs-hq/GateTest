@@ -3,7 +3,7 @@
  *
  * Two parts:
  *   1. A row of frameworks we scan, text-only (no logo CDN, no asset bloat).
- *   2. "Used internally by Crontech.ai and Gluecron.com" — both real,
+ *   2. "Used internally by Vapron.ai and Gluecron.com" — both real,
  *      listed in CLAUDE.md PROTECTED PLATFORMS section.
  *
  * No fabricated customer logos. No fake testimonials. The audience can
@@ -69,12 +69,12 @@ export default function HomeTrust() {
             <p className="text-base text-foreground/90 leading-relaxed">
               GateTest currently protects{" "}
               <a
-                href="https://crontech.ai"
+                href="https://vapron.ai"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-bold text-accent hover:underline"
               >
-                Crontech.ai
+                Vapron.ai
               </a>{" "}
               and{" "}
               <a

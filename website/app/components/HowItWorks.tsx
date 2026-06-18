@@ -18,7 +18,7 @@ const steps = [
   },
   {
     step: "02",
-    title: "GateTest runs 104 modules",
+    title: "GateTest runs 110 modules",
     description:
       "One command triggers every check — syntax, security, accessibility, supply chain, auth flaws, CI hardening, and dozens more. Every module runs. Every check is recorded.",
     code: `$ gatetest --suite full
@@ -35,20 +35,22 @@ const steps = [
   },
   {
     step: "03",
-    title: "Gate decides: PASS or BLOCKED",
+    title: "Gate decides — and fixes are PRs you review",
     description:
-      "Zero tolerance. One failure in any of the 104 modules blocks the entire pipeline. No overrides. No \"ship it anyway.\" The gate produces a timestamped report with full evidence.",
-    code: `GATE: PASSED
+      "Zero tolerance: one failure in any of the 110 modules blocks the pipeline. When issues are found, GateTest opens a pull request with the fix already written, pair-reviewed by a second AI, and regression-tested. You review the diff. You click merge. Your code, your decision.",
+    code: `GATE: PASSED  ✓ 847/847 checks
 
-Modules: 102/102 passed
-Checks:  847/847 passed
-Time:    2.1s
+⬆  PR opened: github.com/you/repo/pull/42
+   "GateTest: fix 7 issues across 3 files"
 
-Report saved:
-  .gatetest/reports/report-2026-04-05.json
-  .gatetest/reports/report-2026-04-05.html
+   ├── src/auth.ts    — removed httpOnly:false
+   ├── src/api.ts     — wrapped bare catch block
+   └── .github/ci.yml — pinned action to SHA
 
-Push allowed. ✓`,
+   Pair-reviewed by Claude Sonnet 4.6.
+   Regression tests included.
+
+You review the diff. You click merge.`,
   },
 ];
 

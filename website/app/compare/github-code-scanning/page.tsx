@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GateTest vs GitHub Code Scanning — The Complete QA Platform",
   description:
-    "GitHub Code Scanning covers security basics. GateTest covers 102 quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing, and auto-fix at the Scan + Fix tier and above.",
+    "GitHub Code Scanning covers security basics. GateTest covers 110 quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing, and auto-fix at the Scan + Fix tier and above.",
   keywords: [
     "GitHub Code Scanning alternative",
     "GitHub Advanced Security alternative",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs GitHub Code Scanning — The Complete QA Platform",
     description:
-      "GitHub Code Scanning covers security basics. GateTest covers 102 quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing, and auto-fix at the Scan + Fix tier and above.",
+      "GitHub Code Scanning covers security basics. GateTest covers 110 quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing, and auto-fix at the Scan + Fix tier and above.",
     url: "https://gatetest.ai/compare/github-code-scanning",
     siteName: "GateTest",
     type: "website",
@@ -38,11 +38,11 @@ const faqItems = [
   },
   {
     q: "Does GateTest post commit statuses and PR comments like GitHub Code Scanning does?",
-    a: "Yes — identical workflow integration. Install the GateTest GitHub App once, and every push gets a commit status (pass/fail) with a link to the full report. Every PR gets a formatted comment with per-module results, severity counts, file references, and line numbers. The developer workflow is indistinguishable from GitHub Code Scanning — but with 104 modules instead of CodeQL's security-only scope.",
+    a: "Yes — identical workflow integration. Install the GateTest GitHub App once, and every push gets a commit status (pass/fail) with a link to the full report. Every PR gets a formatted comment with per-module results, severity counts, file references, and line numbers. The developer workflow is indistinguishable from GitHub Code Scanning — but with 110 modules instead of CodeQL's security-only scope.",
   },
   {
     q: "GitHub Code Scanning is free for public repos. Does GateTest offer anything similar?",
-    a: "GateTest's pricing is per scan ($29 quick / $99 full 104 modules). There's no subscription or per-seat billing — a public-repo open-source project pays exactly the same as an enterprise. We don't currently offer a free tier, but $99 for a full 102-module scan including AI code review is substantially cheaper than what GitHub Advanced Security costs at enterprise scale.",
+    a: "GateTest's pricing is per scan ($29 quick / $99 full 110 modules). There's no subscription or per-seat billing — a public-repo open-source project pays exactly the same as an enterprise. We don't currently offer a free tier, but $99 for a full 110-module scan including AI code review is substantially cheaper than what GitHub Advanced Security costs at enterprise scale.",
   },
   {
     q: "Does GateTest work with repos on git hosts other than GitHub?",
@@ -225,7 +225,7 @@ export default function GitHubCodeScanningPage() {
             {[
               {
                 title: "Same workflow, 67x more coverage",
-                body: "GateTest posts commit statuses and PR comments in exactly the same format as GitHub Code Scanning. The developer experience is identical — install the GitHub App, push code, see results on the PR. But instead of security-only CodeQL alerts, you get 104 modules: security, performance, accessibility, AI safety, visual regression, and more.",
+                body: "GateTest posts commit statuses and PR comments in exactly the same format as GitHub Code Scanning. The developer experience is identical — install the GitHub App, push code, see results on the PR. But instead of security-only CodeQL alerts, you get 110 modules: security, performance, accessibility, AI safety, visual regression, and more.",
               },
               {
                 title: "AI code review CodeQL can't do",
@@ -275,7 +275,7 @@ export default function GitHubCodeScanningPage() {
             Security is just the beginning.
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
-            Get 102 quality dimensions in one scan — security, performance, accessibility, AI safety,
+            Get 110 quality dimensions in one scan — security, performance, accessibility, AI safety,
             visual regression, and more. Same PR workflow as GitHub Code Scanning.
           </p>
           <Link

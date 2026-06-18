@@ -1,6 +1,6 @@
 # GateTest
 
-### One gate. 104 modules. Self-healing CI.
+### One gate. 110 modules. Self-healing CI.
 
 **AI-powered code quality. Pay per scan via Stripe.**
 
@@ -9,8 +9,8 @@
 -->
 [![CI](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml/badge.svg)](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Modules](https://img.shields.io/badge/modules-102-purple.svg)](#what-it-replaces)
-[![Tests](https://img.shields.io/badge/tests-3500%2B-brightgreen.svg)](#real-repo-proofs)
+[![Modules](https://img.shields.io/badge/modules-110-purple.svg)](#what-it-replaces)
+[![Tests](https://img.shields.io/badge/tests-5600%2B-brightgreen.svg)](#real-repo-proofs)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](https://nodejs.org/)
 <!-- Marketplace listing — re-enable when the GitHub Marketplace approval lands:
 [![GitHub Marketplace](https://img.shields.io/badge/marketplace-GateTest-2ea44f.svg)](https://github.com/marketplace/gatetest)
@@ -20,7 +20,7 @@
 
 ## The 30-second pitch
 
-**GateTest is a single CLI plus a composite GitHub Action that runs 102 static-analysis modules against any codebase, then uses Claude to repair the findings it can.** It replaces SonarQube, Snyk, ESLint, Cypress, Lighthouse, axe, pa11y, and twenty-plus other tools with one config, one gate decision, and one report.
+**GateTest is a single CLI plus a composite GitHub Action that runs 110 static-analysis modules against any codebase, then uses Claude to repair the findings it can.** It replaces SonarQube, Snyk, ESLint, Cypress, Lighthouse, axe, pa11y, and twenty-plus other tools with one config, one gate decision, and one report.
 
 **It is different because the cost trends to zero.** Deterministic AST and rule-based layers run first — these are free and ship the fix in milliseconds. Claude only runs on patterns nothing else has seen. Every Claude win is distilled into a reusable recipe, so the next time the same pattern appears anywhere in the network it is handled for free. The longer you run GateTest, the less of it is paid work.
 
@@ -180,9 +180,9 @@ One-time payment per scan via Stripe at checkout. No subscription, no auto-renew
 | Tier              | Price   | What you get                                                                                                                                       |
 | ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Quick Scan**    | $29     | 4 modules — syntax, linting, secrets, code quality. Fastest path to a first signal. Scan-only — no auto-fix.                                       |
-| **Full Scan**     | $99     | All 104 modules. SARIF + JUnit reports. Scan-only — auto-fix ships at the Scan + Fix tier.                                                         |
+| **Full Scan**     | $99     | All 110 modules. SARIF + JUnit reports. Scan-only — auto-fix ships at the Scan + Fix tier.                                                         |
 | **Scan + Fix**    | $199    | Everything in Full, plus a second-Claude pair-review critique on every fix and an architecture-shape design-observations report.                   |
-| **Nuclear**       | $399    | Everything in Scan + Fix, plus real Claude diagnosis on every finding, cross-finding attack-chain correlation, board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (`mutation: true` / `chaos: true`) — they need a CI runner to execute your test suite and a headless browser, so they ship with the Action rather than the website-only scan. |
+| **Forensic Scan** | $399    | Everything in Scan + Fix, plus real Claude diagnosis on every finding, cross-finding attack-chain correlation, board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (`mutation: true` / `chaos: true`) — they need a CI runner to execute your test suite and a headless browser, so they ship with the Action rather than the website-only scan. |
 
 Live prices and Stripe checkout at [gatetest.ai](https://gatetest.ai).
 
@@ -202,7 +202,7 @@ The full Known Issues table (with severity and status) lives in [CLAUDE.md](CLAU
 
 ## Architecture
 
-**Static engine.** 104 modules, every one extending `BaseModule`. Each module is a self-contained scanner that emits checks at three severity levels (error blocks the gate, warning reports, info is informational). The runner is `EventEmitter`-based, supports parallel execution, diff-mode (`--diff` scans only git-changed files), watch mode, and five output formats (Console, JSON, HTML, SARIF for the GitHub Security tab, JUnit XML for any CI). The gate has zero runtime dependencies aside from one MCP SDK pin — `node bin/gatetest.js --list` runs anywhere Node 20+ runs.
+**Static engine.** 110 modules, every one extending `BaseModule`. Each module is a self-contained scanner that emits checks at three severity levels (error blocks the gate, warning reports, info is informational). The runner is `EventEmitter`-based, supports parallel execution, diff-mode (`--diff` scans only git-changed files), watch mode, and five output formats (Console, JSON, HTML, SARIF for the GitHub Security tab, JUnit XML for any CI). The gate has zero runtime dependencies aside from one MCP SDK pin — `node bin/gatetest.js --list` runs anywhere Node 20+ runs.
 
 **Website and payments.** [gatetest.ai](https://gatetest.ai) is Next.js 16 with the App Router, Tailwind 4, and Stripe in per-scan upfront-charge mode. One-time payment per scan at checkout — no subscription, no auto-renew, no hold-then-capture flow. All scan state is persisted in Stripe metadata so the serverless functions stay stateless across requests — there is no shared in-memory state and no webhook is required for the critical user flow. The scan executes inside the function response and reports back directly.
 
@@ -214,17 +214,15 @@ The codebase ships under MIT, the gate runs locally with no external calls, and 
 
 ## Real-repo proofs
 
-GateTest is dogfooded against itself on every push, and the team runs the full Nuclear pipeline against external production codebases before shipping changes that touch the deeper tiers. The reports below are reproducible artifacts in this repo:
+GateTest is dogfooded against itself on every push, and the team runs the full Forensic pipeline against external production codebases before shipping changes that touch the deeper tiers. The reports below are reproducible artifacts in this repo:
 
 - **AI CI-fixer end-to-end run** — full orchestrator path exercised (log → parse → Claude → patch → gate → commit → push → PR): [docs/proofs/ai-ci-fixer-real-run.md](docs/proofs/ai-ci-fixer-real-run.md)
 - **GateTest scanning itself** — quick-suite self-scan, 30 of 39 modules pass, 37 errors found and triaged: [docs/proofs/phase-1-self-scan.md](docs/proofs/phase-1-self-scan.md)
 - **Iterative fix loop on the live repo** — one-attempt fix on `src/runtime/alerts.js`, 8.5 seconds wall time, syntax gate green: [docs/proofs/phase-1-self-fix-real.md](docs/proofs/phase-1-self-fix-real.md)
-- **Nuclear scan of Crontech.ai** — Bun + Turbo TypeScript monorepo, 754 errors found, 23 of 39 modules pass, two critical attack chains including a supply-chain CI takeover: [docs/proofs/phase-2-3-crontech-real-customer-grade.md](docs/proofs/phase-2-3-crontech-real-customer-grade.md)
-- **Nuclear scan of Gluecron.com** — 649 errors and three chains (incl. an "operational lock-in" chain neither finding describes alone): [docs/proofs/phase-2-3-gluecron.md](docs/proofs/phase-2-3-gluecron.md)
+- **Forensic scan of Crontech.ai** — Bun + Turbo TypeScript monorepo, 754 errors found, 23 of 39 modules pass, two critical attack chains including a supply-chain CI takeover: [docs/proofs/phase-2-3-crontech-real-customer-grade.md](docs/proofs/phase-2-3-crontech-real-customer-grade.md)
+- **Forensic scan of Gluecron.com** — 649 errors and three chains (incl. an "operational lock-in" chain neither finding describes alone): [docs/proofs/phase-2-3-gluecron.md](docs/proofs/phase-2-3-gluecron.md)
 - **Pair-review and architecture annotator on the self-scan** — Phase 2 deliverables exercised end-to-end: [docs/proofs/phase-2-self-pair-review-and-architecture.md](docs/proofs/phase-2-self-pair-review-and-architecture.md)
-- **Full Nuclear pipeline on the self-scan** — 12 of 12 findings diagnosed, four chains including a session-forgery vector: [docs/proofs/phase-3-self-nuclear.md](docs/proofs/phase-3-self-nuclear.md)
-
-Total Anthropic spend across the four external real-repo Nuclear proofs: roughly three to four US dollars. At the $399 Nuclear tier that is a hundred-times-plus margin, before recipe distillation reduces it further on repeat scans.
+- **Full Forensic pipeline on the self-scan** — 12 of 12 findings diagnosed, four chains including a session-forgery vector: [docs/proofs/phase-3-self-nuclear.md](docs/proofs/phase-3-self-nuclear.md)
 
 ---
 

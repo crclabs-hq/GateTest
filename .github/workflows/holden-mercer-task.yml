@@ -19,7 +19,7 @@ on:
       model:
         description: "Anthropic model id."
         required: false
-        default: "claude-opus-4-7"
+        default: "claude-sonnet-4-6"
       max_iters:
         description: "Safety cap on tool-use turns."
         required: false

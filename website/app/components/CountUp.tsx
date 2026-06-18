@@ -13,10 +13,13 @@ export default function CountUp({ value, duration = 1600, className = "" }: Coun
   const [display, setDisplay] = useState(value);
   const [animated, setAnimated] = useState(false);
 
-  const match = value.match(/^(\$?)(\d+(?:\.\d+)?)(.*)$/);
+  // Strip commas before parsing so "4,600+" works correctly.
+  const stripped = value.replace(/,/g, "");
+  const match = stripped.match(/^(\$?)(\d+(?:\.\d+)?)(.*)$/);
   const prefix = match ? match[1] : "";
   const target = match ? parseFloat(match[2]) : NaN;
   const suffix = match ? match[3] : "";
+  const useLocale = value.includes(",");
 
   useEffect(() => {
     if (!ref.current || isNaN(target) || animated) {
@@ -43,7 +46,10 @@ export default function CountUp({ value, duration = 1600, className = "" }: Coun
             const progress = Math.min(elapsed / duration, 1);
             const eased = 1 - Math.pow(1 - progress, 3);
             const current = target * eased;
-            const rounded = target < 10 ? current.toFixed(0) : Math.round(current).toString();
+            const n = Math.round(current);
+            const rounded = target < 10 ? current.toFixed(0)
+              : useLocale ? n.toLocaleString("en-US")
+              : n.toString();
             setDisplay(`${prefix}${rounded}${suffix}`);
             if (progress < 1) {
               requestAnimationFrame(tick);

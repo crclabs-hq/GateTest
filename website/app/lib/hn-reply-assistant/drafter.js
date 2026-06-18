@@ -13,7 +13,7 @@
  *
  * The drafter does NOT call Claude when `_anthropicCall` is injected
  * (tests). In production it invokes the Anthropic SDK with the
- * approved model (claude-opus-4-7 per Bible v1.43).
+ * approved model (claude-sonnet-4-6 per Bible v1.43).
  */
 
 "use strict";
@@ -35,10 +35,10 @@ function composeSystemPrompt({ voiceExamples = [], productContext = {} } = {}) {
     productName: productContext.productName || "GateTest",
     tagline: productContext.tagline ||
       "Most code-quality tools tell you what's broken. We open the pull request that fixes it.",
-    moduleCount: productContext.moduleCount || 104,
+    moduleCount: productContext.moduleCount || 110,
     tiers: productContext.tiers || [
       { name: "Quick", price: "$29", modules: "4" },
-      { name: "Full", price: "$99", modules: "all 104, scan-only" },
+      { name: "Full", price: "$99", modules: "all 110, scan-only" },
       { name: "Scan + Fix", price: "$199", modules: "auto-fix PR + pair-review" },
       { name: "Forensic Scan", price: "$399", modules: "per-finding Claude diagnosis + attack-chain correlation + CISO report" },
     ],
@@ -57,7 +57,7 @@ function composeSystemPrompt({ voiceExamples = [], productContext = {} } = {}) {
     "",
     "Style rules:",
     "- Direct, no marketing speak. HN punishes hype.",
-    "- Concrete numbers when claiming things (104 modules, 60s scan, $99/scan, etc.)",
+    "- Concrete numbers when claiming things (110 modules, $99/scan, etc.)",
     "- Concede points the commenter has right — never argue for the sake of arguing.",
     "- If the commenter raises a feature we don't have yet, say so and add it to the public roadmap.",
     "- If they ask about a competitor we honestly lose to (CodeQL on deep taint), say so.",
@@ -69,7 +69,7 @@ function composeSystemPrompt({ voiceExamples = [], productContext = {} } = {}) {
     `- Tagline: ${pc.tagline}`,
     `- ${pc.moduleCount} modules, one config, one bill`,
     `- Tiers: ${pc.tiers.map((t) => `${t.name} ${t.price} (${t.modules})`).join(" / ")}`,
-    "- Free CLI: npm i -g gatetest",
+    "- Free CLI (MIT), not yet on npm: npx github:crclabs-hq/GateTest --suite quick",
     "",
     "Honest limitations (raise these proactively when relevant — don't hide them):",
     ...pc.honestLimitations.map((l) => `- ${l}`),
@@ -140,26 +140,56 @@ async function draftReply({
 }
 
 /**
- * Default Anthropic caller — calls the real SDK in production. Throws
- * if no API key set so tests don't accidentally hit the API.
+ * Default Anthropic caller — direct HTTPS call to api.anthropic.com.
+ *
+ * Uses the same pattern as the rest of the codebase (try-fix.js,
+ * fix-context-enricher.js) — direct fetch, no SDK dependency. Keeps
+ * the bundle small and avoids requiring an npm install in the
+ * production deploy.
+ *
+ * Throws if no API key set so tests don't accidentally hit the API.
  */
 async function defaultAnthropicCall({ systemPrompt, userPrompt }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
     throw new Error("ANTHROPIC_API_KEY not set — pass _anthropicCall in tests or set the env var");
   }
-  // eslint-disable-next-line global-require
-  const Anthropic = require("@anthropic-ai/sdk");
-  const client = new Anthropic.default ? new Anthropic.default({ apiKey: key }) : new Anthropic({ apiKey: key });
-  const model = "claude-opus-4-7";
-  const res = await client.messages.create({
-    model,
-    max_tokens: 800,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }],
+  const fetchFn = typeof globalThis.fetch === "function" ? globalThis.fetch : null;
+  if (!fetchFn) throw new Error("no fetch available in runtime");
+  const model = "claude-sonnet-4-6";
+
+  const res = await fetchFn("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01",
+      "x-api-key": key,
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 800,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    }),
   });
-  const text = (res.content || [])
-    .filter((c) => c.type === "text")
+
+  if (!res.ok) {
+    let errBody = "";
+    try { errBody = await res.text(); } catch { /* ignore */ }
+    throw new Error(`Anthropic API ${res.status}: ${errBody.slice(0, 200)}`);
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error("Anthropic API returned unparseable JSON");
+  }
+  if (!data || !Array.isArray(data.content)) {
+    throw new Error("Anthropic API response missing content array");
+  }
+  const text = data.content
+    .filter((c) => c && c.type === "text" && typeof c.text === "string")
     .map((c) => c.text)
     .join("\n")
     .trim();

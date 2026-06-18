@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GateTest vs ESLint — Why 2026 Developers Are Moving On",
   description:
-    "ESLint is one tool. GateTest is 102. Security, performance, accessibility, visual regression, mutation testing, AI code review — all in one gate. AI auto-fix at the Scan + Fix tier and above.",
+    "ESLint is one tool. GateTest is 110. Security, performance, accessibility, visual regression, mutation testing, AI code review — all in one gate. AI auto-fix at the Scan + Fix tier and above.",
   keywords: [
     "ESLint alternative",
     "ESLint vs GateTest",
@@ -279,7 +279,7 @@ export default function EsLintPage() {
         {/* CTA */}
         <section className="rounded-2xl border border-teal-500/20 p-10 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
           <h2 className="text-3xl font-bold text-white mb-4">
-            One gate. 104 modules. Zero config.
+            One gate. 110 modules. Zero config.
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
             Keep ESLint in your editor. Add GateTest to your CI gate for everything ESLint can&rsquo;t see.

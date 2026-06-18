@@ -19,6 +19,7 @@ describe('Protected integration artifacts', () => {
   const requiredFiles = [
     'integrations/README.md',
     'integrations/github-actions/gatetest-gate.yml',
+    'integrations/github-actions/ai-ci-fixer.yml',
     'integrations/husky/pre-push',
     'integrations/scripts/install.sh',
   ];
@@ -110,5 +111,69 @@ describe('Protected integration artifacts', () => {
     const bible = fs.readFileSync(path.join(ROOT, 'CLAUDE.md'), 'utf8');
     assert.match(bible, /Crontech/i, 'Crontech must be listed in CLAUDE.md PROTECTED PLATFORMS.');
     assert.match(bible, /Gluecron/i, 'Gluecron must be listed in CLAUDE.md PROTECTED PLATFORMS.');
+  });
+
+  // The AI CI-fixer template lives in arbitrary customer repos that may
+  // lack package-lock.json. `cache: 'npm'` on setup-node@v4 fails fast
+  // (~8s) without a lockfile — the exact failure mode that killed the
+  // arena demo. The template must NEVER reintroduce this trap.
+  it('AI CI-fixer template must NOT use `cache: npm` (lockfile-free safe)', () => {
+    const wf = fs.readFileSync(
+      path.join(ROOT, 'integrations/github-actions/ai-ci-fixer.yml'),
+      'utf8',
+    );
+    // Scan non-comment lines only — comments may reference the trap by
+    // name to explain why it's omitted. Real usage would be at the start
+    // of a YAML key, e.g. `          cache: 'npm'`.
+    const hasRealCacheNpm = wf
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('#'))
+      .some((line) => /^\s*cache:\s*['"]?npm['"]?\s*$/.test(line));
+    assert.ok(
+      !hasRealCacheNpm,
+      'AI CI-fixer template must not use cache:npm — breaks any repo without a lockfile.',
+    );
+  });
+
+  it('AI CI-fixer template must clone the GateTest repo at runtime', () => {
+    const wf = fs.readFileSync(
+      path.join(ROOT, 'integrations/github-actions/ai-ci-fixer.yml'),
+      'utf8',
+    );
+    assert.match(
+      wf,
+      /git clone[^\n]*crclabs-hq\/gatetest/,
+      'AI CI-fixer template must clone GateTest at runtime so the fixer script is available.',
+    );
+  });
+
+  it('AI CI-fixer template must gate on ANTHROPIC_API_KEY presence (opt-in via secret)', () => {
+    const wf = fs.readFileSync(
+      path.join(ROOT, 'integrations/github-actions/ai-ci-fixer.yml'),
+      'utf8',
+    );
+    assert.match(
+      wf,
+      /ANTHROPIC_API_KEY/,
+      'AI CI-fixer template must read ANTHROPIC_API_KEY — presence-of-key is the opt-in contract.',
+    );
+    assert.match(
+      wf,
+      /GATETEST_AI_CI_FIXER/,
+      'AI CI-fixer template must honor the GATETEST_AI_CI_FIXER opt-out variable.',
+    );
+  });
+
+  it('AI CI-fixer template must only run on failed workflow_run events', () => {
+    const wf = fs.readFileSync(
+      path.join(ROOT, 'integrations/github-actions/ai-ci-fixer.yml'),
+      'utf8',
+    );
+    assert.match(wf, /workflow_run:/, 'AI CI-fixer template must trigger on workflow_run.');
+    assert.match(
+      wf,
+      /conclusion\s*==\s*'failure'/,
+      'AI CI-fixer template must only fire when the upstream workflow failed.',
+    );
   });
 });

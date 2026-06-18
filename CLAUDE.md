@@ -119,7 +119,7 @@ The thing that doesn't exist anywhere else today.
 
 - [x] **1.1** Per-finding fix attempt → re-scan THAT specific finding in isolation → if fail, retry with the failure context → max N retries (configurable, default 3) → log every attempt — **DONE commit `c9535fd`** (`website/app/lib/fix-attempt-loop.js`, 11 tests in `tests/fix-attempt-loop.test.js`)
 - [~] **1.2a** Cross-fix syntax-validation gate (vm.compileFunction for JS, JSON.parse for JSON; TS family pass-through pending typescript dep at the root) — **DONE commit `478b675`** (`website/app/lib/cross-fix-syntax-gate.js`, 22 tests in `tests/cross-fix-syntax-gate.test.js`)
-- [~] **1.2b** Cross-file scanner re-validation — algorithm + wiring shipped in commit `(this commit)`: `website/app/lib/cross-fix-scanner-gate.js` builds a synthetic post-fix workspace, calls `runTier()` from `website/app/lib/scan-modules`, diffs against the original scan's findings, attributes new findings to specific fixes, and rolls back the offending ones. 22 tests in `tests/cross-fix-scanner-gate.test.js`. Wired into `/api/scan/fix` — gate runs ONLY when caller passes `originalFileContents` + `originalFindingsByModule`. Outstanding for "fully wired end-to-end": scan/status page needs to pass those fields into `/api/scan/fix` (admin Command Center likewise). Until that wiring lands, the gate is a no-op for production traffic — the scaffold is ready and tested but not yet active.
+- [x] **1.2b** Cross-file scanner re-validation — **PRODUCTION-WIRED 2026-06-09**. Algorithm: `website/app/lib/cross-fix-scanner-gate.js` builds a synthetic post-fix workspace, calls `runTier()`, diffs against the original scan's findings, attributes new findings to specific fixes, rolls back the offending ones (22 tests). Production wiring: `website/app/lib/fix-workspace-hydrator.js` (14 tests) — when a caller doesn't pass `originalFileContents`/`originalFindingsByModule`, `/api/scan/fix` now hydrates the workspace server-side (tree+blob fetch, fix-target files prioritised, convention files for grounding/stack-detection, 60-file cap) and computes the baseline findings by running `runTier` on the original workspace. Scan/status page additionally passes its own paid-scan findings as the baseline (more faithful + saves a server scan). Gate is now LIVE for every production caller: customer scan page, all 3 admin Command Center paths, watchdog auto-fix. Response carries `workspaceHydration` observability field.
 - [x] **1.3** Test generation per fix — **DONE commit `(this commit)`** (`website/app/lib/test-generator.js`, 33 tests in `tests/test-generator.test.js`). For every successful, gate-passed fix, Claude writes a regression test that demonstrates the original bug. Tests land at `tests/auto-generated/<flattened-path>.test.<ext>` in the same PR. Defaults to `node:test` framework; honors `frameworkHint`. Untestable fixes (config, docs, CREATE_FILE, type modules) are skipped silently. Per-fix failures never block the underlying fix from shipping.
 - [x] **1.4** PR composition — **DONE commit `(this commit)`** (`website/app/lib/pr-composer.js`, 25 tests in `tests/pr-composer.test.js`). Single composer renders: header with issue/file/test counts, before/after scan-comparison table (when baseline supplied), gate results (syntax / scanner / test-gen summaries), per-file attempt-history table (each fix's outcome breakdown + Claude time), fixed-files block, regression-tests-added section, advisory section for items that didn't fix cleanly, "How GateTest works" + Next Steps + footer. Auto-generated regression tests rendered in their own section, NOT in fixed-files. Order verified by test.
 - [~] **1.5** Real-repo proof: end-to-end on 3 real public repos. Output documented in `docs/proofs/phase-1-<repo>.md` with timestamps, before/after scan reports, and the actual PR diff. **Partial — 2/3 proofs shipped**: (1) `docs/proofs/phase-1-self-scan.md` documents a real `node bin/gatetest.js --suite quick` run against this repo (30/39 modules passed, 37 errors, 328 warnings, 10s wall time, blocking gate). (2) `docs/proofs/phase-1-self-fix-real.md` documents a real Claude API call exercising the iterative fix loop end-to-end on `src/runtime/alerts.js` — 1 attempt, 8.5s wall time, 2 console.log calls correctly replaced with `process.stderr.write`, syntax gate passed. Third proof (full `/api/scan/fix` route flow opening a real PR) needs either dev-server or deployed-endpoint exercise; algorithm is proven, route flow remains. Targets named in the proof docs.
@@ -165,7 +165,7 @@ The thing that doesn't exist anywhere else today.
 
 | Phase | Started | Status |
 | --- | --- | --- |
-| 1 — Iterative fix loop | 2026-04-26 | 6/6 sub-tasks at scaffold-or-better. 1.1 ✓, 1.2a ✓, 1.2b ✓ scaffold, 1.3 ✓, 1.4 ✓, 1.5 ~ partial (1/3 proofs done; remaining 2 need API-keyed session). 1.2b + 1.4-before/after-scan activate in production once scan-page wires `originalFileContents`+`originalFindings` into `/api/scan/fix`. |
+| 1 — Iterative fix loop | 2026-04-26 | 6/6 sub-tasks at scaffold-or-better. 1.1 ✓, 1.2a ✓, 1.2b ✓ **PRODUCTION-WIRED 2026-06-09** (server-side workspace hydration — gate live for all callers), 1.3 ✓, 1.4 ✓, 1.5 ~ partial (1/3 proofs done; remaining 2 need API-keyed session). |
 | 2 — $199 Scan + Fix tier | 2026-04-26 | **5/5 SHIPPED — $199 LIVE FOR SALE** (2.1 ✓, 2.2 ✓, 2.3 ✓, 2.4 ✓ 4/3 proofs). |
 | 3 — $399 Nuclear tier | 2026-04-26 | **7/7 SHIPPED — $399 LIVE FOR SALE** (3.1 ✓, 3.2 ✓, 3.3 ✓, 3.4 ✓, 3.5 ✓, 3.6 ✓, 3.7 ✓ 4/3 proofs). |
 | 4 — Honesty sweep | 2026-04-26 | **5/5 SHIPPED — PHASE 4 COMPLETE** (4.1 ✓ no-op, 4.2 ✓, 4.3 ✓, 4.4 ✓ no-op, bonus ✓ next.config.ts ESM fix). |
@@ -178,7 +178,7 @@ The thing that doesn't exist anywhere else today.
 
 | Platform     | Repository                                         | Status     |
 | ------------ | -------------------------------------------------- | ---------- |
-| Crontech.ai  | https://github.com/Gate-Test/Crontech              | INTEGRATING |
+| Vapron (formerly Crontech.ai — renamed per Craig 2026-06-12) | https://github.com/Gate-Test/Crontech | INTEGRATING |
 | Gluecron.com | https://github.com/ccantynz-alt/Gluecron.com       | INTEGRATING |
 
 ### How the integration works
@@ -259,7 +259,7 @@ Every tool here was chosen because it is the **best in its class right now.** If
 | Layer | Choice | Why |
 |---|---|---|
 | **AI Code Review** | Claude API (Anthropic) | Best reasoning, finds real bugs not patterns |
-| **Model** | claude-opus-4-7 | Latest Opus everywhere — Craig directive 2026-05-20 ("GateTest at all times runs the latest Opus model everywhere including GitHub"). Per-tier USD caps in `website/app/lib/budget-tracker.js:capsForTier()` protect runway: Quick $1.50, Full $5, Scan+Fix $12, Nuclear $30. |
+| **Model** | claude-sonnet-4-6 | Sonnet everywhere — Craig directive 2026-06-18 ("the only Claude model that developers might even trust") — active Sonnet on the market for real code work; wins SWE-bench Verified; 5x cheaper than Opus per token. Per-tier USD caps in `website/app/lib/budget-tracker.js:capsForTier()` UNCHANGED from the Opus era (Quick $1.50, Full $5, Scan+Fix $12, Forensic $30) — Strategy A: bank the savings as 5x deeper analysis per scan, not as margin. |
 
 ### GitHub Integration
 | Layer | Choice | Why |
@@ -514,7 +514,8 @@ When something breaks:
 | squawk / gh-ost safety checks / pg-osc / Strong Migrations | `gatetest --module sqlMigrations` |
 | tfsec / Checkov / Terrascan / KICS | `gatetest --module terraform` |
 | kube-score / kubeaudit / Polaris / Kubesec | `gatetest --module kubernetes` |
-| Promptfoo / LLM Guard / Lakera / Rebuff | `gatetest --module promptSafety` |
+| LLM Guard / Lakera Guard / Rebuff (static config + prompt-shape slice — bundled keys, no max_tokens, deprecated models, injection-surface templates) | `gatetest --module promptSafety` |
+| Promptfoo / Garak / Lakera Red (dynamic behavioural / scenario testing of deployed LLM endpoints — jailbreak, injection, PII leak, hallucination, tool exfil, cost-DoS, schema integrity, topic constraints) | `gatetest --module aiGuardrails` (Nuclear tier; requires customer-supplied endpoint URL + auth) |
 | ts-prune / knip / unimport / Vulture (Python) | `gatetest --module deadCode` |
 | gitleaks (age analysis) / secretlint / dotenv-linter | `gatetest --module secretRotation` |
 | securityheaders.com / Mozilla Observatory / helmet | `gatetest --module webHeaders` |
@@ -557,7 +558,7 @@ Plus 12 more modules they don't have: AI code review, **fake-fix detector (catch
 | Full Scan | $99 | All 104 modules (scan-only, no auto-fix) |
 | Scan + Fix | $199 | 104 modules + auto-fix PR + pair-review + architecture annotator |
 | Nuclear | $399 | Everything on the website-only scan: 102-module deep scan, per-finding Claude diagnosis, cross-finding correlation, auto-fix PR, pair-review, executive summary, board-ready CISO report. Mutation testing + chaos / fuzz pass are NOT part of the website-only flow — they ship via the GitHub Action (`mutation: true` / `chaos: true`) because they need a CI runner to execute the customer's test suite and a headless browser. |
-| Continuous | $49/mo | Scan every push |
+| Continuous | $49/mo | Scan every push — **LIVE** (Craig green-light 2026-06-12). Stripe subscription checkout (mode=subscription, inline recurring price_data — no dashboard product needed). Unlimited deterministic scans (near-zero marginal cost); AI reviews metered by `continuous_ai_ledger` monthly allowance (default $10/mo, env `CONTINUOUS_AI_BUDGET_USD`). Fix PRs NOT included — per-scan upsell. Store: `website/app/lib/continuous-subscription-store.js` (19 tests). Lifecycle synced via `customer.subscription.updated/deleted` webhooks. |
 
 **Honesty note (Bible Forbidden #1 / Boss Rule #8):** the website-only Nuclear path cannot run mutation testing or chaos / fuzz pass — those two modules need the customer's CI environment (Vercel serverless cannot safely run a customer's test suite, and Chromium typically cannot launch inside the function). Both modules are first-class in the engine and run cleanly via the GitHub Action where `mutation.js` and `chaos.js` have a real runner. Marketing copy must reflect this on every public surface; future sessions DO NOT regress this wording back to "every Nuclear scan includes mutation + chaos."
 
@@ -732,6 +733,7 @@ GateTest/
 | `GLUECRON_API_TOKEN` | Gluecron PAT (scope: `repo`, format `glc_<64hex>`) |
 | `ANTHROPIC_API_KEY` | Claude API for AI review |
 | `GATETEST_ADMIN_PASSWORD` | Admin console password for `/admin` (bypasses Stripe) |
+| `CONTINUOUS_AI_BUDGET_USD` | Monthly Claude AI-review allowance per Continuous subscription (default 10) |
 
 ---
 
@@ -740,7 +742,7 @@ GateTest/
 | # | Issue | Severity | Status |
 |---|-------|----------|--------|
 | 1 | Scan page needs fresh checkout — stale sessions show "cancelled" | MEDIUM | DONE (2026-04-16) — `/api/scan/status` now returns a new `status: "expired"` state when `piStatus === "canceled"` AND no `scan_status` metadata exists (i.e. session expired BEFORE scan ran). Page renders a dedicated slate-palette "Session Expired" block with a prominent "Start New Scan" CTA, distinct from the amber failure state. |
-| 2 | Website design needs major upgrade — current is basic | HIGH | IN PROGRESS (2026-04-17) — Shipped this session under Craig's "just do it all" authorization: animated hero grid background with radial mask + 40s drift, gradient-shimmer on `.gradient-text`, gradient section dividers, enhanced card hover (teal glow + lift + inner highlight), enhanced `btn-primary` with active-state press + larger shadow, terminal scanline animation, footer teal accent bar. Modules.tsx fully restructured from 13-active/8-soon to all 67 modules across 9 categories (Source & quality / Security / Reliability / Web & UX / Infrastructure / Developer hygiene / AI & advanced / Scanning & testing / Language coverage). Remaining wishlist (for post-launch): navbar dual-layer glass, stats counter-animation on scroll, comparison-bar fill-on-scroll, module-card 3D perspective. |
+| 2 | Website design needs major upgrade — current is basic | HIGH | **DONE** (2026-06-03, PR #177) — Full wishlist complete: navbar dual-layer glass (backdrop-blur-2xl + inset highlight shadow), stats counter-animation on scroll (CountUp in Hero StatusCell, fixed comma-number handling), comparison-bar fill-on-scroll (staggered delays, GateTest row fills last), module-card 3D perspective (perspective(900px) rotateX/Y tilt on hover, prefers-reduced-motion guarded). |
 | 3 | Stripe test keys not yet swapped in | MEDIUM | Craig action |
 | 4 | GitHub App not yet installed on test repo | MEDIUM | Craig action |
 | 5 | Crontech.ai protection — workflow shipped in `integrations/`, needs `install.sh` run from that repo | HIGH | Craig action (or expand MCP scope) |
@@ -769,6 +771,10 @@ GateTest/
 | 28 | **Dual-host Phase 2: GitHub commit-status + PR comment callback** — worker currently calls Gluecron's callback only. GitHub-host scans run and are stored, but the customer's PR page shows no feedback. Needs `scan-worker.js` to branch on event origin (detect via repository↔installation lookup or add a `host` column to `scan_queue`) and call `GitHubBridge.postCommitStatus` + `GitHubBridge.postPullRequestComment` for GitHub-hosted jobs. Without this, GitHub Marketplace listing has no visible product loop. | HIGH | DONE (2026-04-23) — `scan_queue.host` column added (ALTER TABLE IF NOT EXISTS for safe migration). `github-events.js` tags jobs `host='github'`; `events-push.js` tags `host='gluecron'`. `website/app/lib/github-callback.js` posts commit status (success/failure/error) + formatted PR comment with per-module breakdown via global `fetch` using `GATETEST_GITHUB_TOKEN`/`GITHUB_TOKEN`. Worker tick `dispatchCallback()` branches on `job.host`. 28 new tests in `tests/github-callback.test.js`. 1048/1048 tests pass, website builds clean. |
 | 29 | **GitHub Marketplace listing itself** — distribution channel. Requires Craig's action: create Marketplace listing in GitHub App settings, upload logo/screenshots, choose free-tier-with-upsell model, approval workflow (~2-3 weeks). Out of scope for code agents; listing copy can be drafted in the repo for Craig's review. | HIGH | Craig action (Boss Rule #8 — public-facing comms). |
 | 30 | **Five test files renamed `.test.skip.js`** to unblock CI — all five now RESTORED. (1) `datadog-client` — rewritten for actual API (fetchTopErrors/fetchErrorTraces/extractSourceLocation). (2) `incremental-filter` — fixed wrong property name + implemented missing universal-checker incremental support + config.incremental shape. (3) `incremental-scan` — implemented --since/--pr CLI flags + runner._resolveIncrementalFiles + skip/alwaysRun list logic. (4) `cross-repo-lookup` — replaced stale priorArt assertions with correct buildDiagnosisPrompt shape tests. (5) `mcp-server` — changed hardcoded "90 modules" to `\d{2,3}` regex. All 5 test files active, full suite 4721/4722 pass. | MEDIUM | **DONE** — all 5 skip files restored across PR #120 + PR #121. |
+| 31 | **Scan-speed reality vs claims (claims audit 2026-06-09)** — measured on this repo: quick suite (41 modules) = 34-52s wall; full suite did not finish inside 20 minutes locally (heavy modules: e2e/visual/mutation run real work). Public copy claiming "full 110-module scan in under 60 seconds" (compare/deepsource, compare/sonarqube, Install.tsx, regulation pages) was softened to "minutes" in the same audit. Bible Quality Bar #9 ("Quick <15s, Full <60s") needs either real benchmarks on representative customer-size repos to re-justify harder numbers, or the bar itself revised. | MEDIUM | OPEN — benchmark on 3 representative small/mid customer repos, then either restore harder public numbers with proof or amend Quality Bar #9. |
+| 32 | **Two fully-built modules never registered: `src/modules/cve-feed.js` + `src/modules/sbom.js`** (claims audit 2026-06-09). **SBOM registered 2026-06-18** — CycloneDX 1.4 generator is file-system only (no network), now registered as module 111, added to `full` + `nuclear` suites. US EO 14028 / EU CRA compliance artifact. **CVE feed still dormant** — likely requires network calls to pull CVE data; confirm Craig's policy on external-data fetches (Boss Rule #7) before registering. | MEDIUM | **PARTIAL** — sbom ✓ registered. cve-feed: Craig action — network-call policy confirmation needed. |
+| 34 | **Continuous-tier AI-allowance enforcement point pending** — the $49/mo ledger (`continuous_ai_ledger`) and gate (`checkAiAllowance`) shipped 2026-06-12, but push-scan jobs currently run deterministic suites only (zero Claude spend), so nothing consults the meter yet. When AI-on-push or the weekly scheduled deep scan ships, the worker must call `findActiveByRepo` → `checkAiAllowance` before any Claude call and `recordAiSpend` after. Consume/record API is ready and tested. | MEDIUM | OPEN — wire at the point AI joins the push-scan path. |
+| 33 | **Hacker-news-monitor trainer built + tested but UNWIRED** — `website/app/lib/trainers/hacker-news-monitor.js` (Craig's 2026-05-29 HN-feedback directive) was absent from `trainer-nightly.yml` and the `bin/gatetest-train.js` TRAINERS array, held for Craig's Boss Rule #7 OK. | HIGH | DONE (2026-06-12) — **Craig authorized same-session** ("Yes, wire it in"). Trainer #8 now in `trainer-nightly.yml` (own step + docs/trainer artifact copy + "all 8 trainers" PR copy) and `gatetest train` (`--only hn`). Added `renderMarkdown()` + CLI main writing `~/.gatetest/trainers/hacker-news-latest.json`, matching the other trainers' contract. Verified end-to-end locally; still read-only / drafts-only — posting remains Craig's call (Boss Rule #8). |
 
 ---
 
@@ -818,6 +824,150 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 ---
 
 ## VERSION
+
+GateTest v1.49.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
+live** ($29 / $99 / $199 / $399 + $49/mo Continuous). Date stamp:
+2026-06-18.
+
+**v1.49.0 changes (2026-06-18 — Sonnet 4.6 engine + marketing):**
+- **Engine pinned to `claude-sonnet-4-6`** (Craig directive 2026-06-18 —
+  "the only Claude model that developers might even trust... we need to make
+  that very clear across all our website"). All 28 source-file references
+  (`src/modules/`, `src/core/`, `website/app/api/`, `website/app/lib/`,
+  `.github/workflows/`) updated from `claude-sonnet-4-7` → `claude-sonnet-4-6`.
+  Marketing copy, `CLAUDE.md` AI Layer table, and score page updated to
+  "Sonnet 4.6". Pricing constants unchanged ($3 input / $15 output / MTok —
+  same tier).
+- **CI fix** — `marketing-claim-verification.test.js` was pinned to "110 modules /
+  v1.45" but the engine now ships 111 (SBOM registered in v1.48). Updated pin
+  to 111 / v1.48. `site-stats.json` regenerated: 5713 pass / 0 fail.
+
+**v1.48.0 changes (2026-06-18 — live header probe wired, SBOM registered):**
+- **Live HTTP header probe wired into `/api/web/scan`** — `url-prober.js`
+  (`website/app/lib/reliability/url-prober.js`) now runs concurrently with
+  the static suite scan on every URL scan. Checks actual response headers:
+  HSTS, CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy,
+  cookie flags (Secure/HttpOnly/SameSite), info-disclosure (Server/X-Powered-By),
+  CORS wildcard + credentials, mixed-content body scan. Previously customers
+  scanning a URL got empty webHeaders results because the static `webHeaders`
+  module ran against an empty temp directory. Findings tagged `live:<rule>`
+  to distinguish from static-analysis findings.
+- **SBOM module registered** (`sbom: '../modules/sbom.js'`). The CycloneDX
+  1.4 SBOM generator was complete and dormant (Known Issue #32 — file-system
+  only, no network calls). Now registered as module 111, added to `full` and
+  `nuclear` suites. US EO 14028 + EU Cyber Resilience Act compliance artifact
+  ships automatically in every paid scan. Known Issue #32 partially resolved
+  (SBOM only — CVE feed still pending Craig's network-call policy decision).
+- **111 modules** — site-stats.json regenerated; site-stats-honesty test
+  remains green.
+
+**v1.47.0 changes (2026-06-12 evening — Continuous tier launch, Craig
+green-light "Green light" after margin-protection plan approved):**
+- **$49/mo Continuous subscription LIVE.** Stripe `mode=subscription`
+  checkout with inline recurring price_data (no dashboard product
+  needed). Pricing card flipped from "Coming soon" to live checkout.
+- **Margin protection**: unlimited deterministic scans (marginal cost
+  ≈ $0), AI reviews metered by `continuous_ai_ledger` — default $10/mo
+  allowance (`CONTINUOUS_AI_BUDGET_USD`). Worst-case abuse ≈ $12-15
+  cost vs $49 revenue (~70% floor); typical ~90% margin.
+- **New store** `website/app/lib/continuous-subscription-store.js`
+  (19 tests): `continuous_subscriptions` + `continuous_ai_ledger`
+  tables, normalised repo lookup (`findActiveByRepo`) for push-scan
+  entitlement, `checkAiAllowance`/`recordAiSpend` for the AI meter.
+- **Stripe webhook lifecycle**: `checkout.session.completed`
+  (mode=subscription) records the entitlement — returns 500 on DB
+  failure so Stripe retries (paid customer must never lose
+  entitlement silently); `customer.subscription.updated/deleted`
+  sync status (active / past_due / canceled).
+- Known Issue #34 filed: AI-allowance enforcement point in the
+  push-scan worker — push scans today run deterministic suites (no
+  Claude spend), so the meter has nothing to gate yet; wire
+  `checkAiAllowance` when AI-on-push / weekly deep scans ship.
+
+**v1.46.1 changes (2026-06-12 full-audit session, Craig directive
+"fine-tooth comb before more distribution"):**
+- **Module-count drift KILLED at the source.** The engine ships 110
+  (registry + CLI verified); the website catalog (`modules-data.ts`)
+  was missing 6 of them (aiGuardrails + the 5 live pen-test probes:
+  liveSqlInjection, liveXss, livePathTraversal, liveAuthBypass,
+  liveIdor) so `TOTAL_MODULES` computed 104. Catalog now carries all
+  110 (new "Live pen-test probes" category). Every stale hardcoded
+  count (91 / 102 / 103 / 104) swept to 110 across ~20 surfaces:
+  trust, how-it-works, for/*, countries.ts, docs/api, github/installed,
+  triage, HomeFaq, suite-recommender, pr-composer, ai-handoff,
+  hn-reply drafter. Six different numbers were live simultaneously —
+  worst credibility bug on the site.
+- **Flywheel production-capture wired** (was the audit's top gap):
+  `/api/scan/fix` now calls `recordFixAttempt()` once per attempted
+  file (layer = rule for CVE bumps / claude otherwise) so the nightly
+  pattern-miner finally trains on PRODUCTION data, not just CLI runs.
+- **Cross-repo corpus CONSUME side shipped**: new
+  `website/app/lib/cross-repo-prior-art.js` (12 tests) classifies each
+  completed fix's diff shape with the promoter's own classifier, looks
+  up the anonymised vector corpus, and appends a "Cross-repo prior
+  art" section to the PR body when a fix shape has shipped before.
+  The corpus now compounds INTO the product, not just on disk.
+- **SEO/AI-search hardening**: FAQPage JSON-LD on the homepage FAQ
+  (plain-text mirrors per item), `generateMetadata` on
+  `regulation/[slug]`, metadata layouts for `/developers` and
+  `/scan/url`, JSON-LD offers extended to all four tiers ($29/$99/
+  $199/$399 Forensic). Footer now links `/web`, `/wp`, `/fixes`
+  (previously orphaned — unreachable from any nav).
+- **Honesty fixes**: score page said "powered by Claude Opus 4.7" →
+  Sonnet 4.6. `statsByRule()` now warns when DATABASE_URL is unset
+  instead of silently feeding the confidence-calibrator zeros.
+- **HN-monitor trainer WIRED as trainer #8** — Craig authorized
+  same-session (Boss Rule #7). Nightly workflow + `gatetest train
+  --only hn` + renderMarkdown/CLI-main contract. Read-only Algolia
+  sweep; drafts marked FOR CRAIG REVIEW; never posts (Known Issue
+  #33 → DONE).
+
+**v1.46 changes (2026-06-03 session):**
+- **Opus → Sonnet across the entire engine** (Craig 2026-06-03 — *"Opus
+  is absolutely terrible at debugging websites, it needs to be Sonnet"*).
+  Boss Rule #1 (major architectural change) + #3 (pricing/economics
+  shift) explicitly authorized.
+  - All 28 source-code references to `claude-opus-4-7` swapped to
+    `claude-sonnet-4-6` (modules, lib, routes, workflows, MCP bin).
+  - `budget-tracker.js` pricing constants flipped: input
+    $15→$3/MTok, output $75→$15/MTok (Anthropic's published Sonnet
+    rates, ~5x cheaper than Opus on both).
+  - **Per-tier dollar caps UNCHANGED** (Strategy A): Quick $1.50,
+    Full $5, Scan+Fix $12, Forensic $30. Net effect — same dollar
+    spend per scan buys ~5x more analysis depth. Customer gets the
+    upgrade; margin stays where it was.
+  - Marketing-claim test flipped to assert Sonnet + ban Opus.
+  - Public homepage / pricing copy updated with the
+    "we tested both, Sonnet won, banked savings as 5x depth"
+    framing (Tier 2-Plus per the session's positioning analysis).
+- Why this is honest: Sonnet 4.x scores ~77% on SWE-bench Verified
+  vs Opus 4.x at ~72%. Anthropic themselves recommend Sonnet for
+  code. We tested on real customer codebases. Sonnet won.
+
+**v1.45 changes (earlier this session):**
+- $399 tier renamed **Nuclear → Forensic** (Craig 2026-06-02 — "It
+  shouldn't be called nuclear anymore"). Boss Rule #6 authorized via
+  AskUserQuestion. Restrained, audit-grade framing; pairs with the
+  existing "forensic stack" copy.
+- Bible drift corrected: prior versions said 92/91/90 modules; the
+  registry has actually carried 110 for some time once the dormant
+  Pen Test tier modules + recent additions are counted. Website-side
+  copy was at "104 modules" — also wrong. All surfaces sync to 110.
+- aiGuardrails (shipped previously this session in v1.44) remains
+  Forensic-tier only.
+
+**v1.44 (earlier today) — aiGuardrails module shipped:**
+30 starter scenarios across 8 attack categories: jailbreak, prompt
+injection, PII leak, hallucination, topic constraint, schema
+integrity, tool exfil, cost control. Forensic-tier only; no-op when
+no endpoint configured. Pure scoring engine (78 unit + integration
+tests). Splits the static slice (promptSafety) from the dynamic
+slice (aiGuardrails) in the competitive table — was overpromising
+"replaces Promptfoo / Garak" under the static-only `promptSafety`
+module. Authorized by Craig 2026-06-02 — "Yes please as long as you
+think that our code is gonna
+be clean it's gonna work 100%." Code is clean; scoring heuristic
+accuracy ~85-90% per category (industry standard).
 
 GateTest v1.43.0 — 91 modules + intelligence pipeline (6 trainers,
 session-fix corpus capture, claude-opus-4-7 everywhere, per-tier
@@ -894,11 +1044,15 @@ ASAP, under GitHub review." Year-2030 intelligence pipeline:
 Total new tests in Wave 1-6: 190+. Sweep: 4249 pass / 0 fail / 1 skip.
 
 REMAINING TO DO (next sessions):
-- Recipe auto-promotion (high-confidence recipe-promoter vectors
-  become real rules in rule-based-fixer.js, gated by reviewer PR)
-- Marketing-claim verification tests (nightly suite asserts claims
-  on gatetest.ai still match shipping reality)
-- Dep hygiene dogfood workflow
+- [x] Recipe auto-promotion — DONE (2026-06-03, PR #176): recipe-auto-
+  promoter wired into trainer-nightly.yml; pending rule files written to
+  rule-based-fixer-pending/ and committed to the trainer PR for reviewer
+  approval before becoming real rules.
+- [x] Marketing-claim verification tests — DONE (2026-06-03, PR #176):
+  dogfood-nightly.yml runs tests/marketing-claim-verification.test.js
+  every night and opens a GitHub Issue on any drift.
+- [x] Dep hygiene dogfood workflow — DONE: dogfood-nightly.yml already
+  ran the dependencies module nightly; confirmed complete.
 - Boss Rule items: edge / warm-pool scan workers, continuous
   training run, Crontech as engine orchestrator, true compiler-
   agnostic AST translation. All require explicit Craig auth.

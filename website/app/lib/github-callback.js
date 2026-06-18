@@ -57,8 +57,8 @@ function resolveGitHubToken(env) {
 function toCommitState(scanResult, mode = 'advisory') {
   if (!scanResult || scanResult.error) return 'error';
   if (scanResult.status !== 'complete') return 'error';
-  if (mode !== 'strict') return 'success';
-  // strict mode — any error-severity issue → failure; warnings alone → success.
+  if (mode !== 'strict' && mode !== 'admin') return 'success';
+  // strict/admin mode — any error-severity issue → failure; warnings alone → success.
   const modules = Array.isArray(scanResult.modules) ? scanResult.modules : [];
   const hasErrors = modules.some((m) => {
     const checks = Array.isArray(m.checks) ? m.checks : [];
@@ -80,7 +80,7 @@ function buildDescription(scanResult, mode = 'advisory') {
   const totalIssues = typeof scanResult.totalIssues === 'number' ? scanResult.totalIssues : 0;
   const modules = Array.isArray(scanResult.modules) ? scanResult.modules : [];
   const moduleCount = modules.length;
-  const suffix = mode === 'strict' ? '' : ' · advisory mode';
+  const suffix = (mode === 'strict' || mode === 'admin') ? '' : ' · advisory mode';
   if (totalIssues === 0) {
     return `All ${moduleCount} module${moduleCount === 1 ? '' : 's'} passed — 0 issues found${suffix}`.slice(0, 140);
   }
@@ -92,13 +92,29 @@ function buildDescription(scanResult, mode = 'advisory') {
  * customer-configured mode. Fail-open: missing file, parse error, or
  * API error all return 'advisory' (the soft-landing default).
  *
+ * Admin detection (three signals, any one is sufficient — mirrors the
+ * pre-push hook logic in integrations/husky/pre-push):
+ *   1. GATETEST_ADMIN_ORGS env var — comma-separated list of GitHub
+ *      org/user names that own Craig's platforms (e.g. "vapron-ai,
+ *      Gate-Test,ccantynz-alt"). Checked before any API call.
+ *   2. .gatetest.json has "admin": true
+ *   3. .gatetest.json has "owner": "crclabs-hq"
+ *
+ * Admin repos get 'admin' mode: the gate runs strict (errors → failure)
+ * but without any advisory-mode messaging or upgrade prompts.
+ *
  * @param {string} owner
  * @param {string} repo
  * @param {string} token
  * @param {typeof fetch} [fetchImpl]
- * @returns {Promise<'advisory'|'strict'>}
+ * @param {Record<string, string|undefined>} [env]
+ * @returns {Promise<'advisory'|'strict'|'admin'>}
  */
-async function fetchRepoMode(owner, repo, token, fetchImpl = fetch) {
+async function fetchRepoMode(owner, repo, token, fetchImpl = fetch, env = process.env) {
+  // Signal 1: env-var allowlist — no API call needed for known admin orgs.
+  const adminOrgs = String((env && env.GATETEST_ADMIN_ORGS) || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (adminOrgs.includes(owner)) return 'admin';
+
   try {
     const res = await fetchImpl(
       `${GITHUB_API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/.gatetest.json`,
@@ -115,7 +131,10 @@ async function fetchRepoMode(owner, repo, token, fetchImpl = fetch) {
     if (!payload || typeof payload.content !== 'string') return 'advisory';
     const raw = Buffer.from(payload.content, payload.encoding || 'base64').toString('utf-8');
     const cfg = JSON.parse(raw);
-    return cfg && cfg.mode === 'strict' ? 'strict' : 'advisory';
+    if (!cfg) return 'advisory';
+    // Signals 2 & 3: .gatetest.json admin fields (mirrors pre-push hook)
+    if (cfg.admin === true || cfg.owner === 'crclabs-hq') return 'admin';
+    return cfg.mode === 'strict' ? 'strict' : 'advisory';
   } catch {
     return 'advisory';
   }
@@ -166,7 +185,7 @@ function buildMarkdownComment(repository, sha, scanResult, targetUrl, mode = 'ad
   const totalIssues = typeof (scanResult && scanResult.totalIssues) === 'number' ? scanResult.totalIssues : 0;
   // Advisory mode with findings: surface them in the comment body, but
   // ICON stays neutral and headline calls it out as advisory.
-  const advisoryWithFindings = mode !== 'strict' && totalIssues > 0 && state === 'success';
+  const advisoryWithFindings = mode === 'advisory' && totalIssues > 0 && state === 'success';
   const icon = state === 'error' ? '⚠️' : advisoryWithFindings ? '🟡' : state === 'failure' ? '❌' : '✅';
   const headline = state === 'error'
     ? 'Scan error'
@@ -244,7 +263,7 @@ function buildMarkdownComment(repository, sha, scanResult, targetUrl, mode = 'ad
   // who already set ANTHROPIC_API_KEY have nothing to do — their auto-fix
   // job runs server-side and posts its own annotation; the website-side
   // callback can't see that state, so we keep the CTA short and honest.
-  if (mode !== 'strict' && totalIssues > 0) {
+  if (mode === 'advisory' && totalIssues > 0) {
     lines.push('');
     lines.push('<details><summary>Why is this not red?</summary>');
     lines.push('');
@@ -467,12 +486,21 @@ async function findExistingComment({ owner, repo, prNumber, token, fetchImpl, ma
  * @param {string|null} [opts.ref]
  * @param {number|null} [opts.pullRequestNumber]
  * @param {object} opts.scanResult
+ * @param {string[]} [opts.dbAdminOrgs]    admin orgs pre-fetched from the platform registry DB
  * @param {typeof fetch} [opts.fetchImpl]  override for testing
  * @param {Record<string, string|undefined>} [opts.env]
  * @returns {Promise<{statusSent: boolean, commentSent: boolean, reason?: string}>}
  */
 async function sendGithubCallback(opts) {
   const env = opts.env || process.env;
+
+  // Merge DB-sourced admin orgs with env-var list so fetchRepoMode can see all of them.
+  const dbOrgs = Array.isArray(opts.dbAdminOrgs) ? opts.dbAdminOrgs : [];
+  const envOrgs = String(env.GATETEST_ADMIN_ORGS || '').split(',').map(s => s.trim()).filter(Boolean);
+  const allAdminOrgs = [...new Set([...envOrgs, ...dbOrgs])];
+  const mergedEnv = allAdminOrgs.length > 0
+    ? { ...env, GATETEST_ADMIN_ORGS: allAdminOrgs.join(',') }
+    : env;
   const token = resolveGitHubToken(env);
 
   if (!token) {
@@ -499,7 +527,7 @@ async function sendGithubCallback(opts) {
   // Read repo's gate mode. Fresh installs default to 'advisory' so a
   // mature codebase isn't spammed red on install day. Customer opts in
   // to 'strict' via .gatetest.json when ready.
-  const mode = await fetchRepoMode(owner, repo, token, doFetch);
+  const mode = await fetchRepoMode(owner, repo, token, doFetch, mergedEnv);
 
   const state = toCommitState(scanResult, mode);
   const description = buildDescription(scanResult, mode);

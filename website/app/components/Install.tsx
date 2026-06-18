@@ -14,7 +14,7 @@ export default function Install() {
             Two ways to get the gate <span className="gradient-text">on your repo</span>.
           </h2>
           <p className="text-muted text-lg max-w-2xl mx-auto">
-            Pick the install path that fits your stack. Both run the same 104 modules
+            Pick the install path that fits your stack. Both run the same 110 modules
             against every push.
           </p>
         </div>
@@ -83,7 +83,7 @@ export default function Install() {
               your existing branch protection blocks the merge.
             </p>
 
-            <div className="rounded-lg bg-black/30 border border-border p-4 mb-5 font-[var(--font-mono)] text-xs overflow-x-auto">
+            <div className="rounded-lg bg-slate-950 border border-slate-800 p-4 mb-5 font-[var(--font-mono)] text-xs overflow-x-auto">
               <p className="text-white/40 mb-1"># install</p>
               <p className="text-emerald-400 mb-3">npx gatetest --suite full</p>
               <p className="text-white/40 mb-1"># or pin to your CI runner</p>
@@ -135,7 +135,7 @@ export default function Install() {
               </a>
             </p>
             <p className="text-sm text-muted">
-              Pay-on-completion pricing. Nothing to install, results in under 60 seconds.
+              Pay-on-completion pricing. Nothing to install, results in minutes.
             </p>
           </div>
         </div>

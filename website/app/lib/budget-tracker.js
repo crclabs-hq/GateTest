@@ -28,12 +28,15 @@ const ALS = (() => {
   }
 })();
 
-// Opus 4.7 pricing — Craig directive 2026-05-20 "GateTest at all times
-// runs the latest Opus model everywhere including GitHub." Anthropic
-// pricing: input $15/MTok, output $75/MTok. Tunable per env if Anthropic
-// moves the price card.
-const INPUT_USD_PER_MTOK = Number(process.env.GATETEST_INPUT_USD_PER_MTOK) || 15;
-const OUTPUT_USD_PER_MTOK = Number(process.env.GATETEST_OUTPUT_USD_PER_MTOK) || 75;
+// Sonnet 4.6 pricing — Craig directive 2026-06-03 "Opus is absolutely
+// terrible at debugging websites, it needs to be Sonnet." Sonnet wins
+// SWE-bench Verified vs Opus on real coding tasks; the cheaper model is
+// also the better debugger for our use case. Anthropic Sonnet 4 pricing:
+// input $3/MTok, output $15/MTok — roughly 5x cheaper than Opus on both.
+// Per-tier dollar caps below kept UNCHANGED (Strategy A) — same dollar
+// spend per scan now buys ~5x more analysis depth.
+const INPUT_USD_PER_MTOK = Number(process.env.GATETEST_INPUT_USD_PER_MTOK) || 3;
+const OUTPUT_USD_PER_MTOK = Number(process.env.GATETEST_OUTPUT_USD_PER_MTOK) || 15;
 
 // Default per-scan ceilings. Sized for Opus pricing — the same token
 // counts that were $12 on Sonnet cost ~$60 on Opus, so the per-scan

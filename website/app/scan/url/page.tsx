@@ -235,6 +235,7 @@ function UrlScanInner() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://mywebsite.com"
+              aria-label="Website URL to scan"
               className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/25 text-sm focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/30 transition-all"
               disabled={scanning}
             />
@@ -435,7 +436,7 @@ function UrlScanInner() {
                 This was a surface-level website check.
               </p>
               <p className="text-white/50 text-sm mb-4">
-                If you have a GitHub repo, GateTest can scan 104 modules — security
+                If you have a GitHub repo, GateTest can scan 110 modules — security
                 vulnerabilities, supply-chain risks, dependency issues, and more.
                 On Scan + Fix ($199) and Forensic Scan ($399) we also open a fix PR automatically.
               </p>

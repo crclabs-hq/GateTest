@@ -76,6 +76,60 @@ jobs:
       - name: Verify GateTest installed
         run: node "$GATETEST_HOME/bin/gatetest.js" --version
 
+      # ----------------------------------------------------------------
+      # Admin detection — three signals, any one triggers admin mode.
+      #
+      # Admin mode = strict enforcement (errors → ❌ in PR checks) with
+      # auto-fix enabled. No advisory-mode messaging. Used for all
+      # crclabs-hq / Craig-owned repos.
+      #
+      # Signals (checked in order):
+      #   1. GATETEST_ADMIN_ORGS variable — set once at the org level in
+      #      GitHub (Settings → Secrets and variables → Actions →
+      #      Variables → New org variable → GATETEST_ADMIN_ORGS →
+      #      comma-separated org names, e.g. "crclabs-hq,vapron-ai").
+      #      Works for ALL repos in those orgs with zero per-repo config.
+      #   2. .gatetest.json has "admin": true
+      #   3. .gatetest.json has "owner": "crclabs-hq"
+      # ----------------------------------------------------------------
+      - name: Detect admin repo
+        id: admin_detect
+        run: |
+          IS_ADMIN=false
+          REPO_OWNER="${{ github.repository_owner }}"
+
+          # Signal 1: org-level variable (no API call — just a string check)
+          ADMIN_ORGS_VAR="${{ vars.GATETEST_ADMIN_ORGS }}"
+          if [ -n "$ADMIN_ORGS_VAR" ]; then
+            IFS=',' read -ra ORGS <<< "$ADMIN_ORGS_VAR"
+            for ORG in "${ORGS[@]}"; do
+              TRIMMED=$(echo "$ORG" | tr -d '[:space:]')
+              if [ "${TRIMMED,,}" = "${REPO_OWNER,,}" ]; then
+                IS_ADMIN=true
+                echo "[GateTest] Admin mode: org '$REPO_OWNER' matched GATETEST_ADMIN_ORGS variable."
+                break
+              fi
+            done
+          fi
+
+          # Signals 2 & 3: .gatetest.json fields
+          if [ "$IS_ADMIN" = "false" ] && [ -f "$GITHUB_WORKSPACE/.gatetest.json" ]; then
+            if grep -Eq '"admin"[[:space:]]*:[[:space:]]*true' "$GITHUB_WORKSPACE/.gatetest.json" 2>/dev/null; then
+              IS_ADMIN=true
+              echo "[GateTest] Admin mode: .gatetest.json has \"admin\": true."
+            elif grep -Eq '"owner"[[:space:]]*:[[:space:]]*"crclabs-hq"' "$GITHUB_WORKSPACE/.gatetest.json" 2>/dev/null; then
+              IS_ADMIN=true
+              echo "[GateTest] Admin mode: .gatetest.json has \"owner\": \"crclabs-hq\"."
+            fi
+          fi
+
+          echo "is_admin=$IS_ADMIN" >> "$GITHUB_OUTPUT"
+          if [ "$IS_ADMIN" = "true" ]; then
+            echo "[GateTest] ADMIN MODE — strict enforcement, auto-fix on. No advisory labels."
+          else
+            echo "[GateTest] ADVISORY MODE — findings reported, gate never blocks."
+          fi
+
       # --parallel runs all modules concurrently — ~3x speedup on GitHub
       # Actions' standard 4-vCPU runner. Each module is independent so
       # Promise.all is safe.
@@ -83,26 +137,29 @@ jobs:
       # GithubAnnotationsReporter auto-attaches without a flag — findings
       # render as inline annotations on the PR diff (red squiggles on the
       # offending line) instead of being buried in the run log.
-      #
-      # NOTE: --report-only is the FRESH-INSTALL default. The gate runs,
-      # reports findings via SARIF + annotations + PR comments, but never
-      # fails the workflow on a finding. This prevents the canonical
-      # "scanner blocks production deploys on a mature codebase" failure
-      # mode (the one that hit Crontech 2026-05-25 — the founder had to
-      # disable GateTest to ship). Once the team has triaged the baseline
-      # and wants the gate to enforce, change `--report-only` to `--strict`
-      # in both invocations below.
       - name: GateTest — Quick (diff-mode) on PRs
         if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node "$GATETEST_HOME/bin/gatetest.js" --suite quick --diff --sarif --junit --parallel --report-only --project "$GITHUB_WORKSPACE"
+          GATETEST_ADMIN: ${{ steps.admin_detect.outputs.is_admin == 'true' && '1' || '' }}
+        run: |
+          if [ "${{ steps.admin_detect.outputs.is_admin }}" = "true" ]; then
+            node "$GATETEST_HOME/bin/gatetest.js" --suite quick --diff --sarif --junit --parallel --fix --project "$GITHUB_WORKSPACE"
+          else
+            node "$GATETEST_HOME/bin/gatetest.js" --suite quick --diff --sarif --junit --parallel --report-only --project "$GITHUB_WORKSPACE"
+          fi
 
       - name: GateTest — Full on main push
         if: github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node "$GATETEST_HOME/bin/gatetest.js" --suite full --sarif --junit --parallel --report-only --project "$GITHUB_WORKSPACE"
+          GATETEST_ADMIN: ${{ steps.admin_detect.outputs.is_admin == 'true' && '1' || '' }}
+        run: |
+          if [ "${{ steps.admin_detect.outputs.is_admin }}" = "true" ]; then
+            node "$GATETEST_HOME/bin/gatetest.js" --suite full --sarif --junit --parallel --fix --project "$GITHUB_WORKSPACE"
+          else
+            node "$GATETEST_HOME/bin/gatetest.js" --suite full --sarif --junit --parallel --report-only --project "$GITHUB_WORKSPACE"
+          fi
 
       - name: Upload SARIF to GitHub Security
         if: always()

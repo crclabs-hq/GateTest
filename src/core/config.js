@@ -148,6 +148,7 @@ const DEFAULT_CONFIG = {
       'dataIntegrity',
       'documentation',
       'dependencies',
+      'sbom',
       'dockerfile',
       'ciSecurity',
       'shell',
@@ -225,6 +226,8 @@ const DEFAULT_CONFIG = {
     ],
     nuclear: [
       'memory',
+      'aiGuardrails',
+      'sbom',
       'syntax',
       'lint',
       'secrets',

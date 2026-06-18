@@ -36,7 +36,7 @@ import {
   createBranch,
   fetchBlob,
   fetchFileSha,
-
+  fetchTree,
   openPullRequest,
   postPrComment,
   resolveBaseBranchSha,
@@ -109,7 +109,7 @@ const { runPairReview, renderReviewComment } = require("@/app/lib/pair-review") 
   ) => string;
 };
 
-// CISO report generator — Nuclear-tier ($399) deliverable. Wires the
+// CISO report generator — Forensic-tier ($399) deliverable. Wires the
 // existing helper into the Nuclear branch of the fix route so paying
 // customers actually receive the board-ready report the marketing
 // promises (OWASP Top 10, SOC2 TSC, CIS Controls v8, 30/60/90-day
@@ -138,10 +138,10 @@ const { generateCisoReport, cisoReportPath } = require("@/app/lib/ciso-report-ge
 };
 
 // Phase 3.2 — cross-finding correlation engine. Identifies attack
-// chains across the full Nuclear-tier findings set (one Claude call,
+// chains across the full Forensic-tier findings set (one Claude call,
 // independent of the per-finding diagnoser). Wired into /api/scan/fix
 // so the CISO report receives real chains instead of an empty array.
-// Failure is non-blocking — Nuclear deliverable still ships; CISO
+// Failure is non-blocking — Forensic deliverable still ships; CISO
 // report rendered with chains:[] and a placeholder note in the PR body.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { correlateForCisoChains } = require("@/app/lib/ciso-correlator-bridge") as {
@@ -176,7 +176,7 @@ const { composePrBody } = require("@/app/lib/pr-composer") as {
     repoUrl?: string;
     /** Pre-rendered CVE patches markdown section from composeCveFixPrSection. */
     cveSection?: string;
-    /** Nuclear-tier CISO report descriptor (path/riskLevel/complianceGaps/counts/failed). */
+    /** Forensic-tier CISO report descriptor (path/riskLevel/complianceGaps/counts/failed). */
     cisoReport?: {
       path?: string;
       riskLevel?: string;
@@ -200,6 +200,33 @@ const { generateTestsForFixes } = require("@/app/lib/test-generator") as {
     summary: string;
   }>;
 };
+// Phase 1.2b production wiring — server-side hydration of the original
+// workspace + baseline findings when the caller didn't supply them.
+// This is what turns the scanner gate from a no-op into a live gate for
+// every production caller (scan page, admin Command Center, watchdog).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { hydrateFixWorkspace } = require("@/app/lib/fix-workspace-hydrator") as {
+  hydrateFixWorkspace: (opts: {
+    owner: string;
+    repo: string;
+    token: string;
+    tier?: string;
+    issueFiles: string[];
+    existingFileContents?: Array<{ path: string; content: string }>;
+    existingFindings?: Record<string, string[]> | null;
+    fetchTree: (owner: string, repo: string, ref: string, token: string) => Promise<string[]>;
+    fetchBlob: (owner: string, repo: string, path: string, ref: string, token: string) => Promise<string | null>;
+    runTier?: (tier: string, ctx: { owner: string; repo: string; files: string[]; fileContents: Array<{ path: string; content: string }> }) => Promise<{ modules: Array<{ name: string; details?: string[] }>; totalIssues: number }>;
+    maxFiles?: number;
+  }) => Promise<{
+    fileContents: Array<{ path: string; content: string }>;
+    findingsByModule: Record<string, string[]> | null;
+    hydratedFiles: boolean;
+    hydratedFindings: boolean;
+    reason: string | null;
+  }>;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { validateFixesAgainstScanner } = require("@/app/lib/cross-fix-scanner-gate") as {
   validateFixesAgainstScanner: (opts: {
@@ -286,6 +313,23 @@ const { attemptFixWithRetries, summariseAttempts } = require("@/app/lib/fix-atte
     finalReason: string | null;
   }>;
   summariseAttempts: (attempts: Array<{ outcome: string; durationMs: number }>) => string;
+};
+// Flywheel telemetry — records WHICH layer handled each fix so the nightly
+// pattern-miner trains on production data, not just CLI runs. Best-effort,
+// never throws (resilience contract documented in the module).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { recordFixAttempt } = require("@/app/lib/fix-telemetry") as {
+  recordFixAttempt: (entry: {
+    layer: "ast" | "rule" | "recipe" | "claude" | null;
+    success: boolean;
+    issueRuleKey?: string;
+    module?: string;
+    durationMs?: number;
+    costUsd?: number;
+    reason?: string;
+    model?: string;
+    fileExt?: string;
+  }) => void;
 };
 // Shape of the shared adaptive-concurrency state object. Mirrors the JS
 // source at website/app/lib/adaptive-concurrency.js — workers may mutate
@@ -632,7 +676,7 @@ CRITICAL RULES — violations will cause re-scan failure:
 - The fixed code will be automatically re-scanned. If it fails, the fix is rejected.`;
 
   const body = JSON.stringify({
-    model: "claude-opus-4-7",
+    model: "claude-sonnet-4-6",
     max_tokens: 8192,
     messages: [{ role: "user", content: prompt }],
   });
@@ -746,7 +790,7 @@ const MAX_FILE_BYTES = 400 * 1024;
  */
 async function askClaudeForTest(prompt: string): Promise<string> {
   const body = JSON.stringify({
-    model: "claude-opus-4-7",
+    model: "claude-sonnet-4-6",
     max_tokens: 4096,
     messages: [{ role: "user", content: prompt }],
   });
@@ -776,7 +820,7 @@ Rules:
 - Follow whatever format the file extension implies.`;
 
   const body = JSON.stringify({
-    model: "claude-opus-4-7",
+    model: "claude-sonnet-4-6",
     max_tokens: 4096,
     messages: [{ role: "user", content: prompt }],
   });
@@ -1074,6 +1118,28 @@ export async function POST(req: NextRequest) {
     }
     token = auth.token;
     authSource = auth.source;
+  }
+
+  // Phase 1.2b — hydrate the original workspace + baseline findings when
+  // the caller didn't send them. Activates the cross-fix scanner gate,
+  // contextual grounding, stack detection and prior-art recall for every
+  // production caller. Failure degrades to the old behaviour (gate skips)
+  // and the reason is carried into the response below — never blocking.
+  const hydration = await hydrateFixWorkspace({
+    owner,
+    repo,
+    token,
+    tier: input.tier || "full",
+    issueFiles: [...new Set(issues.map((i) => i.file).filter((f): f is string => Boolean(f)))],
+    existingFileContents: input.originalFileContents || [],
+    existingFindings: input.originalFindingsByModule || null,
+    fetchTree,
+    fetchBlob,
+    runTier,
+  });
+  input.originalFileContents = hydration.fileContents;
+  if (hydration.findingsByModule) {
+    input.originalFindingsByModule = hydration.findingsByModule;
   }
 
   // Group issues by file. Day-2: retain `line` per issue so the per-file
@@ -1510,6 +1576,21 @@ export async function POST(req: NextRequest) {
     errors.push(`Skipped ${skippedForBudget} file${skippedForBudget > 1 ? "s" : ""} — function time budget exhausted. Re-run fix to process the remainder.`);
   }
 
+  // Flywheel capture — one telemetry record per attempted file. CVE
+  // version-bumps ran without Claude (deterministic 'rule' layer);
+  // everything else that reached the loop is the 'claude' layer. Records
+  // ruleKey/module-free aggregates only (privacy contract in fix-telemetry).
+  for (const [filePath, history] of Object.entries(attemptHistoryByFile)) {
+    const deterministic = history.summary.includes("without Claude");
+    recordFixAttempt({
+      layer: deterministic ? "rule" : "claude",
+      success: history.success,
+      durationMs: history.attempts.reduce((acc, a) => acc + (a.durationMs || 0), 0),
+      reason: history.success ? undefined : (history.attempts[history.attempts.length - 1]?.outcome || "unknown"),
+      fileExt: (filePath.match(/\.[a-z0-9]+$/i) || [""])[0] || undefined,
+    });
+  }
+
   if (fixes.length === 0) {
     const apiDegraded = failedFiles.length > 0 && failedFiles.length === fileEntries.length;
     return NextResponse.json({
@@ -1676,7 +1757,7 @@ export async function POST(req: NextRequest) {
       await upsertFile(owner, repo, fix.file, fix.fixed, message, branchName, existingSha, token);
     });
 
-    // Nuclear-tier CISO board-report. Generated AFTER all fixes are
+    // Forensic-tier CISO board-report. Generated AFTER all fixes are
     // committed (so it reflects the post-fix landscape), BEFORE PR-body
     // composition (so the body can mention it). Committed to the same
     // branch as a markdown file the customer receives in the PR diff;
@@ -1721,7 +1802,7 @@ export async function POST(req: NextRequest) {
         // CISO report so chains can flow into the report's attack-chain
         // section. ONE Claude call, budget-bounded by a 30s timeout.
         // Fail-soft: any error / timeout / parse failure returns
-        // chains:[] with a human-readable note. The Nuclear deliverable
+        // chains:[] with a human-readable note. The Forensic deliverable
         // STILL ships either way — chains are an additive lift on top
         // of the per-finding diagnosis the CISO report already covers.
         const correlationResult = await correlateForCisoChains({
@@ -1743,7 +1824,7 @@ export async function POST(req: NextRequest) {
           // appear independent" (an honest outcome, not a failure).
           chains: correlationResult.chains,
           hostName: `${owner}/${repo}`,
-          tier: "Nuclear",
+          tier: "Forensic",
           askClaude: askClaudeForTest,
         });
 
@@ -1811,11 +1892,22 @@ export async function POST(req: NextRequest) {
       cveSection: cvePrSection || undefined,
       cisoReport: cisoReportDescriptor,
     });
+    // Cross-repo flywheel CONSUME side — annotate fixes whose diff shape
+    // structurally matches anonymised vectors already shipped on other
+    // codebases. Best-effort: helper never throws, '' means no section.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { annotateFixesWithPriorArt, renderPriorArtSection } = require("@/app/lib/cross-repo-prior-art") as {
+      annotateFixesWithPriorArt: (fixes: Array<{ file: string; original: string; fixed: string }>) => Array<{ file: string; priorArt: { operatorClass: string; sampleSize: number } }>;
+      renderPriorArtSection: (annotations: Array<{ file: string; priorArt: { operatorClass: string; sampleSize: number } }>) => string;
+    };
+    const priorArtSection = renderPriorArtSection(annotateFixesWithPriorArt(fixes));
+
     // Append the advisory section (files the tier cap couldn't cover)
     // so customers see what was left on the table without paying for it.
-    const prBody = advisoryMarkdown
+    let prBody = advisoryMarkdown
       ? `${prBodyCore}\n\n---\n\n${advisoryMarkdown}`
       : prBodyCore;
+    if (priorArtSection) prBody = `${prBody}\n\n---\n\n${priorArtSection}`;
 
     // Open the PR. NOTE: Gluecron uses `headBranch` / `baseBranch` (NOT
     // GitHub's `head` / `base`) — our openPullRequest helper handles the
@@ -2008,7 +2100,13 @@ export async function POST(req: NextRequest) {
       syntaxGate: { accepted: syntaxGate.accepted.length, rejected: syntaxGate.rejected.length, summary: syntaxGateSummary },
       scannerGate: scannerGateSummary
         ? { rolledBack: scannerGateRolledBack, summary: scannerGateSummary }
-        : { skipped: true, reason: "caller did not pass originalFileContents + originalFindingsByModule" },
+        : { skipped: true, reason: hydration.reason || "no baseline workspace/findings available (hydration yielded nothing)" },
+      workspaceHydration: {
+        files: input.originalFileContents?.length || 0,
+        hydratedFiles: hydration.hydratedFiles,
+        hydratedFindings: hydration.hydratedFindings,
+        reason: hydration.reason,
+      },
       testGeneration: { testsWritten: testGen.tests.length, skipped: testGen.skipped, summary: testGenSummary },
       pairReview: pairReviewSummary
         ? { summary: pairReviewSummary }

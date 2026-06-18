@@ -50,7 +50,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
+  font-family: var(--font-sans), sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -162,6 +162,24 @@ body {
   border: 2px solid var(--accent);
   border-radius: 12px;
   box-shadow: 0 4px 16px rgba(15, 118, 110, 0.08);
+}
+
+/* 3D perspective tilt on module cards — subtle depth, not a fairground ride */
+.module-card-3d {
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.22s ease;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .module-card-3d:hover {
+    transform: perspective(900px) rotateX(-3deg) rotateY(2deg) translateY(-3px);
+    box-shadow: 0 20px 48px -14px rgba(15, 118, 110, 0.22),
+                0 2px 6px rgba(0, 0, 0, 0.04),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    border-color: rgba(15, 118, 110, 0.4);
+  }
 }
 
 /* === ACCENT TEXT (subtle gradient shimmer) === */
@@ -473,3 +491,112 @@ html {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+
+/* ===================================================================== */
+/* KLAVIYO-TIER HERO (prototype) — warm editorial light treatment        */
+/* ===================================================================== */
+
+/* Opt-in editorial display face for headlines. */
+.font-display {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  letter-spacing: -0.025em;
+}
+
+/* Warm cream hero canvas with soft teal light, à la premium B2B SaaS. */
+.hero-warm {
+  background:
+    radial-gradient(115% 80% at 82% -12%, rgba(20, 184, 166, 0.12), transparent 58%),
+    radial-gradient(90% 70% at -5% 0%, rgba(15, 118, 110, 0.07), transparent 55%),
+    #f7f4ed;
+}
+
+/* Faint dotted grid for texture (very low contrast). */
+.hero-warm-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(75% 55% at 50% 35%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(75% 55% at 50% 35%, #000 30%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Dark product card that pops on the cream canvas (Klaviyo shows dark UI
+   shots on light backgrounds). Deep, layered shadow gives real elevation. */
+.product-card {
+  background: linear-gradient(180deg, #11141b 0%, #0c0e14 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 2px 4px rgba(15, 23, 42, 0.10),
+    0 24px 50px -18px rgba(15, 23, 42, 0.45),
+    0 12px 28px -12px rgba(15, 118, 110, 0.25);
+}
+
+/* Floating "kpi" chip overlapping the product card for depth. */
+.product-chip {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 30px -10px rgba(15, 23, 42, 0.25);
+}
+
+/* Soft gentle float for the product card (respects reduced-motion). */
+@keyframes card-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+.card-float { animation: card-float 6s ease-in-out infinite; }
+
+/* Pill for the "replaces" marquee row. */
+.replace-pill {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+@media (max-width: 767px) {
+  .card-float { animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-float { animation: none; }
+}
+
+/* ===================================================================== */
+/* HERO PASS 2 — signature texture, bold stats band, browser frame       */
+/* ===================================================================== */
+
+/* Signature teal aurora — our answer to Klaviyo's iridescent shimmer.
+   Layered soft radial glows; calm, premium, unmistakably ours. */
+.hero-aurora {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 50% at 78% 8%, rgba(20, 184, 166, 0.16), transparent 70%),
+    radial-gradient(35% 45% at 12% 18%, rgba(45, 212, 191, 0.10), transparent 70%),
+    radial-gradient(50% 60% at 95% 90%, rgba(15, 118, 110, 0.08), transparent 70%);
+}
+
+/* Full-bleed stats band — refined DARK, not a loud color fill.
+   White display numbers + teal labels; gives the clean dark/light rhythm
+   without the bright band Craig (rightly) didn't want. */
+.stats-band {
+  background: linear-gradient(180deg, #11141b 0%, #0c0e14 100%);
+  border-top: 1px solid rgba(20, 184, 166, 0.22);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.stats-band .stat-num {
+  font-family: var(--font-display), var(--font-mono), monospace;
+  letter-spacing: -0.02em;
+}
+
+/* Browser-window frame for the product screenshot — makes the auto-fix PR
+   read as a real captured screenshot rather than a floating card. */
+.browser-frame .url-bar {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Marquee-free, accessible: the band is static. */

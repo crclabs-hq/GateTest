@@ -80,20 +80,35 @@ export function buildAdminClearCookieHeader(): string {
 }
 
 /**
- * Check whether a request carries a valid admin cookie.
- *
- * Works with both the Next.js App Router `NextRequest` (which exposes
- * `cookies.get`) and any future wrapper that just passes a cookie-header string.
+ * Check whether a request carries a valid admin cookie OR a valid
+ * X-Admin-Token header (for server-to-server internal calls such as
+ * the watchdog tick calling /api/scan/run without browser cookies).
  */
 export function isAdminRequest(req: NextRequest): boolean {
   const expectedPassword = process.env.GATETEST_ADMIN_PASSWORD || "";
   if (!expectedPassword) return false;
 
-  const cookieValue = req.cookies.get(COOKIE_NAME)?.value || "";
-  if (!cookieValue) return false;
-
   const expectedToken = deriveToken(expectedPassword);
-  return safeEqual(cookieValue, expectedToken);
+
+  // Cookie path — browser/admin-panel requests
+  const cookieValue = req.cookies.get(COOKIE_NAME)?.value || "";
+  if (cookieValue && safeEqual(cookieValue, expectedToken)) return true;
+
+  // Header path — server-to-server internal calls (watchdog tick → scan/run)
+  const headerValue = req.headers.get("x-admin-token") || "";
+  if (headerValue && safeEqual(headerValue, expectedToken)) return true;
+
+  return false;
+}
+
+/**
+ * Derive the admin token for use in server-to-server internal calls.
+ * Pass the result as the `X-Admin-Token` request header.
+ */
+export function deriveAdminToken(): string {
+  const password = process.env.GATETEST_ADMIN_PASSWORD || "";
+  if (!password) return "";
+  return deriveToken(password);
 }
 
 export const ADMIN_COOKIE_NAME = COOKIE_NAME;

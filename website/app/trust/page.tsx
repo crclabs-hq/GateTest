@@ -47,12 +47,12 @@ export default function TrustPage() {
       <section className="px-6 py-10 max-w-5xl mx-auto">
         <div className="grid md:grid-cols-2 gap-6">
           <div className="rounded-2xl border border-border bg-surface p-6">
-            <h3 className="text-sm font-semibold text-accent-light uppercase tracking-wider mb-3">
+            <h2 className="text-sm font-semibold text-accent-light uppercase tracking-wider mb-3">
               We run GateTest on GateTest
-            </h3>
+            </h2>
             <p className="text-sm text-muted mb-5">
               Every commit to <code className="text-foreground">main</code>{" "}
-              runs the same 103-module gate we sell. The badge below is the
+              runs the same 110-module gate we sell. The badge below is the
               live verdict, updated within seconds of every CI run. If we
               ship a regression, you see it before we do.
             </p>
@@ -65,13 +65,13 @@ export default function TrustPage() {
           </div>
 
           <div className="rounded-2xl border border-border bg-surface p-6">
-            <h3 className="text-sm font-semibold text-accent-light uppercase tracking-wider mb-3">
+            <h2 className="text-sm font-semibold text-accent-light uppercase tracking-wider mb-3">
               At a glance
-            </h3>
+            </h2>
             <ul className="text-sm space-y-3">
-              <Metric label="Modules in the gate" value="103" />
+              <Metric label="Modules in the gate" value="110" />
               <Metric label="Tests passing on main" value="4,100+" />
-              <Metric label="Auto-fix accuracy (Crontech dogfood)" value="100%" sub="3/3 prod crashes caught" />
+              <Metric label="Auto-fix accuracy (Vapron dogfood)" value="100%" sub="3/3 prod crashes caught" />
               <Metric label="GitHub Marketplace" value="In review" sub="week 1 of approval" />
               <Metric label="SOC2 Type II" value="Audit Q3 2026" sub="not certified today — see roadmap below" />
             </ul>
@@ -304,7 +304,7 @@ export default function TrustPage() {
 
         <div className="space-y-3">
           <VerifyRow
-            claim="The 103 modules"
+            claim="The 110 modules"
             verify={
               <>
                 Run{" "}

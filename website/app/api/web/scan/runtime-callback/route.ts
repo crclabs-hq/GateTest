@@ -1,13 +1,13 @@
 /**
- * Crontech → GateTest runtime callback.
+ * Vapron → GateTest runtime callback.
  *
- * Crontech POSTs here after a headless-browser runtime scan finishes
+ * Vapron POSTs here after a headless-browser runtime scan finishes
  * (success OR failure). We verify the HMAC signature (fail-closed,
  * Forbidden #15), parse the runtime payload, and persist it on the
  * scan_queue row keyed by the scan id. The next scan/status poll will
  * surface the merged static + runtime results to the customer.
  *
- * Inbound contract (Crontech side):
+ * Inbound contract (Vapron side):
  *   POST /api/web/scan/runtime-callback
  *   headers:
  *     X-GateTest-Signature: hex(hmac-sha256(secret, body))
@@ -26,7 +26,7 @@
  *     }
  *
  * Fail-closed semantics:
- *   - Missing CRONTECH_DISPATCH_SECRET → 503 (we won't process callbacks
+ *   - Missing VAPRON_DISPATCH_SECRET → 503 (we won't process callbacks
  *     when we can't verify them).
  *   - Missing/invalid signature → 401.
  *   - Replay protection: reject timestamps older than 5 minutes.
@@ -59,11 +59,13 @@ interface RuntimeCallbackBody {
 
 export async function POST(req: NextRequest) {
   // 1. Read RAW body — JSON.parse after, because the HMAC must be over
-  //    the exact bytes Crontech signed.
+  //    the exact bytes Vapron signed.
   const raw = await req.text();
 
   // 2. Resolve the dispatch secret. Fail-closed when absent.
-  const secret = process.env.CRONTECH_DISPATCH_SECRET;
+  //    Canonical is VAPRON_DISPATCH_SECRET; CRONTECH_DISPATCH_SECRET is a
+  //    fallback until the Vercel env var is renamed.
+  const secret = process.env.VAPRON_DISPATCH_SECRET ?? process.env.CRONTECH_DISPATCH_SECRET;
   if (!secret) {
     return NextResponse.json(
       { error: "Callback verification not configured" },
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
 
   // 3. Verify signature.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { verifySignature, SIGNATURE_HEADER, TIMESTAMP_HEADER } = require("@/app/lib/crontech-dispatch") as {
+  const { verifySignature, SIGNATURE_HEADER, TIMESTAMP_HEADER } = require("@/app/lib/vapron-dispatch") as {
     verifySignature: (body: string, sig: string | null | undefined, secret: string) => boolean;
     SIGNATURE_HEADER: string;
     TIMESTAMP_HEADER: string;
@@ -119,7 +121,7 @@ export async function POST(req: NextRequest) {
   try {
     sql = getDb();
   } catch {
-    // DB not configured locally — still ack so Crontech doesn't retry.
+    // DB not configured locally — still ack so Vapron doesn't retry.
     // Log so the operator can see the dropped payload.
     console.warn(`[runtime-callback] DB unavailable; dropped runtime payload for scan ${body.scanId}`);
     return NextResponse.json({ received: true, persisted: false }, { status: 200 });
@@ -159,14 +161,14 @@ export async function POST(req: NextRequest) {
     console.warn(
       `[runtime-callback] Failed to persist runtime payload for scan ${body.scanId}: ${err instanceof Error ? err.message : String(err)}`
     );
-    // Still 200 so Crontech doesn't retry — we logged the dropped data.
+    // Still 200 so Vapron doesn't retry — we logged the dropped data.
     return NextResponse.json({ received: true, persisted: false }, { status: 200 });
   }
 }
 
 export async function GET() {
   return NextResponse.json(
-    { hint: "POST runtime scan results here from Crontech with X-GateTest-Signature header." },
+    { hint: "POST runtime scan results here from Vapron with X-GateTest-Signature header." },
     { status: 405 }
   );
 }

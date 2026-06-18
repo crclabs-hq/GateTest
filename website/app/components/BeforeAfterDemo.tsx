@@ -20,7 +20,7 @@ export default function BeforeAfterDemo() {
           <span className="text-sm font-semibold text-accent-light uppercase tracking-wider">
             What you get
           </span>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mt-4 mb-4 text-white">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mt-4 mb-4 text-foreground">
             From red CI to merged fix &mdash;{" "}
             <span className="gradient-text">while you sleep.</span>
           </h2>
@@ -39,8 +39,8 @@ export default function BeforeAfterDemo() {
             title="A test breaks on main"
             body={
               <>
-                <pre className="text-xs sm:text-sm font-mono text-red-300/90 whitespace-pre-wrap bg-black/40 rounded-md p-3 leading-relaxed">
-{`× crontech-api.service failed
+                <pre className="text-xs sm:text-sm font-mono text-red-300 whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-md p-3 leading-relaxed shadow-inner">
+{`× vapron-api.service failed
   ReferenceError: resolveTenantCapForHotPath
     is not defined
   at apps/api/src/cdn/handler.ts:65:22
@@ -49,8 +49,8 @@ export default function BeforeAfterDemo() {
   ::error file=apps/api/src/cdn/handler.ts,
     line=65::ReferenceError`}
                 </pre>
-                <p className="text-xs text-white/40 mt-3">
-                  A real Crontech failure from 2026-05-24. The api crashed at
+                <p className="text-xs text-muted mt-3">
+                  A real Vapron failure from 2026-05-24. The api crashed at
                   module load. Rollback also failed.
                 </p>
               </>
@@ -68,12 +68,12 @@ export default function BeforeAfterDemo() {
                 <ul className="text-sm space-y-2.5 mb-3">
                   <Step state="done">Re-runs the gate to isolate the failing module</Step>
                   <Step state="done">Reads the project conventions (README, AGENTS.md)</Step>
-                  <Step state="done">Generates the fix with Claude Sonnet 4</Step>
+                  <Step state="done">Generates the fix with Claude Sonnet 4.6</Step>
                   <Step state="done">Validates the fix re-passes the gate</Step>
                   <Step state="done">Writes a regression test for the bug</Step>
                   <Step state="working">Pair-reviews the fix with a second Claude</Step>
                 </ul>
-                <p className="text-xs text-white/40">
+                <p className="text-xs text-muted">
                   ~38 seconds, ~$0.02 in Anthropic API spend per fix on the
                   $99 tier. Margin: 100x.
                 </p>
@@ -89,7 +89,7 @@ export default function BeforeAfterDemo() {
             title="A fix PR lands in your repo"
             body={
               <>
-                <pre className="text-xs sm:text-sm font-mono text-emerald-300/90 whitespace-pre-wrap bg-black/40 rounded-md p-3 leading-relaxed">
+                <pre className="text-xs sm:text-sm font-mono text-emerald-300 whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-md p-3 leading-relaxed shadow-inner">
 {`+ import { resolveTenantCapForHotPath }
 +   from "./quotas";
 
@@ -101,7 +101,7 @@ export default function BeforeAfterDemo() {
 
 ✓ Tests added (1)  ✓ Gate green`}
                 </pre>
-                <p className="text-xs text-white/40 mt-3">
+                <p className="text-xs text-muted mt-3">
                   One-click &ldquo;Commit suggestion&rdquo; in GitHub. CI re-runs
                   green. You wake up to a merged fix instead of a 47-message
                   Slack thread.
@@ -111,9 +111,9 @@ export default function BeforeAfterDemo() {
           />
         </div>
 
-        <p className="text-center text-base sm:text-lg text-white/55 mt-12 max-w-3xl mx-auto">
+        <p className="text-center text-base sm:text-lg text-muted mt-12 max-w-3xl mx-auto">
           No other tool ships{" "}
-          <strong className="text-white">scan + fix + regression test +
+          <strong className="text-foreground">scan + fix + regression test +
             pair-review + cross-finding correlation</strong>{" "}
           on pay-per-scan pricing. <span className="text-accent-light">We do.</span>
         </p>
@@ -156,11 +156,11 @@ function Panel({
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-white/35 uppercase tracking-wider">
+          <span className="text-xs font-mono text-muted uppercase tracking-wider">
             Step {stage}
           </span>
-          <span className="text-xs font-mono text-white/30">&middot;</span>
-          <span className="text-xs font-mono text-white/35">{timestamp}</span>
+          <span className="text-xs font-mono text-muted/60">&middot;</span>
+          <span className="text-xs font-mono text-muted">{timestamp}</span>
         </div>
         <span
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${badgeStyles[badgeColor]}`}
@@ -178,7 +178,7 @@ function Panel({
         </span>
       </div>
 
-      <h3 className="text-lg font-semibold text-white mb-3">{title}</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-3">{title}</h3>
 
       {body}
     </div>
@@ -194,7 +194,7 @@ function Step({
 }) {
   if (state === "done") {
     return (
-      <li className="flex items-start gap-2 text-white/80">
+      <li className="flex items-start gap-2 text-foreground/85">
         <span className="text-accent-light text-xs mt-1" aria-hidden>
           &#10003;
         </span>
@@ -203,7 +203,7 @@ function Step({
     );
   }
   return (
-    <li className="flex items-start gap-2 text-white/80">
+    <li className="flex items-start gap-2 text-foreground/85">
       <span className="relative inline-flex h-3 w-3 mt-1 shrink-0" aria-hidden>
         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent/70 opacity-75" />
         <span className="relative inline-flex h-3 w-3 rounded-full bg-accent" />

@@ -410,8 +410,93 @@ async function monitor({
   };
 }
 
+// ---------------------------------------------------------------------------
+// Markdown rendering — same contract as the other trainers
+// ---------------------------------------------------------------------------
+
+function renderMarkdown(report) {
+  const lines = [];
+  lines.push('# Hacker News monitor');
+  lines.push('');
+  lines.push(`Generated: ${report.generatedAt} · window: last ${report.windowHours}h`);
+  lines.push('');
+  const s = report.summary || {};
+  lines.push(`- **GateTest mentions:** ${s.gatetestMentions || 0}`);
+  lines.push(`- **Unique hits scanned:** ${s.totalUniqueHits || 0}`);
+  lines.push(`- **Competitor pain-points found:** ${s.painPointsFound || 0}`);
+  lines.push('');
+
+  if ((report.actionItems || []).length > 0) {
+    lines.push('## Action items (drafts — FOR CRAIG REVIEW, never auto-posted)');
+    lines.push('');
+    for (const a of report.actionItems) {
+      lines.push(`### ${a.intent} — ${a.url}`);
+      lines.push('');
+      lines.push(`> ${a.snippet.replace(/\n/g, ' ')}`);
+      lines.push('');
+      lines.push(`**Suggested draft:** ${a.suggestedDraftResponse}`);
+      lines.push('');
+    }
+  } else {
+    lines.push('_No GateTest bug / criticism / feature-request mentions in this window._');
+    lines.push('');
+  }
+
+  const competitors = Object.entries(s.competitorMentions || {}).filter(([, n]) => n > 0);
+  if (competitors.length > 0) {
+    lines.push('## Competitor mention volume');
+    lines.push('');
+    lines.push('| Competitor | Mentions |');
+    lines.push('| --- | --- |');
+    for (const [name, n] of competitors) lines.push(`| ${name} | ${n} |`);
+    lines.push('');
+  }
+
+  if ((report.painPoints || []).length > 0) {
+    lines.push('## Aggregated pain-points (opportunity signals)');
+    lines.push('');
+    for (const p of report.painPoints.slice(0, 10)) {
+      lines.push(`- **${p.painPoint || p.phrase || 'unknown'}** — ${p.count || p.hits?.length || 0} hits`);
+    }
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// CLI entrypoint — mirrors the other trainers: print markdown to stdout,
+// write the JSON report to ~/.gatetest/trainers/hacker-news-latest.json.
+// Wired into trainer-nightly.yml + `gatetest train` per Craig's Boss Rule #7
+// authorization 2026-06-12 (read-only HN Algolia API; drafts never posted).
+// ---------------------------------------------------------------------------
+
+async function main() {
+  const report = await monitor();
+  // eslint-disable-next-line no-console
+  console.log(renderMarkdown(report)); // code-quality-ok — CLI trainer prints markdown report to stdout
+  // eslint-disable-next-line global-require
+  const fs = require('fs');
+  // eslint-disable-next-line global-require
+  const os = require('os');
+  // eslint-disable-next-line global-require
+  const path = require('path');
+  const outDir = path.join(os.homedir(), '.gatetest', 'trainers');
+  try {
+    fs.mkdirSync(outDir, { recursive: true });
+    fs.writeFileSync(path.join(outDir, 'hacker-news-latest.json'), JSON.stringify(report, null, 2));
+  } catch { /* best-effort */ }
+}
+
+if (require.main === module) {
+  main().catch((err) => {
+    process.stderr.write(`[hacker-news-monitor] fatal: ${err && err.message}\n`);
+    process.exit(0);
+  });
+}
+
 module.exports = {
   monitor,
+  renderMarkdown,
   searchHN,
   classifyIntent,
   draftResponse,

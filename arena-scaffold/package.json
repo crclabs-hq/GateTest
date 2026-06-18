@@ -1,0 +1,14 @@
+{
+  "name": "gatetest-arena",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Live training + proof environment for GateTest. Every 2 hours a bug is injected; ai-ci-fixer opens the fix PR; the loop is visible at gatetest.ai/testing.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "inject": "node scripts/inject-bug.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

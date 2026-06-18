@@ -408,7 +408,7 @@ async function handleCheckHealth() {
 // no streaming, no retry, just one call. Returns the assistant text or
 // throws.
 // ---------------------------------------------------------------------------
-async function callClaude(prompt, { maxTokens = 4096, model = 'claude-opus-4-7' } = {}) {
+async function callClaude(prompt, { maxTokens = 4096, model = 'claude-sonnet-4-6' } = {}) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     const err = new Error('ANTHROPIC_API_KEY not set');

@@ -238,6 +238,7 @@ export default function FindingsPanel({ modules, repoUrl }: Props) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search file or message"
+              aria-label="Search findings by file or message"
               className="w-full px-3 py-2 pl-8 rounded-lg border border-border bg-white text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
             />
             <svg

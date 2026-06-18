@@ -22,7 +22,7 @@ const DATA_FLOW = [
   { label: "Runtime",  value: "Vercel serverless functions. Every function is stateless — no in-memory persistence between requests." },
   { label: "Database", value: "Postgres on Neon. Holds scan_queue, audit log, fix-recipe store, customer sessions." },
   { label: "Payments", value: "Stripe upfront-charge. One-time payment per scan at checkout. No subscription, no auto-renew." },
-  { label: "AI layer", value: "Anthropic Claude Sonnet. Our key for managed scans; your key for the self-healing CI bot in your repo." },
+  { label: "AI layer", value: "Anthropic Claude Sonnet 4.6. Our key for managed scans; your key for the self-healing CI bot in your repo." },
   { label: "Git host",  value: "Dual-host: GitHub App webhook and Gluecron Signal Bus. HostBridge abstraction means new hosts plug in without rewiring." },
   { label: "Browser",   value: "Playwright (open-source, Microsoft) — used internally for chaos, explorer, and runtime-error modules. Not a paid competitor; an implementation detail." },
 ];

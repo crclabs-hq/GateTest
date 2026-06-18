@@ -2,7 +2,7 @@
  * Runtime-status poll endpoint.
  *
  * The customer's /scan/status (or /web result page) polls this every
- * few seconds while the Crontech worker is running their URL through a
+ * few seconds while the Vapron worker is running their URL through a
  * real Chromium. When the runtime-callback lands, this returns the
  * finished payload.
  *

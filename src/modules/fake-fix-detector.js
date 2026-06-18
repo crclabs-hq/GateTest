@@ -24,8 +24,8 @@ const BaseModule = require('./base-module');
 const https = require('https');
 
 const ANTHROPIC_API_HOST = 'api.anthropic.com';
-const MODEL_SONNET = 'claude-opus-4-7';
-const MODEL_HAIKU = 'claude-opus-4-7';
+const MODEL_SONNET = 'claude-sonnet-4-6';
+const MODEL_HAIKU = 'claude-sonnet-4-6';
 // Kept for backwards compatibility with tests that may reference it.
 const MODEL = MODEL_SONNET;
 const MAX_DIFF_SIZE = 120000; // 120KB — cap the payload sent to AI
@@ -428,6 +428,12 @@ class FakeFixDetectorModule extends BaseModule {
       // hard-error:
       //   - website/app/for/* — marketing demo pages showing the patterns
       //     GateTest catches.
+      //   - website/app/{glossary,blog,use-cases}/* — educational content
+      //     that names the anti-patterns by example (a glossary entry on
+      //     mutation testing literally describes replacing `return true`
+      //     with `return false`; a technical-debt entry mentions
+      //     `@ts-ignore` abuse). Same category as the marketing demo pages:
+      //     the prose is supposed to contain these tokens.
       //   - corpus/*           — flywheel training fixtures: each "broken"
       //     instance is a known anti-pattern that the harness replays
       //     through the deterministic layers. The whole point is for those
@@ -438,7 +444,7 @@ class FakeFixDetectorModule extends BaseModule {
       //     same `@ts-ignore` / `as any` family; regex source contains the
       //     literals, test fixtures need them verbatim.
       //   - src/modules/ai-hallucination.js + its test — same self-reference.
-      const isDemo = /(?:^|\/)(?:website\/app\/for|corpus)\//.test(hunk.file)
+      const isDemo = /(?:^|\/)(?:website\/app\/(?:for|glossary|blog|use-cases)|corpus)\//.test(hunk.file)
         || /(?:^|\/)src\/modules\/(?:fake-fix-detector|claude-compliance|ai-hallucination)\.js$/.test(hunk.file)
         || /(?:^|\/)tests\/(?:fake-fix-detector|claude-compliance|ai-hallucination)\.test\.js$/.test(hunk.file);
 
