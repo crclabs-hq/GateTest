@@ -488,17 +488,20 @@ async function main() {
  * Auto-PR runner — applies AI-driven fixes to every finding that has a file
  * path, then opens a pull request via the `gh` CLI.
  *
+ * Uses the full production fix pipeline (iterative retry loop, syntax gate,
+ * regression test generation, rich PR body) — same pipeline as /api/scan/fix.
+ *
  * Returns { prUrl, fixesApplied, error }. Never throws — the gate's exit
  * code is the authoritative signal; the auto-PR is a value-add on top.
  *
  * Pre-conditions checked at runtime:
  *   - We're inside a git repository
  *   - `gh` CLI is on PATH and authenticated (or GH_TOKEN is set)
- *   - ANTHROPIC_API_KEY is set (the AI fix engine no-ops without it)
+ *   - ANTHROPIC_API_KEY is set
  */
 async function runAutoPr(summary, projectRoot, args) {
   const { execSync } = require('child_process');
-  const { aiFix } = require('../src/core/ai-fix-engine');
+  const { runFixOrchestration } = require('../src/core/cli-fix-orchestrator');
 
   function sh(cmd, opts) {
     return execSync(cmd, { cwd: projectRoot, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], ...opts });
@@ -511,7 +514,8 @@ async function runAutoPr(summary, projectRoot, args) {
   try { sh('gh --version'); }
   catch { return { error: 'gh CLI not found on PATH. Install: https://cli.github.com/' }; }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
     return { error: 'ANTHROPIC_API_KEY not set — AI fix engine cannot run' };
   }
 
@@ -524,11 +528,7 @@ async function runAutoPr(summary, projectRoot, args) {
   const ts = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
   const fixBranch = args.autoPrBranch || `gatetest/auto-fix-${ts}`;
 
-  // Collect every fixable finding from the summary. Use the shared
-  // extractFileFromCheck() so we don't silently drop findings that
-  // emit their file path in the MESSAGE text rather than a structured
-  // field. The old code dropped ~97% of findings (~745/764) because
-  // only 19 module addCheck calls set check.file explicitly.
+  // Collect every fixable finding from the summary
   const { extractFileFromCheck } = require('../src/core/parse-finding');
   const fixable = [];
   const needsManualReview = [];
@@ -549,10 +549,6 @@ async function runAutoPr(summary, projectRoot, args) {
       if (file) {
         fixable.push(entry);
       } else {
-        // Config-level findings (CI security, dependency hygiene, etc.)
-        // often have no file. We can't auto-fix them, but we MUST
-        // surface them — silently dropping is what made auto-repair
-        // look broken in the first place.
         needsManualReview.push(entry);
       }
     }
@@ -565,7 +561,7 @@ async function runAutoPr(summary, projectRoot, args) {
     return { error: `No findings with file paths — ${needsManualReview.length} config-level finding(s) need manual review (see workflow log).`, needsManualReview };
   }
 
-  console.log(`\n  [GateTest auto-PR] ${fixable.length} fixable finding(s). Generating AI fixes...\n`);
+  console.log(`\n  [GateTest auto-PR] ${fixable.length} fixable finding(s). Running production fix pipeline...\n`);
 
   // Create fix branch off the current branch
   try {
@@ -574,88 +570,75 @@ async function runAutoPr(summary, projectRoot, args) {
     return { error: `Could not create branch ${fixBranch}: ${err.message?.slice(0, 200) || err}` };
   }
 
-  let fixesApplied = 0;
-  const fixesAttempted = [];
-  // Cap at 50 fixes per run to bound Anthropic spend
-  const FIX_CAP = 50;
-  for (const finding of fixable.slice(0, FIX_CAP)) {
-    try {
-      const result = await aiFix({
-        filePath: require('path').isAbsolute(finding.file) ? finding.file : require('path').join(projectRoot, finding.file),
-        issueTitle: finding.checkName,
-        issueMessage: finding.message,
-        lineNumber: finding.line,
-        projectRoot,
-      });
-      fixesAttempted.push({ ...finding, fixed: result.fixed === true, description: result.description });
-      if (result.fixed === true) {
-        fixesApplied += 1;
-        console.log(`  [\x1b[32m✓\x1b[0m] ${finding.file}: ${finding.checkName}`);
-      } else {
-        console.log(`  [\x1b[33m~\x1b[0m] ${finding.file}: ${finding.checkName} (skipped: ${result.description?.slice(0, 60) || 'no-fix'})`);
-      }
-    } catch (err) { // error-ok — per-finding failure is logged + tracked in fixesAttempted; one bad finding shouldn't halt the batch
-      const reason = err && err.message ? err.message.slice(0, 80) : String(err);
-      console.log(`  [\x1b[31m✗\x1b[0m] ${finding.file}: ${reason}`);
-      fixesAttempted.push({ ...finding, fixed: false, description: `error: ${reason}` });
-    }
+  // Run the full production fix pipeline
+  let orchestration;
+  try {
+    orchestration = await runFixOrchestration(fixable, projectRoot, apiKey, {
+      maxAttempts: 3,
+      fileCap: 50,
+    });
+  } catch (err) {
+    try { sh(`git checkout ${originalBranch}`); sh(`git branch -D ${fixBranch}`); } catch { /* ignore */ }
+    return { error: `Fix orchestration failed: ${err.message?.slice(0, 200) || err}` };
   }
 
-  if (fixesApplied === 0) {
-    // Restore original branch — nothing to commit
+  const { accepted, testFiles, allFixes, prBody } = orchestration;
+
+  if (accepted.length === 0) {
     try { sh(`git checkout ${originalBranch}`); sh(`git branch -D ${fixBranch}`); } catch { /* ignore */ }
-    return { error: 'AI fix engine could not generate any fixes' };
+    return { error: 'No fixes passed the syntax gate — nothing to commit' };
+  }
+
+  // Write accepted fixes to disk
+  const require_path = require('path');
+  for (const fix of accepted) {
+    const absPath = require_path.isAbsolute(fix.file) ? fix.file : require_path.join(projectRoot, fix.file);
+    require('fs').writeFileSync(absPath, fix.fixed, 'utf-8');
+    console.log(`  [\x1b[32m✓\x1b[0m] ${fix.file} (${fix.issues.length} issue${fix.issues.length !== 1 ? 's' : ''})`);
+  }
+
+  // Write generated test files
+  for (const testFile of testFiles) {
+    const absPath = require_path.join(projectRoot, testFile.path);
+    const dir = require_path.dirname(absPath);
+    require('fs').mkdirSync(dir, { recursive: true });
+    require('fs').writeFileSync(absPath, testFile.content, 'utf-8');
+    console.log(`  [\x1b[36m+\x1b[0m] ${testFile.path} (regression test)`);
   }
 
   // Commit + push + open PR
   try {
     sh('git add -A');
-    const subject = `fix: GateTest auto-fixes for ${fixesApplied}/${fixable.length} findings`;
-    const body = fixesAttempted
-      .map((f) => `  * ${f.fixed ? '[fixed]' : '[skipped]'} ${f.moduleName}: ${f.file}${f.line ? `:${f.line}` : ''} — ${f.checkName}`)
-      .join('\n');
-    sh(`git commit -m ${JSON.stringify(subject + '\n\n' + body)}`);
+    const filesFixed = accepted.length;
+    const testsAdded = testFiles.length;
+    const subject = `fix: GateTest auto-fixes (${filesFixed} file${filesFixed !== 1 ? 's' : ''}${testsAdded > 0 ? `, ${testsAdded} regression test${testsAdded !== 1 ? 's' : ''}` : ''})`;
+    sh(`git commit -m ${JSON.stringify(subject)}`);
     sh(`git push -u origin ${fixBranch}`);
 
     const totalActionable = fixable.length + needsManualReview.length;
-    const prTitle = `GateTest auto-fix — ${fixesApplied} of ${totalActionable} findings`;
-    const manualReviewSection = needsManualReview.length > 0 ? [
-      ``,
-      `## Findings that need manual review (no fixable file path)`,
-      ``,
-      `These findings are config-level (CI workflows, dependency lockfiles, environment settings) or summary checks — the auto-fix engine can't safely apply a code change. Review them manually:`,
-      ``,
-      ...needsManualReview.slice(0, 50).map((f) => `- ⚠️ \`${f.moduleName}:${f.checkName}\` — ${f.message?.slice(0, 200) || '(no message)'}`),
-      ...(needsManualReview.length > 50 ? [`- _… plus ${needsManualReview.length - 50} more — see the workflow log for the full list_`] : []),
-    ].join('\n') : '';
-    const prBody = [
-      `# GateTest auto-fix`,
-      ``,
-      `The CI gate found ${totalActionable} actionable finding(s) on this branch — ${fixable.length} with a file path and ${needsManualReview.length} config-level. This PR applies AI-generated fixes for ${fixesApplied} of the ${fixable.length} file-level findings.`,
-      ``,
-      `## File-level findings handled`,
-      ``,
-      ...(fixesAttempted.length > 0
-        ? fixesAttempted.map((f) => `- ${f.fixed ? '✅' : '⚠️'} \`${f.file}${f.line ? `:${f.line}` : ''}\` — \`${f.moduleName}:${f.checkName}\` — ${f.message?.slice(0, 200) || '(no message)'}`)
-        : ['_(no file-level findings — all the gate failures are config-level, see below)_']),
-      manualReviewSection,
-      ``,
-      `## What to do`,
-      ``,
-      `1. Review each diff in this PR carefully — AI fixes can introduce subtle changes`,
-      `2. Run tests locally if possible`,
-      `3. Merge this PR before merging the original PR — the gate is still blocking that one until these fixes land`,
-      `4. If there are manual-review findings above, fix them by hand in a follow-up commit`,
-      ``,
-      `🤖 Generated by GateTest \`--auto-pr\``,
-    ].join('\n');
 
-    const prResult = sh(`gh pr create --base ${JSON.stringify(baseBranch)} --head ${JSON.stringify(fixBranch)} --title ${JSON.stringify(prTitle)} --body ${JSON.stringify(prBody)}`);
+    // Prepend config-level manual-review items to the pr-composer body
+    let fullPrBody = prBody;
+    if (needsManualReview.length > 0) {
+      const manualSection = [
+        ``,
+        `## Config-level findings (manual review required)`,
+        ``,
+        `These findings have no file path — the auto-fix engine can't apply a code change. Review them by hand:`,
+        ``,
+        ...needsManualReview.slice(0, 30).map((f) => `- ⚠️ \`${f.moduleName}:${f.checkName}\` — ${(f.message || '').slice(0, 200)}`),
+        ...(needsManualReview.length > 30 ? [`- _… plus ${needsManualReview.length - 30} more — see the workflow log_`] : []),
+      ].join('\n');
+      fullPrBody = prBody + '\n' + manualSection;
+    }
+
+    const prTitle = `GateTest auto-fix — ${allFixes.length} fix${allFixes.length !== 1 ? 'es' : ''} (${totalActionable} findings total)`;
+    const prResult = sh(`gh pr create --base ${JSON.stringify(baseBranch)} --head ${JSON.stringify(fixBranch)} --title ${JSON.stringify(prTitle)} --body ${JSON.stringify(fullPrBody)}`);
     const prUrl = prResult.trim().split('\n').filter((l) => l.startsWith('https://')).pop();
 
-    return { prUrl, fixesApplied, fixesAttempted: fixable.length };
+    return { prUrl, fixesApplied: accepted.length, fixesAttempted: fixable.length };
   } catch (err) {
-    return { error: `Commit/push/PR step failed: ${err.message?.slice(0, 200) || err}`, fixesApplied };
+    return { error: `Commit/push/PR step failed: ${err.message?.slice(0, 200) || err}`, fixesApplied: accepted.length };
   }
 }
 
