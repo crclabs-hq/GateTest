@@ -17,7 +17,7 @@
  *   GITHUB_REPOSITORY   — owner/repo (provided by Actions context)
  *   WORKFLOW_RUN_ID     — the failed workflow run id
  *   MAX_FIX_ATTEMPTS    — default 3
- *   CLAUDE_MODEL        — default claude-sonnet-4-7 (cheap + capable enough)
+ *   CLAUDE_MODEL        — default claude-sonnet-4-6 (cheap + capable enough)
  *   GATETEST_AI_CI_FIXER — optional; "0" disables, anything else is a no-op
  *
  * Failure-mode philosophy: NEVER block CI. If anything goes wrong (no API

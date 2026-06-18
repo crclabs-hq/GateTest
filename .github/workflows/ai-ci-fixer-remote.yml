@@ -106,5 +106,5 @@ jobs:
           GITHUB_REPOSITORY: ${{ inputs.target_repo }}
           WORKFLOW_RUN_ID: ${{ inputs.run_id }}
           MAX_FIX_ATTEMPTS: "3"
-          CLAUDE_MODEL: "claude-sonnet-4-7"
+          CLAUDE_MODEL: "claude-sonnet-4-6"
         run: node ../gatetest/scripts/ai-ci-fixer.js
