@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T09:33:51.352Z",
+  "generatedAt": "2026-06-18T08:19:11.097Z",
   "source": "scripts/generate-site-stats.js",
   "note": "Measured on every run. Displayed counts are rounded DOWN so the public \"N+\" claim is always an under-statement. Do not hand-edit — run the script.",
   "tests": {
@@ -18,9 +18,9 @@
     "greenMeasuredAt": null
   },
   "flywheel": {
-    "totalFixAttempts": 448,
+    "totalFixAttempts": 28,
     "claudeRatioPct": 35.7,
     "accuracyPct": 14.3,
-    "recent7dFixAttempts": 448
+    "recent7dFixAttempts": 28
   }
 }
