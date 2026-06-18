@@ -9,6 +9,7 @@ import {
   type UnparseableIssue,
   type ModuleLike,
 } from "@/app/lib/issue-extractor";
+import type { GitHubProfile } from "@/app/lib/admin-github-profiles";
 
 interface FailedFile {
   file: string;
@@ -156,8 +157,7 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
   };
 
   // Connected Accounts (multi-GitHub profile) state
-  interface GHProfileRow { id: number; label: string; github_login: string | null; token_hint: string; orgs: string[]; added_at: string; }
-  const [ghProfiles, setGhProfiles] = useState<GHProfileRow[]>([]);
+  const [ghProfiles, setGhProfiles] = useState<GitHubProfile[]>([]);
   const [ghProfilesLoading, setGhProfilesLoading] = useState(false);
   const [ghLabel, setGhLabel] = useState("");
   const [ghToken, setGhToken] = useState("");
