@@ -406,4 +406,4 @@ function makeAutoFix(filePath, issueName, message, lineNumber, suggestion) {
   });
 }
 
-module.exports = { aiFix, injectAutoFixes, makeAutoFix };
+module.exports = { aiFix, injectAutoFixes, makeAutoFix, callAnthropic };

@@ -27,6 +27,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { UrlScanFlow } from "./UrlScanFlow";
 import CountUp from "./CountUp";
+import LiveStats from "./LiveStats";
 import siteStats from "../data/site-stats.json";
 
 const SAMPLE_URLS = [
@@ -201,6 +202,11 @@ export default function Hero() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ── Live social proof — only renders when DB has real data ── */}
+      <div className="mx-auto max-w-7xl px-6 pb-4">
+        <LiveStats />
       </div>
 
       {/* ── Bold full-bleed stats band — our answer to Klaviyo's green band ── */}
