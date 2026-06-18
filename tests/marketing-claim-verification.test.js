@@ -55,11 +55,12 @@ describe('marketing claim — module count', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Claim: claude-sonnet-4-7 everywhere (Craig directive 2026-06-03 —
-// "Opus is absolutely terrible at debugging websites, it needs to be Sonnet")
+// Claim: claude-sonnet-4-6 everywhere (Craig directive 2026-06-18 —
+// "the only Claude model that developers might even trust...we need to make that
+//  very clear across all our website")
 // ---------------------------------------------------------------------------
 
-describe('marketing claim — Sonnet 4.7 everywhere', () => {
+describe('marketing claim — Sonnet 4.6 everywhere', () => {
   it('no source file references a legacy claude-opus or older claude-sonnet/haiku model', () => {
     // Walk JS/TS/TSX/yml under tracked dirs and assert clean.
     const found = [];
@@ -74,8 +75,8 @@ describe('marketing claim — Sonnet 4.7 everywhere', () => {
           const body = fs.readFileSync(full, 'utf8');
           // Allow the verification test itself to mention legacy IDs (it asserts they're gone)
           if (full.endsWith('marketing-claim-verification.test.js')) continue;
-          // Banned: any claude-opus-* (we tested Opus, Sonnet won), older Sonnets (4-5/4-6/20250514), older Haikus
-          const m = body.match(/claude-opus-4-(?:5|6|7|20250514)|claude-sonnet-4-(?:5|6|20250514)|claude-haiku-4-5-2025[0-9]+/);
+          // Banned: any claude-opus-*, older Sonnets (4-5/4-7/20250514), older Haikus
+          const m = body.match(/claude-opus-4-(?:5|6|7|8|20250514)|claude-sonnet-4-(?:5|7|20250514)|claude-haiku-4-5-2025[0-9]+/);
           if (m) found.push(`${path.relative(ROOT, full)}: ${m[0]}`);
         }
       }
@@ -84,16 +85,16 @@ describe('marketing claim — Sonnet 4.7 everywhere', () => {
     assert.deepStrictEqual(found, [], 'legacy model references should be empty:\n  ' + found.join('\n  '));
   });
 
-  it('budget-tracker.js pricing constants match Sonnet 4.7 rates', () => {
+  it('budget-tracker.js pricing constants match Sonnet 4.6 rates', () => {
     const src = readFile('website/app/lib/budget-tracker.js');
     // Allow env override; default values pinned at $3 input / $15 output (Sonnet).
     assert.match(src, /INPUT_USD_PER_MTOK[^\n]*\|\|\s*3\b/);
     assert.match(src, /OUTPUT_USD_PER_MTOK[^\n]*\|\|\s*15\b/);
   });
 
-  it('CLAUDE.md AI Layer table names claude-sonnet-4-7', () => {
+  it('CLAUDE.md AI Layer table names claude-sonnet-4-6', () => {
     const md = readFile('CLAUDE.md');
-    assert.match(md, /claude-sonnet-4-7/);
+    assert.match(md, /claude-sonnet-4-6/);
   });
 });
 

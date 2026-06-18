@@ -134,11 +134,11 @@ describe('auto-distill — distillClaudeFix', () => {
       originalContent: 'const o = { httpOnly: false };',
       patchedContent:  'const o = { httpOnly: true };',
       recipeStorePath: store,
-      originalModel: 'claude-sonnet-4-7',
+      originalModel: 'claude-sonnet-4-6',
     });
     assert.strictEqual(out.written, true);
     assert.ok(out.recipe.provenance);
-    assert.strictEqual(out.recipe.provenance.originalModel, 'claude-sonnet-4-7');
+    assert.strictEqual(out.recipe.provenance.originalModel, 'claude-sonnet-4-6');
     assert.strictEqual(out.recipe.provenance.originalRuleKey, 'js-httponly-false');
     assert.ok(out.recipe.provenance.createdAt);
     assert.strictEqual(out.recipe.provenance.lastAppliedAt, null);

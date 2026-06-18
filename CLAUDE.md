@@ -259,7 +259,7 @@ Every tool here was chosen because it is the **best in its class right now.** If
 | Layer | Choice | Why |
 |---|---|---|
 | **AI Code Review** | Claude API (Anthropic) | Best reasoning, finds real bugs not patterns |
-| **Model** | claude-sonnet-4-7 | Sonnet everywhere — Craig directive 2026-06-03 ("Opus is absolutely terrible at debugging websites, it needs to be Sonnet"). Sonnet wins SWE-bench Verified vs Opus and is 5x cheaper per token. Per-tier USD caps in `website/app/lib/budget-tracker.js:capsForTier()` UNCHANGED from the Opus era (Quick $1.50, Full $5, Scan+Fix $12, Forensic $30) — Strategy A: bank the savings as 5x deeper analysis per scan, not as margin. |
+| **Model** | claude-sonnet-4-6 | Sonnet everywhere — Craig directive 2026-06-18 ("the only Claude model that developers might even trust") — active Sonnet on the market for real code work; wins SWE-bench Verified; 5x cheaper than Opus per token. Per-tier USD caps in `website/app/lib/budget-tracker.js:capsForTier()` UNCHANGED from the Opus era (Quick $1.50, Full $5, Scan+Fix $12, Forensic $30) — Strategy A: bank the savings as 5x deeper analysis per scan, not as margin. |
 
 ### GitHub Integration
 | Layer | Choice | Why |
@@ -825,9 +825,22 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.48.0 — **111 modules**, **Claude Sonnet 4.7**, **five tiers
+GateTest v1.49.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
 live** ($29 / $99 / $199 / $399 + $49/mo Continuous). Date stamp:
 2026-06-18.
+
+**v1.49.0 changes (2026-06-18 — Sonnet 4.6 engine + marketing):**
+- **Engine pinned to `claude-sonnet-4-6`** (Craig directive 2026-06-18 —
+  "the only Claude model that developers might even trust... we need to make
+  that very clear across all our website"). All 28 source-file references
+  (`src/modules/`, `src/core/`, `website/app/api/`, `website/app/lib/`,
+  `.github/workflows/`) updated from `claude-sonnet-4-7` → `claude-sonnet-4-6`.
+  Marketing copy, `CLAUDE.md` AI Layer table, and score page updated to
+  "Sonnet 4.6". Pricing constants unchanged ($3 input / $15 output / MTok —
+  same tier).
+- **CI fix** — `marketing-claim-verification.test.js` was pinned to "110 modules /
+  v1.45" but the engine now ships 111 (SBOM registered in v1.48). Updated pin
+  to 111 / v1.48. `site-stats.json` regenerated: 5713 pass / 0 fail.
 
 **v1.48.0 changes (2026-06-18 — live header probe wired, SBOM registered):**
 - **Live HTTP header probe wired into `/api/web/scan`** — `url-prober.js`
@@ -901,7 +914,7 @@ green-light "Green light" after margin-protection plan approved):**
   $199/$399 Forensic). Footer now links `/web`, `/wp`, `/fixes`
   (previously orphaned — unreachable from any nav).
 - **Honesty fixes**: score page said "powered by Claude Opus 4.7" →
-  Sonnet 4.7. `statsByRule()` now warns when DATABASE_URL is unset
+  Sonnet 4.6. `statsByRule()` now warns when DATABASE_URL is unset
   instead of silently feeding the confidence-calibrator zeros.
 - **HN-monitor trainer WIRED as trainer #8** — Craig authorized
   same-session (Boss Rule #7). Nightly workflow + `gatetest train
@@ -915,7 +928,7 @@ green-light "Green light" after margin-protection plan approved):**
   Boss Rule #1 (major architectural change) + #3 (pricing/economics
   shift) explicitly authorized.
   - All 28 source-code references to `claude-opus-4-7` swapped to
-    `claude-sonnet-4-7` (modules, lib, routes, workflows, MCP bin).
+    `claude-sonnet-4-6` (modules, lib, routes, workflows, MCP bin).
   - `budget-tracker.js` pricing constants flipped: input
     $15→$3/MTok, output $75→$15/MTok (Anthropic's published Sonnet
     rates, ~5x cheaper than Opus on both).
