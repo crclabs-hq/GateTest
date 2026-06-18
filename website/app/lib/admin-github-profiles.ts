@@ -65,11 +65,11 @@ export async function listGitHubProfiles(): Promise<GitHubProfile[]> {
   try {
     const sql = getDb();
     await ensureSchema();
-    const rows = await sql<GitHubProfileRow[]>`
+    const rows = (await sql`
       SELECT id, label, github_login, token, orgs, added_at::text
       FROM admin_github_profiles
       ORDER BY added_at DESC
-    `;
+    `) as unknown as GitHubProfileRow[];
     return rows.map((r) => ({
       id: r.id,
       label: r.label,
@@ -94,11 +94,11 @@ export async function addGitHubProfile(
   try {
     const sql = getDb();
     await ensureSchema();
-    const rows = await sql<{ id: number }[]>`
+    const rows = (await sql`
       INSERT INTO admin_github_profiles (label, github_login, token, orgs)
       VALUES (${label.trim()}, ${githubLogin || null}, ${token.trim()}, ${orgs})
       RETURNING id
-    `;
+    `) as unknown as Array<{ id: number }>;
     return { ok: true, id: rows[0]?.id };
   } catch (e: unknown) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
@@ -131,11 +131,11 @@ export async function getBestGitHubToken(owner?: string): Promise<string> {
   try {
     const sql = getDb();
     await ensureSchema();
-    const rows = await sql<GitHubProfileRow[]>`
+    const rows = (await sql`
       SELECT label, github_login, token, orgs
       FROM admin_github_profiles
       ORDER BY added_at ASC
-    `;
+    `) as unknown as GitHubProfileRow[];
     if (rows.length === 0) return envToken;
 
     if (owner) {
