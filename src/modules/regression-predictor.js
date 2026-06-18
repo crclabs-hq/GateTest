@@ -27,7 +27,7 @@ const path   = require('path');
 const BaseModule = require('./base-module');
 
 const ANTHROPIC_HOST = 'api.anthropic.com';
-const MODEL          = 'claude-sonnet-4-7';
+const MODEL          = 'claude-sonnet-4-6';
 const TIMEOUT_MS     = 45_000;
 
 function callAnthropic(apiKey, systemPrompt, userMessage) {

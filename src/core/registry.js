@@ -41,6 +41,7 @@ const BUILT_IN_MODULES = {
   kotlin: '../modules/kotlin.js',
   swift: '../modules/swift.js',
   dependencies: '../modules/dependencies.js',
+  sbom: '../modules/sbom.js',
   dockerfile: '../modules/dockerfile.js',
   ciSecurity: '../modules/ci-security.js',
   shell: '../modules/shell.js',
