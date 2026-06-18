@@ -1,0 +1,56 @@
+# Flywheel Pattern Miner — Nightly Report
+
+_Generated 2026-06-17T08:29:36.471Z_
+
+Inputs: 92 session-fix(es), 0 fix-attempt(s).
+
+## Recommendations
+
+- **investigate-module** — `tests`: 6 session-fixes recorded — high-touch module, candidate for refactor or rule split
+- **investigate-module** — `ci`: 6 session-fixes recorded — high-touch module, candidate for refactor or rule split
+- **investigate-module** — `developers`: 5 session-fixes recorded — high-touch module, candidate for refactor or rule split
+- **regression-test-gap** — `ci`: 6 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test
+- **regression-test-gap** — `developers`: 5 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test
+- **regression-test-gap** — `(unattributed)`: 4 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test
+- **regression-test-gap** — `envvars`: 4 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test
+- **regression-test-gap** — `website`: 4 fixes / 1 tests added (0.25/fix) — lock down the pattern with a regression test
+
+## Top modules by fix-count
+
+| Module | Fixes |
+| --- | --- |
+| `tests` | 6 |
+| `ci` | 6 |
+| `developers` | 5 |
+| `ai-ci-fixer` | 5 |
+| `(unattributed)` | 4 |
+| `envvars` | 4 |
+| `website` | 4 |
+| `watchdog` | 4 |
+| `fake-fix-detector` | 3 |
+| `pipeline-trace` | 3 |
+
+## Top rule keys by attempt count
+
+_None._
+
+## Recurring subjects (recipe candidates)
+
+_No recurring patterns yet._
+
+## Under-tested modules (regression-test gaps)
+
+| Module | Fixes | Tests added | Tests/fix |
+| --- | --- | --- | --- |
+| `ci` | 6 | 0 | 0 |
+| `developers` | 5 | 0 | 0 |
+| `(unattributed)` | 4 | 0 | 0 |
+| `envvars` | 4 | 0 | 0 |
+| `website` | 4 | 1 | 0.25 |
+| `fake-fix-detector` | 3 | 0 | 0 |
+| `integrations` | 3 | 0 | 0 |
+
+## Flywheel maturity (Claude vs deterministic share)
+
+_No fix attempts yet. The flywheel hasn't had a chance to mature._
+
