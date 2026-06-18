@@ -164,6 +164,23 @@ class DeadCodeModule extends BaseModule {
     const importedNames = new Set();
     const referencedFiles = new Set();
 
+    // Workspace package awareness — prevents false positives in monorepos where
+    // packages are consumed via package-name aliases (e.g. @scope/pkg not ./packages/pkg)
+    const workspacePackages = this._buildWorkspaceMap(projectRoot);
+    const importedWorkspacePackages = new Set();
+    const fileWorkspacePackage = new Map();
+
+    // Map each source file to its workspace package (if any)
+    for (const file of files) {
+      const normFile = path.normalize(file);
+      for (const [pkgName, pkgDir] of workspacePackages.entries()) {
+        if (normFile.startsWith(path.normalize(pkgDir) + path.sep)) {
+          fileWorkspacePackage.set(file, pkgName);
+          break;
+        }
+      }
+    }
+
     for (const file of files) {
       let content;
       try {
@@ -185,12 +202,108 @@ class DeadCodeModule extends BaseModule {
 
       for (const n of names) importedNames.add(n);
       for (const p of paths) {
-        const resolved = this._resolveImportPath(file, p, projectRoot);
+        // Track workspace packages that are actively imported
+        if (workspacePackages.has(p)) {
+          importedWorkspacePackages.add(p);
+        } else {
+          const pkgKey = p.startsWith('@')
+            ? p.split('/').slice(0, 2).join('/')
+            : p.split('/')[0];
+          if (workspacePackages.has(pkgKey)) importedWorkspacePackages.add(pkgKey);
+        }
+        const resolved = this._resolveImportPath(file, p, projectRoot, workspacePackages);
         if (resolved) referencedFiles.add(resolved);
       }
     }
 
-    return { perFile, importedNames, referencedFiles, projectRoot };
+    return { perFile, importedNames, referencedFiles, projectRoot, importedWorkspacePackages, fileWorkspacePackage };
+  }
+
+  /**
+   * Read workspace package definitions from standard monorepo config files.
+   * Returns Map<packageName, absolutePackageDir>.
+   */
+  _buildWorkspaceMap(projectRoot) {
+    const pkgMap = new Map();
+    const patterns = new Set();
+
+    // 1. root package.json workspaces field
+    try {
+      const rootPkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf-8'));
+      const ws = rootPkg.workspaces;
+      if (Array.isArray(ws)) ws.forEach((p) => patterns.add(p));
+      else if (ws && Array.isArray(ws.packages)) ws.packages.forEach((p) => patterns.add(p));
+    } catch { /* not present or invalid */ }
+
+    // 2. pnpm-workspace.yaml
+    try {
+      const yaml = fs.readFileSync(path.join(projectRoot, 'pnpm-workspace.yaml'), 'utf-8');
+      for (const line of yaml.split('\n')) {
+        const m = line.match(/^\s*-\s*['"]?([^'"#\s]+)['"]?/);
+        if (m) patterns.add(m[1]);
+      }
+    } catch { /* not present */ }
+
+    // 3. lerna.json
+    try {
+      const lerna = JSON.parse(fs.readFileSync(path.join(projectRoot, 'lerna.json'), 'utf-8'));
+      if (Array.isArray(lerna.packages)) lerna.packages.forEach((p) => patterns.add(p));
+    } catch { /* not present */ }
+
+    for (const pattern of patterns) {
+      if (pattern.includes('*')) {
+        const base = pattern.replace(/\/\*+.*$/, '');
+        const depth = pattern.includes('/**') ? 2 : 1;
+        this._expandWorkspaceGlob(path.join(projectRoot, base), depth, pkgMap);
+      } else {
+        this._readWorkspacePackage(path.join(projectRoot, pattern), pkgMap);
+      }
+    }
+
+    return pkgMap;
+  }
+
+  _expandWorkspaceGlob(baseDir, depth, pkgMap) {
+    let entries;
+    try { entries = fs.readdirSync(baseDir, { withFileTypes: true }); }
+    catch { return; }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const full = path.join(baseDir, entry.name);
+      this._readWorkspacePackage(full, pkgMap);
+      if (depth > 1) this._expandWorkspaceGlob(full, depth - 1, pkgMap);
+    }
+  }
+
+  _readWorkspacePackage(pkgDir, pkgMap) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf-8'));
+      if (pkg.name) pkgMap.set(pkg.name, pkgDir);
+    } catch { /* not a package directory */ }
+  }
+
+  _resolvePackageEntry(pkgDir) {
+    let mainBase = 'index';
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf-8'));
+      const mainField = (typeof pkg.module === 'string' && pkg.module)
+        || (typeof pkg.main === 'string' && pkg.main)
+        || null;
+      if (mainField) mainBase = mainField.replace(/\.(js|mjs|cjs|ts|tsx)$/, '');
+    } catch { /* use default */ }
+
+    const base = path.isAbsolute(mainBase) ? mainBase : path.join(pkgDir, mainBase);
+    const candidates = [
+      base,
+      ...Array.from(ALL_EXTS).map((e) => base + e),
+      ...Array.from(ALL_EXTS).map((e) => path.join(pkgDir, 'index' + e)),
+      ...Array.from(ALL_EXTS).map((e) => path.join(pkgDir, 'src', 'index' + e)),
+    ];
+    for (const c of candidates) {
+      try { if (fs.statSync(c).isFile()) return path.normalize(c); }
+      catch { /* keep trying */ }
+    }
+    return null;
   }
 
   /**
@@ -360,13 +473,22 @@ class DeadCodeModule extends BaseModule {
   }
 
   /**
-   * Resolve a relative import to an absolute file path on disk.
-   * Returns null if it's a bare package import (react, lodash, etc.)
-   * or we can't find a matching file.
+   * Resolve a relative import (or workspace package name) to an absolute file
+   * path on disk. Returns null for bare third-party package imports.
    */
-  _resolveImportPath(fromFile, importPath, projectRoot) {
-    // Bare package / non-relative — skip
+  _resolveImportPath(fromFile, importPath, projectRoot, workspacePackages = null) {
     if (!importPath) return null;
+
+    // Workspace package resolution — handles monorepo package-name aliases
+    if (workspacePackages && !importPath.startsWith('.') && !importPath.startsWith('/')) {
+      const pkgDir = workspacePackages.get(importPath)
+        || (importPath.startsWith('@')
+          ? workspacePackages.get(importPath.split('/').slice(0, 2).join('/'))
+          : workspacePackages.get(importPath.split('/')[0]));
+      if (pkgDir) return this._resolvePackageEntry(pkgDir);
+    }
+
+    // Bare third-party package — skip
     if (!importPath.startsWith('.') && !importPath.startsWith('/')) return null;
 
     const base = importPath.startsWith('/')
@@ -412,6 +534,13 @@ class DeadCodeModule extends BaseModule {
   _flagUnusedExports(index, result) {
     let issues = 0;
     for (const [file, info] of index.perFile.entries()) {
+      // Skip files in workspace packages that are imported via package-name alias.
+      // A consumer does `import { X } from '@scope/pkg'` — GateTest can't follow the
+      // alias chain to know exactly which exports are used, so we suppress findings
+      // for the whole package to avoid monorepo false positives.
+      const wsPkg = index.fileWorkspacePackage && index.fileWorkspacePackage.get(file);
+      if (wsPkg && index.importedWorkspacePackages && index.importedWorkspacePackages.has(wsPkg)) continue;
+
       for (const exp of info.exports) {
         if (FRAMEWORK_RESERVED.has(exp.name)) continue;
         if (exp.isDefault) continue; // default exports get imported under any name
@@ -436,6 +565,10 @@ class DeadCodeModule extends BaseModule {
       if (info.exports.length === 0) continue;
       if (this._isEntryPoint(file, index.projectRoot)) continue;
       if (index.referencedFiles.has(path.normalize(file))) continue;
+
+      // Skip files in workspace packages that are imported via package-name alias
+      const wsPkg = index.fileWorkspacePackage && index.fileWorkspacePackage.get(file);
+      if (wsPkg && index.importedWorkspacePackages && index.importedWorkspacePackages.has(wsPkg)) continue;
 
       issues += this._flag(result, `dead-code:orphan-file:${info.rel}`, {
         severity: 'info',
