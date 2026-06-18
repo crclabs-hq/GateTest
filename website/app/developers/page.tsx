@@ -56,7 +56,7 @@ const CATCHES = [
 
 const TERMINAL_LINES = [
   { t: "cmd",  text: "$ gatetest scan --suite quick --diff" },
-  { t: "info", text: "  GateTest v1.46.0 — 110 modules, Claude Sonnet 4.7" },
+  { t: "info", text: "  GateTest v1.46.0 — 110 modules, Claude Sonnet 4.6" },
   { t: "info", text: "  Scanning 14 changed files vs main..." },
   { t: "pass", text: "  [PASS] syntax" },
   { t: "pass", text: "  [PASS] lint" },

@@ -73,7 +73,7 @@ test('AGENT_RULES explicitly forbids redirecting to email / phone', () => {
 });
 
 test('CHAT_MODEL is the latest Opus identifier (per Craig 2026-05-20 directive)', () => {
-  assert.match(CHAT_MODEL, /^claude-sonnet-4-7$/);
+  assert.match(CHAT_MODEL, /^claude-sonnet-4-6$/);
 });
 
 test('CHAT_MAX_TOKENS is conservatively bounded', () => {

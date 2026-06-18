@@ -232,6 +232,29 @@ function translateFinding(check: {
   };
 }
 
+/**
+ * Convert a url-prober finding (live HTTP response analysis) to WebFinding.
+ * These are distinct from static-analysis findings: they reflect what the
+ * deployed server actually returns, not what config files say it should return.
+ */
+function translateProbeFinding(pf: {
+  module: string;
+  severity: string;
+  rule: string;
+  message: string;
+}): WebFinding | null {
+  const sev = pf.severity.toLowerCase();
+  if (sev !== "error" && sev !== "warning") return null;
+  const title = pf.message.split(" — ")[0].split(" (got:")[0];
+  return {
+    severity: sev as "error" | "warning",
+    title,
+    body: pf.message + "\n\n*Detected from the live server response — not from static config file analysis.*",
+    module: pf.module,
+    ruleKey: `live:${pf.rule}`,
+  };
+}
+
 export async function POST(req: NextRequest) {
   let url: string | undefined;
   let fullReport = false;
@@ -306,6 +329,30 @@ export async function POST(req: NextRequest) {
   const cryptoMod = require("crypto") as typeof import("crypto");
   const scanId = `scn_${cryptoMod.randomBytes(9).toString("hex")}`;
 
+  // Start the live HTTP header probe concurrently with the static suite scan.
+  // probeUrl() makes a real GET to the target URL and inspects the actual
+  // response headers — HSTS, CSP, cookie flags, info-disclosure, CORS misconfig.
+  // This catches what static config-file analysis (webHeaders module) cannot:
+  // the gap between what the config says and what the server actually returns.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  let liveProbePromise: Promise<Array<{ module: string; severity: string; rule: string; message: string }>> = Promise.resolve([]);
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const urlProber = require("@/app/lib/reliability/url-prober") as {
+      probeUrl: (args: { url: string; timeoutMs?: number }) => Promise<{
+        findings: Array<{ module: string; severity: string; rule: string; message: string; file: string }>;
+        durationMs: number;
+        status: number | null;
+        error?: string;
+      }>;
+    };
+    liveProbePromise = urlProber.probeUrl({ url: targetUrl, timeoutMs: 12_000 })
+      .then((r) => r.findings)
+      .catch(() => []);
+  } catch {
+    // url-prober unavailable — continue with static-only scan
+  }
+
   let summary: { results?: Array<{ module?: string; name?: string; checks?: Array<{ name: string; severity?: string; passed: boolean; message?: string }>; errors?: number; warnings?: number; info?: number; duration?: number; skipped?: string }>; gateStatus?: string; totalErrors?: number; totalWarnings?: number };
 
   try {
@@ -334,6 +381,8 @@ export async function POST(req: NextRequest) {
     try { fs.rmSync(workspace, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 
+  // Await the concurrent live probe and fold its findings in with the static ones.
+  const liveProbeFindings = await liveProbePromise;
   const allFindings: WebFinding[] = [];
   for (const r of summary.results || []) {
     if (!Array.isArray(r.checks)) continue;
@@ -342,6 +391,10 @@ export async function POST(req: NextRequest) {
       const translated = translateFinding(c);
       if (translated) allFindings.push(translated);
     }
+  }
+  for (const pf of liveProbeFindings) {
+    const translated = translateProbeFinding(pf);
+    if (translated) allFindings.push(translated);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports

@@ -26,7 +26,7 @@ const https = require('https');
 const BaseModule = require('./base-module');
 
 const ANTHROPIC_HOST = 'api.anthropic.com';
-const MODEL          = 'claude-sonnet-4-7';
+const MODEL          = 'claude-sonnet-4-6';
 const MAX_DIFF_SIZE  = 80_000; // 80 KB cap
 const TIMEOUT_MS     = 45_000;
 

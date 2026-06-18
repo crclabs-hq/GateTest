@@ -19,6 +19,7 @@ import {
   SESSION_COOKIE_NAME,
 } from "@/app/lib/admin-session";
 import { ADMIN_COOKIE_NAME } from "@/app/lib/admin-auth";
+import { getBestGitHubToken } from "@/app/lib/admin-github-profiles";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -47,13 +48,8 @@ async function isAuthenticatedAdmin(): Promise<boolean> {
   return false;
 }
 
-function githubToken(): string {
-  return (
-    process.env.GATETEST_GITHUB_TOKEN ||
-    process.env.GITHUB_TOKEN ||
-    ""
-  );
-}
+// Use getBestGitHubToken from admin-github-profiles for multi-account support.
+// Owner is unknown at this point so we get the default/first token.
 
 async function githubFetch(path: string, token: string) {
   const res = await fetch(`https://api.github.com${path}`, {
@@ -97,10 +93,10 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const token = githubToken();
+  const token = await getBestGitHubToken();
   if (!token) {
     return NextResponse.json(
-      { error: "No GitHub token configured. Set GATETEST_GITHUB_TOKEN or GITHUB_TOKEN in Vercel env vars." },
+      { error: "No GitHub token configured. Add one in Admin → Connected Accounts, or set GATETEST_GITHUB_TOKEN in Vercel env vars." },
       { status: 503 }
     );
   }
