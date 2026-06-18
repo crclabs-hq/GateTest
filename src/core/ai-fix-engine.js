@@ -73,8 +73,8 @@ function _buildGroundingHeader(projectRoot) {
 }
 
 const ANTHROPIC_HOST   = 'api.anthropic.com';
-const MODEL_FAST       = 'claude-sonnet-4-7';   // small/simple fixes
-const MODEL_SMART      = 'claude-sonnet-4-7';    // complex/multi-line
+const MODEL_FAST       = 'claude-sonnet-4-6';   // small/simple fixes
+const MODEL_SMART      = 'claude-sonnet-4-6';    // complex/multi-line
 const MAX_FILE_BYTES   = 120_000;   // skip files larger than 120 KB
 const TIMEOUT_MS       = 45_000;
 const SMART_THRESHOLD  = 8_000;     // files > 8 KB get Sonnet

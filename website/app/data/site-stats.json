@@ -10,7 +10,7 @@
     "displayPassing": "5,700+"
   },
   "modules": {
-    "total": 110,
+    "total": 111,
     "green": 102,
     "scanned": 110,
     "displayGreen": "102/110",
@@ -18,9 +18,9 @@
     "greenMeasuredAt": null
   },
   "flywheel": {
-    "totalFixAttempts": 28,
+    "totalFixAttempts": 448,
     "claudeRatioPct": 35.7,
     "accuracyPct": 14.3,
-    "recent7dFixAttempts": 28
+    "recent7dFixAttempts": 448
   }
 }

@@ -33,33 +33,34 @@ function fileExists(rel) {
 }
 
 // ---------------------------------------------------------------------------
-// Claim: 110 modules (v1.45 — per CLAUDE.md "## VERSION" section)
+// Claim: 111 modules (v1.48 — per CLAUDE.md "## VERSION" section)
 // ---------------------------------------------------------------------------
 
 describe('marketing claim — module count', () => {
-  it('node bin/gatetest.js --list emits ≥ 110 module lines', () => {
+  it('node bin/gatetest.js --list emits ≥ 111 module lines', () => {
     const out = execFileSync('node', [path.join(ROOT, 'bin', 'gatetest.js'), '--list'], {
       encoding: 'utf8',
       timeout: 30_000,
     });
     const moduleLines = out.split('\n').filter((l) => /^\s{2,}[a-z]/i.test(l));
-    assert.ok(moduleLines.length >= 110, `expected ≥ 110 module lines, got ${moduleLines.length}`);
+    assert.ok(moduleLines.length >= 111, `expected ≥ 111 module lines, got ${moduleLines.length}`);
   });
 
-  it('CLAUDE.md mentions 110 modules in current version', () => {
+  it('CLAUDE.md mentions 111 modules in current version', () => {
     const md = readFile('CLAUDE.md');
-    // Either explicit "110 modules" wording or the v1.45.x section header.
-    const hasCount = /\b110\s+modules\b/i.test(md) || /\bGateTest v1\.45/.test(md);
-    assert.ok(hasCount, 'Bible should reference 110 modules or v1.45.x');
+    // Either explicit "111 modules" wording or the v1.48.x section header.
+    const hasCount = /\b111\s+modules\b/i.test(md) || /\bGateTest v1\.48/.test(md);
+    assert.ok(hasCount, 'Bible should reference 111 modules or v1.48.x');
   });
 });
 
 // ---------------------------------------------------------------------------
-// Claim: claude-sonnet-4-7 everywhere (Craig directive 2026-06-03 —
-// "Opus is absolutely terrible at debugging websites, it needs to be Sonnet")
+// Claim: claude-sonnet-4-6 everywhere (Craig directive 2026-06-18 —
+// "the only Claude model that developers might even trust...we need to make that
+//  very clear across all our website")
 // ---------------------------------------------------------------------------
 
-describe('marketing claim — Sonnet 4.7 everywhere', () => {
+describe('marketing claim — Sonnet 4.6 everywhere', () => {
   it('no source file references a legacy claude-opus or older claude-sonnet/haiku model', () => {
     // Walk JS/TS/TSX/yml under tracked dirs and assert clean.
     const found = [];
@@ -74,8 +75,8 @@ describe('marketing claim — Sonnet 4.7 everywhere', () => {
           const body = fs.readFileSync(full, 'utf8');
           // Allow the verification test itself to mention legacy IDs (it asserts they're gone)
           if (full.endsWith('marketing-claim-verification.test.js')) continue;
-          // Banned: any claude-opus-* (we tested Opus, Sonnet won), older Sonnets (4-5/4-6/20250514), older Haikus
-          const m = body.match(/claude-opus-4-(?:5|6|7|20250514)|claude-sonnet-4-(?:5|6|20250514)|claude-haiku-4-5-2025[0-9]+/);
+          // Banned: any claude-opus-*, older Sonnets (4-5/4-7/20250514), older Haikus
+          const m = body.match(/claude-opus-4-(?:5|6|7|8|20250514)|claude-sonnet-4-(?:5|7|20250514)|claude-haiku-4-5-2025[0-9]+/);
           if (m) found.push(`${path.relative(ROOT, full)}: ${m[0]}`);
         }
       }
@@ -84,16 +85,16 @@ describe('marketing claim — Sonnet 4.7 everywhere', () => {
     assert.deepStrictEqual(found, [], 'legacy model references should be empty:\n  ' + found.join('\n  '));
   });
 
-  it('budget-tracker.js pricing constants match Sonnet 4.7 rates', () => {
+  it('budget-tracker.js pricing constants match Sonnet 4.6 rates', () => {
     const src = readFile('website/app/lib/budget-tracker.js');
     // Allow env override; default values pinned at $3 input / $15 output (Sonnet).
     assert.match(src, /INPUT_USD_PER_MTOK[^\n]*\|\|\s*3\b/);
     assert.match(src, /OUTPUT_USD_PER_MTOK[^\n]*\|\|\s*15\b/);
   });
 
-  it('CLAUDE.md AI Layer table names claude-sonnet-4-7', () => {
+  it('CLAUDE.md AI Layer table names claude-sonnet-4-6', () => {
     const md = readFile('CLAUDE.md');
-    assert.match(md, /claude-sonnet-4-7/);
+    assert.match(md, /claude-sonnet-4-6/);
   });
 });
 
