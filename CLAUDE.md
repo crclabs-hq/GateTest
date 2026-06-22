@@ -618,6 +618,78 @@ Plus 12 more modules they don't have: AI code review, **fake-fix detector (catch
 
 ---
 
+## INCLUSIVE AGENTIC QA PLATFORM — MASTER BUILD SPECIFICATION v1.0.0 (READ THIS EVERY SESSION)
+
+**Authorization:** Craig 2026-06-23 — *"Let's lock this vision down into a formal, highly actionable blueprint."* This spec sets the new product direction, persona architecture, feature roadmap, and tone guidelines. It supersedes prior positioning where GateTest was pitched purely as a "SonarQube killer." Both framings coexist: the technical engine stays aggressive; the UX and messaging layer becomes inclusive and conversational.
+
+### Product Vision (Updated)
+
+GateTest.ai is the world's first **Inclusive Agentic QA Platform**. We reject tool fatigue, cryptic error messaging, and exclusionary developer elitism. The mission is to protect codebases while treating every user — from absolute novices to veteran software architects — like family.
+
+- **The Technical Engine:** Ultra-fast, zero-dependency intelligence layer that orchestrates standard open-source tools (Playwright, Vitest) rather than reinventing them.
+- **The UX Layer:** Empathetic, Claude-powered interface that translates system failures into human-readable conversations, visual storyboards, and automated code patches.
+
+### Multi-Tier User Persona Architecture
+
+The system must dynamically adapt interface and messaging to the user's technical profile:
+
+| Persona | Primary Pain Point | GateTest Solution | Interface Mode |
+| --- | --- | --- | --- |
+| **The Novice / Learner** | Cryptic, intimidating terminal errors that cause panic | Conversational, encouraging translations of stack traces with step-by-step guidance | **Co-Pilot Mode** |
+| **The Consumer / PM** | Zero visibility into pipeline health without opening GitHub | Natural-language search dashboard with clear visual timelines and site health checks | **Visual Dashboard** |
+| **The Expert Architect** | Bloated third-party dependencies, slow pipelines, and magic black boxes | Ultra-fast native Node.js runners, clear AST visibility, and raw code configuration toggles | **Expert Toggle** |
+
+### Phase Roadmap & Authorization Status
+
+#### Phase 1 — Advanced Workspace Diagnostics *(Pre-authorized)*
+
+Building directly on the native glob-walker and suppression map from PR #240.
+
+- [x] **1A** Workspace package alias suppression — blanket-suppress false positives for packages consumed via name aliases (PR #240, 2026-06-22). Zero-dependency, line-heuristic approach.
+- [ ] **1B** Name-level export tracing — upgrade `src/modules/dead-code.js` to trace specific entry-point exports (`export { functionName }`) to find granular dead code **inside** active packages, rather than blanket-suppressing the whole package. **Requires AST parsing → needs Craig's authorization to add `acorn` (zero-runtime-overhead, MIT licensed) as a new dependency (Boss Rule #2).** Until authorized, the current blanket-suppression is the correct safe default.
+- [ ] **1C** Configuration-free monorepo discovery — on initial link, automatically identify monorepos (npm/pnpm/lerna), generate an internal dependency map, and pre-populate the workspace suppressions without any user setup file.
+
+#### Phase 2 — Unified Test Orchestrator *(Needs Craig's authorization — Boss Rule #7)*
+
+Eliminating tool fatigue by wrapping industry-standard tools via Model Context Protocol.
+
+- [ ] **2A** MCP Harnessing Layer — Claude controls native outputs from **Playwright** (UI/E2E) and **Vitest/Jest** (unit/API) via MCP bridges. Playwright is already an approved internal dependency; the MCP wiring into a unified orchestrator is the new piece requiring Craig's go-ahead.
+- [ ] **2B** Parallel Execution Core — run static analysis, API checks, and browser UI tests concurrently on the local machine before pushing to git, cutting CI wait times.
+
+#### Phase 3 — Agentic Self-Healing & Repair *(Pre-authorized where it extends existing --auto-pr; Boss Rule for new user-facing command surface)*
+
+- [ ] **3A** Diagnostic Bundle — upon any test failure, compile: human-readable error summaries, precise code file strings, DOM element snapshots, and network logs.
+- [ ] **3B** One-Click Git Patching — pass the Diagnostic Bundle to Claude, generate a safe precise code modification, present as a clean git patch (`gate-test fix --apply`). The AI-fix engine and orchestrator already exist; the `fix --apply` CLI flag is new user-facing surface. Authorisation needed for the final "apply to user's repo" step.
+
+### System Tone & Personality Guidelines *(Apply immediately to all new error messages)*
+
+> **Core Directive:** GateTest must never sound robotic, punitive, or superior. It must communicate like a helpful, grounded, and slightly witty peer.
+
+**Anti-patterns (never use):**
+- ❌ `ERROR: Process exited with code 1. Uncaught TypeError: Cannot read properties of undefined (reading 'map').`
+- ❌ `Build Failed. Your code broke 14 tests.`
+
+**GateTest formatting patterns (always use):**
+- ✅ *"Caught a small slip-up on line 14 of `deploy-planner`. The app expected a list of files but hit an empty box instead. Here's a quick 2-line patch to make it robust!"*
+- ✅ *"Looking good! Your workspace alias setup is running beautifully. 25/25 tests passed safely."*
+
+Apply these guidelines to: module warning/error messages, CLI output strings, PR body templates, website scan-status copy.
+
+### Revenue & Privacy Enforcement *(Boss Rule — Craig must authorize)*
+
+- **Usage-Based Scale:** Generous local-first tier for indie hackers, open-source maintainers, and students to build grassroots loyalty. Enterprise pricing scales on execution volume and infrastructure savings. **Pricing change = Boss Rule #3.**
+- **Zero-Data Retention Policy:** Enterprise connections — code snippets passed to Claude via secure APIs must never be retained, stored, or used for model training. This removes the primary enterprise adoption barrier. **Implementing and marketing this is Boss Rule #9 (user data, public-facing comms).**
+
+### Phase 1B Dependency Authorization Tracker
+
+| Dependency | Purpose | License | Bundle impact | Status |
+| --- | --- | --- | --- | --- |
+| `acorn` | AST parser for name-level export tracing in dead-code.js | MIT | ~100KB, zero runtime dep | **Awaiting Craig's authorization** |
+
+**When Craig authorizes `acorn`:** implement `_tracePackageExports(entryFile)` in `src/modules/dead-code.js` — walks the AST to build a precise `Set<exportedName>` for each workspace package entry point, then suppresses only the exports that pass through the entry point, flags the rest.
+
+---
+
 ## PROJECT ARCHITECTURE (BUILT — DO NOT RECREATE)
 
 ```
@@ -828,9 +900,13 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.49.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
+GateTest v1.50.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
 live** ($29 / $99 / $199 / $399 + $49/mo Continuous). Date stamp:
-2026-06-18.
+2026-06-23.
+
+**v1.50.0 changes (2026-06-23 — Inclusive Agentic QA Platform vision locked + workspace alias fix):**
+- **Master Build Specification v1.0.0 locked into CLAUDE.md.** Three-persona architecture (Co-Pilot / Visual Dashboard / Expert Toggle), Phase 1-3 roadmap, tone & personality guidelines, revenue/privacy direction. All Boss Rule items flagged. Pre-authorized Phase 1B (AST name-level tracing) awaiting `acorn` dependency authorization from Craig.
+- **dead-code workspace alias suppression shipped (PR #240).** `src/modules/dead-code.js` now reads npm/pnpm/lerna workspace config, maps source files to their workspace package, and suppresses dead-code findings for any package that is actively imported elsewhere in the monorepo. Fixes the Vapron `@vapron/deploy-planner` false-positive. 5 new tests, 25/25 pass, full suite 5727/5728.
 
 **v1.49.0 changes (2026-06-18 — Sonnet 4.6 engine + marketing):**
 - **Engine pinned to `claude-sonnet-4-6`** (Craig directive 2026-06-18 —
