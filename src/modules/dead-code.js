@@ -116,14 +116,19 @@ class DeadCodeModule extends BaseModule {
       message: `Scanning ${files.length} source file(s) for unused exports and orphaned files`,
     });
 
+    // User-configurable ignore patterns — globs relative to projectRoot.
+    // Accepted in .gatetest.json as: { "deadCode": { "ignore": ["**/*.stories.*"] } }
+    // or passed directly in config as: { ignore: [...] }
+    const ignorePatterns = (config.deadCode?.ignore || config.ignore || []);
+
     // Pass 1: gather every file's exports, imports, and file references
     const index = this._buildIndex(files, projectRoot);
 
     // Pass 2: flag unused exports, orphaned files, commented-out blocks
     let totalIssues = 0;
-    totalIssues += this._flagUnusedExports(index, result);
-    totalIssues += this._flagOrphanedFiles(index, result);
-    totalIssues += this._flagCommentedOutBlocks(files, projectRoot, result);
+    totalIssues += this._flagUnusedExports(index, result, ignorePatterns);
+    totalIssues += this._flagOrphanedFiles(index, result, ignorePatterns);
+    totalIssues += this._flagCommentedOutBlocks(files, projectRoot, result, ignorePatterns);
 
     result.addCheck('dead-code:summary', true, {
       severity: 'info',
@@ -670,7 +675,39 @@ class DeadCodeModule extends BaseModule {
     return false;
   }
 
-  _flagUnusedExports(index, result) {
+  _matchesIgnorePattern(rel, patterns) {
+    if (!patterns || patterns.length === 0) return false;
+    const normRel = rel.replace(/\\/g, '/');
+    const SPECIAL = new Set(['.', '+', '^', '$', '{', '}', '(', ')', '|', '[', ']', '\\']);
+    for (const pattern of patterns) {
+      const normPat = pattern.replace(/\\/g, '/');
+      let regex = '';
+      let i = 0;
+      while (i < normPat.length) {
+        const ch = normPat[i];
+        if (ch === '*' && normPat[i + 1] === '*') {
+          regex += '.*';
+          i += 2;
+          if (normPat[i] === '/') i++;
+        } else if (ch === '*') {
+          regex += '[^/]*';
+          i++;
+        } else if (SPECIAL.has(ch)) {
+          regex += '\\' + ch;
+          i++;
+        } else {
+          regex += ch;
+          i++;
+        }
+      }
+      try {
+        if (new RegExp(`^${regex}$`).test(normRel)) return true;
+      } catch { /* malformed pattern — skip */ }
+    }
+    return false;
+  }
+
+  _flagUnusedExports(index, result, ignorePatterns = []) {
     let issues = 0;
     for (const [file, info] of index.perFile.entries()) {
       const wsPkg = index.fileWorkspacePackage && index.fileWorkspacePackage.get(file);
@@ -680,6 +717,7 @@ class DeadCodeModule extends BaseModule {
         // Without a surface (no resolvable entry), fall back to blanket suppression.
         if (!index.workspacePackagesWithSurface || !index.workspacePackagesWithSurface.has(wsPkg)) continue;
       }
+      if (this._matchesIgnorePattern(info.rel, ignorePatterns)) continue;
 
       for (const exp of info.exports) {
         if (FRAMEWORK_RESERVED.has(exp.name)) continue;
@@ -699,7 +737,7 @@ class DeadCodeModule extends BaseModule {
     return issues;
   }
 
-  _flagOrphanedFiles(index, result) {
+  _flagOrphanedFiles(index, result, ignorePatterns = []) {
     let issues = 0;
     for (const [file, info] of index.perFile.entries()) {
       if (info.exports.length === 0) continue;
@@ -712,6 +750,7 @@ class DeadCodeModule extends BaseModule {
         // when entry couldn't be resolved.
         if (!index.workspacePackagesWithSurface || !index.workspacePackagesWithSurface.has(wsPkg)) continue;
       }
+      if (this._matchesIgnorePattern(info.rel, ignorePatterns)) continue;
 
       issues += this._flag(result, `dead-code:orphan-file:${info.rel}`, {
         severity: 'info',
@@ -723,7 +762,7 @@ class DeadCodeModule extends BaseModule {
     return issues;
   }
 
-  _flagCommentedOutBlocks(files, projectRoot, result) {
+  _flagCommentedOutBlocks(files, projectRoot, result, ignorePatterns = []) {
     let issues = 0;
     for (const file of files) {
       let content;
@@ -734,6 +773,7 @@ class DeadCodeModule extends BaseModule {
       const ext = path.extname(file).toLowerCase();
       const lang = PY_EXTS.has(ext) ? 'py' : 'js';
       const rel = path.relative(projectRoot, file);
+      if (this._matchesIgnorePattern(rel, ignorePatterns)) continue;
       const lines = content.split('\n');
 
       let run = 0;

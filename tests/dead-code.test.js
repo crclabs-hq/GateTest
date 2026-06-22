@@ -15,10 +15,10 @@ function makeResult() {
   };
 }
 
-function run(projectRoot) {
+function run(projectRoot, extraConfig = {}) {
   const mod = new DeadCodeModule();
   const result = makeResult();
-  return mod.run(result, { projectRoot }).then(() => result);
+  return mod.run(result, { projectRoot, ...extraConfig }).then(() => result);
 }
 
 function write(root, rel, content) {
@@ -492,5 +492,68 @@ describe('DeadCodeModule — Phase 1B AST entry-surface precision', () => {
     // internal.js is not reachable from the entry — it IS an orphaned file
     const orphan = r.checks.find((c) => c.name.includes('internal.js'));
     assert.ok(orphan, 'internal.js (not in entry chain) should still be flagged');
+  });
+});
+
+describe('DeadCodeModule — configurable ignore patterns', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dc-ignore-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('_matchesIgnorePattern returns false when no patterns given', () => {
+    const mod = new DeadCodeModule();
+    assert.strictEqual(mod._matchesIgnorePattern('src/foo.js', []), false);
+    assert.strictEqual(mod._matchesIgnorePattern('src/foo.js', null), false);
+    assert.strictEqual(mod._matchesIgnorePattern('src/foo.js', undefined), false);
+  });
+
+  it('_matchesIgnorePattern matches exact relative path', () => {
+    const mod = new DeadCodeModule();
+    assert.strictEqual(mod._matchesIgnorePattern('src/generated/schema.js', ['src/generated/schema.js']), true);
+    assert.strictEqual(mod._matchesIgnorePattern('src/other.js', ['src/generated/schema.js']), false);
+  });
+
+  it('_matchesIgnorePattern matches ** glob across directories', () => {
+    const mod = new DeadCodeModule();
+    assert.strictEqual(mod._matchesIgnorePattern('src/generated/foo.js', ['**/generated/**']), true);
+    assert.strictEqual(mod._matchesIgnorePattern('generated/foo.js', ['**/generated/**']), true);
+    assert.strictEqual(mod._matchesIgnorePattern('src/live/foo.js', ['**/generated/**']), false);
+  });
+
+  it('_matchesIgnorePattern matches *.stories.* pattern', () => {
+    const mod = new DeadCodeModule();
+    assert.strictEqual(mod._matchesIgnorePattern('src/Button.stories.tsx', ['**/*.stories.*']), true);
+    assert.strictEqual(mod._matchesIgnorePattern('Button.stories.js', ['**/*.stories.*']), true);
+    assert.strictEqual(mod._matchesIgnorePattern('src/Button.tsx', ['**/*.stories.*']), false);
+  });
+
+  it('suppresses unused-export findings for ignored files', async () => {
+    write(tmp, 'src/live.js', 'export function used() { return 1; }\n');
+    write(tmp, 'src/stories/Live.stories.js', 'export function StoryA() { return 2; }\n');
+    write(tmp, 'src/main.js', 'import { used } from "./live.js"; used();\n');
+    const r = await run(tmp, { deadCode: { ignore: ['**/*.stories.*'] } });
+    const hits = r.checks.filter((c) => c.name.startsWith('dead-code:unused-export:'));
+    const storyHit = hits.find((c) => c.name.includes('stories'));
+    assert.ok(!storyHit, 'stories file should be suppressed by ignore pattern');
+  });
+
+  it('suppresses orphaned-file findings for ignored files', async () => {
+    write(tmp, 'src/live.js', 'export function used() { return 1; }\n');
+    write(tmp, 'src/generated/schema.js', 'export const Schema = {};\n');
+    write(tmp, 'src/main.js', 'import { used } from "./live.js"; used();\n');
+    const r = await run(tmp, { deadCode: { ignore: ['src/generated/**'] } });
+    const orphans = r.checks.filter((c) => c.name.startsWith('dead-code:orphan-file:'));
+    const genOrphan = orphans.find((c) => c.name.includes('schema'));
+    assert.ok(!genOrphan, 'generated/schema.js should be suppressed by ignore pattern');
+  });
+
+  it('also reads ignore from top-level config.ignore', async () => {
+    write(tmp, 'src/live.js', 'export function used() { return 1; }\n');
+    write(tmp, 'src/mock/data.js', 'export const mock = {};\n');
+    write(tmp, 'src/main.js', 'import { used } from "./live.js"; used();\n');
+    const r = await run(tmp, { ignore: ['src/mock/**'] });
+    const orphans = r.checks.filter((c) => c.name.startsWith('dead-code:orphan-file:'));
+    const mockOrphan = orphans.find((c) => c.name.includes('mock'));
+    assert.ok(!mockOrphan, 'mock/data.js should be suppressed via top-level config.ignore');
   });
 });
