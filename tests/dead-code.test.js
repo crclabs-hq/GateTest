@@ -396,3 +396,101 @@ describe('DeadCodeModule — workspace package alias suppression', () => {
     assert.strictEqual(hits.length, 0, `unexpected findings from subpath import`);
   });
 });
+
+describe('DeadCodeModule — Phase 1B AST entry-surface precision', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dc-ast-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('suppresses named exports that flow through the package entry point', async () => {
+    write(tmp, 'package.json', JSON.stringify({ name: 'root', workspaces: ['packages/*'] }));
+    // Library package: entry re-exports from src/
+    write(tmp, 'packages/lib/package.json', JSON.stringify({ name: '@acme/lib', main: 'index.js' }));
+    write(tmp, 'packages/lib/index.js', [
+      'export { buildPlan, validatePlan } from "./src/planner";',
+      '',
+    ].join('\n'));
+    write(tmp, 'packages/lib/src/planner.js', [
+      'export function buildPlan() { return {}; }',
+      'export function validatePlan(p) { return !!p; }',
+      '',
+    ].join('\n'));
+    // Consumer imports the package by name
+    write(tmp, 'packages/app/package.json', JSON.stringify({ name: '@acme/app' }));
+    write(tmp, 'packages/app/main.js', [
+      'import { buildPlan } from "@acme/lib";',
+      'buildPlan();',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.name.startsWith('dead-code:unused-export:'));
+    assert.strictEqual(hits.length, 0, `unexpected findings: ${JSON.stringify(hits.map((h) => h.name))}`);
+  });
+
+  it('suppresses files reachable via export * re-export chain', async () => {
+    write(tmp, 'package.json', JSON.stringify({ name: 'root', workspaces: ['packages/*'] }));
+    write(tmp, 'packages/utils/package.json', JSON.stringify({ name: '@acme/utils', main: 'index.js' }));
+    // Entry barrel re-exports everything from sub-modules
+    write(tmp, 'packages/utils/index.js', [
+      'export * from "./helpers";',
+      'export * from "./formatters";',
+      '',
+    ].join('\n'));
+    write(tmp, 'packages/utils/helpers.js', 'export function help() { return 1; }\n');
+    write(tmp, 'packages/utils/formatters.js', 'export function fmt() { return ""; }\n');
+    write(tmp, 'packages/app/package.json', JSON.stringify({ name: '@acme/app' }));
+    write(tmp, 'packages/app/index.js', [
+      'import { help } from "@acme/utils";',
+      'help();',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const orphans = r.checks.filter((c) => c.name.startsWith('dead-code:orphan-file:'));
+    assert.strictEqual(orphans.length, 0, `unexpected orphans: ${JSON.stringify(orphans.map((h) => h.name))}`);
+  });
+
+  it('_parseExportsWithAcorn extracts multi-line export blocks', () => {
+    const mod = new DeadCodeModule();
+    const tmpFile = path.join(tmp, 'multi.js');
+    fs.writeFileSync(tmpFile, [
+      'export {',
+      '  alpha,',
+      '  beta,',
+      '  gamma',
+      '} from "./base";',
+      'export function delta() {}',
+      '',
+    ].join('\n'));
+    const { exports, reExportPaths } = mod._parseExportsWithAcorn(tmpFile);
+    const names = exports.map((e) => e.name);
+    assert.ok(names.includes('alpha'), 'should find alpha from multi-line export block');
+    assert.ok(names.includes('beta'), 'should find beta');
+    assert.ok(names.includes('gamma'), 'should find gamma');
+    assert.ok(names.includes('delta'), 'should find delta');
+    assert.ok(reExportPaths.includes('./base'), 'should capture re-export source path');
+  });
+
+  it('flags truly internal exports not in the entry surface', async () => {
+    write(tmp, 'package.json', JSON.stringify({ name: 'root', workspaces: ['packages/*'] }));
+    write(tmp, 'packages/lib/package.json', JSON.stringify({ name: '@acme/lib', main: 'index.js' }));
+    // Entry only exposes publicFn — internalFn is not in the entry surface
+    write(tmp, 'packages/lib/index.js', 'export function publicFn() { return 1; }\n');
+    write(tmp, 'packages/lib/internal.js', [
+      'export function internalFn() { return 2; }',
+      '',
+    ].join('\n'));
+    write(tmp, 'packages/app/package.json', JSON.stringify({ name: '@acme/app' }));
+    write(tmp, 'packages/app/main.js', [
+      'import { publicFn } from "@acme/lib";',
+      'publicFn();',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    // publicFn is in the entry surface — should not be flagged
+    const publicHit = r.checks.find((c) => c.export === 'publicFn');
+    assert.ok(!publicHit, 'publicFn (in entry surface) should not be flagged');
+    // internal.js is not reachable from the entry — it IS an orphaned file
+    const orphan = r.checks.find((c) => c.name.includes('internal.js'));
+    assert.ok(orphan, 'internal.js (not in entry chain) should still be flagged');
+  });
+});

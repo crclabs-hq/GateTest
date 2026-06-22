@@ -169,6 +169,9 @@ class DeadCodeModule extends BaseModule {
     const workspacePackages = this._buildWorkspaceMap(projectRoot);
     const importedWorkspacePackages = new Set();
     const fileWorkspacePackage = new Map();
+    // Phase 1B: packages whose entry surface was successfully parsed (AST precision mode)
+    const workspacePackagesWithSurface = new Set();
+    const seenPackageSurfaces = new Set(); // avoid redundant entry parsing per package
 
     // Map each source file to its workspace package (if any)
     for (const file of files) {
@@ -203,20 +206,32 @@ class DeadCodeModule extends BaseModule {
       for (const n of names) importedNames.add(n);
       for (const p of paths) {
         // Track workspace packages that are actively imported
+        let wsKey = null;
         if (workspacePackages.has(p)) {
-          importedWorkspacePackages.add(p);
+          wsKey = p;
         } else {
           const pkgKey = p.startsWith('@')
             ? p.split('/').slice(0, 2).join('/')
             : p.split('/')[0];
-          if (workspacePackages.has(pkgKey)) importedWorkspacePackages.add(pkgKey);
+          if (workspacePackages.has(pkgKey)) wsKey = pkgKey;
+        }
+        if (wsKey) {
+          importedWorkspacePackages.add(wsKey);
+          // Phase 1B: build entry surface once per package for precision suppression
+          if (!seenPackageSurfaces.has(wsKey)) {
+            seenPackageSurfaces.add(wsKey);
+            this._populatePackageSurface(
+              workspacePackages.get(wsKey), wsKey,
+              referencedFiles, importedNames, workspacePackagesWithSurface,
+            );
+          }
         }
         const resolved = this._resolveImportPath(file, p, projectRoot, workspacePackages);
         if (resolved) referencedFiles.add(resolved);
       }
     }
 
-    return { perFile, importedNames, referencedFiles, projectRoot, importedWorkspacePackages, fileWorkspacePackage };
+    return { perFile, importedNames, referencedFiles, projectRoot, importedWorkspacePackages, fileWorkspacePackage, workspacePackagesWithSurface };
   }
 
   /**
@@ -350,6 +365,130 @@ class DeadCodeModule extends BaseModule {
       if (m) { out.push({ name: m[1], line: i + 1 }); continue; }
     }
     return out;
+  }
+
+  /**
+   * AST-level export extraction using acorn. Handles multi-line export blocks
+   * that the line-heuristic can't see. Falls back to `_extractJsExports` on any
+   * parse error (TypeScript, JSX, CJS with require, malformed files, etc.).
+   *
+   * Returns { exports: [{name, line}], reExportPaths: [string] }
+   * where reExportPaths are the source specifiers from `export { x } from './y'`
+   * and `export * from './z'` — used to traverse re-export chains.
+   */
+  _parseExportsWithAcorn(filePath) {
+    let content;
+    try { content = fs.readFileSync(filePath, 'utf-8'); }
+    catch { return { exports: [], reExportPaths: [] }; }
+
+    let acorn;
+    try { acorn = require('acorn'); }
+    catch { return { exports: this._extractJsExports(content), reExportPaths: [] }; }
+
+    let ast;
+    try {
+      ast = acorn.parse(content, { ecmaVersion: 'latest', sourceType: 'module', locations: true, allowHashBang: true });
+    } catch {
+      return { exports: this._extractJsExports(content), reExportPaths: [] };
+    }
+
+    const exports = [];
+    const reExportPaths = [];
+
+    for (const node of ast.body) {
+      if (node.type === 'ExportNamedDeclaration') {
+        if (node.source?.value) reExportPaths.push(node.source.value);
+        if (node.declaration) {
+          const d = node.declaration;
+          if (d.id) {
+            exports.push({ name: d.id.name, line: d.id.loc.start.line });
+          } else if (d.declarations) {
+            for (const v of d.declarations) {
+              if (v.id?.type === 'Identifier') exports.push({ name: v.id.name, line: v.id.loc.start.line });
+            }
+          }
+        }
+        for (const spec of node.specifiers || []) {
+          const name = spec.exported?.name;
+          if (name) exports.push({ name, line: node.loc.start.line });
+        }
+      } else if (node.type === 'ExportDefaultDeclaration') {
+        const id = node.declaration?.id;
+        if (id) exports.push({ name: id.name, line: id.loc.start.line, isDefault: true });
+      } else if (node.type === 'ExportAllDeclaration') {
+        if (node.source?.value) reExportPaths.push(node.source.value);
+      }
+    }
+
+    return { exports, reExportPaths };
+  }
+
+  /**
+   * Starting from a package entry file, recursively follow `export * from` and
+   * `export { ... } from` chains to discover every file + exported name reachable
+   * through the entry point. Used by Phase 1B to build precision suppression for
+   * workspace packages instead of blanket suppression.
+   *
+   * Uses acorn for plain JS/MJS/CJS files, line-heuristic for TS/JSX.
+   * Circular re-exports are guarded by the `seen` set.
+   */
+  _buildPackageExportSurface(entryFile, pkgDir, seen = new Set()) {
+    const normEntry = path.normalize(entryFile);
+    if (seen.has(normEntry)) return { reachableFiles: new Set(), exportedNames: new Set() };
+    seen.add(normEntry);
+
+    const reachableFiles = new Set([normEntry]);
+    const exportedNames = new Set();
+
+    const ext = path.extname(entryFile).toLowerCase();
+    const needsLineHeuristic = ['.ts', '.tsx', '.mts', '.cts', '.jsx'].includes(ext);
+
+    let exports;
+    let reExportPaths;
+
+    if (needsLineHeuristic) {
+      let content;
+      try { content = fs.readFileSync(entryFile, 'utf-8'); }
+      catch { return { reachableFiles, exportedNames }; }
+      exports = this._extractJsExports(content);
+      reExportPaths = [];
+      for (const m of content.matchAll(/^\s*export\s+(?:\*|\{[^}]*\})\s+from\s+['"]([^'"]+)['"]/gm)) {
+        reExportPaths.push(m[1]);
+      }
+    } else {
+      ({ exports, reExportPaths } = this._parseExportsWithAcorn(entryFile));
+    }
+
+    for (const exp of exports) exportedNames.add(exp.name);
+
+    for (const rePath of reExportPaths) {
+      const resolved = this._resolveImportPath(entryFile, rePath, pkgDir);
+      if (!resolved) continue;
+      try {
+        const sub = this._buildPackageExportSurface(resolved, pkgDir, seen);
+        for (const f of sub.reachableFiles) reachableFiles.add(f);
+        for (const n of sub.exportedNames) exportedNames.add(n);
+      } catch { /* non-blocking */ }
+    }
+
+    return { reachableFiles, exportedNames };
+  }
+
+  /**
+   * Populate the global referencedFiles and importedNames with the entry-surface
+   * of a workspace package. Marks the package in workspacePackagesWithSurface so
+   * _flagUnusedExports and _flagOrphanedFiles can use precision mode rather than
+   * blanket suppression.
+   */
+  _populatePackageSurface(pkgDir, pkgName, referencedFiles, importedNames, workspacePackagesWithSurface) {
+    const entryFile = this._resolvePackageEntry(pkgDir);
+    if (!entryFile) return;
+    try {
+      const { reachableFiles, exportedNames } = this._buildPackageExportSurface(entryFile, pkgDir);
+      for (const f of reachableFiles) referencedFiles.add(f);
+      for (const n of exportedNames) importedNames.add(n);
+      workspacePackagesWithSurface.add(pkgName);
+    } catch { /* non-blocking — blanket suppression fallback stays in effect */ }
   }
 
   /**
@@ -534,12 +673,13 @@ class DeadCodeModule extends BaseModule {
   _flagUnusedExports(index, result) {
     let issues = 0;
     for (const [file, info] of index.perFile.entries()) {
-      // Skip files in workspace packages that are imported via package-name alias.
-      // A consumer does `import { X } from '@scope/pkg'` — GateTest can't follow the
-      // alias chain to know exactly which exports are used, so we suppress findings
-      // for the whole package to avoid monorepo false positives.
       const wsPkg = index.fileWorkspacePackage && index.fileWorkspacePackage.get(file);
-      if (wsPkg && index.importedWorkspacePackages && index.importedWorkspacePackages.has(wsPkg)) continue;
+      if (wsPkg && index.importedWorkspacePackages && index.importedWorkspacePackages.has(wsPkg)) {
+        // Phase 1B: if we built the entry surface, importedNames already covers the public
+        // API — proceed with normal per-name check so internal-only dead exports still fire.
+        // Without a surface (no resolvable entry), fall back to blanket suppression.
+        if (!index.workspacePackagesWithSurface || !index.workspacePackagesWithSurface.has(wsPkg)) continue;
+      }
 
       for (const exp of info.exports) {
         if (FRAMEWORK_RESERVED.has(exp.name)) continue;
@@ -566,9 +706,12 @@ class DeadCodeModule extends BaseModule {
       if (this._isEntryPoint(file, index.projectRoot)) continue;
       if (index.referencedFiles.has(path.normalize(file))) continue;
 
-      // Skip files in workspace packages that are imported via package-name alias
       const wsPkg = index.fileWorkspacePackage && index.fileWorkspacePackage.get(file);
-      if (wsPkg && index.importedWorkspacePackages && index.importedWorkspacePackages.has(wsPkg)) continue;
+      if (wsPkg && index.importedWorkspacePackages && index.importedWorkspacePackages.has(wsPkg)) {
+        // Phase 1B: referencedFiles already covers entry-reachable files. Only blanket-suppress
+        // when entry couldn't be resolved.
+        if (!index.workspacePackagesWithSurface || !index.workspacePackagesWithSurface.has(wsPkg)) continue;
+      }
 
       issues += this._flag(result, `dead-code:orphan-file:${info.rel}`, {
         severity: 'info',
