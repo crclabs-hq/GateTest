@@ -1,0 +1,40 @@
+{
+  "generatedAt": "2026-06-19T08:33:23.410Z",
+  "underTestedTargets": 6,
+  "draftsTotal": 6,
+  "drafted": 0,
+  "skipped": 6,
+  "failed": 0,
+  "drafts": [
+    {
+      "module": "developers",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/developers.js or website/app/lib/developers.js"
+    },
+    {
+      "module": "envvars",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/envvars.js or website/app/lib/envvars.js"
+    },
+    {
+      "module": "website",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/website.js or website/app/lib/website.js"
+    },
+    {
+      "module": "fake-fix-detector",
+      "status": "skipped-real-test-exists",
+      "path": "/home/runner/work/GateTest/GateTest/tests/fake-fix-detector.test.js"
+    },
+    {
+      "module": "ci",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/ci.js or website/app/lib/ci.js"
+    },
+    {
+      "module": "integrations",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/integrations.js or website/app/lib/integrations.js"
+    }
+  ]
+}
