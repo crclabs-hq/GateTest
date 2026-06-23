@@ -50,7 +50,7 @@ const faqItems = [
   },
   {
     q: "Does GateTest work without GitHub Actions?",
-    a: "Yes. GateTest's website scan (/pricing) runs on-demand via a direct API call — you paste a repo URL, pay, and get results without touching your CI. The GitHub App delivers results as commit statuses and PR comments. The CLI (npm install -g gatetest) runs locally or in any CI environment. CodeQL requires either GitHub Actions or a local CodeQL runner installed from GitHub's release page.",
+    a: "Yes. GateTest's website scan (/pricing) runs on-demand via a direct API call — you paste a repo URL, pay, and get results without touching your CI. The GitHub App delivers results as commit statuses and PR comments. The CLI (npm install -g @gatetest/cli) runs locally or in any CI environment. CodeQL requires either GitHub Actions or a local CodeQL runner installed from GitHub's release page.",
   },
 ];
 

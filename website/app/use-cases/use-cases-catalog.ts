@@ -197,7 +197,7 @@ export const USE_CASES: UseCaseEntry[] = [
       lang: "bash",
       label: "install the pre-push hook",
       content: `# from your repo root
-npx gatetest install-hook pre-push
+npx @gatetest/cli install-hook pre-push
 
 # now every 'git push' runs a fast scan first;
 # a leaked secret or syntax error stops the push.`,

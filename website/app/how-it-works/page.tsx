@@ -239,7 +239,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: npx gatetest heal --pr
+      - run: npx @gatetest/cli heal --pr
         env:
           ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN:      \${{ secrets.GITHUB_TOKEN }}`}

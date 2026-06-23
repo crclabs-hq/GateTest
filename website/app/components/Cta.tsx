@@ -50,7 +50,7 @@ export default function Cta() {
             </div>
             <div className="p-5 font-[var(--font-mono)] text-sm text-left">
               <p className="text-muted">
-                <span className="text-accent-light">$</span> npm install -g gatetest
+                <span className="text-accent-light">$</span> npm install -g @gatetest/cli
               </p>
               <p className="text-muted">
                 <span className="text-accent-light">$</span> gatetest --suite full --fix
