@@ -74,18 +74,18 @@ describe('Circuit-breaker logic', () => {
 
   it('fires exactly at the limit', () => {
     const tracker = makeTracker(1000, 1000);
-    assert.throws(() => simulatePreflightCheck(tracker), (err) => {
-      assert.strictEqual(err.name, 'INVOCATION_LIMIT_EXCEEDED');
-      return true;
-    });
+    assert.throws(
+      () => simulatePreflightCheck(tracker),
+      { name: 'INVOCATION_LIMIT_EXCEEDED' }
+    );
   });
 
   it('fires past the limit', () => {
     const tracker = makeTracker(1500, 1000);
-    assert.throws(() => simulatePreflightCheck(tracker), (err) => {
-      assert.strictEqual(err.name, 'INVOCATION_LIMIT_EXCEEDED');
-      return true;
-    });
+    assert.throws(
+      () => simulatePreflightCheck(tracker),
+      { name: 'INVOCATION_LIMIT_EXCEEDED' }
+    );
   });
 
   it('is a no-op when _maxInvocations is undefined (uncapped tiers)', () => {
