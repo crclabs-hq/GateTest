@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-06-19T08:40:25.729Z",
+  "generatedAt": "2026-06-23T06:59:19.007Z",
   "source": "scripts/generate-site-stats.js",
   "note": "Measured on every run. Displayed counts are rounded DOWN so the public \"N+\" claim is always an under-statement. Do not hand-edit — run the script.",
   "tests": {
-    "total": 5728,
-    "passing": 5727,
+    "total": 5739,
+    "passing": 5738,
     "failing": 0,
     "skipped": 0,
     "displayPassing": "5,700+"
