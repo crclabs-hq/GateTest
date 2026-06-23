@@ -89,7 +89,49 @@ function extractJsExports(content) {
   return out;
 }
 
-// AST-level export extraction — handles multi-line export blocks; falls back to extractJsExports on parse errors.
+// Regex-based fallback for when acorn is absent.
+// Handles multi-line export { ... } blocks and export * from "path" re-exports.
+function _parseExportsWithRegex(content) {
+  const reExportPaths = [];
+
+  // Strip block comments and line comments to avoid false positives.
+  const stripped = content
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/\/\/.*/g, '');
+
+  let m;
+  const starRe = /export\s*\*\s*(?:as\s+[A-Za-z_$][\w$]*\s+)?from\s+['"]([^'"]+)['"]/g;
+  while ((m = starRe.exec(stripped)) !== null) {
+    reExportPaths.push(m[1]);
+  }
+
+  // Handles both single-line and multi-line export { ... } [from "path"].
+  const braceExports = [];
+  const braceRe = /export\s*\{([^}]*)\}(?:\s*from\s+['"]([^'"]+)['"])?/gs;
+  while ((m = braceRe.exec(stripped)) !== null) {
+    const lineNum = (stripped.slice(0, m.index).match(/\n/g) || []).length + 1;
+    for (const part of m[1].split(',')) {
+      const alias = part.trim().replace(/\n/g, ' ').split(/\s+as\s+/);
+      const exported = (alias[1] || alias[0]).trim();
+      if (exported && /^[A-Za-z_$][\w$]*$/.test(exported)) {
+        braceExports.push({ name: exported, line: lineNum });
+      }
+    }
+    if (m[2] && !reExportPaths.includes(m[2])) reExportPaths.push(m[2]);
+  }
+
+  // Line-by-line pass covers function/class/const/module.exports declarations.
+  const lineExports = extractJsExports(content);
+  const seenNames = new Set(lineExports.map((e) => e.name));
+  const exports = [...lineExports];
+  for (const e of braceExports) {
+    if (!seenNames.has(e.name)) { exports.push(e); seenNames.add(e.name); }
+  }
+
+  return { exports, reExportPaths };
+}
+
+// AST-level export extraction — handles multi-line export blocks; falls back to regex on acorn-absent / parse errors.
 function parseExportsWithAcorn(filePath) {
   let content;
   try { content = fs.readFileSync(filePath, 'utf-8'); }
@@ -97,7 +139,7 @@ function parseExportsWithAcorn(filePath) {
 
   let acorn;
   try { acorn = require('acorn'); }
-  catch { return { exports: extractJsExports(content), reExportPaths: [] }; }
+  catch { return _parseExportsWithRegex(content); }
 
   let ast;
   try {
