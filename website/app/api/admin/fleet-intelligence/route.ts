@@ -76,7 +76,8 @@ export async function GET() {
         SELECT
           result->>'name' AS module_name,
           s.repo_url,
-          COALESCE((result->>'issues')::int, 0) AS issue_count
+          COALESCE((result->>'issues')::int, 0) AS issue_count,
+          s.created_at
         FROM scans s,
           jsonb_array_elements(s.results) AS result
         WHERE s.status = 'completed'
@@ -90,12 +91,13 @@ export async function GET() {
         module_name,
         COUNT(*)::int AS occurrences,
         COUNT(DISTINCT repo_url)::int AS affected_repos,
-        SUM(issue_count)::int AS total_issues
+        SUM(issue_count)::int AS total_issues,
+        MAX(created_at)::text AS last_seen
       FROM module_failures
       GROUP BY module_name
       ORDER BY occurrences DESC, total_issues DESC
       LIMIT 5
-    ` as Array<{ module_name: string; occurrences: number; affected_repos: number; total_issues: number }>;
+    ` as Array<{ module_name: string; occurrences: number; affected_repos: number; total_issues: number; last_seen: string }>;
 
     return NextResponse.json({
       signatures: rows,

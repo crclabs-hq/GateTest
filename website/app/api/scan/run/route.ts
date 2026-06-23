@@ -197,16 +197,14 @@ async function scanRepo(owner: string, repo: string, tier: string): Promise<Scan
   if (Date.now() > deadline) {
     return { modules: [], totalIssues: 0, duration: Date.now() - startTime, authSource: auth.source, error: "scan timed out fetching file tree" };
   }
-  const readPromises = filesToFetch.map(async (filePath): Promise<RepoFile | null> => {
-    try {
-      const content = await fetchBlob(owner, repo, filePath, "HEAD", token);
-      if (content) {
-        return { path: filePath, content };
-      }
-      return null;
-    } catch { return null; }
-  });
-  const fileContents: RepoFile[] = (await Promise.all(readPromises)).filter((f): f is RepoFile => f !== null);
+  const fileContents: RepoFile[] = (await Promise.all(
+    filesToFetch.map(async (filePath): Promise<RepoFile | null> => {
+      try {
+        const content = await fetchBlob(owner, repo, filePath, "HEAD", token);
+        return content ? { path: filePath, content } : null;
+      } catch { return null; }
+    })
+  )).filter((f): f is RepoFile => f !== null);
 
   // Engine selection — closes the 102-vs-22 module honesty gap.
   //

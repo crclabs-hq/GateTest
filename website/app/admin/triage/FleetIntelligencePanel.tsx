@@ -7,6 +7,7 @@ interface FleetSignature {
   occurrences: number;
   affected_repos: number;
   total_issues: number;
+  last_seen?: string;
 }
 
 interface FleetData {
@@ -15,6 +16,13 @@ interface FleetData {
   generatedAt: string;
   note?: string;
   error?: string;
+}
+
+function fmtLastSeen(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  return `${days}d ago`;
 }
 
 function fmtModule(name: string): string {
@@ -110,6 +118,11 @@ export function FleetIntelligencePanel() {
                     <span className="font-semibold text-gray-800">{sig.affected_repos}</span> repos
                   </span>
                 </div>
+                {sig.last_seen && (
+                  <div className="text-[10px] text-gray-400 mt-1">
+                    last seen {fmtLastSeen(sig.last_seen)}
+                  </div>
+                )}
               </article>
             );
           })}
