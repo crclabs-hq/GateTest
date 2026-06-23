@@ -36,6 +36,10 @@ const HELP = `
                                      scripts.
     gatetest replay <run-url>        Reproduce a failing CI run locally
                                      (run 'gatetest replay --help' for detail)
+    gatetest fix --apply [options]   Run AI fix engine and apply changes directly
+                                     to files on disk. No git branch, no PR.
+                                     Works entirely locally. Requires
+                                     ANTHROPIC_API_KEY. See 'gatetest fix --help'.
     gatetest train [options]         Run all flywheel trainers locally —
                                      pattern miner, recipe promoter,
                                      regression-test generator, cross-repo
@@ -171,7 +175,7 @@ async function main() {
   //                            every existing invocation keeps working.
   const rawArgs = process.argv.slice(2);
   const first = rawArgs[0];
-  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan', 'train']);
+  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan', 'train', 'fix']);
   if (first === 'sweep') {
     const { runSweep } = require('./gatetest-sweep');
     const code = await runSweep(rawArgs.slice(1));
@@ -185,6 +189,14 @@ async function main() {
   if (first === 'train') {
     const train = require('./gatetest-train');
     const code = await train.main(rawArgs.slice(1));
+    process.exit(code || 0);
+  }
+  if (first === 'fix') {
+    const projectRoot = (() => {
+      const pidx = rawArgs.indexOf('--project');
+      return pidx !== -1 ? rawArgs[pidx + 1] : process.cwd();
+    })();
+    const code = await runFixApply(rawArgs.slice(1), projectRoot);
     process.exit(code || 0);
   }
   // 'scan' is an explicit alias for the default behavior. Consume it.
@@ -640,6 +652,144 @@ async function runAutoPr(summary, projectRoot, args) {
   } catch (err) {
     return { error: `Commit/push/PR step failed: ${err.message?.slice(0, 200) || err}`, fixesApplied: accepted.length };
   }
+}
+
+/**
+ * `gatetest fix --apply` — run the AI fix engine and write changes directly
+ * to disk. Same pipeline as `--auto-pr` but without any git/PR operations.
+ * Safe to run on a working directory with uncommitted changes.
+ */
+async function runFixApply(argv, rootDir) {
+  const { GateTest } = require('../src/index');
+  const { runFixOrchestration } = require('../src/core/cli-fix-orchestrator');
+  const { extractFileFromCheck } = require('../src/core/parse-finding');
+
+  const localArgs = { suite: 'standard' };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--help' || a === '-h') localArgs.help = true;
+    else if (a === '--apply') localArgs.apply = true;
+    else if (a === '--dry-run') localArgs.dryRun = true;
+    else if (a === '--suite' && argv[i + 1]) localArgs.suite = argv[++i];
+    else if (a === '--project' && argv[i + 1]) { rootDir = path.resolve(argv[++i]); }
+  }
+
+  if (localArgs.help) {
+    console.log(`
+  gatetest fix --apply
+
+    Run GateTest's AI fix engine and apply changes directly to files on disk.
+    No git branch is created, no PR is opened. This is the "local dev" mode —
+    run it before committing, review the diff, commit manually.
+
+  USAGE
+    gatetest fix --apply [options]
+
+  OPTIONS
+    --apply               Required guard flag (prevents accidental invocation)
+    --suite <name>        Suite to scan (default: standard)
+    --project <path>      Project root (default: cwd)
+    --dry-run             Show what would be fixed without writing any files
+
+  REQUIRES
+    ANTHROPIC_API_KEY — Claude AI fix engine
+`);
+    return 0;
+  }
+
+  if (!localArgs.apply) {
+    console.error('\n  [GateTest fix] Requires --apply flag. Run: gatetest fix --apply\n');
+    console.error('  Use --help for full options.\n');
+    return 1;
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    console.error('\n  [GateTest fix] ANTHROPIC_API_KEY is not set.\n');
+    return 1;
+  }
+
+  console.log(`\n  \x1b[36m[GateTest fix]\x1b[0m Scanning ${rootDir} (suite: ${localArgs.suite})...\n`);
+
+  const gt = new GateTest(rootDir, {});
+  gt.init();
+  const summary = await gt.runSuite(localArgs.suite);
+
+  if (summary.gateStatus === 'PASSED') {
+    console.log('\n  \x1b[32m[GateTest fix]\x1b[0m Gate passed — nothing to fix.\n');
+    return 0;
+  }
+
+  // Collect every finding that has a file path
+  const fixable = [];
+  const noFile = [];
+  for (const moduleResult of summary.results || []) {
+    for (const check of moduleResult.checks || []) {
+      if (check.passed) continue;
+      if (check.severity !== 'error' && check.severity !== 'warning') continue;
+      const merged = { ...check, module: moduleResult.module || moduleResult.name };
+      const { file } = extractFileFromCheck(merged);
+      const entry = {
+        moduleName: merged.module || 'unknown',
+        checkName: check.name || 'unnamed-check',
+        file,
+        message: check.message || check.details?.message || check.name || '',
+        severity: check.severity,
+      };
+      if (file) fixable.push(entry);
+      else noFile.push(entry);
+    }
+  }
+
+  if (fixable.length === 0) {
+    console.log(`\n  \x1b[33m[GateTest fix]\x1b[0m No file-level findings to fix.`);
+    if (noFile.length > 0) console.log(`  ${noFile.length} config-level finding(s) need manual review.\n`);
+    return 1;
+  }
+
+  console.log(`  \x1b[36m[GateTest fix]\x1b[0m ${fixable.length} finding(s). Running AI fix engine...\n`);
+
+  let orchestration;
+  try {
+    orchestration = await runFixOrchestration(fixable, rootDir, apiKey, { maxAttempts: 3, fileCap: 50 });
+  } catch (err) {
+    console.error(`\n  \x1b[31m[GateTest fix]\x1b[0m Fix engine error: ${err.message?.slice(0, 300) || err}\n`);
+    return 1;
+  }
+
+  const { accepted, testFiles } = orchestration;
+
+  if (accepted.length === 0) {
+    console.log('\n  \x1b[33m[GateTest fix]\x1b[0m No fixes passed the syntax gate.\n');
+    return 1;
+  }
+
+  if (localArgs.dryRun) {
+    console.log(`\n  \x1b[36m[GateTest fix --dry-run]\x1b[0m Would apply ${accepted.length} fix(es):\n`);
+    for (const fix of accepted) console.log(`    \x1b[32m✓\x1b[0m ${fix.file}`);
+    if (testFiles.length > 0) console.log(`\n  Would write ${testFiles.length} regression test(s).`);
+    console.log('');
+    return 0;
+  }
+
+  // Write fixes
+  for (const fix of accepted) {
+    const absPath = path.isAbsolute(fix.file) ? fix.file : path.join(rootDir, fix.file);
+    fs.writeFileSync(absPath, fix.fixed, 'utf-8');
+    console.log(`  [\x1b[32m✓\x1b[0m] ${fix.file} (${fix.issues.length} issue${fix.issues.length !== 1 ? 's' : ''} fixed)`);
+  }
+
+  // Write regression tests
+  for (const testFile of testFiles) {
+    const absPath = path.join(rootDir, testFile.path);
+    fs.mkdirSync(path.dirname(absPath), { recursive: true });
+    fs.writeFileSync(absPath, testFile.content, 'utf-8');
+    console.log(`  [\x1b[36m+\x1b[0m] ${testFile.path} (regression test)`);
+  }
+
+  console.log(`\n  \x1b[32m[GateTest fix]\x1b[0m Applied ${accepted.length} fix(es) to disk.`);
+  console.log('  Run \x1b[1mgit diff\x1b[0m to review, then commit.\n');
+  return 0;
 }
 
 function parseArgs(argv) {
