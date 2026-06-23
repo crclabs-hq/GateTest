@@ -119,11 +119,16 @@ describe('marketing claim — 4 pricing tiers wired', () => {
     assert.strictEqual(capsForTier('nuclear').tier, 'nuclear');
   });
 
-  it('Pricing.tsx references the 4 dollar prices', () => {
+  it('Pricing.tsx references the paid cloud tier prices ($199 and $399)', () => {
+    // $29 Quick Scan and $99 Full Scan removed from the pricing grid (2026-06-23):
+    // the free CLI (`npx @gatetest/cli --suite full`) replaces both entry tiers.
+    // The paid grid now shows only $199 Scan+Fix and $399 Forensic Scan.
     const pricing = readFile('website/app/components/Pricing.tsx');
-    for (const price of ['$29', '$99', '$199', '$399']) {
+    for (const price of ['$199', '$399']) {
       assert.ok(pricing.includes(price), `Pricing.tsx should mention ${price}`);
     }
+    // Free CLI callout must be present instead of the removed tiers.
+    assert.ok(pricing.includes('@gatetest/cli'), 'Pricing.tsx should mention @gatetest/cli free tier');
   });
 });
 

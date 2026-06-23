@@ -502,6 +502,12 @@ const TIME_BUDGET_MS = 240_000;
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
 
+// Circuit breaker — stops AI invocations mid-flight when the repo is
+// so large that 1000 Claude calls would be needed. Partial fixes are
+// committed and the PR body includes an enterprise upgrade prompt.
+// Applied only on scan_fix ($199) and nuclear/forensic ($399) tiers.
+const MAX_AI_INVOCATIONS = 1000;
+
 // Retryable network error shapes — the TLS / connection-level failures that
 // throw BEFORE an HTTP response is ever produced. Notably includes EPROTO
 // "SSL alert number 80" which hits hard when undici's keep-alive pool gets
@@ -540,6 +546,16 @@ async function anthropicCall(body: string): Promise<{ status: number; data: Reco
   // When no tracker is in context (e.g. tests that don't wrap), this is
   // a no-op.
   const tracker = getCurrentTracker();
+  // Invocation circuit breaker — check BEFORE the USD budget preflight so
+  // over-limit repos get a clear "upgrade to enterprise" message rather
+  // than an opaque 402 budget-exceeded error.
+  if (tracker && tracker._maxInvocations !== undefined) {
+    if (tracker.callCount >= tracker._maxInvocations) {
+      const err = new Error(`INVOCATION_LIMIT_EXCEEDED:${tracker._maxInvocations}`);
+      err.name = "INVOCATION_LIMIT_EXCEEDED";
+      throw err;
+    }
+  }
   if (tracker) tracker.preflight();
 
   const controller = new AbortController();
@@ -977,6 +993,10 @@ export async function POST(req: NextRequest) {
   // reach it without explicit threading. Stored on the closure so the
   // route's outer try/catch can attach a snapshot to any error response.
   const _budgetTracker = createTrackerForTier(tierForCap);
+  // Wire the invocation circuit breaker for paid AI-fix tiers.
+  if (tierForCap === "scan_fix" || tierForCap === "nuclear") {
+    (_budgetTracker as Record<string, unknown>)._maxInvocations = MAX_AI_INVOCATIONS;
+  }
   return await runWithTracker(_budgetTracker, async (): Promise<NextResponse> => {
 
   // Accept gluecron.com URLs first; fall back to github.com for links
@@ -1553,7 +1573,11 @@ export async function POST(req: NextRequest) {
       const isAbortErr = err instanceof Error && (err.name === "AbortError" || /aborted|abort/i.test(raw));
       const isNetworkErr = isAbortErr || /EPROTO|ECONNRESET|ETIMEDOUT|ssl.*alert|handshake|fetch failed|socket hang up|unreachable/i.test(raw);
 
-      if (isNetworkErr) {
+      if (err instanceof Error && err.name === "INVOCATION_LIMIT_EXCEEDED") {
+        // Circuit breaker fired — halt the loop; partial fixes already in
+        // `fixes[]` will be committed and the PR body will explain.
+        state.haltRun = true;
+      } else if (isNetworkErr) {
         state.consecutiveNetworkErrors += 1;
         if (state.consecutiveNetworkErrors === 3 && state.activeConcurrency > 1) {
           state.activeConcurrency = 1;
@@ -1574,6 +1598,18 @@ export async function POST(req: NextRequest) {
 
   if (skippedForBudget > 0) {
     errors.push(`Skipped ${skippedForBudget} file${skippedForBudget > 1 ? "s" : ""} — function time budget exhausted. Re-run fix to process the remainder.`);
+  }
+
+  // Invocation-limit advisory — added to `errors[]` so it appears in the
+  // PR body's advisory section. Partial fixes are still committed.
+  const hitInvocationLimit = _budgetTracker && (_budgetTracker as Record<string, unknown>)._maxInvocations !== undefined
+    && _budgetTracker.callCount >= ((_budgetTracker as Record<string, unknown>)._maxInvocations as number);
+  if (hitInvocationLimit) {
+    errors.push(
+      `⚡ AI invocation limit reached (${MAX_AI_INVOCATIONS} calls). ` +
+      `Partial fixes committed — ${fixes.length} file(s) fixed before the limit. ` +
+      `For repositories this size, contact enterprise@gatetest.ai for a dedicated scanner instance.`
+    );
   }
 
   // Flywheel capture — one telemetry record per attempted file. CVE
