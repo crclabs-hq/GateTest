@@ -12,6 +12,7 @@
  */
 
 import { useState } from "react";
+import { FleetIntelligencePanel } from "./FleetIntelligencePanel";
 
 type Layer = "source" | "server" | "browser" | "build" | "mixed" | "unknown";
 type Confidence = "high" | "medium" | "low";
@@ -210,6 +211,8 @@ export default function TriageDashboard() {
             Paste a repo + the live URL. Find out if it&apos;s the source, the server, or the browser.
           </p>
         </header>
+
+        <FleetIntelligencePanel />
 
         <form
           onSubmit={handleSubmit}
