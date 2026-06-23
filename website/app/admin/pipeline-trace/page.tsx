@@ -5,6 +5,7 @@
 // Auth: operator must be logged in via /admin (POST 401s otherwise).
 import { useState } from "react";
 import { humanAge, conclusionClass } from "./formatters";
+import { LiveScanFeed } from "./LiveScanFeed";
 
 type Layer =
   | "source"
@@ -556,6 +557,8 @@ export default function PipelineTracePage() {
             </article>
           </div>
         )}
+
+        <LiveScanFeed />
 
         <footer className="mt-12 text-xs text-gray-400 text-center leading-relaxed">
           Pipeline trace reads GitHub&apos;s branch/runs/deployments APIs and probes the live URL
