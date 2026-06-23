@@ -85,9 +85,9 @@ export default function Install() {
 
             <div className="rounded-lg bg-slate-950 border border-slate-800 p-4 mb-5 font-[var(--font-mono)] text-xs overflow-x-auto">
               <p className="text-white/40 mb-1"># install</p>
-              <p className="text-emerald-400 mb-3">npx gatetest --suite full</p>
+              <p className="text-emerald-400 mb-3">npx @gatetest/cli --suite full</p>
               <p className="text-white/40 mb-1"># or pin to your CI runner</p>
-              <p className="text-emerald-400">npm i -D gatetest && npx gatetest --suite full --reporter sarif</p>
+              <p className="text-emerald-400">npm i -D @gatetest/cli && npx @gatetest/cli --suite full --reporter sarif</p>
             </div>
 
             <ul className="text-sm space-y-2 mb-6">

@@ -35,6 +35,9 @@ const EXCLUDED_PATH_FRAGMENTS = ['node_modules', '.next/', 'dist/', 'build/', 'c
  */
 const CONVENTION_FILES = [
   'package.json',
+  'pnpm-workspace.yaml',
+  'pnpm-workspace.yml',
+  'lerna.json',
   'README.md',
   'AGENTS.md',
   'ARCHITECTURE.md',

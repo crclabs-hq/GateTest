@@ -191,3 +191,9 @@ test('convention files list covers grounding + stack detection inputs', () => {
     assert.ok(CONVENTION_FILES.includes(f), `${f} missing from CONVENTION_FILES`);
   }
 });
+
+test('convention files list includes monorepo workspace configs (Phase 1C)', () => {
+  for (const f of ['pnpm-workspace.yaml', 'pnpm-workspace.yml', 'lerna.json']) {
+    assert.ok(CONVENTION_FILES.includes(f), `${f} missing from CONVENTION_FILES — needed for monorepo detection`);
+  }
+});

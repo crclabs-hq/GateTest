@@ -5,7 +5,7 @@
 **AI-powered code quality. Pay per scan via Stripe.**
 
 <!-- npm-version badge — re-enable after first `npm publish`:
-[![npm](https://img.shields.io/npm/v/gatetest.svg)](https://www.npmjs.com/package/gatetest)
+[![npm](https://img.shields.io/npm/v/@gatetest/cli.svg)](https://www.npmjs.com/package/@gatetest/cli)
 -->
 [![CI](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml/badge.svg)](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -64,7 +64,7 @@ cd gatetest && npm install
 node bin/gatetest.js --suite quick
 ```
 
-> The package is not yet on npm. `npm install -g gatetest` will work after the first publish — track [issue tracker](https://github.com/crclabs-hq/GateTest/issues) for the release tag.
+> Install: `npm install -g @gatetest/cli`
 
 ### Pre-push sweep
 

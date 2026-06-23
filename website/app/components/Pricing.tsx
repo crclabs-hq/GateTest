@@ -4,52 +4,6 @@ import { useState } from "react";
 
 const scanPlans = [
   {
-    id: "quick",
-    name: "Quick Scan",
-    price: "$29",
-    period: "per scan",
-    description:
-      "Essential checks. Syntax, linting, secrets, and code quality. Scan-only — no auto-fix.",
-    modules: "4 modules",
-    features: [
-      "Syntax & compilation validation",
-      "Linting checks",
-      "Secret & credential detection",
-      "Code quality analysis",
-      "Detailed report with file & line numbers",
-      "Scan-only — auto-fix is a Scan + Fix tier feature",
-      "Per-scan payment — no subscription",
-    ],
-    cta: "Run Quick Scan",
-    highlight: false,
-  },
-  {
-    id: "full",
-    name: "Full Scan",
-    price: "$99",
-    period: "per scan",
-    badge: "Most Popular",
-    description:
-      "Every module. Security, accessibility, SEO, AI code review, and more. Scan-only — no auto-fix.",
-    modules: "All 110 modules",
-
-    features: [
-      "Everything in Quick Scan",
-      "Security (OWASP, XSS, SQLi, SSRF, ReDoS, TLS, cookies)",
-      "Accessibility (WCAG 2.2 automated audit — AA + AAA-aligned)",
-      "Supply chain — typosquats + license compliance",
-      "IaC security — Dockerfile, K8s, Terraform",
-      "CI/CD hardening — unpinned actions, permissions",
-      "Auth flaws — JWT, bcrypt, cookies",
-      "Migration safety — dangerous SQL patterns",
-      "Flaky test detector",
-      "AI code review by Claude",
-      "Scan-only — auto-fix is a Scan + Fix tier feature",
-    ],
-    cta: "Run Full Scan",
-    highlight: true,
-  },
-  {
     id: "scan_fix",
     name: "Scan + Fix",
     price: "$199",
@@ -169,9 +123,9 @@ export default function Pricing() {
             Pay when it&apos;s done. <span className="gradient-text">Not before.</span>
           </h2>
           <p className="text-muted text-lg max-w-2xl mx-auto">
-            One-time payment per scan via Stripe. We run the scan and deliver the report.
-            On Scan + Fix and Forensic Scan tiers Claude also opens the fix PR. No subscription,
-            no auto-renew.
+            The full 111-module scan is <strong className="text-foreground">free</strong> via the CLI.
+            Cloud tiers add Claude-powered fix PRs, pair-review, forensic diagnosis, and board-ready reports.
+            One-time payment per scan — no subscription, no auto-renew.
           </p>
         </div>
 
@@ -202,8 +156,29 @@ export default function Pricing() {
           <p className="text-xs text-muted mt-2 text-center">2. Choose a scan tier below</p>
         </div>
 
+        {/* Free CLI callout */}
+        <div className="max-w-3xl mx-auto mb-10">
+          <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.05] to-transparent p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Free — no account needed</span>
+                </div>
+                <h3 className="text-lg font-bold text-foreground mb-1">Full 111-module scan, runs locally on your machine</h3>
+                <p className="text-sm text-muted">Zero cost. Zero lock-in. All 111 checks, instant output, stays on your machine. Use it before every PR.</p>
+              </div>
+              <div className="shrink-0">
+                <code className="block bg-foreground/5 border border-border-strong rounded-xl px-4 py-3 text-sm font-mono text-foreground whitespace-nowrap">
+                  npx @gatetest/cli --suite full
+                </code>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Scan tiers */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16 max-w-7xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-6 mb-16 max-w-3xl mx-auto">
           {scanPlans.map((plan) => (
             <div
               key={plan.name}
@@ -412,11 +387,11 @@ export default function Pricing() {
 
         {/* Bottom trust line */}
         <p className="text-center text-xs text-muted mt-10">
-          All scans include a detailed report. The AI fix PR is included on the
-          Scan + Fix ($199) and Forensic Scan ($399) tiers. Scan tiers are
-          one-time payments; Continuous is a monthly subscription you can cancel
-          anytime. Payment via Stripe. Once a scan delivers, the service is
-          rendered &mdash; refunds at our discretion for non-delivery only.
+          The full 111-module deterministic scan is free via <code className="font-mono">npx @gatetest/cli</code>.
+          The cloud tiers add Claude-powered auto-fix PRs, pair-review, forensic diagnosis,
+          and executive reports. One-time payment per scan via Stripe; Continuous is $49/mo,
+          cancel anytime. Once a scan delivers, the service is rendered &mdash; refunds at
+          our discretion for non-delivery only.
         </p>
       </div>
     </section>

@@ -117,7 +117,7 @@ export default function TrustPage() {
               dontList={[
                 "We have no telemetry. No usage metrics, no error reporting, no phone-home.",
                 "We have no licence server. The CLI runs offline forever, no kill-switch.",
-                "We do not require an account. You can run `npx gatetest` against any repo with zero signup.",
+                "We do not require an account. You can run `npx @gatetest/cli` against any repo with zero signup.",
               ]}
             />
 
@@ -309,7 +309,7 @@ export default function TrustPage() {
               <>
                 Run{" "}
                 <code className="text-foreground">
-                  npx gatetest --list
+                  npx @gatetest/cli --list
                 </code>{" "}
                 — the gate output is authoritative.
               </>

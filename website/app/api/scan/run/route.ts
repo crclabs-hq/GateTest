@@ -172,10 +172,24 @@ async function scanRepo(owner: string, repo: string, tier: string): Promise<Scan
   }
 
   const sourceExts = [".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".java", ".rb", ".md", ".json", ".yml", ".yaml"];
+  const notExcluded = (f: string) =>
+    !f.includes("node_modules") && !f.includes(".next") && !f.includes("dist/");
   const sourceFiles = files.filter(
-    (f) => sourceExts.some((ext) => f.endsWith(ext)) &&
-      !f.includes("node_modules") && !f.includes(".next") && !f.includes("dist/")
+    (f) => sourceExts.some((ext) => f.endsWith(ext)) && notExcluded(f)
   );
+
+  // Phase 1C — Configuration-free monorepo discovery.
+  // Workspace config files (root + sub-package package.json, pnpm-workspace.yaml,
+  // lerna.json) are promoted to the front of the fetch list so buildWorkspaceMap()
+  // in dead-code-index.js can discover all workspace packages even in large repos
+  // where the 50-file cap would otherwise exclude them.
+  const MONOREPO_CONFIGS = new Set(['package.json', 'pnpm-workspace.yaml', 'pnpm-workspace.yml', 'lerna.json']);
+  const workspaceConfigFiles = files.filter(
+    (f) => MONOREPO_CONFIGS.has(f.split('/').pop() ?? '') && notExcluded(f)
+  ).slice(0, 30);
+  const workspaceConfigSet = new Set(workspaceConfigFiles);
+  const remainingSourceFiles = sourceFiles.filter((f) => !workspaceConfigSet.has(f));
+  const filesToFetch = [...workspaceConfigFiles, ...remainingSourceFiles].slice(0, MAX_FILES_TO_READ);
 
   // Read source files (up to MAX_FILES_TO_READ) in parallel for speed.
   // Bail early if we are already close to the time budget — better to return
@@ -183,16 +197,14 @@ async function scanRepo(owner: string, repo: string, tier: string): Promise<Scan
   if (Date.now() > deadline) {
     return { modules: [], totalIssues: 0, duration: Date.now() - startTime, authSource: auth.source, error: "scan timed out fetching file tree" };
   }
-  const readPromises = sourceFiles.slice(0, MAX_FILES_TO_READ).map(async (filePath): Promise<RepoFile | null> => {
-    try {
-      const content = await fetchBlob(owner, repo, filePath, "HEAD", token);
-      if (content) {
-        return { path: filePath, content };
-      }
-      return null;
-    } catch { return null; }
-  });
-  const fileContents: RepoFile[] = (await Promise.all(readPromises)).filter((f): f is RepoFile => f !== null);
+  const fileContents: RepoFile[] = (await Promise.all(
+    filesToFetch.map(async (filePath): Promise<RepoFile | null> => {
+      try {
+        const content = await fetchBlob(owner, repo, filePath, "HEAD", token);
+        return content ? { path: filePath, content } : null;
+      } catch { return null; }
+    })
+  )).filter((f): f is RepoFile => f !== null);
 
   // Engine selection — closes the 102-vs-22 module honesty gap.
   //

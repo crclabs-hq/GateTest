@@ -205,7 +205,7 @@ git add -A && git commit -m "test: trigger gate" && git push`}</CodeBlock>
             </Trouble>
             <Trouble q="I&apos;m on GitLab/Jenkins/CircleCI, not GitHub.">
               The CLI works in any CI &mdash;{" "}
-              <code className="text-foreground">npx gatetest --suite full</code>{" "}
+              <code className="text-foreground">npx @gatetest/cli --suite full</code>{" "}
               from your pipeline runs the same 110 modules. Auto-fix PRs
               currently require the GitHub workflow path; CLI is scan-only.
             </Trouble>
