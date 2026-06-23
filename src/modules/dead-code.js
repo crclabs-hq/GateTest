@@ -65,8 +65,6 @@ class DeadCodeModule extends BaseModule {
       message: `Scanning ${files.length} source file(s) for unused exports and orphaned files`,
     });
 
-    // User-configurable ignore patterns — globs relative to projectRoot.
-    // Accepted in .gatetest.json as: { "deadCode": { "ignore": ["**/*.stories.*"] } }
     const ignorePatterns = (config.deadCode?.ignore || config.ignore || []);
 
     const index = buildDeadCodeIndex(files, projectRoot);

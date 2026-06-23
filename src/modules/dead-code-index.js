@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const {
-  ALL_EXTS, PY_EXTS,
+  PY_EXTS,
   extractJsExports, extractJsImports,
   extractPyExports, extractPyImports,
   resolveImportPath, populatePackageSurface,
