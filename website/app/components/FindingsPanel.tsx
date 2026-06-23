@@ -134,9 +134,14 @@ function copyToClipboard(text: string): void {
 interface Props {
   modules: ModuleResult[];
   repoUrl?: string;
+  /** Current scan tier — when quick/full (scan-only), per-error Fix CTAs appear */
+  tier?: string;
+  /** Called when the user clicks a per-finding Fix CTA */
+  onUpgradeToFix?: (finding: Finding) => void;
 }
 
-export default function FindingsPanel({ modules, repoUrl }: Props) {
+export default function FindingsPanel({ modules, repoUrl, tier, onUpgradeToFix }: Props) {
+  const showFixCta = (tier === "quick" || tier === "full") && !!onUpgradeToFix;
   const findings = useMemo(() => buildFindings(modules), [modules]);
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [moduleFilter, setModuleFilter] = useState<string>("all");
@@ -374,6 +379,16 @@ export default function FindingsPanel({ modules, repoUrl }: Props) {
                       {f.message}
                     </p>
                   </div>
+                  {showFixCta && f.severity === "error" && (
+                    <button
+                      type="button"
+                      onClick={() => onUpgradeToFix!(f)}
+                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ml-2 text-[11px] font-semibold text-accent hover:text-teal-700 px-2 py-0.5 rounded border border-accent/40 hover:border-accent hover:bg-accent/5 whitespace-nowrap"
+                      title="Upgrade to Scan + Fix to auto-fix this"
+                    >
+                      Fix this →
+                    </button>
+                  )}
                 </div>
               </li>
             );

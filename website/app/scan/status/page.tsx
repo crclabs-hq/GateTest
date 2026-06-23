@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import FindingsPanel from "@/app/components/FindingsPanel";
+import FindingsPanel, { type Finding } from "@/app/components/FindingsPanel";
 import LiveScanTerminal from "@/app/components/LiveScanTerminal";
 import { extractIssuesFromModules, type UnparseableIssue } from "@/app/lib/issue-extractor";
 
@@ -96,6 +96,7 @@ export default function ScanStatus() {
   // Probed via /api/auth/me on mount (which reads the encrypted session
   // cookie and returns the GitHub login if valid).
   const [signedInUser, setSignedInUser] = useState<{ login: string; email?: string } | null>(null);
+  const [upgradingToFix, setUpgradingToFix] = useState(false);
   useEffect(() => {
     let cancelled = false;
     fetch("/api/auth/me", { credentials: "same-origin" })
@@ -279,6 +280,26 @@ export default function ScanStatus() {
       setFixError(err instanceof Error ? err.message : "Fix failed");
     } finally {
       setFixing(false);
+    }
+  }
+
+  async function handleUpgradeToFix(upgradeTier: string) {
+    if (upgradingToFix || !params.repo) return;
+    setUpgradingToFix(true);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier: upgradeTier, repoUrl: params.repo }),
+      });
+      const data = await res.json() as { checkoutUrl?: string };
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        setUpgradingToFix(false);
+      }
+    } catch {
+      setUpgradingToFix(false);
     }
   }
 
@@ -497,7 +518,12 @@ export default function ScanStatus() {
 
             {/* Beautiful findings panel — severity, file:line, filter, search */}
             {scanResult && scanResult.modules.length > 0 && (
-              <FindingsPanel modules={scanResult.modules} repoUrl={params.repo} />
+              <FindingsPanel
+                modules={scanResult.modules}
+                repoUrl={params.repo}
+                tier={params.tier}
+                onUpgradeToFix={(_f: Finding) => handleUpgradeToFix("scan_fix")}
+              />
             )}
 
             {/* Manual-review surfacing — findings whose file location couldn't
@@ -733,36 +759,44 @@ export default function ScanStatus() {
                   </p>
                   <div className={`grid grid-cols-1 ${params.tier === "quick" ? "md:grid-cols-3" : "md:grid-cols-2"} gap-4`}>
                     {params.tier === "quick" && (
-                      <Link
-                        href="/#pricing"
-                        className="group p-5 rounded-lg border border-border bg-white hover:border-accent/40 hover:shadow-md transition-all block"
+                      <button
+                        type="button"
+                        onClick={() => handleUpgradeToFix("full")}
+                        disabled={upgradingToFix}
+                        className="group p-5 rounded-lg border border-border bg-white hover:border-accent/40 hover:shadow-md transition-all text-left disabled:opacity-60"
                       >
                         <p className="text-xs uppercase tracking-wider text-muted/70 font-semibold mb-1">Step 1</p>
                         <p className="font-bold text-foreground mb-1 text-base">Full Scan &mdash; $99</p>
                         <p className="text-xs text-muted leading-relaxed">All 110 modules instead of 4. Same scan-only delivery, full coverage. You see every issue, then decide what to fix.</p>
-                      </Link>
+                      </button>
                     )}
-                    <Link
-                      href="/#pricing"
-                      className="group relative p-5 rounded-lg border-2 border-accent bg-white hover:bg-accent/5 hover:shadow-lg transition-all block ring-2 ring-accent/20"
+                    <button
+                      type="button"
+                      onClick={() => handleUpgradeToFix("scan_fix")}
+                      disabled={upgradingToFix}
+                      className="group relative p-5 rounded-lg border-2 border-accent bg-white hover:bg-accent/5 hover:shadow-lg transition-all text-left ring-2 ring-accent/20 disabled:opacity-60"
                     >
                       <div className="absolute -top-2.5 left-4 px-2 py-0.5 rounded-full bg-accent text-white text-[10px] font-bold uppercase tracking-wider">
                         Most popular
                       </div>
                       <p className="text-xs uppercase tracking-wider text-accent font-semibold mb-1 mt-1">Recommended for you</p>
-                      <p className="font-bold text-foreground mb-1 text-base">Scan + Fix &mdash; $199</p>
+                      <p className="font-bold text-foreground mb-1 text-base">
+                        {upgradingToFix ? "Redirecting to checkout…" : "Scan + Fix — $199"}
+                      </p>
                       <p className="text-xs text-muted leading-relaxed">
                         Everything in Full <span className="font-semibold text-foreground">plus</span> Claude opens a PR with up to {scanResult?.totalIssues} fixes, regression tests, and pair-review. The auto-fix loop.
                       </p>
-                    </Link>
-                    <Link
-                      href="/#pricing"
-                      className="group p-5 rounded-lg border border-border bg-white hover:border-accent/40 hover:shadow-md transition-all block"
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUpgradeToFix("nuclear")}
+                      disabled={upgradingToFix}
+                      className="group p-5 rounded-lg border border-border bg-white hover:border-accent/40 hover:shadow-md transition-all text-left disabled:opacity-60"
                     >
                       <p className="text-xs uppercase tracking-wider text-muted/70 font-semibold mb-1">For CTOs</p>
                       <p className="font-bold text-foreground mb-1 text-base">Forensic Scan &mdash; $399</p>
                       <p className="text-xs text-muted leading-relaxed">Scan + Fix + per-finding Claude diagnosis + attack-chain correlation + board-ready CISO executive summary.</p>
-                    </Link>
+                    </button>
                   </div>
                   <p className="mt-5 text-xs text-muted text-center">
                     Per-scan payment via Stripe &middot; one-time, no subscription &middot; <span className="text-teal-700 font-medium">gets sharper with every scan</span>
