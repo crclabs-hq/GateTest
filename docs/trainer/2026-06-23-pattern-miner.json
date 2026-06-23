@@ -1,0 +1,130 @@
+{
+  "generatedAt": "2026-06-23T06:52:17.716Z",
+  "inputs": {
+    "sessionFixCount": 77,
+    "fixAttemptCount": 0
+  },
+  "topModulesByFixCount": [
+    {
+      "module": "(unattributed)",
+      "count": 5
+    },
+    {
+      "module": "developers",
+      "count": 5
+    },
+    {
+      "module": "tests",
+      "count": 5
+    },
+    {
+      "module": "envvars",
+      "count": 4
+    },
+    {
+      "module": "website",
+      "count": 4
+    },
+    {
+      "module": "watchdog",
+      "count": 4
+    },
+    {
+      "module": "dead-code",
+      "count": 3
+    },
+    {
+      "module": "pipeline-trace",
+      "count": 3
+    },
+    {
+      "module": "home",
+      "count": 2
+    },
+    {
+      "module": "fake-fix-detector",
+      "count": 2
+    }
+  ],
+  "topRuleKeysByAttempts": [],
+  "recurringSubjects": [],
+  "underTestedModules": [
+    {
+      "module": "developers",
+      "fixes": 5,
+      "tests": 0,
+      "testPerFix": 0
+    },
+    {
+      "module": "envvars",
+      "fixes": 4,
+      "tests": 0,
+      "testPerFix": 0
+    },
+    {
+      "module": "website",
+      "fixes": 4,
+      "tests": 1,
+      "testPerFix": 0.25
+    }
+  ],
+  "layerStats": {
+    "layers": {
+      "ast": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "rule": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "recipe": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "claude": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "null": {
+        "attempts": 0,
+        "successes": 0
+      }
+    },
+    "total": 0,
+    "claudeShare": 0,
+    "deterministicShare": 0
+  },
+  "recommendations": [
+    {
+      "kind": "investigate-module",
+      "module": "(unattributed)",
+      "reason": "5 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "developers",
+      "reason": "5 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "tests",
+      "reason": "5 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "developers",
+      "reason": "5 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "envvars",
+      "reason": "4 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "website",
+      "reason": "4 fixes / 1 tests added (0.25/fix) — lock down the pattern with a regression test"
+    }
+  ]
+}
