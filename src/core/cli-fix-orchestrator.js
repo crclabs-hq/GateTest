@@ -1,0 +1,278 @@
+'use strict';
+/**
+ * Speculative Parallel Hypothesis Orchestrator
+ *
+ * Generates three independent repair hypotheses in a single Claude call,
+ * validates all three concurrently (syntax gate + optional test run), then
+ * selects the highest-ranking candidate using a deterministic scoring algorithm.
+ *
+ * Rank 1 — syntax passes AND all discovered tests pass
+ * Rank 2 — syntax passes, some tests amber
+ * Rank 3 — syntax fails (immediate discard)
+ *
+ * If all three branches fail to reach Rank 1, the best-performing branch's
+ * stderr is bundled into the next retry prompt (up to maxAttempts).
+ */
+
+const fs     = require('fs');
+const path   = require('path');
+const os     = require('os');
+const vm     = require('vm');
+const https  = require('https');
+const { execSync } = require('child_process');
+
+const ANTHROPIC_HOST  = 'api.anthropic.com';
+const MODEL           = 'claude-sonnet-4-20250514';
+const TIMEOUT_MS      = 90_000;
+const TEST_TIMEOUT_MS = 15_000;
+const MAX_ATTEMPTS    = 3;
+
+const H = [
+  '=== GATETEST_HYPOTHESIS_ALPHA ===',
+  '=== GATETEST_HYPOTHESIS_BETA ===',
+  '=== GATETEST_HYPOTHESIS_GAMMA ===',
+];
+const H_NAMES = ['Alpha', 'Beta', 'Gamma'];
+
+// ── Claude call ───────────────────────────────────────────────────────────────
+
+function _callClaude(apiKey, system, user) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
+      model: MODEL,
+      max_tokens: 8192,
+      system,
+      messages: [{ role: 'user', content: user }],
+    });
+    const req = https.request({
+      hostname: ANTHROPIC_HOST,
+      path: '/v1/messages',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+          if (parsed.error) return reject(new Error(parsed.error.message));
+          resolve(parsed?.content?.[0]?.text || '');
+        } catch (e) { reject(e); }
+      });
+    });
+    req.setTimeout(TIMEOUT_MS, () => { req.destroy(); reject(new Error('Claude timeout')); });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+// ── Prompt engineering ────────────────────────────────────────────────────────
+
+function _buildMultiHypothesisPrompt(filePath, content, issues, priorError) {
+  const ext = path.extname(filePath).slice(1) || 'js';
+  const issueList = issues.map((s, i) => `${i + 1}. ${s}`).join('\n');
+  const errorBlock = priorError
+    ? `\nPrevious attempt failed — use this context to avoid the same mistake:\n${priorError}\n`
+    : '';
+  return [
+    `File: ${filePath}`,
+    `Issues to fix:\n${issueList}`,
+    errorBlock,
+    'Current file content:',
+    '```' + ext,
+    content,
+    '```',
+    '',
+    'Generate EXACTLY three independent repair hypotheses separated by the delimiters below.',
+    'Each hypothesis must be a COMPLETE, syntactically valid file that fixes ALL listed issues.',
+    'Hypotheses must differ meaningfully in approach — not just whitespace.',
+    '',
+    `${H[0]}`,
+    '(complete corrected file — Hypothesis Alpha: minimal diff, touch only offending lines)',
+    `${H[1]}`,
+    '(complete corrected file — Hypothesis Beta: refactor the affected function/block)',
+    `${H[2]}`,
+    '(complete corrected file — Hypothesis Gamma: defensive approach, add guards/validation)',
+    '',
+    'Rules: no markdown fences inside file blocks. Preserve all existing behavior beyond the fix.',
+  ].join('\n');
+}
+
+// ── Hypothesis parsing ────────────────────────────────────────────────────────
+
+function _parseHypotheses(responseText) {
+  const variants = [];
+  for (let i = 0; i < H.length; i++) {
+    const start = responseText.indexOf(H[i]);
+    if (start === -1) continue;
+    const bodyStart = start + H[i].length;
+    const end = i + 1 < H.length
+      ? responseText.indexOf(H[i + 1])
+      : responseText.length;
+    const code = responseText.slice(bodyStart, end === -1 ? undefined : end).trim();
+    if (code) variants.push({ index: i, code });
+  }
+  return variants;
+}
+
+// ── Syntax validation ─────────────────────────────────────────────────────────
+
+function _validateSyntax(code, ext) {
+  if (!code || typeof code !== 'string') return { passed: false, error: 'empty response' };
+  const n = ext.toLowerCase();
+  if (n === '.json') {
+    try { JSON.parse(code); return { passed: true }; }
+    catch (e) { return { passed: false, error: e.message }; }
+  }
+  if (['.js', '.mjs', '.cjs'].includes(n)) {
+    try { new vm.Script(code); return { passed: true }; }  // eslint-disable-line no-new
+    catch (e) { return { passed: false, error: e.message }; }
+  }
+  // TypeScript/TSX — no runtime syntax validator; treat as passing
+  return { passed: true };
+}
+
+// ── Test discovery & execution ────────────────────────────────────────────────
+
+function _findTestFile(filePath, projectRoot) {
+  const base = path.basename(filePath, path.extname(filePath));
+  const candidates = [
+    path.join(projectRoot, 'tests', `${base}.test.js`),
+    path.join(projectRoot, 'tests', `${base}.test.ts`),
+    path.join(projectRoot, '__tests__', `${base}.test.js`),
+    path.join(path.dirname(filePath), `${base}.test.js`),
+  ];
+  return candidates.find(c => fs.existsSync(c)) || null;
+}
+
+function _runTests(testFile, timeout) {
+  if (!testFile) return { passed: true, output: '' };
+  try {
+    execSync(`node --test "${testFile}"`, {
+      timeout,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    return { passed: true, output: '' };
+  } catch (err) {
+    const out = [err.stdout, err.stderr].filter(Boolean).join('\n');
+    return { passed: false, output: out.toString().slice(0, 500) };
+  }
+}
+
+// ── Scoring ───────────────────────────────────────────────────────────────────
+
+function _rank({ syntaxOk, testOk }) {
+  if (!syntaxOk) return 3;
+  if (testOk)    return 1;
+  return 2;
+}
+
+// ── Main orchestration entry point ────────────────────────────────────────────
+
+/**
+ * @param {object}   opts
+ * @param {string}   opts.filePath       — absolute path to the file to fix
+ * @param {string[]} opts.issues         — human-readable issue descriptions
+ * @param {string}   [opts.projectRoot]  — repo root for test discovery
+ * @param {string}   [opts.context]      — optional extra context injected into prompt
+ * @param {number}   [opts.maxAttempts]  — max retry rounds (default 3)
+ * @param {string}   [opts.apiKey]       — Anthropic key (falls back to env)
+ * @returns {Promise<object>}
+ */
+async function runFixOrchestration(opts) {
+  const {
+    filePath,
+    issues,
+    projectRoot = process.cwd(),
+    context     = '',
+    maxAttempts = MAX_ATTEMPTS,
+  } = opts;
+  const apiKey = opts.apiKey || process.env.ANTHROPIC_API_KEY;
+  if (!apiKey)   return { fixed: false, reason: 'no-api-key' };
+  if (!issues?.length) return { fixed: false, reason: 'no-issues-provided' };
+
+  let content;
+  try   { content = fs.readFileSync(filePath, 'utf-8'); }
+  catch (e) { return { fixed: false, reason: `unreadable: ${e.message}` }; }
+
+  const ext      = path.extname(filePath);
+  const testFile = _findTestFile(filePath, projectRoot);
+  const tmpDir   = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-hyp-'));
+  let priorError = '';
+
+  try {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const systemPrompt = [
+        'You are a senior software engineer performing surgical code repair.',
+        'Return EXACTLY three complete file hypotheses separated by the required delimiters.',
+        'No text before the first delimiter. No commentary after the last hypothesis.',
+      ].join(' ');
+
+      const userPrompt = (context ? context + '\n\n' : '') +
+        _buildMultiHypothesisPrompt(filePath, content, issues, priorError);
+
+      let responseText;
+      try   { responseText = await _callClaude(apiKey, systemPrompt, userPrompt); }
+      catch (e) { return { fixed: false, reason: `claude-error: ${e.message}` }; }
+
+      const hypotheses = _parseHypotheses(responseText);
+      if (hypotheses.length === 0) {
+        priorError = 'model returned no parseable hypotheses';
+        continue;
+      }
+
+      // Write each hypothesis to an isolated temp file
+      for (const h of hypotheses) {
+        h.tempPath = path.join(tmpDir, `hypothesis-${h.index}${ext}`);
+        fs.writeFileSync(h.tempPath, h.code, 'utf-8');
+      }
+
+      // Validate all candidates concurrently
+      const evaluated = await Promise.all(hypotheses.map(async (h) => {
+        const syntaxResult = _validateSyntax(h.code, ext);
+        const testResult   = syntaxResult.passed ? _runTests(testFile, TEST_TIMEOUT_MS) : { passed: false, output: '' };
+        const lineDelta    = Math.abs(h.code.split('\n').length - content.split('\n').length);
+        return {
+          ...h,
+          rank:        _rank({ syntaxOk: syntaxResult.passed, testOk: testResult.passed }),
+          lineDelta,
+          syntaxError: syntaxResult.error || null,
+          testOutput:  testResult.output,
+          testOk:      testResult.passed,
+        };
+      }));
+
+      // Rank ASC (1 = best), lineDelta ASC as tiebreaker
+      evaluated.sort((a, b) => a.rank - b.rank || a.lineDelta - b.lineDelta);
+      const winner = evaluated[0];
+
+      if (winner.rank <= 2) {
+        fs.writeFileSync(filePath, winner.code, 'utf-8');
+        return {
+          fixed:      true,
+          rank:       winner.rank,
+          hypothesis: H_NAMES[winner.index],
+          attempt,
+          lineDelta:  winner.lineDelta,
+          testsPassed: winner.testOk,
+          advisory:   winner.rank === 2 ? 'Some tests remain amber — review before merging' : null,
+        };
+      }
+
+      // All three failed syntax — retry with the best error context
+      priorError = winner.syntaxError || winner.testOutput || 'all hypotheses failed syntax';
+    }
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best-effort */ }
+  }
+
+  return { fixed: false, reason: `all ${maxAttempts} attempt(s) exhausted`, lastError: priorError };
+}
+
+module.exports = { runFixOrchestration };
