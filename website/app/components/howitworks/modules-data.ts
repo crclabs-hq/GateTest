@@ -2,7 +2,7 @@
  * Module catalogue grouped by category for the /how-it-works page.
  *
  * Source of truth: `node bin/gatetest.js --list` against src/core/registry.js
- * at v1.42.0 (102 modules). Descriptions match the registered module
+ * at v1.43.0 (110 modules). Descriptions match the registered module
  * `description` field (kept short for card display).
  *
  * Examples are honest representative findings each module emits, drawn from
@@ -97,7 +97,7 @@ export const MODULE_CATEGORIES: ModuleCategory[] = [
       { name: "liveCrawler", description: "Live site crawl — 404 / 500 / broken-image / redirect-chain on the live URL.", example: "/blog/old-post → 3 redirects → 404" },
       { name: "explorer", description: "Autonomous Interactive Element Explorer — clicks every button + form + dropdown via Playwright.", example: "Submit button on /signup raises uncaught TypeError" },
       { name: "runtimeErrors", description: "Live browser runtime errors — uncaught JS, console.error/warn, network 4xx/5xx, CSP violations, hydration mismatches.", example: "Hydration mismatch: server rendered 'Dec', client rendered 'Jan'" },
-      { name: "chaos", description: "Chaos & Resilience Testing — slow network, API failure, offline, missing resources, server timeouts. Runs via the GitHub Action where a headless browser is available; the website-only Nuclear scan does not include it.", example: "App freezes on 3G simulation — no loading state shown" },
+      { name: "chaos", description: "Chaos & Resilience Testing — slow network, API failure, offline, missing resources, server timeouts. Runs via the GitHub Action where a headless browser is available; the website-only Forensic scan does not include it.", example: "App freezes on 3G simulation — no loading state shown" },
       { name: "webHeaders", description: "CSP/HSTS/XFO/CORS misconfig across Next.js, Vercel, Netlify, Express, Fastify, nginx.", example: "CSP missing — defaults to inline-everything" },
       { name: "cacheHeaders", description: "Cache Headers & CDN Configuration.", example: "/api/user has Cache-Control: public — PII cacheable at CDN" },
     ],
@@ -153,8 +153,11 @@ export const MODULE_CATEGORIES: ModuleCategory[] = [
       { name: "agentic", description: "Memory-driven AI investigation — picks hypotheses from past scans, walks the code.", example: "Recurring null-deref in user.profile — root cause traced to login flow" },
       { name: "memory", description: "Codebase memory — compounding intelligence across scans (issue history + fix patterns).", example: "This file had 14 prior findings — focus areas: auth, session" },
       { name: "aiHallucination", description: "Fake imports, invented APIs, non-existent methods.", example: "An import named { useFoo } from a library that has no such export" },
+      { name: "claudeCompliance", description: "AI-output rot — mock data in prod, not-implemented stubs, WHAT-not-WHY comment noise, `any` / `@ts-ignore` density.", example: "John Doe placeholder in src/users.ts:42 — mock data shipped to prod" },
+      { name: "undefinedRef", description: "Variables, functions, methods referenced before they're defined.", example: "ReferenceError: handleClick is not defined at line 47 — typo'd from handeClick" },
       { name: "architectureDrift", description: "AI flags code that violates documented architectural conventions.", example: "src/api/orders.ts bypasses repository layer — direct DB access" },
-      { name: "mutation", description: "Modifies your source code to verify your tests actually catch bugs. Runs via the GitHub Action because it executes your test suite; the website-only Nuclear scan does not include it.", example: "Mutated return true → return false, 11/11 tests still pass" },
+      { name: "mutation", description: "Modifies your source code to verify your tests actually catch bugs. Runs via the GitHub Action because it executes your test suite; the website-only Forensic scan does not include it.", example: "Mutated return true → return false, 11/11 tests still pass" },
+      { name: "aiGuardrails", description: "Adversarial LLM testing — 30 scenarios across jailbreak, prompt injection, PII leak, hallucination, tool exfil, cost control. Forensic tier; requires your endpoint URL + auth.", example: "Endpoint leaked system prompt under role-play jailbreak scenario 4" },
     ],
   },
   {
@@ -193,6 +196,18 @@ export const MODULE_CATEGORIES: ModuleCategory[] = [
       { name: "wpPhpVersionEol", description: "Detects the running PHP version and flags it if end-of-life.", example: "PHP 7.4 detected — EOL since 2022, no security patches" },
       { name: "wpThemeAbandonment", description: "Detects the active theme and flags it if abandoned, deprecated, or carrying known CVEs.", example: "Theme 'oldtheme' last updated 2019 — abandoned" },
       { name: "wpBackupValidation", description: "Whether a backup plugin is installed AND whether any backup files are publicly exposed.", example: "/backup-2024-01.zip reachable (HTTP 200) — full-site dump exposed" },
+    ],
+  },
+  {
+    id: "pen-test",
+    title: "Live pen-test probes",
+    blurb: "Active probes against your running site. Pen Test tier only — requires explicit written authorization for the target.",
+    modules: [
+      { name: "liveSqlInjection", description: "Live SQL-injection probe — error-based, boolean, and timing payloads against discovered endpoints.", example: "Timing payload on /api/search?q= delayed response 5.1s — injectable" },
+      { name: "liveXss", description: "Live reflected-XSS probe — reflection detection on discovered endpoints.", example: "Payload reflected unencoded in /search results page" },
+      { name: "livePathTraversal", description: "Live path-traversal probe — /etc/passwd and win.ini read detection.", example: "?file=../../etc/passwd returned root:x:0:0 — traversal confirmed" },
+      { name: "liveAuthBypass", description: "Live auth-bypass probe — tests whether injected headers grant unauthenticated access.", example: "X-Forwarded-For: 127.0.0.1 unlocked /admin without a session" },
+      { name: "liveIdor", description: "Live IDOR probe — tests whether other users' object IDs are reachable without authorization.", example: "/api/orders/1001 readable from user B's session — IDOR confirmed" },
     ],
   },
 ];

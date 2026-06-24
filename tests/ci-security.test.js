@@ -303,3 +303,241 @@ describe('CiSecurityModule — summary', () => {
     assert.match(summary.message, /1 file\(s\)/);
   });
 });
+
+// Regression: Crontech's ai-deploy-supervisor.yml (2026-05-24) ran on
+// `workflow_run` triggers from a deploy workflow, then tried to read the
+// upstream run's logs via `gh run view` / API. The default GITHUB_TOKEN
+// scope doesn't include `actions:` — every API call silently 403'd, and
+// the supervisor's own diagnosis disappeared behind the meta-failure.
+// This describe block guards the rule that catches this footgun before
+// it ships.
+describe('CiSecurityModule — workflow_run missing actions: read', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ci-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const findingName = (workflow) =>
+    `ci-security:workflow-run-missing-actions-read:.github/workflows/${workflow}`;
+
+  it('warns when workflow_run trigger has no actions: read', async () => {
+    writeWorkflow(tmp, 'supervisor.yml', `name: supervisor
+on:
+  workflow_run:
+    workflows: ['deploy']
+    types: [completed]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh run view \${{ github.event.workflow_run.id }} --log-failed
+`);
+    const r = await run(tmp);
+    const finding = r.checks.find((c) => c.name === findingName('supervisor.yml'));
+    assert.ok(finding, 'should flag missing actions: read');
+    assert.strictEqual(finding.severity, 'warning');
+    assert.match(finding.message, /silently 403/);
+  });
+
+  it('passes when actions: read is explicitly granted', async () => {
+    writeWorkflow(tmp, 'supervisor.yml', `name: supervisor
+on:
+  workflow_run:
+    workflows: ['deploy']
+    types: [completed]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh run view \${{ github.event.workflow_run.id }} --log-failed
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('supervisor.yml')), undefined);
+  });
+
+  it('passes when actions: write is explicitly granted', async () => {
+    writeWorkflow(tmp, 'supervisor.yml', `name: supervisor
+on:
+  workflow_run:
+    workflows: ['deploy']
+permissions:
+  actions: write
+jobs:
+  rerun:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh run rerun \${{ github.event.workflow_run.id }}
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('supervisor.yml')), undefined);
+  });
+
+  it('passes when permissions: read-all is set', async () => {
+    writeWorkflow(tmp, 'supervisor.yml', `name: supervisor
+on:
+  workflow_run:
+    workflows: ['deploy']
+permissions: read-all
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh run view \${{ github.event.workflow_run.id }}
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('supervisor.yml')), undefined);
+  });
+
+  it('does not fire when there is no workflow_run trigger', async () => {
+    writeWorkflow(tmp, 'normal.yml', `name: normal
+on: push
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('normal.yml')), undefined);
+  });
+
+  it('does not false-positive on workflow names containing "Actions"', async () => {
+    // The rule must match `actions:` as a permissions key, not as part of
+    // a workflow name like `name: GitHub Actions Deploy Check`.
+    writeWorkflow(tmp, 'noisy.yml', `name: GitHub Actions Deploy Check
+on:
+  workflow_run:
+    workflows: ['deploy']
+# permissions block intentionally missing — this MUST still flag
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo done
+`);
+    const r = await run(tmp);
+    assert.ok(
+      r.checks.find((c) => c.name === findingName('noisy.yml')),
+      'workflow name containing "Actions" must not satisfy the permission check',
+    );
+  });
+});
+
+// Regression: Crontech's stale-installed gatetest-gate.yml on 2026-05-25
+// silently failed every SARIF upload because the gatetest job's
+// permissions block didn't include `actions: read`. github/codeql-action/
+// upload-sarif calls /repos/.../actions/runs/... to attach results to
+// the right run; without the scope it errors with "Resource not
+// accessible by integration" and the Security tab never updates. OUR
+// OWN ci.yml had the same bug (caught + fixed in the same commit that
+// added this rule). Static catch ensures it can't ship again.
+describe('CiSecurityModule — codeql-action/upload-sarif missing actions: read', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ci-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const findingName = (workflow) =>
+    `ci-security:codeql-sarif-missing-actions-read:.github/workflows/${workflow}`;
+
+  it('ERRORS when upload-sarif is used without actions: read', async () => {
+    writeWorkflow(tmp, 'gate.yml', `name: gate
+on: push
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scan.sh
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+`);
+    const r = await run(tmp);
+    const f = r.checks.find((c) => c.name === findingName('gate.yml'));
+    assert.ok(f, 'must flag missing actions: read when upload-sarif present');
+    assert.strictEqual(f.severity, 'error',
+      'severity must be ERROR — silent SARIF drop is a hard product failure');
+    assert.match(f.message, /Resource not accessible by integration/);
+  });
+
+  it('passes when actions: read is explicitly granted alongside security-events: write', async () => {
+    writeWorkflow(tmp, 'gate.yml', `name: gate
+on: push
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scan.sh
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('gate.yml')), undefined);
+  });
+
+  it('passes when permissions: read-all is set (shorthand grants actions)', async () => {
+    writeWorkflow(tmp, 'gate.yml', `name: gate
+on: push
+permissions: read-all
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: github/codeql-action/upload-sarif@v3
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('gate.yml')), undefined);
+  });
+
+  it('does not fire when codeql-action is not used', async () => {
+    writeWorkflow(tmp, 'plain.yml', `name: plain
+on: push
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo done
+`);
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name === findingName('plain.yml')), undefined);
+  });
+
+  it('matches any pinned version of upload-sarif (v3, v4, SHA)', async () => {
+    writeWorkflow(tmp, 'gate.yml', `name: gate
+on: push
+permissions:
+  security-events: write
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: github/codeql-action/upload-sarif@ab1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c
+`);
+    const r = await run(tmp);
+    assert.ok(
+      r.checks.find((c) => c.name === findingName('gate.yml')),
+      'SHA-pinned upload-sarif must still flag without actions: read',
+    );
+  });
+});

@@ -41,6 +41,7 @@ const BUILT_IN_MODULES = {
   kotlin: '../modules/kotlin.js',
   swift: '../modules/swift.js',
   dependencies: '../modules/dependencies.js',
+  sbom: '../modules/sbom.js',
   dockerfile: '../modules/dockerfile.js',
   ciSecurity: '../modules/ci-security.js',
   shell: '../modules/shell.js',
@@ -48,10 +49,12 @@ const BUILT_IN_MODULES = {
   terraform: '../modules/terraform.js',
   kubernetes: '../modules/kubernetes.js',
   promptSafety: '../modules/prompt-safety.js',
+  aiGuardrails: '../modules/ai-guardrails.js',
   deadCode: '../modules/dead-code.js',
   secretRotation: '../modules/secret-rotation.js',
   webHeaders: '../modules/web-headers.js',
   typescriptStrictness: '../modules/typescript-strictness.js',
+  undefinedRef: '../modules/undefined-ref.js',
   flakyTests: '../modules/flaky-tests.js',
   errorSwallow: '../modules/error-swallow.js',
   nPlusOne: '../modules/n-plus-one.js',
@@ -95,6 +98,17 @@ const BUILT_IN_MODULES = {
   authBypass: '../modules/auth-bypass.js',
   // P2 — code quality (AI-specific)
   aiHallucination: '../modules/ai-hallucination.js',
+  claudeCompliance: '../modules/claude-compliance.js',
+  // Pen Test tier — dormant. Registered so they're discoverable + testable,
+  // NOT in any tier suite. They refuse to send a payload unless the
+  // authorization-gate grants — see src/core/authorization-gate.js.
+  // Will ship customer-facing once the legal layer (lawyer-drafted ToS +
+  // RoE template + cyber insurance + DNS-TXT verification) is built.
+  liveSqlInjection: '../modules/live-sql-injection.js',
+  liveXss: '../modules/live-xss.js',
+  livePathTraversal: '../modules/live-path-traversal.js',
+  liveAuthBypass: '../modules/live-auth-bypass.js',
+  liveIdor: '../modules/live-idor.js',
   monorepoConstraints: '../modules/monorepo-constraints.js',
   zodSchemaPresence: '../modules/zod-schema.js',
   bundleSize: '../modules/bundle-size.js',

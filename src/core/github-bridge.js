@@ -683,6 +683,89 @@ class GitHubBridge extends HostBridge {
   }
 
   /**
+   * Idempotent PR comment: find a prior bot comment matching `marker`
+   * (an HTML-comment signature substring) and PATCH it in place; if no
+   * match exists, POST a new comment.
+   *
+   * Without this, every push to a PR spawns a duplicate GateTest comment
+   * (Known Issue #23). On a busy 30-commit PR the conversation tab fills
+   * with 30 near-identical bot comments. PATCH-in-place keeps a single
+   * up-to-date summary thread.
+   *
+   * @returns {Promise<{action: 'created'|'updated', commentId: number}>}
+   */
+  async upsertPrComment(owner, repo, prNumber, body, marker) {
+    if (!marker || typeof marker !== 'string') {
+      throw new Error('upsertPrComment requires a non-empty `marker` string to match prior comments');
+    }
+    // GitHub paginates comments at 100 per page. We scan up to 10 pages
+    // (1000 comments) which is well above any realistic PR comment count.
+    // First match wins — most-recent re-comments are rare; if multiple
+    // exist (legacy state from before upsert shipped) we update the oldest
+    // and leave the rest as orphans (cosmetic, not a correctness issue).
+    for (let page = 1; page <= 10; page += 1) {
+      const comments = await this.listPrComments(owner, repo, prNumber, { page, perPage: 100 });
+      for (const c of comments) {
+        if (c && typeof c.body === 'string' && c.body.includes(marker)) {
+          const patchRes = await this._api(
+            'PATCH',
+            `/repos/${owner}/${repo}/issues/comments/${c.id}`,
+            { body },
+          );
+          if (patchRes.statusCode !== 200) {
+            throw this._apiError('upsertPrComment (PATCH)', patchRes);
+          }
+          return { action: 'updated', commentId: c.id };
+        }
+      }
+      if (!comments || comments.length < 100) break;
+    }
+    // No prior comment with the marker — POST a fresh one.
+    const created = await this.addPrComment(owner, repo, prNumber, body);
+    return { action: 'created', commentId: created && created.id };
+  }
+
+  /**
+   * Post an INLINE review comment on a specific line of a pull request's
+   * diff. Distinct from `addPrComment` which posts to the conversation
+   * tab — review comments appear ON THE DIFF and support GitHub's
+   * "Suggested change" syntax (```suggestion ... ```), which renders a
+   * one-click "Commit suggestion" button for the reviewer.
+   *
+   * https://docs.github.com/en/rest/pulls/comments#create-a-review-comment-for-a-pull-request
+   *
+   * @param options { commitId, path, line, body, side?, startLine? }
+   *   - commitId   — the head SHA of the PR (REQUIRED by GitHub)
+   *   - path       — repo-relative file path (REQUIRED)
+   *   - line       — last line of the range to anchor to (REQUIRED)
+   *   - body       — markdown body, may contain a ```suggestion``` block
+   *   - side       — 'RIGHT' (default, post-change) or 'LEFT' (pre-change)
+   *   - startLine  — optional, for multi-line suggestions
+   */
+  async addPrReviewComment(owner, repo, prNumber, options) {
+    const body = {
+      body: options.body,
+      commit_id: options.commitId,
+      path: options.path,
+      line: options.line,
+      side: options.side || 'RIGHT',
+    };
+    if (options.startLine && options.startLine !== options.line) {
+      body.start_line = options.startLine;
+      body.start_side = options.side || 'RIGHT';
+    }
+    const res = await this._api(
+      'POST',
+      `/repos/${owner}/${repo}/pulls/${prNumber}/comments`,
+      body,
+    );
+    if (res.statusCode !== 201) {
+      throw this._apiError('addPrReviewComment', res);
+    }
+    return res.data;
+  }
+
+  /**
    * List comments on a pull request.
    */
   async listPrComments(owner, repo, prNumber, options = {}) {

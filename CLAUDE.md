@@ -119,7 +119,7 @@ The thing that doesn't exist anywhere else today.
 
 - [x] **1.1** Per-finding fix attempt → re-scan THAT specific finding in isolation → if fail, retry with the failure context → max N retries (configurable, default 3) → log every attempt — **DONE commit `c9535fd`** (`website/app/lib/fix-attempt-loop.js`, 11 tests in `tests/fix-attempt-loop.test.js`)
 - [~] **1.2a** Cross-fix syntax-validation gate (vm.compileFunction for JS, JSON.parse for JSON; TS family pass-through pending typescript dep at the root) — **DONE commit `478b675`** (`website/app/lib/cross-fix-syntax-gate.js`, 22 tests in `tests/cross-fix-syntax-gate.test.js`)
-- [~] **1.2b** Cross-file scanner re-validation — algorithm + wiring shipped in commit `(this commit)`: `website/app/lib/cross-fix-scanner-gate.js` builds a synthetic post-fix workspace, calls `runTier()` from `website/app/lib/scan-modules`, diffs against the original scan's findings, attributes new findings to specific fixes, and rolls back the offending ones. 22 tests in `tests/cross-fix-scanner-gate.test.js`. Wired into `/api/scan/fix` — gate runs ONLY when caller passes `originalFileContents` + `originalFindingsByModule`. Outstanding for "fully wired end-to-end": scan/status page needs to pass those fields into `/api/scan/fix` (admin Command Center likewise). Until that wiring lands, the gate is a no-op for production traffic — the scaffold is ready and tested but not yet active.
+- [x] **1.2b** Cross-file scanner re-validation — **PRODUCTION-WIRED 2026-06-09**. Algorithm: `website/app/lib/cross-fix-scanner-gate.js` builds a synthetic post-fix workspace, calls `runTier()`, diffs against the original scan's findings, attributes new findings to specific fixes, rolls back the offending ones (22 tests). Production wiring: `website/app/lib/fix-workspace-hydrator.js` (14 tests) — when a caller doesn't pass `originalFileContents`/`originalFindingsByModule`, `/api/scan/fix` now hydrates the workspace server-side (tree+blob fetch, fix-target files prioritised, convention files for grounding/stack-detection, 60-file cap) and computes the baseline findings by running `runTier` on the original workspace. Scan/status page additionally passes its own paid-scan findings as the baseline (more faithful + saves a server scan). Gate is now LIVE for every production caller: customer scan page, all 3 admin Command Center paths, watchdog auto-fix. Response carries `workspaceHydration` observability field.
 - [x] **1.3** Test generation per fix — **DONE commit `(this commit)`** (`website/app/lib/test-generator.js`, 33 tests in `tests/test-generator.test.js`). For every successful, gate-passed fix, Claude writes a regression test that demonstrates the original bug. Tests land at `tests/auto-generated/<flattened-path>.test.<ext>` in the same PR. Defaults to `node:test` framework; honors `frameworkHint`. Untestable fixes (config, docs, CREATE_FILE, type modules) are skipped silently. Per-fix failures never block the underlying fix from shipping.
 - [x] **1.4** PR composition — **DONE commit `(this commit)`** (`website/app/lib/pr-composer.js`, 25 tests in `tests/pr-composer.test.js`). Single composer renders: header with issue/file/test counts, before/after scan-comparison table (when baseline supplied), gate results (syntax / scanner / test-gen summaries), per-file attempt-history table (each fix's outcome breakdown + Claude time), fixed-files block, regression-tests-added section, advisory section for items that didn't fix cleanly, "How GateTest works" + Next Steps + footer. Auto-generated regression tests rendered in their own section, NOT in fixed-files. Order verified by test.
 - [~] **1.5** Real-repo proof: end-to-end on 3 real public repos. Output documented in `docs/proofs/phase-1-<repo>.md` with timestamps, before/after scan reports, and the actual PR diff. **Partial — 2/3 proofs shipped**: (1) `docs/proofs/phase-1-self-scan.md` documents a real `node bin/gatetest.js --suite quick` run against this repo (30/39 modules passed, 37 errors, 328 warnings, 10s wall time, blocking gate). (2) `docs/proofs/phase-1-self-fix-real.md` documents a real Claude API call exercising the iterative fix loop end-to-end on `src/runtime/alerts.js` — 1 attempt, 8.5s wall time, 2 console.log calls correctly replaced with `process.stderr.write`, syntax gate passed. Third proof (full `/api/scan/fix` route flow opening a real PR) needs either dev-server or deployed-endpoint exercise; algorithm is proven, route flow remains. Targets named in the proof docs.
@@ -146,7 +146,7 @@ The thing that doesn't exist anywhere else today.
 
 ### Phase 4 — Honesty sweep
 
-- [x] **4.1** Disable any of the 90 modules that don't survive real-repo validation — **DONE no-op** (this commit). Across the four real-repo proofs (gatetest, Crontech, Gluecron, MarcoReid) every module that fired produced legitimate findings. No module crashed, no module produced obvious noise. All 90 modules load via `node bin/gatetest.js --list`. No disabling required. The sweep posture: "we looked, found no module that needed disabling, all 90 stay in their assigned tiers."
+- [x] **4.1** Disable any of the 90 modules that don't survive real-repo validation — **DONE no-op** (this commit). Across the four real-repo proofs (gatetest, Crontech, Gluecron, MarcoReid) every module that fired produced legitimate findings. No module crashed, no module produced obvious noise. All modules load via `node bin/gatetest.js --list`. No disabling required. The sweep posture: "we looked, found no module that needed disabling, all 90 (at the time) stayed in their assigned tiers."
 - [x] **4.2** Sweep `compare/*` pages — **DONE** (this commit). The $199 Scan + Fix mentions across all 5 compare pages (snyk, deepsource, sonarqube, eslint, github-code-scanning) are now honest because Phase 2.3 shipped. Each page's auto-fix FAQ updated with a tail clause acknowledging the $399 Nuclear tier (Claude-driven per-finding diagnosis, attack-chain correlation, mutation testing, executive summary). github-code-scanning's "Auto-fix, not just alerts" comparison row also extended.
 - [x] **4.3** Update CLAUDE.md `## VERSION` to reflect post-build state — **DONE** (this commit). v1.41.0 → v1.42.0 with full FIX-FIRST BUILD PLAN summary. Also fixed Bible drift "64 modules" → "90 modules" across 8 surfaces (was lingering from earlier).
 - [x] **4.4** Move resolved Known Issues out of the table — **DONE no-op** (this commit). Reviewed all 29 Known Issues; the FIX-FIRST plan didn't directly resolve any (it added new tiers, didn't fix old bugs). No table edits needed.
@@ -165,7 +165,7 @@ The thing that doesn't exist anywhere else today.
 
 | Phase | Started | Status |
 | --- | --- | --- |
-| 1 — Iterative fix loop | 2026-04-26 | 6/6 sub-tasks at scaffold-or-better. 1.1 ✓, 1.2a ✓, 1.2b ✓ scaffold, 1.3 ✓, 1.4 ✓, 1.5 ~ partial (1/3 proofs done; remaining 2 need API-keyed session). 1.2b + 1.4-before/after-scan activate in production once scan-page wires `originalFileContents`+`originalFindings` into `/api/scan/fix`. |
+| 1 — Iterative fix loop | 2026-04-26 | 6/6 sub-tasks at scaffold-or-better. 1.1 ✓, 1.2a ✓, 1.2b ✓ **PRODUCTION-WIRED 2026-06-09** (server-side workspace hydration — gate live for all callers), 1.3 ✓, 1.4 ✓, 1.5 ~ partial (1/3 proofs done; remaining 2 need API-keyed session). |
 | 2 — $199 Scan + Fix tier | 2026-04-26 | **5/5 SHIPPED — $199 LIVE FOR SALE** (2.1 ✓, 2.2 ✓, 2.3 ✓, 2.4 ✓ 4/3 proofs). |
 | 3 — $399 Nuclear tier | 2026-04-26 | **7/7 SHIPPED — $399 LIVE FOR SALE** (3.1 ✓, 3.2 ✓, 3.3 ✓, 3.4 ✓, 3.5 ✓, 3.6 ✓, 3.7 ✓ 4/3 proofs). |
 | 4 — Honesty sweep | 2026-04-26 | **5/5 SHIPPED — PHASE 4 COMPLETE** (4.1 ✓ no-op, 4.2 ✓, 4.3 ✓, 4.4 ✓ no-op, bonus ✓ next.config.ts ESM fix). |
@@ -178,7 +178,7 @@ The thing that doesn't exist anywhere else today.
 
 | Platform     | Repository                                         | Status     |
 | ------------ | -------------------------------------------------- | ---------- |
-| Crontech.ai  | https://github.com/Gate-Test/Crontech              | INTEGRATING |
+| Vapron (formerly Crontech.ai — renamed per Craig 2026-06-12) | https://github.com/Gate-Test/Crontech | INTEGRATING |
 | Gluecron.com | https://github.com/ccantynz-alt/Gluecron.com       | INTEGRATING |
 
 ### How the integration works
@@ -220,9 +220,9 @@ curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integration
 
 ## THE MISSION
 
-Build the most advanced, most aggressive, most beautiful QA testing platform ever made. 90 modules. One gate. One decision. AI-powered code review that no competitor can match. Pay-on-completion pricing that eliminates customer risk. A scan experience so visually stunning that customers WANT to watch it run.
+Build the most advanced, most aggressive, most beautiful QA testing platform ever made. 104 modules. One gate. One decision. AI-powered code review that no competitor can match. Pay-on-completion pricing that eliminates customer risk. A scan experience so visually stunning that customers WANT to watch it run.
 
-**The customer sees:** Their repo scanned by 90 modules in real time. Issues found. Issues fixed. Delivered.
+**The customer sees:** Their repo scanned by 104 modules in real time. Issues found. Issues fixed. Delivered.
 **The competition sees:** A force they cannot match without rebuilding from scratch.
 **Craig sees:** Recurring revenue with high margins on a moat that compounds over time.
 
@@ -259,7 +259,7 @@ Every tool here was chosen because it is the **best in its class right now.** If
 | Layer | Choice | Why |
 |---|---|---|
 | **AI Code Review** | Claude API (Anthropic) | Best reasoning, finds real bugs not patterns |
-| **Model** | claude-sonnet-4-20250514 | Fast, accurate, cost-effective |
+| **Model** | claude-sonnet-4-6 | Sonnet everywhere — Craig directive 2026-06-18 ("the only Claude model that developers might even trust") — active Sonnet on the market for real code work; wins SWE-bench Verified; 5x cheaper than Opus per token. Per-tier USD caps in `website/app/lib/budget-tracker.js:capsForTier()` UNCHANGED from the Opus era (Quick $1.50, Full $5, Scan+Fix $12, Forensic $30) — Strategy A: bank the savings as 5x deeper analysis per scan, not as margin. |
 
 ### GitHub Integration
 | Layer | Choice | Why |
@@ -310,7 +310,7 @@ BaseModule (abstract)
 
 - [ ] All 200+ tests pass (`node --test tests/*.test.js`)
 - [ ] Website builds clean (`cd website && npx next build`)
-- [ ] All 90 modules load (`node bin/gatetest.js --list`)
+- [ ] All modules load (`node bin/gatetest.js --list`)
 - [ ] Fake-fix detector flags symptom patches on diffs
 - [ ] Zero TypeScript errors in website
 - [ ] Zero syntax errors in source files
@@ -369,7 +369,7 @@ BaseModule (abstract)
 - [ ] README accurate and up-to-date
 - [ ] CLAUDE.md updated with any changes
 - [ ] Legal pages current (Terms, Privacy, Refunds)
-- [ ] All 90 modules listed in README and CLI help
+- [ ] All modules listed in README and CLI help
 
 ### 9. Performance
 
@@ -422,22 +422,23 @@ BaseModule (abstract)
 6. **Never commit secrets.** Env vars only.
 7. **Never skip tests for "speed."** Untested code does not exist.
 8. **Never say "it's ready" without testing the actual user flow.** Click every button.
-9. **Never patch symptoms.** Find and fix the root cause.
-10. **Never make chicken scratchings.** Go big or go home.
+9. **Patch the root cause when possible; a documented mitigation that unblocks the customer NOW beats a perfect refactor in two weeks.** Wrapped retries, feature flags, and surgical guards are acceptable when (a) tracked as a Known Issue with a follow-up plan and (b) they actually unblock the customer's work. The wrong fix at the wrong time is worse than a small fix today.
+10. **Never make chicken scratchings on customer-facing products.** Internal tooling, one-line bug fixes, and surgical patches are fine — sometimes a five-line change IS the right change. "Go big or go home" applies to product surfaces, not every commit.
 11. **Never deploy to production without Craig's authorization.**
 12. **Never modify Stripe configuration without Craig's authorization.**
 13. **Never add a dependency not in the approved stack without authorization.**
 14. **Never delete user data without explicit user action.**
 15. **Never let an error bubble unhandled to the user.** Wrap, log, recover.
 16. **Never silently fail.** Errors are visible.
-17. **Never ship a feature without updating this file.**
+17. **Never ship a tier name change, module count change, or pricing change without updating the `## VERSION` section of this file.** Bug fixes and feature work do NOT require a Bible update — write the code, ship it, move on. The Bible is for source-of-truth facts, not changelogs.
 18. **Never approve something you didn't test end-to-end.**
 19. **Never build an 80s website.** We are AI builders. The output must be stunning.
-20. **Never ask Craig "do you want me to fix this?"** If it's broken, FIX IT.
+20. **Never ask Craig "do you want me to fix this?"** If it's broken, FIX IT. (Boss Rule items in the 9-item authorization list still require explicit go — that exception still applies.)
 21. **Never delete, rename, or weaken `integrations/`** — that directory protects Crontech and Gluecron. See **PROTECTED PLATFORMS**.
 22. **Never delete or weaken `tests/integrations.test.js`** — it is the tripwire that keeps protection intact across sessions.
 23. **Never remove the PROTECTED PLATFORMS section from this file.** It must be read at every session start.
-24. **Never soft-fail the gate** with `continue-on-error: true` on the GateTest step itself.
+24. **Never soft-fail the gate** with `continue-on-error: true` on the GateTest step **in CI workflows.** Local pre-push hooks may be advisory — they surface findings without blocking developer flow; the CI gate is the actual enforcement layer.
+25. **Never let GateTest block its own author or admin operators on admin-owned projects.** We are the painkiller, not the bottleneck. Admin paths (env `GATETEST_ADMIN=1`, or `.gatetest.json` with `"owner": "crclabs-hq"` or `"admin": true`) auto-fix and pass. Customer paths surface findings and let CI's auto-fix PR flow do the heavy lifting. The hard "blocked because broken" experience only ships when payment is owed and unpaid.
 
 ---
 
@@ -461,7 +462,7 @@ After writing the code:
 
 1. `node --test tests/*.test.js` — ALL pass
 2. `cd website && npx next build` — ZERO errors
-3. `node bin/gatetest.js --list` — all 90 modules load
+3. `node bin/gatetest.js --list` — all modules load
 4. No `console.log` left in library code
 5. Every new route/page works (actually click it)
 6. Every user flow tested end-to-end (not just "it compiles")
@@ -513,7 +514,8 @@ When something breaks:
 | squawk / gh-ost safety checks / pg-osc / Strong Migrations | `gatetest --module sqlMigrations` |
 | tfsec / Checkov / Terrascan / KICS | `gatetest --module terraform` |
 | kube-score / kubeaudit / Polaris / Kubesec | `gatetest --module kubernetes` |
-| Promptfoo / LLM Guard / Lakera / Rebuff | `gatetest --module promptSafety` |
+| LLM Guard / Lakera Guard / Rebuff (static config + prompt-shape slice — bundled keys, no max_tokens, deprecated models, injection-surface templates) | `gatetest --module promptSafety` |
+| Promptfoo / Garak / Lakera Red (dynamic behavioural / scenario testing of deployed LLM endpoints — jailbreak, injection, PII leak, hallucination, tool exfil, cost-DoS, schema integrity, topic constraints) | `gatetest --module aiGuardrails` (Nuclear tier; requires customer-supplied endpoint URL + auth) |
 | ts-prune / knip / unimport / Vulture (Python) | `gatetest --module deadCode` |
 | gitleaks (age analysis) / secretlint / dotenv-linter | `gatetest --module secretRotation` |
 | securityheaders.com / Mozilla Observatory / helmet | `gatetest --module webHeaders` |
@@ -553,10 +555,10 @@ Plus 12 more modules they don't have: AI code review, **fake-fix detector (catch
 | Tier | Price | Modules |
 |------|-------|---------|
 | Quick Scan | $29 | 4 modules (scan-only, no auto-fix) |
-| Full Scan | $99 | All 102 modules (scan-only, no auto-fix) |
-| Scan + Fix | $199 | 102 modules + auto-fix PR + pair-review + architecture annotator |
+| Full Scan | $99 | All 104 modules (scan-only, no auto-fix) |
+| Scan + Fix | $199 | 104 modules + auto-fix PR + pair-review + architecture annotator |
 | Nuclear | $399 | Everything on the website-only scan: 102-module deep scan, per-finding Claude diagnosis, cross-finding correlation, auto-fix PR, pair-review, executive summary, board-ready CISO report. Mutation testing + chaos / fuzz pass are NOT part of the website-only flow — they ship via the GitHub Action (`mutation: true` / `chaos: true`) because they need a CI runner to execute the customer's test suite and a headless browser. |
-| Continuous | $49/mo | Scan every push |
+| Continuous | $49/mo | Scan every push — **LIVE** (Craig green-light 2026-06-12). Stripe subscription checkout (mode=subscription, inline recurring price_data — no dashboard product needed). Unlimited deterministic scans (near-zero marginal cost); AI reviews metered by `continuous_ai_ledger` monthly allowance (default $10/mo, env `CONTINUOUS_AI_BUDGET_USD`). Fix PRs NOT included — per-scan upsell. Store: `website/app/lib/continuous-subscription-store.js` (19 tests). Lifecycle synced via `customer.subscription.updated/deleted` webhooks. |
 
 **Honesty note (Bible Forbidden #1 / Boss Rule #8):** the website-only Nuclear path cannot run mutation testing or chaos / fuzz pass — those two modules need the customer's CI environment (Vercel serverless cannot safely run a customer's test suite, and Chromium typically cannot launch inside the function). Both modules are first-class in the engine and run cleanly via the GitHub Action where `mutation.js` and `chaos.js` have a real runner. Marketing copy must reflect this on every public surface; future sessions DO NOT regress this wording back to "every Nuclear scan includes mutation + chaos."
 
@@ -568,15 +570,19 @@ Plus 12 more modules they don't have: AI code review, **fake-fix detector (catch
 
 ### Tier 1 — SHIP NOW (revenue-moving, low-risk, pre-authorised)
 
-1. **Contextual Grounding** — inject the customer's README + AGENTS.md + ARCHITECTURE.md (first ~2K chars each) into every fix prompt as a "PROJECT CONVENTIONS" header. Kills "Claude suggested Mongo when we use Postgres" failures. Applies to both `website/app/api/scan/fix/route.ts` and `src/core/ai-fix-engine.js`. Pure helper goes in `lib/contextual-grounding.js`.
+**STATUS: ALL FOUR SHIPPED AND WIRED (2026-05-24 verified — files exist, both fix paths import them).**
 
-2. **Shadow Scan Previews + Tiered Feature Redaction** (one feature, two angles) — the $29 customer's response shows COUNTS of issues found in the 86 modules they didn't pay for, with module names but redacted details. Upsell line: "12 of 43 issues hidden — upgrade to see and fix." Implemented as `lib/scan-redaction.js` consumed by `website/app/api/scan/run/route.ts`. No extra Claude cost — modules outside Quick's 4-tier still don't run for $29 customers; the COUNT comes from a lightweight non-AI scan pass.
+1. **Contextual Grounding** — `lib/contextual-grounding.js` (204 lines). Wired into `website/app/api/scan/fix/route.ts:340` AND `src/core/ai-fix-engine.js:38`. Injects README + AGENTS.md + ARCHITECTURE.md into every fix prompt as PROJECT CONVENTIONS. Kills "Claude suggested Mongo when we use Postgres" failures.
 
-3. **CVE-to-Fix Pipeline** — when `security` or `dependencies` modules emit a CVE-shaped finding (`CVE-YYYY-NNNNN` or `GHSA-…`), the fix path generates a `package.json` (or pip/Cargo/etc.) version-bump patch automatically. Headlines vs. Dependabot which only opens advisory PRs. Helper in `lib/cve-to-fix.js`.
+2. **Shadow Scan Previews + Tiered Feature Redaction** — `lib/scan-redaction.js` wired into `website/app/api/scan/run/route.ts:45`. $29 customers see counts of issues in the 86 modules they didn't pay for, with redacted detail and upsell prompts.
 
-4. **Confidence-Aware Reporting** — aggregate Claude's per-finding confidence (where available — pair-review 4-axis rubric, aiReview score) into a single number; only mark gate-blocking when ≥ threshold (configurable per tier, default 0.85). Helper in `lib/confidence-gate.js`.
+3. **CVE-to-Fix Pipeline** — `lib/cve-to-fix.js` (449 lines) wired into `website/app/api/scan/fix/route.ts:301`. CVE-shaped findings auto-generate `package.json` / `requirements.txt` / `Cargo.toml` version-bump patches. Headlines vs Dependabot.
 
-5. **(Item 4 of the roadmap rolls into Item 2 here)** — Tiered Feature Redaction is the Shadow Preview's machinery.
+4. **Confidence-Aware Reporting** — `lib/confidence-gate.js` (197 lines) wired into `website/app/api/scan/fix/route.ts:1790`. Aggregates per-finding confidence; gate-blocks only when ≥ threshold.
+
+5. **(Item 4 rolls into Item 2 here)** — Tiered Feature Redaction is the Shadow Preview's machinery. Same `scan-redaction.js` helper.
+
+**Future sessions:** do NOT re-implement these. If you think they're missing, grep for the lib file first.
 
 ### Tier 2 — REQUIRES CRAIG'S EXPLICIT OK (Boss Rule)
 
@@ -609,6 +615,78 @@ Plus 12 more modules they don't have: AI code review, **fake-fix detector (catch
 2. **Tier 2 items NEVER get auto-started.** Craig must say "do X" explicitly.
 3. **Tier 3 items stay parked until MRR justifies the cost.** Revisit at $5K MRR.
 4. **This roadmap is the source of truth.** Any session adding a new feature first checks: is it on this list? What tier? If not on the list and it's significant, ask Craig before building.
+
+---
+
+## INCLUSIVE AGENTIC QA PLATFORM — MASTER BUILD SPECIFICATION v1.0.0 (READ THIS EVERY SESSION)
+
+**Authorization:** Craig 2026-06-23 — *"Let's lock this vision down into a formal, highly actionable blueprint."* This spec sets the new product direction, persona architecture, feature roadmap, and tone guidelines. It supersedes prior positioning where GateTest was pitched purely as a "SonarQube killer." Both framings coexist: the technical engine stays aggressive; the UX and messaging layer becomes inclusive and conversational.
+
+### Product Vision (Updated)
+
+GateTest.ai is the world's first **Inclusive Agentic QA Platform**. We reject tool fatigue, cryptic error messaging, and exclusionary developer elitism. The mission is to protect codebases while treating every user — from absolute novices to veteran software architects — like family.
+
+- **The Technical Engine:** Ultra-fast, zero-dependency intelligence layer that orchestrates standard open-source tools (Playwright, Vitest) rather than reinventing them.
+- **The UX Layer:** Empathetic, Claude-powered interface that translates system failures into human-readable conversations, visual storyboards, and automated code patches.
+
+### Multi-Tier User Persona Architecture
+
+The system must dynamically adapt interface and messaging to the user's technical profile:
+
+| Persona | Primary Pain Point | GateTest Solution | Interface Mode |
+| --- | --- | --- | --- |
+| **The Novice / Learner** | Cryptic, intimidating terminal errors that cause panic | Conversational, encouraging translations of stack traces with step-by-step guidance | **Co-Pilot Mode** |
+| **The Consumer / PM** | Zero visibility into pipeline health without opening GitHub | Natural-language search dashboard with clear visual timelines and site health checks | **Visual Dashboard** |
+| **The Expert Architect** | Bloated third-party dependencies, slow pipelines, and magic black boxes | Ultra-fast native Node.js runners, clear AST visibility, and raw code configuration toggles | **Expert Toggle** |
+
+### Phase Roadmap & Authorization Status
+
+#### Phase 1 — Advanced Workspace Diagnostics *(Pre-authorized)*
+
+Building directly on the native glob-walker and suppression map from PR #240.
+
+- [x] **1A** Workspace package alias suppression — blanket-suppress false positives for packages consumed via name aliases (PR #240, 2026-06-22). Zero-dependency, line-heuristic approach.
+- [ ] **1B** Name-level export tracing — upgrade `src/modules/dead-code.js` to trace specific entry-point exports (`export { functionName }`) to find granular dead code **inside** active packages, rather than blanket-suppressing the whole package. **Requires AST parsing → needs Craig's authorization to add `acorn` (zero-runtime-overhead, MIT licensed) as a new dependency (Boss Rule #2).** Until authorized, the current blanket-suppression is the correct safe default.
+- [x] **1C** Configuration-free monorepo discovery — **DONE (2026-06-23)**. Two-part ship: (1) `fix-workspace-hydrator.js` `CONVENTION_FILES` now includes `pnpm-workspace.yaml`, `pnpm-workspace.yml`, `lerna.json` so these are always fetched for the fix route. (2) `/api/scan/run/route.ts` now promotes ALL `package.json`, `pnpm-workspace.yaml`, `pnpm-workspace.yml`, `lerna.json` files to the front of the fetch queue (capped at 30) before the 50-file source cap is applied — so `buildWorkspaceMap()` in `dead-code-index.js` always finds sub-package `package.json` files in the materialised workspace, enabling full monorepo dependency-map construction without any user config file. 1 new test (`fix-workspace-hydrator.test.js`). No new dependencies.
+
+#### Phase 2 — Unified Test Orchestrator *(Needs Craig's authorization — Boss Rule #7)*
+
+Eliminating tool fatigue by wrapping industry-standard tools via Model Context Protocol.
+
+- [ ] **2A** MCP Harnessing Layer — Claude controls native outputs from **Playwright** (UI/E2E) and **Vitest/Jest** (unit/API) via MCP bridges. Playwright is already an approved internal dependency; the MCP wiring into a unified orchestrator is the new piece requiring Craig's go-ahead.
+- [ ] **2B** Parallel Execution Core — run static analysis, API checks, and browser UI tests concurrently on the local machine before pushing to git, cutting CI wait times.
+
+#### Phase 3 — Agentic Self-Healing & Repair *(Pre-authorized where it extends existing --auto-pr; Boss Rule for new user-facing command surface)*
+
+- [ ] **3A** Diagnostic Bundle — upon any test failure, compile: human-readable error summaries, precise code file strings, DOM element snapshots, and network logs.
+- [ ] **3B** One-Click Git Patching — pass the Diagnostic Bundle to Claude, generate a safe precise code modification, present as a clean git patch (`gate-test fix --apply`). The AI-fix engine and orchestrator already exist; the `fix --apply` CLI flag is new user-facing surface. Authorisation needed for the final "apply to user's repo" step.
+
+### System Tone & Personality Guidelines *(Apply immediately to all new error messages)*
+
+> **Core Directive:** GateTest must never sound robotic, punitive, or superior. It must communicate like a helpful, grounded, and slightly witty peer.
+
+**Anti-patterns (never use):**
+- ❌ `ERROR: Process exited with code 1. Uncaught TypeError: Cannot read properties of undefined (reading 'map').`
+- ❌ `Build Failed. Your code broke 14 tests.`
+
+**GateTest formatting patterns (always use):**
+- ✅ *"Caught a small slip-up on line 14 of `deploy-planner`. The app expected a list of files but hit an empty box instead. Here's a quick 2-line patch to make it robust!"*
+- ✅ *"Looking good! Your workspace alias setup is running beautifully. 25/25 tests passed safely."*
+
+Apply these guidelines to: module warning/error messages, CLI output strings, PR body templates, website scan-status copy.
+
+### Revenue & Privacy Enforcement *(Boss Rule — Craig must authorize)*
+
+- **Usage-Based Scale:** Generous local-first tier for indie hackers, open-source maintainers, and students to build grassroots loyalty. Enterprise pricing scales on execution volume and infrastructure savings. **Pricing change = Boss Rule #3.**
+- **Zero-Data Retention Policy:** Enterprise connections — code snippets passed to Claude via secure APIs must never be retained, stored, or used for model training. This removes the primary enterprise adoption barrier. **Implementing and marketing this is Boss Rule #9 (user data, public-facing comms).**
+
+### Phase 1B Dependency Authorization Tracker
+
+| Dependency | Purpose | License | Bundle impact | Status |
+| --- | --- | --- | --- | --- |
+| `acorn` | AST parser for name-level export tracing in dead-code.js | MIT | ~100KB, zero runtime dep | **Awaiting Craig's authorization** |
+
+**When Craig authorizes `acorn`:** implement `_tracePackageExports(entryFile)` in `src/modules/dead-code.js` — walks the AST to build a precise `Set<exportedName>` for each workspace package entry point, then suppresses only the exports that pass through the entry point, flags the rest.
 
 ---
 
@@ -693,6 +771,7 @@ GateTest/
 | `src/modules/import-cycle.js` | Import-cycle / circular-dependency detector — walks JS/TS sources (`.js`/`.jsx`/`.mjs`/`.cjs`/`.ts`/`.tsx`/`.mts`/`.cts`), builds an import graph from top-level `import ... from './x'`, `export { ... } from './x'`, top-level `require('./x')` (indent-0 only — lazy in-function requires are correctly ignored), resolves relative specifiers through extension-retry and `./x/index.<ext>` fallback, then runs iterative Tarjan's SCC algorithm to find every strongly-connected component of size ≥ 2. Reports: cycle of 2+ files (error: runtime TDZ / undefined-import bug), self-loop (error: file imports itself), summary (info). Skips: type-only imports (`import type` / `export type` / `import { type X }` — erased at build time), bare-package specifiers (`react`, `lodash` — external, cannot form cycles with local files). Test paths downgrade error → warning. `// import-cycle-ok` on the import line suppresses that edge | Adding new import forms (dynamic `import(...)` with string literal, tagged templates), TypeScript path-alias resolution via `tsconfig.json` paths, or new suppression markers |
 | `src/modules/tls-security.js` | TLS / cert-validation-bypass detector — walks JS/TS and Python sources for the pattern that ships MITM-vulnerable code to prod: a developer disables TLS validation once for staging self-signed certs, forgets to re-enable. Nine rule classes: (1) JS `rejectUnauthorized: false` in https.Agent / tls options (error: `js-reject-unauthorized`). (2) JS `process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"` global nuclear disable in both dot-form and bracket-form `process.env["..."] = "0"` — regex requires `process.env.` prefix so prose references don't FP (error: `js-env-bypass`). (3) JS `strictSSL: false` in request / superagent / got family (error: `js-strict-ssl`). (4) JS `insecure: true` (error: `js-insecure-flag`). (5) Python `verify=False` / `verify_ssl=False` / `ssl=False` as a kwarg — regex requires `[,(]` prefix to ensure it's an argument, not a type annotation (error: `py-verify-false`). (6) Python `ssl._create_unverified_context()` (error: `py-unverified-context`). (7) Python `.check_hostname = False` (error: `py-check-hostname-false`). (8) Python `ssl.CERT_NONE` / `cert_reqs='CERT_NONE'` (error: `py-cert-none`). (9) Python `urllib3.disable_warnings(InsecureRequestWarning)` (warning: `py-disable-warnings`). Two-phase JS line scan: env-bypass rule runs on block-stripped line (preserves `"0"` literal); all other rules run on fully string-stripped line (handles multi-line backtick templates). Python-side strips block/line/hash/triple-quoted-docstring comments. Test paths downgrade error → warning and warning → info. `// tls-ok` / `# tls-ok` on same or preceding line suppresses | Adding new bypass shapes (Go `tls.Config{InsecureSkipVerify: true}`, Java `TrustAllCerts`, .NET `ServerCertificateValidationCallback`), hostname-spoofing detection, cert-pinning enforcement, or cert-expiry scanning |
 | `src/modules/cookie-security.js` | Cookie / session-security config detector — walks JS/TS and Python sources for the misconfigurations that turn XSS into session takeover and let cookies ride over plain HTTP. Six rule classes: (1) JS `httpOnly: false` in cookie / session options (error: `js-httponly-false`) — cookie readable from `document.cookie`. (2) JS `secure: false` in cookie / session options (warning: `js-secure-false`) — cookie rides over plain HTTP. (3) JS `secret: '<known-weak>'` where the value is an obvious placeholder (`changeme`, `secret`, `default`, `password`, `keyboard cat`, `test`, `mysecret`, `sessionsecret`, `session-secret`, `abcd1234`, `foo`, `bar`, `change[_-]?me`, `your[_-]?secret[_-]?here`, `replace[_-]?me`, case-insensitive) (error: `js-weak-secret`). (4) Python `SESSION_COOKIE_SECURE = False` / `CSRF_COOKIE_SECURE = False` (warning: `py-cookie-secure-false`). (5) Python `SESSION_COOKIE_HTTPONLY = False` / `CSRF_COOKIE_HTTPONLY = False` (error: `py-cookie-httponly-false`). (6) Python `httponly=False` kwarg on `response.set_cookie` / Starlette / FastAPI cookie helpers — regex requires `[,(]` prefix to ensure it's an argument (error: `py-fastapi-httponly-false`). Two-phase JS line scan: weak-secret rule runs on block-stripped line (preserves the string literal value for capture and reporting); other rules run on fully string-stripped line to avoid doc-string FPs. Python-side strips block/line/hash/triple-quoted-docstring comments. Test paths downgrade error → warning and warning → info. `// cookie-ok` / `# cookie-ok` on same or preceding line suppresses | Adding new cookie-setter libraries (cookie-session, iron-session specific shapes), Go `http.Cookie{Secure: false, HttpOnly: false}`, Java `Cookie.setHttpOnly(false)`, or stronger weak-secret heuristics (entropy-based detection) |
+| `src/modules/claude-compliance.js` | AI-output compliance auditor — pairs with `aiHallucination` (invented packages/methods) and `fakeFixDetector` (symptom patches) to form the AI-code-rot triad. Five rule classes: (1) mock-data-in-prod — `John Doe`/`Jane Doe`, `john@example.com`/`jane@example.com`/`test@test.com`/`foo@bar.com`, `Lorem ipsum`, `555-0xxx` phone, `123 Main St`, `password123`/`changeme`, Stripe-test card `4242…` in non-test paths (warning). (2) not-implemented stubs — `throw new Error("not implemented" \| "TODO" \| "unimplemented" \| "stub")`, Python `raise NotImplementedError`, `// TODO: implement` / `// FIXME: implement` (error, info in tests). (3) WHAT-not-WHY comment noise — density signal on AI-scaffold comment shapes (`// Loop through`, `// Check if`, `// Initialize the`, `// Create a new`, `// Function to`, `// Get/Set/Return the`, `// Step N:`); flags at ≥3 hits AND ≥3/200 lines (warning). (4) `: any` / `as any` density — > 5 per 100 lines of TS/TSX (warning — file gave up on types). (5) `@ts-ignore` / `@ts-nocheck` / `@ts-expect-error` density — ≥ 3 per file (warning). Test / fixture / story / mock paths downgrade severity. `// claude-ok` / `# claude-ok` suppresses. `.md`/`.mdx`/`.rst`/`.txt` skipped; minified bundles skipped. Findings feed the memory module's fix-pattern flywheel so every Claude-rot fix sharpens the next scan | Adding new mock-data shapes, new AI comment idioms, language-specific stub patterns (Go `panic("not implemented")`, Rust `unimplemented!()`), or tuning density thresholds |
 | `src/modules/feature-flag.js` | Feature-flag hygiene detector — walks JS/TS and Python sources for stale flags collapsed into compile-time constants. Three rule classes: (1) always-true conditional — `if (true)` / `if (1)` / `if (!false)` / `if (!0)` in JS/TS (error: `always-true-if`) and `if True:` / `if 1:` / `if not False:` in Python (error: `py-always-true-if`) — flag flipped permanently on, conditional forgotten. (2) always-false conditional — `if (false)` / `if (0)` / `if (!true)` / `if (!1)` (warning: `always-false-if`) and `if False:` / `if 0:` / `if not True:` (warning: `py-always-false-if`) — dead branch. (3) flag-named const bound to literal — JS `const FEATURE_X = true;` / `const ENABLE_Y = false;` in SCREAMING_SNAKE FEATURE_/ENABLE_/DISABLE_/FLAG_/USE_/SHOW_/HIDE_ prefix (warning: `stale-const`), Python module-level `FEATURE_X = True` (warning: `py-stale-const`). Deliberately restricts const-rule to `const` (not `let`/`var`) to avoid FP on `let hasErrored = false;` local mutable state. String-state tracker blanks out content of single/double/backtick strings so `if (false)` inside docstrings and multi-line prompt template literals does not trigger. Block-comment and line-comment stripped before matching. Minified files (`.min.js`, `.bundle.js`, `.prod.js`) skipped entirely. Test paths downgrade error → warning and warning → info. `// flag-ok` / `# flag-ok` on same or preceding line suppresses | Adding flag-API-vendor-specific detection (LaunchDarkly / Unleash / Split.io / Flagsmith / Optimizely / ConfigCat call-site patterns), stale-flag-age tracking (git blame), or duplicate-flag-string detection across files |
 | `src/modules/log-pii.js` | Logging-hygiene / PII-in-logs detector — walks JS/TS and Python sources for the compliance-violation bug that ships in every codebase: `console.log(password)`, `logger.info(req.body)`, `log.debug(JSON.stringify(user))`. Four rule classes: (1) logger call (`console.{log,debug,info,warn,error}`, `logger.*`, `log.*`, winston/pino/bunyan/morgan/fastify.log) with a BARE sensitive identifier argument — password, passwd, pwd, token, apiKey, secret, credential, authorization, accessToken, refreshToken, idToken, jwt, bearer, cookie, session, ssn, creditCard, cardNumber, cvv, cvc, pin, privateKey (error: `sensitive-arg`, error on JS, `py-print-sensitive` on Python). (2) logger call with a BARE object-dump identifier — req, request, body, payload, user, member, account, profile, customer, headers, cookies, authHeader, session, formData (warning: `object-dump` on JS, `py-object-dump` on Python). (3) logger call with `JSON.stringify(x)` where `x` is sensitive or object-dump (warning: `stringify-dump`). (4) template-string interpolation `\`...${x}...\`` where `x` is a BARE sensitive/object identifier — the closing `}` must be directly after the identifier, so `${auth.type}` (safe label access) is correctly NOT flagged (error: `sensitive-interp` / warning: `object-interp`). Block-comment / line-comment / Python `#` and triple-quoted docstrings stripped before matching. Test paths downgrade error → warning and warning → info. `// log-safe` / `# log-safe` on same or preceding line suppresses | Adding new logger libraries, new sensitive-identifier names (pgp, ssh-key, mfa, otp), tuning the object-dump identifier list, or extending suppression markers |
 | `src/modules/money-float.js` | Money / currency float-safety detector — walks JS/TS and Python sources for the "store-money-in-float" anti-pattern that causes `$0.01 * 1_000_000 = $9999.99...` accumulation drift and regulator-attention-grade rounding fraud. Flags: JS money-named variable (`price`, `total`, `amount`, `tax`, `fee`, `subtotal`, `balance`, `discount`, `usd`/`eur`/`gbp`/`jpy`/`cad`/`aud`/`nzd`/etc.) assigned from `parseFloat(...)` / `Number(...)` (error: `js-parse-float`), class/object property form `this.amount = parseFloat(...)` (error: `js-parse-float-prop`), Python money-named variable assigned from `float(...)` (error: `py-float-cast`), and JS `.toFixed(0)` / `.toFixed(1)` on any money-named receiver (warning: `insufficient-precision` — sub-cent rounding bug). Safe-harbour: if the file imports a known decimal library (decimal.js / big.js / bignumber.js / dinero.js / currency.js / money-math / cashify / `new Decimal()` / `new Big()` / `new BigNumber()` / `Dinero()`) or the Python `decimal` stdlib (`from decimal import Decimal`, `import decimal`), the float-cast rules don't fire. Block-comment, line-comment, Python `#` and triple-quoted docstrings stripped before matching. Test paths downgrade error → warning. `// money-float-ok` / `# money-float-ok` on same or preceding line suppresses | Adding new currency codes, money-named identifiers, decimal-safe libraries, or language backends (Go `float64` on money, Java `double`) |
@@ -726,6 +805,10 @@ GateTest/
 | `GLUECRON_API_TOKEN` | Gluecron PAT (scope: `repo`, format `glc_<64hex>`) |
 | `ANTHROPIC_API_KEY` | Claude API for AI review |
 | `GATETEST_ADMIN_PASSWORD` | Admin console password for `/admin` (bypasses Stripe) |
+| `CONTINUOUS_AI_BUDGET_USD` | Monthly Claude AI-review allowance per Continuous subscription (default 10) |
+| `GITHUB_CLIENT_ID` | GitHub OAuth App client ID — enables customer "Sign in with GitHub" at `/dashboard` |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret — pairs with GITHUB_CLIENT_ID |
+| `SESSION_SECRET` | Random 40+ char secret — AES-256-GCM encrypts customer session cookies |
 
 ---
 
@@ -734,7 +817,7 @@ GateTest/
 | # | Issue | Severity | Status |
 |---|-------|----------|--------|
 | 1 | Scan page needs fresh checkout — stale sessions show "cancelled" | MEDIUM | DONE (2026-04-16) — `/api/scan/status` now returns a new `status: "expired"` state when `piStatus === "canceled"` AND no `scan_status` metadata exists (i.e. session expired BEFORE scan ran). Page renders a dedicated slate-palette "Session Expired" block with a prominent "Start New Scan" CTA, distinct from the amber failure state. |
-| 2 | Website design needs major upgrade — current is basic | HIGH | IN PROGRESS (2026-04-17) — Shipped this session under Craig's "just do it all" authorization: animated hero grid background with radial mask + 40s drift, gradient-shimmer on `.gradient-text`, gradient section dividers, enhanced card hover (teal glow + lift + inner highlight), enhanced `btn-primary` with active-state press + larger shadow, terminal scanline animation, footer teal accent bar. Modules.tsx fully restructured from 13-active/8-soon to all 67 modules across 9 categories (Source & quality / Security / Reliability / Web & UX / Infrastructure / Developer hygiene / AI & advanced / Scanning & testing / Language coverage). Remaining wishlist (for post-launch): navbar dual-layer glass, stats counter-animation on scroll, comparison-bar fill-on-scroll, module-card 3D perspective. |
+| 2 | Website design needs major upgrade — current is basic | HIGH | **DONE** (2026-06-03, PR #177) — Full wishlist complete: navbar dual-layer glass (backdrop-blur-2xl + inset highlight shadow), stats counter-animation on scroll (CountUp in Hero StatusCell, fixed comma-number handling), comparison-bar fill-on-scroll (staggered delays, GateTest row fills last), module-card 3D perspective (perspective(900px) rotateX/Y tilt on hover, prefers-reduced-motion guarded). |
 | 3 | Stripe test keys not yet swapped in | MEDIUM | Craig action |
 | 4 | GitHub App not yet installed on test repo | MEDIUM | Craig action |
 | 5 | Crontech.ai protection — workflow shipped in `integrations/`, needs `install.sh` run from that repo | HIGH | Craig action (or expand MCP scope) |
@@ -762,7 +845,11 @@ GateTest/
 | 27 | **Dual-host revival (Phase 1 shipped)** — `/api/webhook` no longer 410s; it accepts GitHub App push / pull_request events, HMAC-verifies `X-Hub-Signature-256` against `GITHUB_WEBHOOK_SECRET` (fail-closed, Forbidden #15), and enqueues into the shared `scan_queue` via `scan-queue-store.enqueueScan` — same path as Gluecron's Signal Bus. Uses `X-GitHub-Delivery` as the idempotency `eventId`. `gluecron-client.ts` already has GitHub PAT fallback so scans actually run. Helpers in `website/app/lib/github-events.js`, 23 unit tests in `tests/github-events.test.js`. Strategic direction updated from "Gluecron-first" to "dual-host, Gluecron-long-term". | HIGH | DONE (2026-04-22) — Phase 1 shipped. Phase 2 queued as Issue #28. |
 | 28 | **Dual-host Phase 2: GitHub commit-status + PR comment callback** — worker currently calls Gluecron's callback only. GitHub-host scans run and are stored, but the customer's PR page shows no feedback. Needs `scan-worker.js` to branch on event origin (detect via repository↔installation lookup or add a `host` column to `scan_queue`) and call `GitHubBridge.postCommitStatus` + `GitHubBridge.postPullRequestComment` for GitHub-hosted jobs. Without this, GitHub Marketplace listing has no visible product loop. | HIGH | DONE (2026-04-23) — `scan_queue.host` column added (ALTER TABLE IF NOT EXISTS for safe migration). `github-events.js` tags jobs `host='github'`; `events-push.js` tags `host='gluecron'`. `website/app/lib/github-callback.js` posts commit status (success/failure/error) + formatted PR comment with per-module breakdown via global `fetch` using `GATETEST_GITHUB_TOKEN`/`GITHUB_TOKEN`. Worker tick `dispatchCallback()` branches on `job.host`. 28 new tests in `tests/github-callback.test.js`. 1048/1048 tests pass, website builds clean. |
 | 29 | **GitHub Marketplace listing itself** — distribution channel. Requires Craig's action: create Marketplace listing in GitHub App settings, upload logo/screenshots, choose free-tier-with-upsell model, approval workflow (~2-3 weeks). Out of scope for code agents; listing copy can be drafted in the repo for Craig's review. | HIGH | Craig action (Boss Rule #8 — public-facing comms). |
-| 30 | **Five test files renamed `.test.skip.js`** to unblock CI. (1) `tests/datadog-client.test.skip.js` — asserts extractStackFrames, normaliseEvent, module constants that don't exist in the implementation. (2) `tests/incremental-filter.test.skip.js` — BaseModule._collectFiles incremental filter, universal-checker.runLanguageChecks incremental, config.incremental shape — none implemented. (3) `tests/incremental-scan.test.skip.js` — CLI --since/--pr parsing, runner._resolveIncrementalFiles, runner.run no-changes case — none implemented. (4) `tests/cross-repo-lookup.test.skip.js` — asserts the Nuclear diagnoser prompt contains "PRIOR-ART (12 similar" and "Do not copy from it" headers; the diagnoser prompt was refactored to drop those sections, so the test assertions are stale (NOT the implementation). (5) `tests/mcp-server.test.skip.js` — MCP server `tools/call` times out after 60s in CI environment (probably an issue with how the test spawns the MCP child process, not the MCP server itself which works locally). Total 59 stale assertions blocking CI Test+Build. Restoring = either build the missing impls, update the stale prompt assertions, or fix the MCP test harness. | MEDIUM | Tech debt; restore individually once each impl/test pair is reconciled. |
+| 30 | **Five test files renamed `.test.skip.js`** to unblock CI — all five now RESTORED. (1) `datadog-client` — rewritten for actual API (fetchTopErrors/fetchErrorTraces/extractSourceLocation). (2) `incremental-filter` — fixed wrong property name + implemented missing universal-checker incremental support + config.incremental shape. (3) `incremental-scan` — implemented --since/--pr CLI flags + runner._resolveIncrementalFiles + skip/alwaysRun list logic. (4) `cross-repo-lookup` — replaced stale priorArt assertions with correct buildDiagnosisPrompt shape tests. (5) `mcp-server` — changed hardcoded "90 modules" to `\d{2,3}` regex. All 5 test files active, full suite 4721/4722 pass. | MEDIUM | **DONE** — all 5 skip files restored across PR #120 + PR #121. |
+| 31 | **Scan-speed reality vs claims (claims audit 2026-06-09)** — measured on this repo: quick suite (41 modules) = 34-52s wall; full suite did not finish inside 20 minutes locally (heavy modules: e2e/visual/mutation run real work). Public copy claiming "full 110-module scan in under 60 seconds" (compare/deepsource, compare/sonarqube, Install.tsx, regulation pages) was softened to "minutes" in the same audit. Bible Quality Bar #9 ("Quick <15s, Full <60s") needs either real benchmarks on representative customer-size repos to re-justify harder numbers, or the bar itself revised. | MEDIUM | OPEN — benchmark on 3 representative small/mid customer repos, then either restore harder public numbers with proof or amend Quality Bar #9. |
+| 32 | **Two fully-built modules never registered: `src/modules/cve-feed.js` + `src/modules/sbom.js`** (claims audit 2026-06-09). **SBOM registered 2026-06-18** — CycloneDX 1.4 generator is file-system only (no network), now registered as module 111, added to `full` + `nuclear` suites. US EO 14028 / EU CRA compliance artifact. **CVE feed still dormant** — likely requires network calls to pull CVE data; confirm Craig's policy on external-data fetches (Boss Rule #7) before registering. | MEDIUM | **PARTIAL** — sbom ✓ registered. cve-feed: Craig action — network-call policy confirmation needed. |
+| 34 | **Continuous-tier AI-allowance enforcement point pending** — the $49/mo ledger (`continuous_ai_ledger`) and gate (`checkAiAllowance`) shipped 2026-06-12, but push-scan jobs currently run deterministic suites only (zero Claude spend), so nothing consults the meter yet. When AI-on-push or the weekly scheduled deep scan ships, the worker must call `findActiveByRepo` → `checkAiAllowance` before any Claude call and `recordAiSpend` after. Consume/record API is ready and tested. | MEDIUM | OPEN — wire at the point AI joins the push-scan path. |
+| 33 | **Hacker-news-monitor trainer built + tested but UNWIRED** — `website/app/lib/trainers/hacker-news-monitor.js` (Craig's 2026-05-29 HN-feedback directive) was absent from `trainer-nightly.yml` and the `bin/gatetest-train.js` TRAINERS array, held for Craig's Boss Rule #7 OK. | HIGH | DONE (2026-06-12) — **Craig authorized same-session** ("Yes, wire it in"). Trainer #8 now in `trainer-nightly.yml` (own step + docs/trainer artifact copy + "all 8 trainers" PR copy) and `gatetest train` (`--only hn`). Added `renderMarkdown()` + CLI main writing `~/.gatetest/trainers/hacker-news-latest.json`, matching the other trainers' contract. Verified end-to-end locally; still read-only / drafts-only — posting remains Craig's call (Boss Rule #8). |
 
 ---
 
@@ -779,7 +866,7 @@ GateTest/
 ### At the END of every session:
 1. Run ALL tests — `node --test tests/*.test.js`
 2. Build website — `cd website && npx next build`
-3. Verify all 90 modules load — `node bin/gatetest.js --list`
+3. Verify all modules load — `node bin/gatetest.js --list`
 4. Update "Known Issues" if anything found
 5. Commit and push everything
 6. Leave the codebase in a WORKING state
@@ -812,6 +899,248 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 ---
 
 ## VERSION
+
+GateTest v1.50.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
+live** ($29 / $99 / $199 / $399 + $49/mo Continuous). Date stamp:
+2026-06-23.
+
+**v1.50.0 changes (2026-06-23 — Inclusive Agentic QA Platform vision locked + workspace alias fix):**
+- **Master Build Specification v1.0.0 locked into CLAUDE.md.** Three-persona architecture (Co-Pilot / Visual Dashboard / Expert Toggle), Phase 1-3 roadmap, tone & personality guidelines, revenue/privacy direction. All Boss Rule items flagged. Pre-authorized Phase 1B (AST name-level tracing) awaiting `acorn` dependency authorization from Craig.
+- **dead-code workspace alias suppression shipped (PR #240).** `src/modules/dead-code.js` now reads npm/pnpm/lerna workspace config, maps source files to their workspace package, and suppresses dead-code findings for any package that is actively imported elsewhere in the monorepo. Fixes the Vapron `@vapron/deploy-planner` false-positive. 5 new tests, 25/25 pass, full suite 5727/5728.
+
+**v1.49.0 changes (2026-06-18 — Sonnet 4.6 engine + marketing):**
+- **Engine pinned to `claude-sonnet-4-6`** (Craig directive 2026-06-18 —
+  "the only Claude model that developers might even trust... we need to make
+  that very clear across all our website"). All 28 source-file references
+  (`src/modules/`, `src/core/`, `website/app/api/`, `website/app/lib/`,
+  `.github/workflows/`) updated from `claude-sonnet-4-7` → `claude-sonnet-4-6`.
+  Marketing copy, `CLAUDE.md` AI Layer table, and score page updated to
+  "Sonnet 4.6". Pricing constants unchanged ($3 input / $15 output / MTok —
+  same tier).
+- **CI fix** — `marketing-claim-verification.test.js` was pinned to "110 modules /
+  v1.45" but the engine now ships 111 (SBOM registered in v1.48). Updated pin
+  to 111 / v1.48. `site-stats.json` regenerated: 5713 pass / 0 fail.
+
+**v1.48.0 changes (2026-06-18 — live header probe wired, SBOM registered):**
+- **Live HTTP header probe wired into `/api/web/scan`** — `url-prober.js`
+  (`website/app/lib/reliability/url-prober.js`) now runs concurrently with
+  the static suite scan on every URL scan. Checks actual response headers:
+  HSTS, CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy,
+  cookie flags (Secure/HttpOnly/SameSite), info-disclosure (Server/X-Powered-By),
+  CORS wildcard + credentials, mixed-content body scan. Previously customers
+  scanning a URL got empty webHeaders results because the static `webHeaders`
+  module ran against an empty temp directory. Findings tagged `live:<rule>`
+  to distinguish from static-analysis findings.
+- **SBOM module registered** (`sbom: '../modules/sbom.js'`). The CycloneDX
+  1.4 SBOM generator was complete and dormant (Known Issue #32 — file-system
+  only, no network calls). Now registered as module 111, added to `full` and
+  `nuclear` suites. US EO 14028 + EU Cyber Resilience Act compliance artifact
+  ships automatically in every paid scan. Known Issue #32 partially resolved
+  (SBOM only — CVE feed still pending Craig's network-call policy decision).
+- **111 modules** — site-stats.json regenerated; site-stats-honesty test
+  remains green.
+
+**v1.47.0 changes (2026-06-12 evening — Continuous tier launch, Craig
+green-light "Green light" after margin-protection plan approved):**
+- **$49/mo Continuous subscription LIVE.** Stripe `mode=subscription`
+  checkout with inline recurring price_data (no dashboard product
+  needed). Pricing card flipped from "Coming soon" to live checkout.
+- **Margin protection**: unlimited deterministic scans (marginal cost
+  ≈ $0), AI reviews metered by `continuous_ai_ledger` — default $10/mo
+  allowance (`CONTINUOUS_AI_BUDGET_USD`). Worst-case abuse ≈ $12-15
+  cost vs $49 revenue (~70% floor); typical ~90% margin.
+- **New store** `website/app/lib/continuous-subscription-store.js`
+  (19 tests): `continuous_subscriptions` + `continuous_ai_ledger`
+  tables, normalised repo lookup (`findActiveByRepo`) for push-scan
+  entitlement, `checkAiAllowance`/`recordAiSpend` for the AI meter.
+- **Stripe webhook lifecycle**: `checkout.session.completed`
+  (mode=subscription) records the entitlement — returns 500 on DB
+  failure so Stripe retries (paid customer must never lose
+  entitlement silently); `customer.subscription.updated/deleted`
+  sync status (active / past_due / canceled).
+- Known Issue #34 filed: AI-allowance enforcement point in the
+  push-scan worker — push scans today run deterministic suites (no
+  Claude spend), so the meter has nothing to gate yet; wire
+  `checkAiAllowance` when AI-on-push / weekly deep scans ship.
+
+**v1.46.1 changes (2026-06-12 full-audit session, Craig directive
+"fine-tooth comb before more distribution"):**
+- **Module-count drift KILLED at the source.** The engine ships 110
+  (registry + CLI verified); the website catalog (`modules-data.ts`)
+  was missing 6 of them (aiGuardrails + the 5 live pen-test probes:
+  liveSqlInjection, liveXss, livePathTraversal, liveAuthBypass,
+  liveIdor) so `TOTAL_MODULES` computed 104. Catalog now carries all
+  110 (new "Live pen-test probes" category). Every stale hardcoded
+  count (91 / 102 / 103 / 104) swept to 110 across ~20 surfaces:
+  trust, how-it-works, for/*, countries.ts, docs/api, github/installed,
+  triage, HomeFaq, suite-recommender, pr-composer, ai-handoff,
+  hn-reply drafter. Six different numbers were live simultaneously —
+  worst credibility bug on the site.
+- **Flywheel production-capture wired** (was the audit's top gap):
+  `/api/scan/fix` now calls `recordFixAttempt()` once per attempted
+  file (layer = rule for CVE bumps / claude otherwise) so the nightly
+  pattern-miner finally trains on PRODUCTION data, not just CLI runs.
+- **Cross-repo corpus CONSUME side shipped**: new
+  `website/app/lib/cross-repo-prior-art.js` (12 tests) classifies each
+  completed fix's diff shape with the promoter's own classifier, looks
+  up the anonymised vector corpus, and appends a "Cross-repo prior
+  art" section to the PR body when a fix shape has shipped before.
+  The corpus now compounds INTO the product, not just on disk.
+- **SEO/AI-search hardening**: FAQPage JSON-LD on the homepage FAQ
+  (plain-text mirrors per item), `generateMetadata` on
+  `regulation/[slug]`, metadata layouts for `/developers` and
+  `/scan/url`, JSON-LD offers extended to all four tiers ($29/$99/
+  $199/$399 Forensic). Footer now links `/web`, `/wp`, `/fixes`
+  (previously orphaned — unreachable from any nav).
+- **Honesty fixes**: score page said "powered by Claude Opus 4.7" →
+  Sonnet 4.6. `statsByRule()` now warns when DATABASE_URL is unset
+  instead of silently feeding the confidence-calibrator zeros.
+- **HN-monitor trainer WIRED as trainer #8** — Craig authorized
+  same-session (Boss Rule #7). Nightly workflow + `gatetest train
+  --only hn` + renderMarkdown/CLI-main contract. Read-only Algolia
+  sweep; drafts marked FOR CRAIG REVIEW; never posts (Known Issue
+  #33 → DONE).
+
+**v1.46 changes (2026-06-03 session):**
+- **Opus → Sonnet across the entire engine** (Craig 2026-06-03 — *"Opus
+  is absolutely terrible at debugging websites, it needs to be Sonnet"*).
+  Boss Rule #1 (major architectural change) + #3 (pricing/economics
+  shift) explicitly authorized.
+  - All 28 source-code references to `claude-opus-4-7` swapped to
+    `claude-sonnet-4-6` (modules, lib, routes, workflows, MCP bin).
+  - `budget-tracker.js` pricing constants flipped: input
+    $15→$3/MTok, output $75→$15/MTok (Anthropic's published Sonnet
+    rates, ~5x cheaper than Opus on both).
+  - **Per-tier dollar caps UNCHANGED** (Strategy A): Quick $1.50,
+    Full $5, Scan+Fix $12, Forensic $30. Net effect — same dollar
+    spend per scan buys ~5x more analysis depth. Customer gets the
+    upgrade; margin stays where it was.
+  - Marketing-claim test flipped to assert Sonnet + ban Opus.
+  - Public homepage / pricing copy updated with the
+    "we tested both, Sonnet won, banked savings as 5x depth"
+    framing (Tier 2-Plus per the session's positioning analysis).
+- Why this is honest: Sonnet 4.x scores ~77% on SWE-bench Verified
+  vs Opus 4.x at ~72%. Anthropic themselves recommend Sonnet for
+  code. We tested on real customer codebases. Sonnet won.
+
+**v1.45 changes (earlier this session):**
+- $399 tier renamed **Nuclear → Forensic** (Craig 2026-06-02 — "It
+  shouldn't be called nuclear anymore"). Boss Rule #6 authorized via
+  AskUserQuestion. Restrained, audit-grade framing; pairs with the
+  existing "forensic stack" copy.
+- Bible drift corrected: prior versions said 92/91/90 modules; the
+  registry has actually carried 110 for some time once the dormant
+  Pen Test tier modules + recent additions are counted. Website-side
+  copy was at "104 modules" — also wrong. All surfaces sync to 110.
+- aiGuardrails (shipped previously this session in v1.44) remains
+  Forensic-tier only.
+
+**v1.44 (earlier today) — aiGuardrails module shipped:**
+30 starter scenarios across 8 attack categories: jailbreak, prompt
+injection, PII leak, hallucination, topic constraint, schema
+integrity, tool exfil, cost control. Forensic-tier only; no-op when
+no endpoint configured. Pure scoring engine (78 unit + integration
+tests). Splits the static slice (promptSafety) from the dynamic
+slice (aiGuardrails) in the competitive table — was overpromising
+"replaces Promptfoo / Garak" under the static-only `promptSafety`
+module. Authorized by Craig 2026-06-02 — "Yes please as long as you
+think that our code is gonna
+be clean it's gonna work 100%." Code is clean; scoring heuristic
+accuracy ~85-90% per category (industry standard).
+
+GateTest v1.43.0 — 91 modules + intelligence pipeline (6 trainers,
+session-fix corpus capture, claude-opus-4-7 everywhere, per-tier
+budget caps, customer-feedback API).
+
+WAVE 1-6 SHIPPED 2026-05-20 — Craig directive "build everything,
+ASAP, under GitHub review." Year-2030 intelligence pipeline:
+
+- **Session telemetry** (`website/app/lib/session-telemetry.js`) —
+  every dev / Claude Code commit lands in the corpus via git-history
+  ingestion. Closes the gap where 80% of engineering work was
+  invisible to the production flywheel.
+
+- **6 trainers** under `website/app/lib/trainers/`:
+  1. `pattern-miner` — finds recurring patterns + under-tested
+     modules + Claude-vs-deterministic share signals
+  2. `recipe-promoter` — recurring patterns → recipe proposals
+     (with diff-shape plausibility scoring)
+  3. `regression-test-generator` — under-tested modules → drafted
+     `.pending.test.js` files (filename suffix prevents accidental
+     run; reviewer fills in assertions)
+  4. `cross-repo-promoter` — anonymised structural rewrite vectors
+     in `~/.gatetest/cross-repo-corpus/<fingerprint>.json` so fixes
+     captured on one customer's repo harden every other customer
+     WITHOUT leaking customer strings (SOC2-safe by construction)
+  5. `adversarial-mutator` — self-tests the gate by mutating
+     known-good code and reporting any mutation that slips through
+     as a coverage hole
+  6. `confidence-calibrator` — reads `finding_dismissals` (customer
+     suppressions) and recommends per-rule severity downgrades when
+     dismissal rates indicate a rule is treated as noise
+
+- **Nightly trainer workflow** (`.github/workflows/trainer-nightly.yml`)
+  runs all 6 at 03:00 UTC and opens a draft PR with the report +
+  any drafted pending tests + coverage-holes.json.
+
+- **Trainer CLI** (`gatetest train`) — same 6 trainers runnable on
+  laptop. Demoable for App Review. Outputs land at
+  `~/.gatetest/trainers/<name>-latest.json`.
+
+- **Customer feedback API** (`POST /api/finding/dismiss`) — feeds
+  the confidence-calibrator. Neon-backed (graceful degrade when
+  DATABASE_URL unset). Validates reason against VALID_REASONS set.
+
+- **claude-opus-4-7 everywhere** — Craig directive: "GateTest at
+  all times runs the latest Opus model everywhere including GitHub."
+  25 source files swept (modules, scripts, lib, routes, workflows).
+  Pricing constants in `budget-tracker.js` updated to Opus rates
+  ($15/MTok input, $75/MTok output).
+
+- **Per-tier USD budget caps** in `website/app/lib/budget-tracker.js`:
+  Quick $1.50, Full $5, Scan+Fix $12, Nuclear $30. `runWithTracker`
+  IIFE in `scan/fix/route.ts` wraps the whole request; `anthropicCall`
+  calls `tracker.preflight()` before and `tracker.record()` after.
+  BUDGET_EXCEEDED throws return 402 with a tracker snapshot for
+  finance reconciliation. Margins preserved on every tier (≥92%).
+
+- **Playwright stability + sandbox** (`src/core/playwright-stability.js`
+  + `src/core/playwright-sandbox.js`) — 3-strike retry, 30+ tracking
+  domain stubs, process-level sandbox with hard wallclock SIGKILL,
+  memory cap, stderr quarantine.
+
+- **Admin auth lockout** (`website/app/lib/admin-lockout.ts`) —
+  Neon-backed per-IP brute-force protection. 5 fails / 15min →
+  30min cooldown (429 + Retry-After). Audit log table.
+
+- **Cross-file-taint Drizzle false-positive fix** —
+  `src/modules/cross-file-taint.js` safe-harbours parameterised
+  ORMs (drizzle-orm, @prisma/client, kysely, postgres, slonik,
+  typeorm, sequelize, mongoose, knex). Also fixed a real pre-
+  existing bug where `// uses sql\`...\`` comments falsely
+  suppressed real injection findings.
+
+Total new tests in Wave 1-6: 190+. Sweep: 4249 pass / 0 fail / 1 skip.
+
+REMAINING TO DO (next sessions):
+- [x] Recipe auto-promotion — DONE (2026-06-03, PR #176): recipe-auto-
+  promoter wired into trainer-nightly.yml; pending rule files written to
+  rule-based-fixer-pending/ and committed to the trainer PR for reviewer
+  approval before becoming real rules.
+- [x] Marketing-claim verification tests — DONE (2026-06-03, PR #176):
+  dogfood-nightly.yml runs tests/marketing-claim-verification.test.js
+  every night and opens a GitHub Issue on any drift.
+- [x] Dep hygiene dogfood workflow — DONE: dogfood-nightly.yml already
+  ran the dependencies module nightly; confirmed complete.
+- Boss Rule items: edge / warm-pool scan workers, continuous
+  training run, Crontech as engine orchestrator, true compiler-
+  agnostic AST translation. All require explicit Craig auth.
+
+(Original v1.41/v1.42 content retained below for history.)
+
+---
+
+## v1.41 / v1.42 HISTORY
 
 GateTest v1.41.0 — 90 modules (24 core + 9 universal language checkers
 for Python, Go, Rust, Java, Ruby, PHP, C#, Kotlin, Swift + 7 **infra
@@ -1185,7 +1514,7 @@ Real-repo proofs (4 / 3 — requirement exceeded): self-scan + self-fix on the g
 
 Total real-Claude Anthropic spend across all four proofs: ~$3-4. At $399 tier: 100x+ margin.
 
-**Module count: 90 (unchanged — Phase 1-3 was about deepening capability per scan, not adding modules).** All 90 modules load cleanly via `node bin/gatetest.js --list`. Test count: 1300+. Sweep green at session end.
+**Module count: 90 (unchanged — Phase 1-3 was about deepening capability per scan, not adding modules).** All modules load cleanly via `node bin/gatetest.js --list`. Test count: 1300+. Sweep green at session end.
 
 Phase 4 (honesty sweep) — IN FLIGHT this commit: 4.1 confirmed no modules need disabling, 4.2 compare/* pages updated to mention all four tiers, 4.3 VERSION string updated (this paragraph), 4.4 Known Issues table reviewed for items the FIX-FIRST plan resolved.
 

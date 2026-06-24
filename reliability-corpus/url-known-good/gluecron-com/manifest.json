@@ -1,0 +1,19 @@
+{
+  "name": "gluecron-com",
+  "category": "url-known-good",
+  "target": "url",
+  "tier": "quick",
+  "url": "https://gluecron.com",
+  "description": "Craig-owned site (gluecron.com). Baseline pending first real scan.",
+  "expected": {
+    "errors": {},
+    "warnings": {}
+  },
+  "budgets": {
+    "maxDurationMs": 60000,
+    "deterministic": true
+  },
+  "labels": ["craig-owned", "url-baseline-pending", "protected-platform"],
+  "source": "craig-2026-05-29",
+  "createdAt": "2026-05-29T00:00:00Z"
+}

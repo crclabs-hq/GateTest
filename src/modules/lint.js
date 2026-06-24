@@ -29,10 +29,22 @@ class LintModule extends BaseModule {
     if (eslintDir) {
       this._runEslint(eslintDir, result);
     } else {
-      result.addCheck('lint:eslint-config', false, {
-        message: 'No ESLint configuration found',
-        suggestion: 'Initialize ESLint: npx eslint --init',
-      });
+      // Only complain about missing ESLint config when the project
+      // actually has JS/TS source. A Python or Go repo shouldn't be
+      // flagged for not having an ESLint config — that would be a
+      // gibberish error on every non-JS codebase we scan.
+      const jsFiles = this._collectFiles(projectRoot, ['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts']);
+      if (jsFiles.length > 0) {
+        result.addCheck('lint:eslint-config', false, {
+          message: 'No ESLint configuration found',
+          suggestion: 'Initialize ESLint: npx eslint --init',
+        });
+      } else {
+        result.addCheck('lint:eslint-not-applicable', true, {
+          severity: 'info',
+          message: 'No JS/TS source files — ESLint not applicable',
+        });
+      }
     }
 
     // Check if Stylelint is available

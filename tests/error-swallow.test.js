@@ -367,6 +367,86 @@ describe('ErrorSwallowModule — clean baseline', () => {
     assert.strictEqual(issues.length, 0, `unexpected findings: ${JSON.stringify(issues, null, 2)}`);
   });
 
+  // The "void promise" idiom — explicit, ESLint-recommended way to mark
+  // intentional fire-and-forget. Must NOT trip catch-noop.
+  it('does NOT flag `void promise.catch(() => {})` — idiomatic fire-and-forget', async () => {
+    write(tmp, 'src/a.js', [
+      'function run() {',
+      '  void analytics.track("event").catch(() => {});',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const issues = r.checks.filter((c) => c.passed === false && c.name.includes('catch-noop'));
+    assert.strictEqual(issues.length, 0, `expected no catch-noop on void prefix, got: ${JSON.stringify(issues, null, 2)}`);
+  });
+
+  it('does NOT flag multi-line `void promise\\n  .catch(() => {})` chains', async () => {
+    write(tmp, 'src/a.js', [
+      'function run() {',
+      '  void analytics',
+      '    .track("event")',
+      '    .catch(() => {});',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const issues = r.checks.filter((c) => c.passed === false && c.name.includes('catch-noop'));
+    assert.strictEqual(issues.length, 0, `expected no catch-noop on multi-line void chain, got: ${JSON.stringify(issues, null, 2)}`);
+  });
+
+  it('does NOT flag `void promise.catch(noop)` with named noop', async () => {
+    write(tmp, 'src/a.js', [
+      'const noop = () => {};',
+      'function run() {',
+      '  void analytics.track("event").catch(noop);',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const issues = r.checks.filter((c) => c.passed === false && c.name.includes('catch-noop'));
+    assert.strictEqual(issues.length, 0, `expected no catch-noop with void + named noop, got: ${JSON.stringify(issues, null, 2)}`);
+  });
+
+  it('still flags `promise.catch(() => {})` WITHOUT a void prefix', async () => {
+    write(tmp, 'src/a.js', [
+      'function run() {',
+      '  db.save({ x: 1 }).catch(() => {});',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const issues = r.checks.filter((c) => c.passed === false && c.name.includes('catch-noop'));
+    assert.ok(issues.length >= 1, `expected catch-noop to still fire without void prefix`);
+  });
+
+  it('accepts `// gatetest-fire-and-forget` marker as suppression', async () => {
+    write(tmp, 'src/a.js', [
+      'function run() {',
+      '  // gatetest-fire-and-forget',
+      '  db.save({ x: 1 }).catch(() => {});',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const issues = r.checks.filter((c) => c.passed === false && c.name.includes('catch-noop'));
+    assert.strictEqual(issues.length, 0, `marker comment should suppress catch-noop, got: ${JSON.stringify(issues, null, 2)}`);
+  });
+
+  it('does not let a `void` on an unrelated earlier line accidentally suppress', async () => {
+    write(tmp, 'src/a.js', [
+      'function run() {',
+      '  void noop();',         // a void statement
+      '  return doSomething();', // statement boundary in between
+      '  db.save({ x: 1 }).catch(() => {});', // this is real fire-and-forget, no void
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const issues = r.checks.filter((c) => c.passed === false && c.name.includes('catch-noop'));
+    assert.ok(issues.length >= 1, `void on a prior statement must not suppress an unrelated catch-noop`);
+  });
+
   it('records a summary', async () => {
     write(tmp, 'src/a.js', 'export const x = 1;\n');
     const r = await run(tmp);

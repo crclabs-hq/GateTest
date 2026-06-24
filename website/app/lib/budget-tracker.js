@@ -28,13 +28,22 @@ const ALS = (() => {
   }
 })();
 
-// Sonnet 4.x pricing as of May 2026 — input $3/MTok, output $15/MTok.
-// Tunable per env if Anthropic moves the price card.
+// Sonnet 4.6 pricing — Craig directive 2026-06-03 "Opus is absolutely
+// terrible at debugging websites, it needs to be Sonnet." Sonnet wins
+// SWE-bench Verified vs Opus on real coding tasks; the cheaper model is
+// also the better debugger for our use case. Anthropic Sonnet 4 pricing:
+// input $3/MTok, output $15/MTok — roughly 5x cheaper than Opus on both.
+// Per-tier dollar caps below kept UNCHANGED (Strategy A) — same dollar
+// spend per scan now buys ~5x more analysis depth.
 const INPUT_USD_PER_MTOK = Number(process.env.GATETEST_INPUT_USD_PER_MTOK) || 3;
 const OUTPUT_USD_PER_MTOK = Number(process.env.GATETEST_OUTPUT_USD_PER_MTOK) || 15;
 
-// Default per-scan ceilings.
-const DEFAULT_MAX_TOKENS = Number(process.env.GATETEST_MAX_TOKENS_PER_SCAN) || 1_500_000;
+// Default per-scan ceilings. Sized for Opus pricing — the same token
+// counts that were $12 on Sonnet cost ~$60 on Opus, so the per-scan
+// caps below are CALIBRATED to dollars not tokens (a $12 default cap on
+// Opus translates to roughly 240k tokens, enough for ~30-50 Claude
+// fix calls). Per-tier caps in capsForTier() override this.
+const DEFAULT_MAX_TOKENS = Number(process.env.GATETEST_MAX_TOKENS_PER_SCAN) || 300_000;
 const DEFAULT_MAX_USD = Number(process.env.GATETEST_MAX_USD_PER_SCAN) || 12;
 
 // Rough char-to-token ratio. Claude tokenizer averages ~3.5-4 chars/tok
@@ -155,9 +164,83 @@ function createBudgetTracker(opts) {
   return new BudgetTracker(opts);
 }
 
+// ---------------------------------------------------------------------------
+// Per-tier cap policy
+// ---------------------------------------------------------------------------
+//
+// Caps the Anthropic spend per scan based on the customer's tier. The numbers
+// preserve healthy margins on every tier: Quick at $29 caps at $1.50 (95%+
+// margin), Full at $99 caps at $5 (95% margin), Scan+Fix at $199 caps at
+// $12 (94% margin), Nuclear at $399 caps at $30 (92% margin).
+//
+// Override via environment variables (per-tier) for emergency widening:
+//   GATETEST_MAX_USD_QUICK     (default 1.5)
+//   GATETEST_MAX_USD_FULL      (default 5)
+//   GATETEST_MAX_USD_SCAN_FIX  (default 12)
+//   GATETEST_MAX_USD_NUCLEAR   (default 30)
+//
+// Unknown tier → DEFAULT_MAX_USD (12). Stay conservative on unrecognised
+// inputs.
+
+const TIER_CAPS_USD = {
+  quick:    Number(process.env.GATETEST_MAX_USD_QUICK)    || 1.5,
+  full:     Number(process.env.GATETEST_MAX_USD_FULL)     || 5,
+  scan_fix: Number(process.env.GATETEST_MAX_USD_SCAN_FIX) || 12,
+  nuclear:  Number(process.env.GATETEST_MAX_USD_NUCLEAR)  || 30,
+};
+
+const TIER_TOKEN_CAPS = {
+  quick:    Number(process.env.GATETEST_MAX_TOKENS_QUICK)    || 250_000,
+  full:     Number(process.env.GATETEST_MAX_TOKENS_FULL)     || 750_000,
+  scan_fix: Number(process.env.GATETEST_MAX_TOKENS_SCAN_FIX) || 1_500_000,
+  nuclear:  Number(process.env.GATETEST_MAX_TOKENS_NUCLEAR)  || 3_500_000,
+};
+
+/**
+ * Resolve the dollar + token cap for a given tier string. Falls back to
+ * DEFAULT_MAX_USD / DEFAULT_MAX_TOKENS for unknown tiers.
+ *
+ * @param {string} tier 'quick' | 'full' | 'scan_fix' | 'nuclear'
+ * @returns {{ maxUsd: number, maxTokens: number, tier: string }}
+ */
+function capsForTier(tier) {
+  const key = typeof tier === 'string' ? tier.toLowerCase() : '';
+  if (key in TIER_CAPS_USD) {
+    return {
+      tier: key,
+      maxUsd: TIER_CAPS_USD[key],
+      maxTokens: TIER_TOKEN_CAPS[key],
+    };
+  }
+  return {
+    tier: 'unknown',
+    maxUsd: DEFAULT_MAX_USD,
+    maxTokens: DEFAULT_MAX_TOKENS,
+  };
+}
+
+/**
+ * Convenience constructor — builds a tracker pre-configured for a tier.
+ *
+ * @param {string} tier
+ * @param {object} [opts]                Additional BudgetTracker opts
+ * @returns {BudgetTracker}
+ */
+function createTrackerForTier(tier, opts = {}) {
+  const caps = capsForTier(tier);
+  return new BudgetTracker({
+    ...opts,
+    maxUsd: opts.maxUsd || caps.maxUsd,
+    maxTokens: opts.maxTokens || caps.maxTokens,
+    label: opts.label || `${caps.tier}-scan`,
+  });
+}
+
 module.exports = {
   BudgetTracker,
   createBudgetTracker,
+  createTrackerForTier,
+  capsForTier,
   getCurrentTracker,
   runWithTracker,
   estimateTokens,
@@ -167,4 +250,6 @@ module.exports = {
   DEFAULT_MAX_TOKENS,
   DEFAULT_MAX_USD,
   CHARS_PER_TOKEN,
+  TIER_CAPS_USD,
+  TIER_TOKEN_CAPS,
 };

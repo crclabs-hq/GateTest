@@ -178,7 +178,14 @@ class SeoModule extends BaseModule {
   }
 
   _checkSitemap(projectRoot, result) {
-    const sitemapPaths = ['sitemap.xml', 'public/sitemap.xml', 'static/sitemap.xml'];
+    // Accept static files OR Next.js App Router / Nuxt / SvelteKit route-based generation
+    const sitemapPaths = [
+      'sitemap.xml', 'public/sitemap.xml', 'static/sitemap.xml',
+      'app/sitemap.ts', 'app/sitemap.js', 'app/sitemap.tsx',
+      'website/app/sitemap.ts', 'website/app/sitemap.js',
+      'src/app/sitemap.ts', 'src/app/sitemap.js',
+      'pages/sitemap.xml.ts', 'pages/sitemap.xml.js',
+    ];
     const found = sitemapPaths.some(p => fs.existsSync(path.join(projectRoot, p)));
 
     if (!found) {
@@ -192,7 +199,14 @@ class SeoModule extends BaseModule {
   }
 
   _checkRobotsTxt(projectRoot, result) {
-    const robotsPaths = ['robots.txt', 'public/robots.txt', 'static/robots.txt'];
+    // Accept static files OR Next.js App Router / Nuxt / SvelteKit route-based generation
+    const robotsPaths = [
+      'robots.txt', 'public/robots.txt', 'static/robots.txt',
+      'app/robots.ts', 'app/robots.js', 'app/robots.tsx',
+      'website/app/robots.ts', 'website/app/robots.js',
+      'src/app/robots.ts', 'src/app/robots.js',
+      'pages/robots.txt.ts', 'pages/robots.txt.js',
+    ];
     const found = robotsPaths.some(p => fs.existsSync(path.join(projectRoot, p)));
 
     if (!found) {

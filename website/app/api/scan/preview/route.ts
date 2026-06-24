@@ -286,7 +286,7 @@ export async function POST(req: NextRequest) {
       message:
         findings.length > TOP_FINDINGS
           ? `Showing top ${TOP_FINDINGS} of ${scanResult.totalIssues}. Upgrade to Quick ($29) to see them all + tighter scan limits.`
-          : "Upgrade to Full ($99) to scan all 102 modules + auto-fix.",
+          : "Upgrade to Full ($99) to scan all 110 modules + auto-fix.",
       checkoutHint: `POST /api/checkout { tier, repoUrl } to start checkout`,
     },
   });
@@ -299,6 +299,6 @@ export async function GET() {
     deadline: `${HARD_DEADLINE_MS / 1000}s hard timeout`,
     modulesRun: ["syntax", "lint", "secrets", "codeQuality"],
     tier: "free",
-    upgradePath: ["quick ($29)", "full ($99)", "scan_fix ($199)", "nuclear ($399)"],
+    upgradePath: ["quick ($29)", "full ($99)", "scan_fix ($199)", "forensic ($399)"],
   });
 }

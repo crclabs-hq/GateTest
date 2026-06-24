@@ -24,6 +24,14 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { MAX_ATTEMPTS } = require('./scan-queue-store');
 
+// Continuous-tier ($49/mo) diff-size circuit breaker.
+// When a push touches more than this many files, AI-fix is skipped and the
+// customer is prompted to upgrade to Scan + Fix ($199) for whole-repo context.
+// Enforcement point: the AI-on-push path (Known Issue #34) — when that ships
+// the worker checks job.diff_files against this constant before calling Claude.
+// Deterministic scans are never gated — the limit applies to AI invocations only.
+const MAX_DIFF_FILES = 20;
+
 /**
  * Validate that the request came from the Vercel cron OR from an admin.
  * Returns true if either is satisfied. `CRON_SECRET` is set in Vercel
@@ -209,4 +217,5 @@ async function runWorkerTick({
 module.exports = {
   isAuthorisedTick,
   runWorkerTick,
+  MAX_DIFF_FILES,
 };

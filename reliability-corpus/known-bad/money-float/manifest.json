@@ -1,0 +1,20 @@
+{
+  "name": "money-float",
+  "category": "known-bad",
+  "target": "code",
+  "tier": "full",
+  "description": "Currency stored in IEEE-754 floats — the classic fintech bug. moneyFloat module must catch parseFloat on money-named identifiers.",
+  "expected": {
+    "errors": {
+      "moneyFloat": { "atLeast": 1 }
+    },
+    "totalErrorsAtLeast": 1
+  },
+  "budgets": {
+    "maxDurationMs": 15000,
+    "deterministic": true
+  },
+  "labels": ["money-float", "fintech"],
+  "source": "hand-crafted",
+  "createdAt": "2026-05-29T00:00:00Z"
+}

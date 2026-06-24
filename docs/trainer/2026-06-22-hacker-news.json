@@ -1,0 +1,104 @@
+{
+  "generatedAt": "2026-06-22T09:12:12.983Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 5,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 4,
+      "SonarQube": 0,
+      "Semgrep": 1,
+      "CodeQL": 0,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 0
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48624911",
+        "author": "snikolaev",
+        "type": "comment",
+        "title": null,
+        "text": "Authentication, sharded tables, conversational search and faster vector search",
+        "url": "https://news.ycombinator.com/item?id=48624911",
+        "points": null,
+        "numComments": null,
+        "storyId": 48624910,
+        "createdAt": "2026-06-22T02:27:40Z",
+        "createdAtUnix": 1782095260,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48624910",
+        "author": "snikolaev",
+        "type": "story",
+        "title": "Manticore Search 27.1.5",
+        "text": "Manticore Search 27.1.5",
+        "url": "https://manticoresearch.com/blog/manticore-search-27-1-5/",
+        "points": 2,
+        "numComments": 1,
+        "storyId": 48624910,
+        "createdAt": "2026-06-22T02:27:40Z",
+        "createdAtUnix": 1782095260,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48624482",
+        "author": "TacticalCoder",
+        "type": "comment",
+        "title": null,
+        "text": "> I think it's interesting that people write off open weight models because they're \"a few months behind\" proprietary models.The really interesting thing is that it's typically those very same accounts who were explaining, a few months ago, that thanks to their commercial model they were gaining so much time and producing so much fantastic code.A few months passes and suddenly the open-source model have caught up with the models that were gaining them so much time and that produced amazing code (in production everywhere for sure btw) but... It's impossible to work with these models.Rinse and repeat.The current models, according to them, are basically AGI and they can go fishing while paid subscriptions solve the world's problems.But when it six months there shall be new closed, pricey, models and when the open ones shall have reach the level of Fable, we'll hear how it's impossible to work in late 2026 on a model that is \"only at the level of Fable\".These people should have been snake-oil salesmen (and it could be what they actually are).",
+        "url": "https://news.ycombinator.com/item?id=48624482",
+        "points": null,
+        "numComments": null,
+        "storyId": 48622518,
+        "createdAt": "2026-06-22T01:23:25Z",
+        "createdAtUnix": 1782091405,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48622397",
+        "author": "wurf234",
+        "type": "comment",
+        "title": null,
+        "text": "Posting with a fresh account for obvious reasons.After serious issues piling up for a very long time and an equally long journey to get to the root what was bothering me medically I presented to Dr. Douwes a couple years back in his clinic in Bad Aibling.The experience was a bit frightening, to say the least. Their methodology to get a diagnosis was basically just examining my medical history followed by a dark field microscopy (i.e. visually checking a blood sample for spirochetes). After that I was diagnosed with late stage lyme and offered two options: a very handwritten prescription (pencil on notepad, w&#x2F;o doctors signature, not rubberstamped, looking very shady) for herbal ingredients (basically artemisia annua leaves and some roots to brew a tea) - without any tips where to get that from and not really exact dosages given. Option 2: ambulant Hyperthermia + painkillers (to supress pain from the hyperthermia) + a combination of antibiotics (parenteral) for 2 or 3 weeks. Extracting a fortune (20k ballpark)They also offer hyperthermia treatment for cancer and long covid & me&#x2F;cfs if I am not mistaken.The visit really had a smell to it and left me with unease. Look up the group's company network in the Handelsregister and decide for yourself, I got some PE vibes from it. I chickened out and went to someone else, luckily Germany has quite a few private MDs specializing on lyme and other tickborne diseases. What I got in general: most treatments are not evidence based and theres lots of snake oil around, some of the patients are very desparate, me included back then. PS: I made good progress, but am still on meds since. Apparently there's no eradication for late stage lyme. Maybe there are lucky cases, but the slow growth of borrelia spirochetes makes treatment very tedious, much like or even worse than with tuberculosis. I am sure that their treatment actually does help, but it is kind of a hail mary (combo of broad spectrum antibiotics is basically applying blunt force).",
+        "url": "https://news.ycombinator.com/item?id=48622397",
+        "points": null,
+        "numComments": null,
+        "storyId": 48584261,
+        "createdAt": "2026-06-21T20:39:10Z",
+        "createdAtUnix": 1782074350,
+        "intent": "criticism"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48617245",
+        "author": "keiferski",
+        "type": "comment",
+        "title": null,
+        "text": "AFAIK students are routed into apprenticeship programs quite early in Germany and some other European countries, early enough that American sensibilities find the idea off-putting.The idea that your future career outlook is basically determined by the time you’re a young teenager is seen as unnecessarily limiting.In practice there are plenty of apprenticeships for the trades, but they start in high school or later and are functionally socially invisible to people that go to college. Probably because there is more economic segregation in the US than in most European cities.",
+        "url": "https://news.ycombinator.com/item?id=48617245",
+        "points": null,
+        "numComments": null,
+        "storyId": 48609553,
+        "createdAt": "2026-06-21T09:38:11Z",
+        "createdAtUnix": 1782034691,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": []
+  },
+  "painPoints": [],
+  "actionItems": []
+}

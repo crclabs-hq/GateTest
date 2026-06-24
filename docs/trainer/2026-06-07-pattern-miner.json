@@ -1,0 +1,164 @@
+{
+  "generatedAt": "2026-06-07T07:06:55.936Z",
+  "inputs": {
+    "sessionFixCount": 118,
+    "fixAttemptCount": 0
+  },
+  "topModulesByFixCount": [
+    {
+      "module": "ci",
+      "count": 11
+    },
+    {
+      "module": "tests",
+      "count": 6
+    },
+    {
+      "module": "ai-ci-fixer",
+      "count": 5
+    },
+    {
+      "module": "(unattributed)",
+      "count": 5
+    },
+    {
+      "module": "types",
+      "count": 5
+    },
+    {
+      "module": "envvars",
+      "count": 4
+    },
+    {
+      "module": "website",
+      "count": 4
+    },
+    {
+      "module": "watchdog",
+      "count": 4
+    },
+    {
+      "module": "integrations",
+      "count": 4
+    },
+    {
+      "module": "gate",
+      "count": 4
+    }
+  ],
+  "topRuleKeysByAttempts": [],
+  "recurringSubjects": [],
+  "underTestedModules": [
+    {
+      "module": "ci",
+      "fixes": 11,
+      "tests": 0,
+      "testPerFix": 0
+    },
+    {
+      "module": "(unattributed)",
+      "fixes": 5,
+      "tests": 3,
+      "testPerFix": 0.6
+    },
+    {
+      "module": "types",
+      "fixes": 5,
+      "tests": 0,
+      "testPerFix": 0
+    },
+    {
+      "module": "envvars",
+      "fixes": 4,
+      "tests": 0,
+      "testPerFix": 0
+    },
+    {
+      "module": "website",
+      "fixes": 4,
+      "tests": 1,
+      "testPerFix": 0.25
+    },
+    {
+      "module": "integrations",
+      "fixes": 4,
+      "tests": 0,
+      "testPerFix": 0
+    },
+    {
+      "module": "gate",
+      "fixes": 4,
+      "tests": 0,
+      "testPerFix": 0
+    }
+  ],
+  "layerStats": {
+    "layers": {
+      "ast": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "rule": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "recipe": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "claude": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "null": {
+        "attempts": 0,
+        "successes": 0
+      }
+    },
+    "total": 0,
+    "claudeShare": 0,
+    "deterministicShare": 0
+  },
+  "recommendations": [
+    {
+      "kind": "investigate-module",
+      "module": "ci",
+      "reason": "11 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "tests",
+      "reason": "6 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "ai-ci-fixer",
+      "reason": "5 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "ci",
+      "reason": "11 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "(unattributed)",
+      "reason": "5 fixes / 3 tests added (0.6/fix) — lock down the pattern with a regression test"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "types",
+      "reason": "5 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "envvars",
+      "reason": "4 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "website",
+      "reason": "4 fixes / 1 tests added (0.25/fix) — lock down the pattern with a regression test"
+    }
+  ]
+}

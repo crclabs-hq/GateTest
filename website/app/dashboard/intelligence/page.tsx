@@ -165,7 +165,7 @@ export default function IntelligenceDashboard() {
           <div className="p-8 rounded-2xl border border-amber-200 bg-amber-50 text-center">
             <p className="font-bold text-amber-800 mb-1">No prior scans found for this repo.</p>
             <p className="text-sm text-amber-700">
-              Run a Full or Nuclear scan first — then come back here to see how it compares to similar stacks.
+              Run a Full or Forensic scan first — then come back here to see how it compares to similar stacks.
             </p>
             <Link href="/#pricing" className="mt-4 inline-block btn-primary px-5 py-2 text-sm" style={{ background: "#0f766e" }}>
               Run a scan →

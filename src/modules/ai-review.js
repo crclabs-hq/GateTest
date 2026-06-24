@@ -15,7 +15,7 @@ const path = require('path');
 const https = require('https');
 
 const ANTHROPIC_API_HOST = 'api.anthropic.com';
-const MODEL = 'claude-sonnet-4-20250514';
+const MODEL = 'claude-sonnet-4-6';
 const MAX_FILES_PER_REVIEW = 10;
 const MAX_FILE_SIZE = 50000; // 50KB per file
 

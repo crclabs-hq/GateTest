@@ -260,3 +260,103 @@ describe('BudgetTracker — realistic scan flow', () => {
     assert.ok(callsMade >= 5, 'at least 5 calls fit before cap');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Per-tier caps — Manifest #20 / runway protection
+// ---------------------------------------------------------------------------
+
+describe('budget-tracker — capsForTier', () => {
+  const { capsForTier, TIER_CAPS_USD, TIER_TOKEN_CAPS, DEFAULT_MAX_USD, DEFAULT_MAX_TOKENS } = require('../website/app/lib/budget-tracker');
+
+  it('returns documented quick-tier caps', () => {
+    const c = capsForTier('quick');
+    assert.equal(c.tier, 'quick');
+    assert.equal(c.maxUsd, TIER_CAPS_USD.quick);
+    assert.equal(c.maxTokens, TIER_TOKEN_CAPS.quick);
+  });
+
+  it('returns documented full-tier caps', () => {
+    const c = capsForTier('full');
+    assert.equal(c.tier, 'full');
+    assert.equal(c.maxUsd, TIER_CAPS_USD.full);
+  });
+
+  it('returns documented scan_fix and nuclear caps', () => {
+    assert.equal(capsForTier('scan_fix').tier, 'scan_fix');
+    assert.equal(capsForTier('nuclear').tier, 'nuclear');
+    assert.ok(capsForTier('nuclear').maxUsd > capsForTier('scan_fix').maxUsd);
+    assert.ok(capsForTier('scan_fix').maxUsd > capsForTier('full').maxUsd);
+    assert.ok(capsForTier('full').maxUsd > capsForTier('quick').maxUsd);
+  });
+
+  it('is case-insensitive', () => {
+    assert.equal(capsForTier('QUICK').tier, 'quick');
+    assert.equal(capsForTier('Nuclear').tier, 'nuclear');
+  });
+
+  it('falls back to defaults on unknown tier', () => {
+    const c = capsForTier('mystery');
+    assert.equal(c.tier, 'unknown');
+    assert.equal(c.maxUsd, DEFAULT_MAX_USD);
+    assert.equal(c.maxTokens, DEFAULT_MAX_TOKENS);
+  });
+
+  it('falls back to defaults on null/undefined/non-string', () => {
+    assert.equal(capsForTier(null).tier, 'unknown');
+    assert.equal(capsForTier(undefined).tier, 'unknown');
+    assert.equal(capsForTier(42).tier, 'unknown');
+  });
+
+  it('healthy margins on each tier vs price', () => {
+    // Quick $29 → cap $1.50 → 94.8% margin (before fixed costs)
+    // Full $99 → cap $5  → 94.9% margin
+    // Scan+Fix $199 → cap $12 → 94.0% margin
+    // Nuclear $399 → cap $30 → 92.5% margin
+    assert.ok(capsForTier('quick').maxUsd    <= 29 * 0.10, 'quick cap < 10% of $29');
+    assert.ok(capsForTier('full').maxUsd     <= 99 * 0.10, 'full cap < 10% of $99');
+    assert.ok(capsForTier('scan_fix').maxUsd <= 199 * 0.10, 'scan_fix cap < 10% of $199');
+    assert.ok(capsForTier('nuclear').maxUsd  <= 399 * 0.10, 'nuclear cap < 10% of $399');
+  });
+});
+
+describe('budget-tracker — createTrackerForTier', () => {
+  const { createTrackerForTier, capsForTier } = require('../website/app/lib/budget-tracker');
+
+  it('returns a tracker pre-configured for the tier', () => {
+    const t = createTrackerForTier('full');
+    const caps = capsForTier('full');
+    assert.equal(t.maxUsd, caps.maxUsd);
+    assert.equal(t.maxTokens, caps.maxTokens);
+    assert.match(t.label, /full/);
+  });
+
+  it('caller-provided maxUsd / maxTokens / label override the tier defaults', () => {
+    const t = createTrackerForTier('quick', { maxUsd: 99, maxTokens: 999, label: 'custom' });
+    assert.equal(t.maxUsd, 99);
+    assert.equal(t.maxTokens, 999);
+    assert.equal(t.label, 'custom');
+  });
+
+  it('falls back to defaults on unknown tier', () => {
+    const t = createTrackerForTier('weird');
+    assert.ok(t.maxUsd > 0);
+    assert.ok(t.maxTokens > 0);
+  });
+
+  it('enforces the tier cap mid-flight', () => {
+    const t = createTrackerForTier('quick'); // $1.50 cap
+    // Synthesise calls that quickly blow $1.50. At $15/MTok output that's
+    // ~100k output tokens = ~30 calls of 3k tokens each.
+    let blocked = false;
+    for (let i = 0; i < 200; i++) {
+      try {
+        t.preflight();
+        t.record('', { data: { usage: { input_tokens: 5000, output_tokens: 5000 } } });
+      } catch (e) {
+        if (e.code === 'BUDGET_EXCEEDED') { blocked = true; break; }
+        throw e;
+      }
+    }
+    assert.equal(blocked, true, 'quick-tier cap must trip');
+  });
+});

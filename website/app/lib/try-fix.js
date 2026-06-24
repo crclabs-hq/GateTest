@@ -39,7 +39,7 @@ const LAYER_TIMEOUT_MS = 30_000;
 const CLAUDE_PRICING = {
   // claude-sonnet-4-6 — sonnet pricing as of 2026-04
   'claude-sonnet-4-6':       { inputPer1K: 0.003, outputPer1K: 0.015 },
-  'claude-sonnet-4-20250514':{ inputPer1K: 0.003, outputPer1K: 0.015 },
+  'claude-sonnet-4-6':{ inputPer1K: 0.003, outputPer1K: 0.015 },
   default:                   { inputPer1K: 0.003, outputPer1K: 0.015 },
 };
 

@@ -183,7 +183,7 @@ export default function NextJsPage() {
           </h1>
           <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
             GateTest understands Next.js — App Router conventions, server actions, Vercel deployment config,
-            next.config.js security headers, and NEXT_PUBLIC_* environment variable exposure. 102 modules
+            next.config.js security headers, and NEXT_PUBLIC_* environment variable exposure. 110 modules
             built for the way modern Next.js apps are actually structured.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mt-8">
@@ -310,7 +310,7 @@ export default function NextJsPage() {
             Ship Next.js apps with confidence.
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
-            102 modules, App Router awareness, AI-powered review on every paid tier, and AI auto-fix PRs at the Scan + Fix tier ($199) and Nuclear ($399). Pay only when results are delivered.
+            110 modules, App Router awareness, AI-powered review on every paid tier, and AI auto-fix PRs at the Scan + Fix tier ($199) and Forensic Scan ($399). Pay only when results are delivered.
           </p>
           <Link
             href="/"
@@ -331,7 +331,6 @@ export default function NextJsPage() {
           <div className="flex items-center gap-6">
             <Link href="/for/typescript" className="hover:text-white/60 transition-colors">TypeScript</Link>
             <Link href="/for/nodejs" className="hover:text-white/60 transition-colors">Node.js</Link>
-            <Link href="/for/python" className="hover:text-white/60 transition-colors">Python</Link>
           </div>
         </div>
       </footer>

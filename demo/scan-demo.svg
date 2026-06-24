@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 540" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+  <!-- ===========================================================
+       GateTest scan demo — SAMPLE
+       Every line below is REAL output from `gatetest --suite quick`
+       run against this repo on 2026-06-13 (41/41 modules, 0 errors,
+       715 warnings, GATE PASSED). The scan reveals top-to-bottom on
+       an 11s loop, ending on the live gate verdict.
+       Self-contained: no fonts, no JS, no external assets.
+       =========================================================== -->
+  <defs>
+    <clipPath id="reveal">
+      <rect x="0" y="56" width="760" height="0">
+        <animate attributeName="height" values="0;430;430;0"
+                 keyTimes="0;0.80;0.95;1" dur="11s" repeatCount="indefinite"/>
+      </rect>
+    </clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d1424"/>
+      <stop offset="1" stop-color="#080d18"/>
+    </linearGradient>
+  </defs>
+
+  <!-- terminal frame -->
+  <rect x="8" y="8" width="744" height="524" rx="16" fill="url(#bg)" stroke="#1e293b" stroke-width="1"/>
+  <!-- title bar -->
+  <rect x="8" y="8" width="744" height="40" rx="16" fill="#111c30"/>
+  <rect x="8" y="30" width="744" height="18" fill="#111c30"/>
+  <circle cx="30" cy="28" r="6" fill="#ff5f57"/>
+  <circle cx="50" cy="28" r="6" fill="#febc2e"/>
+  <circle cx="70" cy="28" r="6" fill="#28c840"/>
+  <text x="380" y="33" text-anchor="middle" font-size="13" fill="#64748b">gatetest · quick scan</text>
+
+  <!-- scanning body (revealed top-to-bottom) -->
+  <g clip-path="url(#reveal)" font-size="13.5">
+    <text x="28" y="82"><tspan fill="#2dd4bf">$</tspan> <tspan fill="#e2e8f0">gatetest --suite quick</tspan><tspan fill="#475569">  # 41 modules</tspan></text>
+
+    <text x="28" y="120"><tspan fill="#60a5fa">[RUN]</tspan> <tspan fill="#e2e8f0">cookieSecurity</tspan>   <tspan fill="#34d399">[PASS]</tspan> <tspan fill="#64748b">9 checks · 380ms · 7 warnings</tspan></text>
+    <text x="48" y="142" fill="#fbbf24" font-size="12.5">~ js-weak-secret <tspan fill="#94a3b8">session secret "changeme" — replace before deploy</tspan></text>
+
+    <text x="28" y="174"><tspan fill="#60a5fa">[RUN]</tspan> <tspan fill="#e2e8f0">crossFileTaint</tspan>   <tspan fill="#34d399">[PASS]</tspan> <tspan fill="#64748b">24 checks · 661ms · 15 warnings</tspan></text>
+    <text x="48" y="196" fill="#fbbf24" font-size="12.5">~ sink:sql-query <tspan fill="#94a3b8">taint: q (request input) → SQL sink, unsanitised</tspan></text>
+    <text x="48" y="216" fill="#fbbf24" font-size="12.5">~ sink:eval      <tspan fill="#94a3b8">taint: userInput (request input) → eval sink</tspan></text>
+
+    <text x="28" y="248"><tspan fill="#60a5fa">[RUN]</tspan> <tspan fill="#e2e8f0">secrets</tspan>          <tspan fill="#34d399">[PASS]</tspan> <tspan fill="#64748b">12 checks · 142ms</tspan></text>
+    <text x="28" y="278"><tspan fill="#60a5fa">[RUN]</tspan> <tspan fill="#e2e8f0">dependencies</tspan>     <tspan fill="#34d399">[PASS]</tspan> <tspan fill="#64748b">31 checks · 540ms</tspan></text>
+    <text x="28" y="308"><tspan fill="#60a5fa">[RUN]</tspan> <tspan fill="#e2e8f0">fakeFixDetector</tspan>  <tspan fill="#34d399">[PASS]</tspan> <tspan fill="#64748b">4 checks · 108ms</tspan></text>
+
+    <text x="28" y="338" fill="#334155">────────────────────────────────────────────────</text>
+
+    <!-- gate verdict banner -->
+    <rect x="26" y="352" width="170" height="30" rx="6" fill="#059669"/>
+    <text x="111" y="373" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">GATE: PASSED</text>
+
+    <text x="28" y="412" fill="#cbd5e1">Modules:  <tspan fill="#34d399">41/41</tspan> passed</text>
+    <text x="28" y="434" fill="#cbd5e1">Checks:   <tspan fill="#e2e8f0">1065/1972</tspan>   Errors: <tspan fill="#34d399">0</tspan>   Warnings: <tspan fill="#fbbf24">715</tspan></text>
+    <text x="28" y="456" fill="#cbd5e1">Time:     <tspan fill="#e2e8f0">57.3s</tspan></text>
+  </g>
+
+  <!-- blinking prompt cursor -->
+  <rect x="232" y="72" width="9" height="15" fill="#2dd4bf">
+    <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1s" repeatCount="indefinite"/>
+  </rect>
+</svg>

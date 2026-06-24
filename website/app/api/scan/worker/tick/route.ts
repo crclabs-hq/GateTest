@@ -27,6 +27,7 @@ import { isAdminRequest } from "@/app/lib/admin-auth";
 import { runScan } from "@/app/lib/scan-executor";
 import { sendGluecronCallback } from "@/app/lib/gluecron-callback";
 import { sendGithubCallback } from "@/app/lib/github-callback";
+import { getAdminOrgs } from "@/app/lib/admin-platforms";
 
 // CommonJS interop.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -46,13 +47,15 @@ interface CallbackArgs {
 
 async function dispatchCallback(args: CallbackArgs): Promise<void> {
   if (args.host === "github") {
+    // Pre-fetch admin orgs from the platform registry (fail-open).
+    const dbAdminOrgs = await getAdminOrgs().catch(() => [] as string[]);
     await sendGithubCallback({
       repository: args.repository,
       sha: args.sha,
       ref: args.ref ?? null,
       pullRequestNumber: args.pullRequestNumber ?? null,
       scanResult: args.scanResult as object,
-
+      dbAdminOrgs,
     });
   } else {
     await sendGluecronCallback({

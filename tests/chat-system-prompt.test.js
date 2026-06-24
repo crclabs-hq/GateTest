@@ -72,8 +72,8 @@ test('AGENT_RULES explicitly forbids redirecting to email / phone', () => {
   assert.equal(/hello@gatetest\.ai/i.test(AGENT_RULES), false);
 });
 
-test('CHAT_MODEL is a Sonnet 4 family identifier', () => {
-  assert.match(CHAT_MODEL, /^claude-sonnet/);
+test('CHAT_MODEL is the latest Opus identifier (per Craig 2026-05-20 directive)', () => {
+  assert.match(CHAT_MODEL, /^claude-sonnet-4-6$/);
 });
 
 test('CHAT_MAX_TOKENS is conservatively bounded', () => {

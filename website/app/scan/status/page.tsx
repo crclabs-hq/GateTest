@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import FindingsPanel from "@/app/components/FindingsPanel";
+import FindingsPanel, { type Finding } from "@/app/components/FindingsPanel";
 import LiveScanTerminal from "@/app/components/LiveScanTerminal";
 import { extractIssuesFromModules, type UnparseableIssue } from "@/app/lib/issue-extractor";
 
@@ -84,6 +84,32 @@ export default function ScanStatus() {
   const [fixing, setFixing] = useState(false);
   const [fixResult, setFixResult] = useState<FixResult | null>(null);
   const [fixError, setFixError] = useState("");
+  // Customer-supplied GitHub PAT — used for THIS request only, never
+  // stored, never logged. When the customer doesn't have our GitHub
+  // App installed AND isn't logged in via OAuth, this is the no-friction
+  // path to get a fix PR opened on their repo: paste token → run fix → PR.
+  const [customerPat, setCustomerPat] = useState("");
+  const [showPatInput, setShowPatInput] = useState(false);
+
+  // Logged-in customer (GitHub OAuth). When set, the fix flow uses the
+  // session's OAuth access token automatically — no PAT input needed.
+  // Probed via /api/auth/me on mount (which reads the encrypted session
+  // cookie and returns the GitHub login if valid).
+  const [signedInUser, setSignedInUser] = useState<{ login: string; email?: string } | null>(null);
+  const [upgradingToFix, setUpgradingToFix] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data && typeof data.login === "string") {
+          setSignedInUser({ login: data.login, email: data.email });
+        }
+      })
+      .catch(() => { /* not signed in — leave null */ });
+    return () => { cancelled = true; };
+  }, []);
   const startTimeRef = useRef(Date.now());
   const scanTriggered = useRef(false);
   const fixTriggered = useRef(false);
@@ -229,7 +255,24 @@ export default function ScanStatus() {
       const res = await fetch("/api/scan/fix", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repoUrl: params.repo, issues, tier: params.tier || "full" }),
+        body: JSON.stringify({
+          repoUrl: params.repo,
+          issues,
+          tier: params.tier || "full",
+          // Phase 1.2b — baseline findings from THIS scan, so the
+          // cross-fix scanner gate diffs against what the customer
+          // actually paid to have found (server hydrates the workspace
+          // itself; sending file contents from the browser is wasteful).
+          originalFindingsByModule: Object.fromEntries(
+            scanResult.modules
+              .filter((m) => (m.details || []).length > 0)
+              .map((m) => [m.name, m.details as string[]])
+          ),
+          // Optional one-shot PAT — server uses it ONLY for this request,
+          // never stores. When empty, server falls back to the GitHub
+          // App installation (if present) or the configured env token.
+          ...(customerPat ? { customerPat } : {}),
+        }),
       });
       const data = await res.json() as FixResult;
       setFixResult(data);
@@ -237,6 +280,26 @@ export default function ScanStatus() {
       setFixError(err instanceof Error ? err.message : "Fix failed");
     } finally {
       setFixing(false);
+    }
+  }
+
+  async function handleUpgradeToFix(upgradeTier: string) {
+    if (upgradingToFix || !params.repo) return;
+    setUpgradingToFix(true);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier: upgradeTier, repoUrl: params.repo }),
+      });
+      const data = await res.json() as { checkoutUrl?: string };
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        setUpgradingToFix(false);
+      }
+    } catch {
+      setUpgradingToFix(false);
     }
   }
 
@@ -249,7 +312,7 @@ export default function ScanStatus() {
     if (scanResult?.status !== "complete") return;
     if ((scanResult.totalIssues || 0) === 0) return;
     if (extractFixableIssues(scanResult.modules).length === 0) return;
-    // Gate: only Scan+Fix ($199) and Nuclear ($399) get the auto-fix.
+    // Gate: only Scan+Fix ($199) and Forensic ($399) get the auto-fix.
     if (params.tier !== "scan_fix" && params.tier !== "nuclear") return;
     fixTriggered.current = true;
     runFix();
@@ -296,6 +359,9 @@ export default function ScanStatus() {
           {params.repo && (
             <p className="text-sm text-muted font-mono">{params.repo}</p>
           )}
+          <p className="mt-2 text-xs text-slate-400">
+            🔒 Your code is scanned in memory and never stored on our servers.
+          </p>
         </div>
 
         {/* Progress */}
@@ -452,7 +518,12 @@ export default function ScanStatus() {
 
             {/* Beautiful findings panel — severity, file:line, filter, search */}
             {scanResult && scanResult.modules.length > 0 && (
-              <FindingsPanel modules={scanResult.modules} repoUrl={params.repo} />
+              <FindingsPanel
+                modules={scanResult.modules}
+                repoUrl={params.repo}
+                tier={params.tier}
+                onUpgradeToFix={(_f: Finding) => handleUpgradeToFix("scan_fix")}
+              />
             )}
 
             {/* Manual-review surfacing — findings whose file location couldn't
@@ -486,22 +557,113 @@ export default function ScanStatus() {
               <div className="p-5 rounded-xl border border-border bg-white">
                 <h2 className="font-bold text-foreground mb-2">Or let GateTest fix it for you</h2>
                 <p className="text-sm text-muted mb-4">
-                  Skip the copy-paste — Claude reads each finding, generates the fix, re-validates against the scanner, writes a regression test, and opens a pull request on your repo. Included with your {params.tier === "nuclear" ? "Nuclear" : "Scan + Fix"} tier.
+                  Skip the copy-paste — Claude reads each finding, generates the fix, re-validates against the scanner, writes a regression test, and opens a pull request on your repo. Included with your {params.tier === "nuclear" ? "Forensic Scan" : "Scan + Fix"} tier.
                 </p>
 
                 {!fixResult && !fixing && (
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <button
-                      onClick={runFix}
-                      className="btn-primary px-6 py-3 text-sm text-center"
-                      style={{ background: "#059669" }}
-                    >
-                      Fix {scanResult?.totalIssues} Issue{(scanResult?.totalIssues || 0) > 1 ? "s" : ""} with AI
-                    </button>
-                    <Link href="/#pricing" className="btn-secondary px-6 py-3 text-sm text-center">
-                      Scan Another Repo
-                    </Link>
-                  </div>
+                  <>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={runFix}
+                        className="btn-primary px-6 py-3 text-sm text-center"
+                        style={{ background: "#059669" }}
+                      >
+                        Fix {scanResult?.totalIssues} Issue{(scanResult?.totalIssues || 0) > 1 ? "s" : ""} with AI
+                      </button>
+                      <Link href="/#pricing" className="btn-secondary px-6 py-3 text-sm text-center">
+                        Scan Another Repo
+                      </Link>
+                    </div>
+
+                    {/* Authentication for fix-PR creation. Three paths, in
+                        order of preference:
+                          1. Signed in via GitHub OAuth — token used automatically
+                          2. GateTestHQ App installed on the repo — falls through
+                          3. One-shot PAT pasted by the customer */}
+                    <div className="mt-5 pt-5 border-t border-border/60">
+                      {signedInUser ? (
+                        <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 flex items-start gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" aria-hidden />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-emerald-900">
+                              Signed in as <code className="font-mono">{signedInUser.login}</code>
+                            </p>
+                            <p className="text-xs text-emerald-800/80 mt-0.5">
+                              The fix PR will open on your repo using your GitHub OAuth token.
+                              No PAT needed.
+                            </p>
+                          </div>
+                        </div>
+                      ) : !showPatInput ? (
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold text-foreground">
+                            To get the auto-fix PR on your repo:
+                          </p>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <a
+                              href={`/api/auth/github?next=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname + window.location.search : "/")}`}
+                              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-foreground text-background text-sm font-semibold hover:opacity-90 transition-opacity"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                              </svg>
+                              Sign in with GitHub
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => setShowPatInput(true)}
+                              className="text-xs text-muted hover:text-foreground underline-offset-2 hover:underline sm:self-center"
+                            >
+                              or paste a one-shot PAT instead &rarr;
+                            </button>
+                          </div>
+                          <p className="text-[11px] text-muted">
+                            Sign-in uses GitHub OAuth — we get a token scoped to your repos,
+                            you stay in control. See <Link href="/trust" className="text-accent-light hover:underline">/trust</Link>.
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <label htmlFor="customer-pat" className="block text-xs font-semibold text-foreground mb-2">
+                            GitHub Personal Access Token (one-shot &mdash; never stored)
+                          </label>
+                          <input
+                            id="customer-pat"
+                            type="password"
+                            autoComplete="off"
+                            spellCheck={false}
+                            value={customerPat}
+                            onChange={(e) => setCustomerPat(e.target.value.trim())}
+                            placeholder="ghp_… or github_pat_…"
+                            className="w-full px-3 py-2 rounded-lg border border-border bg-white text-sm font-mono"
+                          />
+                          <p className="text-[11px] text-muted mt-2 leading-relaxed">
+                            Used <strong>only for this one fix request</strong>, never persisted,
+                            never logged. Generate one at{" "}
+                            <a
+                              href="https://github.com/settings/tokens/new?scopes=repo&description=GateTest+one-shot+fix"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-accent-light hover:underline"
+                            >
+                              github.com/settings/tokens
+                            </a>{" "}
+                            (classic, scope <code>repo</code>) or{" "}
+                            <a
+                              href="https://github.com/settings/personal-access-tokens/new"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-accent-light hover:underline"
+                            >
+                              fine-grained
+                            </a>{" "}
+                            (Contents: write + Pull requests: write, scoped to this one repo).
+                            See <Link href="/trust" className="text-accent-light hover:underline">/trust</Link> for the privacy contract.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
 
                 {fixing && (
@@ -597,36 +759,44 @@ export default function ScanStatus() {
                   </p>
                   <div className={`grid grid-cols-1 ${params.tier === "quick" ? "md:grid-cols-3" : "md:grid-cols-2"} gap-4`}>
                     {params.tier === "quick" && (
-                      <Link
-                        href="/#pricing"
-                        className="group p-5 rounded-lg border border-border bg-white hover:border-accent/40 hover:shadow-md transition-all block"
+                      <button
+                        type="button"
+                        onClick={() => handleUpgradeToFix("full")}
+                        disabled={upgradingToFix}
+                        className="group p-5 rounded-lg border border-border bg-white hover:border-accent/40 hover:shadow-md transition-all text-left disabled:opacity-60"
                       >
                         <p className="text-xs uppercase tracking-wider text-muted/70 font-semibold mb-1">Step 1</p>
                         <p className="font-bold text-foreground mb-1 text-base">Full Scan &mdash; $99</p>
-                        <p className="text-xs text-muted leading-relaxed">All 102 modules instead of 4. Same scan-only delivery, full coverage. You see every issue, then decide what to fix.</p>
-                      </Link>
+                        <p className="text-xs text-muted leading-relaxed">All 110 modules instead of 4. Same scan-only delivery, full coverage. You see every issue, then decide what to fix.</p>
+                      </button>
                     )}
-                    <Link
-                      href="/#pricing"
-                      className="group relative p-5 rounded-lg border-2 border-accent bg-white hover:bg-accent/5 hover:shadow-lg transition-all block ring-2 ring-accent/20"
+                    <button
+                      type="button"
+                      onClick={() => handleUpgradeToFix("scan_fix")}
+                      disabled={upgradingToFix}
+                      className="group relative p-5 rounded-lg border-2 border-accent bg-white hover:bg-accent/5 hover:shadow-lg transition-all text-left ring-2 ring-accent/20 disabled:opacity-60"
                     >
                       <div className="absolute -top-2.5 left-4 px-2 py-0.5 rounded-full bg-accent text-white text-[10px] font-bold uppercase tracking-wider">
                         Most popular
                       </div>
                       <p className="text-xs uppercase tracking-wider text-accent font-semibold mb-1 mt-1">Recommended for you</p>
-                      <p className="font-bold text-foreground mb-1 text-base">Scan + Fix &mdash; $199</p>
+                      <p className="font-bold text-foreground mb-1 text-base">
+                        {upgradingToFix ? "Redirecting to checkout…" : "Scan + Fix — $199"}
+                      </p>
                       <p className="text-xs text-muted leading-relaxed">
                         Everything in Full <span className="font-semibold text-foreground">plus</span> Claude opens a PR with up to {scanResult?.totalIssues} fixes, regression tests, and pair-review. The auto-fix loop.
                       </p>
-                    </Link>
-                    <Link
-                      href="/#pricing"
-                      className="group p-5 rounded-lg border border-border bg-white hover:border-accent/40 hover:shadow-md transition-all block"
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUpgradeToFix("nuclear")}
+                      disabled={upgradingToFix}
+                      className="group p-5 rounded-lg border border-border bg-white hover:border-accent/40 hover:shadow-md transition-all text-left disabled:opacity-60"
                     >
                       <p className="text-xs uppercase tracking-wider text-muted/70 font-semibold mb-1">For CTOs</p>
-                      <p className="font-bold text-foreground mb-1 text-base">Nuclear &mdash; $399</p>
+                      <p className="font-bold text-foreground mb-1 text-base">Forensic Scan &mdash; $399</p>
                       <p className="text-xs text-muted leading-relaxed">Scan + Fix + per-finding Claude diagnosis + attack-chain correlation + board-ready CISO executive summary.</p>
-                    </Link>
+                    </button>
                   </div>
                   <p className="mt-5 text-xs text-muted text-center">
                     Per-scan payment via Stripe &middot; one-time, no subscription &middot; <span className="text-teal-700 font-medium">gets sharper with every scan</span>
@@ -639,8 +809,8 @@ export default function ScanStatus() {
               <div className="p-5 rounded-xl border border-border bg-white text-center">
                 <p className="text-sm text-muted mb-4">
                   {params.tier === "quick"
-                    ? "Passed the Quick Scan. Want to go deeper with all 102 modules?"
-                    : "Clean across all 102 modules."}
+                    ? "Passed the Quick Scan. Want to go deeper with all 110 modules?"
+                    : "Clean across all 110 modules."}
 
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">

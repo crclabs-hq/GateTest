@@ -96,12 +96,12 @@ test('readEnv parses MAX_FIX_ATTEMPTS and CLAUDE_MODEL', () => {
     GITHUB_REPOSITORY: 'o/r',
     WORKFLOW_RUN_ID:   '42',
     MAX_FIX_ATTEMPTS:  '5',
-    CLAUDE_MODEL:      'claude-opus-4-7',
+    CLAUDE_MODEL:      'claude-sonnet-4-6',
   };
   const cfg = fixer.readEnv(env);
   assert.equal(cfg.ok, true);
   assert.equal(cfg.maxAttempts, 5);
-  assert.equal(cfg.model, 'claude-opus-4-7');
+  assert.equal(cfg.model, 'claude-sonnet-4-6');
 });
 
 test('readEnv falls back to defaults when MAX_FIX_ATTEMPTS is unset/invalid', () => {
@@ -186,6 +186,43 @@ test('applyPatches writes files to a tmpdir', () => {
   }
 });
 
+// Regression: applyPatches must snapshot pre-write originalContent +
+// newContent to `.gatetest/fix-patches.json` so the downstream
+// scripts/post-inline-suggestions.js helper can compute change hunks
+// AFTER the fix is applied. Without the snapshot, the helper reads
+// disk and gets the FIXED content as "original" → no diff → no
+// suggestion ever posted.
+test('applyPatches snapshots patches to .gatetest/fix-patches.json', () => {
+  const dir = makeTmpDir();
+  try {
+    // Seed an original file so the snapshot captures the BEFORE content.
+    fs.writeFileSync(path.join(dir, 'original.js'), 'console.log("before");\n');
+
+    fixer.applyPatches([
+      { file: 'original.js', content: 'console.log("after");\n', reason: 'remove debug log' },
+      { file: 'fresh.js',    content: 'export const x = 1;\n' }, // no prior file
+    ], dir);
+
+    const snapshotPath = path.join(dir, '.gatetest', 'fix-patches.json');
+    assert.ok(fs.existsSync(snapshotPath), 'fix-patches.json must be written');
+    const snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf-8'));
+    assert.equal(snapshot.length, 2);
+
+    const originalPatch = snapshot.find((s) => s.file === 'original.js');
+    assert.equal(originalPatch.originalContent, 'console.log("before");\n',
+      'snapshot must capture pre-write content for existing files');
+    assert.equal(originalPatch.newContent, 'console.log("after");\n');
+    assert.equal(originalPatch.reason, 'remove debug log');
+
+    const freshPatch = snapshot.find((s) => s.file === 'fresh.js');
+    assert.equal(freshPatch.originalContent, '',
+      'snapshot for net-new files must have empty originalContent');
+    assert.equal(freshPatch.newContent, 'export const x = 1;\n');
+  } finally {
+    cleanup(dir);
+  }
+});
+
 test('applyPatches refuses path-traversal patches', () => {
   const dir = makeTmpDir();
   try {
@@ -262,7 +299,7 @@ test('buildClaudePrompt includes the log and at least one file when within budge
   const files = [{ path: 'src/foo.js', content: 'function foo() {}' }];
   const prompt = fixer.buildClaudePrompt(log, files);
   assert.match(prompt, /an error happened/);
-  assert.match(prompt, /FILE: src\/foo\.js/);
+  assert.match(prompt, /src\/foo\.js/);
   assert.match(prompt, /function foo/);
 });
 
@@ -315,6 +352,9 @@ test('runFixer caps at MAX_FIX_ATTEMPTS when Claude returns unparseable response
       runner:      () => ({ status: 0, stdout: '', stderr: '' }),
       gate:        () => ({ ok: false, stdout: '', stderr: '' }),
       git:         () => ({ ok: true, status: 0, stdout: '', stderr: '' }),
+      // Stub diagnosis — it's a separate Claude call we don't want
+      // counted in this attempt-cap test.
+      diagnose:    async () => ({ rootCause: '', plan: '', confidence: 0, ok: false }),
     });
 
     assert.equal(claudeCalls, 2, `expected exactly 2 Claude calls (MAX_FIX_ATTEMPTS=2), got ${claudeCalls}`);
@@ -365,6 +405,8 @@ test('runFixer exits cleanly when Claude throws on every attempt', async () => {
       callClaude: async () => { claudeCalls += 1; throw new Error('Claude timed out'); },
       git:  () => ({ ok: true, stdout: '', stderr: '' }),
       gate: () => ({ ok: false, stdout: '', stderr: '' }),
+      // Stub diagnosis — separate from the attempt loop being tested here.
+      diagnose: async () => ({ rootCause: '', plan: '', confidence: 0, ok: false }),
     });
     assert.equal(claudeCalls, 2);
     assert.ok(['gave-up', 'gave-up-no-issue'].includes(result.status));
@@ -754,7 +796,7 @@ test('buildPrBody and buildIssueBody render the expected content', () => {
     runUrl:     'http://example/run/1',
     logExcerpt: 'line1\nline2\nline3',
     attempt:    2,
-    model:      'claude-sonnet-4-5',
+    model:      'claude-sonnet-4-6',
   });
   assert.match(pr, /AI CI-fixer/);
   assert.match(pr, /Failing workflow.*http:\/\/example\/run\/1/);
@@ -766,12 +808,58 @@ test('buildPrBody and buildIssueBody render the expected content', () => {
     logExcerpt: 'failing log',
     attempted:  [{ attempt: 1, patchCount: 0 }, { attempt: 2, patchCount: 1 }],
     lastError:  new Error('gate red'),
-    model:      'claude-sonnet-4-5',
+    model:      'claude-sonnet-4-6',
   });
   assert.match(issue, /couldn't repair/);
   assert.match(issue, /attempt 1: 0 patch/);
   assert.match(issue, /attempt 2: 1 patch/);
   assert.match(issue, /gate red/);
+});
+
+test('buildPrBody: renders diagnosis section when supplied', () => {
+  const pr = fixer.buildPrBody({
+    runUrl:     'http://example/run/1',
+    logExcerpt: 'log',
+    attempt:    1,
+    model:      'claude-sonnet-4-6',
+    diagnosis:  {
+      rootCause: 'The validator rejects subdomains.',
+      plan: 'Loosen the regex.',
+      confidence: 4,
+      confidenceReason: 'Single-file regex change.',
+      ok: true,
+    },
+  });
+  assert.match(pr, /Diagnosis/);
+  assert.match(pr, /Root cause.*validator rejects subdomains/);
+  assert.match(pr, /Fix plan.*Loosen the regex/);
+  assert.match(pr, /High.*4\/5/);
+  assert.match(pr, /Single-file regex change/);
+});
+
+test('buildPrBody: omits diagnosis section when none supplied', () => {
+  const pr = fixer.buildPrBody({
+    runUrl: 'x', logExcerpt: 'y', attempt: 1, model: 'm',
+  });
+  assert.equal(/Diagnosis/.test(pr), false);
+  // Body still produces all the core sections
+  assert.match(pr, /AI CI-fixer/);
+  assert.match(pr, /Failing workflow/);
+});
+
+test('buildPrBody: renders Files changed section with source tags', () => {
+  const pr = fixer.buildPrBody({
+    runUrl: 'x', logExcerpt: 'y', attempt: 1, model: 'm',
+    patches: [
+      { file: 'a.js', source: 'flywheel/ast'  },
+      { file: 'b.js', source: 'flywheel/rule' },
+      { file: 'c.js', source: 'claude'        },
+    ],
+  });
+  assert.match(pr, /Files changed/);
+  assert.match(pr, /`AST` `a\.js`/);
+  assert.match(pr, /`Rule` `b\.js`/);
+  assert.match(pr, /`Claude` `c\.js`/);
 });
 
 // ── Flywheel integration ────────────────────────────────────────────────────
@@ -802,7 +890,7 @@ test('flywheel: AST layer fix is taken before Claude is ever called', () => {
     logExcerpt: 'rejectUnauthorized: false',
   });
   assert.equal(result.patches.length, 1);
-  assert.equal(result.patches[0].path, 'src/x.js');
+  assert.equal(result.patches[0].file, 'src/x.js');
   assert.match(result.patches[0].content, /rejectUnauthorized: true/);
   assert.ok(result.filesHandled.has('src/x.js'));
 });
@@ -883,16 +971,16 @@ test('flywheel: distillClaudeWins calls auto-distill for every patched file', ()
   fixer._distillClaudeWins(
     flywheel,
     [
-      { path: 'a.js', content: 'fixed a' },
-      { path: 'b.js', content: 'fixed b' },
+      { file: 'a.js', content: 'fixed a' },
+      { file: 'b.js', content: 'fixed b' },
     ],
     { 'a.js': 'orig a', 'b.js': 'orig b' },
-    'claude-sonnet-4-5',
+    'claude-sonnet-4-6',
   );
   assert.equal(distilled.length, 2);
   assert.equal(distilled[0].patchedContent, 'fixed a');
   assert.equal(distilled[0].originalContent, 'orig a');
-  assert.equal(distilled[0].provenance.originalModel, 'claude-sonnet-4-5');
+  assert.equal(distilled[0].provenance.originalModel, 'claude-sonnet-4-6');
 });
 
 test('flywheel: distill silently skips when no original captured', () => {
@@ -903,9 +991,9 @@ test('flywheel: distill silently skips when no original captured', () => {
   };
   fixer._distillClaudeWins(
     flywheel,
-    [{ path: 'unknown.js', content: 'fixed' }],
+    [{ file: 'unknown.js', content: 'fixed' }],
     {}, // no original
-    'claude-sonnet-4-5',
+    'claude-sonnet-4-6',
   );
   assert.equal(distilled.length, 0);
 });
@@ -941,6 +1029,73 @@ test('flywheel: REGRESSION — real AST fixer fires on CI log content (Agent G b
   assert.equal(result.patches.length, 1, 'AST should have produced a patch');
   assert.match(result.patches[0].content, /rejectUnauthorized: true/);
   assert.ok(result.filesHandled.has('src/server.js'));
+});
+
+test('REGRESSION: applyPatches now reads `file` key (matches flywheel + Claude output)', () => {
+  // The previous bug: flywheel emitted `{path, content}` but applyPatches
+  // read `patch.file` — every flywheel patch was silently skipped. The
+  // Map-merge step in tryAttempt also collapsed every Claude patch onto
+  // the same `undefined` key (because Claude emits `file`, not `path`),
+  // dropping all but the last fix in a batch. Both layers now emit
+  // `{file, content, source}` and the merge keys on `.file`.
+  const tmp = makeTmpDir();
+  try {
+    const patches = [
+      { file: 'a.txt', content: 'fixed a' },
+      { file: 'b.txt', content: 'fixed b' },
+      { file: 'c.txt', content: 'fixed c' },
+    ];
+    const written = fixer.applyPatches(patches, tmp);
+    assert.equal(written.length, 3, 'all three patches should be written');
+    assert.equal(fs.readFileSync(path.join(tmp, 'a.txt'), 'utf-8'), 'fixed a');
+    assert.equal(fs.readFileSync(path.join(tmp, 'b.txt'), 'utf-8'), 'fixed b');
+    assert.equal(fs.readFileSync(path.join(tmp, 'c.txt'), 'utf-8'), 'fixed c');
+  } finally {
+    cleanup(tmp);
+  }
+});
+
+test('REGRESSION: applyPatches silently skips legacy `path`-keyed patches (defensive)', () => {
+  // Anyone calling applyPatches with the legacy shape gets nothing — the
+  // shape mismatch is real, no silent fallback. This pins the contract so
+  // a future refactor that re-introduces `path` will fail this test.
+  const tmp = makeTmpDir();
+  try {
+    const written = fixer.applyPatches([{ path: 'a.txt', content: 'fixed' }], tmp);
+    assert.equal(written.length, 0);
+    assert.equal(fs.existsSync(path.join(tmp, 'a.txt')), false);
+  } finally {
+    cleanup(tmp);
+  }
+});
+
+test('REGRESSION: flywheel patches use `file` key — applyPatches contract honored', () => {
+  // End-to-end shape contract: the flywheel returns patches that applyPatches
+  // can write. The previous mismatch (path vs file) was a silent killer.
+  const flywheel = {
+    available: true,
+    astFixer: {
+      isJsOrTs: (p) => p.endsWith('.js'),
+      applyAstTransforms: (content) => ({
+        content: content + '\n// ast-fixed',
+        handled: ['issue-1'],
+        unhandled: [],
+      }),
+    },
+    ruleFixer: { tryRuleBasedFix: () => null },
+    telemetry: { recordFixAttempt: () => {} },
+    distill: { distillClaudeFix: () => {} },
+  };
+  const result = fixer._tryFlywheel({
+    files: [{ path: 'src/x.js', content: 'const x = 1;' }],
+    repoRoot: '/tmp',
+    flywheel,
+    logExcerpt: 'something',
+  });
+  assert.equal(result.patches.length, 1);
+  assert.equal(typeof result.patches[0].file, 'string', 'patch must have a `file` key');
+  assert.equal(result.patches[0].file, 'src/x.js');
+  assert.equal(result.patches[0].source, 'flywheel/ast');
 });
 
 test('flywheel: loadFlywheel returns { available: false } gracefully when layers missing', () => {
@@ -1187,7 +1342,7 @@ test('openFixPr: uses findFreeBranchName and rotates title when attempt > 1', as
       runUrl: 'http://example/run/700',
       logExcerpt: 'log',
       attempt: 1,
-      model: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4-6',
       baseRef: 'main',
       git: (args) => { gitCalls.push(args); return { ok: true, stdout: '', stderr: '' }; },
       transport: captureTransport,
@@ -1221,7 +1376,7 @@ test('openFixPr: returns all-branches-taken when every slot is occupied', async 
     runUrl: 'http://example/run/800',
     logExcerpt: 'log',
     attempt: 1,
-    model: 'claude-sonnet-4-5',
+    model: 'claude-sonnet-4-6',
     baseRef: 'main',
     git: () => { gitCallCount += 1; return { ok: true, stdout: '', stderr: '' }; },
     transport,
@@ -1244,7 +1399,7 @@ test('openFixPr: returns pr-failed when GitHub rejects the POST /pulls with non-
     runUrl: 'http://example/run/900',
     logExcerpt: 'log',
     attempt: 1,
-    model: 'claude-sonnet-4-5',
+    model: 'claude-sonnet-4-6',
     baseRef: 'main',
     git: () => ({ ok: true, stdout: '', stderr: '' }),
     transport,
@@ -1265,7 +1420,7 @@ test('openFixPr: returns push-failed with stderr when git push fails', async () 
     runUrl: 'http://example/run/901',
     logExcerpt: 'log',
     attempt: 1,
-    model: 'claude-sonnet-4-5',
+    model: 'claude-sonnet-4-6',
     baseRef: 'main',
     git: (args) => {
       if (args[0] === 'push') {

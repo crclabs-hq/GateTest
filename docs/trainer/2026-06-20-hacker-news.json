@@ -1,0 +1,177 @@
+{
+  "generatedAt": "2026-06-20T07:02:38.764Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 9,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 2,
+      "SonarQube": 1,
+      "Semgrep": 4,
+      "CodeQL": 2,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48603743",
+        "author": "afavour",
+        "type": "comment",
+        "title": null,
+        "text": "I don’t claim responsibility for any of that. I’m not part of that “we”. Time and time again I’ve been sceptical of AI on places like Hacker News and I’m hardly alone. As a community I think there is a great variation in opinion.CEOs are very well compensated for the things they do. If they were led astray by snake oil salesman that does not make Hacker News as a community complicit. They were fooled when they shouldn’t have been and it’s their own fault.",
+        "url": "https://news.ycombinator.com/item?id=48603743",
+        "points": null,
+        "numComments": null,
+        "storyId": 48602571,
+        "createdAt": "2026-06-19T21:56:22Z",
+        "createdAtUnix": 1781906182,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48600293",
+        "author": "Terr_",
+        "type": "comment",
+        "title": null,
+        "text": "> snake charmer problemPerhaps you mean the \"cobra effect\" [0]? I think that's an apocryphal story about killing snakes, rather than using them in a performance.[0] https:&#x2F;&#x2F;en.wikipedia.org&#x2F;wiki&#x2F;Perverse_incentive#Historicity...",
+        "url": "https://news.ycombinator.com/item?id=48600293",
+        "points": null,
+        "numComments": null,
+        "storyId": 48583386,
+        "createdAt": "2026-06-19T16:26:17Z",
+        "createdAtUnix": 1781886377,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [
+      {
+        "objectId": "48603781",
+        "author": "peterabbitcook",
+        "type": "comment",
+        "title": null,
+        "text": "I’ve dealt with a question that rhymes with this.Sonarqube or CodeQL reports might tell me what percentage of a repo is duplicated code, and a large percentage of that is in src&#x2F;test&#x2F;javaI find that a lot of the time this is not just some flippant observation but a clue that I should be using a mechanism like @ParameterizedTest instead of @Test, so I rewrite those tests in a way that makes them easier to set-up, define parameters&#x2F;constraints, inputs, and outputs. Sometimes it does get a little convoluted as you either use a lot of naked Arguments.of() or define test-class-scoped nested records to encapsulate test parameters, inputs, expected outputs, etc.",
+        "url": "https://news.ycombinator.com/item?id=48603781",
+        "points": null,
+        "numComments": null,
+        "storyId": 48574082,
+        "createdAt": "2026-06-19T22:00:36Z",
+        "createdAtUnix": 1781906436,
+        "intent": "neutral"
+      }
+    ],
+    "Semgrep": [
+      {
+        "objectId": "48604892",
+        "author": "solid_fuel",
+        "type": "comment",
+        "title": null,
+        "text": "> Nothing material here has changed in the last few years.Bald faced lies from you, nothing surprising here. I could take the time in explaining how state and federal responsibilities are divided, I could go through the history of the Department of Education and how funding for schools works in the US. I could point to dozens of examples of you being wrong from any decade in the last century, from de-segregation to \"no child left behind\".But there's no point, since you're just a troll and not here for a real discussion. No one interested in a sincere exchange of ideas would start from such a stupid premise. So you can go ahead and look through my comment history all you want, and respond all you want, but it'll just make you mad and get you flagged.You would be better served by finding a large rock to kick.",
+        "url": "https://news.ycombinator.com/item?id=48604892",
+        "points": null,
+        "numComments": null,
+        "storyId": 48600093,
+        "createdAt": "2026-06-20T00:16:37Z",
+        "createdAtUnix": 1781914597,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48604519",
+        "author": "retired",
+        "type": "comment",
+        "title": null,
+        "text": "The Netherlands has plenty of crazies using public transport. Every other window on the train has the emergency number on it for a reason. I refuse to travel in second class, hate being close to people that blast music, use drugs, puke or eat a broodje pindakaas.The Netherlands even has segregated busses for asylum seekers because there was too much violence. Dutch people have their own busses and asylum seekers are required to use a separate bus with extra security. Upside is that asylum seekers don’t have to pay for a ticket.",
+        "url": "https://news.ycombinator.com/item?id=48604519",
+        "points": null,
+        "numComments": null,
+        "storyId": 48592832,
+        "createdAt": "2026-06-19T23:23:57Z",
+        "createdAtUnix": 1781911437,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48600427",
+        "author": "em-bee",
+        "type": "comment",
+        "title": null,
+        "text": "segregating poor people into their own area is a sure way to make them stay poor. i believe there is evidence that the best way to help people out of poverty is to let them live in mixed areas where they have a chance to associate with people who are better off than them. i believe the primary reason is that even if you work hard to improve your life, as long as everyone around you remains poor then you are limited or are self limiting in how much you can actually achieve.",
+        "url": "https://news.ycombinator.com/item?id=48600427",
+        "points": null,
+        "numComments": null,
+        "storyId": 48596911,
+        "createdAt": "2026-06-19T16:39:10Z",
+        "createdAtUnix": 1781887150,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48597088",
+        "author": "setgree",
+        "type": "comment",
+        "title": null,
+        "text": "Ah, I got confused by the name and acronyms.",
+        "url": "https://news.ycombinator.com/item?id=48597088",
+        "points": null,
+        "numComments": null,
+        "storyId": 48589501,
+        "createdAt": "2026-06-19T10:46:35Z",
+        "createdAtUnix": 1781865995,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48604501",
+        "author": "ORECTIC",
+        "type": "story",
+        "title": "Liquid glass that bends the page behind it as you scroll",
+        "text": "Liquid glass that bends the page behind it as you scroll",
+        "url": "https://codequest.work/generator/liquid-glass-css-generator/en/",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 48604501,
+        "createdAt": "2026-06-19T23:22:23Z",
+        "createdAtUnix": 1781911343,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48603781",
+        "author": "peterabbitcook",
+        "type": "comment",
+        "title": null,
+        "text": "I’ve dealt with a question that rhymes with this.Sonarqube or CodeQL reports might tell me what percentage of a repo is duplicated code, and a large percentage of that is in src&#x2F;test&#x2F;javaI find that a lot of the time this is not just some flippant observation but a clue that I should be using a mechanism like @ParameterizedTest instead of @Test, so I rewrite those tests in a way that makes them easier to set-up, define parameters&#x2F;constraints, inputs, and outputs. Sometimes it does get a little convoluted as you either use a lot of naked Arguments.of() or define test-class-scoped nested records to encapsulate test parameters, inputs, expected outputs, etc.",
+        "url": "https://news.ycombinator.com/item?id=48603781",
+        "points": null,
+        "numComments": null,
+        "storyId": 48574082,
+        "createdAt": "2026-06-19T22:00:36Z",
+        "createdAtUnix": 1781906436,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "48599604",
+        "author": "tptacek",
+        "type": "comment",
+        "title": null,
+        "text": "\"I called my doctor and asked them to prescribe me poison for no reason, and they said no. Checkmate, atheists!\"",
+        "url": "https://news.ycombinator.com/item?id=48599604",
+        "points": null,
+        "numComments": null,
+        "storyId": 48579650,
+        "createdAt": "2026-06-19T15:16:53Z",
+        "createdAtUnix": 1781882213,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}

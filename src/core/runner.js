@@ -249,11 +249,35 @@ class GateTestRunner extends EventEmitter {
       diffOnly: false,          // --diff: only scan git-changed files
       changedFiles: null,       // list of changed files (populated by diff mode)
       confidenceThreshold: BLOCK_THRESHOLD,
+      reportOnly: false,        // --report-only: never block, just report
       ...options,
     };
+    // Resolved blockThreshold — accounts for reportOnly mode (Infinity →
+    // nothing blocks) and the alias between `blockThreshold` (internal)
+    // and `confidenceThreshold` (CLI flag name). Used everywhere the
+    // gate / module-fail / summary logic checks "is this finding
+    // confident enough to block?".
+    //
+    // Why reportOnly exists: a fresh GateTest install on a mature
+    // codebase surfaces dozens of pre-existing findings. Blocking the
+    // customer's CI on day 1 — before they've triaged any of them — is
+    // the canonical noisy-scanner anti-pattern. The new-customer install
+    // path defaults to reportOnly so CI stays green from day 1; customers
+    // opt INTO blocking via `block: true` input on the Action / `--strict`
+    // flag on the CLI.
+    this._blockThreshold = this.options.reportOnly === true
+      ? Number.POSITIVE_INFINITY
+      : (typeof options.blockThreshold === 'number'
+          ? options.blockThreshold
+          : this.options.confidenceThreshold);
     // Shared source cache for confidence scoring across all modules
     const projectRoot = (config && config.projectRoot) || process.cwd();
     this._sourceCache = new SourceCache(projectRoot);
+    // Incremental mode state — set at construction when a pre-resolved file
+    // Set is supplied (test / external caller), or set at run() time when
+    // incrementalSince resolves successfully.
+    this._incrementalMode = options.incrementalFiles instanceof Set;
+    this._incrementalFileSet = this._incrementalMode ? options.incrementalFiles : null;
   }
 
   register(name, moduleInstance) {
@@ -267,6 +291,41 @@ class GateTestRunner extends EventEmitter {
     // If diff mode, resolve changed files before running modules
     if (this.options.diffOnly && !this.options.changedFiles) {
       this.options.changedFiles = this._getChangedFiles();
+    }
+
+    // Incremental mode (--since <ref> / --pr): resolve changed files against
+    // a specific ref. Pre-resolved incrementalFiles (Set) from the constructor
+    // is already wired; here we handle the runtime resolution case.
+    if (this.options.incrementalSince && !this._incrementalMode) {
+      const resolved = this._resolveIncrementalFiles(this.options.incrementalSince);
+      if (resolved.error) {
+        console.warn(
+          `[GateTest] Incremental scan unavailable: ${resolved.error}. Falling back to full scan.`,
+        );
+        // _incrementalMode stays false — full scan proceeds
+      } else if (resolved.files.length === 0) {
+        console.error('[GateTest] No relevant files changed since base. Nothing to scan.');
+        const endTime = Date.now();
+        const summary = {
+          gateStatus: 'PASSED',
+          timestamp: new Date().toISOString(),
+          duration: endTime - startTime,
+          diffOnly: this.options.diffOnly,
+          changedFiles: this.options.changedFiles,
+          confidenceThreshold: this._blockThreshold,
+          modules: { total: 0, passed: 0, failed: 0, skipped: 0 },
+          checks: { total: 0, passed: 0, failed: 0, errors: 0, blockingErrors: 0, softErrors: 0, warnings: 0 },
+          fixes: { total: 0, details: [] },
+          results: [],
+          failedModules: [],
+          incremental: { fileCount: 0 },
+        };
+        this.emit('suite:end', summary);
+        return summary;
+      } else {
+        this._incrementalMode = true;
+        this._incrementalFileSet = new Set(resolved.files);
+      }
     }
 
     // Build an absolute-path Set of changed files once per run, then
@@ -343,7 +402,12 @@ class GateTestRunner extends EventEmitter {
     const mod = this.modules.get(name);
     const result = new TestResult(name, {
       sourceCache: this._sourceCache,
-      blockThreshold: this.options.confidenceThreshold,
+      // Use the runner's resolved _blockThreshold (which reflects
+      // reportOnly + explicit override + default cascade) rather than
+      // the raw options.confidenceThreshold. Otherwise reportOnly's
+      // Infinity threshold is silently dropped here and modules still
+      // see the default 0.7 threshold.
+      blockThreshold: this._blockThreshold,
     });
 
     if (!mod) {
@@ -355,12 +419,38 @@ class GateTestRunner extends EventEmitter {
     result.start();
     this.emit('module:start', result);
 
+    // Incremental skip / alwaysRun logic
+    if (this._incrementalMode && this._incrementalFileSet) {
+      const incCfg = (this.config && this.config.config && this.config.config.incremental) || {};
+      const skipList = incCfg.skipList || [];
+      const alwaysRunList = incCfg.alwaysRunList || [];
+      if (skipList.includes(name)) {
+        result.start();
+        result.addCheck('incremental:skipped', true, {
+          severity: 'info',
+          message: `Module "${name}" skipped in incremental mode (full-graph analysis requires full scan)`,
+        });
+        result.pass();
+        this.emit('module:end', result);
+        return result;
+      }
+      // alwaysRunList modules run without the file filter (don't inject _incrementalFiles)
+    }
+
     try {
       // Pass diff-mode context to module
       const moduleConfig = Object.create(this.config);
       moduleConfig._runnerOptions = this.options;
       // deployReadiness reads all prior results to compute the aggregate score
       moduleConfig._allResults = this.results;
+      // Incremental: pass file filter to normal modules (not alwaysRunList ones)
+      if (this._incrementalMode && this._incrementalFileSet) {
+        const incCfg = (this.config && this.config.config && this.config.config.incremental) || {};
+        const alwaysRunList = incCfg.alwaysRunList || [];
+        if (!alwaysRunList.includes(name)) {
+          moduleConfig._incrementalFiles = this._incrementalFileSet;
+        }
+      }
       await mod.run(result, moduleConfig);
 
       // Only CONFIDENT errors block — soft errors (below threshold) are
@@ -507,6 +597,44 @@ class GateTestRunner extends EventEmitter {
     }
   }
 
+  /**
+   * Resolve the set of source files changed since a given git ref.
+   * Returns { files: string[] } on success (may be empty) or { error: string }
+   * on failure (bad ref, not a git repo, etc.).
+   */
+  _resolveIncrementalFiles(ref) {
+    const { execSync } = require('child_process');
+    const projectRoot = (this.config && this.config.projectRoot) || process.cwd();
+    try {
+      const raw = execSync(`git diff --name-only "${ref}" HEAD`, {
+        encoding: 'utf-8',
+        cwd: projectRoot,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+
+      const sourceExts = new Set(
+        (this.config &&
+          this.config.config &&
+          this.config.config.incremental &&
+          this.config.config.incremental.sourceExtensions) || [],
+      );
+
+      const files = raw.split('\n')
+        .filter(Boolean)
+        .filter((rel) => {
+          if (!sourceExts.size) return true;
+          const ext = path.extname(rel).toLowerCase() || rel.toLowerCase();
+          return sourceExts.has(ext);
+        })
+        .map((rel) => path.resolve(projectRoot, rel))
+        .filter((abs) => fs.existsSync(abs));
+
+      return { files };
+    } catch (err) {
+      return { error: err.message || String(err) };
+    }
+  }
+
   _buildSummary(startTime, endTime) {
     const passed = this.results.filter(r => r.status === 'passed');
     const failed = this.results.filter(r => r.status === 'failed');
@@ -536,7 +664,10 @@ class GateTestRunner extends EventEmitter {
       duration: endTime - startTime,
       diffOnly: this.options.diffOnly,
       changedFiles: this.options.changedFiles,
-      confidenceThreshold: this.options.confidenceThreshold,
+      confidenceThreshold: this._blockThreshold,
+      incremental: this._incrementalMode
+        ? { fileCount: this._incrementalFileSet ? this._incrementalFileSet.size : 0 }
+        : null,
       modules: {
         total: this.results.length,
         passed: passed.length,

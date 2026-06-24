@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GateTest vs SonarQube — The Smarter Alternative in 2026",
   description:
-    "GateTest replaces SonarQube with 102 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing. Just results.",
+    "GateTest replaces SonarQube with 110 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing. Just results.",
   keywords: [
     "SonarQube alternative",
     "SonarQube vs GateTest",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs SonarQube — The Smarter Alternative in 2026",
     description:
-      "GateTest replaces SonarQube with 102 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing.",
+      "GateTest replaces SonarQube with 110 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing.",
     url: "https://gatetest.ai/compare/sonarqube",
     siteName: "GateTest",
     type: "website",
@@ -34,7 +34,7 @@ const faqItems = [
   },
   {
     q: "How does GateTest pricing compare to SonarQube?",
-    a: "SonarQube Cloud charges per active user per month. SonarQube Community Edition requires you to run your own server. GateTest charges per scan — $29 for a quick scan, $99 for all 102 modules. You pay only when the scan completes and delivers results. No server to maintain, no per-seat licensing, no annual contracts.",
+    a: "SonarQube Cloud charges per active user per month. SonarQube Community Edition requires you to run your own server. GateTest charges per scan — $29 for a quick scan, $99 for all 110 modules. You pay only when the scan completes and delivers results. No server to maintain, no per-seat licensing, no annual contracts.",
   },
   {
     q: "Does GateTest post commit statuses and PR comments like SonarQube does?",
@@ -50,7 +50,7 @@ const faqItems = [
   },
   {
     q: "Can GateTest fix the issues it finds, like a PR suggestion?",
-    a: "GateTest goes further than suggestions. The AI-powered auto-fix mode (Scan + Fix, $199) creates an actual pull request with working code changes. SonarQube shows you the issue; GateTest writes the fix. The Nuclear tier ($399) adds Claude-driven diagnosis per finding, attack-chain correlation across findings, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing also ships via the GitHub Action with mutation: true — runs wherever your CI runs.",
+    a: "GateTest goes further than suggestions. The AI-powered auto-fix mode (Scan + Fix, $199) creates an actual pull request with working code changes. SonarQube shows you the issue; GateTest writes the fix. The Forensic Scan tier ($399) adds Claude-driven diagnosis per finding, attack-chain correlation across findings, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing also ships via the GitHub Action with mutation: true — runs wherever your CI runs.",
   },
 ];
 
@@ -132,7 +132,7 @@ export default function SonarQubePage() {
           </h1>
           <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
             SonarQube was built in 2006 — before AI, before cloud-native CI/CD, before modern
-            security threats. GateTest is built for 2026: 102 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier ($199) and above,
+            security threats. GateTest is built for 2026: 110 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier ($199) and above,
             zero server setup, and per-scan pricing.
           </p>
 
@@ -204,19 +204,19 @@ export default function SonarQubePage() {
               },
               {
                 title: "Auto-fix PRs, not just reports",
-                body: "SonarQube tells you what's wrong and leaves you to fix it. At the Scan + Fix tier ($199) and Nuclear ($399), GateTest writes the fix and opens a pull request. You review, you merge. No debugging, no manual remediation, no guessing at the right fix.",
+                body: "SonarQube tells you what's wrong and leaves you to fix it. At the Scan + Fix tier ($199) and Forensic Scan ($399), GateTest writes the fix and opens a pull request. You review, you merge. No debugging, no manual remediation, no guessing at the right fix.",
               },
               {
                 title: "Zero server infrastructure",
                 body: "SonarQube requires a running server, a database, and ongoing maintenance. SonarQube Cloud still requires sonar-project.properties and scanner configuration per project. GateTest: paste URL, get results. No config files, no servers, no ops burden.",
               },
               {
-                title: "102 modules vs 1 focus",
+                title: "110 modules vs 1 focus",
                 body: "SonarQube focuses on code quality and security patterns. GateTest covers those plus accessibility, visual regression, performance, mutation testing, N+1 queries, race conditions, TLS misconfigs, PII in logs, homoglyph attacks, and 40+ more dimensions — all in one scan.",
               },
               {
                 title: "Pay per scan, not per seat",
-                body: "SonarQube Cloud pricing scales with developer headcount — the more your team grows, the higher your bill. GateTest charges per result: $29 quick scan, $99 full 102-module scan. A 50-person team pays the same as a solo founder for the same scan.",
+                body: "SonarQube Cloud pricing scales with developer headcount — the more your team grows, the higher your bill. GateTest charges per result: $29 quick scan, $99 full 110-module scan. A 50-person team pays the same as a solo founder for the same scan.",
               },
               {
                 title: "Faster feedback loop",
@@ -258,7 +258,7 @@ export default function SonarQubePage() {
             Ready to replace SonarQube?
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
-            Paste your repo URL and get a full 102-module scan in under 60 seconds. No server setup,
+            Paste your repo URL and get a full 110-module scan in minutes. No server setup,
             no config files, no per-seat pricing. One-time payment per scan.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

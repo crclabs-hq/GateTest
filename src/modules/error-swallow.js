@@ -83,6 +83,36 @@ const PROMISE_METHOD_HINTS = [
   'write', 'flush', 'sync', 'upload', 'download',
 ];
 
+// Receivers whose `.send()` / `.delete()` / `.write()` / `.update()` etc.
+// are SYNC by convention and would produce a flood of false positives if
+// flagged. Express response object (`res.send()`), Express router
+// (`app.delete('/foo', ...)`), Koa context (`ctx.body = ...`), Fastify
+// reply (`reply.send()`), Hapi response toolkit (`h.response()`), Node
+// stream (`stream.write()` returns boolean), Buffer/string builders.
+//
+// When the receiver chain matches one of these names (top-level), skip
+// the floating-promise check entirely. Better to miss a genuine smell on
+// `res.send()` than to produce a 200-finding noise wall on every
+// Express app.
+const SYNC_RECEIVER_NAMES = new Set([
+  'res', 'response', 'reply', 'ctx', 'context', 'h',
+  'app', 'router', 'route', 'server', 'next',
+  'console', 'logger', 'log',
+  'stream', 'socket', 'ws', 'process', 'stdout', 'stderr', 'stdin',
+  'buffer', 'buf',
+  'xhr', 'xmlhttprequest',
+  // `this` / `self` are typically the route handler / response object in
+  // Express-style code. Better to miss a real DB-call-on-this than flood
+  // every middleware with FPs.
+  'this', 'self',
+]);
+
+function receiverTopLevel(receiverExpr) {
+  // For `a.b.c` return `a`. For `this.foo` return `this`.
+  const dot = receiverExpr.indexOf('.');
+  return dot === -1 ? receiverExpr : receiverExpr.slice(0, dot);
+}
+
 // String-aware "inside a string literal" guard (copied in spirit from
 // flaky-tests.js — kept local to avoid cross-module coupling).
 function isInString(line, idx) {
@@ -154,12 +184,32 @@ class ErrorSwallowModule extends BaseModule {
   }
 
   // Returns true if the current line or the previous line carries a
-  // `// error-ok` suppressor comment, meaning the developer has documented
-  // that this specific swallow is intentional.
+  // `// error-ok` or `// gatetest-fire-and-forget` suppressor comment,
+  // meaning the developer has documented that this specific swallow is
+  // intentional.
   _isSuppressed(lines, lineIdx) {
     const line = lines[lineIdx] || '';
     const prev = lineIdx > 0 ? lines[lineIdx - 1] : '';
-    return /\berror-ok\b/.test(line) || /\berror-ok\b/.test(prev);
+    const re = /\b(?:error-ok|gatetest-fire-and-forget)\b/;
+    return re.test(line) || re.test(prev);
+  }
+
+  // Returns true when the `.catch(...)` on the current line is part of
+  // a `void expression` statement — the explicit, idiomatic JS pattern
+  // (also ESLint's `no-floating-promises` recommendation) for
+  // intentional fire-and-forget. We walk back up to 2 lines looking
+  // for a `void ` at statement start, stopping at a prior statement
+  // boundary so we don't accidentally accept an unrelated `void` above.
+  _isVoidFireAndForget(lines, lineIdx) {
+    for (let j = lineIdx; j >= Math.max(0, lineIdx - 2); j -= 1) {
+      const trimmed = (lines[j] || '').trim();
+      if (/^void\s+[\w$(]/.test(trimmed)) return true;
+      // Hit a prior statement boundary — stop walking back. The
+      // current line itself is allowed to end with `;` (the chain
+      // we're checking).
+      if (j !== lineIdx && /;\s*$/.test(trimmed)) return false;
+    }
+    return false;
   }
 
   _scanFile(file, projectRoot, result) {
@@ -201,25 +251,28 @@ class ErrorSwallowModule extends BaseModule {
       }
 
       // 2. `.catch(() => {})` / `.catch(() => null)` / `.catch(noop)`
+      // Suppressed when the chain is part of a `void expression`
+      // statement — the idiomatic JS fire-and-forget pattern.
       const catchNoop = line.match(/\.catch\s*\(\s*(?:\(\s*\w*\s*\)|\w+)?\s*=>\s*(?:\{\s*\}|null|undefined|void\s+0)\s*\)/);
-      if (catchNoop && !isInString(line, catchNoop.index) && !this._isSuppressed(lines, i)) {
+      if (catchNoop && !isInString(line, catchNoop.index) && !this._isSuppressed(lines, i) && !this._isVoidFireAndForget(lines, i)) {
         issues += this._flag(result, `error-swallow:catch-noop:${rel}:${i + 1}`, {
           severity: isTest ? 'warning' : 'error',
           file: rel,
           line: i + 1,
           message: `${rel}:${i + 1} has \`.catch(() => {})\` or equivalent — Promise rejection is silently dropped`,
-          suggestion: 'Replace with `.catch((err) => log.error({ err }, "context"))` and either rethrow or surface a typed error. Empty catch means the bug reaches the user.',
+          suggestion: 'Replace with `.catch((err) => log.error({ err }, "context"))` and either rethrow or surface a typed error. If this is intentional fire-and-forget, use `void promise` (the JS idiom) or add `// gatetest-fire-and-forget` on the line above.',
         });
       }
       // `.catch(noop)` / `.catch(ignore)` / `.catch(() => { /* ignore */ })`
+      // — same void-prefix suppression applies.
       const catchNamedNoop = line.match(/\.catch\s*\(\s*(?:noop|ignore|swallow|_)\s*\)/);
-      if (catchNamedNoop && !isInString(line, catchNamedNoop.index) && !this._isSuppressed(lines, i)) {
+      if (catchNamedNoop && !isInString(line, catchNamedNoop.index) && !this._isSuppressed(lines, i) && !this._isVoidFireAndForget(lines, i)) {
         issues += this._flag(result, `error-swallow:catch-noop:${rel}:${i + 1}`, {
           severity: isTest ? 'warning' : 'error',
           file: rel,
           line: i + 1,
           message: `${rel}:${i + 1} passes a known noop (\`noop\`/\`ignore\`/\`swallow\`/\`_\`) to \`.catch()\``,
-          suggestion: 'Give the handler a real body: log, rethrow, or convert to a typed Result.',
+          suggestion: 'Give the handler a real body, or use `void promise` for fire-and-forget, or add `// gatetest-fire-and-forget`.',
         });
       }
 
@@ -274,7 +327,13 @@ class ErrorSwallowModule extends BaseModule {
         const flt = line.match(/^(\s*)([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.([A-Za-z_$][\w$]*)\s*\(/);
         if (flt && !isInString(line, flt.index) && !this._isSuppressed(lines, i)) {
           const indent = flt[1];
+          const receiver = flt[2];
           const method = flt[3];
+          const topLevel = receiverTopLevel(receiver).toLowerCase();
+          // Skip well-known sync receivers (res.send, app.delete, ctx.body,
+          // stream.write, logger.send, etc.) — these would produce a flood
+          // of false positives on any Express / Koa / Fastify / Hapi app.
+          if (SYNC_RECEIVER_NAMES.has(topLevel)) continue;
           if (PROMISE_METHOD_HINTS.includes(method.toLowerCase())) {
             // Prefix check — is the statement preceded by await/return/void/= ?
             const before = line.slice(0, flt.index + indent.length);

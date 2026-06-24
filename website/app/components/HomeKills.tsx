@@ -34,7 +34,7 @@ const TILES: KillTile[] = [
 
 export default function HomeKills() {
   return (
-    <section id="kills" className="py-24 px-6 border-t border-border">
+    <section id="comparison" className="py-24 px-6 border-t border-border">
       <div className="mx-auto max-w-6xl">
         <div className="text-center mb-12">
           <span className="text-sm font-semibold text-accent uppercase tracking-wider">
@@ -76,7 +76,8 @@ export default function HomeKills() {
               ["squawk / gh-ost / pg-osc / Strong Migrations", "sqlMigrations"],
               ["tfsec / Checkov / Terrascan / KICS", "terraform"],
               ["kube-score / kubeaudit / Polaris / Kubesec", "kubernetes"],
-              ["Promptfoo / LLM Guard / Lakera / Rebuff", "promptSafety"],
+              ["LLM Guard / Lakera Guard / Rebuff (static slice)", "promptSafety"],
+              ["Promptfoo / Garak / Lakera Red (dynamic scenario testing — Forensic tier)", "aiGuardrails"],
               ["ts-prune / knip / Vulture", "deadCode"],
               ["gitleaks / secretlint / dotenv-linter", "secretRotation"],
               ["securityheaders.com / Mozilla Observatory", "webHeaders"],

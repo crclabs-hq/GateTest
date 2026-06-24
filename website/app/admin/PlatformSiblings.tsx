@@ -3,7 +3,7 @@
 /**
  * Platform Siblings health widget — shown inside the admin command center.
  *
- * Renders three cards (Crontech, Gluecron, GateTest) each surfacing up/down,
+ * Renders three cards (Vapron, Gluecron, GateTest) each surfacing up/down,
  * latency, and last-updated. Fetched from /api/admin/platform-siblings which
  * aggregates the public /api/platform-status endpoint on each sibling with
  * a 3s timeout and 30s server-side cache.
@@ -14,7 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 type SiblingStatus = "up" | "down" | "unreachable";
 
 interface SiblingResult {
-  id: "crontech" | "gluecron" | "gatetest";
+  id: "vapron" | "gluecron" | "gatetest";
   name: string;
   url: string;
   status: SiblingStatus;
@@ -113,7 +113,7 @@ export default function PlatformSiblings() {
         <div>
           <h3 className="text-sm font-bold text-white">Platform Family</h3>
           <p className="text-xs text-white/40">
-            Live health across Crontech, Gluecron, and GateTest.
+            Live health across Vapron, Gluecron, and GateTest.
             {report?.cached && <span className="ml-1">(cached)</span>}
           </p>
         </div>
@@ -134,7 +134,7 @@ export default function PlatformSiblings() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {(report?.siblings ?? [
-          { id: "crontech" as const, name: "Crontech" },
+          { id: "vapron" as const, name: "Vapron" },
           { id: "gluecron" as const, name: "Gluecron" },
           { id: "gatetest" as const, name: "GateTest" },
         ]).map((s) => {

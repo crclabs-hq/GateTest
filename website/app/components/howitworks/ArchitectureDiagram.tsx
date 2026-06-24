@@ -17,18 +17,18 @@ const NODES: Node[] = [
   { id: "push", label: "Customer push", detail: "git push / merge", y: 40, variant: "input" },
   { id: "host", label: "GitHub App webhook  OR  Gluecron Signal Bus", detail: "HMAC-verified, fail-closed", y: 130, variant: "input" },
   { id: "queue", label: "scan_queue (Postgres)", detail: "idempotent via delivery id", y: 220, variant: "queue" },
-  { id: "engine", label: "Worker fetches job  →  Gate runs 102 modules", detail: "deterministic, no AI by default", y: 310, variant: "engine" },
+  { id: "engine", label: "Worker fetches job  →  Gate runs 110 modules", detail: "deterministic, no AI by default", y: 310, variant: "engine" },
   { id: "cluster", label: "Findings clustered, ranked, capped per tier", detail: "root causes first, info-severity dropped", y: 410, variant: "engine" },
   { id: "fix", label: "Flywheel  ·  AST → Rule → Recipe → Claude", detail: "first layer that wins ships the patch", y: 510, variant: "fix" },
   { id: "gate", label: "Test gen  +  syntax gate  +  scanner re-validation", detail: "broken fixes never reach the PR", y: 610, variant: "fix" },
   { id: "review", label: "Pair review  +  architecture annotation  ·  Tier 2+", detail: "second Claude critiques every fix", y: 700, variant: "review" },
-  { id: "nuclear", label: "Correlation  +  Claude diagnosis  +  executive summary  ·  Tier 3", detail: "attack chains across findings, per-finding diagnosis, CISO report (mutation + chaos run via GitHub Action)", y: 790, variant: "nuclear" },
+  { id: "nuclear", label: "Correlation  +  Claude diagnosis  +  executive summary  ·  Forensic", detail: "attack chains across findings, per-finding diagnosis, CISO report (mutation + chaos run via GitHub Action)", y: 790, variant: "nuclear" },
   { id: "pr", label: "PR composed and opened", detail: "before/after table, advisory, regression tests", y: 890, variant: "output" },
 ];
 
 const VARIANT_STYLES: Record<NonNullable<Node["variant"]>, { fill: string; stroke: string; label: string; detail: string }> = {
   input:   { fill: "rgba(20, 184, 166, 0.10)", stroke: "rgba(45, 212, 191, 0.55)", label: "#5eead4", detail: "rgba(94, 234, 212, 0.55)" },
-  queue:   { fill: "rgba(99, 102, 241, 0.10)", stroke: "rgba(129, 140, 248, 0.55)", label: "#a5b4fc", detail: "rgba(165, 180, 252, 0.55)" },
+  queue:   { fill: "rgba(99, 110, 241, 0.10)", stroke: "rgba(129, 140, 248, 0.55)", label: "#a5b4fc", detail: "rgba(165, 180, 252, 0.55)" },
   engine:  { fill: "rgba(255, 255, 255, 0.04)", stroke: "rgba(255, 255, 255, 0.20)", label: "#ffffff", detail: "rgba(255, 255, 255, 0.50)" },
   fix:     { fill: "rgba(245, 158, 11, 0.08)", stroke: "rgba(251, 191, 36, 0.45)", label: "#fcd34d", detail: "rgba(252, 211, 77, 0.55)" },
   review:  { fill: "rgba(168, 85, 247, 0.10)", stroke: "rgba(192, 132, 252, 0.50)", label: "#d8b4fe", detail: "rgba(216, 180, 254, 0.55)" },
@@ -48,7 +48,7 @@ export default function ArchitectureDiagram() {
       <svg
         viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
         role="img"
-        aria-label="GateTest scan pipeline architecture: customer push enters via GitHub App or Gluecron Signal Bus, lands in a Postgres scan queue, runs through 102 deterministic modules, clusters and ranks findings, applies the AST/Rule/Recipe/Claude flywheel, validates each fix through a syntax gate and scanner re-validation, adds pair review and architecture annotation for Tier 2 and up, adds cross-finding correlation, per-finding Claude diagnosis, and executive summary for Tier 3 (mutation testing and chaos / fuzz pass are available via the GitHub Action where a CI runner is present), and finally opens a pull request."
+        aria-label="GateTest scan pipeline architecture: customer push enters via GitHub App or Gluecron Signal Bus, lands in a Postgres scan queue, runs through 110 deterministic modules, clusters and ranks findings, applies the AST/Rule/Recipe/Claude flywheel, validates each fix through a syntax gate and scanner re-validation, adds pair review and architecture annotation for Tier 2 and up, adds cross-finding correlation, per-finding Claude diagnosis, and executive summary for Tier 3 (mutation testing and chaos / fuzz pass are available via the GitHub Action where a CI runner is present), and finally opens a pull request."
         className="w-full h-auto min-w-[640px]"
       >
         <defs>

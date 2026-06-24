@@ -76,7 +76,7 @@ export default async function ScorePage({
     quick: "Quick Scan ($29)",
     full: "Full Scan ($99)",
     scan_fix: "Scan + Fix ($199)",
-    nuclear: "Nuclear ($399)",
+    nuclear: "Forensic Scan ($399)",
   };
 
   return (
@@ -97,7 +97,7 @@ export default async function ScorePage({
             <span className="text-white/20 mx-2">/</span>
             <span>{repo}</span>
           </h1>
-          <p className="text-white/40 text-sm">GateTest quality score · powered by Claude Opus 4.7</p>
+          <p className="text-white/40 text-sm">GateTest quality score · powered by Claude Sonnet 4.6</p>
         </div>
 
         {hasScore ? (

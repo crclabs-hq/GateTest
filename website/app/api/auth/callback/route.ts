@@ -92,8 +92,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${baseUrl}/dashboard?error=user_failed`);
   }
 
-  // Create session
-  const token = signCustomerSession(login, email, sessionSecret);
+  // Create session — include the OAuth access token so server-side
+  // routes (scan/fix, etc.) can act on the customer's behalf without
+  // re-prompting for a PAT. The token is AES-256-GCM encrypted inside
+  // the cookie payload; httpOnly prevents browser-script access; never
+  // logged.
+  const token = signCustomerSession(login, email, sessionSecret, accessToken);
   const isProduction = process.env.NODE_ENV === "production";
 
   const response = NextResponse.redirect(`${baseUrl}/dashboard`);

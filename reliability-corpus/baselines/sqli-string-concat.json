@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "name": "sqli-string-concat",
+  "category": "known-bad",
+  "tier": "full",
+  "target": "code",
+  "url": null,
+  "capturedAt": "2026-05-29T01:06:33.620Z",
+  "capturedBy": "gatetest-reliability@linux",
+  "capturedFrom": null,
+  "findingsByModule": {
+    "lint": {
+      "errors": 1,
+      "warnings": 0,
+      "info": 0
+    },
+    "secrets": {
+      "errors": 1,
+      "warnings": 0,
+      "info": 0
+    },
+    "unitTests": {
+      "errors": 1,
+      "warnings": 0,
+      "info": 0
+    },
+    "integrationTests": {
+      "errors": 0,
+      "warnings": 3,
+      "info": 0
+    },
+    "seo": {
+      "errors": 2,
+      "warnings": 0,
+      "info": 0
+    },
+    "compatibility": {
+      "errors": 0,
+      "warnings": 1,
+      "info": 0
+    },
+    "documentation": {
+      "errors": 1,
+      "warnings": 3,
+      "info": 1
+    },
+    "envVars": {
+      "errors": 1,
+      "warnings": 0,
+      "info": 0
+    },
+    "crossFileTaint": {
+      "errors": 2,
+      "warnings": 0,
+      "info": 0
+    },
+    "aiHallucination": {
+      "errors": 2,
+      "warnings": 0,
+      "info": 0
+    },
+    "authBypass": {
+      "errors": 6,
+      "warnings": 0,
+      "info": 0
+    },
+    "deployReadiness": {
+      "errors": 1,
+      "warnings": 1,
+      "info": 0
+    }
+  },
+  "totals": {
+    "errors": 18,
+    "warnings": 8,
+    "info": 1
+  },
+  "passed": true,
+  "note": null
+}
