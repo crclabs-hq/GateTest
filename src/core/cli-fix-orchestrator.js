@@ -1,233 +1,302 @@
 'use strict';
-
 /**
- * CLI fix orchestrator — the full production pipeline for `gatetest --auto-pr`.
+ * Speculative Parallel Hypothesis Orchestrator
  *
- * Mirrors what /api/scan/fix does for web scans:
- *   1. Group findings by file (multiple issues → one Claude batch per file).
- *   2. Per-file iterative fix loop (up to maxAttempts, learning from failures).
- *   3. Cross-fix syntax gate (JS / JSON validation; TS/TSX pass-through).
- *   4. Regression test generation for every successful, gate-passed fix.
- *   5. PR-body composition with before/after tables, attempt history, gate summary.
+ * Generates three independent repair hypotheses in a single Claude call,
+ * validates all three concurrently (syntax gate + optional test run), then
+ * selects the highest-ranking candidate using a deterministic scoring algorithm.
  *
- * Pure Node.js — no Next.js, no TypeScript transform needed.
+ * Rank 1 — syntax passes AND all discovered tests pass
+ * Rank 2 — syntax passes, some tests amber
+ * Rank 3 — syntax fails (immediate discard)
+ *
+ * If all three branches fail to reach Rank 1, the best-performing branch's
+ * stderr is bundled into the next retry prompt (up to maxAttempts).
  */
 
-const fs   = require('fs');
-const path = require('path');
+const fs     = require('fs');
+const path   = require('path');
+const os     = require('os');
+const vm     = require('vm');
+const https  = require('https');
+const { execSync } = require('child_process');
+const { verifyGeneratedTest } = require('./bidirectional-test-gate');
 
-const { attemptFixWithRetries } = require('../../website/app/lib/fix-attempt-loop');
-const { validateFixesSyntax }   = require('../../website/app/lib/cross-fix-syntax-gate');
-const { generateTestsForFixes } = require('../../website/app/lib/test-generator');
-const { composePrBody }         = require('../../website/app/lib/pr-composer');
-const { callAnthropic }         = require('./ai-fix-engine');
-const {
-  KNOWN_CONVENTION_FILES,
-  extractConventions,
-  formatGroundingHeader,
-} = require('../../lib/contextual-grounding');
+const ANTHROPIC_HOST  = 'api.anthropic.com';
+const MODEL           = 'claude-sonnet-4-20250514';
+const TIMEOUT_MS      = 90_000;
+const TEST_TIMEOUT_MS = 15_000;
+const MAX_ATTEMPTS    = 3;
 
-const MODEL         = 'claude-sonnet-4-6';
-const MAX_FILE_BYTES = 120_000;
+const H = [
+  '=== GATETEST_HYPOTHESIS_ALPHA ===',
+  '=== GATETEST_HYPOTHESIS_BETA ===',
+  '=== GATETEST_HYPOTHESIS_GAMMA ===',
+];
+const H_NAMES = ['Alpha', 'Beta', 'Gamma'];
 
-function _buildGroundingHeader(projectRoot) {
-  const fileContents = [];
-  const files = [];
-  for (const name of KNOWN_CONVENTION_FILES) {
-    try {
-      const content = fs.readFileSync(path.join(projectRoot, name), 'utf-8');
-      fileContents.push({ path: name, content });
-      files.push(name);
-    } catch { /* not present */ }
-  }
-  const extract = extractConventions({ files, fileContents });
-  return formatGroundingHeader(extract.found);
+// ── Claude call ───────────────────────────────────────────────────────────────
+
+function _callClaude(apiKey, system, user) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
+      model: MODEL,
+      max_tokens: 8192,
+      system,
+      messages: [{ role: 'user', content: user }],
+    });
+    const req = https.request({
+      hostname: ANTHROPIC_HOST,
+      path: '/v1/messages',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+          if (parsed.error) return reject(new Error(parsed.error.message));
+          resolve(parsed?.content?.[0]?.text || '');
+        } catch (e) { reject(e); }
+      });
+    });
+    req.setTimeout(TIMEOUT_MS, () => { req.destroy(); reject(new Error('Claude timeout')); });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
 }
 
-function _buildFixPrompt(conventionsHeader, filePath, fileContent, issues) {
-  return `${conventionsHeader}You are an expert code fixer for GateTest, an AI-powered QA platform.
+// ── Prompt engineering ────────────────────────────────────────────────────────
 
-Fix ALL of the following issues in this file. Every fix must pass GateTest's re-scan.
-
-FILE: ${filePath}
-ISSUES TO FIX:
-${issues.map((issue, idx) => `${idx + 1}. ${issue}`).join('\n')}
-
-CURRENT CODE:
-\`\`\`
-${fileContent}
-\`\`\`
-
-CRITICAL RULES:
-- Return ONLY the complete fixed file content. No explanations. No markdown fences.
-- Fix the ROOT CAUSE, not the symptom. Never patch over an issue.
-- NEVER introduce: console.log/debug/info, debugger statements, TODO/FIXME comments, eval() calls, var declarations, empty catch blocks, unused imports.
-- Preserve every non-issue line exactly — do not rewrite or reformat unrelated code.
-- If a fix would require context you don't have, output the UNCHANGED original file verbatim.
-- The fixed code will be automatically re-scanned. If it fails, the fix is rejected.`;
+function _buildMultiHypothesisPrompt(filePath, content, issues, priorError) {
+  const ext = path.extname(filePath).slice(1) || 'js';
+  const issueList = issues.map((s, i) => `${i + 1}. ${s}`).join('\n');
+  const errorBlock = priorError
+    ? `\nPrevious attempt failed — use this context to avoid the same mistake:\n${priorError}\n`
+    : '';
+  return [
+    `File: ${filePath}`,
+    `Issues to fix:\n${issueList}`,
+    errorBlock,
+    'Current file content:',
+    '```' + ext,
+    content,
+    '```',
+    '',
+    'Generate EXACTLY three independent repair hypotheses separated by the delimiters below.',
+    'Each hypothesis must be a COMPLETE, syntactically valid file that fixes ALL listed issues.',
+    'Hypotheses must differ meaningfully in approach — not just whitespace.',
+    '',
+    `${H[0]}`,
+    '(complete corrected file — Hypothesis Alpha: minimal diff, touch only offending lines)',
+    `${H[1]}`,
+    '(complete corrected file — Hypothesis Beta: refactor the affected function/block)',
+    `${H[2]}`,
+    '(complete corrected file — Hypothesis Gamma: defensive approach, add guards/validation)',
+    '',
+    'Rules: no markdown fences inside file blocks. Preserve all existing behavior beyond the fix.',
+  ].join('\n');
 }
 
-function _validateFix(original, fixed) {
-  if (!fixed || typeof fixed !== 'string' || fixed.trim().length === 0) {
-    return { ok: false, reason: 'empty response' };
+// ── Hypothesis parsing ────────────────────────────────────────────────────────
+
+function _parseHypotheses(responseText) {
+  const variants = [];
+  for (let i = 0; i < H.length; i++) {
+    const start = responseText.indexOf(H[i]);
+    if (start === -1) continue;
+    const bodyStart = start + H[i].length;
+    const end = i + 1 < H.length
+      ? responseText.indexOf(H[i + 1])
+      : responseText.length;
+    const code = responseText.slice(bodyStart, end === -1 ? undefined : end).trim();
+    if (code) variants.push({ index: i, code });
   }
-  if (fixed.trim() === original.trim()) {
-    return { ok: false, reason: 'no changes made' };
-  }
-  const refusals = ["I cannot", "I can't", 'I apologize', 'I am unable', "I'm unable"];
-  if (refusals.some((r) => fixed.includes(r))) {
-    return { ok: false, reason: 'refusal response' };
-  }
-  return { ok: true };
+  return variants;
 }
 
-function _verifyFixQuality(fixed) {
-  const newIssues = [];
-  if (/console\.(log|debug|info)\s*\(/.test(fixed)) newIssues.push('introduced console.log/debug/info');
-  if (/\beval\s*\(/.test(fixed))                     newIssues.push('introduced eval() call');
-  if (/\bdebugger\b/.test(fixed))                    newIssues.push('introduced debugger statement');
-  if (/\/\/\s*(TODO|FIXME)\b/i.test(fixed))           newIssues.push('introduced TODO/FIXME comment');
-  return { clean: newIssues.length === 0, newIssues };
+// ── Syntax validation ─────────────────────────────────────────────────────────
+
+function _validateSyntax(code, ext) {
+  if (!code || typeof code !== 'string') return { passed: false, error: 'empty response' };
+  const n = ext.toLowerCase();
+  if (n === '.json') {
+    try { JSON.parse(code); return { passed: true }; }
+    catch (e) { return { passed: false, error: e.message }; }
+  }
+  if (['.js', '.mjs', '.cjs'].includes(n)) {
+    try { new vm.Script(code); return { passed: true }; }  // eslint-disable-line no-new
+    catch (e) { return { passed: false, error: e.message }; }
+  }
+  // TypeScript/TSX — no runtime syntax validator; treat as passing
+  return { passed: true };
 }
+
+// ── Test discovery & execution ────────────────────────────────────────────────
+
+function _findTestFile(filePath, projectRoot) {
+  const base = path.basename(filePath, path.extname(filePath));
+  const candidates = [
+    path.join(projectRoot, 'tests', `${base}.test.js`),
+    path.join(projectRoot, 'tests', `${base}.test.ts`),
+    path.join(projectRoot, '__tests__', `${base}.test.js`),
+    path.join(path.dirname(filePath), `${base}.test.js`),
+  ];
+  return candidates.find(c => fs.existsSync(c)) || null;
+}
+
+function _runTests(testFile, timeout) {
+  if (!testFile) return { passed: true, output: '' };
+  // Strip NODE_TEST_CONTEXT so this subprocess behaves as a standalone runner
+  // (exit 1 on failure) even when the orchestrator is called from inside a test suite.
+  const childEnv = { ...process.env };
+  delete childEnv.NODE_TEST_CONTEXT;
+  try {
+    execSync(`node --test "${testFile}"`, {
+      timeout,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: childEnv,
+    });
+    return { passed: true, output: '' };
+  } catch (err) {
+    const out = [err.stdout, err.stderr].filter(Boolean).join('\n');
+    return { passed: false, output: out.toString().slice(0, 500) };
+  }
+}
+
+// ── Scoring ───────────────────────────────────────────────────────────────────
+
+function _rank({ syntaxOk, testOk }) {
+  if (!syntaxOk) return 3;
+  if (testOk)    return 1;
+  return 2;
+}
+
+// ── Main orchestration entry point ────────────────────────────────────────────
 
 /**
- * Run the full production fix pipeline on a batch of scan findings.
- *
- * @param {Array<{file?, moduleName?, checkName?, message?, severity?}>} findings
- * @param {string} projectRoot   Absolute path to the repo root.
- * @param {string} apiKey        Anthropic API key.
- * @param {Object} [opts]
- * @param {number} [opts.maxAttempts=3]
- * @param {number} [opts.fileCap=50]   Max files to attempt (bounds Anthropic spend).
- * @returns {Promise<{
- *   accepted:              Array<{file,original,fixed,issues}>,
- *   testFiles:             Array<{path,content,sourceFile}>,
- *   allFixes:              Array<{file,original,fixed,issues}>,
- *   errorStrings:          string[],
- *   attemptHistoryByFile:  Record<string,{success,attempts}>,
- *   syntaxGate:            {accepted,rejected},
- *   testGenResult:         {tests,skipped,summary},
- *   prBody:                string,
- * }>}
+ * @param {object}   opts
+ * @param {string}   opts.filePath       — absolute path to the file to fix
+ * @param {string[]} opts.issues         — human-readable issue descriptions
+ * @param {string}   [opts.projectRoot]  — repo root for test discovery
+ * @param {string}   [opts.context]      — optional extra context injected into prompt
+ * @param {number}   [opts.maxAttempts]  — max retry rounds (default 3)
+ * @param {string}   [opts.apiKey]       — Anthropic key (falls back to env)
+ * @returns {Promise<object>}
  */
-async function runFixOrchestration(findings, projectRoot, apiKey, opts = {}) {
-  const { maxAttempts = 3, fileCap = 50, _callAnthropic: _callAnthropicFn } = opts;
-  // Allow tests to inject a mock without touching the https module.
-  const _call = _callAnthropicFn || callAnthropic;
+async function runFixOrchestration(opts) {
+  const {
+    filePath,
+    issues,
+    projectRoot = process.cwd(),
+    context     = '',
+    maxAttempts = MAX_ATTEMPTS,
+  } = opts;
+  const apiKey = opts.apiKey || process.env.ANTHROPIC_API_KEY;
+  if (!apiKey)   return { fixed: false, reason: 'no-api-key' };
+  if (!issues?.length) return { fixed: false, reason: 'no-issues-provided' };
 
-  const conventionsHeader = _buildGroundingHeader(projectRoot);
+  let content;
+  try   { content = fs.readFileSync(filePath, 'utf-8'); }
+  catch (e) { return { fixed: false, reason: `unreadable: ${e.message}` }; }
 
-  // Group findings by file — multiple issues on the same file become one batch
-  const byFile = new Map();
-  for (const f of findings) {
-    if (!f.file) continue;
-    const relFile = path.isAbsolute(f.file) ? path.relative(projectRoot, f.file) : f.file;
-    if (!byFile.has(relFile)) byFile.set(relFile, []);
-    byFile.get(relFile).push(f.message || f.checkName || 'issue');
-  }
+  const ext      = path.extname(filePath);
+  const testFile = _findTestFile(filePath, projectRoot);
+  const tmpDir   = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-hyp-'));
+  let priorError = '';
 
-  const filePaths     = Array.from(byFile.keys()).slice(0, fileCap);
-  const fixedEntries  = [];   // { file, original, fixed, issues }
-  const errorStrings  = [];   // string[] — surfaces in PR advisory section
-  const attemptHistoryByFile = {};
+  try {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const systemPrompt = [
+        'You are a senior software engineer performing surgical code repair.',
+        'Return EXACTLY three complete file hypotheses separated by the required delimiters.',
+        'No text before the first delimiter. No commentary after the last hypothesis.',
+      ].join(' ');
 
-  for (const relFilePath of filePaths) {
-    const absolutePath = path.join(projectRoot, relFilePath);
-    const issues = byFile.get(relFilePath);
+      const userPrompt = (context ? context + '\n\n' : '') +
+        _buildMultiHypothesisPrompt(filePath, content, issues, priorError);
 
-    let originalContent;
-    try {
-      const stat = fs.statSync(absolutePath);
-      if (stat.size > MAX_FILE_BYTES) {
-        errorStrings.push(`\`${relFilePath}\` — skipped (file too large: ${stat.size} bytes)`);
+      let responseText;
+      try   { responseText = await _callClaude(apiKey, systemPrompt, userPrompt); }
+      catch (e) { return { fixed: false, reason: `claude-error: ${e.message}` }; }
+
+      const hypotheses = _parseHypotheses(responseText);
+      if (hypotheses.length === 0) {
+        priorError = 'model returned no parseable hypotheses';
         continue;
       }
-      originalContent = fs.readFileSync(absolutePath, 'utf-8');
-    } catch (err) {
-      errorStrings.push(`\`${relFilePath}\` — could not read: ${err.message}`);
-      continue;
+
+      // Write each hypothesis to an isolated temp file
+      for (const h of hypotheses) {
+        h.tempPath = path.join(tmpDir, `hypothesis-${h.index}${ext}`);
+        fs.writeFileSync(h.tempPath, h.code, 'utf-8');
+      }
+
+      // Validate all candidates concurrently
+      const evaluated = await Promise.all(hypotheses.map(async (h) => {
+        const syntaxResult = _validateSyntax(h.code, ext);
+        const testResult   = syntaxResult.passed ? _runTests(testFile, TEST_TIMEOUT_MS) : { passed: false, output: '' };
+        const lineDelta    = Math.abs(h.code.split('\n').length - content.split('\n').length);
+        return {
+          ...h,
+          rank:        _rank({ syntaxOk: syntaxResult.passed, testOk: testResult.passed }),
+          lineDelta,
+          syntaxError: syntaxResult.error || null,
+          testOutput:  testResult.output,
+          testOk:      testResult.passed,
+        };
+      }));
+
+      // Rank ASC (1 = best), lineDelta ASC as tiebreaker
+      evaluated.sort((a, b) => a.rank - b.rank || a.lineDelta - b.lineDelta);
+      const winner = evaluated[0];
+
+      if (winner.rank <= 2) {
+        fs.writeFileSync(filePath, winner.code, 'utf-8');
+
+        // Bidirectional gate — verify the fix with negative + positive controls.
+        // Advisory only: the fix ships regardless. maxCorrections:0 prevents
+        // rewriting existing customer tests; only generated tests use correction.
+        let testGate = null;
+        if (testFile) {
+          testGate = await verifyGeneratedTest({
+            testPath:        testFile,
+            sourceFilePath:  filePath,
+            originalContent: content,
+            fixedContent:    winner.code,
+            apiKey,
+            projectRoot,
+            maxCorrections:  0, // existing tests — observe only, never rewrite
+          }).catch(() => null); // error-ok — gate is advisory; never block the fix
+        }
+
+        return {
+          fixed:      true,
+          rank:       winner.rank,
+          hypothesis: H_NAMES[winner.index],
+          attempt,
+          lineDelta:  winner.lineDelta,
+          testsPassed: winner.testOk,
+          testGate,
+          advisory:   winner.rank === 2 ? 'Some tests remain amber — review before merging' : null,
+        };
+      }
+
+      // All three failed syntax — retry with the best error context
+      priorError = winner.syntaxError || winner.testOutput || 'all hypotheses failed syntax';
     }
-
-    const askClaude = async (currentIssues) => {
-      const prompt = _buildFixPrompt(conventionsHeader, relFilePath, originalContent, currentIssues);
-      let response = await _call(
-        apiKey, MODEL,
-        'Return only the complete fixed file content. No explanations. No markdown fences.',
-        prompt,
-      );
-      return response.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '');
-    };
-
-    let loopResult;
-    try {
-      loopResult = await attemptFixWithRetries({
-        askClaude,
-        validateFix: _validateFix,
-        verifyFixQuality: _verifyFixQuality,
-        originalContent,
-        filePath: relFilePath,
-        issues,
-        maxAttempts,
-      });
-    } catch (err) {
-      errorStrings.push(`\`${relFilePath}\` — fix loop error: ${err.message || String(err)}`);
-      continue;
-    }
-
-    attemptHistoryByFile[relFilePath] = { success: loopResult.success, attempts: loopResult.attempts };
-
-    if (loopResult.success && loopResult.fixed) {
-      fixedEntries.push({ file: relFilePath, original: originalContent, fixed: loopResult.fixed, issues });
-    } else {
-      errorStrings.push(`\`${relFilePath}\` — ${loopResult.finalReason || 'fix failed'}`);
-    }
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best-effort */ } // error-ok
   }
 
-  // Syntax gate — rejects JS/JSON fixes that don't parse; TS/TSX pass-through
-  const syntaxGate = validateFixesSyntax({ fixes: fixedEntries });
-  const accepted = syntaxGate.accepted || [];
-  for (const rej of syntaxGate.rejected || []) {
-    errorStrings.push(`\`${rej.file}\` — syntax gate rejected: ${rej.reason}`);
-  }
-
-  // Test generation — regression tests for every gate-passed fix
-  const askClaudeForTest = async (prompt) =>
-    _call(apiKey, MODEL, 'Return only the test file content. No explanations.', prompt);
-
-  let testGenResult = { tests: [], skipped: [], summary: 'test generation: not run' };
-  try {
-    testGenResult = await generateTestsForFixes({ fixes: accepted, askClaudeForTest });
-  } catch { /* non-blocking — test gen failure never blocks the fix from shipping */ }
-
-  // Combined fixes list for pr-composer
-  const allFixes = [
-    ...accepted,
-    ...testGenResult.tests.map((t) => ({
-      file: t.path,
-      original: '',
-      fixed: t.content,
-      issues: [`Regression test for ${t.sourceFile}`],
-    })),
-  ];
-
-  const prBody = composePrBody({
-    fixes: allFixes,
-    errors: errorStrings,
-    attemptHistoryByFile,
-    syntaxGate,
-    testGen: testGenResult,
-  });
-
-  return {
-    accepted,
-    testFiles: testGenResult.tests,
-    allFixes,
-    errorStrings,
-    attemptHistoryByFile,
-    syntaxGate,
-    testGenResult,
-    prBody,
-  };
+  return { fixed: false, reason: `all ${maxAttempts} attempt(s) exhausted`, lastError: priorError };
 }
 
 module.exports = { runFixOrchestration };

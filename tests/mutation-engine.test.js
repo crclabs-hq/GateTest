@@ -304,3 +304,103 @@ test('end-to-end — mutate, apply, verify the diff is exactly one line', () => 
   }
   assert.equal(diffCount, 1, 'exactly one line should differ post-mutation');
 });
+
+// ---------- _buildLineMask (lexical quarantine) ----------
+
+const { _buildLineMask, _isBoilerplateLine } = require('../src/core/mutation-engine');
+
+test('_buildLineMask — masks single-quoted string content', () => {
+  const st = { inBlock: false, inBacktick: false };
+  const masked = _buildLineMask("const x = 'return true;';", st);
+  // Characters inside the quotes should be masked (positions 11–23 approx)
+  const inQuotes = [...masked].filter(i => i >= 11 && i <= 23);
+  assert.ok(inQuotes.length > 0, 'characters inside single-quoted string are masked');
+  // Position 0 ('c') should NOT be masked
+  assert.ok(!masked.has(0), 'code outside string is not masked');
+});
+
+test('_buildLineMask — masks double-quoted string content', () => {
+  const st = { inBlock: false, inBacktick: false };
+  const line = 'const msg = "return true;";';
+  const masked = _buildLineMask(line, st);
+  // The 't' of 'return' inside the string should be masked
+  const idx = line.indexOf('return');
+  assert.ok(masked.has(idx), 'return keyword inside double-quoted string is masked');
+});
+
+test('_buildLineMask — masks line comment', () => {
+  const st = { inBlock: false, inBacktick: false };
+  const line = 'const x = 1; // return true;';
+  const masked = _buildLineMask(line, st);
+  const commentStart = line.indexOf('//');
+  assert.ok(masked.has(commentStart), '// comment start is masked');
+  assert.ok(masked.has(line.length - 1), 'last char of comment is masked');
+  assert.ok(!masked.has(0), 'code before comment is not masked');
+});
+
+test('_buildLineMask — threads backtick state across lines', () => {
+  const st = { inBlock: false, inBacktick: false };
+  // Line 1 opens a backtick — does not close it
+  _buildLineMask('const s = `start of template', st);
+  assert.equal(st.inBacktick, true, 'state carries inBacktick=true after open backtick');
+  // Line 2 is entirely inside the template → fully masked
+  const masked2 = _buildLineMask('  return true; // still inside template', st);
+  assert.ok(masked2.has(0), 'first char of continuation line is masked');
+  assert.ok(masked2.has(10), 'mid-line char still masked inside template');
+});
+
+test('applyMutation — does not mutate return-true inside a string literal', () => {
+  const op = findOp('return-true');
+  // The pattern matches `return true` but it's inside a double-quoted string
+  const line = 'const msg = "return true is fine here";';
+  assert.equal(applyMutation(line, op), null, 'should return null — match is inside string');
+});
+
+test('applyMutation — does mutate code when line also contains an unrelated string', () => {
+  const op = findOp('return-true');
+  // The `return true` is in actual code; the string is elsewhere
+  const line = 'if (ok) { return true; } // label="return true"';
+  const result = applyMutation(line, op);
+  assert.ok(result !== null, 'should produce a mutation for the code-side match');
+  assert.ok(result.includes('return false'), 'code-side return true is flipped');
+});
+
+// ---------- _isBoilerplateLine ----------
+
+test('_isBoilerplateLine — flags module.exports = ', () => {
+  assert.equal(_isBoilerplateLine('module.exports = { add, sub };'), true);
+  assert.equal(_isBoilerplateLine('  module.exports = function() {};'), true);
+});
+
+test('_isBoilerplateLine — flags exports.X = ', () => {
+  assert.equal(_isBoilerplateLine('exports.helper = helper;'), true);
+});
+
+test('_isBoilerplateLine — flags type/interface/enum headers', () => {
+  assert.equal(_isBoilerplateLine('type Result = string;'), true);
+  assert.equal(_isBoilerplateLine('interface IFoo {'), true);
+  assert.equal(_isBoilerplateLine('enum Status {'), true);
+});
+
+test('_isBoilerplateLine — flags bare closing brace lines', () => {
+  assert.equal(_isBoilerplateLine('}'), true);
+  assert.equal(_isBoilerplateLine('  };'), true);
+  assert.equal(_isBoilerplateLine('];'), true);
+});
+
+test('_isBoilerplateLine — does NOT flag normal code lines', () => {
+  assert.equal(_isBoilerplateLine('if (a < b) return true;'), false);
+  assert.equal(_isBoilerplateLine('  return a + b;'), false);
+  assert.equal(_isBoilerplateLine('function foo() {'), false);
+  assert.equal(_isBoilerplateLine('const x = result || fallback;'), false);
+});
+
+test('generateMutations — skips module.exports boilerplate line', () => {
+  const source = [
+    'function add(a, b) { return a + b; }',
+    'module.exports = { add };',
+  ].join('\n');
+  const candidates = generateMutations(source);
+  const boilerplateLine = candidates.find(c => c.original.includes('module.exports'));
+  assert.equal(boilerplateLine, undefined, 'module.exports line must not produce a candidate');
+});

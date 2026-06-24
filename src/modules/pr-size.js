@@ -323,8 +323,9 @@ class PrSizeModule extends BaseModule {
         || 'origin/main';
       const { execSync } = require('child_process');
       // Cheap: just grep the merge-range commit subjects + bodies.
-      const log = execSync(`git log "${base}..HEAD" --format=%B 2>/dev/null`, {
+      const log = execSync(`git log "${base}..HEAD" --format=%B`, {
         cwd: projectRoot, encoding: 'utf8', timeout: 5000,
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
       return /\[pr-size-ok\]/.test(log || '');
     } catch { return false; }

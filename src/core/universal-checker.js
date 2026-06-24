@@ -265,7 +265,7 @@ function runLanguageChecks(lang, projectRoot, result, options = {}) {
   let filesScanned = 0;
 
   for (const file of files) {
-    const isTest = spec.testFilePattern && spec.testFilePattern.test(file);
+    const isTest = spec.testFilePattern && spec.testFilePattern.test(file.replace(/\\/g, '/'));
     let content;
     try {
       content = fs.readFileSync(file, 'utf-8');

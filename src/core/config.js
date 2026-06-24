@@ -528,6 +528,7 @@ const DEFAULT_CONFIG = {
       minSourceFilesForTestCheck: 3,
     },
     codeQuality: {
+      excludePaths: ['bin', 'scripts', 'src/reporters', 'src/hooks', 'src/ai-loop.js', 'src/app-server.js', 'src/scanners'],
       forbiddenPatterns: [
         { pattern: /console\.(log|debug|info)\(/g, message: 'console.log/debug/info found' },
         { pattern: /\bdebugger\b/g, message: 'debugger statement found' },

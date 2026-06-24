@@ -233,9 +233,10 @@ class HomoglyphModule extends BaseModule {
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return 0; }
 
     const rel = path.relative(projectRoot, file);
-    const isLocale = LOCALE_PATH_RE.test(rel) || LOCALE_EXT_RE.test(rel);
-    const isDoc = DOC_EXT_RE.test(rel);
-    const isTestFile = TEST_PATH_RE.test(rel);
+    const relFwd = rel.replace(/\\/g, '/');
+    const isLocale = LOCALE_PATH_RE.test(relFwd) || LOCALE_EXT_RE.test(relFwd);
+    const isDoc = DOC_EXT_RE.test(relFwd);
+    const isTestFile = TEST_PATH_RE.test(relFwd);
 
     // Locale and doc files are allowed any Unicode.
     if (isLocale || isDoc) return 0;
