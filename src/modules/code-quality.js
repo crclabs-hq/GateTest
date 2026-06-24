@@ -22,9 +22,10 @@ class CodeQualityModule extends BaseModule {
 
     for (const file of sourceFiles) {
       const relPath = path.relative(projectRoot, file);
+      const relFwd = relPath.replace(/\\/g, '/');
 
       // Skip files matching excludePaths patterns
-      if (excludePaths.some(pattern => relPath.startsWith(pattern) || relPath.includes(`/${pattern}`))) {
+      if (excludePaths.some(pattern => relFwd.startsWith(pattern) || relFwd.includes(`/${pattern}`))) {
         continue;
       }
 

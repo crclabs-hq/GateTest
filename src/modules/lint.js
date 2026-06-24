@@ -100,7 +100,7 @@ class LintModule extends BaseModule {
     // Warnings still surface in the report (with their own severity)
     // but don't fail the gate — that's what the severity system is for.
     const { exitCode, stdout, stderr } = this._exec(
-      'npx eslint . --format json 2>/dev/null',
+      'npx eslint . --format json',
       { cwd: projectRoot, timeout: 120000 }
     );
 
