@@ -233,7 +233,7 @@ class EnvVarsModule extends BaseModule {
           entry.name === 'compose.yaml'
         ) {
           this._harvestConfigFile(full, declared);
-        } else if (full.includes('.github/workflows/') && CI_WORKFLOW_RE.test(entry.name)) {
+        } else if (full.replace(/\\/g, '/').includes('.github/workflows/') && CI_WORKFLOW_RE.test(entry.name)) {
           this._harvestWorkflowFile(full, declared);
         }
       }

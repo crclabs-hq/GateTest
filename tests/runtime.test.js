@@ -85,7 +85,7 @@ describe('Diagnostics', () => {
   test('_stateFile returns deterministic path', () => {
     const d = new Diagnostics({ stateDir: '/tmp/test' });
     const f = d._stateFile('https://example.com/api/health');
-    assert(f.startsWith('/tmp/test'));
+    assert(f.replace(/\\/g, '/').startsWith('/tmp/test'));
     assert(f.endsWith('.json'));
   });
 

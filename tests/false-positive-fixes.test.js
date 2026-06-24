@@ -54,7 +54,7 @@ test('regression — .claude/worktrees/ is in defaultExcludes (bug from Crontech
 
     const mod = new TestableModule();
     const collected = mod._collectFiles(root, ['.js']);
-    const rel = collected.map((p) => path.relative(root, p));
+    const rel = collected.map((p) => path.relative(root, p).replace(/\\/g, '/'));
 
     // The real source file IS collected
     assert.ok(rel.includes('src/real.js'), 'src/real.js should be collected');
@@ -76,7 +76,7 @@ test('regression — .claude in default excludes coexists with caller-supplied e
 
     const mod = new TestableModule();
     const collected = mod._collectFiles(root, ['.js'], ['experiments']);
-    const rel = collected.map((p) => path.relative(root, p)).sort();
+    const rel = collected.map((p) => path.relative(root, p).replace(/\\/g, '/')).sort();
 
     // src/keep.js included; experiments/ + .claude/ both excluded
     assert.deepEqual(rel, ['src/keep.js']);
@@ -157,7 +157,7 @@ test('regression — JSX-configured monorepo workspace (apps/web) IS discovered'
     const mod = new SyntaxModule();
     const found = mod._discoverRealTsconfigs(root);
 
-    const rel = found.map((p) => path.relative(root, p)).sort();
+    const rel = found.map((p) => path.relative(root, p).replace(/\\/g, '/')).sort();
     assert.deepEqual(rel, ['apps/api', 'apps/web', 'packages/shared']);
     // Notably the root is NOT included
     assert.ok(!found.includes(root));
@@ -180,7 +180,7 @@ test('regression — descent stops at depth 2 (does not walk into node_modules-d
     const mod = new SyntaxModule();
     const found = mod._discoverRealTsconfigs(root);
 
-    const rel = found.map((p) => path.relative(root, p));
+    const rel = found.map((p) => path.relative(root, p).replace(/\\/g, '/'));
     assert.ok(rel.includes('apps/web'));
     assert.ok(!rel.some((r) => r.includes('deep')), 'should not descend past depth 2');
   } finally {
