@@ -20,6 +20,7 @@ const os     = require('os');
 const vm     = require('vm');
 const https  = require('https');
 const { execSync } = require('child_process');
+const { verifyGeneratedTest } = require('./bidirectional-test-gate');
 
 const ANTHROPIC_HOST  = 'api.anthropic.com';
 const MODEL           = 'claude-sonnet-4-20250514';
@@ -153,10 +154,15 @@ function _findTestFile(filePath, projectRoot) {
 
 function _runTests(testFile, timeout) {
   if (!testFile) return { passed: true, output: '' };
+  // Strip NODE_TEST_CONTEXT so this subprocess behaves as a standalone runner
+  // (exit 1 on failure) even when the orchestrator is called from inside a test suite.
+  const childEnv = { ...process.env };
+  delete childEnv.NODE_TEST_CONTEXT;
   try {
     execSync(`node --test "${testFile}"`, {
       timeout,
       stdio: ['pipe', 'pipe', 'pipe'],
+      env: childEnv,
     });
     return { passed: true, output: '' };
   } catch (err) {
@@ -254,6 +260,23 @@ async function runFixOrchestration(opts) {
 
       if (winner.rank <= 2) {
         fs.writeFileSync(filePath, winner.code, 'utf-8');
+
+        // Bidirectional gate — verify the fix with negative + positive controls.
+        // Advisory only: the fix ships regardless. maxCorrections:0 prevents
+        // rewriting existing customer tests; only generated tests use correction.
+        let testGate = null;
+        if (testFile) {
+          testGate = await verifyGeneratedTest({
+            testPath:        testFile,
+            sourceFilePath:  filePath,
+            originalContent: content,
+            fixedContent:    winner.code,
+            apiKey,
+            projectRoot,
+            maxCorrections:  0, // existing tests — observe only, never rewrite
+          }).catch(() => null); // error-ok — gate is advisory; never block the fix
+        }
+
         return {
           fixed:      true,
           rank:       winner.rank,
@@ -261,6 +284,7 @@ async function runFixOrchestration(opts) {
           attempt,
           lineDelta:  winner.lineDelta,
           testsPassed: winner.testOk,
+          testGate,
           advisory:   winner.rank === 2 ? 'Some tests remain amber — review before merging' : null,
         };
       }
@@ -269,7 +293,7 @@ async function runFixOrchestration(opts) {
       priorError = winner.syntaxError || winner.testOutput || 'all hypotheses failed syntax';
     }
   } finally {
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best-effort */ }
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best-effort */ } // error-ok
   }
 
   return { fixed: false, reason: `all ${maxAttempts} attempt(s) exhausted`, lastError: priorError };
