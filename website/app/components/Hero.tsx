@@ -16,6 +16,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { UrlScanFlow } from "./UrlScanFlow";
+import { OPEN_AUTH_EVENT } from "./Navbar";
 
 const SAMPLE_URLS = [
   { label: "example.com", url: "https://example.com" },
@@ -139,12 +140,15 @@ export default function Hero() {
                   Select a tier to start your repo scan — you provide the GitHub
                   URL at checkout. No GitHub App install required.
                 </p>
-                <a
-                  href="#pricing"
+                <button
+                  type="button"
                   className="btn-primary inline-block w-full text-center"
+                  onClick={() =>
+                    window.dispatchEvent(new CustomEvent(OPEN_AUTH_EVENT))
+                  }
                 >
-                  Run Free Diagnostic Audit &darr;
-                </a>
+                  Get Automated Fixes &rarr;
+                </button>
                 <p className="text-[11px] text-zinc-600 mt-3 text-center">
                   Quick Scan is $29 · Full 102-module scan is $99 · Pay on completion
                 </p>

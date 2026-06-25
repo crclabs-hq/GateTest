@@ -1,8 +1,8 @@
 /**
- * Customer session utilities — HMAC-signed cookies for GitHub OAuth customer access.
+ * Customer session utilities — HMAC-signed cookies for multi-provider OAuth.
  *
- * Reuses the same GitHub OAuth App as admin, but without the allowlist check.
- * Any GitHub user can sign in as a customer. Session lasts 30 days.
+ * Supports GitHub, GitLab, and Google. All providers share the same session
+ * cookie format (HMAC-SHA256 signed JWT). Session lasts 30 days.
  */
 
 import crypto from "crypto";
@@ -123,4 +123,72 @@ export function verifyCustomerSession(
 
 export function generateState(): string {
   return b64urlEncode(crypto.randomBytes(24));
+}
+
+// ── GitLab OAuth ──────────────────────────────────────────────────────────────
+
+export interface GitLabOAuthConfig {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  sessionSecret: string;
+}
+
+export interface GitLabOAuthConfigStatus {
+  ok: boolean;
+  missing: string[];
+  config?: GitLabOAuthConfig;
+}
+
+export function getGitLabOAuthConfig(): GitLabOAuthConfigStatus {
+  const clientId = process.env.GITLAB_CLIENT_ID || "";
+  const clientSecret = process.env.GITLAB_CLIENT_SECRET || "";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+  const redirectUri = baseUrl
+    ? `${baseUrl.replace(/\/$/, "")}/api/auth/gitlab/callback`
+    : "";
+  const sessionSecret = process.env.SESSION_SECRET || "";
+
+  const missing: string[] = [];
+  if (!clientId) missing.push("GITLAB_CLIENT_ID");
+  if (!clientSecret) missing.push("GITLAB_CLIENT_SECRET");
+  if (!redirectUri) missing.push("NEXT_PUBLIC_BASE_URL");
+  if (!sessionSecret) missing.push("SESSION_SECRET");
+
+  if (missing.length > 0) return { ok: false, missing };
+  return { ok: true, missing: [], config: { clientId, clientSecret, redirectUri, sessionSecret } };
+}
+
+// ── Google OAuth ──────────────────────────────────────────────────────────────
+
+export interface GoogleOAuthConfig {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  sessionSecret: string;
+}
+
+export interface GoogleOAuthConfigStatus {
+  ok: boolean;
+  missing: string[];
+  config?: GoogleOAuthConfig;
+}
+
+export function getGoogleOAuthConfig(): GoogleOAuthConfigStatus {
+  const clientId = process.env.GOOGLE_CLIENT_ID || "";
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+  const redirectUri = baseUrl
+    ? `${baseUrl.replace(/\/$/, "")}/api/auth/google/callback`
+    : "";
+  const sessionSecret = process.env.SESSION_SECRET || "";
+
+  const missing: string[] = [];
+  if (!clientId) missing.push("GOOGLE_CLIENT_ID");
+  if (!clientSecret) missing.push("GOOGLE_CLIENT_SECRET");
+  if (!redirectUri) missing.push("NEXT_PUBLIC_BASE_URL");
+  if (!sessionSecret) missing.push("SESSION_SECRET");
+
+  if (missing.length > 0) return { ok: false, missing };
+  return { ok: true, missing: [], config: { clientId, clientSecret, redirectUri, sessionSecret } };
 }
