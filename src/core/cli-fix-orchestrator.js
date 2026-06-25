@@ -21,6 +21,11 @@ const vm     = require('vm');
 const https  = require('https');
 const { execSync } = require('child_process');
 const { verifyGeneratedTest } = require('./bidirectional-test-gate');
+const {
+  recordFixEvent,
+  executePlaybackSimulation,
+  distillRecipes,
+} = require('./flywheel-playback-engine');
 
 const ANTHROPIC_HOST  = 'api.anthropic.com';
 const MODEL           = 'claude-sonnet-4-20250514';
@@ -211,6 +216,39 @@ async function runFixOrchestration(opts) {
   const testFile = _findTestFile(filePath, projectRoot);
   const tmpDir   = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-hyp-'));
   let priorError = '';
+  const t0 = Date.now();
+
+  // ── Playback simulation — check recipe store BEFORE calling Claude ─────────
+  // If a stable recipe exists for this pattern, apply it and return immediately
+  // with zero Anthropic spend.
+  const playback = executePlaybackSimulation({
+    content,
+    issues,
+    fileExt: ext,
+    recipePath: opts.recipePath || null,
+  });
+  if (playback.hit && playback.code) {
+    fs.writeFileSync(filePath, playback.code, 'utf-8');
+    recordFixEvent({
+      ruleKey:    issues[0] || '',
+      layer:      playback.layer,
+      success:    true,
+      durationMs: Date.now() - t0,
+      fileExt:    ext,
+      eventsPath: opts.eventsPath || undefined,
+    });
+    return {
+      fixed:      true,
+      rank:       1,
+      hypothesis: 'Playback',
+      attempt:    0,
+      lineDelta:  Math.abs(playback.code.split('\n').length - content.split('\n').length),
+      testsPassed: false,
+      testGate:   null,
+      playback:   true,
+      recipeId:   playback.recipeId || null,
+    };
+  }
 
   try {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -275,6 +313,34 @@ async function runFixOrchestration(opts) {
             projectRoot,
             maxCorrections:  0, // existing tests — observe only, never rewrite
           }).catch(() => null); // error-ok — gate is advisory; never block the fix
+        }
+
+        // ── Flywheel recording + distillation ────────────────────────────
+        // Record the event so clusterBugLineages can surface this pattern.
+        recordFixEvent({
+          ruleKey:               issues[0] || '',
+          layer:                 'claude',
+          success:               true,
+          durationMs:            Date.now() - t0,
+          bidirectionalCertified: testGate?.certified ?? null,
+          hypothesisName:        H_NAMES[winner.index],
+          lineDelta:             winner.lineDelta,
+          attempt,
+          fileExt:               ext,
+          eventsPath:            opts.eventsPath || undefined,
+        });
+
+        // If the fix was bidirectionally certified AND a recipe path is
+        // configured, distill the win into the recipe store so the next
+        // identical pattern is served for free.
+        if (testGate?.certified && opts.recipePath) {
+          distillRecipes({
+            originalContent: content,
+            fixedContent:    winner.code,
+            ruleKey:         issues[0] || '',
+            fileExt:         ext,
+            recipePath:      opts.recipePath,
+          });
         }
 
         return {
