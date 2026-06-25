@@ -1,20 +1,16 @@
 "use client";
 
 /**
- * <Hero> — world-class HN-flavoured landing hero.
+ * <Hero> — GateTest landing hero.
  *
- * Design rules:
- *   - The hero IS the demo. URL input runs a real free scan.
- *   - Sample-URL chips pre-fill so visitors can try the product without typing.
- *   - Honest counter row — no fabricated numbers; "Launching today" badge if no
- *     real data is available.
- *   - Substance over polish: every claim ties to a real artefact (102 modules,
- *     3500+ tests, self-scan green, pay-on-completion).
- *   - Dark theme preserved. Animated grid background retained.
- *   - Mobile-first; 320px ↔ 2560px.
+ * Design: Linear/Stripe B2B tone. Solid charcoal background, thin 1px
+ * borders, teal-only accent. No neon, no heavy gradient blobs.
  *
- * The `UrlScanFlow` component is the same one used by /web — it handles the
- * full cinematic scan flow, paywall, health score, and result rendering.
+ * Two CTA tracks:
+ *   1. Website URL scan — free preview via UrlScanFlow (inline result render)
+ *   2. Repo scan — routes to #pricing where tier selection begins checkout
+ *
+ * CLI snippet visible for developers who landed here from a search.
  */
 
 import { useState } from "react";
@@ -23,20 +19,16 @@ import { UrlScanFlow } from "./UrlScanFlow";
 
 const SAMPLE_URLS = [
   { label: "example.com", url: "https://example.com" },
-  { label: "nextjs.org", url: "https://nextjs.org" },
-  { label: "vercel.com", url: "https://vercel.com" },
+  { label: "nextjs.org",  url: "https://nextjs.org"  },
+  { label: "vercel.com",  url: "https://vercel.com"  },
 ];
 
 export default function Hero() {
-  // Sample buttons pre-fill the input via a re-mount of UrlScanFlow with a
-  // fresh `initialUrl`. Bumping the `nonce` forces React to discard the
-  // previous instance and mount a new one with the seeded value already in
-  // its controlled-input state — no DOM hacks, no sync events.
   const [seed, setSeed] = useState<{ url: string; nonce: number }>({ url: "", nonce: 0 });
+  const [track, setTrack] = useState<"website" | "repo">("website");
 
   function prefill(url: string) {
     setSeed((s) => ({ url, nonce: s.nonce + 1 }));
-    // Focus the new input on next paint so a single Enter runs the scan.
     requestAnimationFrame(() => {
       const el = document.getElementById("url-scan-input") as HTMLInputElement | null;
       if (el) el.focus();
@@ -47,111 +39,146 @@ export default function Hero() {
     <section className="relative overflow-hidden pt-20">
       <div className="hero-dark px-6 pb-24 pt-16 relative">
         <div className="hero-grid" aria-hidden="true" />
-        {/* Animated teal blob — slow drift + breathing scale so the hero
-            feels alive without screaming for attention. Hidden on mobile
-            where the blur is GPU-expensive and invisible at phone DPR. */}
-        <div className="hidden md:block hero-blob absolute top-0 left-1/2 w-[760px] h-[360px] bg-gradient-to-b from-teal-500/12 to-transparent rounded-full blur-[120px] pointer-events-none" />
 
-        <div className="relative z-10 mx-auto max-w-5xl">
-          {/* Status / launch badge — glassmorphic chip with live ping */}
+        <div className="relative z-10 mx-auto max-w-4xl">
+
+          {/* Status badge */}
           <div className="flex justify-center mb-10 fade-up">
             <div className="glass-card inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-sm text-white/80 font-medium">
               <span className="relative flex h-2 w-2" aria-hidden="true">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
               </span>
-              <span>Launching today &middot; v1.42 &middot; 102 modules live</span>
+              <span>v1.42 &middot; 102 modules &middot; self-scan green</span>
             </div>
           </div>
 
-          {/* Headline — the claim, not a slogan */}
-          <h1 className="text-center text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-6 fade-up text-white">
-            One gate. <span className="hero-accent-text">102 modules.</span>
+          {/* Headline */}
+          <h1 className="text-center text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.08] mb-5 fade-up text-white">
+            The Autonomous
             <br />
-            Self-healing CI.
+            <span className="hero-accent-text">Testing &amp; Repair Engine.</span>
           </h1>
 
-          {/* Unfair-advantage hook */}
-          <p className="text-center text-xl sm:text-2xl text-white/65 max-w-3xl mx-auto mb-3 leading-snug fade-up font-medium">
-            One-time payment per scan. No subscription.
+          {/* Sub-headline */}
+          <p className="text-center text-base sm:text-lg text-white/55 max-w-2xl mx-auto mb-2 leading-relaxed fade-up">
+            Intercept flaws. Speculatively execute patches.
+            Mathematically certify production-ready code blocks before you deploy.
           </p>
-          <p className="text-center text-base sm:text-lg text-white/45 max-w-2xl mx-auto mb-3 leading-relaxed fade-up">
-            Scan your repo or any public site. We find bugs, security issues,
-            and CI rot. On Scan + Fix and Nuclear tiers we open a PR with the
-            fixes we can ship. Per-scan payment via Stripe &mdash; you pay
-            once and get the report.
-          </p>
-          {/* Recipe-distillation moat, framed as a signal-quality story
-              (not a price-cut promise — invites the wrong kind of email). */}
-          <p className="text-center text-sm sm:text-base text-teal-300/80 max-w-2xl mx-auto mb-10 fade-up font-medium">
-            Gets sharper with every scan &mdash; recipe distillation means
-            fewer false positives and faster, more accurate fixes over time.
+          <p className="text-center text-sm text-teal-300/75 max-w-xl mx-auto mb-10 fade-up font-medium">
+            102 modules · bidirectional gate · certified PR — per scan, no subscription.
           </p>
 
-          {/* Primary CTA: the live URL scan, in-hero */}
-          <div className="max-w-2xl mx-auto fade-up">
-            <UrlScanFlow
-              key={seed.nonce}
-              suite="web"
-              endpoint="/api/web/scan"
-              streamEndpoint="/api/web/scan/stream"
-              recommendEndpoint="/api/scan/recommend"
-              placeholderUrl="https://yoursite.com — free preview, no signup"
-              brandLabel="GateTest"
-              initialUrl={seed.url}
-            />
-
-            {/* Sample URL chips */}
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs">
-              <span className="text-white/40 uppercase tracking-wider font-medium">
-                Try a sample
-              </span>
-              {SAMPLE_URLS.map((s) => (
-                <button
-                  key={s.url}
-                  type="button"
-                  onClick={() => prefill(s.url)}
-                  className="glass-card px-3 py-1.5 rounded-full text-white/75 hover:text-white font-mono"
-                >
-                  {s.label}
-                </button>
-              ))}
-              <Link
-                href="/wp"
-                className="glass-card px-3 py-1.5 rounded-full text-white/75 hover:text-white"
+          {/* Track switcher */}
+          <div className="flex justify-center mb-8 fade-up">
+            <div className="inline-flex rounded-lg border border-zinc-700 overflow-hidden text-sm font-medium">
+              <button
+                type="button"
+                onClick={() => setTrack("website")}
+                className={`px-5 py-2.5 transition-colors ${
+                  track === "website"
+                    ? "bg-zinc-700 text-white"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                }`}
               >
-                WordPress site? &rarr;
+                Scan a website
+              </button>
+              <button
+                type="button"
+                onClick={() => setTrack("repo")}
+                className={`px-5 py-2.5 border-l border-zinc-700 transition-colors ${
+                  track === "repo"
+                    ? "bg-zinc-700 text-white"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                }`}
+              >
+                Scan a repo
+              </button>
+            </div>
+          </div>
+
+          {/* CTA area */}
+          <div className="max-w-2xl mx-auto fade-up">
+            {track === "website" ? (
+              <>
+                {/* Website scan track */}
+                <UrlScanFlow
+                  key={seed.nonce}
+                  suite="web"
+                  endpoint="/api/web/scan"
+                  streamEndpoint="/api/web/scan/stream"
+                  recommendEndpoint="/api/scan/recommend"
+                  placeholderUrl="https://yoursite.com — free preview, no signup"
+                  brandLabel="GateTest"
+                  initialUrl={seed.url}
+                />
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs">
+                  <span className="text-white/40 uppercase tracking-wider font-medium">Try</span>
+                  {SAMPLE_URLS.map((s) => (
+                    <button
+                      key={s.url}
+                      type="button"
+                      onClick={() => prefill(s.url)}
+                      className="glass-card px-3 py-1.5 rounded-full text-white/75 hover:text-white font-mono"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                  <Link
+                    href="/wp"
+                    className="glass-card px-3 py-1.5 rounded-full text-white/75 hover:text-white"
+                  >
+                    WordPress? &rarr;
+                  </Link>
+                </div>
+              </>
+            ) : (
+              /* Repo scan track */
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+                <p className="text-sm text-zinc-300 mb-4">
+                  Select a tier to start your repo scan — you provide the GitHub
+                  URL at checkout. No GitHub App install required.
+                </p>
+                <a
+                  href="#pricing"
+                  className="btn-primary inline-block w-full text-center"
+                >
+                  Run Free Diagnostic Audit &darr;
+                </a>
+                <p className="text-[11px] text-zinc-600 mt-3 text-center">
+                  Quick Scan is $29 · Full 102-module scan is $99 · Pay on completion
+                </p>
+
+                {/* CLI snippet for developers */}
+                <div className="mt-6 pt-5 border-t border-zinc-800">
+                  <p className="text-[11px] text-zinc-500 font-mono uppercase tracking-widest mb-2">
+                    Or run locally
+                  </p>
+                  <div className="terminal rounded-lg px-4 py-3 flex items-center gap-3 overflow-x-auto">
+                    <span className="text-zinc-500 select-none shrink-0">$</span>
+                    <code className="text-teal-300 text-sm whitespace-nowrap">
+                      npx @gatetest/cli --suite full
+                    </code>
+                  </div>
+                  <p className="text-[11px] text-zinc-600 mt-2">
+                    Zero install · reads your repo locally · exits 1 on any error finding
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Honest status row */}
+            <div className="mt-8 grid grid-cols-3 gap-3">
+              <StatusCell label="Self-scan"     value="GREEN"  tone="ok"    detail="102/102 modules" />
+              <StatusCell label="Tests passing" value="3,500+" tone="ok"    detail="every commit" />
+              <StatusCell label="Payment"       value="$29+"   tone="muted" detail="one-time per scan" />
+            </div>
+
+            <p className="text-center text-xs text-white/35 mt-5">
+              Install the GitHub App for scan-on-every-push —{" "}
+              <Link href="/github/setup" className="text-teal-300 hover:text-teal-200 underline-offset-2 hover:underline">
+                set up Continuous for $49/mo &rarr;
               </Link>
-            </div>
-
-            {/* Honest counter row — no fabricated numbers */}
-            <div className="mt-10 grid grid-cols-3 gap-3 max-w-xl mx-auto">
-              <StatusCell
-                label="Self-scan"
-                value="GREEN"
-                tone="ok"
-                detail="102/102 modules"
-              />
-              <StatusCell
-                label="Tests passing"
-                value="3,500+"
-                tone="ok"
-                detail="every commit"
-              />
-              <StatusCell
-                label="Payment"
-                value="$29+"
-                tone="ok"
-                detail="one-time per scan"
-              />
-            </div>
-
-            <p className="text-center text-xs text-white/35 mt-6">
-              Want a repo scan instead?{" "}
-              <a href="#pricing" className="text-teal-300 hover:text-teal-200 underline-offset-2 hover:underline">
-                Pick a tier &darr;
-              </a>{" "}
-              or <Link href="/github/setup" className="text-teal-300 hover:text-teal-200 underline-offset-2 hover:underline">install the GitHub App</Link>.
             </p>
           </div>
         </div>
@@ -161,10 +188,7 @@ export default function Hero() {
 }
 
 function StatusCell({
-  label,
-  value,
-  tone,
-  detail,
+  label, value, tone, detail,
 }: {
   label: string;
   value: string;
@@ -174,12 +198,8 @@ function StatusCell({
   const valueColor = tone === "ok" ? "text-emerald-300" : "text-white/80";
   return (
     <div className="glass-card status-pulse rounded-xl px-4 py-3 text-left">
-      <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
-        {label}
-      </div>
-      <div className={`text-lg font-bold mt-1 tabular-nums ${valueColor}`}>
-        {value}
-      </div>
+      <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">{label}</div>
+      <div className={`text-lg font-bold mt-1 tabular-nums ${valueColor}`}>{value}</div>
       <div className="text-[11px] text-white/40 mt-0.5">{detail}</div>
     </div>
   );

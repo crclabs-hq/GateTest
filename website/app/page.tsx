@@ -1,36 +1,27 @@
 /**
- * Homepage composition — world-class rebuild for HN / GitHub Marketplace
- * / npm launch.
+ * Homepage composition — Linear/Stripe/Vercel B2B aesthetic.
  *
  * Section order:
  *   1. Navbar
- *   2. Hero  — live URL scan, "One gate. 102 modules. Self-healing CI."
- *   3. HomeKills  — what 12 tools we replace, with flip tiles + full table
- *   4. HomeFlywheel — 4-layer fix flow (AST -> Rule -> Recipe -> Claude)
- *   5. HomeSelfScan — "GREEN" trust badge with module list
- *   6. HomeCode — install snippets (npx, GitHub Action, CLI cheat-sheet)
- *   7. Pricing — 4 tiers + Continuous subscription card
- *   8. HomeFaq — HN-skeptic FAQ
- *   9. HomeTrust — frameworks scanned + Crontech/Gluecron
- *  10. Footer
+ *   2. Hero           — new headline + dual-track CTA (website scan / repo scan)
+ *   3. SimulationMatrix — animated 3-panel pipeline demo (intercept→hypotheses→gate)
+ *   4. ModuleRegistry   — 102-module fleet grid organized by technical group
+ *   5. Pricing          — 4 tiers + Continuous callout
+ *   6. HomeFaq          — HN-skeptic FAQ
+ *   7. Footer
  *
- * Sections retained from the previous homepage are intentionally dropped:
- *   - Problem / AiNative / HowItWorks / Modules / Install / Comparison /
- *     Integrations / ContinuousScanning / GateRules / Cta
- * The new homepage carries the same arguments in tighter, denser, more
- * code-forward form — Hacker News bar. The dropped components are not
- * deleted (other pages may reference them).
+ * Dropped from this composition (components kept, not deleted):
+ *   HomeKills, HomeFlywheel, HomeSelfScan, HomeCode, HomeTrust
+ * The new SimulationMatrix + ModuleRegistry carry the same arguments in a
+ * denser, more enterprise-legible form.
  */
 
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
-import HomeKills from "./components/HomeKills";
-import HomeFlywheel from "./components/HomeFlywheel";
-import HomeSelfScan from "./components/HomeSelfScan";
-import HomeCode from "./components/HomeCode";
+import SimulationMatrix from "./components/SimulationMatrix";
+import ModuleRegistry from "./components/ModuleRegistry";
 import Pricing from "./components/Pricing";
 import HomeFaq from "./components/HomeFaq";
-import HomeTrust from "./components/HomeTrust";
 import Footer from "./components/Footer";
 
 export default function Home() {
@@ -39,13 +30,10 @@ export default function Home() {
       <Navbar />
       <main>
         <Hero />
-        <HomeKills />
-        <HomeFlywheel />
-        <HomeSelfScan />
-        <HomeCode />
+        <SimulationMatrix />
+        <ModuleRegistry />
         <Pricing />
         <HomeFaq />
-        <HomeTrust />
       </main>
       <Footer />
     </>
