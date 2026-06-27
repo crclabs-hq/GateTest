@@ -1,0 +1,149 @@
+{
+  "generatedAt": "2026-06-27T06:31:02.328Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 8,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 3,
+      "SonarQube": 0,
+      "Semgrep": 2,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 1,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48693817",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "I'm free to help my wife by any means necessary, thanks.",
+        "url": "https://news.ycombinator.com/item?id=48693817",
+        "points": null,
+        "numComments": null,
+        "storyId": 48683477,
+        "createdAt": "2026-06-27T00:30:37Z",
+        "createdAtUnix": 1782520237,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48691103",
+        "author": "javhu",
+        "type": "story",
+        "title": "Quantum Snake Oil Is Flooding the News Cycle",
+        "text": "Quantum Snake Oil Is Flooding the News Cycle",
+        "url": "https://postquantum.com/quantum-computing/quantum-snake-oil-flood-2026/",
+        "points": 3,
+        "numComments": 1,
+        "storyId": 48691103,
+        "createdAt": "2026-06-26T19:45:47Z",
+        "createdAtUnix": 1782503147,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48683639",
+        "author": "PowerElectronix",
+        "type": "comment",
+        "title": null,
+        "text": "Engraved deep down in our primitive brain is the profound fear of high grass and forestry, which conceal bears, wolves, snakes, ticks and a lot of other dangers.Thus, we have the natural inclination to raze it all and leave a very flat grass surface where no animal goes unnoticed.This ends up translating into modern lawns a few hundreds of centuries later.",
+        "url": "https://news.ycombinator.com/item?id=48683639",
+        "points": null,
+        "numComments": null,
+        "storyId": 48682066,
+        "createdAt": "2026-06-26T07:50:29Z",
+        "createdAtUnix": 1782460229,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48686695",
+        "author": "hombre_fatal",
+        "type": "comment",
+        "title": null,
+        "text": "Captchas are dead or will be dead shortly. The question is what do you do in a world where you can't tell human from machine, or when there's now honest machine traffic that acts on behalf of honest users.> You use API tokens for things intended to be machine to machine communicationWho uses it and why? Not for websites where the agent is making read-only web requests for the user. And now that agents have generalized abilities&#x2F;intelligence, there's fewer and fewer incentives to use APIs since the arms race to keep humans and machines segregated is ended&#x2F;ending.We need new ideas and paradigms, not cling on to old ones that won't work.",
+        "url": "https://news.ycombinator.com/item?id=48686695",
+        "points": null,
+        "numComments": null,
+        "storyId": 48661911,
+        "createdAt": "2026-06-26T13:55:54Z",
+        "createdAtUnix": 1782482154,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48685386",
+        "author": "mohsen1",
+        "type": "story",
+        "title": "Show HN: Git-lazy-mount mount a repo without cloning it. Works with ordinary Git",
+        "text": "Hello!This is an attempt to make google3 style repo clones work with Git. In a HN thread a few days ago the idea sparked for me.It can be super useful for very large repos that need to be cloned for AI coding sessions that might only need a subset of files to accomplish something.Similar to google3, files appear to be there and can be read and edited but they are only fetched when they are needed.It works with normal Git commands so there is no need for a new CLI.On huge catch is, running grep will force fetch all files that grep glob matches. AI coding sessions run the Grep tool quite often. To mitigate this, git-lazy-mount comes with sgrep that offloads grepping to a remote code search engine like SourceGraph.With this, microVMs that run AI sessions can stay lean and start up much faster.I am guessing this is probably faster than baking in the git repo in the image but I have not measured performance of it yet. It is definitely useful if the microVM is spun up with unknown repositories (something like Claude on web).Curious to hear your thoughts and criticismThanks!",
+        "url": "https://github.com/mohsen1/git-lazy-mount",
+        "points": 9,
+        "numComments": 3,
+        "storyId": 48685386,
+        "createdAt": "2026-06-26T11:30:14Z",
+        "createdAtUnix": 1782473414,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48683936",
+        "author": "codeulike",
+        "type": "comment",
+        "title": null,
+        "text": "The act of pushing a mower around possesses an almost primordial appealNo, no it doesnt. I leapt at the chance to get a robot to do it",
+        "url": "https://news.ycombinator.com/item?id=48683936",
+        "points": null,
+        "numComments": null,
+        "storyId": 48682066,
+        "createdAt": "2026-06-26T08:25:50Z",
+        "createdAtUnix": 1782462350,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [
+      {
+        "objectId": "48685853",
+        "author": "claudiacsf",
+        "type": "story",
+        "title": "Show HN: Verity – self-healing review gate for Claude Code",
+        "text": "Hi folks,We built what we think the next generation of code review looks like. It's an adversarial, self-healing gate for coding agents that repairs the code on every run, so only clean and secure code moves forward.Here's a short demo https:&#x2F;&#x2F;www.youtube.com&#x2F;watch?v=vsq_cHoZCnkThe next agent run also starts smarter than the last thanks to a built-in memory, and because of that agent costs start to stabilize.It's completely free while in beta. We're looking for testers doing serious agentic engineering to help shape the roadmap.Install takes about two minutes, and you'll see your first gated review on your next agent run. Give it a spin:npm install -g @codacy&#x2F;verity-cli && verity init",
+        "url": "https://verity.md",
+        "points": 4,
+        "numComments": 0,
+        "storyId": 48685853,
+        "createdAt": "2026-06-26T12:27:05Z",
+        "createdAtUnix": 1782476825,
+        "intent": "neutral"
+      }
+    ],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "48689038",
+        "author": "jjmarr",
+        "type": "comment",
+        "title": null,
+        "text": "\"Chess-related roguelike\" is a an very crowded genre for unclear reasons and it's difficult to stick out.So far I've played Shotgun Queen and Pawnbarian. There's also Ouroboros King, Demoncrawl, The Rookery, Passant, Chess Survivors, Gambonanza, Mind over Monarchy, and many more.There was even a Humble Bundle for mostly Chess-inspired indie roguelikes.https:&#x2F;&#x2F;www.humblebundle.com&#x2F;games&#x2F;checkmate-chess-games-col...",
+        "url": "https://news.ycombinator.com/item?id=48689038",
+        "points": null,
+        "numComments": null,
+        "storyId": 48616304,
+        "createdAt": "2026-06-26T17:07:52Z",
+        "createdAtUnix": 1782493672,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
