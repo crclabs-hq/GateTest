@@ -25,7 +25,7 @@ const https  = require('https');
 const { execSync } = require('child_process');
 
 const ANTHROPIC_HOST = 'api.anthropic.com';
-const MODEL          = 'claude-sonnet-4-20250514';
+const MODEL          = 'claude-sonnet-4-6';
 const CLAUDE_TIMEOUT = 60_000;
 const TEST_TIMEOUT   = 15_000;
 

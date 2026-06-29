@@ -28,7 +28,7 @@ const {
 } = require('./flywheel-playback-engine');
 
 const ANTHROPIC_HOST  = 'api.anthropic.com';
-const MODEL           = 'claude-sonnet-4-20250514';
+const MODEL           = 'claude-sonnet-4-6';
 const TIMEOUT_MS      = 90_000;
 const TEST_TIMEOUT_MS = 15_000;
 const MAX_ATTEMPTS    = 3;
