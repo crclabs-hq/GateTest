@@ -22,8 +22,9 @@ import {
   recordApiCall,
 } from "@/app/lib/api-key";
 import { runScan, runScanDirect } from "@/app/lib/scan-executor";
+import { notifyScanComplete } from "@/app/lib/slack-notifier";
 
-const ALLOWED_TIERS = new Set(["quick", "full"]);
+const ALLOWED_TIERS = new Set(["quick", "full", "smart"]);
 
 function problem(status: number, error: string, extra?: Record<string, unknown>) {
   return NextResponse.json({ error, ...extra }, { status });
@@ -44,6 +45,8 @@ export async function POST(req: NextRequest) {
     files?: Array<{ path: string; content: string }>;
     project?: string;
     tier?: string;
+    slack_webhook?: string;
+    webhook_url?: string;
   };
   try {
     body = await req.json();
@@ -52,10 +55,11 @@ export async function POST(req: NextRequest) {
     return problem(400, "Invalid JSON body");
   }
 
-  const repoUrl = (body.repo_url || body.repoUrl || "").trim();
-  const directFiles = body.files;
-  const project = (body.project || "").trim();
-  const tier = (body.tier || "quick").trim();
+  const repoUrl      = (body.repo_url || body.repoUrl || "").trim();
+  const directFiles  = body.files;
+  const project      = (body.project || "").trim();
+  const tier         = (body.tier || "quick").trim();
+  const slackWebhook = (body.slack_webhook || body.webhook_url || process.env.SLACK_WEBHOOK_URL || "").trim();
   const isDirectMode = Array.isArray(directFiles) && directFiles.length > 0;
 
   if (!repoUrl && !isDirectMode) {
@@ -90,7 +94,7 @@ export async function POST(req: NextRequest) {
   }
   if (!ALLOWED_TIERS.has(tier)) {
     await recordApiCall({ apiKeyId: key.id, repoUrl: repoUrl || project, tier, statusCode: 400, durationMs: Date.now() - started });
-    return problem(400, `tier must be one of: ${[...ALLOWED_TIERS].join(", ")}`);
+    return problem(400, `tier must be one of: ${[...ALLOWED_TIERS].join(", ")} — "smart" selects the 15-25 most relevant modules automatically based on git diff`);
   }
 
   const scanLabel = isDirectMode ? (project || "direct-upload") : repoUrl;
@@ -158,25 +162,32 @@ export async function POST(req: NextRequest) {
     idempotencyKey,
   });
 
-  return NextResponse.json(
-    {
-      status: result.error ? "failed" : "complete",
-      ...(isDirectMode ? { project: project || "direct-upload", mode: "direct" } : { repo_url: repoUrl }),
-      tier,
-      modules: result.modules,
-      totalModules: result.modules.length,
-      completedModules: result.modules.length,
-      totalIssues: result.totalIssues,
-      duration: result.duration,
-      authSource: result.authSource,
-      error: result.error,
-      key: {
-        name: key.name,
-        prefix: key.key_prefix,
-      },
+  const payload = {
+    status: result.error ? "failed" : "complete",
+    ...(isDirectMode ? { project: project || "direct-upload", mode: "direct" } : { repo_url: repoUrl }),
+    tier,
+    modules: result.modules,
+    totalModules: result.modules.length,
+    completedModules: result.modules.length,
+    totalIssues: result.totalIssues,
+    duration: result.duration,
+    authSource: result.authSource,
+    error: result.error,
+    key: {
+      name: key.name,
+      prefix: key.key_prefix,
     },
-    { status: statusCode }
-  );
+  };
+
+  // Notify Slack asynchronously — never block the API response
+  if (slackWebhook && !result.error) {
+    void notifyScanComplete(payload, {
+      webhookUrl: slackWebhook,
+      scanUrl: repoUrl ? `${process.env.NEXT_PUBLIC_BASE_URL || "https://gatetest.ai"}/scan/status?repo=${encodeURIComponent(repoUrl)}` : undefined,
+    }).catch(() => { /* best-effort — slack errors never surface to the API caller */ });
+  }
+
+  return NextResponse.json(payload, { status: statusCode });
 }
 
 export async function GET() {
