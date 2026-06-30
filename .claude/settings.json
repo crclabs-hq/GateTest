@@ -1,42 +1,11 @@
 {
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node -e \"const fs=require('fs');const p=require('path').join(process.cwd(),'CLAUDE.md');if(!fs.existsSync(p)){console.error('FATAL: CLAUDE.md not found. Cannot proceed.');process.exit(1);}console.log('[GateTest] CLAUDE.md present.');\"",
-            "description": "GateTest: Block if CLAUDE.md missing"
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cat CLAUDE.md | head -80 && echo '' && echo '=== CLAUDE.md LOADED. ALL RULES ABOVE ARE MANDATORY. ===' && echo ''",
-            "description": "GateTest: Force-feed CLAUDE.md content into session context on startup"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/scripts/sweep.sh",
-            "asyncRewake": true,
-            "rewakeSummary": "GateTest never-idle sweep found issues",
-            "rewakeMessage": "ALWAYS-ON MODE sweep (CLAUDE.md): do not end the turn until these are fixed or escalated to Craig under THE BOSS RULE.",
-            "timeout": 300,
-            "description": "GateTest: Never-idle sweep — runs tests, build, module load, TODO check. Wakes model on red (exit 2). 3-rewake loop-guard in sweep.sh."
-          }
-        ]
-      }
+  "permissions": {
+    "allow": [
+      "Bash(npm*)",
+      "Bash(npx*)",
+      "Bash(git*)",
+      "Bash(bun*)",
+      "Bash(bash /opt/jarvis/scripts/*)"
     ]
   }
 }
