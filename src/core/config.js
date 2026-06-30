@@ -670,6 +670,10 @@ class GateTestConfig {
   }
 
   getSuite(suiteName) {
+    // 'smart' is dynamically computed in GateTest.runSuite() via smart-suite-selector.
+    // If someone calls getSuite('smart') directly (not via runSuite), fall back to quick
+    // as the safe baseline — all baseline modules (syntax, secrets, memory) are in quick.
+    if (suiteName === 'smart') return this.config.suites.quick;
     return this.config.suites[suiteName] || this.config.suites.standard;
   }
 

@@ -204,7 +204,9 @@ async function runFixOrchestration(opts) {
     context     = '',
     maxAttempts = MAX_ATTEMPTS,
   } = opts;
-  const apiKey = opts.apiKey || process.env.ANTHROPIC_API_KEY;
+  // Honor an explicitly-passed apiKey even when empty (caller forcing the
+  // no-key early-exit); only fall back to the env var when omitted entirely.
+  const apiKey = opts.apiKey !== undefined ? opts.apiKey : process.env.ANTHROPIC_API_KEY;
   if (!apiKey)   return { fixed: false, reason: 'no-api-key' };
   if (!issues?.length) return { fixed: false, reason: 'no-issues-provided' };
 

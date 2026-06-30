@@ -1,3 +1,6 @@
+// Pricing tiers mirror the checkout backend exactly — website/app/api/checkout/route.ts TIERS.
+// Source of truth for prices: that TIERS map. Keep these in sync (Bible Forbidden #17).
+//   quick $29 · full $99 · scan_fix $199 · nuclear/Forensic $399 (one-time) · continuous $49/mo
 export const pricingScans = [
   {
     name: "Scan + Fix",
@@ -53,7 +56,7 @@ export const continuousPlan = {
 
 export default function Pricing() {
   return (
-    <div className="p-8 bg-neutral-900 text-white rounded-xl border border-neutral-800 shadow-2xl max-w-6xl mx-auto my-12">
+    <div className="p-8 bg-neutral-900 text-white rounded-xl border border-neutral-800 shadow-2xl max-w-7xl mx-auto my-12">
       <h2 className="text-3xl font-extrabold mb-2 text-center text-emerald-400 tracking-tight">
         Predictable, Automation-First Pricing
       </h2>
@@ -109,6 +112,7 @@ export default function Pricing() {
             </button>
           </div>
         ))}
+      </div>
 
         {/* Continuous Subscription */}
         <div className="flex flex-col p-6 rounded-xl border border-neutral-800 bg-neutral-950/40 hover:border-neutral-700 transition-all duration-300">
@@ -128,11 +132,16 @@ export default function Pricing() {
               </li>
             ))}
           </ul>
-          <button className="w-full py-3 rounded-lg font-semibold text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition-all duration-200">
+        </div>
+        <div className="flex flex-col items-start md:items-end gap-3">
+          <div className="flex items-baseline">
+            <span className="text-4xl font-black text-emerald-400">{continuousPlan.price}</span>
+            <span className="text-neutral-500 text-xs ml-2">/ {continuousPlan.frequency}</span>
+          </div>
+          <button className="py-3 px-6 rounded-lg font-semibold text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition-all duration-200">
             {continuousPlan.cta}
           </button>
         </div>
-
       </div>
     </div>
   );

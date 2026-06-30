@@ -159,7 +159,10 @@ async function aiFix(opts) {
     lineNumber,
     fixSuggestion,
   } = opts;
-  const apiKey = opts.apiKey || process.env.ANTHROPIC_API_KEY;
+  // Honor an explicitly-passed apiKey even when it's an empty string (caller
+  // forcing the no-key path); only fall back to the env var when the option is
+  // omitted entirely. `'' || env` would otherwise leak the ambient key.
+  const apiKey = opts.apiKey !== undefined ? opts.apiKey : process.env.ANTHROPIC_API_KEY;
   // Allow tests to inject a mock callAnthropic without touching the https module.
   const _callAnthropic = opts._callAnthropic || callAnthropic;
 
