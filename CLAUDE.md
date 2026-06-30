@@ -904,12 +904,18 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.51.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
+GateTest v1.52.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
 live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399 (one-time)
 + Continuous $49/mo. The public Pricing UI (`Pricing.tsx`) and the
 checkout backend (`/api/checkout/route.ts` `TIERS`) are reconciled and
 in sync (Craig-authorized 2026-06-30 — see Known Issue #35, resolved).
 Date stamp last fully reconciled: 2026-06-30.
+
+**v1.52.0 changes (2026-06-30 — Godmode Tier 1: Playground + Badge page + Fix PR prominence):**
+- **Live Public Playground shipped** — `website/app/playground/page.tsx` + `website/app/api/playground/scan/route.ts`. Free, no-auth, no payment. Paste any public GitHub URL → watch quick suite (syntax/lint/secrets/codeQuality) run with animated dark terminal → see health grade ring (A–F SVG circle) + module cards stagger in + top findings. Upsells to Full/Scan+Fix/Forensic. Badge embed snippet auto-generated for the scanned repo. 4 example repos (React, Next.js, Express, GateTest). Navbar + Hero wired: "Playground" nav link (emerald) + "Scan Free →" CTA.
+- **Badge landing page** — `website/app/badge/page.tsx`. Documents and markets the `/api/badge?repo=owner/repo` embed. Live grade previews (A–F rendered as inline SVG). One-click copy for Markdown / HTML / RST. 3-step quickstart + API reference + why-it-matters cards. Footer links from playground reference it.
+- **Fix PR hero action** — `scan/status/page.tsx`. Gradient banner (emerald→cyan) surfaces "Open Fix PR →" as the first visible action after scan results land on paid fix tiers (scan_fix/nuclear), above the full findings panel. Previously buried at the bottom after scrolling. Hidden once fixing starts or completes.
+- Sweep: 5871/5874 pass, 0 fail. `next build` clean. 111 modules load. 3 commits.
 
 **v1.51.0 changes (2026-06-30 — Godmode: smart suite, persistent memory, Slack):**
 - **`--suite smart` shipped** — `src/core/smart-suite-selector.js` (325 lines, 28 tests). Diff-aware module selector with 35+ affinity rules maps file path patterns to relevant modules (weights 1-3). Baseline (memory/syntax/secrets) always runs; 15-25 dynamic modules chosen from what actually changed. Auth file → cookieSecurity/tlsSecurity/logPii/crossFileTaint. API route → ssrf/asyncIteration/nPlusOne/retryHygiene. DB/ORM → nPlusOne/raceCondition/moneyFloat. Infra → terraform/kubernetes/ciSecurity. No diff detected → falls back to quick suite. Wired into `src/index.js:runSuite()`, `src/core/config.js:getSuite()`, and `/api/v1/scan/route.ts` (smart now a valid tier). Emits `smart:selected` / `smart:fallback` events for CLI observability.
