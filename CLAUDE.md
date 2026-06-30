@@ -809,6 +809,9 @@ GateTest/
 | `GITHUB_CLIENT_ID` | GitHub OAuth App client ID — enables customer "Sign in with GitHub" at `/dashboard` |
 | `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret — pairs with GITHUB_CLIENT_ID |
 | `SESSION_SECRET` | Random 40+ char secret — AES-256-GCM encrypts customer session cookies |
+| `SLACK_WEBHOOK_URL` | Default Slack Incoming Webhook URL — scan results posted here when no per-request webhook provided |
+| `SLACK_SIGNING_SECRET` | Slack App Basic Information → Signing Secret — verifies `/gatetest` slash command requests |
+| `GATETEST_INTERNAL_API_KEY` | Optional Bearer token for the Slack slash-command route when calling `/api/v1/scan` internally |
 
 ---
 
@@ -901,12 +904,19 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.50.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
+GateTest v1.51.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
 live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399 (one-time)
 + Continuous $49/mo. The public Pricing UI (`Pricing.tsx`) and the
 checkout backend (`/api/checkout/route.ts` `TIERS`) are reconciled and
 in sync (Craig-authorized 2026-06-30 — see Known Issue #35, resolved).
 Date stamp last fully reconciled: 2026-06-30.
+
+**v1.51.0 changes (2026-06-30 — Godmode: smart suite, persistent memory, Slack):**
+- **`--suite smart` shipped** — `src/core/smart-suite-selector.js` (325 lines, 28 tests). Diff-aware module selector with 35+ affinity rules maps file path patterns to relevant modules (weights 1-3). Baseline (memory/syntax/secrets) always runs; 15-25 dynamic modules chosen from what actually changed. Auth file → cookieSecurity/tlsSecurity/logPii/crossFileTaint. API route → ssrf/asyncIteration/nPlusOne/retryHygiene. DB/ORM → nPlusOne/raceCondition/moneyFloat. Infra → terraform/kubernetes/ciSecurity. No diff detected → falls back to quick suite. Wired into `src/index.js:runSuite()`, `src/core/config.js:getSuite()`, and `/api/v1/scan/route.ts` (smart now a valid tier). Emits `smart:selected` / `smart:fallback` events for CLI observability.
+- **Persistent per-repo memory shipped** — `src/core/persistent-memory.js` (22 tests). Writes `.gatetest/memory.json` per repo. Tracks module fire rates, fix acceptance rates (merge vs rejection per rule key), quality trend (improving/declining/stable), recurring patterns (>80% of last 10 scans). `getSmartSuiteBoosts()` feeds signal back into the smart selector: modules firing >70% of the time get +3 priority boost; >40% get +1. `getFixConfidenceMultiplier()` returns 0.5-1.05 based on historical acceptance (≥3 attempts required to adjust). Never throws; graceful on missing or corrupted files. SCHEMA_VERSION = 2, MAX_SCAN_HISTORY = 100.
+- **Slack integration shipped (Craig-authorized Boss Rule #7)** — `website/app/lib/slack-notifier.js` (22 tests). Block Kit builders for scan-complete, critical-finding alert, and daily digest messages. HMAC-SHA256 signature verification (Slack's security model, fail-closed). Slash command parse + `slashResponse` helpers. `website/app/api/slack/events/route.ts` handles `/gatetest scan <url> [quick|full|smart]`, `/gatetest status`, `/gatetest help`. Acks within Slack's 3s window; async scan posts rich Block Kit results back via `response_url`. `/api/v1/scan/route.ts` fires `notifyScanComplete()` after every scan when `SLACK_WEBHOOK_URL` or per-request `slack_webhook` is set.
+- **New env vars**: `SLACK_WEBHOOK_URL` (default Slack channel for scan results), `SLACK_SIGNING_SECRET` (slash command signature verification), `GATETEST_INTERNAL_API_KEY` (optional: internal Bearer token for Slack route → v1 API calls).
+- Sweep: 5871/5874 pass, 0 fail, 3 graceful Node-20 TS-require skips. `next build` clean. 111 modules load.
 
 **Post-1.50.0 reality sync (2026-06-30 — Bible-accuracy pass, no Boss-Rule changes):**
 - **Package renamed `gatetest` → `@gatetest/cli`** (commit 9987a49, published to npm under the @gatetest org scope). All install commands across website + README updated to `npx @gatetest/cli`. Bible architecture section + this VERSION block now reflect the new name.
