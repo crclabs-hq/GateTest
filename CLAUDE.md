@@ -812,6 +812,8 @@ GateTest/
 | `SLACK_WEBHOOK_URL` | Default Slack Incoming Webhook URL — scan results posted here when no per-request webhook provided |
 | `SLACK_SIGNING_SECRET` | Slack App Basic Information → Signing Secret — verifies `/gatetest` slash command requests |
 | `GATETEST_INTERNAL_API_KEY` | Optional Bearer token for the Slack slash-command route when calling `/api/v1/scan` internally |
+| `RESEND_API_KEY` | Resend.com API key — weekly digest emails to Continuous subscribers (`digest@gatetest.ai` sender). Optional: if not set, email delivery is silently skipped; Slack digests still fire via `SLACK_WEBHOOK_URL`. |
+| `RESEND_FROM` | Override the From address for digest emails (default: `GateTest <digest@gatetest.ai>`) |
 
 ---
 
@@ -904,12 +906,23 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.52.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
+GateTest v1.53.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
 live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399 (one-time)
 + Continuous $49/mo. The public Pricing UI (`Pricing.tsx`) and the
 checkout backend (`/api/checkout/route.ts` `TIERS`) are reconciled and
 in sync (Craig-authorized 2026-06-30 — see Known Issue #35, resolved).
 Date stamp last fully reconciled: 2026-06-30.
+
+**v1.53.0 changes (2026-06-30 — Weekly Digest: email + Slack):**
+- **`website/app/lib/digest-mailer.js`** — Resend REST email sender (native `https`, no new npm dep). Dark-theme HTML email with stat cards (trend / net delta / scan count), health grade, top recurring module, patterns, CTA button. Plain-text fallback. Gracefully no-ops when `RESEND_API_KEY` not set.
+- **`website/app/lib/weekly-digest.js`** — Orchestrator. `buildTrendFromHistory()` derives trend/netDelta/topModule/grade from `scan_history` rows (7-day window). `sendRepoDigest()` sends to Slack + email per repo. `runWeeklyDigests()` iterates all active Continuous subscribers and dispatches. Falls back to global `SLACK_WEBHOOK_URL` if no per-repo webhook.
+- **`continuous_subscriptions` schema** — `customer_email` + `slack_webhook_url` columns added via safe `ALTER TABLE IF NOT EXISTS` migration. `upsertSubscription` accepts both; `COALESCE` on conflict so existing values are preserved. `setSlackWebhook()` helper added for future notification-settings UI.
+- **Stripe webhook** — captures `customer_email` from `session.customer_email` / `session.customer_details.email` on subscription checkout and persists it for digest delivery.
+- **`website/app/api/digest/route.ts`** — Admin trigger (`POST /api/digest`, Bearer auth). Optional `{ repo_url }` body for single-repo debug mode. `GET` returns health check. Max 120s Vercel timeout.
+- **`.github/workflows/digest-weekly.yml`** — Cron Monday 08:00 UTC + `workflow_dispatch`. Calls `POST /api/digest` via curl, parses sent/failed counts, warns on delivery failures.
+- **New env vars**: `RESEND_API_KEY` (Resend.com, optional — email skipped if absent), `RESEND_FROM` (sender override, default `GateTest <digest@gatetest.ai>`).
+- **GitHub Actions secret needed**: `GATETEST_ADMIN_PASSWORD` + optional `GATETEST_BASE_URL` variable.
+- Sweep: 5921/5924 pass (3 graceful TS-require skips), 0 fail. `next build` clean. 111 modules load.
 
 **v1.52.0 changes (2026-06-30 — Godmode Tier 1: Playground + Badge page + Fix PR prominence):**
 - **Live Public Playground shipped** — `website/app/playground/page.tsx` + `website/app/api/playground/scan/route.ts`. Free, no-auth, no payment. Paste any public GitHub URL → watch quick suite (syntax/lint/secrets/codeQuality) run with animated dark terminal → see health grade ring (A–F SVG circle) + module cards stagger in + top findings. Upsells to Full/Scan+Fix/Forensic. Badge embed snippet auto-generated for the scanned repo. 4 example repos (React, Next.js, Express, GateTest). Navbar + Hero wired: "Playground" nav link (emerald) + "Scan Free →" CTA.
