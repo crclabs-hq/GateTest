@@ -8,12 +8,12 @@
  *
  * Environment variables:
  *   RESEND_API_KEY   — from resend.com (required for email delivery)
- *   RESEND_FROM      — override the From address (default: digest@gatetest.ai)
+ *   RESEND_FROM      — override the From address (default: watchdog@gatetest.ai)
  */
 
 const https = require('https');
 
-const DEFAULT_FROM = 'GateTest <digest@gatetest.ai>';
+const DEFAULT_FROM = 'GateTest <watchdog@gatetest.ai>';
 
 // ── HTML email builder ────────────────────────────────────────────────────────
 

@@ -812,8 +812,8 @@ GateTest/
 | `SLACK_WEBHOOK_URL` | Default Slack Incoming Webhook URL — scan results posted here when no per-request webhook provided |
 | `SLACK_SIGNING_SECRET` | Slack App Basic Information → Signing Secret — verifies `/gatetest` slash command requests |
 | `GATETEST_INTERNAL_API_KEY` | Optional Bearer token for the Slack slash-command route when calling `/api/v1/scan` internally |
-| `RESEND_API_KEY` | Resend.com API key — weekly digest emails to Continuous subscribers (`digest@gatetest.ai` sender). Optional: if not set, email delivery is silently skipped; Slack digests still fire via `SLACK_WEBHOOK_URL`. |
-| `RESEND_FROM` | Override the From address for digest emails (default: `GateTest <digest@gatetest.ai>`) |
+| `RESEND_API_KEY` | Resend.com API key — weekly digest emails to Continuous subscribers (`watchdog@gatetest.ai` sender). Optional: if not set, email delivery is silently skipped; Slack digests still fire via `SLACK_WEBHOOK_URL`. |
+| `RESEND_FROM` | Override the From address for digest emails (default: `GateTest <watchdog@gatetest.ai>`) |
 
 ---
 
@@ -920,7 +920,7 @@ Date stamp last fully reconciled: 2026-06-30.
 - **Stripe webhook** — captures `customer_email` from `session.customer_email` / `session.customer_details.email` on subscription checkout and persists it for digest delivery.
 - **`website/app/api/digest/route.ts`** — Admin trigger (`POST /api/digest`, Bearer auth). Optional `{ repo_url }` body for single-repo debug mode. `GET` returns health check. Max 120s Vercel timeout.
 - **`.github/workflows/digest-weekly.yml`** — Cron Monday 08:00 UTC + `workflow_dispatch`. Calls `POST /api/digest` via curl, parses sent/failed counts, warns on delivery failures.
-- **New env vars**: `RESEND_API_KEY` (Resend.com, optional — email skipped if absent), `RESEND_FROM` (sender override, default `GateTest <digest@gatetest.ai>`).
+- **New env vars**: `RESEND_API_KEY` (Resend.com, optional — email skipped if absent), `RESEND_FROM` (sender override, default `GateTest <watchdog@gatetest.ai>`).
 - **GitHub Actions secret needed**: `GATETEST_ADMIN_PASSWORD` + optional `GATETEST_BASE_URL` variable.
 - Sweep: 5921/5924 pass (3 graceful TS-require skips), 0 fail. `next build` clean. 111 modules load.
 
