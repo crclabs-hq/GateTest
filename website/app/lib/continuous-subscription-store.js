@@ -9,6 +9,8 @@
  *     repo_url               TEXT NOT NULL,   -- normalised (lowercase, no trailing slash / .git)
  *     status                 TEXT NOT NULL,   -- 'active' | 'past_due' | 'canceled'
  *     current_period_end     TIMESTAMPTZ,
+ *     customer_email         TEXT,            -- for weekly digest emails
+ *     slack_webhook_url      TEXT,            -- per-repo Slack webhook (digest + alerts)
  *     created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
  *     updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
  *   )
@@ -74,11 +76,18 @@ async function ensureSchema(sql) {
     repo_url TEXT NOT NULL,
     status TEXT NOT NULL,
     current_period_end TIMESTAMPTZ,
+    customer_email TEXT,
+    slack_webhook_url TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`;
   await sql`CREATE INDEX IF NOT EXISTS idx_continuous_subs_repo
     ON continuous_subscriptions (repo_url) `;
+  // Safe migration: add columns if they don't exist (idempotent)
+  await sql`ALTER TABLE continuous_subscriptions
+    ADD COLUMN IF NOT EXISTS customer_email TEXT`;
+  await sql`ALTER TABLE continuous_subscriptions
+    ADD COLUMN IF NOT EXISTS slack_webhook_url TEXT`;
   await sql`CREATE TABLE IF NOT EXISTS continuous_ai_ledger (
     id BIGSERIAL PRIMARY KEY,
     subscription_id TEXT NOT NULL,
@@ -97,24 +106,42 @@ const VALID_STATUSES = new Set(['active', 'past_due', 'canceled']);
  * stripe_subscription_id — Stripe retries webhooks).
  */
 async function upsertSubscription(sql, opts) {
-  const { stripeSubscriptionId, stripeCustomerId, repoUrl, status, currentPeriodEnd } = opts || {};
+  const { stripeSubscriptionId, stripeCustomerId, repoUrl, status, currentPeriodEnd, customerEmail, slackWebhookUrl } = opts || {};
   if (!sql || typeof sql !== 'function') throw new Error('sql is required');
   if (!stripeSubscriptionId) throw new Error('stripeSubscriptionId is required');
   const normalized = normalizeRepoUrl(repoUrl);
   if (!normalized) throw new Error('a valid repoUrl is required');
   const safeStatus = VALID_STATUSES.has(status) ? status : 'active';
-  const periodEnd = currentPeriodEnd instanceof Date ? currentPeriodEnd.toISOString() : currentPeriodEnd || null;
+  const periodEnd  = currentPeriodEnd instanceof Date ? currentPeriodEnd.toISOString() : currentPeriodEnd || null;
+  const email      = customerEmail || null;
+  const slack      = slackWebhookUrl || null;
   await ensureSchema(sql);
   const rows = await sql`INSERT INTO continuous_subscriptions
-      (stripe_subscription_id, stripe_customer_id, repo_url, status, current_period_end)
-    VALUES (${stripeSubscriptionId}, ${stripeCustomerId || null}, ${normalized}, ${safeStatus}, ${periodEnd})
+      (stripe_subscription_id, stripe_customer_id, repo_url, status, current_period_end, customer_email, slack_webhook_url)
+    VALUES (${stripeSubscriptionId}, ${stripeCustomerId || null}, ${normalized}, ${safeStatus}, ${periodEnd}, ${email}, ${slack})
     ON CONFLICT (stripe_subscription_id) DO UPDATE SET
       stripe_customer_id = EXCLUDED.stripe_customer_id,
-      repo_url = EXCLUDED.repo_url,
-      status = EXCLUDED.status,
+      repo_url           = EXCLUDED.repo_url,
+      status             = EXCLUDED.status,
       current_period_end = EXCLUDED.current_period_end,
-      updated_at = NOW()
+      customer_email     = COALESCE(EXCLUDED.customer_email, continuous_subscriptions.customer_email),
+      slack_webhook_url  = COALESCE(EXCLUDED.slack_webhook_url, continuous_subscriptions.slack_webhook_url),
+      updated_at         = NOW()
     RETURNING id, stripe_subscription_id, repo_url, status`;
+  return rows && rows[0] ? rows[0] : null;
+}
+
+/**
+ * Update the Slack webhook URL for a subscription (called from /api/account/notifications).
+ */
+async function setSlackWebhook(sql, stripeSubscriptionId, slackWebhookUrl) {
+  if (!sql || typeof sql !== 'function') throw new Error('sql is required');
+  if (!stripeSubscriptionId) throw new Error('stripeSubscriptionId is required');
+  await ensureSchema(sql);
+  const rows = await sql`UPDATE continuous_subscriptions
+    SET slack_webhook_url = ${slackWebhookUrl || null}, updated_at = NOW()
+    WHERE stripe_subscription_id = ${stripeSubscriptionId}
+    RETURNING id`;
   return rows && rows[0] ? rows[0] : null;
 }
 
@@ -208,6 +235,7 @@ module.exports = {
   ensureSchema,
   upsertSubscription,
   setSubscriptionStatus,
+  setSlackWebhook,
   findActiveByRepo,
   getMonthUsage,
   recordAiSpend,
