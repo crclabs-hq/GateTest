@@ -646,7 +646,7 @@ The system must dynamically adapt interface and messaging to the user's technica
 Building directly on the native glob-walker and suppression map from PR #240.
 
 - [x] **1A** Workspace package alias suppression — blanket-suppress false positives for packages consumed via name aliases (PR #240, 2026-06-22). Zero-dependency, line-heuristic approach.
-- [ ] **1B** Name-level export tracing — upgrade `src/modules/dead-code.js` to trace specific entry-point exports (`export { functionName }`) to find granular dead code **inside** active packages, rather than blanket-suppressing the whole package. **Requires AST parsing → needs Craig's authorization to add `acorn` (zero-runtime-overhead, MIT licensed) as a new dependency (Boss Rule #2).** Until authorized, the current blanket-suppression is the correct safe default.
+- [x] **1B** Name-level export tracing — **DONE (2026-06-23, commit 3df833c).** Craig authorized `acorn` (now `^8.17.0` in `package.json` dependencies). AST-level entry-surface analysis is fully operational: `src/modules/dead-code-extractor.js` `parseExportsWithAcorn()` walks the AST (falling back to a regex extractor when acorn is absent or a parse fails), and `dead-code.js` builds a precise per-package export surface via `buildPackageExportSurface()` / `populatePackageSurface()` so granular dead code **inside** active packages is found rather than blanket-suppressing the whole package.
 - [x] **1C** Configuration-free monorepo discovery — **DONE (2026-06-23)**. Two-part ship: (1) `fix-workspace-hydrator.js` `CONVENTION_FILES` now includes `pnpm-workspace.yaml`, `pnpm-workspace.yml`, `lerna.json` so these are always fetched for the fix route. (2) `/api/scan/run/route.ts` now promotes ALL `package.json`, `pnpm-workspace.yaml`, `pnpm-workspace.yml`, `lerna.json` files to the front of the fetch queue (capped at 30) before the 50-file source cap is applied — so `buildWorkspaceMap()` in `dead-code-index.js` always finds sub-package `package.json` files in the materialised workspace, enabling full monorepo dependency-map construction without any user config file. 1 new test (`fix-workspace-hydrator.test.js`). No new dependencies.
 
 #### Phase 2 — Unified Test Orchestrator *(Needs Craig's authorization — Boss Rule #7)*
@@ -684,9 +684,9 @@ Apply these guidelines to: module warning/error messages, CLI output strings, PR
 
 | Dependency | Purpose | License | Bundle impact | Status |
 | --- | --- | --- | --- | --- |
-| `acorn` | AST parser for name-level export tracing in dead-code.js | MIT | ~100KB, zero runtime dep | **Awaiting Craig's authorization** |
+| `acorn` | AST parser for name-level export tracing in dead-code.js | MIT | ~100KB, zero runtime dep | **AUTHORIZED + INSTALLED 2026-06-23 (`^8.17.0`, commit 3df833c)** |
 
-**When Craig authorizes `acorn`:** implement `_tracePackageExports(entryFile)` in `src/modules/dead-code.js` — walks the AST to build a precise `Set<exportedName>` for each workspace package entry point, then suppresses only the exports that pass through the entry point, flags the rest.
+**Acorn authorized + Phase 1B shipped:** `parseExportsWithAcorn()` in `src/modules/dead-code-extractor.js` walks the AST to build the precise exported-name surface per workspace package entry point, with a regex extractor as the acorn-absent / parse-error fallback. `dead-code.js` consumes it via `buildPackageExportSurface()` / `populatePackageSurface()`, suppressing only the exports that pass through the entry point and flagging the rest.
 
 ---
 
@@ -696,7 +696,7 @@ Apply these guidelines to: module warning/error messages, CLI output strings, PR
 GateTest/
 ├── CLAUDE.md               ← THIS FILE — THE BIBLE
 ├── MARKETING.md            ← Positioning, pricing, website copy
-├── package.json            ← CLI tool (name: gatetest, bin: gatetest)
+├── package.json            ← CLI tool (name: @gatetest/cli, bin: gatetest) — published to npm under the @gatetest org scope (renamed from `gatetest` 2026-06-23, commit 9987a49)
 ├── bin/gatetest.js         ← CLI entry point (20+ flags)
 ├── src/
 │   ├── index.js            ← Main library entry
@@ -848,6 +848,7 @@ GateTest/
 | 30 | **Five test files renamed `.test.skip.js`** to unblock CI — all five now RESTORED. (1) `datadog-client` — rewritten for actual API (fetchTopErrors/fetchErrorTraces/extractSourceLocation). (2) `incremental-filter` — fixed wrong property name + implemented missing universal-checker incremental support + config.incremental shape. (3) `incremental-scan` — implemented --since/--pr CLI flags + runner._resolveIncrementalFiles + skip/alwaysRun list logic. (4) `cross-repo-lookup` — replaced stale priorArt assertions with correct buildDiagnosisPrompt shape tests. (5) `mcp-server` — changed hardcoded "90 modules" to `\d{2,3}` regex. All 5 test files active, full suite 4721/4722 pass. | MEDIUM | **DONE** — all 5 skip files restored across PR #120 + PR #121. |
 | 31 | **Scan-speed reality vs claims (claims audit 2026-06-09)** — measured on this repo: quick suite (41 modules) = 34-52s wall; full suite did not finish inside 20 minutes locally (heavy modules: e2e/visual/mutation run real work). Public copy claiming "full 110-module scan in under 60 seconds" (compare/deepsource, compare/sonarqube, Install.tsx, regulation pages) was softened to "minutes" in the same audit. Bible Quality Bar #9 ("Quick <15s, Full <60s") needs either real benchmarks on representative customer-size repos to re-justify harder numbers, or the bar itself revised. | MEDIUM | OPEN — benchmark on 3 representative small/mid customer repos, then either restore harder public numbers with proof or amend Quality Bar #9. |
 | 32 | **Two fully-built modules never registered: `src/modules/cve-feed.js` + `src/modules/sbom.js`** (claims audit 2026-06-09). **SBOM registered 2026-06-18** — CycloneDX 1.4 generator is file-system only (no network), now registered as module 111, added to `full` + `nuclear` suites. US EO 14028 / EU CRA compliance artifact. **CVE feed still dormant** — likely requires network calls to pull CVE data; confirm Craig's policy on external-data fetches (Boss Rule #7) before registering. | MEDIUM | **PARTIAL** — sbom ✓ registered. cve-feed: Craig action — network-call policy confirmation needed. |
+| 35 | **Public Pricing UI ↔ backend pricing mismatch (DISCOVERED 2026-06-30)** — `website/app/components/Pricing.tsx` renders Quick Scan $29, Full Deep Scan $99, and **Continuous Guard Shield $299/mo**, with NO $199 Scan+Fix or $399 Nuclear/Forensic cards. The checkout backend (`website/app/api/checkout/route.ts` `TIERS`) still defines quick $29, full $99, scan_fix $199, nuclear $399, and continuous at **$49/mo** (4900¢). So: (a) the UI advertises Continuous at $299 while checkout charges $49 — a live public-facing price discrepancy; (b) the $199 and $399 tiers are unreachable from the pricing page despite being "LIVE FOR SALE" per Phases 2-3; (c) commit 14e6e36 claimed to remove $29/$99 from the grid but they are present again (Pricing.tsx was rewritten as "Guard Shield" after that). Public copy also claims "90+ modules" vs the real 111. | HIGH | **Craig action — Boss Rule #3 (pricing) + #8 (public marketing copy).** NOT auto-fixed. Needs Craig to confirm the intended tier lineup + prices, then UI/backend/Bible get reconciled in one pass. |
 | 34 | **Continuous-tier AI-allowance enforcement point pending** — the $49/mo ledger (`continuous_ai_ledger`) and gate (`checkAiAllowance`) shipped 2026-06-12, but push-scan jobs currently run deterministic suites only (zero Claude spend), so nothing consults the meter yet. When AI-on-push or the weekly scheduled deep scan ships, the worker must call `findActiveByRepo` → `checkAiAllowance` before any Claude call and `recordAiSpend` after. Consume/record API is ready and tested. | MEDIUM | OPEN — wire at the point AI joins the push-scan path. |
 | 33 | **Hacker-news-monitor trainer built + tested but UNWIRED** — `website/app/lib/trainers/hacker-news-monitor.js` (Craig's 2026-05-29 HN-feedback directive) was absent from `trainer-nightly.yml` and the `bin/gatetest-train.js` TRAINERS array, held for Craig's Boss Rule #7 OK. | HIGH | DONE (2026-06-12) — **Craig authorized same-session** ("Yes, wire it in"). Trainer #8 now in `trainer-nightly.yml` (own step + docs/trainer artifact copy + "all 8 trainers" PR copy) and `gatetest train` (`--only hn`). Added `renderMarkdown()` + CLI main writing `~/.gatetest/trainers/hacker-news-latest.json`, matching the other trainers' contract. Verified end-to-end locally; still read-only / drafts-only — posting remains Craig's call (Boss Rule #8). |
 
@@ -900,9 +901,19 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.50.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
-live** ($29 / $99 / $199 / $399 + $49/mo Continuous). Date stamp:
-2026-06-23.
+GateTest v1.50.0 — **111 modules**, **Claude Sonnet 4.6**. Backend tier
+config (`/api/checkout/route.ts` `TIERS`) = five tiers ($29 Quick /
+$99 Full / $199 Scan+Fix / $399 Nuclear + $49/mo Continuous). **NOTE:
+the public Pricing UI (`Pricing.tsx`) has DRIFTED out of sync with this
+backend — see Known Issue #35. Pricing reconciliation is Boss Rule #3 /
+#8 and awaits Craig.** Date stamp last fully reconciled: 2026-06-23.
+
+**Post-1.50.0 reality sync (2026-06-30 — Bible-accuracy pass, no Boss-Rule changes):**
+- **Package renamed `gatetest` → `@gatetest/cli`** (commit 9987a49, published to npm under the @gatetest org scope). All install commands across website + README updated to `npx @gatetest/cli`. Bible architecture section + this VERSION block now reflect the new name.
+- **acorn AUTHORIZED + INSTALLED, Phase 1B DONE** (commit 3df833c). `acorn@^8.17.0` is now a real dependency; AST-level name-level export tracing in `dead-code-extractor.js` / `dead-code.js` is fully operational. Phase 1B checkbox + dependency tracker updated from "awaiting authorization" to shipped.
+- **Flywheel Playback Engine shipped** (commit 39aa783, PR #259) — `src/core/flywheel-playback-engine.js` (393 lines, 34 tests). Before calling Claude in the fix loop, `executePlaybackSimulation` checks the local recipe cache and short-circuits on a recipe hit (`hypothesis:'Playback', attempt:0`), saving an Anthropic call when a known structural fix shape applies.
+- **CLI fix-loop hardening** (commits 80036d8, 720a914, 97a1799, 9b0405a, d5ccd3f) — bidirectional self-correcting test gate, mutation-engine lexical-scope quarantine, speculative parallel hypothesis tree, and Windows path-separator fixes across 8 test suites. Self-scan gate now green on Windows.
+- **DRIFT FLAGGED (not changed — Boss Rule):** `Pricing.tsx` shows Quick $29 / Full Deep Scan $99 / **Continuous Guard Shield $299/mo**, and NO $199 / $399 cards. This contradicts the backend ($49/mo Continuous; $199 + $399 tiers exist) AND commit 14e6e36's stated intent (remove $29/$99, keep 2 paid tiers). Public copy also says "90+ modules" vs the real 111. Recorded as Known Issue #35 for Craig's decision — pricing + public marketing copy are Boss Rule #3 / #8.
 
 **v1.50.0 changes (2026-06-23 — Inclusive Agentic QA Platform vision locked + workspace alias fix):**
 - **Master Build Specification v1.0.0 locked into CLAUDE.md.** Three-persona architecture (Co-Pilot / Visual Dashboard / Expert Toggle), Phase 1-3 roadmap, tone & personality guidelines, revenue/privacy direction. All Boss Rule items flagged. Pre-authorized Phase 1B (AST name-level tracing) awaiting `acorn` dependency authorization from Craig.
