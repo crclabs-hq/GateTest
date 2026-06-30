@@ -113,10 +113,10 @@ export default function Hero() {
                   </button>
                 ))}
                 <Link
-                  href="/github/setup"
-                  className="replace-pill px-3 py-1.5 rounded-full text-gray-600 hover:text-gray-900 hover:border-[#0f766e]/30 transition-colors"
+                  href="/playground"
+                  className="replace-pill px-3 py-1.5 rounded-full text-[#059669] hover:text-[#047857] hover:border-[#0f766e]/40 transition-colors font-semibold"
                 >
-                  Scan a repo &rarr;
+                  Playground →
                 </Link>
               </div>
             </div>

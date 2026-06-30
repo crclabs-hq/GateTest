@@ -57,6 +57,14 @@ export default function Navbar() {
             </a>
           ))}
           <Link
+            href="/playground"
+            className={`text-sm whitespace-nowrap font-semibold transition-colors ${
+              scrolled ? "text-emerald-400 hover:text-emerald-300" : "text-emerald-700 hover:text-emerald-800"
+            }`}
+          >
+            Playground
+          </Link>
+          <Link
             href="/developers"
             className={`text-sm whitespace-nowrap transition-colors ${
               scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
@@ -102,14 +110,14 @@ export default function Navbar() {
             Install GitHub App
           </a>
           <Link
-            href="/scan/preview"
+            href="/playground"
             className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap rounded-lg transition-all ${
               scrolled
                 ? "btn-cta"
                 : "hero-cta"
             }`}
           >
-            Free Preview Scan
+            Scan Free →
           </Link>
         </div>
 

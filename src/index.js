@@ -55,9 +55,41 @@ class GateTest {
 
   /**
    * Run a specific suite of tests.
+   *
+   * Special case: suiteName === 'smart' invokes the diff-aware module
+   * selector which analyses changed files and picks the most relevant
+   * 15-25 modules automatically. Falls back to 'quick' when no diff
+   * is detected (e.g. running on a clean checkout).
    */
   async runSuite(suiteName = 'standard', opts = {}) {
-    let modules = this.config.getSuite(suiteName);
+    let modules;
+    if (suiteName === 'smart') {
+      const { computeSmartSuite } = require('./core/smart-suite-selector');
+      const { getSmartSuiteBoosts } = require('./core/persistent-memory');
+      const memoryBoosts = getSmartSuiteBoosts(this.projectRoot);
+      const smart = computeSmartSuite({
+        projectRoot: this.projectRoot,
+        files:       opts.changedFiles || undefined,
+        base:        opts.diffBase     || undefined,
+        max:         opts.maxModules   || undefined,
+        memoryBoosts,
+      });
+      if (smart.modules) {
+        modules = smart.modules;
+        this.emit && this.emit('smart:selected', {
+          changedFiles:    smart.changedFiles,
+          selectionReason: smart.selectionReason,
+          scores:          smart.scores,
+        });
+      } else {
+        // No diff detected — fall back to quick suite
+        modules = this.config.getSuite('quick');
+        this.emit && this.emit('smart:fallback', { reason: smart.selectionReason });
+      }
+    } else {
+      modules = this.config.getSuite(suiteName);
+    }
+
     if (opts.skipModules && opts.skipModules.length > 0) {
       const skip = new Set(opts.skipModules);
       modules = modules.filter((m) => !skip.has(m));

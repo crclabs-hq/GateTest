@@ -194,6 +194,13 @@ export async function POST(req: NextRequest) {
     const customerId =
       typeof session.customer === "string" ? session.customer : "";
     const subRepoUrl = sessionMetadata.repo_url || "";
+    // Capture customer email for weekly digest delivery
+    const subCustomerEmail: string | null =
+      typeof session.customer_email === "string" && session.customer_email
+        ? session.customer_email
+        : typeof (session.customer_details as Record<string, unknown> | null)?.email === "string"
+        ? (session.customer_details as Record<string, unknown>).email as string
+        : null;
     if (!subscriptionId || !subRepoUrl) {
       console.error("[GateTest] subscription session missing data", {
         sessionPrefix: sessionId ? sessionId.slice(0, 12) + "..." : null,
@@ -212,6 +219,7 @@ export async function POST(req: NextRequest) {
         stripeCustomerId: customerId,
         repoUrl: subRepoUrl,
         status: "active",
+        customerEmail: subCustomerEmail,
       });
     } catch (err) {
       console.error("[GateTest] subscription record write failed", {

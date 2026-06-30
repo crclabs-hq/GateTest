@@ -516,6 +516,35 @@ export default function ScanStatus() {
               </p>
             </div>
 
+            {/* ── ONE-CLICK FIX HERO — surfaces immediately when issues found on fix tier ── */}
+            {(scanResult?.totalIssues || 0) > 0
+              && (params.tier === "scan_fix" || params.tier === "nuclear")
+              && !fixResult && !fixing && (
+              <div
+                className="rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
+                style={{
+                  background: "linear-gradient(135deg, rgba(5,150,105,0.12), rgba(8,145,178,0.12))",
+                  border: "1px solid rgba(5,150,105,0.35)",
+                }}
+              >
+                <div className="flex-1 space-y-1">
+                  <p className="font-bold text-foreground text-base">
+                    Fix all {scanResult?.totalIssues} issue{(scanResult?.totalIssues || 0) !== 1 ? "s" : ""} automatically
+                  </p>
+                  <p className="text-sm text-muted">
+                    Claude reads each finding, writes the patch, re-validates it, adds a regression test, and opens a pull request. Included in your tier.
+                  </p>
+                </div>
+                <button
+                  onClick={runFix}
+                  className="shrink-0 px-7 py-3.5 rounded-xl text-sm font-bold text-white shadow-lg transition-all hover:scale-[1.03] active:scale-[0.98]"
+                  style={{ background: "linear-gradient(135deg, #059669, #0891b2)" }}
+                >
+                  Open Fix PR →
+                </button>
+              </div>
+            )}
+
             {/* Beautiful findings panel — severity, file:line, filter, search */}
             {scanResult && scanResult.modules.length > 0 && (
               <FindingsPanel
