@@ -1,0 +1,218 @@
+{
+  "generatedAt": "2026-06-30T06:57:18.288Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 13,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 3,
+      "SonarQube": 0,
+      "Semgrep": 7,
+      "CodeQL": 2,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48728841",
+        "author": "uncircle",
+        "type": "comment",
+        "title": null,
+        "text": "Here’s an idea that’s been following me for a while, if you like low-level stuff:Make a toy OS that boots into a Lisp shell.Another to appreciate how fast computers that we call old effectively are: write a game for the shell. Depending on your level of skill, you can try pong, snake, lunar lander, or a 3D software renderer.",
+        "url": "https://news.ycombinator.com/item?id=48728841",
+        "points": null,
+        "numComments": null,
+        "storyId": 48702320,
+        "createdAt": "2026-06-30T05:35:45Z",
+        "createdAtUnix": 1782797745,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48728212",
+        "author": "DivingForGold",
+        "type": "comment",
+        "title": null,
+        "text": "Snake in the grass. Zuck will attempt to steal their IP.",
+        "url": "https://news.ycombinator.com/item?id=48728212",
+        "points": null,
+        "numComments": null,
+        "storyId": 48728115,
+        "createdAt": "2026-06-30T03:31:37Z",
+        "createdAtUnix": 1782790297,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48724548",
+        "author": "lstodd",
+        "type": "comment",
+        "title": null,
+        "text": "Risk is theoretical, that is; a) never demostrated, b) most probably overblown c) any methods of mitigation were never even given a chance to develop.All in all you people take the precautionary principle so far as to cripple your own progress in fundamental stuff like spaceflight but at the same time see no reason to apply it in social stuff like that survelliance camera affair or the net-id. And also fervently believe in modern version of snake oil that is \"AI\".This is hypocrisy at the base level and a sign that we have a civilization crisis akin to one that of ~7th century AD.",
+        "url": "https://news.ycombinator.com/item?id=48724548",
+        "points": null,
+        "numComments": null,
+        "storyId": 48719485,
+        "createdAt": "2026-06-29T20:14:02Z",
+        "createdAtUnix": 1782764042,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48728899",
+        "author": "anon291",
+        "type": "comment",
+        "title": null,
+        "text": "I've run nixos for ten years now without ever having to reinstall... Just continuous updates and my dev environments are nice and segregated and one command line away from being identical on all my computers.Nirvana",
+        "url": "https://news.ycombinator.com/item?id=48728899",
+        "points": null,
+        "numComments": null,
+        "storyId": 48718753,
+        "createdAt": "2026-06-30T05:45:17Z",
+        "createdAtUnix": 1782798317,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48728062",
+        "author": "robocat",
+        "type": "comment",
+        "title": null,
+        "text": "We have zoning in New Zealand and it wasn't started by segregation.Zoning has other reasons than racism.Oversimplifying things down to single causes is an error of thinking.",
+        "url": "https://news.ycombinator.com/item?id=48728062",
+        "points": null,
+        "numComments": null,
+        "storyId": 48721227,
+        "createdAt": "2026-06-30T03:03:39Z",
+        "createdAtUnix": 1782788619,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48727510",
+        "author": "DesaiAshu",
+        "type": "comment",
+        "title": null,
+        "text": "Strict borders have only existed for ~100 years, and many were drawn without much regard for the people living there, often constructed with intention of religious segregation, and to maintain europe's global superiorityThey run counter to the notion of sovereignty and local agency which we value greatly in the USThe irrationality of strict country borders and heavy migration controls will emerge as a heavy global challenge due to economic and climate migration and aging populationsI don't think we have a good answer for what replaces them, but I don't believe there's enough evidence to state that hasty decisions made after WWI and WWII should forever govern global human freedoms - and we need a better approach than war to renegotiate some of this",
+        "url": "https://news.ycombinator.com/item?id=48727510",
+        "points": null,
+        "numComments": null,
+        "storyId": 48717469,
+        "createdAt": "2026-06-30T01:25:34Z",
+        "createdAtUnix": 1782782734,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48725595",
+        "author": "int_19h",
+        "type": "comment",
+        "title": null,
+        "text": "I think that most people arguing for integration are fine with grandparents being left to their devices. Where they get antsy is when the next generation grows up self-segregated into their own distinct culture.",
+        "url": "https://news.ycombinator.com/item?id=48725595",
+        "points": null,
+        "numComments": null,
+        "storyId": 48717469,
+        "createdAt": "2026-06-29T21:35:24Z",
+        "createdAtUnix": 1782768924,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48725115",
+        "author": "Schiendelman",
+        "type": "comment",
+        "title": null,
+        "text": "See the Village of Euclid v Ambler Realty case, which is what I'm referencing in my long comment. A federal appeals court found that those restrictions were racially motivated and cause racial segregation, which is unconstitutional (and we've studied this to death since to confirm it). The Supreme Court, nine white guys... ignored that finding when overturning the appellate court decision.",
+        "url": "https://news.ycombinator.com/item?id=48725115",
+        "points": null,
+        "numComments": null,
+        "storyId": 48721227,
+        "createdAt": "2026-06-29T20:56:15Z",
+        "createdAtUnix": 1782766575,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48724826",
+        "author": "Schiendelman",
+        "type": "comment",
+        "title": null,
+        "text": "Zoning should always have been unconstitutional, and the court case enabling it proved that.The Supreme Court upheld it a hundred years ago, in 1926, after batting down previous efforts by the same people to explicitly ban black people from neighborhoods. They realized that since black families couldn't afford houses by themselves (they needed to buy houses with two or three families together), they could get around it with single family zoning. Ever wondered why it isn't called \"house\" zoning? Because it was segregation.The appellate court in the case threw out zoning, because it was so obvious that it was about race. The Supreme Court overturned it by ignoring the entire appellate court decision and defining a building itself (apartments) as a nuisance, instead of making the petitioners regulate actual behaviors. Because the behaviors weren't the problem, it was the black people they didn't want.Sorry - this riles me up. :)You should absolutely not be able to have a say over how much housing your neighbor builds. Sure, if they make noise, or bad smells, or bright lights, THAT you should be able to regulate. But the outcomes of having a say over how much housing your neighbor can build is the strongest root of a whole host of issues - from CO2 to obesity to high commute times and traffic to municipal budget bloat. It causes sprawl. Increasingly, parts of the left and right are starting to realize we need to overturn it.",
+        "url": "https://news.ycombinator.com/item?id=48724826",
+        "points": null,
+        "numComments": null,
+        "storyId": 48721227,
+        "createdAt": "2026-06-29T20:34:53Z",
+        "createdAtUnix": 1782765293,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48724496",
+        "author": "dijit",
+        "type": "comment",
+        "title": null,
+        "text": "I think we all decided a long time ago that segregated schooling was a bad idea, it increased stereotyping and resentment according to studies: https:&#x2F;&#x2F;academic.oup.com&#x2F;cdpers&#x2F;article&#x2F;10&#x2F;2&#x2F;81&#x2F;8231636Parallel societies have never been found to be a positive thing as far as I can tell.",
+        "url": "https://news.ycombinator.com/item?id=48724496",
+        "points": null,
+        "numComments": null,
+        "storyId": 48717469,
+        "createdAt": "2026-06-29T20:10:56Z",
+        "createdAtUnix": 1782763856,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48722457",
+        "author": "iangelarg",
+        "type": "story",
+        "title": "Code Club – A 100% offline-first IDE from arg",
+        "text": "Code Club – A 100% offline-first IDE from arg",
+        "url": "https://www.codeclubide.com",
+        "points": 1,
+        "numComments": 1,
+        "storyId": 48722457,
+        "createdAt": "2026-06-29T17:43:43Z",
+        "createdAtUnix": 1782755023,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48716640",
+        "author": "codeflo",
+        "type": "comment",
+        "title": null,
+        "text": "It can be useful for pure translation tasks and stuff like that where you explicitly don't want creativity of any kind.",
+        "url": "https://news.ycombinator.com/item?id=48716640",
+        "points": null,
+        "numComments": null,
+        "storyId": 48713832,
+        "createdAt": "2026-06-29T08:58:38Z",
+        "createdAtUnix": 1782723518,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "48719791",
+        "author": "mcintyre1994",
+        "type": "comment",
+        "title": null,
+        "text": "Assuming you already pay for 'verification' on X, you just need to get more followers&#x2F;impressions and then you'll start being paid based on your impressions. If you know&#x2F;follow anyone with the 'verified' checkmark who has a lot of followers, they'll be getting paid for impressions.",
+        "url": "https://news.ycombinator.com/item?id=48719791",
+        "points": null,
+        "numComments": null,
+        "storyId": 48718840,
+        "createdAt": "2026-06-29T14:33:17Z",
+        "createdAtUnix": 1782743597,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
