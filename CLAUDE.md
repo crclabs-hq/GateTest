@@ -1009,23 +1009,101 @@ buttons (delete, cancel) must not actually fire."*
   `/pricing` and dead FAQ accordion buttons — exactly the class of bug
   this tool exists to catch on a revenue-critical page).
 
-**Remaining tools (3-10) are NOT started.** Next session picks up Tool 3
-(`apiHealth`) per the spec's build order unless Craig redirects.
-`formTesting` (Tool 3 in the spec's own tool list, Week 5 in the build
-order) touches payment forms and CAPTCHA-bypass-in-test-mode — flag
-those specific sub-pieces to Craig before building (Boss Rule #6/#9
-adjacent).
+**Tool 3 — `apiHealth` (endpoint status/timing/content-type checker),
+SHIPPED this session.** Built at `src/modules/api-health.js` on top of
+TWO pieces of infrastructure that already existed and were reused
+rather than duplicated: `src/core/endpoint-discovery.js` (finds
+(url, method, params) to test — OpenAPI spec > HTML crawl of forms/
+links > a curated common-paths guess list) and
+`src/core/live-probe-runner.js` (the HTTP engine already built for the
+live-pentest-probe family — per-host rate limiting, per-request
+timeout, wallclock budget, blocked-host SSRF protection). apiHealth
+does NOT go through `authorization-gate.js` — unlike liveSqlInjection/
+liveXss/etc. it never sends attack payloads, only benign valid/missing-
+parameter requests, the same trust level as `liveCrawler` /
+`interactiveElements`. Being pure HTTP (no Playwright), it's the first
+tool in this spec that runs fine on Vercel serverless, not just the
+Crontech-worker path.
+
+- Per discovered endpoint (grouped by method+url, deduped across the
+  per-param rows endpoint-discovery emits): a bare request with no
+  parameters (the "invalid input" case — a well-behaved API should
+  400/422, not 500) and a request with every parameter filled with a
+  type-inferred benign value (email/url/id/phone/password/date
+  heuristics on the param name). OpenAPI path parameters
+  (`/users/{id}`) are substituted into the URL before sending — they're
+  part of the route, not an optional input.
+- Findings: 5xx on either request (error); 404 on a route sourced from
+  OpenAPI/explicit-config/a real HTML crawl — NOT a speculative
+  common-paths guess (error); an API-shaped endpoint (path contains
+  `/api/`, `/graphql`, `.json`, `/wp-json/`, a non-GET method, or an
+  OpenAPI source) answering with `text/html` instead of JSON — the
+  literal "returns HTML instead of JSON" bug named in the spec (error,
+  gated to TRUSTED sources only — see the false-positive note below); a
+  2xx response claiming `application/json` that doesn't actually parse
+  (error); response time over a slow/critical threshold (default 5s
+  warning / 15s error).
+- **Real false positive found and fixed during the vapron.ai proof
+  run**: the wrong-content-type check originally fired on ANY
+  API-shaped endpoint, including speculative common-paths guesses like
+  `/graphql` and `/wp-json/wp/v2/users` on a site that runs neither
+  GraphQL nor WordPress — those correctly get the site's normal
+  200-status catch-all page back, which is expected behaviour for a
+  guessed route, not a bug. Fixed by gating the check to `trusted`
+  sources only (same gate the 404-check already had).
+- Known, documented limitation (not silently overclaimed): this module
+  cannot validate response BODY SHAPE against a schema (a tRPC
+  procedure returning 200 with the wrong fields) — that needs a real
+  contract to diff against, which is `trpcContract`'s / the static
+  `openapiDrift` module's job. apiHealth only proves the endpoint
+  answers, answers fast enough, and answers with the right
+  content-type.
+- 17 unit tests via a fake-runner injection (the real `LiveProbeRunner`
+  blocks localhost/private IPs by design, so a local test server can't
+  be used — same pattern `live-sql-injection.test.js` already uses).
+  Registered in the `wp` + `web` suites.
+- **Real-repo proof against `vapron.ai`**: 21 endpoints checked, 3
+  genuinely broken (timeouts on `/api/login`, `/search`, `/download`,
+  `/redirect`), 4 slow (one at 20989ms). This independently
+  corroborates the `interactiveElements` proof from the same session —
+  two completely different code paths (link-liveness HTTP checks vs.
+  API endpoint probing) both surfaced the same underlying reliability
+  problem on vapron.ai.
+
+**Remaining tools (4-10) are NOT started.** Next session picks up Tool 4
+(`performanceBudget` + `mobileRendering`, Week 4 in the spec's build
+order) unless Craig redirects. `formTesting` (Week 5) touches payment
+forms and CAPTCHA-bypass-in-test-mode — flag those specific sub-pieces
+to Craig before building (Boss Rule #6/#9 adjacent).
 
 ---
 
 ## VERSION
 
-GateTest v1.53.2 — **113 modules**, **Claude Sonnet 4.6**, **five tiers
+GateTest v1.53.3 — **114 modules**, **Claude Sonnet 4.6**, **five tiers
 live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399 (one-time)
 + Continuous $49/mo. The public Pricing UI (`Pricing.tsx`) and the
 checkout backend (`/api/checkout/route.ts` `TIERS`) are reconciled and
 in sync (Craig-authorized 2026-06-30 — see Known Issue #35, resolved).
 Date stamp last fully reconciled: 2026-06-30.
+
+**v1.53.3 changes (2026-07-01 — apiHealth module, Visual & Runtime
+Testing Spec Tool 3):**
+- **`src/modules/api-health.js`** — new `apiHealth` module. See the
+  Tool 3 section above for the full design (endpoint-discovery +
+  live-probe-runner reuse, path-param substitution, trusted-source
+  gating on the wrong-content-type check). 17 unit tests via
+  fake-runner injection.
+- Registered in `src/core/registry.js` and added to the `wp` + `web`
+  suites. Pure HTTP — no Playwright, runs on Vercel serverless.
+- **Real-repo proof against `vapron.ai`** — see the Tool 3 section
+  above. Found and fixed a real false positive (wrong-content-type
+  firing on untrusted common-paths guesses) using live evidence before
+  shipping. Found genuine timeouts on 4 routes, corroborating the
+  `interactiveElements` proof from the same session via an independent
+  code path.
+- Module count 113 → 114. `site-stats.json` regenerated. `modules-data.ts`
+  catalog updated.
 
 **v1.53.2 changes (2026-07-01 — interactiveElements module, Visual &
 Runtime Testing Spec Tool 2):**

@@ -368,6 +368,12 @@ const DEFAULT_CONFIG = {
       // never fires real mutating actions against a live site. Skips
       // gracefully when Chromium isn't available.
       'interactiveElements',
+      // apiHealth: hits every discovered API endpoint (OpenAPI spec >
+      // HTML crawl > common-paths guesses) with valid + missing-param
+      // requests, checks status/timing/content-type. Pure HTTP — no
+      // Playwright, so unlike its siblings above it runs fine on Vercel
+      // serverless too.
+      'apiHealth',
     ],
 
     // Generic web URL suite — runs against any public site. Same engine
@@ -389,6 +395,7 @@ const DEFAULT_CONFIG = {
       'explorer',        // "button doesn't fire" detection (needs Crontech worker)
       'visualRegression', // full-page screenshot diff vs stored baseline (needs Crontech worker)
       'interactiveElements', // safe link liveness + destructive-skip button crawler (needs Crontech worker)
+      'apiHealth',       // endpoint status/timing/content-type checks — pure HTTP, works on Vercel serverless
     ],
   },
 

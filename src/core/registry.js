@@ -28,6 +28,7 @@ const BUILT_IN_MODULES = {
   runtimeErrors: '../modules/runtime-errors.js',
   visualRegression: '../modules/visual-regression.js',
   interactiveElements: '../modules/interactive-elements.js',
+  apiHealth: '../modules/api-health.js',
   mutation: '../modules/mutation.js',
   aiReview: '../modules/ai-review.js',
   fakeFixDetector: '../modules/fake-fix-detector.js',
