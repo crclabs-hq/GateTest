@@ -1,16 +1,20 @@
 # GateTest
 
-### One gate. 110 modules. Self-healing CI.
+### One gate. 120 modules. Self-healing CI.
 
 **AI-powered code quality. Pay per scan via Stripe.**
 
+<!-- Our own live GateTest grade — the flagship example of the embeddable
+     badge at /badge/:owner/:repo (dynamic SVG, cached 5 min, "not scanned"
+     fallback when no scan is on record yet — see website/app/badge). -->
+[![GateTest](https://gatetest.ai/badge/crclabs-hq/GateTest)](https://gatetest.ai)
 <!-- npm-version badge — re-enable after first `npm publish`:
 [![npm](https://img.shields.io/npm/v/@gatetest/cli.svg)](https://www.npmjs.com/package/@gatetest/cli)
 -->
 [![CI](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml/badge.svg)](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Modules](https://img.shields.io/badge/modules-110-purple.svg)](#what-it-replaces)
-[![Tests](https://img.shields.io/badge/tests-5600%2B-brightgreen.svg)](#real-repo-proofs)
+[![Modules](https://img.shields.io/badge/modules-120-purple.svg)](#what-it-replaces)
+[![Tests](https://img.shields.io/badge/tests-6000%2B-brightgreen.svg)](#real-repo-proofs)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](https://nodejs.org/)
 <!-- Marketplace listing — re-enable when the GitHub Marketplace approval lands:
 [![GitHub Marketplace](https://img.shields.io/badge/marketplace-GateTest-2ea44f.svg)](https://github.com/marketplace/gatetest)

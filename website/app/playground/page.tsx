@@ -682,9 +682,9 @@ export default function PlaygroundPage() {
                     Shows your live GateTest grade — updates after every scan.
                   </p>
                   <div className="rounded-xl bg-black/40 border border-white/10 p-3 font-mono text-xs text-white/60 overflow-x-auto">
-                    {`[![GateTest](https://gatetest.ai/api/badge?repo=${
+                    {`[![GateTest](https://gatetest.ai/badge/${
                       result.repo_url.replace("https://github.com/", "")
-                    })](https://gatetest.ai/playground)`}
+                    })](https://gatetest.ai)`}
                   </div>
                 </div>
 
