@@ -2,7 +2,7 @@
 /**
  * Smart Suite Selector — diff-aware, affinity-scored module selection.
  *
- * Instead of "run 4 modules" or "run 111 modules", the Smart Suite
+ * Instead of "run 4 modules" or "run 112 modules", the Smart Suite
  * analyses exactly which files changed and selects the 15-25 modules most
  * likely to fire on those specific changes.
  *

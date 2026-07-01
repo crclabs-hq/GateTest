@@ -357,6 +357,31 @@ const DEFAULT_CONFIG = {
       // gracefully when Chromium isn't available (Vercel today; lights
       // up when Crontech worker is wired).
       'explorer',
+      // visualRegression: full-page screenshot diffing against a stored
+      // baseline, catches redesigns / broken layouts that no static or
+      // DOM-level check can see. Needs Playwright + a writable baseline
+      // dir; skips gracefully otherwise.
+      'visualRegression',
+      // interactiveElements: safe link/button liveness crawler — HTTP
+      // HEAD-checks every internal link, click-tests every button with a
+      // destructive-action skip list (delete/cancel/logout/...) so it
+      // never fires real mutating actions against a live site. Skips
+      // gracefully when Chromium isn't available.
+      'interactiveElements',
+      // apiHealth: hits every discovered API endpoint (OpenAPI spec >
+      // HTML crawl > common-paths guesses) with valid + missing-param
+      // requests, checks status/timing/content-type. Pure HTTP — no
+      // Playwright, so unlike its siblings above it runs fine on Vercel
+      // serverless too.
+      'apiHealth',
+      // performanceBudget: live TTFB/LCP/CLS/page-weight against the
+      // real URL (median of 3 runs, cold-start warm-up first) — the
+      // existing "performance" module never actually loads a page.
+      'performanceBudget',
+      // mobileRendering: overflow + unreadable-text checks across 5
+      // device widths (390/414/768/1024/1280). Absolute checks, not a
+      // diff — catches "broken right now," not just "changed."
+      'mobileRendering',
     ],
 
     // Generic web URL suite — runs against any public site. Same engine
@@ -376,6 +401,11 @@ const DEFAULT_CONFIG = {
       'liveCrawler',     // 404 / 500 / broken-image / redirect-chain on the live URL
       'runtimeErrors',   // live JS errors / CSP violations (needs Crontech worker)
       'explorer',        // "button doesn't fire" detection (needs Crontech worker)
+      'visualRegression', // full-page screenshot diff vs stored baseline (needs Crontech worker)
+      'interactiveElements', // safe link liveness + destructive-skip button crawler (needs Crontech worker)
+      'apiHealth',       // endpoint status/timing/content-type checks — pure HTTP, works on Vercel serverless
+      'performanceBudget', // live TTFB/LCP/CLS/page-weight, median of 3 runs (needs Crontech worker)
+      'mobileRendering', // overflow + tiny-text checks across 5 device widths (needs Crontech worker)
     ],
   },
 

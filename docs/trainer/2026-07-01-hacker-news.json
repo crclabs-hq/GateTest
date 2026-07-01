@@ -1,0 +1,247 @@
+{
+  "generatedAt": "2026-07-01T07:13:43.420Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 15,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 6,
+      "SonarQube": 0,
+      "Semgrep": 6,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 1,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48743212",
+        "author": "madaxe_again",
+        "type": "comment",
+        "title": null,
+        "text": "I spent a week there between the LEP going offline and the LHC going online on a school trip - the scale of it is just unreal - as you say, photos are one thing, but as you stand there in a vast subterranean cathedral looking up at the frantically complex detectors (we hung out with ATLAS a fair bit) it’s… awesome. In the very literal sense of the word.Don’t know if you visited the antimatter labs but they’re similarly unreal - a vast cavern, a dozen stories high and so large it fades into blackness beyond the floodlights illuminating the various buildings and experiments within there. You descend in a rickety cage loft surrounded by no more than a box of girders, to be greeted by a vision straight out of sci-fi. Vast lead megaliths tower around like the work of some very precise techno-druids, cables and ducts snake across the floor to join unknown experiments occluded by the henges, and in this place, they make the stuff the universe abhors.Wild stuff.Oh, I also got to tool around on Tim’s computer which was just sat in the cafeteria at the time.",
+        "url": "https://news.ycombinator.com/item?id=48743212",
+        "points": null,
+        "numComments": null,
+        "storyId": 48723484,
+        "createdAt": "2026-07-01T07:04:57Z",
+        "createdAtUnix": 1782889497,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48738663",
+        "author": "saulapremium",
+        "type": "comment",
+        "title": null,
+        "text": "With that line of thinking, you can attribute any ideology to a time period and declare it invalid today.Professor Jason Stanley who has written two books about the topic calls the current US administration fascist. Similar with professor Timothy Snyder and I think several other respected historians.",
+        "url": "https://news.ycombinator.com/item?id=48738663",
+        "points": null,
+        "numComments": null,
+        "storyId": 48735376,
+        "createdAt": "2026-06-30T20:22:36Z",
+        "createdAtUnix": 1782850956,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48738531",
+        "author": "thepasch",
+        "type": "comment",
+        "title": null,
+        "text": "I'm personally in the \"they keep releasing shameless lobbying papers disguised as thinly veiled research or essay-coded content, push anticompetitive walled-garden practices, show little else but contempt for their non-enterprise customer base, refuse to communicate about anything and choose public silence as their baseline, seemingly force their employees into vows of public silence as well, actively degrade their products across the board with their vibeslop approach with measurable impacts on customers, openly attack not only open weights models but open source software, and all while pretending they're the 'public benefit corporation' formed by a valiant group of heroes escaping from a duplicitous snake and who, even in light of their own massively duplicitous behavior as of late, should apparently be trusted to be the some sort of arbiter over what this tech should get to be and how it should get to be used while they could hardly be more gleeful about how we're all going to be replaced in 6 months from now perpetually\" camp.Which is a bit of a bummer considering they do genuinely make the best model that's most pleasant to work with in my opinion.",
+        "url": "https://news.ycombinator.com/item?id=48738531",
+        "points": null,
+        "numComments": null,
+        "storyId": 48736605,
+        "createdAt": "2026-06-30T20:09:31Z",
+        "createdAtUnix": 1782850171,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48737455",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "Show me something Goldman has done that wasn't for the return %.",
+        "url": "https://news.ycombinator.com/item?id=48737455",
+        "points": null,
+        "numComments": null,
+        "storyId": 48735376,
+        "createdAt": "2026-06-30T18:47:59Z",
+        "createdAtUnix": 1782845279,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48736967",
+        "author": "sirwhinesalot",
+        "type": "comment",
+        "title": null,
+        "text": "No it is not a fault of OOP, it is just that OOP does not really provide the tools to help either. It is the fault of people with the wrong expectations or of those trying to sell snake oil.OOP allows to create decoupled systems but it doesn't help in creating them. It is not an inherent property of the paradigm, but many people sold it as such.\"Use OOP and your application is now magically more modular! Buy my latest book to find out how!\"Since you mentioned you are a junior I guess this sort of nonsense is from before your time. No worries, that just means you won't have stupid dogma shoved down your throat. Use whatever paradigm if it helps you and avoid whatever gets in the way.",
+        "url": "https://news.ycombinator.com/item?id=48736967",
+        "points": null,
+        "numComments": null,
+        "storyId": 48698781,
+        "createdAt": "2026-06-30T18:19:24Z",
+        "createdAtUnix": 1782843564,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48735471",
+        "author": "palmotea",
+        "type": "comment",
+        "title": null,
+        "text": "> I just don't agree that it's a false equivalency. I see them both as \"tools I use to get the job done\". For me, the job is not \"writing code\" - it is \"deliver feature\", \"fix bug\", and the accountability, responsibility, and communication that comes with it.Hello, Tom Smykowski. You have people skills!https:&#x2F;&#x2F;www.youtube.com&#x2F;watch?v=hNuu9CpdjIo",
+        "url": "https://news.ycombinator.com/item?id=48735471",
+        "points": null,
+        "numComments": null,
+        "storyId": 48734373,
+        "createdAt": "2026-06-30T16:50:06Z",
+        "createdAtUnix": 1782838206,
+        "intent": "bug"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48741151",
+        "author": "coldtea",
+        "type": "comment",
+        "title": null,
+        "text": "Well, the same white men created Jim Crow and seggregation.If you were a black man would you have been disenfranchised when those laws were in force?I'd say yes.The fact that it was&#x2F;is worse elsewhere, e.g. in some places in Asia, doesn't make the critique (of how white Constitutional&#x2F;law makers historically disenfranchised certain demographics in the US) invalid.",
+        "url": "https://news.ycombinator.com/item?id=48741151",
+        "points": null,
+        "numComments": null,
+        "storyId": 48733406,
+        "createdAt": "2026-07-01T00:48:17Z",
+        "createdAtUnix": 1782866897,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48740743",
+        "author": "vel0city",
+        "type": "comment",
+        "title": null,
+        "text": "1910's America with Jim Crow segregation, pre-Womens suffrage, pretty much peak wealth inequality with robber barrons?",
+        "url": "https://news.ycombinator.com/item?id=48740743",
+        "points": null,
+        "numComments": null,
+        "storyId": 48733406,
+        "createdAt": "2026-06-30T23:51:43Z",
+        "createdAtUnix": 1782863503,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48740335",
+        "author": "erxam",
+        "type": "comment",
+        "title": null,
+        "text": "> My views are something like what the average American believed in 1910. Were they literally Hitler also?That's not really a great counterpoint considering how much inspiration Nazi Germany took from the amazing levels of racism the US had. Jim Crow, miscegenation, segregation, citizenship…The average American in 1910 wasn't a little Hitler, he was a Big Hitler. Hitler's father, even.Good try, though, eierkuchen. I can see past you and so can everyone else.",
+        "url": "https://news.ycombinator.com/item?id=48740335",
+        "points": null,
+        "numComments": null,
+        "storyId": 48733406,
+        "createdAt": "2026-06-30T22:58:51Z",
+        "createdAtUnix": 1782860331,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48740280",
+        "author": "jmyeet",
+        "type": "comment",
+        "title": null,
+        "text": "This particular Supreme Court is out of control. The Roberts court will (IMHO) go down in history in the same cateogry as the Taney court that gave us such decisions as Dred Scott. Supreme Court justices have always been political actors, not some high-minded academics that come down from their ivory tower to hand down missives every now and again (as some imagine). But this is a step beyond anything we've seen in a long time. Here are some highlights:- 4 justices in this decision rejected the plain text reading of the Citizenship clause of the 14th Amendment, which would've overturned over a century of precedent;- They invented the \"Major Questions Doctrine\" that basically allows the Supreme Court to overrule the will of the executive and legislative branches if they deem the decision sufficiently weighty. It was invented and used to block significant legislation under the Biden administration;- They invented the History and Traditions Test under the Biden administration to overturn Roe v. Wade with the Dobbs decision. This was in spite of abortion being not only legal but essentially unregulated at the founding. Famously, Ben Franklin published an at-home recipe for abortion [1];- They have lied about the facts of cases to push a particular decision. One of the more notable cases was Kennedy v. Bremerton School District that allowed school prayer. The lie? That the coach was \"quietly\" praying. This was not true and was documented, including photos to the contrary;- There are now essentially zero limits on campaign spending by anyone after today's decisions on PAC and campaign coordination and of course Citizens United;- They decided that independent agencies set up by Congress are unconstitutional despite almost a century of precedent because of the separation of powers but this doesn't apply to the Federal Reserve for some reason;- They overturneed 40 years of precedent of Chevron deference, a case that Gorsuch should've recused himself from since he was essentially avenging his mother's sacking as EPA administrator under Reagan in a case that became Chevron. 40 years of Congress and 7 presidents of both parties have written and signed laws with Chevron deference in mind;- They invented presidential immunity out of whole cloth in a country that was founded rejecting monarchs who were above the law. All the insider trading and pardon selling of the current administration is a direct and foreseeable result of that decision;- They decided that Federal regulations could essentially be challenged at any time instead of the previous six-year rule (ie Corner Post). This essentially allows you to challenge a 100 year old rule by setting up a situation where you're \"harmed\";- Roberts has almost singlehandedly gutted the Voting Rights Act over several decisions. Previously he got rid of federal preclearance because of a history states had with discrimination and voter suppression. They immediately went back to discrimination and voter suppression. And then this year the court basically allowed racially-discriminated redistricting under the guise that it was \"partisan\" not \"racist\" unless you can prove beyond a shadow of a doubt that it's racist;The inability of this court to see obvious racism harkens back to a famous decision called Cruikshank that decided private individuals couldn't be punished for civil rights violations (notably, hate crimes) in a response to the Colfax massacre. Additionally, Cruikshank stated that the Bill of Rights didn't apply to state governments. This was slowly dismantled by various opinions over the next century.There were other cases of the Redeemer era (notably Plessy v. Ferguson that legalized segregation) where the court was completely unable to see racism and went out of its way to limit any effort to combat it. We're in one of those eras now (IMHO).All of this is incremental too. So today two cases were decided that essentially allowed states to ban trans athletes. The next step here is that trans athlets must be banned. Those cases are already percolating through lower courts and we'll see them in the next term most likely.[1]: https:&#x2F;&#x2F;www.npr.org&#x2F;2022&#x2F;05&#x2F;18&#x2F;1099542962&#x2F;abortion-ben-frank...",
+        "url": "https://news.ycombinator.com/item?id=48740280",
+        "points": null,
+        "numComments": null,
+        "storyId": 48733406,
+        "createdAt": "2026-06-30T22:51:00Z",
+        "createdAtUnix": 1782859860,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48732143",
+        "author": "yurishimo",
+        "type": "comment",
+        "title": null,
+        "text": "Hetzner seems to be a pretty good example. It wasn't solely because of EU regulation, but once GDPR made it a worthwhile investment to companies to segregate their data, European data centers have been growing steadily.",
+        "url": "https://news.ycombinator.com/item?id=48732143",
+        "points": null,
+        "numComments": null,
+        "storyId": 48730729,
+        "createdAt": "2026-06-30T13:01:15Z",
+        "createdAtUnix": 1782824475,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48730965",
+        "author": "olelele",
+        "type": "comment",
+        "title": null,
+        "text": "For real tho, I think the current crime wave has more to do with power struggles in the drug market than anything else.Sweden has had terrible integration policies coupled w segregating all immigrants in the suburbs.The drug consumption of everyday Swedes is fueling the crime wave. Cocaine consumption is at an all time high. The former prime ministers son was caught w coke at home. But only the marginalized are penalized for it and forced to work supplying the rich inner city kids who get off the hook..",
+        "url": "https://news.ycombinator.com/item?id=48730965",
+        "points": null,
+        "numComments": null,
+        "storyId": 48717469,
+        "createdAt": "2026-06-30T11:08:58Z",
+        "createdAtUnix": 1782817738,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48735674",
+        "author": "skeptic_ai",
+        "type": "comment",
+        "title": null,
+        "text": "It’s even more funny how this blew in their faces. They even advertised pretty much all providers on hackernews home page. Here is in case you missed in the article‘’’ cn baidu.com alibaba-inc.com alipay.com antgroup-inc.cn bytedance.net kuaishou.com xiaohongshu.com jd.com bilibili.co iflytek.com stepfun-inc.com moonshot.ai anyrouter.top claude-code-hub.app claude-opus.top openclaude.me proxyai.com yunwu.ai zenmux.ai‘’’You can view the full list here: https:&#x2F;&#x2F;cdn.thereallo.dev&#x2F;blog&#x2F;assets&#x2F;cc-domains.jsconst knownDomains = [ \"cn\", \"sankuai.com\", \"netease.com\", \"163.com\", \"baidu-int.com\", \"baidu.com\", \"alibaba-inc.com\", \"alipay.com\", \"antgroup-inc.cn\", \"kuaishou.com\", \"bytedance.net\", \"xiaohongshu.com\", \"ctripcorp.com\", \"jd.com\", \"jdcloud.com\", \"bilibili.co\", \"iflytek.com\", \"stepfun-inc.com\", \"aliyuncs.com\", \"cn-shanghai.fcapp.run\", \"cn-beijing.fcapp.run\", \"xaminim.com\", \"moonshot.ai\", \"anyrouter.top\", \"packyapi.com\", \"aicodemirror.com\", \"aigocode.com\", \"hongshan.com\", \"iwhalecloud.com\", \"dhcoder.net\", \"lemongpt.top\", \"zhihuiapi.top\", \"intsig.net\", \"high-five-ai.xyz\", \"cloudsway.net\", \"4sapi.com\", \"529961.com\", \"88996.cloud\", \"88code.ai\", \"88code.org\", \"91code.pro\", \"992236.xyz\", \"ai.codeqaq.com\", \"ai.hybgzs.com\", \"ai.kjvhh.com\", \"aicanapi.com\", \"aicoding.sh\", \"aifast.site\", \"aihubmix.com\", \"anmory.com\", \"api.5202030.xyz\", \"api.ablai.top\", \"api.bianxie.ai\", \"api.bltcy.ai\", \"api.cpass.cc\", \"api.dev88.tech\", \"api.dreamger.com\", \"api.expansion.chat\", \"api.gueai.com\", \"api.holdai.top\", \"api.ikuncode.cc\", \"api.lconai.com\", \"api.linkapi.org\", \"api.mkeai.com\", \"api.nekoapi.com\", \"api.oaipro.com\", \"api.ruyun.fun\", \"api.ssopen.top\", \"api.tu-zi.com\", \"api.uglycat.cc\", \"api.v3.cm\", \"api.whatai.cc\", \"api.wpgzs.top\", \"api.xty.app\", \"api.yuegle.com\", \"api.zzyu.me\", \"apimart.ai\", \"apipro.maynor1024.live\", \"apiyi.com\", \"applyj.hiapi.top\", \"augmunt.com\", \"b4u.qzz.io\", \"clauddy.com\", \"claude-code-hub.app\", \"claude-opus.top\", \"claudeide.net\", \"co.yes.vg\", \"code.wenwen-ai.com\", \"code.x-aio.com\", \"codeilab.com\", \"cubence.com\", \"deeprouter.top\", \"dimaray.com\", \"dmxapi.com\", \"docs.aigc2d.com\", \"duckcoding.com\", \"fk.hshwk.org\", \"flapcode.com\", \"foxcode.hshwk.org\", \"foxcode.rjj.cc\", \"fuli.hxi.me\", \"getgoapi.com\", \"gpt.zhizengzeng.com\", \"gptgod.cloud\", \"gptkey.eu.org\", \"gptpay.store\", \"hdgsb.com\", \"henapi.top\", \"instcopilot-api.com\", \"jeniya.top\", \"jiekou.ai\", \"kg-api.cloud\", \"n1n.ai\", \"new-api.u4vr.com\", \"new.xychatai.com\", \"one-api.bltcy.top\", \"one.ocoolai.com\", \"oneapi.paintbot.top\", \"open.xiaojingai.com\", \"openclaude.me\", \"opus.gptuu.com\", \"poloai.top\", \"poloapi.top\", \"privnode.com\", \"proxyai.com\", \"qinzhiai.com\", \"right.codes\", \"runanytime.hxi.me\", \"sssaicode.com\", \"store.zzyus.top\", \"tiantianai.pro\", \"uiuiapi.com\", \"uniapi.ai\", \"vip.undyingapi.com\", \"wolfai.top\", \"wzw.de5.net\", \"wzw.pp.ua\", \"xairouter.com\", \"xaixapi.com\", \"xiaohuapi.site\", \"xiaohumini.site\", \"xy.poloapi.com\", \"yansd666.com\", \"yansd666.top\", \"yunwu.ai\", \"yunwu.zeabur.app\", \"zenmux.ai\", ];const labKeywords = [ \"deepseek\", \"moonshot\", \"minimax\", \"xaminim\", \"zhipu\", \"bigmodel\", \"baichuan\", \"stepfun\", \"01ai\", \"dashscope\", \"volces\", ]",
+        "url": "https://news.ycombinator.com/item?id=48735674",
+        "points": null,
+        "numComments": null,
+        "storyId": 48734373,
+        "createdAt": "2026-06-30T17:00:52Z",
+        "createdAtUnix": 1782838852,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [
+      {
+        "objectId": "48739495",
+        "author": "feralcoder",
+        "type": "comment",
+        "title": null,
+        "text": "The amount of anti-Anthropic and anti-Dario posts i've seen on reddit threads has gotten a bit ridiculous.It feels like your analysis is mostly spot on, it's the confluence of several motivated parties pouring effort into social media.Many of the posters are pro-foreign models&#x2F;pro-open source, and most can't distinguish the difference between \"open source\" and open weight models like Qwen, Minimax, or GLM.Reminds me of the old \"free as in beer\" vs \"free as in speech\" debate. Free beer means you don't pay, but you don't get to see the recipe or change it. Free speech means you get the actual source and the right to study it, modify it, and redistribute it.Open weight models are basically the beer version. You can download the weights, run them locally, fine-tune them, quantize them, host them on your own boxes — but what you have is a finished product, not the blueprint for how it was built.",
+        "url": "https://news.ycombinator.com/item?id=48739495",
+        "points": null,
+        "numComments": null,
+        "storyId": 48736605,
+        "createdAt": "2026-06-30T21:32:09Z",
+        "createdAtUnix": 1782855129,
+        "intent": "neutral"
+      }
+    ],
+    "Checkmarx": [
+      {
+        "objectId": "48732142",
+        "author": "bohdanstefaniuk",
+        "type": "story",
+        "title": "Show HN: Habit Pocket – track numbers and times of day, not just checkmarks",
+        "text": "Show HN: Habit Pocket – track numbers and times of day, not just checkmarks",
+        "url": "https://habitpocket.io/",
+        "points": 4,
+        "numComments": 4,
+        "storyId": 48732142,
+        "createdAt": "2026-06-30T13:01:14Z",
+        "createdAtUnix": 1782824474,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
