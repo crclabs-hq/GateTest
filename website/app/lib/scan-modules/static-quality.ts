@@ -18,6 +18,60 @@ function countOccurrences(haystack: string, ch: string): number {
   return n;
 }
 
+/**
+ * Strips line comments, block comments, and string/template literal
+ * CONTENTS (keeping the quote characters themselves as empty pairs) so
+ * bracket-balance counting isn't fooled by brace/paren/bracket
+ * characters that are just TEXT — CLI help strings ("[options]"),
+ * regex literals, JSON examples inside comments, markdown in docstrings.
+ *
+ * Real bug this fixes: bin/gatetest.js (a CLI with a large embedded
+ * --help string full of "[option]"-style usage examples) was flagged
+ * with a false "bracket imbalance" — Node's own parser confirmed the
+ * file has zero syntax errors. A naive whole-file character count
+ * will ALWAYS have this failure mode on any file with substantial
+ * string content; this is not a threshold-tuning problem, the
+ * counting itself needs to skip non-code text.
+ *
+ * Not a full tokenizer (no template-literal ${} re-entry, no regex
+ * vs division disambiguation) — good enough for a balance CHECK, where
+ * the failure mode of "strip a bit too much" (under-count) is far
+ * safer than "count text as code" (false positive), since an actually
+ * unbalanced file will still show a large, real gap after stripping.
+ */
+function stripStringsAndComments(source: string): string {
+  let out = "";
+  let i = 0;
+  const n = source.length;
+  while (i < n) {
+    const two = source.slice(i, i + 2);
+    if (two === "//") {
+      while (i < n && source[i] !== "\n") i++;
+      continue;
+    }
+    if (two === "/*") {
+      i += 2;
+      while (i < n && source.slice(i, i + 2) !== "*/") i++;
+      i += 2;
+      continue;
+    }
+    const c = source[i];
+    if (c === "'" || c === '"' || c === "`") {
+      const quote = c;
+      i++;
+      while (i < n && source[i] !== quote) {
+        if (source[i] === "\\") i++; // skip escaped char
+        i++;
+      }
+      i++; // closing quote
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
+
 function sourceFiles(fc: RepoFile[]): RepoFile[] {
   return fc.filter((f) => SOURCE_EXT.test(f.path));
 }
@@ -29,24 +83,30 @@ export const syntax: ModuleRunner = async (ctx: ModuleContext): Promise<ModuleOu
 
   for (const f of ctx.fileContents) {
     if (SOURCE_EXT.test(f.path)) {
-      const openBr = countOccurrences(f.content, "{");
-      const closeBr = countOccurrences(f.content, "}");
+      // Strip strings/comments FIRST — counting brackets in raw file text
+      // false-positives on any file with substantial string content (CLI
+      // help text, regex literals, JSON-in-comments). See
+      // stripStringsAndComments() for the real bug this fixed.
+      const code = stripStringsAndComments(f.content);
+
+      const openBr = countOccurrences(code, "{");
+      const closeBr = countOccurrences(code, "}");
       checks++;
       if (Math.abs(openBr - closeBr) > 2) {
         issues++;
         details.push(`${f.path}: brace imbalance (${openBr} open vs ${closeBr} close)`);
       }
 
-      const openP = countOccurrences(f.content, "(");
-      const closeP = countOccurrences(f.content, ")");
+      const openP = countOccurrences(code, "(");
+      const closeP = countOccurrences(code, ")");
       checks++;
       if (Math.abs(openP - closeP) > 2) {
         issues++;
         details.push(`${f.path}: parenthesis imbalance (${openP} vs ${closeP})`);
       }
 
-      const openSq = countOccurrences(f.content, "[");
-      const closeSq = countOccurrences(f.content, "]");
+      const openSq = countOccurrences(code, "[");
+      const closeSq = countOccurrences(code, "]");
       checks++;
       if (Math.abs(openSq - closeSq) > 2) {
         issues++;

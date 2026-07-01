@@ -31,6 +31,19 @@
  *   explain_finding  — Nuclear-tier diagnosis of a finding (needs ANTHROPIC_API_KEY)
  *   audit_log        — query past local scans recorded in the memory store
  *   compare_repos    — cross-repo lookup (uses memory store; informational fallback when empty)
+ *   scan_url         — scan any live public URL via the hosted gatetest.ai free quick-tier API
+ *   scan_repo        — scan any public GitHub repo via the hosted gatetest.ai free quick-tier API
+ *   get_badge        — get the embeddable README badge markdown for a repo
+ *   get_report       — retrieve the full result of the last scan_local/scan_url/scan_repo call this session
+ *
+ * scan_local/run_module/list_modules/check_health/fix_issue/compose_pr/
+ * explain_finding/audit_log/compare_repos all run the engine IN-PROCESS
+ * against the local filesystem — no network call, no account, works
+ * offline. scan_url/scan_repo/get_badge instead call the hosted
+ * gatetest.ai API (override with GATETEST_API_BASE_URL) — useful when the
+ * agent wants to check a URL or repo it doesn't have local disk access
+ * to. Both families are genuinely useful for different situations; this
+ * server exposes both rather than picking one.
  */
 
 import { createRequire } from 'module';
@@ -246,6 +259,67 @@ const TOOLS = [
       required: ['path'],
     },
   },
+  {
+    name: 'scan_url',
+    description:
+      'Scan any live public URL via the hosted gatetest.ai free quick-tier API ' +
+      '(webHeaders, tlsSecurity, accessibility, seo, links, runtimeErrors, and more). ' +
+      'No account needed. Returns the top findings — the free tier is a truncated ' +
+      'preview; full results require a paid scan at gatetest.ai. Requires network access.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string',
+          description: 'The public URL to scan, e.g. https://example.com',
+        },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'scan_repo',
+    description:
+      'Scan any public GitHub repo via the hosted gatetest.ai free quick-tier API ' +
+      '(syntax, lint, secrets, codeQuality — 4 of the full module catalogue). ' +
+      'No account needed. Returns a health grade + top findings. Requires network access.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoUrl: {
+          type: 'string',
+          description: 'Public GitHub repo URL, e.g. https://github.com/owner/repo',
+        },
+      },
+      required: ['repoUrl'],
+    },
+  },
+  {
+    name: 'get_badge',
+    description:
+      'Get the embeddable GateTest quality badge for a GitHub repo — Markdown ready ' +
+      'to paste into a README, plus the raw badge image URL. The badge is a live SVG ' +
+      '(dynamic SVG endpoint, 5-minute cache) — it always reflects the repo\'s most ' +
+      'recent completed scan, showing "not scanned" until one exists.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        owner: { type: 'string', description: 'GitHub org/user, e.g. "facebook"' },
+        repo: { type: 'string', description: 'Repo name, e.g. "react"' },
+      },
+      required: ['owner', 'repo'],
+    },
+  },
+  {
+    name: 'get_report',
+    description:
+      'Retrieve the full result of the most recent scan_local, scan_url, or scan_repo ' +
+      'call made earlier in this same MCP session. Returns an error if no scan has run yet.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -320,6 +394,7 @@ async function handleScanLocal(args) {
       result = await gt.runSuite(s);
     }
 
+    lastScanResult = { source: 'scan_local', path: scanPath, data: result, at: new Date().toISOString() };
     const text = formatScanResult(result);
     const json = JSON.stringify(result, null, 2);
     return {
@@ -637,6 +712,140 @@ async function handleCompareRepos(args) {
 }
 
 // ---------------------------------------------------------------------------
+// Hosted-API tools — scan_url / scan_repo / get_badge / get_report.
+//
+// Everything above runs the engine in-process against the local
+// filesystem. These four instead call the hosted gatetest.ai product
+// (free quick-tier, no account) — for a URL or repo the agent doesn't
+// have local disk access to. GATETEST_API_BASE_URL overrides the base
+// URL for self-hosted / dev use.
+// ---------------------------------------------------------------------------
+
+const API_BASE_URL = (process.env.GATETEST_API_BASE_URL || 'https://gatetest.ai').replace(/\/+$/, '');
+
+// Holds the result of the most recent scan_local/scan_url/scan_repo call
+// made in THIS server process — get_report reads it back. Deliberately
+// simple in-memory state: one MCP server process is one conversation's
+// worth of tool calls, not a shared/concurrent service (same assumption
+// audit_log/compare_repos already make about the local memory store).
+let lastScanResult = null;
+
+async function postJson(path, body, timeoutMs = 45_000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { raw: text }; }
+    return { status: res.status, data };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function formatHostedFindings(title, findings) {
+  if (!Array.isArray(findings) || findings.length === 0) return `${title}\n\nNo findings — clean.`;
+  const lines = [title, ''];
+  for (const f of findings) {
+    const sev = f.severity ? `[${f.severity}] ` : '';
+    const mod = f.module ? `\`${f.module}\` — ` : '';
+    lines.push(`- ${sev}${mod}${f.title || f.message || JSON.stringify(f)}`);
+  }
+  return lines.join('\n');
+}
+
+async function handleScanUrl(args) {
+  const { url } = args || {};
+  if (!url || typeof url !== 'string') {
+    return { content: [{ type: 'text', text: 'Error: url is required and must be a string' }], isError: true };
+  }
+  try {
+    const { status, data } = await postJson('/api/web/scan', { url });
+    if (status !== 200 || data.error) {
+      return { content: [{ type: 'text', text: `scan_url failed: ${data.error || `HTTP ${status}`}` }], isError: true };
+    }
+    lastScanResult = { source: 'scan_url', url, data, at: new Date().toISOString() };
+    const header =
+      `## GateTest scan — ${url}\n\n` +
+      `**Health score:** ${data.healthScore?.score ?? '?'}/100 (${data.healthScore?.grade ?? '?'})  |  ` +
+      `**Total findings:** ${data.totalFindings ?? '?'} (${data.errorCount ?? 0} errors, ${data.warningCount ?? 0} warnings)\n`;
+    const findingsText = formatHostedFindings('### Findings (free-tier preview)', data.findings);
+    const upsell = data.paywall
+      ? `\n\n---\n${data.paywall.remainingCount} more finding(s) available — full report from $${data.paywall.fullReportPriceUsd} at ${API_BASE_URL}${data.paywall.ctaUrl || '/#pricing'}`
+      : '';
+    return { content: [{ type: 'text', text: `${header}\n${findingsText}${upsell}` }] };
+  } catch (err) {
+    return { content: [{ type: 'text', text: `scan_url failed: ${err && err.message ? err.message : String(err)}` }], isError: true };
+  }
+}
+
+async function handleScanRepo(args) {
+  const { repoUrl } = args || {};
+  if (!repoUrl || typeof repoUrl !== 'string') {
+    return { content: [{ type: 'text', text: 'Error: repoUrl is required and must be a string' }], isError: true };
+  }
+  try {
+    const { status, data } = await postJson('/api/playground/scan', { repo_url: repoUrl });
+    if (status !== 200 || data.error) {
+      return { content: [{ type: 'text', text: `scan_repo failed: ${data.error || `HTTP ${status}`}` }], isError: true };
+    }
+    lastScanResult = { source: 'scan_repo', repoUrl, data, at: new Date().toISOString() };
+    const header =
+      `## GateTest scan — ${repoUrl}\n\n` +
+      `**Grade:** ${data.grade ?? '?'} (${data.healthScore ?? '?'}/100)  |  ` +
+      `**Total issues:** ${data.totalIssues ?? '?'}  |  **Duration:** ${data.duration ? `${(data.duration / 1000).toFixed(1)}s` : '?'}\n`;
+    const findingsText = formatHostedFindings('### Top findings (free-tier preview)', data.topFindings);
+    const upsell = data.upgradeNote ? `\n\n---\n${data.upgradeNote} ${API_BASE_URL}/playground` : '';
+    return { content: [{ type: 'text', text: `${header}\n${findingsText}${upsell}` }] };
+  } catch (err) {
+    return { content: [{ type: 'text', text: `scan_repo failed: ${err && err.message ? err.message : String(err)}` }], isError: true };
+  }
+}
+
+async function handleGetBadge(args) {
+  const { owner, repo } = args || {};
+  if (!owner || !repo) {
+    return { content: [{ type: 'text', text: 'Error: owner and repo are both required' }], isError: true };
+  }
+  const badgeUrl = `${API_BASE_URL}/badge/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+  const markdown = `[![GateTest](${badgeUrl})](${API_BASE_URL})`;
+  return {
+    content: [{
+      type: 'text',
+      text:
+        `## GateTest badge — ${owner}/${repo}\n\n` +
+        `**Markdown (paste into README):**\n\`\`\`md\n${markdown}\n\`\`\`\n\n` +
+        `**Raw badge URL:** ${badgeUrl}\n\n` +
+        `Shows "not scanned" until this repo has a completed scan on record (run scan_repo or ` +
+        `scan it at ${API_BASE_URL}/playground first).`,
+    }],
+  };
+}
+
+async function handleGetReport() {
+  if (!lastScanResult) {
+    return {
+      content: [{ type: 'text', text: 'No scan has run yet in this session. Call scan_local, scan_url, or scan_repo first.' }],
+      isError: true,
+    };
+  }
+  return {
+    content: [{
+      type: 'text',
+      text:
+        `## Last scan report (${lastScanResult.source}, ${lastScanResult.at})\n\n` +
+        `\`\`\`json\n${JSON.stringify(lastScanResult.data, null, 2)}\n\`\`\``,
+    }],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Server setup
 // ---------------------------------------------------------------------------
 
@@ -660,6 +869,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case 'explain_finding':  return handleExplainFinding(args);
     case 'audit_log':        return handleAuditLog(args);
     case 'compare_repos':    return handleCompareRepos(args);
+    case 'scan_url':         return handleScanUrl(args);
+    case 'scan_repo':        return handleScanRepo(args);
+    case 'get_badge':        return handleGetBadge(args);
+    case 'get_report':       return handleGetReport();
     default:
       return {
         content: [{ type: 'text', text: `Unknown tool: ${name}` }],
