@@ -1218,12 +1218,58 @@ pre-existing skips), 0 fail. Website builds clean throughout.
 
 ## VERSION
 
-GateTest v1.54.0 — **120 modules**, **Claude Sonnet 4.6**, **five tiers
+GateTest v1.55.0 — **120 modules**, **Claude Sonnet 4.6**, **five tiers
 live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399 (one-time)
 + Continuous $49/mo. The public Pricing UI (`Pricing.tsx`) and the
 checkout backend (`/api/checkout/route.ts` `TIERS`) are reconciled and
 in sync (Craig-authorized 2026-06-30 — see Known Issue #35, resolved).
 Date stamp last fully reconciled: 2026-06-30.
+
+**v1.55.0 changes (2026-07-01 evening — 6-item security/quality/product
+sweep):**
+- **Paywall bypass fix** — `resolveFullReportAccess()` (`full-report-auth.ts`
+  + unit-tested `full-report-auth-core.js`) is now the only thing allowed
+  to grant `fullReport` on web/scan, wp/scan, and both `/stream` twins —
+  admin request or a Stripe-verified paid session, never trusted from the
+  client. **Also found and fixed a live production 500** on all 4 of
+  those routes (confirmed against gatetest.ai, not just locally) — the
+  CLI-engine require was invisible to Next's file tracer
+  (`outputFileTracingIncludes` + `engine-entry-resolver.js` fix it); the
+  same root cause was silently degrading `/api/scan/run`'s paid Full/
+  Scan+Fix/Forensic tiers to the lighter fallback engine too.
+- **False-positive elimination** across the 5 modules Craig named:
+  `visualRegression` auto-masks dynamic content (timestamps/live clocks)
+  by default now; `interactiveElements` no longer reports a hover-only
+  mega-nav trigger as a dead button (reclassified into its own
+  `hoverOnly` finding); `consoleErrors`' noisy-third-party allowlist
+  grew from 7 to 20+ vendor patterns; `performanceBudget` tags a CLS
+  failure as animation-driven vs. a single load-time thrash
+  (diagnostic only, never changes pass/fail); `designSystemCompliance`
+  excludes known third-party widget containers from the site's own
+  color/spacing sample.
+- **Playground polish** — real SSE streaming (`/api/playground/scan/stream`,
+  `runTier()` gained an optional `onModuleComplete` callback), an honest
+  "X/120" progress bar via the same shadow-preview upsell mechanic the
+  $29 tier already uses (does not run the paid module catalog for free),
+  severity-colour-coded findings, 48h shareable result URLs
+  (stateless — no KV/Redis in the approved stack), and a "Fix This PR"
+  button per finding that routes to the paid Scan+Fix checkout.
+- **Jarvis deploy gate** — new `jarvis-deploy-gate` systemd service
+  (separate `jarvis-platform` repo) polls Jarvis's own session-lifecycle
+  table for real deploys and runs a live GateTest scan against the
+  platform's URL, flagging critical findings to `#javis-cclabs` +
+  `platform_state`. Advisory only (documented as such) — real hard
+  enforcement is the GitHub Actions `deployGate` (below) wired as a
+  required status check.
+- **Embeddable badge** — `GET /badge/:owner/:repo`, the real path-wired
+  version (a pre-existing `api/badge/[repo]/route.ts` had a misleading
+  `[repo]` folder name that only ever read a query param). Added to
+  GateTest's own README as the flagship example.
+- **Vapron CSP fix** — pushed to `vapron` `origin/Main`: `WEB_CSP` was
+  missing a Google Fonts allowance `CUSTOMER_CSP` (two lines below in
+  the same file) already had — the exact persistent, site-wide bug
+  `consoleErrors` and `crossBrowser` both independently found on
+  vapron.ai during the Tools 5-10 session.
 
 **v1.54.0 changes (2026-07-01 — Tools 5-10, Visual & Runtime Testing
 Spec COMPLETE):** `formTesting`, `consoleErrors`, `designSystemCompliance`,
