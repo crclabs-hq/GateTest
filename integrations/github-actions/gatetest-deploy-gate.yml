@@ -1,0 +1,155 @@
+# ============================================================================
+# GATETEST DEPLOY GATE — Tool 10 of the Visual & Runtime Testing Spec
+# ============================================================================
+# This workflow is the DEPLOY-TIME counterpart to gatetest-gate.yml.
+# gatetest-gate.yml checks the CODE (static: syntax, lint, security) on
+# every push/PR — it never sees a live URL. This workflow orchestrates every
+# LIVE module built for the Visual & Runtime Testing Spec (visualRegression,
+# interactiveElements, apiHealth, performanceBudget, mobileRendering,
+# formTesting, consoleErrors, designSystemCompliance, crossBrowser) against
+# the URL a hosting provider (Vercel/Netlify/anything that posts a GitHub
+# Deployment Status) just deployed — the literal "Tool 6 (Week 6): deployGate,
+# orchestrates all the above" from the Bible's original spec, renumbered here
+# as Tool 10 per Craig's 2026-07-01 build order.
+#
+# Install location in target repo: .github/workflows/gatetest-deploy-gate.yml
+# Source of truth: https://github.com/crclabs-hq/gatetest
+#                  /integrations/github-actions/gatetest-deploy-gate.yml
+#
+# This is a PROTECTED INTEGRATION FILE — see CLAUDE.md → PROTECTED PLATFORMS.
+# It must not be removed, weakened, or soft-failed without Craig's
+# authorization. Unlike gatetest-gate.yml (required for every protected
+# repo), this file is OPT-IN — it only does something useful for repos that
+# actually deploy previews/production via a provider that posts GitHub
+# deployment_status events. Repos without live deployments can skip it.
+# ============================================================================
+
+name: GateTest Deploy Gate
+
+on:
+  deployment_status:
+  # Manual run against any URL — useful for staging environments that don't
+  # post a deployment_status event, or for re-running after a fix.
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Live URL to gate (e.g. a staging/production URL)'
+        required: true
+
+permissions:
+  contents: read
+  deployments: write
+  checks: write
+
+concurrency:
+  group: gatetest-deploy-gate-${{ github.event.deployment.id || github.event.inputs.url }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-gate:
+    name: GateTest — Deploy Gate (live site)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Only act on deployments that actually SUCCEEDED — a failed/pending
+    # deploy has nothing live to test yet. The manual dispatch path always runs.
+    if: github.event_name == 'workflow_dispatch' || github.event.deployment_status.state == 'success'
+    steps:
+      - name: Resolve target URL
+        id: resolve_url
+        run: |
+          if [ -n "${{ github.event.inputs.url }}" ]; then
+            echo "url=${{ github.event.inputs.url }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "url=${{ github.event.deployment_status.target_url }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fail fast if no URL was resolved
+        if: steps.resolve_url.outputs.url == ''
+        run: |
+          echo "::error title=GateTest Deploy Gate: no URL::Neither a deployment_status.target_url nor a manual 'url' input was available. Nothing to gate." >&2
+          exit 1
+
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Clone GateTest (single source of truth)
+        env:
+          GATETEST_TOKEN: ${{ secrets.GATETEST_TOKEN }}
+        run: |
+          if [ -n "$GATETEST_TOKEN" ]; then
+            git clone --depth 1 "https://x-access-token:${GATETEST_TOKEN}@github.com/crclabs-hq/gatetest.git" "$RUNNER_TEMP/gatetest"
+          else
+            git clone --depth 1 "https://github.com/crclabs-hq/gatetest.git" "$RUNNER_TEMP/gatetest"
+          fi
+          echo "GATETEST_HOME=$RUNNER_TEMP/gatetest" >> $GITHUB_ENV
+
+      - name: Install GateTest dependencies (incl. Playwright — the live suite needs a real browser)
+        run: |
+          cd "$RUNNER_TEMP/gatetest"
+          npm ci --omit=dev --ignore-scripts 2>/dev/null || npm install --production --ignore-scripts 2>/dev/null || true
+          npx playwright install --with-deps chromium
+
+      - name: Point the live suite at the deployed URL
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.gatetest"
+          URL="${{ steps.resolve_url.outputs.url }}"
+          # webUrl/wpUrl/targetUrl is the shared fallback chain every live
+          # module (runtimeErrors, visualRegression, interactiveElements,
+          # apiHealth, performanceBudget, mobileRendering, formTesting,
+          # consoleErrors, designSystemCompliance, crossBrowser) already
+          # reads via config.get() — one config write wires up all nine.
+          cat > "$GITHUB_WORKSPACE/.gatetest/config.json" <<JSON
+          { "webUrl": "$URL", "wpUrl": "$URL", "targetUrl": "$URL" }
+          JSON
+
+      - name: GateTest — live web suite against the deployed URL
+        id: gate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          node "$GATETEST_HOME/bin/gatetest.js" --suite web --sarif --junit --project "$GITHUB_WORKSPACE"
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Report a GitHub deployment status (blocks promotion when configured as a required check)
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const state = '${{ steps.gate.outputs.exit_code }}' === '0' ? 'success' : 'failure';
+            const description = state === 'success'
+              ? 'GateTest live gate passed — visual, runtime, forms, console, design-system, and cross-browser checks all clear.'
+              : 'GateTest live gate found blocking issues on the deployed URL. See the workflow run for details.';
+            if (context.eventName === 'deployment_status' && context.payload.deployment) {
+              await github.rest.repos.createDeploymentStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: context.payload.deployment.id,
+                state,
+                description,
+                environment_url: '${{ steps.resolve_url.outputs.url }}',
+                log_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              });
+            }
+
+      - name: Upload GateTest reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatetest-deploy-gate-reports-${{ github.run_id }}
+          path: |
+            .gatetest/reports/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Fail the workflow on a blocking gate result
+        if: steps.gate.outputs.exit_code != '0'
+        run: |
+          echo "::error title=GateTest Deploy Gate blocked this deploy::The live site suite found error-severity issues on ${{ steps.resolve_url.outputs.url }}. See the uploaded gatetest-reports artifact and the deployment status for details."
+          exit 1

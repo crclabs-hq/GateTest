@@ -20,6 +20,7 @@ describe('Protected integration artifacts', () => {
     'integrations/README.md',
     'integrations/github-actions/gatetest-gate.yml',
     'integrations/github-actions/ai-ci-fixer.yml',
+    'integrations/github-actions/gatetest-deploy-gate.yml',
     'integrations/husky/pre-push',
     'integrations/scripts/install.sh',
   ];
@@ -175,5 +176,60 @@ describe('Protected integration artifacts', () => {
       /conclusion\s*==\s*'failure'/,
       'AI CI-fixer template must only fire when the upstream workflow failed.',
     );
+  });
+
+  // Tool 10 of the Visual & Runtime Testing Spec — the deploy-time gate that
+  // orchestrates every live-site module (visualRegression through
+  // crossBrowser) against a real deployed URL and blocks bad deploys.
+  it('deploy gate must not soft-fail — no continue-on-error on the gate step', () => {
+    const wf = fs.readFileSync(
+      path.join(ROOT, 'integrations/github-actions/gatetest-deploy-gate.yml'),
+      'utf8',
+    );
+    const gateStepRegex = /gatetest\.js[^\n]*\n(\s+continue-on-error:\s*true)/;
+    assert.ok(
+      !gateStepRegex.test(wf),
+      'Deploy gate step must not be soft-failed. Remove continue-on-error: true from the gate.',
+    );
+  });
+
+  it('deploy gate must trigger on deployment_status and clone the canonical GateTest repo', () => {
+    const wf = fs.readFileSync(
+      path.join(ROOT, 'integrations/github-actions/gatetest-deploy-gate.yml'),
+      'utf8',
+    );
+    assert.match(wf, /deployment_status:/, 'Deploy gate must trigger on deployment_status events.');
+    assert.match(
+      wf,
+      /git clone[^\n]*crclabs-hq\/gatetest/,
+      'Deploy gate must clone the canonical GateTest repository.',
+    );
+  });
+
+  it('deploy gate must actually fail the workflow on a blocking result (not just report)', () => {
+    const wf = fs.readFileSync(
+      path.join(ROOT, 'integrations/github-actions/gatetest-deploy-gate.yml'),
+      'utf8',
+    );
+    assert.match(
+      wf,
+      /exit_code\s*!=\s*'0'[\s\S]*?exit 1/,
+      'Deploy gate must exit non-zero when the live suite finds blocking issues — "blocks bad deploys" requires an actual failing exit code, not just a status report.',
+    );
+  });
+
+  it('deploy gate must run the web suite, which includes every Visual & Runtime Testing Spec module', () => {
+    const wf = fs.readFileSync(
+      path.join(ROOT, 'integrations/github-actions/gatetest-deploy-gate.yml'),
+      'utf8',
+    );
+    assert.match(wf, /--suite web/, 'Deploy gate must run the web suite against the deployed URL.');
+    const { DEFAULT_CONFIG } = require('../src/core/config.js');
+    for (const mod of ['visualRegression', 'interactiveElements', 'apiHealth', 'performanceBudget', 'mobileRendering', 'formTesting', 'consoleErrors', 'designSystemCompliance', 'crossBrowser']) {
+      assert.ok(
+        DEFAULT_CONFIG.suites.web.includes(mod),
+        `web suite must include ${mod} for the deploy gate to actually orchestrate it.`,
+      );
+    }
   });
 });
