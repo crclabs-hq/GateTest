@@ -146,6 +146,7 @@ class RuntimeErrorsModule extends BaseModule {
       navigationFailure: null,
       finalUrl: null,
       status: null,
+      memoryLeak: null,
     };
 
     page.on('pageerror', (err) => {
@@ -200,12 +201,54 @@ class RuntimeErrorsModule extends BaseModule {
       const resp = await page.goto(url, { timeout: timeoutMs, waitUntil: 'networkidle' });
       captured.finalUrl = page.url();
       captured.status = resp ? resp.status() : null;
+
+      if (!captured.navigationFailure) {
+        captured.memoryLeak = await this._checkIdleMemoryGrowth(page, cfg);
+      }
     } catch (err) {
       captured.navigationFailure = err && err.message ? String(err.message) : String(err);
     }
 
     try { await ctx.close(); } catch { /* swallow */ }
     return captured;
+  }
+
+  /**
+   * A page whose JS heap keeps growing while the tab sits completely
+   * idle — no clicks, no scrolls, no user interaction — almost always
+   * means something is leaking: a `setInterval` that keeps allocating
+   * and is never cleared, an unbounded in-memory cache, an event
+   * listener re-registered on every tick. This is the live counterpart
+   * to the existing STATIC `perf:interval-cleanup` / `perf:event-cleanup`
+   * checks in the `performance` module (which only look for the *shape*
+   * of the bug in source — `setInterval` with no matching
+   * `clearInterval`). Measuring idle growth catches the same bug class
+   * even when the cleanup code technically exists but doesn't actually
+   * fire (e.g. cleared on the wrong condition).
+   *
+   * `performance.memory` is a non-standard Chromium API — returns
+   * `undefined` on other engines or when precise memory info isn't
+   * exposed, in which case this is a silent no-op (not a finding).
+   */
+  async _checkIdleMemoryGrowth(page, cfg) {
+    const idleMs = typeof cfg.memoryCheckMs === 'number' ? cfg.memoryCheckMs : 4000;
+    const growthThresholdPct = typeof cfg.memoryGrowthThresholdPct === 'number' ? cfg.memoryGrowthThresholdPct : 15;
+    const growthMinBytes = typeof cfg.memoryGrowthMinBytes === 'number' ? cfg.memoryGrowthMinBytes : 2 * 1024 * 1024;
+
+    const readHeap = () => page.evaluate(() => (performance.memory ? performance.memory.usedJSHeapSize : null)).catch(() => null);
+
+    const initialBytes = await readHeap();
+    if (typeof initialBytes !== 'number') return null; // performance.memory unavailable in this browser
+
+    await page.waitForTimeout(idleMs);
+    const afterBytes = await readHeap();
+    if (typeof afterBytes !== 'number') return null;
+
+    const growthBytes = afterBytes - initialBytes;
+    const growthPct = initialBytes > 0 ? (growthBytes / initialBytes) * 100 : 0;
+    const leaking = growthBytes >= growthMinBytes && growthPct >= growthThresholdPct;
+
+    return { initialBytes, afterBytes, growthBytes, growthPct, idleMs, leaking };
   }
 
   _reportCaptured(result, captured, baseUrl) {
@@ -274,6 +317,23 @@ class RuntimeErrorsModule extends BaseModule {
         severity: 'info',
         message: `Browser deprecation: ${d.text}`,
       });
+    }
+
+    if (captured.memoryLeak) {
+      const ml = captured.memoryLeak;
+      const fmtMB = (b) => (b / 1024 / 1024).toFixed(2);
+      if (ml.leaking) {
+        result.addCheck('runtime-errors:memory-leak', false, {
+          severity: 'warning',
+          message: `JS heap grew ${fmtMB(ml.growthBytes)}MB (${ml.growthPct.toFixed(1)}%) while idle for ${ml.idleMs}ms with zero user interaction — likely leak (uncleared interval, unbounded cache, or re-registered listener)`,
+          suggestion: 'Check for setInterval/setTimeout loops or event listeners that keep firing and allocating without a matching cleanup.',
+        });
+      } else {
+        result.addCheck('runtime-errors:memory-leak', true, {
+          severity: 'info',
+          message: `JS heap stable while idle: ${fmtMB(ml.initialBytes)}MB → ${fmtMB(ml.afterBytes)}MB over ${ml.idleMs}ms`,
+        });
+      }
     }
 
     // Summary line — info-level. The scan UI uses this for the "X tests

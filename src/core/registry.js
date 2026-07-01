@@ -31,6 +31,7 @@ const BUILT_IN_MODULES = {
   apiHealth: '../modules/api-health.js',
   performanceBudget: '../modules/performance-budget.js',
   mobileRendering: '../modules/mobile-rendering.js',
+  formTesting: '../modules/form-testing.js',
   mutation: '../modules/mutation.js',
   aiReview: '../modules/ai-review.js',
   fakeFixDetector: '../modules/fake-fix-detector.js',

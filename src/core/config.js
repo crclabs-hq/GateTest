@@ -382,6 +382,11 @@ const DEFAULT_CONFIG = {
       // device widths (390/414/768/1024/1280). Absolute checks, not a
       // diff — catches "broken right now," not just "changed."
       'mobileRendering',
+      // formTesting: fills + submits SAFE forms (contact, newsletter,
+      // search, feedback). Payment-shaped, auth-shaped, and CAPTCHA-
+      // protected forms are detected and SKIPPED, never submitted or
+      // bypassed — see form-testing.js header for the full safety scope.
+      'formTesting',
     ],
 
     // Generic web URL suite — runs against any public site. Same engine
@@ -406,6 +411,7 @@ const DEFAULT_CONFIG = {
       'apiHealth',       // endpoint status/timing/content-type checks — pure HTTP, works on Vercel serverless
       'performanceBudget', // live TTFB/LCP/CLS/page-weight, median of 3 runs (needs Crontech worker)
       'mobileRendering', // overflow + tiny-text checks across 5 device widths (needs Crontech worker)
+      'formTesting',     // safe-form fill+submit, skips payment/auth/CAPTCHA (needs Crontech worker)
     ],
   },
 

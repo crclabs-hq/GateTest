@@ -110,3 +110,100 @@ test('module instantiates without errors', () => {
     try { fs.rmSync(tmpdir, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 });
+
+// ── Idle memory-leak detection ──────────────────────────────────────────
+
+function makeFakePage(heapReadings) {
+  let call = 0;
+  return {
+    evaluate: async () => {
+      const value = heapReadings[Math.min(call, heapReadings.length - 1)];
+      call++;
+      return value;
+    },
+    waitForTimeout: async () => {},
+  };
+}
+
+test('_checkIdleMemoryGrowth returns null when performance.memory is unavailable', async () => {
+  const m = new RuntimeErrorsModule();
+  const page = makeFakePage([null, null]);
+  const result = await m._checkIdleMemoryGrowth(page, {});
+  assert.equal(result, null);
+});
+
+test('_checkIdleMemoryGrowth flags significant heap growth while idle as leaking', async () => {
+  const m = new RuntimeErrorsModule();
+  // 10MB -> 15MB while idle: 50% growth, well over both thresholds.
+  const page = makeFakePage([10 * 1024 * 1024, 15 * 1024 * 1024]);
+  const result = await m._checkIdleMemoryGrowth(page, { memoryCheckMs: 100 });
+  assert.equal(result.leaking, true);
+  assert.equal(result.growthBytes, 5 * 1024 * 1024);
+  assert.ok(result.growthPct > 15);
+});
+
+test('_checkIdleMemoryGrowth does not flag small/stable heap growth', async () => {
+  const m = new RuntimeErrorsModule();
+  // 50MB -> 50.5MB: 1% growth, below threshold.
+  const page = makeFakePage([50 * 1024 * 1024, 50.5 * 1024 * 1024]);
+  const result = await m._checkIdleMemoryGrowth(page, {});
+  assert.equal(result.leaking, false);
+});
+
+test('_checkIdleMemoryGrowth requires BOTH a percentage and an absolute-bytes floor (avoids noise on tiny heaps)', async () => {
+  const m = new RuntimeErrorsModule();
+  // 1KB -> 2KB is a 100% jump but a trivially small absolute amount —
+  // must not be flagged, or every near-empty page would "leak."
+  const page = makeFakePage([1024, 2048]);
+  const result = await m._checkIdleMemoryGrowth(page, {});
+  assert.equal(result.leaking, false);
+});
+
+test('_reportCaptured emits a warning check when memoryLeak.leaking is true', () => {
+  const m = new RuntimeErrorsModule();
+  const checks = [];
+  const result = { addCheck: (name, passed, details) => checks.push({ name, passed, details }) };
+  const captured = {
+    pageErrors: [], consoleErrors: [], consoleWarnings: [], requestFailures: [],
+    cspViolations: [], mixedContent: [], hydration: [], deprecations: [],
+    navigationFailure: null, finalUrl: 'https://example.com', status: 200,
+    memoryLeak: { initialBytes: 10e6, afterBytes: 15e6, growthBytes: 5e6, growthPct: 50, idleMs: 4000, leaking: true },
+  };
+  m._reportCaptured(result, captured, 'https://example.com');
+  const leakCheck = checks.find((c) => c.name === 'runtime-errors:memory-leak');
+  assert.ok(leakCheck);
+  assert.equal(leakCheck.passed, false);
+  assert.equal(leakCheck.details.severity, 'warning');
+  assert.match(leakCheck.details.message, /grew/);
+});
+
+test('_reportCaptured emits an info check when memory is stable', () => {
+  const m = new RuntimeErrorsModule();
+  const checks = [];
+  const result = { addCheck: (name, passed, details) => checks.push({ name, passed, details }) };
+  const captured = {
+    pageErrors: [], consoleErrors: [], consoleWarnings: [], requestFailures: [],
+    cspViolations: [], mixedContent: [], hydration: [], deprecations: [],
+    navigationFailure: null, finalUrl: 'https://example.com', status: 200,
+    memoryLeak: { initialBytes: 10e6, afterBytes: 10.1e6, growthBytes: 0.1e6, growthPct: 1, idleMs: 4000, leaking: false },
+  };
+  m._reportCaptured(result, captured, 'https://example.com');
+  const leakCheck = checks.find((c) => c.name === 'runtime-errors:memory-leak');
+  assert.ok(leakCheck);
+  assert.equal(leakCheck.passed, true);
+  assert.equal(leakCheck.details.severity, 'info');
+});
+
+test('_reportCaptured emits nothing memory-related when memoryLeak is null (unsupported browser)', () => {
+  const m = new RuntimeErrorsModule();
+  const checks = [];
+  const result = { addCheck: (name, passed, details) => checks.push({ name, passed, details }) };
+  const captured = {
+    pageErrors: [], consoleErrors: [], consoleWarnings: [], requestFailures: [],
+    cspViolations: [], mixedContent: [], hydration: [], deprecations: [],
+    navigationFailure: null, finalUrl: 'https://example.com', status: 200,
+    memoryLeak: null,
+  };
+  m._reportCaptured(result, captured, 'https://example.com');
+  assert.equal(checks.find((c) => c.name === 'runtime-errors:memory-leak'), undefined);
+});
