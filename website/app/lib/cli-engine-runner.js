@@ -211,16 +211,31 @@ async function runFullEngine({ fileContents, suite = DEFAULT_SUITE, deadlineMs, 
 
     seedGitRepo(workspaceRoot);
 
-    // Require the CLI engine. Pure CJS — works under Next.js server bundling
-    // as long as the path resolves relative to this file.
+    // Require the CLI engine. Pure CJS.
     //
     // turbopackIgnore: the CLI engine eventually loads src/core/registry.js
     // which does dynamic require()s of every module file. Turbopack tries
     // to enumerate all possible targets at build time and crashes. The
     // comment tells Turbopack to skip tracing through this boundary;
     // Node-at-runtime resolves normally.
+    //
+    // Resolved via engine-entry-resolver.js, NOT a hardcoded relative path —
+    // a relative require resolves against the BUNDLED chunk's location, not
+    // this source file's, so a fixed '../../../src/index.js' 404s under
+    // Next.js (confirmed live 2026-07-01: this exact require threw in
+    // production, silently degrading every Full/Scan+Fix/Forensic paid scan
+    // to the lighter runTier fallback instead of the full 90+-module CLI
+    // engine customers paid for) while ALSO being the only path that works
+    // when this file is required directly (e.g. this file's own test
+    // suite) — no single anchor is correct in both contexts, hence the
+    // multi-candidate resolver. outputFileTracingIncludes in
+    // next.config.ts makes src/** actually present in the deployed Next.js
+    // bundle (turbopackIgnore hides this require from the automatic tracer).
     // eslint-disable-next-line global-require
-    const { GateTest } = require(/* turbopackIgnore: true */ '../../../src/index.js');
+    const { resolveEngineEntry } = require('./engine-entry-resolver.js');
+    const engineEntry = resolveEngineEntry();
+    // eslint-disable-next-line global-require
+    const { GateTest } = require(/* turbopackIgnore: true */ engineEntry);
 
     const opts = {
       silent: true,

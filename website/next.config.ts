@@ -9,8 +9,31 @@ import path from "node:path";
 // API route that uses the shared helpers.
 const repoRoot = path.resolve(import.meta.dirname, "..");
 
+// Routes that `require(/* turbopackIgnore: true */ ...)` the CLI engine at
+// `../src/index.js` (web/scan, wp/scan, their /stream twins, and
+// cli-engine-runner.js used by /api/scan/run). turbopackIgnore tells
+// Turbopack to skip STATIC ANALYSIS of that require (needed — the CLI
+// engine's registry.js does its own dynamic requires that would otherwise
+// crash the build) but that same flag hides the dependency from Next's
+// automatic file tracer, so `src/**` never made it into these routes'
+// deployed serverless bundles. Confirmed live 2026-07-01: all 4 web/wp
+// scan endpoints 500'd in production ("Cannot find module '../src/index.js'")
+// and /api/scan/run silently fell back to the lighter runTier path on every
+// paid Full/Scan+Fix/Forensic scan. This explicit include is the standard
+// Next.js fix for a statically-invisible monorepo require.
+const CLI_ENGINE_ROUTES = [
+  "/api/web/scan/route",
+  "/api/web/scan/stream/route",
+  "/api/wp/scan/route",
+  "/api/wp/scan/stream/route",
+  "/api/scan/run/route",
+];
+
 const nextConfig: NextConfig = {
   outputFileTracingRoot: repoRoot,
+  outputFileTracingIncludes: Object.fromEntries(
+    CLI_ENGINE_ROUTES.map((route) => [route, ["../src/**"]])
+  ),
   turbopack: {
     root: repoRoot,
   },
