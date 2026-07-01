@@ -34,6 +34,7 @@ const BUILT_IN_MODULES = {
   formTesting: '../modules/form-testing.js',
   consoleErrors: '../modules/console-errors.js',
   designSystemCompliance: '../modules/design-system-compliance.js',
+  crossBrowser: '../modules/cross-browser.js',
   mutation: '../modules/mutation.js',
   aiReview: '../modules/ai-review.js',
   fakeFixDetector: '../modules/fake-fix-detector.js',

@@ -394,6 +394,9 @@ const DEFAULT_CONFIG = {
       // designSystemCompliance: audits LIVE computed styles for
       // near-duplicate colors, off-grid spacing, and type-scale drift.
       'designSystemCompliance',
+      // crossBrowser: diffs page load / runtime errors / rendering
+      // across Chromium, Firefox, and WebKit (Chromium is the reference).
+      'crossBrowser',
     ],
 
     // Generic web URL suite — runs against any public site. Same engine
@@ -421,6 +424,7 @@ const DEFAULT_CONFIG = {
       'formTesting',     // safe-form fill+submit, skips payment/auth/CAPTCHA (needs Crontech worker)
       'consoleErrors',   // site-wide console error/warning aggregation across every crawled page (needs Crontech worker)
       'designSystemCompliance', // color/spacing/typography drift on live computed styles (needs Crontech worker)
+      'crossBrowser',    // Chromium/Firefox/WebKit page-load + rendering diff (needs Crontech worker)
     ],
   },
 
