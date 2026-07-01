@@ -1119,22 +1119,120 @@ at 1024px (laptop), and 9.92px text on FOUR viewport widths including
 small-font choice, not a mobile-only issue) — plus the iPhone-viewport
 navigation timeout that led to the page-errors bucketing fix above.
 
-**Remaining tools (5-10) are NOT started.** Next session picks up
-`formTesting` + enhanced `consoleErrors`/`runtimeErrors` (Week 5 in the
-spec's build order) unless Craig redirects. `formTesting` touches
-payment forms and CAPTCHA-bypass-in-test-mode — flag those specific
-sub-pieces to Craig before building (Boss Rule #6/#9 adjacent).
+**Tools 5-10 SHIPPED 2026-07-01 (overnight session, Craig's renumbered
+build order — supersedes the Week 5/6 grouping above).**
+
+**Tool 5 — `formTesting`, SHIPPED.** `src/modules/form-testing.js`.
+Fills and submits SAFE forms only (contact, newsletter, search,
+feedback) via Playwright; verifies a real success signal (URL change,
+success text, DOM delta, or a fired non-GET request) rather than
+trusting a silent submit. Payment-shaped forms (card/CVV fields, or a
+Stripe/Braintree/PayPal element), auth-shaped forms (`input[type=password]`),
+CAPTCHA-protected forms, and destructive-labeled submits are detected
+and SKIPPED — never submitted, never bypassed (the Boss-Rule-adjacent
+sub-pieces flagged in the prior session's note were resolved by simply
+not doing them). Email fields always resolve to `test@gatetest.ai` so
+a real inbox is never reached. 13 unit tests. Real-repo proof:
+zoobicon.com (1 form found, submitted OK), vapron.ai (0 forms on
+crawled pages — clean).
+
+**Tool 6 — `consoleErrors`, SHIPPED.** `src/modules/console-errors.js`.
+Site-WIDE crawl aggregating console.error/warn + page errors across
+every same-origin page visited — the breadth counterpart to
+`runtimeErrors`' single-page depth. Fingerprints strip line:col/query
+strings/hex ids/numbers so the same underlying error across N pages
+collapses to one finding with a page count. Errors seen on every
+crawled page are flagged "persistent" and promoted to error severity.
+A known-noisy allowlist (GA/GTM, Facebook Pixel, Hotjar, doubleclick,
+favicon 404s, Next.js Fast Refresh) prevents "always finds 40 errors on
+every site" syndrome. 11 unit tests. Real-repo proof against
+`vapron.ai`: found a real, persistent, site-wide bug — the site's own
+`style-src 'self' 'unsafe-inline'` CSP blocks its Google Fonts
+stylesheet on all 5 crawled pages.
+
+**Tool 7 — `designSystemCompliance`, SHIPPED.**
+`src/modules/design-system-compliance.js`. Audits LIVE computed styles
+(not source/Tailwind-config, not a pixel baseline) for design-system
+drift: near-duplicate colors (RGB distance ≤ 10) clustered as
+"probably one token," distinct color/font-size/font-family/border-radius
+counts above configurable thresholds, and margin/padding values not on
+a configurable spacing grid (default 4px). No opinion on aesthetics —
+only on internal consistency. 12 unit tests. Real-repo proof:
+vapron.ai (52 colors vs. 20 threshold, 17 font sizes, 35 off-grid
+spacing values), zoobicon.com (4 duplicate-color clusters).
+
+**Tool 8 — `crossBrowser`, SHIPPED.** `src/modules/cross-browser.js`.
+Runs the same page load across Chromium/Firefox/WebKit (Chromium as
+reference), diffing navigation success, page/console errors, and a
+pixel-diffed screenshot (reuses `core/visual-diff-engine.js` — no
+duplicated diff logic). An engine that can't launch (missing binary or
+missing OS-level shared libs) is skipped per-engine at info severity,
+never blocking. Documented limitation: engine-specific-error matching
+is exact-text, not fingerprinted — different vendors phrase the same
+underlying error in unrelated templates, so no cheap normalization
+safely unifies them. 10 unit tests. Real-repo proof: installed
+firefox+webkit binaries this session; firefox independently
+reproduced the Tool 6 CSP/fonts bug on vapron.ai in its own error
+phrasing (real cross-engine corroboration); webkit gracefully skipped
+(this host lacks libgtk-4/libflite/libavif); zoobicon.com clean on
+both engines that ran.
+
+**Tool 9 — VS Code extension, VERIFIED (already existed).** Found a
+fully-built, non-stub extension already shipped in an earlier session
+(commit `89ff568`) — `vscode-extension/` with a real 346-line
+`extension.ts` (scan commands, diagnostics collection, status bar,
+sidebar views, MCP auto-setup for Claude/Cursor/Windsurf/Cline).
+Verified `npm install && npx tsc -p ./` compiles clean. Found and
+fixed one real broken-state item (Always-On Mode): `package.json`'s
+`icon: "images/icon.png"` pointed at a file that didn't exist (would
+break `vsce package`) — fixed by reusing the existing
+`website/public/icon-400.png` brand asset. Also gitignored the
+compiled `out/` dir and `*.vsix` packages (build artifacts, same
+pattern as `website/.next/`).
+
+**Tool 10 — `deployGate`, SHIPPED.**
+`integrations/github-actions/gatetest-deploy-gate.yml`. The deploy-time
+counterpart to `gatetest-gate.yml` (which only ever sees checked-out
+code, never a live URL) — fires on a `deployment_status` event
+(state=success) or manual `workflow_dispatch(url)`, writes
+`.gatetest/config.json` pointing `webUrl`/`wpUrl`/`targetUrl` at the
+deployed URL (the shared fallback chain all 9 live modules already
+read), runs the full `web` suite against it, reports a GitHub
+deployment status back, and fails the workflow itself on a blocking
+result. This is the literal "deployGate, orchestrates all the above"
+from the original Week 6 spec. Marked as a PROTECTED INTEGRATION FILE,
+opt-in (not part of `install.sh`'s required three). 4 new guard tests
+added to `tests/integrations.test.js` (22/22 pass) verifying the file
+exists, never soft-fails, triggers correctly, actually fails on a
+blocking result, and orchestrates all 9 live modules via the `web`
+suite.
+
+Module count 116 → 120 across Tools 5-8 (formTesting, consoleErrors,
+designSystemCompliance, crossBrowser — Tool 9 is dev tooling and
+Tool 10 is CI config, neither registers a scan module).
+`site-stats.json` and `modules-data.ts` regenerated/updated after each
+module tool. Full suite: 6059 tests, 6056 pass, 3 skipped (unrelated
+pre-existing skips), 0 fail. Website builds clean throughout.
 
 ---
 
 ## VERSION
 
-GateTest v1.53.4 — **116 modules**, **Claude Sonnet 4.6**, **five tiers
+GateTest v1.54.0 — **120 modules**, **Claude Sonnet 4.6**, **five tiers
 live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399 (one-time)
 + Continuous $49/mo. The public Pricing UI (`Pricing.tsx`) and the
 checkout backend (`/api/checkout/route.ts` `TIERS`) are reconciled and
 in sync (Craig-authorized 2026-06-30 — see Known Issue #35, resolved).
 Date stamp last fully reconciled: 2026-06-30.
+
+**v1.54.0 changes (2026-07-01 — Tools 5-10, Visual & Runtime Testing
+Spec COMPLETE):** `formTesting`, `consoleErrors`, `designSystemCompliance`,
+`crossBrowser` (4 new scan modules, 116 → 120), VS Code extension
+verified + fixed (already existed, missing packaging icon), `deployGate`
+GitHub Actions integration shipped. Full detail in the "VISUAL & RUNTIME
+TESTING SPEC" section above — all 10 tools in Craig's build order are
+now shipped. See that section for real-repo proof against `vapron.ai`
+and `zoobicon.com` per tool.
 
 **v1.53.4 changes (2026-07-01 — performanceBudget + mobileRendering,
 Visual & Runtime Testing Spec Tool 4):**
