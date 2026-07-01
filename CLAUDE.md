@@ -904,14 +904,328 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ---
 
+## VISUAL & RUNTIME TESTING SPEC — TOOL 1 SHIPPED (READ THIS EVERY SESSION)
+
+**Authorization:** Craig 2026-07-01 — full 10-tool spec handed over
+(`GATETEST_VISUAL_SPEC.md`) with the directive to build Tool 1 first:
+*"This single tool would have caught the Vapron redesign before it went
+live."* The 10 tools, in the spec's stated build order: `visualRegression`
+(Week 1, **SHIPPED**), `interactiveElements` (Week 2, **SHIPPED this
+session**), `apiHealth` (Week 3), `performanceBudget` + `mobileRendering`
+(Week 4), `formTesting` + enhanced `consoleErrors`/`runtimeErrors` (Week 5),
+`deployGate` (Week 6, orchestrates all the above). Tools 3-10 are
+recorded here so future sessions pick up the build order instead of
+re-asking Craig — same pattern as the FIX-FIRST BUILD PLAN and the
+Hyper-Aggressive Roadmap above.
+
+**Cross-repo boundary decision (read before touching this module again):**
+`visualRegression` was built inside GateTest (`src/modules/visual-regression.js`)
+using Playwright + pixelmatch/pngjs — Playwright is an already-approved
+GateTest dependency (see the Playwright-as-internal-dep decision below);
+pixelmatch/pngjs are pure-JS, zero native bindings, added this session
+directly at Craig's request. The **Jarvis platform** (`/opt/jarvis`,
+separate repo/infra, `MarcoReid Intelligence Systems`) has its own
+CLAUDE.md with an explicit **Rule 5 — "No Playwright... extend
+`src/screenshot-service.js`"** for Jarvis's own orchestration code. To
+respect both governing documents at once: the GateTest module itself
+never hardcodes a Jarvis path or Jarvis's Slack bot token — `baselineDir`,
+`platform`, `slackWebhook`/`SLACK_WEBHOOK_URL`, and `slackBotToken`/
+`SLACK_BOT_TOKEN` are all config-driven with product-local defaults
+(`.gatetest/visual-baselines/`). Jarvis orchestration (`audit-runner.js`
+or a future wrapper) is expected to invoke GateTest as a subprocess/CLI
+call — same pattern `audit-runner.js` already uses for build/test
+commands — and pass `baselineDir: /opt/jarvis/visual-baselines/{platform}`
+explicitly when it wants cross-platform monitoring. This keeps Playwright
+entirely inside GateTest's own dependency tree; Jarvis's `package.json`
+never needs it, satisfying Rule 5 to the letter.
+
+`visualRegression` module contract: screenshots every configured route
+at desktop (1280px) + mobile (390px) full-page, stores baselines under
+`{baselineDir}/{platform}/{viewport}/{route-slug}.png`, diffs via
+pixelmatch on first-mismatch-fails-open dimension padding (page grew/
+shrank counts as real diff, doesn't crash), fails the check when diff
+exceeds `threshold`% (default 5). `maskSelectors` config hides
+dynamic-content regions (timestamps, live counters) before capture.
+`updateBaseline: true` accepts an intentional redesign as the new
+baseline. On a failing diff, best-effort Slack notification: bot-token
+upload of a baseline|current|diff composite image when configured,
+text-only webhook summary otherwise — both non-blocking (Forbidden #15).
+Registered in the `wp` and `web` suites alongside `runtimeErrors` /
+`explorer` (needs a live URL + Crontech-class worker; skips gracefully
+on Vercel serverless same as its siblings). Real-repo proof: ran against
+`https://vapron.ai` this session — first run created 1280×7098 (desktop)
+and 390×11683 (mobile) full-page baselines; second run against the live
+site again confirmed the pass path (0.05% / 0.06% diff, well under the
+5% threshold); unit tests cover the fail path (synthetic PNGs, diff >
+threshold → error-severity check + Slack notify invoked).
+
+**Tool 2 — `interactiveElements` (link + button liveness crawler), SHIPPED
+this session.** Built at `src/modules/interactive-elements.js`, deliberately
+NOT a duplicate of `explorer` (which already does full autonomous QA:
+forms, toggles, disclosures, screenshots, and clicks every button with
+no safety list). `interactiveElements` is narrower and safety-first —
+built specifically to close the gap the spec calls out: *"Destructive
+buttons (delete, cancel) must not actually fire."*
+
+- **Links** (`<a href>` without `role="button"`) are verified with a
+  direct HTTP request, not a simulated click — faster, catches
+  server-side 404s a client-side router would swallow, zero destructive
+  risk. HEAD is the fast path; a HEAD timeout/4xx/5xx is verified with a
+  real GET before being trusted (`_checkLinkLive`) — Next.js middleware
+  routes can mishandle HEAD while GET works fine, confirmed against real
+  `vapron.ai` routes during this session's proof run.
+- **Buttons** (`<button>`, `[role="button"]`, `input[type=button|submit]`)
+  ARE click-tested — there's no way to verify "does this do something"
+  without clicking. Before clicking, the label is checked against a
+  destructive-action pattern list (delete/cancel/unsubscribe/deactivate/
+  sign out/archive/revoke/terminate/reset/ban/wipe/purge/...) —
+  matches are skipped, never clicked. The pattern list only fires on
+  short imperative labels (≤ 40 chars, doesn't end in `?`) — a long FAQ
+  question like *"Can I cancel at any time?"* is NOT an action button
+  and must still be click-tested; confirmed as a real false-positive
+  against zoobicon.com's pricing FAQ during this session's proof run.
+- **Dead-button detection** diffs page URL, `body.innerHTML.length`, a
+  broad dynamic-UI selector count (dialogs/menus/dropdowns/popovers/
+  toasts/`aria-expanded`), the clicked element's OWN class/aria-expanded/
+  aria-pressed/data-state (catches React/Vue toggling state on the
+  trigger itself), AND `<html>`/`<body>` class state (catches
+  Tailwind/next-themes-style dark-mode toggles that touch the document
+  root, not the button or body content — confirmed as a real false
+  positive, "Toggle colour theme" on vapron.ai, before this signal was
+  added). Modals opened by a click are dismissed (Escape, then a
+  best-effort close-button click) before the next element is tested.
+  Scrolling before element discovery is capped at a small step count so
+  infinite-scroll pages can't turn one visit into an unbounded crawl.
+- Reuses `checkUrl`/`fetchPage` from `live-crawler-http-helpers.js`
+  rather than duplicating HTTP-fetch logic. 17 unit tests.
+- Registered in the `wp` and `web` suites alongside `runtimeErrors` /
+  `explorer` / `visualRegression`.
+- **Real-repo proof**: `vapron.ai` (found 3 genuinely broken/hanging
+  links — `/products`, `/forgot` hang 15s+ even under plain `curl`, not
+  a module artifact; 7 remaining "dead" nav-category buttons are
+  hover-only mega-nav triggers, a legitimate tap/keyboard-accessibility
+  finding, not a false positive) and `zoobicon.com` (found likely-dead
+  `Start Pro trial` / `Start Agency trial` / `Join the waitlist` CTAs on
+  `/pricing` and dead FAQ accordion buttons — exactly the class of bug
+  this tool exists to catch on a revenue-critical page).
+
+**Tool 3 — `apiHealth` (endpoint status/timing/content-type checker),
+SHIPPED this session.** Built at `src/modules/api-health.js` on top of
+TWO pieces of infrastructure that already existed and were reused
+rather than duplicated: `src/core/endpoint-discovery.js` (finds
+(url, method, params) to test — OpenAPI spec > HTML crawl of forms/
+links > a curated common-paths guess list) and
+`src/core/live-probe-runner.js` (the HTTP engine already built for the
+live-pentest-probe family — per-host rate limiting, per-request
+timeout, wallclock budget, blocked-host SSRF protection). apiHealth
+does NOT go through `authorization-gate.js` — unlike liveSqlInjection/
+liveXss/etc. it never sends attack payloads, only benign valid/missing-
+parameter requests, the same trust level as `liveCrawler` /
+`interactiveElements`. Being pure HTTP (no Playwright), it's the first
+tool in this spec that runs fine on Vercel serverless, not just the
+Crontech-worker path.
+
+- Per discovered endpoint (grouped by method+url, deduped across the
+  per-param rows endpoint-discovery emits): a bare request with no
+  parameters (the "invalid input" case — a well-behaved API should
+  400/422, not 500) and a request with every parameter filled with a
+  type-inferred benign value (email/url/id/phone/password/date
+  heuristics on the param name). OpenAPI path parameters
+  (`/users/{id}`) are substituted into the URL before sending — they're
+  part of the route, not an optional input.
+- Findings: 5xx on either request (error); 404 on a route sourced from
+  OpenAPI/explicit-config/a real HTML crawl — NOT a speculative
+  common-paths guess (error); an API-shaped endpoint (path contains
+  `/api/`, `/graphql`, `.json`, `/wp-json/`, a non-GET method, or an
+  OpenAPI source) answering with `text/html` instead of JSON — the
+  literal "returns HTML instead of JSON" bug named in the spec (error,
+  gated to TRUSTED sources only — see the false-positive note below); a
+  2xx response claiming `application/json` that doesn't actually parse
+  (error); response time over a slow/critical threshold (default 5s
+  warning / 15s error).
+- **Real false positive found and fixed during the vapron.ai proof
+  run**: the wrong-content-type check originally fired on ANY
+  API-shaped endpoint, including speculative common-paths guesses like
+  `/graphql` and `/wp-json/wp/v2/users` on a site that runs neither
+  GraphQL nor WordPress — those correctly get the site's normal
+  200-status catch-all page back, which is expected behaviour for a
+  guessed route, not a bug. Fixed by gating the check to `trusted`
+  sources only (same gate the 404-check already had).
+- Known, documented limitation (not silently overclaimed): this module
+  cannot validate response BODY SHAPE against a schema (a tRPC
+  procedure returning 200 with the wrong fields) — that needs a real
+  contract to diff against, which is `trpcContract`'s / the static
+  `openapiDrift` module's job. apiHealth only proves the endpoint
+  answers, answers fast enough, and answers with the right
+  content-type.
+- 17 unit tests via a fake-runner injection (the real `LiveProbeRunner`
+  blocks localhost/private IPs by design, so a local test server can't
+  be used — same pattern `live-sql-injection.test.js` already uses).
+  Registered in the `wp` + `web` suites.
+- **Real-repo proof against `vapron.ai`**: 21 endpoints checked, 3
+  genuinely broken (timeouts on `/api/login`, `/search`, `/download`,
+  `/redirect`), 4 slow (one at 20989ms). This independently
+  corroborates the `interactiveElements` proof from the same session —
+  two completely different code paths (link-liveness HTTP checks vs.
+  API endpoint probing) both surfaced the same underlying reliability
+  problem on vapron.ai.
+
+**Tool 4 — `performanceBudget` + `mobileRendering`, SHIPPED this
+session.** Two modules, both from the spec's Week 4 grouping.
+
+`performanceBudget` (`src/modules/performance-budget.js`) is the LIVE
+counterpart to the existing `performance` module, which is entirely
+static (bundle size from build output, HTML/JS regex checks, and a
+check for whether the `lighthouse` CLI is *installed* — it never
+actually loads a page). This module opens the real URL in Chromium and
+measures TTFB (Navigation Timing), LCP and CLS (`PerformanceObserver`s
+installed via `page.addInitScript` BEFORE navigation so early entries
+aren't missed), and page weight (summed `content-length` across every
+response). Per the spec's own stated limitations: one throwaway
+warm-up request mitigates cold-start-inflated TTFB, and every route is
+measured 3 times with the MEDIAN reported (matches the spec's own
+Lighthouse-variance guidance) rather than failing the gate on a single
+noisy run. Default budgets: TTFB 800ms / LCP 2.5s / CLS 0.1 / page
+weight 2MB, all overridable via `modules.performanceBudget.budgets`.
+10 unit tests via fake-browser injection.
+
+`mobileRendering` (`src/modules/mobile-rendering.js`) is the focused,
+spec-named counterpart to a lighter check `explorer` already does
+(horizontal-overflow + clipped-text at 2 viewports as one signal among
+many in its full autonomous pass) — this module runs the full 5-device
+matrix the spec names (390 iPhone / 414 Android / 768 tablet / 1024
+small-laptop / 1280 desktop) as ABSOLUTE checks (not a diff against a
+baseline like `visualRegression` — this catches "broken right now").
+Adds one check `explorer` doesn't do: unreadably small text (computed
+font-size below a configurable legibility floor, default 10px).
+`moduleCfg.exemptRoutes` (string prefix or RegExp) skips narrow-
+viewport checks for intentionally desktop-only pages (the spec's own
+stated limitation — e.g. an admin dashboard). A navigation failure on
+one viewport is bucketed as its own `page-errors` finding, NOT folded
+into "overflow" — confirmed as a real mislabeling bug during the
+vapron.ai proof run (a 20s timeout on the iPhone viewport was
+originally being reported as a horizontal-overflow finding). 11 unit
+tests via fake-browser injection.
+
+Both registered in the `wp` + `web` suites, both need Playwright (skip
+gracefully without it, same as their siblings).
+
+**Real-repo proof against `vapron.ai`**: `performanceBudget` passed
+cleanly on the homepage (TTFB 15ms, LCP 244ms, CLS 0.0001, 236KB — all
+comfortably within budget), proving the pass path works on a real fast
+page. `mobileRendering` found genuine issues: 63px horizontal overflow
+at 1024px (laptop), and 9.92px text on FOUR viewport widths including
+1280px desktop (dashboard stat-card labels — a real, consistent
+small-font choice, not a mobile-only issue) — plus the iPhone-viewport
+navigation timeout that led to the page-errors bucketing fix above.
+
+**Remaining tools (5-10) are NOT started.** Next session picks up
+`formTesting` + enhanced `consoleErrors`/`runtimeErrors` (Week 5 in the
+spec's build order) unless Craig redirects. `formTesting` touches
+payment forms and CAPTCHA-bypass-in-test-mode — flag those specific
+sub-pieces to Craig before building (Boss Rule #6/#9 adjacent).
+
+---
+
 ## VERSION
 
-GateTest v1.53.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
+GateTest v1.53.4 — **116 modules**, **Claude Sonnet 4.6**, **five tiers
 live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399 (one-time)
 + Continuous $49/mo. The public Pricing UI (`Pricing.tsx`) and the
 checkout backend (`/api/checkout/route.ts` `TIERS`) are reconciled and
 in sync (Craig-authorized 2026-06-30 — see Known Issue #35, resolved).
 Date stamp last fully reconciled: 2026-06-30.
+
+**v1.53.4 changes (2026-07-01 — performanceBudget + mobileRendering,
+Visual & Runtime Testing Spec Tool 4):**
+- **`src/modules/performance-budget.js`** — new `performanceBudget`
+  module. Live TTFB/LCP/CLS/page-weight via Playwright, median of 3
+  runs with a warm-up request first. 10 unit tests via fake-browser
+  injection.
+- **`src/modules/mobile-rendering.js`** — new `mobileRendering` module.
+  Horizontal-overflow + unreadable-text checks across the 5 device
+  widths the spec names, plus `exemptRoutes` for intentionally
+  desktop-only pages. 11 unit tests via fake-browser injection.
+- Both registered in `src/core/registry.js` and added to the `wp` +
+  `web` suites.
+- **Real-repo proof against `vapron.ai`** — see the Tool 4 section
+  above. `performanceBudget` passed cleanly on the homepage;
+  `mobileRendering` found real overflow + tiny-text issues, and one
+  real bug in the module itself (a navigation timeout was being
+  mislabeled as an overflow finding) was found and fixed from the
+  proof-run evidence before shipping.
+- Module count 114 → 116. `site-stats.json` regenerated.
+  `modules-data.ts` catalog updated.
+
+**v1.53.3 changes (2026-07-01 — apiHealth module, Visual & Runtime
+Testing Spec Tool 3):**
+- **`src/modules/api-health.js`** — new `apiHealth` module. See the
+  Tool 3 section above for the full design (endpoint-discovery +
+  live-probe-runner reuse, path-param substitution, trusted-source
+  gating on the wrong-content-type check). 17 unit tests via
+  fake-runner injection.
+- Registered in `src/core/registry.js` and added to the `wp` + `web`
+  suites. Pure HTTP — no Playwright, runs on Vercel serverless.
+- **Real-repo proof against `vapron.ai`** — see the Tool 3 section
+  above. Found and fixed a real false positive (wrong-content-type
+  firing on untrusted common-paths guesses) using live evidence before
+  shipping. Found genuine timeouts on 4 routes, corroborating the
+  `interactiveElements` proof from the same session via an independent
+  code path.
+- Module count 113 → 114. `site-stats.json` regenerated. `modules-data.ts`
+  catalog updated.
+
+**v1.53.2 changes (2026-07-01 — interactiveElements module, Visual &
+Runtime Testing Spec Tool 2):**
+- **`src/modules/interactive-elements.js`** — new `interactiveElements`
+  module. See the Tool 2 section above for the full design (HTTP-based
+  link liveness with a HEAD→GET fallback, destructive-action-skipped
+  button click-testing, modal cleanup, bounded scroll). 17 unit tests.
+- Registered in `src/core/registry.js` and added to the `wp` + `web`
+  suites.
+- **Real-repo proof against `vapron.ai` and `zoobicon.com`** — see the
+  Tool 2 section above. Found genuine broken/hanging links, hover-only
+  nav triggers (accessibility finding), and likely-dead pricing-page
+  CTAs + FAQ accordions on zoobicon.com.
+- Module count 112 → 113. `site-stats.json` regenerated. `modules-data.ts`
+  catalog updated.
+- Also found and fixed a pre-existing broken build (`Pricing.tsx` JSX
+  structure, see the v1.53.1 fix commit) and confirmed a resource-
+  contention false alarm in the Always-On sweep hook (running a manual
+  full test-suite pass concurrently with the hook's own automatic pass
+  produced a corrupted/truncated log and a false "test hang" signal —
+  not a code defect; re-ran cleanly once the two passes weren't
+  competing for the same CPU).
+
+**v1.53.1 changes (2026-07-01 — visualRegression module, Visual & Runtime
+Testing Spec Tool 1):**
+- **`src/core/visual-diff-engine.js`** — pure pixel-diff algorithms
+  (pixelmatch + pngjs, both pure JS). `compareScreenshots()`,
+  `buildSideBySideComposite()`, dimension-mismatch padding so page
+  growth/shrinkage at the bottom of a full-page capture is a real diff
+  signal instead of a crash. 9 unit tests, zero browser dependency.
+- **`src/modules/visual-regression.js`** — new `visualRegression`
+  module. Playwright full-page screenshots at desktop (1280px) + mobile
+  (390px), baseline-on-first-run, pixel diff on every run after, fails
+  the check above a configurable threshold (default 5%). Best-effort
+  Slack notification (bot-token image upload or webhook text) on a
+  failing diff, never blocks the check itself. 20 unit tests incl. two
+  exercising the real fail/pass paths with synthetic PNGs via a mocked
+  browser.
+- **New deps**: `pixelmatch@^7.2.0`, `pngjs@^7.0.0` — pure JS, no native
+  bindings, Craig-authorized via the visual-spec handoff.
+- Registered in `src/core/registry.js` and added to the `wp` + `web`
+  suites (needs a live URL + browser, same family as `runtimeErrors` /
+  `explorer`).
+- **Real-repo proof against `vapron.ai`** (see the section above for
+  detail) — baseline created, re-run confirmed pass path on the live
+  site.
+- Module count 111 → 112. `site-stats.json` regenerated
+  (`node scripts/generate-site-stats.js`). MCP server help text
+  (`bin/gatetest-mcp.mjs`) module-count strings + engine version bumped
+  to match.
+- Sweep: full suite green after regenerating site-stats.json (the
+  honesty-lock test self-corrects once the JSON matches live counts).
 
 **v1.53.0 changes (2026-06-30 — Weekly Digest: email + Slack):**
 - **`website/app/lib/digest-mailer.js`** — Resend REST email sender (native `https`, no new npm dep). Dark-theme HTML email with stat cards (trend / net delta / scan count), health grade, top recurring module, patterns, CTA button. Plain-text fallback. Gracefully no-ops when `RESEND_API_KEY` not set.
