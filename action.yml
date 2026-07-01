@@ -50,6 +50,14 @@ inputs:
     description: 'Open a GitHub Issue per error-severity finding the auto-fixer could not resolve. Idempotent — re-scans never duplicate. Default off.'
     required: false
     default: 'false'
+  threshold:
+    description: 'Minimum acceptable letter grade (A/B/C/D) computed from the scan (same A-F scale as gatetest.ai/playground). When set, the gate ALSO fails if the computed grade is below this — on top of, not instead of, the `block`/`fail-on-warning` error-count gate. Default empty = grade never gates on its own.'
+    required: false
+    default: ''
+  summary-comment:
+    description: 'Post (and keep updated across re-runs) one PR comment with the grade, error/warning counts, and top findings. Default true on pull_request events.'
+    required: false
+    default: 'true'
   block:
     description: 'When true, the gate FAILS the workflow on any confident error finding. Default FALSE — fresh installs report findings as a PR comment but never block CI, so pre-existing rot in a mature codebase does not stop deploys on day 1. Flip to `true` once the team has triaged the baseline and wants the gate to actually enforce.'
     required: false
@@ -96,6 +104,12 @@ outputs:
   report-path:
     description: 'Filesystem path to the generated report (empty when report-format is "console").'
     value: ${{ steps.gate.outputs.report-path }}
+  grade:
+    description: 'Letter grade (A/B/C/D/F) computed from the scan — same A-F scale as gatetest.ai/playground. Empty when no JSON report was produced.'
+    value: ${{ steps.grade.outputs.grade }}
+  score:
+    description: 'Numeric 0-100 score the grade above is derived from.'
+    value: ${{ steps.grade.outputs.score }}
 
 runs:
   using: 'composite'
@@ -214,6 +228,68 @@ runs:
 
         # Defer the failure to the final step so auto-fix can run first
         # without `failure()` propagating up the workflow short-circuit.
+        exit 0
+
+    # ----------------------------------------------------------------------
+    # 3b. Compute a letter grade (A-F) from the JSON report the gate step
+    # above always produces (json is in GateTest's DEFAULT_CONFIG.reporting
+    # .formats regardless of the report-format input — --json/--sarif/
+    # --junit ADD a format, they don't replace it). Same formula as
+    # gatetest.ai/playground (website/api/playground/scan/route.ts
+    # computeHealthScore) so a grade means the same thing in CI as it does
+    # on the website. Runs on every event type (not just pull_request) so
+    # `threshold` gating works on push-triggered runs too.
+    # ----------------------------------------------------------------------
+    - name: Compute grade
+      id: grade
+      if: always()
+      shell: bash
+      run: |
+        set -uo pipefail
+        cd "${{ inputs.working-directory }}"
+        SCRIPT="$GATETEST_HOME/scripts/post-scan-summary-comment.js"
+        if [ -z "${GATETEST_HOME:-}" ] || [ ! -f "$SCRIPT" ]; then
+          echo "grade=" >> "$GITHUB_OUTPUT"
+          echo "score=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        RESULT=$(node -e "
+          const { computeGrade } = require(process.argv[1]);
+          const fs = require('fs');
+          const path = '.gatetest/reports/gatetest-report-latest.json';
+          if (!fs.existsSync(path)) { console.log(''); process.exit(0); }
+          const report = JSON.parse(fs.readFileSync(path, 'utf-8'));
+          const g = computeGrade(report);
+          console.log(g.grade + ' ' + g.score);
+        " "$SCRIPT" 2>/dev/null || echo "")
+        GRADE=$(echo "$RESULT" | awk '{print $1}')
+        SCORE=$(echo "$RESULT" | awk '{print $2}')
+        echo "grade=$GRADE" >> "$GITHUB_OUTPUT"
+        echo "score=$SCORE" >> "$GITHUB_OUTPUT"
+        if [ -n "$GRADE" ]; then
+          echo "::notice title=GateTest grade::$GRADE ($SCORE/100)"
+        fi
+
+    # ----------------------------------------------------------------------
+    # 3c. Post/update ONE PR comment with the grade + top findings —
+    # idempotent (post-scan-summary-comment.js finds and PATCHes its own
+    # prior comment rather than spamming a new one per re-run). Only runs
+    # on pull_request(_target) events; no-ops safely otherwise. Failures
+    # are non-fatal — this is informational, the gate's exit code is the
+    # real enforcement.
+    # ----------------------------------------------------------------------
+    - name: Post scan summary PR comment
+      if: ${{ always() && inputs.summary-comment == 'true' && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+      run: |
+        set -uo pipefail
+        cd "${{ inputs.working-directory }}"
+        if [ -z "${GATETEST_HOME:-}" ]; then
+          exit 0
+        fi
+        node "$GATETEST_HOME/scripts/post-scan-summary-comment.js" || true
         exit 0
 
     # ----------------------------------------------------------------------
@@ -389,8 +465,33 @@ runs:
     - name: Enforce gate verdict
       shell: bash
       run: |
+        FAIL=0
+
         if [ "${{ steps.gate.outputs.gate-status }}" = "blocked" ]; then
           echo "GateTest gate blocked: ${{ steps.gate.outputs.error-count }} error(s), ${{ steps.gate.outputs.warning-count }} warning(s)."
+          FAIL=1
+        else
+          echo "GateTest gate passed: ${{ steps.gate.outputs.error-count }} error(s), ${{ steps.gate.outputs.warning-count }} warning(s)."
+        fi
+
+        # Grade-based gate — ADDITIONAL to, never a replacement for, the
+        # error/warning-count gate above. Only evaluated when `threshold`
+        # is explicitly set (default empty = off) AND a grade was
+        # actually computed (empty GRADE means no JSON report — nothing
+        # to compare, never fail on missing data).
+        THRESHOLD="${{ inputs.threshold }}"
+        GRADE="${{ steps.grade.outputs.grade }}"
+        if [ -n "$THRESHOLD" ] && [ -n "$GRADE" ]; then
+          # A < B < C < D < F alphabetically — exactly the grade ordering,
+          # so plain string comparison works with no rank table.
+          if [[ "$GRADE" > "$THRESHOLD" ]]; then
+            echo "GateTest grade $GRADE is below threshold $THRESHOLD (score ${{ steps.grade.outputs.score }}/100)."
+            FAIL=1
+          else
+            echo "GateTest grade $GRADE meets threshold $THRESHOLD (score ${{ steps.grade.outputs.score }}/100)."
+          fi
+        fi
+
+        if [ "$FAIL" -eq 1 ]; then
           exit 1
         fi
-        echo "GateTest gate passed: ${{ steps.gate.outputs.error-count }} error(s), ${{ steps.gate.outputs.warning-count }} warning(s)."
