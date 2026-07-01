@@ -47,13 +47,39 @@ const BaseModule = require('./base-module');
 // a real bug that happens to mention "analytics" in its own message
 // isn't swallowed.
 const NOISY_ALLOWLIST = [
+  // Analytics / advertising — fire constantly, blocked as often by ad
+  // blockers as by anything the site did wrong.
   /google-analytics\.com|googletagmanager\.com|gtag\//i,
   /connect\.facebook\.net|fbevents\.js/i,
   /\bhotjar\b/i,
   /doubleclick\.net/i,
+  /segment\.(com|io)|cdn\.segment/i,
+  /mixpanel\.com/i,
+  /amplitude\.com/i,
+  /\bfullstory\.com\b/i,
+  /clarity\.ms/i, // Microsoft Clarity
+  // Support / chat / CRM widgets — third-party iframes the site owner
+  // doesn't control the internals of.
+  /intercom\.io|intercomcdn\.com/i,
+  /crisp\.chat/i,
+  /\bzendesk\b|zdassets\.com/i,
+  /hs-scripts\.com|hubspot\.com/i,
+  /drift\.com/i,
+  // Payments / bot-protection / captcha widgets — same-origin CSP errors
+  // from these are near-universal and not something the site's own code
+  // introduced (e.g. Stripe's own iframe emitting a warning inside itself).
+  /js\.stripe\.com/i,
+  /recaptcha|gstatic\.com\/recaptcha/i,
+  /hcaptcha\.com/i,
+  /challenges\.cloudflare\.com/i, // Turnstile
+  // Error-reporting SDKs — a warning FROM the reporting pipeline itself
+  // (e.g. Sentry's own transport retry log), not a bug in the site.
+  /sentry\.io|sentry-cdn\.com/i,
+  /bugsnag\.com/i,
   /Failed to load resource.*favicon\.ico/i,
   /\[Fast Refresh\]/i, // Next.js dev-mode HMR noise, not a real error
   /Extension context invalidated/i, // browser-extension noise, not the site's bug
+  /ResizeObserver loop (limit exceeded|completed with undelivered notifications)/i, // benign browser quirk, not an app bug
 ];
 
 const DEFAULT_MAX_PAGES = 15;

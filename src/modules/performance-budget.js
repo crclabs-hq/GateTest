@@ -69,9 +69,23 @@ function median(values) {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-/** Installed in-page before navigation so early entries aren't missed. */
+/**
+ * Installed in-page before navigation so early entries aren't missed.
+ *
+ * Tracks `clsShiftCount` alongside the summed `cls` value — NOT to change
+ * the score (that stays the standard Web Vitals sum of
+ * non-hadRecentInput layout-shift values), but so the report can tell the
+ * difference between "one big layout thrash" (a real bug — an image with
+ * no reserved dimensions, a late-loading web font) and "many small shifts"
+ * (often a looping carousel/marquee/entrance-animation using
+ * non-composited properties). Both are real CLS per spec — a false
+ * positive would be SUPPRESSING the finding — but a developer chasing
+ * "one big shift" vs "an animation that keeps re-triggering" needs
+ * different fixes, and mislabeling one as the other wastes their time
+ * investigating the wrong cause.
+ */
 function installObservers() {
-  window.__gatetestVitals = { lcp: 0, cls: 0 };
+  window.__gatetestVitals = { lcp: 0, cls: 0, clsShiftCount: 0 };
   try {
     new PerformanceObserver((list) => {
       const entries = list.getEntries();
@@ -82,11 +96,19 @@ function installObservers() {
   try {
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        if (!entry.hadRecentInput) window.__gatetestVitals.cls += entry.value;
+        if (!entry.hadRecentInput) {
+          window.__gatetestVitals.cls += entry.value;
+          window.__gatetestVitals.clsShiftCount += 1;
+        }
       }
     }).observe({ type: 'layout-shift', buffered: true });
   } catch { /* CLS not supported in this browser build */ }
 }
+
+// Above this many contributing layout-shift entries, the CLS score is more
+// likely explained by a repeating/animated source than a single load-time
+// thrash — informational framing only, never changes pass/fail.
+const CLS_REPEATED_SHIFT_THRESHOLD = 5;
 
 class PerformanceBudgetModule extends BaseModule {
   constructor() {
@@ -175,6 +197,7 @@ class PerformanceBudgetModule extends BaseModule {
       ttfbMs: median(samples.map((s) => s.ttfbMs)),
       lcpMs: median(samples.map((s) => s.lcpMs)),
       clsScore: median(samples.map((s) => s.clsScore)),
+      clsShiftCount: median(samples.map((s) => s.clsShiftCount || 0)),
       pageWeightBytes: median(samples.map((s) => s.pageWeightBytes)),
     };
 
@@ -207,11 +230,17 @@ class PerformanceBudgetModule extends BaseModule {
         const nav = performance.getEntriesByType('navigation')[0];
         return nav ? { responseStart: nav.responseStart, requestStart: nav.requestStart } : null;
       });
-      const vitals = await page.evaluate(() => window.__gatetestVitals || { lcp: 0, cls: 0 });
+      const vitals = await page.evaluate(() => window.__gatetestVitals || { lcp: 0, cls: 0, clsShiftCount: 0 });
 
       const ttfbMs = navTiming ? Math.max(0, navTiming.responseStart - navTiming.requestStart) : 0;
 
-      return { ttfbMs, lcpMs: vitals.lcp || 0, clsScore: vitals.cls || 0, pageWeightBytes };
+      return {
+        ttfbMs,
+        lcpMs: vitals.lcp || 0,
+        clsScore: vitals.cls || 0,
+        clsShiftCount: vitals.clsShiftCount || 0,
+        pageWeightBytes,
+      };
     } finally {
       await page.close().catch(() => {});
       await context.close().catch(() => {});
@@ -225,7 +254,15 @@ class PerformanceBudgetModule extends BaseModule {
     const failures = [];
     if (metrics.ttfbMs > budgets.ttfbMs) failures.push(`TTFB ${metrics.ttfbMs.toFixed(0)}ms > ${budgets.ttfbMs}ms`);
     if (metrics.lcpMs > budgets.lcpMs) failures.push(`LCP ${metrics.lcpMs.toFixed(0)}ms > ${budgets.lcpMs}ms`);
-    if (metrics.clsScore > budgets.clsScore) failures.push(`CLS ${metrics.clsScore.toFixed(3)} > ${budgets.clsScore}`);
+    // clsShiftCount is diagnostic context, never a pass/fail input — the
+    // budget check is still the standard, spec-correct summed CLS value.
+    const clsIsFromManySmallShifts = metrics.clsShiftCount > CLS_REPEATED_SHIFT_THRESHOLD;
+    if (metrics.clsScore > budgets.clsScore) {
+      const clsNote = clsIsFromManySmallShifts
+        ? ` (from ${metrics.clsShiftCount} separate shifts — likely a looping/animated element, not a single load-time thrash)`
+        : '';
+      failures.push(`CLS ${metrics.clsScore.toFixed(3)} > ${budgets.clsScore}${clsNote}`);
+    }
     if (metrics.pageWeightBytes > budgets.pageWeightBytes) {
       failures.push(`page weight ${(metrics.pageWeightBytes / 1024 / 1024).toFixed(2)}MB > ${(budgets.pageWeightBytes / 1024 / 1024).toFixed(2)}MB`);
     }
@@ -238,7 +275,11 @@ class PerformanceBudgetModule extends BaseModule {
         : `${route}: budget exceeded — ${failures.join('; ')}${runNote}`,
       metrics,
       budgets,
-      suggestion: passed ? undefined : 'Investigate the failing metric — large unoptimised images (page weight), render-blocking JS (LCP/TTFB), or late-loading web fonts / injected ads (CLS)',
+      suggestion: passed
+        ? undefined
+        : clsIsFromManySmallShifts && metrics.clsScore > budgets.clsScore
+          ? 'CLS is driven by many small repeated shifts rather than one large one — check for a carousel/marquee/entrance-animation using top/left/width/height instead of transform (which does not trigger layout-shift entries at all).'
+          : 'Investigate the failing metric — large unoptimised images (page weight), render-blocking JS (LCP/TTFB), or late-loading web fonts / injected ads (CLS)',
     });
   }
 }

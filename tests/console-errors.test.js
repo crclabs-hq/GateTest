@@ -129,6 +129,42 @@ test('_crawl filters known-noisy third-party errors and counts them as suppresse
   assert.equal(stats.noisySuppressed, 1);
 });
 
+// ── expanded third-party noise allowlist (false-positive elimination) ────
+
+test('known-noisy allowlist covers common third-party embeds beyond analytics', async () => {
+  const m = new ConsoleErrorsModule();
+  const noisyExamples = [
+    'Failed to load resource: js.stripe.com/v3/ net::ERR_BLOCKED_BY_CLIENT',
+    'Refused to frame https://challenges.cloudflare.com because it violates CSP',
+    'Uncaught ReferenceError: Intercom is not defined (from intercomcdn.com)',
+    'Sentry Logger [warn]: sentry-cdn.com transport failed, retrying',
+    'ResizeObserver loop limit exceeded',
+    'reCAPTCHA warning: gstatic.com/recaptcha script slow to load',
+  ];
+  for (const text of noisyExamples) {
+    const pagesByUrl = { 'https://example.com/': { consoleMessages: [{ type: 'error', text }] } };
+    const context = makeFakeContext({ pagesByUrl });
+    const browser = makeFakeBrowser(context);
+    const stats = await m._crawl(browser, 'https://example.com/', { maxPages: 1 });
+    assert.equal(stats.findings.size, 0, `expected "${text}" to be suppressed as noisy`);
+    assert.equal(stats.noisySuppressed, 1, `expected "${text}" to increment noisySuppressed`);
+  }
+});
+
+test('a real site-specific error is NOT accidentally caught by the expanded allowlist', async () => {
+  const m = new ConsoleErrorsModule();
+  const pagesByUrl = {
+    'https://example.com/': {
+      consoleMessages: [{ type: 'error', text: "TypeError: Cannot read properties of undefined (reading 'map')" }],
+    },
+  };
+  const context = makeFakeContext({ pagesByUrl });
+  const browser = makeFakeBrowser(context);
+  const stats = await m._crawl(browser, 'https://example.com/', { maxPages: 1 });
+  assert.equal(stats.findings.size, 1);
+  assert.equal(stats.noisySuppressed, 0);
+});
+
 test('_crawl treats warnings and errors separately, only errors default to error severity', async () => {
   const m = new ConsoleErrorsModule();
   const pagesByUrl = {

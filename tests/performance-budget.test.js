@@ -76,7 +76,7 @@ test('median() handles odd and even length arrays', () => {
 
 // ── _checkRoute end-to-end via a fake browser ──────────────────────────
 
-function makeFakePage({ ttfbMs, lcpMs, clsScore, contentLengths, shouldThrow }) {
+function makeFakePage({ ttfbMs, lcpMs, clsScore, clsShiftCount, contentLengths, shouldThrow }) {
   const responseHandlers = [];
   return {
     on: (event, handler) => { if (event === 'response') responseHandlers.push(handler); },
@@ -91,7 +91,7 @@ function makeFakePage({ ttfbMs, lcpMs, clsScore, contentLengths, shouldThrow }) 
     evaluate: async (fn) => {
       const src = fn.toString();
       if (src.includes('getEntriesByType')) return { responseStart: ttfbMs, requestStart: 0 };
-      if (src.includes('__gatetestVitals')) return { lcp: lcpMs, cls: clsScore };
+      if (src.includes('__gatetestVitals')) return { lcp: lcpMs, cls: clsScore, clsShiftCount: clsShiftCount || 0 };
       return null;
     },
     close: async () => {},
@@ -145,6 +145,48 @@ test('_checkRoute fails when LCP, CLS, and page weight all exceed budget', async
   assert.match(checks[0].details.message, /LCP/);
   assert.match(checks[0].details.message, /CLS/);
   assert.match(checks[0].details.message, /page weight/);
+});
+
+// ── False-positive elimination: distinguishing single-thrash vs animation-driven CLS ──
+
+test('_checkRoute annotates a CLS budget failure caused by many small shifts as likely animation-driven', async () => {
+  const m = new PerformanceBudgetModule();
+  const browser = makeFakeBrowser({ ttfbMs: 100, lcpMs: 1200, clsScore: 0.3, clsShiftCount: 12, contentLengths: [50000] });
+  const checks = [];
+  const result = { addCheck: (name, passed, details) => checks.push({ name, passed, details }) };
+
+  await m._checkRoute({ browser, baseUrl: 'https://example.com', route: '/', runs: 1, budgets: DEFAULT_BUDGETS, timeout: 5000, result });
+
+  assert.equal(checks[0].passed, false);
+  assert.match(checks[0].details.message, /12 separate shifts/);
+  assert.match(checks[0].details.suggestion, /carousel\/marquee\/entrance-animation/);
+});
+
+test('_checkRoute does NOT add the animation note for a CLS failure from a single large shift', async () => {
+  const m = new PerformanceBudgetModule();
+  const browser = makeFakeBrowser({ ttfbMs: 100, lcpMs: 1200, clsScore: 0.3, clsShiftCount: 1, contentLengths: [50000] });
+  const checks = [];
+  const result = { addCheck: (name, passed, details) => checks.push({ name, passed, details }) };
+
+  await m._checkRoute({ browser, baseUrl: 'https://example.com', route: '/', runs: 1, budgets: DEFAULT_BUDGETS, timeout: 5000, result });
+
+  assert.equal(checks[0].passed, false);
+  assert.doesNotMatch(checks[0].details.message, /separate shifts/);
+  assert.doesNotMatch(checks[0].details.suggestion, /carousel/);
+});
+
+test('_checkRoute does not change pass/fail based on clsShiftCount — it is diagnostic only', async () => {
+  const m = new PerformanceBudgetModule();
+  // CLS score itself is within budget even though shift count is high —
+  // must still PASS. clsShiftCount is context for a failure, not a
+  // separate budget dimension of its own.
+  const browser = makeFakeBrowser({ ttfbMs: 100, lcpMs: 1200, clsScore: 0.02, clsShiftCount: 20, contentLengths: [50000] });
+  const checks = [];
+  const result = { addCheck: (name, passed, details) => checks.push({ name, passed, details }) };
+
+  await m._checkRoute({ browser, baseUrl: 'https://example.com', route: '/', runs: 1, budgets: DEFAULT_BUDGETS, timeout: 5000, result });
+
+  assert.equal(checks[0].passed, true);
 });
 
 test('_checkRoute reports a warning when every measurement run fails to load', async () => {

@@ -256,3 +256,113 @@ test('_checkRoute passes when diff is within threshold', async () => {
     fs.rmSync(tmpdir, { recursive: true, force: true });
   }
 });
+
+// ── False-positive reduction: auto-masking dynamic content ──────────────
+
+test('_resolveMaskSelectors includes the default dynamic-content selectors by default (no config needed)', () => {
+  const m = new VisualRegressionModule();
+  const resolved = m._resolveMaskSelectors({});
+  assert.ok(resolved.includes('[aria-live]'));
+  assert.ok(resolved.includes('[class*="timestamp" i]'));
+});
+
+test('_resolveMaskSelectors merges user maskSelectors with the auto-mask defaults, not replacing them', () => {
+  const m = new VisualRegressionModule();
+  const resolved = m._resolveMaskSelectors({ maskSelectors: ['.custom-widget'] });
+  assert.ok(resolved.includes('.custom-widget'));
+  assert.ok(resolved.includes('[aria-live]'), 'user selectors must not replace the defaults');
+});
+
+test('_resolveMaskSelectors returns ONLY user selectors when autoMaskDynamicContent is explicitly disabled', () => {
+  const m = new VisualRegressionModule();
+  const resolved = m._resolveMaskSelectors({ maskSelectors: ['.custom-widget'], autoMaskDynamicContent: false });
+  assert.deepEqual(resolved, ['.custom-widget']);
+});
+
+test('_captureScreenshot injects CSS for whatever maskSelectors it is given', async () => {
+  const m = new VisualRegressionModule();
+  const styleTags = [];
+  const fakeBrowser = {
+    newContext: async () => ({
+      newPage: async () => ({
+        goto: async () => {},
+        addStyleTag: async (opts) => { styleTags.push(opts.content); },
+        waitForTimeout: async () => {},
+        screenshot: async () => Buffer.from([]),
+        close: async () => {},
+      }),
+      close: async () => {},
+    }),
+  };
+  const resolved = m._resolveMaskSelectors({});
+  await m._captureScreenshot(fakeBrowser, 'https://example.com', '/', { width: 4, height: 4 }, 0, resolved, false);
+  assert.equal(styleTags.length, 1);
+  assert.match(styleTags[0], /\[aria-live\]/);
+  assert.match(styleTags[0], /\[class\*="timestamp" i\]/);
+});
+
+test('_maskDynamicTextContent hides leaf elements whose text reads like a relative timestamp', async () => {
+  const m = new VisualRegressionModule();
+  const hidden = [];
+  const fakePage = {
+    evaluate: async (fn, arg) => {
+      // Simulate the DOM-side logic being exercised with a controlled element set.
+      const elements = [
+        { text: '2 minutes ago', hide: false },
+        { text: 'Contact us', hide: false },
+        { text: 'just now', hide: false },
+        { text: 'Open 9:00 AM - 5:00 PM', hide: false },
+        { text: '12:34:56', hide: false },
+      ];
+      const patterns = arg.map((p) => new RegExp(p, 'i'));
+      for (const el of elements) {
+        if (patterns.some((re) => re.test(el.text))) { el.hide = true; hidden.push(el.text); }
+      }
+    },
+  };
+  await m._maskDynamicTextContent(fakePage);
+  assert.ok(hidden.includes('2 minutes ago'));
+  assert.ok(hidden.includes('just now'));
+  assert.ok(hidden.includes('12:34:56'));
+  assert.ok(!hidden.includes('Contact us'), 'static content must not be masked');
+  assert.ok(!hidden.includes('Open 9:00 AM - 5:00 PM'), 'business hours (bare HH:MM) must not be masked — too common in real static content');
+});
+
+test('_checkRoute passes autoMaskDynamicContent=false through to _captureScreenshot when configured off', async () => {
+  const m = new VisualRegressionModule();
+  const tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), 'visual-regression-automask-'));
+  try {
+    let receivedAutoMask;
+    const originalCapture = m._captureScreenshot.bind(m);
+    m._captureScreenshot = async (...args) => {
+      receivedAutoMask = args[6];
+      return originalCapture(...args.slice(0, 5), args[5], false);
+    };
+    const { PNG } = require('pngjs');
+    const png = new PNG({ width: 4, height: 4 });
+    const buffer = PNG.sync.write(png);
+    const fakeBrowser = {
+      newContext: async () => ({
+        newPage: async () => ({
+          goto: async () => {},
+          addStyleTag: async () => {},
+          waitForTimeout: async () => {},
+          screenshot: async () => buffer,
+          close: async () => {},
+        }),
+        close: async () => {},
+      }),
+    };
+    const checks = [];
+    const result = { addCheck: (name, passed, details) => checks.push({ name, passed, details }) };
+    await m._checkRoute({
+      browser: fakeBrowser, baseUrl: 'https://example.com', route: '/',
+      viewport: { name: 'desktop', width: 4, height: 4 }, platform: 'example',
+      baselineDir: tmpdir, threshold: 5, waitMs: 0, maskSelectors: [],
+      moduleCfg: { autoMaskDynamicContent: false }, result,
+    });
+    assert.equal(receivedAutoMask, false);
+  } finally {
+    fs.rmSync(tmpdir, { recursive: true, force: true });
+  }
+});

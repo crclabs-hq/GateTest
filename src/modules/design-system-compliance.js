@@ -42,6 +42,26 @@ const DEFAULT_MAX_RECOMMENDED_RADII = 6;
 // that happen to share a channel value.
 const COLOR_DUPLICATE_DISTANCE = 10;
 
+// Third-party widgets that inject DIRECTLY into the main document (not a
+// cross-origin iframe, which getComputedStyle can't reach anyway) carry
+// their OWN fixed brand colors/fonts that have nothing to do with the
+// site's design system — a chat bubble's brand-blue button, a cookie
+// banner's own color scheme. Counting those toward "this site's palette
+// is inconsistent" is a false positive: the site owner doesn't control
+// that markup at all. Known-safe pattern, same spirit as consoleErrors'
+// NOISY_ALLOWLIST.
+const THIRD_PARTY_WIDGET_SELECTORS = [
+  '#intercom-container', '.intercom-lightweight-app',
+  '.crisp-client',
+  '#drift-widget', '[id^="drift-frame"]',
+  '#hubspot-messages-iframe-container',
+  '#launcher', // Zendesk Widget default launcher id
+  '[id^="onetrust-"]', '#ot-sdk-cookie-policy', // OneTrust cookie consent
+  '#CybotCookiebotDialog', // Cookiebot
+  '.goog-te-banner-frame', '#google_translate_element',
+  'iframe', // cross-origin content anyway; explicit for same-origin widget iframes too
+];
+
 function resolvePlaywright() {
   try {
     return require('playwright');
@@ -201,7 +221,7 @@ class DesignSystemComplianceModule extends BaseModule {
   }
 
   async _collectStyles(page, maxElements) {
-    return page.evaluate((cap) => {
+    return page.evaluate(({ cap, widgetSelectors }) => {
       const colors = {};
       const fontSizes = {};
       const fontFamilies = {};
@@ -213,8 +233,17 @@ class DesignSystemComplianceModule extends BaseModule {
         map[key] = (map[key] || 0) + 1;
       };
 
+      // Elements matching (or nested inside) a known third-party widget
+      // container are excluded up front — their styling isn't the site's
+      // design system to begin with.
+      const widgetRoots = widgetSelectors.flatMap((sel) => {
+        try { return Array.from(document.querySelectorAll(sel)); } catch { return []; }
+      });
+      const isInsideWidget = (el) => widgetRoots.some((root) => root === el || root.contains(el));
+
       const els = Array.from(document.querySelectorAll('*')).slice(0, cap);
       for (const el of els) {
+        if (isInsideWidget(el)) continue;
         const rect = el.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) continue;
         const cs = window.getComputedStyle(el);
@@ -231,7 +260,7 @@ class DesignSystemComplianceModule extends BaseModule {
       }
 
       return { colors, fontSizes, fontFamilies, radii, spacingValues };
-    }, maxElements);
+    }, { cap: maxElements, widgetSelectors: THIRD_PARTY_WIDGET_SELECTORS });
   }
 
   _findColorDuplicateClusters(colors) {

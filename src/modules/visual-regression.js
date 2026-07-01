@@ -43,6 +43,43 @@ const DEFAULT_VIEWPORTS = [
 ];
 
 const DEFAULT_THRESHOLD_PERCENT = 5;
+
+// Auto-mask: structural signals a CSS selector CAN match — no per-site
+// config required. `maskSelectors` still exists for anything site-specific
+// this list doesn't anticipate (e.g. a bespoke "trending now" widget with
+// no semantic markup at all).
+const DEFAULT_DYNAMIC_CONTENT_SELECTORS = [
+  'time',
+  '[datetime]',
+  '[aria-live]',
+  '[data-timestamp]',
+  '[class*="timestamp" i]',
+  '[class*="live-count" i]',
+  '[class*="visitor-count" i]',
+  '[class*="online-count" i]',
+  '[class*="countdown" i]',
+  '[id*="countdown" i]',
+];
+
+// Auto-mask: TEXT-CONTENT signals a CSS selector cannot match — relative
+// timestamps ("2 minutes ago") and live clocks commonly render through a
+// plain <span>/<div> with no distinguishing class or attribute. A false
+// "the page changed" diff on every single scan just because a clock ticked
+// over is the single most common visual-regression complaint — it trains
+// people to ignore the report entirely (Craig's directive: "a false
+// positive is worse than a missed issue").
+//
+// Deliberately does NOT match bare "9:00 AM" / "9:00-5:00" style text —
+// that's business hours, meeting times, schedules: extremely common STATIC
+// content that would be wrongly hidden (and a real change there — new
+// hours — should still show up as a diff). Second-precision (HH:MM:SS) is
+// kept because static content essentially never renders down to the
+// second; that specifically signals a ticking live clock.
+const DYNAMIC_TEXT_PATTERNS = [
+  /\b\d+\s*(second|minute|hour|day|week|month|year)s?\s+ago\b/i,
+  /\bjust\s+now\b/i,
+  /\b\d{1,2}:\d{2}:\d{2}\s*(am|pm)?\b/i,
+];
 const DEFAULT_WAIT_MS = 1000;
 const DEFAULT_PIXEL_THRESHOLD = 0.1;
 
@@ -202,7 +239,8 @@ class VisualRegressionModule extends BaseModule {
     const waitMs = typeof moduleCfg.waitMs === 'number' ? moduleCfg.waitMs : DEFAULT_WAIT_MS;
     const platform = moduleCfg.platform || safePlatformName(baseUrl);
     const baselineDir = moduleCfg.baselineDir || path.join(config.projectRoot, '.gatetest', 'visual-baselines');
-    const maskSelectors = Array.isArray(moduleCfg.maskSelectors) ? moduleCfg.maskSelectors : [];
+    const autoMaskDynamicContent = moduleCfg.autoMaskDynamicContent !== false;
+    const maskSelectors = this._resolveMaskSelectors(moduleCfg);
 
     let browser;
     try {
@@ -242,7 +280,19 @@ class VisualRegressionModule extends BaseModule {
     }
   }
 
-  async _captureScreenshot(browser, baseUrl, route, viewport, waitMs, maskSelectors) {
+  // Merges the auto-detected dynamic-content selectors (default ON) with
+  // whatever the caller configured in modules.visualRegression.maskSelectors.
+  // Pulled out as its own method so the merge behavior is testable without
+  // driving a full browser/run() cycle.
+  _resolveMaskSelectors(moduleCfg) {
+    const userMaskSelectors = Array.isArray(moduleCfg.maskSelectors) ? moduleCfg.maskSelectors : [];
+    const autoMaskDynamicContent = moduleCfg.autoMaskDynamicContent !== false;
+    return autoMaskDynamicContent
+      ? [...DEFAULT_DYNAMIC_CONTENT_SELECTORS, ...userMaskSelectors]
+      : userMaskSelectors;
+  }
+
+  async _captureScreenshot(browser, baseUrl, route, viewport, waitMs, maskSelectors, autoMaskDynamicContent = true) {
     const context = await browser.newContext({
       viewport: { width: viewport.width, height: viewport.height },
       userAgent: 'GateTest/1.0 (+https://gatetest.ai/bot) VisualRegression',
@@ -259,12 +309,37 @@ class VisualRegressionModule extends BaseModule {
         const css = maskSelectors.map((sel) => `${sel}{visibility:hidden !important;}`).join('\n');
         await page.addStyleTag({ content: css }).catch(() => {});
       }
+      if (autoMaskDynamicContent) {
+        await this._maskDynamicTextContent(page).catch(() => {});
+      }
       await page.waitForTimeout(waitMs);
       return await page.screenshot({ fullPage: true });
     } finally {
       await page.close().catch(() => {});
       await context.close().catch(() => {});
     }
+  }
+
+  // CSS selectors (DEFAULT_DYNAMIC_CONTENT_SELECTORS) catch structural
+  // signals; this catches TEXT that reads like a relative timestamp or a
+  // ticking clock with no distinguishing class/attribute at all — a raw
+  // <span>2 minutes ago</span> a template dropped in with no markup hint.
+  // Only LEAF elements (no element children) are tested so a single
+  // matching word deep inside a large content block doesn't hide the
+  // whole block.
+  async _maskDynamicTextContent(page) {
+    await page.evaluate((patternSources) => {
+      const patterns = patternSources.map((p) => new RegExp(p, 'i'));
+      const leaves = Array.from(document.querySelectorAll('body *')).filter(
+        (el) => el.children.length === 0 && el.textContent && el.textContent.trim().length > 0
+      );
+      for (const el of leaves) {
+        const text = el.textContent.trim();
+        if (patterns.some((re) => re.test(text))) {
+          el.style.visibility = 'hidden';
+        }
+      }
+    }, DYNAMIC_TEXT_PATTERNS.map((re) => re.source));
   }
 
   async _checkRoute({ browser, baseUrl, route, viewport, platform, baselineDir, threshold, waitMs, maskSelectors, moduleCfg, result }) {
@@ -276,7 +351,9 @@ class VisualRegressionModule extends BaseModule {
 
     let currentBuffer;
     try {
-      currentBuffer = await this._captureScreenshot(browser, baseUrl, route, viewport, waitMs, maskSelectors);
+      currentBuffer = await this._captureScreenshot(
+        browser, baseUrl, route, viewport, waitMs, maskSelectors, moduleCfg.autoMaskDynamicContent !== false
+      );
     } catch (err) {
       result.addCheck(checkName, false, {
         severity: 'warning',

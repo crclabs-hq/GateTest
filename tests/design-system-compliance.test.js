@@ -158,3 +158,18 @@ test('_report reports zero pages crawled distinctly from zero findings', () => {
   assert.equal(checks.length, 1);
   assert.equal(checks[0].name, 'design-system-compliance:no-pages');
 });
+
+// ── False-positive elimination: third-party widget exclusion ────────────
+
+test('_collectStyles passes the known third-party widget selectors into the page evaluation', async () => {
+  const m = new DesignSystemComplianceModule();
+  let receivedArg;
+  const fakePage = {
+    evaluate: async (fn, arg) => { receivedArg = arg; return { colors: {}, fontSizes: {}, fontFamilies: {}, radii: {}, spacingValues: {} }; },
+  };
+  await m._collectStyles(fakePage, 1500);
+  assert.ok(Array.isArray(receivedArg.widgetSelectors));
+  assert.ok(receivedArg.widgetSelectors.some((s) => s.includes('intercom')));
+  assert.ok(receivedArg.widgetSelectors.includes('iframe'));
+  assert.equal(receivedArg.cap, 1500);
+});

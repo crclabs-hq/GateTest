@@ -202,6 +202,7 @@ class InteractiveElementsModule extends BaseModule {
       buttonsChecked: 0,
       brokenLinks: [],
       deadButtons: [],
+      hoverOnlyButtons: [],
       buttonErrors: [],
       skippedDestructive: [],
       pageErrors: [],
@@ -370,6 +371,8 @@ class InteractiveElementsModule extends BaseModule {
         const outcome = await this._testButton(page, btn, timeout);
         if (outcome.errored) {
           stats.buttonErrors.push({ description: btn.description, url: pageUrl, message: outcome.errorMessage });
+        } else if (outcome.hoverOnly) {
+          stats.hoverOnlyButtons.push({ description: btn.description, url: pageUrl });
         } else if (outcome.dead) {
           stats.deadButtons.push({ description: btn.description, url: pageUrl });
         }
@@ -435,7 +438,43 @@ class InteractiveElementsModule extends BaseModule {
     const rootStateChanged = beforeRootState !== afterRootState;
     const somethingHappened = urlChanged || domChanged || modalChanged || selfStateChanged || rootStateChanged || networkRequestFired;
 
-    return { errored: false, dead: !somethingHappened };
+    if (somethingHappened) {
+      return { errored: false, dead: false, hoverOnly: false };
+    }
+
+    // False-positive guard: before calling this a dead button, check
+    // whether it's actually a HOVER-triggered element (common for mega-nav
+    // category triggers / CSS-only dropdowns with no click handler at
+    // all). A button that visibly does something on hover is not "dead"
+    // — it works, just not via the interaction this crawler tests by
+    // default. Reported as its own finding (hoverOnly), never folded into
+    // dead-button — those two things need different fixes (dead = wire up
+    // a handler; hover-only = add a keyboard/tap-equivalent trigger).
+    const hoverChanged = await this._checkHoverReveal(page, locator, beforeSelfState, beforeRootState).catch(() => false);
+    if (hoverChanged) {
+      return { errored: false, dead: false, hoverOnly: true };
+    }
+
+    return { errored: false, dead: true, hoverOnly: false };
+  }
+
+  /**
+   * Hovers the element and re-reads the same self/root state signals
+   * _testButton already uses for clicks. A CSS-only `:hover` dropdown
+   * touches the exact same signals (class/aria-expanded on the trigger,
+   * or a root-level class toggle) a click-driven one would — reusing
+   * _readSelfState/_readRootState instead of a separate detection path
+   * keeps the two checks consistent.
+   */
+  async _checkHoverReveal(page, locator, beforeSelfState, beforeRootState) {
+    await locator.hover({ timeout: 3000 }).catch(() => { throw new Error('hover failed'); });
+    await page.waitForTimeout(300);
+    const afterHoverSelfState = await this._readSelfState(locator);
+    const afterHoverRootState = await this._readRootState(page);
+    // Move the mouse away so the hover state doesn't leak into the next
+    // element's "before" reading.
+    await page.mouse.move(0, 0).catch(() => {});
+    return afterHoverSelfState !== beforeSelfState || afterHoverRootState !== beforeRootState;
   }
 
   /**
@@ -555,6 +594,19 @@ class InteractiveElementsModule extends BaseModule {
       });
     }
 
+    if (stats.hoverOnlyButtons.length > 0) {
+      // Deliberately NOT folded into dead-buttons — these elements work
+      // fine, just via hover instead of click. False-positive guard: a
+      // "DEAD BUTTON" claim on something that visibly works is exactly
+      // the kind of finding that trains people to stop trusting the scan.
+      result.addCheck('interactive-elements:hover-only', false, {
+        severity: 'warning',
+        message: `${stats.hoverOnlyButtons.length} button(s) only reveal their effect on hover — no response to a click, tap, or (implicitly) keyboard focus`,
+        details: stats.hoverOnlyButtons.slice(0, 30),
+        suggestion: 'Add a click/keyboard-equivalent trigger — hover-only interactions are unreachable for touch and keyboard users (WCAG 2.1.1).',
+      });
+    }
+
     if (stats.skippedDestructive.length > 0) {
       result.addCheck('interactive-elements:destructive-skipped', true, {
         severity: 'info',
@@ -565,7 +617,7 @@ class InteractiveElementsModule extends BaseModule {
 
     result.addCheck('interactive-elements:summary', true, {
       severity: 'info',
-      message: `${stats.pagesVisited} page(s) crawled from ${baseUrl}: ${stats.linksChecked} links checked (${stats.brokenLinks.length} broken), ${stats.buttonsChecked} buttons found (${stats.skippedDestructive.length} safety-skipped, ${stats.deadButtons.length} dead, ${stats.buttonErrors.length} errored)`,
+      message: `${stats.pagesVisited} page(s) crawled from ${baseUrl}: ${stats.linksChecked} links checked (${stats.brokenLinks.length} broken), ${stats.buttonsChecked} buttons found (${stats.skippedDestructive.length} safety-skipped, ${stats.deadButtons.length} dead, ${stats.hoverOnlyButtons.length} hover-only, ${stats.buttonErrors.length} errored)`,
     });
   }
 }

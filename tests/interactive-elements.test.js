@@ -233,6 +233,67 @@ test('_checkButtons does not flag a theme-toggle button that only changes <html>
   assert.equal(stats.deadButtons.length, 0, 'a root-level class toggle must count as "something happened"');
 });
 
+test('_checkButtons does not report a hover-only mega-nav trigger as a dead button', async () => {
+  const m = new InteractiveElementsModule();
+  const stats = {
+    buttonsChecked: 0, deadButtons: [], hoverOnlyButtons: [], buttonErrors: [], skippedDestructive: [],
+  };
+  let hovered = false;
+  const fakeLocator = {
+    click: async () => { /* click does nothing — no handler at all */ },
+    hover: async () => { hovered = true; },
+  };
+  const fakePage = {
+    locator: () => ({ first: () => fakeLocator, nth: () => fakeLocator }),
+    url: () => 'https://example.com/',
+    evaluate: async (fn) => {
+      const src = fn.toString();
+      if (src.includes('innerHTML.length')) return 100; // body content never changes
+      // documentElement class flips ONLY once hovered — a CSS :hover mega-nav panel.
+      if (src.includes('documentElement')) return hovered ? 'nav-open' : '';
+      return 0;
+    },
+    on: () => {},
+    removeListener: () => {},
+    waitForTimeout: async () => {},
+    keyboard: { press: async () => {} },
+    goto: async () => {},
+    mouse: { move: async () => {} },
+  };
+
+  const buttons = [{ selector: 'button-idx-1', nthFallback: 1, text: 'Products', description: 'button: "Products"' }];
+  await m._checkButtons(fakePage, buttons, 'https://example.com/', 5000, stats);
+
+  assert.equal(stats.deadButtons.length, 0, 'a hover-revealed trigger must not be reported as dead');
+  assert.equal(stats.hoverOnlyButtons.length, 1);
+  assert.equal(stats.hoverOnlyButtons[0].description, 'button: "Products"');
+});
+
+test('_checkButtons still reports a genuinely dead button when hover ALSO does nothing', async () => {
+  const m = new InteractiveElementsModule();
+  const stats = {
+    buttonsChecked: 0, deadButtons: [], hoverOnlyButtons: [], buttonErrors: [], skippedDestructive: [],
+  };
+  const fakeLocator = { click: async () => {}, hover: async () => {} };
+  const fakePage = {
+    locator: () => ({ first: () => fakeLocator, nth: () => fakeLocator }),
+    url: () => 'https://example.com/',
+    evaluate: async () => 100, // nothing ever changes, click or hover
+    on: () => {},
+    removeListener: () => {},
+    waitForTimeout: async () => {},
+    keyboard: { press: async () => {} },
+    goto: async () => {},
+    mouse: { move: async () => {} },
+  };
+
+  const buttons = [{ selector: 'button-idx-1', nthFallback: 1, text: 'Submit', description: 'button: "Submit"' }];
+  await m._checkButtons(fakePage, buttons, 'https://example.com/', 5000, stats);
+
+  assert.equal(stats.hoverOnlyButtons.length, 0);
+  assert.equal(stats.deadButtons.length, 1, 'a button that does nothing on click OR hover is genuinely dead');
+});
+
 test('_checkButtons records a button-error when the click throws a page error', async () => {
   const m = new InteractiveElementsModule();
   const stats = {
