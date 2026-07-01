@@ -32,6 +32,7 @@ const BUILT_IN_MODULES = {
   performanceBudget: '../modules/performance-budget.js',
   mobileRendering: '../modules/mobile-rendering.js',
   formTesting: '../modules/form-testing.js',
+  consoleErrors: '../modules/console-errors.js',
   mutation: '../modules/mutation.js',
   aiReview: '../modules/ai-review.js',
   fakeFixDetector: '../modules/fake-fix-detector.js',

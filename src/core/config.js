@@ -387,6 +387,10 @@ const DEFAULT_CONFIG = {
       // protected forms are detected and SKIPPED, never submitted or
       // bypassed — see form-testing.js header for the full safety scope.
       'formTesting',
+      // consoleErrors: site-wide crawl aggregating console errors/
+      // warnings across every page visited — runtimeErrors only looks
+      // at one page in depth, this trades depth for breadth.
+      'consoleErrors',
     ],
 
     // Generic web URL suite — runs against any public site. Same engine
@@ -412,6 +416,7 @@ const DEFAULT_CONFIG = {
       'performanceBudget', // live TTFB/LCP/CLS/page-weight, median of 3 runs (needs Crontech worker)
       'mobileRendering', // overflow + tiny-text checks across 5 device widths (needs Crontech worker)
       'formTesting',     // safe-form fill+submit, skips payment/auth/CAPTCHA (needs Crontech worker)
+      'consoleErrors',   // site-wide console error/warning aggregation across every crawled page (needs Crontech worker)
     ],
   },
 
