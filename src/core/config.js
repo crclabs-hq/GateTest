@@ -391,6 +391,9 @@ const DEFAULT_CONFIG = {
       // warnings across every page visited — runtimeErrors only looks
       // at one page in depth, this trades depth for breadth.
       'consoleErrors',
+      // designSystemCompliance: audits LIVE computed styles for
+      // near-duplicate colors, off-grid spacing, and type-scale drift.
+      'designSystemCompliance',
     ],
 
     // Generic web URL suite — runs against any public site. Same engine
@@ -417,6 +420,7 @@ const DEFAULT_CONFIG = {
       'mobileRendering', // overflow + tiny-text checks across 5 device widths (needs Crontech worker)
       'formTesting',     // safe-form fill+submit, skips payment/auth/CAPTCHA (needs Crontech worker)
       'consoleErrors',   // site-wide console error/warning aggregation across every crawled page (needs Crontech worker)
+      'designSystemCompliance', // color/spacing/typography drift on live computed styles (needs Crontech worker)
     ],
   },
 

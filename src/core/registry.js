@@ -33,6 +33,7 @@ const BUILT_IN_MODULES = {
   mobileRendering: '../modules/mobile-rendering.js',
   formTesting: '../modules/form-testing.js',
   consoleErrors: '../modules/console-errors.js',
+  designSystemCompliance: '../modules/design-system-compliance.js',
   mutation: '../modules/mutation.js',
   aiReview: '../modules/ai-review.js',
   fakeFixDetector: '../modules/fake-fix-detector.js',
