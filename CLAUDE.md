@@ -1070,22 +1070,92 @@ Crontech-worker path.
   API endpoint probing) both surfaced the same underlying reliability
   problem on vapron.ai.
 
-**Remaining tools (4-10) are NOT started.** Next session picks up Tool 4
-(`performanceBudget` + `mobileRendering`, Week 4 in the spec's build
-order) unless Craig redirects. `formTesting` (Week 5) touches payment
-forms and CAPTCHA-bypass-in-test-mode — flag those specific sub-pieces
-to Craig before building (Boss Rule #6/#9 adjacent).
+**Tool 4 — `performanceBudget` + `mobileRendering`, SHIPPED this
+session.** Two modules, both from the spec's Week 4 grouping.
+
+`performanceBudget` (`src/modules/performance-budget.js`) is the LIVE
+counterpart to the existing `performance` module, which is entirely
+static (bundle size from build output, HTML/JS regex checks, and a
+check for whether the `lighthouse` CLI is *installed* — it never
+actually loads a page). This module opens the real URL in Chromium and
+measures TTFB (Navigation Timing), LCP and CLS (`PerformanceObserver`s
+installed via `page.addInitScript` BEFORE navigation so early entries
+aren't missed), and page weight (summed `content-length` across every
+response). Per the spec's own stated limitations: one throwaway
+warm-up request mitigates cold-start-inflated TTFB, and every route is
+measured 3 times with the MEDIAN reported (matches the spec's own
+Lighthouse-variance guidance) rather than failing the gate on a single
+noisy run. Default budgets: TTFB 800ms / LCP 2.5s / CLS 0.1 / page
+weight 2MB, all overridable via `modules.performanceBudget.budgets`.
+10 unit tests via fake-browser injection.
+
+`mobileRendering` (`src/modules/mobile-rendering.js`) is the focused,
+spec-named counterpart to a lighter check `explorer` already does
+(horizontal-overflow + clipped-text at 2 viewports as one signal among
+many in its full autonomous pass) — this module runs the full 5-device
+matrix the spec names (390 iPhone / 414 Android / 768 tablet / 1024
+small-laptop / 1280 desktop) as ABSOLUTE checks (not a diff against a
+baseline like `visualRegression` — this catches "broken right now").
+Adds one check `explorer` doesn't do: unreadably small text (computed
+font-size below a configurable legibility floor, default 10px).
+`moduleCfg.exemptRoutes` (string prefix or RegExp) skips narrow-
+viewport checks for intentionally desktop-only pages (the spec's own
+stated limitation — e.g. an admin dashboard). A navigation failure on
+one viewport is bucketed as its own `page-errors` finding, NOT folded
+into "overflow" — confirmed as a real mislabeling bug during the
+vapron.ai proof run (a 20s timeout on the iPhone viewport was
+originally being reported as a horizontal-overflow finding). 11 unit
+tests via fake-browser injection.
+
+Both registered in the `wp` + `web` suites, both need Playwright (skip
+gracefully without it, same as their siblings).
+
+**Real-repo proof against `vapron.ai`**: `performanceBudget` passed
+cleanly on the homepage (TTFB 15ms, LCP 244ms, CLS 0.0001, 236KB — all
+comfortably within budget), proving the pass path works on a real fast
+page. `mobileRendering` found genuine issues: 63px horizontal overflow
+at 1024px (laptop), and 9.92px text on FOUR viewport widths including
+1280px desktop (dashboard stat-card labels — a real, consistent
+small-font choice, not a mobile-only issue) — plus the iPhone-viewport
+navigation timeout that led to the page-errors bucketing fix above.
+
+**Remaining tools (5-10) are NOT started.** Next session picks up
+`formTesting` + enhanced `consoleErrors`/`runtimeErrors` (Week 5 in the
+spec's build order) unless Craig redirects. `formTesting` touches
+payment forms and CAPTCHA-bypass-in-test-mode — flag those specific
+sub-pieces to Craig before building (Boss Rule #6/#9 adjacent).
 
 ---
 
 ## VERSION
 
-GateTest v1.53.3 — **114 modules**, **Claude Sonnet 4.6**, **five tiers
+GateTest v1.53.4 — **116 modules**, **Claude Sonnet 4.6**, **five tiers
 live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399 (one-time)
 + Continuous $49/mo. The public Pricing UI (`Pricing.tsx`) and the
 checkout backend (`/api/checkout/route.ts` `TIERS`) are reconciled and
 in sync (Craig-authorized 2026-06-30 — see Known Issue #35, resolved).
 Date stamp last fully reconciled: 2026-06-30.
+
+**v1.53.4 changes (2026-07-01 — performanceBudget + mobileRendering,
+Visual & Runtime Testing Spec Tool 4):**
+- **`src/modules/performance-budget.js`** — new `performanceBudget`
+  module. Live TTFB/LCP/CLS/page-weight via Playwright, median of 3
+  runs with a warm-up request first. 10 unit tests via fake-browser
+  injection.
+- **`src/modules/mobile-rendering.js`** — new `mobileRendering` module.
+  Horizontal-overflow + unreadable-text checks across the 5 device
+  widths the spec names, plus `exemptRoutes` for intentionally
+  desktop-only pages. 11 unit tests via fake-browser injection.
+- Both registered in `src/core/registry.js` and added to the `wp` +
+  `web` suites.
+- **Real-repo proof against `vapron.ai`** — see the Tool 4 section
+  above. `performanceBudget` passed cleanly on the homepage;
+  `mobileRendering` found real overflow + tiny-text issues, and one
+  real bug in the module itself (a navigation timeout was being
+  mislabeled as an overflow finding) was found and fixed from the
+  proof-run evidence before shipping.
+- Module count 114 → 116. `site-stats.json` regenerated.
+  `modules-data.ts` catalog updated.
 
 **v1.53.3 changes (2026-07-01 — apiHealth module, Visual & Runtime
 Testing Spec Tool 3):**

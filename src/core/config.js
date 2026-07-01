@@ -374,6 +374,14 @@ const DEFAULT_CONFIG = {
       // Playwright, so unlike its siblings above it runs fine on Vercel
       // serverless too.
       'apiHealth',
+      // performanceBudget: live TTFB/LCP/CLS/page-weight against the
+      // real URL (median of 3 runs, cold-start warm-up first) — the
+      // existing "performance" module never actually loads a page.
+      'performanceBudget',
+      // mobileRendering: overflow + unreadable-text checks across 5
+      // device widths (390/414/768/1024/1280). Absolute checks, not a
+      // diff — catches "broken right now," not just "changed."
+      'mobileRendering',
     ],
 
     // Generic web URL suite — runs against any public site. Same engine
@@ -396,6 +404,8 @@ const DEFAULT_CONFIG = {
       'visualRegression', // full-page screenshot diff vs stored baseline (needs Crontech worker)
       'interactiveElements', // safe link liveness + destructive-skip button crawler (needs Crontech worker)
       'apiHealth',       // endpoint status/timing/content-type checks — pure HTTP, works on Vercel serverless
+      'performanceBudget', // live TTFB/LCP/CLS/page-weight, median of 3 runs (needs Crontech worker)
+      'mobileRendering', // overflow + tiny-text checks across 5 device widths (needs Crontech worker)
     ],
   },
 
