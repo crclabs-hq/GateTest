@@ -27,6 +27,7 @@ const BUILT_IN_MODULES = {
   chaos: '../modules/chaos.js',
   runtimeErrors: '../modules/runtime-errors.js',
   visualRegression: '../modules/visual-regression.js',
+  interactiveElements: '../modules/interactive-elements.js',
   mutation: '../modules/mutation.js',
   aiReview: '../modules/ai-review.js',
   fakeFixDetector: '../modules/fake-fix-detector.js',

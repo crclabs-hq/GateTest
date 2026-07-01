@@ -362,6 +362,12 @@ const DEFAULT_CONFIG = {
       // DOM-level check can see. Needs Playwright + a writable baseline
       // dir; skips gracefully otherwise.
       'visualRegression',
+      // interactiveElements: safe link/button liveness crawler — HTTP
+      // HEAD-checks every internal link, click-tests every button with a
+      // destructive-action skip list (delete/cancel/logout/...) so it
+      // never fires real mutating actions against a live site. Skips
+      // gracefully when Chromium isn't available.
+      'interactiveElements',
     ],
 
     // Generic web URL suite — runs against any public site. Same engine
@@ -382,6 +388,7 @@ const DEFAULT_CONFIG = {
       'runtimeErrors',   // live JS errors / CSP violations (needs Crontech worker)
       'explorer',        // "button doesn't fire" detection (needs Crontech worker)
       'visualRegression', // full-page screenshot diff vs stored baseline (needs Crontech worker)
+      'interactiveElements', // safe link liveness + destructive-skip button crawler (needs Crontech worker)
     ],
   },
 

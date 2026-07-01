@@ -910,10 +910,10 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 (`GATETEST_VISUAL_SPEC.md`) with the directive to build Tool 1 first:
 *"This single tool would have caught the Vapron redesign before it went
 live."* The 10 tools, in the spec's stated build order: `visualRegression`
-(Week 1, **SHIPPED this session**), `interactiveElements` (Week 2),
-`apiHealth` (Week 3), `performanceBudget` + `mobileRendering` (Week 4),
-`formTesting` + enhanced `consoleErrors`/`runtimeErrors` (Week 5),
-`deployGate` (Week 6, orchestrates all the above). Tools 2-10 are
+(Week 1, **SHIPPED**), `interactiveElements` (Week 2, **SHIPPED this
+session**), `apiHealth` (Week 3), `performanceBudget` + `mobileRendering`
+(Week 4), `formTesting` + enhanced `consoleErrors`/`runtimeErrors` (Week 5),
+`deployGate` (Week 6, orchestrates all the above). Tools 3-10 are
 recorded here so future sessions pick up the build order instead of
 re-asking Craig — same pattern as the FIX-FIRST BUILD PLAN and the
 Hyper-Aggressive Roadmap above.
@@ -959,22 +959,95 @@ site again confirmed the pass path (0.05% / 0.06% diff, well under the
 5% threshold); unit tests cover the fail path (synthetic PNGs, diff >
 threshold → error-severity check + Slack notify invoked).
 
-**Remaining tools (2-10) are NOT started.** Next session picks up Tool 2
-(`interactiveElements`) per the spec's build order unless Craig
-redirects. `formTesting` (Tool 3 in the spec's tool list, Week 5) touches
-payment forms and CAPTCHA-bypass-in-test-mode — flag those specific
-sub-pieces to Craig before building (Boss Rule #6/#9 adjacent).
+**Tool 2 — `interactiveElements` (link + button liveness crawler), SHIPPED
+this session.** Built at `src/modules/interactive-elements.js`, deliberately
+NOT a duplicate of `explorer` (which already does full autonomous QA:
+forms, toggles, disclosures, screenshots, and clicks every button with
+no safety list). `interactiveElements` is narrower and safety-first —
+built specifically to close the gap the spec calls out: *"Destructive
+buttons (delete, cancel) must not actually fire."*
+
+- **Links** (`<a href>` without `role="button"`) are verified with a
+  direct HTTP request, not a simulated click — faster, catches
+  server-side 404s a client-side router would swallow, zero destructive
+  risk. HEAD is the fast path; a HEAD timeout/4xx/5xx is verified with a
+  real GET before being trusted (`_checkLinkLive`) — Next.js middleware
+  routes can mishandle HEAD while GET works fine, confirmed against real
+  `vapron.ai` routes during this session's proof run.
+- **Buttons** (`<button>`, `[role="button"]`, `input[type=button|submit]`)
+  ARE click-tested — there's no way to verify "does this do something"
+  without clicking. Before clicking, the label is checked against a
+  destructive-action pattern list (delete/cancel/unsubscribe/deactivate/
+  sign out/archive/revoke/terminate/reset/ban/wipe/purge/...) —
+  matches are skipped, never clicked. The pattern list only fires on
+  short imperative labels (≤ 40 chars, doesn't end in `?`) — a long FAQ
+  question like *"Can I cancel at any time?"* is NOT an action button
+  and must still be click-tested; confirmed as a real false-positive
+  against zoobicon.com's pricing FAQ during this session's proof run.
+- **Dead-button detection** diffs page URL, `body.innerHTML.length`, a
+  broad dynamic-UI selector count (dialogs/menus/dropdowns/popovers/
+  toasts/`aria-expanded`), the clicked element's OWN class/aria-expanded/
+  aria-pressed/data-state (catches React/Vue toggling state on the
+  trigger itself), AND `<html>`/`<body>` class state (catches
+  Tailwind/next-themes-style dark-mode toggles that touch the document
+  root, not the button or body content — confirmed as a real false
+  positive, "Toggle colour theme" on vapron.ai, before this signal was
+  added). Modals opened by a click are dismissed (Escape, then a
+  best-effort close-button click) before the next element is tested.
+  Scrolling before element discovery is capped at a small step count so
+  infinite-scroll pages can't turn one visit into an unbounded crawl.
+- Reuses `checkUrl`/`fetchPage` from `live-crawler-http-helpers.js`
+  rather than duplicating HTTP-fetch logic. 17 unit tests.
+- Registered in the `wp` and `web` suites alongside `runtimeErrors` /
+  `explorer` / `visualRegression`.
+- **Real-repo proof**: `vapron.ai` (found 3 genuinely broken/hanging
+  links — `/products`, `/forgot` hang 15s+ even under plain `curl`, not
+  a module artifact; 7 remaining "dead" nav-category buttons are
+  hover-only mega-nav triggers, a legitimate tap/keyboard-accessibility
+  finding, not a false positive) and `zoobicon.com` (found likely-dead
+  `Start Pro trial` / `Start Agency trial` / `Join the waitlist` CTAs on
+  `/pricing` and dead FAQ accordion buttons — exactly the class of bug
+  this tool exists to catch on a revenue-critical page).
+
+**Remaining tools (3-10) are NOT started.** Next session picks up Tool 3
+(`apiHealth`) per the spec's build order unless Craig redirects.
+`formTesting` (Tool 3 in the spec's own tool list, Week 5 in the build
+order) touches payment forms and CAPTCHA-bypass-in-test-mode — flag
+those specific sub-pieces to Craig before building (Boss Rule #6/#9
+adjacent).
 
 ---
 
 ## VERSION
 
-GateTest v1.53.1 — **112 modules**, **Claude Sonnet 4.6**, **five tiers
+GateTest v1.53.2 — **113 modules**, **Claude Sonnet 4.6**, **five tiers
 live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399 (one-time)
 + Continuous $49/mo. The public Pricing UI (`Pricing.tsx`) and the
 checkout backend (`/api/checkout/route.ts` `TIERS`) are reconciled and
 in sync (Craig-authorized 2026-06-30 — see Known Issue #35, resolved).
 Date stamp last fully reconciled: 2026-06-30.
+
+**v1.53.2 changes (2026-07-01 — interactiveElements module, Visual &
+Runtime Testing Spec Tool 2):**
+- **`src/modules/interactive-elements.js`** — new `interactiveElements`
+  module. See the Tool 2 section above for the full design (HTTP-based
+  link liveness with a HEAD→GET fallback, destructive-action-skipped
+  button click-testing, modal cleanup, bounded scroll). 17 unit tests.
+- Registered in `src/core/registry.js` and added to the `wp` + `web`
+  suites.
+- **Real-repo proof against `vapron.ai` and `zoobicon.com`** — see the
+  Tool 2 section above. Found genuine broken/hanging links, hover-only
+  nav triggers (accessibility finding), and likely-dead pricing-page
+  CTAs + FAQ accordions on zoobicon.com.
+- Module count 112 → 113. `site-stats.json` regenerated. `modules-data.ts`
+  catalog updated.
+- Also found and fixed a pre-existing broken build (`Pricing.tsx` JSX
+  structure, see the v1.53.1 fix commit) and confirmed a resource-
+  contention false alarm in the Always-On sweep hook (running a manual
+  full test-suite pass concurrently with the hook's own automatic pass
+  produced a corrupted/truncated log and a false "test hang" signal —
+  not a code defect; re-ran cleanly once the two passes weren't
+  competing for the same CPU).
 
 **v1.53.1 changes (2026-07-01 — visualRegression module, Visual & Runtime
 Testing Spec Tool 1):**
