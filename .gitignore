@@ -11,6 +11,8 @@ website/.next/
 website/node_modules/
 website/test-results/
 website/playwright-report/
+vscode-extension/out/
+vscode-extension/*.vsix
 
 # Sub-agent worktrees (Agent tool with isolation: "worktree")
 .claude/worktrees/
