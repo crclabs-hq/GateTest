@@ -357,6 +357,11 @@ const DEFAULT_CONFIG = {
       // gracefully when Chromium isn't available (Vercel today; lights
       // up when Crontech worker is wired).
       'explorer',
+      // visualRegression: full-page screenshot diffing against a stored
+      // baseline, catches redesigns / broken layouts that no static or
+      // DOM-level check can see. Needs Playwright + a writable baseline
+      // dir; skips gracefully otherwise.
+      'visualRegression',
     ],
 
     // Generic web URL suite — runs against any public site. Same engine
@@ -376,6 +381,7 @@ const DEFAULT_CONFIG = {
       'liveCrawler',     // 404 / 500 / broken-image / redirect-chain on the live URL
       'runtimeErrors',   // live JS errors / CSP violations (needs Crontech worker)
       'explorer',        // "button doesn't fire" detection (needs Crontech worker)
+      'visualRegression', // full-page screenshot diff vs stored baseline (needs Crontech worker)
     ],
   },
 

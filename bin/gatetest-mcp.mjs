@@ -24,7 +24,7 @@
  * Tools exposed:
  *   scan_local       — scan a local directory path
  *   run_module       — run one specific module against a path
- *   list_modules     — list all 111 modules with descriptions
+ *   list_modules     — list all 112 modules with descriptions
  *   check_health     — verify GateTest engine is operational
  *   fix_issue        — AI-driven fix for a single finding (needs ANTHROPIC_API_KEY)
  *   compose_pr       — render a PR body markdown for a set of fixes
@@ -57,10 +57,10 @@ const TOOLS = [
   {
     name: 'scan_local',
     description:
-      'Scan a local directory with GateTest\'s 111-module engine. ' +
+      'Scan a local directory with GateTest\'s 112-module engine. ' +
       'Returns issues found across security, reliability, code quality, ' +
       'and more. Use suite="quick" for the 4 core modules or suite="full" ' +
-      'for all 111 modules. Optionally pass a list of specific module names.',
+      'for all 112 modules. Optionally pass a list of specific module names.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -105,7 +105,7 @@ const TOOLS = [
   {
     name: 'list_modules',
     description:
-      'List all 111 GateTest modules with their names and descriptions. ' +
+      'List all 112 GateTest modules with their names and descriptions. ' +
       'Use this to discover what modules are available before calling ' +
       'scan_local with a specific modules list.',
     inputSchema: {
@@ -116,7 +116,7 @@ const TOOLS = [
   {
     name: 'check_health',
     description:
-      'Verify GateTest is operational. Returns version, module count (111), ' +
+      'Verify GateTest is operational. Returns version, module count (112), ' +
       'and a list of all loaded module names.',
     inputSchema: {
       type: 'object',
@@ -388,7 +388,7 @@ async function handleCheckHealth() {
         type: 'text',
         text:
           `## GateTest Health\n\n✅ **Operational**\n\n` +
-          `- Engine: GateTest v1.53.0\n` +
+          `- Engine: GateTest v1.53.1\n` +
           `- Modules loaded: ${moduleNames.length}\n` +
           `- Transport: stdio\n` +
           `- Anthropic API key: ${hasAnthropic ? '✅ present (fix_issue, explain_finding available)' : '⚠️ missing (fix_issue, explain_finding will return an error)'}`,

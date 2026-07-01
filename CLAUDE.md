@@ -904,14 +904,107 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ---
 
+## VISUAL & RUNTIME TESTING SPEC — TOOL 1 SHIPPED (READ THIS EVERY SESSION)
+
+**Authorization:** Craig 2026-07-01 — full 10-tool spec handed over
+(`GATETEST_VISUAL_SPEC.md`) with the directive to build Tool 1 first:
+*"This single tool would have caught the Vapron redesign before it went
+live."* The 10 tools, in the spec's stated build order: `visualRegression`
+(Week 1, **SHIPPED this session**), `interactiveElements` (Week 2),
+`apiHealth` (Week 3), `performanceBudget` + `mobileRendering` (Week 4),
+`formTesting` + enhanced `consoleErrors`/`runtimeErrors` (Week 5),
+`deployGate` (Week 6, orchestrates all the above). Tools 2-10 are
+recorded here so future sessions pick up the build order instead of
+re-asking Craig — same pattern as the FIX-FIRST BUILD PLAN and the
+Hyper-Aggressive Roadmap above.
+
+**Cross-repo boundary decision (read before touching this module again):**
+`visualRegression` was built inside GateTest (`src/modules/visual-regression.js`)
+using Playwright + pixelmatch/pngjs — Playwright is an already-approved
+GateTest dependency (see the Playwright-as-internal-dep decision below);
+pixelmatch/pngjs are pure-JS, zero native bindings, added this session
+directly at Craig's request. The **Jarvis platform** (`/opt/jarvis`,
+separate repo/infra, `MarcoReid Intelligence Systems`) has its own
+CLAUDE.md with an explicit **Rule 5 — "No Playwright... extend
+`src/screenshot-service.js`"** for Jarvis's own orchestration code. To
+respect both governing documents at once: the GateTest module itself
+never hardcodes a Jarvis path or Jarvis's Slack bot token — `baselineDir`,
+`platform`, `slackWebhook`/`SLACK_WEBHOOK_URL`, and `slackBotToken`/
+`SLACK_BOT_TOKEN` are all config-driven with product-local defaults
+(`.gatetest/visual-baselines/`). Jarvis orchestration (`audit-runner.js`
+or a future wrapper) is expected to invoke GateTest as a subprocess/CLI
+call — same pattern `audit-runner.js` already uses for build/test
+commands — and pass `baselineDir: /opt/jarvis/visual-baselines/{platform}`
+explicitly when it wants cross-platform monitoring. This keeps Playwright
+entirely inside GateTest's own dependency tree; Jarvis's `package.json`
+never needs it, satisfying Rule 5 to the letter.
+
+`visualRegression` module contract: screenshots every configured route
+at desktop (1280px) + mobile (390px) full-page, stores baselines under
+`{baselineDir}/{platform}/{viewport}/{route-slug}.png`, diffs via
+pixelmatch on first-mismatch-fails-open dimension padding (page grew/
+shrank counts as real diff, doesn't crash), fails the check when diff
+exceeds `threshold`% (default 5). `maskSelectors` config hides
+dynamic-content regions (timestamps, live counters) before capture.
+`updateBaseline: true` accepts an intentional redesign as the new
+baseline. On a failing diff, best-effort Slack notification: bot-token
+upload of a baseline|current|diff composite image when configured,
+text-only webhook summary otherwise — both non-blocking (Forbidden #15).
+Registered in the `wp` and `web` suites alongside `runtimeErrors` /
+`explorer` (needs a live URL + Crontech-class worker; skips gracefully
+on Vercel serverless same as its siblings). Real-repo proof: ran against
+`https://vapron.ai` this session — first run created 1280×7098 (desktop)
+and 390×11683 (mobile) full-page baselines; second run against the live
+site again confirmed the pass path (0.05% / 0.06% diff, well under the
+5% threshold); unit tests cover the fail path (synthetic PNGs, diff >
+threshold → error-severity check + Slack notify invoked).
+
+**Remaining tools (2-10) are NOT started.** Next session picks up Tool 2
+(`interactiveElements`) per the spec's build order unless Craig
+redirects. `formTesting` (Tool 3 in the spec's tool list, Week 5) touches
+payment forms and CAPTCHA-bypass-in-test-mode — flag those specific
+sub-pieces to Craig before building (Boss Rule #6/#9 adjacent).
+
+---
+
 ## VERSION
 
-GateTest v1.53.0 — **111 modules**, **Claude Sonnet 4.6**, **five tiers
+GateTest v1.53.1 — **112 modules**, **Claude Sonnet 4.6**, **five tiers
 live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399 (one-time)
 + Continuous $49/mo. The public Pricing UI (`Pricing.tsx`) and the
 checkout backend (`/api/checkout/route.ts` `TIERS`) are reconciled and
 in sync (Craig-authorized 2026-06-30 — see Known Issue #35, resolved).
 Date stamp last fully reconciled: 2026-06-30.
+
+**v1.53.1 changes (2026-07-01 — visualRegression module, Visual & Runtime
+Testing Spec Tool 1):**
+- **`src/core/visual-diff-engine.js`** — pure pixel-diff algorithms
+  (pixelmatch + pngjs, both pure JS). `compareScreenshots()`,
+  `buildSideBySideComposite()`, dimension-mismatch padding so page
+  growth/shrinkage at the bottom of a full-page capture is a real diff
+  signal instead of a crash. 9 unit tests, zero browser dependency.
+- **`src/modules/visual-regression.js`** — new `visualRegression`
+  module. Playwright full-page screenshots at desktop (1280px) + mobile
+  (390px), baseline-on-first-run, pixel diff on every run after, fails
+  the check above a configurable threshold (default 5%). Best-effort
+  Slack notification (bot-token image upload or webhook text) on a
+  failing diff, never blocks the check itself. 20 unit tests incl. two
+  exercising the real fail/pass paths with synthetic PNGs via a mocked
+  browser.
+- **New deps**: `pixelmatch@^7.2.0`, `pngjs@^7.0.0` — pure JS, no native
+  bindings, Craig-authorized via the visual-spec handoff.
+- Registered in `src/core/registry.js` and added to the `wp` + `web`
+  suites (needs a live URL + browser, same family as `runtimeErrors` /
+  `explorer`).
+- **Real-repo proof against `vapron.ai`** (see the section above for
+  detail) — baseline created, re-run confirmed pass path on the live
+  site.
+- Module count 111 → 112. `site-stats.json` regenerated
+  (`node scripts/generate-site-stats.js`). MCP server help text
+  (`bin/gatetest-mcp.mjs`) module-count strings + engine version bumped
+  to match.
+- Sweep: full suite green after regenerating site-stats.json (the
+  honesty-lock test self-corrects once the JSON matches live counts).
 
 **v1.53.0 changes (2026-06-30 — Weekly Digest: email + Slack):**
 - **`website/app/lib/digest-mailer.js`** — Resend REST email sender (native `https`, no new npm dep). Dark-theme HTML email with stat cards (trend / net delta / scan count), health grade, top recurring module, patterns, CTA button. Plain-text fallback. Gracefully no-ops when `RESEND_API_KEY` not set.
