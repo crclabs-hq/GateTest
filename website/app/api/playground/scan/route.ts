@@ -9,11 +9,18 @@
  * is stored. Rate limiting is enforced at the CDN/edge layer.
  *
  * Deliberately restricted to quick tier so the playground is fast (<30s)
- * and the cost is bounded. The full 111-module scan is a paid product.
+ * and the cost is bounded. The full module catalogue (see modules-data.ts
+ * / totalModuleCount()) is a paid product.
+ *
+ * Superseded by /api/playground/scan/stream for the interactive
+ * playground UI (real-time per-module events + a shadow-preview
+ * "X/120 unlocked" progress bar) — this non-streaming route is kept for
+ * external API consumers (see /docs/api) who want a single JSON response.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { runScan } from "@/app/lib/scan-executor";
+import { totalModuleCount } from "@/app/components/howitworks/modules-data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -95,6 +102,6 @@ export async function POST(req: NextRequest) {
     grade,
     gradeColor,
     topFindings,
-    upgradeNote:     `This is 4 of 111 modules. A full scan would check ${111 - 4} more.`,
+    upgradeNote:     `This is 4 of ${totalModuleCount()} modules. A full scan would check ${totalModuleCount() - 4} more.`,
   });
 }

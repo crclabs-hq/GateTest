@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { type Metadata } from "next";
+import { consumeSseStream } from "@/app/components/url-scan-flow-sse";
+import { totalModuleCount } from "@/app/components/howitworks/modules-data";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -13,6 +14,20 @@ interface ModuleResult {
   issues: number;
   duration: number;
   details?: string[];
+  severity?: Severity;
+}
+
+type Severity = "critical" | "warning" | "info";
+
+interface LockedModule {
+  name: string;
+  category: string;
+}
+
+interface Finding {
+  module: string;
+  message: string;
+  severity: string;
 }
 
 interface ScanResult {
@@ -20,14 +35,17 @@ interface ScanResult {
   repo_url: string;
   tier: string;
   modules: ModuleResult[];
+  totalModules?: number;
+  freeModules?: number;
   totalIssues: number;
   duration: number;
   healthScore: number;
   grade: string;
   gradeColor: string;
-  topFindings: Array<{ module: string; message: string; severity: string }>;
+  topFindings: Finding[];
   upgradeNote: string;
   error?: string;
+  sharedAt?: number;
 }
 
 interface TerminalLine {
@@ -61,6 +79,43 @@ const GRADE_RING_COLOR: Record<string, string> = {
   D: "#f97316",
   F: "#ef4444",
 };
+
+const SEVERITY_STYLE: Record<Severity, { label: string; text: string; bg: string; border: string; dot: string }> = {
+  critical: { label: "CRITICAL", text: "text-red-400",    bg: "bg-red-500/[0.06]",    border: "border-red-500/25",    dot: "bg-red-500" },
+  warning:  { label: "WARNING",  text: "text-amber-400",  bg: "bg-amber-500/[0.06]",  border: "border-amber-500/25",  dot: "bg-amber-500" },
+  info:     { label: "INFO",     text: "text-sky-400",    bg: "bg-sky-500/[0.06]",    border: "border-sky-500/25",    dot: "bg-sky-500" },
+};
+
+function severityOf(raw: string | undefined): Severity {
+  return raw === "critical" || raw === "warning" || raw === "info" ? raw : "warning";
+}
+
+// Share links encode the whole result client-side (no backend store — see
+// SHARE_EXPIRY_MS note below) so "shareable URL" works without a new
+// dependency (Vercel KV/Redis aren't in the approved stack). The embedded
+// `sharedAt` timestamp is what "expires after 48 hours" actually checks —
+// the underlying URL data doesn't vanish, but the page treats it as
+// expired and refuses to render it past the window, same practical effect
+// for the intended use case (a link shared once, checked within a couple
+// days) without needing new infra.
+const SHARE_EXPIRY_MS = 48 * 60 * 60 * 1000;
+
+function encodeShareData(result: ScanResult): string {
+  const payload = { ...result, sharedAt: Date.now() };
+  return btoa(encodeURIComponent(JSON.stringify(payload))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function decodeShareData(encoded: string): ScanResult | null {
+  try {
+    const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(atob(base64));
+    const data = JSON.parse(json) as ScanResult;
+    if (!data.sharedAt || Date.now() - data.sharedAt > SHARE_EXPIRY_MS) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -97,12 +152,15 @@ function GradeRing({ grade, score, animating }: { grade: string; score: number; 
   );
 }
 
-function ModuleCard({ mod, delay }: { mod: ModuleResult; delay: number }) {
+// Real-time streaming means arrival order IS the real timing now — no
+// artificial setTimeout stagger needed, just a fade-in on mount so each
+// module still animates in as its `module:end` event lands.
+function ModuleCard({ mod }: { mod: ModuleResult }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setVisible(true), delay);
-    return () => clearTimeout(t);
-  }, [delay]);
+    const raf = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   const passed = mod.status === "passed";
   return (
@@ -122,6 +180,54 @@ function ModuleCard({ mod, delay }: { mod: ModuleResult; delay: number }) {
         </span>
       </div>
       <p className="text-xs text-white/40 font-mono">{(mod.duration / 1000).toFixed(2)}s · {mod.checks} checks</p>
+    </div>
+  );
+}
+
+// One chip per module in the full 120-module catalog that ISN'T part of
+// the free tier — the "X/120 complete" progress bar needs something to
+// count up to, and this is the shadow-preview mechanic (same pattern the
+// $29 tier's upsell already uses) rather than either lying about running
+// 120 modules for free or showing a misleadingly small "4/4" bar.
+function LockedModuleChip({ mod, delay }: { mod: LockedModule; delay: number }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), delay);
+    return () => clearTimeout(t);
+  }, [delay]);
+  return (
+    <div
+      title={`${mod.name} — unlock with a paid scan`}
+      className="rounded-lg border border-white/[0.06] bg-white/[0.015] px-2.5 py-1.5 flex items-center gap-1.5 transition-all duration-300"
+      style={{ opacity: visible ? 1 : 0, transform: visible ? "scale(1)" : "scale(0.9)" }}
+    >
+      <svg className="w-3 h-3 text-white/25 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="5" y="11" width="14" height="9" rx="1.5" />
+        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+      </svg>
+      <span className="text-[11px] text-white/30 font-mono truncate">{mod.name}</span>
+    </div>
+  );
+}
+
+function ProgressBar({ completed, total }: { completed: number; total: number }) {
+  const pct = total > 0 ? Math.min(100, (completed / total) * 100) : 0;
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between text-xs font-mono">
+        <span className="text-white/50">{completed}/{total} modules</span>
+        <span className="text-white/30">{pct.toFixed(0)}%</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${pct}%`,
+            background: "linear-gradient(90deg, #059669, #0891b2)",
+            transition: "width 0.3s ease-out",
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -198,11 +304,33 @@ export default function PlaygroundPage() {
   const [error, setError]         = useState("");
   const [lines, setLines]         = useState<TerminalLine[]>([]);
   const [gradeAnimating, setGradeAnimating] = useState(true);
+  const [liveModules, setLiveModules] = useState<ModuleResult[]>([]);
+  const [lockedModules, setLockedModules] = useState<LockedModule[]>([]);
+  const [totalModules, setTotalModules] = useState(0);
+  const [isSharedView, setIsSharedView] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const lineId = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
   const addLine = useCallback((type: TerminalLine["type"], text: string) => {
     setLines((prev) => [...prev, { id: lineId.current++, type, text }]);
+  }, []);
+
+  // Load a shared result from the `?s=` query param, if present. Client-
+  // side only (window.location, not useSearchParams) so this page doesn't
+  // need a Suspense boundary just for this one optional feature.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shared = params.get("s");
+    if (!shared) return;
+    const decoded = decodeShareData(shared);
+    if (decoded) {
+      setResult(decoded);
+      setIsSharedView(true);
+      setGradeAnimating(false);
+    } else {
+      setError("This shared link has expired or is invalid — run a new scan below.");
+    }
   }, []);
 
   const runScan = useCallback(async (repoUrl: string) => {
@@ -218,61 +346,70 @@ export default function PlaygroundPage() {
     setResult(null);
     setError("");
     setLines([]);
+    setLiveModules([]);
+    setLockedModules([]);
+    setTotalModules(0);
+    setIsSharedView(false);
+    setShareCopied(false);
     setGradeAnimating(true);
     lineId.current = 0;
 
     abortRef.current = new AbortController();
 
-    // Start animated terminal
     const repoLabel = cleanUrl.replace("https://github.com/", "");
     addLine("info", `GATETEST — Quick Scan`);
     addLine("info", `Target: ${repoLabel}`);
-    addLine("info", `Suite: quick (4 modules)`);
     addLine("info", "─────────────────────────────────");
 
-    // Animate module start lines
-    const moduleDelays = [600, 1200, 1900, 2700];
-    QUICK_MODULES.forEach((mod, i) => {
-      setTimeout(() => addLine("run", `${MODULE_LABELS[mod] || mod}…`), moduleDelays[i]);
-    });
-
-    // Fire the actual API call
+    let lockedDelay = 0;
     try {
-      const res = await fetch("/api/playground/scan", {
+      const res = await fetch("/api/playground/scan/stream", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
         body: JSON.stringify({ repo_url: cleanUrl }),
         signal: abortRef.current.signal,
       });
-      const data: ScanResult = await res.json();
-
-      if (!res.ok || data.error) {
-        addLine("error", data.error || "Scan failed");
-        setError(data.error || "Scan failed — check the repo URL and try again");
-        setScanning(false);
-        return;
+      if (!res.ok) {
+        let msg = `Scan failed (HTTP ${res.status})`;
+        try { const j = await res.json(); msg = j?.error || msg; } catch { /* ignore */ }
+        throw new Error(msg);
       }
 
-      // Replace animated lines with real results
-      addLine("info", "─────────────────────────────────");
-      for (const mod of data.modules) {
-        if (mod.status === "passed") {
-          addLine("pass", `${MODULE_LABELS[mod.name] || mod.name} — ${mod.checks} checks passed`);
-        } else if (mod.status === "failed") {
-          addLine("fail", `${MODULE_LABELS[mod.name] || mod.name} — ${mod.issues} issue${mod.issues !== 1 ? "s" : ""} found`);
-        } else {
-          addLine("info", `${MODULE_LABELS[mod.name] || mod.name} — skipped`);
+      let completed: ScanResult | null = null;
+      await consumeSseStream(res, (event, data) => {
+        if (event === "start") {
+          const d = data as { totalModules: number; freeModules: number };
+          setTotalModules(d.totalModules);
+          addLine("info", `Suite: quick (${d.freeModules} free of ${d.totalModules} total modules)`);
+          addLine("info", "─────────────────────────────────");
+        } else if (event === "module:end") {
+          const d = data as ModuleResult;
+          setLiveModules((prev) => [...prev, d]);
+          if (d.status === "passed") addLine("pass", `${MODULE_LABELS[d.name] || d.name} — ${d.checks} checks passed`);
+          else if (d.status === "failed") addLine("fail", `${MODULE_LABELS[d.name] || d.name} — ${d.issues} issue${d.issues !== 1 ? "s" : ""} found`);
+          else addLine("info", `${MODULE_LABELS[d.name] || d.name} — skipped`);
+        } else if (event === "module:locked") {
+          const d = data as LockedModule;
+          lockedDelay += 6;
+          setLockedModules((prev) => [...prev, d]);
+        } else if (event === "complete") {
+          completed = data as ScanResult;
+          addLine("info", "─────────────────────────────────");
+          addLine("done", `Scan complete — ${completed.totalIssues} issue${completed.totalIssues !== 1 ? "s" : ""} · ${(completed.duration / 1000).toFixed(1)}s · Grade ${completed.grade}`);
+        } else if (event === "error") {
+          const d = data as { error?: string };
+          throw new Error(d?.error || "Scan errored mid-stream");
         }
-      }
-      addLine("info", "─────────────────────────────────");
-      addLine("done", `Scan complete — ${data.totalIssues} issue${data.totalIssues !== 1 ? "s" : ""} · ${(data.duration / 1000).toFixed(1)}s · Grade ${data.grade}`);
+      }, abortRef.current.signal);
 
-      setResult(data);
+      if (!completed) throw new Error("Scan stream closed unexpectedly — please try again");
+      setResult(completed);
       setTimeout(() => setGradeAnimating(false), 200);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
-      addLine("error", "Network error — please try again");
-      setError("Network error — please try again");
+      const msg = err instanceof Error ? err.message : "Network error — please try again";
+      addLine("error", msg);
+      setError(msg);
     } finally {
       setScanning(false);
     }
@@ -282,6 +419,16 @@ export default function PlaygroundPage() {
     e.preventDefault();
     runScan(url);
   };
+
+  const handleShare = useCallback(() => {
+    if (!result) return;
+    const encoded = encodeShareData(result);
+    const shareUrl = `${window.location.origin}/playground?s=${encoded}`;
+    navigator.clipboard?.writeText(shareUrl).then(() => {
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    }).catch(() => {});
+  }, [result]);
 
   return (
     <div className="min-h-screen bg-[#050505] text-white">
@@ -309,8 +456,8 @@ export default function PlaygroundPage() {
             </span>
           </h1>
           <p className="text-lg text-white/50 max-w-xl mx-auto">
-            Paste a URL. Watch 4 battle-tested modules run in real time.
-            See exactly what a full 111-module Forensic scan would uncover.
+            Paste a URL. Watch {QUICK_MODULES.length} battle-tested modules run in real time —
+            and see the full {totalModuleCount()}-module catalogue light up alongside them.
           </p>
         </div>
 
@@ -368,6 +515,27 @@ export default function PlaygroundPage() {
           </div>
         </div>
 
+        {/* ── Shared-scan banner ── */}
+        {isSharedView && result && (
+          <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/[0.06] px-4 py-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-cyan-300">
+              Viewing a shared scan of <span className="font-mono">{result.repo_url.replace("https://github.com/", "")}</span>
+              {result.sharedAt && ` · shared ${Math.max(0, Math.round((Date.now() - result.sharedAt) / 3_600_000))}h ago`}
+            </p>
+            <button
+              onClick={() => { setIsSharedView(false); setResult(null); window.history.replaceState({}, "", "/playground"); }}
+              className="text-xs font-mono text-cyan-300/70 hover:text-cyan-300 shrink-0"
+            >
+              Run a new scan →
+            </button>
+          </div>
+        )}
+
+        {/* ── Progress bar — live during a streaming scan ── */}
+        {scanning && totalModules > 0 && (
+          <ProgressBar completed={liveModules.length + lockedModules.length} total={totalModules} />
+        )}
+
         {/* ── Terminal + Results ── */}
         {(scanning || lines.length > 0) && (
           <div className="space-y-6">
@@ -393,32 +561,81 @@ export default function PlaygroundPage() {
                       </span>
                     </div>
 
+                    {result.totalModules ? (
+                      <ProgressBar completed={result.modules.length} total={result.totalModules} />
+                    ) : null}
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {result.modules.map((mod, i) => (
-                        <ModuleCard key={mod.name} mod={mod} delay={i * 120} />
+                      {result.modules.map((mod) => (
+                        <ModuleCard key={mod.name} mod={mod} />
                       ))}
                     </div>
+
+                    {lockedModules.length > 0 && !isSharedView && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {lockedModules.map((mod) => (
+                          <LockedModuleChip key={mod.name} mod={mod} delay={0} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Top findings */}
+                {/* Top findings — severity colour-coded, with a Fix This PR CTA per finding */}
                 {result.topFindings.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="text-sm font-bold text-white/50 uppercase tracking-widest font-mono">
-                      Top Findings
-                    </h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-white/50 uppercase tracking-widest font-mono">
+                        Top Findings
+                      </h3>
+                      <button
+                        onClick={handleShare}
+                        className="text-xs font-mono text-white/40 hover:text-white/70 transition-colors flex items-center gap-1.5"
+                      >
+                        {shareCopied ? (
+                          <>✓ Link copied</>
+                        ) : (
+                          <>
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                              <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+                            </svg>
+                            Share results (link works for 48h)
+                          </>
+                        )}
+                      </button>
+                    </div>
                     <div className="space-y-2">
-                      {result.topFindings.slice(0, 5).map((f, i) => (
-                        <div
-                          key={i}
-                          className="rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 py-3 flex items-start gap-3"
-                        >
-                          <span className="text-red-400 text-xs font-bold mt-0.5 shrink-0 font-mono uppercase">
-                            {f.module}
-                          </span>
-                          <span className="text-sm text-white/70 break-all">{f.message}</span>
-                        </div>
-                      ))}
+                      {result.topFindings.slice(0, 8).map((f, i) => {
+                        const sev = severityOf(f.severity);
+                        const style = SEVERITY_STYLE[sev];
+                        return (
+                          <div
+                            key={i}
+                            className={`rounded-xl border ${style.border} ${style.bg} px-4 py-3 flex items-start gap-3`}
+                          >
+                            <span className={`shrink-0 mt-1 w-1.5 h-1.5 rounded-full ${style.dot}`} />
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-[10px] font-bold ${style.text} font-mono uppercase tracking-wider`}>
+                                  {style.label}
+                                </span>
+                                <span className="text-xs font-bold text-white/50 font-mono uppercase">{f.module}</span>
+                              </div>
+                              <p className="text-sm text-white/70 break-all">{f.message}</p>
+                            </div>
+                            {!isSharedView && (
+                              <Link
+                                href={`/checkout?tier=scan_fix&repo=${encodeURIComponent(result.repo_url)}&module=${encodeURIComponent(f.module)}`}
+                                className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border border-white/15 text-white/70 hover:border-emerald-500/50 hover:text-emerald-400 transition-all whitespace-nowrap"
+                                title="Unlock AI-generated fixes with the Scan + Fix tier"
+                              >
+                                Fix This PR →
+                              </Link>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -429,7 +646,7 @@ export default function PlaygroundPage() {
                     <p className="text-sm font-bold text-white/70">{result.upgradeNote}</p>
                     <p className="text-xs text-white/40">
                       The full scan adds N+1 queries, race conditions, money float bugs, TLS bypasses,
-                      secret rotation age, PR size enforcement, and 103 more battle-tested checks.
+                      secret rotation age, PR size enforcement, and {totalModuleCount() - QUICK_MODULES.length} more battle-tested checks.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-3">
