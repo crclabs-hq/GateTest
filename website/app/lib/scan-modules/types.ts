@@ -84,7 +84,7 @@ export const TIERS: Record<string, string[]> = {
   full: FULL_MODULES,
   /** $199 Scan + Fix — same scan depth as full; richer fix deliverables. */
   scan_fix: FULL_MODULES,
-  /** $399 Nuclear — same scan depth as full; adds diagnosis, correlation,
+  /** $399 Forensic — same scan depth as full; adds diagnosis, correlation,
    *  mutation, chaos, and executive summary in the fix/report path. */
   nuclear: FULL_MODULES,
   /** Synthetic tier used by the shadow-preview mechanic — runs full static

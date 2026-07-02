@@ -24,6 +24,39 @@ Broken code is rejected before it ships.
 
 ---
 
+## Deploy Gate — the LIVE-SITE counterpart (opt-in)
+
+`gatetest-gate.yml` above only ever sees checked-out CODE — it has no live
+URL to point a browser at. `gatetest-deploy-gate.yml` is the deploy-time
+counterpart: it fires on a GitHub `deployment_status` event (posted by
+Vercel/Netlify/anything using the GitHub Deployments API) once a deploy
+actually succeeds, points the `web` suite at the real deployed URL, and
+reports a GitHub deployment status back — which a branch-protection rule or
+promotion step can require before a preview goes to production.
+
+This orchestrates every module built for the Visual & Runtime Testing Spec
+in one gate: `visualRegression`, `interactiveElements`, `apiHealth`,
+`performanceBudget`, `mobileRendering`, `formTesting`, `consoleErrors`,
+`designSystemCompliance`, `crossBrowser`.
+
+Install it the same way as the code gate:
+
+```bash
+mkdir -p .github/workflows
+curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integrations/github-actions/gatetest-deploy-gate.yml \
+  -o .github/workflows/gatetest-deploy-gate.yml
+git add .github/workflows/gatetest-deploy-gate.yml
+git commit -m "chore: install GateTest deploy gate"
+git push
+```
+
+It is **opt-in** (not part of `install.sh`'s default three files) because it
+only does something useful for repos that deploy through a provider that
+posts `deployment_status` events. A `workflow_dispatch` input (`url`) is
+also provided for manually gating a staging URL that doesn't post one.
+
+---
+
 ## How to install into a new repo (60 seconds)
 
 From the root of the target repository:

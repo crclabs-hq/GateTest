@@ -521,3 +521,124 @@ function process(req) {
     assert.ok(errors.some(e => e.sink === 'exec'), 'should track taint through variable chain');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Parameterised-ORM safe-harbour (Drizzle / Prisma / Kysely / Postgres.js / ...)
+// — file imports a known-safe ORM ⇒ sql-query sinks downgrade error → warning
+// — `sql\`...\`` tagged-template sanitiser suppresses entirely
+// — non-SQL sinks (eval / exec / file-* / dom-inject) keep error severity
+// ---------------------------------------------------------------------------
+
+describe('CrossFileTaintModule — parameterised-ORM safe-harbour', () => {
+  it('downgrades sql-query sink to warning when drizzle-orm is imported', async () => {
+    const result = await run({
+      'route.js': `
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { db } from './db.js';
+export async function handler(req) {
+  const userId = req.body.userId;
+  return await db.execute(userId);
+}
+`,
+    });
+    const sqlErrors = result.errors().filter(c => c.sink === 'sql-query');
+    const sqlWarnings = result.warnings().filter(c => c.sink === 'sql-query');
+    assert.strictEqual(sqlErrors.length, 0, 'sql-query should NOT be error when drizzle-orm imported');
+    assert.ok(sqlWarnings.length >= 1, 'sql-query should still surface as warning');
+  });
+
+  it('downgrades sql-query sink when @prisma/client is imported', async () => {
+    const result = await run({
+      'route.js': `
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
+export async function handler(req) {
+  const id = req.body.id;
+  return await prisma.$queryRawUnsafe(id);
+}
+`,
+    });
+    const sqlErrors = result.errors().filter(c => c.sink === 'sql-query');
+    assert.strictEqual(sqlErrors.length, 0, '@prisma/client triggers safe-harbour');
+  });
+
+  it('suppresses entirely when sink line uses sql`...` tagged template', async () => {
+    const result = await run({
+      'route.js': `
+import { sql } from 'drizzle-orm';
+import { db } from './db.js';
+export async function handler(req) {
+  const userId = req.body.userId;
+  return await db.execute(sql\`SELECT * FROM users WHERE id = \${userId}\`);
+}
+`,
+    });
+    const sqlFindings = [...result.errors(), ...result.warnings()].filter(c => c.sink === 'sql-query');
+    assert.strictEqual(sqlFindings.length, 0, 'sql`...` tagged template should sanitise');
+  });
+
+  it('does NOT downgrade non-SQL sinks even when ORM is imported', async () => {
+    const result = await run({
+      'route.js': `
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { exec } from 'child_process';
+export async function handler(req) {
+  const cmd = req.body.cmd;
+  exec(cmd);
+}
+`,
+    });
+    const execErrors = result.errors().filter(c => c.sink === 'exec');
+    assert.ok(execErrors.length >= 1, 'exec sink stays at error severity');
+  });
+
+  it('files without ORM import still flag .query/.execute as error', async () => {
+    const result = await run({
+      'route.js': `
+const db = require('node-pg');
+export async function handler(req) {
+  const userId = req.body.userId;
+  return await db.query('SELECT * FROM users WHERE id = ' + userId);
+}
+`,
+    });
+    const sqlErrors = result.errors().filter(c => c.sink === 'sql-query');
+    assert.ok(sqlErrors.length >= 1, 'no ORM import = no safe-harbour, error stays');
+  });
+
+  it('kysely import triggers safe-harbour', async () => {
+    const result = await run({
+      'route.js': `
+import { Kysely } from 'kysely';
+export async function handler(db, req) {
+  const id = req.body.id;
+  return await db.executeQuery(id);
+}
+`,
+    });
+    const sqlErrors = result.errors().filter(c => c.sink === 'sql-query');
+    assert.strictEqual(sqlErrors.length, 0, 'kysely triggers safe-harbour');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sanitiser comment-stripping — a `// uses sql\`...\`` comment shouldn't
+// falsely suppress a real injection finding.
+// ---------------------------------------------------------------------------
+
+describe('CrossFileTaintModule — sanitiser ignores comment content', () => {
+  it('does NOT suppress when only a comment contains the sanitiser pattern', async () => {
+    const result = await run({
+      'route.js': `
+const db = require('pg').Pool;
+export async function handler(req) {
+  const id = req.body.id;
+  // we used to use sql\`...\` template literal here but switched to raw
+  return await db.query('SELECT * FROM users WHERE id = ' + id);
+}
+`,
+    });
+    const sqlErrors = result.errors().filter(c => c.sink === 'sql-query');
+    assert.ok(sqlErrors.length >= 1, 'comment mentioning sql`` should not sanitise');
+  });
+});

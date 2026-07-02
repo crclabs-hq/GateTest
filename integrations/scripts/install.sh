@@ -5,7 +5,7 @@
 # Drops the full GateTest quality gate into a target repository.
 # Run this from the ROOT of the repo you want to protect.
 #
-#   curl -sSL https://raw.githubusercontent.com/ccantynz-alt/gatetest/main/integrations/scripts/install.sh | bash
+#   curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integrations/scripts/install.sh | bash
 #
 # Or, locally:
 #   bash /path/to/gatetest/integrations/scripts/install.sh
@@ -19,8 +19,8 @@
 # ============================================================================
 set -euo pipefail
 
-GATETEST_REPO="${GATETEST_REPO:-https://github.com/ccantynz-alt/gatetest.git}"
-GATETEST_RAW="${GATETEST_RAW:-https://raw.githubusercontent.com/ccantynz-alt/gatetest/main}"
+GATETEST_REPO="${GATETEST_REPO:-https://github.com/crclabs-hq/gatetest.git}"
+GATETEST_RAW="${GATETEST_RAW:-https://raw.githubusercontent.com/crclabs-hq/gatetest/main}"
 TARGET="${TARGET:-$(pwd)}"
 
 if [ ! -d "$TARGET/.git" ]; then
@@ -43,16 +43,41 @@ curl -sSL "$GATETEST_RAW/integrations/husky/pre-push" \
 chmod +x "$TARGET/.husky/pre-push"
 echo "  ✓ .husky/pre-push (executable)"
 
-# 3. Protection marker — tells any future Claude session this repo is protected
-cat > "$TARGET/.gatetest.json" <<'JSON'
+# 3. Protection marker — tells any future Claude session this repo is protected.
+#    Admin repos (crclabs-hq org) get "owner" + "admin": true so the gate
+#    detects them automatically and runs in admin mode (strict enforcement,
+#    auto-fix, no advisory labels). All other repos default to advisory mode.
+REMOTE_URL="$(git -C "$TARGET" remote get-url origin 2>/dev/null || echo '')"
+IS_ADMIN_REPO=false
+if echo "$REMOTE_URL" | grep -qi "github.com[:/]crclabs-hq/"; then
+  IS_ADMIN_REPO=true
+fi
+
+if [ "$IS_ADMIN_REPO" = "true" ]; then
+  cat > "$TARGET/.gatetest.json" <<'JSON'
 {
+  "owner": "crclabs-hq",
+  "admin": true,
   "protected": true,
-  "gatetest_source": "https://github.com/ccantynz-alt/gatetest",
+  "gatetest_source": "https://github.com/crclabs-hq/gatetest",
   "do_not_remove": "This repo is protected by GateTest. See .github/workflows/gatetest-gate.yml and .husky/pre-push. Removing either breaks the quality gate. Requires Craig authorization.",
-  "integration_version": 1
+  "integration_version": 2,
+  "mode": "admin"
 }
 JSON
-echo "  ✓ .gatetest.json (protection marker)"
+  echo "  ✓ .gatetest.json (mode: admin — crclabs-hq repo detected, strict enforcement + auto-fix)"
+else
+  cat > "$TARGET/.gatetest.json" <<'JSON'
+{
+  "protected": true,
+  "gatetest_source": "https://github.com/crclabs-hq/gatetest",
+  "do_not_remove": "This repo is protected by GateTest. See .github/workflows/gatetest-gate.yml and .husky/pre-push. Removing either breaks the quality gate. Requires Craig authorization.",
+  "integration_version": 2,
+  "mode": "advisory"
+}
+JSON
+  echo "  ✓ .gatetest.json (mode: advisory — flip to \"strict\" when ready)"
+fi
 
 echo
 echo "[GateTest] ✓ Installation complete."
@@ -63,6 +88,23 @@ echo "  2. Commit:         git add .github .husky .gatetest.json && git commit -
 echo "  3. Push:           git push"
 echo
 echo "On the next push or PR, GateTest will run the full quality gate."
+echo
+if [ "$IS_ADMIN_REPO" = "true" ]; then
+  echo "GATE MODE: ADMIN (crclabs-hq repo — auto-detected)"
+  echo "  • Strict enforcement: errors turn the check red."
+  echo "  • Auto-fix is ON: GateTest applies safe fixes before reporting."
+  echo "  • No advisory-mode labels — just clean ✅ / ❌ in the PR checks tab."
+  echo
+  echo "  To give ALL repos under an org admin access without per-repo setup:"
+  echo "    GitHub → Settings → Secrets and variables → Actions → Variables"
+  echo "    → New org variable → GATETEST_ADMIN_ORGS → \"crclabs-hq,vapron-ai\""
+else
+  echo "GATE MODE: ADVISORY (soft-landing default)"
+  echo "  • Findings are reported in the PR comment but the check stays GREEN."
+  echo "  • A mature codebase can adopt GateTest without spamming every PR red."
+  echo "  • When you're ready for the gate to block on error-severity findings:"
+  echo "      edit .gatetest.json → set \"mode\": \"strict\""
+fi
 echo
 echo "AUTO-REPAIR is ON BY DEFAULT when ANTHROPIC_API_KEY is available:"
 echo "  • Failing runs automatically open a 'gatetest/auto-repair-<run-id>'"

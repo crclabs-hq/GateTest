@@ -46,6 +46,30 @@ inputs:
     description: 'When true, warning-severity findings also block the gate (default is errors-only).'
     required: false
     default: 'false'
+  track-non-fixable:
+    description: 'Open a GitHub Issue per error-severity finding the auto-fixer could not resolve. Idempotent — re-scans never duplicate. Default off.'
+    required: false
+    default: 'false'
+  threshold:
+    description: 'Minimum acceptable letter grade (A/B/C/D) computed from the scan (same A-F scale as gatetest.ai/playground). When set, the gate ALSO fails if the computed grade is below this — on top of, not instead of, the `block`/`fail-on-warning` error-count gate. Default empty = grade never gates on its own.'
+    required: false
+    default: ''
+  summary-comment:
+    description: 'Post (and keep updated across re-runs) one PR comment with the grade, error/warning counts, and top findings. Default true on pull_request events.'
+    required: false
+    default: 'true'
+  block:
+    description: 'When true, the gate FAILS the workflow on any confident error finding. Default FALSE — fresh installs report findings as a PR comment but never block CI, so pre-existing rot in a mature codebase does not stop deploys on day 1. Flip to `true` once the team has triaged the baseline and wants the gate to actually enforce.'
+    required: false
+    default: 'false'
+  share-learnings:
+    description: 'OPT-IN: sync successful fix recipes (anonymised — no paths, no repo names, no source code outside the 2KB before/after snippet) to gatetest.ai so every other customer benefits from this fix. Default off. See https://gatetest.ai/trust for what is and is not shared.'
+    required: false
+    default: 'false'
+  recipe-store-url:
+    description: 'HTTP endpoint to sync fix recipes to. Defaults to https://gatetest.ai/api/recipes when share-learnings is true. Set to your own URL for a private recipe store (the Action will sync there instead).'
+    required: false
+    default: ''
   mutation:
     description: 'Run mutation testing after the gate (Nuclear tier or opt-in). Requires the customer test suite to run.'
     required: false
@@ -80,6 +104,12 @@ outputs:
   report-path:
     description: 'Filesystem path to the generated report (empty when report-format is "console").'
     value: ${{ steps.gate.outputs.report-path }}
+  grade:
+    description: 'Letter grade (A/B/C/D/F) computed from the scan — same A-F scale as gatetest.ai/playground. Empty when no JSON report was produced.'
+    value: ${{ steps.grade.outputs.grade }}
+  score:
+    description: 'Numeric 0-100 score the grade above is derived from.'
+    value: ${{ steps.grade.outputs.score }}
 
 runs:
   using: 'composite'
@@ -148,9 +178,20 @@ runs:
             ;;
         esac
 
+        # Report-only mode controls whether the workflow exits non-zero
+        # on a blocking finding. The default for the action input
+        # `block` is FALSE — fresh installs report but never block.
+        # Customers flip `block: true` once they trust the findings.
+        BLOCK_FLAG=""
+        if [ "${{ inputs.block }}" = "true" ]; then
+          BLOCK_FLAG="--strict"
+        else
+          BLOCK_FLAG="--report-only"
+        fi
+
         # Run the gate, capture stdout for parsing.
         set +e
-        OUTPUT=$(${GATETEST_BIN} --suite "${{ inputs.suite }}" $EXTRA_FLAGS --project "$(pwd)" 2>&1)
+        OUTPUT=$(${GATETEST_BIN} --suite "${{ inputs.suite }}" $EXTRA_FLAGS $BLOCK_FLAG --project "$(pwd)" 2>&1)
         EXIT_CODE=$?
         set -e
         echo "$OUTPUT"
@@ -190,6 +231,68 @@ runs:
         exit 0
 
     # ----------------------------------------------------------------------
+    # 3b. Compute a letter grade (A-F) from the JSON report the gate step
+    # above always produces (json is in GateTest's DEFAULT_CONFIG.reporting
+    # .formats regardless of the report-format input — --json/--sarif/
+    # --junit ADD a format, they don't replace it). Same formula as
+    # gatetest.ai/playground (website/api/playground/scan/route.ts
+    # computeHealthScore) so a grade means the same thing in CI as it does
+    # on the website. Runs on every event type (not just pull_request) so
+    # `threshold` gating works on push-triggered runs too.
+    # ----------------------------------------------------------------------
+    - name: Compute grade
+      id: grade
+      if: always()
+      shell: bash
+      run: |
+        set -uo pipefail
+        cd "${{ inputs.working-directory }}"
+        SCRIPT="$GATETEST_HOME/scripts/post-scan-summary-comment.js"
+        if [ -z "${GATETEST_HOME:-}" ] || [ ! -f "$SCRIPT" ]; then
+          echo "grade=" >> "$GITHUB_OUTPUT"
+          echo "score=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        RESULT=$(node -e "
+          const { computeGrade } = require(process.argv[1]);
+          const fs = require('fs');
+          const path = '.gatetest/reports/gatetest-report-latest.json';
+          if (!fs.existsSync(path)) { console.log(''); process.exit(0); }
+          const report = JSON.parse(fs.readFileSync(path, 'utf-8'));
+          const g = computeGrade(report);
+          console.log(g.grade + ' ' + g.score);
+        " "$SCRIPT" 2>/dev/null || echo "")
+        GRADE=$(echo "$RESULT" | awk '{print $1}')
+        SCORE=$(echo "$RESULT" | awk '{print $2}')
+        echo "grade=$GRADE" >> "$GITHUB_OUTPUT"
+        echo "score=$SCORE" >> "$GITHUB_OUTPUT"
+        if [ -n "$GRADE" ]; then
+          echo "::notice title=GateTest grade::$GRADE ($SCORE/100)"
+        fi
+
+    # ----------------------------------------------------------------------
+    # 3c. Post/update ONE PR comment with the grade + top findings —
+    # idempotent (post-scan-summary-comment.js finds and PATCHes its own
+    # prior comment rather than spamming a new one per re-run). Only runs
+    # on pull_request(_target) events; no-ops safely otherwise. Failures
+    # are non-fatal — this is informational, the gate's exit code is the
+    # real enforcement.
+    # ----------------------------------------------------------------------
+    - name: Post scan summary PR comment
+      if: ${{ always() && inputs.summary-comment == 'true' && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+      run: |
+        set -uo pipefail
+        cd "${{ inputs.working-directory }}"
+        if [ -z "${GATETEST_HOME:-}" ]; then
+          exit 0
+        fi
+        node "$GATETEST_HOME/scripts/post-scan-summary-comment.js" || true
+        exit 0
+
+    # ----------------------------------------------------------------------
     # 4. Optional AI auto-repair. Runs ONLY when the gate is blocked,
     # auto-fix is on, and ANTHROPIC_API_KEY is exposed to the action.
     # ----------------------------------------------------------------------
@@ -199,6 +302,13 @@ runs:
       env:
         ANTHROPIC_API_KEY: ${{ env.ANTHROPIC_API_KEY }}
         GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+        # Memory-as-a-Service opt-in. When share-learnings is on, point the
+        # local recipe store at gatetest.ai/api/recipes (or the customer's
+        # own URL if they supplied one). The remote-store glue
+        # (website/app/lib/recipe-store-remote.js) reads this env var and
+        # syncs successful fixes there. Off by default — strictly opt-in.
+        # See https://gatetest.ai/trust for the privacy guarantees.
+        GATETEST_RECIPE_STORE_URL: ${{ inputs.share-learnings == 'true' && (inputs.recipe-store-url != '' && inputs.recipe-store-url || 'https://gatetest.ai/api/recipes') || '' }}
       run: |
         set -uo pipefail
         if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
@@ -218,6 +328,71 @@ runs:
         if [ "$FIX_EXIT" -ne 0 ]; then
           echo "::warning title=GateTest auto-repair exited non-zero::See log above. The gate verdict still stands."
         fi
+        exit 0
+
+    # ----------------------------------------------------------------------
+    # 4b. Post inline `suggestion` review comments on the source PR.
+    # Runs ONLY after auto-repair, ONLY when triggered from a pull_request
+    # event, and ONLY when the fix engine produced patches. Reads the
+    # snapshot at `.gatetest/fix-patches.json` written by applyPatches.
+    #
+    # GitHub renders ```suggestion``` blocks with a one-click "Commit
+    # suggestion" button. Reviewers apply fixes WITHOUT leaving the GitHub
+    # UI — no checkout, no rebase, no separate PR review cycle. This is
+    # the headline product surface for the launch.
+    #
+    # Failures are non-blocking. The consolidated auto-repair PR opens
+    # regardless; inline suggestions are an additive surface.
+    # ----------------------------------------------------------------------
+    - name: Post inline suggestion blocks on source PR
+      if: ${{ steps.gate.outputs.gate-status == 'blocked' && inputs.auto-fix == 'true' && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+      run: |
+        set -uo pipefail
+        if [ -z "${GATETEST_HOME:-}" ]; then
+          # npm-install branch — script not on disk. Inline suggestions
+          # only ship on the source-clone install path until @gatetest/cli
+          # is published. Quiet skip — auto-repair PR still ships.
+          exit 0
+        fi
+        cd "${{ inputs.working-directory }}"
+        # Non-blocking: the script ALWAYS exits 0. We just log.
+        node "$GATETEST_HOME/scripts/post-suggestions-from-snapshot.js" || true
+        exit 0
+
+    # ----------------------------------------------------------------------
+    # 4c. Track non-fixable findings as GitHub Issues. Opt-in via
+    # `track-non-fixable: true`. Runs whenever the gate has produced a
+    # JSON report (gate passed OR blocked — every error-severity finding
+    # gets surfaced), gated on a GITHUB_TOKEN being present and the
+    # source-clone install path (npm install of @gatetest/cli ships the
+    # CLI binary but not the tracking script).
+    #
+    # Idempotency: every issue carries a signature marker derived from
+    # (module, file, line, check) — re-scans match the marker and SKIP
+    # opening a duplicate. Auto-close is V2 (the issue stays open until
+    # the customer closes it manually).
+    #
+    # Failures are non-blocking — workflow proceeds regardless of any
+    # issue-creation error.
+    # ----------------------------------------------------------------------
+    - name: Track non-fixable findings as GitHub Issues
+      if: ${{ inputs.track-non-fixable == 'true' && (always() || steps.gate.outputs.gate-status == 'blocked') }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+      run: |
+        set -uo pipefail
+        if [ -z "${GATETEST_HOME:-}" ]; then
+          # npm-install branch — script not on disk. Quiet skip; the
+          # consolidated PR / inline suggestions still cover the
+          # auto-fixable surface.
+          exit 0
+        fi
+        cd "${{ inputs.working-directory }}"
+        node "$GATETEST_HOME/scripts/track-non-fixable.js" || true
         exit 0
 
     # ----------------------------------------------------------------------
@@ -290,8 +465,33 @@ runs:
     - name: Enforce gate verdict
       shell: bash
       run: |
+        FAIL=0
+
         if [ "${{ steps.gate.outputs.gate-status }}" = "blocked" ]; then
           echo "GateTest gate blocked: ${{ steps.gate.outputs.error-count }} error(s), ${{ steps.gate.outputs.warning-count }} warning(s)."
+          FAIL=1
+        else
+          echo "GateTest gate passed: ${{ steps.gate.outputs.error-count }} error(s), ${{ steps.gate.outputs.warning-count }} warning(s)."
+        fi
+
+        # Grade-based gate — ADDITIONAL to, never a replacement for, the
+        # error/warning-count gate above. Only evaluated when `threshold`
+        # is explicitly set (default empty = off) AND a grade was
+        # actually computed (empty GRADE means no JSON report — nothing
+        # to compare, never fail on missing data).
+        THRESHOLD="${{ inputs.threshold }}"
+        GRADE="${{ steps.grade.outputs.grade }}"
+        if [ -n "$THRESHOLD" ] && [ -n "$GRADE" ]; then
+          # A < B < C < D < F alphabetically — exactly the grade ordering,
+          # so plain string comparison works with no rank table.
+          if [[ "$GRADE" > "$THRESHOLD" ]]; then
+            echo "GateTest grade $GRADE is below threshold $THRESHOLD (score ${{ steps.grade.outputs.score }}/100)."
+            FAIL=1
+          else
+            echo "GateTest grade $GRADE meets threshold $THRESHOLD (score ${{ steps.grade.outputs.score }}/100)."
+          fi
+        fi
+
+        if [ "$FAIL" -eq 1 ]; then
           exit 1
         fi
-        echo "GateTest gate passed: ${{ steps.gate.outputs.error-count }} error(s), ${{ steps.gate.outputs.warning-count }} warning(s)."

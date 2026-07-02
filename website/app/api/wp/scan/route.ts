@@ -21,6 +21,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { resolveFullReportAccess } from "@/app/lib/full-report-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,6 +30,7 @@ export const maxDuration = 60; // WP scans are HTTP-probe-bound; 60s is plenty
 interface WpScanRequest {
   url?: string;
   fullReport?: boolean; // true once payment captured; defaults to preview
+  sessionId?: string;
 }
 
 interface WpFinding {
@@ -211,21 +213,24 @@ export async function POST(req: NextRequest) {
   // landing page's <form action="/api/wp/scan" method="POST">).
   let url: string | undefined;
   let fullReport = false;
+  let body: WpScanRequest = {};
 
   const contentType = req.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
-    let body: WpScanRequest;
     try {
       body = await req.json();
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
     url = body.url;
-    fullReport = Boolean(body.fullReport);
   } else {
     const form = await req.formData();
     url = String(form.get("url") || "");
   }
+
+  // Server-side authority on fullReport — NEVER trust body.fullReport.
+  // See full-report-auth.ts.
+  fullReport = await resolveFullReportAccess(req, body);
 
   const parsed = parseUrl(url || "");
   if (!parsed) {
@@ -252,8 +257,22 @@ export async function POST(req: NextRequest) {
   // to enumerate all possible targets at build time and crashes. The
   // comment tells Turbopack to skip tracing through this boundary;
   // Node-at-runtime resolves normally.
+  //
+  // Resolved via engine-entry-resolver.js, NOT a hardcoded relative path —
+  // a relative require here resolves against the BUNDLED chunk's location,
+  // not this source file's, so a fixed `../../../../../src/index.js`
+  // 404s everywhere (confirmed live 2026-07-01: gatetest.ai/api/wp/scan
+  // 500'd on every request). outputFileTracingIncludes in next.config.ts
+  // is what makes src/** actually present in the deployed bundle.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { GateTest } = require(/* turbopackIgnore: true */ "../../../../../src/index.js") as {
+  const pathMod = require("path") as typeof import("path");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { resolveEngineEntry } = require("@/app/lib/engine-entry-resolver.js") as {
+    resolveEngineEntry: () => string;
+  };
+  const engineEntry = resolveEngineEntry();
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { GateTest } = require(/* turbopackIgnore: true */ engineEntry) as {
     GateTest: new (root: string, opts?: Record<string, unknown>) => {
       init: () => { runSuite: (name: string) => Promise<unknown> };
       registry: { list: () => string[] };
@@ -265,8 +284,6 @@ export async function POST(req: NextRequest) {
   const fs = require("fs") as typeof import("fs");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const os = require("os") as typeof import("os");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pathMod = require("path") as typeof import("path");
 
   const workspace = fs.mkdtempSync(pathMod.join(os.tmpdir(), "wp-scan-"));
   const startTime = Date.now();

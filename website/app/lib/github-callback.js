@@ -36,13 +36,29 @@ function resolveGitHubToken(env) {
 
 /**
  * Map a scan result to a GitHub commit-status state.
+ *
+ * Mode handling (Option A — advisory by default, opt-in to strict):
+ *   - 'advisory' (default): findings DO NOT turn the check red. Customer
+ *     sees the count + advisory note. Their gate stays green so a mature
+ *     codebase can install GateTest without spamming every PR red on
+ *     install day. This matches the workflow's `--report-only` default.
+ *     Customer flips `.gatetest.json` `mode` to `strict` when ready.
+ *   - 'strict': any error-severity finding → failure check, branch
+ *     protection rules block the merge. The traditional gate behaviour.
+ *
+ * Scan-execution failures (scan errored, never completed, etc.) always
+ * return 'error' regardless of mode — that's a GateTest problem, not a
+ * customer-code finding, and the customer needs to know about it.
+ *
  * @param {object} scanResult
+ * @param {'advisory'|'strict'} [mode='advisory']
  * @returns {'success'|'failure'|'error'}
  */
-function toCommitState(scanResult) {
+function toCommitState(scanResult, mode = 'advisory') {
   if (!scanResult || scanResult.error) return 'error';
   if (scanResult.status !== 'complete') return 'error';
-  // Any error-severity issue → failure; warnings alone → success.
+  if (mode !== 'strict' && mode !== 'admin') return 'success';
+  // strict/admin mode — any error-severity issue → failure; warnings alone → success.
   const modules = Array.isArray(scanResult.modules) ? scanResult.modules : [];
   const hasErrors = modules.some((m) => {
     const checks = Array.isArray(m.checks) ? m.checks : [];
@@ -54,19 +70,74 @@ function toCommitState(scanResult) {
 /**
  * Build the short status description (max 140 chars).
  * @param {object} scanResult
+ * @param {'advisory'|'strict'} [mode='advisory']
  * @returns {string}
  */
-function buildDescription(scanResult) {
+function buildDescription(scanResult, mode = 'advisory') {
   if (!scanResult || scanResult.error) {
     return String(scanResult && scanResult.error ? scanResult.error : 'Scan failed').slice(0, 140);
   }
   const totalIssues = typeof scanResult.totalIssues === 'number' ? scanResult.totalIssues : 0;
   const modules = Array.isArray(scanResult.modules) ? scanResult.modules : [];
   const moduleCount = modules.length;
+  const suffix = (mode === 'strict' || mode === 'admin') ? '' : ' · advisory mode';
   if (totalIssues === 0) {
-    return `All ${moduleCount} module${moduleCount === 1 ? '' : 's'} passed — 0 issues found`;
+    return `All ${moduleCount} module${moduleCount === 1 ? '' : 's'} passed — 0 issues found${suffix}`.slice(0, 140);
   }
-  return `${totalIssues} issue${totalIssues === 1 ? '' : 's'} found across ${moduleCount} module${moduleCount === 1 ? '' : 's'}`.slice(0, 140);
+  return `${totalIssues} issue${totalIssues === 1 ? '' : 's'} found across ${moduleCount} module${moduleCount === 1 ? '' : 's'}${suffix}`.slice(0, 140);
+}
+
+/**
+ * Fetch `.gatetest.json` from the repo's default branch to read the
+ * customer-configured mode. Fail-open: missing file, parse error, or
+ * API error all return 'advisory' (the soft-landing default).
+ *
+ * Admin detection (three signals, any one is sufficient — mirrors the
+ * pre-push hook logic in integrations/husky/pre-push):
+ *   1. GATETEST_ADMIN_ORGS env var — comma-separated list of GitHub
+ *      org/user names that own Craig's platforms (e.g. "vapron-ai,
+ *      Gate-Test,ccantynz-alt"). Checked before any API call.
+ *   2. .gatetest.json has "admin": true
+ *   3. .gatetest.json has "owner": "crclabs-hq"
+ *
+ * Admin repos get 'admin' mode: the gate runs strict (errors → failure)
+ * but without any advisory-mode messaging or upgrade prompts.
+ *
+ * @param {string} owner
+ * @param {string} repo
+ * @param {string} token
+ * @param {typeof fetch} [fetchImpl]
+ * @param {Record<string, string|undefined>} [env]
+ * @returns {Promise<'advisory'|'strict'|'admin'>}
+ */
+async function fetchRepoMode(owner, repo, token, fetchImpl = fetch, env = process.env) {
+  // Signal 1: env-var allowlist — no API call needed for known admin orgs.
+  const adminOrgs = String((env && env.GATETEST_ADMIN_ORGS) || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (adminOrgs.includes(owner)) return 'admin';
+
+  try {
+    const res = await fetchImpl(
+      `${GITHUB_API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/.gatetest.json`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'User-Agent': USER_AGENT,
+        },
+      },
+    );
+    if (!res.ok) return 'advisory';
+    const payload = await res.json();
+    if (!payload || typeof payload.content !== 'string') return 'advisory';
+    const raw = Buffer.from(payload.content, payload.encoding || 'base64').toString('utf-8');
+    const cfg = JSON.parse(raw);
+    if (!cfg) return 'advisory';
+    // Signals 2 & 3: .gatetest.json admin fields (mirrors pre-push hook)
+    if (cfg.admin === true || cfg.owner === 'crclabs-hq') return 'admin';
+    return cfg.mode === 'strict' ? 'strict' : 'advisory';
+  } catch {
+    return 'advisory';
+  }
 }
 
 /**
@@ -106,13 +177,23 @@ function linkifyFinding(detail, owner, repo, sha) {
  * @param {string|null} [targetUrl]
  * @returns {string}
  */
-function buildMarkdownComment(repository, sha, scanResult, targetUrl) {
+function buildMarkdownComment(repository, sha, scanResult, targetUrl, mode = 'advisory') {
   const ownerRepoParts = String(repository || '').split('/');
   const owner = ownerRepoParts[0] || '';
   const repoName = ownerRepoParts[1] || '';
-  const state = toCommitState(scanResult);
-  const icon = state === 'success' ? '✅' : state === 'failure' ? '❌' : '⚠️';
-  const headline = state === 'success' ? 'All checks passed' : state === 'failure' ? 'Issues found' : 'Scan error';
+  const state = toCommitState(scanResult, mode);
+  const totalIssues = typeof (scanResult && scanResult.totalIssues) === 'number' ? scanResult.totalIssues : 0;
+  // Advisory mode with findings: surface them in the comment body, but
+  // ICON stays neutral and headline calls it out as advisory.
+  const advisoryWithFindings = mode === 'advisory' && totalIssues > 0 && state === 'success';
+  const icon = state === 'error' ? '⚠️' : advisoryWithFindings ? '🟡' : state === 'failure' ? '❌' : '✅';
+  const headline = state === 'error'
+    ? 'Scan error'
+    : advisoryWithFindings
+      ? `${totalIssues} finding${totalIssues === 1 ? '' : 's'} (advisory)`
+      : state === 'failure'
+        ? 'Issues found'
+        : 'All checks passed';
   const shortSha = sha ? sha.slice(0, 7) : '???????';
 
   const lines = [
@@ -182,7 +263,22 @@ function buildMarkdownComment(repository, sha, scanResult, targetUrl) {
   // who already set ANTHROPIC_API_KEY have nothing to do — their auto-fix
   // job runs server-side and posts its own annotation; the website-side
   // callback can't see that state, so we keep the CTA short and honest.
-  if (toCommitState(scanResult) === 'failure' && !scanResult?.autoFixPrUrl) {
+  if (mode === 'advisory' && totalIssues > 0) {
+    lines.push('');
+    lines.push('<details><summary>Why is this not red?</summary>');
+    lines.push('');
+    lines.push('GateTest is in **advisory mode** for this repo (the soft-landing default for fresh installs). Findings are reported but the check stays green so a mature codebase can adopt the gate without spamming every PR on day one.');
+    lines.push('');
+    lines.push('When you\'re ready for the gate to block on error-severity findings, edit `.gatetest.json`:');
+    lines.push('');
+    lines.push('```json');
+    lines.push('{ "mode": "strict" }');
+    lines.push('```');
+    lines.push('');
+    lines.push('</details>');
+  }
+
+  if (toCommitState(scanResult, mode) === 'failure' && !scanResult?.autoFixPrUrl) {
     lines.push('');
     lines.push('<details><summary>Want these fixed automatically?</summary>');
     lines.push('');
@@ -201,6 +297,11 @@ function buildMarkdownComment(repository, sha, scanResult, targetUrl) {
   lines.push('');
   lines.push('---');
   lines.push('*Posted by [GateTest](https://gatetest.ai) — unified code quality*');
+  // Idempotency marker — postPrComment looks for this string to find a
+  // prior bot comment and PATCH it in place instead of stacking duplicates
+  // on every push (Known Issue #23). Hidden HTML comment, customer-invisible.
+  lines.push('');
+  lines.push(GATETEST_PR_COMMENT_MARKER);
 
   return lines.join('\n');
 }
@@ -240,11 +341,79 @@ async function postCommitStatus({ owner, repo, sha, state, description, targetUr
   }
 }
 
+// Signature marker placed in every GateTest PR comment. Used to find a
+// prior comment via list-then-PATCH so busy PRs don't accumulate
+// duplicate bot comments on every push (Known Issue #23). Mirrors
+// src/core/host-bridge.js GATETEST_PR_COMMENT_MARKER — duplicated here
+// because the website worker doesn't import src/* (lives in a different
+// runtime). Keep in sync if either side changes.
+const GATETEST_PR_COMMENT_MARKER = '<!-- gatetest-bot:gate-summary:v1 -->';
+
 /**
  * POST a PR comment to GitHub.
- * @returns {Promise<{ok: boolean, status?: number, reason?: string}>}
+ *
+ * Idempotency (Manifest #20 / Known Issue #23): if `idempotencyTag` is
+ * supplied, the function first lists existing PR comments and looks for
+ * a marker `<!-- gatetest-tag:<tag> -->` in the body. If found, that
+ * comment is PATCHed in place instead of a new comment being POSTed.
+ * Without the tag, falls back to the original POST-only behaviour for
+ * backward compat with callers that haven't opted in yet.
+ *
+ * Why: HN users repeatedly cite "noisy PRs full of identical bot
+ * comments" as the #1 reason they uninstall a GitHub App. One comment
+ * per scan-shape per PR — the customer always sees the latest result.
+ *
+ * @returns {Promise<{ok: boolean, status?: number, reason?: string, mode?: 'created'|'updated'}>}
  */
-async function postPrComment({ owner, repo, prNumber, body, token, fetchImpl }) {
+async function postPrComment({ owner, repo, prNumber, body, token, fetchImpl, idempotencyTag }) {
+  // Two ways to trigger idempotent find-then-PATCH-or-POST:
+  //   1. Pass `idempotencyTag` — function appends `<!-- gatetest-tag:<tag> -->`
+  //      to the body and uses that as the search marker. Legacy path.
+  //   2. Pass a body that already contains GATETEST_PR_COMMENT_MARKER —
+  //      function uses the literal marker as the search key. Canonical
+  //      path; buildMarkdownComment embeds the marker automatically.
+  // Look-up failure NEVER blocks — we log and POST so the customer still
+  // gets a comment.
+  const tagMarker = idempotencyTag ? `<!-- gatetest-tag:${idempotencyTag} -->` : null;
+  const taggedBody = idempotencyTag ? `${body}\n\n${tagMarker}\n` : body;
+  const searchMarker = tagMarker
+    || (typeof body === 'string' && body.includes(GATETEST_PR_COMMENT_MARKER) ? GATETEST_PR_COMMENT_MARKER : null);
+  const isIdempotent = searchMarker !== null;
+  const sendBody = idempotencyTag ? taggedBody : body;
+
+  if (isIdempotent) {
+    try {
+      const existing = await findExistingComment({
+        owner, repo, prNumber, token, fetchImpl, marker: searchMarker,
+      });
+      if (existing) {
+        const updateRes = await fetchImpl(
+          `${GITHUB_API}/repos/${owner}/${repo}/issues/comments/${existing.id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'Content-Type': 'application/json',
+              'User-Agent': USER_AGENT,
+            },
+            body: JSON.stringify({ body: sendBody }),
+          },
+        );
+        if (updateRes.status !== 200) {
+          console.error(`[github-callback] patchPrComment non-200: ${updateRes.status} for ${owner}/${repo}#${prNumber}`);
+          return { ok: false, status: updateRes.status, reason: 'patch-non-200' };
+        }
+        return { ok: true, status: 200, action: 'updated' };
+      }
+    } catch (err) { // error-ok — log-and-continue is intentional; failure here must not block the caller
+      // Look-up failure should NOT block the new-comment fallback — log
+      // and fall through to POST so the customer still sees something.
+      console.warn('[github-callback] idempotency lookup failed, falling back to POST:', err && err.message);
+    }
+  }
+
   try {
     const res = await fetchImpl(`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/comments`, {
       method: 'POST',
@@ -255,17 +424,55 @@ async function postPrComment({ owner, repo, prNumber, body, token, fetchImpl }) 
         'Content-Type': 'application/json',
         'User-Agent': USER_AGENT,
       },
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body: sendBody }),
     });
     if (res.status !== 201) {
       console.error(`[github-callback] addPrComment non-201: ${res.status} for ${owner}/${repo}#${prNumber}`);
       return { ok: false, status: res.status, reason: 'non-201' };
     }
-    return { ok: true, status: 201 };
+    return { ok: true, status: 201, action: 'created' };
   } catch (err) {
     console.error('[github-callback] addPrComment fetch error:', err && err.message ? err.message : err);
     return { ok: false, reason: 'fetch-error' };
   }
+}
+
+/**
+ * Find a previous bot comment with our marker. Walks paginated comments
+ * (`per_page=100`) until it finds the tag or exhausts the list.
+ *
+ * @returns {Promise<{id: number, body: string} | null>}
+ */
+async function findExistingComment({ owner, repo, prNumber, token, fetchImpl, marker, tag }) {
+  // `marker` is the literal HTML-comment marker to search for. Callers
+  // that pass `tag` (legacy) get the marker built for them.
+  const searchMarker = marker || `<!-- gatetest-tag:${tag} -->`;
+  let page = 1;
+  while (page <= 10) { // cap at 1000 comments to avoid runaway walking
+    const res = await fetchImpl(
+      `${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/comments?per_page=100&page=${page}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          'User-Agent': USER_AGENT,
+        },
+      },
+    );
+    if (res.status !== 200) return null;
+    const batch = await res.json();
+    if (!Array.isArray(batch) || batch.length === 0) return null;
+    for (const c of batch) {
+      if (c && typeof c.body === 'string' && c.body.includes(searchMarker)) {
+        return { id: c.id, body: c.body };
+      }
+    }
+    if (batch.length < 100) return null;
+    page += 1;
+  }
+  return null;
 }
 
 /**
@@ -279,12 +486,21 @@ async function postPrComment({ owner, repo, prNumber, body, token, fetchImpl }) 
  * @param {string|null} [opts.ref]
  * @param {number|null} [opts.pullRequestNumber]
  * @param {object} opts.scanResult
+ * @param {string[]} [opts.dbAdminOrgs]    admin orgs pre-fetched from the platform registry DB
  * @param {typeof fetch} [opts.fetchImpl]  override for testing
  * @param {Record<string, string|undefined>} [opts.env]
  * @returns {Promise<{statusSent: boolean, commentSent: boolean, reason?: string}>}
  */
 async function sendGithubCallback(opts) {
   const env = opts.env || process.env;
+
+  // Merge DB-sourced admin orgs with env-var list so fetchRepoMode can see all of them.
+  const dbOrgs = Array.isArray(opts.dbAdminOrgs) ? opts.dbAdminOrgs : [];
+  const envOrgs = String(env.GATETEST_ADMIN_ORGS || '').split(',').map(s => s.trim()).filter(Boolean);
+  const allAdminOrgs = [...new Set([...envOrgs, ...dbOrgs])];
+  const mergedEnv = allAdminOrgs.length > 0
+    ? { ...env, GATETEST_ADMIN_ORGS: allAdminOrgs.join(',') }
+    : env;
   const token = resolveGitHubToken(env);
 
   if (!token) {
@@ -308,8 +524,13 @@ async function sendGithubCallback(opts) {
   const baseUrl = env.NEXT_PUBLIC_BASE_URL || 'https://gatetest.ai';
   const targetUrl = `${baseUrl}/scan/status`;
 
-  const state = toCommitState(scanResult);
-  const description = buildDescription(scanResult);
+  // Read repo's gate mode. Fresh installs default to 'advisory' so a
+  // mature codebase isn't spammed red on install day. Customer opts in
+  // to 'strict' via .gatetest.json when ready.
+  const mode = await fetchRepoMode(owner, repo, token, doFetch, mergedEnv);
+
+  const state = toCommitState(scanResult, mode);
+  const description = buildDescription(scanResult, mode);
 
   const statusResult = await postCommitStatus({
     owner, repo, sha, state, description, targetUrl, token, fetchImpl: doFetch,
@@ -317,7 +538,11 @@ async function sendGithubCallback(opts) {
 
   let commentResult = { ok: false, reason: 'no-pr' };
   if (pullRequestNumber && typeof pullRequestNumber === 'number') {
-    const body = buildMarkdownComment(repository, sha, scanResult, targetUrl);
+    // buildMarkdownComment now also passes the mode through so the body
+    // displays advisory headline/upgrade-note when appropriate. The body
+    // includes GATETEST_PR_COMMENT_MARKER at the bottom which postPrComment
+    // auto-detects to PATCH a prior bot comment instead of stacking.
+    const body = buildMarkdownComment(repository, sha, scanResult, targetUrl, mode);
     commentResult = await postPrComment({
       owner, repo, prNumber: pullRequestNumber, body, token, fetchImpl: doFetch,
     });
@@ -337,5 +562,10 @@ module.exports = {
   buildDescription,
   buildMarkdownComment,
   linkifyFinding,
+  fetchRepoMode,
   sendGithubCallback,
+  // exposed for tests of the idempotent comment path
+  postPrComment,
+  findExistingComment,
+  GATETEST_PR_COMMENT_MARKER,
 };

@@ -19,6 +19,7 @@ const path = require('path');
 const {
   isAuthorisedTick,
   runWorkerTick,
+  MAX_DIFF_FILES,
 } = require(path.resolve(
   __dirname,
   '..',
@@ -349,5 +350,25 @@ describe('runWorkerTick — contract guards', () => {
       sendCallback: async () => ({}),
     });
     assert.strictEqual(result.ok, false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MAX_DIFF_FILES — Continuous-tier ($49/mo) diff-size circuit breaker
+// ---------------------------------------------------------------------------
+
+describe('MAX_DIFF_FILES', () => {
+  it('is exported as a number', () => {
+    assert.strictEqual(typeof MAX_DIFF_FILES, 'number');
+  });
+
+  it('equals 20 (Continuous-tier AI-fix file cap)', () => {
+    assert.strictEqual(MAX_DIFF_FILES, 20);
+  });
+
+  it('is less than 50 (the scan_fix tier fix-cap default)', () => {
+    // Sanity: the $49 Continuous cap must be tighter than the $199 Scan+Fix
+    // file-fix cap (default 50) to create an incentive to upgrade.
+    assert.ok(MAX_DIFF_FILES < 50, 'MAX_DIFF_FILES should be below Scan+Fix cap of 50');
   });
 });

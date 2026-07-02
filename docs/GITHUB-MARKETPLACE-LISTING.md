@@ -18,7 +18,7 @@ GateTest
 *(140 characters max — shown in search results and the Marketplace card)*
 
 ```
-102-module AI-powered code quality gate. Catches security issues, bugs, and bad patterns before they reach production.
+110-module AI-powered code quality gate. Catches security issues, bugs, and bad patterns before they reach production.
 ```
 
 ---
@@ -29,7 +29,7 @@ GateTest
 ```markdown
 ## The only gate your repo needs
 
-GateTest scans every push and pull request through **102 specialised modules** in seconds — then posts a commit status and a full report directly to your PR. One check. One decision. Pass or blocked.
+GateTest scans every push and pull request through **110 specialised modules** in seconds — then posts a commit status and a full report directly to your PR. One check. One decision. Pass or blocked.
 
 ### What it catches that your current tools miss
 
@@ -79,8 +79,8 @@ GateTest is **free to install**. Scans are available on [gatetest.ai](https://ga
 | Plan | Price | What you get |
 |------|-------|-------------|
 | Quick Scan | $29 | 4 core modules — fast gate |
-| Full Scan | $99 | All 102 modules |
-| Scan + Fix | $199 | 102 modules + auto-fix PR |
+| Full Scan | $99 | All 110 modules |
+| Scan + Fix | $199 | 110 modules + auto-fix PR |
 | Continuous | $49/mo | Scan every push, automatically |
 
 ### Where it runs today
@@ -165,7 +165,7 @@ https://gatetest.ai/docs/api
 
 1. **PR check passing** — GitHub PR page showing the GateTest check as green ✓
 2. **PR comment with issues** — the formatted report comment on a PR with real findings
-3. **Module breakdown** — the scan results page on gatetest.ai showing all 102 modules
+3. **Module breakdown** — the scan results page on gatetest.ai showing all 110 modules
 4. **Blocked PR** — a PR blocked with specific issues listed (secrets, N+1, etc.)
 5. **Install flow** — the gatetest.ai/github/setup page
 

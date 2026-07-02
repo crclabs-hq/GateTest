@@ -55,6 +55,7 @@ const DEFAULT_CONFIG = {
       'secretRotation',
       'webHeaders',
       'typescriptStrictness',
+      'undefinedRef',
       'flakyTests',
       'errorSwallow',
       'nPlusOne',
@@ -101,6 +102,7 @@ const DEFAULT_CONFIG = {
       'secretRotation',
       'webHeaders',
       'typescriptStrictness',
+      'undefinedRef',
       'flakyTests',
       'errorSwallow',
       'nPlusOne',
@@ -146,6 +148,7 @@ const DEFAULT_CONFIG = {
       'dataIntegrity',
       'documentation',
       'dependencies',
+      'sbom',
       'dockerfile',
       'ciSecurity',
       'shell',
@@ -157,6 +160,7 @@ const DEFAULT_CONFIG = {
       'secretRotation',
       'webHeaders',
       'typescriptStrictness',
+      'undefinedRef',
       'flakyTests',
       'errorSwallow',
       'nPlusOne',
@@ -194,6 +198,26 @@ const DEFAULT_CONFIG = {
       'aiReview',
       'agentic',
       'fakeFixDetector',
+      'claudeCompliance',
+      'aiHallucination',
+      'authBypass',
+      'bashSafety',
+      'bundleSize',
+      'cacheHeaders',
+      'ciParamValidator',
+      'deployContract',
+      'deployReadiness',
+      'deployScriptValidator',
+      'duplicateCode',
+      'envIntegrity',
+      'monorepoConstraints',
+      'nativeBundlerGuard',
+      'rollbackHonesty',
+      'serviceConsistency',
+      'systemd',
+      'trpcContract',
+      'webhookPayload',
+      'zodSchemaPresence',
     ],
     live: [
       'liveCrawler',
@@ -202,6 +226,8 @@ const DEFAULT_CONFIG = {
     ],
     nuclear: [
       'memory',
+      'aiGuardrails',
+      'sbom',
       'syntax',
       'lint',
       'secrets',
@@ -230,6 +256,7 @@ const DEFAULT_CONFIG = {
       'secretRotation',
       'webHeaders',
       'typescriptStrictness',
+      'undefinedRef',
       'flakyTests',
       'errorSwallow',
       'nPlusOne',
@@ -270,6 +297,30 @@ const DEFAULT_CONFIG = {
       'aiReview',
       'agentic',
       'fakeFixDetector',
+      'claudeCompliance',
+      'aiHallucination',
+      'authBypass',
+      'bashSafety',
+      'bundleSize',
+      'cacheHeaders',
+      'ciParamValidator',
+      'deployContract',
+      'deployReadiness',
+      'deployScriptValidator',
+      'duplicateCode',
+      'envIntegrity',
+      'monorepoConstraints',
+      'nativeBundlerGuard',
+      'rollbackHonesty',
+      'serviceConsistency',
+      'systemd',
+      'trpcContract',
+      'webhookPayload',
+      'zodSchemaPresence',
+      // Nuclear-only AI-driven modules (Anthropic spend per scan)
+      'architectureDrift',
+      'intentVerification',
+      'regressionPredictor',
     ],
     // WordPress side product (wp.gatetest.ai) — Boss Rule D, Craig 2026-05-13.
     // Reuses some general-purpose modules from the developer suites where
@@ -306,6 +357,46 @@ const DEFAULT_CONFIG = {
       // gracefully when Chromium isn't available (Vercel today; lights
       // up when Crontech worker is wired).
       'explorer',
+      // visualRegression: full-page screenshot diffing against a stored
+      // baseline, catches redesigns / broken layouts that no static or
+      // DOM-level check can see. Needs Playwright + a writable baseline
+      // dir; skips gracefully otherwise.
+      'visualRegression',
+      // interactiveElements: safe link/button liveness crawler — HTTP
+      // HEAD-checks every internal link, click-tests every button with a
+      // destructive-action skip list (delete/cancel/logout/...) so it
+      // never fires real mutating actions against a live site. Skips
+      // gracefully when Chromium isn't available.
+      'interactiveElements',
+      // apiHealth: hits every discovered API endpoint (OpenAPI spec >
+      // HTML crawl > common-paths guesses) with valid + missing-param
+      // requests, checks status/timing/content-type. Pure HTTP — no
+      // Playwright, so unlike its siblings above it runs fine on Vercel
+      // serverless too.
+      'apiHealth',
+      // performanceBudget: live TTFB/LCP/CLS/page-weight against the
+      // real URL (median of 3 runs, cold-start warm-up first) — the
+      // existing "performance" module never actually loads a page.
+      'performanceBudget',
+      // mobileRendering: overflow + unreadable-text checks across 5
+      // device widths (390/414/768/1024/1280). Absolute checks, not a
+      // diff — catches "broken right now," not just "changed."
+      'mobileRendering',
+      // formTesting: fills + submits SAFE forms (contact, newsletter,
+      // search, feedback). Payment-shaped, auth-shaped, and CAPTCHA-
+      // protected forms are detected and SKIPPED, never submitted or
+      // bypassed — see form-testing.js header for the full safety scope.
+      'formTesting',
+      // consoleErrors: site-wide crawl aggregating console errors/
+      // warnings across every page visited — runtimeErrors only looks
+      // at one page in depth, this trades depth for breadth.
+      'consoleErrors',
+      // designSystemCompliance: audits LIVE computed styles for
+      // near-duplicate colors, off-grid spacing, and type-scale drift.
+      'designSystemCompliance',
+      // crossBrowser: diffs page load / runtime errors / rendering
+      // across Chromium, Firefox, and WebKit (Chromium is the reference).
+      'crossBrowser',
     ],
 
     // Generic web URL suite — runs against any public site. Same engine
@@ -325,6 +416,15 @@ const DEFAULT_CONFIG = {
       'liveCrawler',     // 404 / 500 / broken-image / redirect-chain on the live URL
       'runtimeErrors',   // live JS errors / CSP violations (needs Crontech worker)
       'explorer',        // "button doesn't fire" detection (needs Crontech worker)
+      'visualRegression', // full-page screenshot diff vs stored baseline (needs Crontech worker)
+      'interactiveElements', // safe link liveness + destructive-skip button crawler (needs Crontech worker)
+      'apiHealth',       // endpoint status/timing/content-type checks — pure HTTP, works on Vercel serverless
+      'performanceBudget', // live TTFB/LCP/CLS/page-weight, median of 3 runs (needs Crontech worker)
+      'mobileRendering', // overflow + tiny-text checks across 5 device widths (needs Crontech worker)
+      'formTesting',     // safe-form fill+submit, skips payment/auth/CAPTCHA (needs Crontech worker)
+      'consoleErrors',   // site-wide console error/warning aggregation across every crawled page (needs Crontech worker)
+      'designSystemCompliance', // color/spacing/typography drift on live computed styles (needs Crontech worker)
+      'crossBrowser',    // Chromium/Firefox/WebKit page-load + rendering diff (needs Crontech worker)
     ],
   },
 
@@ -520,6 +620,40 @@ const DEFAULT_CONFIG = {
     autoRollback: true,
     rollbackWindow: 900,  // seconds (15 minutes)
   },
+
+  // Incremental scan — used by --since <ref> / --pr to skip unchanged files.
+  // skipList: modules that must scan the whole tree (cross-file graph analysis
+  //   can't be scoped to a changed-file subset without producing false negatives).
+  // alwaysRunList: modules that must run even when no files in their scope changed
+  //   (e.g. secretRotation tracks git history; prSize measures the whole diff).
+  // sourceExtensions: file extensions that qualify as "source" for the diff filter;
+  //   non-listed extensions (images, binaries) are never flagged as "changed".
+  incremental: {
+    skipList: [
+      'importCycle',
+      'deadCode',
+      'crossFileTaint',
+      'openapiDrift',
+      'aiReview',
+      'agentic',
+      'architectureDrift',
+    ],
+    alwaysRunList: [
+      'secretRotation',
+      'prSize',
+      'prQuality',
+      'ciSecurity',
+      'secrets',
+    ],
+    sourceExtensions: [
+      '.js', '.jsx', '.mjs', '.cjs',
+      '.ts', '.tsx', '.mts', '.cts',
+      '.py', '.go', '.rs', '.java', '.rb', '.php', '.cs', '.kt', '.swift',
+      '.json', '.yaml', '.yml', '.toml', '.env', '.md', '.sh', '.bash',
+      '.tf', '.hcl', '.dockerfile', 'dockerfile',
+      '.sql', '.graphql',
+    ],
+  },
 };
 
 class GateTestConfig {
@@ -585,6 +719,10 @@ class GateTestConfig {
   }
 
   getSuite(suiteName) {
+    // 'smart' is dynamically computed in GateTest.runSuite() via smart-suite-selector.
+    // If someone calls getSuite('smart') directly (not via runSuite), fall back to quick
+    // as the safe baseline — all baseline modules (syntax, secrets, memory) are in quick.
+    if (suiteName === 'smart') return this.config.suites.quick;
     return this.config.suites[suiteName] || this.config.suites.standard;
   }
 

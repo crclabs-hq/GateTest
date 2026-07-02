@@ -9,6 +9,7 @@ import {
   type UnparseableIssue,
   type ModuleLike,
 } from "@/app/lib/issue-extractor";
+import type { GitHubProfile } from "@/app/lib/admin-github-profiles";
 
 interface FailedFile {
   file: string;
@@ -120,7 +121,88 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
   const [guidance, setGuidance] = useState<Array<{ module: string; detail: string; title: string; why: string; steps: string[]; commands?: string[] }> | null>(null);
   const [dbData, setDbData] = useState<DbData | null>(null);
   const [dbLoading, setDbLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"scan" | "server" | "nuclear" | "watchdog" | "scans" | "customers" | "keys">("scan");
+  const [activeTab, setActiveTab] = useState<"scan" | "server" | "nuclear" | "watchdog" | "scans" | "customers" | "keys" | "platforms" | "accounts">("scan");
+
+  // Platform Registry state
+  interface PlatformRow { id: number; github_org: string; display_url: string | null; added_at: string; }
+  const [platforms, setPlatforms] = useState<PlatformRow[]>([]);
+  const [platformUrl, setPlatformUrl] = useState("");
+  const [platformError, setPlatformError] = useState("");
+  const [platformsLoading, setPlatformsLoading] = useState(false);
+
+  const loadPlatforms = useCallback(async () => {
+    setPlatformsLoading(true);
+    try {
+      const res = await fetch("/api/admin/platforms");
+      if (res.ok) { const d = await res.json(); setPlatforms(d.platforms || []); }
+    } finally { setPlatformsLoading(false); }
+  }, []);
+
+  const addPlatform = async () => {
+    setPlatformError("");
+    const res = await fetch("/api/admin/platforms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: platformUrl }),
+    });
+    const d = await res.json();
+    if (!res.ok) { setPlatformError(d.error || "Error"); return; }
+    setPlatformUrl("");
+    loadPlatforms();
+  };
+
+  const removePlatform = async (org: string) => {
+    const res = await fetch(`/api/admin/platforms?org=${encodeURIComponent(org)}`, { method: "DELETE" });
+    if (res.ok) loadPlatforms();
+  };
+
+  // Connected Accounts (multi-GitHub profile) state
+  const [ghProfiles, setGhProfiles] = useState<GitHubProfile[]>([]);
+  const [ghProfilesLoading, setGhProfilesLoading] = useState(false);
+  const [ghLabel, setGhLabel] = useState("");
+  const [ghToken, setGhToken] = useState("");
+  const [ghOrgs, setGhOrgs] = useState("");
+  const [ghProfileError, setGhProfileError] = useState("");
+  const [ghProfileAdding, setGhProfileAdding] = useState(false);
+  const adminPwd = typeof window !== "undefined" ? (document.cookie.match(/gatetest_admin=([^;]+)/) || [])[1] || "" : "";
+
+  const loadGhProfiles = useCallback(async () => {
+    setGhProfilesLoading(true);
+    try {
+      const res = await fetch("/api/admin/github-profiles", {
+        headers: { "x-admin-password": adminPwd },
+      });
+      if (res.ok) { const d = await res.json(); setGhProfiles(d.profiles || []); }
+    } finally { setGhProfilesLoading(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const addGhProfile = async () => {
+    setGhProfileError("");
+    if (!ghLabel.trim()) { setGhProfileError("Label is required"); return; }
+    if (!ghToken.trim()) { setGhProfileError("Token is required"); return; }
+    setGhProfileAdding(true);
+    try {
+      const orgs = ghOrgs.split(",").map((s) => s.trim()).filter(Boolean);
+      const res = await fetch("/api/admin/github-profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-password": adminPwd },
+        body: JSON.stringify({ label: ghLabel, token: ghToken, orgs }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setGhProfileError(d.error || "Error"); return; }
+      setGhLabel(""); setGhToken(""); setGhOrgs("");
+      loadGhProfiles();
+    } finally { setGhProfileAdding(false); }
+  };
+
+  const removeGhProfile = async (id: number) => {
+    const res = await fetch(`/api/admin/github-profiles?id=${id}`, {
+      method: "DELETE",
+      headers: { "x-admin-password": adminPwd },
+    });
+    if (res.ok) loadGhProfiles();
+  };
   const [apiKeys, setApiKeys] = useState<ApiKeyRow[] | null>(null);
   const [keyName, setKeyName] = useState("");
   const [keyCustomer, setKeyCustomer] = useState("");
@@ -183,11 +265,6 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
     loadDbData();
   }, [loadDbData]);
 
-  useEffect(() => {
-    if (activeTab === "keys") loadKeys();
-    if (activeTab === "watchdog") loadWatches();
-  }, [activeTab, loadKeys]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const loadWatches = useCallback(async () => {
     setWatchesLoading(true);
     try {
@@ -200,6 +277,13 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
       setWatchesLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "keys") loadKeys();
+    if (activeTab === "watchdog") loadWatches();
+    if (activeTab === "platforms") loadPlatforms();
+    if (activeTab === "accounts") loadGhProfiles();
+  }, [activeTab, loadKeys, loadWatches, loadPlatforms, loadGhProfiles]);
 
   async function createKey() {
     setKeyError("");
@@ -497,6 +581,18 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
           </div>
           <div className="flex items-center gap-3">
             <a
+              href="/admin/triage"
+              className="text-xs px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors font-medium"
+            >
+              Triage
+            </a>
+            <a
+              href="/admin/pipeline-trace"
+              className="text-xs px-3 py-2 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors font-medium"
+            >
+              Pipeline
+            </a>
+            <a
               href="/admin/health"
               className="text-xs px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors font-medium"
             >
@@ -536,7 +632,7 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
 
         {/* Tab navigation */}
         <div className="flex gap-1 mb-6 border-b border-gray-200 overflow-x-auto">
-          {(["scan", "server", "nuclear", "watchdog", "scans", "customers", "keys"] as const).map((tab) => (
+          {(["scan", "server", "nuclear", "watchdog", "scans", "customers", "keys", "platforms", "accounts"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -551,14 +647,18 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
                 : tab === "server"
                 ? "Server Scan"
                 : tab === "nuclear"
-                ? "☢ Nuclear Scan"
+                ? "☢ Forensic Scan"
                 : tab === "watchdog"
                 ? "Watchdog"
                 : tab === "scans"
                 ? "Recent Scans"
                 : tab === "customers"
                 ? "Customers"
-                : "API Keys"}
+                : tab === "keys"
+                ? "API Keys"
+                : tab === "platforms"
+                ? "🔐 Platforms"
+                : "🔗 GitHub Accounts"}
             </button>
           ))}
         </div>
@@ -592,7 +692,9 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
                   className="px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 focus:border-emerald-500 focus:outline-none text-sm"
                 >
                   <option value="quick">Quick (39 modules)</option>
-                  <option value="full">Full (102 modules)</option>
+                  <option value="full">Full (110 modules)</option>
+                  <option value="scan_fix">Scan + Fix (110 modules + pair-review + architecture)</option>
+                  <option value="nuclear">Forensic (110 modules + Claude diagnosis + correlation + exec summary)</option>
                 </select>
                 <button
                   onClick={runScan}
@@ -954,9 +1056,218 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
           </>
         )}
 
-        {/* Tab: Watchdog */}
+        {/* Tab: Watchdog — CI health monitor + scheduled flywheel in one panel */}
         {activeTab === "watchdog" && (
-          <WatchdogPanel />
+          <>
+            {/* Section 0: Intelligence briefing — fleet status, anomalies, AI diagnoses */}
+            <WatchdogBriefing />
+
+            {/* Section 1: CI Health Monitor (GitHub Actions status) */}
+            <WatchdogPanel />
+
+            {/* Section 2: Scheduled Flywheel (database-backed watches) */}
+            <div className="mt-6 space-y-4">
+              {/* Add watch form */}
+              <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-6">
+                <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+                  <span className="text-xl">🔄</span> Scheduled Flywheel
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  GateTest scans a repo or server every N minutes and auto-fixes issues. Uses quick-tier scans for health checks.
+                </p>
+                <div className="grid sm:grid-cols-[auto,1fr,auto,auto,auto] gap-3 items-end">
+                  <select
+                    value={watchType}
+                    onChange={(e) => setWatchType(e.target.value as "repo" | "server")}
+                    className="px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:border-emerald-500 focus:outline-none"
+                  >
+                    <option value="repo">Repo</option>
+                    <option value="server">Server</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={watchTarget}
+                    onChange={(e) => {
+                      let v = e.target.value;
+                      // Auto-strip full GitHub/Gluecron URLs to owner/repo format
+                      if (watchType === "repo") {
+                        const m = v.match(/(?:github\.com|gluecron\.com)\/([^/\s]+\/[^/\s?#]+)/);
+                        if (m) v = m[1].replace(/\.git$/, "");
+                      }
+                      setWatchTarget(v);
+                    }}
+                    placeholder={watchType === "repo" ? "owner/repo or paste GitHub URL" : "https://example.com"}
+                    className="px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 text-sm focus:border-emerald-500 focus:outline-none"
+                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={watchInterval}
+                      onChange={(e) => setWatchInterval(Number(e.target.value))}
+                      min={5} max={1440}
+                      className="w-20 px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:border-emerald-500 focus:outline-none text-center"
+                    />
+                    <span className="text-gray-500 text-xs whitespace-nowrap">min</span>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-gray-600 whitespace-nowrap cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={watchAutoFix}
+                      onChange={(e) => setWatchAutoFix(e.target.checked)}
+                      className="w-4 h-4 accent-emerald-500"
+                    />
+                    Auto-fix
+                  </label>
+                  <button
+                    disabled={watchAdding || !watchTarget.trim()}
+                    onClick={async () => {
+                      setWatchError("");
+                      setWatchAdding(true);
+                      try {
+                        const res = await fetch("/api/watches", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            target_type: watchType,
+                            target: watchTarget.trim(),
+                            interval_minutes: watchInterval,
+                            auto_fix_enabled: watchAutoFix,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) { setWatchError(data.error || "Failed to add watch"); return; }
+                        setWatchTarget("");
+                        await loadWatches();
+                      } catch (err) {
+                        setWatchError(err instanceof Error ? err.message : "Error");
+                      } finally {
+                        setWatchAdding(false);
+                      }
+                    }}
+                    className="btn-primary px-4 py-2.5 text-sm disabled:opacity-50"
+                  >
+                    {watchAdding ? "Adding..." : "Add Watch"}
+                  </button>
+                </div>
+                {watchError && <p className="text-red-600 text-xs mt-3">{watchError}</p>}
+              </div>
+
+              {/* Watch list */}
+              <div className="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                  <span className="font-semibold text-gray-900 text-sm">Active Watches</span>
+                  <button onClick={loadWatches} className="text-xs text-gray-400 hover:text-emerald-600 transition-colors">↻ Refresh</button>
+                </div>
+                {watchesLoading ? (
+                  <div className="p-8 text-center text-gray-400">Loading...</div>
+                ) : watches.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400">No watches yet. Add one above to start the flywheel.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200 bg-gray-50">
+                          <th className="text-left px-4 py-3 text-gray-500 font-medium">Target</th>
+                          <th className="text-left px-4 py-3 text-gray-500 font-medium">Every</th>
+                          <th className="text-left px-4 py-3 text-gray-500 font-medium">Status</th>
+                          <th className="text-left px-4 py-3 text-gray-500 font-medium">Issues</th>
+                          <th className="text-left px-4 py-3 text-gray-500 font-medium">Auto-fix</th>
+                          <th className="text-left px-4 py-3 text-gray-500 font-medium">Last check</th>
+                          <th className="text-left px-4 py-3 text-gray-500 font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {watches.map((w) => (
+                          <tr key={w.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <span className="text-xs text-gray-400 mr-1">{w.target_type}</span>
+                              <span className="text-gray-900 font-medium">{w.target}</span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-500">{w.interval_minutes}m</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                !w.enabled ? "bg-gray-100 text-gray-400" :
+                                w.last_status === "healthy" ? "bg-emerald-100 text-emerald-700" :
+                                w.last_status === "degraded" ? "bg-amber-100 text-amber-700" :
+                                w.last_status === "down" ? "bg-red-100 text-red-700" :
+                                "bg-gray-100 text-gray-400"
+                              }`}>
+                                {!w.enabled ? "paused" : w.last_status || "pending"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-500">{w.last_issue_count ?? "—"}</td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs font-medium ${w.auto_fix_enabled ? "text-emerald-600" : "text-gray-400"}`}>
+                                {w.auto_fix_enabled ? "✓ on" : "off"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-400 text-xs">
+                              {w.last_checked_at ? new Date(w.last_checked_at).toLocaleString() : "never"}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={async () => {
+                                    await fetch(`/api/watches?id=${w.id}`, {
+                                      method: "PATCH",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ enabled: !w.enabled }),
+                                    });
+                                    loadWatches();
+                                  }}
+                                  className="text-xs text-gray-400 hover:text-emerald-600 transition-colors"
+                                >
+                                  {w.enabled ? "Pause" : "Resume"}
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm(`Remove watch for ${w.target}?`)) return;
+                                    await fetch(`/api/watches?id=${w.id}`, { method: "DELETE" });
+                                    loadWatches();
+                                  }}
+                                  className="text-xs text-gray-400 hover:text-red-600 transition-colors"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Manual tick */}
+              <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-gray-900 text-sm">Manual Tick</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Force a watchdog cycle now — scans all due targets immediately.</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch("/api/watches/tick");
+                        const data = await res.json();
+                        alert(`Tick complete: checked ${data.checked} watches.\n${JSON.stringify(data.results, null, 2)}`);
+                        loadWatches();
+                      } catch (err) {
+                        alert("Tick failed: " + (err instanceof Error ? err.message : "error"));
+                      }
+                    }}
+                    className="btn-primary px-4 py-2.5 text-sm"
+                  >
+                    Run Tick Now
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-3">
+                  In production, Vercel Cron runs this automatically every 5 minutes via <code className="font-mono text-emerald-700">GET /api/watches/tick</code>.
+                </p>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Tab: Server Scan */}
@@ -964,214 +1275,9 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
           <ServerScanPanel />
         )}
 
-        {/* Tab: Nuclear Scan */}
+        {/* Tab: Forensic Scan */}
         {activeTab === "nuclear" && (
           <NuclearScanPanel />
-        )}
-
-        {/* Tab: Watchdog / Flywheel */}
-        {activeTab === "watchdog" && (
-          <>
-            {/* Add watch form */}
-            <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] p-6 mb-6">
-              <h3 className="font-bold text-white mb-4 flex items-center gap-2">
-                <span className="text-xl">🔄</span> Add Flywheel Watch
-              </h3>
-              <p className="text-xs text-white/40 mb-4">
-                Add a repo or server. GateTest scans it every N minutes and auto-fixes issues automatically — no human needed.
-              </p>
-              <div className="grid sm:grid-cols-[auto,1fr,auto,auto,auto] gap-3 items-end">
-                <select
-                  value={watchType}
-                  onChange={(e) => setWatchType(e.target.value as "repo" | "server")}
-                  className="px-3 py-2.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:border-emerald-500/50 focus:outline-none"
-                >
-                  <option value="repo">Repo</option>
-                  <option value="server">Server</option>
-                </select>
-                <input
-                  type="text"
-                  value={watchTarget}
-                  onChange={(e) => {
-                    let v = e.target.value;
-                    // Auto-strip full GitHub/Gluecron URLs to owner/repo format
-                    if (watchType === "repo") {
-                      const m = v.match(/(?:github\.com|gluecron\.com)\/([^/\s]+\/[^/\s?#]+)/);
-                      if (m) v = m[1].replace(/\.git$/, "");
-                    }
-                    setWatchTarget(v);
-                  }}
-                  placeholder={watchType === "repo" ? "owner/repo or paste GitHub URL" : "https://example.com"}
-                  className="px-4 py-2.5 rounded-lg border border-white/10 bg-white/5 text-white placeholder:text-white/30 text-sm focus:border-emerald-500/50 focus:outline-none"
-                />
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    value={watchInterval}
-                    onChange={(e) => setWatchInterval(Number(e.target.value))}
-                    min={5} max={1440}
-                    className="w-20 px-3 py-2.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:border-emerald-500/50 focus:outline-none text-center"
-                  />
-                  <span className="text-white/40 text-xs whitespace-nowrap">min</span>
-                </div>
-                <label className="flex items-center gap-2 text-sm text-white/60 whitespace-nowrap cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={watchAutoFix}
-                    onChange={(e) => setWatchAutoFix(e.target.checked)}
-                    className="w-4 h-4 accent-emerald-500"
-                  />
-                  Auto-fix
-                </label>
-                <button
-                  disabled={watchAdding || !watchTarget.trim()}
-                  onClick={async () => {
-                    setWatchError("");
-                    setWatchAdding(true);
-                    try {
-                      const res = await fetch("/api/watches", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          target_type: watchType,
-                          target: watchTarget.trim(),
-                          interval_minutes: watchInterval,
-                          auto_fix_enabled: watchAutoFix,
-                        }),
-                      });
-                      const data = await res.json();
-                      if (!res.ok) { setWatchError(data.error || "Failed to add watch"); return; }
-                      setWatchTarget("");
-                      await loadWatches();
-                    } catch (err) {
-                      setWatchError(err instanceof Error ? err.message : "Error");
-                    } finally {
-                      setWatchAdding(false);
-                    }
-                  }}
-                  className="btn-primary px-4 py-2.5 text-sm disabled:opacity-50"
-                >
-                  {watchAdding ? "Adding..." : "Add Watch"}
-                </button>
-              </div>
-              {watchError && <p className="text-red-400 text-xs mt-3">{watchError}</p>}
-            </div>
-
-            {/* Watch list */}
-            <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] overflow-hidden mb-6">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
-                <span className="font-semibold text-white text-sm">Active Watches</span>
-                <button onClick={loadWatches} className="text-xs text-white/40 hover:text-emerald-400 transition-colors">↻ Refresh</button>
-              </div>
-              {watchesLoading ? (
-                <div className="p-8 text-center text-white/40">Loading...</div>
-              ) : watches.length === 0 ? (
-                <div className="p-8 text-center text-white/40">No watches yet. Add one above to start the flywheel.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-white/[0.06] bg-white/[0.03]">
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Target</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Every</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Status</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Issues</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Auto-fix</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Last check</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {watches.map((w) => (
-                        <tr key={w.id} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
-                          <td className="px-4 py-3">
-                            <span className="text-xs text-white/30 mr-1">{w.target_type}</span>
-                            <span className="text-white font-medium">{w.target}</span>
-                          </td>
-                          <td className="px-4 py-3 text-white/60">{w.interval_minutes}m</td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                              !w.enabled ? "bg-white/10 text-white/40" :
-                              w.last_status === "healthy" ? "bg-emerald-500/20 text-emerald-300" :
-                              w.last_status === "degraded" ? "bg-amber-500/20 text-amber-300" :
-                              w.last_status === "down" ? "bg-red-500/20 text-red-300" :
-                              "bg-white/10 text-white/40"
-                            }`}>
-                              {!w.enabled ? "paused" : w.last_status || "pending"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-white/60">{w.last_issue_count ?? "—"}</td>
-                          <td className="px-4 py-3">
-                            <span className={`text-xs ${w.auto_fix_enabled ? "text-emerald-400" : "text-white/30"}`}>
-                              {w.auto_fix_enabled ? "✓ on" : "off"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-white/40 text-xs">
-                            {w.last_checked_at ? new Date(w.last_checked_at).toLocaleString() : "never"}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={async () => {
-                                  await fetch(`/api/watches?id=${w.id}`, {
-                                    method: "PATCH",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ enabled: !w.enabled }),
-                                  });
-                                  loadWatches();
-                                }}
-                                className="text-xs text-white/40 hover:text-emerald-400 transition-colors"
-                              >
-                                {w.enabled ? "Pause" : "Resume"}
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  if (!confirm(`Remove watch for ${w.target}?`)) return;
-                                  await fetch(`/api/watches?id=${w.id}`, { method: "DELETE" });
-                                  loadWatches();
-                                }}
-                                className="text-xs text-white/40 hover:text-red-400 transition-colors"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* Manual tick */}
-            <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-white text-sm">Manual Tick</p>
-                  <p className="text-xs text-white/40 mt-0.5">Force a watchdog cycle now — scans all due targets immediately.</p>
-                </div>
-                <button
-                  onClick={async () => {
-                    try {
-                      const res = await fetch("/api/watches/tick");
-                      const data = await res.json();
-                      alert(`Tick complete: checked ${data.checked} watches.\n${JSON.stringify(data.results, null, 2)}`);
-                      loadWatches();
-                    } catch (err) {
-                      alert("Tick failed: " + (err instanceof Error ? err.message : "error"));
-                    }
-                  }}
-                  className="btn-primary px-4 py-2.5 text-sm"
-                >
-                  Run Tick Now
-                </button>
-              </div>
-              <p className="text-xs text-white/30 mt-3">
-                In production, Vercel Cron runs this automatically every 5 minutes via <code className="text-emerald-400/60">GET /api/watches/tick</code>.
-              </p>
-            </div>
-          </>
         )}
 
         {/* Tab: Recent Scans */}
@@ -1401,7 +1507,307 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
             )}
           </div>
         )}
+
+        {/* Tab: Platform Registry */}
+        {activeTab === "platforms" && (
+          <div className="space-y-6">
+            <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-6">
+              <h3 className="text-base font-semibold text-gray-900 mb-1">Platform Registry</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Platforms registered here get <strong>full admin access</strong> — the GateTest gate runs
+                in strict mode (errors turn the check red) but with no advisory-mode messaging on GitHub.
+                Paste any GitHub URL or org name.
+              </p>
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={platformUrl}
+                  onChange={(e) => setPlatformUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addPlatform()}
+                  placeholder="https://github.com/vapron-ai  or  vapron-ai"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <button
+                  onClick={addPlatform}
+                  disabled={!platformUrl.trim()}
+                  className="px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+              {platformError && (
+                <p className="text-xs text-red-600 mt-1">{platformError}</p>
+              )}
+            </div>
+
+            <div className="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+              {platformsLoading ? (
+                <div className="p-8 text-center text-gray-400">Loading...</div>
+              ) : platforms.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">
+                  No admin platforms registered yet. Add one above.
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50">
+                      <th className="text-left px-4 py-3 font-medium text-gray-400">GitHub Org</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-400">Source URL</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-400">Added</th>
+                      <th className="px-4 py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {platforms.map((p) => (
+                      <tr key={p.id} className="border-b border-gray-100 last:border-0">
+                        <td className="px-4 py-3 font-mono text-xs font-semibold text-emerald-700">
+                          {p.github_org}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">
+                          {p.display_url || "-"}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-400">
+                          {p.added_at ? new Date(p.added_at).toLocaleDateString() : "-"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => removePlatform(p.github_org)}
+                            className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="rounded-xl bg-blue-50 border border-blue-200 p-4">
+              <p className="text-xs text-blue-700">
+                <strong>How it works:</strong> When GateTest&apos;s GitHub App processes a push or PR from a
+                registered org, it automatically uses strict mode — findings show as ✅ or ❌ in the
+                PR checks tab, with no &ldquo;advisory mode&rdquo; label. Works for all repos under that org.
+                You can also set <code className="bg-blue-100 px-1 rounded">GATETEST_ADMIN_ORGS</code> as
+                a Vercel env var for a code-level fallback.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Connected GitHub Accounts */}
+        {activeTab === "accounts" && (
+          <div className="space-y-6">
+            <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-6">
+              <h3 className="text-base font-semibold text-gray-900 mb-1">Connected GitHub Accounts</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Add multiple GitHub Personal Access Tokens (PATs). When the admin triggers a scan, GateTest
+                picks the token whose <strong>orgs</strong> list matches the repo owner — so you can scan
+                private repos across different GitHub accounts or organisations without juggling env vars.
+              </p>
+              <div className="space-y-3">
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    value={ghLabel}
+                    onChange={(e) => setGhLabel(e.target.value)}
+                    placeholder="Label  (e.g. crclabs-hq personal)"
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <input
+                    type="text"
+                    value={ghOrgs}
+                    onChange={(e) => setGhOrgs(e.target.value)}
+                    placeholder="Orgs / users  (comma-separated, e.g. crclabs-hq, ccantynz-alt)"
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={ghToken}
+                    onChange={(e) => setGhToken(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addGhProfile()}
+                    placeholder="GitHub Personal Access Token  (ghp_...)"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                  />
+                  <button
+                    onClick={addGhProfile}
+                    disabled={ghProfileAdding || !ghLabel.trim() || !ghToken.trim()}
+                    className="px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors"
+                  >
+                    {ghProfileAdding ? "Adding…" : "Add"}
+                  </button>
+                </div>
+                {ghProfileError && <p className="text-xs text-red-600">{ghProfileError}</p>}
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+              {ghProfilesLoading ? (
+                <div className="p-8 text-center text-gray-400">Loading…</div>
+              ) : ghProfiles.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">
+                  No GitHub accounts connected yet. Add one above, or set{" "}
+                  <code className="bg-gray-100 px-1 rounded">GATETEST_GITHUB_TOKEN</code> in Vercel env vars as a fallback.
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50">
+                      <th className="text-left px-4 py-3 font-medium text-gray-400">Label</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-400">GitHub Login</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-400">Token</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-400">Orgs</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-400">Added</th>
+                      <th className="px-4 py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ghProfiles.map((p) => (
+                      <tr key={p.id} className="border-b border-gray-100 last:border-0">
+                        <td className="px-4 py-3 font-medium text-gray-900 text-xs">{p.label}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-emerald-700">
+                          {p.github_login ? `@${p.github_login}` : <span className="text-gray-400">unverified</span>}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-gray-500">{p.token_hint}</td>
+                        <td className="px-4 py-3 text-xs text-gray-500">
+                          {p.orgs.length > 0 ? p.orgs.join(", ") : <span className="text-gray-400">all (fallback)</span>}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-400">
+                          {p.added_at ? new Date(p.added_at).toLocaleDateString() : "-"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => removeGhProfile(p.id)}
+                            className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="rounded-xl bg-blue-50 border border-blue-200 p-4">
+              <p className="text-xs text-blue-700">
+                <strong>How token selection works:</strong> When a scan is triggered for{" "}
+                <code className="bg-blue-100 px-1 rounded">github.com/owner/repo</code>, GateTest checks the
+                stored profiles for one whose <em>orgs</em> list contains <code className="bg-blue-100 px-1 rounded">owner</code>{" "}
+                (case-insensitive). If no org match is found it tries the login name, then falls back to the
+                first stored profile, then the <code className="bg-blue-100 px-1 rounded">GATETEST_GITHUB_TOKEN</code>{" "}
+                env var. Tokens require <strong>repo</strong> + <strong>workflow</strong> scopes for full
+                functionality.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Watchdog Briefing — fleet status + anomalies + AI diagnoses (last 24h)
+// ---------------------------------------------------------------------------
+
+interface BriefingStats {
+  watchesEnabled: number;
+  healthy: number;
+  degraded: number;
+  down: number;
+  scans24h: number;
+  anomalies24h: number;
+  prsOpened24h: number;
+  fixesFailed24h: number;
+  diagnoses24h: number;
+}
+
+function WatchdogBriefing() {
+  const [markdown, setMarkdown] = useState("");
+  const [stats, setStats] = useState<BriefingStats | null>(null);
+  const [briefingError, setBriefingError] = useState("");
+  const [briefingLoading, setBriefingLoading] = useState(true);
+
+  const loadBriefing = useCallback(async () => {
+    setBriefingLoading(true);
+    setBriefingError("");
+    try {
+      const res = await fetch("/api/admin/watchdog/briefing");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setMarkdown(data.markdown || "");
+      setStats(data.stats || null);
+    } catch (err) {
+      setBriefingError(err instanceof Error ? err.message : "Failed to load briefing");
+    } finally {
+      setBriefingLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBriefing();
+  }, [loadBriefing]);
+
+  return (
+    <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-6 mb-6">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-bold text-gray-900 flex items-center gap-2">
+          <span className="text-xl">🧠</span> Watchdog Briefing
+        </h3>
+        <button
+          onClick={loadBriefing}
+          className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:border-emerald-500 hover:text-emerald-700 transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+      <p className="text-xs text-gray-500 mb-4">
+        Last 24h across every watch: anomalies, status transitions, auto-fix outcomes, and Claude root-cause
+        diagnoses written by the tick&apos;s intelligence layer.
+      </p>
+
+      {briefingLoading ? (
+        <div className="p-6 text-center text-gray-400 text-sm">Loading briefing…</div>
+      ) : briefingError ? (
+        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+          Briefing unavailable: {briefingError}
+        </div>
+      ) : (
+        <>
+          {stats && (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+              <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-center">
+                <div className="text-lg font-bold text-emerald-700">{stats.healthy}</div>
+                <div className="text-[11px] text-emerald-700/70">healthy</div>
+              </div>
+              <div className={`rounded-lg px-3 py-2 text-center border ${stats.degraded + stats.down > 0 ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}`}>
+                <div className={`text-lg font-bold ${stats.degraded + stats.down > 0 ? "text-red-700" : "text-gray-500"}`}>{stats.degraded + stats.down}</div>
+                <div className={`text-[11px] ${stats.degraded + stats.down > 0 ? "text-red-700/70" : "text-gray-400"}`}>degraded / down</div>
+              </div>
+              <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-center">
+                <div className="text-lg font-bold text-gray-700">{stats.anomalies24h}</div>
+                <div className="text-[11px] text-gray-500">anomalies 24h</div>
+              </div>
+              <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-center">
+                <div className="text-lg font-bold text-gray-700">{stats.prsOpened24h}</div>
+                <div className="text-[11px] text-gray-500">fix PRs 24h</div>
+              </div>
+              <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-center">
+                <div className="text-lg font-bold text-gray-700">{stats.diagnoses24h}</div>
+                <div className="text-[11px] text-gray-500">AI diagnoses 24h</div>
+              </div>
+            </div>
+          )}
+          <pre className="whitespace-pre-wrap text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-4 font-mono leading-relaxed max-h-96 overflow-y-auto">
+            {markdown || "No briefing data yet — the first tick will populate it."}
+          </pre>
+        </>
+      )}
     </div>
   );
 }
@@ -1417,10 +1823,18 @@ interface RepoInfo {
   html_url: string;
   private: boolean;
   pushed_at: string;
+  pushedAgeDays: number | null;
   default_branch: string;
   latestRun: { conclusion: string | null; status: string; created_at: string; html_url: string; head_branch: string; name: string } | null;
-  ciStatus: "passing" | "failing" | "pending" | "none";
+  latestRunAgeDays: number | null;
+  ciStatus: "passing" | "failing" | "pending" | "none" | "stale";
 }
+
+// Anything older than this on the default branch is treated as stale —
+// the operator should never auto-fix code whose last CI signal is from
+// months ago, because the file under that finding has probably already
+// moved on and the fix loop would patch the wrong line.
+const STALE_RUN_DAYS = 30;
 
 interface RepoScanState {
   status: "idle" | "scanning" | "fixing" | "done" | "error";
@@ -1459,6 +1873,21 @@ function WatchdogPanel() {
   useEffect(() => { load(); }, [load]);
 
   async function scanAndFix(repo: RepoInfo) {
+    // Guard rail — if the operator is single-clicking a stale repo, make sure
+    // they meant it. The scan itself is always fresh, but a "Fix PR" against
+    // a repo that hasn't been touched in months is almost certainly not what
+    // they want (file may have moved, branch may be dead, etc.).
+    if (repo.ciStatus === "stale") {
+      const ageNote = repo.latestRunAgeDays !== null
+        ? `Last CI run: ${repo.latestRunAgeDays} days ago.`
+        : (repo.pushedAgeDays !== null ? `Last push: ${repo.pushedAgeDays} days ago.` : "Repo looks inactive.");
+      const ok = window.confirm(
+        `${repo.full_name} is marked STALE.\n\n${ageNote}\n\n` +
+        `A fresh scan will run, but auto-fix on stale code can target lines that have already moved. ` +
+        `Proceed anyway?`
+      );
+      if (!ok) return;
+    }
     setScanStates((s) => ({ ...s, [repo.full_name]: { status: "scanning" } }));
     try {
       // Step 1: scan
@@ -1499,6 +1928,8 @@ function WatchdogPanel() {
           error: fixData.prUrl ? undefined : (fixData.error || fixData.message),
         },
       }));
+      // Refresh repo list so CI status reflects any changes
+      void load();
     } catch (err) {
       setScanStates((s) => ({
         ...s,
@@ -1508,7 +1939,15 @@ function WatchdogPanel() {
   }
 
   async function fixAllFailing() {
-    const failing = repos.filter((r) => r.ciStatus === "failing");
+    // Batch fix ONLY touches repos whose latest CI run is on the default branch
+    // AND was within STALE_RUN_DAYS. Anything older is excluded — the operator
+    // can still click "Scan & Fix" on a stale repo individually (which triggers
+    // a confirm prompt), but they can never get there via the batch button.
+    const failing = repos.filter(
+      (r) =>
+        r.ciStatus === "failing" &&
+        (r.latestRunAgeDays === null || r.latestRunAgeDays <= STALE_RUN_DAYS)
+    );
     setBatchRunning(true);
     for (const repo of failing) {
       const current = scanStates[repo.full_name];
@@ -1519,7 +1958,12 @@ function WatchdogPanel() {
   }
 
   const displayed = filter === "failing" ? repos.filter((r) => r.ciStatus === "failing") : repos;
-  const failCount = repos.filter((r) => r.ciStatus === "failing").length;
+  const failCount = repos.filter(
+    (r) =>
+      r.ciStatus === "failing" &&
+      (r.latestRunAgeDays === null || r.latestRunAgeDays <= STALE_RUN_DAYS)
+  ).length;
+  const staleCount = repos.filter((r) => r.ciStatus === "stale").length;
   const passCount = repos.filter((r) => r.ciStatus === "passing").length;
 
   return (
@@ -1550,15 +1994,21 @@ function WatchdogPanel() {
 
         {/* Stats row */}
         {!loading && repos.length > 0 && (
-          <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-4 text-xs flex-wrap">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-red-400" />
-              <span className="text-gray-700"><strong className="text-red-600">{failCount}</strong> failing</span>
+              <span className="text-gray-700"><strong className="text-red-600">{failCount}</strong> failing (recent)</span>
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
               <span className="text-gray-700"><strong className="text-emerald-600">{passCount}</strong> passing</span>
             </span>
+            {staleCount > 0 && (
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-gray-400" />
+                <span className="text-gray-700"><strong className="text-gray-600">{staleCount}</strong> stale ({STALE_RUN_DAYS}+ days)</span>
+              </span>
+            )}
             <span className="text-gray-400">{repos.length} total repos</span>
           </div>
         )}
@@ -1623,24 +2073,37 @@ function WatchdogPanel() {
           repo.ciStatus === "failing" ? "bg-red-400" :
           repo.ciStatus === "passing" ? "bg-emerald-400" :
           repo.ciStatus === "pending" ? "bg-amber-400 animate-pulse" :
+          repo.ciStatus === "stale" ? "bg-gray-400" :
           "bg-gray-300";
 
         const ciLabel =
           repo.ciStatus === "failing" ? "FAILING" :
           repo.ciStatus === "passing" ? "PASSING" :
-          repo.ciStatus === "pending" ? "PENDING" : "NO CI";
+          repo.ciStatus === "pending" ? "PENDING" :
+          repo.ciStatus === "stale" ? "STALE" : "NO CI";
 
         const ciColor =
           repo.ciStatus === "failing" ? "text-red-600" :
           repo.ciStatus === "passing" ? "text-emerald-600" :
-          repo.ciStatus === "pending" ? "text-amber-600" : "text-gray-400";
+          repo.ciStatus === "pending" ? "text-amber-600" :
+          repo.ciStatus === "stale" ? "text-gray-500" : "text-gray-400";
+
+        // Human age — "today", "3 days ago", "47 days ago". The April-dated
+        // surprises Craig flagged surface here, prominently, so the operator
+        // can never miss them.
+        const ageLabel =
+          repo.latestRunAgeDays === null ? null :
+          repo.latestRunAgeDays === 0 ? "today" :
+          repo.latestRunAgeDays === 1 ? "yesterday" :
+          `${repo.latestRunAgeDays} days ago`;
 
         return (
           <div
             key={repo.id}
             className={`rounded-xl bg-white border shadow-sm p-4 ${
               repo.ciStatus === "failing" ? "border-l-4 border-l-red-500 border-red-200" :
-              repo.ciStatus === "passing" ? "border-l-4 border-l-emerald-500 border-emerald-200" : "border-gray-200"
+              repo.ciStatus === "passing" ? "border-l-4 border-l-emerald-500 border-emerald-200" :
+              repo.ciStatus === "stale" ? "border-l-4 border-l-gray-400 border-gray-200 opacity-80" : "border-gray-200"
             }`}
           >
             <div className="flex flex-wrap items-center gap-3">
@@ -1664,15 +2127,22 @@ function WatchdogPanel() {
                   <span className={`text-[11px] font-bold font-mono ${ciColor}`}>{ciLabel}</span>
                 </div>
                 {repo.latestRun && (
-                  <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                  <div className={`text-xs mt-0.5 flex items-center gap-2 flex-wrap ${
+                    repo.ciStatus === "stale" ? "text-amber-700 font-medium" : "text-gray-400"
+                  }`}>
                     <span>{repo.latestRun.name}</span>
                     <span>·</span>
                     <span>{repo.latestRun.head_branch}</span>
                     <span>·</span>
-                    <span>{new Date(repo.latestRun.created_at).toLocaleDateString()}</span>
+                    <span>{new Date(repo.latestRun.created_at).toLocaleDateString()}{ageLabel ? ` (${ageLabel})` : ""}</span>
                     <a href={repo.latestRun.html_url} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
                       view run →
                     </a>
+                  </div>
+                )}
+                {!repo.latestRun && repo.pushedAgeDays !== null && repo.pushedAgeDays > 60 && (
+                  <div className="text-xs text-amber-700 font-medium mt-0.5">
+                    no CI · last push {repo.pushedAgeDays} days ago
                   </div>
                 )}
               </div>
@@ -2098,7 +2568,7 @@ function NuclearScanPanel() {
         <div className="flex items-start gap-3 mb-3">
           <span className="text-2xl">☢</span>
           <div>
-            <h3 className="font-bold text-lg">Nuclear Scan</h3>
+            <h3 className="font-bold text-lg">Forensic Scan</h3>
             <p className="text-sm text-gray-500">Find <strong>anything</strong> and <strong>everything</strong> wrong with a domain. Full stack diagnosis — DNS, ports, SSL, headers, performance, availability, redirects, email auth. Root-cause pinpointed automatically.</p>
           </div>
         </div>
@@ -2108,7 +2578,7 @@ function NuclearScanPanel() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") runNuclear(); }}
-            placeholder="https://crontech.ai"
+            placeholder="https://vapron.ai"
             className="flex-1 px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 text-sm"
           />
           <button
@@ -2117,7 +2587,7 @@ function NuclearScanPanel() {
             className="btn-primary px-6 py-3 text-sm font-bold disabled:opacity-50"
             style={{ background: "#dc2626" }}
           >
-            {scanning ? "Nuking..." : "☢ Nuclear Scan"}
+            {scanning ? "Scanning..." : "☢ Forensic Scan"}
           </button>
         </div>
         {error && <p className="text-danger text-sm mt-3">{error}</p>}

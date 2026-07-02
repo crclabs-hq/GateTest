@@ -342,3 +342,47 @@ test('action.yml chaos step honours chaos-blocks-merge=false by default (no merg
     'chaos step must consult inputs.chaos-blocks-merge before exiting non-zero'
   );
 });
+
+test('action.yml declares the threshold, summary-comment, grade, and score fields', () => {
+  assert.match(RAW, /threshold:/);
+  assert.match(RAW, /summary-comment:/);
+  assert.match(RAW, /\n  grade:/);
+  assert.match(RAW, /\n  score:/);
+});
+
+test('action.yml threshold input defaults to empty (grade gate is off unless explicitly set)', () => {
+  const block = RAW.match(/threshold:[\s\S]+?(?=\n {2}\S)/);
+  assert.ok(block);
+  assert.match(block[0], /default: ''/);
+});
+
+test('action.yml has a "Compute grade" step that runs on every event (always()), not just pull_request', () => {
+  const step = RAW.match(/- name: Compute grade[\s\S]+?(?=\n    - name:|$)/);
+  assert.ok(step, 'expected a "Compute grade" step');
+  assert.match(step[0], /if:\s*always\(\)/);
+});
+
+test('action.yml has a "Post scan summary PR comment" step gated on pull_request(_target) and summary-comment input', () => {
+  const step = RAW.match(/- name: Post scan summary PR comment[\s\S]+?(?=\n    - name:|$)/);
+  assert.ok(step, 'expected a "Post scan summary PR comment" step');
+  assert.match(step[0], /inputs\.summary-comment == 'true'/);
+  assert.match(step[0], /github\.event_name == 'pull_request'/);
+});
+
+test('action.yml Enforce gate verdict step gates on threshold ADDITIONALLY to gate-status, never replacing it', () => {
+  const enforce = RAW.match(/- name: Enforce gate verdict[\s\S]+?$/);
+  assert.ok(enforce);
+  // Still must read the original error/warning gate.
+  assert.match(enforce[0], /steps\.gate\.outputs\.gate-status/);
+  // And now also consult threshold + the computed grade.
+  assert.match(enforce[0], /inputs\.threshold/);
+  assert.match(enforce[0], /steps\.grade\.outputs\.grade/);
+});
+
+test('action.yml never fails the threshold gate when no grade was computed (missing JSON report)', () => {
+  const enforce = RAW.match(/- name: Enforce gate verdict[\s\S]+?$/);
+  assert.ok(enforce);
+  // The threshold branch must require GRADE to be non-empty before comparing —
+  // never fail on missing data.
+  assert.match(enforce[0], /\[ -n "\$THRESHOLD" \] && \[ -n "\$GRADE" \]/);
+});

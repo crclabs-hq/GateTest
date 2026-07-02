@@ -1,0 +1,20 @@
+{
+  "name": "tls-disabled",
+  "category": "known-bad",
+  "target": "code",
+  "tier": "full",
+  "description": "rejectUnauthorized:false in Node https.Agent — classic MITM-vulnerable pattern that ships when a dev forgets to re-enable cert validation after testing.",
+  "expected": {
+    "errors": {
+      "tlsSecurity": { "atLeast": 1 }
+    },
+    "totalErrorsAtLeast": 1
+  },
+  "budgets": {
+    "maxDurationMs": 15000,
+    "deterministic": true
+  },
+  "labels": ["tls", "mitm", "cwe-295"],
+  "source": "hand-crafted",
+  "createdAt": "2026-05-29T00:00:00Z"
+}

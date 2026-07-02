@@ -14,7 +14,7 @@ export default function Install() {
             Two ways to get the gate <span className="gradient-text">on your repo</span>.
           </h2>
           <p className="text-muted text-lg max-w-2xl mx-auto">
-            Pick the install path that fits your stack. Both run the same 102 modules
+            Pick the install path that fits your stack. Both run the same 110 modules
             against every push.
           </p>
         </div>
@@ -83,11 +83,11 @@ export default function Install() {
               your existing branch protection blocks the merge.
             </p>
 
-            <div className="rounded-lg bg-black/30 border border-border p-4 mb-5 font-[var(--font-mono)] text-xs overflow-x-auto">
+            <div className="rounded-lg bg-slate-950 border border-slate-800 p-4 mb-5 font-[var(--font-mono)] text-xs overflow-x-auto">
               <p className="text-white/40 mb-1"># install</p>
-              <p className="text-emerald-400 mb-3">npx gatetest --suite full</p>
+              <p className="text-emerald-400 mb-3">npx @gatetest/cli --suite full</p>
               <p className="text-white/40 mb-1"># or pin to your CI runner</p>
-              <p className="text-emerald-400">npm i -D gatetest && npx gatetest --suite full --reporter sarif</p>
+              <p className="text-emerald-400">npm i -D @gatetest/cli && npx @gatetest/cli --suite full --reporter sarif</p>
             </div>
 
             <ul className="text-sm space-y-2 mb-6">
@@ -115,15 +115,29 @@ export default function Install() {
           </div>
         </div>
 
-        {/* Bottom strip — scan-on-demand path */}
-        <div className="mt-6 rounded-xl border border-border bg-surface/50 p-6 text-center">
-          <p className="text-sm text-muted">
-            Just want a one-off scan?{" "}
-            <a href="#pricing" className="text-accent-light font-semibold hover:underline">
-              Pay-on-completion pricing &rarr;
-            </a>
-            {" "}&mdash; nothing to install, results in under 60 seconds.
-          </p>
+        {/* Bottom strip — quickstart + on-demand */}
+        <div className="mt-6 grid sm:grid-cols-2 gap-4">
+          <Link
+            href="/quickstart"
+            className="rounded-xl border border-accent/30 bg-accent/5 p-6 hover:border-accent/60 transition-colors block"
+          >
+            <p className="text-sm font-semibold text-accent-light mb-1">
+              5-minute quickstart &rarr;
+            </p>
+            <p className="text-sm text-muted">
+              Install &rarr; add one secret &rarr; push a commit &rarr; watch the auto-fix PR open.
+            </p>
+          </Link>
+          <div className="rounded-xl border border-border bg-surface/50 p-6">
+            <p className="text-sm font-semibold text-foreground mb-1">
+              <a href="#pricing" className="text-accent-light hover:underline">
+                One-off scan &rarr;
+              </a>
+            </p>
+            <p className="text-sm text-muted">
+              Pay-on-completion pricing. Nothing to install, results in minutes.
+            </p>
+          </div>
         </div>
       </div>
     </section>

@@ -19,12 +19,24 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { isAdminRequest } from "@/app/lib/admin-auth";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const {
+  createTrackerForTier,
+  runWithTracker,
+  getCurrentTracker,
+} = require("@/app/lib/budget-tracker");
+import {
+  CUSTOMER_COOKIE_NAME,
+  getOAuthConfig,
+  verifyCustomerSession,
+} from "@/app/lib/customer-session";
 import {
   createBranch,
   fetchBlob,
   fetchFileSha,
-
+  fetchTree,
   openPullRequest,
   postPrComment,
   resolveBaseBranchSha,
@@ -97,7 +109,7 @@ const { runPairReview, renderReviewComment } = require("@/app/lib/pair-review") 
   ) => string;
 };
 
-// CISO report generator — Nuclear-tier ($399) deliverable. Wires the
+// CISO report generator — Forensic-tier ($399) deliverable. Wires the
 // existing helper into the Nuclear branch of the fix route so paying
 // customers actually receive the board-ready report the marketing
 // promises (OWASP Top 10, SOC2 TSC, CIS Controls v8, 30/60/90-day
@@ -126,10 +138,10 @@ const { generateCisoReport, cisoReportPath } = require("@/app/lib/ciso-report-ge
 };
 
 // Phase 3.2 — cross-finding correlation engine. Identifies attack
-// chains across the full Nuclear-tier findings set (one Claude call,
+// chains across the full Forensic-tier findings set (one Claude call,
 // independent of the per-finding diagnoser). Wired into /api/scan/fix
 // so the CISO report receives real chains instead of an empty array.
-// Failure is non-blocking — Nuclear deliverable still ships; CISO
+// Failure is non-blocking — Forensic deliverable still ships; CISO
 // report rendered with chains:[] and a placeholder note in the PR body.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { correlateForCisoChains } = require("@/app/lib/ciso-correlator-bridge") as {
@@ -164,7 +176,7 @@ const { composePrBody } = require("@/app/lib/pr-composer") as {
     repoUrl?: string;
     /** Pre-rendered CVE patches markdown section from composeCveFixPrSection. */
     cveSection?: string;
-    /** Nuclear-tier CISO report descriptor (path/riskLevel/complianceGaps/counts/failed). */
+    /** Forensic-tier CISO report descriptor (path/riskLevel/complianceGaps/counts/failed). */
     cisoReport?: {
       path?: string;
       riskLevel?: string;
@@ -188,6 +200,33 @@ const { generateTestsForFixes } = require("@/app/lib/test-generator") as {
     summary: string;
   }>;
 };
+// Phase 1.2b production wiring — server-side hydration of the original
+// workspace + baseline findings when the caller didn't supply them.
+// This is what turns the scanner gate from a no-op into a live gate for
+// every production caller (scan page, admin Command Center, watchdog).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { hydrateFixWorkspace } = require("@/app/lib/fix-workspace-hydrator") as {
+  hydrateFixWorkspace: (opts: {
+    owner: string;
+    repo: string;
+    token: string;
+    tier?: string;
+    issueFiles: string[];
+    existingFileContents?: Array<{ path: string; content: string }>;
+    existingFindings?: Record<string, string[]> | null;
+    fetchTree: (owner: string, repo: string, ref: string, token: string) => Promise<string[]>;
+    fetchBlob: (owner: string, repo: string, path: string, ref: string, token: string) => Promise<string | null>;
+    runTier?: (tier: string, ctx: { owner: string; repo: string; files: string[]; fileContents: Array<{ path: string; content: string }> }) => Promise<{ modules: Array<{ name: string; details?: string[] }>; totalIssues: number }>;
+    maxFiles?: number;
+  }) => Promise<{
+    fileContents: Array<{ path: string; content: string }>;
+    findingsByModule: Record<string, string[]> | null;
+    hydratedFiles: boolean;
+    hydratedFindings: boolean;
+    reason: string | null;
+  }>;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { validateFixesAgainstScanner } = require("@/app/lib/cross-fix-scanner-gate") as {
   validateFixesAgainstScanner: (opts: {
@@ -274,6 +313,23 @@ const { attemptFixWithRetries, summariseAttempts } = require("@/app/lib/fix-atte
     finalReason: string | null;
   }>;
   summariseAttempts: (attempts: Array<{ outcome: string; durationMs: number }>) => string;
+};
+// Flywheel telemetry — records WHICH layer handled each fix so the nightly
+// pattern-miner trains on production data, not just CLI runs. Best-effort,
+// never throws (resilience contract documented in the module).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { recordFixAttempt } = require("@/app/lib/fix-telemetry") as {
+  recordFixAttempt: (entry: {
+    layer: "ast" | "rule" | "recipe" | "claude" | null;
+    success: boolean;
+    issueRuleKey?: string;
+    module?: string;
+    durationMs?: number;
+    costUsd?: number;
+    reason?: string;
+    model?: string;
+    fileExt?: string;
+  }) => void;
 };
 // Shape of the shared adaptive-concurrency state object. Mirrors the JS
 // source at website/app/lib/adaptive-concurrency.js — workers may mutate
@@ -446,6 +502,12 @@ const TIME_BUDGET_MS = 240_000;
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
 
+// Circuit breaker — stops AI invocations mid-flight when the repo is
+// so large that 1000 Claude calls would be needed. Partial fixes are
+// committed and the PR body includes an enterprise upgrade prompt.
+// Applied only on scan_fix ($199) and nuclear/forensic ($399) tiers.
+const MAX_AI_INVOCATIONS = 1000;
+
 // Retryable network error shapes — the TLS / connection-level failures that
 // throw BEFORE an HTTP response is ever produced. Notably includes EPROTO
 // "SSL alert number 80" which hits hard when undici's keep-alive pool gets
@@ -476,6 +538,26 @@ function isRetryableNetworkError(err: unknown): boolean {
 }
 
 async function anthropicCall(body: string): Promise<{ status: number; data: Record<string, unknown> }> {
+  // Budget guard — checks the per-tier USD/token cap BEFORE making the
+  // call. If the cap was already crossed on a prior call this throws a
+  // BUDGET_EXCEEDED Error carrying a snapshot for the route handler to
+  // surface as a clean 402. Caller does NOT need to wrap — the throw
+  // propagates through the retry layer to the POST handler's catch.
+  // When no tracker is in context (e.g. tests that don't wrap), this is
+  // a no-op.
+  const tracker = getCurrentTracker();
+  // Invocation circuit breaker — check BEFORE the USD budget preflight so
+  // over-limit repos get a clear "upgrade to enterprise" message rather
+  // than an opaque 402 budget-exceeded error.
+  if (tracker && tracker._maxInvocations !== undefined) {
+    if (tracker.callCount >= tracker._maxInvocations) {
+      const err = new Error(`INVOCATION_LIMIT_EXCEEDED:${tracker._maxInvocations}`);
+      err.name = "INVOCATION_LIMIT_EXCEEDED";
+      throw err;
+    }
+  }
+  if (tracker) tracker.preflight();
+
   const controller = new AbortController();
   // Anthropic max_tokens=8192 at sonnet speeds rarely exceeds 30s. 45s is a
   // safe per-request ceiling that leaves room for retries inside the 300s
@@ -499,7 +581,12 @@ async function anthropicCall(body: string): Promise<{ status: number; data: Reco
     const text = await res.text();
     let data: Record<string, unknown>;
     try { data = JSON.parse(text); } catch { data = { raw: text }; }
-    return { status: res.status, data };
+    const response = { status: res.status, data };
+    // Account for spend AFTER receiving — uses Anthropic's exact token
+    // counts from the `usage` field when available, falls back to a
+    // char-based estimate when the response is malformed / errored.
+    if (tracker) tracker.record(body, response);
+    return response;
   } finally {
     clearTimeout(timer);
   }
@@ -822,6 +909,22 @@ export async function POST(req: NextRequest) {
     originalFileContents?: OriginalFileInput[];
     originalFindingsByModule?: Record<string, string[]>;
     tier?: string;
+    // Customer-supplied GitHub PAT — used for ONE request only, never
+    // stored, never logged. When supplied AND validated, overrides the
+    // server-side resolveRepoAuth fallback so customers without our
+    // GitHub App installed can still get the fix PR opened on their repo.
+    //
+    // Expected shape: `ghp_*` (classic), `github_pat_*` (fine-grained),
+    // or any GH-issued token. Must have `repo` scope (or `contents:write`
+    // + `pull_requests:write` for fine-grained).
+    //
+    // Security:
+    //   - Validated against /repos/<owner>/<repo> via probe BEFORE we
+    //     waste any Anthropic tokens on the fix loop.
+    //   - Used only to push the branch + open the PR; not echoed anywhere.
+    //   - JavaScript can't truly zero memory but the variable goes out
+    //     of scope as soon as the request returns.
+    customerPat?: string;
   };
   try {
     input = await req.json();
@@ -833,6 +936,13 @@ export async function POST(req: NextRequest) {
 
   if (!repoUrl || !rawIssues || rawIssues.length === 0) {
     return NextResponse.json({ error: "Missing repoUrl or issues" }, { status: 400 });
+  }
+
+  if (Array.isArray(input.originalFileContents) && input.originalFileContents.length > 500) {
+    return NextResponse.json(
+      { error: "originalFileContents too large (max 500 files)" },
+      { status: 400 },
+    );
   }
 
   if (!ANTHROPIC_API_KEY) {
@@ -878,6 +988,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Budget tracker — caps Anthropic spend at the per-tier ceiling. Runs
+  // for the entire request via AsyncLocalStorage so anthropicCall() can
+  // reach it without explicit threading. Stored on the closure so the
+  // route's outer try/catch can attach a snapshot to any error response.
+  const _budgetTracker = createTrackerForTier(tierForCap);
+  // Wire the invocation circuit breaker for paid AI-fix tiers.
+  if (tierForCap === "scan_fix" || tierForCap === "nuclear") {
+    (_budgetTracker as Record<string, unknown>)._maxInvocations = MAX_AI_INVOCATIONS;
+  }
+  return await runWithTracker(_budgetTracker, async (): Promise<NextResponse> => {
+
   // Accept gluecron.com URLs first; fall back to github.com for links
   // still in customer bookmarks during the migration window.
   const gluecronMatch = repoUrl.match(/gluecron\.com\/([^/]+)\/([^/?#]+)/);
@@ -898,21 +1019,148 @@ export async function POST(req: NextRequest) {
   // unexpected throw so the customer always gets a JSON 500 instead of a crash.
   try {
 
-  // Resolve Gluecron PAT and confirm repo access with a probe request.
-  const auth = await resolveRepoAuth(owner, repo);
-  if (!auth.token) {
-    return NextResponse.json(
-      {
-        error:
-          auth.error ||
-          "Gluecron access not configured — set GLUECRON_API_TOKEN (PAT, scope 'repo')",
-        hint: "Generate a PAT at https://gluecron.com/settings/tokens and set GLUECRON_API_TOKEN.",
-      },
-      { status: 503 }
-    );
+  // Auth resolution — order of preference:
+  //   1. Logged-in customer session (OAuth access token from cookie)
+  //   2. Customer-supplied PAT in request body (one-shot, per-request)
+  //   3. Server-side fallback (Gluecron PAT, then GITHUB_TOKEN env)
+  //
+  // Session path is the LAUNCH-DEFAULT path — customer clicks "Sign in
+  // with GitHub", we use their OAuth token for scan + fix. No PAT to
+  // paste, no App to install. Token is AES-256-GCM encrypted in the
+  // session cookie and decrypted only inside this Node handler.
+  let token: string;
+  let authSource: string;
+
+  // (1) Session cookie path — if logged in AND token reaches the repo,
+  // skip the PAT + server cascade entirely. Falls through to the next
+  // tier if the session doesn't grant access (revoked / scoped-out / etc).
+  let sessionResolvedToken: string | null = null;
+  try {
+    const oauthStatus = getOAuthConfig();
+    if (oauthStatus.ok && oauthStatus.config) {
+      const cookieStore = await cookies();
+      const sessionCookie = cookieStore.get(CUSTOMER_COOKIE_NAME);
+      if (sessionCookie && sessionCookie.value) {
+        const payload = verifyCustomerSession(sessionCookie.value, oauthStatus.config.sessionSecret);
+        if (payload && typeof payload.a === "string" && payload.a) {
+          // Probe — does the session's OAuth token actually grant access
+          // to THIS repo? OAuth tokens are user-scoped so the user might
+          // not have access to the pasted repo URL.
+          const probeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${payload.a}`,
+              Accept: "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "GateTest-Session-OAuth/1.0",
+            },
+          });
+          if (probeRes.status === 200) {
+            sessionResolvedToken = payload.a;
+          }
+          // 401 / 404 / other — fall through to PAT / server cascade.
+        }
+      }
+    }
+  } catch (sessionErr) { // error-ok — session reading must never block the fix flow; log + continue
+    console.error("[/api/scan/fix] session resolution failed (continuing):", sessionErr);
   }
-  const token = auth.token;
-  const authSource = auth.source;
+
+  // (2) Customer-PAT path
+  const customerPat = typeof input.customerPat === "string" ? input.customerPat.trim() : "";
+  // GitHub PAT shapes: classic `ghp_<40>`, fine-grained `github_pat_<...>`,
+  // or app-installation `ghs_<...>`. Reject anything that doesn't match
+  // a known shape — prevents accidental use of an Anthropic key, an SSH
+  // key, or whatever else the customer might paste in the wrong field.
+  const PAT_SHAPE = /^(?:ghp_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{60,}|ghs_[A-Za-z0-9]{36,})$/;
+
+  if (sessionResolvedToken) {
+    // Logged-in customer's OAuth token already passed the repo probe.
+    // Use it for the fix and skip the PAT / server cascade.
+    token = sessionResolvedToken;
+    authSource = "customer-session";
+  } else if (customerPat) {
+    if (!PAT_SHAPE.test(customerPat)) {
+      return NextResponse.json(
+        {
+          error: "Supplied PAT doesn't match a recognised GitHub token shape",
+          hint: "Use a classic PAT (ghp_*), fine-grained PAT (github_pat_*), or installation token (ghs_*). Generate at https://github.com/settings/tokens",
+        },
+        { status: 400 }
+      );
+    }
+    // Probe — does this token actually grant repo access? Cheap GET that
+    // tells us yes/no without burning the fix budget.
+    const probeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${customerPat}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "GateTest-Customer-PAT/1.0",
+      },
+    });
+    if (probeRes.status === 401) {
+      return NextResponse.json(
+        { error: "GitHub PAT was rejected (401 unauthorised). Check the token is valid + not expired." },
+        { status: 401 }
+      );
+    }
+    if (probeRes.status === 404) {
+      return NextResponse.json(
+        { error: `Repo ${owner}/${repo} not found OR the PAT doesn't grant access to it.`, hint: "If the repo is private, ensure the PAT was issued with the repo selected (fine-grained) or full repo scope (classic)." },
+        { status: 404 }
+      );
+    }
+    if (probeRes.status !== 200) {
+      return NextResponse.json(
+        { error: `GitHub repo probe failed with HTTP ${probeRes.status}` },
+        { status: 502 }
+      );
+    }
+    token = customerPat;
+    authSource = "customer-pat";
+  } else {
+    // Fall through to server-side token resolution (Gluecron PAT, then
+    // GITHUB_TOKEN env). This is the GitHub-App-installed path — works
+    // when our App has been installed on the customer's repo.
+    const auth = await resolveRepoAuth(owner, repo);
+    if (!auth.token) {
+      return NextResponse.json(
+        {
+          error:
+            auth.error ||
+            "No write access to this repo. Install the GateTestHQ GitHub App OR paste a GitHub PAT (scope 'repo') in the customerPat field to authorise this one fix.",
+          hint: "Install: https://github.com/apps/GateTestHQ — or generate a PAT at https://github.com/settings/tokens (Classic) / https://github.com/settings/personal-access-tokens (Fine-grained).",
+        },
+        { status: 503 }
+      );
+    }
+    token = auth.token;
+    authSource = auth.source;
+  }
+
+  // Phase 1.2b — hydrate the original workspace + baseline findings when
+  // the caller didn't send them. Activates the cross-fix scanner gate,
+  // contextual grounding, stack detection and prior-art recall for every
+  // production caller. Failure degrades to the old behaviour (gate skips)
+  // and the reason is carried into the response below — never blocking.
+  const hydration = await hydrateFixWorkspace({
+    owner,
+    repo,
+    token,
+    tier: input.tier || "full",
+    issueFiles: [...new Set(issues.map((i) => i.file).filter((f): f is string => Boolean(f)))],
+    existingFileContents: input.originalFileContents || [],
+    existingFindings: input.originalFindingsByModule || null,
+    fetchTree,
+    fetchBlob,
+    runTier,
+  });
+  input.originalFileContents = hydration.fileContents;
+  if (hydration.findingsByModule) {
+    input.originalFindingsByModule = hydration.findingsByModule;
+  }
 
   // Group issues by file. Day-2: retain `line` per issue so the per-file
   // worker can choose surgical-fix vs whole-file mode.
@@ -1325,7 +1573,11 @@ export async function POST(req: NextRequest) {
       const isAbortErr = err instanceof Error && (err.name === "AbortError" || /aborted|abort/i.test(raw));
       const isNetworkErr = isAbortErr || /EPROTO|ECONNRESET|ETIMEDOUT|ssl.*alert|handshake|fetch failed|socket hang up|unreachable/i.test(raw);
 
-      if (isNetworkErr) {
+      if (err instanceof Error && err.name === "INVOCATION_LIMIT_EXCEEDED") {
+        // Circuit breaker fired — halt the loop; partial fixes already in
+        // `fixes[]` will be committed and the PR body will explain.
+        state.haltRun = true;
+      } else if (isNetworkErr) {
         state.consecutiveNetworkErrors += 1;
         if (state.consecutiveNetworkErrors === 3 && state.activeConcurrency > 1) {
           state.activeConcurrency = 1;
@@ -1346,6 +1598,33 @@ export async function POST(req: NextRequest) {
 
   if (skippedForBudget > 0) {
     errors.push(`Skipped ${skippedForBudget} file${skippedForBudget > 1 ? "s" : ""} — function time budget exhausted. Re-run fix to process the remainder.`);
+  }
+
+  // Invocation-limit advisory — added to `errors[]` so it appears in the
+  // PR body's advisory section. Partial fixes are still committed.
+  const hitInvocationLimit = _budgetTracker && (_budgetTracker as Record<string, unknown>)._maxInvocations !== undefined
+    && _budgetTracker.callCount >= ((_budgetTracker as Record<string, unknown>)._maxInvocations as number);
+  if (hitInvocationLimit) {
+    errors.push(
+      `⚡ AI invocation limit reached (${MAX_AI_INVOCATIONS} calls). ` +
+      `Partial fixes committed — ${fixes.length} file(s) fixed before the limit. ` +
+      `For repositories this size, contact enterprise@gatetest.ai for a dedicated scanner instance.`
+    );
+  }
+
+  // Flywheel capture — one telemetry record per attempted file. CVE
+  // version-bumps ran without Claude (deterministic 'rule' layer);
+  // everything else that reached the loop is the 'claude' layer. Records
+  // ruleKey/module-free aggregates only (privacy contract in fix-telemetry).
+  for (const [filePath, history] of Object.entries(attemptHistoryByFile)) {
+    const deterministic = history.summary.includes("without Claude");
+    recordFixAttempt({
+      layer: deterministic ? "rule" : "claude",
+      success: history.success,
+      durationMs: history.attempts.reduce((acc, a) => acc + (a.durationMs || 0), 0),
+      reason: history.success ? undefined : (history.attempts[history.attempts.length - 1]?.outcome || "unknown"),
+      fileExt: (filePath.match(/\.[a-z0-9]+$/i) || [""])[0] || undefined,
+    });
   }
 
   if (fixes.length === 0) {
@@ -1514,7 +1793,7 @@ export async function POST(req: NextRequest) {
       await upsertFile(owner, repo, fix.file, fix.fixed, message, branchName, existingSha, token);
     });
 
-    // Nuclear-tier CISO board-report. Generated AFTER all fixes are
+    // Forensic-tier CISO board-report. Generated AFTER all fixes are
     // committed (so it reflects the post-fix landscape), BEFORE PR-body
     // composition (so the body can mention it). Committed to the same
     // branch as a markdown file the customer receives in the PR diff;
@@ -1559,7 +1838,7 @@ export async function POST(req: NextRequest) {
         // CISO report so chains can flow into the report's attack-chain
         // section. ONE Claude call, budget-bounded by a 30s timeout.
         // Fail-soft: any error / timeout / parse failure returns
-        // chains:[] with a human-readable note. The Nuclear deliverable
+        // chains:[] with a human-readable note. The Forensic deliverable
         // STILL ships either way — chains are an additive lift on top
         // of the per-finding diagnosis the CISO report already covers.
         const correlationResult = await correlateForCisoChains({
@@ -1581,7 +1860,7 @@ export async function POST(req: NextRequest) {
           // appear independent" (an honest outcome, not a failure).
           chains: correlationResult.chains,
           hostName: `${owner}/${repo}`,
-          tier: "Nuclear",
+          tier: "Forensic",
           askClaude: askClaudeForTest,
         });
 
@@ -1649,11 +1928,22 @@ export async function POST(req: NextRequest) {
       cveSection: cvePrSection || undefined,
       cisoReport: cisoReportDescriptor,
     });
+    // Cross-repo flywheel CONSUME side — annotate fixes whose diff shape
+    // structurally matches anonymised vectors already shipped on other
+    // codebases. Best-effort: helper never throws, '' means no section.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { annotateFixesWithPriorArt, renderPriorArtSection } = require("@/app/lib/cross-repo-prior-art") as {
+      annotateFixesWithPriorArt: (fixes: Array<{ file: string; original: string; fixed: string }>) => Array<{ file: string; priorArt: { operatorClass: string; sampleSize: number } }>;
+      renderPriorArtSection: (annotations: Array<{ file: string; priorArt: { operatorClass: string; sampleSize: number } }>) => string;
+    };
+    const priorArtSection = renderPriorArtSection(annotateFixesWithPriorArt(fixes));
+
     // Append the advisory section (files the tier cap couldn't cover)
     // so customers see what was left on the table without paying for it.
-    const prBody = advisoryMarkdown
+    let prBody = advisoryMarkdown
       ? `${prBodyCore}\n\n---\n\n${advisoryMarkdown}`
       : prBodyCore;
+    if (priorArtSection) prBody = `${prBody}\n\n---\n\n${priorArtSection}`;
 
     // Open the PR. NOTE: Gluecron uses `headBranch` / `baseBranch` (NOT
     // GitHub's `head` / `base`) — our openPullRequest helper handles the
@@ -1697,9 +1987,7 @@ export async function POST(req: NextRequest) {
         tier: input.tier || "full",
         issuesFixed: totalIssuesFixed,
         filesFixed: fixes.length,
-        // TODO(budget-tracker): re-wire createBudgetTracker + runWithTracker
-        // around _doPost so we can attach a per-scan spend snapshot here.
-        // Lost during the AdaptiveState duplicate cleanup; tracked separately.
+        budget: _budgetTracker.snapshot(),
       },
     });
 
@@ -1802,7 +2090,7 @@ export async function POST(req: NextRequest) {
           for (const f of fixesWithScores) {
             const conf = aggregateConfidence(f.scores);
             if (conf !== null && conf < 0.85) {
-              console.log(`[GateTest] low-confidence fix ${f.file}: ${conf.toFixed(2)} (scan_fix threshold 0.85)`);
+              console.warn(`[GateTest] low-confidence fix ${f.file}: ${conf.toFixed(2)} (scan_fix threshold 0.85)`);
             }
           }
           const confidenceMarkdown = formatConfidenceReport({ fixes: fixesWithScores, tier: confTier });
@@ -1848,7 +2136,13 @@ export async function POST(req: NextRequest) {
       syntaxGate: { accepted: syntaxGate.accepted.length, rejected: syntaxGate.rejected.length, summary: syntaxGateSummary },
       scannerGate: scannerGateSummary
         ? { rolledBack: scannerGateRolledBack, summary: scannerGateSummary }
-        : { skipped: true, reason: "caller did not pass originalFileContents + originalFindingsByModule" },
+        : { skipped: true, reason: hydration.reason || "no baseline workspace/findings available (hydration yielded nothing)" },
+      workspaceHydration: {
+        files: input.originalFileContents?.length || 0,
+        hydratedFiles: hydration.hydratedFiles,
+        hydratedFindings: hydration.hydratedFindings,
+        reason: hydration.reason,
+      },
       testGeneration: { testsWritten: testGen.tests.length, skipped: testGen.skipped, summary: testGenSummary },
       pairReview: pairReviewSummary
         ? { summary: pairReviewSummary }
@@ -1892,13 +2186,12 @@ export async function POST(req: NextRequest) {
     // Return 402 (Payment Required) with the tracker snapshot so support can
     // see exactly which scan hit the cap and how much it had spent.
     if ((outerErr as { code?: string })?.code === "BUDGET_EXCEEDED") {
-      // The budget tracker is currently UNWIRED in this file (see TODO at
-      // the audit-log call upstream). Until it's re-introduced, this branch
-      // is defensive — it will only fire if BUDGET_EXCEEDED is thrown by a
-      // helper that brings its own tracker snapshot on the error. The local
-      // `tracker.snapshot()` fallback is removed because `tracker` is no
-      // longer in scope.
-      const snap = (outerErr as { tracker?: Record<string, unknown> }).tracker || { reason: "budget-tracker-unwired" };
+      // Budget tracker is wired (see runWithTracker IIFE at top of POST).
+      // Pull the snapshot off the thrown error first; fall back to the
+      // closure's tracker if for some reason the snapshot didn't ride
+      // along with the throw.
+      const snap = (outerErr as { tracker?: Record<string, unknown> }).tracker
+        || _budgetTracker.snapshot();
       console.warn("[GateTest] scan/fix budget exhausted:", JSON.stringify(snap));
       // Audit-log the budget exhaustion — high-value finance signal.
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -1926,5 +2219,6 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+  }); // close runWithTracker IIFE
 }
 

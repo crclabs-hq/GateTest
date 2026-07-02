@@ -97,10 +97,12 @@ export interface ModuleResultEnvelope {
  */
 export async function runTier(
   tier: string,
-  ctx: ModuleContext
+  ctx: ModuleContext,
+  onModuleComplete?: (result: ModuleResultEnvelope) => void
 ): Promise<{ modules: ModuleResultEnvelope[]; totalIssues: number }> {
   const names = TIERS[tier] || TIERS.quick;
-  const promises = names.map(async (name): Promise<ModuleResultEnvelope> => {
+
+  const runOneInner = async (name: string): Promise<ModuleResultEnvelope> => {
     const runner = MODULES[name];
     const started = Date.now();
     if (!runner) {
@@ -177,6 +179,16 @@ export async function runTier(
         details: [`Module error: ${message}`],
       };
     }
+  };
+
+  // Wraps runOneInner so every return path (not just the happy path)
+  // fires onModuleComplete exactly once — a caller streaming progress
+  // (the playground's SSE endpoint) needs an event for skipped/errored
+  // modules too, not just passed/failed ones.
+  const promises = names.map(async (name): Promise<ModuleResultEnvelope> => {
+    const result = await runOneInner(name);
+    onModuleComplete?.(result);
+    return result;
   });
 
   const modules = await Promise.all(promises);

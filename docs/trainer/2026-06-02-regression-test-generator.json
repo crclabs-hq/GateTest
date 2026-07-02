@@ -1,0 +1,35 @@
+{
+  "generatedAt": "2026-06-02T07:26:00.337Z",
+  "underTestedTargets": 6,
+  "draftsTotal": 5,
+  "drafted": 0,
+  "skipped": 5,
+  "failed": 0,
+  "drafts": [
+    {
+      "module": "types",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/types.js or website/app/lib/types.js"
+    },
+    {
+      "module": "integrations",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/integrations.js or website/app/lib/integrations.js"
+    },
+    {
+      "module": "gate",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/gate.js or website/app/lib/gate.js"
+    },
+    {
+      "module": "website",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/website.js or website/app/lib/website.js"
+    },
+    {
+      "module": "lint",
+      "status": "skipped-real-test-exists",
+      "path": "/home/runner/work/GateTest/GateTest/tests/lint.test.js"
+    }
+  ]
+}

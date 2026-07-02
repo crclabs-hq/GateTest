@@ -8,8 +8,8 @@ export default function Cta() {
           Stop shipping <span className="text-danger">broken code</span>.
         </h2>
         <p className="text-lg text-muted mb-4 max-w-xl mx-auto">
-          Point us at your repo. We scan 102 modules and deliver a detailed report.
-          On Scan + Fix ($199) and Nuclear ($399) we also open a fix PR.
+          Point us at your repo. We scan 110 modules and deliver a detailed report.
+          On Scan + Fix ($199) and Forensic Scan ($399) we also open a fix PR.
           One-time payment per scan.
         </p>
         <p className="text-sm text-success mb-10">
@@ -29,7 +29,7 @@ export default function Cta() {
             <div className="p-5 text-left">
               <p className="text-sm font-bold text-foreground mb-2">Full Scan &mdash; $99</p>
               <p className="text-xs text-muted mb-3">
-                102 modules. Full report. Scan-only — upgrade to Scan + Fix ($199) for the auto-fix PR.
+                110 modules. Full report. Scan-only — upgrade to Scan + Fix ($199) for the auto-fix PR.
               </p>
               <a
                 href="#pricing"
@@ -50,7 +50,7 @@ export default function Cta() {
             </div>
             <div className="p-5 font-[var(--font-mono)] text-sm text-left">
               <p className="text-muted">
-                <span className="text-accent-light">$</span> npm install -g gatetest
+                <span className="text-accent-light">$</span> npm install -g @gatetest/cli
               </p>
               <p className="text-muted">
                 <span className="text-accent-light">$</span> gatetest --suite full --fix

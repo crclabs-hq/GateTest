@@ -4,7 +4,7 @@
  * GET /api/badge?status=passing       → green "GateTest | passing" badge
  * GET /api/badge?status=failing       → red "GateTest | failing" badge
  * GET /api/badge?status=scanning      → yellow "GateTest | scanning" badge
- * GET /api/badge?modules=102          → "GateTest | 102 modules" badge
+ * GET /api/badge?modules=110          → "GateTest | 110 modules" badge
  * GET /api/badge                      → default "GateTest | quality gate" badge
  *
  * Returns SVG with Cache-Control headers for CDN caching.
@@ -20,7 +20,18 @@ const COLORS: Record<string, string> = {
   default: "#10b981",
 };
 
-function generateBadge(label: string, message: string, color: string): string {
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function generateBadge(rawLabel: string, rawMessage: string, color: string): string {
+  const label = escapeXml(rawLabel.slice(0, 100));
+  const message = escapeXml(rawMessage.slice(0, 100));
   const labelWidth = label.length * 6.8 + 12;
   const messageWidth = message.length * 6.8 + 12;
   const totalWidth = labelWidth + messageWidth;

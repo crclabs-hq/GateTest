@@ -7,15 +7,31 @@
  *
  * No auth token — email is the lookup key. Scans are only created
  * after Stripe payment, so the email comes from Stripe checkout.
- * Rate-limited by a simple cooldown to prevent enumeration.
+ * Rate-limited (20/min per IP) to prevent enumeration at scale.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "../../lib/db";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
+  createLimiter: (opts: { windowMs: number; maxRequests: number }) => {
+    guard: (req: NextRequest) => Promise<{ allowed: boolean; status?: number; body?: Record<string, unknown>; headers?: Record<string, string> }>;
+  };
+  PRESETS: Record<string, { windowMs: number; maxRequests: number }>;
+};
+
+const _dashboardLimiter = createLimiter(PRESETS.dashboard);
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const _rl = await _dashboardLimiter.guard(req);
+  if (!_rl.allowed) {
+    return NextResponse.json(_rl.body, {
+      status: _rl.status ?? 429,
+      headers: _rl.headers as Record<string, string>,
+    });
+  }
   let body: { email?: string };
   try {
     body = await req.json();

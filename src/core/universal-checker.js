@@ -241,12 +241,22 @@ function runLanguageChecks(lang, projectRoot, result, options = {}) {
     return { filesScanned: 0, issuesFound: 0 };
   }
 
-  const files = collectLanguageFiles(projectRoot, spec.extensions);
+  let files = collectLanguageFiles(projectRoot, spec.extensions);
+
+  // Incremental filter — when caller supplies a Set of absolute paths,
+  // restrict the scan to those files only. An empty Set means "no filter"
+  // (treat as a full scan to prevent a misconfigured pipeline skipping everything).
+  if (options.incrementalFiles instanceof Set && options.incrementalFiles.size > 0) {
+    files = files.filter((f) => options.incrementalFiles.has(f));
+  }
 
   if (files.length === 0) {
+    const isIncremental = options.incrementalFiles instanceof Set && options.incrementalFiles.size > 0;
     result.addCheck(`${lang}:no-files`, true, {
       severity: 'info',
-      message: `No ${spec.displayName} files found in project`,
+      message: isIncremental
+        ? `No ${spec.displayName} files changed since base ref`
+        : `No ${spec.displayName} files found in project`,
     });
     return { filesScanned: 0, issuesFound: 0 };
   }

@@ -259,7 +259,7 @@ cmd_add() {
 
     if [ -d "$clone_path" ]; then
         echo -e "${YELLOW}  Repo already exists at $clone_path — updating...${NC}"
-        cd "$clone_path" && git pull 2>/dev/null || true
+        cd "$clone_path" && git pull 2>/dev/null || true # gatetest:swallow-ok reason="non-fatal repo update — script continues regardless of network"
     else
         echo -e "${CYAN}  Cloning $repo_url...${NC}"
         git clone "$repo_url" "$clone_path"
@@ -292,7 +292,7 @@ cmd_scan_repo() {
 
     if [ -d "$clone_path" ]; then
         echo -e "${CYAN}  Pulling latest: ${WHITE}$repo_name${NC}"
-        cd "$clone_path" && git pull 2>/dev/null || true
+        cd "$clone_path" && git pull 2>/dev/null || true # gatetest:swallow-ok reason="non-fatal repo update — script continues regardless of network"
     else
         echo -e "${CYAN}  Cloning: ${WHITE}$repo_url${NC}"
         git clone "$repo_url" "$clone_path"
@@ -317,7 +317,7 @@ cmd_scan_repo() {
         echo ""
         echo -e "${CYAN}  Crawling live site: ${WHITE}$site_url${NC}"
         echo ""
-        node "$GATECODE_DIR/src/ai-loop.js" "$site_url" 2>&1 || true
+        node "$GATECODE_DIR/src/ai-loop.js" "$site_url" 2>&1 || true # gatetest:swallow-ok reason="live crawl is best-effort — site may be unreachable; scan continues regardless"
     fi
 
     # Update project registry

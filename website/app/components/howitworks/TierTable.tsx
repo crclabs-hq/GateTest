@@ -1,5 +1,5 @@
 /**
- * The four-tier comparison table — Quick / Full / Scan+Fix / Nuclear.
+ * The four-tier comparison table — Quick / Full / Scan+Fix / Forensic.
  * Be honest about what's in and what's NOT. Engineers respect honesty.
  */
 
@@ -52,7 +52,7 @@ export default function TierTable() {
               <th className="text-center px-4 py-4 text-white/80 font-semibold">Quick</th>
               <th className="text-center px-4 py-4 text-white/80 font-semibold">Full</th>
               <th className="text-center px-4 py-4 text-teal-400 font-semibold">Scan + Fix</th>
-              <th className="text-center px-4 py-4 text-pink-300 font-semibold">Nuclear</th>
+              <th className="text-center px-4 py-4 text-pink-300 font-semibold">Forensic</th>
             </tr>
           </thead>
           <tbody>

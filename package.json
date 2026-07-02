@@ -1,7 +1,8 @@
 {
-  "name": "gatetest",
-  "version": "1.42.0",
-  "description": "GateTest — 91-module QA gate. Security, supply chain, accessibility, performance, AI safety, mutation testing. Iterative Claude fix loop, pay per scan. Replaces SonarQube + Snyk + ESLint + 10 others.",
+  "name": "@gatetest/cli",
+  "mcpName": "ai.gatetest/gatetest",
+  "version": "1.50.0",
+  "description": "GateTest — 111-module QA gate. Security, supply chain, accessibility, performance, AI safety, mutation testing. Iterative Claude fix loop, pay per scan. Replaces SonarQube + Snyk + ESLint + 10 others.",
   "main": "src/index.js",
   "bin": {
     "gatetest": "bin/gatetest.js",
@@ -61,6 +62,9 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "acorn": "^8.17.0",
+    "pixelmatch": "^7.2.0",
+    "pngjs": "^7.0.0"
   }
 }

@@ -1,0 +1,25 @@
+{
+  "generatedAt": "2026-06-23T06:52:17.891Z",
+  "underTestedTargets": 3,
+  "draftsTotal": 3,
+  "drafted": 0,
+  "skipped": 3,
+  "failed": 0,
+  "drafts": [
+    {
+      "module": "developers",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/developers.js or website/app/lib/developers.js"
+    },
+    {
+      "module": "envvars",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/envvars.js or website/app/lib/envvars.js"
+    },
+    {
+      "module": "website",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/website.js or website/app/lib/website.js"
+    }
+  ]
+}

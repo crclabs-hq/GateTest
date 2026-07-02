@@ -1,0 +1,12 @@
+{
+  "generatedAt": "2026-06-10T07:10:50.942Z",
+  "repoRoot": "/home/runner/work/GateTest/GateTest",
+  "suite": "quick",
+  "files": 10,
+  "mutationsTried": 0,
+  "mutationsCaught": 0,
+  "coverageHoles": [],
+  "errors": [
+    "baseline gate run produced no parseable output — aborting"
+  ]
+}

@@ -73,8 +73,8 @@ function _buildGroundingHeader(projectRoot) {
 }
 
 const ANTHROPIC_HOST   = 'api.anthropic.com';
-const MODEL_FAST       = 'claude-haiku-4-5-20251001';   // small/simple fixes
-const MODEL_SMART      = 'claude-sonnet-4-20250514';    // complex/multi-line
+const MODEL_FAST       = 'claude-sonnet-4-6';   // small/simple fixes
+const MODEL_SMART      = 'claude-sonnet-4-6';    // complex/multi-line
 const MAX_FILE_BYTES   = 120_000;   // skip files larger than 120 KB
 const TIMEOUT_MS       = 45_000;
 const SMART_THRESHOLD  = 8_000;     // files > 8 KB get Sonnet
@@ -159,7 +159,10 @@ async function aiFix(opts) {
     lineNumber,
     fixSuggestion,
   } = opts;
-  const apiKey = opts.apiKey || process.env.ANTHROPIC_API_KEY;
+  // Honor an explicitly-passed apiKey even when it's an empty string (caller
+  // forcing the no-key path); only fall back to the env var when the option is
+  // omitted entirely. `'' || env` would otherwise leak the ambient key.
+  const apiKey = opts.apiKey !== undefined ? opts.apiKey : process.env.ANTHROPIC_API_KEY;
   // Allow tests to inject a mock callAnthropic without touching the https module.
   const _callAnthropic = opts._callAnthropic || callAnthropic;
 
@@ -406,4 +409,4 @@ function makeAutoFix(filePath, issueName, message, lineNumber, suggestion) {
   });
 }
 
-module.exports = { aiFix, injectAutoFixes, makeAutoFix };
+module.exports = { aiFix, injectAutoFixes, makeAutoFix, callAnthropic };

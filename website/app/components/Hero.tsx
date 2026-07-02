@@ -24,6 +24,9 @@ const SAMPLE_URLS = [
   { label: "vercel.com",  url: "https://vercel.com"  },
 ];
 
+// Honest positioning: the fragmented tools one GateTest gate replaces.
+const REPLACES = ["SonarQube", "Snyk", "ESLint", "Semgrep", "CodeQL", "DeepSource"];
+
 export default function Hero() {
   const [seed, setSeed] = useState<{ url: string; nonce: number }>({ url: "", nonce: 0 });
   const [track, setTrack] = useState<"website" | "repo">("website");
@@ -47,12 +50,11 @@ export default function Hero() {
           <div className="flex justify-center mb-10 fade-up">
             <div className="glass-card inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-sm text-white/80 font-medium">
               <span className="relative flex h-2 w-2" aria-hidden="true">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
               <span>v1.42 &middot; 102 modules &middot; self-scan green</span>
             </div>
-          </div>
 
           {/* Headline */}
           <h1 className="text-center text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.08] mb-5 fade-up text-white">
@@ -177,6 +179,7 @@ export default function Hero() {
               <StatusCell label="Tests passing" value="3,500+" tone="ok"    detail="every commit" />
               <StatusCell label="Payment"       value="$29+"   tone="muted" detail="one-time per scan" />
             </div>
+          </div>
 
             <p className="text-center text-xs text-white/35 mt-5">
               Install the GitHub App for scan-on-every-push —{" "}
@@ -185,6 +188,41 @@ export default function Hero() {
               </Link>
             </p>
           </div>
+        </div>
+
+        {/* ── "Replaces" strip — honest social proof in lieu of logos ── */}
+        <div className="mt-12 fade-up">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+            <span className="text-xs uppercase tracking-[0.18em] text-gray-400 font-semibold shrink-0">
+              One gate replaces
+            </span>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {REPLACES.map((tool) => (
+                <span
+                  key={tool}
+                  className="replace-pill px-3.5 py-1.5 rounded-full text-sm font-medium text-gray-600"
+                >
+                  {tool}
+                </span>
+              ))}
+              <span className="text-sm text-gray-400">+ 6 more</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Live social proof — only renders when DB has real data ── */}
+      <div className="mx-auto max-w-7xl px-6 pb-4">
+        <LiveStats />
+      </div>
+
+      {/* ── Bold full-bleed stats band — our answer to Klaviyo's green band ── */}
+      <div className="stats-band relative z-10">
+        <div className="mx-auto max-w-7xl px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-y-7 gap-x-6">
+          <BandStat num={siteStats.tests.displayPassing} label="tests passing, every commit" />
+          <BandStat num={String(siteStats.modules.total)} label="modules in one gate" />
+          <BandStat num={siteStats.modules.displayGreen} label="green on our own repo" />
+          <BandStat num="$29+" label="per scan · no subscription" />
         </div>
       </div>
     </section>

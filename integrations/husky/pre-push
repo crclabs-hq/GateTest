@@ -2,19 +2,35 @@
 # ============================================================================
 # GATETEST PRE-PUSH HOOK — PROTECTED INTEGRATION FILE
 # ============================================================================
-# This hook blocks pushes from a protected platform (Crontech / Gluecron) to
-# their remotes if GateTest finds any error-severity issues.
+# Philosophy (Craig 2026-05-29):
+#   "GateTest needs to be software that is the fixer, not the blocker.
+#    It needs to be the world's biggest painkiller. It needs to fix
+#    everything."
 #
-# MUST NOT be removed, weakened, or bypassed without Craig's authorization.
-# See the GateTest Bible (CLAUDE.md) → "PROTECTED PLATFORMS" section.
+# Two modes, NEITHER blocks the push:
+#
+#   ADMIN  — our own projects (Crontech, Gluecron, GateTest itself, any
+#            repo whose `.gatetest.json` has `"owner": "crclabs-hq"` or
+#            `"admin": true`, or any env with GATETEST_ADMIN=1).
+#            Behaviour: silent pass. We trust the operator; CI is the
+#            actual quality gate.
+#
+#   CUSTOMER — every other repo. Behaviour: advisory output (findings
+#              are surfaced for awareness) but push always proceeds.
+#              CI runs the strict gate and (on paid Scan + Fix tiers)
+#              auto-opens a fix PR. To fix locally before pushing,
+#              run: gatetest --fix
+#
+# MUST NOT be removed without Craig's authorisation. The CI gate workflow
+# (integrations/github-actions/gatetest-gate.yml) is the actual enforcement
+# layer — see CLAUDE.md → PROTECTED PLATFORMS.
+#
 # Install location in target repo: .husky/pre-push (chmod +x)
-# Source of truth: https://github.com/ccantynz-alt/gatetest
+# Source of truth: https://github.com/crclabs-hq/gatetest
 #                  /integrations/husky/pre-push
 #
-# SPEED CONTRACT: this hook MUST complete in under 30 seconds on a typical
-# repo. Push deadlines on hosted CI / managed agents kick in at ~10 minutes,
-# and even a 60-second hook is hostile to developer flow. Every change here
-# must preserve the under-30s contract or be reverted.
+# SPEED CONTRACT: under 30 seconds on a typical repo. Pushes are real-time
+# UX; a slow hook is hostile to flow.
 # ============================================================================
 set -e
 
@@ -30,56 +46,76 @@ if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${GITLAB_CI:-}" ]; 
 fi
 
 # ---------------------------------------------------------------------------
-# Opt-out env var — a developer with auth from Craig can disable the hook
-# without removing the file (e.g. for a debug session). Set GATETEST_SKIP=1.
+# Opt-out env var — set GATETEST_SKIP=1 to skip even the advisory pass.
 # ---------------------------------------------------------------------------
 if [ "${GATETEST_SKIP:-}" = "1" ]; then
-  echo "[GateTest] GATETEST_SKIP=1 — skipping pre-push gate (use sparingly)."
+  echo "[GateTest] GATETEST_SKIP=1 — skipping advisory gate."
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Admin detection — silent pass for admin-owned repos.
+# Three signals (any one is sufficient):
+#   1. Env var GATETEST_ADMIN=1
+#   2. .gatetest.json contains "admin": true
+#   3. .gatetest.json contains "owner": "crclabs-hq"
+# ---------------------------------------------------------------------------
+IS_ADMIN=0
+if [ "${GATETEST_ADMIN:-}" = "1" ]; then
+  IS_ADMIN=1
+elif [ -f ".gatetest.json" ]; then
+  if grep -Eq '"admin"[[:space:]]*:[[:space:]]*true' .gatetest.json 2>/dev/null; then
+    IS_ADMIN=1
+  elif grep -Eq '"owner"[[:space:]]*:[[:space:]]*"crclabs-hq"' .gatetest.json 2>/dev/null; then
+    IS_ADMIN=1
+  fi
+fi
+
+if [ "$IS_ADMIN" = "1" ]; then
+  echo "[GateTest] Admin repo — silent pass. CI gate is the source of truth."
   exit 0
 fi
 
 # ---------------------------------------------------------------------------
 # Cache management — first run clones the gatetest repo into $GATETEST_CACHE,
-# subsequent runs reuse it. A cold clone can take 10-30s on slow networks;
-# skipping the cold-clone block keeps the FIRST push from timing out — we
-# fall through to the install.sh / next push to refresh the cache instead.
+# subsequent runs reuse it. Cold clone is async-best-effort: we never block
+# a first push waiting for the clone.
 # ---------------------------------------------------------------------------
 if [ ! -d "$GATETEST_CACHE/.git" ]; then
-  echo "[GateTest] First-time setup — fetching GateTest into $GATETEST_CACHE in the background."
-  echo "[GateTest] (This first push will skip the gate; subsequent pushes will run it.)"
+  echo "[GateTest] First-time setup — fetching GateTest into $GATETEST_CACHE."
+  echo "[GateTest] (This first push will skip the advisory gate; subsequent pushes will run it.)"
   mkdir -p "$(dirname "$GATETEST_CACHE")"
-  # Background clone — don't block the push on the cold-cache case.
-  ( git clone --depth 1 https://github.com/ccantynz-alt/gatetest.git "$GATETEST_CACHE" >/dev/null 2>&1 & )
+  git clone --depth 1 https://github.com/crclabs-hq/gatetest.git "$GATETEST_CACHE" 2>/dev/null || true
+  if [ ! -d "$GATETEST_CACHE/.git" ]; then
+    echo "[GateTest] Clone unavailable — letting push through; CI gate is the source of truth."
+    exit 0
+  fi
   exit 0
 fi
 
-# Best-effort cache refresh — never block the push if `git pull` is slow.
-# Cap the pull at 5s; if it doesn't finish, use the existing cache.
+# Best-effort cache refresh — capped at 5s, never blocks the push.
 ( cd "$GATETEST_CACHE" && timeout 5 git pull --ff-only --depth 1 origin HEAD >/dev/null 2>&1 || true )
 
 # ---------------------------------------------------------------------------
-# Run the quick suite in diff mode with FAST env — only changed files,
-# slow modules (tsc, mutation, chaos, agentic) skip themselves with an
-# info-level "deferred to CI" note. The full gate still runs server-side.
-#
-# Hard timeout: 25 seconds. The push will succeed cleanly even if the gate
-# is slow on this particular repo. The full server-side gate is the source
-# of truth; this hook is a fast advisory.
+# Customer mode: advisory output. We capture the exit code but DO NOT
+# propagate it — this hook never blocks. The strict gate lives in CI;
+# paid Scan + Fix tiers auto-open a fix PR.
 # ---------------------------------------------------------------------------
-echo "[GateTest] Running quick diff gate (25s cap) ..."
-if ! GATETEST_FAST=1 timeout 25 \
-    node "$GATETEST_CACHE/bin/gatetest.js" --suite quick --diff --project "$(pwd)"; then
-  status=$?
-  if [ "$status" = "124" ]; then
-    # `timeout` exited because the gate took >25s. Don't block the push —
-    # server-side gate will still run. Surface a clear note so devs know.
-    echo "[GateTest] Local gate exceeded 25s cap — letting push through; CI gate is the source of truth."
-    exit 0
-  fi
+echo "[GateTest] Running advisory gate (20s cap, never blocks) ..."
+GATETEST_FAST=1 timeout 20 \
+  node "$GATETEST_CACHE/bin/gatetest.js" --suite quick --diff --project "$(pwd)" || gate_status=$?
+gate_status="${gate_status:-0}"
+
+if [ "$gate_status" = "0" ]; then
+  echo "[GateTest] PASSED — pushing."
+elif [ "$gate_status" = "124" ]; then
+  echo "[GateTest] Advisory gate exceeded 20s cap — letting push through; CI gate will run."
+else
   echo ""
-  echo "[GateTest] BLOCKED — quick diff gate reported errors above."
-  echo "Fix the errors and try again, or override with: GATETEST_SKIP=1 git push"
-  echo "(Override requires Craig's authorisation per the Bible.)"
-  exit "$status"
+  echo "[GateTest] Advisory: gate reported findings above."
+  echo "[GateTest] Push proceeding — CI will run the strict gate and (on Scan + Fix tiers) auto-open a fix PR."
+  echo "[GateTest] To fix locally before pushing again, run:  gatetest --fix"
 fi
-echo "[GateTest] PASSED — pushing."
+
+# The hook ALWAYS exits 0. The CI gate is the enforcement layer.
+exit 0

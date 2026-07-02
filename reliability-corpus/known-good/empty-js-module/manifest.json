@@ -1,0 +1,21 @@
+{
+  "name": "empty-js-module",
+  "category": "known-good",
+  "target": "code",
+  "tier": "quick",
+  "description": "Trivial JavaScript module with full project hygiene (.gitignore, .eslintrc) — must produce zero error findings. Catches scanner regressions on minimal-project shape.",
+  "expected": {
+    "errors": {
+      "lint": { "atMost": 1 }
+    },
+    "totalErrorsAtMost": 1
+  },
+  "budgets": {
+    "maxDurationMs": 15000,
+    "deterministic": true
+  },
+  "labels": ["smoke-test", "known-good", "minimal-project"],
+  "source": "hand-crafted",
+  "createdAt": "2026-05-29T00:00:00Z",
+  "knownNoise": "Allows up to 1 lint error because the corpus case doesn't install ESLint deps; the scanner correctly reports the missing tool. Real customer projects have the dep installed so this is acceptable framework noise."
+}

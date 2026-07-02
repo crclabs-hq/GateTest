@@ -23,6 +23,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { resolveFullReportAccess } from "@/app/lib/full-report-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -31,6 +32,7 @@ export const maxDuration = 60;
 interface WebScanRequest {
   url?: string;
   fullReport?: boolean;
+  sessionId?: string;
 }
 
 interface WebFinding {
@@ -231,24 +233,55 @@ function translateFinding(check: {
   };
 }
 
+/**
+ * Convert a url-prober finding (live HTTP response analysis) to WebFinding.
+ * These are distinct from static-analysis findings: they reflect what the
+ * deployed server actually returns, not what config files say it should return.
+ */
+function translateProbeFinding(pf: {
+  module: string;
+  severity: string;
+  rule: string;
+  message: string;
+}): WebFinding | null {
+  const sev = pf.severity.toLowerCase();
+  if (sev !== "error" && sev !== "warning") return null;
+  const title = pf.message.split(" — ")[0].split(" (got:")[0];
+  return {
+    severity: sev as "error" | "warning",
+    title,
+    body: pf.message + "\n\n*Detected from the live server response — not from static config file analysis.*",
+    module: pf.module,
+    ruleKey: `live:${pf.rule}`,
+  };
+}
+
 export async function POST(req: NextRequest) {
   let url: string | undefined;
   let fullReport = false;
+  let body: WebScanRequest = {};
 
   const contentType = req.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
-    let body: WebScanRequest;
     try {
       body = await req.json();
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
     url = body.url;
-    fullReport = Boolean(body.fullReport);
   } else {
     const form = await req.formData();
     url = String(form.get("url") || "");
   }
+
+  // Server-side authority on fullReport — NEVER trust body.fullReport.
+  // Grants the unpaywalled report only for (a) an admin request or (b) a
+  // Stripe Checkout Session verified server-side as payment_status=paid.
+  // See full-report-auth.ts for why this replaced the old
+  // `fullReport = Boolean(body.fullReport)` + admin-only-upgrades logic —
+  // that let any anonymous caller send {fullReport:true} and get the paid
+  // report for free.
+  fullReport = await resolveFullReportAccess(req, body);
 
   const parsed = parseUrl(url || "");
   if (!parsed) {
@@ -264,11 +297,27 @@ export async function POST(req: NextRequest) {
 
   const targetUrl = `${parsed.protocol}//${parsed.host}`;
 
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pathMod = require("path") as typeof import("path");
+
   // turbopackIgnore: the CLI engine eventually loads src/core/registry.js
   // which does dynamic require()s of every module file. Turbopack tries
   // to enumerate all possible targets at build time and crashes.
+  //
+  // Resolved via engine-entry-resolver.js, NOT a hardcoded relative path —
+  // a relative require here resolves against the BUNDLED chunk's location,
+  // not this source file's, so a fixed `../../../../../src/index.js`
+  // 404s everywhere (confirmed live 2026-07-01: gatetest.ai/api/web/scan
+  // 500'd on every request). outputFileTracingIncludes in next.config.ts
+  // is what makes src/** actually present in the deployed bundle
+  // (turbopackIgnore hides this require from the automatic tracer).
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { GateTest } = require(/* turbopackIgnore: true */ "../../../../../src/index.js") as {
+  const { resolveEngineEntry } = require("@/app/lib/engine-entry-resolver.js") as {
+    resolveEngineEntry: () => string;
+  };
+  const engineEntry = resolveEngineEntry();
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { GateTest } = require(/* turbopackIgnore: true */ engineEntry) as {
     GateTest: new (root: string, opts?: Record<string, unknown>) => {
       init: () => { runSuite: (name: string) => Promise<unknown> };
       registry: { list: () => string[] };
@@ -280,17 +329,39 @@ export async function POST(req: NextRequest) {
   const fs = require("fs") as typeof import("fs");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const os = require("os") as typeof import("os");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pathMod = require("path") as typeof import("path");
 
   const workspace = fs.mkdtempSync(pathMod.join(os.tmpdir(), "web-scan-"));
   const startTime = Date.now();
   const previousExitCode = process.exitCode;
   // Stable per-scan id used to link the static probe results with the
-  // runtime payload that Crontech will POST back to us.
+  // runtime payload that Vapron will POST back to us.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const cryptoMod = require("crypto") as typeof import("crypto");
   const scanId = `scn_${cryptoMod.randomBytes(9).toString("hex")}`;
+
+  // Start the live HTTP header probe concurrently with the static suite scan.
+  // probeUrl() makes a real GET to the target URL and inspects the actual
+  // response headers — HSTS, CSP, cookie flags, info-disclosure, CORS misconfig.
+  // This catches what static config-file analysis (webHeaders module) cannot:
+  // the gap between what the config says and what the server actually returns.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  let liveProbePromise: Promise<Array<{ module: string; severity: string; rule: string; message: string }>> = Promise.resolve([]);
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const urlProber = require("@/app/lib/reliability/url-prober") as {
+      probeUrl: (args: { url: string; timeoutMs?: number }) => Promise<{
+        findings: Array<{ module: string; severity: string; rule: string; message: string; file: string }>;
+        durationMs: number;
+        status: number | null;
+        error?: string;
+      }>;
+    };
+    liveProbePromise = urlProber.probeUrl({ url: targetUrl, timeoutMs: 12_000 })
+      .then((r) => r.findings)
+      .catch(() => []);
+  } catch {
+    // url-prober unavailable — continue with static-only scan
+  }
 
   let summary: { results?: Array<{ module?: string; name?: string; checks?: Array<{ name: string; severity?: string; passed: boolean; message?: string }>; errors?: number; warnings?: number; info?: number; duration?: number; skipped?: string }>; gateStatus?: string; totalErrors?: number; totalWarnings?: number };
 
@@ -320,6 +391,8 @@ export async function POST(req: NextRequest) {
     try { fs.rmSync(workspace, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 
+  // Await the concurrent live probe and fold its findings in with the static ones.
+  const liveProbeFindings = await liveProbePromise;
   const allFindings: WebFinding[] = [];
   for (const r of summary.results || []) {
     if (!Array.isArray(r.checks)) continue;
@@ -328,6 +401,10 @@ export async function POST(req: NextRequest) {
       const translated = translateFinding(c);
       if (translated) allFindings.push(translated);
     }
+  }
+  for (const pf of liveProbeFindings) {
+    const translated = translateProbeFinding(pf);
+    if (translated) allFindings.push(translated);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -368,18 +445,18 @@ export async function POST(req: NextRequest) {
     highSignal: c.isHighSignal,
   }));
 
-  // Dispatch the headless-browser runtime scan to Crontech (worker tier).
+  // Dispatch the headless-browser runtime scan to Vapron (worker tier).
   // Static probes already ran inline on this serverless function. The
   // runtime checks (live JS errors, hydration mismatches, CSP violations,
   // network failures) need a long-running container with Chromium —
-  // that's Crontech's job. Best effort: if dispatch fails we still ship
+  // that's Vapron's job. Best effort: if dispatch fails we still ship
   // the static-probe results below.
   let runtimeStatus: "queued" | "unavailable" = "unavailable";
   let runtimeJobId: string | null = null;
   let runtimeReason: string | null = null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { dispatchRuntimeScan } = require("@/app/lib/crontech-dispatch") as {
+    const { dispatchRuntimeScan } = require("@/app/lib/vapron-dispatch") as {
       dispatchRuntimeScan: (opts: {
         scanId: string;
         targetUrl: string;

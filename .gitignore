@@ -11,6 +11,12 @@ website/.next/
 website/node_modules/
 website/test-results/
 website/playwright-report/
+vscode-extension/out/
+vscode-extension/*.vsix
 
 # Sub-agent worktrees (Agent tool with isolation: "worktree")
 .claude/worktrees/
+
+# Sandbox-delivered apply-*.js bundles — generated when the container
+# proxy can't push, transferred to Craig's local machine for execution.
+apply-*.js

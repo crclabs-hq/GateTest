@@ -25,11 +25,12 @@ const {
   createBridge,
   listBridges,
 } = require('./core/host-bridge');
-// Importing github-bridge registers the 'github' bridge in the HostBridge
-// registry so callers of createBridge('github', ...) get a concrete
-// implementation without needing to import it manually.
-// TODO(gluecron): when GluecronBridge ships, require it here too.
+// Importing github-bridge + gluecron-bridge registers both 'github' and
+// 'gluecron' bridges in the HostBridge registry so callers of
+// createBridge(host, ...) get a concrete implementation without needing
+// to import them manually.
 const { GitHubBridge } = require('./core/github-bridge');
+const { GluecronBridge } = require('./core/gluecron-bridge');
 
 class GateTest {
   constructor(projectRoot, options = {}) {
@@ -54,9 +55,41 @@ class GateTest {
 
   /**
    * Run a specific suite of tests.
+   *
+   * Special case: suiteName === 'smart' invokes the diff-aware module
+   * selector which analyses changed files and picks the most relevant
+   * 15-25 modules automatically. Falls back to 'quick' when no diff
+   * is detected (e.g. running on a clean checkout).
    */
   async runSuite(suiteName = 'standard', opts = {}) {
-    let modules = this.config.getSuite(suiteName);
+    let modules;
+    if (suiteName === 'smart') {
+      const { computeSmartSuite } = require('./core/smart-suite-selector');
+      const { getSmartSuiteBoosts } = require('./core/persistent-memory');
+      const memoryBoosts = getSmartSuiteBoosts(this.projectRoot);
+      const smart = computeSmartSuite({
+        projectRoot: this.projectRoot,
+        files:       opts.changedFiles || undefined,
+        base:        opts.diffBase     || undefined,
+        max:         opts.maxModules   || undefined,
+        memoryBoosts,
+      });
+      if (smart.modules) {
+        modules = smart.modules;
+        this.emit && this.emit('smart:selected', {
+          changedFiles:    smart.changedFiles,
+          selectionReason: smart.selectionReason,
+          scores:          smart.scores,
+        });
+      } else {
+        // No diff detected — fall back to quick suite
+        modules = this.config.getSuite('quick');
+        this.emit && this.emit('smart:fallback', { reason: smart.selectionReason });
+      }
+    } else {
+      modules = this.config.getSuite(suiteName);
+    }
+
     if (opts.skipModules && opts.skipModules.length > 0) {
       const skip = new Set(opts.skipModules);
       modules = modules.filter((m) => !skip.has(m));
@@ -171,6 +204,7 @@ module.exports = {
   // Host abstraction — Gluecron-first (CLAUDE.md → STRATEGIC DIRECTION).
   HostBridge,
   GitHubBridge,
+  GluecronBridge,
   NotImplemented,
   CANONICAL_COMMIT_STATES,
   registerBridge,

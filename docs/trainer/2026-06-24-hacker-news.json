@@ -1,0 +1,353 @@
+{
+  "generatedAt": "2026-06-24T06:50:45.139Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 21,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 11,
+      "SonarQube": 0,
+      "Semgrep": 7,
+      "CodeQL": 0,
+      "DeepSource": 0,
+      "Codacy": 1,
+      "Veracode": 0,
+      "Checkmarx": 2
+    },
+    "painPointsFound": 2
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48655704",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "Those are 2 big \"ifs\". The incentives are completely misaligned and the platforms work for the companies. They would now have an even bigger incentive to stonewall and close valid issues than they did before.They already like blurring the lines by rejecting reports that have clear reproduction scripts, videos, demonstrable (but not critical) impact. They'll close it as \"not a bug\" but then also forbid disclosure and stonewall mediation requests. Reports are supposed to be kept private until the issue is fixed but the system gets abused to cover up issues long after they've been fixed.In some cases I strongly suspect it's to evade liability for financial damages that their customers might've suffered. Platform mediation always takes their side and if you want to do what's right, you will get banned.",
+        "url": "https://news.ycombinator.com/item?id=48655704",
+        "points": null,
+        "numComments": null,
+        "storyId": 48653216,
+        "createdAt": "2026-06-24T05:53:35Z",
+        "createdAtUnix": 1782280415,
+        "intent": "bug"
+      },
+      {
+        "objectId": "48653724",
+        "author": "munificent",
+        "type": "comment",
+        "title": null,
+        "text": "As an ex-game dev, I always found it a little annoying that they used \"AI\" for what was essentially just hard-coded logic.It's a hard problem because \"AI\" has been a term since the 50s but has been used to describe different approaches to making a computer do things over time. The way game developers use \"AI\" to mean \"hardcoded logic for game behavior\" is fully inline with what \"AI\" meant in the 60s when they were using symbolic AI to write the first computer-controlled chess games.Then AI programmers hit the wall of hard-coded logic, went through an AI winter, and what survived on the other end was logic that was automatically trained from big data sets. We used to call that \"machine learning\" because \"AI\" had connotations of snake oil from previous AI winters. But then within the past decade, tech companies with grandiose ambitions decided that \"machine learning\" was too nerdy so resurrected \"AI\" to refer to LLMs and their ilk.The term is just a muddled mess.",
+        "url": "https://news.ycombinator.com/item?id=48653724",
+        "points": null,
+        "numComments": null,
+        "storyId": 48643489,
+        "createdAt": "2026-06-24T00:49:20Z",
+        "createdAtUnix": 1782262160,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48653213",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "Why do you say that?",
+        "url": "https://news.ycombinator.com/item?id=48653213",
+        "points": null,
+        "numComments": null,
+        "storyId": 48601420,
+        "createdAt": "2026-06-23T23:42:15Z",
+        "createdAtUnix": 1782258135,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48653178",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "No-one works on junky new cars; people who work on their cars have a 90's model etc.SOP now is to pull the whole cab off to work on the engine.",
+        "url": "https://news.ycombinator.com/item?id=48653178",
+        "points": null,
+        "numComments": null,
+        "storyId": 48623347,
+        "createdAt": "2026-06-23T23:37:37Z",
+        "createdAtUnix": 1782257857,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48651333",
+        "author": "hungryhobbit",
+        "type": "comment",
+        "title": null,
+        "text": "Musk is a (VERY, VERY successful) snake oil salesman.Tesla and Twitter have both shown the emperor has no clothes, but until the rest of the world catches up, plenty of people are going to keep buying his lies.",
+        "url": "https://news.ycombinator.com/item?id=48651333",
+        "points": null,
+        "numComments": null,
+        "storyId": 48651115,
+        "createdAt": "2026-06-23T20:59:11Z",
+        "createdAtUnix": 1782248351,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48648186",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "Response: https:&#x2F;&#x2F;www.wheresyoured.at&#x2F;anthropics-profitability-swindle...",
+        "url": "https://news.ycombinator.com/item?id=48648186",
+        "points": null,
+        "numComments": null,
+        "storyId": 48646276,
+        "createdAt": "2026-06-23T17:19:05Z",
+        "createdAtUnix": 1782235145,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48648140",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "Nuclear energy is really cheap too... as long as you ignore CapEx, would you like to invest?",
+        "url": "https://news.ycombinator.com/item?id=48648140",
+        "points": null,
+        "numComments": null,
+        "storyId": 48646276,
+        "createdAt": "2026-06-23T17:16:14Z",
+        "createdAtUnix": 1782234974,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48647563",
+        "author": "jmyeet",
+        "type": "comment",
+        "title": null,
+        "text": "The fascinating thing for me to watch in real time is Crypto Bros discovering in real time exactly why the financial system works the way it does. It didn't happen by accident. It's 5000+ years of incremental changes. Reversible transactions? Feature, not a bug. Expandable money supply? Feature, not a bug. Fractional reserve lending that essentially creates money? Feature, not a bug.I remember saying this about Google Wave: it was a solution in search of a problem. Cyrpto specifically and blockchain in general is absolutely a solution desperately in search of a problem. And I honestly think not enough people were honest about their motivations. They saw Bitcoin go through the roof and were eager to be on the next rocketship, which never happened (well, there's Ethereum but it kinda happened at the same time although it started later).It's been a sea of shitcoins and rug pulls ever since. Anyone rmemeber NFTs? Just another scam on top of a scam to sell more crypto.Sometimes there's an advantage to an outsider's perspective on a problem space. It's the essence of disruption. But way more often than not, it's just snake oil salesman looking for a quick buck. And trying to disrupt the financial system without understanding it has shown itself to be a dismal failure, kinda like the graveyard of \"Google killer\" search engines in the 2000s and early 2010s.",
+        "url": "https://news.ycombinator.com/item?id=48647563",
+        "points": null,
+        "numComments": null,
+        "storyId": 48642699,
+        "createdAt": "2026-06-23T16:36:13Z",
+        "createdAtUnix": 1782232573,
+        "intent": "bug"
+      },
+      {
+        "objectId": "48644028",
+        "author": "snaking0776",
+        "type": "comment",
+        "title": null,
+        "text": "I feel like we’re all just operating on vibes at this point (including the government). These models are already powerful and could probably be used to do some bad things even without the next gen.Anthropic has successfully made their vibe the bringers of the end of the world so please stop us. ChatGPT is in some weird middle ground where they’re no longer the evil company of a year ago and are trying to act like the mature one in the business. XAI is the vanity project of a jealous kid who wants to ignore anyone elses opinion but is falling behind. Gemini is viewed as the less cool cousin and no one pays attention to since google has generally avoided the end of the world talk (coincidentally I think gemini has the best non-coding model but no one seems to talk about that)I think each company has been treated in the wider discourse based on their vibe and no one is operating on facts here since it’s all pretty obfuscated intentionally. I could see some things going very bad as a result of these models but I also don’t believe anyone who’s just pattern matching to their favorite scifi book here and we’re all playing into it. May as well go outside for a bit and enjoy the sun.",
+        "url": "https://news.ycombinator.com/item?id=48644028",
+        "points": null,
+        "numComments": null,
+        "storyId": 48639063,
+        "createdAt": "2026-06-23T12:37:54Z",
+        "createdAtUnix": 1782218274,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48642131",
+        "author": "snikolaev",
+        "type": "story",
+        "title": "Manticore Search 27.1.5: Auth, sharding, conversational&faster vector search",
+        "text": "Manticore Search 27.1.5: Auth, sharding, conversational&faster vector search",
+        "url": "https://medium.com/@s_nikolaev/manticore-search-27-1-5-5fe42cbc5787",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 48642131,
+        "createdAt": "2026-06-23T08:45:15Z",
+        "createdAtUnix": 1782204315,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48641832",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "> A least-cost combination of all the technologies has also been identified (shown in Fig. 3 as Least Cost Mix). Under the IEA&#x2F;WEO 2023 cost assumptions, the least-cost solution comprises a combination of offshore wind power (66%), solar PV (8%) and CCGT (26%). Onshore wind power cannot compete with offshore wind power, and nuclear power cannot compete with any of the other technologies. This is due to the relatively low offshore and high onshore wind power cost assumptions in WEO 2023. As we shall see later, onshore wind power comes into the least-cost mix when using WEO 2024 or any of the two DEA cost assumptions....> At the case level, we find that in countries such as Denmark with available wind and solar energy resources, nuclear power does not seem to be part of the least-cost solution, neither in today's energy systems nor in future systems of climate neutral societies. This conclusion is valid for the present cost of nuclear power in Europe as well as for IEA&#x2F;WEO future expectations. The future overnight cost for nuclear power of 4500 EUR&#x2F;MW in 2050 represents the so-called “nth-of-a-kind” cost for new reactor designs, with assumed substantial cost reductions from the first-of-a-kind projects, while this violates the historical experience of nuclear power technology.",
+        "url": "https://news.ycombinator.com/item?id=48641832",
+        "points": null,
+        "numComments": null,
+        "storyId": 48634585,
+        "createdAt": "2026-06-23T08:05:44Z",
+        "createdAtUnix": 1782201944,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48654967",
+        "author": "necovek",
+        "type": "comment",
+        "title": null,
+        "text": "Phones have the nerdy device built into them too (secure elements&#x2F;TPM chips) — it should be pretty easy to have the TPM-based key verified by the government once.But even if it just confirmed adult vs under 18, it would allow for easy segregation and building a database of kids.",
+        "url": "https://news.ycombinator.com/item?id=48654967",
+        "points": null,
+        "numComments": null,
+        "storyId": 48630066,
+        "createdAt": "2026-06-24T04:06:24Z",
+        "createdAtUnix": 1782273984,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48652138",
+        "author": "asdff",
+        "type": "comment",
+        "title": null,
+        "text": ">Communities did not turn to zoning in response to infill being disallowed.??? Zoning is the mechanism to disallow infill, it can't come in response to it. The book \"The Color of Law\" by Richard Rothstein covers how zoning as used as a new tool for racial exclusion in its third chapter. Indeed, modern socal remains a highly segregated area thanks to zoning decisions that ensure working class people, who are predominantly nonwhite, will find no suitable housing they might afford in the various lily white strongholds.",
+        "url": "https://news.ycombinator.com/item?id=48652138",
+        "points": null,
+        "numComments": null,
+        "storyId": 48647823,
+        "createdAt": "2026-06-23T22:07:14Z",
+        "createdAtUnix": 1782252434,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48651137",
+        "author": "thewebguyd",
+        "type": "comment",
+        "title": null,
+        "text": "Because (collective) we don't own the tech. Frontier models are proprietary, their reasoning logic is hidden, and as seen with Fable the government giveth and taketh away on a whim.Capabilities can be gated behind certification programs, or by money, or any other numerous corrupt and non-corrupt means. Model capabilities can be segregated by pricing tiers, creating an economic underclass that cannot afford access to frontier intelligence.For humanity to benefit, the tech needs to be open and equally available to all.",
+        "url": "https://news.ycombinator.com/item?id=48651137",
+        "points": null,
+        "numComments": null,
+        "storyId": 48650311,
+        "createdAt": "2026-06-23T20:45:59Z",
+        "createdAtUnix": 1782247559,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48648871",
+        "author": "ajbt200128",
+        "type": "story",
+        "title": "Semgrep Guardian: Security for AI-Generated Code",
+        "text": "Semgrep Guardian: Security for AI-Generated Code",
+        "url": "https://semgrep.dev/blog/2026/introducing-semgrep-guardian-real-time-security-for-ai-written-code/",
+        "points": 2,
+        "numComments": 1,
+        "storyId": 48648871,
+        "createdAt": "2026-06-23T18:06:17Z",
+        "createdAtUnix": 1782237977,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48643417",
+        "author": "peterfirefly",
+        "type": "comment",
+        "title": null,
+        "text": "Could have been fixed with an ADC-type instruction that operated on segments.Imagine if you could have done something like this: add si, some-delta adsc es, 0 in order to move a seg:ofs ptr forward by 'some-delta' bytes.ADSC (add with segment carry) would do: segreg := segreg + imm + 1000h (if carry) or: segreg := segreg + imm (no carry) Maybe there should also have been an instruction to normalize a seg:ofs ptr (so the new offset was in the 0-15 range).ADSC could have been adapted for the 286 with ease, as long as a specific layout of the segment descriptor tables was mandated (probably with 10h instead of 1000h in protected mode).Edited slightly for clarity (ofs => imm). A normalizing instruction would be harder to do right for the 286 because you don't want to spend too many slots in the descriptor table(s) for a single memory object.",
+        "url": "https://news.ycombinator.com/item?id=48643417",
+        "points": null,
+        "numComments": null,
+        "storyId": 48619125,
+        "createdAt": "2026-06-23T11:34:25Z",
+        "createdAtUnix": 1782214465,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48642774",
+        "author": "cookiengineer",
+        "type": "comment",
+        "title": null,
+        "text": "I'm the guy that built the antimiasma discovery and mitigation tool [1] and has seen a lot of the evolved and ever-changing malware samples (17 unique deobfuscated samples with different code branches and adapters&#x2F;functions&#x2F;features), so I feel somewhat qualified to respond to this.The problem of everchanging malware isn't fixable by global policies and global rulesets. Package managers need to change to different workflows in the package publishing process.1. Reproducible builds have to be mandatory2. Deployed packages have no execution or network capability at install time3. If package artifacts differ from source artifacts, block it temporarily4. In order to defend against credentials harvesting: Package managers need to have mandatory container or sandbox isolation (mandatory bubblewrap, podman, or whatever isolation that segregates filesystems and networking)5. In order to defend against github being abused as a C2 infrastructure: Package managers need to have locked behavioral rulesets of packages, \"allow filesystem\" or \"allow networking\" is useless, and needs to be per-resource. Additionally, it needs to be a mandatory allowlist-only enforcement. If it's allowed by default, it won't help with the transitive dependencies problem6. Introduced transitive dependencies need to be locked and signed by the package repository authority.7. In order to defend against eBPF Rootkit: Sorry, you're just f'cked. The only EDR on the market that defends against this attack surface is literally my own product (that I won't advertise here). Every other available tooling is just too outdated in how it has been developed, and too outdated how it's doing behavioral analytics of malware.---My personal take on this:Pretty much every developer thinks this isn't necessary and is probably gonna downvote me for telling the security perspective here. This is not about what's necessary, this is about what's broken.Our existing DevOps and DevSecOps culture and the involved incident response&#x2F;supply chain security&#x2F;GRC&#x2F;etc workflows are absolutely broken against these reoccurring supply chain attacks, and the tooling that promised to catch this is also absolutely broken and useless against mutating malware that's co-generated by LLMs.The only ones actually re-identifying the malware implants as miasma malware samples correctly were the socket.dev folks. Every other supply chain tool vendor was just bragging about a new malware campaign because they weren't up to speed and seemingly didn't know about the initial miasma campaigns (and the prototype campaign targeting RedHat's NPM packages with the gyp bindings).Microsoft was so useless in its incident response workflow that they tried to mitigate the problem by making VSCode extension installs with a required delay time, not even having understood how the malware implants work, and not even having understood what the actual spread vector was.It's like Microsoft had to press a red button just for the sake of having done anything, instead of openly communicating and advising to ongoing malware attacks, sharing intelligence and samples; and in consequence leaving every customer of Microsoft in the dark, getting compromised in the process, too.[1] https:&#x2F;&#x2F;github.com&#x2F;cookiengineer&#x2F;antimiasma[2] https:&#x2F;&#x2F;cookie.engineer&#x2F;weblog&#x2F;articles&#x2F;malware-insights-mia...",
+        "url": "https://news.ycombinator.com/item?id=48642774",
+        "points": null,
+        "numComments": null,
+        "storyId": 48586767,
+        "createdAt": "2026-06-23T10:14:50Z",
+        "createdAtUnix": 1782209690,
+        "intent": "bug"
+      },
+      {
+        "objectId": "48641681",
+        "author": "SwellJoe",
+        "type": "comment",
+        "title": null,
+        "text": "Also, with regard to tools, I originally ran a batch of several models in a full-featured agent (and whatever tools the agent provides), and they didn't perform better than the basic minimal harness with just read and grep. They chewed more tokens but didn't find more bugs. I'm currently doing tests with more advanced tools, like tree-sitter so the model can better understand execution and data flow and semgrep (which is almost cheating, since it finds bugs on its own, but worth a try since models can still be useful in helping rule out false positives and suggest mitigations). When I've got time for it, I'll also give them a full dev environment with compiler, debugger, and maybe fuzzer, and a loop that iterates through a security bug hunting checklist (since a single prompt and context window can't handle that much complexity at once).",
+        "url": "https://news.ycombinator.com/item?id=48641681",
+        "points": null,
+        "numComments": null,
+        "storyId": 48640196,
+        "createdAt": "2026-06-23T07:48:04Z",
+        "createdAtUnix": 1782200884,
+        "intent": "bug"
+      }
+    ],
+    "CodeQL": [],
+    "DeepSource": [],
+    "Codacy": [
+      {
+        "objectId": "48645029",
+        "author": "jaimefjorge",
+        "type": "comment",
+        "title": null,
+        "text": "Hi there. I'm Jaime Jorge, CEO and Co-founder of Codacy.Today we're launching Verity in free public beta.We've built Verity because our customers have been needing ways to better deal with the complexity and scale of working with coding agents, specially when you start orchestrating them in loops. Specifically: security, context&#x2F;memory and cost are the biggest problems people seem to have.So Verity has: - Gates: a standardized review layer for agent-generated changes, combining adversarial AI review with deterministic checks before code moves forward. This forces the agents to self-heal without humans in the loop - Memory: a local+cloud markdown knowledge base that records good decisions made by your agents - which make them better over time. This also make Verity work better with your code - Cost control: visibility into token usage and estimated cost by task, session, and repo.We're launching for claude code first, looking to support more harnesses and tools soon.Would love some feedback!",
+        "url": "https://news.ycombinator.com/item?id=48645029",
+        "points": null,
+        "numComments": null,
+        "storyId": 48644874,
+        "createdAt": "2026-06-23T13:53:45Z",
+        "createdAtUnix": 1782222825,
+        "intent": "neutral"
+      }
+    ],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "48656091",
+        "author": "ThreatSystems",
+        "type": "comment",
+        "title": null,
+        "text": "In agreement with frodd above.Dependencies and supply chain attacks are probably the greatest risk to a lot of software orgs, as they run them across all their environments: Development (with secrets and other valuable artefacts on developer VMs), CI&#x2F;CD pipelines which may have access tokens to production (and other) environments, and production itself.Notably even security companies are being impacted by this[0]. The scale of these attacks has amplified quite significantly the past three years, but are not solely exclusive to the javascript ecosystem [1] or even just namesquatting&#x2F;typosquatting [2].The resolution is broader security awareness, \"onion layered\" security controls and implementing simple non-burden inducing processes and policies. Sometimes not updating (what was wrong with the previous version of a dependency if there was no immediate vulnerability or production issue caused by it?) or having a two week cool down for updates (which some supply chain tooling natively supports) can appease some security functions through clear communication of the supply chain risk etc.If anyone has interest in courses aligned to your org on improving developer and broader engineering management awareness on this, e-mails in my profile :).[0] - https:&#x2F;&#x2F;socket.dev&#x2F;blog&#x2F;ongoing-supply-chain-attack-targets-...[1] - https:&#x2F;&#x2F;orca.security&#x2F;resources&#x2F;blog&#x2F;hades-pypi-supply-chain...[2] - https:&#x2F;&#x2F;checkmarx.com&#x2F;zero-post&#x2F;python-pypi-supply-chain-att...",
+        "url": "https://news.ycombinator.com/item?id=48656091",
+        "points": null,
+        "numComments": null,
+        "storyId": 48653216,
+        "createdAt": "2026-06-24T06:46:53Z",
+        "createdAtUnix": 1782283613,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48649832",
+        "author": "mitthrowaway2",
+        "type": "comment",
+        "title": null,
+        "text": "Have you ever been to China? They haul huge amounts of stuff with bicycle trailers.But yeah, you got me. It's impossible to ride a bike in the rain, or on your period. Checkmate, I surrender.",
+        "url": "https://news.ycombinator.com/item?id=48649832",
+        "points": null,
+        "numComments": null,
+        "storyId": 48623347,
+        "createdAt": "2026-06-23T19:08:22Z",
+        "createdAtUnix": 1782241702,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [
+    {
+      "phrase": "false positive",
+      "count": 1,
+      "examples": [
+        {
+          "objectId": "48641681",
+          "url": "https://news.ycombinator.com/item?id=48641681",
+          "snippet": "Also, with regard to tools, I originally ran a batch of several models in a full-featured agent (and whatever tools the agent provides), and they didn't perform better than the basic minimal harness w"
+        }
+      ]
+    },
+    {
+      "phrase": "false positives",
+      "count": 1,
+      "examples": [
+        {
+          "objectId": "48641681",
+          "url": "https://news.ycombinator.com/item?id=48641681",
+          "snippet": "Also, with regard to tools, I originally ran a batch of several models in a full-featured agent (and whatever tools the agent provides), and they didn't perform better than the basic minimal harness w"
+        }
+      ]
+    }
+  ],
+  "actionItems": []
+}

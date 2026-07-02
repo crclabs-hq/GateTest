@@ -24,6 +24,7 @@
  */
 
 import { NextRequest } from "next/server";
+import { resolveFullReportAccess } from "@/app/lib/full-report-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,6 +33,7 @@ export const maxDuration = 60;
 interface StreamRequest {
   url?: string;
   fullReport?: boolean;
+  sessionId?: string;
 }
 
 interface RawCheck { name: string; severity?: string; passed: boolean; message?: string }
@@ -139,7 +141,11 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch {
     return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 });
   }
-  const fullReport = Boolean(body.fullReport);
+  // Server-side authority on fullReport — NEVER trust body.fullReport.
+  // This streaming route previously didn't check admin status OR payment
+  // at all: `const fullReport = Boolean(body.fullReport)` let any caller
+  // unlock the paid report for free. See full-report-auth.ts.
+  const fullReport = await resolveFullReportAccess(req, body);
   const parsed = parseUrl(body.url || "");
   if (!parsed) {
     return new Response(JSON.stringify({
@@ -183,8 +189,23 @@ export async function POST(req: NextRequest) {
       send("start", { scanId, targetUrl, suite: "web" });
 
       try {
+        // Resolved via engine-entry-resolver.js, NOT a hardcoded relative
+        // path — a relative require here resolves against the BUNDLED
+        // chunk's location (deep inside .next/server/chunks/), not this
+        // source file's location, so a fixed
+        // `../../../../../../src/index.js` 404s in both `next start` and
+        // on Vercel (confirmed live 2026-07-01: gatetest.ai/api/web/scan/stream
+        // 500'd on every request). outputFileTracingIncludes in
+        // next.config.ts is what makes src/** actually present in the
+        // deployed bundle (turbopackIgnore hides this require from the
+        // automatic tracer).
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { GateTest } = require(/* turbopackIgnore: true */ "../../../../../../src/index.js") as {
+        const { resolveEngineEntry } = require("@/app/lib/engine-entry-resolver.js") as {
+          resolveEngineEntry: () => string;
+        };
+        const engineEntry = resolveEngineEntry();
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { GateTest } = require(/* turbopackIgnore: true */ engineEntry) as {
           GateTest: new (root: string, opts?: Record<string, unknown>) => {
             init: () => { runSuite: (name: string) => Promise<unknown> };
             config: { set?: (key: string, value: unknown) => void; data?: Record<string, unknown> };

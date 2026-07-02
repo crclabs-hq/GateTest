@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "name": "empty-js-module",
+  "category": "known-good",
+  "tier": "quick",
+  "target": "code",
+  "url": null,
+  "capturedAt": "2026-05-29T01:06:33.620Z",
+  "capturedBy": "gatetest-reliability@linux",
+  "capturedFrom": null,
+  "findingsByModule": {
+    "lint": {
+      "errors": 1,
+      "warnings": 0,
+      "info": 0
+    }
+  },
+  "totals": {
+    "errors": 1,
+    "warnings": 0,
+    "info": 0
+  },
+  "passed": true,
+  "note": null
+}

@@ -1,0 +1,134 @@
+{
+  "generatedAt": "2026-06-28T07:03:52.266Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 7,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 1,
+      "SonarQube": 0,
+      "Semgrep": 1,
+      "CodeQL": 3,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 2
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48699587",
+        "author": "doodlebugging",
+        "type": "comment",
+        "title": null,
+        "text": "My beef is in fact with the government and the voters and those who use their wealth to destroy something that others have paid a substantial part of their own incomes to go out and enjoy. The first time I rafted and kayaked that river there was one dirt road that ran along the river for a few miles past the put-in and miles further down the canyon there was one high-tension power line. You were miles into the Snake River before you saw homes from the river. Over the decades I ran that same stretch several times and each time encroachment was worse. Rich cocksuckers who build homes that they only use for a week at a time are the equivalent of cockroaches that drop their egg cases and move on. One egg case causes the whole area to become infested with others in a few short years.The attraction of the river was the silence and the grand views, paddling the rapids at different flow levels and learning to read the water, watching wildlife come up to the river, admiring the geologic story told by the rocks exposed on the canyon walls, the dark night skies. Once you add a structure, with the supporting access roads, powerlines, etc into the mix you have destroyed something that was worth saving for future generations. I don't expect everyone to understand that since too many people spend their lives caught up in the bullshit pursuit of money or recognition.I don't give a shit whether that family still owns or runs the grocery business or did when they built that place. The fact that they built there, right on the river and built a ramp to launch their jet-boat on what had been one of the quietest stretches of the river makes them my enemy and worthy of my contempt. The fact that they decided to build the ramp and just pay the annual fines is an artifact of a broken system where penalties and sanctions do not match the gravity of the infraction. Wealthy people do whatever they want, trashing things everywhere they go. It could be true that this will never change. I'm hoping that it will though and working to help it along.",
+        "url": "https://news.ycombinator.com/item?id=48699587",
+        "points": null,
+        "numComments": null,
+        "storyId": 48665125,
+        "createdAt": "2026-06-27T16:27:03Z",
+        "createdAtUnix": 1782577623,
+        "intent": "bug"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48698110",
+        "author": "kris_osiadacz",
+        "type": "story",
+        "title": "GPT-5.6 Sol: ~20 US govt-approved orgs only. What about non-US businesses?",
+        "text": "GPT-5.6 Sol: ~20 US govt-approved orgs only. What about non-US businesses?",
+        "url": "https://nexusfoundation.substack.com/p/digital-segregation-how-bigtech-and",
+        "points": 3,
+        "numComments": 0,
+        "storyId": 48698110,
+        "createdAt": "2026-06-27T13:27:48Z",
+        "createdAtUnix": 1782566868,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48703973",
+        "author": "codelikeawolf",
+        "type": "comment",
+        "title": null,
+        "text": "Oh my god as soon as I started reading the parent comment I immediately thought of Whackbat! This made my day.",
+        "url": "https://news.ycombinator.com/item?id=48703973",
+        "points": null,
+        "numComments": null,
+        "storyId": 48650794,
+        "createdAt": "2026-06-28T03:11:29Z",
+        "createdAtUnix": 1782616289,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48703863",
+        "author": "codelikeawolf",
+        "type": "comment",
+        "title": null,
+        "text": "I feel like shoddy construction&#x2F;craftsmanship isn't limited to new home construction. My wife and I just wrapped up a 6 month renovation of a >100 year old house. I used to work in industrial maintenance, so I knew how to do a lot of stuff already (electric, natural gas lines, drain lines, etc.) We had to farm out a couple of jobs to contractors we didn't have time to do ourselves. With the exception of one guy, they all did horrible work. I actually had to redo some of the work the plumber did. I was so disheartened with the quality that I decided I was going to just do everything myself from now on. I realized even if I read a book about how to do it and watched a few YouTube videos, I could do better.I really don't think it's a skill issue, because these people knew what they were doing. It just feels like nobody gives a sh*t. If I bend a piece of conduit that's in a visible part of my basement and it's crooked or off, I'll take it down and re-bend it. If I install a piece of base trim and there's a huge gap between pieces, I'll cut a new piece. There's no attention to detail, and I am _willing to pay extra_ for that. Charge me for the extra conduit or base trim.I've actually entertained the idea of starting my own electrical contractor company and hiring&#x2F;training ex-software engineers. I feel like we as a profession generally don't like sloppiness and most of us are nitpicky enough (myself included) to produce quality work. I can't be the only one out there that's happy to pay a little extra if they know they're not getting garbage.",
+        "url": "https://news.ycombinator.com/item?id=48703863",
+        "points": null,
+        "numComments": null,
+        "storyId": 48703083,
+        "createdAt": "2026-06-28T02:43:57Z",
+        "createdAtUnix": 1782614637,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48698319",
+        "author": "roscas",
+        "type": "comment",
+        "title": null,
+        "text": "qwen3-coder:30bcodestral:22bcodegemma:7bcodellama:34bnorth-mini-code-1.0:q8_0laguna-xs.2:latestCurrently testing those above on AMD Ryzen 5 3600x with 48GB of RAM and a nVidia 3080 with 10GB of VRAM.Favorite model is laguna-xs.2 because it is really fast on CPU and very good.",
+        "url": "https://news.ycombinator.com/item?id=48698319",
+        "points": null,
+        "numComments": null,
+        "storyId": 48698057,
+        "createdAt": "2026-06-27T13:52:22Z",
+        "createdAtUnix": 1782568342,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "48701875",
+        "author": "mindslight",
+        "type": "comment",
+        "title": null,
+        "text": "First, this is just the standard \"You're criticizing X, yet you use X. Checkmate\" trope.Second, there is an obvious difference in scale here which you're ignoring.Third, a website that can run on a pair of servers doesn't actually need to be, and the world would be better off if fewer were.",
+        "url": "https://news.ycombinator.com/item?id=48701875",
+        "points": null,
+        "numComments": null,
+        "storyId": 48701342,
+        "createdAt": "2026-06-27T21:21:02Z",
+        "createdAtUnix": 1782595262,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48696443",
+        "author": "TheOtherHobbes",
+        "type": "comment",
+        "title": null,
+        "text": "You can't deny it if it's true, but the point is to find new techniques and abstractions. A proof you can't extrapolate and learn from is just a checkmark, and about as useful.",
+        "url": "https://news.ycombinator.com/item?id=48696443",
+        "points": null,
+        "numComments": null,
+        "storyId": 48692883,
+        "createdAt": "2026-06-27T08:56:31Z",
+        "createdAtUnix": 1782550591,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}

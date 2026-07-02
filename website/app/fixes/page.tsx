@@ -21,7 +21,7 @@ interface Fix {
   id: string;
   created_at: string;
   repo_name: string;
-  pr_url: string;
+  pr_url: string | null;
   tier: string;
   errors_fixed: number;
   warnings_fixed: number;
@@ -56,7 +56,7 @@ const TIER_LABELS: Record<string, { label: string; color: string }> = {
   quick: { label: 'Quick', color: 'text-slate-400 bg-slate-400/10' },
   full: { label: 'Full', color: 'text-blue-400 bg-blue-400/10' },
   'scan_fix': { label: 'Scan+Fix', color: 'text-violet-400 bg-violet-400/10' },
-  nuclear: { label: 'Nuclear', color: 'text-rose-400 bg-rose-400/10' },
+  nuclear: { label: 'Forensic', color: 'text-rose-400 bg-rose-400/10' },
 };
 
 function formatDate(iso: string) {
@@ -139,15 +139,19 @@ export default async function FixesPage() {
                     </div>
                     <div className="flex items-center gap-3 text-xs text-slate-500 shrink-0">
                       <span>{formatDate(fix.created_at)}</span>
-                      <a
-                        href={fix.pr_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-teal-400 hover:text-teal-300 transition-colors"
-                        aria-label={`View PR for ${fix.repo_name}`}
-                      >
-                        View PR →
-                      </a>
+                      {/* PR links are withheld on the public registry — they
+                          identify the customer's repo (Craig 2026-06-12). */}
+                      {fix.pr_url && (
+                        <a
+                          href={fix.pr_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-teal-400 hover:text-teal-300 transition-colors"
+                          aria-label={`View PR for ${fix.repo_name}`}
+                        >
+                          View PR →
+                        </a>
+                      )}
                     </div>
                   </div>
 
@@ -210,7 +214,7 @@ export default async function FixesPage() {
         <div className="mt-16 rounded-xl bg-teal-500/5 border border-teal-500/15 p-8 text-center">
           <h2 className="text-xl font-semibold mb-2">Want your repo in this list?</h2>
           <p className="text-slate-400 text-sm mb-6">
-            GateTest scans your code. On Scan + Fix ($199) and Nuclear ($399) it fixes the issues and opens a PR. You merge. Done.
+            GateTest scans your code. On Scan + Fix ($199) and Forensic Scan ($399) it fixes the issues and opens a PR. You merge. Done.
           </p>
           <Link
             href="/"

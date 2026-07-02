@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GateTest vs Snyk — One config, every QA tool in 2026",
   description:
-    "Snyk ships separate Open Source, Code, Container, and IaC products. GateTest unifies those plus quality, performance, accessibility, and AI safety into a single config and a single bill — 102 modules, per-scan pricing.",
+    "Snyk ships separate Open Source, Code, Container, and IaC products. GateTest unifies those plus quality, performance, accessibility, and AI safety into a single config and a single bill — 110 modules, per-scan pricing.",
   keywords: [
     "Snyk alternative",
     "Snyk vs GateTest",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs Snyk — One config, every QA tool in 2026",
     description:
-      "Snyk ships separate Open Source, Code, Container, and IaC products. GateTest unifies them — plus quality, performance, accessibility, and AI safety — into a single config and a single bill (102 modules).",
+      "Snyk ships separate Open Source, Code, Container, and IaC products. GateTest unifies them — plus quality, performance, accessibility, and AI safety — into a single config and a single bill (110 modules).",
     url: "https://gatetest.ai/compare/snyk",
     siteName: "GateTest",
     type: "website",
@@ -34,11 +34,11 @@ const faqItems = [
   },
   {
     q: "Does GateTest also scan dependencies?",
-    a: "Yes — GateTest includes a polyglot dependency scanner covering npm, pip, Pipenv, Poetry, go.mod, Cargo, Bundler, Composer, Maven, and Gradle. It flags wildcard pins, 'latest' dependencies, missing lockfiles, and deprecated packages. Dependency scanning is one module out of 102.",
+    a: "Yes — GateTest includes a polyglot dependency scanner covering npm, pip, Pipenv, Poetry, go.mod, Cargo, Bundler, Composer, Maven, and Gradle. It flags wildcard pins, 'latest' dependencies, missing lockfiles, and deprecated packages. Dependency scanning is one module out of 110.",
   },
   {
     q: "How does GateTest pricing compare to Snyk?",
-    a: "Snyk charges per developer seat per month — pricing scales with headcount and enterprise contracts can reach thousands monthly. GateTest charges per scan: $99 for all 102 modules. No seat licensing, no annual contracts, no per-developer billing. A 100-person team pays the same per scan as a solo developer.",
+    a: "Snyk charges per developer seat per month — pricing scales with headcount and enterprise contracts can reach thousands monthly. GateTest charges per scan: $99 for all 110 modules. No seat licensing, no annual contracts, no per-developer billing. A 100-person team pays the same per scan as a solo developer.",
   },
   {
     q: "Does GateTest include AI-app safety scanning?",
@@ -46,7 +46,7 @@ const faqItems = [
   },
   {
     q: "Can GateTest fix vulnerabilities automatically?",
-    a: "Yes. The Scan + Fix tier ($199) uses AI to create pull requests with working code changes that address the issues found. Snyk can suggest fix PRs for dependency upgrades in its paid tiers; GateTest auto-fixes source code vulnerabilities — SSRF guards, TLS config fixes, cookie security flags, and more. The Nuclear tier ($399) adds Claude-driven diagnosis on every finding, cross-finding attack-chain correlation, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass also ship via the GitHub Action (mutation: true / chaos: true) — runs wherever your CI runs.",
+    a: "Yes. The Scan + Fix tier ($199) uses AI to create pull requests with working code changes that address the issues found. Snyk can suggest fix PRs for dependency upgrades in its paid tiers; GateTest auto-fixes source code vulnerabilities — SSRF guards, TLS config fixes, cookie security flags, and more. The Forensic Scan tier ($399) adds Claude-driven diagnosis on every finding, cross-finding attack-chain correlation, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass also ship via the GitHub Action (mutation: true / chaos: true) — runs wherever your CI runs.",
   },
   {
     q: "Does GateTest work with private repos?",
@@ -236,11 +236,11 @@ export default function SnykPage() {
               },
               {
                 title: "Auto-fix for source code bugs",
-                body: "Snyk can open a PR to bump a dependency version. At the Scan + Fix tier ($199) and Nuclear ($399), GateTest writes a fix for the source code bug — adds the SSRF validation guard, removes the TLS bypass, restructures the N+1 query into a batched lookup — and opens the PR for your review.",
+                body: "Snyk can open a PR to bump a dependency version. At the Scan + Fix tier ($199) and Forensic Scan ($399), GateTest writes a fix for the source code bug — adds the SSRF validation guard, removes the TLS bypass, restructures the N+1 query into a batched lookup — and opens the PR for your review.",
               },
               {
-                title: "One bill, 102 modules",
-                body: "Snyk's seat-based pricing means security costs scale with team size. GateTest is $99 for all 102 modules per scan. Run it daily on a 100-person team or run it once before a major release — the price is the same.",
+                title: "One bill, 110 modules",
+                body: "Snyk's seat-based pricing means security costs scale with team size. GateTest is $99 for all 110 modules per scan. Run it daily on a 100-person team or run it once before a major release — the price is the same.",
               },
             ].map((card) => (
               <div
@@ -278,7 +278,7 @@ export default function SnykPage() {
             One config across every QA category.
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
-            Get 102 modules — dependencies, code, containers, IaC, AI safety, accessibility, performance,
+            Get 110 modules — dependencies, code, containers, IaC, AI safety, accessibility, performance,
             and more — in a single scan. One-time payment per scan.
           </p>
           <Link

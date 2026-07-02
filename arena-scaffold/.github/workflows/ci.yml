@@ -1,0 +1,24 @@
+name: CI
+
+# Runs on every push and PR. Fails when the bug-injector has applied a
+# pattern to src/math.js — which is the whole point of the arena.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: node --test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run tests
+        run: node --test tests/*.test.js

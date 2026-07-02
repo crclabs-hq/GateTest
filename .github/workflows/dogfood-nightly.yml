@@ -1,0 +1,170 @@
+name: Dogfood — Self-Scan Nightly
+
+# Runs GateTest's own modules against the GateTest repo nightly. If we
+# can't keep our own house clean, we can't sell the product. Each module
+# here is the one a customer pays for; running them on ourselves makes
+# every regression visible the next morning.
+
+on:
+  schedule:
+    - cron: '15 3 * * *'   # 03:15 UTC, just after trainer-nightly
+  workflow_dispatch:
+
+permissions:
+  contents: write          # site-stats PR branch push
+  pull-requests: write
+  issues: write
+
+jobs:
+  dogfood:
+    name: Self-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify all modules load
+        run: node bin/gatetest.js --list | wc -l
+
+      - name: Run full test sweep
+        run: |
+          mkdir -p .dogfood
+          node --test tests/*.test.js 2>&1 | tee .dogfood/sweep.log || true
+          grep -E "^# (tests|pass|fail|skip)" .dogfood/sweep.log > .dogfood/sweep-summary.txt || true
+
+      - name: Regenerate website testing statistics
+        # Bridges continuous self-testing → the numbers shown on the site.
+        # Reuses the sweep log just captured (no second suite run) and writes
+        # website/app/data/site-stats.json. Displayed counts round DOWN, so
+        # the public "N+" claim is always an under-statement. The next step
+        # opens a PR if the JSON changed — Craig reviews before it ships.
+        run: |
+          node scripts/generate-site-stats.js --tap-log .dogfood/sweep.log
+          cp website/app/data/site-stats.json .dogfood/site-stats.json || true
+
+      - name: Self-scan — dependencies module
+        run: |
+          mkdir -p .dogfood
+          node bin/gatetest.js --module dependencies --json > .dogfood/dependencies.json 2>&1 || true
+          echo "## Dependencies" > .dogfood/report.md
+          jq -r '.checks // [] | length as $n | "\($n) checks"' .dogfood/dependencies.json >> .dogfood/report.md 2>/dev/null || true
+
+      - name: Self-scan — secrets module
+        run: |
+          node bin/gatetest.js --module secrets --json > .dogfood/secrets.json 2>&1 || true
+          echo "## Secrets" >> .dogfood/report.md
+          jq -r '.checks // [] | length as $n | "\($n) checks"' .dogfood/secrets.json >> .dogfood/report.md 2>/dev/null || true
+
+      - name: Self-scan — secret rotation module
+        run: |
+          node bin/gatetest.js --module secretRotation --json > .dogfood/secret-rotation.json 2>&1 || true
+          echo "## Secret rotation" >> .dogfood/report.md
+          jq -r '.checks // [] | length as $n | "\($n) checks"' .dogfood/secret-rotation.json >> .dogfood/report.md 2>/dev/null || true
+
+      - name: Self-scan — TypeScript strictness
+        run: |
+          node bin/gatetest.js --module typescriptStrictness --json > .dogfood/ts-strictness.json 2>&1 || true
+          echo "## TypeScript strictness" >> .dogfood/report.md
+          jq -r '.checks // [] | length as $n | "\($n) checks"' .dogfood/ts-strictness.json >> .dogfood/report.md 2>/dev/null || true
+
+      - name: Self-scan — log PII
+        run: |
+          node bin/gatetest.js --module logPii --json > .dogfood/log-pii.json 2>&1 || true
+          echo "## Log PII" >> .dogfood/report.md
+          jq -r '.checks // [] | length as $n | "\($n) checks"' .dogfood/log-pii.json >> .dogfood/report.md 2>/dev/null || true
+
+      - name: Upload dogfood artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dogfood-${{ github.run_id }}
+          path: .dogfood/
+          retention-days: 60
+
+      - name: Open issue if dependencies module flags errors
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          ERR_COUNT=$(jq -r '[.checks[]? | select(.severity=="error")] | length' .dogfood/dependencies.json 2>/dev/null)
+          if [ -n "$ERR_COUNT" ] && [ "$ERR_COUNT" -gt 0 ]; then
+            TITLE="Dogfood: $ERR_COUNT dependency error(s) in self-scan ($(date -u +%Y-%m-%d))"
+            BODY=$(printf '%s\n\nFull artifact: see %s actions run.' \
+              "Self-scan flagged $ERR_COUNT error-severity finding(s) in our own dependencies." \
+              "${{ github.run_id }}")
+            # gh fails harmlessly if an open issue with same title already exists.
+            gh issue list --label dogfood --search "$TITLE in:title" --limit 1 --state open --json title \
+              | jq -e 'length == 0' && gh issue create \
+                --title "$TITLE" --body "$BODY" --label dogfood,security \
+              || echo "issue exists or gh unavailable — skipping"
+          fi
+
+      - name: Marketing-claim verification
+        # Runs tests/marketing-claim-verification.test.js nightly to catch
+        # drift between public-facing claims and the actual shipped code.
+        # Examples caught: module count in Hero.tsx doesn't match --list output,
+        # model name in copy doesn't match source, pricing tier missing from checkout.
+        # CI already runs this on every PR; this nightly run catches post-merge drift
+        # (e.g. a config change reduces module count without touching marketing copy).
+        id: claim_check
+        if: always()
+        run: |
+          node --test tests/marketing-claim-verification.test.js 2>&1 \
+            | tee .dogfood/claim-check.log || true
+          FAIL_COUNT=$(grep -c "^not ok" .dogfood/claim-check.log 2>/dev/null || echo 0)
+          echo "fail_count=${FAIL_COUNT}" >> "$GITHUB_OUTPUT"
+
+      - name: Open issue if marketing claims drifted
+        if: always() && steps.claim_check.outputs.fail_count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          FAIL_COUNT="${{ steps.claim_check.outputs.fail_count }}"
+          TITLE="Claim drift: $FAIL_COUNT marketing-claim test(s) failed ($(date -u +%Y-%m-%d))"
+          BODY=$(printf '## Marketing claim drift detected\n\n%s test(s) in `tests/marketing-claim-verification.test.js` failed the nightly check.\n\nThis means a public-facing claim (module count, model name, pricing, etc.) no longer matches the shipping code.\n\n**Action:** run `node --test tests/marketing-claim-verification.test.js` locally, read the failures, then update either the marketing copy or the code to match.\n\nFull log in dogfood artifact for run `%s`.' \
+            "$FAIL_COUNT" "${{ github.run_id }}")
+          gh issue list --label dogfood,marketing --search "$TITLE in:title" --limit 1 --state open --json title \
+            | jq -e 'length == 0' && gh issue create \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --label "dogfood,marketing" \
+            || echo "issue exists or gh unavailable — skipping"
+
+      - name: Open / update site-stats PR if the numbers changed
+        # The continuous loop: last night's self-test produced fresh numbers,
+        # this opens a PR so the website's displayed statistics track reality.
+        # Idempotent — reuses today's branch and edits the PR if it exists.
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          if git diff --quiet -- website/app/data/site-stats.json; then
+            echo "site-stats.json unchanged — no PR"
+            exit 0
+          fi
+          BRANCH="flywheel/site-stats-$(date -u +%Y%m%d)"
+          git config user.name  "gatetest-dogfood[bot]"
+          git config user.email "gatetest-dogfood@users.noreply.github.com"
+          git checkout -b "$BRANCH" || git checkout "$BRANCH"
+          git add website/app/data/site-stats.json
+          git -c commit.gpgsign=false commit -m "chore(stats): refresh website testing statistics $(date -u +%Y-%m-%d)"
+          git push -u origin "$BRANCH" --force-with-lease
+          PR_BODY=$(printf 'Nightly self-test refreshed the numbers the website displays.\n\nSource of truth: `website/app/data/site-stats.json` (regenerated by `scripts/generate-site-stats.js` from the real `node --test` sweep + `gatetest --list` + flywheel telemetry). Displayed counts round DOWN — the public "N+" claim is always an under-statement.\n\nReview the diff and merge to ship the updated stats.')
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "Refresh website testing statistics — $(date -u +%Y-%m-%d)" \
+            --body "$PR_BODY" \
+            --draft \
+          || gh pr edit "$BRANCH" --body "Updated $(date -u +%Y-%m-%dT%H:%M:%SZ)"
