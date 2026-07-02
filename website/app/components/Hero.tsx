@@ -17,6 +17,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { UrlScanFlow } from "./UrlScanFlow";
 import { OPEN_AUTH_EVENT } from "./Navbar";
+import LiveStats from "./LiveStats";
 
 const SAMPLE_URLS = [
   { label: "example.com", url: "https://example.com" },
@@ -216,15 +217,6 @@ export default function Hero() {
         <LiveStats />
       </div>
 
-      {/* ── Bold full-bleed stats band — our answer to Klaviyo's green band ── */}
-      <div className="stats-band relative z-10">
-        <div className="mx-auto max-w-7xl px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-y-7 gap-x-6">
-          <BandStat num={siteStats.tests.displayPassing} label="tests passing, every commit" />
-          <BandStat num={String(siteStats.modules.total)} label="modules in one gate" />
-          <BandStat num={siteStats.modules.displayGreen} label="green on our own repo" />
-          <BandStat num="$29+" label="per scan · no subscription" />
-        </div>
-      </div>
     </section>
   );
 }
