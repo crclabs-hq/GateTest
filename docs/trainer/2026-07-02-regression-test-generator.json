@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-07-02T06:41:41.048Z",
+  "underTestedTargets": 2,
+  "draftsTotal": 2,
+  "drafted": 0,
+  "skipped": 2,
+  "failed": 0,
+  "drafts": [
+    {
+      "module": "developers",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/developers.js or website/app/lib/developers.js"
+    },
+    {
+      "module": "pricing",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/pricing.js or website/app/lib/pricing.js"
+    }
+  ]
+}
