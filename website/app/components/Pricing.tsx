@@ -112,7 +112,6 @@ export default function Pricing() {
             </button>
           </div>
         ))}
-      </div>
 
         {/* Continuous Subscription */}
         <div className="flex flex-col p-6 rounded-xl border border-neutral-800 bg-neutral-950/40 hover:border-neutral-700 transition-all duration-300">
@@ -132,13 +131,7 @@ export default function Pricing() {
               </li>
             ))}
           </ul>
-        </div>
-        <div className="flex flex-col items-start md:items-end gap-3">
-          <div className="flex items-baseline">
-            <span className="text-4xl font-black text-emerald-400">{continuousPlan.price}</span>
-            <span className="text-neutral-500 text-xs ml-2">/ {continuousPlan.frequency}</span>
-          </div>
-          <button className="py-3 px-6 rounded-lg font-semibold text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition-all duration-200">
+          <button className="w-full py-3 rounded-lg font-semibold text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition-all duration-200">
             {continuousPlan.cta}
           </button>
         </div>
