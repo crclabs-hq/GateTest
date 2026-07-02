@@ -217,6 +217,11 @@ test('aiFix whole-file: large rewrite rejected by mutation guard', async () => {
 
 test('aiFix: no API key returns fixed=false with fixSuggestion as description', async () => {
   const filePath = makeTempFile('const x = parseFloat(price);');
+  // apiKey: '' means "no key provided" — but a real ANTHROPIC_API_KEY may be
+  // set in the ambient environment, which would make aiFix fall back to it.
+  // Clear it for the duration of this test so the no-key path is actually exercised.
+  const savedEnvKey = process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY;
 
   try {
     const result = await aiFix({
@@ -233,6 +238,8 @@ test('aiFix: no API key returns fixed=false with fixSuggestion as description', 
     assert.equal(result.description, 'Use new Decimal(price) instead');
     assert.deepEqual(result.filesChanged, []);
   } finally {
+    if (savedEnvKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = savedEnvKey;
     try { fs.unlinkSync(filePath); } catch { /* cleanup */ }
   }
 });
