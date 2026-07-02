@@ -69,21 +69,29 @@ export default function Hero() {
             </div>
 
             <h1 className="font-display text-[2.7rem] leading-[1.04] sm:text-6xl lg:text-[4.1rem] font-extrabold text-gray-900 mb-6 fade-up">
-              Your CI just went red.
+              AI writes your code.
               <br />
-              Minutes later, there&apos;s{" "}
-              <span className="text-[#0f766e]">a PR with the fix.</span>
+              <span className="text-[#0f766e]">GateTest makes sure it actually works.</span>
             </h1>
 
             <p className="text-lg sm:text-xl text-gray-600 leading-relaxed mb-3 fade-up">
-              {siteStats.modules.total} checks. One gate. We catch the bug, security hole, or CI rot
-              that crashes your deploy &mdash; then open a pull request with the
-              fix already written, tested, and pair-reviewed by a second AI.
+              AI-generated code has 1.7x more issues than human code. GateTest catches
+              them automatically &mdash; visual regressions, broken links, API failures,
+              console errors. Zero config.
             </p>
             <p className="text-base text-gray-500 mb-8 fade-up">
               Pay per scan &mdash; no subscription, no minimum. Built on{" "}
               <span className="font-semibold text-gray-700">Claude Sonnet 4.6</span>.
             </p>
+
+            <div className="mb-6 fade-up">
+              <Link
+                href="/playground"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-base font-semibold text-white bg-[#0f766e] hover:bg-[#0d6058] transition-colors shadow-sm"
+              >
+                Scan your repo free →
+              </Link>
+            </div>
 
             {/* Live URL scan — the real product, in-hero */}
             <div className="fade-up">
