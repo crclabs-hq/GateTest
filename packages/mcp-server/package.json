@@ -1,0 +1,50 @@
+{
+  "name": "@gatetest/mcp-server",
+  "version": "1.0.0",
+  "mcpName": "io.github.ccantynz-alt/gatetest",
+  "description": "GateTest MCP server — connect Claude Code (and any MCP client) to GateTest's 91-module code quality engine. Scan local repos, run individual modules, auto-fix issues with Claude, and get Nuclear-tier diagnosis — all from inside your AI assistant.",
+  "type": "module",
+  "bin": {
+    "gatetest-mcp-server": "bin/server.mjs"
+  },
+  "files": [
+    "bin/",
+    "pr-composer.js",
+    "nuclear-diagnoser.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "homepage": "https://gatetest.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/crclabs-hq/gatetest.git",
+    "directory": "packages/mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/crclabs-hq/gatetest/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "gatetest",
+    "code-quality",
+    "security",
+    "claude",
+    "ai",
+    "sonarqube",
+    "snyk",
+    "eslint",
+    "ci-cd",
+    "qa",
+    "testing"
+  ],
+  "author": "GateTest Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "gatetest": "^1.42.0"
+  }
+}

@@ -84,6 +84,16 @@ npm run sweep -- --fast    # skip tests + build, gate-only, ~3-5s
 
 See `gatetest sweep --help` for every flag.
 
+### Claude Code / MCP — inside your AI assistant
+
+Connect GateTest directly to Claude Code (or any MCP-compatible AI):
+
+```bash
+claude mcp add gatetest -- npx -y @gatetest/mcp-server
+```
+
+Once added, Claude can call `scan_local`, `run_module`, `fix_issue`, `explain_finding`, and 5 more tools — scanning and fixing code without leaving the conversation. See [`packages/mcp-server/`](packages/mcp-server/) for full tool reference.
+
 ### Website — no install at all
 
 Visit [gatetest.ai/web](https://gatetest.ai/web) and paste any URL. You get a free preview and a paid full report. For WordPress sites use [gatetest.ai/wp](https://gatetest.ai/wp).
