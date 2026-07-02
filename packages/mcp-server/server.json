@@ -1,0 +1,29 @@
+{
+  "name": "io.github.ccantynz-alt/gatetest",
+  "description": "GateTest MCP server — 91-module code quality engine. Scan local repos for security vulnerabilities, reliability issues, code quality bugs, and more. Auto-fix issues with Claude. Nuclear-tier diagnosis explains root cause for every finding. Replaces SonarQube + Snyk + ESLint + 10 others with one unified gate.",
+  "license": "MIT",
+  "homepage": "https://gatetest.ai",
+  "repository": "https://github.com/crclabs-hq/gatetest",
+  "icon": "https://gatetest.ai/icon.png",
+  "versions": [
+    {
+      "registryType": "npm",
+      "identifier": "@gatetest/mcp-server",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@gatetest/mcp-server"]
+      },
+      "environmentVariables": [
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "description": "Claude API key — enables fix_issue and explain_finding tools (AI-driven auto-fix and Nuclear-tier diagnosis). Optional; scanning tools work without it.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}
