@@ -1,9 +1,14 @@
 {
-  "name": "ai.gatetest/gatetest",
-  "description": "GateTest MCP server — 111-module code quality engine for Claude Code and any MCP-compatible AI. Scan local repos for security vulnerabilities, reliability issues, code quality bugs, and more. Auto-fix with Claude. Nuclear-tier diagnosis explains root cause for every finding. Replaces SonarQube + Snyk + ESLint + 10 others with one unified gate.",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "ai.gatetest.www/gatetest",
+  "version": "1.0.0",
+  "description": "111-module QA gate for Claude Code. Scan repos, auto-fix, AI diagnosis. Replaces SonarQube + Snyk.",
   "license": "MIT",
   "homepage": "https://gatetest.ai",
-  "repository": "https://github.com/crclabs-hq/gatetest",
+  "repository": {
+    "source": "github",
+    "url": "https://github.com/crclabs-hq/GateTest"
+  },
   "icon": "https://gatetest.ai/icon.png",
   "versions": [
     {
