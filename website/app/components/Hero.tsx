@@ -1,240 +1,323 @@
 "use client";
 
 /**
- * <Hero> — GateTest landing hero.
+ * Hero — dark, Vercel/Linear quality.
  *
- * Design: Linear/Stripe B2B tone. Solid charcoal background, thin 1px
- * borders, teal-only accent. No neon, no heavy gradient blobs.
+ * Design tokens (Craig spec):
+ *   bg #000000 · surface #111111 · border #222222
+ *   text #fff · secondary #888 · accent #00E5FF
+ *   success #00FF88 · error #FF4444
+ *   headline 64px / -0.02em / 700 · Inter
  *
- * Two CTA tracks:
- *   1. Website URL scan — free preview via UrlScanFlow (inline result render)
- *   2. Repo scan — routes to #pricing where tier selection begins checkout
- *
- * CLI snippet visible for developers who landed here from a search.
+ * Layout: centered headline → subline → CTA row → terminal animation
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { UrlScanFlow } from "./UrlScanFlow";
-import { OPEN_AUTH_EVENT } from "./Navbar";
-import LiveStats from "./LiveStats";
 
-const SAMPLE_URLS = [
-  { label: "example.com", url: "https://example.com" },
-  { label: "nextjs.org",  url: "https://nextjs.org"  },
-  { label: "vercel.com",  url: "https://vercel.com"  },
+const LINES: Array<{ delay: number; text: string; color: string }> = [
+  { delay: 0,    text: "$ gatetest scan --repo github.com/acme/backend", color: "#888888" },
+  { delay: 700,  text: "  Scanning 120 modules...",                      color: "#555555" },
+  { delay: 1500, text: "  ✓  secrets            0 findings",             color: "#00FF88" },
+  { delay: 2100, text: "  ✓  dependencies       3 advisories",           color: "#00FF88" },
+  { delay: 2700, text: "  ✓  typescript         0 errors",               color: "#00FF88" },
+  { delay: 3300, text: "  ✗  auth               JWT secret hardcoded",   color: "#FF4444" },
+  { delay: 3900, text: "  ✓  security           patched 2 criticals",    color: "#00FF88" },
+  { delay: 4700, text: "  Fix PR opened → github.com/acme/backend/pull/248", color: "#00E5FF" },
 ];
 
-// Honest positioning: the fragmented tools one GateTest gate replaces.
-const REPLACES = ["SonarQube", "Snyk", "ESLint", "Semgrep", "CodeQL", "DeepSource"];
-
-export default function Hero() {
-  const [seed, setSeed] = useState<{ url: string; nonce: number }>({ url: "", nonce: 0 });
-  const [track, setTrack] = useState<"website" | "repo">("website");
-
-  function prefill(url: string) {
-    setSeed((s) => ({ url, nonce: s.nonce + 1 }));
-    requestAnimationFrame(() => {
-      const el = document.getElementById("url-scan-input") as HTMLInputElement | null;
-      if (el) el.focus();
-    });
-  }
-
+function TerminalLine({
+  text,
+  color,
+  cursor,
+}: {
+  text: string;
+  color: string;
+  cursor: boolean;
+}) {
   return (
-    <section className="relative overflow-hidden pt-20">
-      <div className="hero-dark px-6 pb-24 pt-16 relative">
-        <div className="hero-grid" aria-hidden="true" />
-
-        <div className="relative z-10 mx-auto max-w-4xl">
-
-          {/* Status badge */}
-          <div className="flex justify-center mb-10 fade-up">
-            <div className="glass-card inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-sm text-white/80 font-medium">
-              <span className="relative flex h-2 w-2" aria-hidden="true">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              <span>v1.42 &middot; 102 modules &middot; self-scan green</span>
-            </div>
-
-          {/* Headline */}
-          <h1 className="text-center text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.08] mb-5 fade-up text-white">
-            The Autonomous
-            <br />
-            <span className="hero-accent-text">Testing &amp; Repair Engine.</span>
-          </h1>
-
-          {/* Sub-headline */}
-          <p className="text-center text-base sm:text-lg text-white/55 max-w-2xl mx-auto mb-2 leading-relaxed fade-up">
-            Intercept flaws. Speculatively execute patches.
-            Mathematically certify production-ready code blocks before you deploy.
-          </p>
-          <p className="text-center text-sm text-teal-300/75 max-w-xl mx-auto mb-10 fade-up font-medium">
-            102 modules · bidirectional gate · certified PR — per scan, no subscription.
-          </p>
-
-          {/* Track switcher */}
-          <div className="flex justify-center mb-8 fade-up">
-            <div className="inline-flex rounded-lg border border-zinc-700 overflow-hidden text-sm font-medium">
-              <button
-                type="button"
-                onClick={() => setTrack("website")}
-                className={`px-5 py-2.5 transition-colors ${
-                  track === "website"
-                    ? "bg-zinc-700 text-white"
-                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-                }`}
-              >
-                Scan a website
-              </button>
-              <button
-                type="button"
-                onClick={() => setTrack("repo")}
-                className={`px-5 py-2.5 border-l border-zinc-700 transition-colors ${
-                  track === "repo"
-                    ? "bg-zinc-700 text-white"
-                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-                }`}
-              >
-                Scan a repo
-              </button>
-            </div>
-          </div>
-
-          {/* CTA area */}
-          <div className="max-w-2xl mx-auto fade-up">
-            {track === "website" ? (
-              <>
-                {/* Website scan track */}
-                <UrlScanFlow
-                  key={seed.nonce}
-                  suite="web"
-                  endpoint="/api/web/scan"
-                  streamEndpoint="/api/web/scan/stream"
-                  recommendEndpoint="/api/scan/recommend"
-                  placeholderUrl="https://yoursite.com — free preview, no signup"
-                  brandLabel="GateTest"
-                  initialUrl={seed.url}
-                />
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs">
-                  <span className="text-white/40 uppercase tracking-wider font-medium">Try</span>
-                  {SAMPLE_URLS.map((s) => (
-                    <button
-                      key={s.url}
-                      type="button"
-                      onClick={() => prefill(s.url)}
-                      className="glass-card px-3 py-1.5 rounded-full text-white/75 hover:text-white font-mono"
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                  <Link
-                    href="/wp"
-                    className="glass-card px-3 py-1.5 rounded-full text-white/75 hover:text-white"
-                  >
-                    WordPress? &rarr;
-                  </Link>
-                </div>
-              </>
-            ) : (
-              /* Repo scan track */
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-                <p className="text-sm text-zinc-300 mb-4">
-                  Select a tier to start your repo scan — you provide the GitHub
-                  URL at checkout. No GitHub App install required.
-                </p>
-                <button
-                  type="button"
-                  className="btn-primary inline-block w-full text-center"
-                  onClick={() =>
-                    window.dispatchEvent(new CustomEvent(OPEN_AUTH_EVENT))
-                  }
-                >
-                  Get Automated Fixes &rarr;
-                </button>
-                <p className="text-[11px] text-zinc-600 mt-3 text-center">
-                  Quick Scan is $29 · Full 102-module scan is $99 · Pay on completion
-                </p>
-
-                {/* CLI snippet for developers */}
-                <div className="mt-6 pt-5 border-t border-zinc-800">
-                  <p className="text-[11px] text-zinc-500 font-mono uppercase tracking-widest mb-2">
-                    Or run locally
-                  </p>
-                  <div className="terminal rounded-lg px-4 py-3 flex items-center gap-3 overflow-x-auto">
-                    <span className="text-zinc-500 select-none shrink-0">$</span>
-                    <code className="text-teal-300 text-sm whitespace-nowrap">
-                      npx @gatetest/cli --suite full
-                    </code>
-                  </div>
-                  <p className="text-[11px] text-zinc-600 mt-2">
-                    Zero install · reads your repo locally · exits 1 on any error finding
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Honest status row */}
-            <div className="mt-8 grid grid-cols-3 gap-3">
-              <StatusCell label="Self-scan"     value="GREEN"  tone="ok"    detail="102/102 modules" />
-              <StatusCell label="Tests passing" value="3,500+" tone="ok"    detail="every commit" />
-              <StatusCell label="Payment"       value="$29+"   tone="muted" detail="one-time per scan" />
-            </div>
-          </div>
-
-            <p className="text-center text-xs text-white/35 mt-5">
-              Install the GitHub App for scan-on-every-push —{" "}
-              <Link href="/github/setup" className="text-teal-300 hover:text-teal-200 underline-offset-2 hover:underline">
-                set up Continuous for $49/mo &rarr;
-              </Link>
-            </p>
-          </div>
-        </div>
-
-        {/* ── "Replaces" strip — honest social proof in lieu of logos ── */}
-        <div className="mt-12 fade-up">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-            <span className="text-xs uppercase tracking-[0.18em] text-gray-400 font-semibold shrink-0">
-              One gate replaces
-            </span>
-            <div className="flex flex-wrap items-center gap-2.5">
-              {REPLACES.map((tool) => (
-                <span
-                  key={tool}
-                  className="replace-pill px-3.5 py-1.5 rounded-full text-sm font-medium text-gray-600"
-                >
-                  {tool}
-                </span>
-              ))}
-              <span className="text-sm text-gray-400">+ 6 more</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Live social proof — only renders when DB has real data ── */}
-      <div className="mx-auto max-w-7xl px-6 pb-4">
-        <LiveStats />
-      </div>
-
-    </section>
+    <div
+      style={{
+        color,
+        fontFamily: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
+        fontSize: 13,
+        lineHeight: "22px",
+        whiteSpace: "pre",
+      }}
+    >
+      {text}
+      {cursor && (
+        <span
+          style={{ display: "inline-block", width: 7, height: 13, background: "#00E5FF", verticalAlign: "middle", marginLeft: 2 }}
+          className="cursor-blink"
+          aria-hidden="true"
+        />
+      )}
+    </div>
   );
 }
 
-function StatusCell({
-  label, value, tone, detail,
-}: {
-  label: string;
-  value: string;
-  tone: "ok" | "muted";
-  detail: string;
-}) {
-  const valueColor = tone === "ok" ? "text-emerald-300" : "text-white/80";
+export default function Hero() {
+  const [visible, setVisible] = useState(0);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) {
+      setVisible(LINES.length);
+      return;
+    }
+
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    setVisible(0);
+
+    LINES.forEach((line, i) => {
+      const t = setTimeout(() => setVisible(i + 1), line.delay);
+      timers.current.push(t);
+    });
+
+    const loop = setTimeout(() => {
+      setVisible(0);
+      timers.current.forEach(clearTimeout);
+      timers.current = [];
+      LINES.forEach((line, i) => {
+        const t = setTimeout(() => setVisible(i + 1), line.delay);
+        timers.current.push(t);
+      });
+    }, LINES[LINES.length - 1].delay + 4000);
+    timers.current.push(loop);
+
+    return () => timers.current.forEach(clearTimeout);
+  }, []);
+
   return (
-    <div className="glass-card status-pulse rounded-xl px-4 py-3 text-left">
-      <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">{label}</div>
-      <div className={`text-lg font-bold mt-1 tabular-nums ${valueColor}`}>{value}</div>
-      <div className="text-[11px] text-white/40 mt-0.5">{detail}</div>
-    </div>
+    <section
+      aria-label="Hero"
+      style={{
+        background: "#000000",
+        paddingTop: 100,
+        paddingBottom: 80,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* Subtle dot-grid background — low-contrast, not decorative */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage:
+            "linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px), " +
+            "linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px)",
+          backgroundSize: "64px 64px",
+          WebkitMaskImage:
+            "radial-gradient(ellipse 75% 65% at 50% 25%, #000 0%, transparent 100%)",
+          maskImage:
+            "radial-gradient(ellipse 75% 65% at 50% 25%, #000 0%, transparent 100%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div
+        style={{
+          position: "relative",
+          maxWidth: 760,
+          margin: "0 auto",
+          padding: "0 24px",
+          textAlign: "center",
+        }}
+      >
+        {/* Live badge */}
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            border: "1px solid #222",
+            padding: "6px 14px",
+            marginBottom: 36,
+            fontSize: 12,
+            color: "#888",
+            letterSpacing: "0.02em",
+            fontWeight: 500,
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: "#00FF88",
+              display: "inline-block",
+              flexShrink: 0,
+              boxShadow: "0 0 6px #00FF88",
+            }}
+            aria-hidden="true"
+          />
+          120 modules · v1.50 · Now in beta
+        </div>
+
+        {/* Headline — 64px / -0.02em / 700 */}
+        <h1
+          style={{
+            fontSize: "clamp(36px, 6vw, 64px)",
+            fontWeight: 700,
+            letterSpacing: "-0.02em",
+            lineHeight: 1.07,
+            color: "#ffffff",
+            margin: "0 0 20px",
+          }}
+        >
+          AI writes your code.{" "}
+          <br />
+          GateTest makes sure it{" "}
+          <span style={{ color: "#00E5FF" }}>actually works.</span>
+        </h1>
+
+        {/* Subline */}
+        <p
+          style={{
+            fontSize: "clamp(15px, 2.2vw, 20px)",
+            color: "#888888",
+            lineHeight: 1.65,
+            margin: "0 0 44px",
+            maxWidth: 480,
+            marginLeft: "auto",
+            marginRight: "auto",
+          }}
+        >
+          120 modules. Zero config. Catches what your CI misses.
+        </p>
+
+        {/* CTA row */}
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            marginBottom: 64,
+          }}
+        >
+          <Link
+            href="/github/setup"
+            style={{
+              background: "#00E5FF",
+              color: "#000000",
+              fontWeight: 700,
+              fontSize: 15,
+              letterSpacing: "-0.01em",
+              padding: "0 28px",
+              height: 48,
+              minWidth: 220,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textDecoration: "none",
+              flexShrink: 0,
+              transition: "background 0.15s ease",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#33EEFF"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#00E5FF"; }}
+          >
+            Scan your repo free →
+          </Link>
+          <Link
+            href="/preview#playground"
+            style={{
+              color: "#888888",
+              fontWeight: 500,
+              fontSize: 14,
+              padding: "0 20px",
+              height: 48,
+              minWidth: 120,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textDecoration: "none",
+              border: "1px solid #333",
+              flexShrink: 0,
+              transition: "color 0.15s ease, border-color 0.15s ease",
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.color = "#fff";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.color = "#888888";
+              e.currentTarget.style.borderColor = "#333";
+            }}
+          >
+            See it live
+          </Link>
+        </div>
+
+        {/* Terminal animation */}
+        <div
+          role="img"
+          aria-label="GateTest scanning a repository, finding an auth issue and opening a fix PR"
+          style={{
+            background: "#0a0a0a",
+            border: "1px solid #222",
+            overflow: "hidden",
+            textAlign: "left",
+          }}
+        >
+          {/* Chrome row */}
+          <div
+            style={{
+              borderBottom: "1px solid #222",
+              padding: "10px 14px",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#FF4444", display: "inline-block" }} aria-hidden="true" />
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#333", display: "inline-block" }} aria-hidden="true" />
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#333", display: "inline-block" }} aria-hidden="true" />
+            <span style={{ marginLeft: 8, fontSize: 11, color: "#444", fontFamily: "monospace" }}>gatetest — bash</span>
+          </div>
+
+          {/* Body */}
+          <div style={{ padding: "16px 20px", minHeight: 200 }}>
+            {LINES.slice(0, visible).map((line, i) => (
+              <TerminalLine
+                key={i}
+                text={line.text}
+                color={line.color}
+                cursor={i === visible - 1 && visible < LINES.length}
+              />
+            ))}
+            {visible === 0 && (
+              <TerminalLine text="" color="#888" cursor={true} />
+            )}
+          </div>
+        </div>
+
+        {/* Trust strip */}
+        <div
+          style={{
+            marginTop: 32,
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px 20px",
+            fontSize: 12,
+            color: "#555",
+          }}
+        >
+          <span>No credit card</span>
+          <span aria-hidden="true" style={{ color: "#333" }}>·</span>
+          <span>Pay per scan</span>
+          <span aria-hidden="true" style={{ color: "#333" }}>·</span>
+          <span>Built on Claude Sonnet 4.6</span>
+        </div>
+      </div>
+    </section>
   );
 }
