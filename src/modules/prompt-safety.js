@@ -72,6 +72,16 @@ const DEPRECATED_MODELS = [
   'claude-v1', 'claude-v1.2', 'claude-v1.3',
   'claude-instant-v1', 'claude-instant-1', 'claude-instant-1.1',
   'claude-2', 'claude-2.0', 'claude-2.1',
+  // Claude 3.x family — superseded by Claude 4.x
+  'claude-3-opus-20240229',
+  'claude-3-sonnet-20240229',
+  'claude-3-haiku-20240307',
+  // Claude 3.5 family — superseded by Claude 4.x
+  'claude-3-5-sonnet-20240620',
+  'claude-3-5-sonnet-20241022',
+  'claude-3-5-haiku-20241022',
+  // Claude 3.7 family — superseded by Claude 4.x
+  'claude-3-7-sonnet-20250219',
   'palm-2', 'text-bison-001',
 ];
 
@@ -211,7 +221,7 @@ class PromptSafetyModule extends BaseModule {
             line: i + 1,
             model: m,
             message: `Model \`${m}\` is deprecated / EOL — calls may fail or return degraded output`,
-            suggestion: 'Upgrade to a current model (e.g. `claude-sonnet-4-6`, `claude-sonnet-4-6`, or the latest GPT-4-class model).',
+            suggestion: 'Upgrade to a current model (e.g. `claude-opus-4-8`, `claude-sonnet-4-6`, or the latest GPT-4o-class model).',
           });
           break;
         }

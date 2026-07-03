@@ -298,11 +298,58 @@ describe('PromptSafetyModule — deprecated models', () => {
     assert.ok(r.checks.find((c) => c.name.startsWith('prompt-safety:deprecated-model:')));
   });
 
+  it('warns on claude-3-opus-20240229', async () => {
+    write(tmp, 'src/a.js', [
+      'const Anthropic = require("@anthropic-ai/sdk");',
+      'const client = new Anthropic();',
+      'await client.messages.create({ model: "claude-3-opus-20240229", max_tokens: 100, messages: [] });',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.ok(r.checks.find((c) => c.name.startsWith('prompt-safety:deprecated-model:')), 'expected deprecated-model finding for claude-3-opus');
+  });
+
+  it('warns on claude-3-5-sonnet-20241022', async () => {
+    write(tmp, 'src/a.js', [
+      'const Anthropic = require("@anthropic-ai/sdk");',
+      'const client = new Anthropic();',
+      'await client.messages.create({ model: "claude-3-5-sonnet-20241022", max_tokens: 100, messages: [] });',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.ok(r.checks.find((c) => c.name.startsWith('prompt-safety:deprecated-model:')), 'expected deprecated-model finding for claude-3-5-sonnet');
+  });
+
+  it('warns on claude-3-7-sonnet-20250219', async () => {
+    write(tmp, 'src/a.js', [
+      'const Anthropic = require("@anthropic-ai/sdk");',
+      'const client = new Anthropic();',
+      'await client.messages.create({ model: "claude-3-7-sonnet-20250219", max_tokens: 100, messages: [] });',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.ok(r.checks.find((c) => c.name.startsWith('prompt-safety:deprecated-model:')), 'expected deprecated-model finding for claude-3-7-sonnet');
+  });
+
   it('does NOT flag current models', async () => {
     write(tmp, 'src/a.js', [
       'const Anthropic = require("@anthropic-ai/sdk");',
       'const client = new Anthropic();',
       'await client.messages.create({ model: "claude-sonnet-4-6", max_tokens: 100, messages: [] });',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(
+      r.checks.find((c) => c.name.startsWith('prompt-safety:deprecated-model:')),
+      undefined,
+    );
+  });
+
+  it('does NOT flag claude-opus-4-8', async () => {
+    write(tmp, 'src/a.js', [
+      'const Anthropic = require("@anthropic-ai/sdk");',
+      'const client = new Anthropic();',
+      'await client.messages.create({ model: "claude-opus-4-8", max_tokens: 100, messages: [] });',
       '',
     ].join('\n'));
     const r = await run(tmp);
