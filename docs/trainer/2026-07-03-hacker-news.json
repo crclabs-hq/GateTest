@@ -1,0 +1,261 @@
+{
+  "generatedAt": "2026-07-03T06:34:26.234Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 16,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 10,
+      "SonarQube": 1,
+      "Semgrep": 2,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 2,
+      "Checkmarx": 0
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48770771",
+        "author": "doodlebugging",
+        "type": "comment",
+        "title": null,
+        "text": "I was looking at the lake water level tracker and reminiscing. I worked up at Heber City, Utah back around 1983-1984 doing seismic work. The snow and rainfall and snow-melt were creating floods all over the region. The lake was filling rapidly to historic levels.When we moved the crew to Oregon to do a bit of work around Roseburg we drove through SLC. The runoff from some of the creeks was so high that there were sandbagged creeks flowing downhill along some of the streets directly into the lake. As we made it to the interstate to swing around the south side of the lake there was a massive effort underway to raise the Union Pacific railroad tracks above the water and to prevent the water from flooding the interstate. From memory, which may be a bit rotted over the long time period, the railroad tracks were running along what was functioning as a huge levee being constructed on the north side of the interstate. Earthmovers were scrambling everywhere. The interstate was approximately 40 feet (~12.2 m) lower than the top of the levee where the tracks were being raised. Traffic was moving carefully along this stretch. It was pretty spectacular.I think I have some photos I took of the massive levee as I drove along that stretch and I may have some of the ballroom, the Great Saltair, which was inaccessible at the time, completely surrounded by water with only the top part of the building above water.If anyone who was living in SLC at the time could chime in to let me know how badly my memory has served me I would appreciate it.Once we got out of Utah we continued across Nevada and, since the entire western US was experiencing massive flooding, we had to take a long detour through a large ranch and around an isolated mountain range because an overpass over a river had washed out somewhere west of Wells, NV between there and Winnemucca. It was fantastically beautiful country. The road was unpaved and may have been a BLM road for part of the way until we connected with a paved road highway that took us back to the interstate. This detour cost us hours but the scenery made up for all of that.I say paved only in the Lousyana sense because it was a two-lane asphalt pavement with no shoulder and minimal guardrails that snaked up the side of a large plateau. There were numerous dips and potholes in the pavement that forced you to pay attention to the road instead of enjoying the view. In Lousyana they don't bother to spend federal highway funds on interstate highway maintenance, they just buy another highway sign that says \"Rough Roads Next 20 miles\" and let that pass for maintenance.About a third of the way from the top just over the crest of one of the short downhill stretches across the slope, there was a huge hole in the pavement that I hit doing about 70 in my Bronco. The jolt as my Bronco tried to jump the gap blew out both rear shocks, forcing me to replace them once I made it to Roseburg. Luckily it was a one lane wide, single hole perpendicular to the direction of travel so it didn't force a steering correction or I might've found myself needing flying lessons since the drop-off was quite sudden on one side.That trip was pretty epic. At Denio Junction, NV, I bought gas at the small store since it was one of the last places you could gas up before crossing into Oregon. At the time and for years afterward that was the most expensive gasoline that I had ever purchased. I probably still have the trip log and receipts from that trip but I think I remember it being $3&#x2F;gallon ($0.79&#x2F;l), in 1983-1984. Ridiculous. I finally paid more than that for gasoline at the station on the south Rim of the Grand Canyon about 30 years later where it cost $5&#x2F;gallon ($1.32&#x2F;l).Good times.",
+        "url": "https://news.ycombinator.com/item?id=48770771",
+        "points": null,
+        "numComments": null,
+        "storyId": 48766286,
+        "createdAt": "2026-07-03T04:37:43Z",
+        "createdAtUnix": 1783053463,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48770477",
+        "author": "snikolaev",
+        "type": "story",
+        "title": "14× faster embeddings: how we rebuilt the ONNX path in Manticore",
+        "text": "14× faster embeddings: how we rebuilt the ONNX path in Manticore",
+        "url": "https://manticoresearch.com/blog/onnx-embeddings-speedup/",
+        "points": 18,
+        "numComments": 1,
+        "storyId": 48770477,
+        "createdAt": "2026-07-03T03:49:47Z",
+        "createdAtUnix": 1783050587,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48769803",
+        "author": "snoka",
+        "type": "story",
+        "title": "FlickerScope – Are your LEDs giving you a headache? Stop guessing.",
+        "text": "FlickerScope – Are your LEDs giving you a headache? Stop guessing.",
+        "url": "https://github.com/snokamedia/flickerscope",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 48769803,
+        "createdAt": "2026-07-03T01:56:32Z",
+        "createdAtUnix": 1783043792,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48766645",
+        "author": "throwawalien",
+        "type": "comment",
+        "title": null,
+        "text": "lmao who's the boy and who's the snake here? the US spent 40 years offshoring manufacturing to china for cheap labor to juice corporate profits, then acts shocked when china built industrial capacity we voluntarily handed them. if anyone got \"bitten\" it's because we sold the farm for fatter earnings reports.",
+        "url": "https://news.ycombinator.com/item?id=48766645",
+        "points": null,
+        "numComments": null,
+        "storyId": 48763864,
+        "createdAt": "2026-07-02T20:04:47Z",
+        "createdAtUnix": 1783022687,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48765858",
+        "author": "RaftPeople",
+        "type": "comment",
+        "title": null,
+        "text": "> Uncle Bob is a snake oil salesmanI think it's not as bad as a snake oil salesman that knew their product was not good.In reality, most software design and dev advice is well intentioned but is just based on personal opinion, they don't really have much science behind them.This is not to say they should be completely ignored, it means there should be a healthy does of using your own brain and experience on any of this stuff.",
+        "url": "https://news.ycombinator.com/item?id=48765858",
+        "points": null,
+        "numComments": null,
+        "storyId": 48748951,
+        "createdAt": "2026-07-02T18:58:29Z",
+        "createdAtUnix": 1783018709,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48765326",
+        "author": "api",
+        "type": "comment",
+        "title": null,
+        "text": "Just like with writing, any kind of AI detection is going to be inaccurate to the point of snake oil.LLM detection in writing is basically today's polygraph test pseudoscience. There was a blog a while ago where someone fed classic literature into one and it was detected as probably AI.",
+        "url": "https://news.ycombinator.com/item?id=48765326",
+        "points": null,
+        "numComments": null,
+        "storyId": 48762008,
+        "createdAt": "2026-07-02T18:13:05Z",
+        "createdAtUnix": 1783015985,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48760764",
+        "author": "snek_case",
+        "type": "comment",
+        "title": null,
+        "text": "I've come to understand, talking to a friend who is also in the startup world, that there are some CEOs who run a \"portfolio\" of startups. It's pretty weird. I don't really understand why investors would put money in a company that only has a part-time CEO.",
+        "url": "https://news.ycombinator.com/item?id=48760764",
+        "points": null,
+        "numComments": null,
+        "storyId": 48760048,
+        "createdAt": "2026-07-02T12:53:00Z",
+        "createdAtUnix": 1782996780,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48760476",
+        "author": "snek_case",
+        "type": "comment",
+        "title": null,
+        "text": "I was working at an AI startup, and I saw our CTO lie in a demo to potential customers. I know that startups sometimes have a \"fake it till you make it\" mindset, but the guy straight up used a product from another company, presented it as our company's product, and faked numbers. I saw him completely misrepresent the capabilities of our product several times. Unethical and most likely illegal, I felt super disappointed, but I didn't immediately quit.I quit later, as it became increasingly clear to me that this guy knew nothing about technology, didn't care, but also had a fragile ego where he had to present himself to the company as being in charge, even though he was the worst person for the role. To top it all off, it also dawned on me over time that we basically had an absentee CEO who was working only ~15 hours a week at most. Then when I quit I found out there was a third co-founder who owned a huge stake of the company and I did not even know existed while I worked there.When I first interviewed, the CTO seemed like a nice and friendly guy, I didn't immediately see red flags. This was my first startup experience. I'll try to research things better if I decide to join one again. I might also just not join unless I can myself be a co-founder. Fuck reporting to incompetent twats.Currently taking a sabbatical. I decided to take the summer off. I'm working on personal projects. Lucky enough to have good savings from a previous job so I can afford to do this. I'm planning to take gradual steps towards returning to work near the end of the summer.",
+        "url": "https://news.ycombinator.com/item?id=48760476",
+        "points": null,
+        "numComments": null,
+        "storyId": 48760048,
+        "createdAt": "2026-07-02T12:32:14Z",
+        "createdAtUnix": 1782995534,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48758332",
+        "author": "camgunz",
+        "type": "comment",
+        "title": null,
+        "text": "> I love my daughter, but I’ve never been a little girl; it doesn’t bring anything back for me. It’s like Mudjekeewis says - you’ve got to have a son to see your youth rise up before you.This feels pretty unnecessary.> The online parenting community is large, opinionated, and vicious.Extremely super true, and it's even worse for moms. You also have to add \"predatory\" in the sense that people will sell you all kinds of snake oil to solve your problems that will at best not work and at worst mess your kid and&#x2F;or you up.",
+        "url": "https://news.ycombinator.com/item?id=48758332",
+        "points": null,
+        "numComments": null,
+        "storyId": 48753524,
+        "createdAt": "2026-07-02T08:36:54Z",
+        "createdAtUnix": 1782981414,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48757433",
+        "author": "shykes",
+        "type": "comment",
+        "title": null,
+        "text": "> they have excellent air defenses so it seems unlikely someone with superior planes is going to be able to go in and bomb them into submission.You seem to believe that China's military ambitions are purely defensive, but that is not the case. They have grandiose expansionist ambitions which include basically the entire South China Sea - which in spite of its name is shared by many countries. Not to mention their explicit goal of eventually conquering Taiwan. Their military doctrine is fundamentally offensive and does require air power.",
+        "url": "https://news.ycombinator.com/item?id=48757433",
+        "points": null,
+        "numComments": null,
+        "storyId": 48740971,
+        "createdAt": "2026-07-02T06:43:36Z",
+        "createdAtUnix": 1782974616,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [
+      {
+        "objectId": "48767906",
+        "author": "moffkalast",
+        "type": "comment",
+        "title": null,
+        "text": "I remember back in the pre-2023 days where SonarQube was a big deal for Java static analysis, and I let it rip across an entire 120k line project at one point upon which it found something like seven issues, out of which only one or two were actual bugs. It was almost entirely useless. I think even Qwen would've done leagues better today.Most bugs are far too nuanced to be caught by static analysis imo, you do need to actually understand what's going on in the program, the intent, the environment, etc. instead of blindly verifying if everything technically checks out, compilers already do a perfect job at that.",
+        "url": "https://news.ycombinator.com/item?id=48767906",
+        "points": null,
+        "numComments": null,
+        "storyId": 48762008,
+        "createdAt": "2026-07-02T21:58:22Z",
+        "createdAtUnix": 1783029502,
+        "intent": "neutral"
+      }
+    ],
+    "Semgrep": [
+      {
+        "objectId": "48763784",
+        "author": "smackeyacky",
+        "type": "comment",
+        "title": null,
+        "text": "Time window is roughly to a non US citizen from when civil rights and women’s rights were ascending there. The last 20 odd years show a marked decline in both. I often wonder when segregation in the US will be introduced.",
+        "url": "https://news.ycombinator.com/item?id=48763784",
+        "points": null,
+        "numComments": null,
+        "storyId": 48758970,
+        "createdAt": "2026-07-02T16:24:10Z",
+        "createdAtUnix": 1783009450,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48762074",
+        "author": "tpoacher",
+        "type": "comment",
+        "title": null,
+        "text": "Is it bait? I'm pretty sure it's a reasonably factual, albeit general claim. Asking chatGPT for country-specific examples for instance gives this:> Yes—some countries have (at various times, and in some cases still today) adopted policies aimed at making the population more “homogeneous,” through segregation, assimilation pressure, or exclusion&#x2F;deportation. Concrete examples:- South Africa (apartheid era, 1948–1990s): An official system of racial classification and enforced separation (“separate development”).- Germany (Nazi period, 1933–1945): State ideology enforced a racial hierarchy and pursued forced removal and mass murder of those deemed “undesirable.”- Israel (state policies affecting Palestinian citizens and occupied territory, especially since 1967): Includes laws and administrative practices that many observers describe as producing or enforcing unequal status by group; key issues include citizenship status differences and restrictions tied to national&#x2F;ethnic identity.- Myanmar (Rohingya): Policies and law enforcement that stripped&#x2F;blocked citizenship for Rohingya and enabled persecution, culminating in mass violence and displacement.- Canada (Indigenous assimilation policy, especially 19th–20th century into 1996): Forced assimilation via residential schools and bans on language&#x2F;cultural practices; many have characterized this as cultural genocide.- United States (Jim Crow + earlier immigration&#x2F;citizenship rules; and internment): Historical legal regimes created segregation and restricted citizenship&#x2F;naturalization based on race&#x2F;national origin (e.g., earlier Asian-exclusion immigration restrictions).You may disagree with some examples on this list, but I'm sure even you would consider that the first two are clear examples of diversity-fearing 'cultures' rather than 'bait'. And this is even before considering the wider definition of the word 'culture', which can be even more exclusionary.",
+        "url": "https://news.ycombinator.com/item?id=48762074",
+        "points": null,
+        "numComments": null,
+        "storyId": 48760289,
+        "createdAt": "2026-07-02T14:21:30Z",
+        "createdAtUnix": 1783002090,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48763412",
+        "author": "codelion",
+        "type": "story",
+        "title": "Frame: Grounding LLM Vulnerability Detection with a Sound Separation-Logic Core",
+        "text": "Frame: Grounding LLM Vulnerability Detection with a Sound Separation-Logic Core",
+        "url": "https://lambdasec.github.io/Frame-Grounding-LLM-Vulnerability-Detection-with-a-Sound-Separation-Logic-Core/",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 48763412,
+        "createdAt": "2026-07-02T15:54:42Z",
+        "createdAtUnix": 1783007682,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [
+      {
+        "objectId": "48768295",
+        "author": "hoppyhoppy2",
+        "type": "comment",
+        "title": null,
+        "text": "https:&#x2F;&#x2F;law.lis.virginia.gov&#x2F;vacode&#x2F;title59.1&#x2F;chapter53&#x2F;sect...",
+        "url": "https://news.ycombinator.com/item?id=48768295",
+        "points": null,
+        "numComments": null,
+        "storyId": 48767347,
+        "createdAt": "2026-07-02T22:39:48Z",
+        "createdAtUnix": 1783031988,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48768208",
+        "author": "kube-system",
+        "type": "comment",
+        "title": null,
+        "text": "Laws typically define terms like this, and this law is no exception.> \"Precise geolocation data\" means information derived from technology, including but not limited to global positioning system level latitude and longitude coordinates or other mechanisms, that directly identifies the specific location of a natural person with precision and accuracy within a radius of 1,750 feet. \"Precise geolocation data\" does not include the content of communications or any data generated by or connected to advanced utility metering infrastructure systems or equipment for use by a utility.https:&#x2F;&#x2F;law.lis.virginia.gov&#x2F;vacode&#x2F;title59.1&#x2F;chapter53&#x2F;sect...",
+        "url": "https://news.ycombinator.com/item?id=48768208",
+        "points": null,
+        "numComments": null,
+        "storyId": 48767347,
+        "createdAt": "2026-07-02T22:30:37Z",
+        "createdAtUnix": 1783031437,
+        "intent": "neutral"
+      }
+    ],
+    "Checkmarx": []
+  },
+  "painPoints": [],
+  "actionItems": []
+}
