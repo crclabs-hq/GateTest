@@ -60,10 +60,28 @@ class SecretsModule extends BaseModule {
         // `// secrets-ok` on this line or the previous line suppresses
         const prevLine = i > 0 ? lines[i - 1] : '';
         if (/\bsecrets-ok\b/.test(line) || /\bsecrets-ok\b/.test(prevLine)) continue;
+
+        // Skip comparison/sentinel context — `if (password === 'REJECTED_VALUE')` is not a secret assignment
+        if (/===|!==/.test(line)) continue;
+
+        // Skip env-var fallback pattern — `secret = process.env.X || 'default'`
+        if (/process\.env\b/.test(line)) continue;
+
+        // Skip comment lines
+        const trimmed = line.trimStart();
+        if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('#')) continue;
+
         for (const pattern of this.patterns) {
           // Reset regex lastIndex for global regexes
           pattern.regex.lastIndex = 0;
           if (pattern.regex.test(line)) {
+            // Skip known placeholder / sentinel values that are intentionally visible
+            const m = pattern.regex.exec(line);
+            pattern.regex.lastIndex = 0;
+            if (m) {
+              const val = m[0].toLowerCase();
+              if (/(?:changeme|placeholder|your[_-]?(?:secret|key|password|token)|replace[_-]?me|example|default[_-]?(?:secret|key|password|token)|xxx+|insert[_-]?here|todo)/.test(val)) continue;
+            }
             found.push({
               type: pattern.type,
               line: i + 1,

@@ -81,10 +81,11 @@ class SyntaxModule extends BaseModule {
       const content = fs.readFileSync(file, 'utf-8');
       const ext = path.extname(file).toLowerCase();
 
-      // .mjs files are ES modules — vm.Script rejects top-level import/export.
-      // Use `node --check` (or treat them as syntactically valid if node --check
-      // is unavailable) so ESM files don't false-positive.
-      if (ext === '.mjs') {
+      // .mjs files are always ESM. .js files in a "type":"module" package are ESM.
+      // .js files that contain top-level import/export are also ESM.
+      // vm.Script rejects ESM syntax — use `node --check` for these.
+      const isEsm = ext === '.mjs' || this._isEsmFile(content, file, projectRoot);
+      if (isEsm) {
         const { exitCode, stderr } = this._exec(`node --check "${file}" 2>&1`, {
           cwd: projectRoot,
         });
@@ -117,13 +118,46 @@ class SyntaxModule extends BaseModule {
     }
   }
 
+  // Detect whether a .js file is an ES module so we use node --check instead
+  // of vm.Script (which rejects top-level import/export/import.meta).
+  _isEsmFile(content, file, projectRoot) {
+    // Check for top-level import/export statements (not inside strings/comments)
+    if (/^(?:import\s|export\s|export\s+default\b)/m.test(content)) return true;
+    // import.meta is ESM-only
+    if (/\bimport\.meta\b/.test(content)) return true;
+    // Check nearest package.json for "type": "module"
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      let dir = path.dirname(file);
+      for (let i = 0; i < 5; i++) {
+        const pkgPath = path.join(dir, 'package.json');
+        if (fs.existsSync(pkgPath)) {
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+          if (pkg.type === 'module') return true;
+          break; // found a package.json, stop searching up
+        }
+        const parent = path.dirname(dir);
+        if (parent === dir) break;
+        dir = parent;
+      }
+    } catch { /* ignore */ }
+    return false;
+  }
+
   _checkJsxSyntax(file, result, projectRoot) {
     const relPath = path.relative(projectRoot, file);
     const content = fs.readFileSync(file, 'utf-8');
 
-    // Check for unclosed JSX tags
-    const openTags = (content.match(/<[A-Z][a-zA-Z]*(?:\s[^>]*)?>(?!.*\/>)/g) || []).length;
-    const closeTags = (content.match(/<\/[A-Z][a-zA-Z]*>/g) || []).length;
+    // Check for unclosed JSX tags.
+    // Must correctly subtract self-closing tags (<Icon />, <Br/>) which
+    // look like open tags but don't need a matching close tag.
+    // allComponentOpens: every <Uppercase or <Namespace.Member opener
+    const allComponentOpens = (content.match(/<[A-Z][a-zA-Z0-9]*(?:\.[A-Z][a-zA-Z0-9]*)*/g) || []).length;
+    // selfClosing: <Icon />, <Component prop="x"/>, etc.
+    const selfClosingTags = (content.match(/<[A-Z][a-zA-Z0-9]*[^>]*\/>/g) || []).length;
+    const openTags = allComponentOpens - selfClosingTags;
+    const closeTags = (content.match(/<\/[A-Z][a-zA-Z0-9]*(?:\.[A-Z][a-zA-Z0-9]*)*>/g) || []).length;
 
     if (Math.abs(openTags - closeTags) > 2) {
       result.addCheck(`syntax:jsx-balance:${relPath}`, false, {

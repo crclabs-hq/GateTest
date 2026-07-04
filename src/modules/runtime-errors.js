@@ -283,10 +283,25 @@ class RuntimeErrorsModule extends BaseModule {
       });
     }
 
-    for (const f of captured.requestFailures.slice(0, 15)) {
-      result.addCheck('runtime-errors:network', false, {
-        severity: f.resourceType === 'document' || f.resourceType === 'script' ? 'error' : 'warning',
-        message: `${f.method} ${f.url} → ${f.reason} (${f.resourceType})`,
+    // Group network failures by hostname + reason to avoid 34 "fonts.googleapis.com 404" spam
+    const failureGroups = new Map();
+    for (const f of captured.requestFailures) {
+      let host;
+      try { host = new URL(f.url).hostname; } catch { host = f.url.slice(0, 40); }
+      const key = `${host}:${f.reason}`;
+      const group = failureGroups.get(key) || { host, reason: f.reason, count: 0, sample: f.url, resourceTypes: new Set(), isHighSeverity: false };
+      group.count += 1;
+      group.resourceTypes.add(f.resourceType);
+      if (f.resourceType === 'document' || f.resourceType === 'script') group.isHighSeverity = true;
+      failureGroups.set(key, group);
+    }
+    for (const g of Array.from(failureGroups.values()).slice(0, 15)) {
+      const countStr = g.count > 1 ? ` (×${g.count})` : '';
+      const typeStr = Array.from(g.resourceTypes).join('/');
+      result.addCheck(`runtime-errors:network:${g.host}`, false, {
+        severity: g.isHighSeverity ? 'error' : 'warning',
+        message: `${g.host} → ${g.reason} [${typeStr}]${countStr}`,
+        details: { sampleUrl: g.sample, count: g.count, resourceTypes: Array.from(g.resourceTypes) },
       });
     }
 
