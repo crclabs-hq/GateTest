@@ -1,6 +1,6 @@
 {
   "name": "io.github.ccantynz-alt/gatetest",
-  "description": "GateTest MCP server — 91-module code quality engine. Scan local repos for security vulnerabilities, reliability issues, code quality bugs, and more. Auto-fix issues with Claude. Nuclear-tier diagnosis explains root cause for every finding. Replaces SonarQube + Snyk + ESLint + 10 others with one unified gate.",
+  "description": "Give Claude eyes (screenshot live pages), ears (Sentry/Datadog/Rollbar errors + runtime checks), and hands (verify fixes worked). 18 tools, 120-module engine. Scan, fix, screenshot, and prove the fix worked — all inside your AI assistant.",
   "license": "MIT",
   "homepage": "https://gatetest.ai",
   "repository": "https://github.com/crclabs-hq/gatetest",

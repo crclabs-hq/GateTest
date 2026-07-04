@@ -2,7 +2,7 @@
   "name": "@gatetest/mcp-server",
   "version": "1.0.0",
   "mcpName": "io.github.ccantynz-alt/gatetest",
-  "description": "GateTest MCP server — connect Claude Code (and any MCP client) to GateTest's 91-module code quality engine. Scan local repos, run individual modules, auto-fix issues with Claude, and get Nuclear-tier diagnosis — all from inside your AI assistant.",
+  "description": "Give Claude eyes (screenshot live pages), ears (Sentry/Datadog/Rollbar errors + runtime checks), and hands (verify fixes worked). 18 tools, 120-module engine. Scan, fix, screenshot, and prove the fix worked — all inside your AI assistant.",
   "type": "module",
   "bin": {
     "gatetest-mcp-server": "bin/server.mjs"
@@ -30,13 +30,22 @@
     "code-quality",
     "security",
     "claude",
+    "claude-code",
     "ai",
+    "ai-agent",
+    "screenshot",
+    "visual-regression",
+    "production-errors",
+    "sentry",
     "sonarqube",
     "snyk",
     "eslint",
     "ci-cd",
     "qa",
-    "testing"
+    "testing",
+    "verify-fix",
+    "cursor",
+    "windsurf"
   ],
   "author": "GateTest Team",
   "license": "MIT",

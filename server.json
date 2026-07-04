@@ -1,8 +1,8 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "ai.gatetest.www/gatetest",
-  "version": "1.0.0",
-  "description": "111-module QA gate for Claude Code. Scan repos, auto-fix, AI diagnosis. Replaces SonarQube + Snyk.",
+  "version": "1.55.0",
+  "description": "Give Claude eyes (screenshot live pages), ears (pull Sentry/Datadog/Rollbar errors + runtime checks), and hands (verify fixes actually worked). 18 tools: 120-module local scan, AI auto-fix, production error triage, visual regression. Replaces SonarQube + Snyk + ESLint + 10 others.",
   "license": "MIT",
   "homepage": "https://gatetest.ai",
   "repository": {
@@ -23,7 +23,49 @@
       "environmentVariables": [
         {
           "name": "ANTHROPIC_API_KEY",
-          "description": "Claude API key — enables fix_issue and explain_finding tools (AI-driven auto-fix and Nuclear-tier diagnosis). Optional; scanning tools work without it.",
+          "description": "Claude API key — enables fix_issue and explain_finding (AI auto-fix + diagnosis). Optional; all scan, screenshot, and runtime-check tools work without it.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "SENTRY_AUTH_TOKEN",
+          "description": "Sentry auth token — enables get_production_errors to pull live error data from Sentry. Pair with SENTRY_ORG and SENTRY_PROJECT.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "SENTRY_ORG",
+          "description": "Your Sentry organisation slug (e.g. 'acme-corp'). Required when using SENTRY_AUTH_TOKEN.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "SENTRY_PROJECT",
+          "description": "Your Sentry project slug (e.g. 'backend-api'). Required when using SENTRY_AUTH_TOKEN.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "DATADOG_API_KEY",
+          "description": "Datadog API key — enables get_production_errors to pull live error data from Datadog Logs. Pair with DATADOG_APP_KEY.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "DATADOG_APP_KEY",
+          "description": "Datadog application key — required alongside DATADOG_API_KEY for Logs API access.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "ROLLBAR_READ_TOKEN",
+          "description": "Rollbar read-access token — enables get_production_errors to pull live error data from Rollbar.",
           "isRequired": false,
           "isSecret": true,
           "format": "string"

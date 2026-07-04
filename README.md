@@ -88,15 +88,24 @@ npm run sweep -- --fast    # skip tests + build, gate-only, ~3-5s
 
 See `gatetest sweep --help` for every flag.
 
-### Claude Code / MCP — inside your AI assistant
+### Claude Code / MCP — give Claude eyes, ears & hands
 
-Connect GateTest directly to Claude Code (or any MCP-compatible AI):
+Connect GateTest directly to Claude Code (or any MCP-compatible AI) in one command:
 
 ```bash
 claude mcp add gatetest -- npx -y @gatetest/mcp-server
 ```
 
-Once added, Claude can call `scan_local`, `run_module`, `fix_issue`, `explain_finding`, and 5 more tools — scanning and fixing code without leaving the conversation. See [`packages/mcp-server/`](packages/mcp-server/) for full tool reference.
+18 tools across four families:
+
+| Family | Tools | What it gives Claude |
+|--------|-------|----------------------|
+| **Engine** | `scan_local`, `run_module`, `fix_issue`, `verify_fix`, … | Scan + fix local code |
+| **👁 Eyes** | `capture_screenshot`, `get_visual_diff` | See the rendered page as a real image |
+| **👂 Ears** | `get_production_errors`, `run_live_checks` | Hear Sentry/Datadog/Rollbar errors + localhost runtime failures |
+| **🤝 Hands** | `verify_fix` | Hard ✅/❌ — prove the fix actually worked |
+
+Works with Claude Code, Cursor, Windsurf, Continue, and Cline. See [`packages/mcp-server/`](packages/mcp-server/) for the full tool reference and example prompts.
 
 ### Website — no install at all
 
