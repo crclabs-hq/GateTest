@@ -1,0 +1,205 @@
+{
+  "generatedAt": "2026-07-04T06:22:10.442Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 12,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 6,
+      "SonarQube": 0,
+      "Semgrep": 2,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 1,
+      "Veracode": 0,
+      "Checkmarx": 2
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48782328",
+        "author": "purple-leafy",
+        "type": "story",
+        "title": "Show HN: Snibble – Snake x Scrabble where every match fits in a QR code",
+        "text": "Hi HN - I built Snibble, a browser word snake game.The technical bit: every match is deterministic and compresses into a tiny replay URL &#x2F; QR code, so games can be shared and replayed without video.This is an early beta. I’d especially love feedback on: - whether the submit&#x2F;steal mechanic makes sense - mobile onboarding - performance - the replay&#x2F;QR artifact ideaI built the engine from scratch in TypeScript&#x2F;Canvas&#x2F;WebGL over the last few months. Replays are generated from compressed event streams and re-simulated in the browser.",
+        "url": "https://snibble.gg/",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 48782328,
+        "createdAt": "2026-07-04T03:12:22Z",
+        "createdAtUnix": 1783134742,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48782182",
+        "author": "snaking0776",
+        "type": "comment",
+        "title": null,
+        "text": "There’s debate over how much timing actually matters vs the rate of firing. Some people do believe in precise spike timing but I would say the general consensus is that spiking rate is a better measure of the current state of a system. There’s significant noise (as far as we can tell) in a neuron’s timing and it’s best modeled with a poisson process so we tend to think of it as rate coding which we can at least hand wave as viewing an RNN with a ReLU approximating.Generally you can take a geometric view of this where certain features in a stimulus covary with neural activations in the same way they will with RNN “activations” which is at the real core of why people model things this way. The general idea being a dot product in an RNN can tell you something about what features are relevant for a task and we can look for hints of the same information being encoded in neural data. Certainly not everyone is in agreement on this though.",
+        "url": "https://news.ycombinator.com/item?id=48782182",
+        "points": null,
+        "numComments": null,
+        "storyId": 48780996,
+        "createdAt": "2026-07-04T02:35:37Z",
+        "createdAtUnix": 1783132537,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48781523",
+        "author": "SubiculumCode",
+        "type": "comment",
+        "title": null,
+        "text": "Independent of the research itself, the article makes it seem as if neuroscientist are just discovering the deep recursion all the way back to V1. The idea that this was a one way stream of information processing was discarded a long time ago. Those back projections probably serve lots of functions, but we can be pretty sure they are there to let current context bias the weights for quicker recognition and reaction...e.g. if your context includes snakes, your visual system will attune to recognizing snakes even faster.",
+        "url": "https://news.ycombinator.com/item?id=48781523",
+        "points": null,
+        "numComments": null,
+        "storyId": 48780996,
+        "createdAt": "2026-07-04T00:18:53Z",
+        "createdAtUnix": 1783124333,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48780081",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "So should they ask the trees to fruit less, or cut them down knowing they can't get them back online for 10 years?",
+        "url": "https://news.ycombinator.com/item?id=48780081",
+        "points": null,
+        "numComments": null,
+        "storyId": 48778031,
+        "createdAt": "2026-07-03T21:17:52Z",
+        "createdAtUnix": 1783113472,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48779880",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "I think to clarify your point, curbside pickup is the curb of the store&#x2F;warehouse, not the curb of your house, correct? I think the netizen above thought it was your house's curbside?",
+        "url": "https://news.ycombinator.com/item?id=48779880",
+        "points": null,
+        "numComments": null,
+        "storyId": 48776044,
+        "createdAt": "2026-07-03T20:58:13Z",
+        "createdAtUnix": 1783112293,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48778917",
+        "author": "anigbrowl",
+        "type": "comment",
+        "title": null,
+        "text": "I'm sorry, but this is retarded. It works, and it's clever, but but it's clearly a workaround for a pricing failure. Much like the bounty on poisonous snakes leading to people taking up snake-breeding, this just exploits and promotes waste. I think ultimately blame falls on Anthropic for the poor pricing system the enables such arbitrage. But I'm also disgusted by the inevitable tide of people exploiting this until its fixed, and creating an entirely unnecessary extra tide of digital junk.",
+        "url": "https://news.ycombinator.com/item?id=48778917",
+        "points": null,
+        "numComments": null,
+        "storyId": 48776464,
+        "createdAt": "2026-07-03T19:22:58Z",
+        "createdAtUnix": 1783106578,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48782831",
+        "author": "scritty-dev",
+        "type": "comment",
+        "title": null,
+        "text": "big fan of memgraph, been utilizing for awhile over neo4j ever since I saw a NASA article detailing their migration effort and the why behind it.my question is does this multi-tenancy support apply to vector embedding as well? from usage I know it supports vector indexes on nodes&#x2F;edges, I’m curious whether those embedding properties and vector indexes are isolated and manageable per database in a multi-tenant deployment? any limitations I should know about? context: individual&#x2F;organization&#x2F;enterprise knowledge bases being developed need mechanism to promote relevant information up from personal stores into team and from team into corporate.",
+        "url": "https://news.ycombinator.com/item?id=48782831",
+        "points": null,
+        "numComments": null,
+        "storyId": 48782672,
+        "createdAt": "2026-07-04T05:20:42Z",
+        "createdAtUnix": 1783142442,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48782672",
+        "author": "taubek",
+        "type": "story",
+        "title": "How Memgraph 3.11 Simplifies Multi-Tenancy for Cross-Database Graph Workloads",
+        "text": "How Memgraph 3.11 Simplifies Multi-Tenancy for Cross-Database Graph Workloads",
+        "url": "https://memgraph.com/blog/memgraph-3-11-multi-tenant-graph-workloads",
+        "points": 1,
+        "numComments": 1,
+        "storyId": 48782672,
+        "createdAt": "2026-07-04T04:37:15Z",
+        "createdAtUnix": 1783139835,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48779375",
+        "author": "jwardbond",
+        "type": "comment",
+        "title": null,
+        "text": "I recently started an internship in a field I am very interested in. I began using claude to write a lot of my code, but realized that:a) It was way too easy to just auto-approve everything. Answering the 5-10 spec questions it asked me made me feel like I was an important part of the loop, but really it was just a way to make me feel important while spraying my slop cannon.b) I wasn't actually learning anything, defeating the whole purpose of the internship I worked hard to get.I am now using a workflow where the brainstorming process is the same, but I have claude write an instructional document for me to implement. It has instructions to ask me questions about what I know &#x2F; want to know, to lay out the plan iteratively with lots of verification steps, and to heavily explain portions of the code that are unfamiliar to me. It's sorta like making my own custom tutorials specifically for the problem I am working on.It's a little slower, but not too bad since it does still put whole codeblocks in the instructions. I have a much better understanding of what I am doing, I still get to enjoy learning and programming and improving, and I don't feel like a reverse centaur.",
+        "url": "https://news.ycombinator.com/item?id=48779375",
+        "points": null,
+        "numComments": null,
+        "storyId": 48771515,
+        "createdAt": "2026-07-03T20:10:17Z",
+        "createdAtUnix": 1783109417,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [
+      {
+        "objectId": "48777236",
+        "author": "claudiacsf",
+        "type": "story",
+        "title": "The AI coding maturity scale",
+        "text": "The AI coding maturity scale",
+        "url": "https://blog.codacy.com/the-ai-coding-maturity-scale-the-path-to-loop-engineering",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 48777236,
+        "createdAt": "2026-07-03T17:01:56Z",
+        "createdAtUnix": 1783098116,
+        "intent": "neutral"
+      }
+    ],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "48781005",
+        "author": "justcool393",
+        "type": "comment",
+        "title": null,
+        "text": "some more information perhaps?banned_by true is more accurate to say \"admin or automatic\". in \"admin mode,\" you can see these although not sure the UX for these nowadays now that it is spewing a gazillion lines of text into them).Anti-Evil Operations removals (nee Trust & Safety) are generally human(-assisted) actions (although these actions can be applied en masse). there's some more information nowadays in the API which was really nice. it also helped because people stopped blaming \"the mods\" for removals when the spam filter slopped all over the place. this was also annoying because previously you had to previously guess from the API how it was removed even if you were a mod.the 3 ways to remove a post&#x2F;comment (i.e. in reply to: train_spam):- remove not spam: removes it but doesn't train the spam filter, obvious- spam: removes it and trains the spam filter, obvious- confirm spam: only happens when you remove after removing for any reason, *does not* train the spam filter- reinforce spam: trains the spam filter even if the spam filter already caught it. *does* train the spam filter. you can do this by doing `action: spam` in automod. not sure if there have been any more in the last few yearsalso you can tell the legacy of \"removals\", back in the day stories were \"banned\" instead of \"removed\" by moderators and administrators.also also also... you can see a lot of the stuff from this article in the `approved_by` side of it as well. if you hover over a checkmark of someone who has been unshadowbanned, you'll see it says \"approved by Reddit (shadowban removed)\"if an admin manually unspams someones stuff (say someone who got accidentally shadowbanned and got hit with an overzealous spam filter multiple times >.>), it'll say \"approved by <username> (all)\". there are some consequences to this. it approves stuff that has been \"filtered\" (as AutoMod filtering is a weird hack where it removes something but keeps in the modqueue).> spammiti believe this is the thing that is \"pretty similar to a naive Bayesian classifier\"[1][2] that reddit used. &#x2F;u&#x2F;Deimorz iirc was a reddit dev at the time and it was somewhat public info. i say somewhat because you kinda had to be both interested in the this and probably be around the metasphereiirc from some other comments i pieced together there are also per-subreddit spam filters. in the olden days sometimes they'd get way out of whack and you could ask an admin to reset it for you... or something idk> emguessing em in this case btw refers to &#x2F;u&#x2F;hueypriest, who was reddit's GM at the time> would’ve been catastrophic for Reddit’s spam issuesthe thing that surprised me at the time was just how bad reddit's spam filtering is. i did a small little thing at the time where i'd just look at stuff following some basic spam filtering rules (like stuff you'd probably get out of an artisinal spamassassin ruleset) and even that deluge was amazing to see.like the ML stuff is cool and all but seriously 90% of this could probably still be solved with some basic rules. the profile hiding stuff didn't help either but that was way after my time.[1]: https:&#x2F;&#x2F;reddit.com&#x2F;r&#x2F;TheoryOfReddit&#x2F;comments&#x2F;10ko5h&#x2F;comment&#x2F;... (2012)[2]: https:&#x2F;&#x2F;www.reddit.com&#x2F;r&#x2F;modnews&#x2F;comments&#x2F;6bj5de&#x2F;state_of_sp...",
+        "url": "https://news.ycombinator.com/item?id=48781005",
+        "points": null,
+        "numComments": null,
+        "storyId": 48699010,
+        "createdAt": "2026-07-03T22:57:47Z",
+        "createdAtUnix": 1783119467,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48775610",
+        "author": "apwheele",
+        "type": "comment",
+        "title": null,
+        "text": "Off topic, but Simon's Pelican on a bike SVG makes me think they are using that is the current models. I ask for much simpler SVG icons periodically (to insert into webpages, map icons, chart icons, etc.) and all of the models tend to do poorly in my experience.Most recent example was a V to look like a checkmark. Seemingly much simpler than a pelican riding a bike, but Claude&#x2F;ChatGPT&#x2F;Google all did quite poorly.",
+        "url": "https://news.ycombinator.com/item?id=48775610",
+        "points": null,
+        "numComments": null,
+        "storyId": 48775410,
+        "createdAt": "2026-07-03T14:36:58Z",
+        "createdAtUnix": 1783089418,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
