@@ -13,10 +13,9 @@
  * Or in .claude/settings.json:
  *   { "mcpServers": { "gatetest": { "command": "npx", "args": ["-y", "@gatetest/mcp-server"] } } }
  */
-import { resolve } from 'path';
-import { fileURLToPath } from 'url';
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const serverPath = resolve(__dirname, '../node_modules/@gatetest/cli/bin/gatetest-mcp.mjs');
-
-await import(serverPath);
+// Use import.meta.resolve so Node's module resolution finds @gatetest/cli
+// correctly whether npm hoists it (global install) or nests it (local install).
+// This avoids the hardcoded ../node_modules/ path that breaks on hoisting.
+const serverUrl = import.meta.resolve('@gatetest/cli/bin/gatetest-mcp.mjs');
+await import(serverUrl);
