@@ -14,7 +14,7 @@
     {
       "registryType": "npm",
       "identifier": "@gatetest/mcp-server",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "transport": {
         "type": "stdio",
         "command": "npx",
