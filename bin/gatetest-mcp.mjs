@@ -35,6 +35,9 @@
  *   scan_repo        — scan any public GitHub repo via the hosted gatetest.ai free quick-tier API
  *   get_badge        — get the embeddable README badge markdown for a repo
  *   get_report       — retrieve the full result of the last scan_local/scan_url/scan_repo call this session
+ *   verify_fix       — after editing code, re-run the modules relevant to the changed files and get a fix-scoped pass/fail verdict
+ *   capture_screenshot — screenshot a live URL and return it as an actual image (the AI's eyes on the rendered page)
+ *   get_visual_diff  — fetch a visualRegression baseline/current/diff (or composite) as an image
  *
  * scan_local/run_module/list_modules/check_health/fix_issue/compose_pr/
  * explain_finding/audit_log/compare_repos all run the engine IN-PROCESS
@@ -56,9 +59,18 @@ import {
 
 // Import CJS GateTest engine via createRequire (SDK is ESM, engine is CJS)
 const require = createRequire(import.meta.url);
-const { GateTest } = require('../src/index.js');
+const fsSync = require('fs');
+const nodePath = require('path');
+const { GateTest, GateTestConfig } = require('../src/index.js');
 const { aiFix } = require('../src/core/ai-fix-engine.js');
 const { MemoryStore } = require('../src/core/memory.js');
+const { computeSmartSuite } = require('../src/core/smart-suite-selector.js');
+const { captureUrlScreenshot, slugifyRoute } = require('../src/core/screenshot-capture.js');
+const {
+  buildSideBySideComposite,
+  encodeUnderByteCap,
+  readPngDimensions,
+} = require('../src/core/visual-diff-engine.js');
 const { composePrBody } = require('../website/app/lib/pr-composer.js');
 const { diagnoseFinding } = require('../website/app/lib/nuclear-diagnoser.js');
 
@@ -320,6 +332,79 @@ const TOOLS = [
       properties: {},
     },
   },
+  {
+    name: 'verify_fix',
+    description:
+      'After editing code, verify the fix actually worked: selects the modules relevant ' +
+      'to the changed files (smart suite selection), re-runs them in-process, and returns ' +
+      'a pass/fail verdict scoped to those files plus any remaining findings. ' +
+      '✅ FIX VERIFIED means zero error-severity findings remain on the changed files. ' +
+      'Pass "files" explicitly with your edited paths for the most precise verdict; ' +
+      'without it, changed files are detected from git (staged → last commit → working tree).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Absolute path to the project root' },
+        files: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Changed file paths (relative to the project root). Recommended: pass the exact files you edited.',
+        },
+        base: { type: 'string', description: 'Git base ref to diff against, e.g. "main" (used only when files is omitted)' },
+        maxModules: { type: 'number', description: 'Cap on dynamically-selected modules (default 22)' },
+      },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'capture_screenshot',
+    description:
+      'Take a screenshot of a live URL and return it as an actual image you can SEE — ' +
+      'your eyes on the rendered page. Use after editing UI code to look at what you ' +
+      'built, or before editing to see the current state. Defaults to a 1280×900 ' +
+      'viewport JPEG (payload-safe); pass fullPage:true for the whole page (will be ' +
+      'downscaled/recompressed if large). Requires Playwright + Chromium locally; ' +
+      'degrades to an explanatory message when unavailable.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'The URL to screenshot, e.g. "https://example.com/pricing"' },
+        width: { type: 'number', description: 'Viewport width in px (default 1280). Use 390 for mobile.' },
+        height: { type: 'number', description: 'Viewport height in px (default 900)' },
+        fullPage: { type: 'boolean', description: 'Capture the full scroll height (default false)' },
+        format: { type: 'string', enum: ['jpeg', 'png'], description: 'Image format (default jpeg — smaller payloads)' },
+        quality: { type: 'number', description: 'JPEG quality 1-100 (default 70)' },
+        waitMs: { type: 'number', description: 'Extra settle time after load in ms (default 1000)' },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'get_visual_diff',
+    description:
+      'Fetch visual-regression screenshots recorded by the visualRegression module as ' +
+      'an actual image: the stored baseline, the latest capture, the pixel-diff, or a ' +
+      'side-by-side composite of all three. Call after a scan reports a visual ' +
+      'regression to SEE what changed. When platform/viewport/route are ambiguous, ' +
+      'returns a listing of what exists in the baseline directory instead of an error.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Project root (locates the baseline dir via .gatetest.json or the default .gatetest/visual-baselines)' },
+        route: { type: 'string', description: 'Route as configured, e.g. "/" or "/pricing"' },
+        platform: { type: 'string', description: 'Platform folder name (hostname). Omit to auto-detect when only one exists.' },
+        viewport: { type: 'string', description: '"desktop" | "mobile" | custom viewport name (default desktop)' },
+        panel: {
+          type: 'string',
+          enum: ['composite', 'baseline', 'current', 'diff'],
+          description: 'Which image: side-by-side composite (default when diff exists) or a single panel (3× smaller payload)',
+        },
+        baselineDir: { type: 'string', description: 'Explicit baseline directory (overrides config resolution)' },
+        maxWidth: { type: 'number', description: 'Downscale the returned image to at most this width' },
+      },
+      required: ['path', 'route'],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -388,10 +473,10 @@ async function handleScanLocal(args) {
     let result;
     if (modules && Array.isArray(modules) && modules.length > 0) {
       // Run specific modules
-      result = await gt._run(modules);
+      result = await runPreservingExitCode(() => gt._run(modules));
     } else {
       const s = suite || 'standard';
-      result = await gt.runSuite(s);
+      result = await runPreservingExitCode(() => gt.runSuite(s));
     }
 
     lastScanResult = { source: 'scan_local', path: scanPath, data: result, at: new Date().toISOString() };
@@ -420,7 +505,7 @@ async function handleRunModule(args) {
 
   try {
     const gt = new GateTest(scanPath, { silent: true }).init();
-    const result = await gt.runModule(moduleName);
+    const result = await runPreservingExitCode(() => gt.runModule(moduleName));
     const text = formatScanResult(result);
     return { content: [{ type: 'text', text }] };
   } catch (err) {
@@ -828,6 +913,391 @@ async function handleGetBadge(args) {
   };
 }
 
+// ── engine-run helper ───────────────────────────────────────────────────────
+
+/**
+ * The engine sets `process.exitCode = 1` when a scan's gate is BLOCKED
+ * (src/index.js — correct for the CLI). An MCP server must not let a scan
+ * verdict poison its own process exit status, so every in-process engine
+ * run goes through this wrapper.
+ */
+async function runPreservingExitCode(fn) {
+  const prev = process.exitCode;
+  try {
+    return await fn();
+  } finally {
+    process.exitCode = prev;
+  }
+}
+
+// ── verify_fix helpers ──────────────────────────────────────────────────────
+
+function normalizeRelPath(p) {
+  return String(p).replace(/\\/g, '/').replace(/^\.\//, '');
+}
+
+/**
+ * Fuzzy path-tail match: module-emitted check.file paths are usually
+ * repo-relative posix, while callers may pass Windows separators or
+ * deeper/shallower prefixes. Two paths match when one ends with the other
+ * on a path-segment boundary.
+ */
+function pathsTailMatch(a, b) {
+  const na = normalizeRelPath(a).toLowerCase();
+  const nb = normalizeRelPath(b).toLowerCase();
+  if (!na || !nb) return false;
+  return na === nb || na.endsWith('/' + nb) || nb.endsWith('/' + na);
+}
+
+function collectFlaggedChecks(result) {
+  const out = [];
+  for (const mod of result.results || []) {
+    for (const check of mod.checks || []) {
+      if (check.severity === 'error' || check.severity === 'warning') {
+        out.push({ module: mod.module || mod.name || 'unknown', ...check });
+      }
+    }
+  }
+  return out;
+}
+
+async function handleVerifyFix(args) {
+  const { path: projectPath, files, base, maxModules } = args;
+
+  if (!projectPath || typeof projectPath !== 'string') {
+    return { content: [{ type: 'text', text: 'Error: path is required and must be a string' }], isError: true };
+  }
+
+  try {
+    const smart = computeSmartSuite({
+      projectRoot: projectPath,
+      files: Array.isArray(files) && files.length > 0 ? files : undefined,
+      base,
+      max: typeof maxModules === 'number' && maxModules > 0 ? maxModules : undefined,
+    });
+
+    const gt = new GateTest(projectPath, { silent: true }).init();
+
+    let result;
+    let modulesRan;
+    let selectionNote;
+    if (smart.modules) {
+      result = await runPreservingExitCode(() => gt._run(smart.modules));
+      modulesRan = smart.modules;
+      selectionNote = smart.selectionReason;
+    } else {
+      result = await runPreservingExitCode(() => gt.runSuite('quick'));
+      modulesRan = null;
+      selectionNote = 'no diff detected (no files passed, git found no changes) — ran the quick suite as fallback';
+    }
+
+    lastScanResult = { source: 'verify_fix', path: projectPath, data: result, at: new Date().toISOString() };
+
+    const changedFiles = smart.changedFiles || [];
+    const flagged = collectFlaggedChecks(result);
+    const totalErrors = flagged.filter((c) => c.severity === 'error').length;
+    const totalWarnings = flagged.filter((c) => c.severity === 'warning').length;
+
+    const lines = [];
+
+    if (changedFiles.length === 0) {
+      // No file scope — be honest: the verdict is project-wide, not fix-scoped.
+      const verified = totalErrors === 0;
+      lines.push(verified
+        ? `✅ PROJECT CLEAN — 0 error-severity findings (no changed files detected, so this verdict is project-wide, not fix-scoped)`
+        : `❌ NOT VERIFIED — ${totalErrors} error-severity finding${totalErrors === 1 ? '' : 's'} project-wide (no changed files detected to scope the verdict)`);
+      lines.push('');
+      lines.push('Tip: pass `files: ["src/the/file/you/edited.js"]` for a fix-scoped verdict.');
+    } else {
+      const scoped = flagged.filter((c) => c.file && changedFiles.some((f) => pathsTailMatch(c.file, f)));
+      const scopedErrors = scoped.filter((c) => c.severity === 'error');
+      const scopedWarnings = scoped.filter((c) => c.severity === 'warning');
+      const verified = scopedErrors.length === 0;
+
+      lines.push(verified
+        ? `✅ FIX VERIFIED — 0 error-severity findings remain on your ${changedFiles.length} changed file${changedFiles.length === 1 ? '' : 's'}`
+        : `❌ NOT VERIFIED — ${scopedErrors.length} error-severity finding${scopedErrors.length === 1 ? '' : 's'} remain on your changed files`);
+      lines.push('');
+      lines.push(`**Changed files:** ${changedFiles.map((f) => `\`${normalizeRelPath(f)}\``).join(', ')}`);
+
+      const listFindings = (items, label) => {
+        if (items.length === 0) return;
+        lines.push('');
+        lines.push(`### ${label}`);
+        for (const c of items.slice(0, 20)) {
+          const loc = c.file ? ` (${c.file}${c.line ? `:${c.line}` : ''})` : '';
+          lines.push(`- [${c.severity}] [\`${c.module}\`] ${c.message}${loc}`);
+          if (c.suggestion) lines.push(`  - Fix: ${c.suggestion}`);
+        }
+        if (items.length > 20) lines.push(`- …and ${items.length - 20} more`);
+      };
+      listFindings(scopedErrors, 'Remaining errors on changed files');
+      listFindings(scopedWarnings, 'Warnings on changed files (advisory — does not block the verdict)');
+    }
+
+    lines.push('');
+    if (modulesRan) {
+      lines.push(`**Modules run (smart selection — ${selectionNote}):** ${modulesRan.map((m) => `\`${m}\``).join(', ')}`);
+    } else {
+      lines.push(`**Modules run:** quick suite (${selectionNote})`);
+    }
+    const gateStatus = result.gateStatus || (totalErrors > 0 ? 'BLOCKED' : 'PASSED');
+    lines.push(`**Project-wide:** ${totalErrors} error(s) / ${totalWarnings} warning(s) — gate ${gateStatus}`);
+
+    return { content: [{ type: 'text', text: lines.join('\n') }] };
+  } catch (err) {
+    return {
+      content: [{ type: 'text', text: `verify_fix failed: ${err && err.message ? err.message : String(err)}` }],
+      isError: true,
+    };
+  }
+}
+
+// ── eyes tools: capture_screenshot + get_visual_diff ────────────────────────
+
+// MCP hosts practically cap tool results around ~1MB and base64 inflates
+// raw bytes by 33% — 700KB raw ≈ 933KB encoded, safely under the line.
+const MAX_IMAGE_BYTES = 700_000;
+// A 1280×20000 full-page PNG decodes to ~100MB RGBA; refuse to composite
+// anything whose decoded area would explode memory.
+const MAX_DECODED_PIXELS = 40_000_000;
+
+function imageResponse(buffer, mimeType, caption) {
+  return {
+    content: [
+      { type: 'image', data: buffer.toString('base64'), mimeType },
+      { type: 'text', text: caption },
+    ],
+  };
+}
+
+async function handleCaptureScreenshot(args) {
+  const { url, width, height, fullPage, format, quality, waitMs } = args;
+
+  if (!url || typeof url !== 'string') {
+    return { content: [{ type: 'text', text: 'Error: url is required and must be a string' }], isError: true };
+  }
+
+  const viewport = {
+    width: typeof width === 'number' && width > 0 ? Math.min(width, 3840) : 1280,
+    height: typeof height === 'number' && height > 0 ? Math.min(height, 2160) : 900,
+  };
+  const fmt = format === 'png' ? 'png' : 'jpeg';
+
+  try {
+    // JPEG oversize → retry at lower quality; PNG oversize → pixel downscale.
+    const qualities = fmt === 'jpeg'
+      ? [typeof quality === 'number' ? Math.min(Math.max(quality, 1), 100) : 70, 50, 35]
+      : [undefined];
+
+    let shot = null;
+    for (const q of qualities) {
+      shot = await captureUrlScreenshot({
+        url,
+        viewport,
+        fullPage: fullPage === true,
+        waitMs: typeof waitMs === 'number' ? waitMs : 1000,
+        format: fmt,
+        quality: q,
+      });
+      if (shot.buffer.length <= MAX_IMAGE_BYTES) break;
+    }
+
+    let { buffer, mimeType } = shot;
+    let sizeNote = '';
+    if (buffer.length > MAX_IMAGE_BYTES && mimeType === 'image/png') {
+      const capped = encodeUnderByteCap(buffer, MAX_IMAGE_BYTES);
+      buffer = capped.buffer;
+      if (capped.downscaled) sizeNote = `, downscaled to ${capped.width}×${capped.height} to fit the payload budget`;
+    } else if (buffer.length > MAX_IMAGE_BYTES) {
+      sizeNote = ' — still large after recompression; consider fullPage:false or a smaller viewport';
+    }
+
+    return imageResponse(
+      buffer,
+      mimeType,
+      `Captured ${url} at ${shot.width}×${shot.height} (${Math.round(buffer.length / 1024)} KB${fullPage === true ? ', full page' : ''}${sizeNote})`,
+    );
+  } catch (err) {
+    if (err && (err.code === 'PLAYWRIGHT_MISSING' || err.code === 'BROWSER_LAUNCH_FAILED')) {
+      return {
+        content: [{
+          type: 'text',
+          text:
+            `Screenshot unavailable: ${err.message}\n\n` +
+            'This tool needs Playwright + Chromium on the machine running the MCP server.\n' +
+            'Install with: npm install playwright && npx playwright install chromium',
+        }],
+      };
+    }
+    return {
+      content: [{ type: 'text', text: `capture_screenshot failed: ${err && err.message ? err.message : String(err)}` }],
+      isError: true,
+    };
+  }
+}
+
+function listBaselineTree(baselineDir) {
+  const triples = [];
+  let platforms = [];
+  try {
+    platforms = fsSync.readdirSync(baselineDir, { withFileTypes: true }).filter((d) => d.isDirectory());
+  } catch {
+    return triples;
+  }
+  for (const p of platforms) {
+    let viewports = [];
+    try {
+      viewports = fsSync
+        .readdirSync(nodePath.join(baselineDir, p.name), { withFileTypes: true })
+        .filter((d) => d.isDirectory());
+    } catch { continue; }
+    for (const v of viewports) {
+      let files = [];
+      try {
+        files = fsSync.readdirSync(nodePath.join(baselineDir, p.name, v.name)).filter((f) => f.endsWith('.png'));
+      } catch { continue; }
+      for (const f of files) {
+        triples.push({ platform: p.name, viewport: v.name, slug: f.replace(/\.png$/, '') });
+      }
+    }
+  }
+  return triples;
+}
+
+async function handleGetVisualDiff(args) {
+  const { path: projectPath, route, platform, viewport, panel, baselineDir: explicitDir, maxWidth } = args;
+
+  if (!projectPath || !route) {
+    return { content: [{ type: 'text', text: 'Error: path and route are both required' }], isError: true };
+  }
+
+  try {
+    // Resolve baselineDir exactly like the visualRegression module does.
+    let baselineDir = explicitDir;
+    if (!baselineDir) {
+      const cfg = new GateTestConfig(projectPath);
+      const moduleCfg = cfg.getModuleConfig('visualRegression') || {};
+      baselineDir = moduleCfg.baselineDir || nodePath.join(projectPath, '.gatetest', 'visual-baselines');
+    }
+
+    const triples = listBaselineTree(baselineDir);
+    if (triples.length === 0) {
+      return {
+        content: [{
+          type: 'text',
+          text:
+            `No visual baselines found under ${baselineDir}.\n` +
+            'Run the visualRegression module first (suite "web" or "wp" with a target URL) to create baselines.',
+        }],
+      };
+    }
+
+    const slug = slugifyRoute(route);
+    const platforms = [...new Set(triples.map((t) => t.platform))];
+    const resolvedPlatform = platform || (platforms.length === 1 ? platforms[0] : null);
+    const viewportsForPlatform = [
+      ...new Set(triples.filter((t) => t.platform === resolvedPlatform).map((t) => t.viewport)),
+    ];
+    const resolvedViewport =
+      viewport || (viewportsForPlatform.includes('desktop') ? 'desktop' : viewportsForPlatform[0]);
+
+    const match = triples.find(
+      (t) => t.platform === resolvedPlatform && t.viewport === resolvedViewport && t.slug === slug,
+    );
+
+    if (!resolvedPlatform || !match) {
+      // Discoverability instead of a dead-end: list what exists.
+      const listing = triples
+        .slice(0, 60)
+        .map((t) => `- platform: \`${t.platform}\`  viewport: \`${t.viewport}\`  route-slug: \`${t.slug}\``)
+        .join('\n');
+      return {
+        content: [{
+          type: 'text',
+          text:
+            (resolvedPlatform
+              ? `No baseline for route "${route}" (slug \`${slug}\`) under platform \`${resolvedPlatform}\`, viewport \`${resolvedViewport}\`.`
+              : `Multiple platforms exist — pass \`platform\` explicitly.`) +
+            `\n\nAvailable baselines in ${baselineDir}:\n${listing}${triples.length > 60 ? `\n…and ${triples.length - 60} more` : ''}`,
+        }],
+      };
+    }
+
+    const viewportDir = nodePath.join(baselineDir, match.platform, match.viewport);
+    const baselinePath = nodePath.join(viewportDir, `${slug}.png`);
+    const currentPath = nodePath.join(viewportDir, 'current', `${slug}.png`);
+    const diffPath = nodePath.join(viewportDir, 'diff', `${slug}.png`);
+
+    const available = {
+      baseline: fsSync.existsSync(baselinePath),
+      current: fsSync.existsSync(currentPath),
+      diff: fsSync.existsSync(diffPath),
+    };
+
+    // Panel default: composite when a diff exists (a scan has compared),
+    // otherwise the baseline alone (first run — nothing to diff yet).
+    let resolvedPanel = panel || (available.diff ? 'composite' : 'baseline');
+    if (resolvedPanel === 'composite' && (!available.current || !available.diff)) {
+      resolvedPanel = 'baseline';
+    }
+
+    const readPanel = (p) => fsSync.readFileSync(p);
+    let buffer;
+    if (resolvedPanel === 'composite') {
+      // Pixel-area guard BEFORE decoding three full-page PNGs into RGBA.
+      const dims = [baselinePath, currentPath, diffPath].map((p) => readPngDimensions(readPanel(p)));
+      const totalArea = dims.reduce((s, d) => s + (d ? d.width * d.height : 0), 0);
+      if (totalArea > MAX_DECODED_PIXELS) {
+        return {
+          content: [{
+            type: 'text',
+            text:
+              `Composite refused: the three panels total ${Math.round(totalArea / 1e6)}M decoded pixels ` +
+              `(guard: ${MAX_DECODED_PIXELS / 1e6}M). Request a single panel instead — panel:"diff" shows what changed.`,
+          }],
+        };
+      }
+      buffer = buildSideBySideComposite(readPanel(baselinePath), readPanel(currentPath), readPanel(diffPath));
+    } else {
+      const panelPath = resolvedPanel === 'baseline' ? baselinePath : resolvedPanel === 'current' ? currentPath : diffPath;
+      if (!available[resolvedPanel]) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Panel "${resolvedPanel}" does not exist yet for ${route} (${match.viewport}). Available: ${Object.keys(available).filter((k) => available[k]).join(', ')}.`,
+          }],
+        };
+      }
+      buffer = readPanel(panelPath);
+    }
+
+    if (typeof maxWidth === 'number' && maxWidth > 0) {
+      const dims = readPngDimensions(buffer);
+      if (dims && dims.width > maxWidth) {
+        const { downscaleToWidth } = require('../src/core/visual-diff-engine.js');
+        buffer = downscaleToWidth(buffer, maxWidth);
+      }
+    }
+
+    const capped = encodeUnderByteCap(buffer, MAX_IMAGE_BYTES);
+    const finalDims = readPngDimensions(capped.buffer);
+    return imageResponse(
+      capped.buffer,
+      'image/png',
+      `${resolvedPanel} for ${route} — platform \`${match.platform}\`, viewport \`${match.viewport}\`` +
+        (finalDims ? `, ${finalDims.width}×${finalDims.height}` : '') +
+        ` (${Math.round(capped.buffer.length / 1024)} KB${capped.downscaled ? ', downscaled to fit payload budget' : ''})` +
+        (resolvedPanel === 'composite' ? '. Order: baseline | current | diff.' : ''),
+    );
+  } catch (err) {
+    return {
+      content: [{ type: 'text', text: `get_visual_diff failed: ${err && err.message ? err.message : String(err)}` }],
+      isError: true,
+    };
+  }
+}
+
 async function handleGetReport() {
   if (!lastScanResult) {
     return {
@@ -873,6 +1343,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case 'scan_repo':        return handleScanRepo(args);
     case 'get_badge':        return handleGetBadge(args);
     case 'get_report':       return handleGetReport();
+    case 'verify_fix':       return handleVerifyFix(args);
+    case 'capture_screenshot': return handleCaptureScreenshot(args);
+    case 'get_visual_diff':  return handleGetVisualDiff(args);
     default:
       return {
         content: [{ type: 'text', text: `Unknown tool: ${name}` }],
@@ -885,5 +1358,40 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Start
 // ---------------------------------------------------------------------------
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
+// Only attach the stdio transport when this file is the process entrypoint
+// (i.e. `node bin/gatetest-mcp.mjs` / the `gatetest-mcp` bin). When imported
+// by tests via `await import()`, we export the handlers instead so the real
+// handler logic can be exercised in-process without hijacking stdin/stdout.
+import { pathToFileURL } from 'url';
+import { realpathSync } from 'fs';
+
+// realpathSync matters: a global npm install runs this file through a
+// .bin symlink, so argv[1] is the symlink path while import.meta.url is
+// the resolved real path — without realpath the guard would never match
+// and the installed server would silently not start.
+const isMain = (() => {
+  if (!process.argv[1]) return false;
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href;
+  } catch {
+    return false;
+  }
+})();
+
+if (isMain) {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
+// Test-only surface — NOT part of the MCP protocol. See tests/mcp-verify-fix.test.js
+// and tests/mcp-eyes-tools.test.js.
+export {
+  TOOLS,
+  handleVerifyFix,
+  handleCaptureScreenshot,
+  handleGetVisualDiff,
+  normalizeRelPath,
+  pathsTailMatch,
+  collectFlaggedChecks,
+  formatScanResult,
+};

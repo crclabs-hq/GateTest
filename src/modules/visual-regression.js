@@ -36,6 +36,9 @@ const path = require('path');
 const https = require('https');
 const BaseModule = require('./base-module');
 const { compareScreenshots, buildSideBySideComposite } = require('../core/visual-diff-engine');
+// Playwright resolution + route slugging live in core/screenshot-capture.js
+// (shared with the MCP server's eyes tools) — one implementation, no drift.
+const { resolvePlaywright, slugifyRoute } = require('../core/screenshot-capture');
 
 const DEFAULT_VIEWPORTS = [
   { name: 'desktop', width: 1280, height: 900 },
@@ -83,36 +86,12 @@ const DYNAMIC_TEXT_PATTERNS = [
 const DEFAULT_WAIT_MS = 1000;
 const DEFAULT_PIXEL_THRESHOLD = 0.1;
 
-function slugifyRoute(route) {
-  const cleaned = route.replace(/^\/+/, '').replace(/\/+$/, '');
-  if (!cleaned) return 'index';
-  return cleaned.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase();
-}
-
 function safePlatformName(baseUrl) {
   try {
     return new URL(baseUrl).hostname.replace(/^www\./, '');
   } catch {
     return 'unknown-platform';
   }
-}
-
-function resolvePlaywright() {
-  try {
-    return require('playwright');
-  } catch {
-    const candidates = [
-      path.join(__dirname, '..', '..', 'website'),
-      path.join(process.cwd(), 'website'),
-    ];
-    for (const fromDir of candidates) {
-      try {
-        const resolved = require.resolve('playwright', { paths: [fromDir] });
-        return require(resolved);
-      } catch { /* try next candidate */ }
-    }
-  }
-  return null;
 }
 
 /** Post a Block-Kit text summary to a Slack Incoming Webhook. Best-effort. */

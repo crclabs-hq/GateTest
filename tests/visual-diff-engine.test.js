@@ -115,3 +115,82 @@ test('buildSideBySideComposite handles panels of different heights', () => {
   const decoded = decodePng(composite);
   assert.equal(decoded.height, 8);
 });
+
+// ── downscale + byte-cap helpers (MCP eyes payload safety) ──────────────────
+
+const {
+  readPngDimensions,
+  downscaleToWidth,
+  encodeUnderByteCap,
+} = require('../src/core/visual-diff-engine.js');
+
+function gradientPng(width, height) {
+  const png = new PNG({ width, height });
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      png.data[i] = (x * 255 / width) | 0;
+      png.data[i + 1] = (y * 255 / height) | 0;
+      png.data[i + 2] = ((x + y) * 127 / (width + height)) | 0;
+      png.data[i + 3] = 255;
+    }
+  }
+  return PNG.sync.write(png);
+}
+
+test('readPngDimensions reads IHDR without decoding pixels', () => {
+  const buf = gradientPng(64, 48);
+  assert.deepEqual(readPngDimensions(buf), { width: 64, height: 48 });
+});
+
+test('readPngDimensions returns null for non-PNG buffers', () => {
+  assert.equal(readPngDimensions(Buffer.from('not a png at all, definitely')), null);
+  assert.equal(readPngDimensions(Buffer.alloc(4)), null);
+});
+
+test('downscaleToWidth halves dimensions and preserves aspect ratio', () => {
+  const buf = gradientPng(64, 32);
+  const out = downscaleToWidth(buf, 32);
+  const dims = readPngDimensions(out);
+  assert.equal(dims.width, 32);
+  assert.equal(dims.height, 16);
+});
+
+test('downscaleToWidth is a no-op when already narrow enough', () => {
+  const buf = gradientPng(32, 32);
+  assert.equal(downscaleToWidth(buf, 64), buf);
+});
+
+test('downscaleToWidth box-filter averages colors (solid stays solid)', () => {
+  const buf = solidPng(40, 40, [100, 150, 200]);
+  const out = downscaleToWidth(buf, 20);
+  const decoded = decodePng(out);
+  // Sample the center pixel — box filter of a solid color is the same color.
+  const i = (10 * 20 + 10) * 4;
+  assert.equal(decoded.data[i], 100);
+  assert.equal(decoded.data[i + 1], 150);
+  assert.equal(decoded.data[i + 2], 200);
+});
+
+test('encodeUnderByteCap terminates at minWidth and reports downscaled', () => {
+  const buf = gradientPng(512, 512); // gradient compresses poorly-ish
+  const capped = encodeUnderByteCap(buf, 1, { minWidth: 320 }); // impossible cap
+  assert.equal(capped.downscaled, true);
+  assert.ok(capped.width >= 320 * 0.75 && capped.width <= 320, `width ${capped.width} should stop at/near floor`);
+});
+
+test('encodeUnderByteCap leaves small images untouched', () => {
+  const buf = gradientPng(64, 64);
+  const capped = encodeUnderByteCap(buf, 10_000_000);
+  assert.equal(capped.downscaled, false);
+  assert.equal(capped.buffer, buf);
+  assert.equal(capped.width, 64);
+});
+
+test('encodeUnderByteCap actually gets under an achievable cap', () => {
+  const big = gradientPng(800, 800);
+  const target = Math.floor(big.length / 2);
+  const capped = encodeUnderByteCap(big, target, { minWidth: 32 });
+  assert.ok(capped.buffer.length <= target, `expected <= ${target}, got ${capped.buffer.length}`);
+  assert.equal(capped.downscaled, true);
+});

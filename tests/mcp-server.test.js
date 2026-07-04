@@ -16,8 +16,13 @@ const path = require('path');
 // In CI the SDK is present; locally it may not be. `describe.skip` registers
 // the suite as skipped synchronously so the runner never waits for child
 // processes that would fail to start.
+// NOTE: resolve a real subpath, not the bare package name — the SDK's
+// package.json exports map has no "." entry, so the bare resolve ALWAYS
+// failed and this suite was silently skipped everywhere (local + CI) even
+// with the SDK fully installed. That silent skip hid stale assertions for
+// months (e.g. "exactly 9 tools" while the server shipped 13).
 let hasSDK = false;
-try { require.resolve('@modelcontextprotocol/sdk'); hasSDK = true; } catch { /* not installed */ }
+try { require.resolve('@modelcontextprotocol/sdk/server/index.js'); hasSDK = true; } catch { /* not installed */ }
 const describeOrSkip = hasSDK ? describe : describe.skip;
 
 const SERVER_PATH = path.resolve(__dirname, '..', 'bin', 'gatetest-mcp.mjs');
@@ -96,27 +101,29 @@ function callMcp(method, params = {}, timeoutMs = 60000) {
 // ---------------------------------------------------------------------------
 
 describeOrSkip('MCP server — tools/list', () => {
-  it('returns exactly 9 tools', async () => {
+  it('returns exactly 16 tools (drift tripwire — update when adding a tool)', async () => {
     const res = await callMcp('tools/list', {});
     assert.ok(res.result, `expected result, got: ${JSON.stringify(res).slice(0, 200)}`);
     assert.ok(Array.isArray(res.result.tools), 'tools should be an array');
-    assert.strictEqual(res.result.tools.length, 9);
+    assert.strictEqual(res.result.tools.length, 16);
   });
 
-  it('includes the original 4 + the 5 added in the autopilot push', async () => {
+  it('includes every declared tool', async () => {
     const res = await callMcp('tools/list', {});
     const names = res.result.tools.map(t => t.name);
-    // Original 4
-    assert.ok(names.includes('scan_local'),    'missing scan_local');
-    assert.ok(names.includes('run_module'),    'missing run_module');
-    assert.ok(names.includes('list_modules'),  'missing list_modules');
-    assert.ok(names.includes('check_health'),  'missing check_health');
-    // Added: fix_issue, compose_pr, explain_finding, audit_log, compare_repos
-    assert.ok(names.includes('fix_issue'),       'missing fix_issue');
-    assert.ok(names.includes('compose_pr'),      'missing compose_pr');
-    assert.ok(names.includes('explain_finding'), 'missing explain_finding');
-    assert.ok(names.includes('audit_log'),       'missing audit_log');
-    assert.ok(names.includes('compare_repos'),   'missing compare_repos');
+    const expected = [
+      // Original 4
+      'scan_local', 'run_module', 'list_modules', 'check_health',
+      // Autopilot push
+      'fix_issue', 'compose_pr', 'explain_finding', 'audit_log', 'compare_repos',
+      // Hosted-API family
+      'scan_url', 'scan_repo', 'get_badge', 'get_report',
+      // Eyes/ears/hands build
+      'verify_fix', 'capture_screenshot', 'get_visual_diff',
+    ];
+    for (const name of expected) {
+      assert.ok(names.includes(name), `missing ${name}`);
+    }
   });
 
   it('each tool has name, description, and inputSchema', async () => {
@@ -238,6 +245,27 @@ describeOrSkip('MCP server — scan_local', () => {
       res.result.isError === true || res.result.content[0].text.toLowerCase().includes('error'),
       'should flag missing path as error'
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// verify_fix — spawn smoke (full contract coverage lives in mcp-verify-fix.test.js)
+// ---------------------------------------------------------------------------
+
+describeOrSkip('MCP server — verify_fix', () => {
+  it('returns a verdict line for an explicit files list', async () => {
+    const res = await callMcp(
+      'tools/call',
+      { name: 'verify_fix', arguments: { path: TINY_SCAN_PATH, files: ['index.js'] } },
+      60000
+    );
+    assert.ok(res.result, `expected result: ${JSON.stringify(res).slice(0, 200)}`);
+    const text = res.result.content[0].text;
+    assert.ok(
+      /FIX VERIFIED|NOT VERIFIED/.test(text),
+      `expected a verdict line, got: ${text.slice(0, 200)}`
+    );
+    assert.ok(text.includes('Project-wide:'), 'expected project-wide delta line');
   });
 });
 
