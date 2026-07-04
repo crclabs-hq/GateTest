@@ -20,6 +20,10 @@ class CodeQualityModule extends BaseModule {
 
     const sourceFiles = this._collectFiles(projectRoot, ['.js', '.ts', '.jsx', '.tsx']);
 
+    // Accumulators for grouped findings (file-length, func-length)
+    const fileLengthViolations = [];
+    const funcLengthViolations = [];
+
     for (const file of sourceFiles) {
       const relPath = path.relative(projectRoot, file);
       const relFwd = relPath.replace(/\\/g, '/');
@@ -39,17 +43,12 @@ class CodeQualityModule extends BaseModule {
       // Check forbidden patterns
       this._checkForbiddenPatterns(file, relPath, content, lines, neutralisedLines, moduleConfig, result);
 
-      // Check function length
-      this._checkFunctionLength(relPath, lines, thresholds.maxFunctionLength, result);
+      // Check function length — collect violations for grouped summary
+      this._collectFunctionLengthViolations(relPath, lines, thresholds.maxFunctionLength, funcLengthViolations);
 
-      // Check file length — suppressed by `// quality:file-length-ok` anywhere in the file
+      // Check file length — collect violations for grouped summary
       if (lines.length > thresholds.maxFileLength && !content.includes('quality:file-length-ok')) {
-        result.addCheck(`quality:file-length:${relPath}`, false, {
-          file: relPath,
-          expected: `<= ${thresholds.maxFileLength} lines`,
-          actual: `${lines.length} lines`,
-          suggestion: 'Split this file into smaller, focused modules',
-        });
+        fileLengthViolations.push({ file: relPath, lines: lines.length, max: thresholds.maxFileLength });
       }
 
       // Check for commented-out code blocks
@@ -57,6 +56,32 @@ class CodeQualityModule extends BaseModule {
 
       // Check for unused imports (basic heuristic)
       this._checkUnusedImports(relPath, content, lines, result);
+    }
+
+    // Emit grouped file-length finding (one observation, not N identical entries)
+    if (fileLengthViolations.length > 0) {
+      const worst = fileLengthViolations.sort((a, b) => b.lines - a.lines);
+      const examples = worst.slice(0, 5).map(v => `\`${v.file}\` (${v.lines} lines)`).join(', ');
+      const tail = worst.length > 5 ? ` and ${worst.length - 5} more` : '';
+      result.addCheck('quality:file-length:summary', false, {
+        severity: 'warning',
+        message: `${worst.length} file(s) exceed ${worst[0].max}-line limit — architectural observation, not a bug. Top offenders: ${examples}${tail}`,
+        suggestion: 'Consider splitting large files into smaller focused modules. Add `// quality:file-length-ok` to suppress for intentionally large files.',
+        count: worst.length,
+      });
+    }
+
+    // Emit grouped function-length finding
+    if (funcLengthViolations.length > 0) {
+      const worst = funcLengthViolations.sort((a, b) => b.length - a.length);
+      const examples = worst.slice(0, 5).map(v => `\`${v.name}\` in ${v.file} (${v.length} lines)`).join(', ');
+      const tail = worst.length > 5 ? ` and ${worst.length - 5} more` : '';
+      result.addCheck('quality:func-length:summary', false, {
+        severity: 'warning',
+        message: `${worst.length} function(s) exceed ${funcLengthViolations[0].max}-line limit. Top offenders: ${examples}${tail}`,
+        suggestion: 'Break long functions into smaller helpers. Add `// quality:func-length-ok` to suppress for intentionally large functions.',
+        count: worst.length,
+      });
     }
 
     if (sourceFiles.length === 0) {
@@ -239,6 +264,43 @@ class CodeQualityModule extends BaseModule {
             suggestion: 'Remove or replace this pattern before committing',
             autoFix: () => this._removeLineFromFile(absPath, lineNum, relPath, message),
           });
+        }
+      }
+    }
+  }
+
+  // Variant that pushes into a violations array instead of adding to result directly.
+  // Used by run() to emit a single grouped summary instead of N identical findings.
+  _collectFunctionLengthViolations(relPath, lines, maxLength, violations) {
+    let braceDepth = 0;
+    let functionStart = -1;
+    let functionName = '';
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+      if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
+        for (const char of line) {
+          if (char === '{') braceDepth++;
+          if (char === '}') { braceDepth--; if (braceDepth === 0) functionStart = -1; }
+        }
+        continue;
+      }
+      const funcMatch = line.match(/(?:function\s+(\w+)|(\w+)\s*(?:=|:)\s*(?:async\s+)?(?:function|\(.*?\)\s*=>))/);
+      if (funcMatch && braceDepth === 0) {
+        functionName = funcMatch[1] || funcMatch[2] || 'anonymous';
+        functionStart = i;
+      }
+      for (const char of line) {
+        if (char === '{') braceDepth++;
+        if (char === '}') {
+          braceDepth--;
+          if (braceDepth === 0 && functionStart >= 0) {
+            const length = i - functionStart + 1;
+            if (length > maxLength) {
+              violations.push({ file: relPath, name: functionName, line: functionStart + 1, length, max: maxLength });
+            }
+            functionStart = -1;
+          }
         }
       }
     }

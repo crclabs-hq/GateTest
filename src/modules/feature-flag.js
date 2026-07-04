@@ -230,8 +230,16 @@ class FeatureFlagModule extends BaseModule {
 
       if (this._suppressed(lines, i)) continue;
 
+      // Skip lines where the if-pattern is inside JSX text content
+      // (text between > and < is not a JS expression — no `{` wrapping it).
+      // Heuristic: if the line has a `>` before the if-keyword position and
+      // the if-keyword is NOT inside a JS block (line doesn't start with `if`
+      // after trim), treat as JSX text. Only applies to .jsx/.tsx files.
+      const isJsxFile = /\.[jt]sx$/.test(rel);
+      const jsxTextContext = isJsxFile && />[^{]*\bif\s*\(/.test(line);
+
       // Rule 1: `if (true | 1 | !false | !0)` — always-true
-      if (JS_ALWAYS_TRUE_RE.test(line)) {
+      if (!jsxTextContext && JS_ALWAYS_TRUE_RE.test(line)) {
         result.addCheck(`feature-flag:always-true-if:${rel}:${i + 1}`, false, {
           severity: errSev,
           message: 'Always-true conditional — dead flag collapsed into a constant. Remove the conditional or restore the flag check.',
@@ -242,7 +250,7 @@ class FeatureFlagModule extends BaseModule {
       }
 
       // Rule 2: `if (false | 0 | !true | !1)` — always-false
-      if (JS_ALWAYS_FALSE_RE.test(line)) {
+      if (!jsxTextContext && JS_ALWAYS_FALSE_RE.test(line)) {
         result.addCheck(`feature-flag:always-false-if:${rel}:${i + 1}`, false, {
           severity: warnSev,
           message: 'Always-false conditional — dead branch. The body never executes; delete it or restore the real flag check.',

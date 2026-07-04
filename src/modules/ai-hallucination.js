@@ -57,6 +57,17 @@ const HALLUCINATED_METHODS = [
   { re: /export\s+(?:const|function)\s+getInitialProps\b/, msg: '`getInitialProps` must be a static method on the component class, not a named export' },
 ];
 
+// ─── path alias prefixes that are always local or framework-virtual ──────────
+// These resolve to local files even though they look like bare specifiers.
+const PATH_ALIAS_PREFIXES = [
+  '@/', '~/', '#/', '$env/', '$app/', '$lib/', '@components/', '@utils/',
+  '@hooks/', '@store/', '@types/', '@assets/', '@pages/', '@layouts/',
+];
+
+function isPathAlias(specifier) {
+  return PATH_ALIAS_PREFIXES.some(p => specifier.startsWith(p));
+}
+
 // ─── common stdlib / well-known builtins (never flag these as unknown) ─────
 
 const BUILT_IN_MODULES = new Set([
@@ -119,10 +130,21 @@ class AiHallucinationDetector extends BaseModule {
   async run(result, config) {
     const projectRoot = config.projectRoot;
 
-    // Load known dependencies
-    const pkgPath = path.join(projectRoot, 'package.json');
-    let knownDeps = new Set();
-    if (fs.existsSync(pkgPath)) {
+    // Load known dependencies — check local package.json AND walk up to find
+    // root workspace package.json (monorepos install deps at root, not per-package)
+    const knownDeps = new Set();
+    const pkgRoots = [projectRoot];
+    // Walk up to find workspace root (stop at fs root or after 4 levels)
+    let cur = projectRoot;
+    for (let i = 0; i < 4; i++) {
+      const parent = path.dirname(cur);
+      if (parent === cur) break;
+      if (fs.existsSync(path.join(parent, 'package.json'))) pkgRoots.push(parent);
+      cur = parent;
+    }
+    for (const root of pkgRoots) {
+      const pkgPath = path.join(root, 'package.json');
+      if (!fs.existsSync(pkgPath)) continue;
       try {
         const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
         for (const key of Object.keys(pkg.dependencies || {})) knownDeps.add(key);
@@ -153,6 +175,7 @@ class AiHallucinationDetector extends BaseModule {
       const imports = harvestImports(content);
       for (const { specifier, index } of imports) {
         if (isLocalImport(specifier)) continue;
+        if (isPathAlias(specifier)) continue; // @/utils, ~/components, etc.
         const pkg = barePackage(specifier);
         if (BUILT_IN_MODULES.has(pkg) || BUILT_IN_MODULES.has(specifier)) continue;
         if (knownDeps.has(pkg)) continue;
@@ -161,11 +184,13 @@ class AiHallucinationDetector extends BaseModule {
         const lineNo  = content.slice(0, index).split('\n').length;
         const lineText = lines[lineNo - 1] || '';
         if (lineText.includes('// hallucination-ok')) continue;
+        // Type-only imports are erased at compile time — treat as warning, not error
+        const isTypeOnly = /^\s*import\s+type\b/.test(lineText);
 
         issueCount++;
         result.addCheck(`ai-hallucination:unknown-pkg:${rel}:${pkg}`, false, {
-          severity: 'error',
-          message: `Import of \`${pkg}\` not found in package.json — possible AI hallucination`,
+          severity: isTypeOnly ? 'info' : 'warning',
+          message: `Import of \`${pkg}\` not found in package.json (checked local + workspace root) — possible AI hallucination or missing install`,
           file: rel,
           line: lineNo,
           fix: `Run \`npm install ${pkg}\` if the package is real, or remove the import if it was hallucinated.`,
