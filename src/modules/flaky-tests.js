@@ -268,13 +268,19 @@ class FlakyTestsModule extends BaseModule {
 
       // 3. Nondeterminism: Math.random
       if (/\bMath\.random\s*\(/.test(line)) {
-        issues += this._flag(result, `flaky-tests:math-random:${rel}:${i + 1}`, {
-          severity: 'warning',
-          file: rel,
-          line: i + 1,
-          message: `${rel}:${i + 1} calls \`Math.random()\` — an unseeded RNG in a test produces different values every run`,
-          suggestion: 'Use a fixed seed (e.g., `seedrandom`), inject the random source as a parameter, or assert on a property that doesn\'t depend on the random value.',
-        });
+        // Skip jitter/backoff context: `Math.random() * DELAY` or `* Math.random()`
+        // These are legitimate uses in retry/timing tests, not nondeterministic data.
+        const isJitterContext = /Math\.random\s*\(\s*\)\s*[*+]/.test(line)
+          || /[*+]\s*Math\.random\s*\(\s*\)/.test(line);
+        if (!isJitterContext) {
+          issues += this._flag(result, `flaky-tests:math-random:${rel}:${i + 1}`, {
+            severity: 'warning',
+            file: rel,
+            line: i + 1,
+            message: `${rel}:${i + 1} calls \`Math.random()\` — an unseeded RNG in a test produces different values every run`,
+            suggestion: 'Use a fixed seed (e.g., `seedrandom`), inject the random source as a parameter, or assert on a property that doesn\'t depend on the random value.',
+          });
+        }
       }
 
       // 4. Real clock: Date.now() or new Date() without fake timers

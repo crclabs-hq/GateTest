@@ -261,20 +261,30 @@ class MoneyFloatModule extends BaseModule {
       }
 
       // Rule 3: .toFixed(N) with N < 2 on a money-named receiver
+      // Skip display-only contexts: inside template literals, JSX, or string concat.
       const m3 = TOFIXED_RE.exec(line);
       if (m3) {
         const receiver = m3[1];
         const precision = parseInt(m3[2], 10);
         if (precision < 2 && MONEY_NAME_RE.test(receiver)) {
-          result.addCheck(`money-float:insufficient-precision:${rel}:${i + 1}`, false, {
-            severity: warnSev,
-            message: `${receiver}.toFixed(${precision}) — sub-cent precision on money variable. Use .toFixed(2) or a decimal library.`,
-            file: rel,
-            line: i + 1,
-            variable: receiver,
-            precision,
-          });
-          issues += 1;
+          // Skip when used inside a template literal (display formatting)
+          const matchIdx = line.indexOf(m3[0]);
+          const beforeMatch = line.slice(0, matchIdx);
+          const isDisplayContext = /`[^`]*$/.test(beforeMatch)   // inside template literal
+            || /['"][^'"]*$/.test(beforeMatch)                   // inside string concat
+            || />\s*\{[^}]*$/.test(beforeMatch)                  // inside JSX children
+            || /return\s+$/.test(beforeMatch.trim());            // bare return (display fn)
+          if (!isDisplayContext) {
+            result.addCheck(`money-float:insufficient-precision:${rel}:${i + 1}`, false, {
+              severity: warnSev,
+              message: `${receiver}.toFixed(${precision}) — sub-cent precision on money variable. Use .toFixed(2) or a decimal library.`,
+              file: rel,
+              line: i + 1,
+              variable: receiver,
+              precision,
+            });
+            issues += 1;
+          }
         }
       }
     }
