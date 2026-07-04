@@ -57,12 +57,15 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
 // Import CJS GateTest engine via createRequire (SDK is ESM, engine is CJS)
 const require = createRequire(import.meta.url);
 const fsSync = require('fs');
 const nodePath = require('path');
+const os = require('os');
 const { GateTest, GateTestConfig } = require('../src/index.js');
 const { aiFix } = require('../src/core/ai-fix-engine.js');
 const { MemoryStore } = require('../src/core/memory.js');
@@ -139,6 +142,120 @@ function gateDenied(toolName) {
 }
 
 // ---------------------------------------------------------------------------
+// MCP Telemetry → flywheel
+// Logs each tool call to ~/.gatetest/mcp-telemetry.jsonl so the nightly
+// pattern-miner can surface unused, high-fail, or high-latency tools.
+// Fire-and-forget — never throws, never blocks the response.
+// ---------------------------------------------------------------------------
+
+const MCP_TELEMETRY_PATH = nodePath.join(os.homedir(), '.gatetest', 'mcp-telemetry.jsonl');
+
+function logTelemetry(entry) {
+  try {
+    fsSync.mkdirSync(nodePath.dirname(MCP_TELEMETRY_PATH), { recursive: true });
+    fsSync.appendFileSync(MCP_TELEMETRY_PATH, JSON.stringify(entry) + '\n');
+  } catch { /* never block the tool call */ }
+}
+
+// ---------------------------------------------------------------------------
+// MCP Prompt templates — surfaced as slash commands in Claude Desktop/Code.
+// "What is GateTest?" → the answer appears automatically. Users can invoke
+// the quick-start prompt by name instead of having to discover tools manually.
+// ---------------------------------------------------------------------------
+
+const PROMPTS = [
+  {
+    name: 'gatetest-quick-start',
+    description:
+      'New to GateTest? Run this prompt to get a personalised first scan and understand what the tool does.',
+    arguments: [
+      {
+        name: 'target',
+        description: 'The path or URL you want to scan (e.g. /Users/me/myproject or https://example.com)',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'gatetest-scan-and-fix',
+    description:
+      'Scan the current project, identify the top issues, and apply AI-generated fixes. ' +
+      'Runs scan_local → explain_finding → fix_issue → verify_fix in a single guided flow.',
+    arguments: [
+      {
+        name: 'path',
+        description: 'Absolute path to the project root (default: current directory)',
+        required: false,
+      },
+    ],
+  },
+];
+
+function renderQuickStartPrompt(target) {
+  const targetNote = target
+    ? `The user wants to scan: **${target}**`
+    : 'Ask the user what they want to scan — a local path or a public URL is fine.';
+  return [
+    '## GateTest Quick Start',
+    '',
+    'GateTest is a 120-module code quality and security engine.',
+    'It replaces SonarQube, Snyk, ESLint, and 10+ other tools with a single scan.',
+    '',
+    '### What to do right now',
+    '',
+    targetNote,
+    '',
+    '**If they have a local project path** — call `scan_local` with `suite="quick"`.',
+    'This runs 4 core modules in seconds with no API key and returns a health verdict.',
+    '',
+    '**If they have a public URL or GitHub repo** — call `scan_url` (any live site)',
+    'or `scan_repo` (any public GitHub repo). Both are free, no key needed.',
+    '',
+    '**After the scan** — explain top findings with `explain_finding`, then fix them',
+    'with `fix_issue`, and verify the fix held with `verify_fix`.',
+    '',
+    '### Concrete starter commands',
+    '```',
+    '// Scan a local directory (free, quick):',
+    'scan_local({ path: "/absolute/path/to/project", suite: "quick" })',
+    '',
+    '// Scan a live website (free):',
+    'scan_url({ url: "https://example.com" })',
+    '',
+    '// Scan a public GitHub repo (free):',
+    'scan_repo({ url: "https://github.com/owner/repo" })',
+    '```',
+    '',
+    'Start with whichever fits the user\'s context. The results will tell you what to do next.',
+  ].join('\n');
+}
+
+function renderScanAndFixPrompt(path) {
+  const pathNote = path || process.cwd();
+  return [
+    '## GateTest Scan → Explain → Fix → Verify',
+    '',
+    `Project: \`${pathNote}\``,
+    '',
+    '**Step 1:** Call `scan_local` with the project path and `suite="quick"` to get a fast baseline.',
+    '',
+    '**Step 2:** For each error-severity finding, call `explain_finding` to get a plain-English',
+    'diagnosis with root cause and recommended action.',
+    '',
+    '**Step 3:** For findings you want to fix, call `fix_issue` — it reads the file,',
+    'sends the relevant slice to Claude, and writes the fix in place.',
+    '',
+    '**Step 4:** After fixing, call `verify_fix` on the changed files to confirm',
+    'the specific modules that flagged them now pass.',
+    '',
+    '**Step 5:** If all clean, call `compose_pr` to generate a PR body describing',
+    'what was fixed and why.',
+    '',
+    'Work through errors first (blocking), then warnings (important but not blocking).',
+  ].join('\n');
+}
+
+// ---------------------------------------------------------------------------
 // Tool definitions
 // ---------------------------------------------------------------------------
 
@@ -146,12 +263,13 @@ const TOOLS = [
   {
     name: 'scan_local',
     description:
-      'Scan a local directory with GateTest\'s 120-module engine. ' +
-      'Use before opening a PR, after landing changes, or whenever you\'re unsure if code is safe. ' +
-      'Returns issues across security, reliability, code quality, and more. ' +
-      'suite="quick" for the 4 core modules (seconds, no API key); suite="full" for all 120 modules. ' +
-      'After editing, call verify_fix on changed files for a scoped verdict, ' +
-      'and capture_screenshot to see the rendered result.',
+      'YOUR FIRST STOP: scan a local project directory with GateTest\'s 120-module engine. ' +
+      'Call this proactively — before opening a PR, after making changes, or when a user asks ' +
+      '"is this code safe/clean?" WITHOUT needing to install anything extra. ' +
+      'Returns security vulnerabilities, reliability bugs, code quality issues, and more. ' +
+      'suite="quick" (DEFAULT — free, 4 modules, finishes in seconds, no API key required); ' +
+      'suite="full" requires a $29/mo MCP subscription. ' +
+      'After editing files, call verify_fix on the changed paths for a scoped pass/fail verdict.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -341,10 +459,10 @@ const TOOLS = [
   {
     name: 'scan_url',
     description:
-      'Scan any live public URL via the hosted gatetest.ai free quick-tier API ' +
-      '(webHeaders, tlsSecurity, accessibility, seo, links, runtimeErrors, and more). ' +
-      'No account needed. Returns the top findings — the free tier is a truncated ' +
-      'preview; full results require a paid scan at gatetest.ai. Requires network access.',
+      'Scan any live website URL for free — no account, no API key, no install. ' +
+      'Checks real security headers, TLS config, accessibility, broken links, runtime errors, and more. ' +
+      'Use this whenever a user shares a website and asks "can you check this?" or "is this secure?". ' +
+      'Returns health grade (A-F) + top findings. Full deep scan available at gatetest.ai. Needs network.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1608,14 +1726,43 @@ async function handleGetReport() {
 // ---------------------------------------------------------------------------
 
 const server = new Server(
-  { name: 'gatetest', version: '1.55.0' },
-  { capabilities: { tools: {} } }
+  { name: 'gatetest', version: '1.56.2' },
+  { capabilities: { tools: {}, prompts: {} } }
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 
+// Prompt templates — surfaced as slash commands in Claude Desktop / Code.
+// Users who don't know what GateTest is can type /gatetest-quick-start and
+// get a guided first scan without needing to know any tool names.
+server.setRequestHandler(ListPromptsRequestSchema, async () => ({ prompts: PROMPTS }));
+
+server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+  const { name, arguments: promptArgs = {} } = request.params;
+  if (name === 'gatetest-quick-start') {
+    return {
+      description: 'Guided first scan with GateTest',
+      messages: [{
+        role: 'user',
+        content: { type: 'text', text: renderQuickStartPrompt(promptArgs.target) },
+      }],
+    };
+  }
+  if (name === 'gatetest-scan-and-fix') {
+    return {
+      description: 'Scan → explain → fix → verify flow',
+      messages: [{
+        role: 'user',
+        content: { type: 'text', text: renderScanAndFixPrompt(promptArgs.path) },
+      }],
+    };
+  }
+  throw new Error(`Unknown prompt: ${name}`);
+});
+
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args = {} } = request.params;
+  const _callStart = Date.now();
 
   // Gate premium tools behind the $29/mo MCP subscription key.
   // scan_local is partially free — only quick suite (4 modules) runs without a key.
@@ -1623,34 +1770,42 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     GATED_TOOLS.has(name) ||
     (name === 'scan_local' && args?.suite && args.suite !== 'quick');
 
+  const hasKey = !!(process.env.GATETEST_API_KEY);
+
   if (needsKey && !(await isKeyValid())) {
+    logTelemetry({ ts: Date.now(), tool: name, success: false, reason: 'gate_denied', hasKey, latencyMs: Date.now() - _callStart });
     return gateDenied(name);
   }
 
-  switch (name) {
-    case 'scan_local':       return handleScanLocal(args);
-    case 'run_module':       return handleRunModule(args);
-    case 'list_modules':     return handleListModules();
-    case 'check_health':     return handleCheckHealth();
-    case 'fix_issue':        return handleFixIssue(args);
-    case 'compose_pr':       return handleComposePr(args);
-    case 'explain_finding':  return handleExplainFinding(args);
-    case 'audit_log':        return handleAuditLog(args);
-    case 'compare_repos':    return handleCompareRepos(args);
-    case 'scan_url':         return handleScanUrl(args);
-    case 'scan_repo':        return handleScanRepo(args);
-    case 'get_badge':        return handleGetBadge(args);
-    case 'get_report':       return handleGetReport();
-    case 'verify_fix':       return handleVerifyFix(args);
-    case 'capture_screenshot': return handleCaptureScreenshot(args);
-    case 'get_visual_diff':  return handleGetVisualDiff(args);
-    case 'run_live_checks':  return handleRunLiveChecks(args);
-    case 'get_production_errors': return handleGetProductionErrors(args);
-    default:
-      return {
-        content: [{ type: 'text', text: `Unknown tool: ${name}` }],
-        isError: true,
-      };
+  let _result;
+  try {
+    switch (name) {
+      case 'scan_local':             _result = await handleScanLocal(args); break;
+      case 'run_module':             _result = await handleRunModule(args); break;
+      case 'list_modules':           _result = await handleListModules(); break;
+      case 'check_health':           _result = await handleCheckHealth(); break;
+      case 'fix_issue':              _result = await handleFixIssue(args); break;
+      case 'compose_pr':             _result = await handleComposePr(args); break;
+      case 'explain_finding':        _result = await handleExplainFinding(args); break;
+      case 'audit_log':              _result = await handleAuditLog(args); break;
+      case 'compare_repos':          _result = await handleCompareRepos(args); break;
+      case 'scan_url':               _result = await handleScanUrl(args); break;
+      case 'scan_repo':              _result = await handleScanRepo(args); break;
+      case 'get_badge':              _result = await handleGetBadge(args); break;
+      case 'get_report':             _result = await handleGetReport(); break;
+      case 'verify_fix':             _result = await handleVerifyFix(args); break;
+      case 'capture_screenshot':     _result = await handleCaptureScreenshot(args); break;
+      case 'get_visual_diff':        _result = await handleGetVisualDiff(args); break;
+      case 'run_live_checks':        _result = await handleRunLiveChecks(args); break;
+      case 'get_production_errors':  _result = await handleGetProductionErrors(args); break;
+      default:
+        _result = { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
+    }
+    logTelemetry({ ts: Date.now(), tool: name, success: !_result.isError, hasKey, latencyMs: Date.now() - _callStart });
+    return _result;
+  } catch (err) {
+    logTelemetry({ ts: Date.now(), tool: name, success: false, reason: 'exception', hasKey, latencyMs: Date.now() - _callStart });
+    throw err;
   }
 });
 

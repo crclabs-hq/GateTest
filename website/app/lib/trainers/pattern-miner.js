@@ -39,6 +39,7 @@ const readline = require('readline');
 
 const DEFAULT_SESSION_FIX_PATH = path.join(os.homedir(), '.gatetest', 'session-fixes.jsonl');
 const DEFAULT_FIX_ATTEMPT_PATH = path.join(os.homedir(), '.gatetest', 'telemetry', 'fix-attempts.jsonl');
+const DEFAULT_MCP_TELEMETRY_PATH = path.join(os.homedir(), '.gatetest', 'mcp-telemetry.jsonl');
 
 const TOP_MODULES_LIMIT = 10;
 const TOP_RULES_LIMIT = 10;
@@ -178,6 +179,41 @@ function claudeRatioByLayer(fixAttempts) {
   return { layers: stats, total, claudeShare, deterministicShare };
 }
 
+const KNOWN_FREE_TOOLS = ['scan_local', 'scan_url', 'check_health', 'list_modules', 'get_badge'];
+
+function mcpToolUsageStats(mcpEvents) {
+  if (!mcpEvents.length) return { totalCalls: 0, tools: [], neverCalled: KNOWN_FREE_TOOLS.slice(), highFailTools: [] };
+
+  const stats = new Map();
+  for (const ev of mcpEvents) {
+    const tool = ev.tool || '(unknown)';
+    const entry = stats.get(tool) || { calls: 0, successes: 0, totalLatencyMs: 0, gatedDenials: 0 };
+    entry.calls += 1;
+    if (ev.success) entry.successes += 1;
+    if (ev.reason === 'gate_denied') entry.gatedDenials += 1;
+    entry.totalLatencyMs += ev.latencyMs || 0;
+    stats.set(tool, entry);
+  }
+
+  const tools = Array.from(stats.entries())
+    .map(([tool, e]) => ({
+      tool,
+      calls: e.calls,
+      successRate: e.calls > 0 ? Number((e.successes / e.calls).toFixed(2)) : 0,
+      avgLatencyMs: e.calls > 0 ? Math.round(e.totalLatencyMs / e.calls) : 0,
+      gatedDenials: e.gatedDenials,
+    }))
+    .sort((a, b) => b.calls - a.calls);
+
+  // Tools that have never been called (compared against the known free tools list)
+  const calledTools = new Set(tools.map(t => t.tool));
+  const neverCalled = KNOWN_FREE_TOOLS.filter(t => !calledTools.has(t));
+
+  const highFailTools = tools.filter(t => t.calls >= 3 && t.successRate < 0.5 && t.gatedDenials < t.calls);
+
+  return { totalCalls: mcpEvents.length, tools, neverCalled, highFailTools };
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -193,10 +229,12 @@ function claudeRatioByLayer(fixAttempts) {
 async function mine(opts = {}) {
   const sessionFixPath = opts.sessionFixPath || DEFAULT_SESSION_FIX_PATH;
   const fixAttemptPath = opts.fixAttemptPath || DEFAULT_FIX_ATTEMPT_PATH;
+  const mcpTelemetryPath = opts.mcpTelemetryPath || DEFAULT_MCP_TELEMETRY_PATH;
 
-  const [sessionFixes, fixAttempts] = await Promise.all([
+  const [sessionFixes, fixAttempts, mcpEvents] = await Promise.all([
     readJsonl(sessionFixPath),
     readJsonl(fixAttemptPath),
+    readJsonl(mcpTelemetryPath),
   ]);
 
   const topModules = topModulesByFixCount(sessionFixes);
@@ -204,6 +242,7 @@ async function mine(opts = {}) {
   const recurring = recurringSubjects(sessionFixes);
   const underTested = underTestedModules(sessionFixes);
   const layerStats = claudeRatioByLayer(fixAttempts);
+  const mcpUsage = mcpToolUsageStats(mcpEvents);
 
   const recommendations = [];
   for (const m of topModules.slice(0, 3)) {
@@ -237,17 +276,36 @@ async function mine(opts = {}) {
     });
   }
 
+  // MCP discoverability recommendations — only when MCP has been used at all
+  // (0 events means telemetry not installed yet, not that tools are being ignored)
+  if (mcpUsage.totalCalls > 0 && mcpUsage.neverCalled.length > 0) {
+    recommendations.push({
+      kind: 'mcp-never-called',
+      tools: mcpUsage.neverCalled,
+      reason: `Free MCP tools never invoked: ${mcpUsage.neverCalled.join(', ')} — improve discoverability (prompts endpoint, description, /mcp page)`,
+    });
+  }
+  for (const t of mcpUsage.highFailTools) {
+    recommendations.push({
+      kind: 'mcp-high-fail',
+      tool: t.tool,
+      reason: `MCP tool ${t.tool} has ${Math.round((1 - t.successRate) * 100)}% failure rate over ${t.calls} calls — investigate error path`,
+    });
+  }
+
   return {
     generatedAt: new Date().toISOString(),
     inputs: {
       sessionFixCount: sessionFixes.length,
       fixAttemptCount: fixAttempts.length,
+      mcpEventCount: mcpEvents.length,
     },
     topModulesByFixCount: topModules,
     topRuleKeysByAttempts: topRules,
     recurringSubjects: recurring,
     underTestedModules: underTested,
     layerStats,
+    mcpUsage,
     recommendations,
   };
 }
@@ -258,7 +316,8 @@ function renderMarkdown(report) {
   lines.push('');
   lines.push(`_Generated ${report.generatedAt}_`);
   lines.push('');
-  lines.push(`Inputs: ${report.inputs.sessionFixCount} session-fix(es), ${report.inputs.fixAttemptCount} fix-attempt(s).`);
+  const mcpNote = report.inputs.mcpEventCount != null ? `, ${report.inputs.mcpEventCount} MCP event(s)` : '';
+  lines.push(`Inputs: ${report.inputs.sessionFixCount} session-fix(es), ${report.inputs.fixAttemptCount} fix-attempt(s)${mcpNote}.`);
   lines.push('');
 
   if (report.recommendations.length > 0) {
@@ -336,6 +395,29 @@ function renderMarkdown(report) {
     }
   }
   lines.push('');
+
+  // MCP usage section
+  if (report.mcpUsage) {
+    lines.push('## MCP tool usage (discoverability signal)');
+    lines.push('');
+    if (report.mcpUsage.totalCalls === 0) {
+      lines.push('_No MCP tool calls recorded yet._');
+    } else {
+      lines.push(`Total calls: **${report.mcpUsage.totalCalls}**`);
+      lines.push('');
+      lines.push('| Tool | Calls | Success rate | Avg latency | Gate denials |');
+      lines.push('| --- | --- | --- | --- | --- |');
+      for (const t of report.mcpUsage.tools) {
+        lines.push(`| \`${t.tool}\` | ${t.calls} | ${(t.successRate * 100).toFixed(0)}% | ${t.avgLatencyMs}ms | ${t.gatedDenials} |`);
+      }
+      if (report.mcpUsage.neverCalled.length > 0) {
+        lines.push('');
+        lines.push(`**Never called (free tools):** ${report.mcpUsage.neverCalled.map(t => `\`${t}\``).join(', ')}`);
+      }
+    }
+    lines.push('');
+  }
+
   return lines.join('\n');
 }
 
@@ -371,4 +453,5 @@ module.exports = {
   _recurringSubjects: recurringSubjects,
   _underTestedModules: underTestedModules,
   _claudeRatioByLayer: claudeRatioByLayer,
+  _mcpToolUsageStats: mcpToolUsageStats,
 };
