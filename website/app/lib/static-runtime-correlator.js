@@ -76,19 +76,27 @@ function isLiveMatch(finding, runtimeEvent) {
  * @param {Array}  opts.findings         Static findings from GateTest scan.
  *                                       Each: { file, line, severity, detail, ... }
  * @param {Array}  [opts.datadogErrors]  From fetchTopErrors / fetchErrorTraces
+ * @param {Array}  [opts.runtimeEvents]  Generic escape hatch — normalised events
+ *                                       from ANY vendor (Sentry / Rollbar /
+ *                                       production-errors aggregator). Each just
+ *                                       needs { sourceLocation: {file,line}|null }.
  * @param {Array}  [opts.vercelRoutes]   From fetchRoutePerformance
  */
 function correlateFindingsWithRuntime(opts = {}) {
   const {
     findings = [],
     datadogErrors = [],
+    runtimeEvents: extraEvents = [],
     vercelRoutes = [],
   } = opts;
 
-  // Combine all runtime events with source locations
+  // Combine all runtime events with source locations. `datadogErrors` is
+  // kept as a named param for back-compat; `runtimeEvents` accepts any
+  // vendor's normalised items so new sources don't need new params.
+  const allEvents = [...datadogErrors, ...extraEvents];
   const runtimeEvents = [
-    ...datadogErrors.filter(e => e.sourceLocation),
-    ...datadogErrors.filter(e => !e.sourceLocation).map(e => ({ ...e, sourceLocation: null })),
+    ...allEvents.filter(e => e.sourceLocation),
+    ...allEvents.filter(e => !e.sourceLocation).map(e => ({ ...e, sourceLocation: null })),
   ];
 
   // Build Vercel route performance map for route-level correlation

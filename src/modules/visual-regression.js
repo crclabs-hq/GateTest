@@ -39,6 +39,10 @@ const { compareScreenshots, buildSideBySideComposite } = require('../core/visual
 // Playwright resolution + route slugging live in core/screenshot-capture.js
 // (shared with the MCP server's eyes tools) — one implementation, no drift.
 const { resolvePlaywright, slugifyRoute } = require('../core/screenshot-capture');
+// Visual facts: on a failing diff, map the changed pixel regions back to
+// the live DOM (selector + computed styles) so the report says WHAT to
+// edit, not just THAT pixels changed.
+const { extractDiffRegions, collectVisualFacts, renderFactsDigest } = require('../core/visual-facts');
 
 const DEFAULT_VIEWPORTS = [
   { name: 'desktop', width: 1280, height: 900 },
@@ -376,16 +380,36 @@ class VisualRegressionModule extends BaseModule {
     const passed = diff.diffPercent <= threshold;
     const pct = diff.diffPercent.toFixed(2);
 
+    // Visual facts — on a failing diff, cluster the changed pixels into
+    // regions and hit-test them in the live page: which element, what
+    // selector, what computed styles. Best-effort: a facts failure never
+    // changes the check verdict (Forbidden #15). Opt out with
+    // modules.visualRegression.collectFacts = false.
+    let visualFacts = null;
+    let factsDigest = '';
+    if (!passed && moduleCfg.collectFacts !== false) {
+      try {
+        const regions = extractDiffRegions(diff.diffPngBuffer);
+        if (regions.length > 0) {
+          visualFacts = await this._collectFactsFromLivePage({
+            browser, baseUrl, route, viewport, regions,
+          });
+          factsDigest = renderFactsDigest(visualFacts);
+        }
+      } catch { /* facts are additive — never block the diff report */ }
+    }
+
     result.addCheck(checkName, passed, {
       severity: passed ? 'info' : 'error',
       message: passed
         ? `Visual diff ${pct}% within ${threshold}% threshold on ${route} (${viewport.name})`
-        : `Visual regression: ${pct}% of pixels changed on ${route} (${viewport.name}) — exceeds ${threshold}% threshold${diff.dimensionMismatch ? ' (page dimensions also changed)' : ''}`,
+        : `Visual regression: ${pct}% of pixels changed on ${route} (${viewport.name}) — exceeds ${threshold}% threshold${diff.dimensionMismatch ? ' (page dimensions also changed)' : ''}${factsDigest ? `\n${factsDigest}` : ''}`,
       file: relBaselinePath,
       diffPercent: diff.diffPercent,
       baselineFile: baselinePath,
       currentFile: currentPath,
       diffFile: diffPath,
+      visualFacts: visualFacts || undefined,
       suggestion: passed
         ? undefined
         : 'Review the diff image. If this change is an intentional redesign, re-run with modules.visualRegression.updateBaseline=true to accept the new baseline.',
@@ -393,6 +417,29 @@ class VisualRegressionModule extends BaseModule {
 
     if (!passed) {
       await this._notifySlack({ platform, route, viewport, diffPercent: diff.diffPercent, threshold, baselineBuffer, currentBuffer, diffBuffer: diff.diffPngBuffer, moduleCfg }).catch(() => {});
+    }
+  }
+
+  // Re-open the route in a fresh page and run the in-page harvester for
+  // each diff region. Separate from _captureScreenshot because facts need
+  // a LIVE page (elementFromPoint), not a buffer.
+  async _collectFactsFromLivePage({ browser, baseUrl, route, viewport, regions }) {
+    const context = await browser.newContext({
+      viewport: { width: viewport.width, height: viewport.height },
+      userAgent: 'GateTest/1.0 (+https://gatetest.ai/bot) VisualFacts',
+    });
+    const page = await context.newPage();
+    try {
+      const url = new URL(route, baseUrl).toString();
+      try {
+        await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 });
+      } catch {
+        await page.goto(url, { waitUntil: 'load', timeout: 20000 });
+      }
+      return await collectVisualFacts(page, regions);
+    } finally {
+      await page.close().catch(() => {});
+      await context.close().catch(() => {});
     }
   }
 

@@ -29,6 +29,9 @@ const VENDORS = Object.freeze({
   SENTRY: 'sentry',
   DATADOG: 'datadog',
   VERCEL_ANALYTICS: 'vercel_analytics',
+  // Craig-authorized 2026-07-04 (Boss Rule #7) — third production-ears
+  // vendor. Client: src/core/rollbar-client.js (read token, no OAuth).
+  ROLLBAR: 'rollbar',
 });
 
 const SUPPORTED_VENDORS = Object.values(VENDORS);

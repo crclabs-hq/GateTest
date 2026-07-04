@@ -38,6 +38,8 @@
  *   verify_fix       — after editing code, re-run the modules relevant to the changed files and get a fix-scoped pass/fail verdict
  *   capture_screenshot — screenshot a live URL and return it as an actual image (the AI's eyes on the rendered page)
  *   get_visual_diff  — fetch a visualRegression baseline/current/diff (or composite) as an image
+ *   run_live_checks  — run the runtime triad (runtimeErrors/consoleErrors/apiHealth) against a live URL (the AI's ears)
+ *   get_production_errors — top Sentry/Datadog/Rollbar errors with file:line (fix what prod says is broken, first)
  *
  * scan_local/run_module/list_modules/check_health/fix_issue/compose_pr/
  * explain_finding/audit_log/compare_repos all run the engine IN-PROCESS
@@ -71,6 +73,8 @@ const {
   encodeUnderByteCap,
   readPngDimensions,
 } = require('../src/core/visual-diff-engine.js');
+const { extractDiffRegions } = require('../src/core/visual-facts.js');
+const { fetchProductionErrors, resolveSourcesFromEnv } = require('../src/core/production-errors.js');
 const { composePrBody } = require('../website/app/lib/pr-composer.js');
 const { diagnoseFinding } = require('../website/app/lib/nuclear-diagnoser.js');
 
@@ -401,8 +405,54 @@ const TOOLS = [
         },
         baselineDir: { type: 'string', description: 'Explicit baseline directory (overrides config resolution)' },
         maxWidth: { type: 'number', description: 'Downscale the returned image to at most this width' },
+        includeFacts: {
+          type: 'boolean',
+          description: 'Also return the changed-region bounding boxes extracted from the diff (coordinates + size). Full selector/style mapping is attached to scan findings by the visualRegression module at scan time.',
+        },
       },
       required: ['path', 'route'],
+    },
+  },
+  {
+    name: 'run_live_checks',
+    description:
+      'Run the runtime-triad against a live URL — the AI\'s ears on the running app: ' +
+      'runtimeErrors (uncaught JS errors, console errors, failed requests, CSP violations, ' +
+      'hydration mismatches), consoleErrors (site-wide crawl, fingerprinted + deduped), and ' +
+      'apiHealth (probes discoverable API endpoints for 5xx/404/wrong-content-type/slow). ' +
+      'Use after editing code and deploying locally, or before editing to hear what\'s ' +
+      'already failing. Browser-based modules skip gracefully without Chromium — the ' +
+      'result says explicitly which ears were available.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'The live URL to check, e.g. "http://localhost:3000" or "https://example.com"' },
+        modules: {
+          type: 'array',
+          items: { type: 'string', enum: ['runtimeErrors', 'consoleErrors', 'apiHealth'] },
+          description: 'Subset of the runtime triad to run (default: all three)',
+        },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'get_production_errors',
+    description:
+      'Pull the top errors real users are hitting in production from configured ' +
+      'observability vendors (Sentry / Datadog / Rollbar) with file:line locations — ' +
+      'so you can fix what production says is broken, first. Reads credentials from ' +
+      'environment variables (SENTRY_AUTH_TOKEN+SENTRY_ORG+SENTRY_PROJECT, ' +
+      'DATADOG_API_KEY+DATADOG_APP_KEY, ROLLBAR_READ_TOKEN); returns setup ' +
+      'instructions when none are configured.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source: { type: 'string', enum: ['sentry', 'datadog', 'rollbar', 'all'], description: 'Vendor filter (default all configured)' },
+        limit: { type: 'number', description: 'Max errors returned (default 20)' },
+        service: { type: 'string', description: 'Datadog service filter' },
+        hoursBack: { type: 'number', description: 'Datadog time window in hours (default 24)' },
+      },
     },
   },
 ];
@@ -1166,7 +1216,7 @@ function listBaselineTree(baselineDir) {
 }
 
 async function handleGetVisualDiff(args) {
-  const { path: projectPath, route, platform, viewport, panel, baselineDir: explicitDir, maxWidth } = args;
+  const { path: projectPath, route, platform, viewport, panel, baselineDir: explicitDir, maxWidth, includeFacts } = args;
 
   if (!projectPath || !route) {
     return { content: [{ type: 'text', text: 'Error: path and route are both required' }], isError: true };
@@ -1282,7 +1332,7 @@ async function handleGetVisualDiff(args) {
 
     const capped = encodeUnderByteCap(buffer, MAX_IMAGE_BYTES);
     const finalDims = readPngDimensions(capped.buffer);
-    return imageResponse(
+    const response = imageResponse(
       capped.buffer,
       'image/png',
       `${resolvedPanel} for ${route} — platform \`${match.platform}\`, viewport \`${match.viewport}\`` +
@@ -1290,9 +1340,169 @@ async function handleGetVisualDiff(args) {
         ` (${Math.round(capped.buffer.length / 1024)} KB${capped.downscaled ? ', downscaled to fit payload budget' : ''})` +
         (resolvedPanel === 'composite' ? '. Order: baseline | current | diff.' : ''),
     );
+
+    // Visual facts — changed-region bounding boxes clustered from the raw
+    // diff PNG (fs-only here; the full selector/computed-style mapping
+    // needs the LIVE page and is attached to scan findings by the
+    // visualRegression module at scan time).
+    if (includeFacts === true && available.diff) {
+      try {
+        const regions = extractDiffRegions(readPanel(diffPath));
+        response.content.push({
+          type: 'text',
+          text:
+            regions.length === 0
+              ? 'Changed regions: none above the noise floor.'
+              : `Changed regions (from diff, full-page coordinates):\n\`\`\`json\n${JSON.stringify(regions, null, 2)}\n\`\`\`\n` +
+                'Selector + computed-style mapping for these regions is attached to the scan finding (`visualFacts`) when the visualRegression module runs with a live URL.',
+        });
+      } catch { /* facts are additive — image already in the response */ }
+    }
+
+    return response;
   } catch (err) {
     return {
       content: [{ type: 'text', text: `get_visual_diff failed: ${err && err.message ? err.message : String(err)}` }],
+      isError: true,
+    };
+  }
+}
+
+// ── ears tools: run_live_checks + get_production_errors ─────────────────────
+
+const RUNTIME_TRIAD = ['runtimeErrors', 'consoleErrors', 'apiHealth'];
+
+async function handleRunLiveChecks(args) {
+  const { url, modules } = args;
+
+  if (!url || typeof url !== 'string') {
+    return { content: [{ type: 'text', text: 'Error: url is required and must be a string' }], isError: true };
+  }
+
+  const requested = Array.isArray(modules) && modules.length > 0
+    ? modules.filter((m) => RUNTIME_TRIAD.includes(m))
+    : RUNTIME_TRIAD;
+  if (requested.length === 0) {
+    return {
+      content: [{ type: 'text', text: `Error: modules must be a subset of ${RUNTIME_TRIAD.join(', ')}` }],
+      isError: true,
+    };
+  }
+
+  try {
+    const gt = new GateTest(process.cwd(), { silent: true }).init();
+    // Every module in the triad reads targetUrl at the end of its
+    // URL-fallback chain — injecting here scopes the run to the given URL.
+    gt.config.config.targetUrl = url;
+    const result = await runPreservingExitCode(() => gt._run(requested));
+
+    lastScanResult = { source: 'run_live_checks', url, data: result, at: new Date().toISOString() };
+
+    // Honesty: browser-based modules skip gracefully when Playwright /
+    // Chromium is unavailable — detect the skip checks and SAY so instead
+    // of implying a clean bill of health.
+    const allChecks = [];
+    for (const mod of result.results || []) {
+      for (const check of mod.checks || []) {
+        allChecks.push({ module: mod.module || mod.name || 'unknown', ...check });
+      }
+    }
+    const skippedEars = allChecks
+      .filter((c) => /playwright-missing|browser-launch/.test(c.name || ''))
+      .map((c) => c.module);
+    const liveEars = requested.filter((m) => !skippedEars.includes(m));
+
+    const flagged = allChecks.filter((c) => c.severity === 'error' || c.severity === 'warning');
+    const lines = [formatScanResult(result)];
+    if (skippedEars.length > 0) {
+      lines.unshift(
+        `⚠️ Browser unavailable in this environment — ${skippedEars.join(' + ')} skipped; ` +
+          `only ${liveEars.join(' + ') || 'no module'} produced live signal. ` +
+          'Install Chromium (npx playwright install chromium) for full ears.\n',
+      );
+    }
+    // Machine-consumable digest for the caller.
+    const digest = flagged.map((c) => ({
+      module: c.module,
+      name: c.name,
+      severity: c.severity,
+      message: c.message,
+      ...(c.file ? { file: c.file } : {}),
+      ...(c.line ? { line: c.line } : {}),
+    }));
+    lines.push(`\n\`\`\`json\n${JSON.stringify({ url, earsDigest: digest }, null, 2)}\n\`\`\``);
+
+    return { content: [{ type: 'text', text: lines.join('\n') }] };
+  } catch (err) {
+    return {
+      content: [{ type: 'text', text: `run_live_checks failed: ${err && err.message ? err.message : String(err)}` }],
+      isError: true,
+    };
+  }
+}
+
+async function handleGetProductionErrors(args) {
+  const { source, limit, service, hoursBack } = args || {};
+
+  try {
+    const envSources = resolveSourcesFromEnv();
+    const filtered = {};
+    for (const vendor of ['sentry', 'datadog', 'rollbar']) {
+      if (!envSources[vendor]) continue;
+      if (source && source !== 'all' && source !== vendor) continue;
+      filtered[vendor] = envSources[vendor];
+    }
+    if (filtered.datadog) {
+      if (service) filtered.datadog.service = service;
+      if (typeof hoursBack === 'number') filtered.datadog.hoursBack = hoursBack;
+    }
+
+    if (Object.keys(filtered).length === 0) {
+      return {
+        content: [{
+          type: 'text',
+          text:
+            'No observability vendors configured' + (source && source !== 'all' ? ` for source "${source}"` : '') + '. Set environment variables on the machine running the MCP server:\n\n' +
+            '- **Sentry**: `SENTRY_AUTH_TOKEN` + `SENTRY_ORG` + `SENTRY_PROJECT`\n' +
+            '- **Datadog**: `DATADOG_API_KEY` + `DATADOG_APP_KEY` (optional `DD_SITE`, `DD_SERVICE`)\n' +
+            '- **Rollbar**: `ROLLBAR_READ_TOKEN` (project read token)\n\n' +
+            'Then call this tool again to see the top errors real users are hitting, with file:line locations.',
+        }],
+      };
+    }
+
+    const res = await fetchProductionErrors({
+      ...filtered,
+      limit: typeof limit === 'number' && limit > 0 ? limit : 20,
+    });
+
+    const lines = ['## Production errors (what real users are hitting)', ''];
+    for (const [vendor, status] of Object.entries(res.sources)) {
+      if (status !== 'skipped') lines.push(`- ${vendor}: ${status}`);
+    }
+    lines.push('');
+
+    if (res.items.length === 0) {
+      lines.push('No errors returned — either production is clean or the queried window is quiet.');
+    } else {
+      lines.push('| # | message | location | count | last seen | source |');
+      lines.push('|---|---------|----------|-------|-----------|--------|');
+      res.items.forEach((item, i) => {
+        const loc = item.file ? `\`${item.file}:${item.line != null ? item.line : '?'}\`` : '—';
+        const msg = (item.message || '').replace(/\|/g, '\\|').slice(0, 120);
+        lines.push(`| ${i + 1} | ${msg} | ${loc} | ${item.count} | ${item.lastSeen || '—'} | ${item.source} |`);
+      });
+      lines.push('');
+      lines.push(
+        '**Tip:** findings at these file:line locations are the ones to fix FIRST — ' +
+          'pass them as `runtimeEvents` to the fix flow (or fix locally and prove it with `verify_fix`).',
+      );
+    }
+
+    return { content: [{ type: 'text', text: lines.join('\n') }] };
+  } catch (err) {
+    return {
+      content: [{ type: 'text', text: `get_production_errors failed: ${err && err.message ? err.message : String(err)}` }],
       isError: true,
     };
   }
@@ -1346,6 +1556,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case 'verify_fix':       return handleVerifyFix(args);
     case 'capture_screenshot': return handleCaptureScreenshot(args);
     case 'get_visual_diff':  return handleGetVisualDiff(args);
+    case 'run_live_checks':  return handleRunLiveChecks(args);
+    case 'get_production_errors': return handleGetProductionErrors(args);
     default:
       return {
         content: [{ type: 'text', text: `Unknown tool: ${name}` }],
@@ -1390,6 +1602,8 @@ export {
   handleVerifyFix,
   handleCaptureScreenshot,
   handleGetVisualDiff,
+  handleRunLiveChecks,
+  handleGetProductionErrors,
   normalizeRelPath,
   pathsTailMatch,
   collectFlaggedChecks,
