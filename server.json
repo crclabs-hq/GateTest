@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "ai.gatetest.www/gatetest",
-  "version": "1.55.0",
+  "version": "1.56.0",
   "description": "Give Claude eyes (screenshot live pages), ears (pull Sentry/Datadog/Rollbar errors + runtime checks), and hands (verify fixes actually worked). 18 tools: 120-module local scan, AI auto-fix, production error triage, visual regression. Replaces SonarQube + Snyk + ESLint + 10 others.",
   "license": "MIT",
   "homepage": "https://gatetest.ai",
