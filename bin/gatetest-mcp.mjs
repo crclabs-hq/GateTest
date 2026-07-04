@@ -79,6 +79,66 @@ const { composePrBody } = require('../website/app/lib/pr-composer.js');
 const { diagnoseFinding } = require('../website/app/lib/nuclear-diagnoser.js');
 
 // ---------------------------------------------------------------------------
+// MCP Subscription Gate — $29/mo at gatetest.ai/mcp
+// Free: check_health, list_modules, get_badge, scan_url, scan_repo,
+//       scan_local (quick suite only — 4 modules, seconds, no key)
+// Gated: everything else (full scans, AI fix, Eyes/Ears/Hands tools)
+// ---------------------------------------------------------------------------
+
+const GATED_TOOLS = new Set([
+  'run_module', 'fix_issue', 'explain_finding', 'compose_pr',
+  'capture_screenshot', 'get_visual_diff',
+  'run_live_checks', 'get_production_errors',
+  'verify_fix', 'audit_log', 'compare_repos', 'get_report', 'scan_repo',
+]);
+
+// In-process validation cache — MCP server is a long-lived stdio process so
+// module-level state persists. Re-validates once per hour.
+let _keyCache = { valid: null, ts: 0 };
+const KEY_TTL_MS = 60 * 60 * 1000;
+const GATETEST_MCP_BASE = process.env.GATETEST_API_BASE_URL || 'https://gatetest.ai';
+
+async function isKeyValid() {
+  const key = process.env.GATETEST_API_KEY;
+  if (!key || !key.startsWith('gtmcp_') || key.length < 70) return false;
+  const now = Date.now();
+  if (_keyCache.valid !== null && now - _keyCache.ts < KEY_TTL_MS) return _keyCache.valid;
+  try {
+    const r = await fetch(
+      `${GATETEST_MCP_BASE}/api/mcp/validate?key=${encodeURIComponent(key)}`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    const { valid } = await r.json();
+    _keyCache = { valid: !!valid, ts: now };
+    return _keyCache.valid;
+  } catch {
+    // Network error — fall back to stale cache (never gate-out an offline user)
+    if (_keyCache.valid !== null) return _keyCache.valid;
+    return false;
+  }
+}
+
+function gateDenied(toolName) {
+  return {
+    content: [{
+      type: 'text',
+      text: [
+        `🔒 **${toolName}** requires a GateTest MCP subscription ($29/mo).`,
+        '',
+        'Subscribe at **https://gatetest.ai/mcp** — API key delivered by email instantly.',
+        '',
+        'Then add the key and restart:',
+        '```',
+        'claude mcp add gatetest -e GATETEST_API_KEY=gtmcp_xxx -- npx -y @gatetest/mcp-server',
+        '```',
+        '',
+        '**Free without a key:** `check_health` · `list_modules` · `get_badge` · `scan_url` · `scan_local` (quick suite — 4 modules)',
+      ].join('\n'),
+    }],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Tool definitions
 // ---------------------------------------------------------------------------
 
@@ -1556,6 +1616,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }))
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args = {} } = request.params;
+
+  // Gate premium tools behind the $29/mo MCP subscription key.
+  // scan_local is partially free — only quick suite (4 modules) runs without a key.
+  const needsKey =
+    GATED_TOOLS.has(name) ||
+    (name === 'scan_local' && args?.suite && args.suite !== 'quick');
+
+  if (needsKey && !(await isKeyValid())) {
+    return gateDenied(name);
+  }
 
   switch (name) {
     case 'scan_local':       return handleScanLocal(args);

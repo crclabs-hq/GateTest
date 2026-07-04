@@ -1,6 +1,6 @@
 // Pricing tiers mirror the checkout backend exactly — website/app/api/checkout/route.ts TIERS.
 // Source of truth for prices: that TIERS map. Keep these in sync (Bible Forbidden #17).
-//   quick $29 · full $99 · scan_fix $199 · nuclear/Forensic $399 (one-time) · continuous $49/mo
+//   quick $29 · full $99 · scan_fix $199 · nuclear/Forensic $399 (one-time) · continuous $49/mo · mcp $29/mo
 export const pricingScans = [
   {
     name: "Scan + Fix",
@@ -54,6 +54,23 @@ export const continuousPlan = {
   cta: "Activate Continuous"
 };
 
+export const mcpPlan = {
+  name: "MCP Integration",
+  price: "$29",
+  frequency: "per month",
+  description: "Give Claude eyes, ears & hands. Full 120-module scans + AI fix + screenshot + production errors — all inside your AI assistant.",
+  features: [
+    "👁 Eyes — Screenshot any URL or localhost",
+    "👂 Ears — Sentry / Datadog / Rollbar errors",
+    "🤝 Hands — verify_fix proves the fix worked",
+    "Full 120-module local scans (vs 4 free)",
+    "AI fix + diagnose (fix_issue, explain_finding)",
+    "API key delivered by email instantly"
+  ],
+  cta: "Get MCP Access →",
+  href: "/api/checkout"
+};
+
 export default function Pricing() {
   return (
     <div className="p-8 bg-neutral-900 text-white rounded-xl border border-neutral-800 shadow-2xl max-w-7xl mx-auto my-12">
@@ -69,8 +86,8 @@ export default function Pricing() {
         . Pay only when you want auto-fix or deeper AI analysis.
       </p>
 
-      {/* Main Pricing Grid */}
-      <div className="grid lg:grid-cols-3 gap-8 items-stretch mt-8">
+      {/* Main Pricing Grid — 4 columns on large screens */}
+      <div className="grid lg:grid-cols-4 gap-6 items-stretch mt-8">
 
         {/* Paid Scan Tiers */}
         {pricingScans.map((plan, idx) => (
@@ -112,6 +129,36 @@ export default function Pricing() {
             </button>
           </div>
         ))}
+
+        {/* MCP Subscription — blue accent */}
+        <div className="flex flex-col p-6 rounded-xl border border-blue-500 bg-neutral-800/40 ring-1 ring-blue-500/30 transition-all duration-300 relative">
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+            Claude Integration
+          </span>
+          <div className="mb-6">
+            <h3 className="text-xl font-bold text-neutral-100">{mcpPlan.name}</h3>
+            <p className="text-xs text-neutral-400 mt-1 min-h-[40px]">{mcpPlan.description}</p>
+          </div>
+          <div className="flex items-baseline mb-6">
+            <span className="text-4xl font-black text-blue-400">{mcpPlan.price}</span>
+            <span className="text-neutral-500 text-xs ml-2">/ {mcpPlan.frequency}</span>
+          </div>
+          <ul className="space-y-3 text-sm text-neutral-300 mb-8 flex-grow">
+            {mcpPlan.features.map((feature, i) => (
+              <li key={i} className="flex items-start">
+                <span className="text-blue-400 mr-2 font-bold">✓</span>
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+          <a
+            href="/mcp"
+            className="w-full py-3 rounded-lg font-semibold text-sm bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 transition-all duration-200 text-center block"
+          >
+            {mcpPlan.cta}
+          </a>
+          <p className="text-xs text-neutral-500 text-center mt-2">Cancel anytime</p>
+        </div>
 
         {/* Continuous Subscription */}
         <div className="flex flex-col p-6 rounded-xl border border-neutral-800 bg-neutral-950/40 hover:border-neutral-700 transition-all duration-300">

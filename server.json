@@ -69,6 +69,13 @@
           "isRequired": false,
           "isSecret": true,
           "format": "string"
+        },
+        {
+          "name": "GATETEST_API_KEY",
+          "description": "Premium MCP subscription key ($29/mo at gatetest.ai/mcp). Unlocks full 120-module scans, AI fix, Eyes (screenshot), Ears (production errors), Hands (verify_fix). Free tools work without a key: check_health, list_modules, get_badge, scan_url, scan_local (quick suite only).",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
         }
       ]
     }

@@ -272,9 +272,134 @@ async function sendDigestEmail(opts) {
   });
 }
 
+/**
+ * Send a one-time API key delivery email to a new MCP subscriber.
+ * Called from the Stripe webhook after checkout.session.completed for
+ * the $29/mo MCP tier.
+ *
+ * @param {{ to: string, apiKey: string }} opts
+ * @returns {Promise<{ ok: boolean, id?: string, error?: string }>}
+ */
+async function sendApiKeyEmail(opts) {
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) return { ok: false, error: 'RESEND_API_KEY not set' };
+
+  const { to, apiKey } = opts || {};
+  if (!to)     return { ok: false, error: 'to is required' };
+  if (!apiKey) return { ok: false, error: 'apiKey is required' };
+
+  const from = process.env.RESEND_FROM || DEFAULT_FROM;
+  const installCmd = `claude mcp add gatetest \\\n  -e GATETEST_API_KEY=${apiKey} \\\n  -- npx -y @gatetest/mcp-server`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Your GateTest MCP API Key</title>
+</head>
+<body style="margin:0;padding:0;background:#09090b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#09090b;padding:40px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+  <tr><td style="padding-bottom:24px;">
+    <span style="color:#22c55e;font-size:20px;font-weight:700;letter-spacing:-0.5px;">GateTest</span>
+  </td></tr>
+  <tr><td style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:32px;">
+    <h1 style="color:#f4f4f5;font-size:22px;font-weight:700;margin:0 0 8px;">Your MCP API Key</h1>
+    <p style="color:#a1a1aa;font-size:14px;margin:0 0 24px;">
+      Here&rsquo;s your GateTest MCP subscription key. Add it to Claude Code (or Cursor / Windsurf)
+      to unlock all 18 tools: full 120-module scans, AI fix, 👁&nbsp;screenshot,
+      👂&nbsp;production errors, and 🤝&nbsp;verify&nbsp;fix.
+    </p>
+
+    <div style="background:#09090b;border:1px solid #3f3f46;border-radius:8px;padding:16px;margin-bottom:24px;">
+      <p style="color:#71717a;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8px;">Your API Key</p>
+      <code style="color:#22c55e;font-size:13px;font-family:'SF Mono',Consolas,monospace;word-break:break-all;">${escapeHtml(apiKey)}</code>
+    </div>
+
+    <p style="color:#a1a1aa;font-size:13px;margin:0 0 12px;font-weight:600;">Install in Claude Code:</p>
+    <div style="background:#09090b;border:1px solid #3f3f46;border-radius:8px;padding:16px;margin-bottom:24px;">
+      <code style="color:#e4e4e7;font-size:12px;font-family:'SF Mono',Consolas,monospace;white-space:pre-wrap;">${escapeHtml(installCmd)}</code>
+    </div>
+
+    <p style="color:#71717a;font-size:12px;margin:0 0 16px;">
+      Keep this key secret — it grants full access to your MCP subscription.
+      To regenerate, cancel and resubscribe or contact
+      <a href="mailto:hello@gatetest.ai" style="color:#22c55e;">hello@gatetest.ai</a>.
+    </p>
+
+    <a href="https://gatetest.ai/mcp" style="display:inline-block;background:#22c55e;color:#09090b;font-weight:700;font-size:14px;text-decoration:none;padding:12px 24px;border-radius:8px;">
+      View Tool Reference →
+    </a>
+  </td></tr>
+  <tr><td style="padding-top:24px;text-align:center;">
+    <p style="color:#52525b;font-size:11px;margin:0;">
+      GateTest · <a href="https://gatetest.ai" style="color:#52525b;">gatetest.ai</a>
+    </p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+  const text = [
+    'Your GateTest MCP API Key',
+    '',
+    `Key: ${apiKey}`,
+    '',
+    'Install in Claude Code:',
+    installCmd,
+    '',
+    'This unlocks all 18 MCP tools: full 120-module scans, AI fix,',
+    'screenshot (Eyes), production errors (Ears), and verify_fix (Hands).',
+    '',
+    'Keep this key secret. To regenerate contact hello@gatetest.ai.',
+    '',
+    '-- GateTest | gatetest.ai',
+  ].join('\n');
+
+  const body = JSON.stringify({ from, to: [to], subject: 'Your GateTest MCP API Key', html, text });
+
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: 'api.resend.com',
+      path:     '/emails',
+      method:   'POST',
+      headers: {
+        Authorization:    `Bearer ${resendKey}`,
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(Buffer.concat(chunks).toString());
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve({ ok: true, id: parsed.id });
+          } else {
+            resolve({ ok: false, error: parsed.message || parsed.name || `HTTP ${res.statusCode}` });
+          }
+        } catch {
+          resolve({ ok: false, error: `HTTP ${res.statusCode}` });
+        }
+      });
+    });
+
+    req.on('error', e => resolve({ ok: false, error: e.message }));
+    req.setTimeout(12_000, () => { req.destroy(); resolve({ ok: false, error: 'timeout' }); });
+    req.write(body);
+    req.end();
+  });
+}
+
 module.exports = {
   buildDigestEmailHtml,
   buildDigestEmailText,
   sendDigestEmail,
+  sendApiKeyEmail,
   escapeHtml,
 };

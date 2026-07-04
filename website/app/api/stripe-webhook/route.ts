@@ -135,10 +135,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Continuous-tier subscription lifecycle — keep the local record in sync
-  // so push-scan gating (findActiveByRepo) reflects Stripe truth. Graceful
-  // degrade: DB failures ack the event (Stripe retry won't fix a missing
-  // DATABASE_URL) but log loudly.
+  // Subscription lifecycle — keep local records in sync for both the
+  // Continuous ($49/mo, repo-based) and MCP ($29/mo, key-based) tiers.
+  // We try both stores; whichever has the matching sub ID updates its row.
   if (
     event.type === "customer.subscription.updated" ||
     event.type === "customer.subscription.deleted"
@@ -146,8 +145,7 @@ export async function POST(req: NextRequest) {
     const sub = (event.data?.object || {}) as Record<string, unknown>;
     const subId = typeof sub.id === "string" ? sub.id : "";
     const stripeStatus = typeof sub.status === "string" ? sub.status : "";
-    // Map Stripe's status vocabulary onto ours: anything not clearly payable
-    // stops the scans-on-push entitlement.
+    // Map Stripe's status vocabulary onto ours.
     const status =
       event.type === "customer.subscription.deleted"
         ? "canceled"
@@ -157,18 +155,27 @@ export async function POST(req: NextRequest) {
         ? "past_due"
         : "canceled";
     if (subId) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getDb } = require("@/app/lib/db");
+      // Continuous store
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { setSubscriptionStatus } = require("@/app/lib/continuous-subscription-store");
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { getDb } = require("@/app/lib/db");
         await setSubscriptionStatus(getDb(), subId, status);
       } catch (err) {
-        console.error("[GateTest] subscription status sync failed", {
+        console.error("[GateTest] continuous subscription status sync failed", {
           subPrefix: subId.slice(0, 12) + "...",
           status,
           error: err instanceof Error ? err.message : "unknown",
         });
+      }
+      // MCP store — silently no-ops if this sub is a Continuous sub (no row)
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { setMcpSubscriptionStatus } = require("@/app/lib/mcp-subscription-store");
+        await setMcpSubscriptionStatus(getDb(), subId, status);
+      } catch {
+        // No matching MCP row is expected and fine — not an error
       }
     }
     return NextResponse.json({ received: true });
@@ -185,22 +192,64 @@ export async function POST(req: NextRequest) {
   const sessionMetadata =
     (session.metadata as Record<string, string> | undefined) || {};
 
-  // Continuous-tier signup — subscription sessions carry no payment_intent;
-  // record the entitlement and stop (no one-shot scan to enqueue here; the
-  // value is delivered per push by the scan queue checking findActiveByRepo).
+  // Subscription session — two shapes:
+  //   tier=mcp        → MCP ($29/mo, key-based, no repo URL)
+  //   tier=continuous → Continuous ($49/mo, repo-based push gating)
   if (session.mode === "subscription") {
     const subscriptionId =
       typeof session.subscription === "string" ? session.subscription : "";
     const customerId =
       typeof session.customer === "string" ? session.customer : "";
-    const subRepoUrl = sessionMetadata.repo_url || "";
-    // Capture customer email for weekly digest delivery
     const subCustomerEmail: string | null =
       typeof session.customer_email === "string" && session.customer_email
         ? session.customer_email
         : typeof (session.customer_details as Record<string, unknown> | null)?.email === "string"
         ? (session.customer_details as Record<string, unknown>).email as string
         : null;
+    const subTier = sessionMetadata.tier || "";
+
+    // ── MCP tier ────────────────────────────────────────────────────────────
+    if (subTier === "mcp") {
+      if (!subscriptionId) {
+        console.error("[GateTest] MCP subscription session missing subscription ID", {
+          sessionPrefix: sessionId ? sessionId.slice(0, 12) + "..." : null,
+        });
+        return NextResponse.json({ received: true, note: "missing_subscription_id" });
+      }
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { generateApiKey, upsertMcpSubscription } = require("@/app/lib/mcp-subscription-store");
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getDb: getMcpDb } = require("@/app/lib/db");
+      const apiKey = generateApiKey();
+      try {
+        await upsertMcpSubscription(getMcpDb(), {
+          stripeSubscriptionId: subscriptionId,
+          stripeCustomerId: customerId,
+          apiKey,
+          status: "active",
+          customerEmail: subCustomerEmail,
+        });
+      } catch (err) {
+        console.error("[GateTest] MCP subscription record write failed", {
+          subPrefix: subscriptionId.slice(0, 12) + "...",
+          error: err instanceof Error ? err.message : "unknown",
+        });
+        // Do NOT ack — Stripe must retry so the customer gets their entitlement.
+        return NextResponse.json({ error: "persist_failed" }, { status: 500 });
+      }
+      // Non-blocking email delivery — failure must never 500 the webhook.
+      if (subCustomerEmail) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { sendApiKeyEmail } = require("@/app/lib/digest-mailer");
+        sendApiKeyEmail({ to: subCustomerEmail, apiKey }).catch((err: Error) =>
+          console.error("[mcp-key-email] delivery failed:", err.message)
+        );
+      }
+      return NextResponse.json({ received: true, subscription: true, tier: "mcp" });
+    }
+
+    // ── Continuous tier ─────────────────────────────────────────────────────
+    const subRepoUrl = sessionMetadata.repo_url || "";
     if (!subscriptionId || !subRepoUrl) {
       console.error("[GateTest] subscription session missing data", {
         sessionPrefix: sessionId ? sessionId.slice(0, 12) + "..." : null,
@@ -226,8 +275,6 @@ export async function POST(req: NextRequest) {
         subPrefix: subscriptionId.slice(0, 12) + "...",
         error: err instanceof Error ? err.message : "unknown",
       });
-      // Do NOT ack — a transient DB failure here is worth a Stripe retry,
-      // otherwise the customer paid and gets no entitlement.
       return NextResponse.json({ error: "persist_failed" }, { status: 500 });
     }
     return NextResponse.json({ received: true, subscription: true });

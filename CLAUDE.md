@@ -814,6 +814,7 @@ GateTest/
 | `GATETEST_INTERNAL_API_KEY` | Optional Bearer token for the Slack slash-command route when calling `/api/v1/scan` internally |
 | `RESEND_API_KEY` | Resend.com API key — weekly digest emails to Continuous subscribers (`watchdog@gatetest.ai` sender). Optional: if not set, email delivery is silently skipped; Slack digests still fire via `SLACK_WEBHOOK_URL`. |
 | `RESEND_FROM` | Override the From address for digest emails (default: `GateTest <watchdog@gatetest.ai>`) |
+| `GATETEST_API_KEY` | *(MCP server env, not Vercel)* Premium MCP subscription key (`gtmcp_<64hex>`, 70 chars). Set in the MCP server's environment. Unlocks premium tools in `bin/gatetest-mcp.mjs`. Free tools work without it. |
 
 ---
 
@@ -1218,12 +1219,49 @@ pre-existing skips), 0 fail. Website builds clean throughout.
 
 ## VERSION
 
-GateTest v1.55.0 — **120 modules**, **Claude Sonnet 4.6**, **five tiers
+GateTest v1.56.0 — **120 modules**, **Claude Sonnet 4.6**, **six tiers
 live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399 (one-time)
-+ Continuous $49/mo. The public Pricing UI (`Pricing.tsx`) and the
-checkout backend (`/api/checkout/route.ts` `TIERS`) are reconciled and
-in sync (Craig-authorized 2026-06-30 — see Known Issue #35, resolved).
-Date stamp last fully reconciled: 2026-06-30.
++ Continuous $49/mo + **MCP $29/mo** (Craig-authorized 2026-07-04). The
+MCP tier gates premium Eyes/Ears/Hands tools behind a `GATETEST_API_KEY`
+delivered by email after Stripe checkout. Pricing UI (`Pricing.tsx`),
+checkout backend, and webhook handler all reflect the new tier.
+Date stamp last fully reconciled: 2026-07-04.
+
+**v1.56.0 changes (2026-07-04 — MCP payment gate, $29/mo tier):**
+- **`website/app/lib/mcp-subscription-store.js`** — new store for the MCP
+  subscription tier. `generateApiKey()` (`gtmcp_<64hex>`, 70 chars),
+  `upsertMcpSubscription()` (idempotent on conflict — preserves `api_key`
+  on Stripe webhook retry), `findByApiKey()`, `setMcpSubscriptionStatus()`.
+  Same Neon DB + tagged-template `sql` injection pattern as
+  `continuous-subscription-store.js`.
+- **`website/app/lib/digest-mailer.js`** — added `sendApiKeyEmail({ to, apiKey })`
+  export. Dark-theme HTML email with key in `<pre>`, install command, link to
+  `/mcp`. Same native `https` + Resend pattern, zero new deps.
+- **`website/app/api/mcp/validate/route.ts`** — `GET /api/mcp/validate?key=xxx`
+  → `{ valid: boolean }`. Fast-rejects keys that don't start with `gtmcp_` or
+  are < 70 chars. Single indexed DB query, always 200 (never 5xx for bad keys).
+- **`website/app/api/stripe-webhook/route.ts`** — `checkout.session.completed`
+  subscription block now forks on `tier`: `mcp` branch generates a key, stores
+  it, emails it (non-blocking). `continuous` branch unchanged. Both the MCP and
+  Continuous `setXxxStatus()` helpers are called on
+  `customer.subscription.updated/deleted`.
+- **`website/app/api/checkout/route.ts`** — `mcp` tier added to TIERS
+  (`$29/mo, recurring: true`). `repoUrl` validation skipped when `tier === 'mcp'`.
+- **`bin/gatetest-mcp.mjs`** — in-process `isKeyValid()` cache (1-hour TTL,
+  stale-cache fallback on network error), `GATED_TOOLS` Set, gate check at top
+  of the `CallToolRequestSchema` dispatcher. `scan_local` free on quick suite;
+  gated for any non-quick suite.
+- **`website/app/components/Pricing.tsx`** — MCP card added (blue accent,
+  `border-blue-500`, `ring-blue-500/30`). Grid expanded to `lg:grid-cols-4`.
+- **`website/app/mcp/page.tsx`** — `/mcp` landing: hero with $29/mo CTA
+  (client-side checkout fetch), 18-tool free-vs-paid table, Eyes/Ears/Hands
+  value props, FAQ, bottom CTA.
+- **`server.json` (root) + `packages/mcp-server/server.json`** — `GATETEST_API_KEY`
+  added to `environmentVariables` (isRequired: false, isSecret: true).
+  `packages/mcp-server/server.json` also expanded to include all Sentry/Datadog/
+  Rollbar env vars (was missing them).
+- **`tests/mcp-payment-gate.test.js`** — 12 unit tests: key format, cache TTL,
+  cache fallback, gate firing, free tools bypass, store idempotency. 12/12 pass.
 
 **v1.55.0 changes (2026-07-01 evening — 6-item security/quality/product
 sweep):**

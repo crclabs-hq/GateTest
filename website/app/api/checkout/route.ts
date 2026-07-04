@@ -96,6 +96,17 @@ const TIERS: Record<string, ScanTier> = {
       "Scan every push. Unlimited deterministic scans across all 110 modules, plus a monthly Claude AI-review allowance. Cancel anytime.",
     recurring: true,
   },
+  // MCP subscription — $29/mo. Key-based (no repo URL). Unlocks premium
+  // Eyes/Ears/Hands tools in the Claude MCP integration. Key delivered by
+  // email immediately after checkout. Craig-authorized 2026-07-04.
+  mcp: {
+    name: "GateTest MCP",
+    priceInCents: 2900,
+    modules: "subscription-mcp",
+    description:
+      "Full MCP server access — 120-module scans, AI fix, Eyes (screenshot), Ears (production errors), Hands (verify_fix). API key delivered by email instantly. Cancel anytime.",
+    recurring: true,
+  },
 };
 
 function stripeRequest(
@@ -176,16 +187,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Accept gluecron.com URLs first, fall back to github.com during the
-  // dual-host migration window. Either host's URL shape is valid.
-  if (
-    !input.repoUrl ||
-    !(input.repoUrl.includes("github.com") || input.repoUrl.includes("gluecron.com"))
-  ) {
-    return NextResponse.json(
-      { error: "A valid GitHub or Gluecron repository URL is required" },
-      { status: 400 }
-    );
+  // MCP tier is key-based — no repo URL required. All other tiers need one.
+  if (input.tier !== "mcp") {
+    if (
+      !input.repoUrl ||
+      !(input.repoUrl.includes("github.com") || input.repoUrl.includes("gluecron.com"))
+    ) {
+      return NextResponse.json(
+        { error: "A valid GitHub or Gluecron repository URL is required" },
+        { status: 400 }
+      );
+    }
   }
 
   try {
@@ -204,10 +216,10 @@ export async function POST(req: NextRequest) {
           "payment_method_types[0]": "card",
           mode: "subscription",
           "metadata[tier]": input.tier || "",
-          "metadata[repo_url]": input.repoUrl,
+          "metadata[repo_url]": input.repoUrl || "",
           "metadata[modules]": tier.modules,
           "subscription_data[metadata][tier]": input.tier || "",
-          "subscription_data[metadata][repo_url]": input.repoUrl,
+          "subscription_data[metadata][repo_url]": input.repoUrl || "",
           "line_items[0][price_data][currency]": "usd",
           "line_items[0][price_data][unit_amount]": String(tier.priceInCents),
           "line_items[0][price_data][recurring][interval]": "month",
@@ -221,10 +233,10 @@ export async function POST(req: NextRequest) {
           "payment_method_types[0]": "card",
           mode: "payment",
           "payment_intent_data[metadata][tier]": input.tier || "",
-          "payment_intent_data[metadata][repo_url]": input.repoUrl,
+          "payment_intent_data[metadata][repo_url]": input.repoUrl || "",
           "payment_intent_data[metadata][modules]": tier.modules,
           "metadata[tier]": input.tier || "",
-          "metadata[repo_url]": input.repoUrl,
+          "metadata[repo_url]": input.repoUrl || "",
           "metadata[modules]": tier.modules,
           "line_items[0][price_data][currency]": "usd",
           "line_items[0][price_data][unit_amount]": String(tier.priceInCents),
