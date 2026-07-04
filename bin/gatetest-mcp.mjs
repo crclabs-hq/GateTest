@@ -87,9 +87,11 @@ const TOOLS = [
     name: 'scan_local',
     description:
       'Scan a local directory with GateTest\'s 120-module engine. ' +
-      'Returns issues found across security, reliability, code quality, ' +
-      'and more. Use suite="quick" for the 4 core modules or suite="full" ' +
-      'for all 120 modules. Optionally pass a list of specific module names.',
+      'Use before opening a PR, after landing changes, or whenever you\'re unsure if code is safe. ' +
+      'Returns issues across security, reliability, code quality, and more. ' +
+      'suite="quick" for the 4 core modules (seconds, no API key); suite="full" for all 120 modules. ' +
+      'After editing, call verify_fix on changed files for a scoped verdict, ' +
+      'and capture_screenshot to see the rendered result.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -155,8 +157,9 @@ const TOOLS = [
   {
     name: 'fix_issue',
     description:
-      'Apply an AI-generated fix to a single finding in a file. Reads the file, ' +
-      'sends the relevant slice + the finding to Claude, and writes the fix in place. ' +
+      'AI-generated fix for a single finding. Call this after scan_local or run_module identifies a specific error. ' +
+      'Reads the file, sends the relevant slice + the finding to Claude, and writes the fix in place. ' +
+      'Then call verify_fix to confirm it worked — never assume a fix is correct without verifying. ' +
       'When `line` is supplied the fix runs in surgical mode (±20-line window); ' +
       'otherwise whole-file mode with a mutation guard. Requires ANTHROPIC_API_KEY.',
     inputSchema: {
@@ -339,12 +342,15 @@ const TOOLS = [
   {
     name: 'verify_fix',
     description:
-      'After editing code, verify the fix actually worked: selects the modules relevant ' +
-      'to the changed files (smart suite selection), re-runs them in-process, and returns ' +
-      'a pass/fail verdict scoped to those files plus any remaining findings. ' +
-      '✅ FIX VERIFIED means zero error-severity findings remain on the changed files. ' +
+      'Prove your fix actually worked — the only way to be sure. ' +
+      'Call this after every code edit. Selects the modules relevant to the changed files ' +
+      '(smart suite selection), re-runs them in-process, and returns a hard pass/fail verdict ' +
+      'scoped to those files. ' +
+      '✅ FIX VERIFIED = zero error-severity findings remain on your changed files. ' +
+      '❌ NOT VERIFIED = shows exactly what is still broken so you can iterate. ' +
       'Pass "files" explicitly with your edited paths for the most precise verdict; ' +
-      'without it, changed files are detected from git (staged → last commit → working tree).',
+      'without it, changed files are detected from git (staged → last commit → working tree). ' +
+      'Always call this after fix_issue — never assume a fix is correct without it.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -363,12 +369,12 @@ const TOOLS = [
   {
     name: 'capture_screenshot',
     description:
-      'Take a screenshot of a live URL and return it as an actual image you can SEE — ' +
-      'your eyes on the rendered page. Use after editing UI code to look at what you ' +
-      'built, or before editing to see the current state. Defaults to a 1280×900 ' +
-      'viewport JPEG (payload-safe); pass fullPage:true for the whole page (will be ' +
-      'downscaled/recompressed if large). Requires Playwright + Chromium locally; ' +
-      'degrades to an explanatory message when unavailable.',
+      'Your eyes on the rendered page — screenshot a live URL and return it as an actual image you can SEE. ' +
+      'Use after editing UI code ("what did I build?"), before editing ("what does it look like now?"), ' +
+      'or to verify a visual fix worked. Works with localhost (e.g. http://localhost:3000). ' +
+      'Defaults to a 1280×900 viewport JPEG (payload-safe); pass fullPage:true for the full scroll height. ' +
+      'Pass width:390 for mobile viewport. ' +
+      'Requires Playwright + Chromium locally; degrades to an explanatory message when unavailable.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -416,13 +422,12 @@ const TOOLS = [
   {
     name: 'run_live_checks',
     description:
-      'Run the runtime-triad against a live URL — the AI\'s ears on the running app: ' +
-      'runtimeErrors (uncaught JS errors, console errors, failed requests, CSP violations, ' +
-      'hydration mismatches), consoleErrors (site-wide crawl, fingerprinted + deduped), and ' +
-      'apiHealth (probes discoverable API endpoints for 5xx/404/wrong-content-type/slow). ' +
-      'Use after editing code and deploying locally, or before editing to hear what\'s ' +
-      'already failing. Browser-based modules skip gracefully without Chromium — the ' +
-      'result says explicitly which ears were available.',
+      'Your ears on the running app — run the runtime triad against any live URL, including http://localhost:3000. ' +
+      'runtimeErrors: uncaught JS errors, console errors, failed requests, CSP violations, hydration mismatches. ' +
+      'consoleErrors: site-wide crawl across all pages, fingerprinted and deduped so repeated errors collapse to one finding. ' +
+      'apiHealth: probes discoverable API endpoints for 5xx, 404, wrong content-type, and slow responses. ' +
+      'Use after deploying locally to hear what\'s failing before you push, or against production to confirm a deploy is clean. ' +
+      'Browser-based modules skip gracefully without Chromium — the result says explicitly which ears were available.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -439,11 +444,12 @@ const TOOLS = [
   {
     name: 'get_production_errors',
     description:
-      'Pull the top errors real users are hitting in production from configured ' +
-      'observability vendors (Sentry / Datadog / Rollbar) with file:line locations — ' +
-      'so you can fix what production says is broken, first. Reads credentials from ' +
-      'environment variables (SENTRY_AUTH_TOKEN+SENTRY_ORG+SENTRY_PROJECT, ' +
-      'DATADOG_API_KEY+DATADOG_APP_KEY, ROLLBAR_READ_TOKEN); returns setup ' +
+      'Call this FIRST before deciding what to fix. Pulls the top errors real users are hitting ' +
+      'in production from Sentry / Datadog / Rollbar with exact file:line locations — ' +
+      'so you fix what production says is broken, not just the most recently edited file. ' +
+      'Returns a ranked list: error message, file:line, occurrence count, and a fix-first tip. ' +
+      'Reads credentials from environment variables (SENTRY_AUTH_TOKEN+SENTRY_ORG+SENTRY_PROJECT, ' +
+      'DATADOG_API_KEY+DATADOG_APP_KEY, ROLLBAR_READ_TOKEN); returns 30-second setup ' +
       'instructions when none are configured.',
     inputSchema: {
       type: 'object',
@@ -597,11 +603,23 @@ async function handleCheckHealth() {
       content: [{
         type: 'text',
         text:
-          `## GateTest Health\n\n✅ **Operational**\n\n` +
-          `- Engine: GateTest v1.55.0\n` +
+          `## GateTest MCP — v1.55.0 ✅ Operational\n\n` +
           `- Modules loaded: ${moduleNames.length}\n` +
           `- Transport: stdio\n` +
-          `- Anthropic API key: ${hasAnthropic ? '✅ present (fix_issue, explain_finding available)' : '⚠️ missing (fix_issue, explain_finding will return an error)'}`,
+          `- Anthropic API key: ${hasAnthropic ? '✅ present (fix_issue, explain_finding available)' : '⚠️ missing (fix_issue, explain_finding will return an error)'}\n\n` +
+          `## Agent Workflow\n\n` +
+          `**Before fixing anything — hear what prod says is broken:**\n` +
+          `→ \`get_production_errors\` — real users, real file:line, occurrence count\n\n` +
+          `**Static analysis (before opening a PR):**\n` +
+          `→ \`scan_local\` → \`fix_issue\` → \`verify_fix\`\n\n` +
+          `**After every code edit — prove it worked:**\n` +
+          `→ \`verify_fix { path, files: ["src/changed.ts"] }\`\n\n` +
+          `**After every UI change — see what you built:**\n` +
+          `→ \`capture_screenshot { url: "http://localhost:3000", width: 390 }\`\n\n` +
+          `**After deploying locally — hear what's failing:**\n` +
+          `→ \`run_live_checks { url: "http://localhost:3000" }\`\n\n` +
+          `**Production incident:**\n` +
+          `→ \`get_production_errors\` → \`scan_local\` → \`fix_issue\` → \`verify_fix\` → \`capture_screenshot\``,
       }],
     };
   } catch (err) {
@@ -1530,7 +1548,7 @@ async function handleGetReport() {
 // ---------------------------------------------------------------------------
 
 const server = new Server(
-  { name: 'gatetest', version: '1.0.0' },
+  { name: 'gatetest', version: '1.55.0' },
   { capabilities: { tools: {} } }
 );
 

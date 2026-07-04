@@ -7,7 +7,8 @@
  *   2. Hero  — live URL scan, "One gate. 110 modules. Self-healing CI."
  *   3. HomeKills  — what 12 tools we replace, with flip tiles + full table
  *   4. HomeFlywheel — 4-layer fix flow (AST -> Rule -> Recipe -> Claude)
- *   5. HomeSelfScan — "GREEN" trust badge with module list
+ *   5. HomeEyesEarsHands — MCP tools: Eyes/Ears/Hands for AI agents
+ *   6. HomeSelfScan — "GREEN" trust badge with module list
  *   6. HomeCode — install snippets (npx, GitHub Action, CLI cheat-sheet)
  *   7. Pricing — 4 tiers + Continuous subscription card
  *   8. HomeFaq — HN-skeptic FAQ
@@ -28,6 +29,7 @@ import Hero from "./components/Hero";
 import BeforeAfterDemo from "./components/BeforeAfterDemo";
 import HomeKills from "./components/HomeKills";
 import HomeFlywheel from "./components/HomeFlywheel";
+import HomeEyesEarsHands from "./components/HomeEyesEarsHands";
 import HomeSelfScan from "./components/HomeSelfScan";
 import HomeCode from "./components/HomeCode";
 import Pricing from "./components/Pricing";
@@ -45,6 +47,7 @@ export default function Home() {
         <BeforeAfterDemo />
         <HomeKills />
         <HomeFlywheel />
+        <HomeEyesEarsHands />
         <HomeSelfScan />
         <HomeCode />
         <Pricing />
