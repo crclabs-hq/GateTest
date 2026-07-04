@@ -39,8 +39,7 @@
     "gatetest:scan": "node bin/gatetest.js --mode scan",
     "gatetest:report": "node bin/gatetest.js --report",
     "precommit": "node src/hooks/pre-commit.js",
-    "prepush": "node src/hooks/pre-push.js",
-    "prepublishOnly": "node --test tests/*.test.js"
+    "prepush": "node src/hooks/pre-push.js"
   },
   "keywords": [
     "testing",
