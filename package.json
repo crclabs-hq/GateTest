@@ -1,7 +1,7 @@
 {
   "name": "@gatetest/cli",
   "mcpName": "ai.gatetest.www/gatetest",
-  "version": "1.56.3",
+  "version": "1.56.4",
   "description": "GateTest — 120-module QA gate with MCP. Eyes (screenshot live pages), ears (production errors), hands (verify fixes worked). Security, supply chain, AI safety, mutation testing. Iterative Claude fix loop. Replaces SonarQube + Snyk + ESLint + 10 others.",
   "main": "src/index.js",
   "bin": {
@@ -38,6 +38,8 @@
     "gatetest:links": "node bin/gatetest.js --module links",
     "gatetest:scan": "node bin/gatetest.js --mode scan",
     "gatetest:report": "node bin/gatetest.js --report",
+    "sync-lib": "node -e \"const fs=require('fs');['pr-composer','nuclear-diagnoser','prompt-injection-guard'].forEach(f=>{fs.copyFileSync('website/app/lib/'+f+'.js','lib/'+f+'.js');console.log('synced '+f)})\"",
+    "prepublishOnly": "npm run sync-lib",
     "precommit": "node src/hooks/pre-commit.js",
     "prepush": "node src/hooks/pre-push.js"
   },
