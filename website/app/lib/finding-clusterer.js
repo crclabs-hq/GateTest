@@ -136,6 +136,11 @@ function clusterByFile(issues) {
     let top = 'info';
     if (c.severityCounts.error > 0) top = 'error';
     else if (c.severityCounts.warning > 0) top = 'warning';
+    // 🔥 LIVE: issues the static-runtime correlator matched to real
+    // production errors (Sentry / Datadog / Rollbar). Callers set
+    // `issue.live === true` upstream; absent everywhere → liveCount 0,
+    // which preserves the pre-LIVE ranking exactly.
+    const liveCount = c.issues.filter((i) => i.live === true).length;
     return {
       file: c.file,
       issues: c.issues,
@@ -144,6 +149,8 @@ function clusterByFile(issues) {
       severityCounts: c.severityCounts,
       topSeverity: top,
       isRootCause: isRootCauseFile(c.file),
+      liveCount,
+      hasLive: liveCount > 0,
       _sevRank: SEV_RANK[top],
     };
   });
@@ -153,10 +160,13 @@ function clusterByFile(issues) {
  * Sort clusters so the highest-impact files come first.
  *
  * Priority order:
- *   1. Root-cause files (one fix kills many downstream findings)
- *   2. Top severity (error > warning > info)
- *   3. Issue count descending (more issues in one file = bigger win)
- *   4. File path alphabetical (deterministic tie-break for tests)
+ *   1. 🔥 LIVE clusters (a finding in the file is throwing in production
+ *      RIGHT NOW — deliberately outranks root-cause: a tsconfig flag can
+ *      wait 90 seconds behind the thing failing on real users)
+ *   2. Root-cause files (one fix kills many downstream findings)
+ *   3. Top severity (error > warning > info)
+ *   4. Issue count descending (more issues in one file = bigger win)
+ *   5. File path alphabetical (deterministic tie-break for tests)
  *
  * @param {Array} clusters - output of clusterByFile
  * @returns {Array} same clusters, sorted (mutates input array AND returns it)
@@ -164,6 +174,9 @@ function clusterByFile(issues) {
 function rankClusters(clusters) {
   if (!Array.isArray(clusters)) return [];
   clusters.sort((a, b) => {
+    const aLive = a.hasLive === true;
+    const bLive = b.hasLive === true;
+    if (aLive !== bLive) return aLive ? -1 : 1;
     if (a.isRootCause !== b.isRootCause) return a.isRootCause ? -1 : 1;
     if (a._sevRank !== b._sevRank) return a._sevRank - b._sevRank;
     if (a.count !== b.count) return b.count - a.count;

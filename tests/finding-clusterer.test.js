@@ -263,3 +263,61 @@ test('clusterAndRank — realistic 1000-finding scan collapses to handful of clu
   assert.equal(result.clusters[0].file, 'tsconfig.json');
   assert.equal(result.clusters[0].isRootCause, true);
 });
+
+// ── 🔥 LIVE-first ranking (ears→hands feedback) ─────────────────────────────
+
+test('clusterByFile — liveCount/hasLive derived from issue.live flags', () => {
+  const clusters = clusterByFile([
+    { file: 'src/checkout.ts', issue: 'error: unhandled throw', module: 'errorSwallow', live: true },
+    { file: 'src/checkout.ts', issue: 'error: parseFloat on money', module: 'moneyFloat' },
+    { file: 'src/other.ts', issue: 'error: race condition', module: 'raceCondition' },
+  ]);
+  const checkout = clusters.find((c) => c.file === 'src/checkout.ts');
+  const other = clusters.find((c) => c.file === 'src/other.ts');
+  assert.equal(checkout.liveCount, 1);
+  assert.equal(checkout.hasLive, true);
+  assert.equal(other.liveCount, 0);
+  assert.equal(other.hasLive, false);
+});
+
+test('rankClusters — a LIVE warning-only cluster outranks a non-live root-cause error cluster', () => {
+  const clusters = clusterByFile([
+    { file: 'tsconfig.json', issue: 'error: strict mode disabled', module: 'tsStrict' },
+    { file: 'src/api/pay.ts', issue: 'warning: consider retry backoff', module: 'retryHygiene', live: true },
+  ]);
+  rankClusters(clusters);
+  assert.equal(clusters[0].file, 'src/api/pay.ts', 'LIVE cluster must rank first');
+  assert.equal(clusters[0].hasLive, true);
+  assert.equal(clusters[1].isRootCause, true);
+});
+
+test('rankClusters — live flag survives clusterAndRank → applyFixCap pass-through', () => {
+  const { applyFixCap } = require('../website/app/lib/fix-cap.js');
+  const issues = [
+    { file: 'src/live-bug.ts', issue: 'error: throws on null user', module: 'errorSwallow', live: true },
+    { file: 'src/quiet-bug.ts', issue: 'error: hardcoded secret', module: 'secrets' },
+  ];
+  const result = clusterAndRank(issues, { includeWarnings: true });
+  const capResult = applyFixCap(result.clusters, 'full');
+  assert.equal(capResult.toFix[0].file, 'src/live-bug.ts');
+  assert.equal(capResult.toFix[0].hasLive, true, 'hasLive must survive applyFixCap');
+});
+
+test('rankClusters — ZERO-REGRESSION: order without live flags is identical to the pre-LIVE ranking', () => {
+  const issues = [
+    { file: 'src/zeta.ts', issue: 'error: injection risk', module: 'ssrf' },
+    { file: 'src/alpha.ts', issue: 'error: injection risk', module: 'ssrf' },
+    { file: 'tsconfig.json', issue: 'error: strict disabled', module: 'tsStrict' },
+    { file: 'src/many.ts', issue: 'error: leak', module: 'resourceLeak' },
+    { file: 'src/many.ts', issue: 'error: leak again', module: 'resourceLeak' },
+    { file: 'src/warn-only.ts', issue: 'warning: consider backoff', module: 'retryHygiene' },
+  ];
+  const result = clusterAndRank(issues, { includeWarnings: true });
+  // Pre-LIVE expected order: root-cause first, then errors by count desc,
+  // alphabetical tie-break, warnings last.
+  assert.deepEqual(
+    result.clusters.map((c) => c.file),
+    ['tsconfig.json', 'src/many.ts', 'src/alpha.ts', 'src/zeta.ts', 'src/warn-only.ts'],
+  );
+  assert.ok(result.clusters.every((c) => c.hasLive === false));
+});

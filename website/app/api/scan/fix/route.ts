@@ -421,17 +421,19 @@ const { extractConventions, formatGroundingHeader, summariseGrounding } = requir
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { clusterAndRank } = require("@/app/lib/finding-clusterer") as {
   clusterAndRank: (
-    issues: Array<{ file: string; issue: string; module: string; line?: number }>,
+    issues: Array<{ file: string; issue: string; module: string; line?: number; live?: boolean }>,
     opts?: { includeWarnings?: boolean }
   ) => {
     clusters: Array<{
       file: string;
-      issues: Array<{ file: string; issue: string; module: string; line?: number }>;
+      issues: Array<{ file: string; issue: string; module: string; line?: number; live?: boolean }>;
       count: number;
       modules: string[];
       severityCounts: { error: number; warning: number; info: number };
       topSeverity: 'error' | 'warning' | 'info';
       isRootCause: boolean;
+      liveCount: number;
+      hasLive: boolean;
     }>;
     advisory: { warnings: Array<unknown>; info: Array<unknown> };
     totalIssuesIn: number;
@@ -443,29 +445,35 @@ const { applyFixCap, clustersToIssues, renderAdvisorySection } = require("@/app/
   applyFixCap: (
     clusters: Array<{
       file: string;
-      issues: Array<{ file: string; issue: string; module: string; line?: number }>;
+      issues: Array<{ file: string; issue: string; module: string; line?: number; live?: boolean }>;
       count: number;
       topSeverity: string;
       isRootCause: boolean;
       modules: string[];
+      liveCount?: number;
+      hasLive?: boolean;
     }>,
     tier: string
   ) => {
     toFix: Array<{
       file: string;
-      issues: Array<{ file: string; issue: string; module: string; line?: number }>;
+      issues: Array<{ file: string; issue: string; module: string; line?: number; live?: boolean }>;
       count: number;
       topSeverity: string;
       modules: string[];
       isRootCause: boolean;
+      liveCount?: number;
+      hasLive?: boolean;
     }>;
     advisory: Array<{
       file: string;
-      issues: Array<{ file: string; issue: string; module: string; line?: number }>;
+      issues: Array<{ file: string; issue: string; module: string; line?: number; live?: boolean }>;
       count: number;
       topSeverity: string;
       modules: string[];
       isRootCause: boolean;
+      liveCount?: number;
+      hasLive?: boolean;
     }>;
     cap: number;
     tier: string;
@@ -890,6 +898,21 @@ interface IssueInput {
   // forwarded here. Issues with `line` go through surgical-fix mode; issues
   // without fall back to whole-file mode with the mutation guard.
   line?: number;
+  // 🔥 LIVE: set by callers that already ran the static-runtime correlator
+  // (or by this route when `runtimeEvents` is supplied). Live issues bubble
+  // their cluster to the FRONT of the fix queue — GateTest fixes what
+  // production says is broken, first.
+  live?: boolean;
+}
+
+// Production runtime events (Sentry / Datadog / Rollbar / Vercel shapes as
+// normalised by the clients in app/lib). When supplied, findings are
+// correlated pre-clustering and matching ones are flagged `live`.
+interface RuntimeEventInput {
+  sourceLocation: { file: string; line: number } | null;
+  message?: string;
+  service?: string;
+  timestamp?: string;
 }
 
 // Phase 1.2b — optional callers can pass the pre-fix workspace and the
@@ -906,6 +929,7 @@ export async function POST(req: NextRequest) {
   let input: {
     repoUrl?: string;
     issues?: IssueInput[];
+    runtimeEvents?: RuntimeEventInput[];
     originalFileContents?: OriginalFileInput[];
     originalFindingsByModule?: Record<string, string[]>;
     tier?: string;
@@ -949,6 +973,51 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "AI not configured (ANTHROPIC_API_KEY)" }, { status: 503 });
   }
 
+  // 🔥 LIVE correlation — when the caller supplies production runtime
+  // events (Sentry / Datadog / Rollbar), correlate them against the
+  // findings BEFORE clustering so live clusters rank first in the fix
+  // queue. The correlator returns a re-SORTED copy, so live flags are
+  // captured via a keyed map (file:line:issue) — never by index.
+  // Callers may also pass pre-flagged `issue.live` directly; both paths
+  // merge. Best-effort: correlation failure never blocks the fix flow.
+  let liveCorrelation: { liveCount: number; findings: Array<Record<string, unknown>> } | null = null;
+  let issuesForClustering: IssueInput[] = rawIssues;
+  if (Array.isArray(input.runtimeEvents) && input.runtimeEvents.length > 0) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { correlateFindingsWithRuntime } = require("@/app/lib/static-runtime-correlator") as {
+        correlateFindingsWithRuntime: (opts: {
+          findings: Array<{ file: string; line: number; severity: string; detail: string }>;
+          datadogErrors: RuntimeEventInput[];
+        }) => { findings: Array<{ file: string; line: number; detail: string; live: boolean }>; liveCount: number };
+      };
+      const corr = correlateFindingsWithRuntime({
+        findings: rawIssues.map((i) => ({
+          file: i.file,
+          line: i.line || 0,
+          severity: "error",
+          detail: i.issue,
+        })),
+        datadogErrors: input.runtimeEvents,
+      });
+      const liveKeys = new Set(
+        corr.findings
+          .filter((f) => f.live)
+          .map((f) => `${f.file}::${f.line || 0}::${f.detail}`),
+      );
+      issuesForClustering = rawIssues.map((i) => ({
+        ...i,
+        live: i.live === true || liveKeys.has(`${i.file}::${i.line || 0}::${i.issue}`),
+      }));
+      liveCorrelation = {
+        liveCount: corr.findings.filter((f) => f.live).length,
+        findings: corr.findings as unknown as Array<Record<string, unknown>>,
+      };
+    } catch (err) {
+      console.error("[scan/fix] LIVE correlation failed (non-blocking):", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   // Cluster + cap. Collapses noisy multi-file fan-out (e.g. one tsconfig
   // strict-false flag → 200 implicit-any findings across 50 files) into
   // a ranked list of per-file fixes, then trims to the tier's budget.
@@ -956,7 +1025,7 @@ export async function POST(req: NextRequest) {
   // (which is typically "scanned 42 files" chatter). Anything trimmed
   // by the cap surfaces in the PR comment as advisory.
   const tierForCap = input.tier || "full";
-  const clusterResult = clusterAndRank(rawIssues, { includeWarnings: true });
+  const clusterResult = clusterAndRank(issuesForClustering, { includeWarnings: true });
   const capResult = applyFixCap(clusterResult.clusters, tierForCap);
   const advisoryMarkdown = renderAdvisorySection(capResult);
   const issues = clustersToIssues(capResult.toFix);
@@ -1938,11 +2007,29 @@ export async function POST(req: NextRequest) {
     };
     const priorArtSection = renderPriorArtSection(annotateFixesWithPriorArt(fixes));
 
+    // 🔥 LIVE section — when production runtime events were correlated and
+    // matched, lead the PR with them: these fixes address errors real users
+    // are hitting right now. renderLiveBadgeSection returns '' when nothing
+    // is live. Wired here for the first time (was dead code since Phase 6.2).
+    let liveSection = "";
+    if (liveCorrelation && liveCorrelation.liveCount > 0) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { renderLiveBadgeSection } = require("@/app/lib/static-runtime-correlator") as {
+          renderLiveBadgeSection: (result: { findings: Array<Record<string, unknown>> }) => string;
+        };
+        liveSection = renderLiveBadgeSection({ findings: liveCorrelation.findings });
+      } catch {
+        // Non-blocking — PR ships without the live section.
+      }
+    }
+
     // Append the advisory section (files the tier cap couldn't cover)
     // so customers see what was left on the table without paying for it.
-    let prBody = advisoryMarkdown
-      ? `${prBodyCore}\n\n---\n\n${advisoryMarkdown}`
+    let prBody = liveSection
+      ? `${liveSection}\n\n---\n\n${prBodyCore}`
       : prBodyCore;
+    if (advisoryMarkdown) prBody = `${prBody}\n\n---\n\n${advisoryMarkdown}`;
     if (priorArtSection) prBody = `${prBody}\n\n---\n\n${priorArtSection}`;
 
     // Open the PR. NOTE: Gluecron uses `headBranch` / `baseBranch` (NOT
@@ -2133,6 +2220,12 @@ export async function POST(req: NextRequest) {
         tier: tierForCap,
         cap: capResult.cap,
       },
+      livePriority: liveCorrelation
+        ? {
+            liveIssuesIn: liveCorrelation.liveCount,
+            liveClustersFixedFirst: capResult.toFix.filter((c) => c.hasLive === true).length,
+          }
+        : { skipped: true, reason: "no runtimeEvents supplied — pass production errors (Sentry/Datadog/Rollbar shapes) to prioritise live findings" },
       syntaxGate: { accepted: syntaxGate.accepted.length, rejected: syntaxGate.rejected.length, summary: syntaxGateSummary },
       scannerGate: scannerGateSummary
         ? { rolledBack: scannerGateRolledBack, summary: scannerGateSummary }
