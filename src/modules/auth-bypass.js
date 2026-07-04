@@ -174,23 +174,31 @@ class AuthBypassDetector extends BaseModule {
       const lines = content.split('\n');
       const issues = this._findUnauthenticatedRoutes(file, rel, content, lines);
 
-      for (const issue of issues) {
-        unprotected++;
-        result.addCheck(`auth-bypass:${rel}:${issue.route}`, false, {
-          severity: 'error',
-          message: `Unprotected route \`${issue.method.toUpperCase()} ${issue.route}\` — no auth check found`,
-          file: rel,
-          line: issue.line,
-          fix: `Add authentication middleware before this handler, e.g. \`router.${issue.method}('${issue.route}', requireAuth, handler)\` or check \`req.user\` / \`getServerSession()\` at the top of the function body.`,
-          autoFix: makeAutoFix(
-            file,
-            'auth-bypass',
-            `Route ${issue.method.toUpperCase()} ${issue.route} has no authentication check`,
-            issue.line,
-            `Add requireAuth middleware or session check to ${rel}`
-          ),
-        });
-      }
+      if (issues.length === 0) continue;
+      unprotected += issues.length;
+
+      // Group all unprotected routes in this file into ONE finding to avoid
+      // 252-finding spam when a whole router file lacks auth middleware.
+      const routeList = issues
+        .slice(0, 10)
+        .map((i) => `\`${i.method.toUpperCase()} ${i.route}\` (line ${i.line})`)
+        .join(', ');
+      const extra = issues.length > 10 ? ` + ${issues.length - 10} more` : '';
+      result.addCheck(`auth-bypass:${rel}`, false, {
+        severity: 'error',
+        message: `${issues.length} unprotected route${issues.length !== 1 ? 's' : ''} in \`${rel}\`: ${routeList}${extra}`,
+        file: rel,
+        line: issues[0].line,
+        details: issues.map((i) => ({ method: i.method.toUpperCase(), route: i.route, line: i.line })),
+        fix: `Add authentication middleware at the router level (e.g. \`router.use(requireAuth)\`) or add \`getServerSession()\` / \`req.user\` checks to each handler. Mark intentionally public routes with \`// auth-public\`.`,
+        autoFix: makeAutoFix(
+          file,
+          'auth-bypass',
+          `${issues.length} routes in ${rel} have no authentication check`,
+          issues[0].line,
+          `Add requireAuth middleware or session check to routes in ${rel}`
+        ),
+      });
     }
 
     if (routeFiles === 0) {
