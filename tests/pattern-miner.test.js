@@ -211,6 +211,7 @@ describe('pattern-miner — mine (end-to-end)', () => {
     const report = await PM.mine({
       sessionFixPath: '/tmp/__not_here_session.jsonl',
       fixAttemptPath: '/tmp/__not_here_fixattempts.jsonl',
+      mcpTelemetryPath: '/tmp/__not_here_mcp_telemetry.jsonl', // ensure no real telemetry file is read
     });
     assert.strictEqual(report.inputs.sessionFixCount, 0);
     assert.strictEqual(report.inputs.fixAttemptCount, 0);
