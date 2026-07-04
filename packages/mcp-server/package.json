@@ -1,6 +1,6 @@
 {
   "name": "@gatetest/mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "mcpName": "io.github.ccantynz-alt/gatetest",
   "description": "Give Claude eyes (screenshot live pages), ears (Sentry/Datadog/Rollbar errors + runtime checks), and hands (verify fixes worked). 18 tools, 120-module engine. Scan, fix, screenshot, and prove the fix worked — all inside your AI assistant.",
   "type": "module",
@@ -54,6 +54,6 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "gatetest": "^1.42.0"
+    "@gatetest/cli": "^1.56.0"
   }
 }
