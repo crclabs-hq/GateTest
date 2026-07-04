@@ -75,8 +75,8 @@ const {
 } = require('../src/core/visual-diff-engine.js');
 const { extractDiffRegions } = require('../src/core/visual-facts.js');
 const { fetchProductionErrors, resolveSourcesFromEnv } = require('../src/core/production-errors.js');
-const { composePrBody } = require('../website/app/lib/pr-composer.js');
-const { diagnoseFinding } = require('../website/app/lib/nuclear-diagnoser.js');
+const { composePrBody } = require('../lib/pr-composer.js');
+const { diagnoseFinding } = require('../lib/nuclear-diagnoser.js');
 
 // ---------------------------------------------------------------------------
 // MCP Subscription Gate — $29/mo at gatetest.ai/mcp
