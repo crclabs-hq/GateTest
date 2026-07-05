@@ -1227,6 +1227,59 @@ delivered by email after Stripe checkout. Pricing UI (`Pricing.tsx`),
 checkout backend, and webhook handler all reflect the new tier.
 Date stamp last fully reconciled: 2026-07-04.
 
+**v1.57.0 changes (2026-07-05 — MCP/CLI root-cause tools: source-map
+trace resolution + git regression blame):**
+- Craig's directive: make debugging smarter for any codebase, and make
+  sure it's built INTO the MCP (not the scan/fix module engine) so it
+  never cross-contaminates the paid scan+fix pipeline, and ALSO works
+  from the CLI so both surfaces share one engine.
+- **`src/core/source-map-resolver.js`** — zero-dependency Source Map V3
+  decoder (hand-rolled Base64 VLQ, no `source-map` npm package). Resolves
+  a minified/bundled stack-trace location (`dist/app.js:1:48213`) back to
+  the original file:line:column (`src/Foo.tsx:42:7`) via an inline `data:`
+  URI or a sibling `.map` file. Parses V8 (`at fn (file:line:col)`) and
+  Firefox/Safari (`fn@file:line:col`) stack-frame shapes; frames with no
+  reachable map are reported honestly as unresolved, never guessed.
+  46 unit tests in `tests/source-map-resolver.test.js`.
+- **`src/core/regression-bisector.js`** — read-only git blame/log helpers.
+  `blameLine`/`blameRange` parse porcelain `git blame` output (single-
+  and multi-commit-per-range); `showCommit` fetches a commit's message +
+  capped diff; `findLikelyRegressionCommit` ranks candidate commits
+  across several `{file, line}` hits (e.g. every frame of a resolved
+  stack trace) by how many hits they explain. Deliberately never calls
+  `git bisect`/`git checkout` — nothing here mutates the working tree.
+  17 unit tests in `tests/regression-bisector.test.js`.
+- **Two new MCP tools** (`bin/gatetest-mcp.mjs`): `resolve_stack_trace`
+  and `blame_regression`, both gated behind the $29/mo MCP subscription
+  (added to `GATED_TOOLS`). Tool count 18 → 20; `tests/mcp-server.test.js`
+  drift-tripwire updated; `tests/mcp-debug-tools.test.js` covers both
+  handlers end-to-end against real fixtures (a real bundle+map pair, a
+  real git repo).
+- **Two new CLI subcommands** (`gatetest trace`, `gatetest blame`) at
+  `bin/gatetest-trace.js` / `bin/gatetest-blame.js`, routed in
+  `bin/gatetest.js` alongside `sweep`/`replay`/`train`/`fix`. Both call
+  the exact same core engines as the MCP tools — one implementation, two
+  entry points, so an MCP-connected agent and a CI script calling the
+  CLI directly get identical answers. `tests/gatetest-trace-cli.test.js`
+  + `tests/gatetest-blame-cli.test.js` cover the CLI wiring.
+- **No cross-contamination**: both engines live in `src/core/`, not
+  `src/modules/` — neither is registered in `src/core/registry.js` or
+  any suite in `src/core/config.js`. Module count stays at 120; the paid
+  scan+fix engine (`website/app/api/scan/fix/route.ts`, the fix-attempt
+  loop, the pair-review/architecture-annotator machinery) is untouched.
+  This is the first entry in a longer "make Claude smarter at debugging
+  any codebase" list Craig asked for — see the reasoning traded in this
+  session for the remaining 8 ideas (CDP breakpoint state capture,
+  visual-diff-to-DOM-to-source mapping, cross-signal incident
+  correlation, element-level DOM/style diffing, HAR capture tied to
+  errors, minimal auto-repro scripts, sandboxed re-execution loop,
+  parallel hypothesis debugging) — pick up the next one from there.
+- Doc surfaces updated for the 18→20 tool count: `README.md` (new
+  "🔬 Root Cause" family row + a `gatetest trace`/`gatetest blame`
+  usage section), `packages/mcp-server/package.json` + `server.json`
+  description, `packages/mcp-server/README.md` (new tools table +
+  section), `website/app/lib/digest-mailer.js` (MCP API-key email copy).
+
 **v1.56.0 changes (2026-07-04 — MCP payment gate, $29/mo tier):**
 - **`website/app/lib/mcp-subscription-store.js`** — new store for the MCP
   subscription tier. `generateApiKey()` (`gtmcp_<64hex>`, 70 chars),

@@ -5,8 +5,9 @@
 - **Eyes** — `capture_screenshot` returns a real image of the rendered page. Claude sees nav, layout, broken CTAs, tiny fonts. Works with `localhost`.
 - **Ears** — `get_production_errors` pulls file:line from Sentry/Datadog/Rollbar. `run_live_checks` hears JS errors, CSP violations, API timeouts on any live URL.
 - **Hands** — `verify_fix` re-runs the gate on exactly the files you edited and returns a hard ✅/❌. No more "I think that fixed it."
+- **Root Cause** — `resolve_stack_trace` turns a minified bundle location into the original file:line via source maps. `blame_regression` finds which git commit introduced a specific line — read-only, never checks out or mutates the working tree.
 
-18 tools. 120-module engine. Stdio transport — no account, no webhook, no infra.
+20 tools. 120-module engine. Stdio transport — no account, no webhook, no infra.
 
 ## Install in 1 command
 
@@ -78,6 +79,16 @@ Works with Claude Code, Cursor, Windsurf, Continue, Cline, and any MCP-compatibl
 | Tool | When to use |
 |------|-------------|
 | `verify_fix` | After every code edit — hard ✅ FIX VERIFIED or ❌ NOT VERIFIED |
+
+### 🔬 ROOT CAUSE — know exactly what broke and why
+
+| Tool | When to use |
+|------|-------------|
+| `resolve_stack_trace` | Paste a minified/bundled Error.stack — get back the original TS/JSX file:line via source maps |
+| `blame_regression` | Find which git commit introduced a specific file:line (or rank candidates across several hits) — read-only |
+
+Both are also CLI subcommands (`gatetest trace`, `gatetest blame`) backed by
+the exact same engine — use them by hand or let Claude call them mid-fix-loop.
 
 ## Agent workflow
 
