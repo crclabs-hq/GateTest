@@ -75,6 +75,99 @@ describe('db-client safety gate', () => {
   test('comment-wrapped mutation is still blocked', () => {
     assert.throws(() => assertReadOnly('/* innocent */ INSERT INTO x VALUES (1)'), /blocked/i);
   });
+
+  test('multi-statement query is blocked (SELECT + DROP)', () => {
+    assert.throws(() => assertReadOnly('SELECT 1; DROP TABLE users'), /multi-statement|blocked/i);
+  });
+
+  test('multi-statement query is blocked (SELECT + INSERT)', () => {
+    assert.throws(() => assertReadOnly("SELECT * FROM t; INSERT INTO t VALUES (1,'x')"), /multi-statement|blocked/i);
+  });
+
+  test('trailing semicolon alone does not block', () => {
+    // Trailing semicolons are stripped before the check
+    assert.doesNotThrow(() => assertReadOnly('SELECT 1;'));
+  });
+
+  test('MongoDB .insertOne() is blocked', () => {
+    assert.throws(() => assertReadOnly("users.insertOne({name:'evil'})"), /blocked/i);
+  });
+
+  test('MongoDB .updateOne() is blocked', () => {
+    assert.throws(() => assertReadOnly('users.updateOne({id:1},{$set:{x:2}})'), /blocked/i);
+  });
+
+  test('MongoDB .deleteOne() is blocked', () => {
+    assert.throws(() => assertReadOnly('users.deleteOne({id:1})'), /blocked/i);
+  });
+
+  test('MongoDB .drop() is blocked', () => {
+    assert.throws(() => assertReadOnly('users.drop()'), /blocked/i);
+  });
+
+  test('MongoDB .dropIndexes() is blocked', () => {
+    assert.throws(() => assertReadOnly('users.dropIndexes()'), /blocked/i);
+  });
+
+  test('MongoDB dropDatabase() is blocked', () => {
+    assert.throws(() => assertReadOnly('dropDatabase()'), /blocked/i);
+  });
+
+  test('MongoDB .find() passes assertReadOnly', () => {
+    assert.doesNotThrow(() => assertReadOnly('users.find({active:true}).limit(10)'));
+  });
+});
+
+describe('db-client Redis read-only gate', () => {
+  const { assertRedisReadOnly } = require('../src/core/db-client.js');
+
+  test('assertRedisReadOnly is exported', () => {
+    assert.strictEqual(typeof assertRedisReadOnly, 'function');
+  });
+
+  test('SET is blocked', () => {
+    assert.throws(() => assertRedisReadOnly('SET mykey myvalue'), /not on the read-only allowlist/i);
+  });
+
+  test('DEL is blocked', () => {
+    assert.throws(() => assertRedisReadOnly('DEL mykey'), /not on the read-only allowlist/i);
+  });
+
+  test('FLUSHALL is blocked', () => {
+    assert.throws(() => assertRedisReadOnly('FLUSHALL'), /not on the read-only allowlist/i);
+  });
+
+  test('FLUSHDB is blocked', () => {
+    assert.throws(() => assertRedisReadOnly('FLUSHDB'), /not on the read-only allowlist/i);
+  });
+
+  test('LPUSH is blocked', () => {
+    assert.throws(() => assertRedisReadOnly('LPUSH mylist value'), /not on the read-only allowlist/i);
+  });
+
+  test('GET passes', () => {
+    assert.doesNotThrow(() => assertRedisReadOnly('GET mykey'));
+  });
+
+  test('HGETALL passes', () => {
+    assert.doesNotThrow(() => assertRedisReadOnly('HGETALL myhash'));
+  });
+
+  test('KEYS passes', () => {
+    assert.doesNotThrow(() => assertRedisReadOnly('KEYS *'));
+  });
+
+  test('SCAN passes', () => {
+    assert.doesNotThrow(() => assertRedisReadOnly('SCAN 0 MATCH * COUNT 100'));
+  });
+
+  test('INFO passes', () => {
+    assert.doesNotThrow(() => assertRedisReadOnly('INFO server'));
+  });
+
+  test('case-insensitive — set is also blocked', () => {
+    assert.throws(() => assertRedisReadOnly('set mykey value'), /not on the read-only allowlist/i);
+  });
 });
 
 describe('db-client dialect detection', () => {

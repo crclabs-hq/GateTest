@@ -21,12 +21,57 @@ const QUERY_TIMEOUT_MS = 30_000;
 // ---------------------------------------------------------------------------
 
 const MUTATION_PATTERN = /^\s*(insert|update|delete|drop|create|alter|truncate|grant|revoke|replace|merge|call|exec|execute)\b/i;
-const ALLOWED_STARTERS = /^\s*(select|with|show|describe|explain|pragma|\\d|\\l|\\dt|\\df|\\di|use)\b/i;
+
+// MongoDB method-style mutations (e.g. collection.insertOne(), collection.drop())
+const MONGO_MUTATION_PATTERN = /\.\s*(insertOne|insertMany|updateOne|updateMany|deleteOne|deleteMany|replaceOne|findOneAndUpdate|findOneAndDelete|findOneAndReplace|bulkWrite|drop|dropIndex|dropIndexes|createIndex|ensureIndex|save|remove|renameCollection)\s*\(/i;
+const MONGO_DB_MUTATION_PATTERN = /\b(dropDatabase|createCollection)\s*\(/i;
+
+// Redis read-only command allowlist
+const REDIS_READ_COMMANDS = new Set([
+  'GET', 'MGET', 'GETEX', 'GETRANGE', 'SUBSTR', 'STRLEN',
+  'HGET', 'HMGET', 'HGETALL', 'HKEYS', 'HVALS', 'HLEN', 'HEXISTS', 'HRANDFIELD',
+  'LRANGE', 'LLEN', 'LINDEX', 'LPOS',
+  'SMEMBERS', 'SCARD', 'SISMEMBER', 'SMISMEMBER', 'SRANDMEMBER', 'SDIFF', 'SINTER', 'SUNION',
+  'ZRANGE', 'ZRANGEBYSCORE', 'ZRANGEBYLEX', 'ZREVRANGE', 'ZREVRANGEBYSCORE', 'ZREVRANGEBYLEX',
+  'ZRANK', 'ZREVRANK', 'ZSCORE', 'ZCARD', 'ZCOUNT', 'ZLEXCOUNT', 'ZMSCORE', 'ZRANDMEMBER',
+  'KEYS', 'SCAN', 'HSCAN', 'SSCAN', 'ZSCAN',
+  'TYPE', 'TTL', 'PTTL', 'EXISTS',
+  'OBJECT', 'DEBUG',
+  'INFO', 'DBSIZE', 'CONFIG', 'CLIENT', 'COMMAND', 'TIME', 'MEMORY', 'LATENCY', 'SLOWLOG',
+  'CLUSTER', 'RANDOMKEY', 'TOUCH', 'DUMP',
+]);
 
 function assertReadOnly(query) {
-  const stripped = query.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '').trim();
+  const stripped = query
+    .replace(/\/\*[\s\S]*?\*\//g, '') // strip /* */ block comments
+    .replace(/--[^\n]*/g, '')          // strip -- line comments
+    .replace(/#[^\n]*/g, '')           // strip # comments (MySQL)
+    .trim()
+    .replace(/;\s*$/, '');             // strip trailing semicolon
+
+  // Reject multi-statement queries (e.g. "SELECT 1; DROP TABLE users")
+  if (stripped.includes(';')) {
+    throw new Error('Multi-statement queries are blocked. Use a single statement without semicolons.');
+  }
+
+  // SQL-style mutation keywords
   if (MUTATION_PATTERN.test(stripped)) {
     throw new Error(`Mutation query blocked: only SELECT, SHOW, DESCRIBE, and EXPLAIN are allowed. Detected: ${stripped.slice(0, 60)}`);
+  }
+
+  // MongoDB method-style mutations (e.g. users.drop(), users.insertOne({}))
+  if (MONGO_MUTATION_PATTERN.test(stripped) || MONGO_DB_MUTATION_PATTERN.test(stripped)) {
+    throw new Error(`MongoDB mutation operation blocked. Only .find() and .countDocuments() are allowed. Detected: ${stripped.slice(0, 60)}`);
+  }
+}
+
+function assertRedisReadOnly(query) {
+  const command = query.trim().split(/\s+/)[0].toUpperCase();
+  if (!REDIS_READ_COMMANDS.has(command)) {
+    throw new Error(
+      `Redis command '${command}' is not on the read-only allowlist. ` +
+      `Allowed read commands: GET, HGET, HGETALL, KEYS, SCAN, LRANGE, SMEMBERS, ZRANGE, TYPE, TTL, INFO, etc.`
+    );
   }
 }
 
@@ -203,9 +248,21 @@ async function queryMongodb(connStr, query, limit, projectRoot) {
     }
   }
 
-  // CLI fallback — mongosh
-  const script = `db.${query.trim()}`;
-  const { stdout } = await execFileAsync('mongosh', [connStr, '--eval', script, '--json=relaxed', '--quiet'], { timeout: QUERY_TIMEOUT_MS });
+  // CLI fallback — mongosh. Restrict to the same safe find() format as the driver path
+  // to prevent arbitrary JavaScript injection via --eval.
+  const safeMatch = query.trim().match(/^(\w+)\.find\(({[\s\S]*})\)(?:\.limit\((\d+)\))?$/);
+  if (!safeMatch) {
+    throw new Error(
+      'MongoDB CLI fallback requires: collectionName.find({filter}).limit(n) — ' +
+      'install the mongodb npm package for full query support.'
+    );
+  }
+  const [, collName, filterStr, limitStr] = safeMatch;
+  const parsedFilter = JSON.parse(filterStr); // validate JSON; throws on invalid JSON
+  const effectiveLimit = Math.min(Number(limitStr) || limit, limit);
+  // Re-serialize through JSON.stringify so the script contains only safe JSON, not raw user input
+  const safeScript = `JSON.stringify(db.${collName}.find(${JSON.stringify(parsedFilter)}).limit(${effectiveLimit}).toArray())`;
+  const { stdout } = await execFileAsync('mongosh', [connStr, '--eval', safeScript, '--quiet'], { timeout: QUERY_TIMEOUT_MS });
   try {
     return { rows: JSON.parse(stdout), rowCount: null, columns: [], driver: 'mongosh-cli' };
   } catch {
@@ -219,6 +276,8 @@ async function queryMongodb(connStr, query, limit, projectRoot) {
 
 async function queryRedis(connStr, query, limit, projectRoot) {
   // Redis queries = Redis CLI commands like "KEYS *" or "GET mykey" or "LRANGE list 0 9"
+  // Enforce read-only allowlist before any connection attempt
+  assertRedisReadOnly(query);
   const ioredis = tryRequireFrom(projectRoot, 'ioredis');
   if (ioredis) {
     const Redis = ioredis.default || ioredis;
@@ -314,4 +373,4 @@ async function queryDb(query, opts = {}) {
   return { ...result, duration: Date.now() - start };
 }
 
-module.exports = { queryDb, assertReadOnly, detectDialect };
+module.exports = { queryDb, assertReadOnly, assertRedisReadOnly, detectDialect };
