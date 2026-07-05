@@ -116,6 +116,34 @@ describe('db-client safety gate', () => {
   test('MongoDB .find() passes assertReadOnly', () => {
     assert.doesNotThrow(() => assertReadOnly('users.find({active:true}).limit(10)'));
   });
+
+  test('MongoDB .findAndModify() is blocked', () => {
+    assert.throws(() => assertReadOnly('users.findAndModify({query:{},update:{$set:{x:1}}})'), /blocked/i);
+  });
+
+  test('MongoDB .aggregate() is blocked (can write via $out/$merge)', () => {
+    assert.throws(() => assertReadOnly('users.aggregate([{$match:{active:true}}])'), /blocked/i);
+  });
+
+  test('MongoDB .mapReduce() is blocked', () => {
+    assert.throws(() => assertReadOnly('users.mapReduce(function(){}, function(){}, {out:"result"})'), /blocked/i);
+  });
+
+  test('MongoDB .update() (legacy) is blocked', () => {
+    assert.throws(() => assertReadOnly('users.update({id:1},{$set:{x:2}})'), /blocked/i);
+  });
+
+  test('MongoDB .insert() (legacy) is blocked', () => {
+    assert.throws(() => assertReadOnly("users.insert({name:'x'})"), /blocked/i);
+  });
+
+  test('MongoDB .runCommand() is blocked', () => {
+    assert.throws(() => assertReadOnly('db.runCommand({drop:"users"})'), /blocked/i);
+  });
+
+  test('MongoDB .eval() is blocked', () => {
+    assert.throws(() => assertReadOnly('db.eval("db.users.drop()")'), /blocked/i);
+  });
 });
 
 describe('db-client Redis read-only gate', () => {
@@ -167,6 +195,62 @@ describe('db-client Redis read-only gate', () => {
 
   test('case-insensitive — set is also blocked', () => {
     assert.throws(() => assertRedisReadOnly('set mykey value'), /not on the read-only allowlist/i);
+  });
+
+  test('CONFIG is blocked (CONFIG SET = RCE vector)', () => {
+    assert.throws(() => assertRedisReadOnly('CONFIG SET dir /var/www/html'), /not on the read-only allowlist/i);
+  });
+
+  test('CONFIG GET is also blocked (CONFIG command entirely removed)', () => {
+    assert.throws(() => assertRedisReadOnly('CONFIG GET maxmemory'), /not on the read-only allowlist/i);
+  });
+
+  test('DEBUG is blocked (DoS / server manipulation)', () => {
+    assert.throws(() => assertRedisReadOnly('DEBUG SLEEP 100'), /not on the read-only allowlist/i);
+  });
+
+  test('CLIENT is blocked (CLIENT KILL disconnects sessions)', () => {
+    assert.throws(() => assertRedisReadOnly('CLIENT KILL ID 42'), /not on the read-only allowlist/i);
+  });
+
+  test('CLUSTER is blocked (CLUSTER FAILOVER is destructive)', () => {
+    assert.throws(() => assertRedisReadOnly('CLUSTER FAILOVER'), /not on the read-only allowlist/i);
+  });
+
+  test('SLOWLOG is blocked (SLOWLOG RESET clears monitoring data)', () => {
+    assert.throws(() => assertRedisReadOnly('SLOWLOG RESET'), /not on the read-only allowlist/i);
+  });
+
+  test('LATENCY is blocked (LATENCY RESET clears data)', () => {
+    assert.throws(() => assertRedisReadOnly('LATENCY RESET'), /not on the read-only allowlist/i);
+  });
+
+  test('BGSAVE is blocked', () => {
+    assert.throws(() => assertRedisReadOnly('BGSAVE'), /not on the read-only allowlist/i);
+  });
+
+  test('BGREWRITEAOF is blocked', () => {
+    assert.throws(() => assertRedisReadOnly('BGREWRITEAOF'), /not on the read-only allowlist/i);
+  });
+
+  test('INFO still passes (read-only server stats)', () => {
+    assert.doesNotThrow(() => assertRedisReadOnly('INFO server'));
+  });
+
+  test('DBSIZE still passes', () => {
+    assert.doesNotThrow(() => assertRedisReadOnly('DBSIZE'));
+  });
+
+  test('COMMAND still passes (command metadata)', () => {
+    assert.doesNotThrow(() => assertRedisReadOnly('COMMAND COUNT'));
+  });
+
+  test('TIME still passes (read-only)', () => {
+    assert.doesNotThrow(() => assertRedisReadOnly('TIME'));
+  });
+
+  test('MEMORY still passes (read-only stats)', () => {
+    assert.doesNotThrow(() => assertRedisReadOnly('MEMORY USAGE mykey'));
   });
 });
 

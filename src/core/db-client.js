@@ -22,23 +22,34 @@ const QUERY_TIMEOUT_MS = 30_000;
 
 const MUTATION_PATTERN = /^\s*(insert|update|delete|drop|create|alter|truncate|grant|revoke|replace|merge|call|exec|execute)\b/i;
 
-// MongoDB method-style mutations (e.g. collection.insertOne(), collection.drop())
-const MONGO_MUTATION_PATTERN = /\.\s*(insertOne|insertMany|updateOne|updateMany|deleteOne|deleteMany|replaceOne|findOneAndUpdate|findOneAndDelete|findOneAndReplace|bulkWrite|drop|dropIndex|dropIndexes|createIndex|ensureIndex|save|remove|renameCollection)\s*\(/i;
-const MONGO_DB_MUTATION_PATTERN = /\b(dropDatabase|createCollection)\s*\(/i;
+// MongoDB method-style mutations — covers both modern and legacy APIs, plus write-capable ops
+const MONGO_MUTATION_PATTERN = /\.\s*(insertOne|insertMany|updateOne|updateMany|deleteOne|deleteMany|replaceOne|findOneAndUpdate|findOneAndDelete|findOneAndReplace|findAndModify|bulkWrite|drop|dropIndex|dropIndexes|createIndex|ensureIndex|save|remove|update|insert|aggregate|mapReduce|copyTo|renameCollection|runCommand|eval)\s*\(/i;
+const MONGO_DB_MUTATION_PATTERN = /\b(dropDatabase|createCollection|runCommand|eval)\s*\(/i;
 
-// Redis read-only command allowlist
+// Redis read-only command allowlist — STRICT.
+// CONFIG, DEBUG, CLIENT, CLUSTER, SLOWLOG, LATENCY are intentionally excluded:
+//   CONFIG SET dir + CONFIG SET dbfilename + BGSAVE = RCE on a Redis server
+//   DEBUG SLEEP = DoS; DEBUG RELOAD = data manipulation
+//   CLIENT KILL = disconnects sessions; CLUSTER FAILOVER = destructive
+//   SLOWLOG RESET / LATENCY RESET = clears monitoring data
 const REDIS_READ_COMMANDS = new Set([
+  // String reads
   'GET', 'MGET', 'GETEX', 'GETRANGE', 'SUBSTR', 'STRLEN',
+  // Hash reads
   'HGET', 'HMGET', 'HGETALL', 'HKEYS', 'HVALS', 'HLEN', 'HEXISTS', 'HRANDFIELD',
+  // List reads
   'LRANGE', 'LLEN', 'LINDEX', 'LPOS',
+  // Set reads
   'SMEMBERS', 'SCARD', 'SISMEMBER', 'SMISMEMBER', 'SRANDMEMBER', 'SDIFF', 'SINTER', 'SUNION',
+  // Sorted set reads
   'ZRANGE', 'ZRANGEBYSCORE', 'ZRANGEBYLEX', 'ZREVRANGE', 'ZREVRANGEBYSCORE', 'ZREVRANGEBYLEX',
   'ZRANK', 'ZREVRANK', 'ZSCORE', 'ZCARD', 'ZCOUNT', 'ZLEXCOUNT', 'ZMSCORE', 'ZRANDMEMBER',
+  // Key inspection / scanning
   'KEYS', 'SCAN', 'HSCAN', 'SSCAN', 'ZSCAN',
-  'TYPE', 'TTL', 'PTTL', 'EXISTS',
-  'OBJECT', 'DEBUG',
-  'INFO', 'DBSIZE', 'CONFIG', 'CLIENT', 'COMMAND', 'TIME', 'MEMORY', 'LATENCY', 'SLOWLOG',
-  'CLUSTER', 'RANDOMKEY', 'TOUCH', 'DUMP',
+  'TYPE', 'TTL', 'PTTL', 'EXISTS', 'RANDOMKEY', 'DUMP',
+  // Read-only introspection
+  'OBJECT', 'COMMAND', 'TIME', 'MEMORY',
+  'INFO', 'DBSIZE',
 ]);
 
 function assertReadOnly(query) {
