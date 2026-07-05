@@ -883,7 +883,7 @@ async function handleCheckHealth() {
       content: [{
         type: 'text',
         text:
-          `## GateTest MCP — v1.55.0 ✅ Operational\n\n` +
+          `## GateTest MCP — v1.57.0 ✅ Operational\n\n` +
           `- Modules loaded: ${moduleNames.length}\n` +
           `- Transport: stdio\n` +
           `- Anthropic API key: ${hasAnthropic ? '✅ present (fix_issue, explain_finding available)' : '⚠️ missing (fix_issue, explain_finding will return an error)'}\n\n` +
@@ -899,7 +899,14 @@ async function handleCheckHealth() {
           `**After deploying locally — hear what's failing:**\n` +
           `→ \`run_live_checks { url: "http://localhost:3000" }\`\n\n` +
           `**Production incident:**\n` +
-          `→ \`get_production_errors\` → \`scan_local\` → \`fix_issue\` → \`verify_fix\` → \`capture_screenshot\``,
+          `→ \`get_production_errors\` → \`scan_local\` → \`fix_issue\` → \`verify_fix\` → \`capture_screenshot\`\n\n` +
+          `**Debug protocol (zero-limitation loop):**\n` +
+          `→ \`scan_local\` → \`explain_finding\` → \`fix_issue\` → \`run_tests\` → \`verify_fix\`\n\n` +
+          `**New debug tools (require GATETEST_API_KEY):**\n` +
+          `→ \`run_tests\` — run the project's test suite, get structured pass/fail per test\n` +
+          `→ \`stream_logs\` — tail a running process or log file for N seconds\n` +
+          `→ \`query_db\` — read-only SQL/document queries (INSERT/DROP blocked hard)\n` +
+          `→ \`http_request\` — authenticated HTTP calls (Bearer/Basic/custom header)`,
       }],
     };
   } catch (err) {

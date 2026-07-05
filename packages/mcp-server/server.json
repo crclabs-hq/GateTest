@@ -1,6 +1,6 @@
 {
   "name": "io.github.ccantynz-alt/gatetest",
-  "description": "Give Claude eyes (screenshot live pages), ears (Sentry/Datadog/Rollbar errors + runtime checks), and hands (verify fixes worked). 18 tools, 120-module engine. Scan, fix, screenshot, and prove the fix worked — all inside your AI assistant.",
+  "description": "Give Claude eyes (screenshot live pages), ears (Sentry/Datadog/Rollbar errors + runtime checks), hands (verify fixes worked), and debug tools (run_tests, stream_logs, query_db, http_request). 22 tools, 120-module engine. Scan, fix, screenshot, run tests, and prove the fix worked — all inside your AI assistant.",
   "license": "MIT",
   "homepage": "https://gatetest.ai",
   "repository": "https://github.com/crclabs-hq/gatetest",
