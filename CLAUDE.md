@@ -878,6 +878,14 @@ GateTest/
 5. Commit and push everything
 6. Leave the codebase in a WORKING state
 
+### MCP Debug Protocol — MANDATORY
+When debugging ANY issue in this repo or any customer repo via GateTest MCP:
+1. **ALWAYS run `scan_local` FIRST** — never manually inspect files for bugs before scanning. The 120-module engine finds in seconds what manual inspection takes minutes to locate.
+2. **ALWAYS run `run_tests` after editing** — never assume a fix worked without verification.
+3. **ALWAYS call `get_production_errors` before deciding what to fix** on live customer issues.
+4. **Full debug loop:** `scan_local` → `explain_finding` → `fix_issue` → `run_tests` → `verify_fix`
+5. **Never bypass GateTest** to "just look at the code." The 120-module engine finds what manual inspection misses.
+
 ### When something breaks:
 1. **FIX IT.** Don't ask. Don't wait. Don't patch symptoms.
 2. Find the ROOT CAUSE.
@@ -1219,13 +1227,44 @@ pre-existing skips), 0 fail. Website builds clean throughout.
 
 ## VERSION
 
-GateTest v1.56.0 — **120 modules**, **Claude Sonnet 4.6**, **six tiers
+GateTest v1.57.0 — **120 modules**, **Claude Sonnet 4.6**, **six tiers
 live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399 (one-time)
 + Continuous $49/mo + **MCP $29/mo** (Craig-authorized 2026-07-04). The
 MCP tier gates premium Eyes/Ears/Hands tools behind a `GATETEST_API_KEY`
 delivered by email after Stripe checkout. Pricing UI (`Pricing.tsx`),
 checkout backend, and webhook handler all reflect the new tier.
-Date stamp last fully reconciled: 2026-07-04.
+Date stamp last fully reconciled: 2026-07-06.
+
+**v1.57.0 changes (2026-07-06 — 4 new MCP tools: run_tests / stream_logs / query_db / http_request):**
+- **`src/core/test-runner.js`** — auto-detects and runs the project's test suite. Supports
+  Jest / Vitest / Mocha / pytest / cargo / go / rspec / npm; returns structured pass/fail per
+  test. Handles Node.js 20+ spec reporter format (✔/✖/ℹ) AND TAP format. `detectRunner()`
+  reads `package.json` scripts + devDependencies + manifest files to infer the runner.
+  Zero new GateTest dependencies.
+- **`src/core/log-streamer.js`** — tails a running process or log file for N seconds (max 60).
+  Three modes: `command` (spawn + capture stdout/stderr), `logFile` (poll every 250ms),
+  `pid` (Linux /proc — graceful error on Windows). Returns `{lines, totalLines, truncated,
+  duration, mode}`. Zero new GateTest dependencies.
+- **`src/core/db-client.js`** — read-only SQL/document queries. Hard-coded safety gate blocks
+  INSERT/UPDATE/DELETE/DROP/CREATE/ALTER/TRUNCATE/GRANT/REVOKE/REPLACE/MERGE/EXEC.
+  Driver resolution: tries project's own `node_modules` (pg/mysql2/better-sqlite3/mongodb/
+  ioredis) before CLI fallbacks (psql/mysql/sqlite3/mongosh/redis-cli). Auto-detects dialect
+  from connection string prefix. Auto-adds LIMIT N to SELECT queries. Max rows 100 (hard cap
+  500). Connection resolution order: explicit arg → env vars → `.gatetest.json`. Zero new
+  GateTest dependencies.
+- **`bin/gatetest-mcp.mjs`** — 4 new handler functions + 4 tool definitions + 4 dispatcher
+  cases. `handleHttpRequest` is inline (native `http`/`https`) — supports Bearer/Basic/
+  custom-header auth, redirect follow (up to 5), 1MB body cap, 30s default timeout, both
+  localhost and external URLs. All 4 tools added to `GATED_TOOLS` (require `$29/mo` key).
+  `scan_local` description strengthened with mandatory-first-step language and debug protocol.
+  Version bumped to `1.57.0` in the server greeting.
+- **New tests**: `tests/mcp-run-tests.test.js` (12 tests), `tests/mcp-stream-logs.test.js`
+  (13 tests), `tests/mcp-query-db.test.js` (34 tests), `tests/mcp-http-request.test.js`
+  (13 tests) — 72 new tests, all passing. Node.js 20+ recursive test-runner guard avoided
+  by using TAP-format output from `node -e` instead of spawning nested `node --test`.
+- **`CLAUDE.md`** — new `### MCP Debug Protocol — MANDATORY` section under Session Protocol
+  with the 5-step debug loop (scan_local → explain_finding → fix_issue → run_tests →
+  verify_fix).
 
 **v1.56.0 changes (2026-07-04 — MCP payment gate, $29/mo tier):**
 - **`website/app/lib/mcp-subscription-store.js`** — new store for the MCP
