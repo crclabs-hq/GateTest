@@ -345,11 +345,11 @@ describe('PromptSafetyModule — deprecated models', () => {
     );
   });
 
-  it('does NOT flag claude-opus-4-8', async () => {
+  it('does NOT flag claude-sonnet-4-6 (current model)', async () => {
     write(tmp, 'src/a.js', [
       'const Anthropic = require("@anthropic-ai/sdk");',
       'const client = new Anthropic();',
-      'await client.messages.create({ model: "claude-opus-4-8", max_tokens: 100, messages: [] });',
+      'await client.messages.create({ model: "claude-sonnet-4-6", max_tokens: 100, messages: [] });',
       '',
     ].join('\n'));
     const r = await run(tmp);

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Use-case catalogue for /use-cases and /use-cases/[slug].
  *
  * Each entry targets a distinct high-intent query — the job a developer is
@@ -90,7 +90,7 @@ export const USE_CASES: UseCaseEntry[] = [
       "A quality gate makes the standard executable: it runs in the pipeline, evaluates the change against thresholds, and returns a single verdict that the pipeline obeys.",
     ],
     solution: [
-      "Run GateTest's full 110-module suite as a CI step. Error-severity findings fail the build; warnings surface without blocking.",
+      "Run GateTest's full 120-module suite as a CI step. Error-severity findings fail the build; warnings surface without blocking.",
       "Because GateTest emits SARIF, the same run also feeds GitHub code scanning, so findings appear inline on the diff as well as in the build log.",
     ],
     code: { lang: "yaml", label: ".github/workflows/gatetest.yml", content: GH_ACTION_SNIPPET },
@@ -109,7 +109,7 @@ export const USE_CASES: UseCaseEntry[] = [
       },
       {
         q: "Will a quality gate slow my pipeline down?",
-        a: "The quick suite is designed for fast PR feedback; the full suite runs the complete 110-module gate. You choose per-workflow, so you can gate PRs quickly and run the deep suite on merges to main.",
+        a: "The quick suite is designed for fast PR feedback; the full suite runs the complete 120-module gate. You choose per-workflow, so you can gate PRs quickly and run the deep suite on merges to main.",
       },
     ],
   },

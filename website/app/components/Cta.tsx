@@ -1,4 +1,4 @@
-export default function Cta() {
+﻿export default function Cta() {
   return (
     <section id="get-started" className="py-24 px-6 border-t border-border/30 grid-bg relative">
       <div className="hidden md:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-accent/10 rounded-full blur-[120px] pointer-events-none" />
@@ -8,7 +8,7 @@ export default function Cta() {
           Stop shipping <span className="text-danger">broken code</span>.
         </h2>
         <p className="text-lg text-muted mb-4 max-w-xl mx-auto">
-          Point us at your repo. We scan 110 modules and deliver a detailed report.
+          Point us at your repo. We scan 120 modules and deliver a detailed report.
           On Scan + Fix ($199) and Forensic Scan ($399) we also open a fix PR.
           One-time payment per scan.
         </p>
@@ -29,7 +29,7 @@ export default function Cta() {
             <div className="p-5 text-left">
               <p className="text-sm font-bold text-foreground mb-2">Full Scan &mdash; $99</p>
               <p className="text-xs text-muted mb-3">
-                110 modules. Full report. Scan-only — upgrade to Scan + Fix ($199) for the auto-fix PR.
+                120 modules. Full report. Scan-only — upgrade to Scan + Fix ($199) for the auto-fix PR.
               </p>
               <a
                 href="#pricing"

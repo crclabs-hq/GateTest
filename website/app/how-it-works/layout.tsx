@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "How GateTest works — Architecture, modules, flywheel, tiers",
   description:
-    "110 modules — deterministic first. One Claude pass when it's worth it. Zero hype. The full technical architecture behind GateTest — the static engine, the fix flywheel, the 4-tier deliverable, and the honest limits.",
+    "120 modules — deterministic first. One Claude pass when it's worth it. Zero hype. The full technical architecture behind GateTest — the static engine, the fix flywheel, the 4-tier deliverable, and the honest limits.",
   keywords: [
     "GateTest architecture",
     "how GateTest works",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "How GateTest works — Architecture, modules, flywheel, tiers",
     description:
-      "110 modules — deterministic first. One Claude pass when it's worth it. The full technical architecture behind GateTest.",
+      "120 modules — deterministic first. One Claude pass when it's worth it. The full technical architecture behind GateTest.",
     url: "https://gatetest.ai/how-it-works",
     siteName: "GateTest",
     type: "article",

@@ -1,10 +1,10 @@
-/**
+﻿/**
  * Homepage composition — world-class rebuild for HN / GitHub Marketplace
  * / npm launch.
  *
  * Section order:
  *   1. Navbar
- *   2. Hero  — live URL scan, "One gate. 110 modules. Self-healing CI."
+ *   2. Hero  — live URL scan, "One gate. 120 modules. Self-healing CI."
  *   3. HomeKills  — what 12 tools we replace, with flip tiles + full table
  *   4. HomeFlywheel — 4-layer fix flow (AST -> Rule -> Recipe -> Claude)
  *   5. HomeEyesEarsHands — MCP tools: Eyes/Ears/Hands for AI agents

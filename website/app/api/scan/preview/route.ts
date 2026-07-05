@@ -1,4 +1,4 @@
-/**
+﻿/**
  * POST /api/scan/preview
  *
  * Free, no-auth, deliberately limited preview scan. Runs the three fastest
@@ -286,7 +286,7 @@ export async function POST(req: NextRequest) {
       message:
         findings.length > TOP_FINDINGS
           ? `Showing top ${TOP_FINDINGS} of ${scanResult.totalIssues}. Upgrade to Quick ($29) to see them all + tighter scan limits.`
-          : "Upgrade to Full ($99) to scan all 110 modules + auto-fix.",
+          : "Upgrade to Full ($99) to scan all 120 modules + auto-fix.",
       checkoutHint: `POST /api/checkout { tier, repoUrl } to start checkout`,
     },
   });

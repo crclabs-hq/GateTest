@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { CWE_TOP_25 } from "./cwe-catalog";
 
@@ -102,7 +102,7 @@ export default function CweIndexPage() {
             Scan for {coveredCount} CWE classes in one run.
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
-            110 modules. Per-scan pricing. AI auto-fix PR on Scan + Fix and Forensic Scan tiers.
+            120 modules. Per-scan pricing. AI auto-fix PR on Scan + Fix and Forensic Scan tiers.
           </p>
           <Link
             href="/#pricing"

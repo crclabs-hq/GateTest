@@ -3,6 +3,40 @@
 //   quick $29 · full $99 · scan_fix $199 · nuclear/Forensic $399 (one-time) · continuous $49/mo · mcp $29/mo
 export const pricingScans = [
   {
+    name: "Quick Scan",
+    price: "$29",
+    period: "per run",
+    description: "4-module rapid scan: syntax errors, lint violations, exposed secrets, and code quality. Results in seconds.",
+    features: [
+      "Syntax Error Detection",
+      "Lint Violation Scanner",
+      "Secret & API Key Exposure",
+      "Code Quality Baseline",
+      "JSON / SARIF / JUnit Output",
+      "Scan-only (no auto-fix)"
+    ],
+    cta: "Run Quick Scan",
+    popular: false,
+    tier: "quick"
+  },
+  {
+    name: "Full Scan",
+    price: "$99",
+    period: "per run",
+    description: "All 120 modules: security, supply chain, auth hardening, CI security, AI safety, and more.",
+    features: [
+      "All 120 Specialized Modules",
+      "Security & Auth Hardening",
+      "Supply Chain & Dependency Audit",
+      "CI/CD & Container Security",
+      "AI Safety & Prompt Protection",
+      "Scan-only (no auto-fix)"
+    ],
+    cta: "Run Full Scan",
+    popular: false,
+    tier: "full"
+  },
+  {
     name: "Scan + Fix",
     price: "$199",
     period: "per run",
@@ -86,8 +120,8 @@ export default function Pricing() {
         . Pay only when you want auto-fix or deeper AI analysis.
       </p>
 
-      {/* Main Pricing Grid — 4 columns on large screens */}
-      <div className="grid lg:grid-cols-4 gap-6 items-stretch mt-8">
+      {/* Main Pricing Grid — 3 columns on large screens (2 rows of 3) */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch mt-8">
 
         {/* Paid Scan Tiers */}
         {pricingScans.map((plan, idx) => (

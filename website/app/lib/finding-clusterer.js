@@ -1,10 +1,10 @@
-'use strict';
+﻿'use strict';
 
 /**
  * Finding clusterer + ranker.
  *
  * The unit-economics problem: a real scan returns 900-1000 findings across
- * 110 modules. Naively fixing each one via Claude API costs $0.05+ per call,
+ * 120 modules. Naively fixing each one via Claude API costs $0.05+ per call,
  * which destroys the margin on a $99 scan AND often blows the customer's
  * patience long before it hits their wallet.
  *

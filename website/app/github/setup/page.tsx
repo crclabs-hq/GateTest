@@ -71,7 +71,7 @@ export default function GitHubSetup() {
             <span className="text-teal-400">install once, forget about config.</span>
           </h1>
           <p className="text-white/50 text-base leading-relaxed max-w-xl mx-auto">
-            Every push and PR gets scanned with 110 modules. Findings post as inline PR comments and commit statuses. Auto-fix PR opened automatically when there&apos;s something to fix.
+            Every push and PR gets scanned with 120 modules. Findings post as inline PR comments and commit statuses. Auto-fix PR opened automatically when there&apos;s something to fix.
           </p>
         </div>
 
@@ -152,7 +152,7 @@ export default function GitHubSetup() {
 
         {/* Privacy */}
         <div className="rounded-xl bg-teal-500/5 border border-teal-500/15 px-5 py-4 mb-10 text-xs text-white/45 leading-relaxed">
-          🔒 <strong className="text-white/70">Code is never stored.</strong> GateTest reads your files, runs them through 110 modules in memory, posts results to GitHub, then discards everything. No database of your code. No training on your codebase.
+          🔒 <strong className="text-white/70">Code is never stored.</strong> GateTest reads your files, runs them through 120 modules in memory, posts results to GitHub, then discards everything. No database of your code. No training on your codebase.
         </div>
 
         {/* Not on GitHub? */}

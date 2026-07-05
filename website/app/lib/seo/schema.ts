@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Shared SEO schema + metadata builders.
  *
  * Until now every page hand-rolled its JSON-LD (FAQPage, BreadcrumbList,
@@ -146,7 +146,7 @@ export function organizationSchema() {
     url: SITE.baseUrl,
     logo: absUrl("/icon.svg"),
     description:
-      "GateTest is an AI-powered code quality and security gate. 110 modules scan your codebase for security, supply-chain, accessibility, and reliability issues, then open auto-fix pull requests. Pay per scan, no subscription.",
+      "GateTest is an AI-powered code quality and security gate. 120 modules scan your codebase for security, supply-chain, accessibility, and reliability issues, then open auto-fix pull requests. Pay per scan, no subscription.",
     sameAs: ["https://github.com/crclabs-hq/gatetest"],
   };
 }

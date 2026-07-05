@@ -56,7 +56,7 @@ const CATCHES = [
 
 const TERMINAL_LINES = [
   { t: "cmd",  text: "$ gatetest scan --suite quick --diff" },
-  { t: "info", text: "  GateTest v1.46.0 — 110 modules, Claude Sonnet 4.6" },
+  { t: "info", text: "  GateTest v1.57.0 — 120 modules, Claude Sonnet 4.6" },
   { t: "info", text: "  Scanning 14 changed files vs main..." },
   { t: "pass", text: "  [PASS] syntax" },
   { t: "pass", text: "  [PASS] lint" },
@@ -114,7 +114,7 @@ export default function DevelopersPage() {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-400 font-medium mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
-              110 modules · 4 tiers · no subscription
+              120 modules · 6 tiers · no subscription
             </div>
             <h1 className="text-4xl sm:text-5xl font-bold mb-4 leading-tight">
               The QA gate<br />your CI is{" "}

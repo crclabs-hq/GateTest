@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "GateTest vs Semgrep — 110 modules vs pattern matching in 2026",
+  title: "GateTest vs Semgrep — 120 modules vs pattern matching in 2026",
   description:
-    "Semgrep matches known patterns. GateTest reasons about your code — 110 modules covering security, quality, accessibility, AI safety, and infra in a single scan. Auto-fix PRs included.",
+    "Semgrep matches known patterns. GateTest reasons about your code — 120 modules covering security, quality, accessibility, AI safety, and infra in a single scan. Auto-fix PRs included.",
   keywords: [
     "Semgrep alternative",
     "Semgrep vs GateTest",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     canonical: "https://gatetest.ai/compare/semgrep",
   },
   openGraph: {
-    title: "GateTest vs Semgrep — 110 modules vs pattern matching in 2026",
+    title: "GateTest vs Semgrep — 120 modules vs pattern matching in 2026",
     description:
       "Semgrep is excellent at finding patterns you wrote rules for. GateTest uses Claude to find what nobody wrote a rule for — plus 109 other checks — and opens a fix PR.",
     url: "https://gatetest.ai/compare/semgrep",
@@ -38,7 +38,7 @@ const faqItems = [
   },
   {
     q: "What does Semgrep's free tier include vs. paid?",
-    a: "Semgrep OSS (open-source core) is free and powerful for security engineers who want to write or import custom rules. Semgrep Code (SAST), Supply Chain (SCA), and Secrets are commercial products with seat-based pricing. GateTest charges per scan: $99 for all 110 modules. No rules to write, no per-developer licensing, no annual contracts.",
+    a: "Semgrep OSS (open-source core) is free and powerful for security engineers who want to write or import custom rules. Semgrep Code (SAST), Supply Chain (SCA), and Secrets are commercial products with seat-based pricing. GateTest charges per scan: $99 for all 120 modules. No rules to write, no per-developer licensing, no annual contracts.",
   },
   {
     q: "Does GateTest replace Semgrep rules I've already written?",
@@ -127,7 +127,7 @@ export default function SemgrepPage() {
           <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-6">
             GateTest vs Semgrep
             <br />
-            <span className="text-teal-400">110 Modules vs Writing Rules in 2026</span>
+            <span className="text-teal-400">120 modules vs Writing Rules in 2026</span>
           </h1>
           <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
             Semgrep is great at finding code that matches patterns you&rsquo;ve written rules for.
@@ -147,7 +147,7 @@ export default function SemgrepPage() {
               href="/#modules"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
             >
-              See All 110 Modules
+              See All 120 modules
             </Link>
           </div>
         </div>
@@ -239,7 +239,7 @@ export default function SemgrepPage() {
               },
               {
                 title: "No rules to maintain",
-                body: "Semgrep's value scales with your rule library. You either write custom rules (takes time) or use community rules (may be stale). GateTest's 110 modules are maintained for you — and Claude-driven reasoning improves with every scan through the recipe-distillation flywheel. Per-scan pricing means no maintenance overhead.",
+                body: "Semgrep's value scales with your rule library. You either write custom rules (takes time) or use community rules (may be stale). GateTest's 120 modules are maintained for you — and Claude-driven reasoning improves with every scan through the recipe-distillation flywheel. Per-scan pricing means no maintenance overhead.",
               },
             ].map((card) => (
               <div

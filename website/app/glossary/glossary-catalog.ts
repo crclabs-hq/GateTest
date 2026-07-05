@@ -1,11 +1,11 @@
-/**
+﻿/**
  * Glossary catalogue for /glossary and /glossary/[slug].
  *
  * Definitional pages targeting "what is X" queries in the software quality &
  * application-security space — the exact phrasing developers type into Google
  * AND into AI answer engines. Each entry is original prose (not copied from a
  * standards body), grounded in how the concept actually shows up in GateTest's
- * 110-module scan so the page earns its place instead of being a thin stub.
+ * 120-module scan so the page earns its place instead of being a thin stub.
  *
  * Source of truth for the /glossary URL set. `getAllGlossarySlugs()` feeds the
  * sitemap; the drift test asserts the sitemap and all-urls.js stay in lockstep.
@@ -45,7 +45,7 @@ export const GLOSSARY: GlossaryEntry[] = [
       "The trade-off is precision. A static analyzer reasons about all possible paths, so it can flag code that is technically reachable but practically safe (a false positive), and it can't see issues that only appear at runtime — misconfigured infrastructure, an exposed admin route, a broken auth check under real load. Mature programs pair SAST with DAST and software-composition analysis rather than treating any one of them as complete.",
     ],
     gatetest:
-      "Most of GateTest's 110 modules are SAST checks: secret scanning, SSRF and injection detection, the TLS/cookie/CORS hardening scanners, the cross-file taint tracker, and language analyzers for JavaScript, TypeScript, Python, Go, Java, Ruby, and PHP. Every finding carries a file and line, and on the Scan + Fix tier Claude opens a pull request with the fix.",
+      "Most of GateTest's 120 modules are SAST checks: secret scanning, SSRF and injection detection, the TLS/cookie/CORS hardening scanners, the cross-file taint tracker, and language analyzers for JavaScript, TypeScript, Python, Go, Java, Ruby, and PHP. Every finding carries a file and line, and on the Scan + Fix tier Claude opens a pull request with the fix.",
     related: ["dast", "sca", "quality-gate", "false-positive-rate", "shift-left"],
     modules: ["security", "secrets", "ssrf", "crossFileTaint", "tlsSecurity"],
     faqs: [

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * <HomeFaq> — HN-skeptic FAQ.
  *
  * The question shapes are calibrated for the audience that lands at 3am
@@ -25,7 +25,7 @@ const FAQS: Faq[] = [
     a: (
       <>
         No. The deterministic engine ships first — AST, regex, file
-        walkers across 110 modules, no LLM in the loop. Claude only
+        walkers across 120 modules, no LLM in the loop. Claude only
         enters when the deterministic layers can&apos;t resolve a finding
         (roughly 5% of fixes). The 4-layer{" "}
         <a href="#flywheel" className="text-accent hover:underline">
@@ -35,7 +35,7 @@ const FAQS: Faq[] = [
       </>
     ),
     plain:
-      "No. The deterministic engine ships first — AST, regex, file walkers across 110 modules, no LLM in the loop. Claude only enters when the deterministic layers can't resolve a finding (roughly 5% of fixes). The 4-layer flywheel architecture is the moat.",
+      "No. The deterministic engine ships first — AST, regex, file walkers across 120 modules, no LLM in the loop. Claude only enters when the deterministic layers can't resolve a finding (roughly 5% of fixes). The 4-layer flywheel architecture is the moat.",
   },
   {
     q: "Is my code stored anywhere?",

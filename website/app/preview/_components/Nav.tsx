@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { I } from "../_lib/icons";
@@ -140,7 +140,7 @@ export function NavBar() {
                     href="#bento"
                     className="mt-1 flex items-center justify-between rounded-xl border-t border-white/10 px-3 pb-1 pt-3 text-sm text-zinc-300 transition-colors hover:text-white"
                   >
-                    <span>See the full 110-module matrix</span>
+                    <span>See the full 120-module matrix</span>
                     <I.arrow className="h-4 w-4" />
                   </a>
                 </div>

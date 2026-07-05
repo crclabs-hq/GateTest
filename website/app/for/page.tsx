@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { COUNTRIES } from "./countries";
 
-// Total live module count — sourced from CLAUDE.md v1.46.0 (110 modules).
+// Total live module count — sourced from CLAUDE.md v1.46.0 (120 modules).
 const MODULE_COUNT = 110;
 
 const FRAMEWORK_PAGES = [

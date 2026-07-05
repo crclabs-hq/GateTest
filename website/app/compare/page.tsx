@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import {
   contentMetadata,
@@ -52,7 +52,7 @@ export default function CompareIndexPage() {
             </span>
           </Link>
           <Link href="/modules" className="text-sm text-white/50 hover:text-white transition-colors">
-            110 modules &rarr;
+            120 modules &rarr;
           </Link>
         </div>
       </nav>

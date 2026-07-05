@@ -1,4 +1,4 @@
-import { ImageResponse } from "next/og";
+﻿import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
 export const alt = "How GateTest works — architecture, modules, flywheel, tiers";
@@ -89,7 +89,7 @@ export default async function Image() {
             marginBottom: 36,
           }}
         >
-          110 modules — deterministic first. <span style={{ color: "#2dd4bf" }}>One Claude pass when it&apos;s worth it.</span> Zero hype.
+          120 modules — deterministic first. <span style={{ color: "#2dd4bf" }}>One Claude pass when it&apos;s worth it.</span> Zero hype.
         </div>
 
         {/* Pillars row */}
