@@ -14,19 +14,22 @@ const {
 // ---------------------------------------------------------------------------
 
 function makeFs(initial = {}) {
-  const files = new Map(Object.entries(initial));
+  // Normalize to forward-slashes so path.join() on Windows doesn't break lookups
+  const norm = (p) => p.replace(/\\/g, '/');
+  const files = new Map(Object.entries(initial).map(([k, v]) => [norm(k), v]));
   return {
     files,
-    existsSync: (p) => files.has(p),
+    existsSync: (p) => files.has(norm(p)),
     readFileSync: (p) => {
-      if (!files.has(p)) {
+      const np = norm(p);
+      if (!files.has(np)) {
         const e = new Error("ENOENT");
         e.code = "ENOENT";
         throw e;
       }
-      return files.get(p);
+      return files.get(np);
     },
-    writeFileSync: (p, data) => { files.set(p, data); },
+    writeFileSync: (p, data) => { files.set(norm(p), data); },
   };
 }
 
@@ -175,7 +178,7 @@ test("applyFixProposal: runs commands sequentially", async () => {
   assert.equal(r.status, "applied");
   assert.equal(r.summary.commandsOk, 2);
   assert.equal(exec.calls.length, 2);
-  assert.equal(exec.calls[0].cwd, "/repo");
+  assert.equal(exec.calls[0].cwd.replace(/\\/g, '/'), "/repo");
 });
 
 // ---------------------------------------------------------------------------

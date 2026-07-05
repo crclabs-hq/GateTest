@@ -64,7 +64,7 @@ test('compliance dashboard page: file exists + use client', () => {
   assert.ok(fs.existsSync(PAGE_PATH));
   const src = fs.readFileSync(PAGE_PATH, 'utf8');
   const firstLine = src.split('\n').find((l) => l.trim().length > 0);
-  assert.match(String(firstLine), /^"use client";?$/);
+  assert.match(String(firstLine), /^"use client";?\r?$/);
 });
 
 test('compliance dashboard page: posts to GET /api/admin/compliance, handles 401', () => {

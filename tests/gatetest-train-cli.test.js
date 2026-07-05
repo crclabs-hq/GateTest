@@ -100,7 +100,8 @@ describe('gatetest train — parseTrainArgs', () => {
 
   it('parses --repo <path>', () => {
     const opts = train.parseTrainArgs(['--repo', '/tmp/somewhere']);
-    assert.ok(opts.repoRoot.includes('/tmp/somewhere'));
+    // Normalize separators so this passes on Windows too (path.resolve uses \\)
+    assert.ok(opts.repoRoot.replace(/\\/g, '/').includes('/tmp/somewhere'));
   });
 
   it('combines multiple flags', () => {
