@@ -33,24 +33,24 @@ function fileExists(rel) {
 }
 
 // ---------------------------------------------------------------------------
-// Claim: 111 modules (v1.48 — per CLAUDE.md "## VERSION" section)
+// Claim: 120 modules (v1.57 — per CLAUDE.md "## VERSION" section)
 // ---------------------------------------------------------------------------
 
 describe('marketing claim — module count', () => {
-  it('node bin/gatetest.js --list emits ≥ 111 module lines', () => {
+  it('node bin/gatetest.js --list emits ≥ 120 module lines', () => {
     const out = execFileSync('node', [path.join(ROOT, 'bin', 'gatetest.js'), '--list'], {
       encoding: 'utf8',
       timeout: 30_000,
     });
     const moduleLines = out.split('\n').filter((l) => /^\s{2,}[a-z]/i.test(l));
-    assert.ok(moduleLines.length >= 111, `expected ≥ 111 module lines, got ${moduleLines.length}`);
+    assert.ok(moduleLines.length >= 120, `expected ≥ 120 module lines, got ${moduleLines.length}`);
   });
 
-  it('CLAUDE.md mentions 111 modules in current version', () => {
+  it('CLAUDE.md mentions 120 modules in current version', () => {
     const md = readFile('CLAUDE.md');
-    // Either explicit "111 modules" wording or the v1.48.x section header.
-    const hasCount = /\b111\s+modules\b/i.test(md) || /\bGateTest v1\.48/.test(md);
-    assert.ok(hasCount, 'Bible should reference 111 modules or v1.48.x');
+    // Either explicit "120 modules" wording or the v1.57.x section header.
+    const hasCount = /\b120\s+modules\b/i.test(md) || /\bGateTest v1\.57/.test(md);
+    assert.ok(hasCount, 'Bible should reference 120 modules or v1.57.x');
   });
 });
 

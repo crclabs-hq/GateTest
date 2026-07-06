@@ -1,0 +1,211 @@
+# GateTest Architecture
+
+Stack, module system, serverless rules, project tree, key-files reference, env vars.
+
+> Split out of CLAUDE.md (the Bible) 2026-07-07 to keep every session's context lean.
+> The Bible holds rules + current truth; this file holds the detail. Nothing was deleted.
+
+## THE AGGRESSIVE STACK
+
+Every tool here was chosen because it is the **best in its class right now.** If something better emerges, we replace it without sentiment.
+
+### Core Engine
+| Layer | Choice | Why |
+|---|---|---|
+| **Runtime** | Node.js 20+ | Zero dependencies, runs anywhere |
+| **Language** | JavaScript (core) + TypeScript (website) | Fast iteration, universal |
+| **Architecture** | Module system extending BaseModule | Every check is a self-contained module |
+| **Runner** | EventEmitter-based with severity levels | error/warning/info, parallel execution, auto-fix |
+| **Reporters** | 5 formats (Console, JSON, HTML, SARIF, JUnit) | Covers every CI/CD system |
+
+### Website & Frontend
+| Layer | Choice | Why |
+|---|---|---|
+| **Framework** | Next.js 16 (App Router) | Latest, fastest, Vercel-native |
+| **Styling** | Tailwind CSS 4 | Utility-first, dark theme, zero unused CSS |
+| **Hosting** | Vercel | Auto-deploy from main, serverless |
+| **Domain** | gatetest.ai | Secured |
+
+### Payments
+| Layer | Choice | Why |
+|---|---|---|
+| **Billing** | Stripe | Per-scan upfront charge — one-time payment at checkout |
+| **Model** | Per-scan payment | Charged at checkout; no subscription; non-delivery handled by support (re-run or credit at our discretion). Hold-then-capture deprecated 2026-05-18 per Craig — invited chargeback abuse. |
+
+### AI Layer
+| Layer | Choice | Why |
+|---|---|---|
+| **AI Code Review** | Claude API (Anthropic) | Best reasoning, finds real bugs not patterns |
+| **Model** | claude-sonnet-4-6 | Sonnet everywhere — Craig directive 2026-06-18 ("the only Claude model that developers might even trust") — active Sonnet on the market for real code work; wins SWE-bench Verified; 5x cheaper than Opus per token. Per-tier USD caps in `website/app/lib/budget-tracker.js:capsForTier()` UNCHANGED from the Opus era (Quick $1.50, Full $5, Scan+Fix $12, Forensic $30) — Strategy A: bank the savings as 5x deeper analysis per scan, not as margin. |
+
+### GitHub Integration
+| Layer | Choice | Why |
+|---|---|---|
+| **GitHub App** | GateTestHQ | Auto-scan on push/PR, commit statuses, PR comments |
+| **Auth** | JWT (RS256) from .pem private key | Standard GitHub App auth |
+| **Access** | Resilient bridge with retry, circuit breaker, multi-strategy | Never fails on 503 |
+
+---
+
+## THE AGGRESSIVE ARCHITECTURE
+
+### Scan Flow (Direct — No Webhooks)
+```
+Customer pays → Redirect to /scan/status → Page calls /api/scan/run →
+Scan reads repo via GitHub API → Runs all module checks → Returns result →
+Updates Stripe metadata → Captures payment → Customer sees results
+```
+**ONE call. ONE response. No polling. No webhooks. No shared state.**
+
+### GitHub App Flow
+```
+Developer pushes code → GitHub sends webhook → /api/webhook receives →
+JWT auth → Read repo via API → Run checks → Post commit status + PR comment
+```
+
+### Module Architecture
+```
+BaseModule (abstract)
+  └── Every module extends this
+  └── run(result, config) → adds checks with severity
+  └── Registered in src/core/registry.js
+  └── Added to suites in src/core/config.js
+```
+
+### Serverless Rules (Vercel)
+- **NO in-memory state between requests** — every function is stateless
+- **NO long-running async after response** — Vercel kills the function
+- **NO shared memory between function instances** — use external storage
+- **ALL scan work completes WITHIN the function response**
+- **Stripe metadata is the persistence layer** for scan results
+
+---
+
+## PROJECT ARCHITECTURE (BUILT — DO NOT RECREATE)
+
+```
+GateTest/
+├── CLAUDE.md               ← THIS FILE — THE BIBLE
+├── MARKETING.md            ← Positioning, pricing, website copy
+├── package.json            ← CLI tool (name: @gatetest/cli, bin: gatetest) — published to npm under the @gatetest org scope (renamed from `gatetest` 2026-06-23, commit 9987a49)
+├── bin/gatetest.js         ← CLI entry point (20+ flags)
+├── src/
+│   ├── index.js            ← Main library entry
+│   ├── core/               ← Config, runner, registry, cache, CI gen, GitHub bridge
+│   ├── modules/            ← 53 TEST MODULES (24 core + 9 universal language checkers + 1 polyglot dependency scanner + 1 Dockerfile scanner + 1 CI-security scanner + 1 shell-script scanner + 1 SQL-migration safety scanner + 1 Terraform/IaC scanner + 1 Kubernetes manifest scanner + 1 Prompt/LLM-safety scanner + 1 dead-code / unused-export scanner + 1 secret-rotation / key-age scanner + 1 web-headers / CORS scanner + 1 TypeScript-strictness scanner + 1 flaky-test detector + 1 error-swallow detector + 1 N+1 query detector + 1 retry-hygiene scanner + 1 race-condition detector + 1 resource-leak detector + 1 SSRF / URL-validation gap detector + 1 hardcoded-URL / localhost / private-IP leak detector + 1 env-var contract scanner + 1 async-iteration detector + 1 homoglyph / Unicode-lookalike detector + 1 OpenAPI drift detector)
+│   ├── reporters/          ← Console, JSON, HTML, SARIF, JUnit
+│   ├── scanners/           ← Continuous scanner
+│   └── hooks/              ← Pre-commit, pre-push
+├── tests/                  ← 200+ tests (MUST ALL PASS)
+└── website/                ← gatetest.ai (Next.js 16 + Tailwind 4)
+    └── app/
+        ├── page.tsx                 ← Main page
+        ├── layout.tsx               ← Root layout
+        ├── globals.css              ← Dark theme, animations
+        ├── api/checkout/            ← Stripe checkout
+        ├── api/scan/run/            ← Direct scan execution
+        ├── api/scan/status/         ← Scan status reader
+        ├── api/stripe-webhook/      ← Stripe webhook (backup)
+        ├── api/webhook/             ← GitHub App webhook
+        ├── api/github/callback/     ← GitHub App install callback
+        ├── scan/status/             ← Live scan page
+        ├── checkout/success/        ← Post-checkout redirect
+        ├── checkout/cancel/         ← Checkout cancelled
+        ├── github/setup/            ← GitHub App install page
+        ├── github/installed/        ← Post-install success
+        ├── legal/terms/             ← Terms of Service
+        ├── legal/privacy/           ← Privacy Policy
+        ├── legal/refunds/           ← Refund Policy
+        └── components/              ← 13 React components
+```
+
+---
+
+## KEY FILES — READ BEFORE MODIFYING
+
+| File | What it controls | Read before... |
+|------|-----------------|---------------|
+| `MARKETING.md` | All marketing copy, pricing | Any website change |
+| `src/index.js` | All public exports, reporter wiring | Adding exports |
+| `src/core/runner.js` | Severity, auto-fix, diff-mode, gate | Changing how checks work |
+| `src/core/config.js` | Thresholds, suite definitions | Changing what modules run |
+| `src/core/registry.js` | Module registration | Adding new modules |
+| `src/core/memory.js` | Persistent codebase memory — the compounding moat | Changing memory schema or persistence |
+| `src/modules/memory.js` | Surfaces memory, runs FIRST, enriches `config._memory` | Before any module that consumes memory |
+| `src/modules/agentic.js` | AI agent that investigates memory-informed hypotheses | Changing agentic prompts / flow |
+| `src/core/universal-checker.js` | Pattern engine + `LANGUAGE_SPECS` for Python/Go/Rust/Java/Ruby/PHP/C#/Kotlin/Swift | Adding language support, changing detection patterns |
+| `src/modules/dependencies.js` | Polyglot dependency hygiene scanner — npm/pip/Pipenv/Poetry/go.mod/Cargo/Bundler/Composer/Maven/Gradle. Flags wildcards, `latest` pins, deprecated packages, missing lockfiles, git-without-rev. Zero network calls | Adding a new ecosystem or deprecation entry |
+| `src/modules/dockerfile.js` | Dockerfile security + hygiene scanner — root user, :latest tags, curl\|sh, apt hygiene, pip cache, chmod 777, ADD URLs, secrets baked into layers | Adding a new Dockerfile pattern or hardening rule |
+| `src/modules/ci-security.js` | CI workflow security — GH Actions pinning (SHA > tag > branch), pwn-request, shell injection via `${{ github.event.* }}`, secret-echo, missing `permissions:`, Bible-forbidden soft-fail of the gate | Adding a new CI/CD platform or hardening rule |
+| `src/modules/shell.js` | Shell script hardening scanner — curl\|sh, unsafe `rm -rf $VAR`, `eval` injection, hardcoded secrets, missing `set -euo pipefail`, `#!/bin/sh` using bashisms, backtick command substitution | Adding a new shell-script rule or ecosystem |
+| `src/modules/sql-migrations.js` | SQL migration safety — DROP COLUMN/TABLE, ADD COLUMN NOT NULL w/o default, SET NOT NULL, CREATE/DROP INDEX without CONCURRENTLY, CONCURRENTLY inside BEGIN, RENAME during rolling deploy, ALTER TYPE rewrites, ADD CONSTRAINT w/o NOT VALID, TRUNCATE | Adding a new migration-ecosystem hook or unsafe-pattern rule |
+| `src/modules/terraform.js` | Terraform / IaC security — public S3 ACL, 0.0.0.0/0 on SSH/RDP/DB ports, RDS/EBS/EFS unencrypted, IAM Principal="*" wildcards, hardcoded AWS keys, user_data `curl\|sh`, long-lived IAM users, missing cost-allocation tags | Adding new AWS/GCP/Azure resource rules or a Pulumi/CDK backend |
+| `src/modules/kubernetes.js` | Kubernetes manifest security + reliability — privileged, hostNetwork/PID/IPC, allowPrivilegeEscalation, runAsUser:0, :latest images, docker.sock mount, dangerous capabilities, LoadBalancer open to world, inline secrets in env, missing resources.limits, missing readiness/liveness probes | Adding new K8s resource kinds or Pod Security Standards rules |
+| `src/modules/prompt-safety.js` | Prompt / LLM safety — browser-bundled `NEXT_PUBLIC_*_API_KEY` / `VITE_*_SECRET`, openai/anthropic calls with no `max_tokens` (cost DoS), prompt templates interpolating user input without a delimiter (injection surface), deprecated models (claude-v1, claude-2.0, text-davinci-*, palm-2), `temperature >= 1.5` | Adding new AI SDKs or prompt-injection heuristics |
+| `src/modules/dead-code.js` | Dead code — unused JS/TS/Python exports, orphaned files (nothing imports them), 10+ line commented-out code blocks; respects Next.js route conventions (page/layout/route, robots, sitemap, opengraph-image) and segment config (`dynamic`, `revalidate`, `runtime`, `maxDuration`) | Adding entry-point conventions or framework-reserved export names |
+| `src/modules/secret-rotation.js` | Secret rotation — credential-shaped strings dated via `git log --format=%at` (error > 90 days, warning > 30 days), `.env` ↔ `.env.example` drift, placeholder values in `.env.example` that still match a real credential shape. Detects AKIA/ASIA, GitHub PAT/OAuth/server/fine-grained, Stripe live/restricted, Slack, Google, Anthropic, private keys, JWTs | Adding credential shapes or rotation windows |
+| `src/modules/web-headers.js` | Web headers + CORS — reads next.config.{js,mjs,ts}, vercel.json, netlify.toml, _headers, nginx.conf, and Express/Fastify source. Flags CSP `unsafe-eval` (error) / `unsafe-inline` (warning), wildcard CORS origin + credentials:true (error), HSTS max-age below 180 days, missing CSP / HSTS / X-Frame-Options (or CSP frame-ancestors) / X-Content-Type-Options | Adding server-side header APIs or deploy targets |
+| `src/modules/typescript-strictness.js` | TypeScript strictness — walks `tsconfig.json` / `tsconfig.*.json` (JSONC-aware, string-safe comment stripper), flags `strict: false` (error), `noImplicitAny: false` (error), `skipLibCheck: true` / `strictNullChecks: false` / `strictFunctionTypes: false` (warning); scans `.ts`/`.tsx`/`.mts`/`.cts` sources for `@ts-nocheck` (error), unreasoned `@ts-ignore` / `@ts-expect-error` (warning), exported signatures with `: any`, and `as any` casts. `*.test.ts`/`*.spec.ts` and `*.d.ts` are allowed to use `any`; `tsconfig.test.json` is allowed to relax strictness | Adding new suppression directives or tsconfig flags |
+| `src/modules/flaky-tests.js` | Flaky-test detector — scans `*.test.*` / `*.spec.*` and files under `tests/`, `__tests__/`, `spec/`. Flags committed `.only` / `fit` / `fdescribe` (error), `.skip` / `xit` / `xtest` (warning, string-aware so diff-fixtures don't false-positive), `.todo` with no issue link (info), `Math.random()` (warning), `Date.now()` / `new Date()` with no `useFakeTimers` in the file (warning), real `fetch`/`axios`/`http.request` calls with no `nock`/`msw`/`vi.mock` (warning), `setTimeout`/`setInterval` without fake timers (warning), `process.env.X = ...` without a matching `afterEach` restore or `delete` (warning), test titles containing "flaky"/"intermittent"/"sometimes" (warning) | Adding new test-framework shapes or mock libraries |
+| `src/modules/error-swallow.js` | Error-swallow detector — walks `.js`/`.jsx`/`.mjs`/`.cjs`/`.ts`/`.tsx`/`.mts`/`.cts`. Flags empty `catch {}` blocks (error / warning in tests), catch blocks that only `console.log`/`logger.error` without re-throwing or calling `next(err)` (error), `.catch(() => {})` / `.catch(() => null)` / `.catch(noop)` (error), `process.on('uncaughtException' | 'unhandledRejection')` handlers that neither re-throw nor `process.exit` (warning), Node-callback `(err, ...) => {}` whose body never references `err` (warning), fire-and-forget statement-level calls to promise-returning methods (`.save()`, `.commit()`, `.send()`, `.fetch()`, etc.) with no `await` / `.then(...)` / `.catch(...)` (warning, skipped in test files) | Adding new promise-returning method names or swallow patterns |
+| `src/modules/n-plus-one.js` | N+1 query detector — ORM-agnostic, line-heuristic. Builds a loop-range map (string-aware brace + paren matching) for block-form `for`/`while`/`do` and callback-form `.map`/`.forEach`/`.filter`/`.reduce`/`.some`/`.every`/`.flatMap`. Inside each loop body, looks for `await` (or `.then(`) + a query-shaped call across Prisma (`prisma.<model>.find*/create/update/delete/upsert/count/aggregate/groupBy`, `$queryRaw`), Sequelize (`Model.findOne/findAll/findByPk/...`, `sequelize.query`), TypeORM (`.manager.save/find/...`, `getRepository`, `repo.findOne/findOneBy/...`), Mongoose (`Model.findOne/find/create/updateOne/...`), Knex (`knex(...)`, `db('t').where/select/first`), node-pg/MySQL (`client.query`, `pool.execute`, `db.query`), Drizzle (`db.select().from(...)`). Recognises `await Promise.all(arr.map(async () => ...))` as batched-ok and emits info instead of error | Adding new ORM shapes or loop openers |
+| `src/modules/retry-hygiene.js` | Retry-hygiene scanner — finds retry-shaped loops (`while (...)` / `for (...)` bodies that contain an HTTP call or a literal sleep) across `fetch`/`axios`/`got`/`node-http`/`needle`/`superagent`. Flags `while (true)` / `for (;;)` without a `break` or max-attempts marker (error: unbounded-loop), literal `setTimeout`/`sleep`/`delay`/`new Promise(..setTimeout)` with no `attempt`-based multiplier (warning: no-backoff), literal sleeps with no `Math.random()`/`crypto.randomInt()` jitter (warning: no-jitter), retry blocks referencing 4xx status without a `throw`/`return`/`break` bail-out guard (warning: retry-on-4xx). Recognises `async-retry`/`p-retry`/`retry`/`cockatiel`/`opossum` as library-backed retry and emits info-level `library-ok` | Adding new HTTP clients, retry libraries, or sleep primitives |
+| `src/modules/race-condition.js` | Race-condition / check-then-act detector — walks JS/TS sources looking for TOCTOU patterns: `fs.exists*`/`fs.stat`/`fs.access` followed within 15 lines by a destructive fs op (`unlink`/`rm`/`rename`/`chmod`/`chown`/`copyFile`/`truncate`) on the same path expression (error, warning inside test files); `fs.stat` followed by ANY mutating fs op (broader: symlink-race vector). Prisma/Sequelize/Mongoose/TypeORM `findFirst`/`findUnique`/`findOne` followed by `create`/`update`/`upsert`/`save`/`delete` on the same model with no visible `$transaction` / `FOR UPDATE` / `ON CONFLICT` / upsert / `P2002`/`23505`/`ER_DUP_ENTRY` handler (warning: get-or-create lost-update). Argument-matching on the first param of the mutate call avoids cross-function false-positives; idempotent `if (!exists) mkdirSync(.., { recursive: true })` setup is not flagged | Adding new TOCTOU shapes, ORM model surfaces, or tx markers |
+| `src/modules/resource-leak.js` | Resource-leak detector — walks JS/TS and flags unclosed `fs.createReadStream`/`createWriteStream` (error), `fs.open`/`fs.promises.open` file handles (warning), `new WebSocket`/`EventSource`/`ReconnectingWebSocket`, `net.createConnection`/`createServer` (warning). setInterval: bare calls with discarded return value (error) and captured handles that are never `clearInterval(...)`-ed (warning). Recognises `stream.pipeline(x, ...)` / `stream.finished(x, ...)` as cleanup, plus escape paths through `return`/`module.exports`/`export`/property-assignment (`this.timers = ...`) and array push/set/add — so legitimate handle-storage patterns don't false-positive. Block-comment / JSDoc aware | Adding new resource-acquiring APIs or escape-path shapes |
+| `src/modules/ssrf.js` | SSRF / URL-validation gap detector — tracks taint from `req.body`/`req.query`/`req.params`/`req.headers`/`ctx.request`/`event.body` to HTTP client calls (`fetch`/`axios`/`got`/`http.request`/`https.request`/`needle`/`superagent`/`request`/`undici`/`ky`). Flags: inline tainted URLs (error), tainted variables handed to the client without intermediate validation (error), hardcoded metadata-service endpoints (AWS 169.254.169.254, GCP metadata.google.internal, Azure metadata.azure.com, Alibaba 100.100.100.200) (error), suspicious-named variables (`webhookUrl`, `callbackUrl`, `redirectUrl`, `imageUrl`, `targetUrl`, etc.) with no visible validation (warning). Suppresses on `validateUrl`/`isValidUrl`/`allowedHosts.includes`/`new URL(x).hostname` guards. Records info-level `library-ok` for `ssrf-req-filter` / `request-filtering-agent` / `safe-url` / `ssrfcheck` imports | Adding new HTTP clients, taint sources, validators, or cloud metadata endpoints |
+| `src/modules/hardcoded-url.js` | Hardcoded-URL / localhost / private-IP leak detector — walks JS/TS sources and flags string-embedded URLs pointing at `localhost`/`127.0.0.1`/`0.0.0.0` (error), RFC1918 ranges (10/8, 172.16/12, 192.168/16) (error), link-local 169.254/16 (error), internal TLDs (`.internal`/`.local`/`.lan`/`.corp`) and staging subdomains (`staging.`/`dev.`/`qa.`/`uat.`) (warning), non-TLS `http://` external URLs (warning). Suppresses on: test/e2e/stories/fixture paths (downgrades to info), files matching `playwright.config.*` / `vitest.config.*` / etc., URLs used as filter patterns (`.startsWith`/`.includes`/`.match`/`===`/`new RegExp`), the env-fallback pattern (`process.env.X \|\| "http://..."`), dev-context variable names (`DEV_URL`/`LOCAL_URL`), `NODE_ENV !== 'production'` guards on the current or preceding 3 lines, and doc-example URLs (example.com, etc.). Block-comment / line-comment aware | Adding new URL shapes, dev-guard patterns, or doc allowlist entries |
+| `src/modules/env-vars.js` | Env-vars contract scanner — cross-references declared env vars (`.env.example`/`.env.*.example`/`vercel.json`/`netlify.toml`/`docker-compose*.yml`/`.github/workflows/*.yml`) against actual reads in JS/TS (`process.env.X` / `process.env["X"]`), Python (`os.environ["X"]` / `os.environ.get("X")` / `os.getenv("X")`) and Go (`os.Getenv("X")` / `os.LookupEnv("X")`). Flags: referenced-but-not-declared (error: `missing-from-example`), declared-but-unreferenced (warning: `unused-in-code`), `NEXT_PUBLIC_*` / `VITE_*` / `REACT_APP_*` client-bundled keys (info: `client-exposed`). Runtime-allowlisted keys (`NODE_ENV`, `PORT`, `CI`, `VERCEL_*`, `GITHUB_*`, `AWS_*`, `PATH`, etc.) never flag. Test paths, dev-config files (`playwright.config.*`/`vitest.config.*`/`jest.config.*`/`cypress.config.*`), JSDoc block comments, line comments, and Python `"""` docstrings are skipped | Adding new declaration sources, new language grammars, or runtime-allowlist entries |
+| `src/modules/async-iteration.js` | Async-iteration detector — flags `.reduce(async ...)` / `.reduceRight(async ...)` (error: silent-serialisation + Promise accumulator), `.filter(async ...)` / `.some(async ...)` / `.every(async ...)` / `.find*(async ...)` (error: Promise-truthy predicate), `.forEach(async ...)` (warning: enclosing function returns before inner awaits), and `.map(async ...)` / `.flatMap(async ...)` not wrapped in `Promise.all` / `Promise.allSettled` / `Promise.any` / `Promise.race` and not chained with `.then`/`.catch`/`.finally` (warning: unwrapped-map). String, line-comment, and block-comment contexts are skipped; test-path hits downgrade error → warning; `// async-iteration-ok` on the same or preceding line suppresses. Paren-depth walk backwards from the call site detects whether `.map` is inside a Promise combinator argument, avoiding false-positives on `Promise.all(arr.map(...))` | Adding new iterator methods, Promise combinators, or suppression markers |
+| `src/modules/openapi-drift.js` | OpenAPI ↔ code drift detector — walks `openapi.{yaml,yml,json}` / `swagger.*` / `api-spec/*` and builds a (method, path) set. Walks JS/TS source and harvests routes from Express/Connect (`app.get`/`router.post`/etc.), Fastify (`fastify.get` + `fastify.route({ method, url })` object form), Koa + koa-router, Hono, and Next.js App Router (`app/api/**/route.{ts,js}` with exported `GET`/`POST`/`PATCH`/`PUT`/`DELETE`/`OPTIONS`/`HEAD` functions). Normalises Express-style `:id` to OpenAPI-style `{id}` and fuzzy-matches `{id}` ~= `{userId}` so param-name differences don't false-positive. Flags: code route missing from spec (error: `undocumented-route`), spec path with no matching handler (warning: `spec-ghost-route`). Test paths are excluded from code-harvest. Module is a no-op when no spec file is present | Adding new framework route shapes, new spec file conventions, or new method forms |
+| `src/modules/cron-expression.js` | Cron-expression validator — harvests cron strings from `.github/workflows/*.yml` (GitHub Actions `schedule: [{ cron: "..." }]`), Kubernetes `CronJob` `spec.schedule`, `vercel.json` `crons[].schedule`, and source-code call sites: node-cron `cron.schedule('...')`, croner `new Cron('...')`, node-schedule `schedule.scheduleJob('...')`, APScheduler `CronTrigger.from_crontab('...')` (Python), Spring `@Scheduled(cron = "...")` (Java/Kotlin). Validates: field count (5 standard / 6 with seconds / predefined alias — error), per-field value ranges (minute 0-59, hour 0-23, DoM 1-31, month 1-12/JAN-DEC, DoW 0-7/SUN-SAT — error), step/range/list syntax, Quartz extensions (L/W/#), and impossible dates (Feb 30/31, Apr/Jun/Sep/Nov 31 — error, silent-killer). Warns on `* * * * *` every-minute cron and typo aliases (`@weely`). Test paths downgrade error → warning. `# cron-ok` / `// cron-ok` suppresses | Adding new cron harvest sources (Temporal schedules, Celery beat, AWS EventBridge cron), extended syntax (`?`/`L`/`W`/`#`), or alias lists |
+| `src/modules/datetime-bug.js` | Datetime / timezone bug detector — walks JS/TS and Python sources for the five classic clock bugs: Python `datetime.now()` with no `tz=` argument (error: naive datetime — CI and prod use different timezones), Python `datetime.utcnow()` (error: deprecated in 3.12+, still returns naive), JS `new Date(yyyy, 1-12, dd)` (warning: months are 0-indexed — ambiguous between `Feb` bug and `Dec` correct-by-accident), JS `Date.UTC(yyyy, 1-12, dd)` (warning: same 0-vs-1 trap), `moment()` without a `.tz(...)` call on the same line (warning: silently uses local time, library in legacy mode since 2020). Block-comment, line-comment, Python `#` comments and triple-quoted docstrings are stripped before matching. Test paths downgrade error → warning (Python) and warning → info (JS). `// datetime-ok` / `# datetime-ok` on same or preceding line suppresses | Adding new clock-bug shapes (Luxon naive `DateTime.local()`, date-fns `startOfDay` without tz, Java `java.util.Date`, Go `time.Now()` without `Location`), or extending suppression markers |
+| `src/modules/import-cycle.js` | Import-cycle / circular-dependency detector — walks JS/TS sources (`.js`/`.jsx`/`.mjs`/`.cjs`/`.ts`/`.tsx`/`.mts`/`.cts`), builds an import graph from top-level `import ... from './x'`, `export { ... } from './x'`, top-level `require('./x')` (indent-0 only — lazy in-function requires are correctly ignored), resolves relative specifiers through extension-retry and `./x/index.<ext>` fallback, then runs iterative Tarjan's SCC algorithm to find every strongly-connected component of size ≥ 2. Reports: cycle of 2+ files (error: runtime TDZ / undefined-import bug), self-loop (error: file imports itself), summary (info). Skips: type-only imports (`import type` / `export type` / `import { type X }` — erased at build time), bare-package specifiers (`react`, `lodash` — external, cannot form cycles with local files). Test paths downgrade error → warning. `// import-cycle-ok` on the import line suppresses that edge | Adding new import forms (dynamic `import(...)` with string literal, tagged templates), TypeScript path-alias resolution via `tsconfig.json` paths, or new suppression markers |
+| `src/modules/tls-security.js` | TLS / cert-validation-bypass detector — walks JS/TS and Python sources for the pattern that ships MITM-vulnerable code to prod: a developer disables TLS validation once for staging self-signed certs, forgets to re-enable. Nine rule classes: (1) JS `rejectUnauthorized: false` in https.Agent / tls options (error: `js-reject-unauthorized`). (2) JS `process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"` global nuclear disable in both dot-form and bracket-form `process.env["..."] = "0"` — regex requires `process.env.` prefix so prose references don't FP (error: `js-env-bypass`). (3) JS `strictSSL: false` in request / superagent / got family (error: `js-strict-ssl`). (4) JS `insecure: true` (error: `js-insecure-flag`). (5) Python `verify=False` / `verify_ssl=False` / `ssl=False` as a kwarg — regex requires `[,(]` prefix to ensure it's an argument, not a type annotation (error: `py-verify-false`). (6) Python `ssl._create_unverified_context()` (error: `py-unverified-context`). (7) Python `.check_hostname = False` (error: `py-check-hostname-false`). (8) Python `ssl.CERT_NONE` / `cert_reqs='CERT_NONE'` (error: `py-cert-none`). (9) Python `urllib3.disable_warnings(InsecureRequestWarning)` (warning: `py-disable-warnings`). Two-phase JS line scan: env-bypass rule runs on block-stripped line (preserves `"0"` literal); all other rules run on fully string-stripped line (handles multi-line backtick templates). Python-side strips block/line/hash/triple-quoted-docstring comments. Test paths downgrade error → warning and warning → info. `// tls-ok` / `# tls-ok` on same or preceding line suppresses | Adding new bypass shapes (Go `tls.Config{InsecureSkipVerify: true}`, Java `TrustAllCerts`, .NET `ServerCertificateValidationCallback`), hostname-spoofing detection, cert-pinning enforcement, or cert-expiry scanning |
+| `src/modules/cookie-security.js` | Cookie / session-security config detector — walks JS/TS and Python sources for the misconfigurations that turn XSS into session takeover and let cookies ride over plain HTTP. Six rule classes: (1) JS `httpOnly: false` in cookie / session options (error: `js-httponly-false`) — cookie readable from `document.cookie`. (2) JS `secure: false` in cookie / session options (warning: `js-secure-false`) — cookie rides over plain HTTP. (3) JS `secret: '<known-weak>'` where the value is an obvious placeholder (`changeme`, `secret`, `default`, `password`, `keyboard cat`, `test`, `mysecret`, `sessionsecret`, `session-secret`, `abcd1234`, `foo`, `bar`, `change[_-]?me`, `your[_-]?secret[_-]?here`, `replace[_-]?me`, case-insensitive) (error: `js-weak-secret`). (4) Python `SESSION_COOKIE_SECURE = False` / `CSRF_COOKIE_SECURE = False` (warning: `py-cookie-secure-false`). (5) Python `SESSION_COOKIE_HTTPONLY = False` / `CSRF_COOKIE_HTTPONLY = False` (error: `py-cookie-httponly-false`). (6) Python `httponly=False` kwarg on `response.set_cookie` / Starlette / FastAPI cookie helpers — regex requires `[,(]` prefix to ensure it's an argument (error: `py-fastapi-httponly-false`). Two-phase JS line scan: weak-secret rule runs on block-stripped line (preserves the string literal value for capture and reporting); other rules run on fully string-stripped line to avoid doc-string FPs. Python-side strips block/line/hash/triple-quoted-docstring comments. Test paths downgrade error → warning and warning → info. `// cookie-ok` / `# cookie-ok` on same or preceding line suppresses | Adding new cookie-setter libraries (cookie-session, iron-session specific shapes), Go `http.Cookie{Secure: false, HttpOnly: false}`, Java `Cookie.setHttpOnly(false)`, or stronger weak-secret heuristics (entropy-based detection) |
+| `src/modules/claude-compliance.js` | AI-output compliance auditor — pairs with `aiHallucination` (invented packages/methods) and `fakeFixDetector` (symptom patches) to form the AI-code-rot triad. Five rule classes: (1) mock-data-in-prod — `John Doe`/`Jane Doe`, `john@example.com`/`jane@example.com`/`test@test.com`/`foo@bar.com`, `Lorem ipsum`, `555-0xxx` phone, `123 Main St`, `password123`/`changeme`, Stripe-test card `4242…` in non-test paths (warning). (2) not-implemented stubs — `throw new Error("not implemented" \| "TODO" \| "unimplemented" \| "stub")`, Python `raise NotImplementedError`, `// TODO: implement` / `// FIXME: implement` (error, info in tests). (3) WHAT-not-WHY comment noise — density signal on AI-scaffold comment shapes (`// Loop through`, `// Check if`, `// Initialize the`, `// Create a new`, `// Function to`, `// Get/Set/Return the`, `// Step N:`); flags at ≥3 hits AND ≥3/200 lines (warning). (4) `: any` / `as any` density — > 5 per 100 lines of TS/TSX (warning — file gave up on types). (5) `@ts-ignore` / `@ts-nocheck` / `@ts-expect-error` density — ≥ 3 per file (warning). Test / fixture / story / mock paths downgrade severity. `// claude-ok` / `# claude-ok` suppresses. `.md`/`.mdx`/`.rst`/`.txt` skipped; minified bundles skipped. Findings feed the memory module's fix-pattern flywheel so every Claude-rot fix sharpens the next scan | Adding new mock-data shapes, new AI comment idioms, language-specific stub patterns (Go `panic("not implemented")`, Rust `unimplemented!()`), or tuning density thresholds |
+| `src/modules/feature-flag.js` | Feature-flag hygiene detector — walks JS/TS and Python sources for stale flags collapsed into compile-time constants. Three rule classes: (1) always-true conditional — `if (true)` / `if (1)` / `if (!false)` / `if (!0)` in JS/TS (error: `always-true-if`) and `if True:` / `if 1:` / `if not False:` in Python (error: `py-always-true-if`) — flag flipped permanently on, conditional forgotten. (2) always-false conditional — `if (false)` / `if (0)` / `if (!true)` / `if (!1)` (warning: `always-false-if`) and `if False:` / `if 0:` / `if not True:` (warning: `py-always-false-if`) — dead branch. (3) flag-named const bound to literal — JS `const FEATURE_X = true;` / `const ENABLE_Y = false;` in SCREAMING_SNAKE FEATURE_/ENABLE_/DISABLE_/FLAG_/USE_/SHOW_/HIDE_ prefix (warning: `stale-const`), Python module-level `FEATURE_X = True` (warning: `py-stale-const`). Deliberately restricts const-rule to `const` (not `let`/`var`) to avoid FP on `let hasErrored = false;` local mutable state. String-state tracker blanks out content of single/double/backtick strings so `if (false)` inside docstrings and multi-line prompt template literals does not trigger. Block-comment and line-comment stripped before matching. Minified files (`.min.js`, `.bundle.js`, `.prod.js`) skipped entirely. Test paths downgrade error → warning and warning → info. `// flag-ok` / `# flag-ok` on same or preceding line suppresses | Adding flag-API-vendor-specific detection (LaunchDarkly / Unleash / Split.io / Flagsmith / Optimizely / ConfigCat call-site patterns), stale-flag-age tracking (git blame), or duplicate-flag-string detection across files |
+| `src/modules/log-pii.js` | Logging-hygiene / PII-in-logs detector — walks JS/TS and Python sources for the compliance-violation bug that ships in every codebase: `console.log(password)`, `logger.info(req.body)`, `log.debug(JSON.stringify(user))`. Four rule classes: (1) logger call (`console.{log,debug,info,warn,error}`, `logger.*`, `log.*`, winston/pino/bunyan/morgan/fastify.log) with a BARE sensitive identifier argument — password, passwd, pwd, token, apiKey, secret, credential, authorization, accessToken, refreshToken, idToken, jwt, bearer, cookie, session, ssn, creditCard, cardNumber, cvv, cvc, pin, privateKey (error: `sensitive-arg`, error on JS, `py-print-sensitive` on Python). (2) logger call with a BARE object-dump identifier — req, request, body, payload, user, member, account, profile, customer, headers, cookies, authHeader, session, formData (warning: `object-dump` on JS, `py-object-dump` on Python). (3) logger call with `JSON.stringify(x)` where `x` is sensitive or object-dump (warning: `stringify-dump`). (4) template-string interpolation `\`...${x}...\`` where `x` is a BARE sensitive/object identifier — the closing `}` must be directly after the identifier, so `${auth.type}` (safe label access) is correctly NOT flagged (error: `sensitive-interp` / warning: `object-interp`). Block-comment / line-comment / Python `#` and triple-quoted docstrings stripped before matching. Test paths downgrade error → warning and warning → info. `// log-safe` / `# log-safe` on same or preceding line suppresses | Adding new logger libraries, new sensitive-identifier names (pgp, ssh-key, mfa, otp), tuning the object-dump identifier list, or extending suppression markers |
+| `src/modules/money-float.js` | Money / currency float-safety detector — walks JS/TS and Python sources for the "store-money-in-float" anti-pattern that causes `$0.01 * 1_000_000 = $9999.99...` accumulation drift and regulator-attention-grade rounding fraud. Flags: JS money-named variable (`price`, `total`, `amount`, `tax`, `fee`, `subtotal`, `balance`, `discount`, `usd`/`eur`/`gbp`/`jpy`/`cad`/`aud`/`nzd`/etc.) assigned from `parseFloat(...)` / `Number(...)` (error: `js-parse-float`), class/object property form `this.amount = parseFloat(...)` (error: `js-parse-float-prop`), Python money-named variable assigned from `float(...)` (error: `py-float-cast`), and JS `.toFixed(0)` / `.toFixed(1)` on any money-named receiver (warning: `insufficient-precision` — sub-cent rounding bug). Safe-harbour: if the file imports a known decimal library (decimal.js / big.js / bignumber.js / dinero.js / currency.js / money-math / cashify / `new Decimal()` / `new Big()` / `new BigNumber()` / `Dinero()`) or the Python `decimal` stdlib (`from decimal import Decimal`, `import decimal`), the float-cast rules don't fire. Block-comment, line-comment, Python `#` and triple-quoted docstrings stripped before matching. Test paths downgrade error → warning. `// money-float-ok` / `# money-float-ok` on same or preceding line suppresses | Adding new currency codes, money-named identifiers, decimal-safe libraries, or language backends (Go `float64` on money, Java `double`) |
+| `src/modules/redos.js` | ReDoS / catastrophic-regex detector — walks JS/TS/Python sources and extracts regex patterns from literal form (`/pattern/flags`), constructor form (`new RegExp("...")` / `RegExp("...")`), and Python `re.compile` / `re.match` / `re.search` (both `r"..."` raw and `"..."` regular). Constructor-form patterns are unescaped one level so `"\\d+"` is analysed as `\d+`. Tests for three shape-based rules: nested quantifier where the inner element can match empty or has its own quantifier (error: catastrophic backtracking, `(a+)+`, `(.*)*`, `(?:[abc]+)*`), alternation with overlapping branches inside a quantified group (error: `(a|a)*`, `(\d|\d+)*`), and greedy `.*`/`.+` with unanchored polynomial backtracking (warning). Plus one data-flow rule: `new RegExp(req.*.*)` / `RegExp(userInput)` etc. — user-controlled regex construction (error, CWE-1333 injection). Line / block / Python hash comments are stripped before extraction. Test paths downgrade error → warning. `// redos-ok` on same or preceding line suppresses | Adding new regex-source forms (tagged templates, .sregex), new catastrophic shapes, new taint sources |
+| `src/modules/pr-size.js` | PR-size enforcer — resolves a git diff against a base ref (config.against, or auto-detect via staged / working-tree / HEAD~1), parses `git diff --numstat` output (with fallback to unified-diff bodies, including numstat rename shapes `old => new` and `src/{a => b}/file`) and enforces four independent limits: total files (soft 50 / hard 100 — warning / error), total lines added+removed (soft 500 / hard 1000), per-file lines (soft 300 / hard 500), and top-level directory sprawl (warning at >3, catches mixed-concern PRs). Auto-excludes lockfiles (package-lock, yarn.lock, pnpm-lock, Gemfile.lock, Cargo.lock, poetry.lock, composer.lock, go.sum, mix.lock, flake.lock), build output (`dist/`, `build/`, `out/`, `.next/`, `coverage/`, `node_modules/`, `vendor/`, `target/`, `bin/`), minified/bundled files (`*.min.*`, `*.bundle.*`), snapshot tests (`*.snap`), and source-maps (`*.map`). Summary line always fires (info). No-op outside a git repo or when no diff is available | Adding new exclusion patterns, new thresholds, or a new diff-parse form |
+| `src/modules/homoglyph.js` | Homoglyph / Unicode-lookalike detector — flags bidirectional-override / isolate characters (U+202A..U+202E, U+2066..U+2069) as Trojan Source attack shape (error, CVE-2021-42574), Cyrillic / Greek letters embedded inside otherwise-Latin identifiers (error: supply-chain / code-review bypass vector; covers `а` U+0430, `е` U+0435, `о` U+043E, `р` U+0440, `с` U+0441, `х` U+0445, `у` U+0443, `ѕ` U+0455, Greek `ο` U+03BF, `ρ` U+03C1, etc.), zero-width chars U+200B/U+200C/U+200D/U+2060/U+FEFF mid-file (warning: identifier-shadow vector), and other non-printable control chars (warning). Identifier scan uses a string-and-comment stripper so translation-string contents don't false-positive. Locale paths (`locales/`, `i18n/`, `lang/`, `translations/`, `intl/`, `l10n/`), locale extensions (`.po`/`.pot`/`.xliff`/`.arb`/`.mo`), and doc extensions (`.md`/`.mdx`/`.rst`) are exempt. BOM on the first byte of the first line is allowed | Adding new lookalike letters, locale-path patterns, or control-char allowlist |
+| `src/core/host-bridge.js` | Abstract `HostBridge` base, bridge registry (`createBridge`/`registerBridge`), canonical commit-status vocabulary, shared PR/MR markdown formatter | Before adding a new host integration or touching cross-host logic |
+| `src/core/github-bridge.js` | Concrete `GitHubBridge` extending `HostBridge` — GitHub-specific REST calls, circuit breaker, retry, JWT auth | Anything GitHub-specific; prefer `HostBridge` for cross-host work |
+| `bin/gatetest.js` | CLI flags, help text, watch mode | Adding CLI features |
+| `website/app/api/scan/run/route.ts` | The actual scan execution | Changing scan logic |
+| `website/app/scan/status/page.tsx` | Live scan page | Changing scan UX |
+| `website/app/api/checkout/route.ts` | Stripe checkout creation | Changing payment flow |
+| `website/app/page.tsx` | How website sections compose | Changing page structure |
+| `website/app/globals.css` | Dark theme, animations | Changing visual style |
+| `integrations/github-actions/gatetest-gate.yml` | CI gate shipped to protected platforms | Any change to protection workflow |
+| `integrations/husky/pre-push` | Local pre-push gate for protected platforms | Any change to local enforcement |
+| `integrations/scripts/install.sh` | One-command installer into a protected repo | Any change to install flow |
+| `tests/integrations.test.js` | Tripwire that prevents silent removal of protection | DO NOT modify without Craig auth |
+
+---
+
+## ENVIRONMENT VARIABLES (Vercel)
+
+| Variable | Purpose |
+|----------|---------|
+| `STRIPE_SECRET_KEY` | Stripe API (sk_live_... or sk_test_...) |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe client key |
+| `NEXT_PUBLIC_BASE_URL` | https://gatetest.ai |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing |
+| `GLUECRON_BASE_URL` | Gluecron deployment URL (default https://gluecron.com) |
+| `GLUECRON_API_TOKEN` | Gluecron PAT (scope: `repo`, format `glc_<64hex>`) |
+| `ANTHROPIC_API_KEY` | Claude API for AI review |
+| `GATETEST_ADMIN_PASSWORD` | Admin console password for `/admin` (bypasses Stripe) |
+| `CONTINUOUS_AI_BUDGET_USD` | Monthly Claude AI-review allowance per Continuous subscription (default 10) |
+| `GITHUB_CLIENT_ID` | GitHub OAuth App client ID — enables customer "Sign in with GitHub" at `/dashboard` |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret — pairs with GITHUB_CLIENT_ID |
+| `SESSION_SECRET` | Random 40+ char secret — AES-256-GCM encrypts customer session cookies |
+| `SLACK_WEBHOOK_URL` | Default Slack Incoming Webhook URL — scan results posted here when no per-request webhook provided |
+| `SLACK_SIGNING_SECRET` | Slack App Basic Information → Signing Secret — verifies `/gatetest` slash command requests |
+| `GATETEST_INTERNAL_API_KEY` | Optional Bearer token for the Slack slash-command route when calling `/api/v1/scan` internally |
+| `RESEND_API_KEY` | Resend.com API key — weekly digest emails to Continuous subscribers (`watchdog@gatetest.ai` sender). Optional: if not set, email delivery is silently skipped; Slack digests still fire via `SLACK_WEBHOOK_URL`. |
+| `RESEND_FROM` | Override the From address for digest emails (default: `GateTest <watchdog@gatetest.ai>`) |
+| `GATETEST_API_KEY` | *(MCP server env, not Vercel)* Premium MCP subscription key (`gtmcp_<64hex>`, 70 chars). Set in the MCP server's environment. Unlocks premium tools in `bin/gatetest-mcp.mjs`. Free tools work without it. |
+
+---
+

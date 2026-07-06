@@ -1,0 +1,180 @@
+# GateTest Roadmap
+
+Forward-looking work: evolution tiers, the Inclusive Agentic QA spec, open Known Issues, and the remote-MCP distribution plan.
+
+> Split out of CLAUDE.md (the Bible) 2026-07-07 to keep every session's context lean.
+> The Bible holds rules + current truth; this file holds the detail. Nothing was deleted.
+
+## HYPER-AGGRESSIVE PRODUCT EVOLUTION ROADMAP (READ THIS EVERY SESSION)
+
+**Authorization:** Craig 2026-05-12 — handed over a 20-item product evolution list and instructed: ship the 5 "Ship Now" items. The rest is recorded here so future sessions don't re-litigate it. Boss Rule items in this list ALWAYS require Craig's explicit go before any code lands.
+
+### Tier 1 — SHIP NOW (revenue-moving, low-risk, pre-authorised)
+
+**STATUS: ALL FOUR SHIPPED AND WIRED (2026-05-24 verified — files exist, both fix paths import them).**
+
+1. **Contextual Grounding** — `lib/contextual-grounding.js` (204 lines). Wired into `website/app/api/scan/fix/route.ts:340` AND `src/core/ai-fix-engine.js:38`. Injects README + AGENTS.md + ARCHITECTURE.md into every fix prompt as PROJECT CONVENTIONS. Kills "Claude suggested Mongo when we use Postgres" failures.
+
+2. **Shadow Scan Previews + Tiered Feature Redaction** — `lib/scan-redaction.js` wired into `website/app/api/scan/run/route.ts:45`. $29 customers see counts of issues in the 86 modules they didn't pay for, with redacted detail and upsell prompts.
+
+3. **CVE-to-Fix Pipeline** — `lib/cve-to-fix.js` (449 lines) wired into `website/app/api/scan/fix/route.ts:301`. CVE-shaped findings auto-generate `package.json` / `requirements.txt` / `Cargo.toml` version-bump patches. Headlines vs Dependabot.
+
+4. **Confidence-Aware Reporting** — `lib/confidence-gate.js` (197 lines) wired into `website/app/api/scan/fix/route.ts:1790`. Aggregates per-finding confidence; gate-blocks only when ≥ threshold.
+
+5. **(Item 4 rolls into Item 2 here)** — Tiered Feature Redaction is the Shadow Preview's machinery. Same `scan-redaction.js` helper.
+
+**Future sessions:** do NOT re-implement these. If you think they're missing, grep for the lib file first.
+
+### Tier 2 — REQUIRES CRAIG'S EXPLICIT OK (Boss Rule)
+
+| Item | Why blocked |
+| --- | --- |
+| Memory-as-a-Service (central DB for Nuclear users' MemoryStore) | New user-data store + retention policy — Boss Rule #9 |
+| SOC2 / HIPAA "always-audit-ready" dashboard | Compliance comms + sales positioning — Boss Rule #9 |
+| Multi-Agent Consensus (Claude + GPT-4o cross-check) | Adding OpenAI as a second external API — Boss Rule #7 |
+| Agentic Self-Healing (auto-fix without dev seeing the failure first) | Modifies customer code before review — trust contract change, Boss Rule #9 |
+
+### Tier 3 — PUSHED BACK (cost > benefit until $5K-$10K MRR)
+
+- **Shadow Infrastructure Scans** — spinning up isolated envs per PR is expensive compute; would erode margins
+- **eBPF Runtime Truth** — Linux-only, ops-heavy, customers aren't asking for it
+- **Formal Verification / Z3** — academic-grade, audience of ~5 customers worldwide
+- **GNN Taint Analysis** — research-stage, ~12+ months from productisable
+- **Vector-Based Fingerprinting** — heavy infra lift, real moat but only after revenue justifies it
+
+### Tier 4 — DEFERRED (sequenced behind earlier work)
+
+- **Architectural Decision Memory** — depends on centralised Memory (Tier 2)
+- **Automated Post-Mortems** — needs log-ingestion infra; later product
+- **Interactive Fix Terminal** — UX upgrade; ship after auto-PR has 100 real-customer PRs of trust
+- **WASM Sandboxing for deps** — ~2 weeks of focused work; valuable but not blocking
+- **Differential Fuzzing** — pairs with mutation testing; ~1 week to ship
+
+### Operating rules
+
+1. **No new Tier 1 work begins until the previous one is committed + pushed + tested.**
+2. **Tier 2 items NEVER get auto-started.** Craig must say "do X" explicitly.
+3. **Tier 3 items stay parked until MRR justifies the cost.** Revisit at $5K MRR.
+4. **This roadmap is the source of truth.** Any session adding a new feature first checks: is it on this list? What tier? If not on the list and it's significant, ask Craig before building.
+
+---
+
+## INCLUSIVE AGENTIC QA PLATFORM — MASTER BUILD SPECIFICATION v1.0.0 (READ THIS EVERY SESSION)
+
+**Authorization:** Craig 2026-06-23 — *"Let's lock this vision down into a formal, highly actionable blueprint."* This spec sets the new product direction, persona architecture, feature roadmap, and tone guidelines. It supersedes prior positioning where GateTest was pitched purely as a "SonarQube killer." Both framings coexist: the technical engine stays aggressive; the UX and messaging layer becomes inclusive and conversational.
+
+### Product Vision (Updated)
+
+GateTest.ai is the world's first **Inclusive Agentic QA Platform**. We reject tool fatigue, cryptic error messaging, and exclusionary developer elitism. The mission is to protect codebases while treating every user — from absolute novices to veteran software architects — like family.
+
+- **The Technical Engine:** Ultra-fast, zero-dependency intelligence layer that orchestrates standard open-source tools (Playwright, Vitest) rather than reinventing them.
+- **The UX Layer:** Empathetic, Claude-powered interface that translates system failures into human-readable conversations, visual storyboards, and automated code patches.
+
+### Multi-Tier User Persona Architecture
+
+The system must dynamically adapt interface and messaging to the user's technical profile:
+
+| Persona | Primary Pain Point | GateTest Solution | Interface Mode |
+| --- | --- | --- | --- |
+| **The Novice / Learner** | Cryptic, intimidating terminal errors that cause panic | Conversational, encouraging translations of stack traces with step-by-step guidance | **Co-Pilot Mode** |
+| **The Consumer / PM** | Zero visibility into pipeline health without opening GitHub | Natural-language search dashboard with clear visual timelines and site health checks | **Visual Dashboard** |
+| **The Expert Architect** | Bloated third-party dependencies, slow pipelines, and magic black boxes | Ultra-fast native Node.js runners, clear AST visibility, and raw code configuration toggles | **Expert Toggle** |
+
+### Phase Roadmap & Authorization Status
+
+#### Phase 1 — Advanced Workspace Diagnostics *(Pre-authorized)*
+
+Building directly on the native glob-walker and suppression map from PR #240.
+
+- [x] **1A** Workspace package alias suppression — blanket-suppress false positives for packages consumed via name aliases (PR #240, 2026-06-22). Zero-dependency, line-heuristic approach.
+- [x] **1B** Name-level export tracing — **DONE (2026-06-23, commit 3df833c).** Craig authorized `acorn` (now `^8.17.0` in `package.json` dependencies). AST-level entry-surface analysis is fully operational: `src/modules/dead-code-extractor.js` `parseExportsWithAcorn()` walks the AST (falling back to a regex extractor when acorn is absent or a parse fails), and `dead-code.js` builds a precise per-package export surface via `buildPackageExportSurface()` / `populatePackageSurface()` so granular dead code **inside** active packages is found rather than blanket-suppressing the whole package.
+- [x] **1C** Configuration-free monorepo discovery — **DONE (2026-06-23)**. Two-part ship: (1) `fix-workspace-hydrator.js` `CONVENTION_FILES` now includes `pnpm-workspace.yaml`, `pnpm-workspace.yml`, `lerna.json` so these are always fetched for the fix route. (2) `/api/scan/run/route.ts` now promotes ALL `package.json`, `pnpm-workspace.yaml`, `pnpm-workspace.yml`, `lerna.json` files to the front of the fetch queue (capped at 30) before the 50-file source cap is applied — so `buildWorkspaceMap()` in `dead-code-index.js` always finds sub-package `package.json` files in the materialised workspace, enabling full monorepo dependency-map construction without any user config file. 1 new test (`fix-workspace-hydrator.test.js`). No new dependencies.
+
+#### Phase 2 — Unified Test Orchestrator *(Needs Craig's authorization — Boss Rule #7)*
+
+Eliminating tool fatigue by wrapping industry-standard tools via Model Context Protocol.
+
+- [ ] **2A** MCP Harnessing Layer — Claude controls native outputs from **Playwright** (UI/E2E) and **Vitest/Jest** (unit/API) via MCP bridges. Playwright is already an approved internal dependency; the MCP wiring into a unified orchestrator is the new piece requiring Craig's go-ahead.
+- [ ] **2B** Parallel Execution Core — run static analysis, API checks, and browser UI tests concurrently on the local machine before pushing to git, cutting CI wait times.
+
+#### Phase 3 — Agentic Self-Healing & Repair *(Pre-authorized where it extends existing --auto-pr; Boss Rule for new user-facing command surface)*
+
+- [ ] **3A** Diagnostic Bundle — upon any test failure, compile: human-readable error summaries, precise code file strings, DOM element snapshots, and network logs.
+- [ ] **3B** One-Click Git Patching — pass the Diagnostic Bundle to Claude, generate a safe precise code modification, present as a clean git patch (`gate-test fix --apply`). The AI-fix engine and orchestrator already exist; the `fix --apply` CLI flag is new user-facing surface. Authorisation needed for the final "apply to user's repo" step.
+
+### System Tone & Personality Guidelines *(Apply immediately to all new error messages)*
+
+> **Core Directive:** GateTest must never sound robotic, punitive, or superior. It must communicate like a helpful, grounded, and slightly witty peer.
+
+**Anti-patterns (never use):**
+- ❌ `ERROR: Process exited with code 1. Uncaught TypeError: Cannot read properties of undefined (reading 'map').`
+- ❌ `Build Failed. Your code broke 14 tests.`
+
+**GateTest formatting patterns (always use):**
+- ✅ *"Caught a small slip-up on line 14 of `deploy-planner`. The app expected a list of files but hit an empty box instead. Here's a quick 2-line patch to make it robust!"*
+- ✅ *"Looking good! Your workspace alias setup is running beautifully. 25/25 tests passed safely."*
+
+Apply these guidelines to: module warning/error messages, CLI output strings, PR body templates, website scan-status copy.
+
+### Revenue & Privacy Enforcement *(Boss Rule — Craig must authorize)*
+
+- **Usage-Based Scale:** Generous local-first tier for indie hackers, open-source maintainers, and students to build grassroots loyalty. Enterprise pricing scales on execution volume and infrastructure savings. **Pricing change = Boss Rule #3.**
+- **Zero-Data Retention Policy:** Enterprise connections — code snippets passed to Claude via secure APIs must never be retained, stored, or used for model training. This removes the primary enterprise adoption barrier. **Implementing and marketing this is Boss Rule #9 (user data, public-facing comms).**
+
+### Phase 1B Dependency Authorization Tracker
+
+| Dependency | Purpose | License | Bundle impact | Status |
+| --- | --- | --- | --- | --- |
+| `acorn` | AST parser for name-level export tracing in dead-code.js | MIT | ~100KB, zero runtime dep | **AUTHORIZED + INSTALLED 2026-06-23 (`^8.17.0`, commit 3df833c)** |
+
+**Acorn authorized + Phase 1B shipped:** `parseExportsWithAcorn()` in `src/modules/dead-code-extractor.js` walks the AST to build the precise exported-name surface per workspace package entry point, with a regex extractor as the acorn-absent / parse-error fallback. `dead-code.js` consumes it via `buildPackageExportSurface()` / `populatePackageSurface()`, suppressing only the exports that pass through the entry point and flagging the rest.
+
+---
+
+## KNOWN ISSUES — QUEUED FOR FIX
+
+| # | Issue | Severity | Status |
+|---|-------|----------|--------|
+| 3 | Stripe test keys not yet swapped in | MEDIUM | Craig action |
+| 4 | GitHub App not yet installed on test repo | MEDIUM | Craig action |
+| 5 | Crontech.ai protection — workflow shipped in `integrations/`, needs `install.sh` run from that repo | HIGH | Craig action (or expand MCP scope) |
+| 6 | Gluecron.com protection — workflow shipped in `integrations/`, needs `install.sh` run from that repo | HIGH | Craig action (or expand MCP scope) |
+| 7 | MCP GitHub scope currently restricted to `crclabs-hq/gatetest` — blocks pushing protection into Crontech/Gluecron directly. Expand to owner-wide scope. | HIGH | Craig action — see `.claude/` config |
+| 22 | **GitHub App `installation_id` not persisted** (`/api/github/callback/route.ts:17`). Without this, webhooks carry an `installation_id` but we can't map it to a billing customer → multi-org customers lose correlation. Flagged by scan/payment + GitHub-App audits 2026-04-18. | HIGH | Craig action — requires schema extension (new `installations` table or equivalent in Neon) and touches user data. Bible Boss Rule #9 triggers. |
+| 23 | **PR comments are not idempotent** — `/api/webhook/route.ts:438` posts a fresh comment per push. On a busy PR the thread fills with dupes. | MEDIUM | Post-launch polish — find-and-edit prior bot comment, or collapse into a single updating comment. |
+| 24 | **GitHub file-tree fetch is unbounded** on `?recursive=1` — monorepos with 100k+ files will exhaust Vercel's per-function budget. | MEDIUM | Post-launch — add pagination / file-count ceiling / graceful degradation message when a repo is too large. |
+| 25 | **Rate-limit wait cap** in `github-bridge.js:138` only waits if backoff < 120s. GitHub resets can be 60 minutes out, meaning we skip the wait and hammer 429. | MEDIUM | Post-launch — queue and respect longer resets, or refuse scans during the cool-down window. |
+| 26 | **No `vercel.json` maxDuration** for `/api/scan/run` — full scan targets <60s but no hard cap is pinned at the platform layer. If a scan hangs it'll be killed mid-way at Vercel's plan-default. | MEDIUM | Craig action — pin `maxDuration: 300` once deployment plan is confirmed (Boss Rule #5 / deployment config). |
+| 29 | **GitHub Marketplace listing itself** — distribution channel. Requires Craig's action: create Marketplace listing in GitHub App settings, upload logo/screenshots, choose free-tier-with-upsell model, approval workflow (~2-3 weeks). Out of scope for code agents; listing copy can be drafted in the repo for Craig's review. | HIGH | Craig action (Boss Rule #8 — public-facing comms). |
+| 31 | **Scan-speed reality vs claims (claims audit 2026-06-09)** — measured on this repo: quick suite (41 modules) = 34-52s wall; full suite did not finish inside 20 minutes locally (heavy modules: e2e/visual/mutation run real work). Public copy claiming "full 110-module scan in under 60 seconds" (compare/deepsource, compare/sonarqube, Install.tsx, regulation pages) was softened to "minutes" in the same audit. Bible Quality Bar #9 ("Quick <15s, Full <60s") needs either real benchmarks on representative customer-size repos to re-justify harder numbers, or the bar itself revised. | MEDIUM | OPEN — benchmark on 3 representative small/mid customer repos, then either restore harder public numbers with proof or amend Quality Bar #9. |
+| 32 | **Two fully-built modules never registered: `src/modules/cve-feed.js` + `src/modules/sbom.js`** (claims audit 2026-06-09). **SBOM registered 2026-06-18** — CycloneDX 1.4 generator is file-system only (no network), now registered as module 111, added to `full` + `nuclear` suites. US EO 14028 / EU CRA compliance artifact. **CVE feed still dormant** — likely requires network calls to pull CVE data; confirm Craig's policy on external-data fetches (Boss Rule #7) before registering. | MEDIUM | **PARTIAL** — sbom ✓ registered. cve-feed: Craig action — network-call policy confirmation needed. |
+| 34 | **Continuous-tier AI-allowance enforcement point pending** — the $49/mo ledger (`continuous_ai_ledger`) and gate (`checkAiAllowance`) shipped 2026-06-12, but push-scan jobs currently run deterministic suites only (zero Claude spend), so nothing consults the meter yet. When AI-on-push or the weekly scheduled deep scan ships, the worker must call `findActiveByRepo` → `checkAiAllowance` before any Claude call and `recordAiSpend` after. Consume/record API is ready and tested. | MEDIUM | OPEN — wire at the point AI joins the push-scan path. |
+---
+
+---
+
+## REMOTE MCP — UNIVERSAL DISTRIBUTION (approved by Craig 2026-07-07)
+
+**Goal:** any Claude user — claude.ai web, Desktop app, mobile, Claude Code, Cursor,
+Windsurf, corporate locked-down machines — can add GateTest in under 30 seconds.
+The local stdio MCP (`npx @gatetest/mcp-server`) only reaches users who can run npm.
+
+**Architecture:**
+- Hosted MCP endpoint: `https://mcp.gatetest.ai/mcp` (MCP Streamable HTTP transport)
+- Host: the Jarvis server `66.42.121.161` (Vultr) — Jarvis orchestrates on this box, so
+  GateTest's MCP endpoint MUST be co-located there for Jarvis to control it. Do NOT move.
+- Runtime: Bun + Hono (Vapron edge-runtime pattern). NOT Vercel — Vercel is a competitor.
+- Code staged in this repo at `packages/mcp-remote/` until deployed to the box.
+- Auth: `Authorization: Bearer gtmcp_xxx` → validated against `/api/mcp/validate` (1h cache).
+- Remote-capable tools (proxy gatetest.ai APIs): check_health, list_modules, get_badge,
+  scan_url, scan_repo, explain_finding, fix_issue, get_production_errors, get_report.
+- Local-only forever (honest limitation): scan_local, run_tests, stream_logs, query_db,
+  http_request — they need the user's filesystem/processes.
+
+**DNS (Craig action):** Cloudflare A record `mcp` → `66.42.121.161`, DNS-only first
+(box terminates TLS via Caddy/Let's Encrypt), optionally proxied later.
+
+**Registry:** `packages/mcp-server/server.json` carries both transports (stdio npm +
+remote HTTP) → submit to Anthropic's MCP registry for one-click install.
+
+Full detail: `~/.claude/plans/can-i-please-have-calm-lightning.md` (session plan, 2026-07-07).
