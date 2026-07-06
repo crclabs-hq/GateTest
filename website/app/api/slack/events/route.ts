@@ -25,8 +25,6 @@ import {
   verifySlashSignature,
   parseSlashBody,
   slashResponse,
-  notifyScanComplete,
-  postToWebhook,
   buildScanCompleteBlocks,
 } from "@/app/lib/slack-notifier";
 

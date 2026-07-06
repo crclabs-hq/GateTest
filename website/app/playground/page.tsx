@@ -424,9 +424,12 @@ export default function PlaygroundPage() {
     if (!result) return;
     const encoded = encodeShareData(result);
     const shareUrl = `${window.location.origin}/playground?s=${encoded}`;
+    // clipboard write is best-effort UX; a rejection (e.g. no clipboard
+    // permission) just means the "copied" affordance doesn't show.
     navigator.clipboard?.writeText(shareUrl).then(() => {
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
+      // error-ok — intentional best-effort fire-and-forget (see note above)
     }).catch(() => {});
   }, [result]);
 

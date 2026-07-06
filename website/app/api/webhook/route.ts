@@ -27,10 +27,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-// postGluecronResult used by scan-worker for github-host jobs; imported here so
-// the module stays in the bundle. eslint-disable keeps the warning silent.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { postGluecronResult } from "@/app/lib/gluecron-callback";
+// Side-effect import: keeps gluecron-callback (used by scan-worker for
+// github-host jobs) in this route's module graph without introducing an
+// unused named binding.
+import "@/app/lib/gluecron-callback";
 
 import { getDb } from "@/app/lib/db";
 

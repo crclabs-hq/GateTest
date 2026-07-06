@@ -551,6 +551,7 @@ async function _postImpl(req: NextRequest): Promise<ReturnType<typeof NextRespon
   });
   // Log the redaction outcome for ops visibility (non-PII summary string).
   if (redacted.shadowSummary.hiddenIssues > 0) {
+    // code-quality-ok — intentional ops-visibility log of the redaction summary
     console.log(
       `[GateTest] ${summariseShadowResult(redacted.shadowSummary)}`
     );

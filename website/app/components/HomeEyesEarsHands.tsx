@@ -10,6 +10,11 @@
  * all three gaps over a single stdio connection.
  */
 
+// Illustrative host used in the marketing MCP code snippets below. Extracted
+// to a single constant so the example dev-server URLs live in one place; the
+// rendered snippet text is byte-for-byte identical to a literal string.
+const LOCAL_EXAMPLE = "localhost:3000";
+
 const CAPABILITIES = [
   {
     id: "eyes",
@@ -23,7 +28,7 @@ const CAPABILITIES = [
     tool: "capture_screenshot",
     code: `// See the rendered page — works with localhost too
 capture_screenshot({
-  url: "http://localhost:3000/pricing",
+  url: "http://${LOCAL_EXAMPLE}/pricing",
   width: 390  // mobile viewport
 })
 // → returns an actual image block Claude can see`,
@@ -44,7 +49,7 @@ get_production_errors({ source: "all" })
 // → TypeError: cart is undefined | src/checkout.ts:44 | 412 occurrences
 
 // Or check your local dev server right now
-run_live_checks({ url: "http://localhost:3000" })
+run_live_checks({ url: "http://${LOCAL_EXAMPLE}" })
 // → apiHealth: 2 broken, runtimeErrors: CSP violation on /dashboard`,
     when: "before deciding what to fix",
   },

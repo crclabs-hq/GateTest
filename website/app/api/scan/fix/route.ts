@@ -1013,7 +1013,10 @@ export async function POST(req: NextRequest) {
         liveCount: corr.findings.filter((f) => f.live).length,
         findings: corr.findings as unknown as Array<Record<string, unknown>>,
       };
-    } catch (err) {
+      // LIVE correlation is an optional enrichment step; if it fails the
+      // scan/fix flow deliberately continues with the un-correlated issue
+      // list rather than failing the whole request.
+    } catch (err) { // error-ok — intentional non-blocking swallow (see note above)
       console.error("[scan/fix] LIVE correlation failed (non-blocking):", err instanceof Error ? err.message : String(err));
     }
   }

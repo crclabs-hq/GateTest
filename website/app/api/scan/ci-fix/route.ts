@@ -118,6 +118,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // code-quality-ok — intentional ops-visibility log of a successful CI-fix dispatch
   console.log(`[ci-fix] dispatched ai-ci-fixer-remote for ${repository} run ${runId}`);
   return NextResponse.json({ ok: true, repository, runId });
 }
