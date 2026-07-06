@@ -46,6 +46,17 @@ const HELP = `
                                      promoter, adversarial mutator. Outputs
                                      land at ~/.gatetest/trainers/. See
                                      'gatetest train --help' for options.
+    gatetest trace <file|-> [opts]   Resolve a minified/bundled stack trace
+                                     back to original file:line:column via
+                                     source maps. Same engine as the MCP
+                                     resolve_stack_trace tool. See
+                                     'gatetest trace --help'.
+    gatetest blame <file> --line <n> Find which git commit introduced a
+                                     specific line — read-only, never
+                                     checks out or mutates the working
+                                     tree. Same engine as the MCP
+                                     blame_regression tool. See
+                                     'gatetest blame --help'.
 
   OPTIONS
     --suite <name>     Run a test suite: quick, standard, full (default: standard)
@@ -175,7 +186,7 @@ async function main() {
   //                            every existing invocation keeps working.
   const rawArgs = process.argv.slice(2);
   const first = rawArgs[0];
-  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan', 'train', 'fix']);
+  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan', 'train', 'fix', 'trace', 'blame']);
   if (first === 'sweep') {
     const { runSweep } = require('./gatetest-sweep');
     const code = await runSweep(rawArgs.slice(1));
@@ -189,6 +200,16 @@ async function main() {
   if (first === 'train') {
     const train = require('./gatetest-train');
     const code = await train.main(rawArgs.slice(1));
+    process.exit(code || 0);
+  }
+  if (first === 'trace') {
+    const trace = require('./gatetest-trace');
+    const code = await trace.main(rawArgs.slice(1));
+    process.exit(code || 0);
+  }
+  if (first === 'blame') {
+    const blame = require('./gatetest-blame');
+    const code = await blame.main(rawArgs.slice(1));
     process.exit(code || 0);
   }
   if (first === 'fix') {

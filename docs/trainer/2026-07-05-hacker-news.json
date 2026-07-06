@@ -1,0 +1,162 @@
+{
+  "generatedAt": "2026-07-05T06:42:23.692Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 9,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 3,
+      "SonarQube": 0,
+      "Semgrep": 1,
+      "CodeQL": 4,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48786456",
+        "author": "ahartmetz",
+        "type": "comment",
+        "title": null,
+        "text": "Yeah, and \"boomslang\" means \"tree snake\". It's not some obscure possibly hip hop related subculture jargon.",
+        "url": "https://news.ycombinator.com/item?id=48786456",
+        "points": null,
+        "numComments": null,
+        "storyId": 48780913,
+        "createdAt": "2026-07-04T16:11:06Z",
+        "createdAtUnix": 1783181466,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48784631",
+        "author": "sdoering",
+        "type": "comment",
+        "title": null,
+        "text": "WTF. We have such great medical advancement in cancer treatments, vaccines, reconstructive surgery h just to name a few.Not sure what you are referring to, but the only unjustifiable things in the (so called) medical field are snake oil sales men trying to make a quick buck by instilling a fear of science into people's minds. Like anti-vax idiots. Or homeopathic bullshit.",
+        "url": "https://news.ycombinator.com/item?id=48784631",
+        "points": null,
+        "numComments": null,
+        "storyId": 48783948,
+        "createdAt": "2026-07-04T11:34:45Z",
+        "createdAtUnix": 1783164885,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48783662",
+        "author": "benj111",
+        "type": "comment",
+        "title": null,
+        "text": ">Called a ‘snake’ (slang in Dutch)Disappointingly this isn't the origin of the English word slang. It seems to be of Viking origin.",
+        "url": "https://news.ycombinator.com/item?id=48783662",
+        "points": null,
+        "numComments": null,
+        "storyId": 48780913,
+        "createdAt": "2026-07-04T08:16:25Z",
+        "createdAtUnix": 1783152985,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48784586",
+        "author": "khurs",
+        "type": "comment",
+        "title": null,
+        "text": "The education system is to blame.Kids are conditioned to associate learning with a formal course with a tutor culminating in exams.It's also intentional to segregate skills, if schools taught every child basic plumbing or car mechanics for example instead of spending a month teaching something that won't get used in life, there would be less job in those fields.",
+        "url": "https://news.ycombinator.com/item?id=48784586",
+        "points": null,
+        "numComments": null,
+        "storyId": 48782435,
+        "createdAt": "2026-07-04T11:25:24Z",
+        "createdAtUnix": 1783164324,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48790589",
+        "author": "cadamsdotcom",
+        "type": "comment",
+        "title": null,
+        "text": "I do not need to waste tokens on skills, I use Claude Code hooks.Have a look at the TDD guard at https:&#x2F;&#x2F;codeleash.dev - the scripts&#x2F;tdd_log.py arguments are pretty specific but it also has guidance in CLAUDE.md and lots of helpful error messages.",
+        "url": "https://news.ycombinator.com/item?id=48790589",
+        "points": null,
+        "numComments": null,
+        "storyId": 48788599,
+        "createdAt": "2026-07-05T01:40:12Z",
+        "createdAtUnix": 1783215612,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48790375",
+        "author": "pylua",
+        "type": "comment",
+        "title": null,
+        "text": "Yeah, I agree. It will be like serverless but for code : codeless.It’s a disconcerting future.",
+        "url": "https://news.ycombinator.com/item?id=48790375",
+        "points": null,
+        "numComments": null,
+        "storyId": 48789325,
+        "createdAt": "2026-07-05T00:52:39Z",
+        "createdAtUnix": 1783212759,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48788995",
+        "author": "codeulike",
+        "type": "comment",
+        "title": null,
+        "text": "Because copper wires could carry enough power to make a landline work when the mains electricity was off due to a power cutEdit: also domestic routers are buggy and unreliable and need to be restarted regularly",
+        "url": "https://news.ycombinator.com/item?id=48788995",
+        "points": null,
+        "numComments": null,
+        "storyId": 48786868,
+        "createdAt": "2026-07-04T20:54:31Z",
+        "createdAtUnix": 1783198471,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48785658",
+        "author": "pjmlp",
+        "type": "comment",
+        "title": null,
+        "text": "On my hobby coding with C++ I also cross check with CoPilot, alongside the usual VS analysis tools.Which was certainly an improvement, given that Github is in no hurry to add modules support to CodeQL.",
+        "url": "https://news.ycombinator.com/item?id=48785658",
+        "points": null,
+        "numComments": null,
+        "storyId": 48780056,
+        "createdAt": "2026-07-04T14:26:38Z",
+        "createdAtUnix": 1783175198,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "48789403",
+        "author": "Joel_Mckay",
+        "type": "comment",
+        "title": null,
+        "text": "Threadlocker red, checkmate... lol =3",
+        "url": "https://news.ycombinator.com/item?id=48789403",
+        "points": null,
+        "numComments": null,
+        "storyId": 48787201,
+        "createdAt": "2026-07-04T21:47:36Z",
+        "createdAtUnix": 1783201656,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
