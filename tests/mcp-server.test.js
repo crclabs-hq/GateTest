@@ -25,6 +25,13 @@ let hasSDK = false;
 try { require.resolve('@modelcontextprotocol/sdk/server/index.js'); hasSDK = true; } catch { /* not installed */ }
 const describeOrSkip = hasSDK ? describe : describe.skip;
 
+// Gated tools (run_module, verify_fix, …) require a valid $29/mo GATETEST_API_KEY.
+// Without one the payment gate correctly returns the subscription-required message
+// instead of running the tool, so these subprocess tests can only run where a key
+// is present (CI sets it as a secret). Skip locally rather than assert on the gate.
+const hasMcpKey = !!process.env.GATETEST_API_KEY;
+const describeOrSkipGated = (hasSDK && hasMcpKey) ? describe : describe.skip;
+
 const SERVER_PATH = path.resolve(__dirname, '..', 'bin', 'gatetest-mcp.mjs');
 // Test target: full repo for tools/list etc., tiny corpus dir for actual
 // scans. Scanning the full repo (~4900 tests + 100+ modules) takes ~48s
@@ -184,7 +191,7 @@ describeOrSkip('MCP server — list_modules', () => {
 // run_module
 // ---------------------------------------------------------------------------
 
-describeOrSkip('MCP server — run_module', () => {
+describeOrSkipGated('MCP server — run_module', () => {
   it('runs the syntax module and returns a formatted result', async () => {
     const res = await callMcp(
       'tools/call',
@@ -255,7 +262,7 @@ describeOrSkip('MCP server — scan_local', () => {
 // verify_fix — spawn smoke (full contract coverage lives in mcp-verify-fix.test.js)
 // ---------------------------------------------------------------------------
 
-describeOrSkip('MCP server — verify_fix', () => {
+describeOrSkipGated('MCP server — verify_fix', () => {
   it('returns a verdict line for an explicit files list', async () => {
     const res = await callMcp(
       'tools/call',
