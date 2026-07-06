@@ -1,0 +1,486 @@
+{
+  "generatedAt": "2026-07-07",
+  "count": 120,
+  "modules": [
+    {
+      "name": "syntax",
+      "description": "Syntax & Compilation Checks"
+    },
+    {
+      "name": "lint",
+      "description": "Linting Checks"
+    },
+    {
+      "name": "secrets",
+      "description": "Secret & Credential Detection"
+    },
+    {
+      "name": "codeQuality",
+      "description": "Code Quality Analysis"
+    },
+    {
+      "name": "unitTests",
+      "description": "Unit Test Execution"
+    },
+    {
+      "name": "integrationTests",
+      "description": "Integration Test Execution"
+    },
+    {
+      "name": "e2e",
+      "description": "End-to-End Test Execution"
+    },
+    {
+      "name": "visual",
+      "description": "Visual & UI Regression Testing"
+    },
+    {
+      "name": "accessibility",
+      "description": "Accessibility (WCAG 2.2 AAA) Audit"
+    },
+    {
+      "name": "performance",
+      "description": "Performance & Web Vitals Analysis"
+    },
+    {
+      "name": "security",
+      "description": "Security Analysis"
+    },
+    {
+      "name": "seo",
+      "description": "SEO & Metadata Validation"
+    },
+    {
+      "name": "links",
+      "description": "Broken Link Detection"
+    },
+    {
+      "name": "compatibility",
+      "description": "Browser Compatibility Checks"
+    },
+    {
+      "name": "dataIntegrity",
+      "description": "Data Integrity Validation"
+    },
+    {
+      "name": "documentation",
+      "description": "Documentation Validation"
+    },
+    {
+      "name": "liveCrawler",
+      "description": "Live Site Crawl & Verification"
+    },
+    {
+      "name": "explorer",
+      "description": "Autonomous Interactive Element Explorer"
+    },
+    {
+      "name": "chaos",
+      "description": "Chaos & Resilience Testing"
+    },
+    {
+      "name": "runtimeErrors",
+      "description": "Live Browser Runtime Errors"
+    },
+    {
+      "name": "visualRegression",
+      "description": "Visual Regression Screenshot Diffing"
+    },
+    {
+      "name": "interactiveElements",
+      "description": "Interactive Element Crawler — Links & Buttons"
+    },
+    {
+      "name": "apiHealth",
+      "description": "API Health Check — hits every discovered endpoint, verifies status/shape/timing"
+    },
+    {
+      "name": "performanceBudget",
+      "description": "Performance Budget — live TTFB / LCP / CLS / page weight against a real URL"
+    },
+    {
+      "name": "mobileRendering",
+      "description": "Mobile Rendering — overflow + readability checks across 5 device widths"
+    },
+    {
+      "name": "formTesting",
+      "description": "Form Testing — fills and submits safe forms, skips payment/auth/CAPTCHA forms"
+    },
+    {
+      "name": "consoleErrors",
+      "description": "Console Errors — site-wide console error/warning aggregation across every crawled page"
+    },
+    {
+      "name": "designSystemCompliance",
+      "description": "Design System Compliance — flags color/spacing/typography drift on the live rendered page"
+    },
+    {
+      "name": "crossBrowser",
+      "description": "Cross-Browser — diffs page load, runtime errors, and rendering across Chromium/Firefox/WebKit"
+    },
+    {
+      "name": "mutation",
+      "description": "Mutation Testing — Tests the Tests"
+    },
+    {
+      "name": "aiReview",
+      "description": "AI-Powered Code Review"
+    },
+    {
+      "name": "fakeFixDetector",
+      "description": "Fake Fix Detector — Catches symptom patching and skipped tests"
+    },
+    {
+      "name": "memory",
+      "description": "Codebase Memory — compounding intelligence across scans"
+    },
+    {
+      "name": "agentic",
+      "description": "Agentic Exploration — memory-driven AI investigation"
+    },
+    {
+      "name": "python",
+      "description": "Python Checks — eval/exec, bare-except, SQL injection, pickle"
+    },
+    {
+      "name": "go",
+      "description": "Go Checks — ignored errors, panics, goroutine hygiene"
+    },
+    {
+      "name": "rust",
+      "description": "Rust Checks — unwrap/panic/todo, unsafe block review"
+    },
+    {
+      "name": "java",
+      "description": "Java Checks — System.out, broad catches, empty catches"
+    },
+    {
+      "name": "ruby",
+      "description": "Ruby Checks — eval, shell injection, bare rescue"
+    },
+    {
+      "name": "php",
+      "description": "PHP Checks — eval, legacy mysql_, XSS, debug output"
+    },
+    {
+      "name": "csharp",
+      "description": "C# Checks — Console.WriteLine, empty catches"
+    },
+    {
+      "name": "kotlin",
+      "description": "Kotlin Checks — !!, TODO(), println"
+    },
+    {
+      "name": "swift",
+      "description": "Swift Checks — fatalError, try!, force-unwrap"
+    },
+    {
+      "name": "dependencies",
+      "description": "Dependencies — supply-chain hygiene across package.json, requirements.txt, go.mod, Cargo.toml, Gemfile, composer.json, pom.xml, build.gradle"
+    },
+    {
+      "name": "sbom",
+      "description": "Software Bill of Materials (SBOM) — CycloneDX 1.4"
+    },
+    {
+      "name": "dockerfile",
+      "description": "Dockerfile Security — root user, :latest tags, curl|sh, apt hygiene, secrets-in-layers, cache bloat"
+    },
+    {
+      "name": "ciSecurity",
+      "description": "CI Security — action pinning, pwn-request, shell injection, secrets-in-logs, permissions, forbidden soft-fail"
+    },
+    {
+      "name": "shell",
+      "description": "Shell Script Security — curl|sh, unsafe rm, eval injection, hardcoded secrets, set -e, POSIX compliance"
+    },
+    {
+      "name": "sqlMigrations",
+      "description": "SQL Migration Safety — drop column/table, non-concurrent indexes, NOT NULL without default, blocking constraints, rolling-deploy renames"
+    },
+    {
+      "name": "terraform",
+      "description": "Terraform / IaC Security — public buckets, wildcard ingress, hardcoded secrets, missing encryption, IAM wildcards"
+    },
+    {
+      "name": "kubernetes",
+      "description": "Kubernetes Manifest Security — privileged pods, host namespaces, :latest images, missing limits/probes, dangerous caps"
+    },
+    {
+      "name": "promptSafety",
+      "description": "Prompt / LLM Safety — browser-exposed API keys, unbounded max_tokens, prompt-injection surfaces, deprecated models"
+    },
+    {
+      "name": "aiGuardrails",
+      "description": "AI Guardrails — adversarial LLM testing"
+    },
+    {
+      "name": "deadCode",
+      "description": "Dead Code — unused exports across JS/TS/Python, orphaned files, rotting commented-out blocks"
+    },
+    {
+      "name": "secretRotation",
+      "description": "Secret Rotation — long-lived credentials in git, .env drift, placeholder/real example mismatch"
+    },
+    {
+      "name": "webHeaders",
+      "description": "Web Headers — CSP/HSTS/XFO/CORS misconfig across Next.js, Vercel, Netlify, Express, Fastify, nginx"
+    },
+    {
+      "name": "typescriptStrictness",
+      "description": "TypeScript strictness — tsconfig regressions, @ts-ignore/@ts-nocheck abuse, `any`-leak detection"
+    },
+    {
+      "name": "undefinedRef",
+      "description": "Undefined-reference detector — catches TS2304-shape bugs (name used but not imported / declared) that crash modules at load time"
+    },
+    {
+      "name": "flakyTests",
+      "description": "Flaky Tests — committed .only/.skip, real clock/network/timers, env leaks, self-admitted flakes"
+    },
+    {
+      "name": "errorSwallow",
+      "description": "Error Swallow — empty catch, .catch(noop), callback-err ignored, floating promises, global silent handlers"
+    },
+    {
+      "name": "nPlusOne",
+      "description": "N+1 query detector — database calls inside loops across Prisma, Sequelize, TypeORM, Mongoose, Knex, Drizzle, node-pg, MySQL"
+    },
+    {
+      "name": "retryHygiene",
+      "description": "Retry hygiene — tight retry loops, no backoff, unbounded retry, retry-on-4xx across fetch, axios, got, node-http"
+    },
+    {
+      "name": "raceCondition",
+      "description": "Race-condition / check-then-act detector — fs TOCTOU, get-or-create anti-pattern, lost-update on counters"
+    },
+    {
+      "name": "resourceLeak",
+      "description": "Resource-leak detector — unclosed streams, file handles, intervals, sockets across fs/net/ws/events"
+    },
+    {
+      "name": "ssrf",
+      "description": "SSRF / URL-validation gap detector — user-controlled URLs handed to fetch/axios/got/node-http without validation"
+    },
+    {
+      "name": "hardcodedUrl",
+      "description": "Hardcoded-URL detector — localhost / 127.0.0.1 / RFC1918 / internal TLDs / non-TLS URLs leaking into production code"
+    },
+    {
+      "name": "envVars",
+      "description": "Env-vars — cross-reference process.env / os.environ reads against .env.example and CI env blocks; flag missing and unused keys"
+    },
+    {
+      "name": "asyncIteration",
+      "description": "Async-iteration detector — async callbacks handed to .reduce/.filter/.some/.every/.forEach/.map where Promise semantics silently break the iterator"
+    },
+    {
+      "name": "homoglyph",
+      "description": "Homoglyph / Unicode-lookalike detector — Trojan Source bidi overrides, Cyrillic/Greek letters in Latin identifiers, zero-width chars, and hidden control chars"
+    },
+    {
+      "name": "openapiDrift",
+      "description": "OpenAPI ↔ code drift detector — flags routes defined in code but missing from openapi.yaml, and spec paths with no matching handler"
+    },
+    {
+      "name": "prSize",
+      "description": "PR-size enforcer — blocks unreviewably-large pull requests"
+    },
+    {
+      "name": "prQuality",
+      "description": "PR-quality coach — flags weak commit messages, missing tests, mixed deps+code"
+    },
+    {
+      "name": "wpExposedFiles",
+      "description": "WordPress — finds sensitive files exposed via the public webroot (wp-config.php.bak, debug.log, .git, .env, SQL backups)"
+    },
+    {
+      "name": "wpVersionLeak",
+      "description": "WordPress — finds where the site leaks its core version (readme.html, meta generator, RSS feed, CSS/JS ver=)"
+    },
+    {
+      "name": "wpXmlrpcExposed",
+      "description": "WordPress — checks if /xmlrpc.php is exposed (brute-force amplification + DDoS reflector + auth-bypass surface)"
+    },
+    {
+      "name": "wpPluginCveCheck",
+      "description": "WordPress — detects installed plugins via fingerprinting and flags any with known CVEs"
+    },
+    {
+      "name": "wpMalwarePatterns",
+      "description": "WordPress — scans rendered homepage HTML/JS for known malware signatures (eval(atob), hidden iframes, off-domain redirects, base64 payloads)"
+    },
+    {
+      "name": "wpUserEnumerate",
+      "description": "WordPress — checks if usernames can be enumerated via /?author=1, /wp-json/wp/v2/users, or /author/admin/"
+    },
+    {
+      "name": "wpAdminProtection",
+      "description": "WordPress — checks /wp-admin and /wp-login.php for rate limit / WAF / 2FA / cookie hardening (the layer that decides whether brute-force succeeds)"
+    },
+    {
+      "name": "wpPhpVersionEol",
+      "description": "WordPress — detects the running PHP version and flags it if end-of-life (no security patches)"
+    },
+    {
+      "name": "wpThemeAbandonment",
+      "description": "WordPress — detects the active theme and flags it if abandoned, deprecated, or carrying known CVEs"
+    },
+    {
+      "name": "wpBackupValidation",
+      "description": "WordPress — checks whether a backup plugin is installed AND whether any backup files are publicly exposed (catastrophic data leak)"
+    },
+    {
+      "name": "redos",
+      "description": "ReDoS / catastrophic-regex detector"
+    },
+    {
+      "name": "cronExpression",
+      "description": "Cron-expression validator — catches invalid / impossible / too-frequent cron strings"
+    },
+    {
+      "name": "datetimeBug",
+      "description": "Datetime / timezone bug detector — naive datetimes, 0-vs-1 month, moment-legacy"
+    },
+    {
+      "name": "importCycle",
+      "description": "Import-cycle detector — catches circular dependencies that cause runtime TDZ / undefined-import bugs"
+    },
+    {
+      "name": "moneyFloat",
+      "description": "Money / currency float-safety detector — catches IEEE-754 precision loss on currency-named variables"
+    },
+    {
+      "name": "logPii",
+      "description": "Logging-hygiene / PII-in-logs detector — catches credentials, tokens, and request objects logged in plaintext"
+    },
+    {
+      "name": "featureFlag",
+      "description": "Feature-flag hygiene detector — catches stale flags collapsed into constants and dead-branch conditionals"
+    },
+    {
+      "name": "tlsSecurity",
+      "description": "TLS / cert-validation-bypass detector — catches rejectUnauthorized:false, verify=False, ssl.CERT_NONE, and NODE_TLS_REJECT_UNAUTHORIZED=0"
+    },
+    {
+      "name": "cookieSecurity",
+      "description": "Cookie / session-security config detector — catches httpOnly:false, weak session secrets, SESSION_COOKIE_* misconfigs"
+    },
+    {
+      "name": "crossFileTaint",
+      "description": "Cross-file taint analysis — traces user input across module boundaries to dangerous sinks (SQL injection, eval, exec, file-path traversal, DOM injection)"
+    },
+    {
+      "name": "deployScriptValidator",
+      "description": "Deploy Script Validator — health-check URL consistency"
+    },
+    {
+      "name": "serviceConsistency",
+      "description": "Service Consistency — ExecStart / Procfile / PM2 vs package.json start script"
+    },
+    {
+      "name": "nativeBundlerGuard",
+      "description": "Native Bundler Guard — catches native Node addons that cannot be bundled"
+    },
+    {
+      "name": "ciParamValidator",
+      "description": "CI Parameter Validator — validates GitHub Actions with: inputs against action schemas"
+    },
+    {
+      "name": "authBypass",
+      "description": "Auth Bypass Detector — routes missing authentication"
+    },
+    {
+      "name": "aiHallucination",
+      "description": "AI Hallucination Detector — fake imports, invented APIs, non-existent methods"
+    },
+    {
+      "name": "claudeCompliance",
+      "description": "AI-output compliance auditor — mock data in prod, stub bodies, comment noise, any/@ts-ignore density"
+    },
+    {
+      "name": "liveSqlInjection",
+      "description": "Live SQL-injection probe — error-based, boolean, timing payloads against discovered endpoints (Pen Test tier — requires authorization)"
+    },
+    {
+      "name": "liveXss",
+      "description": "Live reflected-XSS probe — reflection detection on discovered endpoints (Pen Test tier — requires authorization)"
+    },
+    {
+      "name": "livePathTraversal",
+      "description": "Live path-traversal probe — /etc/passwd / win.ini read detection (Pen Test tier — requires authorization)"
+    },
+    {
+      "name": "liveAuthBypass",
+      "description": "Live auth-bypass probe — tests if injected headers grant unauthenticated access (Pen Test tier — requires authorization)"
+    },
+    {
+      "name": "liveIdor",
+      "description": "Live IDOR probe — tests if other users' object IDs are reachable without authorization (Pen Test tier — requires authorization)"
+    },
+    {
+      "name": "monorepoConstraints",
+      "description": "Monorepo Constraints — enforces package boundary rules in apps/ packages/ libs/"
+    },
+    {
+      "name": "zodSchemaPresence",
+      "description": "Zod Schema Presence — flags React components without runtime prop validation"
+    },
+    {
+      "name": "bundleSize",
+      "description": "Bundle Size Regression — flags JS bundles exceeding size budgets"
+    },
+    {
+      "name": "duplicateCode",
+      "description": "Duplicate Code Detector — finds copy-pasted blocks that should be extracted into utilities"
+    },
+    {
+      "name": "trpcContract",
+      "description": "tRPC Contract Drift — procedure definitions vs frontend call sites"
+    },
+    {
+      "name": "webhookPayload",
+      "description": "Webhook Payload Validator — catches webhook handlers that use req.body without validation"
+    },
+    {
+      "name": "intentVerification",
+      "description": "Intent Verification — AI checks that the diff matches the commit message / PR description"
+    },
+    {
+      "name": "regressionPredictor",
+      "description": "Regression Predictor — AI predicts which files this PR is most likely to break"
+    },
+    {
+      "name": "architectureDrift",
+      "description": "Architecture Drift — AI flags code that violates documented architectural conventions"
+    },
+    {
+      "name": "deployReadiness",
+      "description": "Deploy Readiness Score — aggregate 0-100 deployment confidence score"
+    },
+    {
+      "name": "deployContract",
+      "description": "Deploy Contract Validator"
+    },
+    {
+      "name": "cacheHeaders",
+      "description": "Cache Headers & CDN Configuration"
+    },
+    {
+      "name": "bashSafety",
+      "description": "Bash / Shell Error-Swallow Detector"
+    },
+    {
+      "name": "envIntegrity",
+      "description": "Env-File Integrity Linter"
+    },
+    {
+      "name": "systemd",
+      "description": "Systemd Unit File Validator"
+    },
+    {
+      "name": "rollbackHonesty",
+      "description": "Rollback Honesty Checker"
+    }
+  ]
+}
