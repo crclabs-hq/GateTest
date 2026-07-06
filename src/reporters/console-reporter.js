@@ -144,10 +144,46 @@ class ConsoleReporter {
       }
     }
 
+    this._upsell(summary);
+
     console.log('');
     console.log(`${COLORS.dim}  Report generated at ${summary.timestamp}${COLORS.reset}`);
     console.log(`${COLORS.bold}${COLORS.cyan}========================================${COLORS.reset}`);
     console.log('');
+  }
+
+  /**
+   * Conversion hook — fires only when there are fixable findings (the moment
+   * of maximum intent). The free CLI just told the developer what's broken;
+   * this is where we offer to fix it for them. Honest, single CTA, no spam.
+   * Suppressible in CI / scripted runs via GATETEST_NO_UPSELL.
+   */
+  _upsell(summary) {
+    if (process.env.GATETEST_NO_UPSELL) return;
+    const errs =
+      typeof summary.checks.errors === 'number'
+        ? summary.checks.errors
+        : (summary.checks.blockingErrors || 0) + (summary.checks.softErrors || 0);
+    const warns = summary.checks.warnings || 0;
+    const fixable = errs + warns;
+    if (fixable <= 0) return;
+
+    console.log('');
+    console.log(`${COLORS.bold}${COLORS.magenta}  ────────────────────────────────────────${COLORS.reset}`);
+    console.log(
+      `${COLORS.bold}  🔧 GateTest found ${COLORS.magenta}${fixable}${COLORS.reset}${COLORS.bold} fixable issue${fixable === 1 ? '' : 's'} in this scan.${COLORS.reset}`,
+    );
+    console.log(
+      `${COLORS.dim}     This scan ran the deterministic engine for free. To have them FIXED —${COLORS.reset}`,
+    );
+    console.log(
+      `${COLORS.dim}     Claude opens a PR, re-scans each fix, and proves it worked:${COLORS.reset}`,
+    );
+    console.log(`     ${COLORS.cyan}${COLORS.bold}→ https://gatetest.ai${COLORS.reset}  ${COLORS.dim}(Scan + Fix, one verified PR)${COLORS.reset}`);
+    console.log(
+      `${COLORS.dim}     Already have an Anthropic key? Fix locally: ${COLORS.reset}${COLORS.cyan}gatetest fix${COLORS.reset}`,
+    );
+    console.log(`${COLORS.bold}${COLORS.magenta}  ────────────────────────────────────────${COLORS.reset}`);
   }
 }
 
