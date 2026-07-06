@@ -539,12 +539,39 @@ class FakeFixDetectorModule extends BaseModule {
     ].includes(ext);
   }
 
+  // A hunk that ONLY removes import/require statements (with no new logic added)
+  // is legitimate dead-code cleanup, never a symptom patch. Removing an unused
+  // import cannot skip a test, swallow an error, or hide a failing check — and
+  // if the import were actually still used, the build/lint would fail elsewhere.
+  // Skipping such hunks makes the gate deterministic and stops this module from
+  // contradicting the codeQuality unused-import rule (which fires if you KEEP
+  // the import, while this module used to fire if you REMOVED it — no state
+  // could satisfy both).
+  _isPureImportCleanup(hunk) {
+    const changed = (hunk.lines || []).filter(
+      l => l.startsWith('+') || l.startsWith('-')
+    );
+    if (changed.length === 0) return false;
+    // Any added line with real content means new logic was introduced — not
+    // pure cleanup, so let the AI engine judge it normally.
+    const added = changed.filter(l => l.startsWith('+'));
+    if (added.some(l => l.slice(1).trim() !== '')) return false;
+    const removed = changed.filter(l => l.startsWith('-'));
+    if (removed.length === 0) return false;
+    // Every removed line must be an import/require statement or blank.
+    return removed.every(l => {
+      const t = l.slice(1).trim();
+      return t === '' || /^import\b/.test(t) || /\brequire\s*\(/.test(t);
+    });
+  }
+
   async _runAiEngine(apiKey, diff, context, ledger) {
     // Split the diff into per-hunk chunks so the cost ledger can stop
     // mid-scan if a big diff threatens to blow the budget. Each hunk is
     // analysed with its own prompt and counts as one Claude call.
     // Only analyse source code files — config/data files generate false positives.
-    const hunks = this._parseDiff(diff).filter(h => this._isSourceFile(h.file));
+    const hunks = this._parseDiff(diff)
+      .filter(h => this._isSourceFile(h.file) && !this._isPureImportCleanup(h));
     const contextBlock = context
       ? `\nCONTEXT — the bug/error this diff is supposed to fix:\n${context}\n`
       : '';
@@ -595,6 +622,14 @@ Symptom patches include — but are not limited to:
 
 REAL fixes address WHY something was broken. They either change the faulty logic,
 add missing state, or correctly handle a previously unhandled case.
+
+REAL fixes ALSO include legitimate cleanup — do NOT flag any of these as symptom patches:
+- Removing genuinely unused imports, variables, unreferenced exports, or dead/unreachable code
+- Deleting obsolete commented-out code or scaffolding that nothing depends on
+- Adding GateTest's own sanctioned suppressor comments (code-quality-ok, error-ok, quality:*-ok) to document a reviewed, intentional case
+Removing code is ONLY a symptom patch when the deleted code was doing necessary work,
+or was the test / assertion / check that exposed the bug. Tidying unused code so a
+linter or quality rule passes is a REAL fix — return verdict "real-fix" for it.
 ${contextBlock}
 FILE: ${hunk.file}
 DIFF HUNK:
