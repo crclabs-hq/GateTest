@@ -40,6 +40,15 @@
  *   get_visual_diff  — fetch a visualRegression baseline/current/diff (or composite) as an image
  *   run_live_checks  — run the runtime triad (runtimeErrors/consoleErrors/apiHealth) against a live URL (the AI's ears)
  *   get_production_errors — top Sentry/Datadog/Rollbar errors with file:line (fix what prod says is broken, first)
+ *   resolve_stack_trace — resolve a minified/bundled stack trace back to original file:line:column via source maps
+ *   blame_regression — find which git commit introduced a specific line (read-only, never checks out/mutates)
+ *
+ * resolve_stack_trace and blame_regression are also available as CLI
+ * subcommands (`gatetest trace`, `gatetest blame`) backed by the exact
+ * same core engines (src/core/source-map-resolver.js,
+ * src/core/regression-bisector.js) — one implementation, two entry
+ * points, so a fix loop gets identical answers whether it's driven by
+ * an MCP-connected agent or a CI script calling the CLI directly.
  *
  * scan_local/run_module/list_modules/check_health/fix_issue/compose_pr/
  * explain_finding/audit_log/compare_repos all run the engine IN-PROCESS
@@ -80,6 +89,8 @@ const { extractDiffRegions } = require('../src/core/visual-facts.js');
 const { fetchProductionErrors, resolveSourcesFromEnv } = require('../src/core/production-errors.js');
 const { composePrBody } = require('../lib/pr-composer.js');
 const { diagnoseFinding } = require('../lib/nuclear-diagnoser.js');
+const { resolveStackTrace } = require('../src/core/source-map-resolver.js');
+const { blameLine, blameRange, showCommit, findLikelyRegressionCommit } = require('../src/core/regression-bisector.js');
 
 // ---------------------------------------------------------------------------
 // MCP Subscription Gate — $29/mo at gatetest.ai/mcp
@@ -93,7 +104,7 @@ const GATED_TOOLS = new Set([
   'capture_screenshot', 'get_visual_diff',
   'run_live_checks', 'get_production_errors',
   'verify_fix', 'audit_log', 'compare_repos', 'get_report', 'scan_repo',
-  'run_tests', 'stream_logs', 'query_db', 'http_request',
+  'resolve_stack_trace', 'blame_regression',
 ]);
 
 // In-process validation cache — MCP server is a long-lived stdio process so
@@ -643,102 +654,52 @@ const TOOLS = [
     },
   },
   {
-    name: 'run_tests',
+    name: 'resolve_stack_trace',
     description:
-      'Run the project\'s own test suite and return structured pass/fail per test with file:line. ' +
-      'ALWAYS call this after fix_issue or editing code — never assume a fix is safe without running tests. ' +
-      'Auto-detects the runner: Jest, Vitest, Mocha, pytest, cargo test, go test, or npm test. ' +
-      'Returns { runner, total, passed, failed, tests: [{name, status, file, line, error}] } — ' +
-      'you can see exactly which tests broke and why without reading raw terminal output. ' +
-      'Pass command to override auto-detection (e.g. "npx jest --testPathPattern=auth").',
+      'Resolve a minified/bundled JS stack trace back to original source file:line:column via source maps. ' +
+      'Paste a raw Error.stack (or a single "at file:line:col" / "fn@file:line:col" frame) and get back the ' +
+      'ORIGINAL TS/JSX location for each frame that has a reachable .map file (inline data URI or sibling .map ' +
+      'on disk) — turning a bundle location like dist/app.js:1:48213 into src/components/Foo.tsx:42:7 with the ' +
+      'actual source line. Frames with no source map (node:internal, native code, or a map GateTest cannot find) ' +
+      'are reported honestly as unresolved rather than guessed. Same engine as `gatetest trace` on the CLI.',
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Absolute path to the project root (default: current directory)' },
-        command: { type: 'string', description: 'Override the auto-detected test command, e.g. "npx jest" or "python -m pytest tests/unit"' },
-        timeout: { type: 'number', description: 'Timeout in seconds (default 120)' },
-        testPattern: { type: 'string', description: 'Regex filter — only run tests whose name matches (passed via --testNamePattern / -k as appropriate)' },
+        stackTrace: { type: 'string', description: 'The raw stack trace text (or a single "at file:line:col" line)' },
       },
+      required: ['stackTrace'],
     },
   },
   {
-    name: 'stream_logs',
+    name: 'blame_regression',
     description:
-      'Tail a running process or log file for N seconds and return the captured output — ' +
-      'your window into what happens when the server reacts to a request. ' +
-      'Use "command" mode to start a process and capture its output (e.g. "npm run dev", "python app.py"). ' +
-      'Use "logFile" mode to tail an existing log file (e.g. "/var/log/nginx/error.log", "logs/app.log"). ' +
-      'Use "pid" mode (Linux only) to attach to an already-running process by PID. ' +
-      'Returns { lines: [{ts, stream, text}], totalLines, truncated } — capped at 500 lines.',
+      'Find which git commit introduced the code at a specific file:line (or across several file:line hits from ' +
+      'one error/finding) — read-only, never checks out or mutates the working tree. Single-location mode ' +
+      '({file, line}) returns the commit, author, date, and commit message for that exact line. Range mode ' +
+      '({file, line, endLine}) ranks the distinct commits touching a block. Multi-hit mode ({hits}) ranks ' +
+      'candidate commits by how many of the given hits they touch, so a resolved stack trace spanning several ' +
+      'files can point at one probable regression commit. Pass {commit} alone to fetch that commit\'s full ' +
+      'message + diff (capped) once you know the hash. Use this INSTEAD of reading the whole file when you just ' +
+      'need to know what changed and why. Same engine as `gatetest blame` on the CLI.',
     inputSchema: {
       type: 'object',
       properties: {
-        command: { type: 'string', description: 'Spawn this command and capture its stdout+stderr' },
-        logFile: { type: 'string', description: 'Absolute path to a log file to tail' },
-        pid: { type: 'number', description: 'Attach to this running process by PID (Linux only)' },
-        seconds: { type: 'number', description: 'How many seconds to capture (default 10, max 60)' },
-        cwd: { type: 'string', description: 'Working directory for command mode (default: current directory)' },
-      },
-    },
-  },
-  {
-    name: 'query_db',
-    description:
-      'Read-only SQL / document query against the project\'s database — ' +
-      'because a huge class of bugs live in the data, not the code. ' +
-      'Auto-detects the connection from DATABASE_URL / POSTGRES_URL / MYSQL_URL / MONGODB_URI / REDIS_URL env vars. ' +
-      'Resolves the driver from the project\'s own node_modules (pg, mysql2, better-sqlite3, mongodb, ioredis) ' +
-      'and falls back to CLI tools (psql, mysql, sqlite3, mongosh, redis-cli). ' +
-      'ONLY SELECT / SHOW / DESCRIBE / EXPLAIN are allowed — INSERT/UPDATE/DELETE/DROP are blocked hard. ' +
-      'Returns { rows, rowCount, columns, duration, driver }. Max 100 rows (configurable up to 500).',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        query: { type: 'string', description: 'SQL query (SELECT only) or MongoDB "collectionName.find({filter})" expression' },
-        connectionString: { type: 'string', description: 'Override the auto-detected connection string' },
-        projectRoot: { type: 'string', description: 'Project root for driver resolution (default: current directory)' },
-        limit: { type: 'number', description: 'Max rows returned (default 100, max 500)' },
-      },
-      required: ['query'],
-    },
-  },
-  {
-    name: 'http_request',
-    description:
-      'Make an authenticated HTTP request to any endpoint — the hands that test what the eyes and ears see. ' +
-      'Use this to test a specific API endpoint with exact headers/body/auth that Claude constructs, ' +
-      'verify a fix worked by hitting the actual endpoint, or reproduce a bug by sending the exact request. ' +
-      'Supports GET/POST/PUT/PATCH/DELETE/HEAD. Auth helpers: Bearer token, Basic auth, or custom header. ' +
-      'Private IPs and localhost are allowed (for local dev testing). Timeout default 30s. Body capped at 1MB. ' +
-      'Returns { status, headers, body, duration }.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        url: { type: 'string', description: 'The URL to request, e.g. "https://api.example.com/users" or "http://localhost:3000/api/health"' },
-        method: { type: 'string', enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'], description: 'HTTP method (default GET)' },
-        headers: {
-          type: 'object',
-          additionalProperties: { type: 'string' },
-          description: 'Request headers as key-value pairs',
-        },
-        body: { type: 'string', description: 'Request body (string or JSON string — set Content-Type header accordingly)' },
-        auth: {
-          type: 'object',
-          description: 'Auth shortcut: { type: "bearer", token } | { type: "basic", username, password } | { type: "header", name, value }',
-          properties: {
-            type: { type: 'string', enum: ['bearer', 'basic', 'header'] },
-            token: { type: 'string' },
-            username: { type: 'string' },
-            password: { type: 'string' },
-            name: { type: 'string' },
-            value: { type: 'string' },
+        path: { type: 'string', description: 'Absolute path to the git repository root (or any directory inside it)' },
+        file: { type: 'string', description: 'File path (relative to path) for single-line or range blame' },
+        line: { type: 'number', description: 'Single line number (1-based) to blame, or the start of a range with endLine' },
+        endLine: { type: 'number', description: 'End of a line range (1-based, inclusive) — used with line as the range start' },
+        hits: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { file: { type: 'string' }, line: { type: 'number' } },
+            required: ['file', 'line'],
           },
-          required: ['type'],
+          description: 'Multiple { file, line } locations (e.g. every frame in a resolved stack trace) to rank by likely regression commit',
         },
-        timeout: { type: 'number', description: 'Request timeout in seconds (default 30)' },
-        followRedirects: { type: 'boolean', description: 'Follow HTTP redirects (default true, up to 5)' },
+        commit: { type: 'string', description: 'A known commit hash — fetch its message + diff directly, skipping blame' },
       },
-      required: ['url'],
+      required: ['path'],
     },
   },
 ];
@@ -1813,6 +1774,115 @@ async function handleGetProductionErrors(args) {
   }
 }
 
+// ── root-cause tools: resolve_stack_trace + blame_regression ────────────────
+
+async function handleResolveStackTrace(args) {
+  const { stackTrace } = args || {};
+  if (!stackTrace || typeof stackTrace !== 'string') {
+    return { content: [{ type: 'text', text: 'Error: stackTrace is required and must be a string' }], isError: true };
+  }
+  try {
+    const resolved = resolveStackTrace(stackTrace);
+    if (resolved.length === 0) {
+      return {
+        content: [{
+          type: 'text',
+          text: 'No stack frames recognised in the input (expected V8 "at file:line:col" or Firefox/Safari "fn@file:line:col" lines).',
+        }],
+      };
+    }
+    const lines = ['## Resolved stack trace', ''];
+    resolved.forEach((f, i) => {
+      lines.push(`**Frame ${i + 1}${f.functionName ? ` — ${f.functionName}` : ''}**`);
+      lines.push(`- Generated: \`${f.file}:${f.line}:${f.column}\``);
+      if (f.resolution.ok) {
+        const o = f.resolution.original;
+        lines.push(`- ✅ Original: \`${o.source}:${o.line}:${o.column}\`${o.name ? ` (\`${o.name}\`)` : ''}`);
+        if (o.snippet) lines.push(`  \`\`\`\n  ${o.snippet.trim()}\n  \`\`\``);
+      } else {
+        lines.push(`- ⚠️ Unresolved: ${f.resolution.reason}`);
+      }
+      lines.push('');
+    });
+    return { content: [{ type: 'text', text: lines.join('\n') }] };
+  } catch (err) {
+    return { content: [{ type: 'text', text: `resolve_stack_trace failed: ${err && err.message ? err.message : String(err)}` }], isError: true };
+  }
+}
+
+async function handleBlameRegression(args) {
+  const { path: repoPath, file, line, endLine, hits, commit } = args || {};
+  if (!repoPath || typeof repoPath !== 'string') {
+    return { content: [{ type: 'text', text: 'Error: path is required and must be a string' }], isError: true };
+  }
+  try {
+    if (commit) {
+      const res = showCommit({ cwd: repoPath, hash: commit });
+      if (!res.ok) return { content: [{ type: 'text', text: `blame_regression failed: ${res.reason}` }], isError: true };
+      return {
+        content: [{
+          type: 'text',
+          text:
+            `## Commit \`${res.shortHash}\`\n\n` +
+            `**Author:** ${res.author} <${res.authorEmail}>  |  **Date:** ${res.date}\n\n` +
+            `**Message:** ${res.message}\n\n` +
+            (res.stat ? `\`\`\`\n${res.stat}\n\`\`\`\n\n` : '') +
+            `\`\`\`diff\n${res.diff}\n\`\`\`${res.truncated ? '\n\n_(diff truncated)_' : ''}`,
+        }],
+      };
+    }
+
+    if (Array.isArray(hits) && hits.length > 0) {
+      const res = findLikelyRegressionCommit({ cwd: repoPath, hits });
+      if (!res.ok) return { content: [{ type: 'text', text: `blame_regression failed: ${res.reason}` }], isError: true };
+      const lines = ['## Likely regression commit(s) — ranked by hit count', ''];
+      if (res.candidates.length === 0) {
+        lines.push('None of the given hits could be blamed (files untracked or lines out of range).');
+      } else {
+        res.candidates.forEach((c, i) => {
+          lines.push(`**${i + 1}. \`${c.shortHash}\`** — ${c.hitCount}/${hits.length} hit(s) across ${c.fileCount} file(s)`);
+          lines.push(`   ${c.summary || '(no summary)'} — ${c.author} — ${c.date}`);
+        });
+        lines.push('');
+        lines.push(`Call \`blame_regression { path, commit: "${res.candidates[0].hash}" }\` for the full diff.`);
+      }
+      return { content: [{ type: 'text', text: lines.join('\n') }] };
+    }
+
+    if (file && typeof line === 'number') {
+      if (typeof endLine === 'number' && endLine > line) {
+        const res = blameRange({ cwd: repoPath, file, startLine: line, endLine });
+        if (!res.ok) return { content: [{ type: 'text', text: `blame_regression failed: ${res.reason}` }], isError: true };
+        const lines = [`## Commits touching \`${file}:${line}-${endLine}\``, ''];
+        res.commits.forEach((c, i) => {
+          lines.push(`**${i + 1}. \`${c.shortHash}\`** — ${c.lineCount} line(s) — ${c.summary || '(no summary)'} — ${c.author} — ${c.date}`);
+        });
+        return { content: [{ type: 'text', text: lines.join('\n') }] };
+      }
+      const res = blameLine({ cwd: repoPath, file, line });
+      if (!res.ok) return { content: [{ type: 'text', text: `blame_regression failed: ${res.reason}` }], isError: true };
+      return {
+        content: [{
+          type: 'text',
+          text:
+            `## \`${file}:${line}\` was introduced by \`${res.shortHash}\`\n\n` +
+            `**Author:** ${res.author} <${res.authorEmail}>  |  **Date:** ${res.date}\n\n` +
+            `**Message:** ${res.summary}\n\n` +
+            `**Line:** \`${res.lineContent}\`\n\n` +
+            `Call \`blame_regression { path, commit: "${res.hash}" }\` for the full diff.`,
+        }],
+      };
+    }
+
+    return {
+      content: [{ type: 'text', text: 'Error: pass either { file, line }, { file, line, endLine }, { hits }, or { commit }.' }],
+      isError: true,
+    };
+  } catch (err) {
+    return { content: [{ type: 'text', text: `blame_regression failed: ${err && err.message ? err.message : String(err)}` }], isError: true };
+  }
+}
+
 async function handleGetReport() {
   if (!lastScanResult) {
     return {
@@ -2180,10 +2250,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'get_visual_diff':        _result = await handleGetVisualDiff(args); break;
       case 'run_live_checks':        _result = await handleRunLiveChecks(args); break;
       case 'get_production_errors':  _result = await handleGetProductionErrors(args); break;
-      case 'run_tests':              _result = await handleRunTests(args); break;
-      case 'stream_logs':            _result = await handleStreamLogs(args); break;
-      case 'query_db':               _result = await handleQueryDb(args); break;
-      case 'http_request':           _result = await handleHttpRequest(args); break;
+      case 'resolve_stack_trace':    _result = await handleResolveStackTrace(args); break;
+      case 'blame_regression':       _result = await handleBlameRegression(args); break;
       default:
         _result = { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
     }
@@ -2233,10 +2301,8 @@ export {
   handleGetVisualDiff,
   handleRunLiveChecks,
   handleGetProductionErrors,
-  handleRunTests,
-  handleStreamLogs,
-  handleQueryDb,
-  handleHttpRequest,
+  handleResolveStackTrace,
+  handleBlameRegression,
   normalizeRelPath,
   pathsTailMatch,
   collectFlaggedChecks,

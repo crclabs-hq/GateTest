@@ -96,7 +96,7 @@ Connect GateTest directly to Claude Code (or any MCP-compatible AI) in one comma
 claude mcp add gatetest -- npx -y @gatetest/mcp-server
 ```
 
-18 tools across four families:
+20 tools across five families:
 
 | Family | Tools | What it gives Claude |
 |--------|-------|----------------------|
@@ -104,6 +104,7 @@ claude mcp add gatetest -- npx -y @gatetest/mcp-server
 | **👁 Eyes** | `capture_screenshot`, `get_visual_diff` | See the rendered page as a real image |
 | **👂 Ears** | `get_production_errors`, `run_live_checks` | Hear Sentry/Datadog/Rollbar errors + localhost runtime failures |
 | **🤝 Hands** | `verify_fix` | Hard ✅/❌ — prove the fix actually worked |
+| **🔬 Root Cause** | `resolve_stack_trace`, `blame_regression` | Resolve a minified stack trace to original file:line via source maps; find the git commit that introduced a specific line. Same engines are also CLI subcommands (`gatetest trace`, `gatetest blame`) — one implementation, both entry points |
 
 Works with Claude Code, Cursor, Windsurf, Continue, and Cline. See [`packages/mcp-server/`](packages/mcp-server/) for the full tool reference and example prompts.
 
@@ -126,6 +127,22 @@ reproduces, doesn't reproduce (flaky CI), or hits a different error.
 Authentication is optional — if you have a `GITHUB_TOKEN` set or `gh` CLI
 installed, replay can read private repo runs. Otherwise it uses the
 unauthenticated rate limit (60 req/hour, fine for a few replays).
+
+### Root-cause a bug from the CLI
+
+```bash
+# Resolve a minified stack trace back to original file:line:column
+cat error.log | gatetest trace -
+
+# Find which commit introduced a specific line (read-only — never
+# checks out or mutates the working tree)
+gatetest blame src/app.js --line 42
+```
+
+Both subcommands share the exact same engine as the MCP `resolve_stack_trace`
+and `blame_regression` tools — run them by hand or let Claude call them
+mid-fix-loop; the answer is identical either way. Run `gatetest trace --help`
+or `gatetest blame --help` for the full option list.
 
 ---
 
