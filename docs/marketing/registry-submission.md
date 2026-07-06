@@ -10,11 +10,11 @@ Goal: get GateTest listed in (1) the official **Anthropic MCP Registry** (`regis
 
 Both `server.json` (repo root) and `packages/mcp-server/server.json` now carry **two** transports:
 
-- `remote` → `streamable-http` → `https://mcp.gatetest.ai/mcp` (reaches web/mobile/no-npm users)
+- `remote` → `streamable-http` → `https://gatetest.ai/api/mcp` (reaches web/mobile/no-npm users)
 - `npm` → `stdio` → `npx -y @gatetest/mcp-server` (full 22-tool local install)
 
 Checklist before submitting:
-- [ ] `mcp.gatetest.ai/mcp` is live (Jarvis deploy done — `curl https://mcp.gatetest.ai/healthz` returns ok)
+- [ ] `https://gatetest.ai/api/mcp` is live — deploys with the site on Vercel (in-repo route, isolated from Jarvis/Vapron/Gluecron; Craig 2026-07-07). Verify: `curl -s -X POST https://gatetest.ai/api/mcp -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'` returns 8 tools. (Optional nicer branding later: add `mcp.gatetest.ai` as a Vercel domain alias.)
 - [ ] `name` field matches the namespace you own on the registry (`io.github.ccantynz-alt/gatetest` — must match the GitHub account you auth with)
 - [ ] `version` bumped if anything changed since last publish
 - [ ] `icon` URL (`https://gatetest.ai/icon.png`) resolves publicly
@@ -54,7 +54,7 @@ claude.ai has a browsable Connectors/Integrations directory where users one-clic
 - **Name:** GateTest
 - **Tagline:** Give Claude verified eyes, ears, and hands on your codebase.
 - **Category:** Developer Tools / Code Quality
-- **Remote MCP URL:** `https://mcp.gatetest.ai/mcp`
+- **Remote MCP URL:** `https://gatetest.ai/api/mcp`
 - **Description:**
   > GateTest is a 120-module code-quality and security engine delivered over MCP. It gives Claude capabilities it can't get alone: scan any live website or public GitHub repo for security, reliability, and quality issues (free, no key), explain any finding in plain English, and open a fix PR — all from the chat. A $29/mo key unlocks the full deep scan and AI auto-fix. Free tools: scan_url, scan_repo, list_modules, get_badge.
 - **Auth model:** Bearer token (`Authorization: Bearer gtmcp_...`). Free tools require no auth.

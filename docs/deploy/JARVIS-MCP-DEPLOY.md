@@ -1,7 +1,15 @@
-# Jarvis Deploy Brief — GateTest Remote MCP endpoint
+# Jarvis Deploy Brief — GateTest Remote MCP endpoint (OPTIONAL / SUPERSEDED)
+
+> ⚠️ **Superseded 2026-07-07.** Craig chose to host the endpoint **in-repo on
+> Vercel** (`website/app/api/mcp/route.ts`, live at `https://gatetest.ai/api/mcp`)
+> to keep GateTest fully isolated from Jarvis/Vapron/Gluecron — no
+> cross-contamination between agents and sites. **You do NOT need to deploy this
+> on the Jarvis box.** This brief remains only as the fallback if a dedicated
+> GateTest-only box is ever wanted. The `mcp.gatetest.ai` A-record → 66.42.121.161
+> is now unused and can be removed (or repointed to Vercel as a branded alias).
 
 **From:** GateTest engineering session (Claude Code, 2026-07-07, Craig-authorized)
-**To:** Jarvis (66.42.121.161)
+**To:** Jarvis (66.42.121.161) — only if a dedicated box is chosen
 **Task:** Deploy the GateTest hosted MCP endpoint on this box, behind `mcp.gatetest.ai`.
 
 ## Context

@@ -114,7 +114,7 @@ export default function McpPage() {
             <h3 className="font-semibold text-neutral-200 mb-1">claude.ai web &amp; mobile <span className="text-emerald-400 text-xs font-normal ml-1">zero install</span></h3>
             <p className="text-neutral-500 text-xs mb-3">Settings → Connectors → Add custom connector</p>
             <pre className="text-emerald-300 text-xs font-mono bg-neutral-950 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">
-{`URL: https://mcp.gatetest.ai/mcp`}
+{`URL: https://gatetest.ai/api/mcp`}
             </pre>
           </div>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
@@ -122,7 +122,7 @@ export default function McpPage() {
             <p className="text-neutral-500 text-xs mb-3">Settings → Developer → Edit Config</p>
             <pre className="text-emerald-300 text-xs font-mono bg-neutral-950 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">
 {`{ "mcpServers": { "gatetest": {
-  "url": "https://mcp.gatetest.ai/mcp" } } }`}
+  "url": "https://gatetest.ai/api/mcp" } } }`}
             </pre>
           </div>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
@@ -136,7 +136,7 @@ export default function McpPage() {
             <h3 className="font-semibold text-neutral-200 mb-1">Cursor / Windsurf / Cline / Zed</h3>
             <p className="text-neutral-500 text-xs mb-3">MCP settings → Add server (URL or command, both work)</p>
             <pre className="text-emerald-300 text-xs font-mono bg-neutral-950 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">
-{`https://mcp.gatetest.ai/mcp`}
+{`https://gatetest.ai/api/mcp`}
             </pre>
           </div>
         </div>

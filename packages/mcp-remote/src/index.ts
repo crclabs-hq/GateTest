@@ -12,9 +12,11 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
-// core.js is CommonJS — Bun interops transparently.
+// The transport-agnostic core now lives in the website (single source of truth,
+// so the Vercel route bundles it). This Bun/Hono wrapper is the optional
+// dedicated-box deploy; it reads the same core from the repo it's cloned into.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { createMcpCore } = require('./core.cjs');
+const { createMcpCore } = require('../../../website/app/lib/mcp-remote-core.cjs');
 
 const PORT = Number(process.env.PORT || 8787);
 const API_BASE = process.env.GATETEST_API_BASE_URL || 'https://gatetest.ai';

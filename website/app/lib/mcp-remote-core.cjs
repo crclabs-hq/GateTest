@@ -14,7 +14,7 @@
 
 'use strict';
 
-const MODULES = require('./modules-list.json');
+const MODULES = require('./mcp-remote-modules.json');
 
 const PROTOCOL_VERSION = '2024-11-05';
 const SERVER_INFO = { name: 'gatetest', version: '1.1.3' };

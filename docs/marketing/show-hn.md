@@ -27,7 +27,7 @@ Recommend #1 — "eyes, ears, hands" is concrete and the phrase travels.
 >
 > Under it is a 120-module deterministic scan engine (security, reliability, race conditions, N+1 queries, PII-in-logs, TLS bypasses, cron typos, money-in-float, ~100 more classes) — fast, repeatable, zero tokens. The MCP tools are the delivery vehicle; the engine is the moat.
 >
-> **Free with no key, right now:** point it at any live URL or any public GitHub repo and it'll scan it. If you use Claude Desktop or claude.ai, you can add the remote endpoint (`https://mcp.gatetest.ai/mcp`) in ~30 seconds, no install. Claude Code / Cursor: `npx -y @gatetest/mcp-server`.
+> **Free with no key, right now:** point it at any live URL or any public GitHub repo and it'll scan it. If you use Claude Desktop or claude.ai, you can add the remote endpoint (`https://gatetest.ai/api/mcp`) in ~30 seconds, no install. Claude Code / Cursor: `npx -y @gatetest/mcp-server`.
 >
 > It's early — I'm a solo founder, no customers yet, and I'd rather hear it's wrong from you now than find out later. Try `scan_url` on something you own and tell me what it gets wrong.
 

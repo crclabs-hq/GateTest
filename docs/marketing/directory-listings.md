@@ -8,7 +8,7 @@
 - **MCP page:** https://gatetest.ai/mcp
 - **Repo:** https://github.com/crclabs-hq/gatetest
 - **Install (local):** `npx -y @gatetest/mcp-server`
-- **Install (remote URL):** `https://mcp.gatetest.ai/mcp`
+- **Install (remote URL):** `https://gatetest.ai/api/mcp`
 - **Icon:** https://gatetest.ai/icon.png
 - **License:** MIT
 - **Category tags:** developer-tools, code-quality, security, testing, ai-agent
@@ -38,7 +38,7 @@
 
 ## Cursor directory (cursor.directory / cursor.com/mcp)
 - Submit via their MCP directory form.
-- Emphasize the **remote URL** install (`https://mcp.gatetest.ai/mcp`) — Cursor supports URL-based MCP add, zero terminal.
+- Emphasize the **remote URL** install (`https://gatetest.ai/api/mcp`) — Cursor supports URL-based MCP add, zero terminal.
 
 ## Cline MCP Marketplace (github.com/cline/mcp-marketplace)
 - Submit: open an issue/PR on the cline/mcp-marketplace repo per their template.

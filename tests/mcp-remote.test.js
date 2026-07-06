@@ -15,7 +15,7 @@ const {
   TOOLS,
   FREE_TOOLS,
   PROTOCOL_VERSION,
-} = require('../packages/mcp-remote/src/core.cjs');
+} = require('../website/app/lib/mcp-remote-core.cjs');
 
 const VALID_KEY = 'gtmcp_' + 'a'.repeat(64); // 70 chars
 
