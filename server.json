@@ -12,6 +12,23 @@
   "icon": "https://gatetest.ai/icon.png",
   "versions": [
     {
+      "registryType": "remote",
+      "version": "1.1.3",
+      "transport": {
+        "type": "streamable-http",
+        "url": "https://mcp.gatetest.ai/mcp"
+      },
+      "environmentVariables": [
+        {
+          "name": "GATETEST_API_KEY",
+          "description": "Premium MCP subscription key ($29/mo at gatetest.ai/mcp), sent as Authorization: Bearer. Free tools work without it: check_health, list_modules, get_badge, scan_url, scan_repo.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    },
+    {
       "registryType": "npm",
       "identifier": "@gatetest/mcp-server",
       "version": "1.1.3",

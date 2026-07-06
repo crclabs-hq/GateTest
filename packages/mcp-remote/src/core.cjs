@@ -252,7 +252,7 @@ function formatHostedFindings(title, findings) {
 // Core factory
 // ---------------------------------------------------------------------------
 
-function createMcpCore({ apiBase = 'https://gatetest.ai', fetchImpl = globalThis.fetch, now = Date.now } = {}) {
+function createMcpCore({ apiBase = 'https://gatetest.ai', fetchImpl = globalThis.fetch, now = Date.now, onToolCall = null } = {}) {
   const base = String(apiBase).replace(/\/+$/, '');
   const validateKey = createKeyValidator({ apiBase: base, fetchImpl, now });
 
@@ -461,12 +461,29 @@ function createMcpCore({ apiBase = 'https://gatetest.ai', fetchImpl = globalThis
         ));
       }
 
+      const startedAt = now();
+      let result;
       try {
-        const result = await handler(args, { keyValid, sessionId });
-        return rpcResult(id, result);
+        result = await handler(args, { keyValid, sessionId });
       } catch (err) {
-        return rpcResult(id, toolText(`${name} failed: ${err && err.message ? err.message : String(err)}`, true));
+        result = toolText(`${name} failed: ${err && err.message ? err.message : String(err)}`, true);
       }
+      // Flywheel telemetry: same event contract the local stdio server logs to
+      // ~/.gatetest/mcp-telemetry.jsonl — the nightly pattern-miner trains on
+      // which tools run, from which transport, and whether they errored.
+      if (typeof onToolCall === 'function') {
+        try {
+          onToolCall({
+            tool: name,
+            transport: 'remote',
+            keyValid,
+            isError: !!result.isError,
+            durationMs: now() - startedAt,
+            at: new Date(now()).toISOString(),
+          });
+        } catch { /* telemetry must never break a tool call */ }
+      }
+      return rpcResult(id, result);
     }
 
     if (isNotification) return null;

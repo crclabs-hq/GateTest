@@ -103,6 +103,49 @@ export default function McpPage() {
         </div>
       </section>
 
+      {/* Install paths — every environment */}
+      <section className="max-w-5xl mx-auto px-6 py-12">
+        <h2 className="text-2xl font-bold mb-2 text-center">Install anywhere — 30 seconds, any environment</h2>
+        <p className="text-neutral-500 text-sm text-center mb-8">
+          No terminal? No npm? No problem. The hosted endpoint reaches every Claude user.
+        </p>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
+            <h3 className="font-semibold text-neutral-200 mb-1">claude.ai web &amp; mobile <span className="text-emerald-400 text-xs font-normal ml-1">zero install</span></h3>
+            <p className="text-neutral-500 text-xs mb-3">Settings → Connectors → Add custom connector</p>
+            <pre className="text-emerald-300 text-xs font-mono bg-neutral-950 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">
+{`URL: https://mcp.gatetest.ai/mcp`}
+            </pre>
+          </div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
+            <h3 className="font-semibold text-neutral-200 mb-1">Claude Desktop App</h3>
+            <p className="text-neutral-500 text-xs mb-3">Settings → Developer → Edit Config</p>
+            <pre className="text-emerald-300 text-xs font-mono bg-neutral-950 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">
+{`{ "mcpServers": { "gatetest": {
+  "url": "https://mcp.gatetest.ai/mcp" } } }`}
+            </pre>
+          </div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
+            <h3 className="font-semibold text-neutral-200 mb-1">Claude Code CLI <span className="text-blue-400 text-xs font-normal ml-1">full 22 tools</span></h3>
+            <p className="text-neutral-500 text-xs mb-3">Local install — unlocks scan_local, run_tests, query_db, stream_logs</p>
+            <pre className="text-emerald-300 text-xs font-mono bg-neutral-950 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">
+{`claude mcp add gatetest -- npx -y @gatetest/mcp-server`}
+            </pre>
+          </div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
+            <h3 className="font-semibold text-neutral-200 mb-1">Cursor / Windsurf / Cline / Zed</h3>
+            <p className="text-neutral-500 text-xs mb-3">MCP settings → Add server (URL or command, both work)</p>
+            <pre className="text-emerald-300 text-xs font-mono bg-neutral-950 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">
+{`https://mcp.gatetest.ai/mcp`}
+            </pre>
+          </div>
+        </div>
+        <p className="text-neutral-600 text-xs text-center mt-4">
+          Hosted endpoint: free tools work with no key; add <span className="font-mono">Authorization: Bearer gtmcp_...</span> to unlock premium.
+          Filesystem tools (scan_local, run_tests, query_db, stream_logs, http_request) need the local install.
+        </p>
+      </section>
+
       {/* Tool table */}
       <section className="max-w-5xl mx-auto px-6 py-12">
         <h2 className="text-2xl font-bold mb-6 text-center">22 tools — what&apos;s free vs paid</h2>

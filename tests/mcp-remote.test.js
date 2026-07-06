@@ -324,3 +324,47 @@ describe('remote MCP — tool handlers', () => {
     assert.ok(!res.error, 'must be a tool-level error, not a JSON-RPC error');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Flywheel telemetry
+// ---------------------------------------------------------------------------
+
+describe('remote MCP — flywheel telemetry', () => {
+  it('onToolCall fires per tool call with tool/transport/error/duration', async () => {
+    const events = [];
+    const core = createMcpCore({ fetchImpl: fakeFetch([]), onToolCall: (e) => events.push(e) });
+    await core.handleRpc({
+      jsonrpc: '2.0', id: 1, method: 'tools/call',
+      params: { name: 'list_modules', arguments: {} },
+    });
+    assert.equal(events.length, 1);
+    assert.equal(events[0].tool, 'list_modules');
+    assert.equal(events[0].transport, 'remote');
+    assert.equal(events[0].isError, false);
+    assert.equal(typeof events[0].durationMs, 'number');
+    assert.ok(events[0].at, 'timestamp present');
+  });
+
+  it('records isError=true when the handler fails', async () => {
+    const events = [];
+    const fetchImpl = async () => { throw new Error('down'); };
+    const core = createMcpCore({ fetchImpl, onToolCall: (e) => events.push(e) });
+    await core.handleRpc({
+      jsonrpc: '2.0', id: 1, method: 'tools/call',
+      params: { name: 'scan_url', arguments: { url: 'https://x.com' } },
+    });
+    assert.equal(events[0].isError, true);
+  });
+
+  it('a throwing telemetry hook never breaks the tool call', async () => {
+    const core = createMcpCore({
+      fetchImpl: fakeFetch([]),
+      onToolCall: () => { throw new Error('telemetry disk full'); },
+    });
+    const res = await core.handleRpc({
+      jsonrpc: '2.0', id: 1, method: 'tools/call',
+      params: { name: 'list_modules', arguments: {} },
+    });
+    assert.ok(!res.result.isError, 'tool call must succeed despite telemetry failure');
+  });
+});

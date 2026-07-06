@@ -18,8 +18,27 @@ const { createMcpCore } = require('./core.cjs');
 
 const PORT = Number(process.env.PORT || 8787);
 const API_BASE = process.env.GATETEST_API_BASE_URL || 'https://gatetest.ai';
+const TELEMETRY_FILE = process.env.GATETEST_MCP_TELEMETRY || '/var/log/gatetest/mcp-telemetry.jsonl';
 
-const core = createMcpCore({ apiBase: API_BASE });
+// Flywheel: append one JSONL event per tool call — the same contract the local
+// stdio server writes to ~/.gatetest/mcp-telemetry.jsonl, so the nightly
+// pattern-miner trains on remote usage too. Fire-and-forget, never blocks.
+import { appendFile, mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
+let telemetryReady = false;
+async function logToolCall(event: unknown) {
+  try {
+    if (!telemetryReady) {
+      await mkdir(dirname(TELEMETRY_FILE), { recursive: true });
+      telemetryReady = true;
+    }
+    await appendFile(TELEMETRY_FILE, JSON.stringify(event) + '\n');
+  } catch {
+    // telemetry must never break a tool call
+  }
+}
+
+const core = createMcpCore({ apiBase: API_BASE, onToolCall: logToolCall });
 
 const app = new Hono();
 
