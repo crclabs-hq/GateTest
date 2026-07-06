@@ -101,11 +101,11 @@ function callMcp(method, params = {}, timeoutMs = 60000) {
 // ---------------------------------------------------------------------------
 
 describeOrSkip('MCP server — tools/list', () => {
-  it('returns exactly 18 tools (drift tripwire — update when adding a tool)', async () => {
+  it('returns exactly 20 tools (drift tripwire — update when adding a tool)', async () => {
     const res = await callMcp('tools/list', {});
     assert.ok(res.result, `expected result, got: ${JSON.stringify(res).slice(0, 200)}`);
     assert.ok(Array.isArray(res.result.tools), 'tools should be an array');
-    assert.strictEqual(res.result.tools.length, 18);
+    assert.strictEqual(res.result.tools.length, 20);
   });
 
   it('includes every declared tool', async () => {
@@ -121,6 +121,8 @@ describeOrSkip('MCP server — tools/list', () => {
       // Eyes/ears/hands build
       'verify_fix', 'capture_screenshot', 'get_visual_diff',
       'run_live_checks', 'get_production_errors',
+      // Root-cause build (source-map trace resolution + git regression blame)
+      'resolve_stack_trace', 'blame_regression',
     ];
     for (const name of expected) {
       assert.ok(names.includes(name), `missing ${name}`);
