@@ -55,13 +55,13 @@ describe('marketing claim — module count', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Claim: claude-sonnet-4-6 everywhere (Craig directive 2026-06-18 —
-// "the only Claude model that developers might even trust...we need to make that
-//  very clear across all our website")
+// Claim: hybrid engine (Craig 2026-07-07) — Fable 5 on the paid fix tiers,
+// Sonnet 4.6 on free/cheap/high-volume paths, Opus 4.8 as the refusal fallback.
+// Legacy / older models must still be absent so App Review can't catch a lie.
 // ---------------------------------------------------------------------------
 
-describe('marketing claim — Sonnet 4.6 everywhere', () => {
-  it('no source file references a legacy claude-opus or older claude-sonnet/haiku model', () => {
+describe('marketing claim — hybrid engine models', () => {
+  it('no source file references a LEGACY claude model (current: fable-5, sonnet-4-6, opus-4-8, haiku-4-5)', () => {
     // Walk JS/TS/TSX/yml under tracked dirs and assert clean.
     const found = [];
     function walk(dir) {
@@ -75,8 +75,10 @@ describe('marketing claim — Sonnet 4.6 everywhere', () => {
           const body = fs.readFileSync(full, 'utf8');
           // Allow the verification test itself to mention legacy IDs (it asserts they're gone)
           if (full.endsWith('marketing-claim-verification.test.js')) continue;
-          // Banned: any claude-opus-*, older Sonnets (4-5/4-7/20250514), older Haikus
-          const m = body.match(/claude-opus-4-(?:5|6|7|8|20250514)|claude-sonnet-4-(?:5|7|20250514)|claude-haiku-4-5-2025[0-9]+/);
+          // Banned: older Opus (4-5/4-6/4-7 + dated), older Sonnets (4-5/4-7 + dated),
+          // dated Haikus. Opus 4.8 is ALLOWED (the Fable refusal fallback); Fable 5,
+          // Sonnet 4.6, and non-dated Haiku 4.5 are the current engine models.
+          const m = body.match(/claude-opus-4-(?:5|6|7|20250514)|claude-sonnet-4-(?:5|7|20250514)|claude-haiku-4-5-2025[0-9]+/);
           if (m) found.push(`${path.relative(ROOT, full)}: ${m[0]}`);
         }
       }
@@ -85,14 +87,25 @@ describe('marketing claim — Sonnet 4.6 everywhere', () => {
     assert.deepStrictEqual(found, [], 'legacy model references should be empty:\n  ' + found.join('\n  '));
   });
 
-  it('budget-tracker.js pricing constants match Sonnet 4.6 rates', () => {
-    const src = readFile('website/app/lib/budget-tracker.js');
-    // Allow env override; default values pinned at $3 input / $15 output (Sonnet).
-    assert.match(src, /INPUT_USD_PER_MTOK[^\n]*\|\|\s*3\b/);
-    assert.match(src, /OUTPUT_USD_PER_MTOK[^\n]*\|\|\s*15\b/);
+  it('engine-models.js defines the hybrid split (Fable fix / Sonnet cheap / Opus fallback)', () => {
+    for (const rel of ['website/app/lib/engine-models.js', 'src/core/engine-models.js']) {
+      const src = readFile(rel);
+      assert.match(src, /claude-fable-5/, `${rel} should name Fable 5 as FIX_MODEL`);
+      assert.match(src, /claude-sonnet-4-6/, `${rel} should name Sonnet 4.6 as CHEAP_MODEL`);
+      assert.match(src, /claude-opus-4-8/, `${rel} should name Opus 4.8 as FALLBACK_MODEL`);
+    }
   });
 
-  it('CLAUDE.md AI Layer table names claude-sonnet-4-6', () => {
+  it('budget-tracker.js prices Sonnet (3/15) by default and Fable (10/50) per model', () => {
+    const src = readFile('website/app/lib/budget-tracker.js');
+    // Default (untagged) rate stays Sonnet — cheap-path callers unchanged.
+    assert.match(src, /INPUT_USD_PER_MTOK[^\n]*\|\|\s*3\b/);
+    assert.match(src, /OUTPUT_USD_PER_MTOK[^\n]*\|\|\s*15\b/);
+    // Fable rate present for the paid fix tiers.
+    assert.match(src, /claude-fable-5[\s\S]*?10[\s\S]*?50/);
+  });
+
+  it('CLAUDE.md AI Layer note still names claude-sonnet-4-6 (cheap paths)', () => {
     const md = readFile('CLAUDE.md');
     assert.match(md, /claude-sonnet-4-6/);
   });

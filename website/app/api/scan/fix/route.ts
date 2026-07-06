@@ -27,6 +27,8 @@ const {
   runWithTracker,
   getCurrentTracker,
 } = require("@/app/lib/budget-tracker");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { modelForTier, CHEAP_MODEL, needsRefusalFallback } = require("@/app/lib/engine-models");
 import {
   CUSTOMER_COOKIE_NAME,
   getOAuthConfig,
@@ -642,6 +644,24 @@ async function anthropicCallWithRetry(body: string, maxAttempts = 6): Promise<{ 
     : new Error(`Anthropic API unreachable after ${maxAttempts} attempts`);
 }
 
+// The AI-layer model for this request. Set on the per-request tracker (ALS) from
+// modelForTier(tier): Fable 5 on paid fix tiers, Sonnet 4.6 elsewhere. Falls
+// back to Sonnet when no tracker is in context (tests, direct calls).
+function activeFixModel(): string {
+  const t = getCurrentTracker();
+  return (t && (t.fixModel as string)) || CHEAP_MODEL;
+}
+
+// Extra request fields that only apply to the higher-tier fix model. `effort:
+// "high"` is valid on both Sonnet 4.6 and Fable 5, but we only spend it on the
+// paid fix model so cheap paths aren't silently made more expensive. A Fable
+// classifier refusal returns HTTP 200 with empty content — the existing
+// validateFixOutput rejects it and that finding falls through to the advisory
+// section, so a refusal degrades one fix gracefully rather than erroring.
+function fixModelExtras(model: string): Record<string, unknown> {
+  return needsRefusalFallback(model) ? { output_config: { effort: "high" } } : {};
+}
+
 async function askClaude(fileContent: string, filePath: string, issues: string[], conventionsHeader = ""): Promise<string> {
   // Enrich broken-link issues with context about what actually exists
   const enrichedIssues = await Promise.all(issues.map(async (issue) => {
@@ -699,10 +719,12 @@ CRITICAL RULES — violations will cause re-scan failure:
 - If a fix would require context you don't have, output the UNCHANGED original file verbatim.
 - The fixed code will be automatically re-scanned. If it fails, the fix is rejected.`;
 
+  const fixModel = activeFixModel();
   const body = JSON.stringify({
-    model: "claude-sonnet-4-6",
+    model: fixModel,
     max_tokens: 8192,
     messages: [{ role: "user", content: prompt }],
+    ...fixModelExtras(fixModel),
   });
 
   const res = await anthropicCallWithRetry(body);
@@ -813,10 +835,12 @@ const MAX_FILE_BYTES = 400 * 1024;
  * fix path.
  */
 async function askClaudeForTest(prompt: string): Promise<string> {
+  const fixModel = activeFixModel();
   const body = JSON.stringify({
-    model: "claude-sonnet-4-6",
+    model: fixModel,
     max_tokens: 4096,
     messages: [{ role: "user", content: prompt }],
+    ...fixModelExtras(fixModel),
   });
   const res = await anthropicCallWithRetry(body);
   if (res.status !== 200) {
@@ -843,10 +867,12 @@ Rules:
 - For tsconfig.json: use modern strict settings.
 - Follow whatever format the file extension implies.`;
 
+  const fixModel = activeFixModel();
   const body = JSON.stringify({
-    model: "claude-sonnet-4-6",
+    model: fixModel,
     max_tokens: 4096,
     messages: [{ role: "user", content: prompt }],
+    ...fixModelExtras(fixModel),
   });
 
   const res = await anthropicCallWithRetry(body);
@@ -1062,6 +1088,11 @@ export async function POST(req: NextRequest) {
   // reach it without explicit threading. Stored on the closure so the
   // route's outer try/catch can attach a snapshot to any error response.
   const _budgetTracker = createTrackerForTier(tierForCap);
+  // Hybrid engine (Craig 2026-07-07): the AI layer runs Fable 5 on the paid fix
+  // tiers and Sonnet 4.6 elsewhere. The chosen model rides on the per-request
+  // tracker (which lives in ALS) so anthropicCall's helpers read it without
+  // module-global state — safe on Fluid Compute's shared-instance model.
+  (_budgetTracker as Record<string, unknown>).fixModel = modelForTier(tierForCap);
   // Wire the invocation circuit breaker for paid AI-fix tiers.
   if (tierForCap === "scan_fix" || tierForCap === "nuclear") {
     (_budgetTracker as Record<string, unknown>)._maxInvocations = MAX_AI_INVOCATIONS;

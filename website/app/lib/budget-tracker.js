@@ -28,15 +28,29 @@ const ALS = (() => {
   }
 })();
 
-// Sonnet 4.6 pricing — Craig directive 2026-06-03 "Opus is absolutely
-// terrible at debugging websites, it needs to be Sonnet." Sonnet wins
-// SWE-bench Verified vs Opus on real coding tasks; the cheaper model is
-// also the better debugger for our use case. Anthropic Sonnet 4 pricing:
-// input $3/MTok, output $15/MTok — roughly 5x cheaper than Opus on both.
-// Per-tier dollar caps below kept UNCHANGED (Strategy A) — same dollar
-// spend per scan now buys ~5x more analysis depth.
+// Hybrid-engine pricing (Craig 2026-07-07). The AI layer runs Fable 5 on the
+// paid fix tiers (scan_fix / nuclear) and Sonnet 4.6 on free/cheap/high-volume
+// paths — see website/app/lib/engine-models.js. The tracker prices each call at
+// the model that actually ran it, so the per-scan USD cap reflects real spend.
+//
+// Sonnet 4.6: $3 in / $15 out per MTok. Fable 5: $10 in / $50 out per MTok.
+// The default rate (used when a caller doesn't tag a model) stays Sonnet, so
+// every existing cheap-path caller is priced exactly as before.
 const INPUT_USD_PER_MTOK = Number(process.env.GATETEST_INPUT_USD_PER_MTOK) || 3;
 const OUTPUT_USD_PER_MTOK = Number(process.env.GATETEST_OUTPUT_USD_PER_MTOK) || 15;
+
+// Per-model rates. Keyed by the model id string passed to record(). Unknown /
+// untagged calls fall back to the Sonnet default pair above.
+const MODEL_PRICING = {
+  'claude-sonnet-4-6': { input: INPUT_USD_PER_MTOK, output: OUTPUT_USD_PER_MTOK },
+  'claude-fable-5':    { input: Number(process.env.GATETEST_FABLE_INPUT_USD_PER_MTOK) || 10,
+                         output: Number(process.env.GATETEST_FABLE_OUTPUT_USD_PER_MTOK) || 50 },
+  'claude-opus-4-8':   { input: 5, output: 25 },
+};
+
+function priceFor(model) {
+  return MODEL_PRICING[model] || { input: INPUT_USD_PER_MTOK, output: OUTPUT_USD_PER_MTOK };
+}
 
 // Default per-scan ceilings. Sized for Opus pricing — the same token
 // counts that were $12 on Sonnet cost ~$60 on Opus, so the per-scan
@@ -63,6 +77,7 @@ class BudgetTracker {
     this.label = label;
     this.inputTokens = 0;
     this.outputTokens = 0;
+    this.spentUsd = 0; // accumulated per-call at each call's own model rate
     this.callCount = 0;
     this.aborted = false;
     this.abortReason = null;
@@ -76,18 +91,25 @@ class BudgetTracker {
    * we use its exact token counts; otherwise we estimate from char
    * lengths.
    */
-  record(body, response) {
+  record(body, response, model) {
     this.callCount += 1;
     const usage = response?.data?.usage;
+    let callIn;
+    let callOut;
     if (usage && typeof usage.output_tokens === 'number') {
-      this.inputTokens += usage.input_tokens || estimateTokens(body);
-      this.outputTokens += usage.output_tokens;
+      callIn = usage.input_tokens || estimateTokens(body);
+      callOut = usage.output_tokens;
     } else {
-      this.inputTokens += estimateTokens(body);
+      callIn = estimateTokens(body);
       const text =
         (response?.data?.content && response.data.content[0]?.text) || '';
-      this.outputTokens += estimateTokens(text);
+      callOut = estimateTokens(text);
     }
+    this.inputTokens += callIn;
+    this.outputTokens += callOut;
+    // Price this call at the model that actually ran it (defaults to Sonnet).
+    const rate = priceFor(model || (response?.data?.model));
+    this.spentUsd += (callIn / 1_000_000) * rate.input + (callOut / 1_000_000) * rate.output;
     this._checkCaps();
   }
 
@@ -107,10 +129,10 @@ class BudgetTracker {
   }
 
   estimatedUsd() {
-    return (
-      (this.inputTokens / 1_000_000) * INPUT_USD_PER_MTOK +
-      (this.outputTokens / 1_000_000) * OUTPUT_USD_PER_MTOK
-    );
+    // spentUsd accumulates per call at each call's real model rate. It equals
+    // the legacy aggregate formula when every call used the Sonnet default, so
+    // existing Sonnet-only callers and their tests are unaffected.
+    return this.spentUsd;
   }
 
   /**
@@ -168,16 +190,18 @@ function createBudgetTracker(opts) {
 // Per-tier cap policy
 // ---------------------------------------------------------------------------
 //
-// Caps the Anthropic spend per scan based on the customer's tier. The numbers
-// preserve healthy margins on every tier: Quick at $29 caps at $1.50 (95%+
-// margin), Full at $99 caps at $5 (95% margin), Scan+Fix at $199 caps at
-// $12 (94% margin), Nuclear at $399 caps at $30 (92% margin).
+// Caps the Anthropic spend per scan based on the customer's tier. Raised on the
+// paid fix tiers 2026-07-07 (Craig-approved) when those tiers moved to Fable 5
+// (~3.3x Sonnet per token) — the higher cap buys genuinely DEEPER analysis, not
+// just more-expensive same-depth. Margins stay healthy: Quick $29→$1.50 cap
+// (95%+), Full $99→$5 (95%, still Sonnet), Scan+Fix $199→$30 (~85%, Fable),
+// Forensic $399→$60 (~85%, Fable).
 //
 // Override via environment variables (per-tier) for emergency widening:
 //   GATETEST_MAX_USD_QUICK     (default 1.5)
 //   GATETEST_MAX_USD_FULL      (default 5)
-//   GATETEST_MAX_USD_SCAN_FIX  (default 12)
-//   GATETEST_MAX_USD_NUCLEAR   (default 30)
+//   GATETEST_MAX_USD_SCAN_FIX  (default 30)
+//   GATETEST_MAX_USD_NUCLEAR   (default 60)
 //
 // Unknown tier → DEFAULT_MAX_USD (12). Stay conservative on unrecognised
 // inputs.
@@ -185,8 +209,8 @@ function createBudgetTracker(opts) {
 const TIER_CAPS_USD = {
   quick:    Number(process.env.GATETEST_MAX_USD_QUICK)    || 1.5,
   full:     Number(process.env.GATETEST_MAX_USD_FULL)     || 5,
-  scan_fix: Number(process.env.GATETEST_MAX_USD_SCAN_FIX) || 12,
-  nuclear:  Number(process.env.GATETEST_MAX_USD_NUCLEAR)  || 30,
+  scan_fix: Number(process.env.GATETEST_MAX_USD_SCAN_FIX) || 30,
+  nuclear:  Number(process.env.GATETEST_MAX_USD_NUCLEAR)  || 60,
 };
 
 const TIER_TOKEN_CAPS = {
@@ -247,6 +271,8 @@ module.exports = {
   // Exposed for tests.
   INPUT_USD_PER_MTOK,
   OUTPUT_USD_PER_MTOK,
+  MODEL_PRICING,
+  priceFor,
   DEFAULT_MAX_TOKENS,
   DEFAULT_MAX_USD,
   CHARS_PER_TOKEN,

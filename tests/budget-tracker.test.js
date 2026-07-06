@@ -308,14 +308,18 @@ describe('budget-tracker — capsForTier', () => {
   });
 
   it('healthy margins on each tier vs price', () => {
-    // Quick $29 → cap $1.50 → 94.8% margin (before fixed costs)
-    // Full $99 → cap $5  → 94.9% margin
-    // Scan+Fix $199 → cap $12 → 94.0% margin
-    // Nuclear $399 → cap $30 → 92.5% margin
-    assert.ok(capsForTier('quick').maxUsd    <= 29 * 0.10, 'quick cap < 10% of $29');
-    assert.ok(capsForTier('full').maxUsd     <= 99 * 0.10, 'full cap < 10% of $99');
-    assert.ok(capsForTier('scan_fix').maxUsd <= 199 * 0.10, 'scan_fix cap < 10% of $199');
-    assert.ok(capsForTier('nuclear').maxUsd  <= 399 * 0.10, 'nuclear cap < 10% of $399');
+    // Cheap tiers stay on Sonnet with ~95% margin (cap ≤ 10% of price).
+    // Paid fix tiers moved to Fable 5 (Craig 2026-07-07) — caps raised to
+    // fund deeper analysis, margin target ≥ 80% (cap ≤ 20% of price):
+    //   Quick $29 → $1.50 (94.8%) · Full $99 → $5 (94.9%)
+    //   Scan+Fix $199 → $30 (~85%) · Forensic $399 → $60 (~85%)
+    assert.ok(capsForTier('quick').maxUsd    <= 29 * 0.10, 'quick cap ≤ 10% of $29');
+    assert.ok(capsForTier('full').maxUsd     <= 99 * 0.10, 'full cap ≤ 10% of $99');
+    assert.ok(capsForTier('scan_fix').maxUsd <= 199 * 0.20, 'scan_fix cap ≤ 20% of $199');
+    assert.ok(capsForTier('nuclear').maxUsd  <= 399 * 0.20, 'nuclear cap ≤ 20% of $399');
+    // Confirm the raise actually landed (guards against a silent revert).
+    assert.equal(capsForTier('scan_fix').maxUsd, 30, 'scan_fix cap should be $30');
+    assert.equal(capsForTier('nuclear').maxUsd, 60, 'nuclear cap should be $60');
   });
 });
 

@@ -437,15 +437,22 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.57.0 — **120 modules**, **Claude Sonnet 4.6**
-(`claude-sonnet-4-6` everywhere in the engine), **six tiers
-live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399 (one-time)
-+ Continuous $49/mo + **MCP $29/mo** (Craig-authorized 2026-07-04). The
-MCP tier gates premium Eyes/Ears/Hands tools behind a `GATETEST_API_KEY`
-delivered by email after Stripe checkout. Pricing UI (`Pricing.tsx`),
-checkout backend, and webhook handler all reflect the new tier.
+GateTest v1.57.0 — **120 modules**, **hybrid AI layer** (Craig 2026-07-07):
+**Fable 5** (`claude-fable-5`) on the paid fix tiers (Scan+Fix, Forensic),
+**Sonnet 4.6** (`claude-sonnet-4-6`) on free/cheap/high-volume paths, **Opus
+4.8** (`claude-opus-4-8`) as the Fable refusal fallback. Model selection lives
+in `website/app/lib/engine-models.js` + `src/core/engine-models.js`
+(`modelForTier`); the paid-tier budget caps were raised to fund deeper Fable
+analysis (Scan+Fix $30, Forensic $60) and `budget-tracker.js` prices each call
+at the model that ran it. Flip Fable off via `GATETEST_FIX_MODEL` if the org's
+data retention ever drops below 30 days (Fable is unavailable under ZDR).
+**Six tiers live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399
+(one-time) + Continuous $49/mo + **MCP $29/mo** (Craig-authorized 2026-07-04).
+The MCP tier gates premium Eyes/Ears/Hands tools behind a `GATETEST_API_KEY`
+delivered by email after Stripe checkout. MCP + CLI fix paths stay on Sonnet
+(flat-rate / no per-scan payment — Fable isn't funded there).
 MCP server: `bin/gatetest-mcp.mjs`, 22 tools.
 Date stamp last fully reconciled: 2026-07-07 (Bible restructured into
-slim core + `docs/` library the same day).
+slim core + `docs/` library + hybrid engine the same day).
 
 **Full version-by-version changelog:** see `docs/HISTORY.md`.
