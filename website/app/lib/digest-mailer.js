@@ -309,8 +309,8 @@ async function sendApiKeyEmail(opts) {
     <h1 style="color:#f4f4f5;font-size:22px;font-weight:700;margin:0 0 8px;">Your MCP API Key</h1>
     <p style="color:#a1a1aa;font-size:14px;margin:0 0 24px;">
       Here&rsquo;s your GateTest MCP subscription key. Add it to Claude Code (or Cursor / Windsurf)
-      to unlock all 18 tools: full 120-module scans, AI fix, 👁&nbsp;screenshot,
-      👂&nbsp;production errors, and 🤝&nbsp;verify&nbsp;fix.
+      to unlock all 20 tools: full 120-module scans, AI fix, 👁&nbsp;screenshot,
+      👂&nbsp;production errors, 🤝&nbsp;verify&nbsp;fix, and 🔬&nbsp;root-cause&nbsp;tools.
     </p>
 
     <div style="background:#09090b;border:1px solid #3f3f46;border-radius:8px;padding:16px;margin-bottom:24px;">
