@@ -42,8 +42,13 @@
     "qa",
     "testing",
     "verify-fix",
+    "auto-fix",
+    "eyes-ears-hands",
+    "datadog",
+    "rollbar",
     "cursor",
-    "windsurf"
+    "windsurf",
+    "cline"
   ],
   "author": "GateTest Team",
   "license": "MIT",

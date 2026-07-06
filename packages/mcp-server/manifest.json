@@ -1,0 +1,43 @@
+{
+  "manifest_version": "0.2",
+  "name": "gatetest",
+  "display_name": "GateTest — Eyes, Ears & Hands for Claude",
+  "version": "1.1.3",
+  "description": "Give Claude verified eyes (screenshots), ears (Sentry/Datadog/Rollbar errors), and hands (fixes that prove they worked). 120-module scan engine, all inside your AI assistant.",
+  "long_description": "GateTest is a 120-module code-quality and security gate delivered as an MCP server. It gives your AI assistant capabilities it can't get on its own: screenshot live pages (Eyes), pull real production errors with file:line (Ears), and verify that a fix actually worked by re-scanning and running your tests (Hands). Free tools work with no key: scan any live URL, scan any public GitHub repo, list the 120 modules, get a README badge. A $29/mo subscription unlocks the full scan, AI auto-fix, screenshots, production-error triage, and the verify loop.",
+  "author": {
+    "name": "GateTest",
+    "url": "https://gatetest.ai"
+  },
+  "homepage": "https://gatetest.ai",
+  "documentation": "https://gatetest.ai/mcp",
+  "support": "https://github.com/crclabs-hq/gatetest/issues",
+  "icon": "https://gatetest.ai/icon.png",
+  "license": "MIT",
+  "keywords": ["mcp", "claude", "code-quality", "security", "auto-fix", "eyes-ears-hands"],
+  "server": {
+    "type": "node",
+    "entry_point": "bin/server.mjs",
+    "mcp_config": {
+      "command": "npx",
+      "args": ["-y", "@gatetest/mcp-server"],
+      "env": {
+        "GATETEST_API_KEY": "${user_config.gatetest_api_key}"
+      }
+    }
+  },
+  "user_config": {
+    "gatetest_api_key": {
+      "type": "string",
+      "title": "GateTest API key",
+      "description": "Optional. Your $29/mo subscription key (gtmcp_...) from gatetest.ai/mcp. Leave blank to use the free tools (scan_url, scan_repo, list_modules, get_badge).",
+      "sensitive": true,
+      "required": false
+    }
+  },
+  "compatibility": {
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  }
+}
