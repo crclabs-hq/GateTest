@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Quickstart — the 5-minute "install → first auto-fix PR" path.
  *
  * Built for the HN visitor who lands here from a comment thread, has a CI that
@@ -206,7 +206,7 @@ git add -A && git commit -m "test: trigger gate" && git push`}</CodeBlock>
             <Trouble q="I&apos;m on GitLab/Jenkins/CircleCI, not GitHub.">
               The CLI works in any CI &mdash;{" "}
               <code className="text-foreground">npx @gatetest/cli --suite full</code>{" "}
-              from your pipeline runs the same 110 modules. Auto-fix PRs
+              from your pipeline runs the same 120 modules. Auto-fix PRs
               currently require the GitHub workflow path; CLI is scan-only.
             </Trouble>
           </div>

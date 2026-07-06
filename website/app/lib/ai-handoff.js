@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AI-Builder Handoff — convert GateTest scan findings into prompts /
  * task lists / structured payloads that any AI coding tool can ingest
  * directly. This is the "Plan B" when our own iterative fix loop
@@ -356,7 +356,7 @@ function formatForGitHubIssue(findings, opts = {}) {
     '',
     meta,
     '',
-    '> Filed automatically from a [GateTest](https://gatetest.ai) scan. GateTest runs 110 modules covering security, supply-chain, accessibility, infra hygiene, AI-app safety, and more.',
+    '> Filed automatically from a [GateTest](https://gatetest.ai) scan. GateTest runs 120 modules covering security, supply-chain, accessibility, infra hygiene, AI-app safety, and more.',
     '',
     `**Summary:** ${c.total} finding${c.total === 1 ? '' : 's'} — ${c.error} error${c.error === 1 ? '' : 's'}, ${c.warning} warning${c.warning === 1 ? '' : 's'}, ${c.info} info.`,
     '',

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -183,7 +183,7 @@ export default function NextJsPage() {
           </h1>
           <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
             GateTest understands Next.js — App Router conventions, server actions, Vercel deployment config,
-            next.config.js security headers, and NEXT_PUBLIC_* environment variable exposure. 110 modules
+            next.config.js security headers, and NEXT_PUBLIC_* environment variable exposure. 120 modules
             built for the way modern Next.js apps are actually structured.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mt-8">
@@ -310,7 +310,7 @@ export default function NextJsPage() {
             Ship Next.js apps with confidence.
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
-            110 modules, App Router awareness, AI-powered review on every paid tier, and AI auto-fix PRs at the Scan + Fix tier ($199) and Forensic Scan ($399). Pay only when results are delivered.
+            120 modules, App Router awareness, AI-powered review on every paid tier, and AI auto-fix PRs at the Scan + Fix tier ($199) and Forensic Scan ($399). Pay only when results are delivered.
           </p>
           <Link
             href="/"

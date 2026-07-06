@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { I } from "../_lib/icons";
@@ -9,7 +9,7 @@ const STAGES = [
     key: "scan",
     icon: I.eye,
     label: "Scan initiated",
-    sub: "Repo hooked. 110 modules fan out across every file in parallel.",
+    sub: "Repo hooked. 120 modules fan out across every file in parallel.",
     metric: "12,480 files",
     metricLabel: "indexed",
   },

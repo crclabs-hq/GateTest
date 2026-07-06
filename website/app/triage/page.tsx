@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
@@ -121,7 +121,7 @@ const STAGE_ICONS = [
   {
     name: "SOURCE",
     role: "Static analysis of the repo",
-    detail: "110 modules — same engine as a repo scan. Looks at the code on disk.",
+    detail: "120 modules — same engine as a repo scan. Looks at the code on disk.",
     color: "from-blue-500/20 to-blue-500/5",
     border: "border-blue-400/30",
     text: "text-blue-300",

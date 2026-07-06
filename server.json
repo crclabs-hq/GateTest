@@ -1,8 +1,8 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "ai.gatetest.www/gatetest",
-  "version": "1.56.4",
-  "description": "120-module QA gate. Give Claude eyes (screenshots), ears (Sentry errors), and hands (verify fixes).",
+  "version": "1.57.0",
+  "description": "120-module QA gate. Give Claude eyes (screenshots), ears (Sentry errors), hands (verify fixes), and debug tools (run_tests, stream_logs, query_db, http_request).",
   "license": "MIT",
   "homepage": "https://gatetest.ai",
   "repository": {

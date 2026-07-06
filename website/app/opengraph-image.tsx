@@ -1,4 +1,4 @@
-import { ImageResponse } from "next/og";
+﻿import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
 export const alt = "GateTest — AI-powered QA platform";
@@ -89,7 +89,7 @@ export default async function Image() {
             lineHeight: 1.5,
           }}
         >
-          110 modules scan your entire codebase. Security, supply chain, auth flaws, CI hardening, and AI code review. Pay per scan via Stripe.
+          120 modules scan your entire codebase. Security, supply chain, auth flaws, CI hardening, and AI code review. Pay per scan via Stripe.
         </div>
 
         {/* Bottom bar */}

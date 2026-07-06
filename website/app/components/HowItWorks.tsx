@@ -1,4 +1,4 @@
-const steps = [
+﻿const steps = [
   {
     step: "01",
     title: "Define your standards",
@@ -18,7 +18,7 @@ const steps = [
   },
   {
     step: "02",
-    title: "GateTest runs 110 modules",
+    title: "GateTest runs 120 modules",
     description:
       "One command triggers every check — syntax, security, accessibility, supply chain, auth flaws, CI hardening, and dozens more. Every module runs. Every check is recorded.",
     code: `$ gatetest --suite full
@@ -37,7 +37,7 @@ const steps = [
     step: "03",
     title: "Gate decides — and fixes are PRs you review",
     description:
-      "Zero tolerance: one failure in any of the 110 modules blocks the pipeline. When issues are found, GateTest opens a pull request with the fix already written, pair-reviewed by a second AI, and regression-tested. You review the diff. You click merge. Your code, your decision.",
+      "Zero tolerance: one failure in any of the 120 modules blocks the pipeline. When issues are found, GateTest opens a pull request with the fix already written, pair-reviewed by a second AI, and regression-tested. You review the diff. You click merge. Your code, your decision.",
     code: `GATE: PASSED  ✓ 847/847 checks
 
 ⬆  PR opened: github.com/you/repo/pull/42

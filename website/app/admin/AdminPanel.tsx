@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -692,9 +692,9 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
                   className="px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 focus:border-emerald-500 focus:outline-none text-sm"
                 >
                   <option value="quick">Quick (39 modules)</option>
-                  <option value="full">Full (110 modules)</option>
-                  <option value="scan_fix">Scan + Fix (110 modules + pair-review + architecture)</option>
-                  <option value="nuclear">Forensic (110 modules + Claude diagnosis + correlation + exec summary)</option>
+                  <option value="full">Full (120 modules)</option>
+                  <option value="scan_fix">Scan + Fix (120 modules + pair-review + architecture)</option>
+                  <option value="nuclear">Forensic (120 modules + Claude diagnosis + correlation + exec summary)</option>
                 </select>
                 <button
                   onClick={runScan}

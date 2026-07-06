@@ -1,4 +1,4 @@
-// Single source of truth for the public module count.
+﻿// Single source of truth for the public module count.
 //
 // Why this exists: every customer-facing surface (Hero, Pricing,
 // compare/* pages, OG metadata, Stripe receipts, GitHub Marketplace
@@ -16,7 +16,7 @@
 //   2. `totalModuleCount()` from website/app/components/howitworks/modules-data.ts
 //   3. TOTAL_MODULES constant below.
 //
-// Last verified: 2026-05-27 (110 modules).
+// Last verified: 2026-05-27 (120 modules).
 
 import { totalModuleCount } from "@/app/components/howitworks/modules-data";
 
@@ -28,12 +28,12 @@ import { totalModuleCount } from "@/app/components/howitworks/modules-data";
  */
 export const TOTAL_MODULES: number = totalModuleCount();
 
-/** Plain helper: "110 modules". */
+/** Plain helper: "120 modules". */
 export function modulesLabel(): string {
   return `${TOTAL_MODULES} modules`;
 }
 
-/** Plain helper: "All 110 modules". */
+/** Plain helper: "All 120 modules". */
 export function allModulesLabel(): string {
   return `All ${TOTAL_MODULES} modules`;
 }

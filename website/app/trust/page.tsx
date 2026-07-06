@@ -1,4 +1,4 @@
-/**
+﻿/**
  * /trust — credibility surface for enterprises evaluating GateTest before
  * installing on private repos. The page that lands when a CTO clicks
  * "Is this safe?" from the pricing page or the GitHub Marketplace listing.
@@ -52,7 +52,7 @@ export default function TrustPage() {
             </h2>
             <p className="text-sm text-muted mb-5">
               Every commit to <code className="text-foreground">main</code>{" "}
-              runs the same 110-module gate we sell. The badge below is the
+              runs the same 120-module gate we sell. The badge below is the
               live verdict, updated within seconds of every CI run. If we
               ship a regression, you see it before we do.
             </p>
@@ -304,7 +304,7 @@ export default function TrustPage() {
 
         <div className="space-y-3">
           <VerifyRow
-            claim="The 110 modules"
+            claim="The 120 modules"
             verify={
               <>
                 Run{" "}

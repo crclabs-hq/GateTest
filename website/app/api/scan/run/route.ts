@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Scan Run API — Runs the scan and returns results directly.
  *
  * POST /api/scan/run
@@ -208,7 +208,7 @@ async function scanRepo(owner: string, repo: string, tier: string): Promise<Scan
 
   // Engine selection — closes the 102-vs-22 module honesty gap.
   //
-  // Full / Scan+Fix / Forensic tiers run the full CLI engine (110 modules)
+  // Full / Scan+Fix / Forensic tiers run the full CLI engine (120 modules)
   // via cli-engine-runner.js — materialises fileContents to /tmp, runs
   // the same engine the CLI binary runs, translates the summary back.
   //

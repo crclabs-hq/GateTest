@@ -1,4 +1,4 @@
-const activeModules = [
+﻿const activeModules = [
   {
     name: "Syntax",
     description: "Validates JS, TS, JSON, YAML, CSS, HTML. Catches broken imports and unclosed brackets.",
@@ -139,7 +139,7 @@ export default function Modules() {
             What We Check
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold mt-4 mb-4 text-foreground">
-            110 modules. <span className="gradient-text">Every scan.</span>
+            120 modules. <span className="gradient-text">Every scan.</span>
           </h2>
           <p className="text-muted text-lg max-w-2xl mx-auto">
             Source code analysis, AI review, infrastructure hardening, supply chain,

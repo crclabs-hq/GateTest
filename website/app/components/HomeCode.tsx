@@ -1,4 +1,4 @@
-/**
+﻿/**
  * <HomeCode> — actual code, not marketing.
  *
  * HN respects code. Show the one-liner install, the CLI command, the GitHub
@@ -34,7 +34,7 @@ jobs:
 const CLI_BLOCK = `# scan a single repo locally
 $ npx @gatetest/cli --suite quick
 
-# all 110 modules, blocking gate
+# all 120 modules, blocking gate
 $ npx @gatetest/cli --suite full
 
 # scan a public website

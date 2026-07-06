@@ -4,11 +4,11 @@ import McpCheckoutButton from "./McpCheckoutButton";
 export const metadata: Metadata = {
   title: "GateTest MCP — Give Claude Eyes, Ears & Hands | $29/mo",
   description:
-    "Full GateTest MCP integration for Claude Code, Cursor, and any MCP-compatible AI. Screenshot live pages, pull production errors, verify fixes, and run 120-module scans — all inside your AI assistant.",
+    "Full GateTest MCP integration for Claude Code, Cursor, and any MCP-compatible AI. Screenshot live pages, pull production errors, run tests, query your DB, and run 120-module scans — all inside your AI assistant.",
   openGraph: {
     title: "GateTest MCP — Eyes, Ears & Hands for Claude",
     description:
-      "Give your AI eyes (screenshot URLs), ears (Sentry/Datadog/Rollbar errors), and hands (verify_fix proves the fix worked). 18 tools. $29/mo.",
+      "Give your AI eyes (screenshots), ears (Sentry/Datadog/Rollbar errors), and hands (run_tests, stream_logs, query_db, http_request). 22 tools. $29/mo.",
     url: "https://gatetest.ai/mcp",
   },
 };
@@ -31,6 +31,10 @@ const ALL_TOOLS = [
   { name: "run_live_checks", paid: true, desc: "👂 Ears — runtime errors, console, API health" },
   { name: "get_production_errors", paid: true, desc: "👂 Ears — Sentry / Datadog / Rollbar top errors" },
   { name: "verify_fix", paid: true, desc: "🤝 Hands — prove the fix worked (re-scan changed files)" },
+  { name: "run_tests", paid: true, desc: "🤝 Hands — auto-detect + run the project's test suite (Jest/Vitest/pytest/cargo/go)" },
+  { name: "stream_logs", paid: true, desc: "🤝 Hands — tail a running process or log file in real time (up to 60s)" },
+  { name: "query_db", paid: true, desc: "🤝 Hands — read-only SQL/NoSQL queries (Postgres/MySQL/SQLite/MongoDB/Redis)" },
+  { name: "http_request", paid: true, desc: "🤝 Hands — call any API with auth headers, follow redirects, inspect responses" },
   { name: "audit_log", paid: true, desc: "Query past local scans in the memory store" },
   { name: "compare_repos", paid: true, desc: "Cross-repo prior-art lookup via memory store" },
   { name: "get_report", paid: true, desc: "Retrieve full result of the last scan this session" },
@@ -75,7 +79,7 @@ export default function McpPage() {
           <span className="text-violet-400">hands</span>
         </h1>
         <p className="text-neutral-400 text-lg max-w-2xl mx-auto mb-8">
-          18 tools. 120-module engine. Screenshot live pages, pull production errors, run full scans, and prove fixes worked — all without leaving your AI assistant.
+          22 tools. 120-module engine. Screenshot live pages, pull production errors, run tests, query your DB, and prove fixes worked — all without leaving your AI assistant.
         </p>
 
         {/* Price + CTA */}
@@ -101,7 +105,7 @@ export default function McpPage() {
 
       {/* Tool table */}
       <section className="max-w-5xl mx-auto px-6 py-12">
-        <h2 className="text-2xl font-bold mb-6 text-center">18 tools — what&apos;s free vs paid</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center">22 tools — what&apos;s free vs paid</h2>
         <div className="rounded-xl border border-neutral-800 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -162,9 +166,15 @@ export default function McpPage() {
             <div className="text-3xl mb-3">🤝</div>
             <h3 className="font-bold text-lg mb-2 text-violet-400">Hands</h3>
             <p className="text-neutral-400 text-sm">
-              <strong className="text-neutral-200">verify_fix</strong> — after editing code, re-run the modules that matter for the changed files. Pass/fail verdict so Claude knows if the fix actually worked, not just if it compiles.
+              <strong className="text-neutral-200">verify_fix</strong> — re-run the relevant modules on changed files. Pass/fail verdict so Claude knows the fix actually worked.
               <br /><br />
-              Closes the loop: scan → fix → verify → done.
+              <strong className="text-neutral-200">run_tests</strong> — auto-detect and run Jest, Vitest, pytest, cargo test, or go test. Structured pass/fail per test.
+              <br /><br />
+              <strong className="text-neutral-200">stream_logs</strong> — tail a running process or log file live for up to 60s while Claude is debugging.
+              <br /><br />
+              <strong className="text-neutral-200">query_db</strong> — read-only SQL and NoSQL queries (Postgres, MySQL, SQLite, MongoDB, Redis) without leaving the session.
+              <br /><br />
+              <strong className="text-neutral-200">http_request</strong> — call any API with auth headers, inspect responses, follow redirects. Closes the loop: scan → fix → test → verify → done.
             </p>
           </div>
         </div>

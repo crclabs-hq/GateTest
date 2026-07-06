@@ -104,14 +104,14 @@ class CiSecurityModule extends BaseModule {
       return 0;
     }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = path.relative(projectRoot, file).replace(/\\/g, '/');
     const lines = content.split('\n');
     let issues = 0;
 
     let hasPermissionsBlock = false;
     let hasPullRequestTarget = false;
     let hasCheckoutPrHead = false;
-    let isGitHubActions = rel.includes(path.join('.github', 'workflows'));
+    let isGitHubActions = rel.includes('.github/workflows');
     // `workflow_run` trigger downstream of another workflow needs explicit
     // `actions: read` to fetch the upstream run's logs/artifacts via API.
     // Default GITHUB_TOKEN omits the `actions:` scope.

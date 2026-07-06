@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 /**
  * Suite + tier recommender.
@@ -32,8 +32,8 @@ const SUITE_DESCRIPTIONS = {
 
 const TIER_DESCRIPTIONS = {
   quick:    { label: 'Quick',     priceUsd: 29,  description: 'Top issues from a 4-module scan + health score (scan-only, no auto-fix)' },
-  full:     { label: 'Full',      priceUsd: 99,  description: 'All 110 modules + AI code review + every clustered issue + health score (scan-only, no auto-fix)' },
-  scan_fix: { label: 'Scan + Fix', priceUsd: 199, description: 'All 110 modules + AI auto-fix PR + regression tests + pair-review' },
+  full:     { label: 'Full',      priceUsd: 99,  description: 'All 120 modules + AI code review + every clustered issue + health score (scan-only, no auto-fix)' },
+  scan_fix: { label: 'Scan + Fix', priceUsd: 199, description: 'All 120 modules + AI auto-fix PR + regression tests + pair-review' },
   nuclear:  { label: 'Nuclear',   priceUsd: 399, description: 'Scan + Fix + Claude diagnosis per finding + attack-chain correlation + executive summary + CISO board-ready report (mutation + chaos available via the GitHub Action)' },
 };
 

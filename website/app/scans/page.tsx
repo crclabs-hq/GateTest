@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -186,7 +186,7 @@ export default function HallOfScans() {
           <p className="text-lg text-muted max-w-2xl mx-auto leading-relaxed">
             Every result on this page came from running GateTest against a real public
             codebase. No fabricated numbers. No cherry-picked examples. This is what
-            110 modules actually find.
+            120 modules actually find.
           </p>
           <p className="mt-4 text-sm text-muted">
             🔒 Scans run in memory — code is never stored.
