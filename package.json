@@ -24,7 +24,7 @@
     "url": "https://github.com/crclabs-hq/gatetest/issues"
   },
   "scripts": {
-    "test": "node --test tests/**/*.test.js",
+    "test": "node --test --test-force-exit --test-timeout=60000 tests/**/*.test.js",
     "app": "node src/app-server.js",
     "sweep": "node bin/gatetest-sweep.js",
     "gatetest": "node bin/gatetest.js",
