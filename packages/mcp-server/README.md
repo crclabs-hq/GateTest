@@ -49,7 +49,7 @@ Works with Claude Code, Cursor, Windsurf, Continue, Cline, and any MCP-compatibl
 |------|-------------|
 | `fix_issue` | After `scan_local` identifies a specific error — AI writes the fix in place |
 | `compose_pr` | Render a PR body for a batch of fixes |
-| `explain_finding` | Nuclear-tier Claude diagnosis: explanation, root cause, recommendation |
+| `explain_finding` | Forensic-tier Claude diagnosis: explanation, root cause, recommendation |
 
 ### Hosted API (scans via gatetest.ai, no local filesystem access needed)
 

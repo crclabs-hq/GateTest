@@ -12,7 +12,7 @@
   "homepage": "https://gatetest.ai",
   "documentation": "https://gatetest.ai/mcp",
   "support": "https://github.com/crclabs-hq/gatetest/issues",
-  "icon": "https://gatetest.ai/icon.png",
+  "icon": "icon.png",
   "license": "MIT",
   "keywords": ["mcp", "claude", "code-quality", "security", "auto-fix", "eyes-ears-hands"],
   "server": {

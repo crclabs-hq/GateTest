@@ -213,10 +213,10 @@ Build the most advanced, most aggressive, most beautiful QA testing platform eve
 ### 5. Stripe & Payments
 
 - [ ] Test keys used for testing (never live keys)
-- [ ] Hold-then-charge working (manual capture)
+- [ ] Charge-upfront at checkout (Craig 2026-05-18 — no manual-capture holds; subscriptions use inline recurring price_data)
 - [ ] Session metadata includes repo_url and tier
-- [ ] Scan completes and captures payment
-- [ ] Failed scans cancel payment (release hold)
+- [ ] Paid scan starts after checkout.session.completed webhook (fail-closed signature verification)
+- [ ] Failed scans marked failed in DB; refunds handled via support (no auto-refund)
 
 ### 6. Serverless Architecture
 
