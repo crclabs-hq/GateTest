@@ -108,9 +108,15 @@ const callers = [
     expectedCount: 1,
   },
   {
-    label: 'admin AdminPanel — fixIssues + retryFailedFiles + WatchdogPanel.scanAndFix',
-    file: 'website/app/admin/AdminPanel.tsx',
-    expectedCount: 3,
+    // AdminPanel.tsx was split (2026-07-07); the batch fix engine moved here.
+    label: 'admin repo-scan tab — useAutoFix.fixIssues + retryFailedFiles',
+    file: 'website/app/admin/tabs/useAutoFix.ts',
+    expectedCount: 2,
+  },
+  {
+    label: 'admin watchdog — WatchdogPanel.scanAndFix',
+    file: 'website/app/admin/tabs/WatchdogPanel.tsx',
+    expectedCount: 1,
   },
   {
     label: 'continuous watches tick — auto-fix',
@@ -166,17 +172,17 @@ describe('tier passthrough — every /api/scan/fix caller must send tier', () =>
     );
   });
 
-  it('AdminPanel forwards the user-selected `tier` state variable to fix calls', () => {
-    // The two AdminPanel customer-batch calls (fixIssues + retryFailedFiles)
-    // must forward whatever tier the operator chose in the UI dropdown,
-    // not a hardcoded value — otherwise admin testing of $199 deliverables
-    // is impossible.
-    const full = path.join(ROOT, 'website/app/admin/AdminPanel.tsx');
+  it('admin fix engine forwards the user-selected `tier` state variable to fix calls', () => {
+    // The two admin customer-batch calls (fixIssues + retryFailedFiles in
+    // tabs/useAutoFix.ts) must forward whatever tier the operator chose in
+    // the UI dropdown, not a hardcoded value — otherwise admin testing of
+    // $199 deliverables is impossible. (WatchdogPanel scans every repo at
+    // "full" and is covered by the callers table above.)
+    const full = path.join(ROOT, 'website/app/admin/tabs/useAutoFix.ts');
     const src = fs.readFileSync(full, 'utf8');
     const bodies = extractFixCallBodies(src);
-    assert.strictEqual(bodies.length, 3);
-    // First two should use the bare `tier` identifier (the React state).
-    // The third is WatchdogPanel which scans every repo at "full".
+    assert.strictEqual(bodies.length, 2);
+    // Both should use the bare `tier` identifier (the React state).
     let pluralisedCount = 0;
     for (const body of bodies) {
       if (/\btier\b\s*[,}]/.test(body) || /,\s*tier\s*\}/.test(body)) {
@@ -185,7 +191,7 @@ describe('tier passthrough — every /api/scan/fix caller must send tier', () =>
     }
     assert.ok(
       pluralisedCount >= 2,
-      `Expected ≥2 AdminPanel calls to forward the bare \`tier\` state variable, found ${pluralisedCount}. Bodies: ${JSON.stringify(bodies.map((b) => b.trim().slice(0, 120)))}`,
+      `Expected ≥2 admin fix-engine calls to forward the bare \`tier\` state variable, found ${pluralisedCount}. Bodies: ${JSON.stringify(bodies.map((b) => b.trim().slice(0, 120)))}`,
     );
   });
 });
