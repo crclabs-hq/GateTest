@@ -10,7 +10,8 @@
  *   5. HomeEyesEarsHands — MCP tools: Eyes/Ears/Hands for AI agents
  *   6. HomeSelfScan — "GREEN" trust badge with module list
  *   6. HomeCode — install snippets (npx, GitHub Action, CLI cheat-sheet)
- *   7. Pricing — 4 tiers + Continuous subscription card
+ *   7. HomeProof — ROI vs the fragmented stack, real-scan proof, staying-power
+ *   8. Pricing — 4 tiers + Continuous subscription card
  *   8. HomeFaq — HN-skeptic FAQ
  *   9. HomeStack — full-weight Gluecron + Vapron stack marketing
  *  10. HomeTrust — frameworks scanned + Vapron/Gluecron
@@ -32,6 +33,7 @@ import HomeFlywheel from "./components/HomeFlywheel";
 import HomeEyesEarsHands from "./components/HomeEyesEarsHands";
 import HomeSelfScan from "./components/HomeSelfScan";
 import HomeCode from "./components/HomeCode";
+import HomeProof from "./components/HomeProof";
 import Pricing from "./components/Pricing";
 import HomeFaq from "./components/HomeFaq";
 import HomeStack from "./components/HomeStack";
@@ -50,6 +52,7 @@ export default function Home() {
         <HomeEyesEarsHands />
         <HomeSelfScan />
         <HomeCode />
+        <HomeProof />
         <Pricing />
         <HomeFaq />
         <HomeStack />
