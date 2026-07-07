@@ -1,6 +1,10 @@
+"use client";
+
 // Pricing tiers mirror the checkout backend exactly — website/app/api/checkout/route.ts TIERS.
 // Source of truth for prices: that TIERS map. Keep these in sync (Bible Forbidden #17).
 //   quick $29 · full $99 · scan_fix $199 · nuclear/Forensic $399 (one-time) · continuous $49/mo · mcp $29/mo
+import { useState } from "react";
+
 export const pricingScans = [
   {
     name: "Quick Scan",
@@ -40,9 +44,9 @@ export const pricingScans = [
     name: "Scan + Fix",
     price: "$199",
     period: "per run",
-    description: "111-module deep scan with iterative auto-fix PR, pair-review agent, and architecture annotations.",
+    description: "120-module deep scan with iterative auto-fix PR, pair-review agent, and architecture annotations.",
     features: [
-      "111 Specialized Engineering Modules",
+      "All 120 Specialized Modules",
       "Iterative Fix Loop (up to 3 retries per finding)",
       "Cross-Fix Syntax + Scanner Gate",
       "Regression Test Generated per Fix",
@@ -85,7 +89,8 @@ export const continuousPlan = {
     "Continuous AI Ledger Protection",
     "Real-Time Pipeline Trace Feed"
   ],
-  cta: "Activate Continuous"
+  cta: "Activate Continuous",
+  tier: "continuous"
 };
 
 export const mcpPlan = {
@@ -94,129 +99,184 @@ export const mcpPlan = {
   frequency: "per month",
   description: "Give Claude eyes, ears & hands. Full 120-module scans + AI fix + screenshot + production errors — all inside your AI assistant.",
   features: [
-    "👁 Eyes — Screenshot any URL or localhost",
-    "👂 Ears — Sentry / Datadog / Rollbar errors",
-    "🤝 Hands — verify_fix proves the fix worked",
+    "Eyes — screenshot any URL or localhost",
+    "Ears — Sentry / Datadog / Rollbar errors",
+    "Hands — verify_fix proves the fix worked",
     "Full 120-module local scans (vs 4 free)",
     "AI fix + diagnose (fix_issue, explain_finding)",
     "API key delivered by email instantly"
   ],
-  cta: "Get MCP Access →",
-  href: "/api/checkout"
+  cta: "Get MCP Access",
+  tier: "mcp"
 };
+
+// ---------------------------------------------------------------------------
+// Checkout: POST /api/checkout { tier, repoUrl } → { checkoutUrl } → redirect.
+// Scan + continuous tiers need a repo URL; MCP is key-based (no repo).
+// Returns an error string, or redirects (and never resolves) on success.
+// ---------------------------------------------------------------------------
+async function startCheckout(tier: string, repoUrl?: string): Promise<string> {
+  try {
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(repoUrl ? { tier, repoUrl } : { tier }),
+    });
+    const data = (await res.json()) as { checkoutUrl?: string; error?: string };
+    if (data.checkoutUrl) {
+      window.location.href = data.checkoutUrl;
+      return ""; // redirecting
+    }
+    return data.error || "Could not start checkout. Please try again.";
+  } catch {
+    return "Network error. Please try again.";
+  }
+}
+
+function TierCard({
+  name,
+  price,
+  period,
+  description,
+  features,
+  cta,
+  tier,
+  popular = false,
+  badge,
+  needsRepo,
+}: {
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: string[];
+  cta: string;
+  tier: string;
+  popular?: boolean;
+  badge?: string;
+  needsRepo: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [repo, setRepo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function go() {
+    setError(null);
+    // MCP → straight to key checkout. No repo needed.
+    if (!needsRepo) {
+      setBusy(true);
+      const err = await startCheckout(tier);
+      if (err) { setError(err); setBusy(false); }
+      return;
+    }
+    // Scan/continuous → reveal the repo input first, then check out.
+    if (!expanded) { setExpanded(true); return; }
+    const url = repo.trim();
+    if (!(url.includes("github.com") || url.includes("gluecron.com"))) {
+      setError("Enter a public GitHub or Gluecron repo URL.");
+      return;
+    }
+    setBusy(true);
+    const err = await startCheckout(tier, url);
+    if (err) { setError(err); setBusy(false); }
+  }
+
+  return (
+    <div
+      className={`flex flex-col p-6 rounded-2xl border bg-[var(--surface-solid)] transition-all duration-300 relative ${
+        popular
+          ? "border-[var(--accent)] shadow-lg shadow-[var(--accent)]/10 ring-1 ring-[var(--accent)]/20"
+          : "border-[var(--border)] hover:border-[var(--border-strong)] hover:shadow-md"
+      }`}
+    >
+      {(popular || badge) && (
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--accent)] text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">
+          {badge || "Most Popular"}
+        </span>
+      )}
+      <div className="mb-5">
+        <h3 className="text-lg font-bold text-[var(--foreground)]">{name}</h3>
+        <p className="text-xs text-[var(--muted)] mt-1.5 min-h-[48px] leading-relaxed">{description}</p>
+      </div>
+      <div className="flex items-baseline mb-5">
+        <span className="text-4xl font-black text-[var(--accent)] tracking-tight">{price}</span>
+        <span className="text-[var(--muted)] text-xs ml-2">/ {period}</span>
+      </div>
+      <ul className="space-y-2.5 text-sm text-[var(--foreground-secondary)] mb-6 flex-grow">
+        {features.map((feature, i) => (
+          <li key={i} className="flex items-start gap-2">
+            <span className="text-[var(--accent)] mt-0.5 flex-shrink-0" aria-hidden>✓</span>
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+
+      {expanded && needsRepo && (
+        <input
+          type="url"
+          value={repo}
+          onChange={(e) => setRepo(e.target.value)}
+          placeholder="https://github.com/owner/repo"
+          aria-label="Repository URL"
+          className="w-full mb-2 px-3 py-2.5 rounded-lg border border-[var(--border-strong)] text-sm bg-white text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:border-[var(--accent)]"
+        />
+      )}
+      {error && <p className="text-[var(--danger)] text-xs mb-2">{error}</p>}
+
+      <button
+        onClick={go}
+        disabled={busy}
+        className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed ${
+          popular
+            ? "bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white shadow-md shadow-[var(--accent)]/20"
+            : "bg-[var(--background-alt)] hover:bg-[var(--border)] text-[var(--foreground)] border border-[var(--border)]"
+        }`}
+      >
+        {busy ? "Starting…" : expanded && needsRepo ? "Continue to checkout" : cta}
+      </button>
+    </div>
+  );
+}
 
 export default function Pricing() {
   return (
-    <div className="p-8 bg-neutral-900 text-white rounded-xl border border-neutral-800 shadow-2xl max-w-7xl mx-auto my-12">
-      <h2 className="text-3xl font-extrabold mb-2 text-center text-emerald-400 tracking-tight">
-        Predictable, Automation-First Pricing
+    <section className="max-w-7xl mx-auto my-16 px-4">
+      <h2 className="text-3xl md:text-4xl font-black mb-2 text-center text-[var(--foreground)] tracking-tight">
+        Pay only when it fixes something
       </h2>
-      <p className="text-neutral-400 text-center mb-4 max-w-xl mx-auto text-sm">
-        Quick and Full scans are free via the open-source CLI —
-        install with{' '}
-        <code className="bg-neutral-800 text-emerald-300 px-1.5 py-0.5 rounded text-xs font-mono">
+      <p className="text-[var(--muted)] text-center mb-10 max-w-2xl mx-auto text-sm leading-relaxed">
+        Quick and Full scans are free via the open-source CLI —{" "}
+        <code className="bg-[var(--background-alt)] text-[var(--accent)] px-1.5 py-0.5 rounded text-xs font-mono border border-[var(--border)]">
           npx @gatetest/cli --suite full
         </code>
-        . Pay only when you want auto-fix or deeper AI analysis.
+        . Pay per run only for auto-fix and deeper AI analysis, or subscribe for continuous protection.
       </p>
 
-      {/* Main Pricing Grid — 3 columns on large screens (2 rows of 3) */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch mt-8">
-
-        {/* Paid Scan Tiers */}
-        {pricingScans.map((plan, idx) => (
-          <div
-            key={idx}
-            className={`flex flex-col p-6 rounded-xl border transition-all duration-300 relative ${
-              plan.popular
-                ? 'border-emerald-500 bg-neutral-800/40 ring-1 ring-emerald-500/30'
-                : 'border-neutral-800 bg-neutral-950/40 hover:border-neutral-700'
-            }`}
-          >
-            {plan.popular && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-neutral-950 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                Most Popular
-              </span>
-            )}
-            <div className="mb-6">
-              <h3 className="text-xl font-bold text-neutral-100">{plan.name}</h3>
-              <p className="text-xs text-neutral-400 mt-1 min-h-[40px]">{plan.description}</p>
-            </div>
-            <div className="flex items-baseline mb-6">
-              <span className="text-4xl font-black text-emerald-400">{plan.price}</span>
-              <span className="text-neutral-500 text-xs ml-2">/ {plan.period}</span>
-            </div>
-            <ul className="space-y-3 text-sm text-neutral-300 mb-8 flex-grow">
-              {plan.features.map((feature, i) => (
-                <li key={i} className="flex items-start">
-                  <span className="text-emerald-500 mr-2 font-bold">✓</span>
-                  <span>{feature}</span>
-                </li>
-              ))}
-            </ul>
-            <button className={`w-full py-3 rounded-lg font-semibold text-sm transition-all duration-200 ${
-              plan.popular
-                ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20'
-                : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'
-            }`}>
-              {plan.cta}
-            </button>
-          </div>
+      {/* One-time scan tiers */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
+        {pricingScans.map((plan) => (
+          <TierCard key={plan.tier} {...plan} needsRepo />
         ))}
-
-        {/* MCP Subscription — blue accent */}
-        <div className="flex flex-col p-6 rounded-xl border border-blue-500 bg-neutral-800/40 ring-1 ring-blue-500/30 transition-all duration-300 relative">
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-            Claude Integration
-          </span>
-          <div className="mb-6">
-            <h3 className="text-xl font-bold text-neutral-100">{mcpPlan.name}</h3>
-            <p className="text-xs text-neutral-400 mt-1 min-h-[40px]">{mcpPlan.description}</p>
-          </div>
-          <div className="flex items-baseline mb-6">
-            <span className="text-4xl font-black text-blue-400">{mcpPlan.price}</span>
-            <span className="text-neutral-500 text-xs ml-2">/ {mcpPlan.frequency}</span>
-          </div>
-          <ul className="space-y-3 text-sm text-neutral-300 mb-8 flex-grow">
-            {mcpPlan.features.map((feature, i) => (
-              <li key={i} className="flex items-start">
-                <span className="text-blue-400 mr-2 font-bold">✓</span>
-                <span>{feature}</span>
-              </li>
-            ))}
-          </ul>
-          <a
-            href="/mcp"
-            className="w-full py-3 rounded-lg font-semibold text-sm bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 transition-all duration-200 text-center block"
-          >
-            {mcpPlan.cta}
-          </a>
-          <p className="text-xs text-neutral-500 text-center mt-2">Cancel anytime</p>
-        </div>
-
-        {/* Continuous Subscription */}
-        <div className="flex flex-col p-6 rounded-xl border border-neutral-800 bg-neutral-950/40 hover:border-neutral-700 transition-all duration-300">
-          <div className="mb-6">
-            <h3 className="text-xl font-bold text-neutral-100">{continuousPlan.name}</h3>
-            <p className="text-xs text-neutral-400 mt-1 min-h-[40px]">{continuousPlan.description}</p>
-          </div>
-          <div className="flex items-baseline mb-6">
-            <span className="text-4xl font-black text-emerald-400">{continuousPlan.price}</span>
-            <span className="text-neutral-500 text-xs ml-2">/ {continuousPlan.frequency}</span>
-          </div>
-          <ul className="space-y-3 text-sm text-neutral-300 mb-8 flex-grow">
-            {continuousPlan.features.map((feature, i) => (
-              <li key={i} className="flex items-start">
-                <span className="text-emerald-500 mr-2 font-bold">✓</span>
-                <span>{feature}</span>
-              </li>
-            ))}
-          </ul>
-          <button className="w-full py-3 rounded-lg font-semibold text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition-all duration-200">
-            {continuousPlan.cta}
-          </button>
-        </div>
       </div>
-    </div>
+
+      {/* Subscriptions */}
+      <p className="text-center text-xs uppercase tracking-wider text-[var(--muted)] mt-12 mb-5 font-semibold">
+        Subscriptions
+      </p>
+      <div className="grid md:grid-cols-2 gap-5 items-stretch max-w-3xl mx-auto">
+        <TierCard
+          {...mcpPlan}
+          period={mcpPlan.frequency}
+          badge="Claude Integration"
+          needsRepo={false}
+        />
+        <TierCard
+          {...continuousPlan}
+          period={continuousPlan.frequency}
+          needsRepo
+        />
+      </div>
+    </section>
   );
 }
