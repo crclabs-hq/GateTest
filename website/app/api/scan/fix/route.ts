@@ -493,6 +493,34 @@ const { applyFixCap, clustersToIssues, renderAdvisorySection } = require("@/app/
   }) => string;
 };
 
+type BudgetSummary = {
+  spentUsd: number;
+  capUsd: number;
+  capReached: boolean;
+  capKind: "ai-budget" | "time" | "invocations" | null;
+  filesFixed: number;
+  filesRemaining: number;
+  advisoryFiles: number;
+  advisoryFindings: number;
+  severityCovered: { fixed: Record<string, number>; remaining: Record<string, number> };
+  allHighSeverityCovered: boolean;
+  failedFileCount: number;
+  retry: { kind: "free-rerun"; message: string };
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { buildBudgetSummary, renderBudgetSummaryMarkdown } = require("@/app/lib/budget-summary") as {
+  buildBudgetSummary: (input: {
+    snapshot?: Record<string, unknown>;
+    fixes?: Array<unknown>;
+    failedFiles?: Array<unknown>;
+    skippedForTimeBudget?: number;
+    skippedForAiBudget?: number;
+    invocationLimitHit?: boolean;
+    capResult?: Record<string, unknown>;
+  }) => BudgetSummary;
+  renderBudgetSummaryMarkdown: (summary: BudgetSummary) => string;
+};
+
 // Default attempt ceiling — set higher than the old hardcoded "1+1 retry"
 // so the loop has room to learn from its own mistakes. Configurable via
 // GATETEST_FIX_MAX_ATTEMPTS env var if a deployment wants tighter cost
@@ -1376,6 +1404,11 @@ export async function POST(req: NextRequest) {
   const startedAt = Date.now();
   const budgetExceeded = () => Date.now() - startedAt > TIME_BUDGET_MS;
   let skippedForBudget = 0;
+  // Files skipped because the tier's Anthropic USD/token cap was crossed
+  // mid-run (distinct from the wall-clock budget above). One friendly
+  // summary line is pushed after the loop — never a scary error per file.
+  let skippedForAiBudget = 0;
+  let aiBudgetHalted = false;
   // Files that failed specifically due to Anthropic network/TLS errors — the UI
   // surfaces these as a "Retry Failed" list since they're usually transient and
   // re-running the same payload works without re-running the whole scan.
@@ -1385,7 +1418,8 @@ export async function POST(req: NextRequest) {
   const fileEntries = Array.from(issuesByFile.entries());
   await mapWithAdaptiveConcurrency(fileEntries, FIX_CONCURRENCY, async ([filePath, fileIssues], state) => {
     if (budgetExceeded() || state.haltRun) {
-      skippedForBudget += 1;
+      if (aiBudgetHalted) skippedForAiBudget += 1;
+      else skippedForBudget += 1;
       return;
     }
     // String-only view of the issues for legacy callers (CREATE_FILE,
@@ -1673,7 +1707,15 @@ export async function POST(req: NextRequest) {
       const isAbortErr = err instanceof Error && (err.name === "AbortError" || /aborted|abort/i.test(raw));
       const isNetworkErr = isAbortErr || /EPROTO|ECONNRESET|ETIMEDOUT|ssl.*alert|handshake|fetch failed|socket hang up|unreachable/i.test(raw);
 
-      if (err instanceof Error && err.name === "INVOCATION_LIMIT_EXCEEDED") {
+      if ((err as { code?: string }).code === "BUDGET_EXCEEDED") {
+        // Tier AI-spend cap crossed (budget-tracker preflight). Halt the
+        // loop cleanly: remaining files count into skippedForAiBudget and
+        // ONE friendly summary line ships after the loop — the customer
+        // never sees a wall of identical per-file budget errors.
+        aiBudgetHalted = true;
+        state.haltRun = true;
+        skippedForAiBudget += 1;
+      } else if (err instanceof Error && err.name === "INVOCATION_LIMIT_EXCEEDED") {
         // Circuit breaker fired — halt the loop; partial fixes already in
         // `fixes[]` will be committed and the PR body will explain.
         state.haltRun = true;
@@ -1696,19 +1738,30 @@ export async function POST(req: NextRequest) {
     }
   });
 
-  if (skippedForBudget > 0) {
-    errors.push(`Skipped ${skippedForBudget} file${skippedForBudget > 1 ? "s" : ""} — function time budget exhausted. Re-run fix to process the remainder.`);
-  }
+  const hitInvocationLimit = Boolean(
+    _budgetTracker && (_budgetTracker as Record<string, unknown>)._maxInvocations !== undefined
+    && _budgetTracker.callCount >= ((_budgetTracker as Record<string, unknown>)._maxInvocations as number)
+  );
 
-  // Invocation-limit advisory — added to `errors[]` so it appears in the
-  // PR body's advisory section. Partial fixes are still committed.
-  const hitInvocationLimit = _budgetTracker && (_budgetTracker as Record<string, unknown>)._maxInvocations !== undefined
-    && _budgetTracker.callCount >= ((_budgetTracker as Record<string, unknown>)._maxInvocations as number);
+  // One honest, friendly budget story instead of robotic per-condition
+  // errors (Inclusive tone spec). Computed once; reused in the PR body
+  // and every response payload below.
+  const budgetSummary = buildBudgetSummary({
+    snapshot: _budgetTracker.snapshot(),
+    fixes,
+    failedFiles,
+    skippedForTimeBudget: skippedForBudget,
+    skippedForAiBudget,
+    invocationLimitHit: hitInvocationLimit,
+    capResult,
+  });
+  if (budgetSummary.capReached && budgetSummary.retry.message) {
+    errors.push(budgetSummary.retry.message);
+  }
   if (hitInvocationLimit) {
     errors.push(
-      `⚡ AI invocation limit reached (${MAX_AI_INVOCATIONS} calls). ` +
-      `Partial fixes committed — ${fixes.length} file(s) fixed before the limit. ` +
-      `For repositories this size, contact enterprise@gatetest.ai for a dedicated scanner instance.`
+      `⚡ This repo maxed out the AI call limit (${MAX_AI_INVOCATIONS} calls) — ${fixes.length} file(s) were fixed before it kicked in. ` +
+      `For repositories this size, a dedicated scanner instance is the right tool: enterprise@gatetest.ai.`
     );
   }
 
@@ -1738,7 +1791,9 @@ export async function POST(req: NextRequest) {
         : "No fixes could be generated",
       errors,
       skippedForBudget,
+      skippedForAiBudget,
       failedFiles,
+      budget: budgetSummary,
     });
   }
 
@@ -2061,6 +2116,8 @@ export async function POST(req: NextRequest) {
       ? `${liveSection}\n\n---\n\n${prBodyCore}`
       : prBodyCore;
     if (advisoryMarkdown) prBody = `${prBody}\n\n---\n\n${advisoryMarkdown}`;
+    const budgetMarkdown = renderBudgetSummaryMarkdown(budgetSummary);
+    if (budgetMarkdown) prBody = `${prBody}\n\n---\n\n${budgetMarkdown}`;
     if (priorArtSection) prBody = `${prBody}\n\n---\n\n${priorArtSection}`;
 
     // Open the PR. NOTE: Gluecron uses `headBranch` / `baseBranch` (NOT
@@ -2084,6 +2141,7 @@ export async function POST(req: NextRequest) {
         filesFixed: fixes.length,
         issuesFixed: totalIssuesFixed,
         errors: [...errors, `PR creation failed: ${JSON.stringify(prRes.data)}`],
+        budget: budgetSummary,
       });
     }
 
@@ -2241,6 +2299,7 @@ export async function POST(req: NextRequest) {
       authSource,
       errors,
       failedFiles,
+      budget: budgetSummary,
       cluster: {
         totalIssuesIn: clusterResult.totalIssuesIn,
         totalClusters: clusterResult.clusters.length,
@@ -2327,11 +2386,16 @@ export async function POST(req: NextRequest) {
         resourceId: typeof snap === "object" && snap && "label" in snap ? String((snap as { label?: string }).label || "scan-fix") : "scan-fix",
         metadata: snap as Record<string, unknown>,
       });
+      // Friendly nothing-shipped copy (Inclusive tone spec) — fixes[] and
+      // capResult are out of scope in this outer guard, so the summary is
+      // built from the tracker snapshot alone (filesFixed 0 → 402 wording).
+      const summary402 = buildBudgetSummary({ snapshot: snap });
       return NextResponse.json(
         {
           status: "error",
-          error: "Scan exceeded its AI spend budget. The work completed up to the cap is preserved; please retry with a smaller issue set or contact support.",
-          budget: snap,
+          error: summary402.retry.message
+            || "This run used its full AI budget before any fixes were ready to ship. Run the fix again from this page.",
+          budget: { ...summary402, snapshot: snap },
         },
         { status: 402 }
       );

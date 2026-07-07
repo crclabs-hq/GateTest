@@ -37,6 +37,17 @@ interface ScanResult {
   fixableIssues?: FixableIssue[];
 }
 
+interface BudgetSummary {
+  spentUsd: number;
+  capUsd: number;
+  capReached: boolean;
+  capKind: "ai-budget" | "time" | "invocations" | null;
+  filesFixed: number;
+  filesRemaining: number;
+  allHighSeverityCovered: boolean;
+  retry: { kind: string; message: string };
+}
+
 interface FixResult {
   status: string;
   prUrl?: string;
@@ -48,6 +59,9 @@ interface FixResult {
   error?: string;
   errors?: string[];
   failedFiles?: Array<{ file: string; issues: string[]; reason: string }>;
+  budget?: BudgetSummary;
+  /** HTTP status of the fix response — 402 = budget reached, nothing shipped (a free re-run, not a failure). */
+  httpStatus?: number;
 }
 
 const MODULE_LABELS: Record<string, string> = {
@@ -275,7 +289,7 @@ export default function ScanStatus() {
         }),
       });
       const data = await res.json() as FixResult;
-      setFixResult(data);
+      setFixResult({ ...data, httpStatus: res.status });
     } catch (err) {
       setFixError(err instanceof Error ? err.message : "Fix failed");
     } finally {
@@ -711,7 +725,13 @@ export default function ScanStatus() {
                 )}
 
                 {fixResult && (
-                  <div className={`mt-3 p-4 rounded-lg border ${fixResult.prUrl ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}`}>
+                  <div className={`mt-3 p-4 rounded-lg border ${
+                    fixResult.prUrl
+                      ? "bg-green-50 border-green-200"
+                      : fixResult.httpStatus === 402
+                      ? "bg-slate-50 border-slate-200"
+                      : "bg-amber-50 border-amber-200"
+                  }`}>
                     {fixResult.prUrl ? (
                       <>
                         <p className="text-sm font-bold text-green-800 mb-1">
@@ -720,6 +740,15 @@ export default function ScanStatus() {
                         <p className="text-xs text-green-700 mb-3">
                           Fixes are on branch <code className="font-mono">{fixResult.branch}</code>. Your main branch is unchanged until you merge.
                         </p>
+                        {/* Budget-cap strip — partial success is still SUCCESS.
+                            Teal info strip, never amber: the PR shipped, the
+                            budget story explains what's left and that the
+                            re-run is free. */}
+                        {fixResult.budget?.capReached && (
+                          <div className="mb-3 p-3 rounded-md bg-teal-50 border border-teal-200">
+                            <p className="text-xs text-teal-900">{fixResult.budget.retry.message}</p>
+                          </div>
+                        )}
                         <div className="flex flex-col sm:flex-row gap-2">
                           <a
                             href={fixResult.prUrl}
@@ -735,7 +764,7 @@ export default function ScanStatus() {
                             className="btn-secondary px-5 py-2.5 text-sm text-center"
                             disabled={fixing}
                           >
-                            Re-fix
+                            {fixResult.budget?.capReached ? "Run fix again" : "Re-fix"}
                           </button>
                         </div>
                         {fixResult.errors && fixResult.errors.length > 0 && (
@@ -746,6 +775,22 @@ export default function ScanStatus() {
                             </ul>
                           </details>
                         )}
+                      </>
+                    ) : fixResult.httpStatus === 402 ? (
+                      <>
+                        {/* Budget reached before anything shipped — informational,
+                            NOT a failure. Amber stays reserved for true errors. */}
+                        <p className="text-sm font-bold text-slate-800 mb-1">Fix budget reached before a PR was ready</p>
+                        <p className="text-xs text-slate-600">
+                          {fixResult.budget?.retry?.message || fixResult.error || "This run used its full AI budget before any fixes were ready to ship. Run the fix again from this page."}
+                        </p>
+                        <button
+                          onClick={runFix}
+                          className="mt-3 btn-secondary px-4 py-2 text-sm"
+                          disabled={fixing}
+                        >
+                          Run fix again
+                        </button>
                       </>
                     ) : (
                       <>
