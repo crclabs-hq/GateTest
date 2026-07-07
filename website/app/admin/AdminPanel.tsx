@@ -10,6 +10,20 @@ import {
   type ModuleLike,
 } from "@/app/lib/issue-extractor";
 import type { GitHubProfile } from "@/app/lib/admin-github-profiles";
+import { StatCard, AdminTabs, type TabDef } from "./ui";
+
+const ADMIN_TABS: TabDef[] = [
+  { id: "scan", label: "Repo Scan" },
+  { id: "server", label: "Server Scan" },
+  { id: "nuclear", label: "Forensic Scan", danger: true },
+  { id: "watchdog", label: "Watchdog" },
+  { id: "scans", label: "Recent Scans" },
+  { id: "customers", label: "Customers" },
+  { id: "keys", label: "API Keys" },
+  { id: "platforms", label: "Platforms" },
+  { id: "accounts", label: "GitHub Accounts" },
+];
+type AdminTabId = "scan" | "server" | "nuclear" | "watchdog" | "scans" | "customers" | "keys" | "platforms" | "accounts";
 
 interface FailedFile {
   file: string;
@@ -609,59 +623,15 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
         {/* Stats bar */}
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900">{stats.total_scans}</p>
-              <p className="text-xs text-gray-500">Total Scans</p>
-            </div>
-            <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900">{stats.total_customers}</p>
-              <p className="text-xs text-gray-500">Customers</p>
-            </div>
-            <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-4 text-center">
-              <p className="text-2xl font-bold text-emerald-600">
-                ${Number(stats.total_revenue || 0).toFixed(0)}
-              </p>
-              <p className="text-xs text-gray-500">Revenue</p>
-            </div>
-            <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900">{stats.avg_score || 0}</p>
-              <p className="text-xs text-gray-500">Avg Score</p>
-            </div>
+            <StatCard label="Total Scans" value={stats.total_scans} />
+            <StatCard label="Customers" value={stats.total_customers} />
+            <StatCard label="Revenue" value={`$${Number(stats.total_revenue || 0).toFixed(0)}`} tone="accent" />
+            <StatCard label="Avg Score" value={stats.avg_score || 0} />
           </div>
         )}
 
-        {/* Tab navigation */}
-        <div className="flex gap-1 mb-6 border-b border-gray-200 overflow-x-auto">
-          {(["scan", "server", "nuclear", "watchdog", "scans", "customers", "keys", "platforms", "accounts"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab
-                  ? "border-emerald-600 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              } ${tab === "nuclear" ? "font-bold text-red-600" : ""}`}
-            >
-              {tab === "scan"
-                ? "Repo Scan"
-                : tab === "server"
-                ? "Server Scan"
-                : tab === "nuclear"
-                ? "☢ Forensic Scan"
-                : tab === "watchdog"
-                ? "Watchdog"
-                : tab === "scans"
-                ? "Recent Scans"
-                : tab === "customers"
-                ? "Customers"
-                : tab === "keys"
-                ? "API Keys"
-                : tab === "platforms"
-                ? "🔐 Platforms"
-                : "🔗 GitHub Accounts"}
-            </button>
-          ))}
-        </div>
+        {/* Tab navigation — accessible (role=tab, aria-selected, arrow-key nav) */}
+        <AdminTabs tabs={ADMIN_TABS} active={activeTab} onChange={(id) => setActiveTab(id as AdminTabId)} />
 
         {/* DB init notice */}
         {dbData?.note && (
