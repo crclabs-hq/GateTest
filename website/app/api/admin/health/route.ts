@@ -250,6 +250,17 @@ async function checkStripe(): Promise<Check> {
       };
     }
     const mode = key.startsWith("sk_live_") ? "live" : key.startsWith("sk_test_") ? "test" : "unknown";
+    // Test keys in production = real customer cards silently fail (ROADMAP #3).
+    const inProd = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+    if (inProd && mode === "test") {
+      return {
+        id: "stripe",
+        label: "Stripe API",
+        status: "warn",
+        detail: "Connected but in TEST mode in production — real cards will fail. Swap to sk_live_ keys.",
+        duration: Date.now() - started,
+      };
+    }
     return {
       id: "stripe",
       label: "Stripe API",
