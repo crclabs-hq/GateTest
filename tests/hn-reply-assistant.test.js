@@ -38,8 +38,13 @@ function makeFs(initial = {}) {
   const files = new Map(Object.entries(initial));
   const dirs = new Set();
   function trackDirs(p) {
+    // Terminate when dirname stops changing — on Windows path.join yields
+    // backslash paths whose walk ends at "\" or "C:\", where dirname
+    // returns itself forever. Comparing against "/" alone spun this loop
+    // infinitely (synchronously!) — the whole test file hung, which is
+    // what made every local full-suite run hang at this point.
     let d = path.dirname(p);
-    while (d && d !== "." && d !== "/") {
+    while (d && d !== "." && d !== path.dirname(d)) {
       dirs.add(d);
       d = path.dirname(d);
     }

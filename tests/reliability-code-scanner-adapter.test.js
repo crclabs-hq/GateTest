@@ -16,11 +16,18 @@ const {
 // ---------------------------------------------------------------------------
 
 function makeFs(initial = {}) {
-  const files = new Map(Object.entries(initial));
+  // Normalize separators — the lib joins paths with path.join (backslashes
+  // on Windows) while tests key this map with forward slashes. A real
+  // filesystem accepts both; the double must as well.
+  const norm = (p) => String(p).replace(/\\/g, "/");
+  const files = new Map(Object.entries(initial).map(([k, v]) => [norm(k), v]));
   const dirs = new Set();
   for (const p of files.keys()) {
+    // Terminate when dirname stops changing — on Windows the walk ends at
+    // "\" or "C:\", where path.dirname returns itself forever; comparing
+    // against "/" alone spun this loop infinitely and hung the suite.
     let d = path.dirname(p);
-    while (d && d !== "." && d !== "/") {
+    while (d && d !== "." && d !== path.dirname(d)) {
       dirs.add(d);
       d = path.dirname(d);
     }
@@ -31,24 +38,25 @@ function makeFs(initial = {}) {
   return {
     files,
     dirs,
-    existsSync: (p) => files.has(p) || dirs.has(p),
+    existsSync: (p) => files.has(norm(p)) || dirs.has(norm(p)),
     readdirSync: (p) => {
+      const dir = norm(p);
       const out = new Set();
       for (const f of files.keys()) {
-        if (f.startsWith(p + "/") || f.startsWith(p + path.sep)) {
-          const rest = f.slice(p.length + 1);
+        if (f.startsWith(dir + "/")) {
+          const rest = f.slice(dir.length + 1);
           out.add(rest.split(/[\\/]/)[0]);
         }
       }
       return Array.from(out);
     },
-    statSync: (p) => stats.get(p) || { mtimeMs: Date.now() },
+    statSync: (p) => stats.get(norm(p)) || { mtimeMs: Date.now() },
     readFileSync: (p) => {
-      if (!files.has(p)) throw new Error("ENOENT " + p);
-      return files.get(p);
+      if (!files.has(norm(p))) throw new Error("ENOENT " + p);
+      return files.get(norm(p));
     },
-    writeFileSync: (p, data) => { files.set(p, data); },
-    setMtime(p, ms) { stats.set(p, { mtimeMs: ms }); },
+    writeFileSync: (p, data) => { files.set(norm(p), data); },
+    setMtime(p, ms) { stats.set(norm(p), { mtimeMs: ms }); },
   };
 }
 

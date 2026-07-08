@@ -19,7 +19,8 @@ test("triage page: file exists", () => {
 test('triage page: starts with "use client"', () => {
   const src = fs.readFileSync(PAGE_PATH, "utf8");
   // First non-empty line should be the "use client" directive
-  const firstLine = src.split("\n").find((l) => l.trim().length > 0);
+  // (split on \r?\n — git checks out CRLF on Windows and \r broke the $ anchor)
+  const firstLine = src.split(/\r?\n/).find((l) => l.trim().length > 0);
   assert.match(String(firstLine), /^"use client";?$/);
 });
 

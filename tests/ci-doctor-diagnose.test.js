@@ -31,12 +31,17 @@ function makeFetch(routes) {
 }
 
 function makeFs(initial = {}) {
-  const files = new Map(Object.entries(initial));
+  // Normalize separators so the fake fs behaves like a real one on
+  // Windows too: the applier builds paths with path.join (backslashes
+  // on win32), while tests key this map with forward slashes. Real
+  // filesystems accept both — the double must as well.
+  const norm = (p) => String(p).replace(/\\/g, "/");
+  const files = new Map(Object.entries(initial).map(([k, v]) => [norm(k), v]));
   return {
     files,
-    existsSync: (p) => files.has(p),
-    readFileSync: (p) => files.get(p),
-    writeFileSync: (p, data) => { files.set(p, data); },
+    existsSync: (p) => files.has(norm(p)),
+    readFileSync: (p) => files.get(norm(p)),
+    writeFileSync: (p, data) => { files.set(norm(p), data); },
   };
 }
 

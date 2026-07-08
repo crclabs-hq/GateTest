@@ -190,7 +190,13 @@ describe('AiHallucinationDetector', () => {
     write(tmp, 'src/index.js', `import { doThing } from 'made-up-package-xyz';`);
     const result = makeResult('aiHallucination');
     await m.run(result, { projectRoot: tmp });
-    assert.ok(result.errorChecks.length > 0, 'Should flag unknown package');
+    // Unknown-pkg is WARNING severity since 33fa614 (false-positive noise
+    // reduction from real user feedback) — the finding must still fire.
+    assert.ok(result.warningChecks.length > 0, 'Should flag unknown package');
+    assert.ok(
+      result.warningChecks.some((c) => c.name.includes('made-up-package-xyz')),
+      'Flag should name the hallucinated package'
+    );
   });
 
   it('does not flag Node.js builtins', async () => {
