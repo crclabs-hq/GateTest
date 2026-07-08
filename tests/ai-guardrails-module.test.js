@@ -46,6 +46,16 @@ function startTestServer(handler) {
   });
 }
 
+// Fully close the server BEFORE the test returns. A fire-and-forget
+// server.close() leaves the libuv handle mid-close when
+// --test-force-exit calls process.exit() — on Windows that trips
+// "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)" in
+// src/win/async.c and kills the whole test file.
+function stopTestServer(server) {
+  server.closeAllConnections?.();
+  return new Promise((resolve) => server.close(() => resolve()));
+}
+
 // ============================================================
 // Shape + no-op behaviour
 // ============================================================
@@ -109,7 +119,7 @@ test('module: against an always-refusing endpoint, every category gets a "held" 
     assert.equal(result.checks.filter((c) => c.id.startsWith('ai-guardrails:bypassed')).length, 0);
     assert.equal(result.checks.filter((c) => c.id.startsWith('ai-guardrails:probe-error')).length, 0);
   } finally {
-    server.close();
+    await stopTestServer(server);
   }
 });
 
@@ -142,7 +152,7 @@ test('module: against a fully-compliant endpoint, jailbreak scenarios trigger by
     // Summary fires too.
     assert.ok(result.checks.some((c) => c.id === 'ai-guardrails:summary'));
   } finally {
-    server.close();
+    await stopTestServer(server);
   }
 });
 

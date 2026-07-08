@@ -18,28 +18,36 @@ const { runReliabilityCli, renderSuiteMarkdown } = require("../website/app/lib/r
 // ---------------------------------------------------------------------------
 
 function makeFs(initial = {}) {
-  const files = new Map(Object.entries(initial));
+  // Normalize separators everywhere — the lib builds paths with path.join
+  // (backslashes on Windows) while tests key this map with forward slashes.
+  // A real filesystem accepts both; the double must as well.
+  const norm = (p) => String(p).replace(/\\/g, "/");
+  const files = new Map(Object.entries(initial).map(([k, v]) => [norm(k), v]));
   const dirs = new Set();
   for (const p of files.keys()) {
+    // Terminate when dirname stops changing — on Windows the walk ends at
+    // "\" or "C:\", where path.dirname returns itself forever; comparing
+    // against "/" alone spun this loop infinitely and hung the suite.
     let d = path.dirname(p);
-    while (d && d !== "." && d !== "/") {
+    while (d && d !== "." && d !== path.dirname(d)) {
       dirs.add(d);
       d = path.dirname(d);
     }
   }
   return {
     files,
-    existsSync: (p) => files.has(p) || dirs.has(p),
+    existsSync: (p) => files.has(norm(p)) || dirs.has(norm(p)),
     readdirSync: (p, opts) => {
+      const dir = norm(p);
       const out = [];
       const seen = new Set();
       for (const f of files.keys()) {
-        if (f.startsWith(p + "/") || f.startsWith(p + path.sep)) {
-          const rest = f.slice(p.length + 1);
+        if (f.startsWith(dir + "/")) {
+          const rest = f.slice(dir.length + 1);
           const first = rest.split(/[\\/]/)[0];
           if (seen.has(first)) continue;
           seen.add(first);
-          const fullChild = path.join(p, first);
+          const fullChild = dir + "/" + first;
           const isDir = !files.has(fullChild);
           if (opts && opts.withFileTypes) {
             out.push({ name: first, isDirectory: () => isDir });
@@ -51,12 +59,12 @@ function makeFs(initial = {}) {
       return out;
     },
     readFileSync: (p) => {
-      if (!files.has(p)) {
+      if (!files.has(norm(p))) {
         const e = new Error("ENOENT " + p);
         e.code = "ENOENT";
         throw e;
       }
-      return files.get(p);
+      return files.get(norm(p));
     },
     statSync: (p) => ({ mtimeMs: Date.now() }),
   };

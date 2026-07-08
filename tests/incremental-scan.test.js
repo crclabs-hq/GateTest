@@ -97,7 +97,8 @@ describe('runner._resolveIncrementalFiles — git diff invocation', () => {
       const result = runner._resolveIncrementalFiles('base');
 
       assert.ok(!result.error, `expected success, got error: ${result.error}`);
-      const rels = result.files.map((f) => path.relative(repo.dir, f)).sort();
+      // Normalize separators — path.relative yields backslashes on Windows.
+      const rels = result.files.map((f) => path.relative(repo.dir, f).replace(/\\/g, '/')).sort();
       assert.ok(rels.includes('src/new.js'));
       assert.ok(rels.includes('src/keep.js'));
       // Verify every file has a known source extension
@@ -131,7 +132,7 @@ describe('runner._resolveIncrementalFiles — git diff invocation', () => {
       const runner = new GateTestRunner(cfg);
       const result = runner._resolveIncrementalFiles('base');
       assert.ok(!result.error);
-      const rels = result.files.map((f) => path.relative(repo.dir, f));
+      const rels = result.files.map((f) => path.relative(repo.dir, f).replace(/\\/g, '/'));
       assert.deepStrictEqual(rels.sort(), ['src/b.js']);
     } finally {
       fs.rmSync(repo.dir, { recursive: true, force: true });

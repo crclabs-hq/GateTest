@@ -20,3 +20,5 @@ vscode-extension/*.vsix
 # Sandbox-delivered apply-*.js bundles — generated when the container
 # proxy can't push, transferred to Craig's local machine for execution.
 apply-*.js
+.vercel
+.env*

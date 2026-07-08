@@ -233,7 +233,10 @@ class UndefinedRefModule extends BaseModule {
       return 0;
     }
 
-    const rel = path.relative(projectRoot, file);
+    // Forward slashes always — rel lands in check IDs, report files, and PR
+    // comments, where "src\\x.ts" from a Windows scan would mismatch the
+    // same finding produced by a Linux CI runner.
+    const rel = path.relative(projectRoot, file).replace(/\\/g, '/');
     const isTestPath = /\b(?:tests?|spec|specs|__tests__|e2e|fixtures?|stories)\b/i.test(rel);
 
     // Strip comments / string literals for USE-detection (Pass 2 only).

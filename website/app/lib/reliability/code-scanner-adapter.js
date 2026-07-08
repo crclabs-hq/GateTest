@@ -71,8 +71,11 @@ function reportToFindings(report, projectRoot) {
         message: check.message || "",
       };
       if (projectRoot && finding.file && path.isAbsolute(finding.file)) {
-        // Make file paths workspace-relative for stability across boxes
-        finding.file = path.relative(projectRoot, finding.file);
+        // Make file paths workspace-relative for stability across boxes.
+        // Always forward slashes — these paths land in reports, PR comments,
+        // and cross-box baseline diffs, where "src\\x.js" from a Windows
+        // scanner would mismatch the same finding from a Linux CI runner.
+        finding.file = path.relative(projectRoot, finding.file).replace(/\\/g, "/");
       }
       findings.push(finding);
     }
