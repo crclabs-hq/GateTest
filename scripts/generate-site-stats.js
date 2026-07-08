@@ -148,7 +148,13 @@ function readPrevious() {
 
 function measureTests() {
   // Shell-expand the glob exactly as the package.json / dogfood workflow do.
-  const res = spawnSync('bash', ['-c', 'node --test tests/*.test.js'], {
+  // MUST use --test-force-exit + --test-timeout (Bible sweep command) — the
+  // bare `node --test` form hangs indefinitely on leaked handles; CI got
+  // this fix in 180bf7c but this script was missed and hung the same way.
+  // --test-reporter=tap is explicit because parseTapSummary reads the
+  // "# tests N" TAP block — newer Node defaults to the spec reporter even
+  // when piped, which parses as 0 tests (and 0 would go on the website).
+  const res = spawnSync('bash', ['-c', 'node --test --test-reporter=tap --test-force-exit --test-timeout=60000 tests/*.test.js'], {
     cwd: ROOT,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,

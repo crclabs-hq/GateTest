@@ -24,7 +24,7 @@ const ALL_TOOLS = [
   { name: "scan_local (full/smart)", paid: true, desc: "120-module full or diff-aware smart scan" },
   { name: "run_module", paid: true, desc: "Run one specific module against a path" },
   { name: "fix_issue", paid: true, desc: "AI-driven auto-fix for a specific finding" },
-  { name: "explain_finding", paid: true, desc: "Nuclear-tier Claude diagnosis per finding" },
+  { name: "explain_finding", paid: true, desc: "Forensic-tier Claude diagnosis per finding" },
   { name: "compose_pr", paid: true, desc: "Render a PR body for a set of fixes" },
   { name: "capture_screenshot", paid: true, desc: "👁 Eyes — screenshot any live URL or localhost" },
   { name: "get_visual_diff", paid: true, desc: "👁 Eyes — baseline vs current visual diff" },

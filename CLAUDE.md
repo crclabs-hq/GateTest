@@ -76,7 +76,7 @@ While working on any task in this repo, if you observe any of the following, **a
 ### The loop
 
 Every turn ends with the **sweep checklist**:
-- [ ] `node --test tests/*.test.js` — all pass
+- [ ] `node --test --test-force-exit --test-timeout=60000 tests/*.test.js` — all pass (the bare `node --test` form hangs for HOURS locally — a leaked timer/socket keeps the runner alive; CI got the same force-exit fix in `180bf7c`)
 - [ ] `cd website && npx next build` — zero errors
 - [ ] `node bin/gatetest.js --list` — all modules load
 - [ ] `grep -rn "TODO\|FIXME" src/ website/app/ --include="*.js" --include="*.ts" --include="*.tsx"` — none left unresolved in code you touched
@@ -176,7 +176,7 @@ Build the most advanced, most aggressive, most beautiful QA testing platform eve
 
 ### 1. Tests & Build
 
-- [ ] All 200+ tests pass (`node --test tests/*.test.js`)
+- [ ] All 200+ tests pass (`node --test --test-force-exit --test-timeout=60000 tests/*.test.js`)
 - [ ] Website builds clean (`cd website && npx next build`)
 - [ ] All modules load (`node bin/gatetest.js --list`)
 - [ ] Fake-fix detector flags symptom patches on diffs
@@ -213,10 +213,10 @@ Build the most advanced, most aggressive, most beautiful QA testing platform eve
 ### 5. Stripe & Payments
 
 - [ ] Test keys used for testing (never live keys)
-- [ ] Hold-then-charge working (manual capture)
+- [ ] Charge-upfront at checkout (Craig 2026-05-18 — no manual-capture holds; subscriptions use inline recurring price_data)
 - [ ] Session metadata includes repo_url and tier
-- [ ] Scan completes and captures payment
-- [ ] Failed scans cancel payment (release hold)
+- [ ] Paid scan starts after checkout.session.completed webhook (fail-closed signature verification)
+- [ ] Failed scans marked failed in DB; refunds handled via support (no auto-refund)
 
 ### 6. Serverless Architecture
 
@@ -328,7 +328,7 @@ Before writing a single line of new code:
 
 After writing the code:
 
-1. `node --test tests/*.test.js` — ALL pass
+1. `node --test --test-force-exit --test-timeout=60000 tests/*.test.js` — ALL pass
 2. `cd website && npx next build` — ZERO errors
 3. `node bin/gatetest.js --list` — all modules load
 4. No `console.log` left in library code
@@ -393,7 +393,7 @@ When something breaks:
 6. If unclear, ask Craig
 
 ### At the END of every session:
-1. Run ALL tests — `node --test tests/*.test.js`
+1. Run ALL tests — `node --test --test-force-exit --test-timeout=60000 tests/*.test.js`
 2. Build website — `cd website && npx next build`
 3. Verify all modules load — `node bin/gatetest.js --list`
 4. Update Known Issues in `docs/ROADMAP.md` if anything found (resolved ones move to `docs/HISTORY.md`)

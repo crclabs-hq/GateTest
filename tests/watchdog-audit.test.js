@@ -140,17 +140,23 @@ describe('admin-auth — source file includes header check', () => {
 
 describe('AdminPanel — unified watchdog tab (no duplicate render)', () => {
   const fs = require('fs');
-  const PANEL_PATH = path.resolve(__dirname, '../website/app/admin/AdminPanel.tsx');
-  const src = fs.readFileSync(PANEL_PATH, 'utf-8');
+  // AdminPanel.tsx was split (2026-07-07) — the shell keeps the tab switch,
+  // the watchdog tab body lives in tabs/WatchdogTab.tsx. The assertions
+  // cover both files so the original intent survives the split.
+  const SHELL_PATH = path.resolve(__dirname, '../website/app/admin/AdminPanel.tsx');
+  const TAB_PATH = path.resolve(__dirname, '../website/app/admin/tabs/WatchdogTab.tsx');
+  const shellSrc = fs.readFileSync(SHELL_PATH, 'utf-8');
+  const tabSrc = fs.readFileSync(TAB_PATH, 'utf-8');
+  const src = shellSrc + tabSrc;
 
   it('activeTab watchdog condition appears exactly once in the JSX render', () => {
     // Count `activeTab === "watchdog"` occurrences in the render return
     const matches = (src.match(/activeTab === "watchdog"/g) || []).length;
-    // Should appear in: (a) the useEffect, (b) once in JSX render
-    // Previously appeared 3x: useEffect + two separate JSX blocks
+    // Previously appeared 3x: useEffect + two separate JSX blocks. After the
+    // split the shell renders <WatchdogTab /> from a single condition.
     assert.ok(
       matches <= 3,
-      `"activeTab === "watchdog"" appears ${matches} times — expected ≤3 (useEffect + tab label + one JSX block)`
+      `"activeTab === "watchdog"" appears ${matches} times — expected ≤3 (tab label + one JSX block)`
     );
   });
 
@@ -166,7 +172,7 @@ describe('AdminPanel — unified watchdog tab (no duplicate render)', () => {
 
   it('WatchdogPanel component is rendered inside the unified watchdog section', () => {
     assert.ok(
-      src.includes('<WatchdogPanel />'),
+      tabSrc.includes('<WatchdogPanel />'),
       'WatchdogPanel must be rendered within the watchdog tab section'
     );
   });

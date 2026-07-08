@@ -23,6 +23,7 @@
         "website/app/legal/",
         "website/app/docs/",
         "website/app/admin/AdminPanel.tsx",
+        "website/app/admin/tabs/",
         "website/app/admin/health/",
         "website/app/api/",
         "website/app/dashboard/",

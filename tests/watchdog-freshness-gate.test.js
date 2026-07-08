@@ -19,7 +19,9 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..");
 const REPOS_ROUTE = path.join(ROOT, "website/app/api/admin/repos/route.ts");
 const TICK_ROUTE = path.join(ROOT, "website/app/api/watches/tick/route.ts");
-const ADMIN_PANEL = path.join(ROOT, "website/app/admin/AdminPanel.tsx");
+// AdminPanel.tsx was split (2026-07-07) — the CI watchdog panel now lives in
+// its own file under tabs/. Same assertions, new path.
+const ADMIN_PANEL = path.join(ROOT, "website/app/admin/tabs/WatchdogPanel.tsx");
 
 test("repos route: requests workflow runs filtered to default branch", () => {
   const src = fs.readFileSync(REPOS_ROUTE, "utf8");
