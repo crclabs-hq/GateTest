@@ -1,0 +1,161 @@
+{
+  "generatedAt": "2026-07-08T05:53:32.957Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 9,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 7,
+      "SonarQube": 0,
+      "Semgrep": 1,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 0
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48826001",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "Haha, not a single dot in my state. Guess I'm moving to Illinois!Edit: \"Time Left NaNm\", guess I should be quick.",
+        "url": "https://news.ycombinator.com/item?id=48826001",
+        "points": null,
+        "numComments": null,
+        "storyId": 48820274,
+        "createdAt": "2026-07-08T00:43:54Z",
+        "createdAtUnix": 1783471434,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48825524",
+        "author": "GloriousKoji",
+        "type": "comment",
+        "title": null,
+        "text": "It's a relic of SAT verbal analogies section which was removed in 2005. The syntax \"A:B::C:D\" represents the statement \"A is to B as C is to D\".So on the test you'd get questions such as python:snake :: ___ : ___ a) lua:satellite b) swift:bird c) java:coffee d) pearl:gem and you might select A because python is an interpreted scripting language and a type of snake in the same way lua is a scripting language and a type of natural satellite but you'd be wrong because the correct answer is B because the topic was actually about comparing animals.",
+        "url": "https://news.ycombinator.com/item?id=48825524",
+        "points": null,
+        "numComments": null,
+        "storyId": 48819244,
+        "createdAt": "2026-07-07T23:41:50Z",
+        "createdAtUnix": 1783467710,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48825470",
+        "author": "xtiansimon",
+        "type": "comment",
+        "title": null,
+        "text": "Sorry you're having allergy problems. I only experience mild symptoms, so can't provide any more information than you've prolly found for yourself.> \"...suppose to try the dozen different gobbledegook ingredients on the shelf before figuring which one isn't bullshit...\"When you say \"on the shelf\" i presume you're specifically referring to OTC medication and not prescription medication, right? A common sense question deserves a common sense answer. Yes. Companies will happily take your money and sell you snake oil (nominally, so long as the consequences are near zero). Caveat emptor. Phenylephrine as the non-regulated version of pseudoephedrine is the perfect example.IMHO the only way to buy OTC medication (or food for that matter) is to read the labels and understand the ingredients. (I hate palm oil and sugar. yuck)",
+        "url": "https://news.ycombinator.com/item?id=48825470",
+        "points": null,
+        "numComments": null,
+        "storyId": 48806289,
+        "createdAt": "2026-07-07T23:34:52Z",
+        "createdAtUnix": 1783467292,
+        "intent": "criticism"
+      },
+      {
+        "objectId": "48824723",
+        "author": "hungryhobbit",
+        "type": "comment",
+        "title": null,
+        "text": "This is such classic SEO snake oil ... but now it's \"with AI\"!",
+        "url": "https://news.ycombinator.com/item?id=48824723",
+        "points": null,
+        "numComments": null,
+        "storyId": 48824559,
+        "createdAt": "2026-07-07T22:16:17Z",
+        "createdAtUnix": 1783462577,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48824149",
+        "author": "ssl-3",
+        "type": "comment",
+        "title": null,
+        "text": "Waze definitely does this[1]. As a map editor, I can mark a road segment as closed and it will stay closed for as long as I say, unless reverted by another editor or traffic is observed moving through that closed segment (based on parameters that they set).This kind of cheating usually works extremely well, from my observation.Anyhow, Google owns Waze and data goes back and forth between there and Google Maps. They're like two heads of the same snake, so it's implicit that the same thing also works on Google Maps.[1]: https:&#x2F;&#x2F;www.waze.com&#x2F;discuss&#x2F;t&#x2F;closures&#x2F;374712#p-2273808-aut...",
+        "url": "https://news.ycombinator.com/item?id=48824149",
+        "points": null,
+        "numComments": null,
+        "storyId": 48816883,
+        "createdAt": "2026-07-07T21:32:10Z",
+        "createdAtUnix": 1783459930,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48818378",
+        "author": "tsoukase",
+        "type": "comment",
+        "title": null,
+        "text": "Placebo is a multi trillion market. Not only in the form of vitamin, dietary supplement or other non-active pill but also of shopping, psycho-boosting or feel-good behaviour. Even religion is a form of placebo!I am fed up with various \"products\" that come to my door: mix of vitamins, a-lipoic acid and ashwagada. I can imagine among the billions of physically healthy adults, there are many that choose them. While regulation for drugs is strict, for these products it is less that potato chips. The FDA goes like, as soon as they sell snake oil that doesn't hurt anyone, let the market loose.",
+        "url": "https://news.ycombinator.com/item?id=48818378",
+        "points": null,
+        "numComments": null,
+        "storyId": 48806289,
+        "createdAt": "2026-07-07T14:28:56Z",
+        "createdAtUnix": 1783434536,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48815449",
+        "author": "globular-toast",
+        "type": "comment",
+        "title": null,
+        "text": "I feel like \"I can do X\" always comes with an implied timescale and a degree of confidence. For example, I \"can\" speak Chinese, in the sense that I have no reason to believe I cannot: Chinese people do not have fundamentally different mouths or brains to me. But still, even after many years of study and practice, you might be disappointed in my ability. If I were you I would not have any confidence in my ability in Chinese.On the other hand, if I were to hire you to perform long division I would have complete confidence in you turning in your first calculation within an hour given your research background. So I would definitely say you can do long division.If software were a purely mechanistic task like long division then I'd have confidence in anyone being able to turn out working code within an hour too. But we can't just keep turning out new programs every time we want to change them. Even with LLMs this is prohibitively expensive. So software is really about being able to build things and maintain them over time which requires a much deeper understanding. Long division is like snakes and ladders. Software is like chess.",
+        "url": "https://news.ycombinator.com/item?id=48815449",
+        "points": null,
+        "numComments": null,
+        "storyId": 48810439,
+        "createdAt": "2026-07-07T09:28:12Z",
+        "createdAtUnix": 1783416492,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48824456",
+        "author": "underlipton",
+        "type": "comment",
+        "title": null,
+        "text": "There was a great essay I read a few years ago that I can't locate, about how much of Western society is driven by the threat or actualization of humiliation. The Black Freedom Struggle (all incarnations) was won (inasmuch as it was won) not really through moral appeals or the imposition of practical reality, as much as through the humiliation of the slaver&#x2F;segregationist position on the global stage and in the media.You want to win? Make them look stupid in such a way that continuing to fight makes them look even more stupid. Pain doesn't stop people, practical futility doesn't stop people; but, faced with the prospect of being considered persona non grata or a laughing stock or just robbed of their dignity, whether they win or lose, that is when people will call the match and walk off.So, yes, face is a Western thing, too.",
+        "url": "https://news.ycombinator.com/item?id=48824456",
+        "points": null,
+        "numComments": null,
+        "storyId": 48820220,
+        "createdAt": "2026-07-07T21:55:56Z",
+        "createdAtUnix": 1783461356,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48816996",
+        "author": "codeulike",
+        "type": "comment",
+        "title": null,
+        "text": "If there’s an heir to Dylan, I don’t see who it is. Great music and great art are still being made and will always be made, and one day someone of his stature will emerge. But this particular age of heroes is over.Two thoughts about this:- popular culture is much more fractured now into lots of small scenes - this is probably a good thing - in the UK we used to all watch 4 TV channels and a few radio channels and hear the same stuff, now everyone can persue their own diverse pathway through the avalanche of music&#x2F;art being created- In the 80s and 90s there was this sense that (some) musicians had an important message - I would sit with my friend and analyse Robert Smith's latest lyrics as if some secret of life was hidden in there (to be fair, many would say it was). Looking back I think this was due to the power of music and the lack of other easily accessible (lets call them) 'thinkpieces'. But in the 2020s, if someone has a political or philosophical message that they think is important, are they going to try and write it into songs and be a popular musician? There's much easier ways now to broadcast your thoughts. I guess social media and youtube channels have replaced the idea of musician as Guru, for better or for worse.",
+        "url": "https://news.ycombinator.com/item?id=48816996",
+        "points": null,
+        "numComments": null,
+        "storyId": 48779072,
+        "createdAt": "2026-07-07T12:48:34Z",
+        "createdAtUnix": 1783428514,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": []
+  },
+  "painPoints": [],
+  "actionItems": []
+}

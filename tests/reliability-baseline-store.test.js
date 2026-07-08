@@ -21,11 +21,18 @@ const { runReliabilityCli } = require("../website/app/lib/reliability/cli-runner
 // ---------------------------------------------------------------------------
 
 function makeFs(initial = {}) {
-  const files = new Map(Object.entries(initial));
+  // Normalize separators — the lib joins paths with path.join (backslashes
+  // on Windows) while tests key this map with forward slashes. A real
+  // filesystem accepts both; the double must as well.
+  const norm = (p) => String(p).replace(/\\/g, "/");
+  const files = new Map(Object.entries(initial).map(([k, v]) => [norm(k), v]));
   const dirs = new Set();
   function addDirs(p) {
+    // Terminate when dirname stops changing — on Windows the walk ends at
+    // "\" or "C:\", where path.dirname returns itself forever; comparing
+    // against "/" alone spun this loop infinitely and hung the suite.
     let d = path.dirname(p);
-    while (d && d !== "." && d !== "/") {
+    while (d && d !== "." && d !== path.dirname(d)) {
       dirs.add(d);
       d = path.dirname(d);
     }
@@ -33,40 +40,32 @@ function makeFs(initial = {}) {
   for (const p of files.keys()) addDirs(p);
   return {
     files,
-    existsSync: (p) => files.has(p) || dirs.has(p),
+    existsSync: (p) => files.has(norm(p)) || dirs.has(norm(p)),
     readFileSync: (p) => {
-      if (!files.has(p)) {
+      if (!files.has(norm(p))) {
         const e = new Error("ENOENT " + p);
         e.code = "ENOENT";
         throw e;
       }
-      return files.get(p);
+      return files.get(norm(p));
     },
-    writeFileSync: (p, data) => { files.set(p, data); addDirs(p); },
-    renameSync: (a, b) => { files.set(b, files.get(a)); files.delete(a); },
-    unlinkSync: (p) => { files.delete(p); },
-    mkdirSync: (p) => { dirs.add(p); },
+    writeFileSync: (p, data) => { files.set(norm(p), data); addDirs(norm(p)); },
+    renameSync: (a, b) => { files.set(norm(b), files.get(norm(a))); files.delete(norm(a)); },
+    unlinkSync: (p) => { files.delete(norm(p)); },
+    mkdirSync: (p) => { dirs.add(norm(p)); },
     readdirSync: (p, opts) => {
       const out = new Set();
+      const dir = norm(p);
       for (const f of files.keys()) {
-        if (f.startsWith(p + "/") || f.startsWith(p + path.sep)) {
-          const rest = f.slice(p.length + 1);
+        if (f.startsWith(dir + "/")) {
+          const rest = f.slice(dir.length + 1);
           const first = rest.split(/[\\/]/)[0];
-          if (opts && opts.withFileTypes) {
-            const fullChild = path.join(p, first);
-            const isDir = !files.has(fullChild);
-            if (!out.has(first)) {
-              out.add(first);
-              // We have to dedupe and produce just-one
-            }
-          } else {
-            out.add(first);
-          }
+          out.add(first);
         }
       }
       if (opts && opts.withFileTypes) {
         return Array.from(out).map((n) => {
-          const fullChild = path.join(p, n);
+          const fullChild = dir + "/" + n;
           return { name: n, isDirectory: () => !files.has(fullChild) };
         });
       }
