@@ -1,0 +1,25 @@
+{
+  "generatedAt": "2026-07-08T05:53:01.842Z",
+  "underTestedTargets": 3,
+  "draftsTotal": 3,
+  "drafted": 0,
+  "skipped": 3,
+  "failed": 0,
+  "drafts": [
+    {
+      "module": "mcp",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/mcp.js or website/app/lib/mcp.js"
+    },
+    {
+      "module": "pricing",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/pricing.js or website/app/lib/pricing.js"
+    },
+    {
+      "module": "modules",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/modules.js or website/app/lib/modules.js"
+    }
+  ]
+}
