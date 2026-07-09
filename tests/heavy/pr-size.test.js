@@ -5,7 +5,7 @@ const path = require('path');
 const os = require('os');
 const { execSync } = require('child_process');
 
-const PrSizeModule = require('../src/modules/pr-size');
+const PrSizeModule = require('../../src/modules/pr-size');
 
 function makeResult() {
   return {

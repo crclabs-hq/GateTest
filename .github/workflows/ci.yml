@@ -35,6 +35,49 @@ jobs:
       - name: Run tsc --noEmit
         run: cd website && npx tsc --noEmit
 
+  # Heavy tests — subprocess-heavy, CLI-driven, real-timer tests that would
+  # bloat the fast gate. Runs in parallel from t=0 (no `needs`), so it never
+  # delays the blocking path. NOT in required checks — a failure marks the
+  # check red + posts a step summary but never blocks a merge. The fast gate
+  # (test job + pre-merge-sweep) is the actual enforcement layer.
+  # Bible Forbidden #24: NO continue-on-error on the test step itself.
+  heavy-tests:
+    name: Heavy Tests (non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install all workspaces
+        run: bash scripts/install-workspaces.sh
+
+      - name: Install website dependencies
+        run: cd website && npm ci
+
+      - name: Run heavy test suite
+        id: heavy
+        run: |
+          set -o pipefail
+          node --test --test-force-exit --test-timeout=120000 tests/heavy/*.test.js | tee /tmp/heavy-suite.tap
+          STATUS=${PIPESTATUS[0]}
+          if [ "$STATUS" -ne 0 ]; then
+            echo "## Heavy test failures" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            grep -A 12 "^not ok " /tmp/heavy-suite.tap | head -100 >> "$GITHUB_STEP_SUMMARY" || true
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            exit "$STATUS"
+          fi
+
+      - name: Post summary on success
+        if: success()
+        run: |
+          PASS=$(grep -c "^ok " /tmp/heavy-suite.tap || echo 0)
+          echo "## Heavy tests: $PASS passed" >> "$GITHUB_STEP_SUMMARY"
+
   test:
     name: Test + Build
     runs-on: ubuntu-latest

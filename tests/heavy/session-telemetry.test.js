@@ -15,7 +15,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const ST = require('../website/app/lib/session-telemetry.js');
+const ST = require('../../website/app/lib/session-telemetry.js');
 
 let tmpRoot;
 

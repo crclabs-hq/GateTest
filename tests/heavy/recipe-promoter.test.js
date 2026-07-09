@@ -11,7 +11,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const RP = require('../website/app/lib/trainers/recipe-promoter.js');
+const RP = require('../../website/app/lib/trainers/recipe-promoter.js');
 
 let tmpRoot;
 

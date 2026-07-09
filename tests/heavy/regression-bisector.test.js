@@ -22,7 +22,7 @@ const {
   blameRange,
   showCommit,
   findLikelyRegressionCommit,
-} = require('../src/core/regression-bisector.js');
+} = require('../../src/core/regression-bisector.js');
 
 function git(args, cwd) {
   return execFileSync('git', args, { cwd, encoding: 'utf8' });

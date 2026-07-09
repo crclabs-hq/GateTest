@@ -77,6 +77,7 @@ While working on any task in this repo, if you observe any of the following, **a
 
 Every turn ends with the **sweep checklist**:
 - [ ] `node --test --test-force-exit --test-timeout=60000 tests/*.test.js` — all pass (the bare `node --test` form hangs for HOURS locally — a leaked timer/socket keeps the runner alive; CI got the same force-exit fix in `180bf7c`)
+- [ ] `node --test --test-force-exit --test-timeout=120000 tests/heavy/*.test.js` — heavy suite (subprocess/CLI tests moved here in v1.57.1); non-blocking in CI but must be green before shipping
 - [ ] `cd website && npx next build` — zero errors
 - [ ] `node bin/gatetest.js --list` — all modules load
 - [ ] `grep -rn "TODO\|FIXME" src/ website/app/ --include="*.js" --include="*.ts" --include="*.tsx"` — none left unresolved in code you touched
@@ -176,7 +177,8 @@ Build the most advanced, most aggressive, most beautiful QA testing platform eve
 
 ### 1. Tests & Build
 
-- [ ] All 200+ tests pass (`node --test --test-force-exit --test-timeout=60000 tests/*.test.js`)
+- [ ] All fast tests pass (`node --test --test-force-exit --test-timeout=60000 tests/*.test.js`)
+- [ ] Heavy tests pass (`node --test --test-force-exit --test-timeout=120000 tests/heavy/*.test.js`) — non-blocking in CI but green before shipping
 - [ ] Website builds clean (`cd website && npx next build`)
 - [ ] All modules load (`node bin/gatetest.js --list`)
 - [ ] Fake-fix detector flags symptom patches on diffs
@@ -329,6 +331,7 @@ Before writing a single line of new code:
 After writing the code:
 
 1. `node --test --test-force-exit --test-timeout=60000 tests/*.test.js` — ALL pass
+1b. `node --test --test-force-exit --test-timeout=120000 tests/heavy/*.test.js` — heavy suite green
 2. `cd website && npx next build` — ZERO errors
 3. `node bin/gatetest.js --list` — all modules load
 4. No `console.log` left in library code
@@ -393,7 +396,7 @@ When something breaks:
 6. If unclear, ask Craig
 
 ### At the END of every session:
-1. Run ALL tests — `node --test --test-force-exit --test-timeout=60000 tests/*.test.js`
+1. Run ALL tests — `node --test --test-force-exit --test-timeout=60000 tests/*.test.js` (fast) + `node --test --test-force-exit --test-timeout=120000 tests/heavy/*.test.js` (heavy)
 2. Build website — `cd website && npx next build`
 3. Verify all modules load — `node bin/gatetest.js --list`
 4. Update Known Issues in `docs/ROADMAP.md` if anything found (resolved ones move to `docs/HISTORY.md`)

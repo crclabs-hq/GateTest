@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const CrossFileTaintModule = require('../src/modules/cross-file-taint.js');
+const CrossFileTaintModule = require('../../src/modules/cross-file-taint.js');
 
 // ---------------------------------------------------------------------------
 // Minimal TestResult stub

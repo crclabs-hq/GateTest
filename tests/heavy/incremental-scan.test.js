@@ -13,10 +13,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const { execSync, spawnSync } = require('node:child_process');
 
-const { GateTestRunner } = require('../src/core/runner');
-const { GateTestConfig } = require('../src/core/config');
+const { GateTestRunner } = require('../../src/core/runner');
+const { GateTestConfig } = require('../../src/core/config');
 
-const BIN = path.resolve(__dirname, '..', 'bin', 'gatetest.js');
+const BIN = path.resolve(__dirname, '../..', 'bin', 'gatetest.js');
 
 function makeRepo() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gatetest-incremental-'));

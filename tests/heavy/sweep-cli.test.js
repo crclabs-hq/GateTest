@@ -7,11 +7,11 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const cli = require('../bin/gatetest-sweep');
-const steps = require('../lib/sweep-steps');
+const cli = require('../../bin/gatetest-sweep');
+const steps = require('../../lib/sweep-steps');
 
-const BIN = path.join(__dirname, '..', 'bin', 'gatetest-sweep.js');
-const GATETEST_BIN = path.join(__dirname, '..', 'bin', 'gatetest.js');
+const BIN = path.join(__dirname, '../..', 'bin', 'gatetest-sweep.js');
+const GATETEST_BIN = path.join(__dirname, '../..', 'bin', 'gatetest.js');
 
 /**
  * Collect every step the CLI tries to run, by handing it a runner that
@@ -297,7 +297,7 @@ test('gatetest scan is treated as the default scan flow (alias) and not as sweep
 });
 
 test('npm script "sweep" is wired and points at bin/gatetest-sweep.js', () => {
-  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../..', 'package.json'), 'utf8'));
   assert.equal(pkg.scripts.sweep, 'node bin/gatetest-sweep.js');
 });
 

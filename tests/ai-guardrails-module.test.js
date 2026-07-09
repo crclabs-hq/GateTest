@@ -51,9 +51,11 @@ function startTestServer(handler) {
 // --test-force-exit calls process.exit() — on Windows that trips
 // "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)" in
 // src/win/async.c and kills the whole test file.
+// setImmediate inside the close callback gives the event loop one more
+// tick to fully process the UV_ASYNC handle teardown before we return.
 function stopTestServer(server) {
   server.closeAllConnections?.();
-  return new Promise((resolve) => server.close(() => resolve()));
+  return new Promise((resolve) => server.close(() => setImmediate(resolve)));
 }
 
 // ============================================================

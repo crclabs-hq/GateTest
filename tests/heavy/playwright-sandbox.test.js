@@ -15,7 +15,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const SB = require('../src/core/playwright-sandbox.js');
+const SB = require('../../src/core/playwright-sandbox.js');
 
 let tmpRoot;
 let workerDir;

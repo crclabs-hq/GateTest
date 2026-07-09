@@ -11,7 +11,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const RAP = require('../website/app/lib/trainers/recipe-auto-promoter.js');
+const RAP = require('../../website/app/lib/trainers/recipe-auto-promoter.js');
 
 let tmpRoot;
 

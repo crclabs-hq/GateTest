@@ -25,7 +25,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const ROOT = path.join(__dirname, '..');
+const ROOT = path.join(__dirname, '../..');
 const STATS_PATH = path.join(ROOT, 'website', 'app', 'data', 'site-stats.json');
 const HERO_PATH = path.join(ROOT, 'website', 'app', 'components', 'Hero.tsx');
 

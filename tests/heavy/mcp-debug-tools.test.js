@@ -40,7 +40,7 @@ describe('handleResolveStackTrace', () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gatetest-mcp-trace-'));
     bundlePath = path.join(dir, 'bundle.js');
     // eslint-disable-next-line global-require
-    const { encodeVLQSegment } = require('../src/core/source-map-resolver.js');
+    const { encodeVLQSegment } = require('../../src/core/source-map-resolver.js');
     const mapJson = JSON.stringify({
       version: 3,
       sources: ['original.js'],

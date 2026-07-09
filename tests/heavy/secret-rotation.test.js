@@ -5,7 +5,7 @@ const path = require('path');
 const os = require('os');
 const { execFileSync } = require('child_process');
 
-const SecretRotationModule = require('../src/modules/secret-rotation');
+const SecretRotationModule = require('../../src/modules/secret-rotation');
 
 function makeResult() {
   return {

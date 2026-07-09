@@ -13,8 +13,8 @@ const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const PrQualityModule = require('../src/modules/pr-quality');
-const { TestResult: Result } = require('../src/core/runner');
+const PrQualityModule = require('../../src/modules/pr-quality');
+const { TestResult: Result } = require('../../src/core/runner');
 
 const HAS_GIT = (() => {
   try { execSync('git --version', { stdio: 'pipe' }); return true; }

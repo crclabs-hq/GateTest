@@ -11,7 +11,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { fetchRun, fetchJobs, fetchJobLogs, _parseRetryAfter, MAX_RETRIES } = require('../lib/github-runs');
+const { fetchRun, fetchJobs, fetchJobLogs, _parseRetryAfter, MAX_RETRIES } = require('../../lib/github-runs');
 
 // ── fakeTransport ───────────────────────────────────────────────────────────
 

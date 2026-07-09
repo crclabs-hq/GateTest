@@ -22,7 +22,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const ROOT = path.join(__dirname, '..');
+const ROOT = path.join(__dirname, '../..');
 
 function readFile(rel) {
   return fs.readFileSync(path.join(ROOT, rel), 'utf8');
@@ -125,7 +125,7 @@ describe('marketing claim — 4 pricing tiers wired', () => {
   });
 
   it('budget-tracker has tier caps for all 4 tiers', () => {
-    const { capsForTier } = require('../website/app/lib/budget-tracker');
+    const { capsForTier } = require('../../website/app/lib/budget-tracker');
     assert.strictEqual(capsForTier('quick').tier, 'quick');
     assert.strictEqual(capsForTier('full').tier, 'full');
     assert.strictEqual(capsForTier('scan_fix').tier, 'scan_fix');
@@ -203,7 +203,7 @@ describe('marketing claim — flywheel intelligence pipeline', () => {
   });
 
   it('gatetest train CLI lists all 8 trainers', () => {
-    const train = require('../bin/gatetest-train.js');
+    const train = require('../../bin/gatetest-train.js');
     const names = train.TRAINERS.map((t) => t.name);
     assert.strictEqual(names.length, 8);
     for (const t of ['pattern-miner', 'recipe-promoter', 'recipe-auto-promoter', 'regression-test-generator', 'cross-repo-promoter', 'adversarial-mutator', 'confidence-calibrator', 'hacker-news-monitor']) {

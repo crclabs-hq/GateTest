@@ -32,14 +32,14 @@ const describeOrSkip = hasSDK ? describe : describe.skip;
 const hasMcpKey = !!process.env.GATETEST_API_KEY;
 const describeOrSkipGated = (hasSDK && hasMcpKey) ? describe : describe.skip;
 
-const SERVER_PATH = path.resolve(__dirname, '..', 'bin', 'gatetest-mcp.mjs');
+const SERVER_PATH = path.resolve(__dirname, '../..', 'bin', 'gatetest-mcp.mjs');
 // Test target: full repo for tools/list etc., tiny corpus dir for actual
 // scans. Scanning the full repo (~4900 tests + 100+ modules) takes ~48s
 // in isolation and times out under parallel-test load. We only need
 // "does the scan_local tool work end-to-end?" — a minimal target proves
 // that in <2s and is deterministic across machines.
-const SCAN_PATH   = path.resolve(__dirname, '..');   // GateTest repo root
-const TINY_SCAN_PATH = path.resolve(__dirname, '..', 'reliability-corpus', 'known-good', 'empty-js-module');
+const SCAN_PATH   = path.resolve(__dirname, '../..');   // GateTest repo root
+const TINY_SCAN_PATH = path.resolve(__dirname, '../..', 'reliability-corpus', 'known-good', 'empty-js-module');
 
 // ---------------------------------------------------------------------------
 // Helper: send one JSON-RPC request, collect the response line
