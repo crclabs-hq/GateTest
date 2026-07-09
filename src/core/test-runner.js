@@ -65,6 +65,32 @@ function detectRunner(projectRoot) {
 // Execution
 // ---------------------------------------------------------------------------
 
+// Splits a shell-like command string into argv, respecting single/double
+// quotes (e.g. `node -e "console.log('hi')"` stays 3 args, not 6). A plain
+// `.split(/\s+/)` shatters quoted args with spaces — harmless on Windows
+// (spawnCapture always shells out there) but wrong on Linux/Mac, where
+// spawn() with shell:false passes tokens through literally.
+function splitCommand(command) {
+  const parts = [];
+  let current = '';
+  let quote = null;
+  for (let i = 0; i < command.length; i++) {
+    const ch = command[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+      else current += ch;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+    } else if (/\s/.test(ch)) {
+      if (current) { parts.push(current); current = ''; }
+    } else {
+      current += ch;
+    }
+  }
+  if (current) parts.push(current);
+  return parts;
+}
+
 function spawnCapture(cmd, args, options, timeoutMs) {
   return new Promise((resolve) => {
     const chunks = { stdout: [], stderr: [] };
@@ -74,7 +100,14 @@ function spawnCapture(cmd, args, options, timeoutMs) {
     const child = spawn(cmd, args, {
       cwd: options.cwd,
       env: { ...process.env, ...(options.env || {}) },
-      shell: process.platform === 'win32',
+      // Windows can't exec .cmd/.bat (npm.cmd) without a shell — but Node
+      // deprecated args+shell:true in general (DEP0190): with a shell, args
+      // are concatenated but NOT re-escaped, so any quoted argument
+      // containing spaces (e.g. a custom `-e "console.log('a b')"` command)
+      // silently breaks apart. The built-in npm.cmd branch's args never
+      // contain spaces, so scoping shell to just the .cmd/.bat case keeps
+      // that working while leaving `node`/`cargo`/custom commands unshelled.
+      shell: process.platform === 'win32' && /\.(cmd|bat)$/i.test(cmd),
     });
 
     const absorb = (stream, buf) => {
@@ -401,7 +434,7 @@ async function runTests(projectRoot, opts = {}) {
 
   // Override with explicit command if provided
   if (opts.command) {
-    const parts = opts.command.split(/\s+/);
+    const parts = splitCommand(opts.command);
     cmd = parts[0];
     args = parts.slice(1);
   }
