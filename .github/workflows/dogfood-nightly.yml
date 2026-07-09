@@ -31,6 +31,15 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install dependencies
+        # Without this, node_modules never exists in this job — modules that
+        # need a real npm package (pngjs/pixelmatch for visualRegression +
+        # crossBrowser) silently drop out of --list, dragging the module
+        # count below the real 120 and feeding a wrong number into
+        # site-stats.json / the public website (caught 2026-07-09: a nightly
+        # run measured 118 modules + 8 spurious test failures this way).
+        run: npm ci
+
       - name: Verify all modules load
         run: node bin/gatetest.js --list | wc -l
 
