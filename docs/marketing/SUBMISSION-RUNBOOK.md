@@ -39,7 +39,11 @@ Then add the one-click install button to `website/app/mcp/page.tsx` pointing at
 
 ### 1b. Anthropic MCP Registry (**Craig moment: GitHub device login**)
 ```bash
-npm install -g @modelcontextprotocol/publisher
+# mcp-publisher is a Go binary from GitHub releases, not npm (confirmed 2026-07-09 —
+# @modelcontextprotocol/publisher 404s on the npm registry). No Windows build exists;
+# run this from WSL/a Linux box, or `make publisher` from a Go-toolchain checkout of
+# modelcontextprotocol/registry.
+curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher && sudo mv mcp-publisher /usr/local/bin/
 mcp-publisher login github        # Craig completes browser/device flow (owns io.github.ccantynz-alt)
 mcp-publisher validate ./server.json
 mcp-publisher publish ./server.json

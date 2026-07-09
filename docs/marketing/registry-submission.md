@@ -26,8 +26,13 @@ Checklist before submitting:
 The registry uses the `mcp-publisher` CLI with GitHub-based namespace auth. Craig runs these from the repo root:
 
 ```bash
-# install the publisher CLI (one-time)
-npm install -g @modelcontextprotocol/publisher   # or: brew install mcp-publisher
+# install the publisher CLI (one-time) — it's a Go binary from GitHub releases,
+# NOT an npm package. `npm install -g @modelcontextprotocol/publisher` 404s.
+curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+sudo mv mcp-publisher /usr/local/bin/
+# macOS alternative: brew install mcp-publisher (if the tap exists at submission time)
+# Windows: no prebuilt binary as of 2026-07 — use WSL/a Linux box, or `make publisher` from a
+# local clone of github.com/modelcontextprotocol/registry (needs Go toolchain).
 
 # authenticate — opens a browser, proves you own the io.github.ccantynz-alt namespace
 mcp-publisher login github
