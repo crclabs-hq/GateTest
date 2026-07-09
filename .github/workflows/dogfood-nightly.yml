@@ -46,7 +46,7 @@ jobs:
       - name: Run full test sweep
         run: |
           mkdir -p .dogfood
-          node --test tests/*.test.js 2>&1 | tee .dogfood/sweep.log || true
+          node --test --test-force-exit --test-timeout=60000 tests/*.test.js 2>&1 | tee .dogfood/sweep.log || true
           grep -E "^# (tests|pass|fail|skip)" .dogfood/sweep.log > .dogfood/sweep-summary.txt || true
 
       - name: Regenerate website testing statistics
