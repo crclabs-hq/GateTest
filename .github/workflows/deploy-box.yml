@@ -1,0 +1,58 @@
+# Auto-deploy to the production box on every push to main — the job Vercel
+# used to do implicitly. INERT until Craig adds the two repository secrets
+# below (Settings → Secrets and variables → Actions):
+#
+#   BOX_SSH_KEY   — private key with access to the deploy user on the box
+#   BOX_SSH_HOST  — user@host, e.g. deploy@66.42.121.161
+#
+# The box side just needs scripts/deploy/deploy-on-box.sh in the checkout
+# (ships with the repo). Activation = Craig's call (Boss Rule: production
+# deployment); the workflow skips cleanly while the secrets are absent.
+name: Deploy to production box
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-box
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check secrets present
+        id: gate
+        env:
+          BOX_SSH_KEY: ${{ secrets.BOX_SSH_KEY }}
+          BOX_SSH_HOST: ${{ secrets.BOX_SSH_HOST }}
+        run: |
+          if [ -z "$BOX_SSH_KEY" ] || [ -z "$BOX_SSH_HOST" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "BOX_SSH_KEY / BOX_SSH_HOST not configured — skipping deploy (workflow is inert until Craig adds them)."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy over SSH
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          BOX_SSH_KEY: ${{ secrets.BOX_SSH_KEY }}
+          BOX_SSH_HOST: ${{ secrets.BOX_SSH_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$BOX_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 "$BOX_SSH_HOST" \
+            'bash "$(git -C "${GATETEST_APP_DIR:-$HOME/gatetest}" rev-parse --show-toplevel 2>/dev/null || echo "${GATETEST_APP_DIR:-$HOME/gatetest}")/scripts/deploy/deploy-on-box.sh"'
+
+      - name: Verify live endpoints
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          sleep 5
+          status=$(curl -s --max-time 20 https://gatetest.ai/api/status || true)
+          echo "$status" | head -c 400
+          echo "$status" | grep -q '"ready"' || { echo "::error::/api/status did not return JSON — deploy may not have taken"; exit 1; }
