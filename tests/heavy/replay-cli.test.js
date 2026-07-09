@@ -250,7 +250,7 @@ test('runReplay — bare run ID with GITHUB_REPOSITORY env works', async () => {
 // ── End-to-end CLI invocation ───────────────────────────────────────────────
 
 test('CLI — --help exits 0 and prints usage', () => {
-  const r = spawnSync(process.execPath, [path.resolve(__dirname, '../bin/gatetest-replay.js'), '--help'], {
+  const r = spawnSync(process.execPath, [path.resolve(__dirname, '../../bin/gatetest-replay.js'), '--help'], {
     encoding: 'utf-8', timeout: 10_000,
   });
   assert.equal(r.status, 0);
@@ -259,7 +259,7 @@ test('CLI — --help exits 0 and prints usage', () => {
 });
 
 test('CLI — no args prints help and exits 0', () => {
-  const r = spawnSync(process.execPath, [path.resolve(__dirname, '../bin/gatetest-replay.js')], {
+  const r = spawnSync(process.execPath, [path.resolve(__dirname, '../../bin/gatetest-replay.js')], {
     encoding: 'utf-8', timeout: 10_000,
   });
   assert.equal(r.status, 0);
@@ -268,7 +268,7 @@ test('CLI — no args prints help and exits 0', () => {
 
 test('CLI — invalid URL exits non-zero with parse-url stage', () => {
   const r = spawnSync(process.execPath, [
-    path.resolve(__dirname, '../bin/gatetest-replay.js'),
+    path.resolve(__dirname, '../../bin/gatetest-replay.js'),
     'not-a-url',
     '--json',
   ], {
@@ -284,7 +284,7 @@ test('CLI — invalid URL exits non-zero with parse-url stage', () => {
 
 test('CLI — `gatetest replay --help` via main bin dispatches correctly', () => {
   const r = spawnSync(process.execPath, [
-    path.resolve(__dirname, '../bin/gatetest.js'),
+    path.resolve(__dirname, '../../bin/gatetest.js'),
     'replay',
     '--help',
   ], {

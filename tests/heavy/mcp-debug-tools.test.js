@@ -21,7 +21,7 @@ const { execFileSync } = require('child_process');
 let mcp;
 
 before(async () => {
-  mcp = await import('../bin/gatetest-mcp.mjs');
+  mcp = await import('../../bin/gatetest-mcp.mjs');
 });
 
 function textOf(res) {
