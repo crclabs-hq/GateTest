@@ -132,7 +132,11 @@ jobs:
         run: |
           node --test --test-force-exit --test-timeout=60000 tests/heavy/marketing-claim-verification.test.js 2>&1 \
             | tee .dogfood/claim-check.log || true
-          FAIL_COUNT=$(grep -c "^not ok" .dogfood/claim-check.log 2>/dev/null)
+          # `|| true` (not `|| echo 0`): grep -c already prints "0" and exits 1 on
+          # zero matches — under `bash -e` (this step's shell) that exit code aborts
+          # the whole script before the echo below runs, unless guarded. `|| true`
+          # adds no stdout of its own, so it can't double up grep's own "0" line.
+          FAIL_COUNT=$(grep -c "^not ok" .dogfood/claim-check.log 2>/dev/null || true)
           echo "fail_count=${FAIL_COUNT:-0}" >> "$GITHUB_OUTPUT"
 
       - name: Open issue if marketing claims drifted
