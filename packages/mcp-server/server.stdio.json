@@ -1,0 +1,78 @@
+{
+  "name": "io.github.ccantynz-alt/gatetest",
+  "description": "Give Claude eyes (screenshot live pages), ears (Sentry/Datadog/Rollbar errors + runtime checks), hands (verify fixes worked), and debug tools (run tests, stream logs, query your DB, call APIs). 24 tools, 120-module engine. Scan, fix, screenshot, and prove the fix worked — all inside your AI assistant.",
+  "license": "MIT",
+  "homepage": "https://gatetest.ai",
+  "repository": "https://github.com/crclabs-hq/gatetest",
+  "icon": "https://raw.githubusercontent.com/crclabs-hq/GateTest/main/packages/mcp-server/icon.png",
+  "versions": [
+    {
+      "registryType": "npm",
+      "identifier": "@gatetest/mcp-server",
+      "version": "1.1.3",
+      "transport": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@gatetest/mcp-server"]
+      },
+      "environmentVariables": [
+        {
+          "name": "GATETEST_API_KEY",
+          "description": "Premium MCP subscription key ($29/mo at gatetest.ai/mcp). Unlocks full 120-module scans, AI fix, Eyes (screenshot), Ears (production errors), Hands (verify_fix, run_tests, stream_logs, query_db, http_request). Free tools work without a key: check_health, list_modules, get_badge, scan_url, scan_local (quick suite only).",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "description": "YOUR OWN Claude API key (bring-your-own-key) — enables fix_issue and explain_finding (AI auto-fix and diagnosis; you control the spend, pick the model per call: sonnet | opus | fable). Optional; all scan and screenshot tools work without it.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "SENTRY_AUTH_TOKEN",
+          "description": "Sentry auth token — enables get_production_errors to pull live error data from Sentry. Pair with SENTRY_ORG and SENTRY_PROJECT.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "SENTRY_ORG",
+          "description": "Your Sentry organisation slug (e.g. 'acme-corp'). Required when using SENTRY_AUTH_TOKEN.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "SENTRY_PROJECT",
+          "description": "Your Sentry project slug (e.g. 'backend-api'). Required when using SENTRY_AUTH_TOKEN.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "DATADOG_API_KEY",
+          "description": "Datadog API key — enables get_production_errors to pull live error data from Datadog Logs. Pair with DATADOG_APP_KEY.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "DATADOG_APP_KEY",
+          "description": "Datadog application key — required alongside DATADOG_API_KEY for Logs API access.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "ROLLBAR_READ_TOKEN",
+          "description": "Rollbar read-access token — enables get_production_errors to pull live error data from Rollbar.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

@@ -45,10 +45,16 @@ Then add the one-click install button to `website/app/mcp/page.tsx` pointing at
 # modelcontextprotocol/registry.
 curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher && sudo mv mcp-publisher /usr/local/bin/
 mcp-publisher login github        # Craig completes browser/device flow (owns io.github.ccantynz-alt)
-mcp-publisher validate ./server.json
-mcp-publisher publish ./server.json
+mcp-publisher validate ./server.stdio.json
+mcp-publisher publish ./server.stdio.json
 ```
 PulseMCP crawls this registry daily — publishing here gets PulseMCP for free.
+
+**Use `server.stdio.json` while gatetest.ai serves the stale build (Known Issue #36)** —
+it's the same manifest minus the remote streamable-http entry (whose URL 404s right now
+and may fail registry health checks) and with the icon pointed at GitHub raw instead of
+gatetest.ai/icon.png (also 404 on the stale build). Once Vapron lands and Gate 0 passes,
+re-publish with the full dual-transport `server.json` to add the remote endpoint.
 
 ### 1c. Cline MCP Marketplace — GitHub issue on `cline/mcp-marketplace`
 Template `mcp-server-submission.yml`. Payload:
