@@ -28,7 +28,7 @@ const {
   getCurrentTracker,
 } = require("@/app/lib/budget-tracker");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { modelForTier, CHEAP_MODEL, needsRefusalFallback } = require("@/app/lib/engine-models");
+const { modelForTier, CHEAP_MODEL, needsRefusalFallback, resolveModelChoice, allowedModelIds } = require("@/app/lib/engine-models");
 import {
   CUSTOMER_COOKIE_NAME,
   getOAuthConfig,
@@ -607,7 +607,10 @@ async function anthropicCall(body: string): Promise<{ status: number; data: Reco
       headers: {
         "Content-Type": "application/json",
         "anthropic-version": "2023-06-01",
-        "x-api-key": ANTHROPIC_API_KEY,
+        // BYOK: a customer key on the request tracker takes priority over the
+        // server key. Read per-call (not per-module) so each request stays
+        // isolated on Fluid Compute's shared-instance model.
+        "x-api-key": ((tracker as unknown as Record<string, unknown>)?.apiKeyOverride as string) || ANTHROPIC_API_KEY,
         "connection": "close",
       },
       body,
@@ -673,7 +676,7 @@ async function anthropicCallWithRetry(body: string, maxAttempts = 6): Promise<{ 
 }
 
 // The AI-layer model for this request. Set on the per-request tracker (ALS) from
-// modelForTier(tier): Fable 5 on paid fix tiers, Sonnet 4.6 elsewhere. Falls
+// modelForTier(tier): Fable 5 on paid fix tiers, Sonnet 5 elsewhere. Falls
 // back to Sonnet when no tracker is in context (tests, direct calls).
 function activeFixModel(): string {
   const t = getCurrentTracker();
@@ -681,7 +684,7 @@ function activeFixModel(): string {
 }
 
 // Extra request fields that only apply to the higher-tier fix model. `effort:
-// "high"` is valid on both Sonnet 4.6 and Fable 5, but we only spend it on the
+// "high"` is valid on both Sonnet 5 and Fable 5, but we only spend it on the
 // paid fix model so cheap paths aren't silently made more expensive. A Fable
 // classifier refusal returns HTTP 200 with empty content — the existing
 // validateFixOutput rejects it and that finding falls through to the advisory
@@ -1003,6 +1006,17 @@ export async function POST(req: NextRequest) {
     //   - JavaScript can't truly zero memory but the variable goes out
     //     of scope as soon as the request returns.
     customerPat?: string;
+    // Optional explicit model choice (Craig 2026-07-10 — user-selectable
+    // model). Validated against the engine-models allow-list; overrides the
+    // per-tier default on the request tracker.
+    model?: string;
+    // Customer-supplied Anthropic key (BYOK — Craig 2026-07-10). Same
+    // security contract as customerPat: used for THIS request only, never
+    // stored, never logged, never echoed in any response, PR body, or budget
+    // summary. Shape-checked (sk-ant-*) before use. When present, all fix
+    // calls ride the customer's own key and the per-tier USD cap is lifted
+    // (their budget); the tier token cap stays as runaway protection.
+    anthropicApiKey?: string;
   };
   try {
     input = await req.json();
@@ -1023,8 +1037,36 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!ANTHROPIC_API_KEY) {
-    return NextResponse.json({ error: "AI not configured (ANTHROPIC_API_KEY)" }, { status: 503 });
+  // Explicit model choice — validate early so a bad name fails fast (400)
+  // before any rate-limit or AI work.
+  let chosenModel: string | null = null;
+  if (input.model !== undefined) {
+    const choice = resolveModelChoice(input.model);
+    if (!choice.ok) {
+      return NextResponse.json(
+        { error: choice.error, allowedModels: allowedModelIds() },
+        { status: 400 },
+      );
+    }
+    chosenModel = choice.model;
+  }
+
+  // BYOK key — shape-check only (never validated by echoing it anywhere).
+  const byokKey = typeof input.anthropicApiKey === "string" && input.anthropicApiKey.trim()
+    ? input.anthropicApiKey.trim()
+    : null;
+  if (byokKey && !/^sk-ant-/.test(byokKey)) {
+    return NextResponse.json(
+      { error: "anthropicApiKey must be an Anthropic API key (sk-ant-...)" },
+      { status: 400 },
+    );
+  }
+
+  if (!ANTHROPIC_API_KEY && !byokKey) {
+    return NextResponse.json(
+      { error: "AI not configured (ANTHROPIC_API_KEY) — supply anthropicApiKey (BYOK) to run on your own key" },
+      { status: 503 },
+    );
   }
 
   // 🔥 LIVE correlation — when the caller supplies production runtime
@@ -1115,12 +1157,16 @@ export async function POST(req: NextRequest) {
   // for the entire request via AsyncLocalStorage so anthropicCall() can
   // reach it without explicit threading. Stored on the closure so the
   // route's outer try/catch can attach a snapshot to any error response.
-  const _budgetTracker = createTrackerForTier(tierForCap);
+  const _budgetTracker = createTrackerForTier(tierForCap, { byok: Boolean(byokKey) });
   // Hybrid engine (Craig 2026-07-07): the AI layer runs Fable 5 on the paid fix
-  // tiers and Sonnet 4.6 elsewhere. The chosen model rides on the per-request
+  // tiers and Sonnet 5 elsewhere. The chosen model rides on the per-request
   // tracker (which lives in ALS) so anthropicCall's helpers read it without
   // module-global state — safe on Fluid Compute's shared-instance model.
-  (_budgetTracker as Record<string, unknown>).fixModel = modelForTier(tierForCap);
+  // An explicit user `model` choice overrides the per-tier default.
+  (_budgetTracker as Record<string, unknown>).fixModel = chosenModel || modelForTier(tierForCap);
+  // BYOK: the customer's key rides the tracker the same way — per-request
+  // only, unreachable from any other request, gone when the request ends.
+  if (byokKey) (_budgetTracker as Record<string, unknown>).apiKeyOverride = byokKey;
   // Wire the invocation circuit breaker for paid AI-fix tiers.
   if (tierForCap === "scan_fix" || tierForCap === "nuclear") {
     (_budgetTracker as Record<string, unknown>)._maxInvocations = MAX_AI_INVOCATIONS;

@@ -99,6 +99,7 @@ function buildBudgetSummary(input = {}) {
   const summary = {
     spentUsd: Number(spentUsd.toFixed(2)),
     capUsd,
+    byok: Boolean(snapshot.byok),
     capReached: capKind !== null,
     capKind,
     filesFixed,
@@ -124,7 +125,9 @@ function buildBudgetSummary(input = {}) {
  */
 function budgetExhaustionMessage(summary) {
   if (!summary) return '';
-  const cap = formatUsd(summary.capUsd);
+  // BYOK runs have no USD cap (Infinity) — the only budget stop is the token
+  // runaway guard, so describe it that way instead of "$Infinity".
+  const cap = summary.byok ? 'token-capped' : formatUsd(summary.capUsd);
 
   if (!summary.capReached) {
     return '';
@@ -177,7 +180,11 @@ function renderBudgetSummaryMarkdown(summary) {
   lines.push(`| --- | --- |`);
   lines.push(`| Files fixed this run | ${summary.filesFixed} |`);
   lines.push(`| Files still waiting | ${summary.filesRemaining} |`);
-  lines.push(`| AI budget used | ${formatUsd(summary.spentUsd)} of ${formatUsd(summary.capUsd)} |`);
+  // BYOK runs have no USD ceiling (customer's own Anthropic key pays) — show
+  // spend without a cap denominator instead of "of $Infinity".
+  lines.push(summary.byok
+    ? `| AI spend (BYOK — on your own Anthropic key, no GateTest USD cap) | ${formatUsd(summary.spentUsd)} |`
+    : `| AI budget used | ${formatUsd(summary.spentUsd)} of ${formatUsd(summary.capUsd)} |`);
   if (summary.advisoryFiles > 0) {
     lines.push(`| Advisory files (beyond your tier's fix cap) | ${summary.advisoryFiles} (${summary.advisoryFindings} findings) |`);
   }
