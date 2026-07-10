@@ -36,7 +36,8 @@ Every tool here was chosen because it is the **best in its class right now.** If
 | Layer | Choice | Why |
 |---|---|---|
 | **AI Code Review** | Claude API (Anthropic) | Best reasoning, finds real bugs not patterns |
-| **Model** | claude-sonnet-4-6 | Sonnet everywhere — Craig directive 2026-06-18 ("the only Claude model that developers might even trust") — active Sonnet on the market for real code work; wins SWE-bench Verified; 5x cheaper than Opus per token. Per-tier USD caps in `website/app/lib/budget-tracker.js:capsForTier()` UNCHANGED from the Opus era (Quick $1.50, Full $5, Scan+Fix $12, Forensic $30) — Strategy A: bank the savings as 5x deeper analysis per scan, not as margin. |
+| **Model** | Hybrid + user-selectable (Craig 2026-07-07 hybrid; 2026-07-10 Sonnet 5 + picker + BYOK) | `FIX_MODEL` claude-fable-5 on paid fix tiers (scan_fix/nuclear/forensic), `CHEAP_MODEL` claude-sonnet-5 everywhere else, `FALLBACK_MODEL` claude-opus-4-8 as Fable's refusal fallback. Single source of truth: `src/core/engine-models.js` + `website/app/lib/engine-models.js` (twins, parity-tested). Users may pick per call from the `ALLOWED_FIX_MODELS` allow-list (sonnet/opus/fable): CLI `--model`, MCP `model` arg, website `model` field. Precedence: explicit choice > `GATETEST_FIX_MODEL` env > per-tier default. Per-tier USD caps in `budget-tracker.js:capsForTier()` (Quick $1.50, Full $5, Scan+Fix $30, Forensic $60). |
+| **BYOK** | User's own `ANTHROPIC_API_KEY` | CLI + MCP always run on the user's own key (calls go machine → api.anthropic.com; user controls spend). Website fix route accepts optional `anthropicApiKey` (sk-ant-*, per-request only, never stored/logged/echoed); BYOK trackers lift the USD cap (customer's budget) but keep the tier token cap as runaway protection. |
 
 ### GitHub Integration
 | Layer | Choice | Why |

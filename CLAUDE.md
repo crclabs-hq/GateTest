@@ -440,22 +440,33 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.57.0 — **120 modules**, **hybrid AI layer** (Craig 2026-07-07):
+GateTest v1.58.0 — **120 modules**, **hybrid AI layer** (Craig 2026-07-07;
+Sonnet 5 upgrade + user-selectable model + BYOK Craig 2026-07-10):
 **Fable 5** (`claude-fable-5`) on the paid fix tiers (Scan+Fix, Forensic),
-**Sonnet 4.6** (`claude-sonnet-4-6`) on free/cheap/high-volume paths, **Opus
+**Sonnet 5** (`claude-sonnet-5`) on free/cheap/high-volume paths, **Opus
 4.8** (`claude-opus-4-8`) as the Fable refusal fallback. Model selection lives
 in `website/app/lib/engine-models.js` + `src/core/engine-models.js`
-(`modelForTier`); the paid-tier budget caps were raised to fund deeper Fable
-analysis (Scan+Fix $30, Forensic $60) and `budget-tracker.js` prices each call
-at the model that ran it. Flip Fable off via `GATETEST_FIX_MODEL` if the org's
-data retention ever drops below 30 days (Fable is unavailable under ZDR).
+(`modelForTier` + the `ALLOWED_FIX_MODELS` user allow-list); the paid-tier
+budget caps fund deeper Fable analysis (Scan+Fix $30, Forensic $60) and
+`budget-tracker.js` prices each call at the model that ran it.
+**User-selectable model** (sonnet | opus | fable): CLI `--model`, MCP `model`
+arg on fix_issue/explain_finding, website `model` field on /api/scan/fix.
+Precedence: explicit choice > `GATETEST_FIX_MODEL` env (now honored by CLI +
+MCP + website — flip Fable off with it if data retention ever drops below 30
+days; Fable is unavailable under ZDR) > per-tier default.
+**BYOK**: CLI + MCP always run on the user's own `ANTHROPIC_API_KEY` (their
+machine, their spend); the website fix route accepts optional
+`anthropicApiKey` (sk-ant-*, per-request only, never stored/logged/echoed) —
+BYOK lifts the USD cap, keeps the tier token cap as runaway protection.
 **Six tiers live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399
 (one-time) + Continuous $49/mo + **MCP $29/mo** (Craig-authorized 2026-07-04).
 The MCP tier gates premium Eyes/Ears/Hands tools behind a `GATETEST_API_KEY`
-delivered by email after Stripe checkout. MCP + CLI fix paths stay on Sonnet
-(flat-rate / no per-scan payment — Fable isn't funded there).
+delivered by email after Stripe checkout; BYOK does NOT bypass that gate
+(open question for Craig — until he rules, the gate stays). MCP + CLI fix
+paths default to Sonnet (flat-rate / no per-scan payment — Fable isn't funded
+there, but BYOK users may pick it since the spend is theirs).
 MCP server: `bin/gatetest-mcp.mjs`, 22 tools.
-Date stamp last fully reconciled: 2026-07-07 (Bible restructured into
-slim core + `docs/` library + hybrid engine the same day).
+Date stamp last fully reconciled: 2026-07-10 (Sonnet 5 everywhere + model
+picker + BYOK + engine-first MCP messaging the same day).
 
 **Full version-by-version changelog:** see `docs/HISTORY.md`.
