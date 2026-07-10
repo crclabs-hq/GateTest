@@ -206,7 +206,10 @@ async function scanRepo(owner: string, repo: string, tier: string): Promise<Scan
     })
   )).filter((f): f is RepoFile => f !== null);
 
-  // Engine selection — closes the 102-vs-22 module honesty gap.
+  // Engine selection — closes the historical 102-vs-22 module honesty gap
+  // (module count has since moved to 120; the gap this closed was between
+  // the in-memory quick-tier engine and the full CLI engine, not a specific
+  // number — kept for context, not a live count claim).
   //
   // Full / Scan+Fix / Forensic tiers run the full CLI engine (120 modules)
   // via cli-engine-runner.js — materialises fileContents to /tmp, runs

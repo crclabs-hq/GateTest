@@ -38,7 +38,7 @@ export interface ResolvedModule {
   name: string;
   description: string;
   example: string;
-  category: { id: string; title: string; blurb: string };
+  category: { id: string; title: string; blurb: string; comingSoon?: { reason: string } };
 }
 
 /**
@@ -57,7 +57,7 @@ function buildModuleIndex(): Map<string, ResolvedModule> {
         name: mod.name,
         description: mod.description,
         example: mod.example,
-        category: { id: cat.id, title: cat.title, blurb: cat.blurb },
+        category: { id: cat.id, title: cat.title, blurb: cat.blurb, comingSoon: cat.comingSoon },
       });
     }
   }

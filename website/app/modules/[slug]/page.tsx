@@ -75,26 +75,42 @@ export default async function ModulePage({ params }: PageParams) {
   const related = getRelatedModules(slug, 6);
   const pretty = prettify(mod.name);
   const totalModules = getTotalModuleCount();
+  const comingSoon = mod.category.comingSoon;
 
   // FAQPage structured data — 4 questions per module
-  const faqs = [
-    {
-      q: `What does the ${pretty} module catch?`,
-      a: `${mod.description} Example finding: ${mod.example}`,
-    },
-    {
-      q: `Does GateTest fix ${pretty} issues automatically?`,
-      a: `Yes — on the Scan + Fix tier ($199) and Forensic Scan tier ($399), Claude reads the finding, writes the fix, validates against the scanner, writes a regression test, and opens a pull request for your review.`,
-    },
-    {
-      q: `Which tiers include the ${pretty} module?`,
-      a: `The Full tier ($99), Scan + Fix tier ($199), and Forensic Scan tier ($399) include all ${totalModules} modules including ${pretty}. The Quick tier ($29) only includes 4 essential modules.`,
-    },
-    {
-      q: `Can I run the ${pretty} module from the CLI for free?`,
-      a: `Yes — install with \`npm i -g gatetest\` and run \`gatetest --module ${mod.name}\` against any local repository. Paid tiers add AI auto-fix and the cross-finding correlation work.`,
-    },
-  ];
+  const faqs = comingSoon
+    ? [
+        {
+          q: `What does the ${pretty} module catch?`,
+          a: `${mod.description} Example finding: ${mod.example}`,
+        },
+        {
+          q: `Can I buy a scan that includes ${pretty} today?`,
+          a: `Not yet — ${comingSoon.reason} It's registered in the engine and documented here so it's discoverable, but it isn't included in any purchasable tier yet.`,
+        },
+        {
+          q: `Which tiers include the ${pretty} module?`,
+          a: `None yet — this module is Coming Soon. ${comingSoon.reason}`,
+        },
+      ]
+    : [
+        {
+          q: `What does the ${pretty} module catch?`,
+          a: `${mod.description} Example finding: ${mod.example}`,
+        },
+        {
+          q: `Does GateTest fix ${pretty} issues automatically?`,
+          a: `Yes — on the Scan + Fix tier ($199) and Forensic Scan tier ($399), Claude reads the finding, writes the fix, validates against the scanner, writes a regression test, and opens a pull request for your review.`,
+        },
+        {
+          q: `Which tiers include the ${pretty} module?`,
+          a: `The Full tier ($99), Scan + Fix tier ($199), and Forensic Scan tier ($399) include all ${totalModules} modules including ${pretty}. The Quick tier ($29) only includes 4 essential modules.`,
+        },
+        {
+          q: `Can I run the ${pretty} module from the CLI for free?`,
+          a: `Yes — install with \`npm i -g gatetest\` and run \`gatetest --module ${mod.name}\` against any local repository. Paid tiers add AI auto-fix and the cross-finding correlation work.`,
+        },
+      ];
 
   const faqJsonLd = {
     "@context": "https://schema.org",
@@ -106,19 +122,25 @@ export default async function ModulePage({ params }: PageParams) {
     })),
   };
 
-  // SoftwareApplication structured data
+  // SoftwareApplication structured data — omit the Offer entirely when the
+  // module isn't purchasable yet (Coming Soon); a schema.org Offer implies
+  // it's for sale today, which would be false for these modules.
   const softwareJsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     name: `GateTest — ${pretty}`,
     applicationCategory: "DeveloperApplication",
     operatingSystem: "Cross-platform (Node.js 20+)",
-    offers: {
-      "@type": "Offer",
-      price: "99",
-      priceCurrency: "USD",
-      description: `Full Scan — all ${totalModules} modules including ${pretty}`,
-    },
+    ...(comingSoon
+      ? {}
+      : {
+          offers: {
+            "@type": "Offer",
+            price: "99",
+            priceCurrency: "USD",
+            description: `Full Scan — all ${totalModules} modules including ${pretty}`,
+          },
+        }),
     aggregateRating: undefined, // not faked
   };
 
@@ -158,8 +180,15 @@ export default async function ModulePage({ params }: PageParams) {
 
         {/* Hero */}
         <div className="mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-400 font-medium mb-6">
-            {mod.category.title} module
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-400 font-medium">
+              {mod.category.title} module
+            </div>
+            {comingSoon && (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-400/10 border border-amber-400/30 text-xs text-amber-300 font-medium">
+                Coming soon — {comingSoon.reason}
+              </div>
+            )}
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-6">
             {pretty}
@@ -168,7 +197,9 @@ export default async function ModulePage({ params }: PageParams) {
             {mod.description}
           </p>
           <p className="text-sm text-white/45 leading-relaxed">
-            One of {totalModules} modules in the GateTest scan suite. Catches the issue before it reaches code review, and on paid tiers opens a pull request with the fix already written.
+            {comingSoon
+              ? `Not yet included in any purchasable tier. ${comingSoon.reason}`
+              : `One of ${totalModules} modules in the GateTest scan suite. Catches the issue before it reaches code review, and on paid tiers opens a pull request with the fix already written.`}
           </p>
         </div>
 
@@ -190,46 +221,81 @@ export default async function ModulePage({ params }: PageParams) {
         {/* How GateTest covers this */}
         <section className="mb-12">
           <h2 className="text-2xl font-bold text-white mb-4">How GateTest covers {pretty.toLowerCase()}</h2>
-          <ul className="space-y-3 text-white/70 leading-relaxed">
-            <li className="flex items-start gap-2">
-              <span className="text-teal-400 mt-1">&#10003;</span>
-              <span><strong className="text-white">Runs in every scan.</strong> Included on the Full ($99), Scan + Fix ($199), and Forensic Scan ($399) tiers. No additional configuration.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-teal-400 mt-1">&#10003;</span>
-              <span><strong className="text-white">Free CLI.</strong> <code className="text-white/80 text-sm bg-white/5 px-1.5 py-0.5 rounded">npm i -g gatetest && gatetest --module {mod.name}</code> against any local repo. No paywall on the scanning itself.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-teal-400 mt-1">&#10003;</span>
-              <span><strong className="text-white">AI auto-fix PR.</strong> Scan + Fix tier opens a pull request with the fix, a regression test, and a pair-review by a second Claude. Forensic Scan tier adds per-finding diagnosis and cross-finding attack-chain correlation.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-teal-400 mt-1">&#10003;</span>
-              <span><strong className="text-white">Honest confidence rating.</strong> Findings come with high / medium / low confidence so noisy patterns don&apos;t block the gate. The confidence-calibrator trainer reads customer suppressions and tightens rules over time.</span>
-            </li>
-          </ul>
+          {comingSoon ? (
+            <ul className="space-y-3 text-white/70 leading-relaxed">
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 mt-1">&#9679;</span>
+                <span><strong className="text-white">Not yet purchasable.</strong> {comingSoon.reason} It's registered in the engine today so it's discoverable, but no tier includes it yet.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 mt-1">&#9679;</span>
+                <span><strong className="text-white">Requires explicit authorization when it ships.</strong> Live probes only ever run against a target you've proven you own — a three-layer consent check gates every run.</span>
+              </li>
+            </ul>
+          ) : (
+            <ul className="space-y-3 text-white/70 leading-relaxed">
+              <li className="flex items-start gap-2">
+                <span className="text-teal-400 mt-1">&#10003;</span>
+                <span><strong className="text-white">Runs in every scan.</strong> Included on the Full ($99), Scan + Fix ($199), and Forensic Scan ($399) tiers. No additional configuration.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-teal-400 mt-1">&#10003;</span>
+                <span><strong className="text-white">Free CLI.</strong> <code className="text-white/80 text-sm bg-white/5 px-1.5 py-0.5 rounded">npm i -g gatetest && gatetest --module {mod.name}</code> against any local repo. No paywall on the scanning itself.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-teal-400 mt-1">&#10003;</span>
+                <span><strong className="text-white">AI auto-fix PR.</strong> Scan + Fix tier opens a pull request with the fix, a regression test, and a pair-review by a second Claude. Forensic Scan tier adds per-finding diagnosis and cross-finding attack-chain correlation.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-teal-400 mt-1">&#10003;</span>
+                <span><strong className="text-white">Honest confidence rating.</strong> Findings come with high / medium / low confidence so noisy patterns don&apos;t block the gate. The confidence-calibrator trainer reads customer suppressions and tightens rules over time.</span>
+              </li>
+            </ul>
+          )}
         </section>
 
         {/* CTA */}
-        <section className="mb-12 rounded-2xl border border-teal-500/20 p-8 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
-          <h2 className="text-2xl font-bold text-white mb-3">Scan your repo for {pretty.toLowerCase()}</h2>
-          <p className="text-white/60 mb-6">Free preview of the headline findings. Pay per scan — no subscription.</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              href="/#pricing"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
-              style={{ background: "#2dd4bf", color: "#0a0a12" }}
-            >
-              Run a scan &mdash; from $29
-            </Link>
-            <Link
-              href="/modules"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
-            >
-              See all {totalModules} modules
-            </Link>
-          </div>
-        </section>
+        {comingSoon ? (
+          <section className="mb-12 rounded-2xl border border-amber-400/20 p-8 text-center" style={{ background: "rgba(251,191,36,0.05)" }}>
+            <h2 className="text-2xl font-bold text-white mb-3">{pretty} is coming soon</h2>
+            <p className="text-white/60 mb-6">{comingSoon.reason} Want early access when it ships?</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <a
+                href={`mailto:hello@gatetest.ai?subject=${encodeURIComponent(`Early access: ${pretty}`)}`}
+                className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
+                style={{ background: "#fbbf24", color: "#0a0a12" }}
+              >
+                Request early access
+              </a>
+              <Link
+                href="/modules"
+                className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
+              >
+                See all {totalModules} modules
+              </Link>
+            </div>
+          </section>
+        ) : (
+          <section className="mb-12 rounded-2xl border border-teal-500/20 p-8 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
+            <h2 className="text-2xl font-bold text-white mb-3">Scan your repo for {pretty.toLowerCase()}</h2>
+            <p className="text-white/60 mb-6">Free preview of the headline findings. Pay per scan — no subscription.</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/#pricing"
+                className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
+                style={{ background: "#2dd4bf", color: "#0a0a12" }}
+              >
+                Run a scan &mdash; from $29
+              </Link>
+              <Link
+                href="/modules"
+                className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
+              >
+                See all {totalModules} modules
+              </Link>
+            </div>
+          </section>
+        )}
 
         {/* FAQ */}
         <section className="mb-12">

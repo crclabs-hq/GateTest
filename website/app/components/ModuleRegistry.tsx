@@ -1,5 +1,6 @@
 /**
- * ModuleRegistry — static grid of all 102 analysis modules.
+ * ModuleRegistry — curated grid highlighting analysis modules (120 total; see
+ * /modules for the full enumerated list — this component shows a representative wall).
  *
  * Server component — no client state needed. The grid is the social proof:
  * an enterprise security lead scrolls this and sees that GateTest does the
@@ -204,7 +205,7 @@ export default function ModuleRegistry() {
         {/* Footer stat */}
         <div className="border-t border-zinc-800 pt-8 mt-4 flex flex-wrap gap-8 justify-center text-center">
           {[
-            ["102", "Analysis modules"],
+            ["120", "Analysis modules"],
             ["30+", "Tools replaced"],
             ["1", "Gate verdict"],
             ["$29", "Starting price"],

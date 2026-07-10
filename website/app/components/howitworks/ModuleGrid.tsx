@@ -23,6 +23,11 @@ export default function ModuleGrid() {
               <span className="ml-2 text-sm text-white/40 font-normal font-mono">
                 {category.modules.length} {category.modules.length === 1 ? "module" : "modules"}
               </span>
+              {category.comingSoon && (
+                <span className="ml-2 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border border-amber-400/30 bg-amber-400/10 text-amber-300 font-mono align-middle">
+                  Coming soon
+                </span>
+              )}
             </h3>
             <p className="text-sm text-white/50 max-w-md">{category.blurb}</p>
           </div>

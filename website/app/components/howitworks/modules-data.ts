@@ -20,6 +20,8 @@ export type ModuleCategory = {
   title: string;
   blurb: string;
   modules: ModuleDef[];
+  /** Set when a category is publicly listed but not yet purchasable/live. */
+  comingSoon?: { reason: string };
 };
 
 export const MODULE_CATEGORIES: ModuleCategory[] = [
@@ -134,6 +136,7 @@ export const MODULE_CATEGORIES: ModuleCategory[] = [
       { name: "bundleSize", description: "JS bundles exceeding size budgets.", example: "main.js 412 KB gzip — budget is 200 KB" },
       { name: "envIntegrity", description: "Env-File Integrity Linter.", example: ".env has duplicate STRIPE_KEY entries — last wins silently" },
       { name: "promptSafety", description: "Browser-exposed API keys, unbounded max_tokens, prompt-injection surfaces, deprecated models.", example: "Client-bundled NEXT_PUBLIC_* credential shipped to every visitor" },
+      { name: "sbom", description: "Generates a CycloneDX 1.4 Software Bill of Materials from your lockfile — the artifact procurement and compliance teams ask for.", example: "SBOM generated: 214 components, 3 GPL-licensed, 1 EOL package flagged" },
     ],
   },
   {
@@ -211,6 +214,7 @@ export const MODULE_CATEGORIES: ModuleCategory[] = [
     id: "pen-test",
     title: "Live pen-test probes",
     blurb: "Active probes against your running site. Pen Test tier only — requires explicit written authorization for the target.",
+    comingSoon: { reason: "Pending attorney review before this tier ships live." },
     modules: [
       { name: "liveSqlInjection", description: "Live SQL-injection probe — error-based, boolean, and timing payloads against discovered endpoints.", example: "Timing payload on /api/search?q= delayed response 5.1s — injectable" },
       { name: "liveXss", description: "Live reflected-XSS probe — reflection detection on discovered endpoints.", example: "Payload reflected unencoded in /search results page" },

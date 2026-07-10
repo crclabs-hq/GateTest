@@ -88,8 +88,18 @@ export default function ModulesIndexPage() {
           {categories.map((cat) => (
             <section key={cat.id} id={cat.id}>
               <div className="mb-6">
-                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">{cat.title}</h2>
+                <div className="flex items-center gap-3 mb-2">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-white">{cat.title}</h2>
+                  {cat.comingSoon && (
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border border-amber-400/30 bg-amber-400/10 text-amber-300 font-mono">
+                      Coming soon
+                    </span>
+                  )}
+                </div>
                 <p className="text-white/55 leading-relaxed max-w-3xl">{cat.blurb}</p>
+                {cat.comingSoon && (
+                  <p className="text-xs text-amber-300/70 mt-2">{cat.comingSoon.reason}</p>
+                )}
                 <p className="text-xs text-white/30 mt-2">{cat.modules.length} module{cat.modules.length === 1 ? "" : "s"} in this category</p>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -100,7 +110,14 @@ export default function ModulesIndexPage() {
                     className="block rounded-xl border border-white/[0.08] p-5 hover:border-teal-500/30 transition-colors"
                     style={{ background: "rgba(255,255,255,0.02)" }}
                   >
-                    <div className="text-white font-semibold mb-1">{prettify(mod.name)}</div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="text-white font-semibold">{prettify(mod.name)}</div>
+                      {cat.comingSoon && (
+                        <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full border border-amber-400/30 bg-amber-400/10 text-amber-300 font-mono">
+                          Soon
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs font-mono text-teal-300/70 mb-2">{mod.name}</div>
                     <div className="text-white/60 text-sm leading-snug">{mod.description.slice(0, 130)}{mod.description.length > 130 ? "…" : ""}</div>
                   </Link>

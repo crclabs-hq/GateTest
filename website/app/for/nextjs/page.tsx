@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Code Quality for Next.js Apps — GateTest",
   description:
-    "102 checks built for Next.js: App Router route validation, React Hook exhaustive-deps, TypeScript strict mode, Core Web Vitals, OpenGraph tags, accessibility, security headers. AI-powered fixes at the Scan + Fix tier and above.",
+    "120 checks built for Next.js: App Router route validation, React Hook exhaustive-deps, TypeScript strict mode, Core Web Vitals, OpenGraph tags, accessibility, security headers. AI-powered fixes at the Scan + Fix tier and above.",
   keywords: [
     "Next.js code quality",
     "Next.js testing",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Code Quality for Next.js Apps — GateTest",
     description:
-      "102 checks built for Next.js: App Router route validation, React Hook exhaustive-deps, TypeScript strict mode, Core Web Vitals, OpenGraph tags, accessibility, security headers. AI-powered fixes at the Scan + Fix tier and above.",
+      "120 checks built for Next.js: App Router route validation, React Hook exhaustive-deps, TypeScript strict mode, Core Web Vitals, OpenGraph tags, accessibility, security headers. AI-powered fixes at the Scan + Fix tier and above.",
     url: "https://gatetest.ai/for/nextjs",
     siteName: "GateTest",
     type: "website",
