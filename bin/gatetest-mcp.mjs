@@ -904,6 +904,22 @@ async function handleScanLocal(args) {
     }
 
     lastScanResult = { source: 'scan_local', path: scanPath, data: result, at: new Date().toISOString() };
+
+    // Flywheel: record anonymized finding signal + best-effort central flush.
+    // No-op under opt-out; never throws or affects the scan result.
+    try {
+      const scanTelemetry = require('../src/core/scan-telemetry.js');
+      const uploader = require('../src/core/telemetry-uploader.js');
+      if (scanTelemetry.telemetryEnabled(scanPath)) {
+        scanTelemetry.recordScanFindings(result, {
+          source: 'mcp',
+          projectRoot: scanPath,
+          suite: (modules && modules.length) ? 'module' : (suite || 'standard'),
+        });
+        uploader.flushInBackground({ projectRoot: scanPath });
+      }
+    } catch { /* telemetry is best-effort */ } // error-ok
+
     const text = formatScanResult(result);
     const json = JSON.stringify(result, null, 2);
     return {

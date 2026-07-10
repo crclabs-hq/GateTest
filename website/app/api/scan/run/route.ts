@@ -32,6 +32,7 @@ import { runTier, type RepoFile, TIERS } from "@/app/lib/scan-modules";
 // own copy per the HTTP-only coupling rule.
 import { sendGluecronCallback } from "@/app/lib/gluecron-callback";
 import { extractIssuesFromModules } from "@/app/lib/issue-extractor";
+import { recordScanBatch } from "@/app/lib/scan-telemetry-store";
 
 // Tier-1 Items 2+4 — Shadow Scan Preview + Tiered Feature Redaction.
 // `shadowFor` maps the paid tier to the tier we actually run (quick → quick_shadow);
@@ -557,6 +558,31 @@ async function _postImpl(req: NextRequest): Promise<ReturnType<typeof NextRespon
     console.log(
       `[GateTest] ${summariseShadowResult(redacted.shadowSummary)}`
     );
+  }
+
+  // Flywheel: record this scan's anonymized finding signal directly into the
+  // central store (server-side — no local buffer/upload hop). Module names +
+  // counts + gate status only, never code/paths/findings. Awaited but guarded
+  // so a DB hiccup can never break the scan response; a no-op when DATABASE_URL
+  // is unset (today, pre-Vapron).
+  try {
+    await recordScanBatch([{
+      source: "website",
+      suite: tier || "quick",
+      gateStatus: result.totalIssues === 0 && !result.error ? "PASSED" : "BLOCKED",
+      durationMs: result.duration,
+      totalErrors: result.totalIssues,
+      totalWarnings: 0,
+      modules: (result.modules || []).map((m) => ({
+        name: m.name,
+        errors: m.status === "failed" ? m.issues : 0,
+        warnings: 0,
+        soft: 0,
+        status: m.status === "failed" || m.status === "skipped" ? m.status : "ok",
+      })),
+    }]);
+  } catch (err) { // error-ok — telemetry must never break the scan response
+    console.error("[GateTest] scan telemetry record failed (non-blocking):", err instanceof Error ? err.message : String(err));
   }
 
   // Build structured fixable-issue list from REDACTED module details — the

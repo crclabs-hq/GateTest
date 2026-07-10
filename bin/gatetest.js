@@ -505,6 +505,24 @@ async function main() {
     summary = await gatetest.runSuite(args.suite || 'standard', { skipModules: args.skipModules });
   }
 
+  // Flywheel: record this scan's anonymized finding signal (module names +
+  // counts only, no code/paths) and kick a best-effort central flush. Both
+  // are no-ops under GATETEST_NO_TELEMETRY / .gatetest.json telemetry:false,
+  // and neither can throw or block the exit. First-run gets a one-line notice.
+  try {
+    const scanTelemetry = require('../src/core/scan-telemetry');
+    const uploader = require('../src/core/telemetry-uploader');
+    if (scanTelemetry.telemetryEnabled(projectRoot)) {
+      scanTelemetry.recordScanFindings(summary, {
+        source: 'cli',
+        projectRoot,
+        suite: args.module ? 'module' : (args.suite || 'standard'),
+      });
+      maybeNoticeTelemetry(projectRoot);
+      uploader.flushInBackground({ projectRoot });
+    }
+  } catch { /* telemetry is best-effort — never affects the gate */ } // error-ok
+
   // --auto-pr: when the gate fails AND the customer wants automated fixes,
   // invoke the AI fix engine for every finding with a file path and open a
   // pull request. Closes the long-standing "gate finds errors but doesn't
@@ -521,6 +539,29 @@ async function main() {
   }
 
   process.exit(summary.gateStatus === 'PASSED' ? 0 : 1);
+}
+
+/**
+ * Show the anonymized-telemetry notice exactly once per machine. Writes a
+ * marker under ~/.gatetest so it never repeats. Best-effort — a failure to
+ * read/write the marker simply means the notice may show again, never a crash.
+ */
+function maybeNoticeTelemetry(projectRoot) {
+  try {
+    const osMod = require('os');
+    const fsMod = require('fs');
+    const pathMod = require('path');
+    const marker = pathMod.join(osMod.homedir(), '.gatetest', '.telemetry-notice-shown');
+    if (fsMod.existsSync(marker)) return;
+    fsMod.mkdirSync(pathMod.dirname(marker), { recursive: true });
+    fsMod.writeFileSync(marker, new Date().toISOString(), 'utf-8');
+    console.log(
+      '\n  \x1b[2mGateTest sends anonymized scan stats (module names + counts only —\n' +
+      '  never your code, paths, or findings) to improve the engine.\n' +
+      '  Opt out any time: set GATETEST_NO_TELEMETRY=1 or add "telemetry": false\n' +
+      '  to .gatetest.json.\x1b[0m\n'
+    );
+  } catch { /* best-effort notice */ } // error-ok
 }
 
 /**
