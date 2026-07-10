@@ -27,8 +27,9 @@ const {
   distillRecipes,
 } = require('./flywheel-playback-engine');
 
+const { CHEAP_MODEL } = require('./engine-models');
+
 const ANTHROPIC_HOST  = 'api.anthropic.com';
-const MODEL           = 'claude-sonnet-4-6';
 const TIMEOUT_MS      = 90_000;
 const TEST_TIMEOUT_MS = 15_000;
 const MAX_ATTEMPTS    = 3;
@@ -42,10 +43,10 @@ const H_NAMES = ['Alpha', 'Beta', 'Gamma'];
 
 // ── Claude call ───────────────────────────────────────────────────────────────
 
-function _callClaude(apiKey, system, user) {
+function _callClaude(apiKey, system, user, model = CHEAP_MODEL) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
-      model: MODEL,
+      model,
       max_tokens: 8192,
       system,
       messages: [{ role: 'user', content: user }],
@@ -194,6 +195,7 @@ function _rank({ syntaxOk, testOk }) {
  * @param {string}   [opts.context]      — optional extra context injected into prompt
  * @param {number}   [opts.maxAttempts]  — max retry rounds (default 3)
  * @param {string}   [opts.apiKey]       — Anthropic key (falls back to env)
+ * @param {string}   [opts.model]        — Claude model id (default CHEAP_MODEL)
  * @returns {Promise<object>}
  */
 async function runFixOrchestration(opts) {
@@ -203,6 +205,7 @@ async function runFixOrchestration(opts) {
     projectRoot = process.cwd(),
     context     = '',
     maxAttempts = MAX_ATTEMPTS,
+    model       = CHEAP_MODEL,
   } = opts;
   // Honor an explicitly-passed apiKey even when empty (caller forcing the
   // no-key early-exit); only fall back to the env var when omitted entirely.
@@ -264,7 +267,7 @@ async function runFixOrchestration(opts) {
         _buildMultiHypothesisPrompt(filePath, content, issues, priorError);
 
       let responseText;
-      try   { responseText = await _callClaude(apiKey, systemPrompt, userPrompt); }
+      try   { responseText = await _callClaude(apiKey, systemPrompt, userPrompt, model); }
       catch (e) { return { fixed: false, reason: `claude-error: ${e.message}` }; }
 
       const hypotheses = _parseHypotheses(responseText);
@@ -367,4 +370,54 @@ async function runFixOrchestration(opts) {
   return { fixed: false, reason: `all ${maxAttempts} attempt(s) exhausted`, lastError: priorError };
 }
 
-module.exports = { runFixOrchestration };
+// ── Batch entry point — the contract bin/gatetest.js consumes ────────────────
+
+/**
+ * Fix a whole findings list (the shape produced by extractFileFromCheck in
+ * bin/gatetest.js: { file, message, moduleName, checkName, severity }),
+ * grouped per file, each file driven through runFixOrchestration.
+ *
+ * @param {object[]} findings
+ * @param {string}   projectRoot
+ * @param {string}   apiKey
+ * @param {{maxAttempts?: number, fileCap?: number, model?: string}} [opts]
+ * @returns {Promise<{accepted: object[], testFiles: object[], allFixes: object[], prBody: string, failed: object[]}>}
+ */
+async function runFixBatch(findings, projectRoot, apiKey, opts = {}) {
+  const { maxAttempts = MAX_ATTEMPTS, fileCap = 50, model = CHEAP_MODEL } = opts;
+  const byFile = new Map();
+  for (const f of findings || []) {
+    if (!f || !f.file) continue;
+    if (!byFile.has(f.file)) byFile.set(f.file, []);
+    byFile.get(f.file).push(`${f.moduleName || 'module'}:${f.checkName || 'check'} — ${f.message || ''}`);
+  }
+
+  const files = [...byFile.keys()].slice(0, fileCap);
+  const accepted = [];
+  const failed = [];
+  for (const file of files) {
+    const filePath = path.isAbsolute(file) ? file : path.join(projectRoot, file);
+    const result = await runFixOrchestration({
+      filePath,
+      issues: byFile.get(file),
+      projectRoot,
+      apiKey,
+      maxAttempts,
+      model,
+    });
+    if (result.fixed) {
+      // runFixOrchestration wrote the winning hypothesis to disk — read it
+      // back so callers get the exact accepted content.
+      accepted.push({ file, fixed: fs.readFileSync(filePath, 'utf-8'), issues: byFile.get(file), result });
+    } else {
+      failed.push({ file, reason: result.reason || 'unknown', issues: byFile.get(file) });
+    }
+  }
+
+  const { composePrBody } = require('../../lib/pr-composer.js');
+  const prBody = composePrBody({ fixes: accepted.map(({ file, issues }) => ({ file, issues })) });
+  // The orchestrator verifies existing tests; it does not generate new ones.
+  return { accepted, testFiles: [], allFixes: accepted, prBody, failed };
+}
+
+module.exports = { runFixOrchestration, runFixBatch };

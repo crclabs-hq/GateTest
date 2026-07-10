@@ -72,9 +72,11 @@ function _buildGroundingHeader(projectRoot) {
   return header;
 }
 
+const { CHEAP_MODEL } = require('./engine-models');
+
 const ANTHROPIC_HOST   = 'api.anthropic.com';
-const MODEL_FAST       = 'claude-sonnet-4-6';   // small/simple fixes
-const MODEL_SMART      = 'claude-sonnet-4-6';    // complex/multi-line
+const MODEL_FAST       = CHEAP_MODEL;   // small/simple fixes
+const MODEL_SMART      = CHEAP_MODEL;   // complex/multi-line
 const MAX_FILE_BYTES   = 120_000;   // skip files larger than 120 KB
 const TIMEOUT_MS       = 45_000;
 const SMART_THRESHOLD  = 8_000;     // files > 8 KB get Sonnet
@@ -182,7 +184,10 @@ async function aiFix(opts) {
     return { fixed: false, description: `Could not read file: ${err.message}`, filesChanged: [] };
   }
 
-  const model = Buffer.byteLength(originalContent) > SMART_THRESHOLD ? MODEL_SMART : MODEL_FAST;
+  // Explicit user model choice (MCP `model` arg / CLI --model) overrides the
+  // size-threshold pick.
+  const model = opts.model
+    || (Buffer.byteLength(originalContent) > SMART_THRESHOLD ? MODEL_SMART : MODEL_FAST);
 
   // ── CONTEXTUAL GROUNDING ──────────────────────────────────────────────────
   // Resolve project root (use opts.projectRoot if supplied, else walk up from

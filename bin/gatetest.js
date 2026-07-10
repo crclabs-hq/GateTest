@@ -80,6 +80,12 @@ const HELP = `
                        BUT here is a PR to merge."
     --auto-pr-base <ref>    Base branch for the auto-PR (default: current branch)
     --auto-pr-branch <name> Override the auto-generated branch name
+    --model <name>     Claude model for AI fixes (fix --apply and --auto-pr):
+                       sonnet (default) | opus | fable — or full model ids.
+                       Env fallback: GATETEST_FIX_MODEL. Runs on YOUR OWN
+                       ANTHROPIC_API_KEY (bring-your-own-key): calls go straight
+                       from your machine to api.anthropic.com, you control the
+                       spend. Fable 5 is ~3.3x Sonnet cost per token.
     --since <ref>      Incremental scan: only check files changed since <ref>
                        (branch, tag, or commit SHA). Skips full-graph modules
                        (importCycle, deadCode, crossFileTaint, openapiDrift).
@@ -534,10 +540,21 @@ async function main() {
  */
 async function runAutoPr(summary, projectRoot, args) {
   const { execSync } = require('child_process');
-  const { runFixOrchestration } = require('../src/core/cli-fix-orchestrator');
+  const { runFixBatch } = require('../src/core/cli-fix-orchestrator');
+  const { resolveModelChoice, CHEAP_MODEL } = require('../src/core/engine-models');
 
   function sh(cmd, opts) {
     return execSync(cmd, { cwd: projectRoot, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], ...opts });
+  }
+
+  // Model choice: --model flag > GATETEST_FIX_MODEL env > CHEAP_MODEL.
+  // Validated BEFORE the key check so a bad name fails fast and keyless.
+  let fixModel = CHEAP_MODEL;
+  const rawModel = args.model || process.env.GATETEST_FIX_MODEL;
+  if (rawModel) {
+    const choice = resolveModelChoice(rawModel);
+    if (!choice.ok) return { error: choice.error };
+    fixModel = choice.model;
   }
 
   // Pre-flight checks
@@ -547,6 +564,8 @@ async function runAutoPr(summary, projectRoot, args) {
   try { sh('gh --version'); }
   catch { return { error: 'gh CLI not found on PATH. Install: https://cli.github.com/' }; }
 
+  // BYOK: this is the user's own Anthropic key — calls go straight from this
+  // machine to api.anthropic.com; the user controls the spend.
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return { error: 'ANTHROPIC_API_KEY not set — AI fix engine cannot run' };
@@ -606,9 +625,10 @@ async function runAutoPr(summary, projectRoot, args) {
   // Run the full production fix pipeline
   let orchestration;
   try {
-    orchestration = await runFixOrchestration(fixable, projectRoot, apiKey, {
+    orchestration = await runFixBatch(fixable, projectRoot, apiKey, {
       maxAttempts: 3,
       fileCap: 50,
+      model: fixModel,
     });
   } catch (err) {
     try { sh(`git checkout ${originalBranch}`); sh(`git branch -D ${fixBranch}`); } catch { /* ignore */ }
@@ -682,8 +702,9 @@ async function runAutoPr(summary, projectRoot, args) {
  */
 async function runFixApply(argv, rootDir) {
   const { GateTest } = require('../src/index');
-  const { runFixOrchestration } = require('../src/core/cli-fix-orchestrator');
+  const { runFixBatch } = require('../src/core/cli-fix-orchestrator');
   const { extractFileFromCheck } = require('../src/core/parse-finding');
+  const { resolveModelChoice, CHEAP_MODEL, ALLOWED_FIX_MODELS } = require('../src/core/engine-models');
 
   const localArgs = { suite: 'standard' };
   for (let i = 0; i < argv.length; i++) {
@@ -692,6 +713,7 @@ async function runFixApply(argv, rootDir) {
     else if (a === '--apply') localArgs.apply = true;
     else if (a === '--dry-run') localArgs.dryRun = true;
     else if (a === '--suite' && argv[i + 1]) localArgs.suite = argv[++i];
+    else if (a === '--model' && argv[i + 1]) localArgs.model = argv[++i];
     else if (a === '--project' && argv[i + 1]) { rootDir = path.resolve(argv[++i]); }
   }
 
@@ -711,9 +733,16 @@ async function runFixApply(argv, rootDir) {
     --suite <name>        Suite to scan (default: standard)
     --project <path>      Project root (default: cwd)
     --dry-run             Show what would be fixed without writing any files
+    --model <name>        Claude model for the fix engine. One of:
+                            sonnet (claude-sonnet-5, default)
+                            opus   (claude-opus-4-8)
+                            fable  (claude-fable-5, most capable, ~3.3x Sonnet cost)
+                          Env fallback: GATETEST_FIX_MODEL.
 
   REQUIRES
-    ANTHROPIC_API_KEY — Claude AI fix engine
+    ANTHROPIC_API_KEY — YOUR OWN Anthropic key (bring-your-own-key). Fix calls
+    go straight from this machine to api.anthropic.com — you control the spend,
+    and nothing is proxied through GateTest servers.
 `);
     return 0;
   }
@@ -724,9 +753,30 @@ async function runFixApply(argv, rootDir) {
     return 1;
   }
 
+  // Model choice: --model flag > GATETEST_FIX_MODEL env > CHEAP_MODEL.
+  // Validated BEFORE the key check so a bad name fails fast and keyless.
+  let fixModel = CHEAP_MODEL;
+  const rawModel = localArgs.model || process.env.GATETEST_FIX_MODEL;
+  if (rawModel) {
+    const choice = resolveModelChoice(rawModel);
+    if (!choice.ok) {
+      console.error(`\n  [GateTest fix] ${choice.error}\n`);
+      for (const [id, m] of Object.entries(ALLOWED_FIX_MODELS)) {
+        console.error(`    ${m.aliases[0].padEnd(8)} ${id.padEnd(18)} ${m.label}`);
+      }
+      console.error('');
+      return 1;
+    }
+    fixModel = choice.model;
+  }
+
+  // BYOK: this is the user's own Anthropic key — calls go straight from this
+  // machine to api.anthropic.com; the user controls the spend.
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     console.error('\n  [GateTest fix] ANTHROPIC_API_KEY is not set.\n');
+    console.error('  Bring your own key: https://console.anthropic.com/ → API keys, then');
+    console.error('  export ANTHROPIC_API_KEY=sk-ant-... (you pay Anthropic directly).\n');
     return 1;
   }
 
@@ -772,7 +822,7 @@ async function runFixApply(argv, rootDir) {
 
   let orchestration;
   try {
-    orchestration = await runFixOrchestration(fixable, rootDir, apiKey, { maxAttempts: 3, fileCap: 50 });
+    orchestration = await runFixBatch(fixable, rootDir, apiKey, { maxAttempts: 3, fileCap: 50, model: fixModel });
   } catch (err) {
     console.error(`\n  \x1b[31m[GateTest fix]\x1b[0m Fix engine error: ${err.message?.slice(0, 300) || err}\n`);
     return 1;
@@ -834,6 +884,7 @@ function parseArgs(argv) {
     else if (arg === '--auto-pr') args.autoPr = true;
     else if (arg === '--auto-pr-base' && argv[i + 1]) args.autoPrBase = argv[++i];
     else if (arg === '--auto-pr-branch' && argv[i + 1]) args.autoPrBranch = argv[++i];
+    else if (arg === '--model' && argv[i + 1]) args.model = argv[++i];
     else if (arg === '--since' && argv[i + 1]) args.since = argv[++i];
     else if (arg === '--pr') args.pr = true;
     else if (arg === '--diff') args.diff = true;

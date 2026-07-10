@@ -141,3 +141,67 @@ describe('temp directory lifecycle', () => {
     assert(after >= 0); // basic sanity — no exception thrown
   });
 });
+
+// ── runFixBatch — the batch contract bin/gatetest.js consumes ─────────────────
+
+const { runFixBatch } = require('../src/core/cli-fix-orchestrator');
+
+describe('runFixBatch', () => {
+  test('exports runFixBatch as a function', () => {
+    assert.equal(typeof runFixBatch, 'function');
+  });
+
+  test('returns the full batch contract shape with no key (forced no-api-key path)', async () => {
+    const tmp = makeTmp();
+    writeFile(tmp, 'a.js', 'const a = 1;\n');
+    writeFile(tmp, 'b.js', 'const b = 2;\n');
+    const findings = [
+      { file: 'a.js', message: 'issue one', moduleName: 'secrets', checkName: 'hardcoded' },
+      { file: 'a.js', message: 'issue two', moduleName: 'lint', checkName: 'unused' },
+      { file: 'b.js', message: 'issue three', moduleName: 'lint', checkName: 'unused' },
+    ];
+    try {
+      const result = await runFixBatch(findings, tmp, '', { maxAttempts: 1 });
+      assert.ok(Array.isArray(result.accepted), 'accepted is an array');
+      assert.ok(Array.isArray(result.testFiles), 'testFiles is an array');
+      assert.ok(Array.isArray(result.allFixes), 'allFixes is an array');
+      assert.ok(Array.isArray(result.failed), 'failed is an array');
+      assert.equal(typeof result.prBody, 'string');
+      // Empty apiKey forces the no-key early exit per file — nothing accepted,
+      // both files reported failed, with the a.js issues grouped together.
+      assert.equal(result.accepted.length, 0);
+      assert.equal(result.failed.length, 2);
+      assert.equal(result.failed[0].reason, 'no-api-key');
+      assert.equal(result.failed[0].issues.length, 2);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('fileCap limits how many files are attempted', async () => {
+    const tmp = makeTmp();
+    writeFile(tmp, 'a.js', 'const a = 1;\n');
+    writeFile(tmp, 'b.js', 'const b = 2;\n');
+    const findings = [
+      { file: 'a.js', message: 'x', moduleName: 'm', checkName: 'c' },
+      { file: 'b.js', message: 'y', moduleName: 'm', checkName: 'c' },
+    ];
+    try {
+      const result = await runFixBatch(findings, tmp, '', { maxAttempts: 1, fileCap: 1 });
+      assert.equal(result.accepted.length + result.failed.length, 1);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('skips findings without a file path instead of crashing', async () => {
+    const result = await runFixBatch(
+      [{ file: null, message: 'config-level' }, null],
+      process.cwd(),
+      '',
+      { maxAttempts: 1 },
+    );
+    assert.equal(result.accepted.length, 0);
+    assert.equal(result.failed.length, 0);
+  });
+});
