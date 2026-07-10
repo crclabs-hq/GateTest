@@ -91,6 +91,26 @@ const { composePrBody } = require('../lib/pr-composer.js');
 const { diagnoseFinding } = require('../lib/nuclear-diagnoser.js');
 const { resolveStackTrace } = require('../src/core/source-map-resolver.js');
 const { blameLine, blameRange, showCommit, findLikelyRegressionCommit } = require('../src/core/regression-bisector.js');
+const { resolveModelChoice, allowedModelIds, ALLOWED_FIX_MODELS, CHEAP_MODEL } = require('../src/core/engine-models.js');
+
+// Every value a user may pass as `model` — exact ids plus their aliases. Built
+// from the engine-models allow-list so the schema enum can never drift.
+const MODEL_ENUM = [
+  ...allowedModelIds(),
+  ...Object.values(ALLOWED_FIX_MODELS).flatMap((m) => [...m.aliases]),
+];
+
+// Resolve args.model > GATETEST_FIX_MODEL env > CHEAP_MODEL. Returns either
+// { model } or { errorResult } ready to return from a tool handler.
+function resolveRequestedModel(args) {
+  const raw = (args && args.model) || process.env.GATETEST_FIX_MODEL;
+  if (!raw) return { model: CHEAP_MODEL };
+  const choice = resolveModelChoice(raw);
+  if (choice.ok) return { model: choice.model };
+  return {
+    errorResult: { content: [{ type: 'text', text: `Error: ${choice.error}` }], isError: true },
+  };
+}
 
 // ---------------------------------------------------------------------------
 // MCP Subscription Gate — $29/mo at gatetest.ai/mcp
@@ -353,7 +373,8 @@ const TOOLS = [
       'Reads the file, sends the relevant slice + the finding to Claude, and writes the fix in place. ' +
       'Then call verify_fix to confirm it worked — never assume a fix is correct without verifying. ' +
       'When `line` is supplied the fix runs in surgical mode (±20-line window); ' +
-      'otherwise whole-file mode with a mutation guard. Requires ANTHROPIC_API_KEY.',
+      'otherwise whole-file mode with a mutation guard. Requires ANTHROPIC_API_KEY — ' +
+      'YOUR OWN Anthropic key (bring-your-own-key): the spend is yours, not GateTest\'s.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -372,6 +393,14 @@ const TOOLS = [
         line: {
           type: 'number',
           description: 'Optional line number the finding points to — enables surgical mode',
+        },
+        model: {
+          type: 'string',
+          enum: MODEL_ENUM,
+          description:
+            'Claude model for the fix (default sonnet = claude-sonnet-5). ' +
+            'fable (claude-fable-5) is the most capable at ~3.3x Sonnet cost; ' +
+            'opus (claude-opus-4-8) sits between. Spend rides your own ANTHROPIC_API_KEY.',
         },
       },
       required: ['file', 'issue'],
@@ -407,7 +436,8 @@ const TOOLS = [
     name: 'explain_finding',
     description:
       'Nuclear-tier Claude diagnosis of a single finding. Returns explanation, ' +
-      'root cause, recommendation, and platform notes. Requires ANTHROPIC_API_KEY.',
+      'root cause, recommendation, and platform notes. Requires ANTHROPIC_API_KEY — ' +
+      'YOUR OWN Anthropic key (bring-your-own-key): the spend is yours, not GateTest\'s.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -422,6 +452,14 @@ const TOOLS = [
         scanContext: {
           type: 'object',
           description: 'Optional { platform, stack } context to sharpen the diagnosis',
+        },
+        model: {
+          type: 'string',
+          enum: MODEL_ENUM,
+          description:
+            'Claude model for the diagnosis (default sonnet = claude-sonnet-5). ' +
+            'fable (claude-fable-5) is the most capable at ~3.3x Sonnet cost; ' +
+            'opus (claude-opus-4-8) sits between. Spend rides your own ANTHROPIC_API_KEY.',
         },
       },
       required: ['finding'],
@@ -858,10 +896,11 @@ async function handleCheckHealth() {
       content: [{
         type: 'text',
         text:
-          `## GateTest MCP — v1.57.0 ✅ Operational\n\n` +
+          `## GateTest MCP — v1.58.0 ✅ Operational\n\n` +
           `- Modules loaded: ${moduleNames.length}\n` +
           `- Transport: stdio\n` +
-          `- Anthropic API key: ${hasAnthropic ? '✅ present (fix_issue, explain_finding available)' : '⚠️ missing (fix_issue, explain_finding will return an error)'}\n\n` +
+          `- Anthropic API key: ${hasAnthropic ? '✅ present (fix_issue, explain_finding available — BYOK, your key funds the calls)' : '⚠️ missing (fix_issue, explain_finding will return an error)'}\n` +
+          `- Default AI model: ${resolveRequestedModel(null).errorResult ? `⚠️ invalid GATETEST_FIX_MODEL (${process.env.GATETEST_FIX_MODEL})` : resolveRequestedModel(null).model} (override per-call via the \`model\` arg: sonnet | opus | fable)\n\n` +
           `## Agent Workflow\n\n` +
           `**Before fixing anything — hear what prod says is broken:**\n` +
           `→ \`get_production_errors\` — real users, real file:line, occurrence count\n\n` +
@@ -898,7 +937,7 @@ async function handleCheckHealth() {
 // no streaming, no retry, just one call. Returns the assistant text or
 // throws.
 // ---------------------------------------------------------------------------
-async function callClaude(prompt, { maxTokens = 4096, model = 'claude-sonnet-4-6' } = {}) {
+async function callClaude(prompt, { maxTokens = 4096, model = CHEAP_MODEL } = {}) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     const err = new Error('ANTHROPIC_API_KEY not set');
@@ -935,6 +974,9 @@ async function handleFixIssue(args) {
   if (!file || !issue) {
     return { content: [{ type: 'text', text: 'Error: file and issue are both required' }], isError: true };
   }
+  // Validate the model BEFORE the key check so a bad name errors keyless.
+  const requested = resolveRequestedModel(args);
+  if (requested.errorResult) return requested.errorResult;
   if (!process.env.ANTHROPIC_API_KEY) {
     return {
       content: [{
@@ -954,6 +996,7 @@ async function handleFixIssue(args) {
       issueTitle: moduleName || 'finding',
       issueMessage: issue,
       lineNumber: typeof line === 'number' ? line : undefined,
+      model: requested.model,
     });
     if (!result || result.fixed !== true) {
       return {
@@ -1000,6 +1043,9 @@ async function handleExplainFinding(args) {
   if (!finding || typeof finding !== 'object') {
     return { content: [{ type: 'text', text: 'Error: finding must be an object with at least { detail, module, severity }' }], isError: true };
   }
+  // Validate the model BEFORE the key check so a bad name errors keyless.
+  const requested = resolveRequestedModel(args);
+  if (requested.errorResult) return requested.errorResult;
   if (!process.env.ANTHROPIC_API_KEY) {
     return {
       content: [{
@@ -1016,7 +1062,7 @@ async function handleExplainFinding(args) {
       finding,
       hostname: hostname || 'your-domain.com',
       scanContext: scanContext || {},
-      askClaudeForDiagnosis: (p) => callClaude(p, { maxTokens: 1024 }),
+      askClaudeForDiagnosis: (p) => callClaude(p, { maxTokens: 1024, model: requested.model }),
     });
     if (!result.ok) {
       return { content: [{ type: 'text', text: `Diagnosis skipped: ${result.reason}` }], isError: true };
@@ -2192,7 +2238,7 @@ async function handleHttpRequest(args) {
 // ---------------------------------------------------------------------------
 
 const server = new Server(
-  { name: 'gatetest', version: '1.57.0' },
+  { name: 'gatetest', version: '1.58.0' },
   { capabilities: { tools: {}, prompts: {} } }
 );
 
