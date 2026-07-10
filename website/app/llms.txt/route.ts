@@ -15,16 +15,16 @@ import { USE_CASES } from "../use-cases/use-cases-catalog";
 import { BLOG_POSTS } from "../blog/blog-catalog";
 import { getAllCweSlugs } from "../find/cwe-catalog";
 import { getAllRegulationSlugs } from "../regulation/catalog";
+import siteStats from "../data/site-stats.json";
 
 export const dynamic = "force-static";
 
 const BASE = "https://gatetest.ai";
 
-// The site-wide marketed module count. Kept as one constant so the public
-// claim in llms.txt matches the homepage / layout structured data rather than
-// the raw page-count derived from the data file (which currently differs —
-// tracked as the 91/104/110 module-count drift for the owner to reconcile).
-const MODULE_COUNT = 110;
+// The site-wide marketed module count, taken from the same generated stats
+// file the homepage hero uses (scripts/generate-site-stats.js), so the public
+// claim here can never drift from the rest of the site again.
+const MODULE_COUNT = siteStats.modules.total;
 
 const COMPARE = [
   "sonarqube",
@@ -49,7 +49,7 @@ function buildLlmsTxt(): string {
       `with ${moduleCount} modules — covering security, supply chain, accessibility, ` +
       "reliability, and code quality — then, on its paid tiers, opens a pull request " +
       "that fixes what it found. It runs as a GitHub Action, a local pre-push hook, or " +
-      "an on-demand scan, and it's priced per scan with no subscription."
+      "an on-demand scan — priced per scan, with optional Continuous and MCP subscriptions."
   );
   lines.push("");
   lines.push("## Key facts");
@@ -59,7 +59,7 @@ function buildLlmsTxt(): string {
   lines.push("- Languages: JavaScript, TypeScript, Python, Go, Java, Ruby, PHP, plus infrastructure-as-code (Docker, Terraform, Kubernetes, CI workflows)");
   lines.push("- Output formats: Console, JSON, HTML, SARIF (for GitHub code scanning), JUnit");
   lines.push("- AI fix loop: each finding is fixed by Claude, validated through a syntax + re-scan gate, and shipped with a generated regression test in a reviewable pull request");
-  lines.push("- Pricing: Quick Scan $29, Full Scan $99, Scan + Fix $199, Forensic $399, Continuous $49/mo — pay per scan, no subscription");
+  lines.push("- Pricing: Quick Scan $29, Full Scan $99, Scan + Fix $199, Forensic $399 (one-time, per scan) · Continuous $49/mo · MCP $29/mo");
   lines.push("- Replaces or complements: SonarQube, Snyk, ESLint, GitHub code scanning, DeepSource, Semgrep, CodeQL");
   lines.push("");
 

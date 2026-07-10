@@ -10,6 +10,8 @@
  * all three gaps over a single stdio connection.
  */
 
+import { TOOL_COUNT } from "../mcp/tools-data";
+
 const CAPABILITIES = [
   {
     id: "eyes",
@@ -92,8 +94,9 @@ export default function HomeEyesEarsHands() {
           <p className="text-muted text-lg max-w-3xl mx-auto">
             AI coding agents write UI blind, never hear the app fail, and claim
             &ldquo;fixed&rdquo; without proof. GateTest MCP closes all three
-            gaps — 18 tools, one stdio connection, works in Claude Code, Cursor,
-            Windsurf, and any MCP-compatible agent.
+            gaps — the full 120-module engine plus {TOOL_COUNT} tools over one
+            connection, in Claude Code, Cursor, Windsurf, and any
+            MCP-compatible agent.
           </p>
         </div>
 

@@ -1,44 +1,18 @@
 import type { Metadata } from "next";
 import McpCheckoutButton from "./McpCheckoutButton";
+import { ALL_TOOLS, TOOL_COUNT } from "./tools-data";
 
 export const metadata: Metadata = {
-  title: "GateTest MCP — Give Claude Eyes, Ears & Hands | $29/mo",
+  title: "GateTest MCP — The 120-Module Engine in Your Editor | $29/mo",
   description:
-    "Full GateTest MCP integration for Claude Code, Cursor, and any MCP-compatible AI. Screenshot live pages, pull production errors, run tests, query your DB, and run 120-module scans — all inside your AI assistant.",
+    "The full 120-module GateTest engine inside Claude Code, Cursor, and any MCP-compatible AI. Scan, screenshot live pages, pull production errors, run tests, query your DB — and prove fixes worked.",
   openGraph: {
-    title: "GateTest MCP — Eyes, Ears & Hands for Claude",
+    title: "GateTest MCP — The 120-Module Engine in Your Editor",
     description:
-      "Give your AI eyes (screenshots), ears (Sentry/Datadog/Rollbar errors), and hands (run_tests, stream_logs, query_db, http_request). 22 tools. $29/mo.",
+      `All 120 scan modules plus eyes (screenshots), ears (Sentry/Datadog/Rollbar errors), and hands (run_tests, stream_logs, query_db, http_request). ${TOOL_COUNT} tools. $29/mo.`,
     url: "https://gatetest.ai/mcp",
   },
 };
-
-const ALL_TOOLS = [
-  // Free
-  { name: "check_health", paid: false, desc: "Verify GateTest engine is operational" },
-  { name: "list_modules", paid: false, desc: "List all 120 modules with descriptions" },
-  { name: "get_badge", paid: false, desc: "Get embeddable README badge for any repo" },
-  { name: "scan_url", paid: false, desc: "Quick scan any live URL via hosted API" },
-  { name: "scan_local (quick)", paid: false, desc: "4-module quick scan — syntax, lint, secrets, codeQuality" },
-  // Paid
-  { name: "scan_local (full/smart)", paid: true, desc: "120-module full or diff-aware smart scan" },
-  { name: "run_module", paid: true, desc: "Run one specific module against a path" },
-  { name: "fix_issue", paid: true, desc: "AI-driven auto-fix for a specific finding" },
-  { name: "explain_finding", paid: true, desc: "Forensic-tier Claude diagnosis per finding" },
-  { name: "compose_pr", paid: true, desc: "Render a PR body for a set of fixes" },
-  { name: "capture_screenshot", paid: true, desc: "👁 Eyes — screenshot any live URL or localhost" },
-  { name: "get_visual_diff", paid: true, desc: "👁 Eyes — baseline vs current visual diff" },
-  { name: "run_live_checks", paid: true, desc: "👂 Ears — runtime errors, console, API health" },
-  { name: "get_production_errors", paid: true, desc: "👂 Ears — Sentry / Datadog / Rollbar top errors" },
-  { name: "verify_fix", paid: true, desc: "🤝 Hands — prove the fix worked (re-scan changed files)" },
-  { name: "run_tests", paid: true, desc: "🤝 Hands — auto-detect + run the project's test suite (Jest/Vitest/pytest/cargo/go)" },
-  { name: "stream_logs", paid: true, desc: "🤝 Hands — tail a running process or log file in real time (up to 60s)" },
-  { name: "query_db", paid: true, desc: "🤝 Hands — read-only SQL/NoSQL queries (Postgres/MySQL/SQLite/MongoDB/Redis)" },
-  { name: "http_request", paid: true, desc: "🤝 Hands — call any API with auth headers, follow redirects, inspect responses" },
-  { name: "audit_log", paid: true, desc: "Query past local scans in the memory store" },
-  { name: "compare_repos", paid: true, desc: "Cross-repo prior-art lookup via memory store" },
-  { name: "get_report", paid: true, desc: "Retrieve full result of the last scan this session" },
-];
 
 const FAQ = [
   {
@@ -61,6 +35,10 @@ const FAQ = [
     q: "Can I use it with Cursor, Windsurf, or other MCP clients?",
     a: "Yes. GateTest MCP follows the MCP spec — any client that supports stdio transport works. Set GATETEST_API_KEY in the environment for that server.",
   },
+  {
+    q: "Which AI model runs my fixes — and who pays for it?",
+    a: "You choose, and you pay Anthropic directly (bring-your-own-key). AI fixes run on YOUR ANTHROPIC_API_KEY — calls go straight from your machine to Anthropic, never through our servers, and you control the spend. Pick the model per call: sonnet (Claude Sonnet 5, default — fast and cheapest), opus (Opus 4.8 — deeper reasoning), or fable (Fable 5 — the most capable model Anthropic ships, ~3.3x Sonnet cost). No other QA tool lets you do this.",
+  },
 ];
 
 export default function McpPage() {
@@ -79,7 +57,8 @@ export default function McpPage() {
           <span className="text-violet-400">hands</span>
         </h1>
         <p className="text-neutral-400 text-lg max-w-2xl mx-auto mb-8">
-          22 tools. 120-module engine. Screenshot live pages, pull production errors, run tests, query your DB, and prove fixes worked — all without leaving your AI assistant.
+          The full <span className="text-white font-semibold">120-module engine</span>, inside your AI assistant.
+          {" "}{TOOL_COUNT} tools let it screenshot live pages, pull production errors, run tests, query your DB, and prove fixes worked — without leaving your editor.
         </p>
 
         {/* Price + CTA */}
@@ -126,7 +105,7 @@ export default function McpPage() {
             </pre>
           </div>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
-            <h3 className="font-semibold text-neutral-200 mb-1">Claude Code CLI <span className="text-blue-400 text-xs font-normal ml-1">full 22 tools</span></h3>
+            <h3 className="font-semibold text-neutral-200 mb-1">Claude Code CLI <span className="text-blue-400 text-xs font-normal ml-1">full {TOOL_COUNT} tools</span></h3>
             <p className="text-neutral-500 text-xs mb-3">Local install — unlocks scan_local, run_tests, query_db, stream_logs</p>
             <pre className="text-emerald-300 text-xs font-mono bg-neutral-950 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">
 {`claude mcp add gatetest -- npx -y @gatetest/mcp-server`}
@@ -148,7 +127,7 @@ export default function McpPage() {
 
       {/* Tool table */}
       <section className="max-w-5xl mx-auto px-6 py-12">
-        <h2 className="text-2xl font-bold mb-6 text-center">22 tools — what&apos;s free vs paid</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center">{TOOL_COUNT} tools — what&apos;s free vs paid</h2>
         <div className="rounded-xl border border-neutral-800 overflow-hidden">
           <table className="w-full text-sm">
             <thead>

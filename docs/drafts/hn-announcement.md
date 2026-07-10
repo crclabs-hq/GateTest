@@ -33,7 +33,7 @@ you edited and returns a hard ✅ FIX VERIFIED or ❌ NOT VERIFIED. No more
 Install in one command:
   claude mcp add gatetest -- npx -y @gatetest/mcp-server
 
-18 tools total. Stdio transport — no account, no webhook, no infra. The engine
+22 tools total. Stdio transport — no account, no webhook, no infra. The engine
 runs in-process on your local filesystem.
 
 Full tool reference and example prompts: github.com/crclabs-hq/GateTest/tree/main/packages/mcp-server
@@ -53,7 +53,7 @@ Three things AI coding agents can't do natively:
 2. Hear what's failing in production right now
 3. Prove a fix actually worked without assuming
 
-GateTest MCP (open source, 18 tools) closes all three:
+GateTest MCP (open source, 22 tools) closes all three:
 - capture_screenshot → real image of any URL including localhost
 - get_production_errors → Sentry/Datadog/Rollbar with file:line
 - verify_fix → hard ✅/❌ on exactly the files you edited
