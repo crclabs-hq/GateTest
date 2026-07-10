@@ -1,0 +1,161 @@
+{
+  "generatedAt": "2026-07-10T06:48:04.906Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 9,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 2,
+      "SonarQube": 0,
+      "Semgrep": 4,
+      "CodeQL": 3,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 0
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48854265",
+        "author": "ShinyLeftPad",
+        "type": "comment",
+        "title": null,
+        "text": "Sponsored by a company that sells \"LLM detection\", funded by the same VCs that fund LLM products, destined to be snake oil because both sides converge by design, humans sound like LLMs and LLMs sound like humans.",
+        "url": "https://news.ycombinator.com/item?id=48854265",
+        "points": null,
+        "numComments": null,
+        "storyId": 48847940,
+        "createdAt": "2026-07-10T00:23:47Z",
+        "createdAtUnix": 1783643027,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48848639",
+        "author": "cvber45345ds",
+        "type": "comment",
+        "title": null,
+        "text": "\" but we don't believe it's inevitable.\" Best get believing pal, because not only is it inevitable, it represents the last evolution in our societies output. There will be slop from now until eternity. Recalibrate your aesthetics, because everything is going to look like model output. The detection model is flawed, and snake-oil at best. 仕方がない (shikata ga nai).",
+        "url": "https://news.ycombinator.com/item?id=48848639",
+        "points": null,
+        "numComments": null,
+        "storyId": 48847940,
+        "createdAt": "2026-07-09T16:36:19Z",
+        "createdAtUnix": 1783614979,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48848915",
+        "author": "wackget",
+        "type": "comment",
+        "title": null,
+        "text": "What the actual fuck is going on with web development nowadays?Look at the sheer number of ancillary files in this repo: .agents .claude .config .cursor .dagster_home .depot .flox .github .husky .idea .interface-design .pi .posthog-code .run .semgrep .stamphog .vscode .zed agent-os bin cli common devenv docker docs frontend funnel-udf livestream nodejs packages&#x2F;quill patches playwright posthog products proto rust services share terraform tools .cursorignore .cursorrules .dockerignore .editorconfig .env.development .env.example .env.local.example .env.services .envrc .git-blame-ignore-revs .gitattributes .gitignore .kearc .mcp.json .nvmrc .oxfmtrc.json .oxlintrc.json .stylelintignore .stylelintrc.js .test_durations .test_quarantine.json .watchmanconfig .worktreeinclude .worktreelink AGENTS.md AI_POLICY.md CHANGELOG.md CLAUDE.md CONTRIBUTING.md Dockerfile Dockerfile.llm-analytics Dockerfile.ml-mirror-image-scrub Dockerfile.node Dockerfile.playwright Dockerfile.recording-rasterizer Dockerfile.sandbox LICENSE README.md conftest.py dagster_cloud.yaml depot.json dist-workspace.toml docker-compose.base.yml docker-compose.dev-full.yml docker-compose.dev.yml docker-compose.hobby.yml docker-compose.multinode-clickhouse.yml docker-compose.playwright.yml docker-compose.profiles.yml docker-compose.sandbox.yml greptile.json hogli.yaml manage.py otel-collector-config.dev.yaml package.json pnpm-lock.yaml pnpm-workspace.yaml postcss.config.js posthog.json pyproject.toml pytest.ini tach.toml tsconfig.dev.json tsconfig.json tsconfig.kea-typegen.json turbo.json unit.json.tpl uv.lock What percentage of those files are actually directly related to the source code of the software? 1%?How can anyone in their right mind look at this kind of setup and feel good about it?",
+        "url": "https://news.ycombinator.com/item?id=48848915",
+        "points": null,
+        "numComments": null,
+        "storyId": 48846293,
+        "createdAt": "2026-07-09T16:53:39Z",
+        "createdAtUnix": 1783616019,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48848796",
+        "author": "setgree",
+        "type": "comment",
+        "title": null,
+        "text": "I like the clarity, tone, and readability of your webpage. Also your FAQ is refreshing> When Should I talk to sales? > Talk to sales if you need high-volume pricing beyond 2M credits&#x2F;month, custom rate limits, SSO &#x2F; SAML, SCIM provisioning, an uptime SLA, annual invoicing, an MSA &#x2F; DPA, or a dedicated support channel. Reach us at hello@context.dev or through the contact page.Would that this were the norm everywhere, rather than (say) a sales rep from Datadog scraping my phone number from who knows where to ask about my company's needs after I sign up for a free account on a whim :)",
+        "url": "https://news.ycombinator.com/item?id=48848796",
+        "points": null,
+        "numComments": null,
+        "storyId": 48847562,
+        "createdAt": "2026-07-09T16:46:51Z",
+        "createdAtUnix": 1783615611,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48848430",
+        "author": "setgree",
+        "type": "comment",
+        "title": null,
+        "text": "I'm not an expert but I think this is an old lesson in warfare, that guerillas can triumph over larger adversaries by being more exploratory&#x2F;iterative and less rules-bound. Tolstoy tells this story in the second half of War and Peace. Likewise with Iraqi militants wreaking havoc with IEDs. People repelling an invader have every incentive to move fast.",
+        "url": "https://news.ycombinator.com/item?id=48848430",
+        "points": null,
+        "numComments": null,
+        "storyId": 48845514,
+        "createdAt": "2026-07-09T16:22:13Z",
+        "createdAtUnix": 1783614133,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48847577",
+        "author": "asadeddin",
+        "type": "story",
+        "title": "Show HN: Sighthound - open-source vulnerability scanner for source code",
+        "text": "We're open-sourcing Sighthound today, our rules-based static security scanner. What makes it special is that it's coded in rust and uses tree-sitter as it's AST making it very fast and easily extensible.Why build another scanner in 2026? We wanted to improve some of our detection outcomes but noticed the current open source scanners like Semgrep&#x2F;Opengrep we're capped by a bunch of adoption limitations such as being written in OCaml, requiring a lot of work to add a language parser, and the rulesets were licensed differently and required paid offerings. It also felt that licensing was moving backwards rather than forward.We wanted something that was very fast, was easily extensible and had a great set of rules that we could use. This led us to using Rust and Tree-sitter since they are both fast and have great community adoption making extending Sighthound natural.We wanted it to focus on source-code vulnerability classes like Sql Injection, and Xss. We haven't yet done any secrets scanning as there are a lot of great options in the market at the moment. Right now, Sighthound supports Python, JS&#x2F;TS, Java, Go, C#, HTML, PHP and Ruby.We still have a lot of work to do so, we'd love for your feedback, and contributions in however they come from adding new languages, new rules or bug fixes.",
+        "url": "https://github.com/Corgea/Sighthound",
+        "points": 14,
+        "numComments": 0,
+        "storyId": 48847577,
+        "createdAt": "2026-07-09T15:30:15Z",
+        "createdAtUnix": 1783611015,
+        "intent": "bug"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48849361",
+        "author": "reveriedev",
+        "type": "story",
+        "title": "Show HN: CodeAlmanac – Self-updating wiki for your coding agent (local, Apache)",
+        "text": "Hello good people of HN,This is Rohan from Almanac (YC S26).Today I want to share CodeAlmanac. It is a self-updating wiki for your coding agent. It lives in your repo as Markdown files and updates from your conversations with your agent. It’s open-source, local, and free.How it works1. Install the CLI and pick your agent (it uses your CC or Codex sub)2. It scans your codebase and generates an initial wiki.3. A background job reads your agent conversations every few hours and updates the wiki4. Your agent queries the wiki through a local SQLite index, using commands like codealmanac search and codealmanac show.Principles it’s based onConversations as a primary source: There’s a lot you discuss with your agent, and there’s a lot said in those conversations that isn’t directly seen in the code. Why the code is shaped the way it is, what ideas you’ve explicitly rejected, and repeatable procedures that the agent did. We document what’s relevant for future agent runs from there.Maintenance, maintenance, maintenance: An organised wiki is a queryable wiki. Since the first wiki, WikiWikiWeb, people have talked about the need for wiki gardening (see: https:&#x2F;&#x2F;wiki.c2.com&#x2F;?WikiGardener=). In CodeAlmanac, an agent gardens your wiki every few hours.Docs as code: The wiki lives in your repository as a folder, following the docs as code philosophy See: https:&#x2F;&#x2F;www.writethedocs.org&#x2F;guide&#x2F;docs-as-code&#x2F;Frequent updates: An outdated wiki is worse than no wiki (see: https:&#x2F;&#x2F;www.trevorlasn.com&#x2F;blog&#x2F;outdated-docs-are-tech-debt ). Almanac updates the wiki every 5 hours, and the time between updates is configurable.What goes in the wikiWe have borrowed heavily from the Diataxis framework(https:&#x2F;&#x2F;diataxis.fr&#x2F;). Here’s some of the things the wiki covers:How-to guides (AKA Skills): These cover repeatable procedures and explain things step by step to the agent (eg., How to deploy the CLI, see: https:&#x2F;&#x2F;git.new&#x2F;2uKhYr7 . They function much the same way as skills, but are connected to the rest of the knowledge base. I talk more about why we think skills are the wrong abstraction here.Decisions: In every conversation with your agent, you make many important decisions. Almanac saves these inside the decisions folder. For example, our pipeline doesn’t commit code directly and instead lets the underlying model do it. This was automatically documented here: https:&#x2F;&#x2F;git.new&#x2F;6M6CprwArchitecture: Every time you start a new run, your agent needs to read and piece together the codebase. This burns tokens unnecessarily, especially on large codebases. We maintain docs on the entire architecture so it can read only what’s relevant: https:&#x2F;&#x2F;git.new&#x2F;FJQdHVh.Would love to hear your feedback and any feature requests!Check it out here: https:&#x2F;&#x2F;github.com&#x2F;AlmanacCode&#x2F;codealmanac&#x2F;(We only support macOS right now, but are working to support Linux&#x2F;Windows)",
+        "url": "https://github.com/AlmanacCode/codealmanac",
+        "points": 8,
+        "numComments": 0,
+        "storyId": 48849361,
+        "createdAt": "2026-07-09T17:21:18Z",
+        "createdAtUnix": 1783617678,
+        "intent": "criticism"
+      },
+      {
+        "objectId": "48845551",
+        "author": "badsectoracula",
+        "type": "comment",
+        "title": null,
+        "text": "Same here, i've been on Codeberg since 2022 but if this passes, i'll most likely move my stuff elsewhere (my projects do not even have any AI code, i just dislike the idea of telling people what tools to use to make their own stuff).I dislike GitHub and i'm using a shared host for my website which wouldn't let me install something like Forgejo (this is by choice as i don't want to bother with sysadmin stuff, my site is almost all static HTML with only a couple PHP scripts for some minor tasks). So i guess i'll be migrating to GitLab, even though i do not really like its UX. Or maybe i'll use some other Forgejo instance like CodeFloe. URLs aside, migrating between Forgejo instances should be easy.",
+        "url": "https://news.ycombinator.com/item?id=48845551",
+        "points": null,
+        "numComments": null,
+        "storyId": 48842611,
+        "createdAt": "2026-07-09T13:32:03Z",
+        "createdAtUnix": 1783603923,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48844983",
+        "author": "codelikeawolf",
+        "type": "comment",
+        "title": null,
+        "text": "Ugh, what a bummer. I'll be listening to Holding Out for a Hero on repeat today. Nothing gold can stay.",
+        "url": "https://news.ycombinator.com/item?id=48844983",
+        "points": null,
+        "numComments": null,
+        "storyId": 48843438,
+        "createdAt": "2026-07-09T12:43:12Z",
+        "createdAtUnix": 1783600992,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": []
+  },
+  "painPoints": [],
+  "actionItems": []
+}
