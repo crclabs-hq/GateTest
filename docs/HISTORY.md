@@ -93,6 +93,7 @@ The thing that doesn't exist anywhere else today.
 | 18 | **Checkout error leaks Stripe internals** — `/api/checkout/route.ts:161` returned raw `err.message` to the browser. Stack traces and Stripe API error shapes exposed. | HIGH | DONE (2026-04-18) — Server-side log preserves full error; user-facing response is a generic "Checkout failed. Please try again or contact support." |
 | 19 | **Admin brute-force resistance weak** — `/api/admin/auth/route.ts` had a fixed 400ms delay on failure. At ~150 guesses/minute a long-lived attacker could enumerate passwords. | HIGH | DONE (2026-04-18) — Bumped to randomised 1500-2500ms delay (jitter eliminates timing side-channels, ceiling ~30 guesses/minute vs. an exponential-entropy password). Durable per-IP lockout requires external state; tracked as follow-up. |
 | 20 | **`/api/scan/run` had no idempotency** — browser refresh / back-button / network retry / concurrent stripe-webhook after() would re-run the scan AND re-capture the PI. Potential double-charge or overwrite of a valid result. | HIGH | DONE (2026-04-18) — Added Stripe-metadata-based idempotency: before scanning, fetch the PI, check `metadata.scan_status`. If `complete` or `failed`, return the cached state; do not re-scan, do not re-capture. Lookup failures fall through to scan (never block a legit customer on a stale lookup). |
+| 37 | **Product-direction pivot (Craig, 2026-07-09)** — engine-first re-sequencing: (1) lead with the 120-module engine over the 22 MCP tools, (2) customer-chosen model (Sonnet 5 / Opus 4.8 / Fable 5) vs BYOK, (3) tidy MCP messaging, (4) pen-testing Coming Soon. | MEDIUM | **DONE (2026-07-10, v1.58.0)** — engine-first messaging shipped (MCP page/OG, derived tool count via `tools-data.ts`, llms.txt corrected); model picker shipped on CLI/MCP/website; BYOK shipped (CLI/MCP documented + website `anthropicApiKey`); Sonnet 5 everywhere per Craig's call; pen-test Coming Soon had already shipped 2026-07-09. Carved out as new Known Issues: #38 (shelved MCP pricing threshold), #39 (BYOK × $29/mo gate — Craig decision). |
 | 21 | **scan/status page could stick at "Scanning..."** — `/scan/status/page.tsx` only recognised `complete`/`failed`/`expired`. Any other status from `/api/scan/run` (pending/running/cancelled/malformed) left the header reading "Scanning..." with a full progress bar. | MEDIUM | DONE (2026-04-18) — Unknown statuses are normalised to `failed` with an `error: "Scan returned unexpected state: X"` so the user always reaches a resolved UI and sees retry CTA. |
 | 27 | **Dual-host revival (Phase 1 shipped)** — `/api/webhook` no longer 410s; it accepts GitHub App push / pull_request events, HMAC-verifies `X-Hub-Signature-256` against `GITHUB_WEBHOOK_SECRET` (fail-closed, Forbidden #15), and enqueues into the shared `scan_queue` via `scan-queue-store.enqueueScan` — same path as Gluecron's Signal Bus. Uses `X-GitHub-Delivery` as the idempotency `eventId`. `gluecron-client.ts` already has GitHub PAT fallback so scans actually run. Helpers in `website/app/lib/github-events.js`, 23 unit tests in `tests/github-events.test.js`. Strategic direction updated from "Gluecron-first" to "dual-host, Gluecron-long-term". | HIGH | DONE (2026-04-22) — Phase 1 shipped. Phase 2 queued as Issue #28. |
 | 28 | **Dual-host Phase 2: GitHub commit-status + PR comment callback** — worker currently calls Gluecron's callback only. GitHub-host scans run and are stored, but the customer's PR page shows no feedback. Needs `scan-worker.js` to branch on event origin (detect via repository↔installation lookup or add a `host` column to `scan_queue`) and call `GitHubBridge.postCommitStatus` + `GitHubBridge.postPullRequestComment` for GitHub-hosted jobs. Without this, GitHub Marketplace listing has no visible product loop. | HIGH | DONE (2026-04-23) — `scan_queue.host` column added (ALTER TABLE IF NOT EXISTS for safe migration). `github-events.js` tags jobs `host='github'`; `events-push.js` tags `host='gluecron'`. `website/app/lib/github-callback.js` posts commit status (success/failure/error) + formatted PR comment with per-module breakdown via global `fetch` using `GATETEST_GITHUB_TOKEN`/`GITHUB_TOKEN`. Worker tick `dispatchCallback()` branches on `job.host`. 28 new tests in `tests/github-callback.test.js`. 1048/1048 tests pass, website builds clean. |
@@ -413,6 +414,37 @@ pre-existing skips), 0 fail. Website builds clean throughout.
 ---
 
 ## VERSION CHANGELOGS (moved from the Bible)
+
+**v1.58.0 changes (2026-07-10 — Sonnet 5 everywhere + user-selectable model + BYOK + engine-first messaging):**
+- **Sonnet 5 upgrade (Craig's call):** `CHEAP_MODEL` → `claude-sonnet-5` in both engine-models
+  twins; every hardcoded `claude-sonnet-4-6` in live code, workflows, and site copy swept to
+  sonnet-5 (same sticker price $3/$15 per MTok; intro $2/$10 through 2026-08-31 not baked into
+  caps). docs/proofs + HISTORY left as historical record.
+- **User-selectable model:** `ALLOWED_FIX_MODELS` allow-list (sonnet-5 / opus-4.8 / fable-5 +
+  aliases) + `resolveModelChoice()` in both twins, parity-tested. Surfaces: CLI `--model` on
+  `fix --apply` and `--auto-pr`, MCP `model` arg on fix_issue/explain_finding (schema enum built
+  from the allow-list), website `model` field on /api/scan/fix (400 + allowedModels on bad input).
+  Precedence: explicit choice > `GATETEST_FIX_MODEL` env (now honored by CLI + MCP + website —
+  resolving the doc-drift where only the website read it) > per-tier default.
+- **BYOK:** CLI + MCP documented as bring-your-own-key (user's `ANTHROPIC_API_KEY`, user's spend,
+  straight to api.anthropic.com). Website fix route accepts optional `anthropicApiKey`
+  (sk-ant-* shape check, per-request only via ALS tracker `apiKeyOverride`, never
+  stored/logged/echoed — `snapshot()` whitelists fields). BYOK trackers: `maxUsd: Infinity`
+  (customer's budget) + tier token cap kept as runaway guard; budget summary renders BYOK
+  wording instead of "$Infinity". BYOK does NOT bypass the $29/mo MCP gate (open Craig decision).
+- **CLI fix bug (pre-existing, found during design):** `bin/gatetest.js` called
+  `runFixOrchestration(fixable, root, key, opts)` positionally and destructured a batch contract
+  the per-file orchestrator never returned — `fix --apply` / `--auto-pr` crashed on
+  `accepted.length`. Fixed with `runFixBatch()` in `cli-fix-orchestrator.js` (groups findings
+  per file, drives the per-file orchestrator, composes prBody via `lib/pr-composer`).
+- **Engine-first messaging (closes Known Issue #37):** MCP page + OG lead with the 120-module
+  engine; tool catalog extracted to `website/app/mcp/tools-data.ts` so every surface derives the
+  count (kills the "18 tools" drift); llms.txt module count now read from `site-stats.json`
+  (was hand-written 110) and no longer claims "no subscription" alongside two subscriptions.
+- Tests: engine-models allow-list + BYOK tracker + parity, `runFixBatch` contract,
+  aiFix model pass-through (injection), heavy CLI subprocess (`--model bogus` exits 1 keyless,
+  alias ordering, help text), heavy MCP (schema enum, check_health GATETEST_FIX_MODEL
+  reflection). Fast suite 6198 pass / heavy 302 pass / build clean at ship.
 
 **v1.57.0 changes (2026-07-06 — 4 new MCP tools: run_tests / stream_logs / query_db / http_request):**
 - **`src/core/test-runner.js`** — auto-detects and runs the project's test suite. Supports
