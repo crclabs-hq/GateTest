@@ -346,7 +346,7 @@ function distillRecipes(opts) {
       module: mod = '',
       fileExt  = '',
       recipePath,
-      modelId  = 'claude-sonnet-4-6',
+      modelId  = 'claude-sonnet-5',
     } = opts || {};
 
     if (typeof originalContent !== 'string' || typeof fixedContent !== 'string') {

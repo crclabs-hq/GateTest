@@ -82,7 +82,7 @@ export default function Hero() {
             </p>
             <p className="text-base text-gray-500 mb-8 fade-up">
               Pay per scan &mdash; no subscription, no minimum. Built on{" "}
-              <span className="font-semibold text-gray-700">Claude Sonnet 4.6</span>.
+              <span className="font-semibold text-gray-700">Claude Sonnet 5</span>.
             </p>
 
             {/* Live URL scan — the real product, in-hero */}

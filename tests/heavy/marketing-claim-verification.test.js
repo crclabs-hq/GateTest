@@ -91,7 +91,7 @@ describe('marketing claim — hybrid engine models', () => {
     for (const rel of ['website/app/lib/engine-models.js', 'src/core/engine-models.js']) {
       const src = readFile(rel);
       assert.match(src, /claude-fable-5/, `${rel} should name Fable 5 as FIX_MODEL`);
-      assert.match(src, /claude-sonnet-4-6/, `${rel} should name Sonnet 4.6 as CHEAP_MODEL`);
+      assert.match(src, /claude-sonnet-5/, `${rel} should name Sonnet 5 as CHEAP_MODEL`);
       assert.match(src, /claude-opus-4-8/, `${rel} should name Opus 4.8 as FALLBACK_MODEL`);
     }
   });
@@ -105,9 +105,9 @@ describe('marketing claim — hybrid engine models', () => {
     assert.match(src, /claude-fable-5[\s\S]*?10[\s\S]*?50/);
   });
 
-  it('CLAUDE.md AI Layer note still names claude-sonnet-4-6 (cheap paths)', () => {
+  it('CLAUDE.md AI Layer note still names claude-sonnet-5 (cheap paths)', () => {
     const md = readFile('CLAUDE.md');
-    assert.match(md, /claude-sonnet-4-6/);
+    assert.match(md, /claude-sonnet-5/);
   });
 });
 

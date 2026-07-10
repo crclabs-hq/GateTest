@@ -47,7 +47,7 @@
    ├── src/api.ts     — wrapped bare catch block
    └── .github/ci.yml — pinned action to SHA
 
-   Pair-reviewed by Claude Sonnet 4.6.
+   Pair-reviewed by Claude Sonnet 5.
    Regression tests included.
 
 You review the diff. You click merge.`,

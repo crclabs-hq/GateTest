@@ -63,7 +63,7 @@ const LAYERS: Layer[] = [
     number: "4",
     name: "Claude",
     cost: "paid",
-    description: "Anthropic Claude Sonnet 4.6. Only invoked when the first three layers all return null. Bounded by a 30s per-layer timeout, capped per tier so spend never exceeds margin.",
+    description: "Anthropic Claude Sonnet 5. Only invoked when the first three layers all return null. Bounded by a 30s per-layer timeout, capped per tier so spend never exceeds margin.",
     wins: "First-time-seen patterns. Bespoke business-logic bugs. Anything templated layers can't model.",
     example: {
       before: "// novel pattern: ad-hoc auth check\n// mixed with feature-flag rollout\n// no canonical shape",

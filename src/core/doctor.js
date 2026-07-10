@@ -79,7 +79,7 @@ async function probeAnthropic(apiKey, timeoutMs = 8000) {
         'x-api-key': apiKey,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         max_tokens: 1,
         messages: [{ role: 'user', content: 'hi' }],
       }),

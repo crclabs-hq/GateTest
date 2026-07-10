@@ -295,7 +295,7 @@ function quickFilter(message) {
   return null;
 }
 
-const CHAT_MODEL = 'claude-sonnet-4-6';
+const CHAT_MODEL = 'claude-sonnet-5';
 const CHAT_MAX_TOKENS = 1024;
 
 module.exports = {

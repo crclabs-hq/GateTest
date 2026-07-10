@@ -97,7 +97,7 @@ export default async function ScorePage({
             <span className="text-white/20 mx-2">/</span>
             <span>{repo}</span>
           </h1>
-          <p className="text-white/40 text-sm">GateTest quality score · powered by Claude Sonnet 4.6</p>
+          <p className="text-white/40 text-sm">GateTest quality score · powered by Claude Sonnet 5</p>
         </div>
 
         {hasScore ? (

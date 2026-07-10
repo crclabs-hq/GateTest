@@ -96,12 +96,12 @@ test('readEnv parses MAX_FIX_ATTEMPTS and CLAUDE_MODEL', () => {
     GITHUB_REPOSITORY: 'o/r',
     WORKFLOW_RUN_ID:   '42',
     MAX_FIX_ATTEMPTS:  '5',
-    CLAUDE_MODEL:      'claude-sonnet-4-6',
+    CLAUDE_MODEL:      'claude-sonnet-5',
   };
   const cfg = fixer.readEnv(env);
   assert.equal(cfg.ok, true);
   assert.equal(cfg.maxAttempts, 5);
-  assert.equal(cfg.model, 'claude-sonnet-4-6');
+  assert.equal(cfg.model, 'claude-sonnet-5');
 });
 
 test('readEnv falls back to defaults when MAX_FIX_ATTEMPTS is unset/invalid', () => {
@@ -796,7 +796,7 @@ test('buildPrBody and buildIssueBody render the expected content', () => {
     runUrl:     'http://example/run/1',
     logExcerpt: 'line1\nline2\nline3',
     attempt:    2,
-    model:      'claude-sonnet-4-6',
+    model:      'claude-sonnet-5',
   });
   assert.match(pr, /AI CI-fixer/);
   assert.match(pr, /Failing workflow.*http:\/\/example\/run\/1/);
@@ -808,7 +808,7 @@ test('buildPrBody and buildIssueBody render the expected content', () => {
     logExcerpt: 'failing log',
     attempted:  [{ attempt: 1, patchCount: 0 }, { attempt: 2, patchCount: 1 }],
     lastError:  new Error('gate red'),
-    model:      'claude-sonnet-4-6',
+    model:      'claude-sonnet-5',
   });
   assert.match(issue, /couldn't repair/);
   assert.match(issue, /attempt 1: 0 patch/);
@@ -821,7 +821,7 @@ test('buildPrBody: renders diagnosis section when supplied', () => {
     runUrl:     'http://example/run/1',
     logExcerpt: 'log',
     attempt:    1,
-    model:      'claude-sonnet-4-6',
+    model:      'claude-sonnet-5',
     diagnosis:  {
       rootCause: 'The validator rejects subdomains.',
       plan: 'Loosen the regex.',
@@ -975,12 +975,12 @@ test('flywheel: distillClaudeWins calls auto-distill for every patched file', ()
       { file: 'b.js', content: 'fixed b' },
     ],
     { 'a.js': 'orig a', 'b.js': 'orig b' },
-    'claude-sonnet-4-6',
+    'claude-sonnet-5',
   );
   assert.equal(distilled.length, 2);
   assert.equal(distilled[0].patchedContent, 'fixed a');
   assert.equal(distilled[0].originalContent, 'orig a');
-  assert.equal(distilled[0].provenance.originalModel, 'claude-sonnet-4-6');
+  assert.equal(distilled[0].provenance.originalModel, 'claude-sonnet-5');
 });
 
 test('flywheel: distill silently skips when no original captured', () => {
@@ -993,7 +993,7 @@ test('flywheel: distill silently skips when no original captured', () => {
     flywheel,
     [{ file: 'unknown.js', content: 'fixed' }],
     {}, // no original
-    'claude-sonnet-4-6',
+    'claude-sonnet-5',
   );
   assert.equal(distilled.length, 0);
 });
@@ -1342,7 +1342,7 @@ test('openFixPr: uses findFreeBranchName and rotates title when attempt > 1', as
       runUrl: 'http://example/run/700',
       logExcerpt: 'log',
       attempt: 1,
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-5',
       baseRef: 'main',
       git: (args) => { gitCalls.push(args); return { ok: true, stdout: '', stderr: '' }; },
       transport: captureTransport,
@@ -1376,7 +1376,7 @@ test('openFixPr: returns all-branches-taken when every slot is occupied', async 
     runUrl: 'http://example/run/800',
     logExcerpt: 'log',
     attempt: 1,
-    model: 'claude-sonnet-4-6',
+    model: 'claude-sonnet-5',
     baseRef: 'main',
     git: () => { gitCallCount += 1; return { ok: true, stdout: '', stderr: '' }; },
     transport,
@@ -1399,7 +1399,7 @@ test('openFixPr: returns pr-failed when GitHub rejects the POST /pulls with non-
     runUrl: 'http://example/run/900',
     logExcerpt: 'log',
     attempt: 1,
-    model: 'claude-sonnet-4-6',
+    model: 'claude-sonnet-5',
     baseRef: 'main',
     git: () => ({ ok: true, stdout: '', stderr: '' }),
     transport,
@@ -1420,7 +1420,7 @@ test('openFixPr: returns push-failed with stderr when git push fails', async () 
     runUrl: 'http://example/run/901',
     logExcerpt: 'log',
     attempt: 1,
-    model: 'claude-sonnet-4-6',
+    model: 'claude-sonnet-5',
     baseRef: 'main',
     git: (args) => {
       if (args[0] === 'push') {

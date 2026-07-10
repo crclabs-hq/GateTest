@@ -190,7 +190,7 @@ Rules:
 - 3-5 steps max.`;
 
   const body = JSON.stringify({
-    model: "claude-sonnet-4-6",
+    model: "claude-sonnet-5",
     max_tokens: 1024,
     messages: [{ role: "user", content: prompt }],
   });

@@ -121,7 +121,7 @@ describe('try-fix orchestrator', () => {
         after:  'this is a fixed line',
         confidence: 'stable',
         applicationCount: 5,
-        provenance: { originalModel: 'claude-sonnet-4-6', originalRuleKey: NOVEL_ISSUE.ruleKey, createdAt: '2026-01-01T00:00:00Z', lastAppliedAt: null },
+        provenance: { originalModel: 'claude-sonnet-5', originalRuleKey: NOVEL_ISSUE.ruleKey, createdAt: '2026-01-01T00:00:00Z', lastAppliedAt: null },
       };
       fs.writeFileSync(recipeStorePath, JSON.stringify({ version: 1, recipes: [recipe] }, null, 2));
 
@@ -145,7 +145,7 @@ describe('try-fix orchestrator', () => {
         return {
           patched: issue.content + '\n// FIXED-BY-CLAUDE',
           costUsd: 0.001,
-          model: 'claude-sonnet-4-6',
+          model: 'claude-sonnet-5',
         };
       };
       const tel = captureTelemetry();
@@ -277,7 +277,7 @@ describe('try-fix orchestrator', () => {
       const fakeFetch = async (url, init) => {
         assert.ok(url.includes('api.anthropic.com'));
         const parsed = JSON.parse(init.body);
-        assert.strictEqual(parsed.model, 'claude-sonnet-4-6');
+        assert.strictEqual(parsed.model, 'claude-sonnet-5');
         return {
           status: 200,
           json: async () => ({
@@ -296,7 +296,7 @@ describe('try-fix orchestrator', () => {
       assert.strictEqual(out.layer, 'claude');
       assert.strictEqual(out.patched, 'PATCHED CONTENT FROM CLAUDE');
       assert.ok(out.costUsd > 0);
-      assert.strictEqual(out.model, 'claude-sonnet-4-6');
+      assert.strictEqual(out.model, 'claude-sonnet-5');
       // Telemetry should reflect Claude success with the cost.
       const rec = tel.records.find(r => r.layer === 'claude' && r.success);
       assert.ok(rec);
@@ -409,7 +409,7 @@ describe('try-fix orchestrator', () => {
         line: 1,
       };
       const claudeCalls = [];
-      const fakeClaude = async () => { claudeCalls.push(1); return { patched: 'CLAUDE-FIXED', costUsd: 0.01, model: 'claude-sonnet-4-6' }; };
+      const fakeClaude = async () => { claudeCalls.push(1); return { patched: 'CLAUDE-FIXED', costUsd: 0.01, model: 'claude-sonnet-5' }; };
       const out = await tryFix(issue, {
         enableClaude: true,
         anthropicApiKey: 'sk-test',
@@ -432,7 +432,7 @@ describe('try-fix orchestrator', () => {
       };
       const crashingShipped = async () => { throw new Error('boom in shipped'); };
       const claudeCalls = [];
-      const fakeClaude = async () => { claudeCalls.push(1); return { patched: 'CLAUDE-FIXED', costUsd: 0.01, model: 'claude-sonnet-4-6' }; };
+      const fakeClaude = async () => { claudeCalls.push(1); return { patched: 'CLAUDE-FIXED', costUsd: 0.01, model: 'claude-sonnet-5' }; };
       const tel = captureTelemetry();
       const out = await tryFix(issue, {
         enableClaude: true,
@@ -459,7 +459,7 @@ describe('try-fix orchestrator', () => {
         line: 1,
       };
       const claudeCalls = [];
-      const fakeClaude = async () => { claudeCalls.push(1); return { patched: 'CLAUDE-FIXED', costUsd: 0.01, model: 'claude-sonnet-4-6' }; };
+      const fakeClaude = async () => { claudeCalls.push(1); return { patched: 'CLAUDE-FIXED', costUsd: 0.01, model: 'claude-sonnet-5' }; };
       const out = await tryFix(issue, {
         enableClaude: true,
         anthropicApiKey: 'sk-test',

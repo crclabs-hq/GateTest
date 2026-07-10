@@ -181,7 +181,7 @@ describe('PromptSafetyModule — max_tokens', () => {
       'from anthropic import Anthropic',
       'client = Anthropic()',
       'resp = client.messages.create(',
-      '    model="claude-sonnet-4-6",',
+      '    model="claude-sonnet-5",',
       '    messages=[{"role": "user", "content": "hi"}],',
       ')',
       '',
@@ -195,7 +195,7 @@ describe('PromptSafetyModule — max_tokens', () => {
       'from anthropic import Anthropic',
       'client = Anthropic()',
       'resp = client.messages.create(',
-      '    model="claude-sonnet-4-6",',
+      '    model="claude-sonnet-5",',
       '    max_tokens=1024,',
       '    messages=[{"role": "user", "content": "hi"}],',
       ')',
@@ -335,7 +335,7 @@ describe('PromptSafetyModule — deprecated models', () => {
     write(tmp, 'src/a.js', [
       'const Anthropic = require("@anthropic-ai/sdk");',
       'const client = new Anthropic();',
-      'await client.messages.create({ model: "claude-sonnet-4-6", max_tokens: 100, messages: [] });',
+      'await client.messages.create({ model: "claude-sonnet-5", max_tokens: 100, messages: [] });',
       '',
     ].join('\n'));
     const r = await run(tmp);
@@ -345,11 +345,11 @@ describe('PromptSafetyModule — deprecated models', () => {
     );
   });
 
-  it('does NOT flag claude-sonnet-4-6 (current model)', async () => {
+  it('does NOT flag claude-sonnet-5 (current model)', async () => {
     write(tmp, 'src/a.js', [
       'const Anthropic = require("@anthropic-ai/sdk");',
       'const client = new Anthropic();',
-      'await client.messages.create({ model: "claude-sonnet-4-6", max_tokens: 100, messages: [] });',
+      'await client.messages.create({ model: "claude-sonnet-5", max_tokens: 100, messages: [] });',
       '',
     ].join('\n'));
     const r = await run(tmp);

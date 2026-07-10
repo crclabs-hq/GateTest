@@ -29,11 +29,11 @@ const ALS = (() => {
 })();
 
 // Hybrid-engine pricing (Craig 2026-07-07). The AI layer runs Fable 5 on the
-// paid fix tiers (scan_fix / nuclear) and Sonnet 4.6 on free/cheap/high-volume
+// paid fix tiers (scan_fix / nuclear) and Sonnet 5 on free/cheap/high-volume
 // paths — see website/app/lib/engine-models.js. The tracker prices each call at
 // the model that actually ran it, so the per-scan USD cap reflects real spend.
 //
-// Sonnet 4.6: $3 in / $15 out per MTok. Fable 5: $10 in / $50 out per MTok.
+// Sonnet 5: $3 in / $15 out per MTok. Fable 5: $10 in / $50 out per MTok.
 // The default rate (used when a caller doesn't tag a model) stays Sonnet, so
 // every existing cheap-path caller is priced exactly as before.
 const INPUT_USD_PER_MTOK = Number(process.env.GATETEST_INPUT_USD_PER_MTOK) || 3;
@@ -42,6 +42,9 @@ const OUTPUT_USD_PER_MTOK = Number(process.env.GATETEST_OUTPUT_USD_PER_MTOK) || 
 // Per-model rates. Keyed by the model id string passed to record(). Unknown /
 // untagged calls fall back to the Sonnet default pair above.
 const MODEL_PRICING = {
+  // Sonnet 5 priced at sticker ($3/$15), not the intro rate, so caps stay
+  // conservative. Sonnet 4.6 entry kept for calls that still tag it.
+  'claude-sonnet-5':   { input: INPUT_USD_PER_MTOK, output: OUTPUT_USD_PER_MTOK },
   'claude-sonnet-4-6': { input: INPUT_USD_PER_MTOK, output: OUTPUT_USD_PER_MTOK },
   'claude-fable-5':    { input: Number(process.env.GATETEST_FABLE_INPUT_USD_PER_MTOK) || 10,
                          output: Number(process.env.GATETEST_FABLE_OUTPUT_USD_PER_MTOK) || 50 },
@@ -71,10 +74,11 @@ function estimateTokens(text) {
 }
 
 class BudgetTracker {
-  constructor({ maxTokens = DEFAULT_MAX_TOKENS, maxUsd = DEFAULT_MAX_USD, label = 'scan' } = {}) {
+  constructor({ maxTokens = DEFAULT_MAX_TOKENS, maxUsd = DEFAULT_MAX_USD, label = 'scan', byok = false } = {}) {
     this.maxTokens = maxTokens;
     this.maxUsd = maxUsd;
     this.label = label;
+    this.byok = byok;
     this.inputTokens = 0;
     this.outputTokens = 0;
     this.spentUsd = 0; // accumulated per-call at each call's own model rate
@@ -151,6 +155,7 @@ class BudgetTracker {
   snapshot() {
     return {
       label: this.label,
+      byok: this.byok,
       callCount: this.callCount,
       inputTokens: this.inputTokens,
       outputTokens: this.outputTokens,
@@ -252,11 +257,16 @@ function capsForTier(tier) {
  */
 function createTrackerForTier(tier, opts = {}) {
   const caps = capsForTier(tier);
+  const byok = Boolean(opts.byok);
   return new BudgetTracker({
     ...opts,
-    maxUsd: opts.maxUsd || caps.maxUsd,
+    // BYOK: the customer's own Anthropic key pays, so no USD ceiling. The
+    // tier token cap stays as the runaway guard, and record() still
+    // accumulates tokens + spentUsd for observability.
+    maxUsd: byok ? Infinity : (opts.maxUsd || caps.maxUsd),
     maxTokens: opts.maxTokens || caps.maxTokens,
-    label: opts.label || `${caps.tier}-scan`,
+    label: opts.label || `${caps.tier}-${byok ? 'byok' : 'scan'}`,
+    byok,
   });
 }
 
