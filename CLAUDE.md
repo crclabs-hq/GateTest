@@ -440,7 +440,7 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.58.1 — **120 modules**, **hybrid AI layer** (Craig 2026-07-07;
+GateTest v1.59.0 — **120 modules**, **hybrid AI layer** (Craig 2026-07-07;
 Sonnet 5 upgrade + user-selectable model + BYOK Craig 2026-07-10):
 **Fable 5** (`claude-fable-5`) on the paid fix tiers (Scan+Fix, Forensic),
 **Sonnet 5** (`claude-sonnet-5`) on free/cheap/high-volume paths, **Opus
@@ -466,7 +466,15 @@ delivered by email after Stripe checkout; BYOK does NOT bypass that gate
 paths default to Sonnet (flat-rate / no per-scan payment — Fable isn't funded
 there, but BYOK users may pick it since the spend is theirs).
 MCP server: `bin/gatetest-mcp.mjs`, 24 tools (run_tests / stream_logs / query_db / http_request restored to tools/list 2026-07-11 — they had handlers but were never registered).
-Date stamp last fully reconciled: 2026-07-10 (Sonnet 5 everywhere + model
-picker + BYOK + engine-first MCP messaging the same day).
+**Flywheel (v1.59.0, 2026-07-11):** EVERY scan (not just fixes) now feeds the
+flywheel — anonymized module+count signal to `~/.gatetest/telemetry/scan-findings.jsonl`
++ best-effort upload to `POST /api/telemetry/scan` (opt-out: `GATETEST_NO_TELEMETRY=1`
+or `.gatetest.json {telemetry:false}`; NEVER code/paths/findings). **False-positive
+control:** repo-root `.gatetestignore` suppresses findings (`module:rule` | `module`
+| `*:rule` | `module:rule@glob` | `path/**`); `gatetest --noise` shows noisy modules;
+chronically-dismissed high-fire modules auto-soften below the block threshold. See
+`src/core/{scan-telemetry,telemetry-uploader,ignore-file,noise-model}.js`.
+Date stamp last fully reconciled: 2026-07-11 (core-engine program: every-scan
+flywheel + false-positive control + entry-level CLI recap).
 
 **Full version-by-version changelog:** see `docs/HISTORY.md`.

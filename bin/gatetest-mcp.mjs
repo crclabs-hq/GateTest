@@ -987,7 +987,7 @@ async function handleCheckHealth() {
       content: [{
         type: 'text',
         text:
-          `## GateTest MCP — v1.58.1 ✅ Operational\n\n` +
+          `## GateTest MCP — v1.59.0 ✅ Operational\n\n` +
           `- Modules loaded: ${moduleNames.length}\n` +
           `- Transport: stdio\n` +
           `- Anthropic API key: ${hasAnthropic ? '✅ present (fix_issue, explain_finding available — BYOK, your key funds the calls)' : '⚠️ missing (fix_issue, explain_finding will return an error)'}\n` +
@@ -2329,7 +2329,7 @@ async function handleHttpRequest(args) {
 // ---------------------------------------------------------------------------
 
 const server = new Server(
-  { name: 'gatetest', version: '1.58.1' },
+  { name: 'gatetest', version: '1.59.0' },
   { capabilities: { tools: {}, prompts: {} } }
 );
 
