@@ -415,6 +415,22 @@ pre-existing skips), 0 fail. Website builds clean throughout.
 
 ## VERSION CHANGELOGS (moved from the Bible)
 
+**v1.58.1 changes (2026-07-11 — the four v1.57.0 debug tools were never actually reachable; restored):**
+- **Broken state found during the distribution push:** `run_tests`, `stream_logs`, `query_db`,
+  `http_request` had handlers, exports, and direct unit tests (`tests/heavy/mcp-debug-tools.test.js`)
+  — but were **missing from the `TOOLS` array AND the dispatcher switch** in `bin/gatetest-mcp.mjs`.
+  No MCP client could list or call them, while the $29/mo page sold all four. The v1.57.0 changelog
+  claimed "4 tool definitions + 4 dispatcher cases"; that wiring was never in the file.
+- Restored: 4 tool definitions (schemas matching the handler args), 4 dispatcher cases, all four
+  added to `GATED_TOOLS`. Live `tools/list` now returns **24 tools** (verified by spawn test).
+- Heavy tripwire updated 20 → 24 (`tests/heavy/mcp-server.test.js`).
+- Tool-count truth reconciled everywhere: Bible said 22 (2 phantom rows), the npm/README/server.json
+  said 20 (pre-restoration count). All surfaces now say **24**; `website/app/mcp/tools-data.ts` gained
+  the 3 previously-unlisted tools (scan_repo, resolve_stack_trace, blame_regression) and TOOL_COUNT
+  counts distinct tool names.
+- **Lesson:** a tool isn't shipped until it appears in a live `tools/list` — handler + tests + marketing
+  can all exist while the tool is unreachable. The tripwire test now pins the exact registered count.
+
 **v1.58.0 changes (2026-07-10 — Sonnet 5 everywhere + user-selectable model + BYOK + engine-first messaging):**
 - **Sonnet 5 upgrade (Craig's call):** `CHEAP_MODEL` → `claude-sonnet-5` in both engine-models
   twins; every hardcoded `claude-sonnet-4-6` in live code, workflows, and site copy swept to

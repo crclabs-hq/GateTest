@@ -7,7 +7,7 @@
 - **Hands** — `verify_fix` re-runs the gate on exactly the files you edited and returns a hard ✅/❌. No more "I think that fixed it."
 - **Root Cause** — `resolve_stack_trace` turns a minified bundle location into the original file:line via source maps. `blame_regression` finds which git commit introduced a specific line — read-only, never checks out or mutates the working tree.
 
-20 tools. 120-module engine. Stdio transport — no account, no webhook, no infra.
+24 tools. 120-module engine. Stdio transport — no account, no webhook, no infra.
 
 ## Install in 1 command
 

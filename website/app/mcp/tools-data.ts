@@ -29,6 +29,11 @@ export const ALL_TOOLS = [
   { name: "audit_log", paid: true, desc: "Query past local scans in the memory store" },
   { name: "compare_repos", paid: true, desc: "Cross-repo prior-art lookup via memory store" },
   { name: "get_report", paid: true, desc: "Retrieve full result of the last scan this session" },
+  { name: "scan_repo", paid: true, desc: "Scan any public git repo via the hosted API" },
+  { name: "resolve_stack_trace", paid: true, desc: "Minified/bundled stack trace → original file:line via source maps" },
+  { name: "blame_regression", paid: true, desc: "Which git commit introduced this line — read-only, ranks candidates across a stack trace" },
 ];
 
-export const TOOL_COUNT = ALL_TOOLS.length;
+// Distinct tool count — scan_local appears twice above (quick = free,
+// full/smart = paid) but is one tool on the server.
+export const TOOL_COUNT = new Set(ALL_TOOLS.map((t) => t.name.split(" ")[0])).size;

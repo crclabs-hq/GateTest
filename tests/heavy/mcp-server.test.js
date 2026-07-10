@@ -108,11 +108,11 @@ function callMcp(method, params = {}, timeoutMs = 60000) {
 // ---------------------------------------------------------------------------
 
 describeOrSkip('MCP server — tools/list', () => {
-  it('returns exactly 20 tools (drift tripwire — update when adding a tool)', async () => {
+  it('returns exactly 24 tools (drift tripwire — update when adding a tool)', async () => {
     const res = await callMcp('tools/list', {});
     assert.ok(res.result, `expected result, got: ${JSON.stringify(res).slice(0, 200)}`);
     assert.ok(Array.isArray(res.result.tools), 'tools should be an array');
-    assert.strictEqual(res.result.tools.length, 20);
+    assert.strictEqual(res.result.tools.length, 24);
   });
 
   it('includes every declared tool', async () => {
@@ -130,6 +130,10 @@ describeOrSkip('MCP server — tools/list', () => {
       'run_live_checks', 'get_production_errors',
       // Root-cause build (source-map trace resolution + git regression blame)
       'resolve_stack_trace', 'blame_regression',
+      // v1.57.0 Hands debug tools — definitions/dispatcher restored 2026-07-11
+      // after being found missing from TOOLS (handlers existed, tools were
+      // invisible to every MCP client while the $29/mo page sold them)
+      'run_tests', 'stream_logs', 'query_db', 'http_request',
     ];
     for (const name of expected) {
       assert.ok(names.includes(name), `missing ${name}`);

@@ -125,6 +125,7 @@ const GATED_TOOLS = new Set([
   'run_live_checks', 'get_production_errors',
   'verify_fix', 'audit_log', 'compare_repos', 'get_report', 'scan_repo',
   'resolve_stack_trace', 'blame_regression',
+  'run_tests', 'stream_logs', 'query_db', 'http_request',
 ]);
 
 // In-process validation cache — MCP server is a long-lived stdio process so
@@ -740,6 +741,80 @@ const TOOLS = [
       required: ['path'],
     },
   },
+  {
+    name: 'run_tests',
+    description:
+      '🤝 Hands — auto-detect and run the project\'s test suite (Jest / Vitest / Mocha / node --test / pytest / ' +
+      'cargo / go test / rspec / npm test). Returns structured pass/fail per test with failing-test output. ' +
+      'Call this after EVERY edit — never assume a fix worked without running the tests.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Absolute path to the project root (default: current directory)' },
+        command: { type: 'string', description: 'Explicit test command to run instead of auto-detection (e.g. "npm run test:unit")' },
+        timeout: { type: 'number', description: 'Max seconds to let the suite run (default 120)' },
+        testPattern: { type: 'string', description: 'Only run tests matching this pattern (passed to the runner\'s filter flag)' },
+      },
+    },
+  },
+  {
+    name: 'stream_logs',
+    description:
+      '🤝 Hands — tail a running process or log file in real time for N seconds (max 60). Three modes: ' +
+      '`command` (spawn it and capture stdout/stderr), `logFile` (follow appended lines), `pid` (attach to a ' +
+      'running process — Linux only). Use it to HEAR what the app says while you reproduce a bug.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'Command to spawn and capture (e.g. "npm run dev")' },
+        logFile: { type: 'string', description: 'Absolute path to a log file to follow' },
+        pid: { type: 'number', description: 'PID of a running process to attach to (Linux /proc only)' },
+        seconds: { type: 'number', description: 'How long to capture (default 10, max 60)' },
+        cwd: { type: 'string', description: 'Working directory for command mode' },
+      },
+    },
+  },
+  {
+    name: 'query_db',
+    description:
+      '🤝 Hands — run a READ-ONLY query against the project\'s database (Postgres / MySQL / SQLite / MongoDB / ' +
+      'Redis). Mutations are hard-blocked (INSERT/UPDATE/DELETE/DROP/ALTER/…). Connection resolves from the ' +
+      'explicit arg, env vars (DATABASE_URL etc.), or .gatetest.json. SELECTs get an automatic LIMIT. ' +
+      'Use it to check what the data ACTUALLY looks like instead of guessing from the schema.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'The read-only query to run (SQL, or a JSON find spec for MongoDB/Redis)' },
+        connectionString: { type: 'string', description: 'Explicit connection string (default: DATABASE_URL / project config)' },
+        projectRoot: { type: 'string', description: 'Project root for driver + config resolution (default: current directory)' },
+        limit: { type: 'number', description: 'Max rows to return (default 100, hard cap 500)' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'http_request',
+    description:
+      '🤝 Hands — call any HTTP API (localhost or external) with auth headers, follow redirects (max 5), and ' +
+      'inspect status/headers/body (1MB cap). Auth shortcuts: {type:"bearer",token}, {type:"basic",username,password}, ' +
+      '{type:"header",name,value}. Use it to probe the API a bug report mentions before touching the code.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'Full URL to request (http:// or https://, localhost fine)' },
+        method: { type: 'string', description: 'HTTP method (default GET)' },
+        headers: { type: 'object', description: 'Extra request headers' },
+        body: { type: 'string', description: 'Request body (for POST/PUT/PATCH)' },
+        auth: {
+          type: 'object',
+          description: 'Auth shortcut: {type:"bearer",token} | {type:"basic",username,password} | {type:"header",name,value}',
+        },
+        timeout: { type: 'number', description: 'Seconds before aborting (default 30)' },
+        followRedirects: { type: 'boolean', description: 'Follow 3xx redirects (default true, max 5)' },
+      },
+      required: ['url'],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -896,7 +971,7 @@ async function handleCheckHealth() {
       content: [{
         type: 'text',
         text:
-          `## GateTest MCP — v1.58.0 ✅ Operational\n\n` +
+          `## GateTest MCP — v1.58.1 ✅ Operational\n\n` +
           `- Modules loaded: ${moduleNames.length}\n` +
           `- Transport: stdio\n` +
           `- Anthropic API key: ${hasAnthropic ? '✅ present (fix_issue, explain_finding available — BYOK, your key funds the calls)' : '⚠️ missing (fix_issue, explain_finding will return an error)'}\n` +
@@ -2238,7 +2313,7 @@ async function handleHttpRequest(args) {
 // ---------------------------------------------------------------------------
 
 const server = new Server(
-  { name: 'gatetest', version: '1.58.0' },
+  { name: 'gatetest', version: '1.58.1' },
   { capabilities: { tools: {}, prompts: {} } }
 );
 
@@ -2312,6 +2387,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'get_production_errors':  _result = await handleGetProductionErrors(args); break;
       case 'resolve_stack_trace':    _result = await handleResolveStackTrace(args); break;
       case 'blame_regression':       _result = await handleBlameRegression(args); break;
+      case 'run_tests':              _result = await handleRunTests(args); break;
+      case 'stream_logs':            _result = await handleStreamLogs(args); break;
+      case 'query_db':               _result = await handleQueryDb(args); break;
+      case 'http_request':           _result = await handleHttpRequest(args); break;
       default:
         _result = { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
     }

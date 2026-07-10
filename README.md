@@ -96,7 +96,7 @@ Connect GateTest directly to Claude Code (or any MCP-compatible AI) in one comma
 claude mcp add gatetest -- npx -y @gatetest/mcp-server
 ```
 
-20 tools across five families:
+24 tools across five families:
 
 | Family | Tools | What it gives Claude |
 |--------|-------|----------------------|
