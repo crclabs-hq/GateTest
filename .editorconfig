@@ -1,0 +1,11 @@
+# Keep source files BOM-less UTF-8 — a stray editor kept re-saving
+# lib/pr-composer.js with a UTF-8 BOM (breaks nothing in Node, but churns
+# the working tree and can confuse shebang/JSON parsing elsewhere).
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+
+[*.{js,mjs,cjs,ts,tsx,json,md,yml,yaml}]
+indent_style = space
