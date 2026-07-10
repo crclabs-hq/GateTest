@@ -97,12 +97,18 @@ export default function McpPage() {
             </pre>
           </div>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
-            <h3 className="font-semibold text-neutral-200 mb-1">Claude Desktop App</h3>
-            <p className="text-neutral-500 text-xs mb-3">Settings → Developer → Edit Config</p>
-            <pre className="text-emerald-300 text-xs font-mono bg-neutral-950 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">
-{`{ "mcpServers": { "gatetest": {
-  "url": "https://gatetest.ai/api/mcp" } } }`}
-            </pre>
+            <h3 className="font-semibold text-neutral-200 mb-1">Claude Desktop App <span className="text-emerald-400 text-xs font-normal ml-1">one-click</span></h3>
+            <p className="text-neutral-500 text-xs mb-3">Download the extension, double-click it — done</p>
+            <a
+              href="https://github.com/crclabs-hq/GateTest/releases/download/v1.1.3/gatetest.mcpb"
+              className="inline-block bg-emerald-500/10 border border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-300 text-sm font-semibold rounded-lg px-4 py-2 mb-3 transition-colors"
+            >
+              ⬇ Download gatetest.mcpb
+            </a>
+            <p className="text-neutral-600 text-xs">
+              Or paste into Settings → Developer → Edit Config:{" "}
+              <span className="font-mono text-neutral-500 break-all">{`{ "mcpServers": { "gatetest": { "url": "https://gatetest.ai/api/mcp" } } }`}</span>
+            </p>
           </div>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
             <h3 className="font-semibold text-neutral-200 mb-1">Claude Code CLI <span className="text-blue-400 text-xs font-normal ml-1">full {TOOL_COUNT} tools</span></h3>
