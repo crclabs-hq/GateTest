@@ -68,6 +68,9 @@ const HELP = `
                        mutation testing) to a nightly run.
     --validate         Validate the CLAUDE.md file
     --report           Display the latest test report
+    --noise            Show which modules are noisy for this repo (fire-rate +
+                       dismissals, learned from scan history) and which have
+                       been auto-softened. Silence noise via .gatetestignore.
     --list             List all available test modules
     --init             Initialize GateTest in the current project
     --parallel         Run modules in parallel
@@ -385,6 +388,11 @@ async function main() {
 
   if (args.report) {
     showLatestReport(projectRoot);
+    return;
+  }
+
+  if (args.noise) {
+    showNoiseReport(projectRoot);
     return;
   }
 
@@ -913,6 +921,7 @@ function parseArgs(argv) {
     else if (arg === '--validate') args.validate = true;
     else if (arg === '--list') args.list = true;
     else if (arg === '--report') args.report = true;
+    else if (arg === '--noise') args.noise = true;
     else if (arg === '--init') args.init = true;
     else if (arg === '--init-claude-md') args.initClaudeMd = true;
     else if (arg === '--health') args.health = true;
@@ -988,6 +997,59 @@ function initProject(projectRoot) {
   console.log(`  Config: ${configDir}/config.json`);
   console.log(`  Reports: ${configDir}/reports/`);
   console.log('\nRun "gatetest --suite quick" to test your setup.\n');
+}
+
+/**
+ * `gatetest --noise` — show which modules are noisy for this repo, learned
+ * from the flywheel (fire-rate + dismissals). This is both the customer's
+ * transparency view and our tuning worklist. Modules marked "softened" have
+ * had their findings auto-downgraded below the block threshold.
+ */
+function showNoiseReport(projectRoot) {
+  let rows = [];
+  try {
+    rows = require('../src/core/noise-model').getNoiseReport(projectRoot);
+  } catch (err) {
+    console.log(`\n  Could not read flywheel history: ${err.message}\n`);
+    process.exit(1);
+  }
+
+  console.log('\n  \x1b[1mGateTest — module noise report\x1b[0m');
+  console.log('  \x1b[2m(learned from this repo\'s scan history: .gatetest/memory.json)\x1b[0m\n');
+
+  const withHistory = rows.filter((r) => r.runs > 0 || r.dismissals > 0);
+  if (withHistory.length === 0) {
+    console.log('  No scan history yet — run a few scans, then check back.\n');
+    console.log('  Silence a noisy check any time by adding a line to \x1b[1m.gatetestignore\x1b[0m:');
+    console.log('    \x1b[2mmodule:rule            # silence one rule in a module\x1b[0m');
+    console.log('    \x1b[2mmodule                 # silence a whole module\x1b[0m');
+    console.log('    \x1b[2msecrets:apiKey@test/**  # silence only under test/\x1b[0m\n');
+    return;
+  }
+
+  console.log('  ' + 'module'.padEnd(22) + 'fires'.padEnd(9) + 'dismissed'.padEnd(11) + 'status');
+  console.log('  ' + '─'.repeat(52));
+  for (const r of withHistory.slice(0, 30)) {
+    const firePct = `${Math.round((r.fireRate || 0) * 100)}%`;
+    const status = r.noisy
+      ? `\x1b[33msoftened (×${r.penalty})\x1b[0m`
+      : (r.fireRate >= 0.5 ? '\x1b[2mhigh-fire\x1b[0m' : '\x1b[32mok\x1b[0m');
+    console.log(
+      '  ' + r.module.padEnd(22) +
+      `${firePct} (${r.fires}/${r.runs})`.padEnd(9 + 6) +
+      String(r.dismissals).padEnd(11) +
+      status
+    );
+  }
+  const softened = withHistory.filter((r) => r.noisy).length;
+  console.log('');
+  if (softened > 0) {
+    console.log(`  \x1b[33m${softened}\x1b[0m module(s) auto-softened after repeated dismissals — findings still`);
+    console.log('  show up, but no longer block the gate. Permanently silence with \x1b[1m.gatetestignore\x1b[0m.\n');
+  } else {
+    console.log('  No modules softened yet. Add a line to \x1b[1m.gatetestignore\x1b[0m to silence noise:');
+    console.log('    \x1b[2mmodule:rule   |   module   |   secrets:apiKey@test/**\x1b[0m\n');
+  }
 }
 
 function showLatestReport(projectRoot) {

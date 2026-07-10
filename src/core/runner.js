@@ -25,6 +25,24 @@ const {
   isBlockingFinding,
 } = require('./confidence');
 
+// .gatetestignore suppression + flywheel-learned confidence penalties.
+// Both loaded defensively — a missing file / memory yields a no-op so the
+// runner behaves exactly as before when neither is present.
+let _ignoreFile = null;
+try { _ignoreFile = require('./ignore-file'); } catch { _ignoreFile = null; }
+let _noiseModel = null;
+try { _noiseModel = require('./noise-model'); } catch { _noiseModel = null; }
+
+function _loadIgnoreMatcher(projectRoot) {
+  try { return _ignoreFile ? _ignoreFile.load(projectRoot) : null; }
+  catch { return null; }
+}
+
+function _loadConfidencePenalties(projectRoot) {
+  try { return _noiseModel ? _noiseModel.computePenalties(projectRoot) : null; }
+  catch { return null; }
+}
+
 /** Severity levels — only 'error' blocks the gate. */
 const Severity = {
   ERROR: 'error',
@@ -80,6 +98,14 @@ class TestResult {
     this._blockThreshold = typeof options.blockThreshold === 'number'
       ? options.blockThreshold
       : BLOCK_THRESHOLD;
+    // .gatetestignore matcher (from the runner) — a matched finding is
+    // suppressed: excluded from block/soft/warning counts, kept visible in
+    // the suppressed list. Null → nothing suppressed.
+    this._ignoreMatcher = options.ignoreMatcher || null;
+    // Per-module confidence penalty (0..1) learned from the flywheel: a module
+    // that fires constantly AND gets dismissed repeatedly has its findings
+    // softened below the block threshold until reviewed. 1 = no penalty.
+    this._confidencePenalties = options.confidencePenalties || null;
   }
 
   start() {
@@ -127,12 +153,19 @@ class TestResult {
       });
       confidence = scored.confidence;
       confidenceSignals = scored.signals;
+      // Flywheel-learned softening: multiply in the module's penalty so a
+      // chronically-dismissed noisy module drops below the block threshold.
+      const penalty = this._confidencePenalties && this._confidencePenalties[this.module];
+      if (typeof penalty === 'number' && penalty < 1) {
+        confidence *= penalty;
+        confidenceSignals = [...confidenceSignals, 'flywheel-softened'];
+      }
     } else {
       confidence = DEFAULT_CONFIDENCE;
       confidenceSignals = [];
     }
 
-    this.checks.push({
+    const check = {
       name,
       passed,
       severity,
@@ -140,7 +173,18 @@ class TestResult {
       ...details,
       confidence,
       confidenceSignals,
-    });
+    };
+
+    // .gatetestignore suppression — mark, don't drop, so it stays auditable.
+    if (!passed && this._ignoreMatcher) {
+      const filePath = details.file || details.filePath;
+      if (this._ignoreMatcher.matches({ module: this.module, ruleKey: name, name, file: filePath })) {
+        check.suppressed = true;
+        check.suppressReason = 'gatetestignore';
+      }
+    }
+
+    this.checks.push(check);
   }
 
   /**
@@ -173,18 +217,23 @@ class TestResult {
     this.error = reason;
   }
 
+  /** Checks suppressed via .gatetestignore — visible, but silenced. */
+  get suppressedChecks() {
+    return this.checks.filter(c => c.suppressed === true);
+  }
+
   /** Checks that failed with severity 'error' — these block the gate. */
   get errorChecks() {
-    return this.checks.filter(c => !c.passed && c.severity === Severity.ERROR);
+    return this.checks.filter(c => !c.passed && !c.suppressed && c.severity === Severity.ERROR);
   }
 
   /**
    * Errors that are CONFIDENT enough to actually block the gate.
-   * (severity === 'error' AND confidence >= blockThreshold)
+   * (severity === 'error' AND confidence >= blockThreshold, not suppressed)
    */
   get blockingErrorChecks() {
     const t = this._blockThreshold;
-    return this.checks.filter(c => isBlockingFinding(c, t));
+    return this.checks.filter(c => !c.suppressed && isBlockingFinding(c, t));
   }
 
   /**
@@ -194,13 +243,13 @@ class TestResult {
   get softErrorChecks() {
     const t = this._blockThreshold;
     return this.checks.filter(c =>
-      !c.passed && c.severity === Severity.ERROR && !isBlockingFinding(c, t),
+      !c.passed && !c.suppressed && c.severity === Severity.ERROR && !isBlockingFinding(c, t),
     );
   }
 
   /** Checks that failed with severity 'warning' — reported but don't block. */
   get warningChecks() {
-    return this.checks.filter(c => !c.passed && c.severity === Severity.WARNING);
+    return this.checks.filter(c => !c.passed && !c.suppressed && c.severity === Severity.WARNING);
   }
 
   /** Informational checks. */
@@ -209,7 +258,10 @@ class TestResult {
   }
 
   get failedChecks() {
-    return this.checks.filter(c => !c.passed);
+    // A .gatetestignore-suppressed finding is not a failure — it's visible in
+    // suppressedChecks but excluded from every failure count/detail so a
+    // customer who silenced it doesn't keep seeing it reported as a failure.
+    return this.checks.filter(c => !c.passed && !c.suppressed);
   }
 
   get passedChecks() {
@@ -273,6 +325,12 @@ class GateTestRunner extends EventEmitter {
     // Shared source cache for confidence scoring across all modules
     const projectRoot = (config && config.projectRoot) || process.cwd();
     this._sourceCache = new SourceCache(projectRoot);
+    // .gatetestignore matcher + flywheel-learned per-module confidence
+    // penalties. Both are loaded once here (best-effort — a missing file or
+    // memory just yields an empty matcher / no penalties) and threaded into
+    // every TestResult so suppression and softening apply uniformly.
+    this._ignoreMatcher = _loadIgnoreMatcher(projectRoot);
+    this._confidencePenalties = _loadConfidencePenalties(projectRoot);
     // Incremental mode state — set at construction when a pre-resolved file
     // Set is supplied (test / external caller), or set at run() time when
     // incrementalSince resolves successfully.
@@ -408,6 +466,8 @@ class GateTestRunner extends EventEmitter {
       // Infinity threshold is silently dropped here and modules still
       // see the default 0.7 threshold.
       blockThreshold: this._blockThreshold,
+      ignoreMatcher: this._ignoreMatcher,
+      confidencePenalties: this._confidencePenalties,
     });
 
     if (!mod) {
