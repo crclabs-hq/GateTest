@@ -204,6 +204,11 @@ class LintModule extends BaseModule {
 
     if (issues.length > 0) {
       result.addCheck(`lint:markdown:${relPath}`, false, {
+        // Markdown whitespace nits (trailing spaces, extra blank lines) are
+        // cosmetic and auto-fixable — INFO, never error/warning. A code gate
+        // must not bury real findings under hundreds of prose-style notes
+        // (375 on our own repo). The autoFix still cleans them on request.
+        severity: 'info',
         file: relPath,
         message: `${issues.length} markdown issue(s)`,
         details: issues.slice(0, 5),

@@ -33,3 +33,20 @@ describe('LintModule — baseline shape', () => {
     await assert.doesNotReject(mod.run(result, { projectRoot: tmp }));
   });
 });
+
+describe('LintModule — markdown findings are INFO (not error/warning noise)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-lint-md-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('flags markdown whitespace at info severity, not error', async () => {
+    // Trailing whitespace + triple blank lines → a markdown finding.
+    fs.writeFileSync(path.join(tmp, 'README.md'), '# Title   \n\n\n\nsome text\n');
+    const mod = new LintModule();
+    const result = makeResult();
+    await mod.run(result, { projectRoot: tmp });
+    const md = result.checks.find((c) => c.name.startsWith('lint:markdown:') && c.passed === false);
+    assert.ok(md, 'expected a markdown finding');
+    assert.strictEqual(md.severity, 'info', 'markdown nits must be info, never error/warning');
+  });
+});
