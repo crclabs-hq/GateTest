@@ -296,8 +296,12 @@ function extractPyExports(content) {
       if (!m[1].startsWith('_')) out.push({ name: m[1], line: i + 1 });
       continue;
     }
-    m = line.match(/^([A-Z][A-Z0-9_]*)\s*=/);
-    if (m) out.push({ name: m[1], line: i + 1 });
+    // NOTE: module-level UPPER_CASE assignments (REPO = ..., TASK_ID = ...) are
+    // deliberately NOT treated as exports. In Python these are in-module config
+    // constants used within the same file (or the script's own runtime state);
+    // no other file "imports" them, so flagging them flooded the report with
+    // false positives (300+ on one runner script). Only def/class — reusable
+    // code units — are meaningful "unused export" signals.
   }
   return out;
 }
