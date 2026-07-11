@@ -16,10 +16,15 @@ class SyntaxModule extends BaseModule {
   async run(result, config) {
     const projectRoot = config.projectRoot;
 
-    // JavaScript / ESM / CJS
+    // JavaScript / ESM / CJS. Track which files passed the authoritative
+    // parse (vm.Script / node --check) so the dangling-pattern heuristics
+    // below can skip them — a file the real parser accepted has balanced
+    // backticks and parens BY DEFINITION, so the heuristic could only ever
+    // false-positive on it.
+    const parsedOk = new Set();
     const jsFiles = this._collectFiles(projectRoot, ['.js', '.mjs', '.cjs']);
     for (const file of jsFiles) {
-      this._checkJsSyntax(file, result, projectRoot);
+      if (this._checkJsSyntax(file, result, projectRoot)) parsedOk.add(file);
     }
 
     // TypeScript
@@ -67,8 +72,14 @@ class SyntaxModule extends BaseModule {
     // Import resolution
     this._checkImportResolution(projectRoot, jsFiles, result);
 
-    // Dangling patterns
-    this._checkDanglingPatterns(projectRoot, [...jsFiles, ...tsFiles, ...jsxFiles], result);
+    // Dangling patterns — a crude backtick/paren-balance heuristic. It is
+    // ONLY a fallback for JS files the authoritative parser could not accept
+    // (parsedOk skips the rest). TS/TSX are NOT included: they get real
+    // validation from _checkTypeScript (tsc), and the JS-oriented stripper
+    // mis-handles TS syntax (generics, JSX, type assertions), producing false
+    // positives on perfectly valid files. A crude counter flagging valid code
+    // is worse than no check — trust erodes fast.
+    this._checkDanglingPatterns(projectRoot, jsFiles, result, parsedOk);
 
     if (jsFiles.length === 0 && jsonFiles.length === 0 && tsFiles.length === 0) {
       result.addCheck('syntax-scan', true, { message: 'No source files to check', severity: 'info' });
@@ -95,15 +106,16 @@ class SyntaxModule extends BaseModule {
             message: stderr.trim().slice(0, 200),
             suggestion: 'Fix the syntax error at the indicated location',
           });
-        } else {
-          result.addCheck(`syntax:${relPath}`, true);
+          return false;
         }
-        return;
+        result.addCheck(`syntax:${relPath}`, true);
+        return true;
       }
 
       const vm = require('vm');
       new vm.Script(content, { filename: file });
       result.addCheck(`syntax:${relPath}`, true);
+      return true;
     } catch (err) {
       if (err instanceof SyntaxError) {
         result.addCheck(`syntax:${relPath}`, false, {
@@ -112,9 +124,12 @@ class SyntaxModule extends BaseModule {
           message: err.message,
           suggestion: 'Fix the syntax error at the indicated location',
         });
-      } else {
-        result.addCheck(`syntax:${relPath}`, true);
+        return false;
       }
+      // Non-syntax error (e.g. unreadable file) — treat as "not authoritatively
+      // parsed" so the dangling-pattern fallback still gets a look.
+      result.addCheck(`syntax:${relPath}`, true);
+      return false;
     }
   }
 
@@ -518,13 +533,24 @@ class SyntaxModule extends BaseModule {
     return null;
   }
 
-  _checkDanglingPatterns(projectRoot, files, result) {
+  _checkDanglingPatterns(projectRoot, files, result, parsedOk = new Set()) {
     for (const file of files) {
+      // Skip files the authoritative parser already accepted — their
+      // backticks and parens are provably balanced, so these heuristics
+      // could only false-positive.
+      if (parsedOk.has(file)) continue;
+
       const relPath = path.relative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
 
-      // Unclosed template literals
-      const backticks = (content.match(/`/g) || []).length;
+      // Strip strings / template literals / regex / comments FIRST, so a
+      // backtick or paren living inside one of those doesn't count. (The raw
+      // backtick count fired on any file that merely mentions a `template`
+      // in a string or comment.)
+      const stripped = stripStringsAndComments(content);
+
+      // Unclosed template literals — count backticks in the STRIPPED source.
+      const backticks = (stripped.match(/`/g) || []).length;
       if (backticks % 2 !== 0) {
         result.addCheck(`syntax:template-literal:${relPath}`, false, {
           file: relPath,
@@ -534,11 +560,7 @@ class SyntaxModule extends BaseModule {
         });
       }
 
-      // Unbalanced parentheses — uses a state-machine stripper that
-      // ignores strings, template literals (incl. multi-line), regex
-      // literals, and comments. Previous single-regex stripper was too
-      // naive and fired on any file with a few `(don't|do)` regexes.
-      const stripped = stripStringsAndComments(content);
+      // Unbalanced parentheses — same state-machine stripper.
       const parens = (stripped.match(/\(/g) || []).length - (stripped.match(/\)/g) || []).length;
       if (Math.abs(parens) > 2) {
         result.addCheck(`syntax:parens:${relPath}`, false, {
