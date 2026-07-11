@@ -80,8 +80,16 @@ const PROMISE_METHOD_HINTS = [
   'save', 'commit', 'rollback', 'update', 'insert', 'delete',
   'query', 'exec', 'send', 'publish', 'fetch',
   'capture', 'confirm', 'charge', 'refund', 'cancel',
-  'write', 'flush', 'sync', 'upload', 'download',
+  'flush', 'sync', 'upload', 'download',
 ];
+// NOTE: `.write()` is deliberately NOT a promise hint. Node's Writable.write()
+// and http.ClientRequest.write() return a BOOLEAN (the backpressure signal),
+// never an awaitable promise — on ANY receiver (out.write, req.write,
+// sink.write, a bare stream variable). Including it flagged every stream write
+// as an "unhandled promise", a false-positive flood on any repo that touches
+// http/streams (42 FPs on our own codebase). The receiver allowlist below
+// can't enumerate every stream variable name, so the fix is to not treat
+// `.write()` as promise-returning at all. (Removed 2026-07-11.)
 
 // Receivers whose `.send()` / `.delete()` / `.write()` / `.update()` etc.
 // are SYNC by convention and would produce a flood of false positives if
@@ -334,6 +342,16 @@ class ErrorSwallowModule extends BaseModule {
           // stream.write, logger.send, etc.) — these would produce a flood
           // of false positives on any Express / Koa / Fastify / Hapi app.
           if (SYNC_RECEIVER_NAMES.has(topLevel)) continue;
+          // Collection/cookie .delete() guard: Map/Set/WeakMap.delete(key) and
+          // cookieStore.delete(name) return a boolean/void, not a promise, and
+          // take a BARE KEY. An ORM delete (prisma.user.delete({where:{id}}))
+          // takes an OBJECT LITERAL. So only treat `.delete(` as promise-ish
+          // when its first argument opens with `{`. Kills the Map/Set/cookie
+          // false-positive class without losing real floating DB deletes.
+          if (method.toLowerCase() === 'delete') {
+            const afterOpen = line.slice(flt.index + flt[0].length).trimStart();
+            if (!afterOpen.startsWith('{')) continue;
+          }
           if (PROMISE_METHOD_HINTS.includes(method.toLowerCase())) {
             // Prefix check — is the statement preceded by await/return/void/= ?
             const before = line.slice(0, flt.index + indent.length);

@@ -301,6 +301,59 @@ describe('ErrorSwallowModule — floating promise', () => {
     );
   });
 
+  it('does NOT flag Map/Set/cookie .delete(bareKey) — returns boolean/void, not a promise', async () => {
+    // Regression (2026-07-11): collection deletes take a bare key and return
+    // boolean; only ORM deletes (object-literal arg) are floating-promise smells.
+    write(tmp, 'src/a.js', [
+      'function run(scanId, firstIdent, cookieStore) {',
+      '  costLedger.delete(scanId);',
+      '  taintedVars.delete(firstIdent[1]);',
+      '  cookieStore.delete("gh_oauth_state");',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(
+      r.checks.find((c) => c.name.startsWith('error-swallow:floating-promise:')),
+      undefined,
+      'collection .delete(bareKey) must not be flagged',
+    );
+  });
+
+  it('STILL flags an ORM .delete({ where }) — object-literal arg is a real smell', async () => {
+    write(tmp, 'src/a.js', [
+      'function run(id) {',
+      '  prisma.user.delete({ where: { id } });',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.ok(
+      r.checks.find((c) => c.name.startsWith('error-swallow:floating-promise:')),
+      'ORM delete with an object arg should still be flagged',
+    );
+  });
+
+  it('does NOT flag .write() on any receiver — it returns a boolean, not a promise', async () => {
+    // Regression (2026-07-11): stream/request .write() returns the backpressure
+    // boolean per Node's contract, never an awaitable promise. Flagging it was a
+    // 42-finding false-positive flood on our own repo (out.write, req.write, …).
+    write(tmp, 'src/a.js', [
+      'function run(out, req, sink) {',
+      '  out.write("hello\\n");',
+      '  req.write(JSON.stringify(body));',
+      '  sink.write(chunk);',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(
+      r.checks.find((c) => c.name.startsWith('error-swallow:floating-promise:')),
+      undefined,
+      'stream .write() must not be flagged as a floating promise',
+    );
+  });
+
   it('does NOT flag when chained with .then/.catch', async () => {
     write(tmp, 'src/a.js', [
       'function run() {',
