@@ -415,6 +415,14 @@ pre-existing skips), 0 fail. Website builds clean throughout.
 
 ## VERSION CHANGELOGS (moved from the Bible)
 
+**deadCode import-graph completeness (2026-07-11, commit 4d0128a):** Careful analysis of the 266 `unused-export` findings showed most were false-positive CLASSES from an incomplete import graph — NOT the tool being wrong about genuine dead code (which it still catches). Five root-cause fixes in `dead-code-extractor.js` / `dead-code-index.js` / `dead-code.js`, each with a regression test that ALSO asserts genuinely-dead code is still flagged (no false negatives):
+- **Namespace imports** — a whole-module import (`const M = require('./m')`, `import M from`, `import * as`, dynamic import) can reach any export via `M.helper` or a late destructure, so none of that file's exports are flagged. Kills the ubiquitous "exported for the test" CommonJS pattern (`src/` 43 → 0).
+- **TS `import type { X } from`** was not parsed at all — now handled (plus inline `{ type X }`).
+- **Barrel re-exports** — `export * from './x'` and `export { a } from './x'` are now tracked, so an `index.ts` barrel no longer makes the underlying files' exports look dead (`integrations/` 7 → 0).
+- **Python internal refs** — a def/class referenced within its own file (dispatch table, registry, internal call) is used, not dead; no longer extracted as an export (`.holdenmercer` runner 17 → 0).
+- **Test files** (`*.test.*`, `*.spec.*`, `/tests/`) are runner entry points, never imported — incidental exports no longer flagged (`tests/` 7 → 0). Plus VS Code `activate`/`deactivate` added to FRAMEWORK_RESERVED.
+- Net: 266 → ~131 on our repo; the remainder is now GENUINE dead code (an orphaned admin UI kit from the tab refactor) the tool should report. 13 new regression tests (44 deadCode tests total).
+
 **Engine-quieting dogfood pass (2026-07-11, commits ..f45850e):** Ran the engine on our OWN repo, found the top false-positive floods, fixed each at root cause with a regression test (never suppressed our own findings). Measured before→after on this repo:
 - **errorSwallow ~90 → 5.** `.write()` dropped from the promise-method hints — Node's `Writable.write()`/`ClientRequest.write()` return a boolean, never an awaitable promise, on ANY receiver (was 42 FPs; the receiver allowlist couldn't enumerate every stream var name). `.delete()` now only flags with an object-literal arg — `Map`/`Set`/`cookieStore.delete(key)` return boolean/void, only ORM `delete({where})` is a real floating-promise.
 - **lint 376 errors → 0.** Markdown whitespace nits (trailing spaces, blank lines) downgraded error→info; a code gate must not bury real findings under prose-style notes.
