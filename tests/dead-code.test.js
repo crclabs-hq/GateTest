@@ -557,3 +557,97 @@ describe('DeadCodeModule — configurable ignore patterns', () => {
     assert.ok(!mockOrphan, 'mock/data.js should be suppressed via top-level config.ignore');
   });
 });
+
+describe('DeadCodeModule — namespace imports protect all exports', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dc-ns-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('does NOT flag a helper used only via two-step require (const M = require; M.helper)', async () => {
+    // The classic "exported for the test" CommonJS pattern.
+    write(tmp, 'src/util.js', 'function helper() { return 1; }\nmodule.exports = { helper };\n');
+    write(tmp, 'tests/util.test.js', [
+      "const Util = require('../src/util');",
+      'test("x", () => { Util.helper(); });',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(
+      r.checks.find((c) => c.export === 'helper'),
+      undefined,
+      'a whole-module require must protect all its exports',
+    );
+  });
+
+  it('does NOT flag exports when the module is default-imported (import M from)', async () => {
+    write(tmp, 'src/lib.ts', 'export function a() {}\nexport function b() {}\nexport default { a, b };\n');
+    write(tmp, 'src/main.ts', "import Lib from './lib';\nLib.a();\n");
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.export === 'a'), undefined);
+    assert.strictEqual(r.checks.find((c) => c.export === 'b'), undefined);
+  });
+
+  it('STILL flags a truly-unused export in a named-only-imported module', async () => {
+    write(tmp, 'src/lib.ts', 'export function used() {}\nexport function deadOne() {}\n');
+    write(tmp, 'src/main.ts', "import { used } from './lib';\nused();\n");
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.export === 'used'), undefined, 'used export not flagged');
+    assert.ok(r.checks.find((c) => c.export === 'deadOne'), 'genuinely-dead export still flagged');
+  });
+});
+
+describe('DeadCodeModule — TS import type is tracked', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dc-it-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('does NOT flag a type imported via `import type { X } from`', async () => {
+    write(tmp, 'src/types.ts', 'export interface Foo { a: number; }\nexport interface Bar { b: string; }\n');
+    write(tmp, 'src/main.ts', "import type { Foo } from './types';\nconst x: Foo = { a: 1 };\nconsole.log(x);\n");
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.export === 'Foo'), undefined, 'import type { Foo } must count');
+    // Bar is genuinely never imported → still flagged.
+    assert.ok(r.checks.find((c) => c.export === 'Bar'), 'unused Bar still flagged');
+  });
+
+  it('does NOT flag a type imported via inline `{ type X }`', async () => {
+    write(tmp, 'src/types.ts', 'export interface Baz { c: boolean; }\n');
+    write(tmp, 'src/main.ts', "import { type Baz } from './types';\nconst y: Baz = { c: true };\nconsole.log(y);\n");
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.export === 'Baz'), undefined);
+  });
+});
+
+describe('DeadCodeModule — barrel re-exports and test files', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dc-barrel-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('does NOT flag exports re-exported via `export * from` (barrel)', async () => {
+    write(tmp, 'src/adapter.ts', 'export function doThing() {}\nexport interface Opts { a: number; }\n');
+    write(tmp, 'src/index.ts', "export * from './adapter';\n");
+    // The barrel itself is imported by a consumer (so it isn't orphaned).
+    write(tmp, 'src/consumer.ts', "import { doThing } from './index';\ndoThing();\n");
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.export === 'doThing'), undefined, 'export * must protect doThing');
+    assert.strictEqual(r.checks.find((c) => c.export === 'Opts'), undefined, 'export * must protect Opts');
+  });
+
+  it('does NOT flag exports re-exported via `export { X } from`', async () => {
+    write(tmp, 'src/a.ts', 'export function keep() {}\nexport function drop() {}\n');
+    write(tmp, 'src/index.ts', "export { keep } from './a';\n");
+    write(tmp, 'src/consumer.ts', "import { keep } from './index';\nkeep();\n");
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.export === 'keep'), undefined, 'named re-export protects keep');
+    // drop is neither re-exported nor imported → still flagged.
+    assert.ok(r.checks.find((c) => c.export === 'drop'), 'genuinely-dead drop still flagged');
+  });
+
+  it('does NOT flag incidental exports in *.test.* files', async () => {
+    write(tmp, 'src/main.ts', 'export function real() {}\n'); // real dead code (control)
+    write(tmp, 'tests/foo.test.js', 'function run() {}\nmodule.exports = { run };\ntest("x", () => run());\n');
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.export === 'run'), undefined, 'test-file export must not be flagged');
+    assert.ok(r.checks.find((c) => c.export === 'real'), 'non-test dead code still flagged');
+  });
+});

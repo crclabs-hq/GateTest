@@ -14,6 +14,9 @@ function buildDeadCodeIndex(files, projectRoot) {
   const perFile = new Map();
   const importedNames = new Set();
   const referencedFiles = new Set();
+  // Files imported as a WHOLE module somewhere (namespace/default/whole-require/
+  // dynamic import). Their exports can't be proven unused — skip flagging them.
+  const namespaceReferencedFiles = new Set();
 
   const workspacePackages = buildWorkspaceMap(projectRoot);
   const importedWorkspacePackages = new Set();
@@ -44,11 +47,20 @@ function buildDeadCodeIndex(files, projectRoot) {
 
     perFile.set(file, { exports, lang, rel: path.relative(projectRoot, file) });
 
-    const { names, paths } = lang === 'py'
+    const imp = lang === 'py'
       ? extractPyImports(content)
       : extractJsImports(content);
+    const { names, paths } = imp;
+    const namespacePaths = imp.namespacePaths || new Set();
 
     for (const n of names) importedNames.add(n);
+    for (const nsPath of namespacePaths) {
+      const resolvedNs = resolveImportPath(file, nsPath, projectRoot, workspacePackages);
+      if (resolvedNs) {
+        namespaceReferencedFiles.add(resolvedNs);
+        namespaceReferencedFiles.add(path.normalize(resolvedNs));
+      }
+    }
     for (const p of paths) {
       let wsKey = null;
       if (workspacePackages.has(p)) {
@@ -74,7 +86,7 @@ function buildDeadCodeIndex(files, projectRoot) {
     }
   }
 
-  return { perFile, importedNames, referencedFiles, projectRoot, importedWorkspacePackages, fileWorkspacePackage, workspacePackagesWithSurface };
+  return { perFile, importedNames, referencedFiles, namespaceReferencedFiles, projectRoot, importedWorkspacePackages, fileWorkspacePackage, workspacePackagesWithSurface };
 }
 
 function buildWorkspaceMap(projectRoot) {

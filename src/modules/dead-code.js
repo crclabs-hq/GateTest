@@ -28,6 +28,12 @@ const ENTRYPOINT_BASENAMES = new Set([
   'conftest.py', 'setup.py', 'manage.py',
 ]);
 
+// Test files are executed by the runner, never imported — their top-level
+// exports are incidental (a local `run` helper, a mock), so "unused export"
+// analysis on them is pure noise (and "delete this dead code" is dangerous
+// advice for test code). Matches *.test.*, *.spec.*, and /tests|__tests__/.
+const TEST_FILE_RE = /(?:^|[\\/])(?:tests?|__tests__)[\\/]|\.(?:test|spec)\.[a-z]+$/i;
+
 const FRAMEWORK_RESERVED = new Set([
   'default', 'metadata', 'generateMetadata', 'generateStaticParams',
   'generateViewport', 'viewport',
@@ -38,6 +44,8 @@ const FRAMEWORK_RESERVED = new Set([
   'alt', 'size', 'contentType',
   'ErrorBoundary', 'NotFound',
   'setUp', 'tearDown', 'setup', 'teardown', 'setup_module', 'teardown_module',
+  // VS Code extension contract — the editor calls these; nothing imports them.
+  'activate', 'deactivate',
 ]);
 
 class DeadCodeModule extends BaseModule {
@@ -155,11 +163,18 @@ class DeadCodeModule extends BaseModule {
 
   _flagUnusedExports(index, result, ignorePatterns = []) {
     let issues = 0;
+    const nsFiles = index.namespaceReferencedFiles || new Set();
     for (const [file, info] of index.perFile.entries()) {
       const wsPkg = index.fileWorkspacePackage && index.fileWorkspacePackage.get(file);
       if (wsPkg && index.importedWorkspacePackages && index.importedWorkspacePackages.has(wsPkg)) {
         if (!index.workspacePackagesWithSurface || !index.workspacePackagesWithSurface.has(wsPkg)) continue;
       }
+      // Whole-module import somewhere → a consumer can reach any export via
+      // member access / late destructure. Can't prove any export unused. This
+      // is the common "module exports helpers, its test does
+      // `const M = require('./mod')` then uses M.helper" pattern.
+      if (nsFiles.has(path.normalize(file)) || nsFiles.has(file)) continue;
+      if (TEST_FILE_RE.test(info.rel)) continue;
       if (this._matchesIgnorePattern(info.rel, ignorePatterns)) continue;
 
       for (const exp of info.exports) {

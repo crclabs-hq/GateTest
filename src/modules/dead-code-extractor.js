@@ -237,18 +237,35 @@ function populatePackageSurface(pkgDir, pkgName, referencedFiles, importedNames,
 function extractJsImports(content) {
   const names = new Set();
   const paths = new Set();
+  // Paths imported as a WHOLE module (namespace / default / bare require, or a
+  // dynamic import) — the importer can reach any export via member access
+  // (`M.foo`) or a later destructure (`const { foo } = M`), which we can't
+  // track statically. A file imported this way must NOT have its exports
+  // flagged as unused. Only files imported EXCLUSIVELY by name are analysable.
+  const namespacePaths = new Set();
+  // Paths reached by at least one NAMED import (import { x } / { x } = require).
+  const namedPaths = new Set();
 
-  const importRe = /import\s+(?:(\*\s+as\s+[A-Za-z_$][\w$]*)|([A-Za-z_$][\w$]*)|(\{[^}]*\})|(\{[^}]*\}\s*,\s*[A-Za-z_$][\w$]*)|([A-Za-z_$][\w$]*\s*,\s*\{[^}]*\}))?\s*(?:from\s+)?["']([^"']+)["']/g;
+  // The optional `type` after `import` handles TS type-only imports:
+  //   import type { Foo } from './x'   /   import type Foo from './x'
+  const importRe = /import\s+(?:type\s+)?(?:(\*\s+as\s+[A-Za-z_$][\w$]*)|([A-Za-z_$][\w$]*)|(\{[^}]*\})|(\{[^}]*\}\s*,\s*[A-Za-z_$][\w$]*)|([A-Za-z_$][\w$]*\s*,\s*\{[^}]*\}))?\s*(?:from\s+)?["']([^"']+)["']/g;
   let m;
   while ((m = importRe.exec(content)) !== null) {
-    paths.add(m[6]);
+    const p = m[6];
+    paths.add(p);
     const spec = m[1] || m[2] || m[3] || m[4] || m[5] || '';
+    // `import * as M`, `import M from`, and side-effect `import 'x'` bring the
+    // whole module into reach; a spec containing `{...}` is a named import.
+    if (m[1] || m[2] || m[5] || !spec) namespacePaths.add(p);
     if (spec) {
       const braces = spec.match(/\{([^}]*)\}/);
       if (braces) {
+        namedPaths.add(p);
         for (const part of braces[1].split(',')) {
-          const trimmed = part.trim();
+          let trimmed = part.trim();
           if (!trimmed) continue;
+          // Strip a leading inline `type ` modifier (import { type Foo }).
+          trimmed = trimmed.replace(/^type\s+/, '');
           const alias = trimmed.split(/\s+as\s+/);
           names.add(alias[0].trim());
         }
@@ -258,13 +275,10 @@ function extractJsImports(content) {
     }
   }
 
-  const requireRe = /require\s*\(\s*["']([^"']+)["']\s*\)/g;
-  while ((m = requireRe.exec(content)) !== null) {
-    paths.add(m[1]);
-  }
-
+  // Named CJS destructure: `const { a, b } = require('path')`.
   const destructRe = /\{\s*([^}]+)\s*\}\s*=\s*require\s*\(\s*["']([^"']+)["']\s*\)/g;
   while ((m = destructRe.exec(content)) !== null) {
+    namedPaths.add(m[2]);
     for (const part of m[1].split(',')) {
       const trimmed = part.trim();
       if (!trimmed) continue;
@@ -273,12 +287,43 @@ function extractJsImports(content) {
     }
   }
 
+  // Every remaining require('path') that wasn't the named-destructure form is a
+  // whole-module require (`const M = require('path')`, `foo(require('path'))`,
+  // or a bare side-effect require).
+  const requireRe = /require\s*\(\s*["']([^"']+)["']\s*\)/g;
+  while ((m = requireRe.exec(content)) !== null) {
+    paths.add(m[1]);
+    if (!namedPaths.has(m[1])) namespacePaths.add(m[1]);
+  }
+
   const dynamicImportRe = /import\s*\(\s*["']([^"']+)["']\s*\)/g;
   while ((m = dynamicImportRe.exec(content)) !== null) {
     paths.add(m[1]);
+    namespacePaths.add(m[1]); // dynamic import — whole module in reach
   }
 
-  return { names, paths };
+  // Re-exports (barrel files). `export * from './x'` re-exports the whole
+  // module — every export of './x' is now part of THIS module's surface, so
+  // treat it as a namespace reference. `export { a, b } from './x'` re-exports
+  // specific names. Without this, an index.ts barrel makes the underlying
+  // files' exports look unused.
+  const starReExportRe = /export\s*\*\s*(?:as\s+[A-Za-z_$][\w$]*\s+)?from\s*["']([^"']+)["']/g;
+  while ((m = starReExportRe.exec(content)) !== null) {
+    paths.add(m[1]);
+    namespacePaths.add(m[1]);
+  }
+  const namedReExportRe = /export\s*\{([^}]*)\}\s*from\s*["']([^"']+)["']/g;
+  while ((m = namedReExportRe.exec(content)) !== null) {
+    paths.add(m[2]);
+    for (let part of m[1].split(',')) {
+      part = part.trim();
+      if (!part) continue;
+      part = part.replace(/^type\s+/, '');
+      names.add(part.split(/\s+as\s+/)[0].trim());
+    }
+  }
+
+  return { names, paths, namespacePaths };
 }
 
 function extractPyExports(content) {
@@ -303,7 +348,15 @@ function extractPyExports(content) {
     // false positives (300+ on one runner script). Only def/class — reusable
     // code units — are meaningful "unused export" signals.
   }
-  return out;
+  // Drop any def/class that is REFERENCED elsewhere in its own file — a
+  // dispatch table, registry, or internal call means it's used (and not safe
+  // to delete), so it isn't dead even if no other file imports it. Common in
+  // Python runner scripts: `def tool_x(): ...` then `if name == "x": tool_x()`.
+  return out.filter((exp) => {
+    const re = new RegExp(`\\b${exp.name}\\b`, 'g');
+    const hits = (content.match(re) || []).length;
+    return hits <= 1; // only the definition itself → genuinely unreferenced
+  });
 }
 
 function extractPyImports(content) {
