@@ -1,0 +1,120 @@
+{
+  "generatedAt": "2026-07-12T06:05:43.354Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 6,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 2,
+      "SonarQube": 0,
+      "Semgrep": 1,
+      "CodeQL": 2,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48878357",
+        "author": "m1llie_",
+        "type": "comment",
+        "title": null,
+        "text": "I feel a very similar sentiment in Australia. Everything is poorly made and full of anti-features. It breaks prematurely, and software updates make it worse by disabling features, adding things I don't want, or holding functionality I already paid for to ransom as a subscription.Warranties aren't worth the paper they're printed on. Every warranty claim I've made in the past 5 years (a fair few) has been a Kafka-esque nightmare of bouncing back and forth between reps who don't understand the issue, callbacks at inopportune times because of failure to understand timezones, and waiting for things to ship back and forth between repair centres across the country or overseas. Customer support is carefully crafted to be set up to fail, while still maintaining the plausible deniability of Hanlon's Razor. You may eventually get your widget repaired or replaced, but it'll cost you as much in time, effort, and frustration as it would have to just buy a new one. This is of course deliberate, but you'll never prove it. Companies exploit people's politeness and aversion to conflict by telling polite customers that there's nothing that can be done. You get nothing unless you dig your heels in and get combative with the rep who is just doing their job. And the consumer protection agencies are toothless tigers.So now I don't buy new products unless there's no other option. Previously, buying new meant a product you could trust, and an assurance that they'd take care of you if something went wrong. Since that contract is broken, I see no point buying new. Especially not when last year's model often has more features, fewer anti-features, and better repairability than the current one. I'm not the only one responding like this: The snake cannot eat its own tail forever, and these companies will eventually discover that if they keep making their products shittier and shittier then people will just stop buying them. Especially once new competitors who need to build a reputation start to eat the established brands' lunches.",
+        "url": "https://news.ycombinator.com/item?id=48878357",
+        "points": null,
+        "numComments": null,
+        "storyId": 48877927,
+        "createdAt": "2026-07-12T04:49:29Z",
+        "createdAtUnix": 1783831769,
+        "intent": "bug"
+      },
+      {
+        "objectId": "48870806",
+        "author": "rramadass",
+        "type": "comment",
+        "title": null,
+        "text": "> If I would have stuck with it, would things have improved?Yes.I have a B.Sc in Chemistry (Honours) from late 1980s and it was not until the final year that things finally began to click. The main catalysts were the books \"Concise Inorganic Chemistry by J.D.Lee\" and \"Mechanism in Organic Chemistry by Peter Sykes\". Both beautifully written and try to give a framework within which to think viz. the former based on the periodic table and the latter on carbon valence bond properties. I think i need to revisit these (and other books) to justify my degree in Chemistry :-)For background and inspiration, consult Linus Pauling's classics; The Nature of the Chemical Bond and General Chemistry - https:&#x2F;&#x2F;archive.org&#x2F;search?query=creator%3A%22Pauling+Linus%...Linus Pauling (the only scientist in history to be awarded two undivided, unshared Nobel Prizes) - https:&#x2F;&#x2F;en.wikipedia.org&#x2F;wiki&#x2F;Linus_Pauling",
+        "url": "https://news.ycombinator.com/item?id=48870806",
+        "points": null,
+        "numComments": null,
+        "storyId": 48866134,
+        "createdAt": "2026-07-11T10:50:54Z",
+        "createdAtUnix": 1783767054,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48875829",
+        "author": "mhurron",
+        "type": "comment",
+        "title": null,
+        "text": "It wasn't just showing off land. It was showing off you had land that was completely unproductive and could even afford staff to maintain this completely useless plot. It's why they became increasingly large and ornate gardens.It then took this association with rich and better and was used in the US to denote affluent and therefore segregated housing developments.",
+        "url": "https://news.ycombinator.com/item?id=48875829",
+        "points": null,
+        "numComments": null,
+        "storyId": 48873424,
+        "createdAt": "2026-07-11T20:59:25Z",
+        "createdAtUnix": 1783803565,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48873363",
+        "author": "reveriedev",
+        "type": "comment",
+        "title": null,
+        "text": "Back in the medieval age of 2025, I used frameworks like PydanticAI and LangGraph to build agents. Getting those agent systems to behave reliably was often annoying and tricky.Claude Code and Codex have since become capable general-purpose agents. They each have an SDK, but those SDKs expose different interfaces and inherit their respective platform’s quirks.While building CodeAlmanac, I wanted one way to work with both harnesses while retaining features such as skills, custom subagents, workflows, sessions, and goals.So I built Yoke.Yoke is a Python SDK for defining an agent once and running it through Claude Code or Codex. Instead of building another agent loop and managing message passing, structured outputs, and context compaction yourself, you reuse the agent harnesses that already exist.It’s still early. Feedback and contributions are very welcome:https:&#x2F;&#x2F;github.com&#x2F;AlmanacCode&#x2F;Yoke",
+        "url": "https://news.ycombinator.com/item?id=48873363",
+        "points": null,
+        "numComments": null,
+        "storyId": 48873362,
+        "createdAt": "2026-07-11T16:19:48Z",
+        "createdAtUnix": 1783786788,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48871797",
+        "author": "ingve",
+        "type": "story",
+        "title": "Forking an Open Source Project",
+        "text": "Forking an Open Source Project",
+        "url": "https://codeblog.jonskeet.uk/2026/07/11/forking-an-open-source-project/",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 48871797,
+        "createdAt": "2026-07-11T13:13:51Z",
+        "createdAtUnix": 1783775631,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "48873420",
+        "author": "igoose1",
+        "type": "comment",
+        "title": null,
+        "text": "Thanks for mentioning GrapheneOS. I'll just explain to others what \"pretty trivially\" means here. GrapheneOS adds a huge checkmark \"Network access?\" when you install an app. It's impossible to miss.",
+        "url": "https://news.ycombinator.com/item?id=48873420",
+        "points": null,
+        "numComments": null,
+        "storyId": 48864252,
+        "createdAt": "2026-07-11T16:28:18Z",
+        "createdAtUnix": 1783787298,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
