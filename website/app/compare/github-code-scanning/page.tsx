@@ -68,7 +68,7 @@ const comparisonRows = [
   { feature: "Prompt / LLM safety scanning", gatetest: true, competitor: false },
   { feature: "Works with non-GitHub git hosts", gatetest: true, competitor: false },
   { feature: "Pay per scan (no per-seat licensing)", gatetest: true, competitor: false },
-  { feature: "90 scanning modules total", gatetest: true, competitor: false },
+  { feature: "120 scanning modules total", gatetest: true, competitor: false },
   { feature: "PR / commit status integration", gatetest: true, competitor: true },
   { feature: "SARIF output format", gatetest: true, competitor: true },
 ];

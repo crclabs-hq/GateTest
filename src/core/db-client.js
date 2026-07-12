@@ -128,9 +128,9 @@ function tryRequireFrom(projectRoot, ...moduleNames) {
   for (const name of moduleNames) {
     try {
       return require(path.join(projectRoot, 'node_modules', name));
-    } catch {}
+    } catch {} // error-ok: probing optional DB drivers; absence means try the next candidate
     // Also try global require as fallback
-    try { return require(name); } catch {}
+    try { return require(name); } catch {} // error-ok: probing optional DB drivers; absence means try the next candidate
   }
   return null;
 }

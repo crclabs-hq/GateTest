@@ -166,10 +166,10 @@ class CrossBrowserModule extends BaseModule {
         }
       }
 
-      await context.close().catch(() => {});
+      await context.close().catch(() => {}); // error-ok: best-effort browser probe; absent target is a valid outcome, finding still recorded
       return { launched: true, navigationFailure, status, pageErrors, consoleErrors, screenshotBuffer };
     } finally {
-      await browser.close().catch(() => {});
+      await browser.close().catch(() => {}); // error-ok: best-effort browser probe; absent target is a valid outcome, finding still recorded
     }
   }
 

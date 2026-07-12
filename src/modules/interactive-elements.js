@@ -256,7 +256,7 @@ class InteractiveElementsModule extends BaseModule {
         await this._checkButtons(page, buttons.slice(0, maxElementsPerPage), url, timeout, stats);
       }
     } finally {
-      await context.close().catch(() => {});
+      await context.close().catch(() => {}); // error-ok: best-effort DOM probe; element may be detached mid-test, finding still recorded
     }
 
     return stats;
@@ -264,10 +264,10 @@ class InteractiveElementsModule extends BaseModule {
 
   async _boundedScroll(page, steps) {
     for (let i = 0; i < steps; i++) {
-      await page.evaluate(() => window.scrollBy(0, window.innerHeight)).catch(() => {});
+      await page.evaluate(() => window.scrollBy(0, window.innerHeight)).catch(() => {}); // error-ok: best-effort DOM probe; element may be detached mid-test, finding still recorded
       await page.waitForTimeout(150);
     }
-    await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+    await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {}); // error-ok: best-effort DOM probe; element may be detached mid-test, finding still recorded
     await page.waitForTimeout(150);
   }
 
@@ -385,7 +385,7 @@ class InteractiveElementsModule extends BaseModule {
         try {
           await page.goto(pageUrl, { timeout, waitUntil: 'networkidle' });
         } catch {
-          await page.goto(pageUrl, { timeout, waitUntil: 'load' }).catch(() => {});
+          await page.goto(pageUrl, { timeout, waitUntil: 'load' }).catch(() => {}); // error-ok: best-effort DOM probe; element may be detached mid-test, finding still recorded
         }
       }
     }
@@ -473,7 +473,7 @@ class InteractiveElementsModule extends BaseModule {
     const afterHoverRootState = await this._readRootState(page);
     // Move the mouse away so the hover state doesn't leak into the next
     // element's "before" reading.
-    await page.mouse.move(0, 0).catch(() => {});
+    await page.mouse.move(0, 0).catch(() => {}); // error-ok: best-effort DOM probe; element may be detached mid-test, finding still recorded
     return afterHoverSelfState !== beforeSelfState || afterHoverRootState !== beforeRootState;
   }
 
@@ -525,7 +525,7 @@ class InteractiveElementsModule extends BaseModule {
   async _dismissModals(page) {
     const openCount = await this._countModals(page);
     if (openCount === 0) return;
-    await page.keyboard.press('Escape').catch(() => {});
+    await page.keyboard.press('Escape').catch(() => {}); // error-ok: best-effort DOM probe; element may be detached mid-test, finding still recorded
     await page.waitForTimeout(200);
     if ((await this._countModals(page)) === 0) return;
     const closeSelectors = [
@@ -538,7 +538,7 @@ class InteractiveElementsModule extends BaseModule {
       try {
         const el = page.locator(sel).first();
         if (await el.isVisible({ timeout: 500 })) {
-          await el.click({ timeout: 1000 }).catch(() => {});
+          await el.click({ timeout: 1000 }).catch(() => {}); // error-ok: best-effort DOM probe; element may be detached mid-test, finding still recorded
           break;
         }
       } catch {

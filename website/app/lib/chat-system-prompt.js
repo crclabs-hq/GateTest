@@ -17,7 +17,7 @@ const PRODUCT_FACTS = `
 ## What GateTest is
 
 GateTest is an automated quality-assurance platform for software
-projects and websites. It runs 90+ checks across security, reliability,
+projects and websites. It runs 120 modules across security, reliability,
 performance, accessibility, SEO, and code quality. When run against a
 code repository, it can also open a pull request that fixes the issues
 it found using Claude AI.
@@ -29,8 +29,8 @@ it found using Claude AI.
   Fast feedback. Best for first-time scans.
 
 - Full Scan: $99 one-shot
-  All 90+ modules — security, supply chain, auth, CI hardening,
-  AI review, plus AI auto-fix PR.
+  All 120 modules — security, supply chain, auth, CI hardening,
+  AI review. Scan-only (auto-fix PRs start at the Scan + Fix tier).
 
 - Scan + Fix: $199 one-shot
   Everything in Full plus:
@@ -38,7 +38,7 @@ it found using Claude AI.
     - Architecture annotator (design-observation report)
   Same PR, deeper deliverable.
 
-- Nuclear: $399 one-shot
+- Forensic (formerly Nuclear): $399 one-shot
   Everything in Scan + Fix plus:
     - Real Claude diagnosis on every finding (no templated snippets)
     - Cross-finding attack-chain correlation
@@ -47,7 +47,7 @@ it found using Claude AI.
   Also available via the GitHub Action (mutation: true / chaos: true):
     - Mutation testing (proves your tests catch bugs) — needs a CI runner to execute your test suite
     - Chaos / fuzz pass on entry points — needs a headless browser
-  The website-only Nuclear scan does not include those two — they ship wherever the customer's CI runs.
+  The website-only Forensic scan does not include those two — they ship wherever the customer's CI runs.
 
 - WordPress Health Check: $19 one-shot
   WordPress-specific scan against any public WP site. Probes for

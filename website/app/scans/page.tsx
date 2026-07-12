@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Hall of Scans — Real Results from Real Codebases | GateTest",
   description:
-    "GateTest ran against real public codebases. Here's exactly what it found — 754 issues, 649 issues, money stored in floats, session-forgery vectors, supply-chain CI takeovers. No demo data.",
+    "GateTest ran against real codebases with the current 120-module engine — including its own repo and our own false positives, published and then fixed. 2,607 errors and 10,101 warnings across four platforms. No demo data.",
 };
 
 interface Finding {
@@ -36,64 +36,40 @@ const SCANS: ScanEntry[] = [
   {
     repo: "GateTest — self-scan (this product's own repo)",
     url: "https://github.com/crclabs-hq/gatetest",
-    tier: "Forensic ($399)",
-    date: "2026-04-26",
-    modules: { passed: 30, total: 39 },
-    errors: 37,
-    warnings: 328,
+    tier: "Full suite · 120-module engine · self-scan",
+    date: "2026-07-12",
+    modules: { passed: 76, total: 88 },
+    errors: 137,
+    warnings: 1963,
     topFindings: [
-      { severity: "error", module: "ciSecurity", description: "continue-on-error: true on GateTest's own gate step — Bible Forbidden #24" },
-      { severity: "error", module: "secrets", description: "Stale credential-shaped strings in test fixtures (>90 days)" },
-      { severity: "error", module: "errorSwallow", description: "Empty catch blocks swallowing DB connection errors silently" },
-      { severity: "warning", module: "typescript-strictness", description: "skipLibCheck: true in tsconfig.json — hides type-contract violations" },
+      { severity: "error", module: "authBypass", description: "84 of the 137 errors are this module reading route-shaped pattern strings inside our own scanner source — a false-positive class we're fixing next. Publishing it anyway: the correlator doesn't get to hide our own noise." },
+      { severity: "error", module: "security", description: "Math.random() used where a security-sensitive value belongs — crypto.randomBytes is the fix" },
+      { severity: "error", module: "seo", description: "Corpus/demo HTML files missing meta descriptions and Open Graph tags" },
+      { severity: "warning", module: "errorSwallow", description: "Catch blocks that log without re-throwing — visible in logs, invisible to callers" },
     ],
-    chains: [
-      {
-        severity: "critical",
-        label: "Session-forgery vector",
-        description: "Weak session secret + httpOnly:false cookie + missing CSRF validation → attacker can forge authenticated sessions from XSS",
-      },
-      {
-        severity: "high",
-        label: "CI supply-chain exposure",
-        description: "Unpinned GitHub Actions + GITHUB_TOKEN with write permissions + shell injection via event inputs → workflow hijack",
-      },
-    ],
-    highlight: "GateTest ran on itself. We found 37 real errors — all fixed before shipping. The CI continue-on-error violation was caught by the ciSecurity module dog-fooding its own rule.",
+    highlight: "Same-day proof: the morning quick-suite gate found 85 blocking issues in our own repo — a crashed ESLint config, a real fs TOCTOU race, 45 undocumented error swallows. All fixed at root cause by evening; the gate now passes 41/41. Every fix is in the public git history.",
   },
   {
     repo: "Vapron — production scheduling platform (dogfood)",
     url: "#",
-    tier: "Forensic ($399)",
-    date: "2026-04-26",
-    modules: { passed: 23, total: 39 },
-    errors: 754,
-    warnings: 891,
+    tier: "Full suite · 120-module engine · dogfood",
+    date: "2026-07-12",
+    modules: { passed: 56, total: 88 },
+    errors: 1697,
+    warnings: 7128,
     topFindings: [
-      { severity: "critical", module: "ciSecurity", description: "Unpinned GitHub Actions + write-permission GITHUB_TOKEN + shell injection from PR title event input" },
-      { severity: "critical", module: "secrets", description: "API key baked into Docker layer — visible in docker history" },
-      { severity: "error", module: "ssrf", description: "User-supplied webhook URL passed directly to fetch() without hostname validation" },
-      { severity: "error", module: "cookieSecurity", description: "Session cookie secret is a known-weak placeholder — cookie theft risk" },
-      { severity: "error", module: "tlsSecurity", description: "NODE_TLS_REJECT_UNAUTHORIZED=0 set globally in server bootstrap" },
+      { severity: "critical", module: "security", description: "innerHTML assignments from non-constant sources — XSS surface" },
+      { severity: "error", module: "errorSwallow", description: "113 silent error swallows — empty catches, .catch(() => {}), log-without-rethrow across API and auth paths" },
+      { severity: "error", module: "envVars", description: "143 env vars read in code but absent from .env.example — the config contract doesn't know they exist" },
+      { severity: "error", module: "accessibility", description: "278 findings — unlabeled inputs, animations without prefers-reduced-motion" },
+      { severity: "error", module: "bashSafety", description: "382 shell-safety findings across ops scripts" },
     ],
-    chains: [
-      {
-        severity: "critical",
-        label: "Supply-chain CI takeover",
-        description: "Unpinned action + write GITHUB_TOKEN + shell injection from PR title → attacker opens PR with crafted title, action runs shell with write access to the repo",
-      },
-      {
-        severity: "critical",
-        label: "Client-bundle secret exposure",
-        description: "NEXT_PUBLIC_ prefixed API key + baked into Docker layer + no rotation detector → key is in the browser bundle AND in docker history, double-exposure",
-      },
-    ],
-    highlight: "754 errors across a production scheduling platform. Two critical attack chains, both requiring less than 30 minutes to exploit. The supply-chain chain is the one that makes security engineers go quiet.",
+    highlight: "1,697 errors on a pre-launch production platform under the current 120-module engine. Exact file/line detail is withheld here until the fixes land — these are live systems — but the counts are unedited. This is the queue GateTest's own CI gate is now grinding down on every push.",
   },
   {
-    repo: "Gluecron.com — workflow automation platform (dogfood)",
+    repo: "Gluecron.com — git hosting platform (dogfood)",
     url: "#",
-    tier: "Forensic ($399)",
+    tier: "Forensic suite · April 2026 engine (39 modules) · dogfood",
     date: "2026-04-26",
     modules: { passed: 26, total: 39 },
     errors: 649,
@@ -116,12 +92,12 @@ const SCANS: ScanEntry[] = [
         description: "parseFloat on cron billing amounts + duplicate-job race on insert → a race creates two billing events, both use float arithmetic → double-charge with rounding error",
       },
     ],
-    highlight: "The clevgest chain of this batch: hardcoded secret + missing from .env.example. Neither finding alone is alarming. Together they mean you cannot rotate the secret even if you wanted to — the rotation attempt itself would break production.",
+    highlight: "The cleverest chain of this batch: hardcoded secret + missing from .env.example. Neither finding alone is alarming. Together they mean you cannot rotate the secret even if you wanted to — the rotation attempt itself would break production.",
   },
   {
     repo: "public legal-tech platform",
     url: "#",
-    tier: "Forensic ($399)",
+    tier: "Forensic suite · April 2026 engine (39 modules) · consented scan",
     date: "2026-04-26",
     modules: { passed: 31, total: 39 },
     errors: 124,
@@ -184,9 +160,12 @@ export default function HallOfScans() {
             Hall of Scans
           </h1>
           <p className="text-lg text-muted max-w-2xl mx-auto leading-relaxed">
-            Every result on this page came from running GateTest against a real public
-            codebase. No fabricated numbers. No cherry-picked examples. This is what
-            120 modules actually find.
+            Every result on this page came from running GateTest against a real
+            codebase. No fabricated numbers. No cherry-picked examples — including
+            our own false positives, which we publish and then fix. Each card names
+            the engine that ran it: the July 2026 scans used today&apos;s 120-module
+            engine (88 modules apply to a repo without a live URL); the archive
+            entries ran on the 39-module April engine.
           </p>
           <p className="mt-4 text-sm text-muted">
             🔒 Scans run in memory — code is never stored.
@@ -197,10 +176,11 @@ export default function HallOfScans() {
         {/* Aggregate stat bar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-16">
           {[
-            { label: "Total issues found", value: "1,564" },
-            { label: "Critical chains", value: "9" },
+            // Sums of the per-card numbers below — update together.
+            { label: "Errors found", value: "2,607" },
+            { label: "Warnings surfaced", value: "10,101" },
             { label: "Repos scanned", value: "4" },
-            { label: "Fixes auto-PRed", value: "47" },
+            { label: "Modules in the engine", value: "120" },
           ].map((s) => (
             <div key={s.label} className="card rounded-xl p-4 text-center">
               <div className="text-2xl font-bold text-accent mb-1">{s.value}</div>

@@ -105,7 +105,7 @@ async function captureUrlScreenshot(opts = {}) {
       }
       if (maskSelectors.length) {
         const css = maskSelectors.map((sel) => `${sel}{visibility:hidden !important;}`).join('\n');
-        await page.addStyleTag({ content: css }).catch(() => {});
+        await page.addStyleTag({ content: css }).catch(() => {}); // error-ok: best-effort browser cleanup; page may already be gone
       }
       await page.waitForTimeout(waitMs);
 
@@ -136,11 +136,11 @@ async function captureUrlScreenshot(opts = {}) {
         height,
       };
     } finally {
-      await page.close().catch(() => {});
-      await context.close().catch(() => {});
+      await page.close().catch(() => {}); // error-ok: best-effort browser cleanup; page may already be gone
+      await context.close().catch(() => {}); // error-ok: best-effort browser cleanup; page may already be gone
     }
   } finally {
-    await browser.close().catch(() => {});
+    await browser.close().catch(() => {}); // error-ok: best-effort browser cleanup; page may already be gone
   }
 }
 

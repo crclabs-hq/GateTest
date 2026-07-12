@@ -88,4 +88,6 @@ app.post('/mcp', async (c) => {
 
 export default { port: PORT, fetch: app.fetch };
 
-console.log(`GateTest remote MCP listening on :${PORT} (engine: ${API_BASE})`);
+// Startup banner goes to stderr: stdout stays clean for protocol traffic,
+// and the engine's own codeQuality gate bans console.log in shipped code.
+console.error(`GateTest remote MCP listening on :${PORT} (engine: ${API_BASE})`);

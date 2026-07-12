@@ -3,11 +3,16 @@
  *
  * Reads live data from the in-memory self-scan store via the shared lib
  * (see website/app/lib/self-scan-status.js, populated by CI publishes to
- * /api/internal/self-scan-status). Falls back to a static "Awaiting first
- * scan" state when no data has been received yet — honest, not faked.
+ * /api/internal/self-scan-status). When no live publish has arrived
+ * (fresh deploy, CI secret unset), falls back to the last MEASURED
+ * self-scan committed at website/app/data/self-scan-fallback.json —
+ * dated and labeled as such, never presented as live. A trust panel
+ * showing "STANDBY / Awaiting first scan" is anti-trust; a dated real
+ * result is honest.
  */
 
 import Link from "next/link";
+import selfScanFallback from "../data/self-scan-fallback.json";
 
 // CommonJS interop — shared with the route handler + the unit tests.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -36,10 +41,43 @@ interface LatestStatus {
 }
 
 export default function HomeSelfScan() {
-  const data = selfScanStatus.getLatestStatus() as LatestStatus | null;
-  const badge = selfScanStatus.deriveBadgeState(data);
+  const liveData = selfScanStatus.getLatestStatus() as LatestStatus | null;
+  const liveBadge = selfScanStatus.deriveBadgeState(liveData);
 
-  const isLive = badge.variant !== "awaiting";
+  // No live publish yet → fall back to the last measured, committed result.
+  const usingFallback = liveBadge.variant === "awaiting";
+  const data: LatestStatus | null = usingFallback
+    ? {
+        gateStatus: selfScanFallback.gateStatus as "PASSED" | "BLOCKED",
+        errorCount: selfScanFallback.errorCount,
+        warningCount: selfScanFallback.warningCount,
+        modulesPassedCount: selfScanFallback.modulesPassedCount,
+        modulesTotalCount: selfScanFallback.modulesTotalCount,
+        durationMs: selfScanFallback.durationMs ?? undefined,
+        scannedAt: selfScanFallback.scannedAt,
+        commitSha: selfScanFallback.commitSha,
+      }
+    : liveData;
+  const measuredDate = usingFallback
+    ? new Date(selfScanFallback.scannedAt).toISOString().slice(0, 10)
+    : null;
+  const badge = usingFallback
+    ? (() => {
+        const passed = data?.gateStatus === "PASSED";
+        const metricLine =
+          `${data?.modulesPassedCount}/${data?.modulesTotalCount} modules · ` +
+          `${data?.errorCount} blocking errors · measured ${measuredDate}`;
+        return {
+          variant: (passed ? "passed" : "blocked") as "passed" | "blocked",
+          labelText: passed ? "GREEN" : "BLOCKED",
+          metricLine,
+          commitShaShort: data?.commitSha ? data.commitSha.slice(0, 7) : null,
+          ariaLabel: `Self-scan status: ${passed ? "GREEN" : "BLOCKED"} (last measured ${measuredDate}). ${metricLine}`,
+        };
+      })()
+    : liveBadge;
+
+  const isLive = !usingFallback;
   const statusColor =
     badge.variant === "passed"
       ? "text-emerald-400"
@@ -113,7 +151,7 @@ export default function HomeSelfScan() {
                   className={`relative inline-flex rounded-full h-1.5 w-1.5 ${dotColor}`}
                 />
               </span>
-              {isLive ? "LIVE" : "STANDBY"}
+              {isLive ? "LIVE" : "MEASURED"}
             </span>
           </div>
 
@@ -189,13 +227,17 @@ export default function HomeSelfScan() {
               />
               <SelfStat
                 label="Last run"
-                value={ageMinutes !== null ? formatAge(ageMinutes) : "Awaiting"}
+                value={
+                  ageMinutes !== null
+                    ? formatAge(ageMinutes)
+                    : measuredDate ?? "Awaiting"
+                }
               />
               <SelfStat label="Soft-fail policy" value="Never" />
             </div>
 
-            {/* Stats footer — only renders when we actually have data */}
-            {isLive && typeof errorCount === "number" && (
+            {/* Stats footer — renders for live AND measured-fallback data */}
+            {typeof errorCount === "number" && (
               <div className="mt-4 text-xs text-white/40 font-mono">
                 Errors: {errorCount} &middot; Warnings: {warningCount ?? 0} &middot;
                 Modules passed: {passedCount}/{totalCount}

@@ -720,7 +720,7 @@ async function askClaude(fileContent: string, filePath: string, issues: string[]
     return issue;
   }));
 
-  const prompt = `${conventionsHeader}You are an expert code fixer for GateTest, an AI-powered QA platform with 90 scanning modules.
+  const prompt = `${conventionsHeader}You are an expert code fixer for GateTest, an AI-powered QA platform with 120 scanning modules.
 
 Fix ALL of the following issues in this file. Every fix must pass GateTest's re-scan.
 
@@ -1109,7 +1109,7 @@ export async function POST(req: NextRequest) {
         liveCount: corr.findings.filter((f) => f.live).length,
         findings: corr.findings as unknown as Array<Record<string, unknown>>,
       };
-    } catch (err) {
+    } catch (err) { // error-ok: live correlation is best-effort augmentation; logged, scan continues
       console.error("[scan/fix] LIVE correlation failed (non-blocking):", err instanceof Error ? err.message : String(err));
     }
   }

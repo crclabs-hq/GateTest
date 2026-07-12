@@ -127,7 +127,7 @@ async function flush(opts = {}) {
  */
 function flushInBackground(opts = {}) {
   try {
-    Promise.resolve(flush(opts)).catch(() => {});
+    Promise.resolve(flush(opts)).catch(() => {}); // error-ok: telemetry is fire-and-forget; must never break a scan
   } catch { /* never throw */ } // error-ok
 }
 

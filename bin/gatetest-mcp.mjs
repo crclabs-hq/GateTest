@@ -602,7 +602,7 @@ const TOOLS = [
     description:
       'Your eyes on the rendered page — screenshot a live URL and return it as an actual image you can SEE. ' +
       'Use after editing UI code ("what did I build?"), before editing ("what does it look like now?"), ' +
-      'or to verify a visual fix worked. Works with localhost (e.g. http://localhost:3000). ' +
+      'or to verify a visual fix worked. Works with localhost (e.g. http://localhost:3000). ' + // hardcoded-url-ok: doc example, not an endpoint
       'Defaults to a 1280×900 viewport JPEG (payload-safe); pass fullPage:true for the full scroll height. ' +
       'Pass width:390 for mobile viewport. ' +
       'Requires Playwright + Chromium locally; degrades to an explanatory message when unavailable.',
@@ -653,7 +653,7 @@ const TOOLS = [
   {
     name: 'run_live_checks',
     description:
-      'Your ears on the running app — run the runtime triad against any live URL, including http://localhost:3000. ' +
+      'Your ears on the running app — run the runtime triad against any live URL, including http://localhost:3000. ' + // hardcoded-url-ok: doc example, not an endpoint
       'runtimeErrors: uncaught JS errors, console errors, failed requests, CSP violations, hydration mismatches. ' +
       'consoleErrors: site-wide crawl across all pages, fingerprinted and deduped so repeated errors collapse to one finding. ' +
       'apiHealth: probes discoverable API endpoints for 5xx, 404, wrong content-type, and slow responses. ' +
@@ -662,7 +662,7 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        url: { type: 'string', description: 'The live URL to check, e.g. "http://localhost:3000" or "https://example.com"' },
+        url: { type: 'string', description: 'The live URL to check, e.g. "http://localhost:3000" or "https://example.com"' }, // hardcoded-url-ok: doc example
         modules: {
           type: 'array',
           items: { type: 'string', enum: ['runtimeErrors', 'consoleErrors', 'apiHealth'] },
@@ -1000,9 +1000,9 @@ async function handleCheckHealth() {
           `**After every code edit — prove it worked:**\n` +
           `→ \`verify_fix { path, files: ["src/changed.ts"] }\`\n\n` +
           `**After every UI change — see what you built:**\n` +
-          `→ \`capture_screenshot { url: "http://localhost:3000", width: 390 }\`\n\n` +
+          `→ \`capture_screenshot { url: "http://localhost:3000", width: 390 }\`\n\n` + // hardcoded-url-ok: doc example
           `**After deploying locally — hear what's failing:**\n` +
-          `→ \`run_live_checks { url: "http://localhost:3000" }\`\n\n` +
+          `→ \`run_live_checks { url: "http://localhost:3000" }\`\n\n` + // hardcoded-url-ok: doc example
           `**Production incident:**\n` +
           `→ \`get_production_errors\` → \`scan_local\` → \`fix_issue\` → \`verify_fix\` → \`capture_screenshot\`\n\n` +
           `**Debug protocol (zero-limitation loop):**\n` +
