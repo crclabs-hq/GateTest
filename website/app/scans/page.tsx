@@ -36,7 +36,7 @@ const SCANS: ScanEntry[] = [
   {
     repo: "GateTest — self-scan (this product's own repo)",
     url: "https://github.com/crclabs-hq/gatetest",
-    tier: "Forensic ($399)",
+    tier: "Forensic suite · self-scan",
     date: "2026-04-26",
     modules: { passed: 30, total: 39 },
     errors: 37,
@@ -64,7 +64,7 @@ const SCANS: ScanEntry[] = [
   {
     repo: "Vapron — production scheduling platform (dogfood)",
     url: "#",
-    tier: "Forensic ($399)",
+    tier: "Forensic suite · dogfood",
     date: "2026-04-26",
     modules: { passed: 23, total: 39 },
     errors: 754,
@@ -91,9 +91,9 @@ const SCANS: ScanEntry[] = [
     highlight: "754 errors across a production scheduling platform. Two critical attack chains, both requiring less than 30 minutes to exploit. The supply-chain chain is the one that makes security engineers go quiet.",
   },
   {
-    repo: "Gluecron.com — workflow automation platform (dogfood)",
+    repo: "Gluecron.com — git hosting platform (dogfood)",
     url: "#",
-    tier: "Forensic ($399)",
+    tier: "Forensic suite · dogfood",
     date: "2026-04-26",
     modules: { passed: 26, total: 39 },
     errors: 649,
@@ -116,12 +116,12 @@ const SCANS: ScanEntry[] = [
         description: "parseFloat on cron billing amounts + duplicate-job race on insert → a race creates two billing events, both use float arithmetic → double-charge with rounding error",
       },
     ],
-    highlight: "The clevgest chain of this batch: hardcoded secret + missing from .env.example. Neither finding alone is alarming. Together they mean you cannot rotate the secret even if you wanted to — the rotation attempt itself would break production.",
+    highlight: "The cleverest chain of this batch: hardcoded secret + missing from .env.example. Neither finding alone is alarming. Together they mean you cannot rotate the secret even if you wanted to — the rotation attempt itself would break production.",
   },
   {
     repo: "public legal-tech platform",
     url: "#",
-    tier: "Forensic ($399)",
+    tier: "Forensic suite · consented scan",
     date: "2026-04-26",
     modules: { passed: 31, total: 39 },
     errors: 124,
@@ -185,8 +185,8 @@ export default function HallOfScans() {
           </h1>
           <p className="text-lg text-muted max-w-2xl mx-auto leading-relaxed">
             Every result on this page came from running GateTest against a real public
-            codebase. No fabricated numbers. No cherry-picked examples. This is what
-            120 modules actually find.
+            codebase. No fabricated numbers. No cherry-picked examples. These scans ran
+            on the April 2026 engine — 39 modules at the time. The engine is now at 120.
           </p>
           <p className="mt-4 text-sm text-muted">
             🔒 Scans run in memory — code is never stored.
