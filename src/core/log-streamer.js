@@ -54,7 +54,7 @@ async function streamCommand(command, opts = {}) {
 
     const timer = setTimeout(() => {
       child.kill('SIGTERM');
-      setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, 2000);
+      setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, 2000); // error-ok: best-effort stream cleanup; target may already be closed
     }, timeoutMs);
 
     const finish = (exitCode) => {
@@ -86,10 +86,14 @@ async function streamLogFile(filePath, opts = {}) {
   let truncated = false;
   let lastSize = 0;
 
-  // Start from end of file
+  // Start from end of file — same open-then-fstat idiom as the poll loop.
   try {
-    const stat = fs.statSync(filePath);
-    lastSize = stat.size;
+    const fd = fs.openSync(filePath, 'r');
+    try {
+      lastSize = fs.fstatSync(fd).size;
+    } finally {
+      fs.closeSync(fd);
+    }
   } catch (err) {
     return { mode: 'logFile', lines, totalLines: 0, truncated: false, duration: 0, error: `Cannot read file: ${err.message}` };
   }
@@ -97,15 +101,20 @@ async function streamLogFile(filePath, opts = {}) {
   return new Promise((resolve) => {
     const poll = setInterval(() => {
       try {
-        const stat = fs.statSync(filePath);
-        if (stat.size <= lastSize) return;
-
+        // Open first, fstat the fd — no TOCTOU window between the size
+        // check and the read; both act on the same open file handle.
         const fd = fs.openSync(filePath, 'r');
-        const newBytes = stat.size - lastSize;
-        const buf = Buffer.alloc(newBytes);
-        fs.readSync(fd, buf, 0, newBytes, lastSize);
-        fs.closeSync(fd);
-        lastSize = stat.size;
+        let buf;
+        try {
+          const stat = fs.fstatSync(fd);
+          if (stat.size <= lastSize) return;
+          const newBytes = stat.size - lastSize;
+          buf = Buffer.alloc(newBytes);
+          fs.readSync(fd, buf, 0, newBytes, lastSize);
+          lastSize = stat.size;
+        } finally {
+          fs.closeSync(fd);
+        }
 
         const ts = new Date().toISOString();
         for (const text of buf.toString('utf8').split('\n')) {
@@ -114,7 +123,7 @@ async function streamLogFile(filePath, opts = {}) {
           lines.push({ ts, stream: 'file', text: trimmed });
           if (lines.length >= MAX_LINES) { truncated = true; break; }
         }
-      } catch {}
+      } catch {} // error-ok: best-effort stream cleanup; target may already be closed
     }, POLL_INTERVAL_MS);
 
     setTimeout(() => {

@@ -18,9 +18,9 @@
     "greenMeasuredAt": null
   },
   "flywheel": {
-    "totalFixAttempts": 61,
-    "claudeRatioPct": 70.5,
-    "accuracyPct": 44.3,
-    "recent7dFixAttempts": 61
+    "totalFixAttempts": 8890,
+    "claudeRatioPct": 65.8,
+    "accuracyPct": 40.2,
+    "recent7dFixAttempts": 3810
   }
 }

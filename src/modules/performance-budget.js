@@ -177,7 +177,7 @@ class PerformanceBudgetModule extends BaseModule {
     const url = new URL(route, baseUrl).toString();
 
     // Cold-start mitigation — one throwaway request before measured runs.
-    await this._measureOnce(browser, url, timeout).catch(() => null);
+    await this._measureOnce(browser, url, timeout).catch(() => null); // error-ok: best-effort metric collection; missing metric is reported as absent
 
     const samples = [];
     for (let i = 0; i < runs; i++) {
@@ -242,8 +242,8 @@ class PerformanceBudgetModule extends BaseModule {
         pageWeightBytes,
       };
     } finally {
-      await page.close().catch(() => {});
-      await context.close().catch(() => {});
+      await page.close().catch(() => {}); // error-ok: best-effort metric collection; missing metric is reported as absent
+      await context.close().catch(() => {}); // error-ok: best-effort metric collection; missing metric is reported as absent
     }
   }
 

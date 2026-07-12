@@ -81,3 +81,68 @@ describe('ignore-file — parsing hygiene', () => {
     assert.equal(m.matches({ module: 'secrets', name: 'apiKey', file: 'a.js' }), true);
   });
 });
+
+describe('ignore-file — module-name spelling normalization (2026-07-12 fix)', () => {
+  // Findings carry the camelCase registry module name (`hardcodedUrl`) while
+  // check names render kebab-case (`hardcoded-url:localhost:file:line`).
+  // Users copy whichever spelling they saw — both must match.
+  it('kebab-case entry matches camelCase module name', () => {
+    const m = parse('hardcoded-url:localhost');
+    assert.equal(
+      m.matches({
+        module: 'hardcodedUrl',
+        name: 'hardcoded-url:localhost:src/a.ts:12',
+        file: 'src/a.ts',
+      }),
+      true,
+    );
+  });
+
+  it('camelCase entry matches too', () => {
+    const m = parse('hardcodedUrl:localhost');
+    assert.equal(
+      m.matches({
+        module: 'hardcodedUrl',
+        name: 'hardcoded-url:localhost:src/a.ts:12',
+        file: 'src/a.ts',
+      }),
+      true,
+    );
+  });
+
+  it('rule matches the segment after the module prefix even with trailing file:line segments', () => {
+    const m = parse('money-float:js-parse-float');
+    assert.equal(
+      m.matches({
+        module: 'moneyFloat',
+        name: 'money-float:js-parse-float:scripts/x.js:61',
+        file: 'scripts/x.js',
+      }),
+      true,
+    );
+  });
+
+  it('glob + camelCase module + backslash Windows path all together', () => {
+    const m = parse('hardcoded-url:localhost@website/app/components/HomeEyesEarsHands.tsx');
+    assert.equal(
+      m.matches({
+        module: 'hardcodedUrl',
+        name: 'hardcoded-url:localhost:website\\app\\components\\HomeEyesEarsHands.tsx:28',
+        file: 'website\\app\\components\\HomeEyesEarsHands.tsx',
+      }),
+      true,
+    );
+  });
+
+  it('different module still does not match', () => {
+    const m = parse('hardcoded-url:localhost');
+    assert.equal(
+      m.matches({
+        module: 'secrets',
+        name: 'secrets:localhost:src/a.ts:1',
+        file: 'src/a.ts',
+      }),
+      false,
+    );
+  });
+});

@@ -65,7 +65,7 @@ export default function Hero() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <span>Launching today &middot; {siteStats.modules.total} modules live</span>
+              <span>Live in beta &middot; {siteStats.modules.total} modules in the gate</span>
             </div>
 
             <h1 className="font-display text-[2.7rem] leading-[1.04] sm:text-6xl lg:text-[4.1rem] font-extrabold text-gray-900 mb-6 fade-up">

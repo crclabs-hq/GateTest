@@ -208,7 +208,7 @@ class DesignSystemComplianceModule extends BaseModule {
         this._merge(spacingValues, styles.spacingValues);
       }
     } finally {
-      await context.close().catch(() => {});
+      await context.close().catch(() => {}); // error-ok: best-effort browser probe; absent target is a valid outcome, finding still recorded
     }
 
     return { colors, fontSizes, fontFamilies, radii, spacingValues, pagesVisited };

@@ -55,7 +55,7 @@ const faqItems = [
 ];
 
 const comparisonRows = [
-  { feature: "90 scanning modules", gatetest: true, competitor: false },
+  { feature: "120 scanning modules", gatetest: true, competitor: false },
   { feature: "AI code review (Claude)", gatetest: true, competitor: false },
   { feature: "Auto-fix pull requests", gatetest: true, competitor: false },
   { feature: "Pay per scan (not per seat)", gatetest: true, competitor: false },

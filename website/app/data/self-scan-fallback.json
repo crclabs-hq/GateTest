@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-07-12T09:57:14.001Z",
+  "source": "scripts/generate-self-scan-fallback.js",
+  "note": "Measured self-scan result. Do not hand-edit — re-run the script after a self-scan.",
+  "gateStatus": "PASSED",
+  "errorCount": 0,
+  "warningCount": 548,
+  "modulesPassedCount": 41,
+  "modulesTotalCount": 41,
+  "durationMs": 89668,
+  "scannedAt": "2026-07-12T09:57:14.002Z",
+  "commitSha": "81d638240f674ea811e42d4ae41b15f83ea6efd7"
+}

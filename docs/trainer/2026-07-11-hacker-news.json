@@ -1,0 +1,247 @@
+{
+  "generatedAt": "2026-07-11T05:42:29.429Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 15,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 8,
+      "SonarQube": 1,
+      "Semgrep": 1,
+      "CodeQL": 2,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 3
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48868277",
+        "author": "piratesAndSons",
+        "type": "story",
+        "title": "Ask HN: Are You Hopeful for the Future?",
+        "text": "How hopeful are you for the future? For me, everything seems bleak. The AI owners and their parasitic nature show no sign of stopping — they're grinding working people to dust, relegating us to a state of penury. AI spy glasses and cameras are multiplying in every inch of this land, collecting anything and everything to identify you, whether to sell you something or to feed some policing action.Politicians, kept loyal by their share of the loot these AI parasites are stealing from working people, aren't interested in doing anything about it — their interests and the parasites' are perfectly in sync. Jobs aside, there's also this ambient dread haunting the atmosphere, slithering through the camp like a snake at night. Your job will be automated, you will lose your healthcare, and eventually you'll be left to your fate to starve — that's the only advertisement I hear. What is your state?",
+        "url": "https://news.ycombinator.com/item?id=48868277",
+        "points": 3,
+        "numComments": 3,
+        "storyId": 48868277,
+        "createdAt": "2026-07-11T03:00:51Z",
+        "createdAtUnix": 1783738851,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48867252",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": ">no good guys hereThis may be true but there's definitely bad guys, and it's pretty clear who.",
+        "url": "https://news.ycombinator.com/item?id=48867252",
+        "points": null,
+        "numComments": null,
+        "storyId": 48864017,
+        "createdAt": "2026-07-11T00:42:44Z",
+        "createdAtUnix": 1783730564,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48866941",
+        "author": "estearum",
+        "type": "comment",
+        "title": null,
+        "text": "watpretty sure PG and sama had a pretty serious falling out because it turns out sama is a complete snakebut you know, go off king (or whatever)",
+        "url": "https://news.ycombinator.com/item?id=48866941",
+        "points": null,
+        "numComments": null,
+        "storyId": 48865019,
+        "createdAt": "2026-07-11T00:02:52Z",
+        "createdAtUnix": 1783728172,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48864480",
+        "author": "seany",
+        "type": "comment",
+        "title": null,
+        "text": "Staff Sgt. Sykes: [Sgt. Sykes is directing the recruits on how to judge distances] You take what you know, and then you multiply. Please don't use your dicks. They're too small, and I can't count that high. I don't wanna hear, \"400,000 inches.\"-Jarheadhttps:&#x2F;&#x2F;www.imdb.com&#x2F;title&#x2F;tt0418763&#x2F;",
+        "url": "https://news.ycombinator.com/item?id=48864480",
+        "points": null,
+        "numComments": null,
+        "storyId": 48862252,
+        "createdAt": "2026-07-10T19:58:32Z",
+        "createdAtUnix": 1783713512,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48862993",
+        "author": "aleqs",
+        "type": "comment",
+        "title": null,
+        "text": "At the end of the day LLM output is not deterministic, and the burden shifts from writing code to reviewing it. It makes sense to cover the review surface with deterministic checks&#x2F;validations as much as possible - unit test, linters, static analysis tools, e2e integration test etc. one gap I noticed when it comes to such tools is that they are generally language&#x2F;stack specific and don't cover things like file&#x2F;directory structure&#x2F;naming, file relationships&#x2F;references, use of potentially harmful Unicode [0], general file&#x2F;config structure, permissions, broken symlinks, files which should not be committed but are, etc. , etc. I've been building a tool - a general repo shape&#x2F;structure linter, with extensible config&#x2F;rules - to cover these cases in a deterministic way [1] [2].[0] https:&#x2F;&#x2F;snyk.io&#x2F;articles&#x2F;defending-against-glassworm&#x2F;[1] https:&#x2F;&#x2F;github.com&#x2F;asamarts&#x2F;alint[2] https:&#x2F;&#x2F;alint.org&#x2F;",
+        "url": "https://news.ycombinator.com/item?id=48862993",
+        "points": null,
+        "numComments": null,
+        "storyId": 48862506,
+        "createdAt": "2026-07-10T17:46:09Z",
+        "createdAtUnix": 1783705569,
+        "intent": "bug"
+      },
+      {
+        "objectId": "48862002",
+        "author": "snikolaev",
+        "type": "story",
+        "title": "Turbopuffer vs. Manticore Search on a couple of cheap VPS",
+        "text": "Turbopuffer vs. Manticore Search on a couple of cheap VPS",
+        "url": "https://manticoresearch.com/blog/turbopuffer-vs-manticore/",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 48862002,
+        "createdAt": "2026-07-10T16:18:20Z",
+        "createdAtUnix": 1783700300,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48858985",
+        "author": "iLemming",
+        "type": "comment",
+        "title": null,
+        "text": "I did not say anything about s-expressions. I said \"homoiconicity\". S-expressions are not an absolute requirement for homoiconic features. You keep poking me with your \"knowledge\" as if I'm trying to sell you snake oil and you feel obligated to defend and retaliate. I don't need to prove anything to you, I'm not your ignorant professor attempting to instil you with some defunct truths that exist solely in my head. Do your own research. Or don't, who cares.",
+        "url": "https://news.ycombinator.com/item?id=48858985",
+        "points": null,
+        "numComments": null,
+        "storyId": 48845209,
+        "createdAt": "2026-07-10T12:30:13Z",
+        "createdAtUnix": 1783686613,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48857163",
+        "author": "djfergus",
+        "type": "comment",
+        "title": null,
+        "text": "The subject of the article (Dr Sean Olive) has been doing research into actual perceivable differences in audio reproduction - he wrote the book on ideal curves for headphones based on blind tests by trained and untrained listeners. I read his blog religiously decades ago - he really cut through the audiophile snake oil.",
+        "url": "https://news.ycombinator.com/item?id=48857163",
+        "points": null,
+        "numComments": null,
+        "storyId": 48805358,
+        "createdAt": "2026-07-10T08:11:56Z",
+        "createdAtUnix": 1783671116,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [
+      {
+        "objectId": "48863755",
+        "author": "t-writescode",
+        "type": "comment",
+        "title": null,
+        "text": "What do you think of traditional AST-based static analyzers (like SonarQube, Rubocop, etc.) that catch cyclomatic complexity and code duplication deterministically?You can even put them on the build pipeline, even. No tokens spent at all!",
+        "url": "https://news.ycombinator.com/item?id=48863755",
+        "points": null,
+        "numComments": null,
+        "storyId": 48859701,
+        "createdAt": "2026-07-10T18:52:56Z",
+        "createdAtUnix": 1783709576,
+        "intent": "neutral"
+      }
+    ],
+    "Semgrep": [
+      {
+        "objectId": "48867607",
+        "author": "rafram",
+        "type": "comment",
+        "title": null,
+        "text": "I’ve been seeing this “high-trust society” dog whistle a lot lately, and I think it’s one of the funniest of its kind. You truly want me to believe that the United States, a country with a history of slavery and segregation, a country that went through a historical period dominated by people literally called “robber barons,” was a high-trust society before immigrants from less industrialized places came and ruined that?",
+        "url": "https://news.ycombinator.com/item?id=48867607",
+        "points": null,
+        "numComments": null,
+        "storyId": 48865019,
+        "createdAt": "2026-07-11T01:26:39Z",
+        "createdAtUnix": 1783733199,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48867896",
+        "author": "cadamsdotcom",
+        "type": "comment",
+        "title": null,
+        "text": "Somewhat out of date (it’s grown a lot!)https:&#x2F;&#x2F;github.com&#x2F;cadamsdotcom&#x2F;CodeLeash&#x2F;blob&#x2F;main&#x2F;.claude&#x2F;...",
+        "url": "https://news.ycombinator.com/item?id=48867896",
+        "points": null,
+        "numComments": null,
+        "storyId": 48859701,
+        "createdAt": "2026-07-11T02:10:06Z",
+        "createdAtUnix": 1783735806,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48867851",
+        "author": "cadamsdotcom",
+        "type": "comment",
+        "title": null,
+        "text": "Yes, and, write custom linters for things you want to prevent forever. Have a look at https:&#x2F;&#x2F;github.com&#x2F;cadamsdotcom&#x2F;CodeLeash&#x2F;blob&#x2F;main&#x2F;scripts&#x2F;... for an example (enforced before all commits via https:&#x2F;&#x2F;github.com&#x2F;cadamsdotcom&#x2F;CodeLeash&#x2F;blob&#x2F;main&#x2F;.pre-com...)Basically I got sick of telling the agent to put dynamic imports at the top of the file so I made them into an error that blocks commits.Now I don’t even need that in the review.md because it can’t make it though to &#x2F;review.",
+        "url": "https://news.ycombinator.com/item?id=48867851",
+        "points": null,
+        "numComments": null,
+        "storyId": 48859701,
+        "createdAt": "2026-07-11T02:04:59Z",
+        "createdAtUnix": 1783735499,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "48863283",
+        "author": "deviation",
+        "type": "comment",
+        "title": null,
+        "text": "Sure, I can explain - it's a little complicated, but I maintain a small-ish catalogue of ~1000 positions for the following topics:- Checkmates-in-one - Checkmates-in-two - Defensive technique (avoid checkmate&#x2F;material loss) - Winning material - Endgame patterns - etc (~5 more)... That I got by scraping the Lichess database, favoring common patterns that appear within +- 600 of my current Elo.From there, I have Claude build me a script to convert each of those positions into a .png, then create me a deck with all the cards, et voilà. The front of the card is the position, the back is the best move in that position with a small explanation.Every ~2-3 months when I see that most of the cards have matured (according the the Anki spaced repetition scheduler, I build a new deck around my new Elo.I also play a lot. Prior to ~1000 rating I got away with spending 90% of my time in Anki and 10% playing online games, but lately it's been pretty 50&#x2F;50. In higher ratings, playing real games tends to translate into wins more effectively for me.For studying openings, it's almost the same thing, but the back of each card is the book move for my opening + the name of the opening the opponent chose.",
+        "url": "https://news.ycombinator.com/item?id=48863283",
+        "points": null,
+        "numComments": null,
+        "storyId": 48861319,
+        "createdAt": "2026-07-10T18:12:12Z",
+        "createdAtUnix": 1783707132,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48862271",
+        "author": "IAmBroom",
+        "type": "comment",
+        "title": null,
+        "text": "Counterpoint: peer pressure.Checkmate, science!",
+        "url": "https://news.ycombinator.com/item?id=48862271",
+        "points": null,
+        "numComments": null,
+        "storyId": 48858997,
+        "createdAt": "2026-07-10T16:39:29Z",
+        "createdAtUnix": 1783701569,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48861714",
+        "author": "xyst",
+        "type": "comment",
+        "title": null,
+        "text": "it's a neat experiment, obviously inspired by the bun guy.but given the author&#x2F;maintainer is essentially unknown, I highly doubt this will reach it's target audience. But one thing I do agree with is that postgres is long overdue for a re-write into a memory safe language.also any real swe with more than a few years of experience knows \"100% of regression suite passing\" doesn't mean anything other than a neat checkmark for C-level executives.",
+        "url": "https://news.ycombinator.com/item?id=48861714",
+        "points": null,
+        "numComments": null,
+        "storyId": 48841676,
+        "createdAt": "2026-07-10T15:59:34Z",
+        "createdAtUnix": 1783699174,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
