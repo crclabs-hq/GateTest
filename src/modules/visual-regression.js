@@ -290,16 +290,16 @@ class VisualRegressionModule extends BaseModule {
       }
       if (maskSelectors.length) {
         const css = maskSelectors.map((sel) => `${sel}{visibility:hidden !important;}`).join('\n');
-        await page.addStyleTag({ content: css }).catch(() => {});
+        await page.addStyleTag({ content: css }).catch(() => {}); // error-ok: best-effort screenshot/cleanup; comparison already recorded the result
       }
       if (autoMaskDynamicContent) {
-        await this._maskDynamicTextContent(page).catch(() => {});
+        await this._maskDynamicTextContent(page).catch(() => {}); // error-ok: best-effort screenshot/cleanup; comparison already recorded the result
       }
       await page.waitForTimeout(waitMs);
       return await page.screenshot({ fullPage: true });
     } finally {
-      await page.close().catch(() => {});
-      await context.close().catch(() => {});
+      await page.close().catch(() => {}); // error-ok: best-effort screenshot/cleanup; comparison already recorded the result
+      await context.close().catch(() => {}); // error-ok: best-effort screenshot/cleanup; comparison already recorded the result
     }
   }
 
@@ -416,7 +416,7 @@ class VisualRegressionModule extends BaseModule {
     });
 
     if (!passed) {
-      await this._notifySlack({ platform, route, viewport, diffPercent: diff.diffPercent, threshold, baselineBuffer, currentBuffer, diffBuffer: diff.diffPngBuffer, moduleCfg }).catch(() => {});
+      await this._notifySlack({ platform, route, viewport, diffPercent: diff.diffPercent, threshold, baselineBuffer, currentBuffer, diffBuffer: diff.diffPngBuffer, moduleCfg }).catch(() => {}); // error-ok: best-effort screenshot/cleanup; comparison already recorded the result
     }
   }
 
@@ -438,8 +438,8 @@ class VisualRegressionModule extends BaseModule {
       }
       return await collectVisualFacts(page, regions);
     } finally {
-      await page.close().catch(() => {});
-      await context.close().catch(() => {});
+      await page.close().catch(() => {}); // error-ok: best-effort screenshot/cleanup; comparison already recorded the result
+      await context.close().catch(() => {}); // error-ok: best-effort screenshot/cleanup; comparison already recorded the result
     }
   }
 

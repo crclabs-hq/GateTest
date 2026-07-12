@@ -427,7 +427,7 @@ export default function PlaygroundPage() {
     navigator.clipboard?.writeText(shareUrl).then(() => {
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
-    }).catch(() => {});
+    }).catch(() => {}); // error-ok: best-effort UI nicety; feature may be unavailable in this browser
   }, [result]);
 
   return (

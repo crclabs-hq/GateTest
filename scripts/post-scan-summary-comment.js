@@ -58,13 +58,13 @@ function readReport(workspace) {
 function computeGrade(report) {
   const modules = report?.summary?.modules || {};
   const checks = report?.summary?.checks || {};
-  const total = Number(modules.total || 0);
+  const totalModules = Number(modules.total || 0);
   const passed = Number(modules.passed || 0);
   const errors = Number(checks.errors || 0);
   const warnings = Number(checks.warnings || 0);
 
-  if (total === 0) return { score: 0, grade: 'F', errors, warnings, total, passed };
-  const base = Math.round((passed / total) * 100);
+  if (totalModules === 0) return { score: 0, grade: 'F', errors, warnings, total: totalModules, passed };
+  const base = Math.round((passed / totalModules) * 100);
   const penalty = Math.min(50, errors * 3);
   const score = Math.max(0, base - penalty);
 
@@ -75,7 +75,7 @@ function computeGrade(report) {
   else if (score >= 40) grade = 'D';
   else grade = 'F';
 
-  return { score, grade, errors, warnings, total, passed };
+  return { score, grade, errors, warnings, total: totalModules, passed };
 }
 
 function topFindings(report, limit = 10) {

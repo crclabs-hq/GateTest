@@ -68,7 +68,7 @@ const comparisonRows = [
   { feature: "Mutation testing", gatetest: true, competitor: false },
   { feature: "Zero configuration required", gatetest: true, competitor: false },
   { feature: "Pay per scan (not per seat)", gatetest: true, competitor: false },
-  { feature: "90 scanning modules total", gatetest: true, competitor: false },
+  { feature: "120 scanning modules total", gatetest: true, competitor: false },
 ];
 
 export default function EsLintPage() {

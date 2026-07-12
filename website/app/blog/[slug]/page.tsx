@@ -133,7 +133,7 @@ export default async function BlogPostPage({ params }: PageParams) {
 
         <section className="mb-12 rounded-2xl border border-teal-500/20 p-8 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
           <h2 className="text-2xl font-bold text-white mb-3">Put a gate between your AI and your main branch</h2>
-          <p className="text-white/60 mb-6">110 modules. Pay per scan, no subscription. AI auto-fix PR on the Scan + Fix tier.</p>
+          <p className="text-white/60 mb-6">120 modules. Pay per scan, no subscription. AI auto-fix PR on the Scan + Fix tier.</p>
           <Link href="/#pricing" className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm" style={{ background: "#2dd4bf", color: "#0a0a12" }}>
             Run a scan &mdash; from $29
           </Link>

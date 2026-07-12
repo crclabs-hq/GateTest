@@ -48,6 +48,14 @@ function _normPath(p) {
   return typeof p === 'string' ? p.replace(/\\/g, '/') : '';
 }
 
+// Module/rule tokens appear in two spellings: the registry name is camelCase
+// (`hardcodedUrl`) while check names render kebab-case (`hardcoded-url`).
+// Users copy whichever they saw, so comparisons strip all separators —
+// `hardcoded-url`, `hardcoded_url`, and `hardcodedUrl` are the same token.
+function _normToken(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9*]/g, '');
+}
+
 /**
  * Parse .gatetestignore text into a matcher.
  * @param {string} text
@@ -70,8 +78,8 @@ function parse(text) {
     if (body.includes(':')) {
       // module:rule form
       const [modRaw, ruleRaw] = body.split(':');
-      const module = modRaw.trim().toLowerCase();
-      const rule = ruleRaw.trim().toLowerCase();
+      const module = _normToken(modRaw.trim());
+      const rule = _normToken(ruleRaw.trim());
       rules.push({
         kind: 'moduleRule',
         module: module === '*' ? null : module,
@@ -83,7 +91,7 @@ function parse(text) {
       rules.push({ kind: 'path', fileRe: _globToRegExp(body) });
     } else {
       // bare word → whole module
-      rules.push({ kind: 'moduleRule', module: body.toLowerCase(), rule: null, fileRe: fileGlob ? _globToRegExp(fileGlob) : null });
+      rules.push({ kind: 'moduleRule', module: _normToken(body), rule: null, fileRe: fileGlob ? _globToRegExp(fileGlob) : null });
     }
   }
 
@@ -91,14 +99,21 @@ function parse(text) {
     // A finding's rule identity is its ruleKey (may be "module:rule") or name.
     const key = String(finding.ruleKey || finding.name || '').toLowerCase();
     if (!rule) return true;
-    // Match the tail after a colon or the whole key.
-    const tail = key.includes(':') ? key.slice(key.indexOf(':') + 1) : key;
-    return tail === rule || key === rule;
+    // Match the tail after a colon or the whole key. Check names often carry
+    // trailing file:line segments (`hardcoded-url:localhost:src/x.ts:12`), so
+    // also try the segment right after the module prefix.
+    const segments = key.split(':');
+    const candidates = new Set([
+      _normToken(key),
+      _normToken(key.includes(':') ? key.slice(key.indexOf(':') + 1) : key),
+    ]);
+    if (segments.length >= 2) candidates.add(_normToken(segments[1]));
+    return candidates.has(rule);
   }
 
   function matches(finding) {
     if (!finding) return false;
-    const mod = String(finding.module || '').toLowerCase();
+    const mod = _normToken(finding.module);
     const file = _normPath(finding.file || finding.filePath);
     for (const r of rules) {
       if (r.kind === 'path') {

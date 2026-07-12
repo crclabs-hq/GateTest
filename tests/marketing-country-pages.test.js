@@ -263,9 +263,20 @@ describe("/for/[country]/page.tsx factory", () => {
     assert.match(src, /`GateTest for \$\{data\.name\}/, "country-specific title missing");
   });
 
-  it("uses the live module count (110, not stale 91/102/104)", () => {
-    assert.match(src, /MODULE_COUNT\s*=\s*110/, "stale module count");
-    assert.ok(!/\b(91|102|104) modules\b/.test(src), "stale module count reference");
+  it("uses the live module count from site-stats.json (never a stale hardcode)", () => {
+    // site-stats.json is measured by scripts/generate-site-stats.js — the
+    // one source of truth. Asserting against a literal here is how this
+    // very test went stale at 110 while the engine moved to 120.
+    const siteStats = require(path.join(
+      __dirname, "..", "website", "app", "data", "site-stats.json",
+    ));
+    const liveCount = siteStats.modules.total;
+    assert.match(
+      src,
+      new RegExp(`MODULE_COUNT\\s*=\\s*${liveCount}\\b`),
+      `MODULE_COUNT must equal the measured count (${liveCount})`,
+    );
+    assert.ok(!/\b(91|102|104|110) modules\b/.test(src), "stale module count reference");
   });
 
   it("contains no eslint-disable directives", () => {

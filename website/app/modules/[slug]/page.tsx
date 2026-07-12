@@ -225,11 +225,11 @@ export default async function ModulePage({ params }: PageParams) {
             <ul className="space-y-3 text-white/70 leading-relaxed">
               <li className="flex items-start gap-2">
                 <span className="text-amber-400 mt-1">&#9679;</span>
-                <span><strong className="text-white">Not yet purchasable.</strong> {comingSoon.reason} It's registered in the engine today so it's discoverable, but no tier includes it yet.</span>
+                <span><strong className="text-white">Not yet purchasable.</strong> {comingSoon.reason} It&apos;s registered in the engine today so it&apos;s discoverable, but no tier includes it yet.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-amber-400 mt-1">&#9679;</span>
-                <span><strong className="text-white">Requires explicit authorization when it ships.</strong> Live probes only ever run against a target you've proven you own — a three-layer consent check gates every run.</span>
+                <span><strong className="text-white">Requires explicit authorization when it ships.</strong> Live probes only ever run against a target you&apos;ve proven you own — a three-layer consent check gates every run.</span>
               </li>
             </ul>
           ) : (

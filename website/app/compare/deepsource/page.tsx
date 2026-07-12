@@ -34,7 +34,7 @@ const faqItems = [
   },
   {
     q: "DeepSource has a free tier. Does GateTest?",
-    a: "GateTest charges per scan: $29 quick scan (4 modules), $99 full scan (120 modules). No free tier currently. The key difference: GateTest's $99 scan includes AI code review, performance analysis, accessibility, visual regression, mutation testing, and 60+ other modules that require multi-tool subscriptions to replicate with DeepSource + extras.",
+    a: "GateTest charges per scan: $29 quick scan (4 modules), $99 full scan (120 modules). The open-source CLI runs quick and full scans locally for free, and the website offers a free preview scan. The key difference: GateTest's $99 scan includes AI code review, performance analysis, accessibility, visual regression, and 60+ other modules that require multi-tool subscriptions to replicate with DeepSource + extras.",
   },
   {
     q: "Does GateTest's AI fix code like DeepSource's Autofix?",

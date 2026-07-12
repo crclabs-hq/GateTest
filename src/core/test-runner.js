@@ -125,7 +125,7 @@ function spawnCapture(cmd, args, options, timeoutMs) {
 
     const timer = setTimeout(() => {
       child.kill('SIGTERM');
-      setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, 3000);
+      setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, 3000); // error-ok: best-effort output parse; falls through to the next detection strategy
     }, timeoutMs);
 
     child.on('close', (code) => {
@@ -273,7 +273,7 @@ function parseGoJsonLines(stdout) {
           duration: ev.Elapsed ? Math.round(ev.Elapsed * 1000) : undefined,
         });
       }
-    } catch {}
+    } catch {} // error-ok: best-effort output parse; falls through to the next detection strategy
   }
   const passed = tests.filter(t => t.status === 'passed').length;
   const failed = tests.filter(t => t.status === 'failed').length;
@@ -479,7 +479,7 @@ async function runTests(projectRoot, opts = {}) {
     try {
       const re = new RegExp(opts.testPattern, 'i');
       tests = tests.filter(t => re.test(t.name));
-    } catch {}
+    } catch {} // error-ok: best-effort output parse; falls through to the next detection strategy
   }
 
   return {

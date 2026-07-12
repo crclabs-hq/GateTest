@@ -12,8 +12,8 @@ interface PageParams {
   params: Promise<{ country: string }>;
 }
 
-// Total live module count — sourced from CLAUDE.md v1.46.0 (110 modules).
-const MODULE_COUNT = 110;
+// Total live module count — keep in sync with CLAUDE.md VERSION section.
+const MODULE_COUNT = 120;
 
 export async function generateStaticParams(): Promise<{ country: string }[]> {
   return getAllCountrySlugs().map((country) => ({ country }));
