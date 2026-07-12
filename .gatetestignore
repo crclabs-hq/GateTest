@@ -1,0 +1,14 @@
+# GateTest self-scan suppressions — every entry documents WHY.
+# Format: module | module:rule | *:rule | module:rule@glob | path/**
+
+# HomeEyesEarsHands renders marketing code snippets inside template literals.
+# The localhost URLs are display text for customers, not endpoints this app
+# calls — and a suppressor comment inside the template would render on the
+# page. Scoped to this one file only.
+hardcoded-url:localhost@website/app/components/HomeEyesEarsHands.tsx
+
+# reliability-corpus/ is the INTENTIONAL known-bad code corpus the flywheel
+# trainers learn from. Findings in it are the corpus working as designed,
+# not defects in GateTest — counting them against the self-scan would be
+# self-deception in the other direction.
+reliability-corpus/**

@@ -235,7 +235,7 @@ class RuntimeErrorsModule extends BaseModule {
     const growthThresholdPct = typeof cfg.memoryGrowthThresholdPct === 'number' ? cfg.memoryGrowthThresholdPct : 15;
     const growthMinBytes = typeof cfg.memoryGrowthMinBytes === 'number' ? cfg.memoryGrowthMinBytes : 2 * 1024 * 1024;
 
-    const readHeap = () => page.evaluate(() => (performance.memory ? performance.memory.usedJSHeapSize : null)).catch(() => null);
+    const readHeap = () => page.evaluate(() => (performance.memory ? performance.memory.usedJSHeapSize : null)).catch(() => null); // error-ok: best-effort browser probe; absent target is a valid outcome, finding still recorded
 
     const initialBytes = await readHeap();
     if (typeof initialBytes !== 'number') return null; // performance.memory unavailable in this browser

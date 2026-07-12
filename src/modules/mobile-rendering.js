@@ -195,8 +195,8 @@ class MobileRenderingModule extends BaseModule {
     } catch (err) {
       stats.pageErrors.push({ route, viewport: viewport.name, width: viewport.width, error: err.message || String(err) });
     } finally {
-      await page.close().catch(() => {});
-      await context.close().catch(() => {});
+      await page.close().catch(() => {}); // error-ok: best-effort viewport probe; page state may shift mid-render
+      await context.close().catch(() => {}); // error-ok: best-effort viewport probe; page state may shift mid-render
     }
   }
 

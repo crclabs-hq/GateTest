@@ -43,7 +43,35 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function GET(): Promise<NextResponse> {
-  const payload = selfScanStatus.getLatestStatus();
+  let payload = selfScanStatus.getLatestStatus();
+
+  // No live CI publish yet (fresh deploy / cold store) → serve the last
+  // MEASURED result committed at build time instead of a dead "no-data".
+  // `source: "fallback"` + a real ageMinutes keep it honest: consumers
+  // render "GREEN · N days ago", never a fake "live" claim.
+  if (payload && payload.status === "no-data") {
+    try {
+      const fb = require("@/app/data/self-scan-fallback.json");
+      payload = {
+        gateStatus: fb.gateStatus,
+        errorCount: fb.errorCount,
+        warningCount: fb.warningCount,
+        modulesPassedCount: fb.modulesPassedCount,
+        modulesTotalCount: fb.modulesTotalCount,
+        scannedAt: fb.scannedAt,
+        commitSha: fb.commitSha,
+        ageMinutes: Math.max(
+          0,
+          Math.floor((Date.now() - Date.parse(fb.scannedAt)) / 60000),
+        ),
+        source: "fallback",
+      };
+    } catch {
+      // error-ok: fallback file absent in some build shapes — the honest
+      // no-data payload is still a valid response.
+    }
+  }
+
   return NextResponse.json(payload, {
     status: 200,
     // The badge polls every 60s; CDN caching would lie about freshness.

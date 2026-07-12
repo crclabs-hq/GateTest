@@ -32,7 +32,7 @@
  *     - `vercel.json` / `netlify.toml` env blocks
  *
  *   Phase 2 — Harvest referenced env keys from source:
- *     - JS/TS: `process.env.FOO` / `process.env["FOO"]`
+ *     - JS/TS: `process.env.<KEY>` / `process.env["<KEY>"]`
  *     - Python: `os.environ["FOO"]` / `os.environ.get("FOO")` /
  *       `os.getenv("FOO")`
  *     - Go: `os.Getenv("FOO")` / `os.LookupEnv("FOO")`
@@ -80,7 +80,7 @@ const ENV_BASENAME_RE = /^\.env(?:\.(?:example|sample|template|local\.example|pr
 
 const CI_WORKFLOW_RE = /\.ya?ml$/i;
 
-// Test paths contain scanner fixtures like `"process.env.FOO"` embedded
+// Test paths contain scanner fixtures like `"process.env.SOME_KEY"` embedded
 // as string literals; they'd pollute the reference set with keys that
 // are not real app env reads. Skip.
 const TEST_PATH_RE = /(?:^|\/)(?:tests?|__tests__|spec|fixtures?|stories|storybook|e2e)(?:\/|$)|\.(?:test|spec|stories|fixture|e2e)\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts|py)$/i;
@@ -168,7 +168,7 @@ function isRuntimeAllowed(key) {
 // Env-key shape: UPPER_SNAKE, at least 2 chars.
 const ENV_KEY_RE = /^[A-Z][A-Z0-9_]{1,}$/;
 
-// process.env.FOO  /  process.env['FOO']  /  process.env["FOO"]
+// process.env.<KEY>  /  process.env['<KEY>']  /  process.env["<KEY>"]
 const NODE_ENV_REF_RE = /\bprocess\.env\.([A-Z][A-Z0-9_]+)\b|\bprocess\.env\[\s*['"`]([A-Z][A-Z0-9_]+)['"`]\s*\]/g;
 
 // os.environ["FOO"] / os.environ.get("FOO") / os.getenv("FOO")

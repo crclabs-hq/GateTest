@@ -1109,7 +1109,7 @@ export async function POST(req: NextRequest) {
         liveCount: corr.findings.filter((f) => f.live).length,
         findings: corr.findings as unknown as Array<Record<string, unknown>>,
       };
-    } catch (err) {
+    } catch (err) { // error-ok: live correlation is best-effort augmentation; logged, scan continues
       console.error("[scan/fix] LIVE correlation failed (non-blocking):", err instanceof Error ? err.message : String(err));
     }
   }

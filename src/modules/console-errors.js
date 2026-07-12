@@ -267,7 +267,7 @@ class ConsoleErrorsModule extends BaseModule {
         page.removeListener('pageerror', pageErrorHandler);
       }
     } finally {
-      await context.close().catch(() => {});
+      await context.close().catch(() => {}); // error-ok: best-effort browser probe; absent target is a valid outcome, finding still recorded
     }
 
     return { findings, pagesVisited, noisySuppressed };

@@ -113,7 +113,16 @@ class SyntaxModule extends BaseModule {
       }
 
       const vm = require('vm');
-      new vm.Script(content, { filename: file });
+      // Compile inside a CJS-style function wrapper, the same way Node
+      // compiles real CommonJS modules — that wrapper is what makes
+      // top-level `return` (early-exit platform guards) legal. A bare
+      // vm.Script false-positives those files with "Illegal return
+      // statement". Shebang stripped first, exactly like Node does.
+      const cjsSource = content.replace(/^#![^\n]*/, '');
+      new vm.Script(
+        '(function (exports, require, module, __filename, __dirname) { ' + cjsSource + '\n});',
+        { filename: file },
+      );
       result.addCheck(`syntax:${relPath}`, true);
       return true;
     } catch (err) {
