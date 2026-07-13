@@ -1,0 +1,143 @@
+{
+  "generatedAt": "2026-07-13T06:21:11.913Z",
+  "inputs": {
+    "sessionFixCount": 62,
+    "fixAttemptCount": 0,
+    "mcpEventCount": 0
+  },
+  "topModulesByFixCount": [
+    {
+      "module": "mcp",
+      "count": 6
+    },
+    {
+      "module": "ci",
+      "count": 5
+    },
+    {
+      "module": "(unattributed)",
+      "count": 5
+    },
+    {
+      "module": "pricing",
+      "count": 4
+    },
+    {
+      "module": "cli",
+      "count": 3
+    },
+    {
+      "module": "tests",
+      "count": 3
+    },
+    {
+      "module": "modules",
+      "count": 3
+    },
+    {
+      "module": "dead-code",
+      "count": 3
+    },
+    {
+      "module": "deadCode",
+      "count": 2
+    },
+    {
+      "module": "site",
+      "count": 2
+    }
+  ],
+  "topRuleKeysByAttempts": [],
+  "recurringSubjects": [],
+  "underTestedModules": [
+    {
+      "module": "ci",
+      "fixes": 5,
+      "tests": 0,
+      "testPerFix": 0
+    },
+    {
+      "module": "pricing",
+      "fixes": 4,
+      "tests": 0,
+      "testPerFix": 0
+    },
+    {
+      "module": "modules",
+      "fixes": 3,
+      "tests": 0,
+      "testPerFix": 0
+    }
+  ],
+  "layerStats": {
+    "layers": {
+      "ast": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "rule": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "recipe": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "claude": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "null": {
+        "attempts": 0,
+        "successes": 0
+      }
+    },
+    "total": 0,
+    "claudeShare": 0,
+    "deterministicShare": 0
+  },
+  "mcpUsage": {
+    "totalCalls": 0,
+    "tools": [],
+    "neverCalled": [
+      "scan_local",
+      "scan_url",
+      "check_health",
+      "list_modules",
+      "get_badge"
+    ],
+    "highFailTools": []
+  },
+  "recommendations": [
+    {
+      "kind": "investigate-module",
+      "module": "mcp",
+      "reason": "6 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "ci",
+      "reason": "5 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "(unattributed)",
+      "reason": "5 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "ci",
+      "reason": "5 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "pricing",
+      "reason": "4 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "modules",
+      "reason": "3 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    }
+  ]
+}
