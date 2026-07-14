@@ -5,18 +5,20 @@
  * Section order:
  *   1. Navbar
  *   2. Hero  — live URL scan, "One gate. 120 modules. Self-healing CI."
- *   3. HomeKills  — what 12 tools we replace, with flip tiles + full table
- *   4. HomeFlywheel — 4-layer fix flow (AST -> Rule -> Recipe -> Claude)
- *   5. HomeEyesEarsHands — MCP tools: screenshots, production errors, fix verification
- *   6. HomeSelfScan — "GREEN" trust badge with module list
- *   6. HomeCode — install snippets (npx, GitHub Action, CLI cheat-sheet)
- *   7. HomeProof — ROI vs the fragmented stack, real-scan proof, staying-power
- *   8. Pricing — 4 tiers + Continuous subscription card
- *   8b. PentestComingSoon — Live Security Scan waitlist (email capture)
- *   8. HomeFaq — HN-skeptic FAQ
- *   9. HomeStack — full-weight Gluecron + Vapron stack marketing
- *  10. HomeTrust — frameworks scanned + Vapron/Gluecron
- *  11. Footer
+ *   3. HomeKills  — what we replace (flip tiles) + head-to-head capability matrix
+ *   4. HomeModuleBreakdown — "what the 120 modules actually check" (#modules)
+ *   5. HomeFlywheel — 4-layer fix flow (AST -> Rule -> Recipe -> Claude) + prove-it
+ *   6. HomeModelChoice — BYOK vs supplied metered; Sonnet 5 / Opus 4.8 / Fable 5
+ *   7. HomeEyesEarsHands — MCP tools: eyes/ears/hands hook + plain explanations
+ *   8. HomeSelfScan — "GREEN" trust badge with module list
+ *   9. HomeCode — install snippets (npx, GitHub Action, CLI cheat-sheet)
+ *  10. HomeProof — ROI vs the fragmented stack, real-scan proof, staying-power
+ *  11. Pricing — 4 tiers + Continuous subscription card
+ *  12. PentestComingSoon — Live Security Scan waitlist (email capture)
+ *  13. HomeFaq — HN-skeptic FAQ
+ *  14. HomeStack — full-weight Gluecron + Vapron stack marketing
+ *  15. HomeTrust — frameworks scanned + Vapron/Gluecron
+ *  16. Footer
  *
  * Sections retained from the previous homepage are intentionally dropped:
  *   - Problem / AiNative / HowItWorks / Modules / Install / Comparison /
