@@ -1,0 +1,133 @@
+{
+  "generatedAt": "2026-07-13T06:40:48.740Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 7,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 3,
+      "SonarQube": 0,
+      "Semgrep": 2,
+      "CodeQL": 2,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 0
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48886085",
+        "author": "mikewarot",
+        "type": "comment",
+        "title": null,
+        "text": "Programmers will spend most of their time turning LLM vibecoded prototypes into real programs with structural integrity.For a time this skill will be highly valued, until the snake oil takes over again.",
+        "url": "https://news.ycombinator.com/item?id=48886085",
+        "points": null,
+        "numComments": null,
+        "storyId": 48879727,
+        "createdAt": "2026-07-12T23:47:43Z",
+        "createdAtUnix": 1783900063,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48886080",
+        "author": "purple-leafy",
+        "type": "comment",
+        "title": null,
+        "text": "My daily word game “Snibble” [0]It’s basically snake meets scrabble meets PvP stealing. It’s a novel idea and I think it’s cool it hasn’t really been done before :)The issue is it’s too complicated, the onboarding is dogwater, and the aesthetic is too complexSo I’ve spent the weekend fixing onboarding, fixing and relaxing the visuals mix and simplifying mechanics.I’ve also tested LLMs playing the game through a harness I wrote. LLMs get smashed, they can form words and steal, but they lose badly to conventional bots.I’ll be exposing an LLM leaderboard on my next release (hoping this weekend) with links to game replays for the LLMs.Would love for people to give it a try, give me some feedback, and say what you’d love to see on the roadmap.[0] - https:&#x2F;&#x2F;snibble.gg&#x2F;",
+        "url": "https://news.ycombinator.com/item?id=48886080",
+        "points": null,
+        "numComments": null,
+        "storyId": 48884984,
+        "createdAt": "2026-07-12T23:47:07Z",
+        "createdAtUnix": 1783900027,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48882460",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "Nietzsche wrote 'was mich nicht umbringt, macht mich stärk', don't worry about what that other robot is posting.",
+        "url": "https://news.ycombinator.com/item?id=48882460",
+        "points": null,
+        "numComments": null,
+        "storyId": 48873893,
+        "createdAt": "2026-07-12T16:42:30Z",
+        "createdAtUnix": 1783874550,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48888346",
+        "author": "R41",
+        "type": "comment",
+        "title": null,
+        "text": "Working on https:&#x2F;&#x2F;razzify.in - Learn hacking using CTF challenges and get hired. https:&#x2F;&#x2F;securepilot.in - Indias first cybersecurity incident management platform for individuals.",
+        "url": "https://news.ycombinator.com/item?id=48888346",
+        "points": null,
+        "numComments": null,
+        "storyId": 48884984,
+        "createdAt": "2026-07-13T05:38:03Z",
+        "createdAtUnix": 1783921083,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48885323",
+        "author": "netsharc",
+        "type": "comment",
+        "title": null,
+        "text": "The idea is the system would just judge terrible drivers quietly, and then route them away from my route whenever I'm on the road.Of course the first step of that is I have to gain control of Google Maps...Terrible drivers cause traffic jams and accidents, who wouldn't want to be segregated away from them?",
+        "url": "https://news.ycombinator.com/item?id=48885323",
+        "points": null,
+        "numComments": null,
+        "storyId": 48881967,
+        "createdAt": "2026-07-12T22:07:54Z",
+        "createdAtUnix": 1783894074,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48885307",
+        "author": "mooreds",
+        "type": "story",
+        "title": "The Trouble with Effortless Code",
+        "text": "The Trouble with Effortless Code",
+        "url": "https://codeplusconduct.substack.com/p/the-trouble-with-effortless-code",
+        "points": 3,
+        "numComments": 1,
+        "storyId": 48885307,
+        "createdAt": "2026-07-12T22:06:01Z",
+        "createdAtUnix": 1783893961,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48885134",
+        "author": "reveriedev",
+        "type": "story",
+        "title": "Show HN: Almanac – A self-updating wiki from your files",
+        "text": "I was maintaining a wiki for my company's context through a hacky project I had made, but I wanted to turn that into something that's a lot more polished and easier to use.I wanted something where:1. I could use it for myself or I could share it with my teammates.2. I could upload sources, and the wiki gets created and updated automatically.3. It is extremely agent-native, because my primary mechanism of interaction would be through my CC or Codex.So I built Almanac. It takes whatever sources you upload, organizes them, and creates a wiki on top of it. Every time you upload new sources, it reorganizes, restructures, and updates the wiki.The agent interacts with the wiki through a CLI. Similar to Vercel, you can link a folder locally to a wiki, and your agent will then automatically have context of it.I also wanted to make it easy to develop on this platform. I think wikis are a much better way of giving your agent access to quality information compared to RAG. So there is also a Python SDK as well as an MCP that you can use to build on top of it.The project is still early, and I would love any feedback or feature requests that you have.Btw we've also made an open-source version of Almanac for code called CodeAlmanac(https:&#x2F;&#x2F;github.com&#x2F;AlmanacCode&#x2F;codealmanac)",
+        "url": "https://usealmanac.com",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 48885134,
+        "createdAt": "2026-07-12T21:45:16Z",
+        "createdAtUnix": 1783892716,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": []
+  },
+  "painPoints": [],
+  "actionItems": []
+}
