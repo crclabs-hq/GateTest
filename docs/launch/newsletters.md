@@ -8,7 +8,7 @@
 > typically outperforms a flopped HN post by 10-50x on qualified clicks,
 > and inclusions are persistent (archives rank on Google).
 >
-> **Verified facts (do not drift):** 110 modules · free no-signup scan at
+> **Verified facts (do not drift):** 120 modules · free no-signup scan at
 > gatetest.ai · CLI via `npx github:crclabs-hq/GateTest` (npm NOT
 > published) · pay-per-scan $29/$99/$199/$399 · $49/mo Continuous is
 > COMING SOON (not purchasable yet — do not claim it) · GitHub

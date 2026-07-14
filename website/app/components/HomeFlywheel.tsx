@@ -81,7 +81,9 @@ export default function HomeFlywheel() {
             Every competitor either ships pattern matchers (cheap, brittle)
             or ships LLM-only fixes (slow, expensive, hallucinates). We
             stack four deterministic layers in front of Claude. Most fixes
-            never reach the LLM. Margin works. Quality compounds.
+            never reach the LLM. Margin works. Quality compounds. And every
+            fix is <span className="text-foreground font-semibold">re-scanned to prove it worked</span> —
+            we don&apos;t tell you it&apos;s fixed, we show you the green.
           </p>
         </div>
 

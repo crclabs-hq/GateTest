@@ -10,7 +10,7 @@
 >    ~5 days (sequence at the bottom).
 > 2. **Lead with the free, no-signup scan — never the price.** Give first.
 >
-> **Honest facts to keep straight (don't drift):** 110 modules · gatetest.ai ·
+> **Honest facts to keep straight (don't drift):** 120 modules · gatetest.ai ·
 > free no-signup scan · MIT CLI via `npx github:crclabs-hq/GateTest` (npm not
 > published yet) · pay-per-scan $29 / $99 / $199 / $399 + $49/mo Continuous ·
 > never auto-merges · GitHub Marketplace listing in review.
@@ -23,7 +23,7 @@
 > GateTest — one scan, 110 checks, opens an AI-written PR that fixes what it finds. Free to try, no signup. https://gatetest.ai
 
 **One-liner (directory / 160 chars):**
-> One scan runs 110 modules (security, quality, perf, a11y, SEO, infra) and opens an AI PR that fixes findings. Free MIT CLI, pay-per-scan hosted.
+> One scan runs 120 modules (security, quality, perf, a11y, SEO, infra) and opens an AI PR that fixes findings. Free MIT CLI, pay-per-scan hosted.
 
 **The honest hook:** "Most tools tell you what's broken. GateTest opens the PR that fixes it."
 
@@ -90,7 +90,7 @@ What would you actually want a tool like this to do?
 
 **r/SideProject** — Title: `I built a tool that runs 110 code checks and opens a PR that fixes them`
 ```
-Solo-built this over the last while. Paste a repo or URL → 110-module
+Solo-built this over the last while. Paste a repo or URL → 120-module
 scan (security, quality, perf, a11y, SEO, infra) → on paid tiers it
 opens an AI PR that fixes findings. Free, no signup: https://gatetest.ai
 Quiet HN launch overnight so I'm regrouping — would love honest feedback
@@ -115,7 +115,7 @@ https://gatetest.ai — keen to hear where it's wrong or noisy.
 
 **r/selfhosted / r/opensource** — Title: `MIT-licensed CLI that runs 110 code-quality + security checks locally`
 ```
-The engine is MIT — run the full 110-module scan on your machine, no
+The engine is MIT — run the full 120-module scan on your machine, no
 account, nothing leaves your box: npx github:crclabs-hq/GateTest --suite
 quick ./  Repo: https://github.com/crclabs-hq/GateTest  The hosted
 service adds the AI auto-fix PR, but the scanner itself is free + local.

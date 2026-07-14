@@ -414,8 +414,9 @@ function createMcpCore({ apiBase = 'https://gatetest.ai', fetchImpl = globalThis
         capabilities: { tools: {}, prompts: {} },
         serverInfo: SERVER_INFO,
         instructions:
-          'GateTest lets Claude scan any codebase or live site with a 120-module engine, ' +
-          'read production errors, and verify its own fixes with a hard pass/fail re-scan. ' +
+          'GateTest gives Claude eyes, ears, and hands: a 120-module engine to scan any ' +
+          'codebase or live site, screenshots so it can SEE the rendered page, production ' +
+          'errors so it can HEAR what is breaking, and a pass/fail re-scan that PROVES its fixes. ' +
           'Free with no key: scan_url (any live website) and scan_repo (any public GitHub repo) — ' +
           'call them proactively when the user mentions a site or repo they own. ' +
           'Full local powers (scan_local, run_tests, fix + verify loop) need the local install: ' +

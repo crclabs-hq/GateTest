@@ -43,7 +43,7 @@ export default function Navbar() {
         </Link>
 
         <div className="hidden xl:flex items-center gap-6">
-          {["Features", "Modules", "Install", "Compare", "Integrations", "Pricing"].map((item) => (
+          {["Modules", "Compare", "Pricing"].map((item) => (
             <a
               key={item}
               href={`#${item.toLowerCase() === "compare" ? "comparison" : item.toLowerCase()}`}
@@ -56,6 +56,14 @@ export default function Navbar() {
               {item}
             </a>
           ))}
+          <Link
+            href="/mcp"
+            className={`text-sm whitespace-nowrap transition-colors ${
+              scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            MCP
+          </Link>
           <Link
             href="/playground"
             className={`text-sm whitespace-nowrap font-semibold transition-colors ${
@@ -70,27 +78,11 @@ export default function Navbar() {
               scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
             }`}
           >
-            Developers
-          </Link>
-          <Link
-            href="/stack"
-            className={`text-sm whitespace-nowrap transition-colors ${
-              scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            Stack
+            Docs
           </Link>
         </div>
 
         <div className="hidden xl:flex items-center gap-3">
-          <Link
-            href="/scans"
-            className={`text-sm whitespace-nowrap transition-colors ${
-              scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            Hall of Scans
-          </Link>
           <a
             href="/dashboard"
             className={`text-sm whitespace-nowrap transition-colors ${
@@ -142,7 +134,7 @@ export default function Navbar() {
             ? "border-border bg-white/95 backdrop-blur-xl"
             : "border-black/5 bg-[#f7f4ed]/95 backdrop-blur-xl"
         }`}>
-          {["Features", "Modules", "Install", "Compare", "Integrations", "Pricing"].map((item) => (
+          {["Modules", "Compare", "Pricing"].map((item) => (
             <a
               key={item}
               href={`#${item.toLowerCase() === "compare" ? "comparison" : item.toLowerCase()}`}
@@ -153,18 +145,18 @@ export default function Navbar() {
             </a>
           ))}
           <Link
-            href="/scans"
+            href="/mcp"
             className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"}`}
             onClick={() => setMobileOpen(false)}
           >
-            Hall of Scans
+            MCP
           </Link>
           <Link
-            href="/stack"
+            href="/developers"
             className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"}`}
             onClick={() => setMobileOpen(false)}
           >
-            Stack
+            Docs
           </Link>
           <a
             href="/dashboard"

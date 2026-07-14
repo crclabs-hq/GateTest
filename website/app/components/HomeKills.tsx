@@ -17,6 +17,35 @@ interface KillTile {
   blurb: string;
 }
 
+// Head-to-head capability matrix. "yes" | "partial" | "no". Every GateTest
+// "yes" is already shipped (engine-models.js, verify_fix, per-scan checkout) —
+// no vaporware. Competitor cells reflect their default product as of 2026.
+type Cap = "yes" | "partial" | "no";
+interface CapRow {
+  label: string;
+  gt: Cap;
+  sonar: Cap;
+  snyk: Cap;
+  deep: Cap;
+  note?: string;
+}
+
+const CAP_ROWS: CapRow[] = [
+  { label: "Finds bugs, security holes & CI rot", gt: "yes", sonar: "yes", snyk: "partial", deep: "yes", note: "Snyk is dependency/security-focused" },
+  { label: "Opens the fix as a real pull request", gt: "yes", sonar: "no", snyk: "partial", deep: "partial", note: "others: dep bumps or suggestions only" },
+  { label: "Re-scans to PROVE the fix worked", gt: "yes", sonar: "no", snyk: "no", deep: "no" },
+  { label: "You pick the AI model", gt: "yes", sonar: "no", snyk: "no", deep: "no" },
+  { label: "Bring your own API key", gt: "yes", sonar: "no", snyk: "no", deep: "no" },
+  { label: "Pay per scan — no per-seat tax", gt: "yes", sonar: "no", snyk: "no", deep: "no" },
+  { label: "One gate across the whole stack", gt: "yes", sonar: "no", snyk: "no", deep: "no", note: "120 modules, one verdict" },
+];
+
+function CapCell({ v }: { v: Cap }) {
+  if (v === "yes") return <span className="text-accent font-bold" aria-label="yes">✓</span>;
+  if (v === "partial") return <span className="text-amber-500 font-bold" aria-label="partial">~</span>;
+  return <span className="text-muted/40" aria-label="no">✗</span>;
+}
+
 const TILES: KillTile[] = [
   { tool: "Snyk", module: "security", blurb: "OWASP + supply chain + CVE database, no SaaS lock-in." },
   { tool: "SonarQube", module: "codeQuality", blurb: "Same rules, no Java daemon, no per-seat seat tax." },
@@ -59,6 +88,52 @@ export default function HomeKills() {
           {TILES.map((tile) => (
             <KillTileCard key={tile.tool + tile.module} tile={tile} />
           ))}
+        </div>
+
+        {/* Head-to-head capability matrix — the 80-90%-ahead story */}
+        <div className="mb-12">
+          <h3 className="text-center text-xl font-bold text-foreground mb-1">
+            Head to head
+          </h3>
+          <p className="text-center text-sm text-muted mb-6">
+            The others tell you what&apos;s wrong. GateTest fixes it, proves it,
+            and lets you drive.
+          </p>
+          <div className="rounded-2xl border border-border bg-background-alt overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left px-4 py-4 text-muted font-semibold">Capability</th>
+                  <th className="px-3 py-4 text-center text-accent font-bold">GateTest</th>
+                  <th className="px-3 py-4 text-center text-muted font-semibold">SonarQube</th>
+                  <th className="px-3 py-4 text-center text-muted font-semibold">Snyk</th>
+                  <th className="px-3 py-4 text-center text-muted font-semibold">DeepSource</th>
+                </tr>
+              </thead>
+              <tbody>
+                {CAP_ROWS.map((row) => (
+                  <tr key={row.label} className="border-b border-border/40 last:border-b-0">
+                    <td className="px-4 py-3 text-foreground/90">
+                      {row.label}
+                      {row.note && (
+                        <span className="block text-[11px] text-muted mt-0.5">{row.note}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-center text-base bg-accent/[0.04]"><CapCell v={row.gt} /></td>
+                    <td className="px-3 py-3 text-center text-base"><CapCell v={row.sonar} /></td>
+                    <td className="px-3 py-3 text-center text-base"><CapCell v={row.snyk} /></td>
+                    <td className="px-3 py-3 text-center text-base"><CapCell v={row.deep} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[11px] text-muted mt-3 text-center">
+            <span className="text-accent font-bold">✓</span> yes ·{" "}
+            <span className="text-amber-500 font-bold">~</span> partial ·{" "}
+            <span className="text-muted/60">✗</span> no. Competitor cells reflect
+            each product&apos;s default offering as of 2026.
+          </p>
         </div>
 
         {/* Full table — text, no animation, dense */}

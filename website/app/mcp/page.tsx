@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest MCP — The 120-Module Engine in Your Editor",
     description:
-      `All 120 scan modules plus live-page screenshots, production errors from Sentry/Datadog/Rollbar, test runs, read-only DB queries, and pass/fail fix verification. ${TOOL_COUNT} tools. $29/mo.`,
+      `Give Claude eyes, ears & hands: all 120 scan modules plus live-page screenshots (eyes), Sentry/Datadog/Rollbar errors (ears), and a pass/fail re-scan that proves each fix (hands). ${TOOL_COUNT} tools. $29/mo.`,
     url: "https://gatetest.ai/mcp",
   },
 };
@@ -50,14 +50,19 @@ export default function McpPage() {
           MCP Integration
         </div>
         <h1 className="text-5xl font-black tracking-tight mb-4 leading-tight">
-          The <span className="text-blue-400">120-module code scanner</span>,
-          {" "}inside your AI assistant
+          Give Claude{" "}
+          <span className="text-blue-400">eyes</span>,{" "}
+          <span className="text-emerald-400">ears</span>{" "}
+          &amp;{" "}
+          <span className="text-violet-400">hands</span>
         </h1>
         <p className="text-neutral-400 text-lg max-w-2xl mx-auto mb-8">
-          {TOOL_COUNT} tools for Claude Code, Cursor, Windsurf, and any MCP-compatible agent:
-          run the full <span className="text-white font-semibold">120-module scan</span>, screenshot live pages,
-          pull production errors, run your test suite, query your DB read-only, and get a hard
-          pass/fail that proves each fix worked — without leaving your editor.
+          The full <span className="text-white font-semibold">120-module scanner</span> inside your AI
+          assistant — plus {TOOL_COUNT} tools that let it{" "}
+          <span className="text-blue-400">see</span> the rendered page,{" "}
+          <span className="text-emerald-400">hear</span> what&apos;s breaking in production, and{" "}
+          <span className="text-violet-400">prove</span> each fix worked. Claude Code, Cursor,
+          Windsurf, any MCP agent.
         </p>
 
         {/* Price + CTA */}
@@ -172,8 +177,9 @@ export default function McpPage() {
       <section className="max-w-5xl mx-auto px-6 py-12">
         <div className="grid md:grid-cols-3 gap-6">
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-            <div className="text-3xl mb-3">🖥️</div>
-            <h3 className="font-bold text-lg mb-2 text-blue-400">See the rendered page</h3>
+            <div className="text-3xl mb-3">👁</div>
+            <div className="text-[11px] font-bold uppercase tracking-widest text-blue-400 mb-1">Eyes</div>
+            <h3 className="font-bold text-lg mb-2 text-white">See the rendered page</h3>
             <p className="text-neutral-400 text-sm">
               <strong className="text-neutral-200">capture_screenshot</strong> — see what the rendered page actually looks like. Works on localhost, staging, and production.
               <br /><br />
@@ -181,8 +187,9 @@ export default function McpPage() {
             </p>
           </div>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-            <div className="text-3xl mb-3">🚨</div>
-            <h3 className="font-bold text-lg mb-2 text-emerald-400">Read real production errors</h3>
+            <div className="text-3xl mb-3">👂</div>
+            <div className="text-[11px] font-bold uppercase tracking-widest text-emerald-400 mb-1">Ears</div>
+            <h3 className="font-bold text-lg mb-2 text-white">Hear what&apos;s breaking</h3>
             <p className="text-neutral-400 text-sm">
               <strong className="text-neutral-200">get_production_errors</strong> — pull your top Sentry, Datadog, or Rollbar errors with file:line attribution so Claude fixes what prod says is broken, first.
               <br /><br />
@@ -190,8 +197,9 @@ export default function McpPage() {
             </p>
           </div>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-            <div className="text-3xl mb-3">✅</div>
-            <h3 className="font-bold text-lg mb-2 text-violet-400">Test, inspect &amp; prove the fix</h3>
+            <div className="text-3xl mb-3">🤝</div>
+            <div className="text-[11px] font-bold uppercase tracking-widest text-violet-400 mb-1">Hands</div>
+            <h3 className="font-bold text-lg mb-2 text-white">Prove the fix worked</h3>
             <p className="text-neutral-400 text-sm">
               <strong className="text-neutral-200">verify_fix</strong> — re-run the relevant modules on changed files. Pass/fail verdict so Claude knows the fix actually worked.
               <br /><br />

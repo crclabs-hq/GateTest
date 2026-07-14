@@ -30,7 +30,9 @@ import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import BeforeAfterDemo from "./components/BeforeAfterDemo";
 import HomeKills from "./components/HomeKills";
+import HomeModuleBreakdown from "./components/HomeModuleBreakdown";
 import HomeFlywheel from "./components/HomeFlywheel";
+import HomeModelChoice from "./components/HomeModelChoice";
 import HomeEyesEarsHands from "./components/HomeEyesEarsHands";
 import HomeSelfScan from "./components/HomeSelfScan";
 import HomeCode from "./components/HomeCode";
@@ -50,7 +52,9 @@ export default function Home() {
         <Hero />
         <BeforeAfterDemo />
         <HomeKills />
+        <HomeModuleBreakdown />
         <HomeFlywheel />
+        <HomeModelChoice />
         <HomeEyesEarsHands />
         <HomeSelfScan />
         <HomeCode />

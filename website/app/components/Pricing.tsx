@@ -97,11 +97,11 @@ export const mcpPlan = {
   name: "MCP Integration",
   price: "$29",
   frequency: "per month",
-  description: "The full 120-module scanner inside Claude Code, Cursor, or any MCP agent — plus screenshots, production errors, and proof every fix worked.",
+  description: "Give Claude eyes, ears & hands: the full 120-module scanner inside Claude Code, Cursor, or any MCP agent — see the page, read production errors, and prove every fix worked.",
   features: [
-    "Screenshot any URL or localhost",
-    "Pull Sentry / Datadog / Rollbar errors",
-    "verify_fix — pass/fail proof the fix worked",
+    "Eyes — screenshot any URL or localhost",
+    "Ears — pull Sentry / Datadog / Rollbar errors",
+    "Hands — verify_fix proves the fix worked",
     "Full 120-module local scans (vs 4 free)",
     "AI fix + diagnose (fix_issue, explain_finding)",
     "API key delivered by email instantly"
@@ -241,7 +241,7 @@ function TierCard({
 
 export default function Pricing() {
   return (
-    <section className="max-w-7xl mx-auto my-16 px-4">
+    <section id="pricing" className="max-w-7xl mx-auto my-16 px-4">
       <h2 className="text-3xl md:text-4xl font-black mb-2 text-center text-[var(--foreground)] tracking-tight">
         Pay only when it fixes something
       </h2>

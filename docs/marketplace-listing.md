@@ -6,13 +6,13 @@
 
 ## Short description (≤160 chars)
 
-110-module QA gate that finds real bugs — race conditions, money in floats, CI supply-chain attacks. Auto-fix PR on every failure.
+120-module QA gate that finds real bugs — race conditions, money in floats, CI supply-chain attacks. Auto-fix PR on every failure.
 
 ---
 
 ## Long description (Markdown, rendered in Marketplace)
 
-**GateTest replaces 10+ fragmented QA tools with one gate. 110 modules. One decision.**
+**GateTest replaces 10+ fragmented QA tools with one gate. 120 modules. One decision.**
 
 Your CI runs ESLint, Snyk, SonarQube, and six other tools separately. GateTest runs all of them — plus 60 modules that don't exist anywhere else — in a single pass, and opens a pull request with the fixes.
 
@@ -39,8 +39,8 @@ Four production repos scanned for our Hall of Scans:
 | Tier | Price | What you get |
 |---|---|---|
 | Quick Scan | $29 | 4-module preview: syntax, lint, secrets, code quality |
-| Full Scan | $99 | All 110 modules, scan-only |
-| Scan + Fix | $199 | 110 modules + auto-fix PR + pair-review agent + architecture annotator |
+| Full Scan | $99 | All 120 modules, scan-only |
+| Scan + Fix | $199 | 120 modules + auto-fix PR + pair-review agent + architecture annotator |
 | Forensic | $399 | Everything + per-finding Claude diagnosis + cross-finding attack chain correlation + executive summary |
 
 ### How it works
@@ -93,7 +93,7 @@ Per-scan payment (not subscription). Customer pays at checkout for the tier they
 
 ## App name in Marketplace
 
-**GateTest — 110-Module QA Gate**
+**GateTest — 120-Module QA Gate**
 
 ---
 

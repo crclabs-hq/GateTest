@@ -1,19 +1,21 @@
 /**
- * <HomeEyesEarsHands> — the MCP tools section: what GateTest adds to an AI
- * coding agent, in plain language (Craig 2026-07-14: no metaphor-only copy).
+ * <HomeEyesEarsHands> — the MCP tools section. Keeps the eyes/ears/hands hook
+ * (Craig 2026-07-14: don't delete the framing — explain it) and pairs each
+ * with a plain "what the tool does" line so a non-technical reader gets it too.
  *
- * SCREENSHOTS        — capture_screenshot: the agent sees the rendered page
- * PRODUCTION ERRORS  — get_production_errors / run_live_checks: real errors, not guesses
- * FIX VERIFICATION   — verify_fix: a hard pass/fail re-scan proves the fix worked
+ * EYES  — capture_screenshot: the agent SEES the rendered page
+ * EARS  — get_production_errors / run_live_checks: the agent HEARS what's breaking
+ * HANDS — verify_fix: a hard pass/fail re-scan PROVES the fix worked
  */
 
 import { TOOL_COUNT } from "../mcp/tools-data";
 
 const CAPABILITIES = [
   {
-    id: "screenshots",
-    emoji: "🖥️",
-    label: "SCREENSHOTS",
+    id: "eyes",
+    emoji: "👁",
+    label: "EYES",
+    headline: "See the rendered page",
     color: "text-emerald-400",
     borderColor: "border-emerald-500/30",
     bgGlow: "bg-emerald-500/5",
@@ -30,9 +32,10 @@ capture_screenshot({
     when: "after every UI change",
   },
   {
-    id: "production-errors",
-    emoji: "🚨",
-    label: "PRODUCTION ERRORS",
+    id: "ears",
+    emoji: "👂",
+    label: "EARS",
+    headline: "Hear what's breaking",
     color: "text-amber-400",
     borderColor: "border-amber-500/30",
     bgGlow: "bg-amber-500/5",
@@ -50,9 +53,10 @@ run_live_checks({ url: "http://localhost:3000" })
     when: "before deciding what to fix",
   },
   {
-    id: "fix-verification",
-    emoji: "✅",
-    label: "FIX VERIFICATION",
+    id: "hands",
+    emoji: "🤝",
+    label: "HANDS",
+    headline: "Prove the fix worked",
     color: "text-blue-400",
     borderColor: "border-blue-500/30",
     bgGlow: "bg-blue-500/5",
@@ -84,16 +88,18 @@ export default function HomeEyesEarsHands() {
             MCP tools for AI agents
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold mt-4 mb-4 text-foreground">
-            <span className="text-emerald-400">Screenshot the page.</span>{" "}
-            <span className="text-amber-400">Read the real errors.</span>{" "}
-            <span className="text-blue-400">Prove the fix.</span>
+            Give Claude{" "}
+            <span className="text-emerald-400">eyes</span>,{" "}
+            <span className="text-amber-400">ears</span>{" "}
+            &amp;{" "}
+            <span className="text-blue-400">hands</span>
           </h2>
           <p className="text-muted text-lg max-w-3xl mx-auto">
-            GateTest plugs into Claude Code, Cursor, Windsurf, and any
-            MCP-compatible agent over one connection — {TOOL_COUNT} tools
-            covering the full 120-module scan engine, live-page screenshots,
-            production error feeds, test runs, and a pass/fail re-scan that
-            proves a fix actually worked.
+            The three things every AI coding agent is missing — it writes UI it
+            can&apos;t see, guesses at errors it can&apos;t read, and claims
+            &ldquo;fixed&rdquo; without proof. GateTest closes all three over one
+            connection: {TOOL_COUNT} tools driven by the full 120-module engine,
+            in Claude Code, Cursor, Windsurf, and any MCP agent.
           </p>
         </div>
 
@@ -104,8 +110,8 @@ export default function HomeEyesEarsHands() {
               key={cap.id}
               className={`rounded-2xl border ${cap.borderColor} ${cap.bgGlow} p-6 flex flex-col`}
             >
-              {/* Badge */}
-              <div className="flex items-center gap-2 mb-4">
+              {/* Badge: the metaphor tag + the plain benefit it names */}
+              <div className="flex items-center gap-2 mb-1.5">
                 <span className="text-2xl" aria-hidden="true">
                   {cap.emoji}
                 </span>
@@ -115,6 +121,9 @@ export default function HomeEyesEarsHands() {
                   {cap.label}
                 </span>
               </div>
+              <h3 className="text-lg font-bold text-foreground mb-4">
+                {cap.headline}
+              </h3>
 
               {/* Problem */}
               <p className="text-sm text-muted line-through mb-3 leading-relaxed">

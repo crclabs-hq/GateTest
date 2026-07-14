@@ -100,7 +100,7 @@ export default function HomeSelfScan() {
   const ageMinutes = typeof data?.ageMinutes === "number" ? data.ageMinutes : null;
 
   return (
-    <section id="modules" className="py-20 px-6 border-t border-border">
+    <section id="self-scan" className="py-20 px-6 border-t border-border">
       <div className="mx-auto max-w-5xl">
         <div className="text-center mb-10">
           <span className="text-sm font-semibold text-accent uppercase tracking-wider">
