@@ -38,7 +38,9 @@ const IMPORTANT: Array<{ name: string; why: string }> = [
   { name: "STRIPE_WEBHOOK_SECRET", why: "Stripe webhooks can't be verified (subscription lifecycle)" },
   { name: "GITHUB_CLIENT_ID", why: "customer 'Sign in with GitHub' disabled" },
   { name: "GITHUB_CLIENT_SECRET", why: "pairs with GITHUB_CLIENT_ID" },
-  { name: "GATETEST_ADMIN_PASSWORD", why: "admin console password login disabled" },
+  { name: "GOOGLE_CLIENT_ID", why: "customer 'Continue with Google' returns 503 (login modal button dead)" },
+  { name: "GOOGLE_CLIENT_SECRET", why: "pairs with GOOGLE_CLIENT_ID — needed for the Google token exchange" },
+  { name: "GATETEST_ADMIN_PASSWORD", why: "admin console password login disabled ('Admin access is not configured')" },
   { name: "CRON_SECRET", why: "background cron jobs (watch tick, scan worker) exit early in prod" },
   { name: "RESEND_API_KEY", why: "MCP $29/mo API-key emails can't send — subscriber pays, key never arrives (webhook 500s until set)" },
 ];
@@ -47,6 +49,7 @@ const IMPORTANT: Array<{ name: string; why: string }> = [
 const OPTIONAL = [
   "GLUECRON_BASE_URL", "GLUECRON_API_TOKEN",
   "SLACK_WEBHOOK_URL",
+  "GITLAB_CLIENT_ID", "GITLAB_CLIENT_SECRET",
   "SENTRY_AUTH_TOKEN", "DATADOG_API_KEY", "ROLLBAR_READ_TOKEN",
   "GATETEST_FIX_MODEL", "CONTINUOUS_AI_BUDGET_USD",
 ];
