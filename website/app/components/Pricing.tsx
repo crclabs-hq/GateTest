@@ -97,11 +97,11 @@ export const mcpPlan = {
   name: "MCP Integration",
   price: "$29",
   frequency: "per month",
-  description: "Give Claude eyes, ears & hands. Full 120-module scans + AI fix + screenshot + production errors — all inside your AI assistant.",
+  description: "The full 120-module scanner inside Claude Code, Cursor, or any MCP agent — plus screenshots, production errors, and proof every fix worked.",
   features: [
-    "Eyes — screenshot any URL or localhost",
-    "Ears — Sentry / Datadog / Rollbar errors",
-    "Hands — verify_fix proves the fix worked",
+    "Screenshot any URL or localhost",
+    "Pull Sentry / Datadog / Rollbar errors",
+    "verify_fix — pass/fail proof the fix worked",
     "Full 120-module local scans (vs 4 free)",
     "AI fix + diagnose (fix_issue, explain_finding)",
     "API key delivered by email instantly"

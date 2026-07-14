@@ -7,11 +7,12 @@
  *   2. Hero  — live URL scan, "One gate. 120 modules. Self-healing CI."
  *   3. HomeKills  — what 12 tools we replace, with flip tiles + full table
  *   4. HomeFlywheel — 4-layer fix flow (AST -> Rule -> Recipe -> Claude)
- *   5. HomeEyesEarsHands — MCP tools: Eyes/Ears/Hands for AI agents
+ *   5. HomeEyesEarsHands — MCP tools: screenshots, production errors, fix verification
  *   6. HomeSelfScan — "GREEN" trust badge with module list
  *   6. HomeCode — install snippets (npx, GitHub Action, CLI cheat-sheet)
  *   7. HomeProof — ROI vs the fragmented stack, real-scan proof, staying-power
  *   8. Pricing — 4 tiers + Continuous subscription card
+ *   8b. PentestComingSoon — Live Security Scan waitlist (email capture)
  *   8. HomeFaq — HN-skeptic FAQ
  *   9. HomeStack — full-weight Gluecron + Vapron stack marketing
  *  10. HomeTrust — frameworks scanned + Vapron/Gluecron
@@ -35,6 +36,7 @@ import HomeSelfScan from "./components/HomeSelfScan";
 import HomeCode from "./components/HomeCode";
 import HomeProof from "./components/HomeProof";
 import Pricing from "./components/Pricing";
+import PentestComingSoon from "./components/PentestComingSoon";
 import HomeFaq from "./components/HomeFaq";
 import HomeStack from "./components/HomeStack";
 import HomeTrust from "./components/HomeTrust";
@@ -54,6 +56,7 @@ export default function Home() {
         <HomeCode />
         <HomeProof />
         <Pricing />
+        <PentestComingSoon />
         <HomeFaq />
         <HomeStack />
         <HomeTrust />

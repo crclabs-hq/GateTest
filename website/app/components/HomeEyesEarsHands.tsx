@@ -1,45 +1,44 @@
 /**
- * <HomeEyesEarsHands> — the three capabilities missing from every AI coding agent.
+ * <HomeEyesEarsHands> — the MCP tools section: what GateTest adds to an AI
+ * coding agent, in plain language (Craig 2026-07-14: no metaphor-only copy).
  *
- * EYES   — capture_screenshot: Claude can SEE the rendered page
- * EARS   — get_production_errors / run_live_checks: Claude can HEAR what's breaking
- * HANDS  — verify_fix: Claude can PROVE the fix worked
- *
- * Market angle: people are leaving Claude because it writes UI blind, never
- * hears the app fail, and claims "fixed" without proof. GateTest MCP closes
- * all three gaps over a single stdio connection.
+ * SCREENSHOTS        — capture_screenshot: the agent sees the rendered page
+ * PRODUCTION ERRORS  — get_production_errors / run_live_checks: real errors, not guesses
+ * FIX VERIFICATION   — verify_fix: a hard pass/fail re-scan proves the fix worked
  */
 
 import { TOOL_COUNT } from "../mcp/tools-data";
 
 const CAPABILITIES = [
   {
-    id: "eyes",
-    emoji: "👁",
-    label: "EYES",
+    id: "screenshots",
+    emoji: "🖥️",
+    label: "SCREENSHOTS",
     color: "text-emerald-400",
     borderColor: "border-emerald-500/30",
     bgGlow: "bg-emerald-500/5",
-    problem: "Claude writes UI blind — it can't see what it built.",
-    solution: "capture_screenshot returns a real JPEG/PNG image. Claude looks at the rendered page — nav, layout, font sizes, broken CTAs — exactly like a developer reviewing a browser tab.",
+    problem: "AI agents write UI they never actually see.",
+    solution:
+      "capture_screenshot returns a real JPEG/PNG of the rendered page — nav, layout, font sizes, broken CTAs — so the AI reviews its work exactly like a developer looking at a browser tab.",
     tool: "capture_screenshot",
     code: `// See the rendered page — works with localhost too
 capture_screenshot({
   url: "http://localhost:3000/pricing",
   width: 390  // mobile viewport
 })
-// → returns an actual image block Claude can see`,
+// → returns an actual image the AI can see`,
     when: "after every UI change",
   },
   {
-    id: "ears",
-    emoji: "👂",
-    label: "EARS",
+    id: "production-errors",
+    emoji: "🚨",
+    label: "PRODUCTION ERRORS",
     color: "text-amber-400",
     borderColor: "border-amber-500/30",
     bgGlow: "bg-amber-500/5",
-    problem: "Claude guesses what's broken — it can't hear the running app.",
-    solution: "get_production_errors pulls file:line from Sentry/Datadog/Rollbar. run_live_checks hears JS errors, console warnings, API timeouts, and CSP violations against any live URL including localhost.",
+    problem: "AI agents guess what's broken instead of reading the real errors.",
+    solution:
+      "get_production_errors pulls your top errors from Sentry, Datadog, or Rollbar with file:line attribution. run_live_checks catches JS errors, console warnings, API timeouts, and CSP violations on any live URL — including localhost.",
     tool: "get_production_errors",
     code: `// Fix what production says is broken, first
 get_production_errors({ source: "all" })
@@ -51,14 +50,15 @@ run_live_checks({ url: "http://localhost:3000" })
     when: "before deciding what to fix",
   },
   {
-    id: "hands",
-    emoji: "🤝",
-    label: "HANDS",
+    id: "fix-verification",
+    emoji: "✅",
+    label: "FIX VERIFICATION",
     color: "text-blue-400",
     borderColor: "border-blue-500/30",
     bgGlow: "bg-blue-500/5",
-    problem: "Claude claims 'fixed' without proof — no re-run, no gate.",
-    solution: "verify_fix selects the modules relevant to your changed files, re-runs them in-process, and returns a hard ✅/❌ scoped to exactly what you edited. No assumptions.",
+    problem: "AI agents claim “fixed” without re-checking anything.",
+    solution:
+      "verify_fix picks the scan modules relevant to your changed files, re-runs them in-process, and returns a hard ✅/❌ scoped to exactly what was edited. No assumptions — proof.",
     tool: "verify_fix",
     code: `// After editing — prove it actually worked
 verify_fix({
@@ -74,7 +74,7 @@ verify_fix({
 export default function HomeEyesEarsHands() {
   return (
     <section
-      id="eyes-ears-hands"
+      id="mcp-tools"
       className="py-24 px-6 border-t border-border bg-background"
     >
       <div className="mx-auto max-w-6xl">
@@ -84,19 +84,16 @@ export default function HomeEyesEarsHands() {
             MCP tools for AI agents
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold mt-4 mb-4 text-foreground">
-            Give Claude{" "}
-            <span className="text-emerald-400">Eyes</span>
-            {", "}
-            <span className="text-amber-400">Ears</span>
-            {" & "}
-            <span className="text-blue-400">Hands</span>
+            <span className="text-emerald-400">Screenshot the page.</span>{" "}
+            <span className="text-amber-400">Read the real errors.</span>{" "}
+            <span className="text-blue-400">Prove the fix.</span>
           </h2>
           <p className="text-muted text-lg max-w-3xl mx-auto">
-            AI coding agents write UI blind, never hear the app fail, and claim
-            &ldquo;fixed&rdquo; without proof. GateTest MCP closes all three
-            gaps — the full 120-module engine plus {TOOL_COUNT} tools over one
-            connection, in Claude Code, Cursor, Windsurf, and any
-            MCP-compatible agent.
+            GateTest plugs into Claude Code, Cursor, Windsurf, and any
+            MCP-compatible agent over one connection — {TOOL_COUNT} tools
+            covering the full 120-module scan engine, live-page screenshots,
+            production error feeds, test runs, and a pass/fail re-scan that
+            proves a fix actually worked.
           </p>
         </div>
 

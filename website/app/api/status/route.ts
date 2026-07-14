@@ -40,12 +40,13 @@ const IMPORTANT: Array<{ name: string; why: string }> = [
   { name: "GITHUB_CLIENT_SECRET", why: "pairs with GITHUB_CLIENT_ID" },
   { name: "GATETEST_ADMIN_PASSWORD", why: "admin console password login disabled" },
   { name: "CRON_SECRET", why: "background cron jobs (watch tick, scan worker) exit early in prod" },
+  { name: "RESEND_API_KEY", why: "MCP $29/mo API-key emails can't send — subscriber pays, key never arrives (webhook 500s until set)" },
 ];
 
 // Purely optional integrations.
 const OPTIONAL = [
   "GLUECRON_BASE_URL", "GLUECRON_API_TOKEN",
-  "SLACK_WEBHOOK_URL", "RESEND_API_KEY",
+  "SLACK_WEBHOOK_URL",
   "SENTRY_AUTH_TOKEN", "DATADOG_API_KEY", "ROLLBAR_READ_TOKEN",
   "GATETEST_FIX_MODEL", "CONTINUOUS_AI_BUDGET_USD",
 ];

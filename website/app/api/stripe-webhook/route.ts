@@ -237,13 +237,31 @@ export async function POST(req: NextRequest) {
         // Do NOT ack — Stripe must retry so the customer gets their entitlement.
         return NextResponse.json({ error: "persist_failed" }, { status: 500 });
       }
-      // Non-blocking email delivery — failure must never 500 the webhook.
+      // The key exists only in our DB and this email — delivery IS the
+      // entitlement. If the email can't be sent (RESEND_API_KEY missing,
+      // Resend down), do NOT ack: Stripe retries, the upsert above preserves
+      // the same key on conflict, and the retry re-sends it. Silent failure
+      // here means a customer paying $29/mo for nothing (Bible Forbidden #16).
       if (subCustomerEmail) {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { sendApiKeyEmail } = require("@/app/lib/digest-mailer");
-        sendApiKeyEmail({ to: subCustomerEmail, apiKey }).catch((err: Error) =>
-          console.error("[mcp-key-email] delivery failed:", err.message)
-        );
+        const emailResult: { ok: boolean; error?: string } = await sendApiKeyEmail({
+          to: subCustomerEmail,
+          apiKey,
+        });
+        if (!emailResult.ok) {
+          console.error("[mcp-key-email] delivery failed — not acking so Stripe retries:", {
+            subPrefix: subscriptionId.slice(0, 12) + "...",
+            error: emailResult.error,
+          });
+          return NextResponse.json({ error: "key_email_failed" }, { status: 500 });
+        }
+      } else {
+        // No email on the session — nothing to retry into existence. Ack, but
+        // loudly: support must deliver this key by hand (hello@gatetest.ai).
+        console.error("[mcp-key-email] session has no customer email — key needs manual delivery", {
+          subPrefix: subscriptionId.slice(0, 12) + "...",
+        });
       }
       return NextResponse.json({ received: true, subscription: true, tier: "mcp" });
     }

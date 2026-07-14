@@ -104,7 +104,7 @@ const TIERS: Record<string, ScanTier> = {
     priceInCents: 2900,
     modules: "subscription-mcp",
     description:
-      "Full MCP server access — 120-module scans, AI fix, Eyes (screenshot), Ears (production errors), Hands (verify_fix). API key delivered by email instantly. Cancel anytime.",
+      "Full MCP server access — 120-module scans, AI fixes, live-page screenshots, production errors, test runs, and pass/fail fix verification. API key delivered by email instantly. Cancel anytime.",
     recurring: true,
   },
 };

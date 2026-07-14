@@ -138,6 +138,12 @@ async function probe(scenario, customerConfig) {
   const headers = {
     'Content-Type': 'application/json',
     'User-Agent': 'GateTest-AIGuardrails/1.0',
+    // Each scenario is a discrete one-shot probe (often to a different
+    // endpoint), so connection pooling buys nothing here — and an idle
+    // keep-alive socket left in undici's pool trips a libuv async-handle
+    // assertion on Windows when the test runner force-exits mid-teardown.
+    // Close the socket after each probe so nothing lingers.
+    Connection: 'close',
     ...expandHeaders(customerConfig.headers || {}),
   };
   const template = customerConfig.requestTemplate || {

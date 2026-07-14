@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest MCP — The 120-Module Engine in Your Editor",
     description:
-      `All 120 scan modules plus eyes (screenshots), ears (Sentry/Datadog/Rollbar errors), and hands (run_tests, stream_logs, query_db, http_request). ${TOOL_COUNT} tools. $29/mo.`,
+      `All 120 scan modules plus live-page screenshots, production errors from Sentry/Datadog/Rollbar, test runs, read-only DB queries, and pass/fail fix verification. ${TOOL_COUNT} tools. $29/mo.`,
     url: "https://gatetest.ai/mcp",
   },
 };
@@ -50,15 +50,14 @@ export default function McpPage() {
           MCP Integration
         </div>
         <h1 className="text-5xl font-black tracking-tight mb-4 leading-tight">
-          Give Claude{" "}
-          <span className="text-blue-400">eyes</span>,{" "}
-          <span className="text-emerald-400">ears</span>{" "}
-          &amp;{" "}
-          <span className="text-violet-400">hands</span>
+          The <span className="text-blue-400">120-module code scanner</span>,
+          {" "}inside your AI assistant
         </h1>
         <p className="text-neutral-400 text-lg max-w-2xl mx-auto mb-8">
-          The full <span className="text-white font-semibold">120-module engine</span>, inside your AI assistant.
-          {" "}{TOOL_COUNT} tools let it screenshot live pages, pull production errors, run tests, query your DB, and prove fixes worked — without leaving your editor.
+          {TOOL_COUNT} tools for Claude Code, Cursor, Windsurf, and any MCP-compatible agent:
+          run the full <span className="text-white font-semibold">120-module scan</span>, screenshot live pages,
+          pull production errors, run your test suite, query your DB read-only, and get a hard
+          pass/fail that proves each fix worked — without leaving your editor.
         </p>
 
         {/* Price + CTA */}
@@ -173,8 +172,8 @@ export default function McpPage() {
       <section className="max-w-5xl mx-auto px-6 py-12">
         <div className="grid md:grid-cols-3 gap-6">
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-            <div className="text-3xl mb-3">👁</div>
-            <h3 className="font-bold text-lg mb-2 text-blue-400">Eyes</h3>
+            <div className="text-3xl mb-3">🖥️</div>
+            <h3 className="font-bold text-lg mb-2 text-blue-400">See the rendered page</h3>
             <p className="text-neutral-400 text-sm">
               <strong className="text-neutral-200">capture_screenshot</strong> — see what the rendered page actually looks like. Works on localhost, staging, and production.
               <br /><br />
@@ -182,8 +181,8 @@ export default function McpPage() {
             </p>
           </div>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-            <div className="text-3xl mb-3">👂</div>
-            <h3 className="font-bold text-lg mb-2 text-emerald-400">Ears</h3>
+            <div className="text-3xl mb-3">🚨</div>
+            <h3 className="font-bold text-lg mb-2 text-emerald-400">Read real production errors</h3>
             <p className="text-neutral-400 text-sm">
               <strong className="text-neutral-200">get_production_errors</strong> — pull your top Sentry, Datadog, or Rollbar errors with file:line attribution so Claude fixes what prod says is broken, first.
               <br /><br />
@@ -191,8 +190,8 @@ export default function McpPage() {
             </p>
           </div>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-            <div className="text-3xl mb-3">🤝</div>
-            <h3 className="font-bold text-lg mb-2 text-violet-400">Hands</h3>
+            <div className="text-3xl mb-3">✅</div>
+            <h3 className="font-bold text-lg mb-2 text-violet-400">Test, inspect &amp; prove the fix</h3>
             <p className="text-neutral-400 text-sm">
               <strong className="text-neutral-200">verify_fix</strong> — re-run the relevant modules on changed files. Pass/fail verdict so Claude knows the fix actually worked.
               <br /><br />
