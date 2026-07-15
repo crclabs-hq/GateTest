@@ -107,14 +107,51 @@ class LintModule extends BaseModule {
     }
   }
 
+  // Resolve the locally-installed eslint binary directly, skipping npx's
+  // package-resolution overhead (measurable on every single invocation,
+  // worse on Windows). Falls back to `npx eslint` for repos where eslint
+  // isn't hoisted to this project's own node_modules/.bin.
+  _resolveEslintBin(projectRoot) {
+    const candidates = [
+      path.join(projectRoot, 'node_modules', '.bin', process.platform === 'win32' ? 'eslint.cmd' : 'eslint'),
+      path.join(projectRoot, '..', 'node_modules', '.bin', process.platform === 'win32' ? 'eslint.cmd' : 'eslint'),
+    ];
+    for (const bin of candidates) {
+      if (fs.existsSync(bin)) return `"${bin}"`;
+    }
+    return 'npx eslint';
+  }
+
   _runEslint(projectRoot, result) {
     // Run without --max-warnings so the gate only blocks on actual errors.
     // Warnings still surface in the report (with their own severity)
     // but don't fail the gate — that's what the severity system is for.
-    const { exitCode, stdout, stderr } = this._exec(
-      'npx eslint . --format json',
-      { cwd: projectRoot, timeout: 120000 }
+    //
+    // --cache makes repeat scans (the common case: local dev loop, CI on
+    // an unchanged tree) dramatically faster — ESLint skips unchanged
+    // files entirely. First run on a cold cache pays full price; every
+    // scan after that doesn't. Cache lives under .gatetest/ so it's
+    // gitignored alongside the rest of our state, not the project's.
+    const eslintBin = this._resolveEslintBin(projectRoot);
+    const cacheLocation = path.join(projectRoot, '.gatetest', '.eslintcache');
+    try { fs.mkdirSync(path.dirname(cacheLocation), { recursive: true }); } catch { /* best-effort — eslint still runs without a cache dir */ }
+    const { exitCode, stdout, stderr, timedOut } = this._exec(
+      `${eslintBin} . --format json --cache --cache-location "${cacheLocation}"`,
+      { cwd: projectRoot, timeout: 180000 }
     );
+
+    if (timedOut) {
+      // Do NOT call this a crash — it isn't one. A timeout on a large
+      // project is an actionable, honest signal; "ESLint crashed" with
+      // blank stderr is not. (Self-scan 2026-07-15: this exact path
+      // blocked our own gate with zero diagnostic value.)
+      result.addCheck('lint:eslint', false, {
+        message: 'ESLint timed out after 180s — the project is larger than the default budget covers',
+        suggestion: 'Re-run after the cache warms (subsequent scans reuse .gatetest/.eslintcache), or scope CI runs with --diff to lint only changed files',
+        severity: 'warning',
+      });
+      return;
+    }
 
     let errorCount = 0;
     let warningCount = 0;
@@ -125,11 +162,15 @@ class LintModule extends BaseModule {
         warningCount += fileResult.warningCount;
       }
     } catch {
-      // ESLint exited non-zero AND we couldn't parse JSON — config error
-      // or eslint crash. Treat as a genuine failure.
+      // ESLint exited non-zero AND we couldn't parse JSON, and it wasn't
+      // our timeout — a real config error or crash. stdout is included
+      // too: many fatal ESLint errors (bad config, plugin resolution
+      // failures) print to stdout, not stderr, and the old message only
+      // ever showed stderr — which is exactly why this was silently blank.
       if (exitCode !== 0) {
+        const diagnostic = (stderr || stdout || '').slice(0, 300).trim() || '(no output captured)';
         result.addCheck('lint:eslint', false, {
-          message: `ESLint crashed (exit ${exitCode}). stderr: ${(stderr || '').slice(0, 200)}`,
+          message: `ESLint crashed (exit ${exitCode}): ${diagnostic}`,
           suggestion: 'Run "npx eslint ." manually to diagnose',
         });
         return;

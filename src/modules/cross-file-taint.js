@@ -379,9 +379,27 @@ class CrossFileTaintModule extends BaseModule {
     // Track tainted vars (grows as we parse)
     const tainted = new Set();
 
+    // Cross-line template-literal state, for sink detection only (see
+    // sinkSafeLine below) — a backtick fixture spanning multiple lines
+    // (e.g. `run({ 'index.js': \`...eval(code)...\` })` in a test file)
+    // would otherwise read as real code on every line inside it.
+    let inTemplate = false;
+
     for (let i = 0; i < lines.length; i++) {
       const raw = lines[i];
       const stripped = this._stripComments(raw);
+      const stripRes = this._stripJsStrings(raw, inTemplate);
+      inTemplate = stripRes.inTemplate;
+      // Sink patterns only — text inside a string/template/regex literal
+      // isn't executable in the current file, so a sink match there is
+      // example/fixture data, not a live vulnerability (self-scan
+      // 2026-07-15: this module flagging its own test fixtures' eval()/
+      // exec() sample payloads as real findings). Left the taint-source /
+      // propagation / export tracking above untouched — narrowly scoping
+      // this to sink detection is enough to kill the false positive,
+      // since a hit requires a sink match AND a tainted-var reference on
+      // the SAME line.
+      const sinkSafeLine = this._stripComments(stripRes.stripped);
 
       // ----------------------------------------------------------------
       // Collect imports (top-level only — stop at first blank-ish line
@@ -514,10 +532,10 @@ class CrossFileTaintModule extends BaseModule {
       if (SUPPRESS_TAINT_OK_RE.test(raw)) continue;
 
       for (const sink of SINKS) {
-        if (!sink.re.test(stripped)) continue;
+        if (!sink.re.test(sinkSafeLine)) continue;
         // Is a tainted var present on this line?
         for (const v of tainted) {
-          if (this._lineReferencesVar(stripped, v)) {
+          if (this._lineReferencesVar(sinkSafeLine, v)) {
             const contextLines = lines.slice(Math.max(0, i - 3), i + 1).join('\n');
             data.sinkHits.push({
               line: i + 1,

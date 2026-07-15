@@ -99,14 +99,127 @@ class BaseModule {
         stdio: ['pipe', 'pipe', 'pipe'],
         maxBuffer: options.maxBuffer || 10 * 1024 * 1024,
       });
-      return { stdout, stderr: '', exitCode: 0 };
+      return { stdout, stderr: '', exitCode: 0, signal: null, timedOut: false };
     } catch (err) {
+      // execSync kills the child on timeout: status is null, signal is
+      // SIGTERM, code is ETIMEDOUT. Without surfacing this, callers can't
+      // tell "the tool crashed" from "we killed it after our own timeout" —
+      // and the two need very different messages (see lint.js self-scan
+      // 2026-07-15: a real ESLint timeout on a large Next.js app was
+      // reported to the user as "ESLint crashed. stderr: " with zero
+      // diagnostic value).
       return {
         stdout: err.stdout || '',
         stderr: err.stderr || '',
         exitCode: err.status || 1,
+        signal: err.signal || null,
+        timedOut: err.code === 'ETIMEDOUT' || err.signal === 'SIGTERM',
       };
     }
+  }
+
+  /**
+   * True when `index` falls inside an unescaped '/"/` string literal that
+   * OPENS before `index` on the same line (and hasn't closed yet).
+   *
+   * Rules whose regex needs a quoted value preserved (e.g. matching a literal
+   * `"0"`) can't run against a fully string-stripped line, so they scan raw
+   * text instead — which means a rule like `process.env.X = "0"` matches
+   * identically whether it's real top-level code OR a JS string literal
+   * containing that same text as sample/fixture data, e.g.
+   * `write(tmp, 'a.js', 'process.env.X = "0"')`. A real assignment is never
+   * itself nested inside another string literal — that would be inert text,
+   * not executable code — so "nested in an outer string" is a safe, general
+   * signal that a match is example/fixture data, not a live vulnerability.
+   * (Found via self-scan 2026-07-15: tls-security/cookie-security flagging
+   * their own test fixtures as real findings.)
+   */
+  _isInsideStringLiteral(line, index) {
+    let state = null;
+    for (let j = 0; j < index && j < line.length; j += 1) {
+      const ch = line[j];
+      if (state) {
+        if (ch === '\\') { j += 1; continue; }
+        if (ch === state) state = null;
+        continue;
+      }
+      if (ch === "'" || ch === '"' || ch === '`') state = ch;
+    }
+    return state !== null;
+  }
+
+  // A `/` opens a regex literal (not a division operator) when the last
+  // non-space character emitted so far is one of these — covers the
+  // overwhelming majority of real code AND test-assertion style
+  // (`assert.match(x, /foo/)`, `.test(/foo/)`, `const re = /foo/`), without
+  // the false-positive risk of trying to fully disambiguate JS grammar.
+  static _REGEX_PRECEDING_RE = /[([{,:=!&|;]$|^$/;
+
+  /**
+   * Blank out the contents of string ('/"/`) and regex (/.../ ) literals on
+   * a line, keeping the delimiters so downstream regexes that only care
+   * about structure (not content) still see them. Regex literals matter
+   * because rules that match on stripped `line` still see straight through
+   * one: `assert.doesNotMatch(result, /rejectUnauthorized: false/)` is a
+   * test assertion, not a live config value, but textually contains the
+   * exact vulnerable pattern the module is designed to flag. Found via
+   * self-scan 2026-07-15 (tls-security + cookie-security self-flagging
+   * their own test files' regex-literal assertions).
+   */
+  _stripJsStrings(line, inTemplate) {
+    let out = '';
+    let state = inTemplate ? '`' : null;
+    let j = 0;
+    while (j < line.length) {
+      const ch = line[j];
+      if (state) {
+        if (state === '/') {
+          if (ch === '\\') { out += '  '; j += 2; continue; }
+          if (ch === '[') { out += ' '; state = '/['; j += 1; continue; }
+          if (ch === '/') { out += ch; state = null; j += 1; continue; }
+          out += ' ';
+          j += 1;
+          continue;
+        }
+        if (state === '/[') {
+          // Inside a regex character class — `/` doesn't close the regex here.
+          if (ch === '\\') { out += '  '; j += 2; continue; }
+          if (ch === ']') { out += ' '; state = '/'; j += 1; continue; }
+          out += ' ';
+          j += 1;
+          continue;
+        }
+        if (ch === '\\') {
+          out += '  ';
+          j += 2;
+          continue;
+        }
+        if (ch === state) {
+          out += ch;
+          state = null;
+          j += 1;
+          continue;
+        }
+        out += ' ';
+        j += 1;
+        continue;
+      }
+      if (ch === "'" || ch === '"' || ch === '`') {
+        out += ch;
+        state = ch;
+        j += 1;
+        continue;
+      }
+      if (ch === '/' && BaseModule._REGEX_PRECEDING_RE.test(out.trimEnd())) {
+        out += ch;
+        state = '/';
+        j += 1;
+        continue;
+      }
+      out += ch;
+      j += 1;
+    }
+    return { stripped: out, inTemplate: state === '`' };
   }
 }
 

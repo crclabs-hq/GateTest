@@ -642,3 +642,51 @@ export async function handler(req) {
     assert.ok(sqlErrors.length >= 1, 'comment mentioning sql`` should not sanitise');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Test-fixture self-match — a .test.js file whose OWN source contains a
+// multi-line template literal used as sample fixture content (exactly how
+// this module's own test suite is written) must not be flagged when this
+// module scans its own repo. Self-scan 2026-07-15 found this module
+// flagging tests/heavy/cross-file-taint.test.js's eval()/exec() fixtures
+// as real findings — the sink text was real, but it lives inside a
+// backtick string spanning several lines, not in executable code.
+// ---------------------------------------------------------------------------
+
+describe('CrossFileTaintModule — does not self-flag its own test fixtures', () => {
+  it('does not flag eval()/exec() sample payloads nested in a multi-line template literal', async () => {
+    const result = await run({
+      'sample.test.js': `
+describe('example', () => {
+  it('flags tainted eval', async () => {
+    const result = await run({
+      'index.js': \`
+function run(req) {
+  const code = req.body.script;
+  eval(code);
+}
+\`,
+    });
+  });
+
+  it('flags tainted exec', async () => {
+    const result = await run({
+      'runner.js': \`
+const { exec } = require('child_process');
+function runCmd(req, res) {
+  const cmd = req.params.command;
+  exec(cmd);
+}
+\`,
+    });
+  });
+});
+`,
+    });
+    const sinkErrors = [...result.errors(), ...result.warnings()].filter((c) => c.sink);
+    assert.strictEqual(
+      sinkErrors.length, 0,
+      `expected zero sink findings on fixture text nested in a template literal, got: ${JSON.stringify(sinkErrors.map((e) => e.sink))}`,
+    );
+  });
+});

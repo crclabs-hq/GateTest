@@ -249,7 +249,11 @@ class CookieSecurityModule extends BaseModule {
       const secretLc = secretLine.indexOf('//');
       if (secretLc !== -1) secretLine = secretLine.slice(0, secretLc);
       const weakMatch = JS_WEAK_SECRET_RE.exec(secretLine);
-      if (weakMatch) {
+      // A real weak secret is never itself nested inside another string
+      // literal — that's fixture/example data (see self-scan 2026-07-15:
+      // this rule flagging its own test file's sample payloads), not a live
+      // config value. _isInsideStringLiteral is the general-purpose guard.
+      if (weakMatch && !this._isInsideStringLiteral(secretLine, weakMatch.index)) {
         result.addCheck(`cookie-sec:js-weak-secret:${rel}:${i + 1}`, false, {
           severity: errSev,
           message: `Session secret is a known-weak placeholder ("${weakMatch[1]}") — replace before deploy.`,
@@ -338,39 +342,10 @@ class CookieSecurityModule extends BaseModule {
       (i > 0 && lines[i - 1] && SUPPRESS_RE.test(lines[i - 1]));
   }
 
-  _stripJsStrings(line, inTemplate) {
-    let out = '';
-    let state = inTemplate ? '`' : null;
-    let j = 0;
-    while (j < line.length) {
-      const ch = line[j];
-      if (state) {
-        if (ch === '\\') {
-          out += '  ';
-          j += 2;
-          continue;
-        }
-        if (ch === state) {
-          out += ch;
-          state = null;
-          j += 1;
-          continue;
-        }
-        out += ' ';
-        j += 1;
-        continue;
-      }
-      if (ch === "'" || ch === '"' || ch === '`') {
-        out += ch;
-        state = ch;
-        j += 1;
-        continue;
-      }
-      out += ch;
-      j += 1;
-    }
-    return { stripped: out, inTemplate: state === '`' };
-  }
+  // _stripJsStrings is inherited from BaseModule (also strips regex-literal
+  // bodies, e.g. `/httpOnly:false/` in a test assertion — this module and
+  // tls-security.js used to carry identical private copies that only
+  // handled quotes; consolidated 2026-07-15).
 
   _findUnquotedHash(line) {
     let inStr = null;
