@@ -1,0 +1,247 @@
+{
+  "generatedAt": "2026-07-15T05:52:29.368Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 15,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 7,
+      "SonarQube": 0,
+      "Semgrep": 2,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 2,
+      "Checkmarx": 3
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48914289",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "I'd like to see one that stops accidental generation of strings like 'nakba'.",
+        "url": "https://news.ycombinator.com/item?id=48914289",
+        "points": null,
+        "numComments": null,
+        "storyId": 48913894,
+        "createdAt": "2026-07-14T23:28:11Z",
+        "createdAtUnix": 1784071691,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48913756",
+        "author": "DimmieMan",
+        "type": "comment",
+        "title": null,
+        "text": "HDMI and display port are in a similar boat. Putting the spec on the connector would be so much help.Even purchasing them is a nightmare these days because everything says ultra super duper fast supreme and then the fine print says it's actually just 3.0 (or doesn't say at all sometimes on online storefronts). Multiple time's I've found myself in the store flipping around the box like a rubics cube trying to find the little fine print that tells me if the cable is more expensive because it's gold plated snake oil or actually matches the higher spec I need.",
+        "url": "https://news.ycombinator.com/item?id=48913756",
+        "points": null,
+        "numComments": null,
+        "storyId": 48908214,
+        "createdAt": "2026-07-14T22:29:59Z",
+        "createdAtUnix": 1784068199,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48912600",
+        "author": "comandillos",
+        "type": "comment",
+        "title": null,
+        "text": "Quite weird that heavy quantization method on a dense model gives better results than slightly quantized MoE models like 35B-A3B from Google.At this point all the different quantization and 'compression' (look at MPO applied to LLMs...) techniques start feeling a bit like snake oil. It's just gut feeling - or scores on benchmarks models are optimized for - what ends up deciding whether a technique is good enough or not.",
+        "url": "https://news.ycombinator.com/item?id=48912600",
+        "points": null,
+        "numComments": null,
+        "storyId": 48910545,
+        "createdAt": "2026-07-14T20:33:54Z",
+        "createdAtUnix": 1784061234,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48912571",
+        "author": "Telaneo",
+        "type": "comment",
+        "title": null,
+        "text": "> if business A sells a widget to reseller B who sells it to reseller C who sells it to the customer, there's multiple layers of markup. How can the original manufacturer be expected to refund the purchase price?Simple. They operate within the law and provide the customer with a refund, or they get fined. From the consumer's point of view, this is irrelevant. Business can fix this B2B issue between themselves however they wish, so long as it doesn't affect the consumer. If you don't like it, then don't do business here.Here's a case where a consumer complained directly to the manufacturer,[1] and the Consumer Disputes Commission ruled in favour of the consumer.[2] It's not even the core of the issue, but just mentioned, since it's settled law.> Reading the law, it does not say that the consumer is entitled to a refund.Refunding is one possible remediation, see section 32 (cancellation) and section 26 (The consumer's rights in the event of defects). That option cancels the purchase contract, meaning you as the consumer give the item back, while the seller gives you the money you paid for the item.[1] https:&#x2F;&#x2F;www.forbrukertilsynet.no&#x2F;wp-content&#x2F;uploads&#x2F;2025&#x2F;12&#x2F;...'Innklagde er klaget inn i kraft av å være produsent av syklene. De er følgelig ansvarlige for kjøpsrettslige mangler etter direktekravsreglene i fkjl. § 35.'Rough translation: 'A claim is lodged against the defendant due to it being the manufacturer of the bicycles. The defendant therefore liable for for defects accordance with the rules on direct claims set out in section 35 of the Act relating to consumer purchases.'[2] They didn't rule in favour of the consumer's demand to have the manufacturer pay for their jacket that got damaged following them falling of their broken bike. They did rule in favour of the cost of repairing the bike (a new handle bar that the consumer bought themselves to fix the issue), so the manufacturer is on the hook for that.",
+        "url": "https://news.ycombinator.com/item?id=48912571",
+        "points": null,
+        "numComments": null,
+        "storyId": 48869989,
+        "createdAt": "2026-07-14T20:31:07Z",
+        "createdAtUnix": 1784061067,
+        "intent": "bug"
+      },
+      {
+        "objectId": "48910013",
+        "author": "AnimalMuppet",
+        "type": "comment",
+        "title": null,
+        "text": "No, Jacobin, a bunch of us do not welcome it, for what seems to us to be very good reason.\"Nationalize\" could mean two things: Either the government pays, or the government takes.If the government just takes, that runs afoul of the last clause of the Fifth Amendment of the US Constitution. \"... nor shall private property be taken for public use, without just compensation.\" If the government just takes, that's dead. Since it's essentially impossible to get a Constitutional amendment to pass, that means that the Constitution is being violated. If that clause of the Bill of Rights can be ignored because Jacobin feels like it, how much of the rest of the Constitution still stands?And if they can just take those companies, then they can just take anything else they feel like taking. Private property is dead.I do not welcome the death of the Constitution and private property, no matter how much Jacobin thinks I should.On the other hand, if the government pays for it, then we have a completely different set of problems. We have, first, the problem of paying for it. Where is the money going to come from? It's either going to come from deficit spending, or from taxes. And deficit spending has a way of showing up as inflation sooner or later.The other problem with the government paying for it is paying for snake oil. If I create a business, and claim it's going to be revolutionary, that it's going to change the whole economy, that it's going to make work obsolete, and if I hype it well enough to convince the government, I may get them to buy it from me, whether or not it is all that I say it is. And the better I hype it, the more it appears to be worth, so the more they should pay for it.In fact, at this time it is unclear whether AI companies are worth the massively high valuations that they are going for. (Of course, if they are, if the government wants to buy them later, that would take even more money.)I don't want to reward hype artists by overpaying for their puffery, I don't want more deficit, and I don't want more taxes.So no, I don't welcome nationalizing AI, no matter how much Jacobin tries to tell me that I should.Now, if you want to claim that AI has taken from the public commons for training data, that's a fair argument. I'm not sure that it turns into a legally defensible claim on the companies, though, under current law. And if not, then we're left with \"nationalize\" meaning what it traditionally means. And I'm against it.",
+        "url": "https://news.ycombinator.com/item?id=48910013",
+        "points": null,
+        "numComments": null,
+        "storyId": 48909299,
+        "createdAt": "2026-07-14T17:14:15Z",
+        "createdAtUnix": 1784049255,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48909362",
+        "author": "smalltorch",
+        "type": "comment",
+        "title": null,
+        "text": "I wish I understood the actual data Alice needed processed to wrap my head around the problem space. Reading examples of what it could be used for leave me more confused.Without knowing the actual pointed problem space the generalities of the schema just sounds like a snake game to me.I can't get past where the veil is dropped for bob to take some ciphertext and operate on it in any meaningful way for him to create some machine that simultaneously can process encrypted data while being completely blinded to what the data is or the insights learned. Any form of ability to process a datum while simultaneously being blinded to it is logically incompatible to me.Now, could we obfuscated it and lower the chances of an attacker being able to do anything useful with it or knowing what is being processed? Yes...but why muddy the definition of encryption in order to do this?",
+        "url": "https://news.ycombinator.com/item?id=48909362",
+        "points": null,
+        "numComments": null,
+        "storyId": 48905028,
+        "createdAt": "2026-07-14T16:31:58Z",
+        "createdAtUnix": 1784046718,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48907974",
+        "author": "iamnothere",
+        "type": "comment",
+        "title": null,
+        "text": "Times Square is a physical place with limited space. It has multiple uses and the road or sidewalk you’re standing on is a publicly owned thoroughfare. Your megaphone might damage the hearing of non-audience passerby if you have it turned up really loud.That said, such a regulation would actually be unconstitutional unless it’s narrowly aimed at real concerns like blocking traffic. Snyder v. Phelps established that you can go protest with signs saying “God Hates F*gs” and yell at people during a military funeral. Believe it or not, sometimes free speech may be distasteful and disruptive.The virtual world is very different. The audience is willing, there’s no passerby, no blocking traffic. Competing rights go out the window.",
+        "url": "https://news.ycombinator.com/item?id=48907974",
+        "points": null,
+        "numComments": null,
+        "storyId": 48897104,
+        "createdAt": "2026-07-14T15:03:08Z",
+        "createdAtUnix": 1784041388,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48908756",
+        "author": "artemonster",
+        "type": "comment",
+        "title": null,
+        "text": "We are selfreplicating bots - can eat anything, self healing minor damage, very agile, autonomous. When we stop growing numbers the harvest will begin",
+        "url": "https://news.ycombinator.com/item?id=48908756",
+        "points": null,
+        "numComments": null,
+        "storyId": 48887810,
+        "createdAt": "2026-07-14T15:54:07Z",
+        "createdAtUnix": 1784044447,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48903180",
+        "author": "setgree",
+        "type": "comment",
+        "title": null,
+        "text": "The goal of a modeling exercise like this, which you don’t have to buy, is to generate a simple set of initial conditions that can explain things we already know. Then, we can manipulate some initial parameter value to make predictions about things we don’t see, but might.Likewise, it is obvious that gravity exists, but a simple model that explains where it comes from (in quantum terms) would be a big breakthrough iff it came with plausibly testable implications that could be tested via experiment.",
+        "url": "https://news.ycombinator.com/item?id=48903180",
+        "points": null,
+        "numComments": null,
+        "storyId": 48901224,
+        "createdAt": "2026-07-14T07:04:18Z",
+        "createdAtUnix": 1784012658,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48905230",
+        "author": "codelikeawolf",
+        "type": "comment",
+        "title": null,
+        "text": "I'm a bit of a Forensic Files nerd, so I worked on a little side project a while back to pull the transcripts from several episodes, use entity recognition to categorize people, places, things, etc, and load them into a Neo4j database (via Cypher queries). It turns out there's something called the POLE data model[1] that can be used by law enforcement to help solve crimes. You load all the details into a graph database and evaluate the relationships to aid in solving crimes. I suppose you could argue a criminal investigation is essentially graph traversal.[1] https:&#x2F;&#x2F;neo4j.com&#x2F;blog&#x2F;government&#x2F;graph-technology-pole-posi...Edit: typo",
+        "url": "https://news.ycombinator.com/item?id=48905230",
+        "points": null,
+        "numComments": null,
+        "storyId": 48902026,
+        "createdAt": "2026-07-14T11:44:24Z",
+        "createdAtUnix": 1784029464,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [
+      {
+        "objectId": "48915829",
+        "author": "NoraCodes",
+        "type": "comment",
+        "title": null,
+        "text": "TFA does not say that it is impossible to make better choices, but also, you cannot \"better choices\" yourself out of complicity with poor labor practices in colonized nations or environmental damage from farms and oil; not entirely.",
+        "url": "https://news.ycombinator.com/item?id=48915829",
+        "points": null,
+        "numComments": null,
+        "storyId": 48907219,
+        "createdAt": "2026-07-15T03:16:18Z",
+        "createdAtUnix": 1784085378,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48907461",
+        "author": "NoraCodes",
+        "type": "comment",
+        "title": null,
+        "text": "I think TFA's point is that one cannot completely abstain from food or clothes (or, in many places, at least some tech) without suffering very severe consequences, so it is unreasonable to expect this behavior. Not so AI, at least for most people.",
+        "url": "https://news.ycombinator.com/item?id=48907461",
+        "points": null,
+        "numComments": null,
+        "storyId": 48907219,
+        "createdAt": "2026-07-14T14:26:42Z",
+        "createdAtUnix": 1784039202,
+        "intent": "neutral"
+      }
+    ],
+    "Checkmarx": [
+      {
+        "objectId": "48911957",
+        "author": "Svoka",
+        "type": "comment",
+        "title": null,
+        "text": "there is a default three.js control panel. By default it has speed at 25x and 'Follow Earth' checkmark, which makes camera do weird things.",
+        "url": "https://news.ycombinator.com/item?id=48911957",
+        "points": null,
+        "numComments": null,
+        "storyId": 48901356,
+        "createdAt": "2026-07-14T19:36:24Z",
+        "createdAtUnix": 1784057784,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48909999",
+        "author": "moritzwarhier",
+        "type": "comment",
+        "title": null,
+        "text": "I'd suggest \"Caveat\".The problemWhile an article lends a headline more weight, in incomplete phrases consisting solely of a substantive, \"The\" is a superfluous rhetorical device.\"The Exorcist\" could just as well be named\"Exorcist\".But it was not the style at the time.We already know it's important. If The Caveat doesn't stand out enough without The, maybe one should consider interleaving it with the preceding text, or increasing the heading level.Do you want me to increase the heading level of Caveat by using only a single #?But hear me out: there comes# The Markdown TrapIn fact, this is not always possible, because heading levels decrease when adding # characters, which limits our headroom.## The solutionI've implemented a Markdown transpiler that assigns inverted heading levels based on the number of #s.With # beinh regular body font size, mapped to ######.Higher heading levels are compiled to style attributes, providing an almost limitless signifikance scale and infinite nesting levels.So from now on, you can use # Heading for something similar to an h6.Work your way up to ###### The Caveat for a top-level heading.And more hash signs make it stand out even more.(green checkmark)markdown-transpiler.sh",
+        "url": "https://news.ycombinator.com/item?id=48909999",
+        "points": null,
+        "numComments": null,
+        "storyId": 48905248,
+        "createdAt": "2026-07-14T17:13:14Z",
+        "createdAtUnix": 1784049194,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48904342",
+        "author": "perching_aix",
+        "type": "comment",
+        "title": null,
+        "text": "A certified Real Opinion (tm). The only thing missing is the checkmark.",
+        "url": "https://news.ycombinator.com/item?id=48904342",
+        "points": null,
+        "numComments": null,
+        "storyId": 48903777,
+        "createdAt": "2026-07-14T09:50:41Z",
+        "createdAtUnix": 1784022641,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
