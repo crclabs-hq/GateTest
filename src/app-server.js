@@ -268,11 +268,17 @@ async function cloneAndScan(owner, name, branch, token) {
     }
 
     if (report) {
+      // Info-only findings (markdown nits, missing Stylelint config, etc.)
+      // never block and are never even a warning — excluded here so the
+      // GitHub commit-status message a customer sees on their PR doesn't
+      // read as "35 issues found" for housekeeping that isn't a real issue
+      // (see console-reporter.js for the same fix on the CLI output).
+      const infoFindings = report.summary.checks.infoFindings || 0;
       return {
         passed: report.gatetest.gateStatus === 'PASSED',
-        issuesFound: report.summary.checks.failed,
+        issuesFound: report.summary.checks.failed - infoFindings,
         checksPassed: report.summary.checks.passed,
-        checksTotal: report.summary.checks.total,
+        checksTotal: report.summary.checks.total - infoFindings,
         modulesPassed: report.summary.modules.passed,
         modulesTotal: report.summary.modules.total,
         results: report.results || [],

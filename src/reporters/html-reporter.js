@@ -62,7 +62,13 @@ class HtmlReporter {
     const passed = summary.gateStatus === 'PASSED';
     const totalIssues = summary.checks.failed;
     const totalPassed = summary.checks.passed;
-    const totalChecks = summary.checks.total;
+    // Info-severity "findings" (markdown whitespace nits, missing Stylelint
+    // config, etc.) never block and are never even a warning, but each one
+    // still counts as one failed check — left in the denominator, the pass
+    // rate shown to the customer reads worse than the scan actually is
+    // (self-scan 2026-07-15: 1272/2506 = 51% on a healthy repo).
+    const infoFindings = summary.checks.infoFindings || 0;
+    const totalChecks = summary.checks.total - infoFindings;
     const passRate = totalChecks > 0 ? Math.round((totalPassed / totalChecks) * 100) : 0;
 
     // Categorize issues

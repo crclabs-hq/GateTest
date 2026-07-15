@@ -257,6 +257,21 @@ class TestResult {
     return this.checks.filter(c => c.severity === Severity.INFO);
   }
 
+  /**
+   * Info-severity findings that "failed" (markdown whitespace nits, missing
+   * Stylelint config, etc.) — never block, never even a warning, but each
+   * one still counts as one failed check in the raw total/passed ratio.
+   * On a healthy, actively-maintained repo this can be the majority of
+   * "failed" checks, making `passed/total` read as "half this repo is
+   * broken" when it's actually clean. Reported separately so the headline
+   * ratio reflects things that actually matter (self-scan 2026-07-15:
+   * 2506 total checks, 1272 passed looked alarming — most of the gap was
+   * this bucket).
+   */
+  get infoFindingChecks() {
+    return this.checks.filter(c => !c.passed && !c.suppressed && c.severity === Severity.INFO);
+  }
+
   get failedChecks() {
     // A .gatetestignore-suppressed finding is not a failure — it's visible in
     // suppressedChecks but excluded from every failure count/detail so a
@@ -280,6 +295,7 @@ class TestResult {
       blockingErrors: this.blockingErrorChecks.length,
       softErrors: this.softErrorChecks.length,
       warnings: this.warningChecks.length,
+      infoFindings: this.infoFindingChecks.length,
       fixes: this.fixes.length,
       checks: this.checks,
       appliedFixes: this.fixes,
@@ -711,6 +727,7 @@ class GateTestRunner extends EventEmitter {
       (sum, r) => sum + r.softErrorChecks.length, 0,
     );
     const totalWarnings = this.results.reduce((sum, r) => sum + r.warningChecks.length, 0);
+    const totalInfoFindings = this.results.reduce((sum, r) => sum + r.infoFindingChecks.length, 0);
     const totalFixes = this.results.reduce((sum, r) => sum + r.fixes.length, 0);
 
     // GATE DECISION: only CONFIDENT errors block. Failed modules block
@@ -742,6 +759,7 @@ class GateTestRunner extends EventEmitter {
         blockingErrors: totalBlockingErrors,
         softErrors: totalSoftErrors,
         warnings: totalWarnings,
+        infoFindings: totalInfoFindings,
       },
       fixes: {
         total: totalFixes,

@@ -122,7 +122,18 @@ class ConsoleReporter {
       console.log(`${COLORS.dim}  Mode: diff-only (${(summary.changedFiles || []).length} changed files)${COLORS.reset}`);
     }
     console.log(`  Modules:  ${summary.modules.passed}/${summary.modules.total} passed`);
-    console.log(`  Checks:   ${summary.checks.passed}/${summary.checks.total} passed`);
+    // Info-severity "findings" (markdown whitespace nits, missing Stylelint
+    // config, etc.) never block and are never even a warning — but each one
+    // still counts as one failed check in the raw total. Left in the
+    // denominator, `passed/total` reads as "half this repo is broken" on a
+    // perfectly healthy scan (self-scan 2026-07-15: 1272/2506). Excluding
+    // them makes the headline reflect what actually needs attention.
+    const infoFindings = summary.checks.infoFindings || 0;
+    const actionableTotal = summary.checks.total - infoFindings;
+    const infoNote = infoFindings > 0
+      ? ` ${COLORS.dim}(+${infoFindings} info-only nit(s), never blocks — see Info below)${COLORS.reset}`
+      : '';
+    console.log(`  Checks:   ${summary.checks.passed}/${actionableTotal} passed${infoNote}`);
     const blocking = summary.checks.blockingErrors;
     const soft = summary.checks.softErrors;
     if (typeof blocking === 'number' && typeof soft === 'number' && soft > 0) {
@@ -131,6 +142,9 @@ class ConsoleReporter {
       console.log(`  Errors:   ${COLORS.red}${summary.checks.errors}${COLORS.reset}`);
     }
     console.log(`  Warnings: ${COLORS.yellow}${summary.checks.warnings}${COLORS.reset}`);
+    if (infoFindings > 0) {
+      console.log(`  Info:     ${COLORS.dim}${infoFindings}${COLORS.reset}`);
+    }
     if (summary.fixes.total > 0) {
       console.log(`  Fixed:    ${COLORS.green}${summary.fixes.total}${COLORS.reset}`);
     }

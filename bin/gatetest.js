@@ -1107,7 +1107,11 @@ function showLatestReport(projectRoot) {
   console.log(`  Status: ${report.gatetest.gateStatus}`);
   console.log(`  Time: ${report.gatetest.timestamp}`);
   console.log(`  Modules: ${report.summary.modules.passed}/${report.summary.modules.total} passed`);
-  console.log(`  Checks: ${report.summary.checks.passed}/${report.summary.checks.total} passed`);
+  // Info-only findings (markdown nits, missing Stylelint config, etc.) never
+  // block and are never a warning — excluded from the denominator so this
+  // doesn't read as "half failed" on a healthy repo (see console-reporter.js).
+  const infoFindings = report.summary.checks.infoFindings || 0;
+  console.log(`  Checks: ${report.summary.checks.passed}/${report.summary.checks.total - infoFindings} passed`);
   console.log(`  Duration: ${report.summary.duration}ms`);
 
   if (report.failures.length > 0) {
