@@ -194,27 +194,33 @@ class PromptSafetyModule extends BaseModule {
       if (!trimmed) continue;
 
       // 1. Browser-exposed API key / secret
-      const pubMatch = line.match(/([A-Z][A-Z0-9_]*)/g);
-      if (pubMatch) {
-        for (const tok of pubMatch) {
-          if (PUBLIC_ENV_PREFIX.test(tok) && KEYISH_SUFFIX.test(tok)) {
-            issues += this._flag(result, `prompt-safety:public-api-key:${rel}:${i + 1}`, {
-              severity: isTest ? 'warning' : 'error',
-              file: rel,
-              line: i + 1,
-              match: tok,
-              message: `\`${tok}\` — client-bundled env vars are shipped to every user's browser; the API key is effectively public`,
-              suggestion: 'Move the key to a server-only env var (no public prefix) and call the LLM from a server route / edge function.',
-            });
-            break;
-          }
+      // A real env-var reference is never itself nested inside another
+      // string literal — that's fixture/example data (e.g. a test writing
+      // `write(tmp, 'a.js', 'const key = process.env.NEXT_PUBLIC_X_KEY;')`
+      // as a sample file's contents), not a live reference. Found via
+      // self-scan: prompt-safety flagging its own test fixtures as real
+      // findings (same class as tls-security/redos/cronExpression).
+      const pubMatches = [...line.matchAll(/[A-Z][A-Z0-9_]*/g)];
+      for (const pm of pubMatches) {
+        const tok = pm[0];
+        if (PUBLIC_ENV_PREFIX.test(tok) && KEYISH_SUFFIX.test(tok) && !this._isInsideStringLiteral(line, pm.index)) {
+          issues += this._flag(result, `prompt-safety:public-api-key:${rel}:${i + 1}`, {
+            severity: isTest ? 'warning' : 'error',
+            file: rel,
+            line: i + 1,
+            match: tok,
+            message: `\`${tok}\` — client-bundled env vars are shipped to every user's browser; the API key is effectively public`,
+            suggestion: 'Move the key to a server-only env var (no public prefix) and call the LLM from a server route / edge function.',
+          });
+          break;
         }
       }
 
       // 2. Deprecated / unsafe model strings
       for (const m of DEPRECATED_MODELS) {
         const re = new RegExp(`["\'\`]${m.replace(/\./g, '\\.')}["\'\`]`);
-        if (re.test(line)) {
+        const modelMatch = re.exec(line);
+        if (modelMatch && !this._isInsideStringLiteral(line, modelMatch.index)) {
           issues += this._flag(result, `prompt-safety:deprecated-model:${m}:${rel}:${i + 1}`, {
             severity: 'warning',
             file: rel,
@@ -277,7 +283,13 @@ class PromptSafetyModule extends BaseModule {
         const body = m[1];
         if (/max_tokens\s*[:=]/.test(body)) continue;
         const idx = m.index;
-        const lineNo = content.slice(0, idx).split('\n').length;
+        const beforeMatch = content.slice(0, idx);
+        const lineNo = beforeMatch.split('\n').length;
+        const lineStart = beforeMatch.lastIndexOf('\n') + 1;
+        const lineText = lines[lineNo - 1] || '';
+        // Same fixture-data guard as the other rules in this file — a real
+        // API call is never itself nested inside another string literal.
+        if (this._isInsideStringLiteral(lineText, idx - lineStart)) continue;
         issues += this._flag(result, `prompt-safety:no-max-tokens:${kind}:${rel}:${lineNo}`, {
           severity: isTest ? 'warning' : 'error',
           file: rel,
@@ -300,6 +312,7 @@ class PromptSafetyModule extends BaseModule {
       for (const m of tplMatches) {
         const before = m[1];
         const varName = m[2];
+        if (this._isInsideStringLiteral(line, m.index)) continue;
         if (PROMPT_SHAPE.test(before) && this._looksUserControlled(varName)) {
           issues += this._flag(result, `prompt-safety:prompt-injection:${rel}:${i + 1}`, {
             severity: 'warning',
@@ -316,6 +329,7 @@ class PromptSafetyModule extends BaseModule {
       for (const m of pyMatches) {
         const before = m[1];
         const varName = m[2];
+        if (this._isInsideStringLiteral(line, m.index)) continue;
         if (PROMPT_SHAPE.test(before) && this._looksUserControlled(varName)) {
           issues += this._flag(result, `prompt-safety:prompt-injection:${rel}:${i + 1}`, {
             severity: 'warning',

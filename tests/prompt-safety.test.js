@@ -425,3 +425,64 @@ describe('PromptSafetyModule — summary', () => {
     assert.match(summary.message, /1 file\(s\)/);
   });
 });
+
+describe('PromptSafetyModule — self-scan fixture false positives', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ps-self-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('does NOT flag a test-fixture public API key nested in a string arg', async () => {
+    write(
+      tmp,
+      'tests/prompt-safety.test.js',
+      "write(tmp, 'src/a.js', 'const key = process.env.NEXT_PUBLIC_OPENAI_API_KEY;');\n",
+    );
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.passed === false);
+    assert.strictEqual(hits.length, 0);
+  });
+
+  it('does NOT flag a test-fixture deprecated model nested in a string arg', async () => {
+    write(
+      tmp,
+      'tests/prompt-safety.test.js',
+      "write(tmp, 'src/a.js', 'const model = \"claude-2.0\";');\n",
+    );
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.passed === false);
+    assert.strictEqual(hits.length, 0);
+  });
+
+  it('does NOT flag a test-fixture prompt-injection template nested in a string arg', async () => {
+    write(
+      tmp,
+      'tests/prompt-safety.test.js',
+      "write(tmp, 'src/a.js', 'return `Summarize the following: ${userInput}`;');\n",
+    );
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.passed === false);
+    assert.strictEqual(hits.length, 0);
+  });
+
+  it('still flags the same public API key when it is real (unquoted) source', async () => {
+    write(tmp, 'src/a.js', 'const key = process.env.NEXT_PUBLIC_OPENAI_API_KEY;\n');
+    const r = await run(tmp);
+    assert.ok(r.checks.find((c) => c.name.startsWith('prompt-safety:public-api-key:')));
+  });
+
+  it('still flags the same prompt-injection template when it is real (unquoted) source', async () => {
+    write(
+      tmp,
+      'src/a.js',
+      [
+        'const OpenAI = require("openai");',
+        'function build(userInput) {',
+        '  return `Summarize the following: ${userInput}`;',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    const r = await run(tmp);
+    assert.ok(r.checks.find((c) => c.name.startsWith('prompt-safety:prompt-injection:')));
+  });
+});
