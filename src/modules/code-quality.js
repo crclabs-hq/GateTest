@@ -152,15 +152,32 @@ class CodeQualityModule extends BaseModule {
       if (c === '"' || c === "'") { state = "str"; stringChar = c; out += c; i++; continue; }
       if (c === "`") { state = "tpl"; tplDepth = 0; out += c; i++; continue; }
       if (c === "/" && next !== "/" && next !== "*") {
-        const prev = out.replace(/\s+$/, "").slice(-1);
+        // Bounded lookback (last ~24 chars), NOT `out.trim()`/`out.replace(...)`
+        // on the full accumulated string. TSX/JSX files are dense with `/`
+        // (every `<Foo />` and `</Foo>` is one) — re-scanning the whole
+        // `out` string on every one of those turns this O(n) traversal into
+        // O(n^2), which is exactly what hung the scan on a 257KB TSX file
+        // for 9.5+ minutes on a single file (Known Issue #40 root cause,
+        // found via the Gluecron.com repro 2026-07-16 — this was never an
+        // async hang, so the runner's per-module timeout couldn't catch it;
+        // it blocks the synchronous event loop).
+        const tail = this._trimEnd(out.slice(-24));
+        const prev = tail.slice(-1);
         const isRegexContext = !prev || /[=(,:;!?&|{[]/.test(prev) ||
-          out.trim().endsWith("return") || out.trim().endsWith("typeof");
+          tail.endsWith("return") || tail.endsWith("typeof");
         if (isRegexContext) { state = "regex"; out += c; i++; continue; }
       }
       out += c;
       i++;
     }
     return out;
+  }
+
+  /** Strip trailing whitespace from a short bounded string — O(1) vs `.replace(/\s+$/, "")` on a large one. */
+  _trimEnd(s) {
+    let end = s.length;
+    while (end > 0 && /\s/.test(s[end - 1])) end--;
+    return s.slice(0, end);
   }
 
   /**
@@ -226,9 +243,12 @@ class CodeQualityModule extends BaseModule {
       if (c === "`") { inTemplate = true; out += c; i++; continue; }
       // Regex literal: heuristic — preceded by = ( , : ; ! ? & | { [ return
       if (c === "/" && next !== "/" && next !== "*") {
-        const prev = out.replace(/\s+$/, "").slice(-1);
+        // Bounded lookback, not a full-string trim/replace — see the
+        // identical fix + rationale in _neutraliseContent above.
+        const tail = this._trimEnd(out.slice(-24));
+        const prev = tail.slice(-1);
         const isRegexContext = !prev || /[=(,:;!?&|{[]/.test(prev) ||
-          out.trim().endsWith("return") || out.trim().endsWith("typeof");
+          tail.endsWith("return") || tail.endsWith("typeof");
         if (isRegexContext) { inRegex = true; out += c; i++; continue; }
       }
       out += c;
