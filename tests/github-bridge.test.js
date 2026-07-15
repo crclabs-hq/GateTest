@@ -8,6 +8,8 @@ const {
   rateLimitState,
   RETRY_CONFIG,
   CIRCUIT_BREAKER,
+  respectRateLimit,
+  RATE_LIMIT_MAX_WAIT_MS,
 } = require('../src/core/github-bridge');
 
 describe('GitHubBridge Resilience', () => {
@@ -95,6 +97,39 @@ describe('GitHubBridge Resilience', () => {
       const status = bridge.getAccessStatus();
       assert.strictEqual(status.rateLimit.remaining, 4500);
       assert.strictEqual(status.rateLimit.limit, 5000);
+    });
+  });
+
+  describe('respectRateLimit (Known Issue #25)', () => {
+    it('does not wait when quota is healthy', async () => {
+      rateLimitState.remaining = 500;
+      rateLimitState.resetTime = Math.floor(Date.now() / 1000) + 3600;
+      const waited = await respectRateLimit();
+      assert.strictEqual(waited, 0);
+    });
+
+    it('waits inline for a short reset when quota is nearly exhausted', async () => {
+      rateLimitState.remaining = 2;
+      rateLimitState.resetTime = Math.floor(Date.now() / 1000) + 1; // ~1s out
+      const waited = await respectRateLimit();
+      assert.ok(waited > 0 && waited < 5000, `expected a short wait, got ${waited}ms`);
+    });
+
+    it('refuses fast instead of hammering 429s when the reset is beyond the wait ceiling', async () => {
+      rateLimitState.remaining = 1;
+      // Reset is 30 minutes out — well beyond RATE_LIMIT_MAX_WAIT_MS (15 min).
+      // The old `< 120000` cap silently returned 0 here (skip the wait,
+      // proceed with ~1 request of quota left) instead of surfacing this.
+      rateLimitState.resetTime = Math.floor(Date.now() / 1000) + 30 * 60;
+      await assert.rejects(
+        () => respectRateLimit(),
+        /rate limit nearly exhausted.*too long to wait inline/s,
+      );
+    });
+
+    it('RATE_LIMIT_MAX_WAIT_MS is a sane bound (minutes, not the old 2-minute cliff)', () => {
+      assert.ok(RATE_LIMIT_MAX_WAIT_MS > 120000, 'must exceed the old 2-minute cap');
+      assert.ok(RATE_LIMIT_MAX_WAIT_MS <= 30 * 60 * 1000, 'should not block a CLI run for the better part of an hour');
     });
   });
 

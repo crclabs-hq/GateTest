@@ -127,18 +127,38 @@ function updateRateLimit(headers) {
   }
 }
 
+// Longest we'll block a CLI/Action invocation waiting out a GitHub rate
+// limit reset. GitHub resets can be up to an hour out; blocking that long
+// with zero feedback is bad UX, but the old `< 120000` cap silently skipped
+// the wait entirely beyond 2 minutes — meaning the caller proceeded with
+// almost no quota left and hammered 429s instead (Known Issue #25). Now:
+// wait (with a console heads-up) up to this ceiling, and refuse fast with
+// a clear reset time beyond it, instead of silently doing either extreme.
+const RATE_LIMIT_MAX_WAIT_MS = 15 * 60 * 1000; // 15 minutes
+
 /**
  * Wait if we're about to hit the rate limit.
  * Returns the number of ms waited (0 if no wait needed).
+ * Throws if the reset is too far out to wait inline (see
+ * RATE_LIMIT_MAX_WAIT_MS) — refusing fast beats silently hammering 429s.
  */
 async function respectRateLimit() {
   if (rateLimitState.remaining !== null && rateLimitState.remaining <= 5) {
     if (rateLimitState.resetTime) {
       const waitMs = Math.max(0, (rateLimitState.resetTime * 1000) - Date.now() + 1000);
-      if (waitMs > 0 && waitMs < 120000) {
-        await sleep(waitMs);
-        return waitMs;
+      if (waitMs <= 0) return 0;
+      if (waitMs > RATE_LIMIT_MAX_WAIT_MS) {
+        const resetIso = new Date(rateLimitState.resetTime * 1000).toISOString();
+        throw new Error(
+          `[GateTest] GitHub API rate limit nearly exhausted (${rateLimitState.remaining} remaining) ` +
+          `and the reset is ${Math.ceil(waitMs / 60000)} minute(s) away (${resetIso}) — too long to ` +
+          `wait inline. Refusing this request instead of hammering 429s; try again after the reset.`
+        );
       }
+      // eslint-disable-next-line no-console
+      console.warn(`[GateTest] GitHub API rate limit nearly exhausted — waiting ${Math.ceil(waitMs / 1000)}s for reset...`);
+      await sleep(waitMs);
+      return waitMs;
     }
   }
   return 0;
@@ -1007,4 +1027,6 @@ module.exports = {
   rateLimitState,
   RETRY_CONFIG,
   CIRCUIT_BREAKER,
+  respectRateLimit,
+  RATE_LIMIT_MAX_WAIT_MS,
 };
