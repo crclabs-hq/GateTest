@@ -73,6 +73,14 @@ describe('fetchTreeWithMetadata — source-text contract', () => {
     // The Gluecron branch should also check truncated and emit a warning
     assert.match(src, /payload\.truncated\s*===\s*true/);
   });
+
+  it('falls back to the per-directory walker when GitHub truncates the tree (Known Issue #24 residual)', () => {
+    assert.match(src, /require\(["']\.\/github-tree-walker["']\)/);
+    assert.match(src, /walkGithubTree\s*\(/);
+    // The fallback's own truncation must propagate honestly — never
+    // silently reported as complete just because SOME result came back.
+    assert.match(src, /truncated:\s*walked\.truncated/);
+  });
 });
 
 // ---------------------------------------------------------------------------

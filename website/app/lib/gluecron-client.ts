@@ -299,9 +299,12 @@ const TREE_SIZE_WARN_THRESHOLD = 50_000;
  * returns up to ~100k entries in one shot; beyond that it sets
  * `truncated: true`. Previously we read the partial list as if it
  * were the full tree — silently dropping files. Now we detect that
- * state and surface it explicitly. Callers should at minimum log the
- * warning; ideally they fall back to per-directory traversal (out of
- * scope for the MVP fix — flagged for future work).
+ * state and fall back to `github-tree-walker.js`'s per-directory
+ * Contents-API walk, which never truncates a single directory but is
+ * itself budget-bounded (call count + wall-clock time) so a truly
+ * enormous monorepo can't hang a serverless function or exhaust the
+ * rate limit — if even the fallback can't finish, the honest partial
+ * result and warning are what's returned, never silent completeness.
  */
 export async function fetchTreeWithMetadata(
   owner: string,
@@ -339,9 +342,17 @@ export async function fetchTreeWithMetadata(
         const truncated = ghData.truncated === true;
         let warning: string | null = null;
         if (truncated) {
-          warning = `Repository tree exceeded GitHub's single-response limit (~100k entries). Returned ${paths.length} files; more exist but were not enumerated. Scans may miss findings in unenumerated paths.`;
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { walkGithubTree } = require("./github-tree-walker");
+          const walked = await walkGithubTree({ owner, repo, ref, token });
+          if (walked.truncated) {
+            warning = `Repository tree exceeded GitHub's single-response limit (~100k entries), and the per-directory fallback walk also hit its own budget (${walked.callsUsed} directory calls, ${walked.elapsedMs}ms). Enumerated ${walked.paths.length} file(s); more exist but were not found. Scans may miss findings in unenumerated paths.`;
+          } else {
+            warning = `Repository tree exceeded GitHub's single-response limit (~100k entries) — recovered the full tree via a per-directory fallback walk (${walked.callsUsed} directory calls). All ${walked.paths.length} file(s) enumerated.`;
+          }
           // eslint-disable-next-line no-console
           console.warn(`[fetchTree] ${owner}/${repo}@${ref}: ${warning}`);
+          return { paths: walked.paths, truncated: walked.truncated, warning };
         } else if (paths.length > TREE_SIZE_WARN_THRESHOLD) {
           warning = `Repository has ${paths.length} files — large repos may exceed Vercel function memory + time budgets. Consider scoping via .gatetestignore.`;
         }
