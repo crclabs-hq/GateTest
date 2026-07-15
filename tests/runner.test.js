@@ -4,7 +4,10 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-const { GateTestRunner, TestResult, Severity } = require('../src/core/runner');
+const {
+  GateTestRunner, TestResult, Severity,
+  DEFAULT_MODULE_TIMEOUT_MS, HEAVY_MODULE_TIMEOUT_MS, HEAVY_MODULES,
+} = require('../src/core/runner');
 const { GateTestConfig } = require('../src/core/config');
 const { MemoryStore } = require('../src/core/memory');
 
@@ -157,6 +160,59 @@ describe('GateTestRunner', () => {
     const summary = await runner.run(['crashing']);
     assert.strictEqual(summary.gateStatus, 'BLOCKED');
     assert.strictEqual(summary.modules.failed, 1);
+  });
+
+  it('does NOT hang forever on a module that never resolves (Known Issue #40)', async () => {
+    const config = new GateTestConfig(path.resolve(__dirname, '..'));
+    // Tiny override so the test doesn't wait out the real 2-minute default.
+    const runner = new GateTestRunner(config, { moduleTimeouts: { hanging: 25 } });
+
+    runner.register('hanging', {
+      run() {
+        // A promise that never settles — simulates an infinite loop / stuck
+        // subprocess on a pathological repo shape.
+        return new Promise(() => {});
+      },
+    });
+
+    const summary = await runner.run(['hanging']);
+    assert.strictEqual(summary.gateStatus, 'BLOCKED');
+    assert.strictEqual(summary.modules.failed, 1);
+    assert.match(summary.failedModules[0].error, /timed out after 25ms/);
+  });
+
+  it('gives heavy modules (mutation/e2e/visual/chaos) a longer default timeout', () => {
+    const config = new GateTestConfig(path.resolve(__dirname, '..'));
+    const runner = new GateTestRunner(config);
+
+    assert.strictEqual(runner._moduleTimeoutMs('mutation'), HEAVY_MODULE_TIMEOUT_MS);
+    assert.strictEqual(runner._moduleTimeoutMs('e2e'), HEAVY_MODULE_TIMEOUT_MS);
+    assert.strictEqual(runner._moduleTimeoutMs('lint'), DEFAULT_MODULE_TIMEOUT_MS);
+    assert.ok(HEAVY_MODULES.has('visual') && HEAVY_MODULES.has('chaos'));
+  });
+
+  it('per-module timeout override wins over the heavy/default split', () => {
+    const config = new GateTestConfig(path.resolve(__dirname, '..'));
+    const runner = new GateTestRunner(config, { moduleTimeouts: { mutation: 5000, lint: 9000 } });
+
+    assert.strictEqual(runner._moduleTimeoutMs('mutation'), 5000);
+    assert.strictEqual(runner._moduleTimeoutMs('lint'), 9000);
+  });
+
+  it('a slow-but-finishing module completes normally under its timeout', async () => {
+    const config = new GateTestConfig(path.resolve(__dirname, '..'));
+    const runner = new GateTestRunner(config, { moduleTimeouts: { slow: 5000 } });
+
+    runner.register('slow', {
+      async run(result) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        result.addCheck('slow-check', true);
+      },
+    });
+
+    const summary = await runner.run(['slow']);
+    assert.strictEqual(summary.gateStatus, 'PASSED');
+    assert.strictEqual(summary.modules.passed, 1);
   });
 
   it('should pass gate when only warnings exist (no errors)', async () => {

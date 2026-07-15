@@ -430,6 +430,11 @@ class GluecronBridge extends HostBridge {
    * accessRepo / cloneRepo / pull / push — Gluecron exposes its tree
    * and contents APIs for remote scans rather than local git. We stub
    * them with a clear message pointing callers at the API helpers.
+   *
+   * TODO(host-parity): GitHubBridge implements these via local git clone;
+   * this is an intentional, permanent gap (Gluecron has no git-clone
+   * transport), not a missing feature to build. Flagged per the Bible's
+   * host-parity convention (CLAUDE.md → STRATEGIC DIRECTION).
    */
   async accessRepo(owner, repo, _destDir, _options) {
     throw new Error(
@@ -558,6 +563,9 @@ class GluecronBridge extends HostBridge {
    * Gluecron doesn't expose a git-tree-commit create endpoint the same way
    * GitHub does — file writes go through PUT /contents. Callers doing
    * multi-file commits should upsert each file on a branch and open a PR.
+   *
+   * TODO(host-parity): intentional gap, not a missing feature to build —
+   * see the note above accessRepo/cloneRepo/pull/push.
    */
   async createCommit() {
     throw new Error(

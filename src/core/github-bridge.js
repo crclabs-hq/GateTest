@@ -16,10 +16,9 @@
  * Extends `HostBridge` — the host-agnostic contract (see
  * src/core/host-bridge.js). Host-agnostic logic (report markdown, the
  * `reportResults`/`postGateResult` convenience methods) lives on the base;
- * this file only contains GitHub-specific primitives.
- *
- * TODO(gluecron): a GluecronBridge extending HostBridge will live at
- * src/core/gluecron-bridge.js once Gluecron's API surface is confirmed.
+ * this file only contains GitHub-specific primitives. The Gluecron
+ * counterpart (src/core/gluecron-bridge.js, `GluecronBridge`) implements
+ * the same contract — see that file for host-parity gaps.
  */
 
 const https = require('https');

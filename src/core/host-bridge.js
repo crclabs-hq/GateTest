@@ -1,11 +1,13 @@
 /**
  * HostBridge — the abstract contract every git host integration implements.
  *
- * GateTest is moving Gluecron-first (see CLAUDE.md → STRATEGIC DIRECTION).
- * GitHub is a legacy integration; Gluecron is the future. Rather than
- * branching host-specific logic all over the codebase, the engine talks to
- * a HostBridge. Today there is one concrete implementation (GitHubBridge);
- * tomorrow there will be a GluecronBridge.
+ * GateTest is DUAL-HOST as of 2026-04-22 (see CLAUDE.md → STRATEGIC
+ * DIRECTION): GitHub is the live distribution channel today, Gluecron is
+ * the long-term direction. Rather than branching host-specific logic all
+ * over the codebase, the engine talks to a HostBridge. Two concrete
+ * implementations exist and self-register at module load: `GitHubBridge`
+ * (./github-bridge.js) and `GluecronBridge` (./gluecron-bridge.js) — neither
+ * is "the" bridge, both are first-class per the Bible.
  *
  * This file defines:
  *   - The abstract surface every bridge must implement.
@@ -17,9 +19,6 @@
  * The contract uses GitHub's commit-status vocabulary as the canonical set
  * ('pending' | 'success' | 'failure' | 'error') because it is the most
  * widely-adopted status taxonomy. Non-GitHub bridges translate internally.
- *
- * TODO(gluecron): when Gluecron ships, add `GluecronBridge` extending this
- * class and `registerBridge('gluecron', GluecronBridge)` at module load.
  */
 
 const CANONICAL_COMMIT_STATES = ['pending', 'success', 'failure', 'error'];

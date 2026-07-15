@@ -50,6 +50,22 @@ const Severity = {
   INFO: 'info',
 };
 
+// Per-module wall-clock timeout. A module that hangs — infinite loop, a
+// stuck subprocess, a pathological repo shape it wasn't tested against —
+// must never hang the whole suite. Known Issue #40 (docs/ROADMAP.md): a
+// full-suite scan hung indefinitely (45+ min, zero output) on a specific
+// customer repo shape, twice reproduced. A hang with no result is exactly
+// what a paying customer must never hit, so the runner now races every
+// module against a timeout and records "timed out" as that module's
+// result instead of blocking the whole process forever. Most modules
+// finish in well under a second; a handful genuinely run real subprocess
+// work (mutation testing spawns the customer's test suite N times, e2e/
+// visual drive a real browser, chaos does fuzzing) and need a longer
+// budget than the default.
+const DEFAULT_MODULE_TIMEOUT_MS = 120_000; // 2 minutes
+const HEAVY_MODULE_TIMEOUT_MS = 600_000;   // 10 minutes
+const HEAVY_MODULES = new Set(['mutation', 'e2e', 'visual', 'visualRegression', 'chaos']);
+
 /**
  * Source cache — lazily reads file contents the first time confidence
  * scoring asks for it, then reuses for subsequent lookups. Shared
@@ -358,6 +374,48 @@ class GateTestRunner extends EventEmitter {
     this.modules.set(name, moduleInstance);
   }
 
+  /**
+   * Resolve the wall-clock timeout for a given module, in ms.
+   * Precedence: explicit per-module override (config.moduleTimeouts /
+   * constructor option) > env var override > heavy-module default > the
+   * general default. Kept a plain method (not a constant lookup) so tests
+   * can inject a short timeout via the constructor without touching env.
+   */
+  _moduleTimeoutMs(name) {
+    const overrides = this.options.moduleTimeouts
+      || (this.config && this.config.config && this.config.config.moduleTimeouts)
+      || {};
+    if (typeof overrides[name] === 'number' && overrides[name] > 0) return overrides[name];
+
+    const isHeavy = HEAVY_MODULES.has(name);
+    const envKey = isHeavy ? 'GATETEST_HEAVY_MODULE_TIMEOUT_MS' : 'GATETEST_MODULE_TIMEOUT_MS';
+    const envMs = Number(process.env[envKey]);
+    if (Number.isFinite(envMs) && envMs > 0) return envMs;
+
+    return isHeavy ? HEAVY_MODULE_TIMEOUT_MS : DEFAULT_MODULE_TIMEOUT_MS;
+  }
+
+  /**
+   * Race a module's run() promise against its timeout. On timeout, throws
+   * a descriptive error so the caller's existing crash-handling path
+   * (result.fail(err) → module counted as failed, same as any other
+   * runtime exception) applies unchanged. The module's own promise is
+   * abandoned, not cancelled — Node has no way to forcibly stop an
+   * in-flight async function — but the runner stops waiting on it and
+   * moves on to the next module, which is the actual customer-facing bug
+   * this fixes (see Known Issue #40).
+   */
+  _runModuleWithTimeout(name, promise, timeoutMs) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        reject(new Error(`Module "${name}" timed out after ${timeoutMs}ms — skipped, scan continues`));
+      }, timeoutMs);
+      if (typeof timer.unref === 'function') timer.unref();
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  }
+
   async run(moduleNames) {
     const startTime = Date.now();
     this.results = [];
@@ -527,7 +585,8 @@ class GateTestRunner extends EventEmitter {
           moduleConfig._incrementalFiles = this._incrementalFileSet;
         }
       }
-      await mod.run(result, moduleConfig);
+      const timeoutMs = this._moduleTimeoutMs(name);
+      await this._runModuleWithTimeout(name, mod.run(result, moduleConfig), timeoutMs);
 
       // Only CONFIDENT errors block — soft errors (below threshold) are
       // surfaced in the report but don't fail the module. Warnings always
@@ -775,4 +834,11 @@ class GateTestRunner extends EventEmitter {
   }
 }
 
-module.exports = { GateTestRunner, TestResult, Severity };
+module.exports = {
+  GateTestRunner,
+  TestResult,
+  Severity,
+  DEFAULT_MODULE_TIMEOUT_MS,
+  HEAVY_MODULE_TIMEOUT_MS,
+  HEAVY_MODULES,
+};
