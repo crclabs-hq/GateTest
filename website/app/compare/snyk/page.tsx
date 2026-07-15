@@ -30,11 +30,11 @@ export const metadata: Metadata = {
 const faqItems = [
   {
     q: "How does GateTest compare to Snyk's product family?",
-    a: "Snyk covers dependencies (Open Source), code (Snyk Code SAST), containers (Snyk Container), and IaC (Snyk Infrastructure as Code) as four separately-licensed products. GateTest unifies those four areas into a single config plus a single bill, and adds the categories Snyk does not currently ship: AI code review for logic bugs, accessibility, performance, SEO, runtime-error capture, mutation testing, and chaos / fuzz scenarios.",
+    a: "Snyk covers dependencies (Open Source), code (Snyk Code SAST), containers (Snyk Container), and IaC (Snyk Infrastructure as Code) as four separately-licensed products. GateTest unifies those four areas into a single config plus a single bill, and adds the categories Snyk does not currently ship: AI code review for logic bugs, accessibility, performance, SEO, runtime-error capture, and mutation testing / chaos-fuzz scenarios (both via the GitHub Action, which has a CI runner and headless browser to drive them).",
   },
   {
     q: "Does GateTest also scan dependencies?",
-    a: "Yes — GateTest includes a polyglot dependency scanner covering npm, pip, Pipenv, Poetry, go.mod, Cargo, Bundler, Composer, Maven, and Gradle. It flags wildcard pins, 'latest' dependencies, missing lockfiles, and deprecated packages. Dependency scanning is one module out of 110.",
+    a: "Yes — GateTest includes a polyglot dependency scanner covering npm, pip, Pipenv, Poetry, go.mod, Cargo, Bundler, Composer, Maven, and Gradle. It flags wildcard pins, 'latest' dependencies, missing lockfiles, and deprecated packages. Dependency scanning is one module out of 120.",
   },
   {
     q: "How does GateTest pricing compare to Snyk?",
@@ -151,7 +151,7 @@ export default function SnykPage() {
               href="/"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
             >
-              See All 90 Modules
+              See All 120 Modules
             </Link>
           </div>
         </div>

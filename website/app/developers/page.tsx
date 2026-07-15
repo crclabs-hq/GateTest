@@ -156,7 +156,7 @@ export default function DevelopersPage() {
           {[
             { v: "1,564", l: "real issues found" },
             { v: "9",     l: "critical attack chains" },
-            { v: "110",   l: "modules" },
+            { v: "120",   l: "modules" },
             { v: "<30s",  l: "quick scan" },
           ].map((s) => (
             <div key={s.l} className="rounded-xl bg-[#161b22] border border-white/[0.08] p-5 text-center">

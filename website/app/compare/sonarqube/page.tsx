@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GateTest vs SonarQube — The Smarter Alternative in 2026",
   description:
-    "GateTest replaces SonarQube with 110 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing. Just results.",
+    "GateTest replaces SonarQube with 120 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing. Just results.",
   keywords: [
     "SonarQube alternative",
     "SonarQube vs GateTest",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs SonarQube — The Smarter Alternative in 2026",
     description:
-      "GateTest replaces SonarQube with 110 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing.",
+      "GateTest replaces SonarQube with 120 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing.",
     url: "https://gatetest.ai/compare/sonarqube",
     siteName: "GateTest",
     type: "website",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 const faqItems = [
   {
     q: "Does GateTest replace SonarQube completely?",
-    a: "Yes. GateTest covers everything SonarQube does — code quality, security patterns, technical debt, and duplication — plus 50+ modules SonarQube doesn't have: AI code review, visual regression, mutation testing, accessibility (WCAG 2.2 AAA), performance, Kubernetes manifest scanning, and more. One tool, one dashboard, one gate.",
+    a: "Yes. GateTest covers everything SonarQube does — code quality, security patterns, technical debt, and duplication — plus 50+ modules SonarQube doesn't have: AI code review, visual regression, mutation testing (via the GitHub Action, which has a CI runner to drive it), accessibility (WCAG 2.2 AAA), performance, Kubernetes manifest scanning, and more. One tool, one dashboard, one gate.",
   },
   {
     q: "How does GateTest pricing compare to SonarQube?",
@@ -62,7 +62,7 @@ const comparisonRows = [
   { feature: "Zero server setup", gatetest: true, competitor: false },
   { feature: "Accessibility scanning (WCAG 2.2 AAA)", gatetest: true, competitor: false },
   { feature: "Visual regression testing", gatetest: true, competitor: false },
-  { feature: "Mutation testing", gatetest: true, competitor: false },
+  { feature: "Mutation testing (via GitHub Action)", gatetest: true, competitor: false },
   { feature: "Kubernetes / Terraform / Dockerfile scanning", gatetest: true, competitor: false },
   { feature: "Prompt / LLM safety scanning", gatetest: true, competitor: false },
   { feature: "Pay-on-completion (charged only when results delivered)", gatetest: true, competitor: false },
@@ -132,7 +132,7 @@ export default function SonarQubePage() {
           </h1>
           <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
             SonarQube was built in 2006 — before AI, before cloud-native CI/CD, before modern
-            security threats. GateTest is built for 2026: 110 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier ($199) and above,
+            security threats. GateTest is built for 2026: 120 AI-powered modules, AI auto-fix PRs at the Scan + Fix tier ($199) and above,
             zero server setup, and per-scan pricing.
           </p>
 
@@ -148,7 +148,7 @@ export default function SonarQubePage() {
               href="/"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
             >
-              See All 90 Modules
+              See All 120 Modules
             </Link>
           </div>
         </div>
@@ -212,7 +212,7 @@ export default function SonarQubePage() {
               },
               {
                 title: "120 modules vs 1 focus",
-                body: "SonarQube focuses on code quality and security patterns. GateTest covers those plus accessibility, visual regression, performance, mutation testing, N+1 queries, race conditions, TLS misconfigs, PII in logs, homoglyph attacks, and 40+ more dimensions — all in one scan.",
+                body: "SonarQube focuses on code quality and security patterns. GateTest covers those plus accessibility, visual regression, performance, mutation testing (via the GitHub Action, which has a CI runner to drive it), N+1 queries, race conditions, TLS misconfigs, PII in logs, homoglyph attacks, and 40+ more dimensions — all in one scan.",
               },
               {
                 title: "Pay per scan, not per seat",
@@ -220,7 +220,7 @@ export default function SonarQubePage() {
               },
               {
                 title: "Faster feedback loop",
-                body: "SonarQube quality gates can take minutes on large projects. GateTest quick scans complete in under 15 seconds, full scans under 60 seconds. Every push gets instant feedback — no waiting for a background worker to catch up.",
+                body: "SonarQube quality gates can take minutes on large projects. GateTest quick scans complete in well under a minute; full 120-module scans typically complete in a few minutes. Every push gets fast feedback — no waiting for a background worker to catch up.",
               },
             ].map((card) => (
               <div

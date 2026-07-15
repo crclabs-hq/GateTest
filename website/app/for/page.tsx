@@ -1,9 +1,10 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { COUNTRIES } from "./countries";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
-// Total live module count — sourced from CLAUDE.md v1.46.0 (120 modules).
-const MODULE_COUNT = 110;
+// Total live module count — single source of truth, see module-count.ts.
+const MODULE_COUNT = TOTAL_MODULES;
 
 const FRAMEWORK_PAGES = [
   { slug: "nextjs", name: "Next.js", note: "App Router, Server Actions, vercel.json" },

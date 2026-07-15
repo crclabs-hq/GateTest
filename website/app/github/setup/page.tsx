@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Install GateTest — GitHub App · Private repo scanning",
   description:
-    "Install GateTest on GitHub in one click. Auto-scans every push and PR with 110 quality modules. Results posted as commit statuses and PR comments.",
+    "Install GateTest on GitHub in one click. Auto-scans every push and PR with 120 quality modules. Results posted as commit statuses and PR comments.",
 };
 
 const AFTER_INSTALL = [

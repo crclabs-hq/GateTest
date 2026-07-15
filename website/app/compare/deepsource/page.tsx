@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 const faqItems = [
   {
     q: "What does GateTest do that DeepSource doesn't?",
-    a: "GateTest's key advantages over DeepSource: AI-powered code review using Claude (DeepSource uses static analysis, not generative AI), AI auto-fix PRs at the Scan + Fix tier ($199) and Forensic Scan ($399) that write actual code changes (DeepSource shows issues, not fixes), pay-per-scan pricing (DeepSource is subscription per-seat), coverage of performance/visual regression/chaos testing/mutation testing (DeepSource is code quality and security only), and prompt/LLM safety scanning for AI apps.",
+    a: "GateTest's key advantages over DeepSource: AI-powered code review using Claude (DeepSource uses static analysis, not generative AI), AI auto-fix PRs at the Scan + Fix tier ($199) and Forensic Scan ($399) that write actual code changes (DeepSource shows issues, not fixes), pay-per-scan pricing (DeepSource is subscription per-seat), coverage of performance/visual regression/chaos testing/mutation testing (DeepSource is code quality and security only; chaos and mutation ship via the GitHub Action, which has a CI runner and headless browser to drive them), and prompt/LLM safety scanning for AI apps.",
   },
   {
     q: "DeepSource has a free tier. Does GateTest?",
@@ -63,8 +63,8 @@ const comparisonRows = [
   { feature: "Performance analysis", gatetest: true, competitor: false },
   { feature: "Accessibility scanning (WCAG 2.2 AAA)", gatetest: true, competitor: false },
   { feature: "Visual regression testing", gatetest: true, competitor: false },
-  { feature: "Mutation testing", gatetest: true, competitor: false },
-  { feature: "Chaos testing", gatetest: true, competitor: false },
+  { feature: "Mutation testing (via GitHub Action)", gatetest: true, competitor: false },
+  { feature: "Chaos testing (via GitHub Action)", gatetest: true, competitor: false },
   { feature: "Prompt / LLM safety scanning", gatetest: true, competitor: false },
   { feature: "Race condition / TOCTOU detection", gatetest: true, competitor: false },
   { feature: "N+1 query detection", gatetest: true, competitor: false },
@@ -144,7 +144,7 @@ export default function DeepSourcePage() {
               href="/"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
             >
-              See All 90 Modules
+              See All 120 Modules
             </Link>
           </div>
         </div>
@@ -223,7 +223,7 @@ export default function DeepSourcePage() {
               },
               {
                 title: "Coverage beyond code quality",
-                body: "DeepSource focuses on code quality and security. GateTest adds visual regression (screenshot comparison between deploys), mutation testing (validates your tests actually catch bugs), chaos testing, performance analysis, accessibility audits, and AI safety scanning — dimensions no static analyzer covers.",
+                body: "DeepSource focuses on code quality and security. GateTest adds visual regression (screenshot comparison between deploys), mutation testing (validates your tests actually catch bugs), chaos testing — both via the GitHub Action, which has a CI runner and headless browser to drive them — performance analysis, accessibility audits, and AI safety scanning — dimensions no static analyzer covers.",
               },
               {
                 title: "Faster synchronous results",

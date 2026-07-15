@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GateTest vs ESLint — Why 2026 Developers Are Moving On",
   description:
-    "ESLint is one tool. GateTest is 110. Security, performance, accessibility, visual regression, mutation testing, AI code review — all in one gate. AI auto-fix at the Scan + Fix tier and above.",
+    "ESLint is one tool. GateTest is 120. Security, performance, accessibility, visual regression, mutation testing, AI code review — all in one gate. AI auto-fix at the Scan + Fix tier and above.",
   keywords: [
     "ESLint alternative",
     "ESLint vs GateTest",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs ESLint — Why 2026 Developers Are Moving On",
     description:
-      "ESLint is one tool. GateTest is 90. Security, performance, accessibility, visual regression, mutation testing, AI code review — all in one gate.",
+      "ESLint is one tool. GateTest is 120. Security, performance, accessibility, visual regression, mutation testing, AI code review — all in one gate.",
     url: "https://gatetest.ai/compare/eslint",
     siteName: "GateTest",
     type: "website",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 const faqItems = [
   {
     q: "Does GateTest replace ESLint, or do I use both?",
-    a: "GateTest includes an ESLint-equivalent lint module as one of 90. You get linting plus security scanning, performance analysis, accessibility checks, AI code review, mutation testing, and 60+ more dimensions — all in a single scan. Most teams use GateTest at the CI gate and optionally keep ESLint running in their editor for instant feedback while coding.",
+    a: "GateTest includes an ESLint-equivalent lint module as one of 120. You get linting plus security scanning, performance analysis, accessibility checks, AI code review, mutation testing, and 60+ more dimensions — all in a single scan. Most teams use GateTest at the CI gate and optionally keep ESLint running in their editor for instant feedback while coding.",
   },
   {
     q: "ESLint is free. Why would I pay for GateTest?",
@@ -38,7 +38,7 @@ const faqItems = [
   },
   {
     q: "Does GateTest require an .eslintrc or configuration files?",
-    a: "No configuration files required. GateTest detects your project type automatically and applies the right rules. Zero setup: paste your repo URL and get results in under 60 seconds.",
+    a: "No configuration files required. GateTest detects your project type automatically and applies the right rules. Zero setup: paste your repo URL and get results — no .eslintrc, no plugin hunting.",
   },
   {
     q: "Can GateTest auto-fix issues like ESLint --fix?",
@@ -65,7 +65,7 @@ const comparisonRows = [
   { feature: "Accessibility scanning (WCAG 2.2 AAA)", gatetest: true, competitor: false },
   { feature: "Performance analysis", gatetest: true, competitor: false },
   { feature: "Visual regression testing", gatetest: true, competitor: false },
-  { feature: "Mutation testing", gatetest: true, competitor: false },
+  { feature: "Mutation testing (via GitHub Action)", gatetest: true, competitor: false },
   { feature: "Zero configuration required", gatetest: true, competitor: false },
   { feature: "Pay per scan (not per seat)", gatetest: true, competitor: false },
   { feature: "120 scanning modules total", gatetest: true, competitor: false },
@@ -128,7 +128,7 @@ export default function EsLintPage() {
           </h1>
           <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
             ESLint is great at what it does — and what it does is pattern matching on syntax trees.
-            GateTest is 90 tools in one: it includes everything ESLint does, plus security scanning,
+            GateTest is 120 tools in one: it includes everything ESLint does, plus security scanning,
             AI code review, N+1 detection, accessibility, performance, mutation testing, and 60 more
             dimensions that no linter can touch.
           </p>
@@ -144,7 +144,7 @@ export default function EsLintPage() {
               href="/"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
             >
-              See All 90 Modules
+              See All 120 Modules
             </Link>
           </div>
         </div>

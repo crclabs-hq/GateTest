@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GateTest vs GitHub Code Scanning — The Complete QA Platform",
   description:
-    "GitHub Code Scanning covers security basics. GateTest covers 110 quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing, and auto-fix at the Scan + Fix tier and above.",
+    "GitHub Code Scanning covers security basics. GateTest covers 120 quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing (via GitHub Action), and auto-fix at the Scan + Fix tier and above.",
   keywords: [
     "GitHub Code Scanning alternative",
     "GitHub Advanced Security alternative",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs GitHub Code Scanning — The Complete QA Platform",
     description:
-      "GitHub Code Scanning covers security basics. GateTest covers 110 quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing, and auto-fix at the Scan + Fix tier and above.",
+      "GitHub Code Scanning covers security basics. GateTest covers 120 quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing (via GitHub Action), and auto-fix at the Scan + Fix tier and above.",
     url: "https://gatetest.ai/compare/github-code-scanning",
     siteName: "GateTest",
     type: "website",
@@ -30,11 +30,11 @@ export const metadata: Metadata = {
 const faqItems = [
   {
     q: "Does GateTest work alongside GitHub Code Scanning, or replace it?",
-    a: "GateTest can replace GitHub Code Scanning entirely — it posts the same commit statuses, creates the same PR comments, and covers all the security patterns CodeQL finds plus 60+ additional quality dimensions. If you already have GHAS and want to keep it, GateTest adds everything GitHub Code Scanning doesn't cover (performance, accessibility, visual regression, chaos testing, AI code review, and more).",
+    a: "GateTest can replace GitHub Code Scanning entirely — it posts the same commit statuses, creates the same PR comments, and covers all the security patterns CodeQL finds plus 60+ additional quality dimensions. If you already have GHAS and want to keep it, GateTest adds everything GitHub Code Scanning doesn't cover (performance, accessibility, visual regression, chaos testing via the GitHub Action, AI code review, and more).",
   },
   {
     q: "GitHub Code Scanning is included in my GitHub plan. Why would I pay extra for GateTest?",
-    a: "GitHub Code Scanning (CodeQL) is a security-only tool with a well-defined scope: known vulnerability patterns in your code. It has zero coverage of performance, accessibility, visual regression, mutation testing, AI safety, N+1 queries, datetime bugs, money/float precision, feature flag hygiene, or any of the 40+ other dimensions GateTest covers. The cost of one accessibility lawsuit, one performance-related churn, or one money-float audit exceeds a year of GateTest scans.",
+    a: "GitHub Code Scanning (CodeQL) is a security-only tool with a well-defined scope: known vulnerability patterns in your code. It has zero coverage of performance, accessibility, visual regression, mutation testing (GateTest ships this via the GitHub Action), AI safety, N+1 queries, datetime bugs, money/float precision, feature flag hygiene, or any of the 40+ other dimensions GateTest covers. The cost of one accessibility lawsuit, one performance-related churn, or one money-float audit exceeds a year of GateTest scans.",
   },
   {
     q: "Does GateTest post commit statuses and PR comments like GitHub Code Scanning does?",
@@ -61,8 +61,8 @@ const comparisonRows = [
   { feature: "Performance analysis", gatetest: true, competitor: false },
   { feature: "Accessibility scanning (WCAG 2.2 AAA)", gatetest: true, competitor: false },
   { feature: "Visual regression testing", gatetest: true, competitor: false },
-  { feature: "Mutation testing", gatetest: true, competitor: false },
-  { feature: "Chaos testing", gatetest: true, competitor: false },
+  { feature: "Mutation testing (via GitHub Action)", gatetest: true, competitor: false },
+  { feature: "Chaos testing (via GitHub Action)", gatetest: true, competitor: false },
   { feature: "N+1 query detection", gatetest: true, competitor: false },
   { feature: "Race condition / TOCTOU detection", gatetest: true, competitor: false },
   { feature: "Prompt / LLM safety scanning", gatetest: true, competitor: false },
@@ -145,7 +145,7 @@ export default function GitHubCodeScanningPage() {
               href="/"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
             >
-              See All 90 Modules
+              See All 120 Modules
             </Link>
           </div>
         </div>
@@ -275,7 +275,7 @@ export default function GitHubCodeScanningPage() {
             Security is just the beginning.
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
-            Get 110 quality dimensions in one scan — security, performance, accessibility, AI safety,
+            Get 120 quality dimensions in one scan — security, performance, accessibility, AI safety,
             visual regression, and more. Same PR workflow as GitHub Code Scanning.
           </p>
           <Link

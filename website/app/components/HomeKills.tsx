@@ -175,10 +175,10 @@ export default function HomeKills() {
           </div>
           <p className="text-xs text-muted mt-6 pt-6 border-t border-border/40">
             Plus 12 more modules with no direct competitor: AI code review,
-            fake-fix detector, mutation testing, chaos / fuzz pass, autonomous
-            exploration, live crawling, data integrity, documentation
-            validation, compatibility analysis, integration-test detection,
-            CI generation, SARIF output.
+            fake-fix detector, mutation testing (via GitHub Action), chaos / fuzz
+            pass (via GitHub Action), autonomous exploration, live crawling, data
+            integrity, documentation validation, compatibility analysis,
+            integration-test detection, CI generation, SARIF output.
           </p>
         </div>
       </div>

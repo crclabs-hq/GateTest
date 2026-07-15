@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 const faqItems = [
   {
     q: "How does GateTest differ from Semgrep?",
-    a: "Semgrep is a pattern-matching engine: it finds code that matches rules written in YAML. It's fast and configurable, and the community has written thousands of rules. The gap is anything nobody wrote a rule for. GateTest uses Claude to read your actual code and reason about what it does — it finds SSRF in an API handler it has never seen before, because Claude understands intent, not just structure. GateTest also runs 110 checks across categories Semgrep doesn't cover: accessibility, performance, N+1 queries, datetime bugs, money-float errors, import cycles, and infra (Dockerfile, K8s, Terraform, CI pipelines).",
+    a: "Semgrep is a pattern-matching engine: it finds code that matches rules written in YAML. It's fast and configurable, and the community has written thousands of rules. The gap is anything nobody wrote a rule for. GateTest uses Claude to read your actual code and reason about what it does — it finds SSRF in an API handler it has never seen before, because Claude understands intent, not just structure. GateTest also runs 120 checks across categories Semgrep doesn't cover: accessibility, performance, N+1 queries, datetime bugs, money-float errors, import cycles, and infra (Dockerfile, K8s, Terraform, CI pipelines).",
   },
   {
     q: "Does Semgrep have auto-fix?",
@@ -42,7 +42,7 @@ const faqItems = [
   },
   {
     q: "Does GateTest replace Semgrep rules I've already written?",
-    a: "GateTest is complementary if you have custom business-logic rules that are deeply specific to your codebase. For the standard vulnerability classes — SSRF, TLS bypass, PII in logs, N+1 queries, insecure cookies, ReDoS, import cycles — GateTest covers them out of the box with modules that reason about your specific code rather than matching patterns. The practical question is whether you spend time maintaining a rule library or buy 110 maintained checks per scan.",
+    a: "GateTest is complementary if you have custom business-logic rules that are deeply specific to your codebase. For the standard vulnerability classes — SSRF, TLS bypass, PII in logs, N+1 queries, insecure cookies, ReDoS, import cycles — GateTest covers them out of the box with modules that reason about your specific code rather than matching patterns. The practical question is whether you spend time maintaining a rule library or buy 120 maintained checks per scan.",
   },
   {
     q: "Does GateTest find injection vulnerabilities like Semgrep?",
@@ -230,7 +230,7 @@ export default function SemgrepPage() {
                 body: "Semgrep matches code that looks like a known bad pattern. Claude reads your code and understands what it does — so it finds the SSRF that's shaped differently from any rule, the race condition in a new ORM, the N+1 in a loop structure nobody thought to write a rule for. The gap between 'matches pattern' and 'is actually dangerous' is where most real bugs live.",
               },
               {
-                title: "110 categories vs. one",
+                title: "120 categories vs. one",
                 body: "Semgrep is a SAST engine — security and code quality. GateTest covers those plus accessibility (WCAG 2.2), performance, IaC security (Terraform, K8s, Dockerfile, CI pipelines), dependency hygiene, datetime bugs, money-float errors, import cycles, PII in logs, prompt injection, and more. One gate, one config, one bill.",
               },
               {
@@ -274,7 +274,7 @@ export default function SemgrepPage() {
         {/* CTA */}
         <section className="rounded-2xl border border-teal-500/20 p-10 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
           <h2 className="text-3xl font-bold text-white mb-4">
-            110 checks. No rules to write.
+            120 checks. No rules to write.
           </h2>
           <p className="text-white/60 mb-8 max-w-xl mx-auto">
             Security, quality, accessibility, performance, IaC, AI safety — in one scan. Claude

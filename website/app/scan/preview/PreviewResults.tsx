@@ -160,7 +160,7 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
         <div className="rounded-xl bg-emerald-950/30 border border-emerald-500/20 p-6 text-center">
           <p className="font-mono text-emerald-400 font-semibold mb-1">[PASS] all 4 modules — no issues found</p>
           <p className="text-sm text-white/40 mt-2">
-            Quick suite covers 4 modules. Full scan ($99) runs all 110 — security, supply chain, auth flaws, CI hardening.
+            Quick suite covers 4 modules. Full scan ($99) runs all 120 — security, supply chain, auth flaws, CI hardening.
           </p>
         </div>
       )}
@@ -188,7 +188,7 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
         <div className="rounded-xl bg-white/[0.03] border border-white/10 p-6">
           <p className="font-semibold text-white mb-1">Quick scan: all clear.</p>
           <p className="text-sm text-white/50 mb-4">
-            4 modules checked. Full scan ($99) runs all 110 — security, supply chain, auth flaws, CI hardening.
+            4 modules checked. Full scan ($99) runs all 120 — security, supply chain, auth flaws, CI hardening.
           </p>
           <Link href="/#pricing" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 text-white font-semibold text-sm hover:bg-teal-500 transition-colors">
             Run full scan — $99 →
