@@ -317,3 +317,26 @@ describe('CronExpressionModule — Python', () => {
     assert.ok(r.checks.find((c) => c.name && c.name.startsWith('cron:out-of-range:')));
   });
 });
+
+describe('CronExpressionModule — self-scan fixture false positives', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-cron-self-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('does NOT flag a test-fixture cron call nested in a string arg', async () => {
+    write(
+      tmp,
+      'tests/cron-expression.test.js',
+      "write(tmp, 'src/a.ts', 'cron.schedule(\"60 0 * * *\", run);\\n');\n",
+    );
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.passed === false);
+    assert.strictEqual(hits.length, 0);
+  });
+
+  it('still flags the same expression when it is real (unquoted) source', async () => {
+    write(tmp, 'src/a.ts', 'cron.schedule("60 0 * * *", run);\n');
+    const r = await run(tmp);
+    assert.ok(r.checks.find((c) => c.name && c.name.startsWith('cron:out-of-range:')));
+  });
+});

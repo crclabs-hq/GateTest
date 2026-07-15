@@ -232,9 +232,16 @@ class RedosModule extends BaseModule {
       // `&&`, `||`, `?`, `:`, whitespace-then-start-of-expression.
       const patterns = this._extractRegexSources(line);
 
-      for (const pat of patterns) {
+      for (const { pattern: pat, index: patIdx } of patterns) {
         const lineNo = i + 1;
         if (suppressed) continue;
+        // A real regex/RegExp-arg is never itself nested inside another
+        // string literal — that's fixture/example data (e.g. a test
+        // writing `'const re = /(a|a)*/;'` as a sample file's contents),
+        // not a live pattern. Found via self-scan: redos flagging its
+        // own test fixtures as real findings (same class as
+        // tls-security/cookie-security 2026-07-15).
+        if (this._isInsideStringLiteral(line, patIdx)) continue;
         const sev = isTest ? 'warning' : 'error';
 
         if (NESTED_QUANT_RE.test(pat) || NESTED_QUANT_NONCAP_RE.test(pat)) {
@@ -273,7 +280,7 @@ class RedosModule extends BaseModule {
 
       // Data-flow rule: new RegExp(tainted) / RegExp(tainted)
       const ctorMatch = /\b(?:new\s+)?RegExp\s*\(\s*([^)]+?)\s*\)/.exec(line);
-      if (ctorMatch && !suppressed) {
+      if (ctorMatch && !suppressed && !this._isInsideStringLiteral(line, ctorMatch.index)) {
         const arg = ctorMatch[1];
         // Only flag if arg looks like user input, not a string literal
         const isLiteral = /^['"`]/.test(arg.trim());
@@ -303,7 +310,7 @@ class RedosModule extends BaseModule {
     const literalRe = /(^|[=([,!&|?:;{}]|\breturn\b|\btypeof\b|\b=>\s*)\s*\/((?:\\.|[^\/\n\\])+?)\/[gimsuy]*/g;
     let m;
     while ((m = literalRe.exec(line)) !== null) {
-      out.push(m[2]);
+      out.push({ pattern: m[2], index: m.index });
     }
 
     // `new RegExp("pattern"...)` / `RegExp("pattern"...)`
@@ -312,21 +319,21 @@ class RedosModule extends BaseModule {
     // backslash escaping before pattern-matching.
     const ctorRe = /\b(?:new\s+)?RegExp\s*\(\s*(['"`])((?:\\.|(?!\1).)*)\1/g;
     while ((m = ctorRe.exec(line)) !== null) {
-      out.push(this._unescapeStringLiteral(m[2]));
+      out.push({ pattern: this._unescapeStringLiteral(m[2]), index: m.index });
     }
 
     // Python: `re.compile(r"pattern")` / `re.compile("pattern")`
     // Raw strings (prefix `r`) don't need unescaping; regular ones do.
     const pyRawRe = /\bre\.(?:compile|match|search|findall|finditer|sub|fullmatch)\s*\(\s*r(['"])((?:\\.|(?!\1).)*)\1/g;
     while ((m = pyRawRe.exec(line)) !== null) {
-      out.push(m[2]);
+      out.push({ pattern: m[2], index: m.index });
     }
     const pyStrRe = /\bre\.(?:compile|match|search|findall|finditer|sub|fullmatch)\s*\(\s*(['"])((?:\\.|(?!\1).)*)\1/g;
     while ((m = pyStrRe.exec(line)) !== null) {
       // Skip raw strings (already captured above)
       const prefixIdx = m.index + m[0].indexOf(m[1]) - 1;
       if (prefixIdx >= 0 && line[prefixIdx] === 'r') continue;
-      out.push(this._unescapeStringLiteral(m[2]));
+      out.push({ pattern: this._unescapeStringLiteral(m[2]), index: m.index });
     }
 
     return out;

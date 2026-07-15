@@ -246,3 +246,37 @@ describe('RedosModule — summary', () => {
     assert.match(s.message, /file\(s\).*issue\(s\)/);
   });
 });
+
+describe('RedosModule — self-scan fixture false positives', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-rdos-self-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('does NOT flag a test-fixture regex literal nested in a string arg', async () => {
+    write(
+      tmp,
+      'tests/redos.test.js',
+      "write(tmp, 'src/a.ts', 'const re = /(a|a)*/;\\n');\n",
+    );
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.passed === false);
+    assert.strictEqual(hits.length, 0);
+  });
+
+  it('does NOT flag a test-fixture RegExp() taint call nested in a string arg', async () => {
+    write(
+      tmp,
+      'tests/redos.test.js',
+      "write(tmp, 'src/a.ts', 'const re = new RegExp(req.body.pattern);\\n');\n",
+    );
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.passed === false);
+    assert.strictEqual(hits.length, 0);
+  });
+
+  it('still flags the same pattern when it is real (unquoted) source', async () => {
+    write(tmp, 'src/a.ts', 'const re = /(a|a)*/;\n');
+    const r = await run(tmp);
+    assert.ok(r.checks.find((c) => c.name && c.name.startsWith('redos:overlapping-alternation:')));
+  });
+});

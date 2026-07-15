@@ -260,6 +260,14 @@ class CronExpressionModule extends BaseModule {
         let m;
         while ((m = rx.exec(line)) !== null) {
           const expr = m[2];
+          // A real scheduler call is never itself nested inside another
+          // string literal — that's fixture/example data (e.g. a test
+          // writing `'cron.schedule("60 0 * * *", run);'` as a sample
+          // file's contents), not a live call. Found via self-scan:
+          // cron-expression flagging its own test fixtures as real
+          // findings (same class as tls-security/cookie-security/redos
+          // 2026-07-15/16).
+          if (this._isInsideStringLiteral(line, m.index)) continue;
           if (this._looksLikeCron(expr)) {
             found.push({ expr: expr.trim(), line: i + 1 });
           }
