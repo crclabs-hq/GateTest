@@ -96,10 +96,24 @@ test('scan_local with full suite is gated without key', async () => {
   assert.ok(result.content[0].text.includes('🔒'));
 });
 
-test('scan_local with no suite arg passes without key', async () => {
+test('scan_local with no suite arg is gated without key (defaults to standard, not quick)', async () => {
   delete process.env.GATETEST_API_KEY;
-  const gated = simulateGate('scan_local', {});
-  assert.equal(gated, null, 'scan_local with no suite should not be gated (defaults to quick)');
+  const result = simulateGate('scan_local', {});
+  assert.ok(result !== null, 'scan_local with no suite must be gated — it defaults to the standard suite, not quick');
+  assert.ok(result.content[0].text.includes('🔒'));
+});
+
+test('scan_local with an explicit modules array is gated without key', async () => {
+  delete process.env.GATETEST_API_KEY;
+  const result = simulateGate('scan_local', { modules: ['memory', 'syntax'] });
+  assert.ok(result !== null, 'scan_local with a modules array must be gated — it bypasses the suite selector entirely');
+  assert.ok(result.content[0].text.includes('🔒'));
+});
+
+test('scan_local with an empty modules array falls back to standard-suite gating (still gated)', async () => {
+  delete process.env.GATETEST_API_KEY;
+  const result = simulateGate('scan_local', { modules: [] });
+  assert.ok(result !== null, 'empty modules array must not accidentally slip through as free');
 });
 
 // ---------------------------------------------------------------------------
@@ -179,7 +193,10 @@ function simulateGate(toolName, args) {
   const keyPresent = !!(process.env.GATETEST_API_KEY);
   const needsKey =
     GATED_TOOLS.has(toolName) ||
-    (toolName === 'scan_local' && args?.suite && args.suite !== 'quick');
+    (toolName === 'scan_local' && (
+      (Array.isArray(args?.modules) && args.modules.length > 0) ||
+      (args?.suite || 'standard') !== 'quick'
+    ));
   if (needsKey && !keyPresent) {
     return {
       content: [{

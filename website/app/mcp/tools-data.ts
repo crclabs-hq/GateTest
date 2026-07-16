@@ -10,9 +10,9 @@ export const ALL_TOOLS = [
   { name: "list_modules", paid: false, desc: "List all 120 modules with descriptions" },
   { name: "get_badge", paid: false, desc: "Get embeddable README badge for any repo" },
   { name: "scan_url", paid: false, desc: "Quick scan any live URL via hosted API" },
-  { name: "scan_local (quick)", paid: false, desc: "4-module quick scan — syntax, lint, secrets, codeQuality" },
+  { name: "scan_local (quick)", paid: false, desc: "41-module quick scan — syntax, lint, secrets, codeQuality, and more" },
   // Paid
-  { name: "scan_local (full/smart)", paid: true, desc: "120-module full or diff-aware smart scan" },
+  { name: "scan_local (standard/full/smart)", paid: true, desc: "45-module standard, 88-module full, or diff-aware smart scan" },
   { name: "run_module", paid: true, desc: "Run one specific module against a path" },
   { name: "fix_issue", paid: true, desc: "AI-driven auto-fix for a specific finding" },
   { name: "explain_finding", paid: true, desc: "Forensic-tier Claude diagnosis per finding" },

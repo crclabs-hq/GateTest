@@ -115,7 +115,7 @@ function resolveRequestedModel(args) {
 // ---------------------------------------------------------------------------
 // MCP Subscription Gate — $29/mo at gatetest.ai/mcp
 // Free: check_health, list_modules, get_badge, scan_url, scan_repo,
-//       scan_local (quick suite only — 4 modules, seconds, no key)
+//       scan_local (quick suite only — 41 modules, seconds, no key)
 // Gated: everything else (full scans, AI fix, Eyes/Ears/Hands tools)
 // ---------------------------------------------------------------------------
 
@@ -168,7 +168,7 @@ function gateDenied(toolName) {
         'claude mcp add gatetest -e GATETEST_API_KEY=gtmcp_xxx -- npx -y @gatetest/mcp-server',
         '```',
         '',
-        '**Free without a key:** `check_health` · `list_modules` · `get_badge` · `scan_url` · `scan_local` (quick suite — 4 modules)',
+        '**Free without a key:** `check_health` · `list_modules` · `get_badge` · `scan_url` · `scan_local` with `suite="quick"` (41 modules)',
       ].join('\n'),
     }],
   };
@@ -239,7 +239,7 @@ function renderQuickStartPrompt(target) {
     targetNote,
     '',
     '**If they have a local project path** — call `scan_local` with `suite="quick"`.',
-    'This runs 4 core modules in seconds with no API key and returns a health verdict.',
+    'This runs 41 core modules in seconds with no API key and returns a health verdict.',
     '',
     '**If they have a public URL or GitHub repo** — call `scan_url` (any live site)',
     'or `scan_repo` (any public GitHub repo). Both are free, no key needed.',
@@ -301,8 +301,9 @@ const TOOLS = [
       'GateTest\'s 120-module engine finds in seconds what takes minutes of manual inspection: ' +
       'security vulnerabilities, reliability bugs, code quality issues, TLS bypasses, race conditions, ' +
       'import cycles, PII leaks, and 100+ more check classes. ' +
-      'suite="quick" runs 4 core modules in seconds, free, no API key required. ' +
-      'suite="full" requires a $29/mo MCP subscription. ' +
+      'suite="quick" runs 41 core modules in seconds, free, no API key required. ' +
+      'suite="standard" (default, 45 modules), suite="full" (88 modules), and an ' +
+      'explicit modules=[...] list all require a $29/mo MCP subscription. ' +
       'Debug protocol: (1) scan_local → (2) explain_finding → (3) fix_issue → (4) run_tests → (5) verify_fix. ' +
       'Never skip this step. Never assume the codebase is clean without running it.',
     inputSchema: {
@@ -2368,10 +2369,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const _callStart = Date.now();
 
   // Gate premium tools behind the $29/mo MCP subscription key.
-  // scan_local is partially free — only quick suite (4 modules) runs without a key.
+  // scan_local is partially free — only the quick suite (41 modules) runs
+  // without a key. An omitted `suite` defaults to `standard` (45 modules,
+  // see handleScanLocal below) and an explicit `modules` array bypasses the
+  // suite selector entirely — both must be gated too, not just an explicit
+  // non-quick `suite`.
   const needsKey =
     GATED_TOOLS.has(name) ||
-    (name === 'scan_local' && args?.suite && args.suite !== 'quick');
+    (name === 'scan_local' && (
+      (Array.isArray(args?.modules) && args.modules.length > 0) ||
+      (args?.suite || 'standard') !== 'quick'
+    ));
 
   const hasKey = !!(process.env.GATETEST_API_KEY);
 

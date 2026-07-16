@@ -53,10 +53,11 @@ const TINY_SCAN_PATH = path.resolve(__dirname, '../..', 'reliability-corpus', 'k
 // still bounding a genuinely-stuck server. Sweep duration impact is zero
 // because successful calls return in 1-3s and the timeout only matters when
 // the server is broken.
-function callMcp(method, params = {}, timeoutMs = 60000) {
+function callMcp(method, params = {}, timeoutMs = 60000, envOverride = null) {
   return new Promise((resolve, reject) => {
     const proc = spawn(process.execPath, [SERVER_PATH], {
       stdio: ['pipe', 'pipe', 'pipe'],
+      env: envOverride || process.env,
     });
 
     let stdout = '';
@@ -250,15 +251,42 @@ describeOrSkip('MCP server — scan_local', () => {
   });
 
   it('returns isError for missing path', async () => {
+    // suite:'quick' keeps this call ungated so it reaches the missing-path
+    // check inside handleScanLocal instead of the payment gate — an omitted
+    // suite now defaults to 'standard' and is gated (see mcp-payment-gate.test.js).
     const res = await callMcp(
       'tools/call',
-      { name: 'scan_local', arguments: {} },
+      { name: 'scan_local', arguments: { suite: 'quick' } },
       10000
     );
     assert.ok(
       res.result.isError === true || res.result.content[0].text.toLowerCase().includes('error'),
       'should flag missing path as error'
     );
+  });
+
+  it('gates a call with no suite arg (defaults to standard, not quick)', async () => {
+    const noKeyEnv = { ...process.env };
+    delete noKeyEnv.GATETEST_API_KEY;
+    const res = await callMcp(
+      'tools/call',
+      { name: 'scan_local', arguments: { path: TINY_SCAN_PATH } },
+      10000,
+      noKeyEnv
+    );
+    assert.ok(res.result.content[0].text.includes('🔒'), 'omitted suite must be gated, not silently free');
+  });
+
+  it('gates a call with an explicit modules array and no key', async () => {
+    const noKeyEnv = { ...process.env };
+    delete noKeyEnv.GATETEST_API_KEY;
+    const res = await callMcp(
+      'tools/call',
+      { name: 'scan_local', arguments: { path: TINY_SCAN_PATH, modules: ['memory', 'syntax'] } },
+      10000,
+      noKeyEnv
+    );
+    assert.ok(res.result.content[0].text.includes('🔒'), 'modules array must not bypass the payment gate');
   });
 });
 

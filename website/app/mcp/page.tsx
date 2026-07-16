@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: "What's free without a key?",
-    a: "check_health, list_modules, get_badge, scan_url, and scan_local with the quick suite (syntax, lint, secrets, codeQuality — 4 modules, runs in seconds). Everything else requires a key.",
+    a: "check_health, list_modules, get_badge, scan_url, and scan_local with the quick suite (41 modules — syntax, lint, secrets, codeQuality, and more, runs in seconds). Everything else requires a key.",
   },
   {
     q: "How do I get my API key?",

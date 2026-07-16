@@ -97,11 +97,15 @@ echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{
 
 ## Suite options
 
-| Suite | Modules | Use when |
-|---|---|---|
-| `quick` | 4 core modules | Fast gate, <5s |
-| `standard` | ~20 modules | Default, balanced |
-| `full` | All 102 modules | Pre-deploy, thorough |
+| Suite | Modules | Key required | Use when |
+|---|---|---|---|
+| `quick` | 41 modules | Free | Fast gate, <5s |
+| `standard` (default) | 45 modules | $29/mo | Default, balanced |
+| `full` | 88 modules | $29/mo | Pre-deploy, thorough |
+
+No suite runs all 120 registered modules — `full` is the deepest suite
+available via MCP. Omitting `suite` defaults to `standard`, which requires a
+key (it is not the same as `quick`).
 
 Or pass `modules: ["secrets", "tlsSecurity", "importCycle"]` to run specific
-modules only.
+modules only — this also requires a key regardless of which modules are named.
