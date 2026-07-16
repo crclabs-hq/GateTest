@@ -1,12 +1,22 @@
-# Jarvis Deploy Brief — GateTest Remote MCP endpoint (OPTIONAL / SUPERSEDED)
+# Jarvis Deploy Brief — GateTest Remote MCP endpoint
 
-> ⚠️ **Superseded 2026-07-07.** Craig chose to host the endpoint **in-repo on
-> Vercel** (`website/app/api/mcp/route.ts`, live at `https://gatetest.ai/api/mcp`)
-> to keep GateTest fully isolated from Jarvis/Vapron/Gluecron — no
-> cross-contamination between agents and sites. **You do NOT need to deploy this
-> on the Jarvis box.** This brief remains only as the fallback if a dedicated
-> GateTest-only box is ever wanted. The `mcp.gatetest.ai` A-record → 66.42.121.161
-> is now unused and can be removed (or repointed to Vercel as a branded alias).
+> ⚠️ **Update 2026-07-16:** this doc's original 2026-07-07 note below said the
+> plan was superseded by an in-repo Vercel route and that this box didn't need
+> the deployment. That's out of date — `gatetest-mcp.service` **is** live on
+> this box (confirmed via `systemctl status`, 2026-07-16 incident investigation)
+> and `mcp.gatetest.ai` → 66.42.121.161 is an active, in-use DNS record, not a
+> leftover. Treat the steps below as the real, current deploy path for this
+> service, not a fallback. See `JARVIS-WEB-DEPLOY.md` for the companion website
+> deploy and the two-box topology (this box = frontend/MCP, Vapron box 158 =
+> backend services only).
+>
+> Original 2026-07-07 note, kept for history: "Superseded — Craig chose to host
+> the endpoint in-repo on Vercel (`website/app/api/mcp/route.ts`, live at
+> `https://gatetest.ai/api/mcp`)... you do NOT need to deploy this on the Jarvis
+> box." Reality diverged from that plan at some point before 2026-07-16; both
+> `gatetest.ai/api/mcp` (Vercel-style route, now served via the Jarvis box per
+> the current hosting model) and `mcp.gatetest.ai` (this dedicated service)
+> exist today — worth Craig's call on whether to keep both or consolidate.
 
 **From:** GateTest engineering session (Claude Code, 2026-07-07, Craig-authorized)
 **To:** Jarvis (66.42.121.161) — only if a dedicated box is chosen
