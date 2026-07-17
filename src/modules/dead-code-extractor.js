@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const BaseModule = require('./base-module');
 
 const JS_EXTS = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs']);
 const PY_EXTS = new Set(['.py']);
@@ -85,6 +86,23 @@ function extractJsExports(content) {
 
     m = line.match(/^\s*(?:module\.)?exports\.([A-Za-z_$][\w$]*)\s*=/);
     if (m) { out.push({ name: m[1], line: i + 1 }); continue; }
+
+    // `module.exports = { a, b, c }` / `{ a, b: renamed }` — the shorthand
+    // CommonJS export-object form. Skipped by the property-assignment regex
+    // above (there's no `.name` after `exports`), which meant a whole class
+    // of CJS files never had ANY export recognised — not just the shared
+    // export missed, the file's exports list came back empty, so downstream
+    // "unused export" AND "orphaned file" checks both silently no-op on it.
+    m = line.match(/\bmodule\.exports\s*=\s*\{([^}]*)\}/);
+    if (m && !BaseModule.prototype._isInsideStringLiteral(line, m.index)) {
+      for (const part of m[1].split(',')) {
+        const trimmed = part.trim();
+        if (!trimmed) continue;
+        const key = trimmed.split(':')[0].trim();
+        if (/^[A-Za-z_$][\w$]*$/.test(key)) out.push({ name: key, line: i + 1 });
+      }
+      continue;
+    }
   }
   return out;
 }
@@ -173,6 +191,37 @@ function parseExportsWithAcorn(filePath) {
       if (id) exports.push({ name: id.name, line: id.loc.start.line, isDefault: true });
     } else if (node.type === 'ExportAllDeclaration') {
       if (node.source?.value) reExportPaths.push(node.source.value);
+    } else if (node.type === 'ExpressionStatement' && node.expression.type === 'AssignmentExpression') {
+      // CommonJS export forms. The ESM node types above never match plain
+      // `module.exports = ...` / `exports.foo = ...` — they're just an
+      // AssignmentExpression to acorn — so a whole file of CJS exports came
+      // back with an EMPTY export list from this function, which meant
+      // "unused export" and "orphaned file" downstream both had nothing to
+      // check against.
+      const { left, right } = node.expression;
+      if (left.type === 'MemberExpression' && !left.computed && left.property.type === 'Identifier') {
+        const onModuleExports = left.object.type === 'MemberExpression'
+          && !left.object.computed
+          && left.object.object.type === 'Identifier' && left.object.object.name === 'module'
+          && left.object.property.type === 'Identifier' && left.object.property.name === 'exports';
+        const onExports = left.object.type === 'Identifier' && left.object.name === 'exports';
+        if (onModuleExports || onExports) {
+          // `module.exports.foo = ...` / `exports.foo = ...`
+          exports.push({ name: left.property.name, line: left.property.loc.start.line });
+        } else if (
+          left.object.type === 'Identifier' && left.object.name === 'module'
+          && left.property.name === 'exports' && right.type === 'ObjectExpression'
+        ) {
+          // `module.exports = { a, b, c: renamed }`
+          for (const prop of right.properties) {
+            if (prop.type !== 'Property' || prop.computed) continue;
+            let name = null;
+            if (prop.key.type === 'Identifier') name = prop.key.name;
+            else if (prop.key.type === 'Literal' && typeof prop.key.value === 'string') name = prop.key.value;
+            if (name) exports.push({ name, line: prop.loc.start.line });
+          }
+        }
+      }
     }
   }
 

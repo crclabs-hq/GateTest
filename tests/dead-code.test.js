@@ -132,6 +132,57 @@ describe('DeadCodeModule — unused JS/TS exports', () => {
   });
 });
 
+describe('DeadCodeModule — module.exports = { a, b } shorthand', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dc-cjsobj-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('flags the unused half of a two-export module.exports = { used, unused } object', async () => {
+    // Corpus shape (src/utils/dead.js): the object-literal export form was
+    // invisible to both the acorn path (CJS assignments aren't ESM export
+    // nodes) and the regex fallback (only `exports.NAME =` was matched),
+    // so the whole file came back with ZERO exports and every downstream
+    // check (unused-export, orphan-file) silently had nothing to flag.
+    write(tmp, 'src/dead.js', [
+      'function legacyFormatCurrency(amount) {',
+      '  return "$" + amount.toFixed(2);',
+      '}',
+      '',
+      'function formatCurrency(amount) {',
+      '  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);',
+      '}',
+      '',
+      'module.exports = { formatCurrency, legacyFormatCurrency };',
+      '',
+    ].join('\n'));
+    write(tmp, 'src/index.js', [
+      'const { formatCurrency } = require("./dead");',
+      'console.log(formatCurrency(1));',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(
+      r.checks.find((c) => c.export === 'formatCurrency'),
+      undefined,
+      'formatCurrency is imported by name elsewhere — must not be flagged',
+    );
+    assert.ok(
+      r.checks.find((c) => c.export === 'legacyFormatCurrency'),
+      'legacyFormatCurrency is referenced nowhere — must be flagged as an unused named CommonJS export',
+    );
+  });
+
+  it('does NOT treat a module.exports = { a, b } shape nested inside a string literal as a real export', async () => {
+    write(tmp, 'src/log.js', [
+      'console.log("Example: module.exports = { totallyFake, alsoFake };");',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.export === 'totallyFake'), undefined);
+    assert.strictEqual(r.checks.find((c) => c.export === 'alsoFake'), undefined);
+  });
+});
+
 describe('DeadCodeModule — unused Python exports', () => {
   let tmp;
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dc-py-')); });

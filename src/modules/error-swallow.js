@@ -220,6 +220,24 @@ class ErrorSwallowModule extends BaseModule {
     return false;
   }
 
+  // Strips `//` line comments and `/* */` block comments from a catch
+  // body so a comment-only catch (`catch (err) { // nothing to do here }`)
+  // is treated as empty — comments document intent, they don't handle
+  // the error. `isInString` keeps us from truncating a line at a `//`
+  // that's actually inside a string literal in the catch body.
+  _stripComments(body) {
+    const withoutBlocks = body.replace(/\/\*[\s\S]*?\*\//g, '');
+    return withoutBlocks
+      .split('\n')
+      .map((l) => {
+        const idx = l.indexOf('//');
+        if (idx === -1 || isInString(l, idx)) return l;
+        return l.slice(0, idx);
+      })
+      .join('\n')
+      .trim();
+  }
+
   _scanFile(file, projectRoot, result) {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return 0; }
@@ -239,7 +257,8 @@ class ErrorSwallowModule extends BaseModule {
       const catchOnLine = line.match(/\bcatch\s*(?:\(([^)]*)\))?\s*\{/);
       if (catchOnLine && !isInString(line, catchOnLine.index) && !this._isSuppressed(lines, i)) {
         const bodyText = this._collectBlockBody(lines, i, catchOnLine.index);
-        if (bodyText.body === '' && bodyText.closed) {
+        const effectiveBody = bodyText.closed ? this._stripComments(bodyText.body) : bodyText.body;
+        if (effectiveBody === '' && bodyText.closed) {
           issues += this._flag(result, `error-swallow:empty-catch:${rel}:${i + 1}`, {
             severity: isTest ? 'warning' : 'error',
             file: rel,

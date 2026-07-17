@@ -34,6 +34,15 @@
  *            Sub-cent precision — rounding bugs are almost certain.
  *            (rule: `money-float:insufficient-precision:<rel>:<line>`)
  *
+ *   error:   plain arithmetic (`*`, `/`, `+=`, `-=`, `*=`, `/=`) applied
+ *            directly to a money-named identifier or property access with
+ *            no decimal library in scope. JS has no separate int type —
+ *            `price * (1 + taxRate)` and `total += item.price * item.qty`
+ *            ARE float arithmetic, with no explicit cast required to
+ *            trigger the exact `0.1 + 0.2 !== 0.3` bug this module exists
+ *            to catch.
+ *            (rule: `money-float:arithmetic:<rel>:<line>`)
+ *
  *   info:    Decimal library detected (safe-harbour marker).
  *            (rule: `money-float:decimal-library-ok`)
  *
@@ -95,6 +104,18 @@ const PY_ASSIGN_FLOAT_RE =
 
 // `.toFixed(N)`. We capture N so we can check precision.
 const TOFIXED_RE = /([A-Za-z_$][\w$]*)\.toFixed\s*\(\s*(\d+)\s*\)/;
+
+// Compound assignment directly on a money-named identifier — e.g.
+// `total += item.price * item.qty`. The accumulator itself never goes
+// through parseFloat/Number, but every `+=` on a JS number IS float
+// arithmetic, so this is the same bug class as the explicit-cast rule.
+const JS_COMPOUND_ASSIGN_RE = /\b([A-Za-z_$][\w$]*)\s*(\+=|-=|\*=|\/=)/;
+
+// Multiplication / division directly on a money-named identifier or
+// money-named property access (`price * (...)`, `item.price * item.qty`).
+// Negative lookahead on `=` excludes `*=`/`/=` (handled by the compound-
+// assignment rule above) and `==`/`===`.
+const JS_MONEY_MULDIV_RE = /\b((?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*)\s*([*/])(?!=)\s*\S/;
 
 // Library-detection patterns. If any of these appear anywhere in
 // the file, we treat the file as safe-harbour for the float-cast
@@ -257,6 +278,39 @@ class MoneyFloatModule extends BaseModule {
             property: m2[1],
           });
           issues += 1;
+        }
+      }
+
+      // Rule 2: plain arithmetic directly on a money-named identifier —
+      // no parseFloat/Number cast needed to trigger this bug class. JS has
+      // one numeric type (float64), so `price * (1 + taxRate)` and
+      // `total += item.price * item.qty` accumulate the exact same
+      // rounding error as an explicit cast. Compound-assign checked first
+      // so a line like `total += item.price * item.qty` reports once
+      // (on the accumulator) instead of twice (accumulator + RHS product).
+      if (!hasLibrary) {
+        const mCompound = JS_COMPOUND_ASSIGN_RE.exec(line);
+        if (mCompound && MONEY_NAME_RE.test(mCompound[1]) && !this._isInsideStringLiteral(line, mCompound.index)) {
+          result.addCheck(`money-float:arithmetic:${rel}:${i + 1}`, false, {
+            severity: errSev,
+            message: `Money-named variable "${mCompound[1]}" accumulated via \`${mCompound[2]}\` — plain float arithmetic on a JS number, the same precision-loss risk as parseFloat/Number. Use Decimal.js / big.js / dinero.js.`,
+            file: rel,
+            line: i + 1,
+            variable: mCompound[1],
+          });
+          issues += 1;
+        } else {
+          const mArith = JS_MONEY_MULDIV_RE.exec(line);
+          if (mArith && MONEY_NAME_RE.test(mArith[1]) && !this._isInsideStringLiteral(line, mArith.index)) {
+            result.addCheck(`money-float:arithmetic:${rel}:${i + 1}`, false, {
+              severity: errSev,
+              message: `Money-named value "${mArith[1]}" used directly in \`${mArith[2]}\` arithmetic — plain float math on a JS number, the same precision-loss risk as parseFloat/Number. Use Decimal.js / big.js / dinero.js.`,
+              file: rel,
+              line: i + 1,
+              variable: mArith[1],
+            });
+            issues += 1;
+          }
         }
       }
 

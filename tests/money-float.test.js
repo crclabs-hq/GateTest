@@ -127,6 +127,74 @@ describe('MoneyFloatModule — Python float cast on money variable', () => {
   });
 });
 
+describe('MoneyFloatModule — plain arithmetic on a money-named identifier', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-mf-arith-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('errors on `price * (1 + taxRate)` — no cast needed to be float arithmetic', async () => {
+    // Corpus shape (src/utils/price.js).
+    write(tmp, 'src/price.js', [
+      'function applyTax(price, taxRate) {',
+      '  return price * (1 + taxRate);',
+      '}',
+      '',
+      'module.exports = { applyTax };',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name && c.name.startsWith('money-float:arithmetic:'));
+    assert.ok(hit, 'expected a money-float:arithmetic finding');
+    assert.strictEqual(hit.severity, 'error');
+    assert.strictEqual(hit.variable, 'price');
+  });
+
+  it('errors on `total += item.price * item.qty` — compound-assign accumulator', async () => {
+    // Corpus shape (src/utils/price.js).
+    write(tmp, 'src/price.js', [
+      'function sumCart(items) {',
+      '  let total = 0.0;',
+      '  for (const item of items) {',
+      '    total += item.price * item.qty;',
+      '  }',
+      '  return total;',
+      '}',
+      '',
+      'module.exports = { sumCart };',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name && c.name.startsWith('money-float:arithmetic:'));
+    assert.ok(hit, 'expected a money-float:arithmetic finding');
+    assert.strictEqual(hit.variable, 'total');
+  });
+
+  it('does NOT flag arithmetic on a money-named identifier nested inside a string literal', async () => {
+    write(tmp, 'src/a.js', [
+      'const example = "return price * (1 + taxRate);";',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter(
+      (c) => c.passed === false && c.name && c.name.startsWith('money-float:arithmetic:'),
+    );
+    assert.strictEqual(hits.length, 0);
+  });
+
+  it('does NOT flag arithmetic when the file imports a decimal library', async () => {
+    write(tmp, 'src/a.js', [
+      'const Decimal = require("decimal.js");',
+      'function applyTax(price, taxRate) { return price * (1 + taxRate); }',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter(
+      (c) => c.passed === false && c.name && c.name.startsWith('money-float:arithmetic:'),
+    );
+    assert.strictEqual(hits.length, 0);
+  });
+});
+
 describe('MoneyFloatModule — insufficient .toFixed precision', () => {
   let tmp;
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-mf-tf-')); });
