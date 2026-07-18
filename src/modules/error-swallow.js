@@ -30,8 +30,15 @@
  *
  * Rules:
  *
- *   error:   empty `catch (err) { }` block                 (prod)
+ *   error:   truly bare empty `catch (err) { }` block — no code, no
+ *            comment                                          (prod)
  *            warning in tests
+ *            (rule: `error-swallow:empty-catch:<rel>:<line>`)
+ *   warning: catch block that contains ONLY comments — a comment
+ *            documents intent, it doesn't handle the error. Still a
+ *            surfaced finding, not a blocking one: this codebase's own
+ *            documented idiom is a commented catch explaining WHY it's
+ *            safe, and the module's own fix advice blesses that pattern.
  *            (rule: `error-swallow:empty-catch:<rel>:<line>`)
  *   error:   catch block that only calls `console.log`/`console.warn`
  *            and does not re-throw — visible in logs but breaks
@@ -257,14 +264,21 @@ class ErrorSwallowModule extends BaseModule {
       const catchOnLine = line.match(/\bcatch\s*(?:\(([^)]*)\))?\s*\{/);
       if (catchOnLine && !isInString(line, catchOnLine.index) && !this._isSuppressed(lines, i)) {
         const bodyText = this._collectBlockBody(lines, i, catchOnLine.index);
+        const rawBody = bodyText.closed ? bodyText.body.trim() : bodyText.body;
         const effectiveBody = bodyText.closed ? this._stripComments(bodyText.body) : bodyText.body;
-        if (effectiveBody === '' && bodyText.closed) {
+        const isBareEmpty = bodyText.closed && rawBody === '';
+        const isCommentOnly = bodyText.closed && !isBareEmpty && effectiveBody === '';
+        if (isBareEmpty || isCommentOnly) {
           issues += this._flag(result, `error-swallow:empty-catch:${rel}:${i + 1}`, {
-            severity: isTest ? 'warning' : 'error',
+            severity: isTest ? 'warning' : (isBareEmpty ? 'error' : 'warning'),
             file: rel,
             line: i + 1,
-            message: `${rel}:${i + 1} has an empty catch block — any error thrown in the try is erased`,
-            suggestion: 'At minimum log the error with context; preferably rethrow or handle it. If the error is genuinely expected and benign, comment WHY.',
+            message: isBareEmpty
+              ? `${rel}:${i + 1} has an empty catch block — any error thrown in the try is erased`
+              : `${rel}:${i + 1} catch block contains only comments — a comment documents intent but does not handle the error`,
+            suggestion: isBareEmpty
+              ? 'At minimum log the error with context; preferably rethrow or handle it. If the error is genuinely expected and benign, comment WHY.'
+              : 'A comment alone doesn\'t handle the error — if it\'s genuinely safe to ignore, keep the comment AND add a log call so the swallow is visible in production.',
           });
         } else if (bodyText.closed && this._isLogAndEat(bodyText.body)) {
           issues += this._flag(result, `error-swallow:log-and-eat:${rel}:${i + 1}`, {

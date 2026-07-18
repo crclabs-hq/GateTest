@@ -132,6 +132,102 @@ describe('DeadCodeModule — unused JS/TS exports', () => {
   });
 });
 
+describe('DeadCodeModule — CJS destructure require re-anchoring', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dc-destruct-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('recognizes a named destructure require that sits below an unrelated opening function-body brace', async () => {
+    // Regression for the un-anchored destructRe: `function unrelated() {` opens
+    // an earlier, unrelated `{` with no `}` before the destructure's own closing
+    // brace, so the old capture (`[^}]+`, which allows `{` but not `}`) swallowed
+    // everything from that unrelated brace through to `{ queryDb }`'s closing
+    // brace into one garbled blob — "queryDb" never became a clean captured name,
+    // so it was flagged as an unused export even though it's imported by name.
+    write(tmp, 'src/db-client.js', [
+      'function queryDb() { return 1; }',
+      'module.exports.queryDb = queryDb;',
+      '',
+    ].join('\n'));
+    write(tmp, 'src/index.js', [
+      'function unrelated() {',
+      '  const a = 1;',
+      '  const b = 2;',
+      '  const { queryDb } = require("./db-client");',
+      '  return a + b + queryDb();',
+      '}',
+      'unrelated();',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(
+      r.checks.find((c) => c.export === 'queryDb'),
+      undefined,
+      'queryDb is destructure-required below an unrelated opening brace — must not be flagged unused',
+    );
+  });
+
+  it('handles a realistic multi-import file with no false unused-export flags', async () => {
+    write(tmp, 'src/db-client.js', [
+      'function queryDb() { return 1; }',
+      'function assertReadOnly() { return true; }',
+      'function detectDialect() { return "postgres"; }',
+      'module.exports = { queryDb, assertReadOnly, detectDialect };',
+      '',
+    ].join('\n'));
+    write(tmp, 'src/logger.js', [
+      'function logInfo(msg) { console.log(msg); }',
+      'module.exports.logInfo = logInfo;',
+      '',
+    ].join('\n'));
+    write(tmp, 'src/index.js', [
+      'function setup(config) {',
+      '  if (config.verbose) {',
+      '    console.log("verbose mode");',
+      '  }',
+      '  return config;',
+      '}',
+      '',
+      'const { queryDb, assertReadOnly, detectDialect } = require("./db-client");',
+      'const { logInfo } = require("./logger");',
+      '',
+      'setup({ verbose: true });',
+      'assertReadOnly("SELECT 1");',
+      'logInfo("starting");',
+      'queryDb("SELECT 1");',
+      'detectDialect("postgres://x");',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.name.startsWith('dead-code:unused-export:'));
+    assert.strictEqual(hits.length, 0, `unexpected findings: ${JSON.stringify(hits.map((h) => h.export))}`);
+  });
+
+  it('recognizes a prettier-wrapped multi-line destructure require', async () => {
+    // Regression: the capture must allow newlines (only `{`, `}`, `;` are
+    // excluded) so a long import list wrapped across lines still matches —
+    // excluding `\n` too broke this extremely common formatting shape.
+    write(tmp, 'src/db-client.js', [
+      'function queryDb() { return 1; }',
+      'function assertReadOnly() { return true; }',
+      'module.exports = { queryDb, assertReadOnly };',
+      '',
+    ].join('\n'));
+    write(tmp, 'src/index.js', [
+      'const {',
+      '  queryDb,',
+      '  assertReadOnly,',
+      '} = require("./db-client");',
+      'queryDb();',
+      'assertReadOnly();',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.name.startsWith('dead-code:unused-export:'));
+    assert.strictEqual(hits.length, 0, `unexpected findings: ${JSON.stringify(hits.map((h) => h.export))}`);
+  });
+});
+
 describe('DeadCodeModule — module.exports = { a, b } shorthand', () => {
   let tmp;
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dc-cjsobj-')); });

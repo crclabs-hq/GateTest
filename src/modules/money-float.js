@@ -40,7 +40,15 @@
  *            `price * (1 + taxRate)` and `total += item.price * item.qty`
  *            ARE float arithmetic, with no explicit cast required to
  *            trigger the exact `0.1 + 0.2 !== 0.3` bug this module exists
- *            to catch.
+ *            to catch. EXCEPTION: the four generic accumulator names
+ *            `total`/`balance`/`credit`/`margin` double as plain counters
+ *            in real repos (`all.total += 1`, `total += items.length`) —
+ *            those four only fire when the same statement also carries a
+ *            SECOND, distinct money-named identifier (`total += item.price
+ *            * item.qty` fires via `price`), and never fire on a bare
+ *            integer increment or a `.length` read. Specific names
+ *            (price, cost, fee, salary, ...) are unambiguous and keep
+ *            firing alone.
  *            (rule: `money-float:arithmetic:<rel>:<line>`)
  *
  *   info:    Decimal library detected (safe-harbour marker).
@@ -53,6 +61,8 @@
  *     bignumber.js, dinero.js, currency.js, @decimal, or Python
  *     `decimal` / `from decimal import Decimal`), the entire file is
  *     treated as safe-harbour — no float-cast rule fires.
+ *   - `.gatetestignore` for deliberate, legitimate corroborating samples
+ *     (e.g. marketing/demo code that intentionally renders the anti-pattern).
  *
  * Competitors:
  *   - SonarQube has one Java-only rule on `float`/`double` for
@@ -88,6 +98,58 @@ const SUPPRESS_RE = /\bmoney-float-ok\b/;
 // are unambiguously about money.
 const MONEY_NAME_RE =
   /\b(price|amount|total|cost|fee|tax|subtotal|balance|payment|charge|refund|credit|debit|salary|wage|rent|bill|invoice|revenue|profit|margin|discount|coupon|tip|gratuity|usd|eur|gbp|jpy|cad|aud|nzd|chf|dollar|dollars|euro|euros|pound|pounds|yen|yuan|rupee|peso|cents?)s?\b/i;
+
+// A handful of MONEY_NAME_RE entries double as plain accumulator/counter
+// names in non-money contexts (`all.total += 1`, `total += items.length`,
+// a running `balance` of unrelated items, a loop `credit`/`margin` counter).
+// For these — and ONLY these — the arithmetic rule (below) requires a SECOND,
+// distinct money-named identifier in the same statement before firing, and
+// never fires on a bare integer increment or a `.length` read. Specific
+// names (price, cost, fee, salary, ...) are unambiguous and keep firing alone.
+const GENERIC_MONEY_NAMES = new Set(['total', 'balance', 'credit', 'margin']);
+
+// RHS shapes that are never a currency computation even when the accumulator
+// is named `total`/`balance`/etc: a bare integer literal (`total += 1`) or a
+// `.length` property read (`total += items.length`).
+const TRIVIAL_INCREMENT_RHS_RE = /^\s*\d+\s*;?\s*$/;
+const DOT_LENGTH_RHS_RE = /^\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\.length\s*;?\s*$/;
+
+function isGenericMoneyName(identifier) {
+  const parts = String(identifier || '').split('.');
+  return GENERIC_MONEY_NAMES.has(parts[parts.length - 1].toLowerCase());
+}
+
+function isTrivialIncrementRhs(rhs) {
+  const trimmed = String(rhs || '').trim();
+  return TRIVIAL_INCREMENT_RHS_RE.test(trimmed) || DOT_LENGTH_RHS_RE.test(trimmed);
+}
+
+// True when `line` carries a money-named identifier OTHER than `exclude`
+// (case-insensitive, whole-word) — corroboration required before a generic
+// accumulator name fires on its own. `exclude` may be a dotted access
+// (`stats.total`); the identifier tokenizer below yields dotted paths as
+// SEPARATE tokens (`stats`, `total`), so comparison is against `exclude`'s
+// own last dotted segment — otherwise the accumulator's tail token (`total`)
+// never matches the full dotted exclude string and self-corroborates.
+function hasCorroboratingMoneyIdentifier(line, exclude) {
+  const excludeParts = String(exclude || '').toLowerCase().split('.');
+  const excludeLast = excludeParts[excludeParts.length - 1];
+  const idRe = /[A-Za-z_$][\w$]*/g;
+  let m;
+  while ((m = idRe.exec(line)) !== null) {
+    if (m[0].toLowerCase() === excludeLast) continue;
+    if (MONEY_NAME_RE.test(m[0])) return true;
+  }
+  return false;
+}
+
+// A `/` immediately followed by 0-3 lowercase regex-flag letters then `.` is
+// almost certainly a JS regex literal's closing delimiter chained straight
+// into a method call (`/pattern/i.test(x)`), not division — e.g. a money-named
+// word inside a regex alternation like `/credit|balance/i.test(msg)` reads as
+// "credit / i" to a naive identifier-then-operator scan. Real division never
+// has zero whitespace on both sides AND a bare method call as the divisor.
+const REGEX_LITERAL_TAIL_RE = /^[a-z]{0,3}\./;
 
 // JS: `const price = parseFloat(...)` / `let total = Number(...)` /
 // `var amount = +input`.
@@ -288,28 +350,49 @@ class MoneyFloatModule extends BaseModule {
       // rounding error as an explicit cast. Compound-assign checked first
       // so a line like `total += item.price * item.qty` reports once
       // (on the accumulator) instead of twice (accumulator + RHS product).
+      //
+      // Generic accumulator names (total/balance/credit/margin) double as
+      // plain counters in real repos (`all.total += 1`, `total += items.length`)
+      // — those four names only fire when the SAME statement carries a second,
+      // distinct money-named identifier (`total += item.price * item.qty`
+      // fires via `price`) and never on a bare integer increment or a
+      // `.length` read. Specific names (price, cost, fee, salary, ...) keep
+      // firing alone, unchanged.
       if (!hasLibrary) {
         const mCompound = JS_COMPOUND_ASSIGN_RE.exec(line);
         if (mCompound && MONEY_NAME_RE.test(mCompound[1]) && !this._isInsideStringLiteral(line, mCompound.index)) {
-          result.addCheck(`money-float:arithmetic:${rel}:${i + 1}`, false, {
-            severity: errSev,
-            message: `Money-named variable "${mCompound[1]}" accumulated via \`${mCompound[2]}\` — plain float arithmetic on a JS number, the same precision-loss risk as parseFloat/Number. Use Decimal.js / big.js / dinero.js.`,
-            file: rel,
-            line: i + 1,
-            variable: mCompound[1],
-          });
-          issues += 1;
+          const rhs = line.slice(mCompound.index + mCompound[0].length);
+          const generic = isGenericMoneyName(mCompound[1]);
+          const fires = generic
+            ? hasCorroboratingMoneyIdentifier(line, mCompound[1]) && !isTrivialIncrementRhs(rhs)
+            : true;
+          if (fires) {
+            result.addCheck(`money-float:arithmetic:${rel}:${i + 1}`, false, {
+              severity: errSev,
+              message: `Money-named variable "${mCompound[1]}" accumulated via \`${mCompound[2]}\` — plain float arithmetic on a JS number, the same precision-loss risk as parseFloat/Number. Use Decimal.js / big.js / dinero.js.`,
+              file: rel,
+              line: i + 1,
+              variable: mCompound[1],
+            });
+            issues += 1;
+          }
         } else {
           const mArith = JS_MONEY_MULDIV_RE.exec(line);
           if (mArith && MONEY_NAME_RE.test(mArith[1]) && !this._isInsideStringLiteral(line, mArith.index)) {
-            result.addCheck(`money-float:arithmetic:${rel}:${i + 1}`, false, {
-              severity: errSev,
-              message: `Money-named value "${mArith[1]}" used directly in \`${mArith[2]}\` arithmetic — plain float math on a JS number, the same precision-loss risk as parseFloat/Number. Use Decimal.js / big.js / dinero.js.`,
-              file: rel,
-              line: i + 1,
-              variable: mArith[1],
-            });
-            issues += 1;
+            const opIdx = line.indexOf(mArith[2], mArith.index + mArith[1].length);
+            const isRegexLiteralTail = mArith[2] === '/' && REGEX_LITERAL_TAIL_RE.test(line.slice(opIdx + 1));
+            const generic = isGenericMoneyName(mArith[1]);
+            const fires = !isRegexLiteralTail && (generic ? hasCorroboratingMoneyIdentifier(line, mArith[1]) : true);
+            if (fires) {
+              result.addCheck(`money-float:arithmetic:${rel}:${i + 1}`, false, {
+                severity: errSev,
+                message: `Money-named value "${mArith[1]}" used directly in \`${mArith[2]}\` arithmetic — plain float math on a JS number, the same precision-loss risk as parseFloat/Number. Use Decimal.js / big.js / dinero.js.`,
+                file: rel,
+                line: i + 1,
+                variable: mArith[1],
+              });
+              issues += 1;
+            }
           }
         }
       }

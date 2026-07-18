@@ -325,7 +325,13 @@ function extractJsImports(content) {
   }
 
   // Named CJS destructure: `const { a, b } = require('path')`.
-  const destructRe = /\{\s*([^}]+)\s*\}\s*=\s*require\s*\(\s*["']([^"']+)["']\s*\)/g;
+  // The opening `{` must genuinely belong to the destructuring assignment —
+  // anchored on a preceding const/let/var (or a statement boundary) — and the
+  // capture excludes `{`, `}`, and `;` so it can never swallow an unrelated
+  // earlier brace (e.g. a function body several lines up) or run past the end
+  // of the statement. Newlines ARE allowed in the capture — prettier-wrapped
+  // multi-line destructure lists are common and must still match.
+  const destructRe = /(?<=^|[;{}\n]|\bconst|\blet|\bvar)[ \t]*\{\s*([^{};]+?)\s*\}\s*=\s*require\s*\(\s*["']([^"']+)["']\s*\)/g;
   while ((m = destructRe.exec(content)) !== null) {
     namedPaths.add(m[2]);
     for (const part of m[1].split(',')) {
