@@ -200,6 +200,8 @@ GateTest/
 | `CONTINUOUS_AI_BUDGET_USD` | Monthly Claude AI-review allowance per Continuous subscription (default 10) |
 | `GITHUB_CLIENT_ID` | GitHub OAuth App client ID — enables customer "Sign in with GitHub" at `/dashboard` |
 | `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret — pairs with GITHUB_CLIENT_ID |
+| `GOOGLE_CLIENT_ID` | Google OAuth Client ID — enables customer "Continue with Google" sign-in at `/dashboard` via `/api/auth/google` |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth Client secret — pairs with GOOGLE_CLIENT_ID; redirect URI `{NEXT_PUBLIC_BASE_URL}/api/auth/google/callback` must be registered in Google Cloud Console |
 | `SESSION_SECRET` | Random 40+ char secret — AES-256-GCM encrypts customer session cookies |
 | `SLACK_WEBHOOK_URL` | Default Slack Incoming Webhook URL — scan results posted here when no per-request webhook provided |
 | `SLACK_SIGNING_SECRET` | Slack App Basic Information → Signing Secret — verifies `/gatetest` slash command requests |
