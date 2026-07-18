@@ -690,3 +690,112 @@ function runCmd(req, res) {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Function-parameter taint (phase 2c) — a route handler CALLS an imported
+// db helper with a tainted argument, and the helper's OWN parameter reaches
+// a sink internally (layered "handler -> db helper" architecture). Mirrors
+// the flagship shape documented in _analyseFunctionParamTaint's header.
+// ---------------------------------------------------------------------------
+
+describe('CrossFileTaintModule — function-parameter taint (phase 2c)', () => {
+  it('detects the inline-sink shape: parameter used directly at a sink inside the callee', async () => {
+    const result = await run({
+      'handler.js': `
+const { findOrderById } = require('./query');
+function getOrderHandler(req, res) {
+  const id = req.params.id;
+  const order = findOrderById(id);
+  res.json(order);
+}
+module.exports = { getOrderHandler };
+`,
+      'query.js': `
+function findOrderById(orderId) {
+  return conn.query(\`SELECT * FROM orders WHERE id = \${orderId}\`);
+}
+module.exports = { findOrderById };
+`,
+    });
+    const hit = [...result.errors(), ...result.warnings()].find(
+      (c) => c.file === 'query.js' && c.sink === 'sql-query',
+    );
+    assert.ok(
+      hit,
+      `expected a cross-file finding for the inline-sink shape, got: ${JSON.stringify(result.checks.map((c) => ({ rule: c.rule, file: c.file, sink: c.sink })))}`,
+    );
+    assert.strictEqual(hit.severity, 'error');
+    assert.ok(hit.message.includes('findOrderById'), `message should name the callee: ${hit.message}`);
+  });
+
+  it('detects the assign-then-sink shape: parameter propagates through a local var before the sink', async () => {
+    const result = await run({
+      'handler2.js': `
+const { findOrderById2 } = require('./query2');
+function getOrderHandler2(req, res) {
+  const id = req.params.id;
+  const order = findOrderById2(id);
+  res.json(order);
+}
+module.exports = { getOrderHandler2 };
+`,
+      'query2.js': `
+function findOrderById2(orderId) {
+  const sql = \`SELECT * FROM orders WHERE id = \${orderId}\`;
+  return conn.query(sql);
+}
+module.exports = { findOrderById2 };
+`,
+    });
+    const hit = [...result.errors(), ...result.warnings()].find(
+      (c) => c.file === 'query2.js' && c.sink === 'sql-query',
+    );
+    assert.ok(hit, 'expected a cross-file finding for the assign-then-sink shape');
+    // Cosmetic: the message should name the ORIGINAL parameter (`orderId`),
+    // not the derived local (`sql`), even though propagation tracked `sql`.
+    assert.ok(hit.message.includes('orderId'), `message should name the original parameter: ${hit.message}`);
+  });
+
+  it('does not flag when the callee sanitises the parameter before the sink', async () => {
+    const result = await run({
+      'handler3.js': `
+const { findOrderById3 } = require('./query3');
+function getOrderHandler3(req, res) {
+  const id = req.params.id;
+  const order = findOrderById3(id);
+  res.json(order);
+}
+module.exports = { getOrderHandler3 };
+`,
+      'query3.js': `
+function findOrderById3(orderId) {
+  const safeId = parseInt(orderId, 10);
+  return conn.query(\`SELECT * FROM orders WHERE id = \${safeId}\`);
+}
+module.exports = { findOrderById3 };
+`,
+    });
+    const hits = [...result.errors(), ...result.warnings()].filter(
+      (c) => c.file === 'query3.js' && c.sink === 'sql-query',
+    );
+    assert.strictEqual(hits.length, 0, `sanitised parameter should not flag, got: ${JSON.stringify(hits)}`);
+  });
+
+  it('does not open a phantom function scope for a definition nested inside a template-literal fixture', async () => {
+    const result = await run({
+      'fixture-param-taint.test.js': `
+const sample = \`
+function findOrderById(orderId) {
+  return conn.query(\\\`SELECT * FROM orders WHERE id = \\\${orderId}\\\`);
+}
+\`;
+module.exports = { sample };
+`,
+    });
+    const sinkHits = [...result.errors(), ...result.warnings()].filter((c) => c.sink);
+    assert.strictEqual(
+      sinkHits.length, 0,
+      `fixture text nested in a template literal must not open a phantom function scope, got: ${JSON.stringify(sinkHits.map((e) => e.sink))}`,
+    );
+  });
+});
