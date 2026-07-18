@@ -1,0 +1,119 @@
+{
+  "generatedAt": "2026-07-18T05:38:33.482Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 6,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 4,
+      "SonarQube": 0,
+      "Semgrep": 1,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 0
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48954062",
+        "author": "jdw64",
+        "type": "comment",
+        "title": null,
+        "text": "Thank you. I hope I didn't offend you. First, I think the len() part is problematic. Could you check that for me? I think it's calling Rust's str::len() and using JS's String.length, which I think should be aligned with UTF-8.I'll try it out next time and give feedback later. And you're right, it's just a difference of opinion.Also, for the API side, Unicode strings are usually 4 kinds right? I think using Rust-style snake_case, we might need separate functions like len(), utf16_len(), and so on. But I'm not sure how to handle the abstraction between libraries and browsers.Sorry for being critical. I'm not that good of a programmer, so it might be a mistaken observation. Please check it.",
+        "url": "https://news.ycombinator.com/item?id=48954062",
+        "points": null,
+        "numComments": null,
+        "storyId": 48952067,
+        "createdAt": "2026-07-18T00:58:57Z",
+        "createdAtUnix": 1784336337,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48953341",
+        "author": "uxcolumbo",
+        "type": "comment",
+        "title": null,
+        "text": "Some quick follow up thoughts:> But all the data I could find concludes that more people have moved up than down.I based my comment on research done by Pew, OECD, and economists like Saez&#x2F;Zucman. The middle class is shrinking both upward and downward, but a significant share is moving down or stagnating, not up!Even billionaires themselves comment on this: https:&#x2F;&#x2F;fortune.com&#x2F;2026&#x2F;07&#x2F;17&#x2F;palantir-ceo-alex-karp-artifi...So you're right, we made great progress since WW2 and no the sky isn't falling down.But my point is we're now going down a dangerous path that leads to authoritarianism. If the convicted felon and his gang aren't being kicked out then corruption will increase, more surveillance (i.e. Flock and Palantir), more austerity and more loss of our freedoms.> 3. Democracy, imo, is quite healthy.It's not though. Listen to historians like Snyder or Heather Cox Richardson. Or listen to financiers like Anthony Scaramucci and his guests. Our democracy is being dismantled and if we don't stop them, then we'll end up with a sham democracy like in Russia.",
+        "url": "https://news.ycombinator.com/item?id=48953341",
+        "points": null,
+        "numComments": null,
+        "storyId": 48863064,
+        "createdAt": "2026-07-17T23:19:25Z",
+        "createdAtUnix": 1784330365,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48952222",
+        "author": "nyku",
+        "type": "story",
+        "title": "GPT-5.6 Sol Ultra built a full Chrome V8 exploit chain from patch commits",
+        "text": "GPT-5.6 Sol Ultra built a full Chrome V8 exploit chain from patch commits",
+        "url": "https://www.hacktron.ai/blog/watching-gpt-55-sol-ultra-write-a-chrome-exploit-exploit-development-as-we-know-it-is-over",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 48952222,
+        "createdAt": "2026-07-17T20:55:49Z",
+        "createdAtUnix": 1784321749,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48943948",
+        "author": "sails",
+        "type": "comment",
+        "title": null,
+        "text": "For what it’s worth I tried an experiment where I had a similar harness (where LLMs competed head to head playing snake) and made them aware of their budget and it had very little impact. This was cheaper open weight models",
+        "url": "https://news.ycombinator.com/item?id=48943948",
+        "points": null,
+        "numComments": null,
+        "storyId": 48939524,
+        "createdAt": "2026-07-17T06:28:56Z",
+        "createdAtUnix": 1784269736,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "48954121",
+        "author": "applfanboysbgon",
+        "type": "comment",
+        "title": null,
+        "text": "There is no difference in principle. That is equally unacceptable.There is a difference in kind, because it becomes impossible for the global internet to exist if thousands of local jurisdictions are being given their way, with conflicting local legislation resulting in global takedown when it is impossible to comply with two different jurisdictions. So this is noteworthy as an escalation of an already existing problem into an even worse direction.---Rate-limit edit:> Which is why the Internet hasn't been global in a long time, and looks pretty different in China vs EU vs Russia.China and Russia aren't part of the global internet because they have national firewalls and segregated themselves. The EU very much is, and with limited exceptions the internet doesn't look much different from the US, the EU, Japan, Canada, Australia, Mexico, Thailand, Brazil, or South Africa. It seems absurd to suggest that the internet isn't global when I'm in all likelihood talking to you from the opposite side of the world and this is the norm. And what is the point you're making? That we should embrace the China&#x2F;Russia model and give not only every country but also every state&#x2F;province&#x2F;city its own Great Firewall?",
+        "url": "https://news.ycombinator.com/item?id=48954121",
+        "points": null,
+        "numComments": null,
+        "storyId": 48952939,
+        "createdAt": "2026-07-18T01:08:29Z",
+        "createdAtUnix": 1784336909,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48947613",
+        "author": "codelikeawolf",
+        "type": "comment",
+        "title": null,
+        "text": "I immediately thought of the Judas Priest album and agreed that supplying heavy metal to the UK is indeed vital.",
+        "url": "https://news.ycombinator.com/item?id=48947613",
+        "points": null,
+        "numComments": null,
+        "storyId": 48933371,
+        "createdAt": "2026-07-17T14:10:29Z",
+        "createdAtUnix": 1784297429,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": []
+  },
+  "painPoints": [],
+  "actionItems": []
+}
