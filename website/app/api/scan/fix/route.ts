@@ -61,6 +61,17 @@ const _scanFixLimiter = createLimiter(PRESETS.scanFix);
 // Phase 1.2b — cross-fix scanner re-validation gate.
 import { runTier } from "@/app/lib/scan-modules";
 
+// Multi-Agent Consensus (Craig-authorized 2026-06-02) — Forensic-tier
+// opt-in cross-check between Claude and GPT-4o. Wired into the whole-file
+// fix path 2026-07-20 (was built + tested but never connected — KI #47).
+import { runConsensus, renderConsensusReport } from "@/app/lib/multi-agent-consensus";
+import type { ConsensusResult } from "@/app/lib/multi-agent-consensus";
+import { isOpenAiConfigured } from "@/app/lib/openai-client";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { resolveConsensusGate } = require("@/app/lib/consensus-gate") as {
+  resolveConsensusGate: (opts: { consensusRequested: boolean; tierIsNuclear: boolean; openAiConfigured: boolean }) => { useConsensus: boolean; reason: string | null };
+};
+
 // Phase 2.2 — architecture annotator. Reads the codebase SHAPE (not
 // per-file) and produces a "design observations" report — layering
 // violations, duplicated logic, god objects, refactoring opportunities.
@@ -771,6 +782,89 @@ CRITICAL RULES — violations will cause re-scan failure:
 }
 
 /**
+ * Multi-Agent Consensus wrapper — same (fileContent, filePath, issues,
+ * conventionsHeader) => Promise<string> shape as askClaude(), so it drops
+ * straight into attemptFixWithRetries() in place of askClaude when consensus
+ * is enabled. Runs Claude + GPT-4o in parallel on an identical prompt asking
+ * for exactly one fenced code block (required by parseFixBlock's strict
+ * single-fence parsing — see lib/multi-agent-consensus.ts).
+ *
+ * On agreement (full/partial/single_agent) returns the merged fix. On
+ * disagreement or no_parse, returns fileContent UNCHANGED — validateFix's
+ * existing "no changes produced" check then naturally skips the file rather
+ * than auto-applying a disputed fix. That's the point of consensus: force
+ * human review when the two frontier models don't agree, not silently pick
+ * one. onReport is called once with the full ConsensusResult so the caller
+ * can surface renderConsensusReport() in the API response.
+ *
+ * Anthropic-side spend is tracked automatically by anthropicCallWithRetry
+ * (same tracker as every other Claude call this route makes). OpenAI-side
+ * spend is NOT wired into that Anthropic-specific tracker — it's bounded
+ * by the maxTokens cap on the call itself, matching the original design's
+ * own stated safety boundary ("OpenAI cost per call bounded by maxTokens
+ * passed in by caller").
+ */
+async function askClaudeConsensus(
+  fileContent: string,
+  filePath: string,
+  issues: string[],
+  conventionsHeader: string,
+  onReport: (result: ConsensusResult) => void
+): Promise<string> {
+  const systemPrompt = "You are an expert code fixer for GateTest, an AI-powered QA platform with 120 scanning modules.";
+  const userPrompt = `${conventionsHeader}Fix ALL of the following issues in this file. Every fix must pass GateTest's re-scan.
+
+FILE: ${filePath}
+ISSUES TO FIX:
+${issues.map((i, idx) => `${idx + 1}. ${i}`).join("\n")}
+
+CURRENT CODE:
+\`\`\`
+${fileContent}
+\`\`\`
+
+CRITICAL RULES — violations will cause re-scan failure:
+- Fix the ROOT CAUSE, not the symptom. Never patch over an issue.
+- Preserve every non-issue line exactly — do not rewrite or reformat unrelated code.
+- Never remove functionality to "fix" a warning.
+- If a fix would require context you don't have, output the UNCHANGED original file verbatim.
+- Return your answer as EXACTLY ONE fenced code block containing the complete fixed file content — nothing outside the fence, no explanation.`;
+
+  const fixModel = activeFixModel();
+  const claudeCall = async () => {
+    const body = JSON.stringify({
+      model: fixModel,
+      max_tokens: 8192,
+      messages: [{ role: "user", content: `${systemPrompt}\n\n${userPrompt}` }],
+      ...fixModelExtras(fixModel),
+    });
+    const res = await anthropicCallWithRetry(body);
+    if (res.status !== 200) {
+      return { ok: false, text: "", tokensIn: 0, tokensOut: 0, error: `Claude API error ${res.status}` };
+    }
+    const content = res.data.content as Array<{ type: string; text: string }>;
+    const usage = res.data.usage as { input_tokens?: number; output_tokens?: number } | undefined;
+    return {
+      ok: true,
+      text: content?.[0]?.text || "",
+      tokensIn: usage?.input_tokens || 0,
+      tokensOut: usage?.output_tokens || 0,
+    };
+  };
+
+  const result = await runConsensus({
+    systemPrompt,
+    userPrompt,
+    maxTokens: 8192,
+    claudeCall,
+  });
+
+  onReport(result);
+
+  return result.mergedFix ?? fileContent;
+}
+
+/**
  * Validate Claude's fix output before we commit it.
  * Catches truncation (max_tokens hit), refusals, and obvious garbage.
  */
@@ -1017,6 +1111,13 @@ export async function POST(req: NextRequest) {
     // calls ride the customer's own key and the per-tier USD cap is lifted
     // (their budget); the tier token cap stays as runaway protection.
     anthropicApiKey?: string;
+    // Multi-Agent Consensus opt-in (Craig-authorized 2026-06-02). Forensic
+    // ($399) tier only — runs Claude AND GPT-4o in parallel on each
+    // whole-file fix, ships the fix only on agreement, forces human review
+    // (skips the file, surfaces both candidates) on disagreement. Silently
+    // ignored (treated as false) on any other tier or when OPENAI_API_KEY
+    // isn't configured — this is additive, never a hard requirement.
+    consensus?: boolean;
   };
   try {
     input = await req.json();
@@ -1121,6 +1222,19 @@ export async function POST(req: NextRequest) {
   // (which is typically "scanned 42 files" chatter). Anything trimmed
   // by the cap surfaces in the PR comment as advisory.
   const tierForCap = input.tier || "full";
+
+  // Multi-Agent Consensus gate — Forensic ($399) tier opt-in only, and only
+  // when the deployment actually has OPENAI_API_KEY configured. Any other
+  // combination silently falls back to single-agent Claude (never a hard
+  // error) — see askClaudeConsensus() above, resolveConsensusGate() in
+  // lib/consensus-gate.js, and KI #47 in docs/ROADMAP.md.
+  const consensusRequested = input.consensus === true;
+  const { useConsensus, reason: consensusSkipReason } = resolveConsensusGate({
+    consensusRequested,
+    tierIsNuclear: tierForCap === "nuclear",
+    openAiConfigured: isOpenAiConfigured(),
+  });
+
   const clusterResult = clusterAndRank(issuesForClustering, { includeWarnings: true });
   const capResult = applyFixCap(clusterResult.clusters, tierForCap);
   const advisoryMarkdown = renderAdvisorySection(capResult);
@@ -1375,6 +1489,11 @@ export async function POST(req: NextRequest) {
     claudeError: string | null;
   };
   const attemptHistoryByFile: Record<string, { attempts: AttemptLog[]; summary: string; success: boolean }> = {};
+
+  // Multi-Agent Consensus reports — one entry per file that ran through
+  // askClaudeConsensus (only when useConsensus is true). Surfaced in the
+  // API response under `consensus.reports`.
+  const consensusReports: Array<{ file: string; agreement: string; confidence: string; report: string }> = [];
 
   // Contextual Grounding — build ONCE before the per-file loop from whatever
   // file contents the caller already passed in (no extra network call). An
@@ -1709,8 +1828,18 @@ export async function POST(req: NextRequest) {
       // number (summary-shaped findings, multi-region issues, etc.). Same
       // existing iterative loop, BUT the result is now run through the
       // mutation guard before being accepted.
+      //
+      // Multi-Agent Consensus (useConsensus) only applies to this path, not
+      // the surgical (line-numbered) path above — a deliberate scope limit,
+      // not an oversight. See askClaudeConsensus() for why.
+      let lastConsensusResult: ConsensusResult | null = null;
       const loopResult = await attemptFixWithRetries({
-        askClaude: (currentIssues: string[]) => askClaude(originalContent, filePath, currentIssues, conventionsHeader),
+        askClaude: useConsensus
+          ? (currentIssues: string[]) =>
+              askClaudeConsensus(originalContent, filePath, currentIssues, conventionsHeader, (r) => {
+                lastConsensusResult = r;
+              })
+          : (currentIssues: string[]) => askClaude(originalContent, filePath, currentIssues, conventionsHeader),
         validateFix,
         verifyFixQuality,
         originalContent,
@@ -1718,6 +1847,16 @@ export async function POST(req: NextRequest) {
         issues: fileIssueTexts,
         maxAttempts: DEFAULT_MAX_ATTEMPTS,
       });
+
+      if (lastConsensusResult) {
+        const r: ConsensusResult = lastConsensusResult;
+        consensusReports.push({
+          file: filePath,
+          agreement: r.agreement,
+          confidence: r.confidence,
+          report: renderConsensusReport(r),
+        });
+      }
 
       attemptHistoryByFile[filePath] = {
         attempts: loopResult.attempts,
@@ -2390,6 +2529,9 @@ export async function POST(req: NextRequest) {
             failed: cisoReportDescriptor?.failed === true,
           }
         : { skipped: true, reason: "tier is not nuclear — board-ready CISO report is a $399-tier deliverable" },
+      consensus: useConsensus
+        ? { enabled: true, filesRun: consensusReports.length, reports: consensusReports }
+        : { skipped: true, reason: consensusSkipReason },
       grounding: {
         summary: groundingSummary,
         filesUsed: groundingExtract.found.map((f) => f.path),

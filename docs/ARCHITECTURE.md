@@ -219,7 +219,7 @@ GateTest/
 | `GITHUB_OAUTH_REDIRECT_URI` | Explicit override for the GitHub OAuth callback URL when it can't be derived from `NEXT_PUBLIC_BASE_URL`. |
 | `OPENAI_API_KEY` | Second-agent GPT-4o cross-check for Multi-Agent Consensus (Forensic-tier opt-in, `website/app/lib/openai-client.ts` + `multi-agent-consensus.ts`, Craig-authorized 2026-06-02). Built and tested but **not yet wired into `/api/scan/fix/route.ts`** — see Known Issue in docs/ROADMAP.md added 2026-07-20. |
 | `GATETEST_ADMIN_USERNAMES` | Comma-separated allowlist of admin usernames for `/admin` (pairs with `GATETEST_ADMIN_PASSWORD`). |
-| `GLUECRON_API_URL` / `GLUECRON_TOKEN` | Declared in `.env.example` but **not read anywhere in `gluecron-client.ts`** — the code only reads `GLUECRON_BASE_URL` / `GLUECRON_API_TOKEN` above. Dead placeholder pair; safe to remove from `.env.example` in a future cleanup, not required for the connection to work. |
+| `GLUECRON_API_URL` / `GLUECRON_TOKEN` | Fallback aliases for `GLUECRON_BASE_URL` / `GLUECRON_API_TOKEN` above — read by `integrations/gluecron/client.ts` (the `HostBridge` abstraction), NOT by `website/app/lib/gluecron-client.ts` (a different, similarly-named file the website route uses directly). Both files exist; don't assume one covers the other when auditing this connection — confirmed 2026-07-20 after an initial audit pass wrongly flagged these as dead by checking only the website-side file. |
 | `NEXT_PUBLIC_APP_VERSION` | Client-visible app version string. |
 
 ---
