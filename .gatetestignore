@@ -12,3 +12,10 @@ hardcoded-url:localhost@website/app/components/HomeEyesEarsHands.tsx
 # not defects in GateTest — counting them against the self-scan would be
 # self-deception in the other direction.
 reliability-corpus/**
+
+# Playground.tsx deliberately renders the money-float anti-pattern
+# (parseFloat + `total * tax`) as marketing sample code showing customers
+# what GateTest catches. It legitimately corroborates (total + tax both
+# money-named in the same statement) — that's the demo working as intended,
+# not a real bug in this file.
+money-float:arithmetic@website/app/preview/_components/Playground.tsx

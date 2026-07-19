@@ -172,7 +172,7 @@ const HELP = `
     integrationTests  Integration test execution
     e2e            End-to-end test execution
     visual         Visual regression testing
-    accessibility  WCAG 2.2 AAA compliance
+    accessibility  WCAG 2.2 automated audit (AA + AAA-aligned)
     performance    Performance & Web Vitals
     security       Security analysis
     seo            SEO & metadata validation

@@ -1,0 +1,9 @@
+{
+  "name": "bench-target",
+  "version": "1.0.0",
+  "description": "Synthetic benchmark corpus for GateTest vs. Semgrep vs. ESLint — see docs/COMPETITIVE-BENCHMARK.md",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

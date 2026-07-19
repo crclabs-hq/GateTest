@@ -91,6 +91,57 @@ describe('ErrorSwallowModule — empty catch', () => {
     );
   });
 
+  it('warns (not errors) on a catch block whose body is only a comment', async () => {
+    // Corpus shape (src/api/handler.js): comments document intent but don't
+    // handle the error, so it's still a surfaced finding — but this codebase's
+    // own documented idiom is `catch { // explain why }`, so firing at ERROR
+    // blocked our own self-scan with 291 false positives. Calibrated to
+    // warning: still visible, no longer blocking.
+    write(tmp, 'src/handler.js', [
+      'async function getOrderHandler(req, res) {',
+      '  try {',
+      '    const order = await findOrderById(req.params.id);',
+      '    res.json(order);',
+      '  } catch (err) {',
+      '    // PLANTED: silently swallowed error',
+      '  }',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('error-swallow:empty-catch:'));
+    assert.ok(hit);
+    assert.strictEqual(hit.severity, 'warning');
+  });
+
+  it('still errors (not warns) on a truly bare empty catch — no code, no comment', async () => {
+    write(tmp, 'src/a.js', [
+      'async function run() {',
+      '  try {',
+      '    await doThing();',
+      '  } catch (err) {',
+      '  }',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('error-swallow:empty-catch:'));
+    assert.ok(hit);
+    assert.strictEqual(hit.severity, 'error');
+  });
+
+  it('does NOT flag a comment-only catch nested inside a string literal', async () => {
+    write(tmp, 'src/a.js', [
+      'const exampleSnippet = "try { x(); } catch (err) { /* nothing */ }";',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(
+      r.checks.find((c) => c.name.startsWith('error-swallow:empty-catch:')),
+      undefined,
+    );
+  });
+
   it('downgrades empty catch in test files to warning', async () => {
     write(tmp, 'a.test.js', [
       'it("throws", () => {',
