@@ -137,6 +137,31 @@ describe('envIntegrity module', () => {
     fs.rmSync(tmp, { recursive: true });
   });
 
+  test('KI #48: does NOT flag CRLF-encoded lines as trailing whitespace (self-scan found 123/123 false positives from this)', async () => {
+    const tmp = makeTmp();
+    fs.writeFileSync(path.join(tmp, '.env'), 'DATABASE_URL=postgres://localhost:5432/db\r\nSECRET=abc123\r\n');
+    const r = makeResult();
+    await new EnvIntegrity().run(r, { projectRoot: tmp });
+    assert.equal(
+      r.checks.filter(c => !c.passed && c.name.includes('trailing-space')).length,
+      0,
+      'CRLF line endings alone should not be reported as trailing whitespace'
+    );
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test('still flags GENUINE trailing whitespace on a CRLF-encoded file', async () => {
+    // Control case — proves the CRLF fix doesn't blind the check entirely.
+    const tmp = makeTmp();
+    fs.writeFileSync(path.join(tmp, '.env'), 'DATABASE_URL=postgres://localhost   \r\nSECRET=abc123\r\n');
+    const r = makeResult();
+    await new EnvIntegrity().run(r, { projectRoot: tmp });
+    const hits = r.checks.filter(c => !c.passed && c.name.includes('trailing-space'));
+    assert.equal(hits.length, 1, `expected exactly the one genuine hit (line 1), got: ${JSON.stringify(hits)}`);
+    assert.ok(hits[0].name.endsWith(':1'), 'the genuine trailing-whitespace hit should be on line 1');
+    fs.rmSync(tmp, { recursive: true });
+  });
+
   test('no-ops when no .env files found', async () => {
     const tmp = makeTmp();
     const r = makeResult();

@@ -49,4 +49,13 @@ describe('LintModule — markdown findings are INFO (not error/warning noise)', 
     assert.ok(md, 'expected a markdown finding');
     assert.strictEqual(md.severity, 'info', 'markdown nits must be info, never error/warning');
   });
+
+  it('KI #48: does NOT flag CRLF line endings as trailing whitespace (same bug fixed in env-integrity)', async () => {
+    fs.writeFileSync(path.join(tmp, 'README.md'), '# Title\r\n\r\nsome text\r\nmore text\r\n');
+    const mod = new LintModule();
+    const result = makeResult();
+    await mod.run(result, { projectRoot: tmp });
+    const md = result.checks.find((c) => c.name.startsWith('lint:markdown:') && c.passed === false);
+    assert.strictEqual(md, undefined, `CRLF alone should not produce a markdown finding, got: ${JSON.stringify(md)}`);
+  });
 });

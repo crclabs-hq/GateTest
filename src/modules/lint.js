@@ -230,7 +230,11 @@ class LintModule extends BaseModule {
     const content = fs.readFileSync(file, 'utf-8');
     const issues = [];
 
-    const lines = content.split('\n');
+    // Split on \r?\n, not bare \n — a CRLF-encoded file would otherwise leave
+    // a trailing \r on every line, which trimEnd() below strips too, making
+    // every single line look like it has trailing whitespace (same root
+    // cause fixed in env-integrity.js — see KI #48).
+    const lines = content.split(/\r\n|\r|\n/);
     for (let i = 0; i < lines.length; i++) {
       // Check for trailing whitespace
       if (lines[i] !== lines[i].trimEnd() && !lines[i].endsWith('  ')) {

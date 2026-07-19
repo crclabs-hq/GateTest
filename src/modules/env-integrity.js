@@ -60,7 +60,11 @@ class EnvIntegrityModule extends BaseModule {
     } catch { return 0; }
 
     let issues = 0;
-    const lines = content.split('\n');
+    // Split on \r?\n, not bare \n — a CRLF-encoded file (common on Windows,
+    // and the default for git checkouts with core.autocrlf) would otherwise
+    // leave a trailing \r on every line, which TRAILING_SPACE below then
+    // misreads as real trailing whitespace on every single value line.
+    const lines = content.split(/\r\n|\r|\n/);
 
     lines.forEach((line, idx) => {
       const lineNum = idx + 1;
