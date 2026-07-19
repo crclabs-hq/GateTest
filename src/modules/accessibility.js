@@ -1,5 +1,5 @@
 /**
- * Accessibility Module - WCAG 2.2 AAA compliance checking.
+ * Accessibility Module - WCAG 2.2 automated audit (AA + AAA-aligned checks).
  * Validates HTML, ARIA usage, color contrast, keyboard access, and more.
  */
 
@@ -33,7 +33,7 @@ const NAMED_COLORS = {
 
 class AccessibilityModule extends BaseModule {
   constructor() {
-    super('accessibility', 'Accessibility (WCAG 2.2 AAA) Audit');
+    super('accessibility', 'Accessibility (WCAG 2.2, AA + AAA-aligned) Audit');
   }
 
   async run(result, config) {

@@ -16,6 +16,8 @@ export interface ModuleOutput {
   details: string[];
   /** Optional skip reason when the module was asked to run but had nothing to inspect. */
   skipped?: string;
+  /** Real USD cost incurred by this module's own API calls (e.g. aiReview's Claude spend). Omit/0 for free modules. */
+  costUsd?: number;
 }
 
 export interface ModuleContext {

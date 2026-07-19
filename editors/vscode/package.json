@@ -1,0 +1,31 @@
+{
+  "name": "gatetest-vscode",
+  "displayName": "GateTest",
+  "description": "Free quick quality gate (syntax, lint, secrets, code quality) inline in the editor. Deeper 120-module AI scans and auto-fix PRs at gatetest.ai.",
+  "version": "0.1.0",
+  "publisher": "gatetest",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Linters", "Other"],
+  "keywords": ["security", "code quality", "linter", "static analysis", "ai"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "gatetest.scanWorkspace",
+        "title": "GateTest: Scan Workspace (free quick gate)"
+      }
+    ]
+  },
+  "dependencies": {
+    "@gatetest/cli": "^1.59.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/crclabs-hq/GateTest"
+  },
+  "homepage": "https://gatetest.ai",
+  "license": "MIT"
+}

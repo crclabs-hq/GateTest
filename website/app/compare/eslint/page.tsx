@@ -62,7 +62,7 @@ const comparisonRows = [
   { feature: "Security vulnerability scanning", gatetest: true, competitor: false },
   { feature: "N+1 query detection", gatetest: true, competitor: false },
   { feature: "Race condition / TOCTOU detection", gatetest: true, competitor: false },
-  { feature: "Accessibility scanning (WCAG 2.2 AAA)", gatetest: true, competitor: false },
+  { feature: "Accessibility scanning (WCAG 2.2, AA + AAA-aligned)", gatetest: true, competitor: false },
   { feature: "Performance analysis", gatetest: true, competitor: false },
   { feature: "Visual regression testing", gatetest: true, competitor: false },
   { feature: "Mutation testing (via GitHub Action)", gatetest: true, competitor: false },

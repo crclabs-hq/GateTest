@@ -251,9 +251,12 @@ AI answer engines cite sources that are (a) structured, (b) definitive,
 
 ### 4.3 Launch & distribution (all Boss Rule — Craig executes/approves)
 
-- **GitHub Marketplace listing** (Known Issue #29, copy already drafted in
-  `docs/GITHUB-MARKETPLACE-LISTING.md`) — distribution where the developers
-  already are. Highest-priority Craig action in this whole document.
+- **GitHub Marketplace listing** (Known Issue #29, canonical copy in
+  `integrations/marketplace/listing.md`) — distribution where the developers
+  already are. Rejected 2026-05-14 (paid functionality described without a
+  real Marketplace plan behind it, on an app with ~0 installs); resubmitting
+  free-only per the canonical doc. Highest-priority Craig action in this
+  whole document.
 - **HN launch** — readiness work already merged (PR #212). The story that
   works on HN is §1.4/§2.4: "we built a QA tool and made it gate itself in
   public; here's the live badge and every finding it raised on us."

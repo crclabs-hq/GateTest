@@ -4,20 +4,19 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Install GateTest — GitHub App · Private repo scanning",
   description:
-    "Install GateTest on GitHub in one click. Auto-scans every push and PR with 120 quality modules. Results posted as commit statuses and PR comments.",
+    "Install GateTest on GitHub free. Auto-scans every push and PR with a quick quality gate — syntax, lint, and secrets detection. Deeper 120-module scans and auto-fix PRs available on gatetest.ai.",
 };
 
 const AFTER_INSTALL = [
   { t: "info", text: "  GateTest detected push to feature/billing-overhaul" },
-  { t: "info", text: "  Scanning 11 changed files vs main..." },
-  { t: "pass", text: "  [PASS] syntax       · lint       · secrets" },
-  { t: "fail", text: "  [FAIL] moneyFloat   — 1 issue" },
+  { t: "info", text: "  Running free quick gate — syntax, lint, secrets, code quality..." },
+  { t: "fail", text: "  [FAIL] secrets      — 1 issue" },
   { t: "sep",  text: "" },
-  { t: "err",  text: "  ERR  moneyFloat › src/billing/invoice.ts:94" },
-  { t: "dim",  text: "       parseFloat() on invoice.total — use Decimal.js" },
+  { t: "err",  text: "  ERR  secrets › src/billing/invoice.ts:94" },
+  { t: "dim",  text: "       hardcoded API key detected" },
   { t: "sep",  text: "" },
-  { t: "sum",  text: "  Opening auto-fix PR: gatetest/auto-repair-48821..." },
-  { t: "ok",   text: "  PR #47 opened — review the fix, merge when ready." },
+  { t: "sum",  text: "  Commit status: FAILED. PR comment posted." },
+  { t: "dim",  text: "  Want the full 120-module scan + auto-fix PR? → gatetest.ai" },
 ];
 
 const T: Record<string, string> = {
@@ -64,14 +63,14 @@ export default function GitHubSetup() {
         <div className="mb-12 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-400 font-medium mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
-            GitHub App · private repos · auto-fix PRs
+            GitHub App · free quick gate · private repos supported
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold mb-3 leading-tight">
             GateTest on GitHub —<br />
             <span className="text-teal-400">install once, forget about config.</span>
           </h1>
           <p className="text-white/50 text-base leading-relaxed max-w-xl mx-auto">
-            Every push and PR gets scanned with 120 modules. Findings post as inline PR comments and commit statuses. Auto-fix PR opened automatically when there&apos;s something to fix.
+            Free the moment you install: every push and PR gets a quick quality gate — syntax, lint, and hardcoded-secret detection — with results posted as commit statuses and PR comments. Want the full 120-module scan, AI code review, and auto-fix PRs? Run a deeper scan or subscribe to Continuous at <a href="https://gatetest.ai" className="text-teal-400 hover:underline">gatetest.ai</a>.
           </p>
         </div>
 
@@ -117,10 +116,10 @@ export default function GitHubSetup() {
         {/* Steps */}
         <div className="space-y-3 mb-10">
           {[
-            { n: "1", title: "Install the app", desc: "Pick individual repos or the whole org. Takes 30 seconds." },
-            { n: "2", title: "Push or open a PR", desc: "GateTest hooks into GitHub webhooks — no config file needed." },
-            { n: "3", title: "See results in your PR", desc: "Inline annotations on the diff, commit status, PR comment with severity breakdown." },
-            { n: "4", title: "Auto-fix PR (optional)", desc: "When ANTHROPIC_API_KEY is set on the org, GateTest opens a fix PR automatically. You review, you merge." },
+            { n: "1", title: "Install the app", desc: "Pick individual repos or the whole org. Takes 30 seconds. Free, no card required." },
+            { n: "2", title: "Push or open a PR", desc: "GateTest hooks into GitHub webhooks — no config file needed. Free quick gate runs automatically on every push." },
+            { n: "3", title: "See results in your PR", desc: "Commit status (pass/fail) and a PR comment with what the quick gate found." },
+            { n: "4", title: "Go deeper (optional, paid)", desc: "Full 120-module scan with AI code review, or a $49/mo Continuous subscription that also opens auto-fix PRs — both purchased separately at gatetest.ai." },
           ].map((s) => (
             <div key={s.n} className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
               <div className="w-7 h-7 rounded-lg bg-teal-600/20 border border-teal-500/30 flex items-center justify-center shrink-0">
@@ -152,7 +151,7 @@ export default function GitHubSetup() {
 
         {/* Privacy */}
         <div className="rounded-xl bg-teal-500/5 border border-teal-500/15 px-5 py-4 mb-10 text-xs text-white/45 leading-relaxed">
-          🔒 <strong className="text-white/70">Code is never stored.</strong> GateTest reads your files, runs them through 120 modules in memory, posts results to GitHub, then discards everything. No database of your code. No training on your codebase.
+          🔒 <strong className="text-white/70">Code is never stored.</strong> GateTest reads your files, runs them through the modules included in your tier in memory, posts results to GitHub, then discards everything. No database of your code. No training on your codebase.
         </div>
 
         {/* Not on GitHub? */}

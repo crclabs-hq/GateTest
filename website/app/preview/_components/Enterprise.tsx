@@ -2,7 +2,7 @@ import { I } from "../_lib/icons";
 import { Reveal } from "./Reveal";
 
 const STATS = [
-  { v: "110+", l: "checks per unified scan" },
+  { v: "120+", l: "checks per unified scan" },
   { v: "<15s", l: "quick-scan wall time" },
   { v: "10+", l: "fragmented tools replaced" },
   { v: "100×", l: "margin vs. manual review" },

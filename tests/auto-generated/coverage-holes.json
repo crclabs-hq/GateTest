@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-15T05:32:44.954Z",
+  "generatedAt": "2026-07-17T05:43:18.061Z",
   "coverageHoles": [
     {
       "file": "src/ai-loop.js",
@@ -226,56 +226,70 @@
       "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
     },
     {
-      "file": "website/app/lib/progress-emitter.js",
+      "file": "website/app/lib/pr-composer.js",
       "operator": "?",
       "before": null,
       "after": null,
       "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
     },
     {
-      "file": "website/app/lib/progress-emitter.js",
+      "file": "website/app/lib/pr-composer.js",
       "operator": "?",
       "before": null,
       "after": null,
       "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
     },
     {
-      "file": "website/app/lib/progress-emitter.js",
+      "file": "website/app/lib/pr-composer.js",
       "operator": "?",
       "before": null,
       "after": null,
       "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
     },
     {
-      "file": "website/app/lib/progress-emitter.js",
+      "file": "website/app/lib/pr-composer.js",
       "operator": "?",
       "before": null,
       "after": null,
       "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
     },
     {
-      "file": "website/app/lib/progress-emitter.js",
+      "file": "website/app/lib/pr-composer.js",
       "operator": "?",
       "before": null,
       "after": null,
       "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
     },
     {
-      "file": "website/app/lib/scan-modules/types.ts",
+      "file": "website/app/lib/scan-modules/supply-chain.ts",
       "operator": "?",
       "before": null,
       "after": null,
       "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
     },
     {
-      "file": "website/app/lib/scan-modules/types.ts",
+      "file": "website/app/lib/scan-modules/supply-chain.ts",
       "operator": "?",
       "before": null,
       "after": null,
       "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
     },
     {
-      "file": "website/app/lib/scan-modules/types.ts",
+      "file": "website/app/lib/scan-modules/supply-chain.ts",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/scan-modules/supply-chain.ts",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/scan-modules/supply-chain.ts",
       "operator": "?",
       "before": null,
       "after": null,

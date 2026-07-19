@@ -82,6 +82,8 @@ export interface ModuleResultEnvelope {
   duration: number;
   details?: string[];
   skipped?: string;
+  /** Real USD cost incurred running this module (e.g. aiReview's Claude spend). Omitted/0 for free modules. */
+  costUsd?: number;
 }
 
 /**
@@ -140,6 +142,7 @@ export async function runTier(
           duration: Date.now() - started,
           skipped: out.skipped,
           details: out.details.length > 0 ? out.details : undefined,
+          costUsd: out.costUsd,
         };
       }
       const passed = out.issues === 0 && out.checks > 0;
@@ -167,6 +170,7 @@ export async function runTier(
         issues: out.issues,
         duration: Date.now() - started,
         details: detailsOut,
+        costUsd: out.costUsd,
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : "unknown error";

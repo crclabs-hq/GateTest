@@ -103,6 +103,31 @@ function makeJob(overrides = {}) {
 
 const SQL = () => []; // never actually invoked — queueStore is doubled
 
+function makeContinuousStore({
+  subscription = null,
+  findThrows = null,
+  allowance = { allowed: true },
+  allowanceThrows = null,
+} = {}) {
+  const calls = { findActiveByRepo: [], checkAiAllowance: [], recordAiSpend: [] };
+  return {
+    calls,
+    findActiveByRepo: async (_sql, repoUrl) => {
+      calls.findActiveByRepo.push(repoUrl);
+      if (findThrows) throw findThrows;
+      return subscription;
+    },
+    checkAiAllowance: async (_sql, subscriptionId) => {
+      calls.checkAiAllowance.push(subscriptionId);
+      if (allowanceThrows) throw allowanceThrows;
+      return allowance;
+    },
+    recordAiSpend: async (_sql, subscriptionId, usd) => {
+      calls.recordAiSpend.push({ subscriptionId, usd });
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // isAuthorisedTick
 // ---------------------------------------------------------------------------
@@ -350,6 +375,131 @@ describe('runWorkerTick — contract guards', () => {
       sendCallback: async () => ({}),
     });
     assert.strictEqual(result.ok, false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runWorkerTick — Continuous ($49/mo) AI budget gate (Known Issue #34)
+// ---------------------------------------------------------------------------
+
+describe('runWorkerTick — continuous AI budget gate', () => {
+  it('runs the default tier unchanged when continuousStore is not provided', async () => {
+    const qs = makeQueueStore({ nextJob: makeJob() });
+    let tierUsed = null;
+    const runScan = async (_repoUrl, tier) => {
+      tierUsed = tier;
+      return makeScanResult();
+    };
+    await runWorkerTick({ sql: SQL, queueStore: qs, runScan, sendCallback: async () => ({}) });
+    assert.strictEqual(tierUsed, 'quick');
+  });
+
+  it('stays on quick when the repo has no active continuous subscription', async () => {
+    const qs = makeQueueStore({ nextJob: makeJob() });
+    const cs = makeContinuousStore({ subscription: null });
+    let tierUsed = null;
+    const runScan = async (_repoUrl, tier) => {
+      tierUsed = tier;
+      return makeScanResult();
+    };
+    await runWorkerTick({ sql: SQL, queueStore: qs, runScan, sendCallback: async () => ({}), continuousStore: cs });
+    assert.strictEqual(tierUsed, 'quick');
+    assert.strictEqual(cs.calls.checkAiAllowance.length, 0, 'never checks allowance without a subscription');
+  });
+
+  it('escalates to the full (AI-inclusive) tier when the subscription has budget remaining', async () => {
+    const qs = makeQueueStore({ nextJob: makeJob() });
+    const cs = makeContinuousStore({
+      subscription: { stripe_subscription_id: 'sub_123' },
+      allowance: { allowed: true, spentUsd: 1, remainingUsd: 9, budgetUsd: 10 },
+    });
+    let tierUsed = null;
+    const runScan = async (_repoUrl, tier) => {
+      tierUsed = tier;
+      return makeScanResult();
+    };
+    await runWorkerTick({ sql: SQL, queueStore: qs, runScan, sendCallback: async () => ({}), continuousStore: cs });
+    assert.strictEqual(tierUsed, 'full');
+    assert.deepStrictEqual(cs.calls.checkAiAllowance, ['sub_123']);
+  });
+
+  it('falls back to quick when the monthly AI budget is exhausted', async () => {
+    const qs = makeQueueStore({ nextJob: makeJob() });
+    const cs = makeContinuousStore({
+      subscription: { stripe_subscription_id: 'sub_123' },
+      allowance: { allowed: false, spentUsd: 10, remainingUsd: 0, budgetUsd: 10 },
+    });
+    let tierUsed = null;
+    const runScan = async (_repoUrl, tier) => {
+      tierUsed = tier;
+      return makeScanResult();
+    };
+    await runWorkerTick({ sql: SQL, queueStore: qs, runScan, sendCallback: async () => ({}), continuousStore: cs });
+    assert.strictEqual(tierUsed, 'quick', 'exhausted budget must not grant AI-inclusive tier');
+  });
+
+  it('fails CLOSED to quick when checkAiAllowance throws', async () => {
+    const qs = makeQueueStore({ nextJob: makeJob() });
+    const cs = makeContinuousStore({
+      subscription: { stripe_subscription_id: 'sub_123' },
+      allowanceThrows: new Error('db down'),
+    });
+    let tierUsed = null;
+    const runScan = async (_repoUrl, tier) => {
+      tierUsed = tier;
+      return makeScanResult();
+    };
+    const result = await runWorkerTick({ sql: SQL, queueStore: qs, runScan, sendCallback: async () => ({}), continuousStore: cs });
+    assert.strictEqual(tierUsed, 'quick', 'a budget-check error must never grant unmetered AI spend');
+    assert.strictEqual(result.ok, true, 'the tick itself still completes');
+  });
+
+  it('fails CLOSED to quick when findActiveByRepo throws', async () => {
+    const qs = makeQueueStore({ nextJob: makeJob() });
+    const cs = makeContinuousStore({ findThrows: new Error('db down') });
+    let tierUsed = null;
+    const runScan = async (_repoUrl, tier) => {
+      tierUsed = tier;
+      return makeScanResult();
+    };
+    await runWorkerTick({ sql: SQL, queueStore: qs, runScan, sendCallback: async () => ({}), continuousStore: cs });
+    assert.strictEqual(tierUsed, 'quick');
+  });
+
+  it('records AI spend against the subscription ledger after a scan that incurred cost', async () => {
+    const qs = makeQueueStore({ nextJob: makeJob() });
+    const cs = makeContinuousStore({ subscription: { stripe_subscription_id: 'sub_123' } });
+    const runScan = async () =>
+      makeScanResult({
+        modules: [
+          { name: 'lint', status: 'passed', checks: 10, issues: 0, duration: 100 },
+          { name: 'aiReview', status: 'passed', checks: 3, issues: 1, duration: 900, costUsd: 0.042 },
+        ],
+      });
+    await runWorkerTick({ sql: SQL, queueStore: qs, runScan, sendCallback: async () => ({}), continuousStore: cs });
+    assert.strictEqual(cs.calls.recordAiSpend.length, 1);
+    assert.strictEqual(cs.calls.recordAiSpend[0].subscriptionId, 'sub_123');
+    assert.ok(Math.abs(cs.calls.recordAiSpend[0].usd - 0.042) < 1e-9);
+  });
+
+  it('does not record spend when no module incurred a cost', async () => {
+    const qs = makeQueueStore({ nextJob: makeJob() });
+    const cs = makeContinuousStore({ subscription: { stripe_subscription_id: 'sub_123' } });
+    const runScan = async () => makeScanResult(); // default module has no costUsd
+    await runWorkerTick({ sql: SQL, queueStore: qs, runScan, sendCallback: async () => ({}), continuousStore: cs });
+    assert.strictEqual(cs.calls.recordAiSpend.length, 0);
+  });
+
+  it('does not crash the tick when recordAiSpend throws', async () => {
+    const qs = makeQueueStore({ nextJob: makeJob() });
+    const cs = makeContinuousStore({ subscription: { stripe_subscription_id: 'sub_123' } });
+    cs.recordAiSpend = async () => { throw new Error('ledger write failed'); };
+    const runScan = async () =>
+      makeScanResult({
+        modules: [{ name: 'aiReview', status: 'passed', checks: 1, issues: 0, duration: 900, costUsd: 0.01 }],
+      });
+    const result = await runWorkerTick({ sql: SQL, queueStore: qs, runScan, sendCallback: async () => ({}), continuousStore: cs });
+    assert.strictEqual(result.ok, true);
   });
 });
 
