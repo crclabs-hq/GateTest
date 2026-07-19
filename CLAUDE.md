@@ -123,12 +123,18 @@ The `HostBridge` refactor is pre-authorized, and both bridges (GitHub + Gluecron
 
 | Platform     | Repository                                         | Status     |
 | ------------ | -------------------------------------------------- | ---------- |
-| Vapron (formerly Crontech.ai — renamed per Craig 2026-06-12) | https://github.com/Gate-Test/Crontech | INTEGRATING |
-| Gluecron.com | https://github.com/ccantynz-alt/Gluecron.com       | INTEGRATING |
+| Vapron (formerly Crontech.ai — renamed per Craig 2026-06-12) | https://github.com/ccantynz-alt/Vapron | **INTEGRATED — bespoke** (verified live 2026-07-20) |
+| Gluecron.com | https://github.com/ccantynz-alt/Gluecron.com       | **INTEGRATED — bespoke** (verified live 2026-07-20) |
+
+**Verified 2026-07-20 (prior "INTEGRATING" status and the `Gate-Test/Crontech` repo URL above were both stale):**
+- **Vapron**: has its own `.gatetest.json` (module config, severity overrides, doctrine cross-references — see `docs/BUILD_BIBLE.md` BLK-007 in that repo) and its own `gatetest-gate.yml`, which SHA-pins every GitHub Action it uses instead of trusting a mutable tag. That SHA-pinning practice was good enough that it's been back-ported into `integrations/github-actions/gatetest-gate.yml` in *this* repo (2026-07-20).
+- **Gluecron.com**: its generic clone-based CI gate is **deliberately disabled** (`GATETEST QUALITY GATE — DISABLED (auto-triggers off)`, "Authorized by Craig 2026-04-30") because the clone kept failing against a private dev repo. The real, live integration is a direct API webhook: `src/hooks/post-receive.ts` calls `POST /api/hooks/gatetest` on every push (HMAC/bearer-authed, own `gate_runs` table, in-app notifications, audit log — spec in that repo's `GATETEST_HOOK.md`).
+- Both repos' `.gatetest.json` point `gatetest_source` at `https://github.com/ccantynz-alt/gatetest` rather than `crclabs-hq/GateTest` — confirmed to be the **same physical repository** reachable under both owner names (identical commit history, size, `fork:false`/`parent:null` on both — an org-transfer artifact, not a fork/divergence risk).
+- **Lesson for future sessions:** before running `install.sh` against a protected repo, check whether it already has a *bespoke* integration — a repo missing the generic template is not the same as a repo missing protection. Blindly overwriting Vapron's or Gluecron's setup would have destroyed real customization and, in Gluecron's case, re-enabled a workflow Craig explicitly turned off.
 
 ### How the integration works
 
-GateTest remains a **standalone subscription product** on gatetest.ai. Protected platforms consume the same engine by cloning this repo at CI time — nothing is vendored, forked, or duplicated. Ship a fix here → every protected platform picks it up on the next CI run.
+GateTest remains a **standalone subscription product** on gatetest.ai. Protected platforms consume the same engine — either by cloning this repo at CI time via the generic `integrations/` template (Vapron does this, with its own SHA-pinning hardening layered on top), or via a bespoke integration that calls GateTest a different way (Gluecron's API webhook). Either is a valid protection mechanism; what matters is that the platform is actually gated, not that every platform uses an identical file. Ship a fix here → every protected platform that consumes the generic template picks it up on the next CI run; bespoke integrations (like Gluecron's webhook) need their own update if the API contract changes.
 
 ### What lives in THIS repo (`crclabs-hq/gatetest`)
 
@@ -157,7 +163,7 @@ curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integration
 ### Rules for every Claude session
 
 1. Before touching `integrations/`, `tests/integrations.test.js`, or this section — **STOP** and check for Craig's authorization.
-2. If a protected repo is missing its gate, the correct action is to **re-install**, never to remove the marker.
+2. If a protected repo is missing its gate, first check whether it actually has a **bespoke** integration instead of the generic one (clone the repo, look for `.gatetest.json` / any `gatetest-gate.yml` / a hook file before assuming it's unprotected). Only run `install.sh` once you've confirmed there's genuinely nothing there — never to remove the marker.
 3. If `tests/integrations.test.js` fails, a previous session broke protection. **Restore it, do not delete the test.**
 4. Adding a new protected platform: update the table above **and** add its repo to the installer docs.
 

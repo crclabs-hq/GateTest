@@ -42,12 +42,17 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout target repository
-        uses: actions/checkout@v4
+        # SHA-pinned (not the mutable @v4 tag) — supply-chain hardening
+        # back-ported from Vapron's copy of this workflow (found during
+        # the 2026-07-20 audit; Vapron pins every action it uses for the
+        # same reason). A tag can be moved to point at different code;
+        # a commit SHA cannot.
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           # Node 22 matches our baseline (.holdenmercer / dev). Node 20
           # is EOL on the GH Actions deprecation list and emits noisy
@@ -164,14 +169,14 @@ jobs:
       - name: Upload SARIF to GitHub Security
         if: always()
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@b7351df727350dca84cb9d725d57dcf5bc82ba26  # v3.37.1
         with:
           sarif_file: .gatetest/reports/gatetest-results.sarif
           category: gatetest
 
       - name: Upload GateTest reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: gatetest-reports-${{ github.run_id }}
           path: |
