@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "GateTest Installed — You're All Set",
-  description: "GateTest is now scanning your repos on every push and PR.",
+  description: "GateTest is now running a free quick gate on your repos on every push and PR.",
 };
 
 export default function Installed() {
@@ -19,8 +19,9 @@ export default function Installed() {
           <span className="gradient-text">GateTest is live.</span>
         </h1>
         <p className="text-lg text-muted mb-8">
-          Every push and pull request will now be automatically scanned by
-          120 quality modules. Results appear as commit statuses and PR comments.
+          Every push and pull request now gets a free quick gate — syntax,
+          lint, and hardcoded-secret detection. Results appear as commit
+          statuses and PR comments.
         </p>
 
         {/* What happens next */}
@@ -41,7 +42,7 @@ export default function Installed() {
             <div className="flex items-start gap-3">
               <span className="text-success shrink-0">&#10003;</span>
               <span className="text-muted">
-                GateTest scans automatically (syntax, security, a11y, perf...)
+                GateTest scans automatically (syntax, lint, secrets, code quality)
               </span>
             </div>
             <div className="flex items-start gap-3">

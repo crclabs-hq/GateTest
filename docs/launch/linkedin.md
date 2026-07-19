@@ -48,7 +48,7 @@ $199 Scan + Fix (auto-fix PR + pair-review), $399 Forensic
 executive summary). No subscription. No seats. No "contact sales."
 
 CLI is MIT and free forever:
-  npx github:crclabs-hq/GateTest --suite quick
+  npx -p @gatetest/cli gatetest --suite quick
 
 The Forensic tier on a recent customer's repo found two attack
 chains that no individual scanner would catch — hardcoded secret
@@ -102,9 +102,9 @@ This is why we built a unified gate instead of another linter.
 The bugs that end companies live in the seams between the
 tools nobody runs together.
 
-102 modules. One gate. Pay per scan.
+120 modules. One gate. Pay per scan.
 
-CLI is free: npx github:crclabs-hq/GateTest --suite quick
+CLI is free: npx -p @gatetest/cli gatetest --suite quick
 Hosted scans: gatetest.ai
 
 #DevSecOps #FinTech #SaaS #CodeQuality
@@ -177,11 +177,11 @@ The math is the pitch. Try it for the cost of a coffee:
 ```
 Founder, GateTest (gatetest.ai)
 
-One CI gate. 102 modules. Replaces SonarQube + Snyk + ESLint +
+One CI gate. 120 modules. Replaces SonarQube + Snyk + ESLint +
 Cypress + Lighthouse + 7 others. Auto-fix PR ships on the $199
 tier. Pay per scan — no subscription, no seats.
 
-Free CLI: npx github:crclabs-hq/GateTest --suite quick
+Free CLI: npx -p @gatetest/cli gatetest --suite quick
 ```
 
 ---

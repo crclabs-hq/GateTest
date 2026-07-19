@@ -63,6 +63,12 @@ function isAuthorisedTick({ cronHeader, isAdmin, env }) {
  * @param {Object}   args.queueStore                      scan-queue-store module (or test double)
  * @param {Function} args.runScan                         (repoUrl, tier) → Promise<ScanResult>
  * @param {Function} args.sendCallback                    ({ repository, sha, ref, scanResult }) → Promise<any>
+ * @param {Object}   [args.continuousStore]                continuous-subscription-store module (or test double).
+ *                                                          When provided, a job whose repo has an active Continuous
+ *                                                          ($49/mo) subscription with AI budget remaining runs the
+ *                                                          'full' (AI-inclusive) tier instead of 'quick', and any
+ *                                                          AI spend incurred is recorded against that month's ledger.
+ *                                                          Omitted entirely → identical to pre-KI-34 behaviour.
  * @param {string}   [args.tier]                          defaults to 'quick'
  */
 async function runWorkerTick({
@@ -70,6 +76,7 @@ async function runWorkerTick({
   queueStore,
   runScan,
   sendCallback,
+  continuousStore,
   tier = 'quick',
 }) {
   if (!sql || typeof sql !== 'function') {
@@ -110,11 +117,44 @@ async function runWorkerTick({
     ? `https://github.com/${repository}`
     : repository;
 
+  // Continuous ($49/mo) budget gate (Known Issue #34). Deterministic scans
+  // are always unlimited — only the AI-inclusive 'full' tier is gated, and
+  // only for repos with an active subscription and remaining budget. Any
+  // lookup/check failure fails CLOSED to 'quick' — an error here must never
+  // grant unmetered AI spend.
+  let scanTier = tier;
+  let continuousSubscription = null;
+  if (continuousStore) {
+    try {
+      continuousSubscription = await continuousStore.findActiveByRepo(sql, repoUrl);
+    } catch (err) {
+      console.error(
+        '[scan-worker] continuous subscription lookup failed:',
+        err && err.message ? err.message : err
+      );
+    }
+    if (continuousSubscription) {
+      try {
+        const allowance = await continuousStore.checkAiAllowance(
+          sql,
+          continuousSubscription.stripe_subscription_id
+        );
+        scanTier = allowance.allowed ? 'full' : 'quick';
+      } catch (err) {
+        console.error(
+          '[scan-worker] checkAiAllowance failed:',
+          err && err.message ? err.message : err
+        );
+        scanTier = 'quick';
+      }
+    }
+  }
+
   // Run the scan. runScan() is expected NEVER to throw; if it does we
   // treat it as a failed attempt.
   let scanResult;
   try {
-    scanResult = await runScan(repoUrl, tier);
+    scanResult = await runScan(repoUrl, scanTier);
   } catch (err) {
     scanResult = {
       status: 'failed',
@@ -130,6 +170,27 @@ async function runWorkerTick({
 
   const scanFailed =
     !scanResult || scanResult.status !== 'complete' || Boolean(scanResult.error);
+
+  // Record any AI spend regardless of overall scan outcome — if the aiReview
+  // module ran and cost money, that spend already happened at Anthropic and
+  // must be metered even if some other module in the same run failed.
+  if (continuousSubscription && continuousStore && scanResult && Array.isArray(scanResult.modules)) {
+    const aiCostUsd = scanResult.modules.reduce((sum, m) => sum + (Number(m.costUsd) || 0), 0);
+    if (aiCostUsd > 0) {
+      try {
+        await continuousStore.recordAiSpend(
+          sql,
+          continuousSubscription.stripe_subscription_id,
+          aiCostUsd
+        );
+      } catch (err) {
+        console.error(
+          '[scan-worker] recordAiSpend failed:',
+          err && err.message ? err.message : err
+        );
+      }
+    }
+  }
 
   if (!scanFailed) {
     try {

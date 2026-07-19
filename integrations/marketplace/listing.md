@@ -1,213 +1,157 @@
-# GateTest — Marketplace Listing Content
+# GateTest — GitHub Marketplace Listing (canonical)
+
+> **This is the single source of truth for the Marketplace listing.**
+> Three other drafts previously existed (`docs/GITHUB-MARKETPLACE-LISTING.md`,
+> `docs/marketplace-listing.md`, `docs/marketplace/listing-draft.md`) with
+> conflicting module counts (67/90/91/110/120), conflicting distribution
+> models (GitHub App vs. GitHub Action), and conflicting pricing strategies
+> (Marketplace-billed plans vs. free-only). None of them matched what was
+> actually submitted and rejected on 2026-05-14 (which described "90 modules"
+> and "Claude Opus 4.7" — text that doesn't appear in any tracked doc). All
+> three have been deleted; this file replaces them.
+>
+> **Rejection root cause (confirmed):** GitHub requires an app to already have
+> ≥100 installations AND be a verified publisher before it will let a listing
+> attach a paid pricing plan. The submitted listing described paid "Cloud AI"
+> functionality fulfilled through an external Stripe checkout on gatetest.ai —
+> paid functionality with no real Marketplace plan behind it, on an app with
+> ~0 installs. That mismatch, on an app nowhere near the install threshold, is
+> why it was rejected.
+>
+> **Fix:** resubmit as a genuinely **free** listing. No paid Marketplace plan
+> attached — sidesteps the install/verified-publisher gate entirely, and it's
+> honest: installing the App for free already runs a real, ongoing quick-scan
+> gate (below) with zero payment required. Paid deeper scans are described as
+> what they are — available on gatetest.ai, not something bought through this
+> install.
+>
+> **Module count:** verify with `node bin/gatetest.js --list | grep -cE '^  [a-zA-Z]'`
+> before every submission — this repo has a documented history of the module
+> count drifting stale in exactly this kind of static, manually-pasted copy
+> (see `docs/legal/public-copy-redline.md`). Verified 120 as of 2026-07-19.
+>
+> **Craig action:** go to `github.com/apps/gatetesthq` (or `.../edit`) →
+> Marketplace tab → replace the existing content with everything below →
+> confirm pricing plan is **Free only** (delete any other draft plan if one
+> exists from the rejected submission) → Submit for review.
 
 ---
 
-## Short description (160 chars — paste verbatim into the Marketplace form)
+## Short description (≤160 chars — Marketplace search card)
 
 ```
-67 AI-powered quality modules scan your repo on every PR. Security, performance, accessibility, and more. Issues found AND fixed automatically.
+120-module code quality gate for GitHub. Free continuous scanning on every push. Deeper AI-powered scans and auto-fix PRs available on gatetest.ai.
 ```
 
 ---
 
-## Full description (paste as Markdown into the Marketplace long-description field)
+## Full description (Markdown — Marketplace listing page)
 
----
+```markdown
+## One gate, 120 modules, installed in 30 seconds
 
-### Stop duct-taping 10 tools together. One gate. 67 modules. Zero compromise.
+GateTest scans every push to your repo and posts a pass/fail commit status —
+free, forever, no card required. It checks syntax, lint rules, and hardcoded
+secrets on every single push automatically once installed.
 
-Every engineering team eventually builds the same fragile patchwork: ESLint for style, SonarQube for code quality, Snyk for vulnerabilities, Lighthouse for performance, axe for accessibility, Percy for visual regressions, hadolint for Dockerfiles, tfsec for Terraform, actionlint for CI — each with its own config, its own dashboard, its own billing, and its own false-positive noise.
+For teams that want the full 120-module pass — security, reliability,
+infrastructure, accessibility, performance, and Claude-powered code review
+with automatic fix pull requests — deeper scans are available as a separate
+purchase on [gatetest.ai](https://gatetest.ai). This app install is not where
+that payment happens; it's free the moment you add it to a repo.
 
-**GateTest replaces all of them with a single GitHub App.**
+### What the free tier checks on every push
+- Syntax errors
+- Lint violations
+- Hardcoded secrets (API keys, tokens, credentials)
+- Core code-quality issues
 
-Install once. Every push and pull request is scanned by 67 AI-powered modules in under 60 seconds. A pass/fail commit status lands on your PR. If issues are found, GateTest opens an automatic fix PR — diff reviewed, fix explained, ready to merge. You only pay when the scan delivers value.
-
----
+### What the full 120-module scan adds (gatetest.ai, separate purchase)
+- Security: SSRF, ReDoS, TLS bypass, cookie misconfig, SQL migration safety
+- Reliability: N+1 queries, race conditions, resource leaks, async footguns
+- Infrastructure: Dockerfile, Kubernetes, Terraform/IaC, CI-workflow hardening
+- AI-generated-code specific checks: fake-fix detection, prompt-injection
+  surfaces, money-as-float bugs
+- Claude-powered code review that reasons about the change, not just pattern
+  matches
+- Auto-fix pull requests on the paid fix tiers — review the diff, merge
 
 ### How it works
+1. **Install** — add GateTest to the repos you want covered.
+2. **Push** — every push triggers the free quick gate automatically.
+3. **See results** — a commit status and PR comment show what was found.
+4. **Go deeper (optional)** — run a full 120-module scan, or subscribe to
+   continuous full-depth scanning, at [gatetest.ai](https://gatetest.ai).
 
-1. **Install** — Click "Install" on this page. GateTest is added to your chosen repositories.
-2. **Scan** — Every `push` and `pull_request` event triggers a full scan. No configuration required.
-3. **Review** — GateTest posts a commit status (✅ pass / ❌ fail) and a detailed comment on your PR with every issue found, severity level, and the exact line.
-4. **Fix** — On Scan + Fix and Nuclear tiers, GateTest opens a second PR with automatic fixes applied. Review the diff, merge, done.
-5. **Pay on completion** — Your card is held but not charged until the scan finishes and delivers a result. If the scan fails for any reason, the hold is released automatically.
-
----
-
-### What GateTest catches that your current stack misses
-
-#### Security (12 modules)
-- **SSRF** — Detects user-controlled URLs flowing into `fetch`/`axios`/`got` without validation. The bug behind thousands of cloud breaches.
-- **ReDoS** — Catastrophic regex patterns: `(a+)+`, overlapping alternations, greedy unanchored `.*`. Finds them before a 10KB input locks your Node process for 30 seconds.
-- **Hardcoded secrets** — API keys, JWTs, private keys, Stripe live keys, GitHub PATs — flagged before they reach `git log`.
-- **TLS bypass** — `rejectUnauthorized: false`, `verify=False`, `ssl._create_unverified_context()` — the "just for staging" shortcuts that ship to prod.
-- **Cookie security** — `httpOnly: false`, `secure: false`, weak session secrets (`changeme`, `keyboard cat`) across Express, Next.js, Django, FastAPI.
-- **SQL migration safety** — `DROP COLUMN` without a rollback window, `ADD COLUMN NOT NULL` without a default, `CREATE INDEX` without `CONCURRENTLY`. The ops mistakes that cause 2 AM outages.
-
-#### Code quality (10 modules)
-- **N+1 queries** — Database calls inside loops across Prisma, Sequelize, TypeORM, Mongoose, Knex, Drizzle, node-pg, and MySQL2. Detects both block-form (`for`, `while`) and callback-form (`.map`, `.forEach`) loops. Recognises `Promise.all(arr.map(...))` as the correct fix.
-- **Error swallowing** — Empty `catch {}` blocks, `.catch(() => {})` on promise chains, `process.on('uncaughtException')` handlers that don't exit, Node callbacks that ignore `err`.
-- **Race conditions** — TOCTOU: `fs.exists` → `fs.unlink` on the same path (CVE-class CWE-367). ORM `findOne` → `create` without a transaction or `ON CONFLICT` handler (lost-update bug).
-- **Resource leaks** — `fs.createReadStream` never piped to completion, `setInterval` with no `clearInterval`, `WebSocket` opened and abandoned.
-- **Import cycles** — Circular dependencies in JS/TS detected via Tarjan's SCC algorithm. The bug that reproduces randomly based on module-cache warmth and test order.
-- **Async iteration** — `.filter(async ...)` (Promise is truthy, predicate is meaningless), `.forEach(async ...)` (errors swallowed), `.map(async ...)` not wrapped in `Promise.all`.
-
-#### Money and time safety (2 modules)
-- **Float money** — `parseFloat(price)`, `Number(amount)`, `float(total)` on money-named variables — the bug that causes $0.01 drift over a million transactions. Safe-harbour for decimal.js, big.js, dinero.js, Python `decimal`.
-- **Datetime timezone bugs** — Python `datetime.now()` without `tz=`, `datetime.utcnow()` (deprecated in 3.12+), JS 0-indexed month literals, `moment()` without `.tz()`.
-
-#### AI and LLM safety (1 module)
-- **Prompt injection surfaces** — User input interpolated into prompt templates without delimiters. `NEXT_PUBLIC_*` API keys bundled to the browser. `openai`/`anthropic` calls with no `max_tokens` (unbounded cost DoS). Deprecated model strings (`text-davinci-003`, `claude-v1`).
-
-#### TypeScript safety (1 module)
-- **Strictness regressions** — `strict: false`, `noImplicitAny: false`, `skipLibCheck: true` in `tsconfig.json`. `@ts-nocheck` file-wide suppression, unreasoned `@ts-ignore` comments, `as any` casts in exported signatures.
-
-#### Infrastructure (5 modules)
-- **Dockerfile** — Root user, `:latest` tags, `curl | sh` pipe installs, baked-in secrets, `chmod 777`, `ADD` with URLs.
-- **Kubernetes** — Privileged containers, `hostNetwork: true`, missing resource limits, missing readiness probes, inline secrets in env vars, world-open `LoadBalancer` services.
-- **Terraform / IaC** — Public S3 ACLs, `0.0.0.0/0` on SSH/RDP/database ports, unencrypted RDS/EBS/EFS volumes, `Principal: "*"` IAM wildcards.
-- **CI workflow security** — Unpinned Actions (`uses: actions/checkout@main` instead of a SHA), `${{ github.event.pull_request.title }}` shell injection, missing `permissions:` blocks, soft-failing the quality gate with `continue-on-error: true`.
-- **Shell scripts** — Missing `set -euo pipefail`, `eval` injection, `rm -rf $VAR` without quoting, hardcoded secrets, backtick command substitution.
-
-#### Developer hygiene (5 modules)
-- **Feature flags** — `if (true)` / `const FEATURE_X = true` — flags that graduated to "permanently on" and were never cleaned up.
-- **PII in logs** — `console.log(password)`, `logger.info(req.body)`, `log.debug(JSON.stringify(user))`. The GDPR violation that ships in every codebase.
-- **OpenAPI drift** — Routes in Express / Fastify / Next.js App Router that have no matching spec entry, and spec paths with no handler.
-- **Cron expressions** — Invalid field counts, out-of-range values, impossible dates (Feb 30). Harvests from GitHub Actions schedules, Kubernetes CronJobs, Vercel crons, and source-code call sites.
-- **Dead code** — Unused exports, orphaned files, 10+ line commented-out code blocks.
+### Privacy
+Code is scanned to produce a result; see the privacy policy for exactly what
+is retained and for how long: https://gatetest.ai/legal/privacy
+```
 
 ---
 
-### Pricing
+## Category
 
-All plans use **pay-on-completion** — your card is held at checkout but captured only when the scan finishes and delivers a result. If the scan fails for any reason, the hold is released with no charge.
-
-| Plan | Price | What you get |
-|------|-------|-------------|
-| **Free** | $0/month | 1 scan/month on public repos. No card required. |
-| **Quick Scan** | $29 | Security + secrets + syntax + lint (4 modules). Results in under 15 seconds. |
-| **Full Scan** | $99 | All 67 modules. Full report in SARIF, JUnit, JSON, and HTML. Under 60 seconds. |
-| **Scan + Fix** | $199 | All 67 modules + automatic fix PR opened in your repo, ready to review and merge. |
-| **Nuclear** | $399 | Everything + mutation testing, chaos testing, live crawling, and autonomous exploration. |
-| **Continuous** | $49/month | All 67 modules scan on every push to every branch. Always-on protection. |
+**Primary:** Code quality
+**Secondary:** Security
 
 ---
 
-### Compared to the alternatives
+## Pricing model
 
-| Tool | What it covers | Annual cost (typical team) |
-|------|---------------|--------------------------|
-| SonarQube Cloud | Code quality | $1,500+/year |
-| Snyk | Vulnerabilities | $1,200+/year |
-| Lighthouse CI | Performance | Free (but manual setup) |
-| axe | Accessibility | Free (but separate pipeline) |
-| Percy | Visual regression | $600+/year |
-| hadolint + tfsec + actionlint | Infrastructure | Free (but 3 more configs) |
-| **GateTest Full** | **All of the above + 40 more modules** | **$99 per scan or $49/month** |
+Select **Free** in the Marketplace pricing editor. Do not attach a second
+plan — GateTest is not eligible for a paid Marketplace plan yet (requires
+≥100 installs + verified publisher status; revisit once installs clear that
+threshold, see `docs/ROADMAP.md`). Paid tiers are sold separately on
+gatetest.ai and must not be described as purchasable through this listing.
 
----
-
-### Works with any language
-
-GateTest's 9 universal language modules cover Python, Go, Rust, Java, Ruby, PHP, C#, Kotlin, and Swift — the same security, reliability, and quality checks adapted for each language's idioms.
-
----
-
-*GateTest is built and maintained by the GateTest team. Questions? hello@gatetest.ai*
-
----
-
-## Categories (select on the Marketplace form)
-
-- Code review
-- Testing
-- Security
-- Continuous integration
-
----
-
-## Pricing plans — configuration reference
-
-(Use these values when entering plans into the Marketplace pricing editor.)
-
-### Free
+### Free plan — configuration reference
 - **Plan name:** Free
 - **Type:** Free
-- **Description:** 1 scan per month on public repositories. No credit card required. Perfect for open-source projects.
+- **Description:** Continuous quick-scan gate on every push — syntax, lint, and hardcoded-secret detection. No card required.
 - **Bullet points:**
-  - 1 scan/month on public repos
-  - Quick Scan (security + secrets + syntax + lint)
-  - PR commit status
-  - No credit card required
-
-### Quick Scan — $29
-- **Plan name:** Quick Scan
-- **Type:** Per-unit or flat monthly
-- **Price:** $29
-- **Unit label:** scan
-- **Description:** Instant feedback on the four highest-signal modules: security, secrets, syntax, and lint. Results in under 15 seconds.
-- **Bullet points:**
-  - Security vulnerability scan
-  - Hardcoded secrets detection
-  - Syntax and lint checks
-  - PR commit status + comment
-  - Results in under 15 seconds
-
-### Full Scan — $99
-- **Plan name:** Full Scan
-- **Type:** Per-unit or flat monthly
-- **Price:** $99
-- **Unit label:** scan
-- **Description:** Every module, every language. 67 AI-powered checks. SARIF output for GitHub Security. Results in under 60 seconds.
-- **Bullet points:**
-  - All 67 quality modules
-  - SARIF output → GitHub Security tab
-  - JUnit + JSON + HTML reports
-  - N+1 queries, race conditions, float-money, TLS bypass, and 63 more
-  - Results in under 60 seconds
-
-### Scan + Fix — $199
-- **Plan name:** Scan + Fix
-- **Type:** Per-unit or flat monthly
-- **Price:** $199
-- **Unit label:** scan
-- **Description:** All 67 modules plus an automatic fix PR opened in your repo. Review the diff, merge, done.
-- **Bullet points:**
-  - Everything in Full Scan
-  - Auto-fix PR with AI-generated patches
-  - Fix explanations — know what changed and why
-  - Review and merge on your schedule
-
-### Nuclear — $399
-- **Plan name:** Nuclear
-- **Type:** Per-unit or flat monthly
-- **Price:** $399
-- **Unit label:** scan
-- **Description:** The full arsenal: 67 modules + auto-fix + mutation testing + chaos testing + live crawling + autonomous exploration.
-- **Bullet points:**
-  - Everything in Scan + Fix
-  - Mutation testing (validates your tests catch real bugs)
-  - Chaos testing
-  - Live site crawling
-  - Autonomous exploration mode
-
-### Continuous — $49/month
-- **Plan name:** Continuous
-- **Type:** Flat monthly
-- **Price:** $49/month
-- **Description:** Scan every push to every branch. All 67 modules. Always-on protection. The equivalent of a full-time QA engineer reviewing every commit.
-- **Bullet points:**
-  - Scan on every push + PR
-  - All 67 quality modules
+  - Runs automatically on every push
+  - Syntax + lint + hardcoded-secret detection
   - Commit status on every PR
-  - Monthly billing, cancel anytime
-  - Equivalent to Full Scan on every single push
+  - No credit card required
+  - Deeper scans and auto-fix available separately at gatetest.ai
+
+---
+
+## Installation URL
+```
+https://gatetest.ai/github/setup
+```
+
+## Privacy Policy URL
+```
+https://gatetest.ai/legal/privacy
+```
+
+## Terms of Service URL
+```
+https://gatetest.ai/legal/terms
+```
+
+## Support URL
+```
+mailto:hello@gatetest.ai
+```
+
+---
+
+## Logo / screenshots
+
+A logo and at least one screenshot were already uploaded for the rejected
+2026-05-14 submission — confirm they're still present and still accurate
+(no visible "90 modules" or model-version text in any screenshot) before
+resubmitting rather than starting over.
 
 ---
 
 ## App configuration reference
 
-(Values to confirm on the GitHub App settings page before submitting the listing.)
+(Confirm these match the live GitHub App settings before submitting.)
 
 | Setting | Value |
 |---------|-------|
@@ -220,3 +164,14 @@ GateTest's 9 universal language modules cover Python, Go, Rust, Java, Ruby, PHP,
 | **Commit statuses permission** | Read & write |
 | **Issues permission** | Read & write |
 | **Metadata permission** | Read |
+
+---
+
+## What to expect after resubmission
+
+- GitHub reviews Marketplace listings manually; typical turnaround 1–3 weeks.
+- They check: the app works as described, legal pages are live, install flow
+  works end-to-end. All three are already true today (verified 2026-07-19).
+- **Before resubmitting:** confirm `hello@gatetest.ai` forwarding actually
+  works (the 2026-05-14 rejection sat unread for over two months because of
+  this) — GitHub's only way to reach you about this listing is email.

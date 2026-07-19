@@ -12,8 +12,9 @@
 > reader who clones the repo can't find a claim we don't honour.
 >
 > **Honesty rule for this launch:** we do not promise anything we cannot
-> deliver right now. Every number and command below was verified against
-> the live product on 2026-06-04.
+> deliver right now. Every number and command below was re-verified against
+> the live product on 2026-07-19 — re-check the starred ones again at
+> launch hour regardless, since this list has already drifted once before.
 
 ---
 
@@ -21,12 +22,12 @@
 
 | Fact | Value | Notes |
 |---|---|---|
-| Module count | **110** | Matches the live gatetest.ai copy and `node bin/gatetest.js --list`. |
-| AI model | **Claude Sonnet 4.7** | Per CLAUDE.md v1.46. |
-| Pricing | **$29 / $99 / $199 / $399 one-time + $49/mo Continuous** | No per-fix billing. No "Starter" tier. No monthly fix credit. |
-| $399 tier name | **Forensic** | Renamed from "Nuclear" in v1.45. |
-| npm package | **NOT published** ⭐ | `npm view gatetest` → 404. Post must use `npx github:...` or the Action, never `npm install -g gatetest`, until it's published. |
-| GitHub Marketplace | **In review** ⭐ | Do not claim "live on the Marketplace." Install the Action by ref for now. |
+| Module count | **120** | `node bin/gatetest.js --list \| grep -cE '^  [a-zA-Z]'` → 120. Re-verify this exact command before posting; this number has drifted before. |
+| AI model | **Claude Sonnet 5** (Fable 5 on Scan+Fix/Forensic) | Per CLAUDE.md `## VERSION`, current as of v1.59.0. Don't hardcode a model name in the post body itself — it's gone stale twice already; say "Claude" and let CLAUDE.md carry the specific model. |
+| Pricing | **$29 / $99 / $199 / $399 one-time + $49/mo Continuous + $29/mo MCP** | No per-fix billing. No "Starter" tier. No monthly fix credit. |
+| $399 tier name | **Forensic** | Renamed from "Nuclear" 2026-06-02. |
+| npm package | **Published** ✅ | `npm view @gatetest/cli version` → live (currently 1.58.1). Note the package has two bins (gatetest, gatetest-mcp), so plain `npx @gatetest/cli` fails with "could not determine executable to run" — verified 2026-07-19. Use `npx -p @gatetest/cli gatetest --suite quick ./` in the post instead. |
+| GitHub Marketplace | **Rejected 2026-05-14, resubmitting free-only** ⭐ | Do not claim "on the Marketplace" until it's actually approved — check `github.com/organizations/crclabs-hq/settings/apps/gatetest-hq` for current status before posting. Install the Action by ref or `npx -p @gatetest/cli gatetest` until then. |
 | gatetest.ai live + scan works ⭐ | verify in incognito before posting | |
 | Stripe test checkout works ⭐ | verify with 4242 4242 4242 4242 before posting | |
 
@@ -34,7 +35,7 @@
 
 ## Title (lead with #1)
 
-1. `Show HN: GateTest – 110 QA modules in one scan, opens an auto-fix PR for what it finds`
+1. `Show HN: GateTest – 120 QA modules in one scan, opens an auto-fix PR for what it finds`
 2. `Show HN: GateTest – one CI gate instead of SonarQube + Snyk + ESLint + Lighthouse + axe`
 3. `Show HN: GateTest – pay-per-scan code QA that opens the PR that fixes what it finds`
 
@@ -52,7 +53,7 @@ Hi HN — I'm Craig. I built GateTest because I was tired of duct-taping
 SonarQube + Snyk + ESLint + Lighthouse + axe + half a dozen others into
 every project, each with its own config, dashboard and bill.
 
-GateTest runs 110 analysis modules in one scan — security, supply chain,
+GateTest runs 120 analysis modules in one scan — security, supply chain,
 code quality, performance, accessibility, SEO, infra (Docker/Terraform/
 K8s/CI), and an AI-app safety set — then, on the paid tiers, uses Claude
 to open a pull request that fixes what it found. You review and merge; it
@@ -63,7 +64,7 @@ Try it free, no signup, no install: https://gatetest.ai (paste a repo or
 a live URL).
 
 Run the CLI locally (MIT-licensed, free):
-  npx github:crclabs-hq/GateTest --suite quick ./
+  npx -p @gatetest/cli gatetest --suite quick ./
 
 Pricing is per-scan, one-time, not a subscription:
   $29  Quick    — 4 fast modules, scan-only
@@ -75,9 +76,8 @@ Pricing is per-scan, one-time, not a subscription:
 who want every push gated.)
 
 What's honestly NOT there yet:
-  - The npm package isn't published — use npx or the GitHub Action.
-  - The GitHub Marketplace listing is still in review, so for now you
-    install the Action by ref, not from the Marketplace.
+  - The GitHub Marketplace listing isn't live yet — for now, install via
+    npx or the GitHub Action, not from the Marketplace.
   - Mutation testing + chaos/fuzz run via the GitHub Action only — they
     need a CI runner and a real browser, so the website Forensic scan
     can't do them (Chromium won't launch in a serverless function).
@@ -101,7 +101,7 @@ after someone files a refund.
 ```
 Author here. The objections I expect, with honest answers:
 
-1. "Isn't this just 110 linters and a report?" The report isn't the
+1. "Isn't this just 120 linters and a report?" The report isn't the
 product — the fix PR is. Most tools stop at findings. We spend the
 engineering effort on making the patch actually mergeable: AST/rule
 layers first, Claude only on patterns nothing deterministic caught,
@@ -122,9 +122,8 @@ beats us in its lane (CodeQL on taint does), I'll say so.
 4. "Show me a real PR." /docs/proofs has real runs against external
 codebases with before/after reports. Fork the repo and run it on us.
 
-Two things that aren't live yet and I'd rather say plainly: the npm
-package isn't published (use npx / the Action), and the Marketplace
-listing is still in review.
+One thing that isn't live yet and I'd rather say plainly: the GitHub
+Marketplace listing isn't up yet — use npx or the Action in the meantime.
 ```
 
 ## More prepared replies (keep them factual, concede where true)
@@ -159,8 +158,9 @@ listing is still in review.
    on desktop **and** phone.
 2. ⭐ One real Stripe checkout end-to-end with `4242 4242 4242 4242` reaches
    a result.
-3. ⭐ Run `npx github:crclabs-hq/GateTest --suite quick` yourself once —
-   confirm the exact command in the post works cold.
+3. ⭐ Run `npx -p @gatetest/cli gatetest --suite quick` yourself once, on a machine that
+   has never run it before (or `npm cache clean` first) — confirm the exact
+   command in the post works cold.
 4. Have Vercel logs tailing so you see 500s live.
 5. Post the body, then the first comment within ~5 minutes.
 

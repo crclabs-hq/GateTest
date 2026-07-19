@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "GateTest — AI writes fast. GateTest keeps it honest.",
   description:
-    "The QA guardrail for the AI-assisted engineering era. 110+ checks in one unified scan — security, memory leaks, type safety, edge cases, architecture. Every issue ships back as an auto-fix pull request.",
+    "The QA guardrail for the AI-assisted engineering era. 120+ checks in one unified scan — security, memory leaks, type safety, edge cases, architecture. Every issue ships back as an auto-fix pull request.",
   robots: { index: false, follow: false },
 };
 

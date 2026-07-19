@@ -1,0 +1,247 @@
+{
+  "generatedAt": "2026-07-19T06:04:58.422Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 15,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 7,
+      "SonarQube": 1,
+      "Semgrep": 2,
+      "CodeQL": 2,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 3
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48960896",
+        "author": "eth0up",
+        "type": "comment",
+        "title": null,
+        "text": "If you do start munching on advil; note there are rumors, by medical researchers, case reports, and more, that if you dig beneath the shiny surface to find, do show a lot of compelling data for GI damage, heart risk and other serious side-effects. And depending on how fair one wants to be with 'evidence' -- almost all wording describing NSAIDs as \"protective\", uses easy-to-miss but distinct qualifiers such as \"potential\" and other such vague 'maybe'-equivalents that alone have been used to suppress and dismiss many other...potential medicines. Sometimes, conclusive just means inspired. And sometimes ambiguity means certainty, depending on levels of inspiration involved.Of course, one might pause for a moment to consider just how potential the alluded benefits really are with ibuprofen, and ask why doctors aren't recommending it for mental health, or as a general health product. But that might point to the peculiar fact that there is substantially more evidence suggesting risk over health benefits, and the benefits really depend on what one wants to see. There is a reason it's not marketed as a health product, but with the way it's framed, it should be, nu? I mean, potential benefits sells a lot of snake oil and lowfat yogurt. Why not advil and acetaminophen?And by similar logic used to dismiss acetaminophen here as a health risk, eg because there's no link with autism&#x2F;ADHD it's safe; why not apply the same logic to opiates? We could just say opiates do not directly cause, eg , parkinsons, or AIDS, therefore it's safe for babies. Myself, I never correlated acetaminophen with autism&#x2F;ADHD, but I know it has more side-effects than listen on the bottle.",
+        "url": "https://news.ycombinator.com/item?id=48960896",
+        "points": null,
+        "numComments": null,
+        "storyId": 48959302,
+        "createdAt": "2026-07-18T18:41:28Z",
+        "createdAtUnix": 1784400088,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48959796",
+        "author": "shykes",
+        "type": "comment",
+        "title": null,
+        "text": "Congrats from a fellow YCS10 founder :)",
+        "url": "https://news.ycombinator.com/item?id=48959796",
+        "points": null,
+        "numComments": null,
+        "storyId": 48949551,
+        "createdAt": "2026-07-18T16:52:01Z",
+        "createdAtUnix": 1784393521,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48958809",
+        "author": "nyku",
+        "type": "story",
+        "title": "Build: Mobile-First AI Creation on Roblox",
+        "text": "Build: Mobile-First AI Creation on Roblox",
+        "url": "https://about.roblox.com/newsroom/2026/07/build-without-limits-on-roblox",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 48958809,
+        "createdAt": "2026-07-18T15:07:39Z",
+        "createdAtUnix": 1784387259,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48957935",
+        "author": "dqv",
+        "type": "comment",
+        "title": null,
+        "text": "I'm frowning upon your use of a good experience that one person had in a completely different context to overshadow a bad use of AI that affects hundreds of thousands of people. They both happened in healthcare, but other than that, they are different situations with different outcomes.I made a single presumption: that the PCP's use of AI for this situation is not mandatory. Is it mandatory or is it not?In 2024 when the AI empathy snakeoil machine was inflicted on the nurses, the nurses had no choice in the matter. And management has already established that they may do something like this again.Your situation is completely different. It's a doctor overseeing their own tool. If the AI makes a mistake, the doctor is responsible and would presumably take responsibility. Who is responsible if an AI tool makes a mistake in a performance evaluation of an employee? The employee! The employee is guilty until proven innocent. But the employee gets no choice in whether that AI tool is used against them (absent a union agreement which dictates how AI tools can be used).The reason I fear the misuse of AI is because it is so useful.",
+        "url": "https://news.ycombinator.com/item?id=48957935",
+        "points": null,
+        "numComments": null,
+        "storyId": 48952880,
+        "createdAt": "2026-07-18T13:20:13Z",
+        "createdAtUnix": 1784380813,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48957323",
+        "author": "notjackiechan",
+        "type": "comment",
+        "title": null,
+        "text": "I think there is a chasm to cross. the model's training to be aware of the harness it is in, at the same time building probes and observation tool can help it to cross that chasm.Still seem too soon for a model to have that ability to build a harness on its own, and swap its session to another harness in the same environment. Like a snake shedding its skin, but in this case its harness.",
+        "url": "https://news.ycombinator.com/item?id=48957323",
+        "points": null,
+        "numComments": null,
+        "storyId": 48935905,
+        "createdAt": "2026-07-18T12:05:34Z",
+        "createdAtUnix": 1784376334,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48957157",
+        "author": "nyku",
+        "type": "story",
+        "title": "The Zoom hack that says, 'Don't record me'",
+        "text": "The Zoom hack that says, 'Don't record me'",
+        "url": "https://techcrunch.com/2026/07/17/the-zoom-hack-that-says-dont-record-me/",
+        "points": 4,
+        "numComments": 0,
+        "storyId": 48957157,
+        "createdAt": "2026-07-18T11:43:22Z",
+        "createdAtUnix": 1784375002,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48956269",
+        "author": "nyku",
+        "type": "story",
+        "title": "South Korea building sovereign cybersecurity AI after US Mythos export controls",
+        "text": "South Korea building sovereign cybersecurity AI after US Mythos export controls",
+        "url": "https://en.yna.co.kr/view/AEN20260716005600320",
+        "points": 3,
+        "numComments": 0,
+        "storyId": 48956269,
+        "createdAt": "2026-07-18T08:43:05Z",
+        "createdAtUnix": 1784364185,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [
+      {
+        "objectId": "48962394",
+        "author": "ang_cire",
+        "type": "comment",
+        "title": null,
+        "text": "How would they stop? Are you insinuating they're going to have reviewed all code at some point, and that new code for them to review will just cease to exist? Or that they'll just decide to stop finding bugs they're finding now in new code when they review it? All the previous model checkers didn't stop giving us bugs to fix, which is why his premise is wrong; every big company is still running SonarQube because it still gives you bug findings. So will AI.If the argument were instead that it will cease to find new classes of vulnerabilities and bugs, that may very well be true, because that is a question of the limitations of programming and at a lower level computer architecture, but that's not the argument the author made.",
+        "url": "https://news.ycombinator.com/item?id=48962394",
+        "points": null,
+        "numComments": null,
+        "storyId": 48960155,
+        "createdAt": "2026-07-18T21:05:31Z",
+        "createdAtUnix": 1784408731,
+        "intent": "bug"
+      }
+    ],
+    "Semgrep": [
+      {
+        "objectId": "48963396",
+        "author": "bartlebone",
+        "type": "comment",
+        "title": null,
+        "text": "Cloudflare tunnels are pretty cool. Do you segregate your server from your home domain too? Little weird having cloudflared on my home network. It make things a little more annoying but I haven’t bothered to fix it since I dev on the same production server.",
+        "url": "https://news.ycombinator.com/item?id=48963396",
+        "points": null,
+        "numComments": null,
+        "storyId": 48962758,
+        "createdAt": "2026-07-18T23:15:01Z",
+        "createdAtUnix": 1784416501,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48958250",
+        "author": "1vuio0pswjnm7",
+        "type": "comment",
+        "title": null,
+        "text": "\"Blanket claims like \"Everybody\" are trivially falsifiable.\"As are claims like \"No one\" or \"99.9%\"How many times per week are such claims made on HN and in similar forums with respect to software and hardware curl https:&#x2F;&#x2F;hn.algolia.com&#x2F;api&#x2F;v1&#x2F;search?query=no+one&tags=comment |grep -Eo '\\\"nbHits\\\":[0-9]+' Perhaps the term \"everybody\" is just a figure of speech used in an online title. Can we, should we, forgive HN commenters for making 47,000+ trivially falsifiable claimsHow often do HN commenters use the trivially falsifiable term \"everybody\" curl https:&#x2F;&#x2F;hn.algolia.com&#x2F;api&#x2F;v1&#x2F;search?query=everybody&tags=comment|egrep -o '\\\"nbHits\\\":[0-9]+' What about the term \"99.9%\"I read the article but found no hint of \"aggressive-denialism that anyone could find AI genuinely useful (bordering on miraculous)\"Instead I found a statement that the author finds AI \"incredibly\" useful:\"An AI summary would have been incredibly useful\"Where, specifically, is the \"aggressive-denialism that anyone could find AI genuinely useful (bordering on miraculous)\" in this articleThe author's point as I understood it is about \"AI\" _hype_ not \"AI\" usefulness. The issue she has is with the _people_ who are hyping \"AI\" and the actual or potential effects of that hype",
+        "url": "https://news.ycombinator.com/item?id=48958250",
+        "points": null,
+        "numComments": null,
+        "storyId": 48952445,
+        "createdAt": "2026-07-18T14:02:28Z",
+        "createdAtUnix": 1784383348,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "48958871",
+        "author": "codelion",
+        "type": "story",
+        "title": "Coding agent for local models on a Mac",
+        "text": "Coding agent for local models on a Mac",
+        "url": "https://mlx-optiq.com/blog/optiq-code",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 48958871,
+        "createdAt": "2026-07-18T15:14:24Z",
+        "createdAtUnix": 1784387664,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48958865",
+        "author": "codelion",
+        "type": "comment",
+        "title": null,
+        "text": "Just use OpenEvolve for such problems.",
+        "url": "https://news.ycombinator.com/item?id=48958865",
+        "points": null,
+        "numComments": null,
+        "storyId": 48956879,
+        "createdAt": "2026-07-18T15:13:41Z",
+        "createdAtUnix": 1784387621,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "48964406",
+        "author": "Saris",
+        "type": "comment",
+        "title": null,
+        "text": "If you can make the browser pass all the other checks going on in the background, clicking the checkmark is all that's left.",
+        "url": "https://news.ycombinator.com/item?id=48964406",
+        "points": null,
+        "numComments": null,
+        "storyId": 48964015,
+        "createdAt": "2026-07-19T02:12:52Z",
+        "createdAtUnix": 1784427172,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48964349",
+        "author": "KomoD",
+        "type": "comment",
+        "title": null,
+        "text": "> was that it detects headless browsers> Apparently this just simulates clicking on the checkmarkNot just that. It also spoofs a bunch of browser stuff.A standard headless browser will probably get flagged.",
+        "url": "https://news.ycombinator.com/item?id=48964349",
+        "points": null,
+        "numComments": null,
+        "storyId": 48964015,
+        "createdAt": "2026-07-19T02:00:23Z",
+        "createdAtUnix": 1784426423,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48964294",
+        "author": "krackers",
+        "type": "comment",
+        "title": null,
+        "text": "I thought the whole point of turnstile was that it detects headless browsers and it's supposed to be \"difficult\" to bypass. Apparently this just simulates clicking on the checkmark. Is it really that easy?",
+        "url": "https://news.ycombinator.com/item?id=48964294",
+        "points": null,
+        "numComments": null,
+        "storyId": 48964015,
+        "createdAt": "2026-07-19T01:49:22Z",
+        "createdAtUnix": 1784425762,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}

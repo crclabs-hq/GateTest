@@ -8,11 +8,14 @@
 > typically outperforms a flopped HN post by 10-50x on qualified clicks,
 > and inclusions are persistent (archives rank on Google).
 >
-> **Verified facts (do not drift):** 120 modules · free no-signup scan at
-> gatetest.ai · CLI via `npx github:crclabs-hq/GateTest` (npm NOT
-> published) · pay-per-scan $29/$99/$199/$399 · $49/mo Continuous is
-> COMING SOON (not purchasable yet — do not claim it) · GitHub
-> Marketplace listing in review · never auto-merges.
+> **Verified facts (re-verified 2026-07-19, do not drift):** 120 modules ·
+> free no-signup scan at gatetest.ai · CLI via
+> `npx -p @gatetest/cli gatetest` (npm package published, but note the
+> package has two bins so plain `npx @gatetest/cli` fails — use the `-p`
+> form above) · pay-per-scan $29/$99/$199/$399 · $49/mo Continuous is LIVE
+> (Craig green-lit 2026-06-12) · GitHub Marketplace listing rejected
+> 2026-05-14, resubmitting free-only — do not claim it's live until
+> approved · never auto-merges.
 
 ---
 
@@ -36,7 +39,7 @@ Subject: **GateTest — QA gate that opens the PR that fixes what it finds**
 
 Hi [name],
 
-GateTest is a CI quality gate that runs 110 checks (security, reliability,
+GateTest is a CI quality gate that runs 120 checks (security, reliability,
 a11y, AI-safety) and then — the part that's different — opens a pull
 request that *fixes* what it found: each fix is re-validated against the
 scanner, gets an auto-written regression test, and is pair-reviewed by a
@@ -45,7 +48,7 @@ seats.
 
 Two things your readers can try in under a minute, free, no signup:
 - Scan any public website in a real browser: https://gatetest.ai/web
-- Run the MIT-licensed CLI on any repo: `npx github:crclabs-hq/GateTest`
+- Run the MIT-licensed CLI on any repo: `npx -p @gatetest/cli gatetest`
 
 Honest detail your readers will appreciate: we run GateTest on GateTest —
 the homepage shows the live self-scan result, including the modules that
@@ -64,7 +67,7 @@ Suggested blurb (their voice, feel free to edit):
 
 > **GateTest** — a QA gate with a party trick: it doesn't just fail your
 > CI, it opens the PR that fixes the failure, with a regression test and
-> a second-AI pair review attached. 110 checks, pay-per-scan pricing,
+> a second-AI pair review attached. 120 checks, pay-per-scan pricing,
 > free no-signup website scan to try it.
 
 ---
