@@ -169,7 +169,23 @@ class WebHeadersModule extends BaseModule {
     const relUnix = rel.replace(/\\/g, '/');
     if (/(?:^|\/)src[\\/]modules[\\/]/.test(relUnix)) return 0;
 
+    // Skip test/spec/fixture files entirely — CSP/CORS/header values embedded
+    // in test fixtures (as escaped-string source-in-a-string, as template-
+    // literal file content, or as inline object literals used to exercise
+    // the detector) are not real deployed config. An earlier attempt fixed
+    // this the same way as redos.js/cron-expression.js/prompt-safety.js — a
+    // content-based "is the match inside a string literal" check — but that
+    // broke 4 tests here specifically: unlike those modules' flagged
+    // patterns (bare regex literals, bare env-var names — never normally
+    // quoted in real code), a CSP/CORS header value is ALWAYS inside a
+    // string literal in BOTH real code and fixtures, so "inside a string"
+    // carries zero discriminating signal for this module. Path-based isTest
+    // is the actual reliable signal here — it doesn't care whether a
+    // fixture is represented via escaped quotes or a template literal, and
+    // it's safe: every fixture target in tests/web-headers.test.js (and
+    // friends) lives under os.tmpdir(), which never matches this pattern.
     const isTest = /(?:^|\/)(?:tests?|__tests__|spec|fixtures?|e2e)(?:\/|$)|\.(?:test|spec)\.[a-z]+$/i.test(relUnix);
+    if (isTest) return 0;
 
     const lines = content.split('\n');
     let issues = 0;
@@ -200,7 +216,8 @@ class WebHeadersModule extends BaseModule {
       if (/content-security-policy|frame-ancestors|default-src|script-src|style-src|object-src/i.test(line)) {
         if (/['"`]?unsafe-eval['"`]?/i.test(line)) {
           issues += this._flag(result, `web-headers:csp-unsafe-eval:${rel}:${i + 1}`, {
-            severity: isTest ? 'warning' : 'error',
+            // isTest files return 0 above, before this line is reachable.
+            severity: 'error',
             file: rel,
             line: i + 1,
             message: 'Content-Security-Policy contains `unsafe-eval` — re-enables `eval()`/`new Function()` and the entire class of attacks CSP is supposed to block',
@@ -245,7 +262,8 @@ class WebHeadersModule extends BaseModule {
       const idx = content.search(/access-control-allow-origin/i);
       const lineNo = content.slice(0, Math.max(0, idx)).split('\n').length;
       issues += this._flag(result, `web-headers:cors-wildcard-with-credentials:${rel}:${lineNo}`, {
-        severity: isTest ? 'warning' : 'error',
+        // isTest files return 0 above, before this line is reachable.
+        severity: 'error',
         file: rel,
         line: lineNo,
         message: '`Access-Control-Allow-Origin: *` co-occurs with `Access-Control-Allow-Credentials: true` — cross-site credential theft surface, and browsers should (but don\'t always) reject it',
