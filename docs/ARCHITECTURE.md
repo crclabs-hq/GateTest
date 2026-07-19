@@ -93,7 +93,7 @@ GateTest/
 ├── src/
 │   ├── index.js            ← Main library entry
 │   ├── core/               ← Config, runner, registry, cache, CI gen, GitHub bridge
-│   ├── modules/            ← 53 TEST MODULES (24 core + 9 universal language checkers + 1 polyglot dependency scanner + 1 Dockerfile scanner + 1 CI-security scanner + 1 shell-script scanner + 1 SQL-migration safety scanner + 1 Terraform/IaC scanner + 1 Kubernetes manifest scanner + 1 Prompt/LLM-safety scanner + 1 dead-code / unused-export scanner + 1 secret-rotation / key-age scanner + 1 web-headers / CORS scanner + 1 TypeScript-strictness scanner + 1 flaky-test detector + 1 error-swallow detector + 1 N+1 query detector + 1 retry-hygiene scanner + 1 race-condition detector + 1 resource-leak detector + 1 SSRF / URL-validation gap detector + 1 hardcoded-URL / localhost / private-IP leak detector + 1 env-var contract scanner + 1 async-iteration detector + 1 homoglyph / Unicode-lookalike detector + 1 OpenAPI drift detector)
+│   ├── modules/            ← 120 REGISTERED MODULES (128 .js files in this directory — 8 are shared helpers/base classes, not standalone scanners; verify with `node bin/gatetest.js --list | grep -cE '^  [a-zA-Z]'`). This directory has grown steadily since launch — see docs/MODULES.md for the full current breakdown by category rather than an enumerated count here, which drifts every time a module is added and was found stale (claiming 53) during the 2026-07-20 audit.
 │   ├── reporters/          ← Console, JSON, HTML, SARIF, JUnit
 │   ├── scanners/           ← Continuous scanner
 │   └── hooks/              ← Pre-commit, pre-push
@@ -209,6 +209,18 @@ GateTest/
 | `RESEND_API_KEY` | Resend.com API key — weekly digest emails to Continuous subscribers (`watchdog@gatetest.ai` sender). Optional: if not set, email delivery is silently skipped; Slack digests still fire via `SLACK_WEBHOOK_URL`. |
 | `RESEND_FROM` | Override the From address for digest emails (default: `GateTest <watchdog@gatetest.ai>`) |
 | `GATETEST_API_KEY` | *(MCP server env, not Vercel)* Premium MCP subscription key (`gtmcp_<64hex>`, 70 chars). Set in the MCP server's environment. Unlocks premium tools in `bin/gatetest-mcp.mjs`. Free tools work without it. |
+| `CRON_SECRET` | Vercel Cron auth — sent as `Authorization: Bearer <value>`. **Without this, `/api/watches/tick` and `/api/scan/worker/tick` are open to any caller in production** — see Known Issue #41. |
+| `GATETEST_APP_ID` | GitHub App ID for the dual-host GitHub Marketplace distribution flow — backs the JWT (RS256) auth described above. |
+| `GATETEST_PRIVATE_KEY` | GitHub App private key (`.pem`) — pairs with `GATETEST_APP_ID` for JWT signing. |
+| `GATETEST_WEBHOOK_SECRET` | GitHub App webhook payload signature verification. |
+| `GATETEST_GITHUB_TOKEN` | Fallback GitHub token used where the App installation token isn't available. |
+| `GIT_HOST` | `HostBridge` selector — `github` or `gluecron`, see the STRATEGIC DIRECTION section of CLAUDE.md. |
+| `GITLAB_CLIENT_ID` / `GITLAB_CLIENT_SECRET` | GitLab OAuth App credentials (parallel to the GitHub OAuth pair above). |
+| `GITHUB_OAUTH_REDIRECT_URI` | Explicit override for the GitHub OAuth callback URL when it can't be derived from `NEXT_PUBLIC_BASE_URL`. |
+| `OPENAI_API_KEY` | Second-agent GPT-4o cross-check for Multi-Agent Consensus (Forensic-tier opt-in, `website/app/lib/openai-client.ts` + `multi-agent-consensus.ts`, Craig-authorized 2026-06-02). Built and tested but **not yet wired into `/api/scan/fix/route.ts`** — see Known Issue in docs/ROADMAP.md added 2026-07-20. |
+| `GATETEST_ADMIN_USERNAMES` | Comma-separated allowlist of admin usernames for `/admin` (pairs with `GATETEST_ADMIN_PASSWORD`). |
+| `GLUECRON_API_URL` / `GLUECRON_TOKEN` | Declared in `.env.example` but **not read anywhere in `gluecron-client.ts`** — the code only reads `GLUECRON_BASE_URL` / `GLUECRON_API_TOKEN` above. Dead placeholder pair; safe to remove from `.env.example` in a future cleanup, not required for the connection to work. |
+| `NEXT_PUBLIC_APP_VERSION` | Client-visible app version string. |
 
 ---
 

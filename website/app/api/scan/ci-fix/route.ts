@@ -118,6 +118,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // code-quality-ok — operational status log, not debug leftover
   console.log(`[ci-fix] dispatched ai-ci-fixer-remote for ${repository} run ${runId}`);
   return NextResponse.json({ ok: true, repository, runId });
 }
