@@ -20,7 +20,7 @@ export function FinalCTA() {
                 Connect your repo. Get a fixed PR back.
               </h2>
               <p className="mx-auto mt-5 max-w-xl text-lg text-zinc-400">
-                One scan. 110+ checks. Real fixes with tests. Pay per scan — no
+                One scan. 120+ checks. Real fixes with tests. Pay per scan — no
                 subscription, no seat licenses, no risk.
               </p>
               <div className="mt-9 flex flex-wrap items-center justify-center gap-3">

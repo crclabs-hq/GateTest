@@ -1,0 +1,309 @@
+{
+  "generatedAt": "2026-07-18T05:27:34.511Z",
+  "repoRoot": "/home/runner/work/GateTest/GateTest",
+  "suite": "quick",
+  "files": 10,
+  "mutationsTried": 45,
+  "mutationsCaught": 0,
+  "coverageHoles": [
+    {
+      "file": "src/ai-loop.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/ai-loop.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/ai-loop.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/ai-loop.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/ai-loop.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/core/registry.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/core/registry.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/core/registry.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/core/registry.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/modules/claude-compliance.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/modules/claude-compliance.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/modules/claude-compliance.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/modules/claude-compliance.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/modules/claude-compliance.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/modules/interactive-elements.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/modules/interactive-elements.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/modules/interactive-elements.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/modules/interactive-elements.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/modules/interactive-elements.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/reporters/github-annotations-reporter.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/reporters/github-annotations-reporter.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "src/reporters/github-annotations-reporter.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/cli-engine-runner.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/cli-engine-runner.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/cli-engine-runner.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/cli-engine-runner.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/cli-engine-runner.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/full-report-auth-core.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/full-report-auth-core.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/full-report-auth-core.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/full-report-auth-core.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/full-report-auth-core.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/pr-composer.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/pr-composer.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/pr-composer.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/pr-composer.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/pr-composer.js",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/scan-modules/supply-chain.ts",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/scan-modules/supply-chain.ts",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/scan-modules/supply-chain.ts",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/scan-modules/supply-chain.ts",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    },
+    {
+      "file": "website/app/lib/scan-modules/supply-chain.ts",
+      "operator": "?",
+      "before": null,
+      "after": null,
+      "note": "Mutation slipped through — gate emitted no new error rules vs baseline"
+    }
+  ],
+  "errors": [
+    "src/core/registry.js:undefined: gate run returned no parseable output",
+    "src/reporters/github-annotations-reporter.js:undefined: gate run returned no parseable output",
+    "src/reporters/github-annotations-reporter.js:undefined: gate run returned no parseable output"
+  ]
+}
