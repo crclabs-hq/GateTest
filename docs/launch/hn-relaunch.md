@@ -3,7 +3,7 @@
 > **Boss Rule #8:** drafts for Craig to post himself. Nothing auto-posts.
 >
 > **Context — attempt #1 post-mortem (reviewed from screenshot 2026-06-10):**
-> "Show HN: GateTest – 110 QA checks in one scan, auto-fix PR for what it
+> "Show HN: GateTest – 120 QA checks in one scan, auto-fix PR for what it
 > finds" — 3 points, 1 comment, ~2026-06-05, account McCracken49 (1 karma).
 > What actually killed it, in order:
 > 1. **The pitch was a COMMENT and it got `[flagged]`** (auto spam-filter:
@@ -61,7 +61,7 @@ blog post is live with real numbers.
 **Body draft (verify starred facts at launch hour, per show-hn-FINAL.md):**
 
 ```
-GateTest is a CI quality gate: 110 checks, and instead of just failing
+GateTest is a CI quality gate: 120 checks, and instead of just failing
 your build it opens a PR that fixes what it found — each fix re-scanned
 against the gate, with an auto-written regression test and a second-AI
 pair review before anything ships. Pay per scan, no subscription.
@@ -75,7 +75,7 @@ scanner's findings forced the copy to change, and that's now a test in
 our CI: marketing claims that drift from the product fail the build.
 
 Try it free, no signup: https://gatetest.ai/web scans any public site in
-a real browser. The CLI is MIT: npx github:crclabs-hq/GateTest
+a real browser. The CLI is MIT: npx -p @gatetest/cli gatetest
 
 Happy to answer anything, including "why should I trust an AI to write
 fixes" — short answer: you shouldn't, which is why every fix carries a

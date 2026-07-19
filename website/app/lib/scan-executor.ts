@@ -31,6 +31,8 @@ export interface ScanModuleResult {
   duration: number;
   details?: string[];
   skipped?: string;
+  /** Real USD cost incurred running this module (e.g. aiReview's Claude spend). Omitted/0 for free modules. */
+  costUsd?: number;
 }
 
 export interface ScanResult {

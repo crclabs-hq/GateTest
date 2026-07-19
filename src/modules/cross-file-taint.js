@@ -55,6 +55,14 @@
  *          file B, with no sanitisation visible between import and
  *          use. (cross-file-taint:sink:<sink>:<rel>:<line>)
  *
+ *          This also covers the reverse (and far more common) shape:
+ *          file A CALLS an imported function from file B with a
+ *          tainted argument, and file B's function uses that
+ *          parameter at a sink internally (a layered "handler calls
+ *          db helper with req.params.x" architecture). See
+ *          `paramTaintFunctions` / `_analyseFunctionParamTaint` and
+ *          the call-site correlation phase below.
+ *
  *   warning: tainted value passed through 3+ hops (deep propagation —
  *            harder to audit manually). (cross-file-taint:deep:<rel>:<line>)
  *
@@ -304,6 +312,65 @@ class CrossFileTaintModule extends BaseModule {
           }
         }
       }
+
+      // Phase 2c: call-site taint — the reverse direction of 2b. File A
+      // CALLS an imported function from file B, passing a tainted
+      // argument; file B's function uses that SAME parameter at a sink
+      // internally. 2b only fires when file B exports an already-tainted
+      // VALUE — it misses the layered-architecture shape where file B
+      // is a plain helper whose parameter simply happens to be dangerous
+      // when called with attacker input (route handler -> db helper).
+      for (const [importee, bindings] of data.importedBindings) {
+        const importeeData = fileData.get(importee);
+        if (!importeeData || importeeData.paramTaintFunctions.size === 0) continue;
+
+        for (const binding of bindings) {
+          const sinkDefs = importeeData.paramTaintFunctions.get(binding);
+          if (!sinkDefs) continue;
+
+          const callRe = new RegExp(`\\b${binding}\\s*\\(([^)]*)\\)`);
+          for (let li = 0; li < data.lines.length; li++) {
+            const callLine = data.lines[li];
+            const m = callRe.exec(callLine);
+            if (!m) continue;
+            if (SUPPRESS_TAINT_OK_RE.test(callLine)) continue;
+
+            const args = m[1].split(',').map((s) => s.trim()).filter(Boolean);
+
+            for (const def of sinkDefs) {
+              const argText = args[def.paramIndex];
+              if (!argText) continue;
+              if (!this._isArgTainted(argText, data.localTaintedVars)) continue;
+
+              const importeeRel = path.relative(projectRoot, importee).replace(/\\/g, '/');
+              let severity = isTest ? 'warning' : 'error';
+              if (def.sink === 'sql-query' && importeeData.hasParameterisedOrm) {
+                severity = isTest ? 'info' : 'warning';
+              }
+
+              // NOTE: field naming is inverted relative to phase 2b here —
+              // the sink lives in the CALLEE (`importee`/`importeeRel` in
+              // 2b's sense), so that's what `rel` holds below, while
+              // `importeeRel` holds the CALLER (`rel` in 2b's sense). The
+              // message text and dedup key are correct either way; this is
+              // just a trap for future readers expecting 2b's convention.
+              findings.push({
+                severity,
+                rel: importeeRel,
+                line: def.line,
+                sink: def.sink,
+                binding: def.paramName,
+                importeeRel: rel,
+                crossFile: true,
+                argCall: true,
+                calleeFn: binding,
+                callerLine: li + 1,
+              });
+              totalCrossHops += 1;
+            }
+          }
+        }
+      }
     }
 
     // Deduplicate (same rel+line+sink combo)
@@ -314,9 +381,14 @@ class CrossFileTaintModule extends BaseModule {
       seen.add(key);
 
       const prefix = f.crossFile ? 'cross-file-taint' : 'taint';
-      const msg = f.crossFile
-        ? `Cross-file taint: \`${f.binding}\` (from ${f.importeeRel}) reaches \`${f.sink}\` sink without sanitisation`
-        : `Taint: \`${f.binding}\` (from request input) reaches \`${f.sink}\` sink without sanitisation`;
+      let msg;
+      if (f.argCall) {
+        msg = `Cross-file taint: tainted argument at ${f.importeeRel}:${f.callerLine} is passed to \`${f.calleeFn}(...)\`, whose parameter \`${f.binding}\` reaches \`${f.sink}\` sink here without sanitisation`;
+      } else if (f.crossFile) {
+        msg = `Cross-file taint: \`${f.binding}\` (from ${f.importeeRel}) reaches \`${f.sink}\` sink without sanitisation`;
+      } else {
+        msg = `Taint: \`${f.binding}\` (from request input) reaches \`${f.sink}\` sink without sanitisation`;
+      }
 
       result.addCheck(
         `cross-file-taint:sink:${f.sink}:${f.rel}:${f.line}`,
@@ -355,6 +427,8 @@ class CrossFileTaintModule extends BaseModule {
       importedFrom: new Set(),      // which files this file imports
       sinkHits: [],                 // { line, rawLine, sink, contextLines }
       hasParameterisedOrm: false,   // file imports drizzle / prisma / kysely / ...
+      paramTaintFunctions: new Map(), // funcName → [{ paramIndex, paramName, sink, line, rawLine, contextLines }]
+      lines: [],                    // raw source lines, kept for call-site correlation (phase 2c)
     };
 
     let text;
@@ -550,7 +624,175 @@ class CrossFileTaintModule extends BaseModule {
     }
 
     data.localTaintedVars = tainted;
+    data.lines = lines;
+    data.paramTaintFunctions = this._analyseFunctionParamTaint(lines);
     return data;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Function-parameter taint (own pass, own template-literal state) — finds
+  // functions whose OWN parameter reaches a dangerous sink internally, e.g.
+  // `function findOrderById(orderId) { ...conn.query(\`...${orderId}\`)... }`.
+  // Consumed by phase 2c in run() to catch a caller in another file passing
+  // a tainted argument into that parameter.
+  // ---------------------------------------------------------------------------
+
+  _analyseFunctionParamTaint(lines) {
+    const funcs = new Map();
+    const FUNC_DEF_RE = /^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)/;
+
+    let activeFn = null;
+    let depth = 0;
+    let everOpened = false;
+    let inTemplate = false;
+    let inTemplateInterp = false;
+
+    for (let i = 0; i < lines.length; i += 1) {
+      const raw = lines[i];
+      const stripRes = this._stripJsStrings(raw, inTemplate);
+      inTemplate = stripRes.inTemplate;
+      // Match against string/comment-stripped text only — a function
+      // definition whose text sits entirely inside a multi-line template
+      // literal (test fixtures writing sample code as strings) is blanked
+      // to spaces here and can never match, so it can't start a phantom
+      // activeFn whose brace depth would never close.
+      const codeLine = this._stripComments(stripRes.stripped);
+
+      // Same blanking, EXCEPT `${...}` template-literal interpolations stay
+      // live — those are executable expressions (e.g. `${orderId}`), not
+      // string content, so the reassignment-propagation match below needs
+      // to see identifiers referenced there. FUNC_DEF_RE and sink detection
+      // deliberately keep using the fully-blanked `codeLine` above so
+      // fixture strings full of sample code can never open a phantom
+      // activeFn or fake a sink hit.
+      const interpRes = this._stripStringsKeepTemplateInterp(raw, inTemplateInterp);
+      inTemplateInterp = interpRes.inTemplate;
+      const propagationLine = this._stripComments(interpRes.stripped);
+
+      if (!activeFn) {
+        const m = FUNC_DEF_RE.exec(codeLine);
+        if (!m) continue;
+        const params = m[2]
+          .split(',')
+          .map((p) => p.trim().split(/[=:]/)[0].trim().replace(/^\.\.\./, ''))
+          .filter((p) => /^[A-Za-z_$][\w$]*$/.test(p));
+        if (params.length === 0) continue;
+        const origin = new Map();
+        params.forEach((p, idx) => origin.set(p, idx));
+        activeFn = { name: m[1], hits: [], origin, paramNames: params };
+        depth = 0;
+        everOpened = false;
+      }
+
+      // Propagate parameter taint through simple reassignment:
+      // const sql = `...${orderId}...` — 'sql' inherits orderId's origin index.
+      const assign = TAINT_ASSIGN_RE.exec(propagationLine);
+      if (assign && /^\w+$/.test(assign[1]) && !activeFn.origin.has(assign[1])) {
+        const rhs = assign[2] || '';
+        for (const [name, idx] of activeFn.origin) {
+          if (this._lineReferencesVar(rhs, name)) {
+            activeFn.origin.set(assign[1], idx);
+            break;
+          }
+        }
+      }
+
+      // Sink detection scoped to this function's tracked (param-derived) names.
+      // The sink pattern itself is matched against `codeLine` (fully-blanked
+      // strings/templates) so fixture strings can't fake a sink hit, but the
+      // identifier-reference check runs against `propagationLine`, where
+      // `${...}` template interpolations stay live — otherwise the flagship
+      // inline-sink shape (`conn.query(\`...${orderId}\`)`) is invisible
+      // because `codeLine` blanks the interpolation along with the rest of
+      // the template.
+      if (!SUPPRESS_TAINT_OK_RE.test(raw)) {
+        for (const sink of SINKS) {
+          if (!sink.re.test(codeLine)) continue;
+          for (const [name, idx] of activeFn.origin) {
+            if (!this._lineReferencesVar(propagationLine, name)) continue;
+            const contextLines = lines.slice(Math.max(0, i - 3), i + 1).join('\n');
+            if (!this._hasSanitiser(raw, contextLines)) {
+              activeFn.hits.push({
+                paramIndex: idx,
+                // Report the ORIGINAL parameter name (not the derived local,
+                // e.g. `sql`), so "whose parameter `x`..." always names the
+                // thing the caller actually passed in.
+                paramName: activeFn.paramNames[idx] || name,
+                sink: sink.name,
+                line: i + 1,
+                rawLine: raw,
+                contextLines,
+              });
+            }
+            break;
+          }
+        }
+      }
+
+      for (const ch of codeLine) {
+        if (ch === '{') { depth += 1; everOpened = true; }
+        else if (ch === '}') { depth -= 1; }
+      }
+
+      if (everOpened && depth <= 0) {
+        if (activeFn.hits.length > 0) funcs.set(activeFn.name, activeFn.hits);
+        activeFn = null;
+      }
+    }
+
+    return funcs;
+  }
+
+  // Like BaseModule._stripJsStrings, but a `${...}` interpolation inside a
+  // template literal is left LIVE instead of being blanked — it's an
+  // executable expression, not string content. Single/double-quoted strings
+  // and the non-interpolation portions of a template literal are still
+  // fully blanked, so SQL-injection-shaped text nested inside an unrelated
+  // outer string (fixture data) can't leak an identifier into the match.
+  _stripStringsKeepTemplateInterp(line, inTemplate) {
+    let out = '';
+    let state = inTemplate ? '`' : null;
+    let interpDepth = 0;
+    let j = 0;
+    while (j < line.length) {
+      const ch = line[j];
+      if (state === '`') {
+        if (interpDepth > 0) {
+          out += ch;
+          if (ch === '{') interpDepth += 1;
+          else if (ch === '}') interpDepth -= 1;
+          j += 1;
+          continue;
+        }
+        if (ch === '\\') { out += '  '; j += 2; continue; }
+        if (ch === '$' && line[j + 1] === '{') { out += '${'; interpDepth = 1; j += 2; continue; }
+        if (ch === '`') { out += ch; state = null; j += 1; continue; }
+        out += ' ';
+        j += 1;
+        continue;
+      }
+      if (state) {
+        if (ch === '\\') { out += '  '; j += 2; continue; }
+        if (ch === state) { out += ch; state = null; j += 1; continue; }
+        out += ' ';
+        j += 1;
+        continue;
+      }
+      if (ch === "'" || ch === '"' || ch === '`') { out += ch; state = ch; j += 1; continue; }
+      out += ch;
+      j += 1;
+    }
+    return { stripped: out, inTemplate: state === '`' };
+  }
+
+  // True when `argText` (raw call-site argument text) is tainted: either it
+  // directly reads a request field (`req.params.id`) or its root identifier
+  // is a variable already known to be tainted in the calling file.
+  _isArgTainted(argText, taintedVars) {
+    const trimmed = argText.trim();
+    if (TAINT_SOURCE_RES.some((re) => re.test(trimmed))) return true;
+    const rootMatch = /^([A-Za-z_$][\w$]*)/.exec(trimmed);
+    return !!(rootMatch && taintedVars.has(rootMatch[1]));
   }
 
   // ---------------------------------------------------------------------------

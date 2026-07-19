@@ -36,7 +36,7 @@
     },
     {
       "name": "accessibility",
-      "description": "Accessibility (WCAG 2.2 AAA) Audit"
+      "description": "Accessibility (WCAG 2.2 automated audit — AA + AAA-aligned)"
     },
     {
       "name": "performance",

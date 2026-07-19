@@ -9,6 +9,22 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 
+// SQL injection via string concatenation or template-literal interpolation
+// of an identifier into a SQL string, built or used at a query-like sink
+// (.query(/.execute(/.raw(/db.run(...). Parameterised calls (placeholder
+// `?`/`$1` + a values array) and tagged-template query builders (sql`...`,
+// Prisma.sql`...`, db.sql`...`) auto-escape every interpolation and must
+// NOT fire — enforced by requiring a literal `+`/`${}` splice directly
+// inside the SQL string, and by excluding any backtick immediately
+// preceded by a tag identifier (the tag-function shape of every SQL
+// template-tag library).
+const SQL_KEYWORDS = 'SELECT|INSERT|UPDATE|DELETE|CREATE|DROP';
+const SQL_CONCAT_RE = new RegExp(`(['"])(?:${SQL_KEYWORDS})\\b(?:(?!\\1).)*\\1\\s*\\+\\s*[A-Za-z_$][\\w.$]*`, 'i');
+const SQL_TEMPLATE_RE = new RegExp('(?<![\\w$])`(?:' + SQL_KEYWORDS + ')\\b(?:(?!`).)*\\$\\{[^}]+\\}(?:(?!`).)*`', 'i');
+const SQL_SINK_RE = /\.\s*(?:query|execute|raw|run|all)\s*\(/;
+const SQL_ASSIGN_RE = /^\s*(?:const|let|var)\s+(\w+)\s*=/;
+const SQL_INJECTION_LOOKAHEAD = 15;
+
 class SecurityModule extends BaseModule {
   constructor() {
     super('security', 'Security Analysis');
@@ -22,6 +38,9 @@ class SecurityModule extends BaseModule {
 
     // Source code security patterns (OWASP Top 10)
     this._checkSourcePatterns(projectRoot, result);
+
+    // SQL injection via string concatenation / template interpolation
+    this._checkSqlInjectionPatterns(projectRoot, result);
 
     // Check for dangerous file permissions
     this._checkFilePermissions(projectRoot, result);
@@ -151,6 +170,74 @@ class SecurityModule extends BaseModule {
     if (files.length > 0) {
       result.addCheck('security:source-scan', true, { message: `Scanned ${files.length} source files` });
     }
+  }
+
+  _checkSqlInjectionPatterns(projectRoot, result) {
+    const files = this._collectFiles(projectRoot, ['.js', '.ts', '.jsx', '.tsx']);
+    // Same exclusion list as _checkSourcePatterns — this scanner's own
+    // pattern definitions and marketing copy describing SQL injection
+    // legitimately contain the shapes it's designed to detect.
+    const SCANNER_PATH_RE = /(?:^|\/)(?:src\/modules|src\/core|website\/app\/lib\/scan-modules|website\/app\/components\/howitworks|website\/app\/for|website\/app\/api\/admin\/auth|website\/app\/api\/scan|website\/app\/components\/LiveScanTerminal|tests|integrations\/infra)\//;
+
+    let totalFindings = 0;
+
+    for (const file of files) {
+      const relPath = path.relative(projectRoot, file).replace(/\\/g, '/');
+      if (SCANNER_PATH_RE.test(relPath)) continue;
+
+      let content;
+      try {
+        content = fs.readFileSync(file, 'utf-8');
+      } catch {
+        continue;
+      }
+      const lines = content.split('\n');
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const match = SQL_CONCAT_RE.exec(line) || SQL_TEMPLATE_RE.exec(line);
+        if (!match) continue;
+        if (this._isInsideStringLiteral(line, match.index)) continue;
+
+        // Built and used at a sink on the same line — flag directly.
+        if (SQL_SINK_RE.test(line)) {
+          this._reportSqlInjection(result, relPath, i + 1);
+          totalFindings++;
+          continue;
+        }
+
+        // Built here, assigned to a variable — flag if that variable is
+        // passed to a query-like sink within the next few lines.
+        const assignMatch = SQL_ASSIGN_RE.exec(line);
+        if (!assignMatch) continue;
+        const varRe = new RegExp(`\\b${assignMatch[1]}\\b`);
+        const lookahead = lines.slice(i + 1, i + 1 + SQL_INJECTION_LOOKAHEAD);
+        if (lookahead.some((l) => SQL_SINK_RE.test(l) && varRe.test(l))) {
+          this._reportSqlInjection(result, relPath, i + 1);
+          totalFindings++;
+        }
+      }
+    }
+
+    if (totalFindings === 0) {
+      result.addCheck('security:sql-injection-scan', true, {
+        message: `Scanned ${files.length} source files for SQL injection — none found`,
+      });
+    } else {
+      result.addCheck('security:sql-injection-scan', false, {
+        message: `Found ${totalFindings} potential SQL injection pattern(s)`,
+        suggestion: 'Use parameterised queries (placeholders + a values array) or a tagged-template SQL builder instead of concatenating/interpolating identifiers into SQL text',
+      });
+    }
+  }
+
+  _reportSqlInjection(result, relPath, lineNo) {
+    result.addCheck(`security:sql-injection:${relPath}:${lineNo}`, false, {
+      file: relPath,
+      line: lineNo,
+      message: `CRITICAL: SQL injection risk — SQL query built via string concatenation/interpolation of an identifier at ${relPath}:${lineNo}`,
+      suggestion: 'Use parameterised queries (e.g. conn.query("...WHERE id = ?", [id])) or a tagged-template SQL builder (sql`...`) instead of concatenating/interpolating identifiers into SQL text',
+    });
   }
 
   _checkFilePermissions(projectRoot, result) {

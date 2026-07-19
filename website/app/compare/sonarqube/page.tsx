@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 const faqItems = [
   {
     q: "Does GateTest replace SonarQube completely?",
-    a: "Yes. GateTest covers everything SonarQube does — code quality, security patterns, technical debt, and duplication — plus 50+ modules SonarQube doesn't have: AI code review, visual regression, mutation testing (via the GitHub Action, which has a CI runner to drive it), accessibility (WCAG 2.2 AAA), performance, Kubernetes manifest scanning, and more. One tool, one dashboard, one gate.",
+    a: "Yes. GateTest covers everything SonarQube does — code quality, security patterns, technical debt, and duplication — plus 50+ modules SonarQube doesn't have: AI code review, visual regression, mutation testing (via the GitHub Action, which has a CI runner to drive it), accessibility (WCAG 2.2 AA + AAA-aligned automated audit), performance, Kubernetes manifest scanning, and more. One tool, one dashboard, one gate.",
   },
   {
     q: "How does GateTest pricing compare to SonarQube?",
@@ -60,7 +60,7 @@ const comparisonRows = [
   { feature: "Auto-fix pull requests", gatetest: true, competitor: false },
   { feature: "Pay per scan (not per seat)", gatetest: true, competitor: false },
   { feature: "Zero server setup", gatetest: true, competitor: false },
-  { feature: "Accessibility scanning (WCAG 2.2 AAA)", gatetest: true, competitor: false },
+  { feature: "Accessibility scanning (WCAG 2.2, AA + AAA-aligned)", gatetest: true, competitor: false },
   { feature: "Visual regression testing", gatetest: true, competitor: false },
   { feature: "Mutation testing (via GitHub Action)", gatetest: true, competitor: false },
   { feature: "Kubernetes / Terraform / Dockerfile scanning", gatetest: true, competitor: false },

@@ -127,6 +127,206 @@ describe('MoneyFloatModule — Python float cast on money variable', () => {
   });
 });
 
+describe('MoneyFloatModule — plain arithmetic on a money-named identifier', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-mf-arith-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('errors on `price * (1 + taxRate)` — no cast needed to be float arithmetic', async () => {
+    // Corpus shape (src/utils/price.js).
+    write(tmp, 'src/price.js', [
+      'function applyTax(price, taxRate) {',
+      '  return price * (1 + taxRate);',
+      '}',
+      '',
+      'module.exports = { applyTax };',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name && c.name.startsWith('money-float:arithmetic:'));
+    assert.ok(hit, 'expected a money-float:arithmetic finding');
+    assert.strictEqual(hit.severity, 'error');
+    assert.strictEqual(hit.variable, 'price');
+  });
+
+  it('errors on `total += item.price * item.qty` — compound-assign accumulator', async () => {
+    // Corpus shape (src/utils/price.js).
+    write(tmp, 'src/price.js', [
+      'function sumCart(items) {',
+      '  let total = 0.0;',
+      '  for (const item of items) {',
+      '    total += item.price * item.qty;',
+      '  }',
+      '  return total;',
+      '}',
+      '',
+      'module.exports = { sumCart };',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name && c.name.startsWith('money-float:arithmetic:'));
+    assert.ok(hit, 'expected a money-float:arithmetic finding');
+    assert.strictEqual(hit.variable, 'total');
+  });
+
+  it('does NOT flag arithmetic on a money-named identifier nested inside a string literal', async () => {
+    write(tmp, 'src/a.js', [
+      'const example = "return price * (1 + taxRate);";',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter(
+      (c) => c.passed === false && c.name && c.name.startsWith('money-float:arithmetic:'),
+    );
+    assert.strictEqual(hits.length, 0);
+  });
+
+  it('does NOT flag arithmetic when the file imports a decimal library', async () => {
+    write(tmp, 'src/a.js', [
+      'const Decimal = require("decimal.js");',
+      'function applyTax(price, taxRate) { return price * (1 + taxRate); }',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter(
+      (c) => c.passed === false && c.name && c.name.startsWith('money-float:arithmetic:'),
+    );
+    assert.strictEqual(hits.length, 0);
+  });
+});
+
+describe('MoneyFloatModule — generic accumulator names require corroboration', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-mf-generic-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('does NOT fire on a lone `total` counter incremented by an integer literal', async () => {
+    // Corpus shape (scripts/flywheel-stats.js:60): `all.total += 1` is a
+    // plain event counter, not a currency accumulation.
+    write(tmp, 'src/a.js', [
+      'function tally(entries) {',
+      '  const all = { total: 0 };',
+      '  for (const e of entries) {',
+      '    all.total += 1;',
+      '  }',
+      '  return all;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter(
+      (c) => c.passed === false && c.name && c.name.startsWith('money-float:arithmetic:'),
+    );
+    assert.strictEqual(hits.length, 0, `unexpected findings: ${JSON.stringify(hits, null, 2)}`);
+  });
+
+  it('does NOT fire on a lone `total` counter incremented by a .length read', async () => {
+    // Corpus shape (src/core/claude-md-parser.js:102): `total += items.length`
+    // is a list-size tally, not a currency accumulation.
+    write(tmp, 'src/a.js', [
+      'function getTotalChecklistItems(checklists) {',
+      '  let total = 0;',
+      '  for (const items of Object.values(checklists)) {',
+      '    total += items.length;',
+      '  }',
+      '  return total;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter(
+      (c) => c.passed === false && c.name && c.name.startsWith('money-float:arithmetic:'),
+    );
+    assert.strictEqual(hits.length, 0, `unexpected findings: ${JSON.stringify(hits, null, 2)}`);
+  });
+
+  it('STILL fires when a lone `total` counter is corroborated by a second money-named identifier', async () => {
+    // Corpus shape (src/utils/price.js): `total += item.price * item.qty` —
+    // `total` is generic but `price` in the same statement corroborates it.
+    write(tmp, 'src/price.js', [
+      'function sumCart(items) {',
+      '  let total = 0.0;',
+      '  for (const item of items) {',
+      '    total += item.price * item.qty;',
+      '  }',
+      '  return total;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name && c.name.startsWith('money-float:arithmetic:'));
+    assert.ok(hit, 'corroborated total accumulation must still fire');
+    assert.strictEqual(hit.severity, 'error');
+    assert.strictEqual(hit.variable, 'total');
+  });
+
+  it('specific names like `price`/`cost`/`fee`/`salary` still fire alone, uncorroborated', async () => {
+    write(tmp, 'src/a.js', [
+      'function bump(order) {',
+      '  order.cost += 1;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name && c.name.startsWith('money-float:arithmetic:'));
+    assert.ok(hit, 'specific money name must still fire without a second identifier');
+    assert.strictEqual(hit.variable, 'cost');
+  });
+
+  it('does NOT fire on a dotted generic accumulator (`stats.total * x`) with no real corroboration', async () => {
+    // Regression: hasCorroboratingMoneyIdentifier compared tokens against the
+    // FULL dotted match string (`stats.total`) captured by the mult/div rule.
+    // The tokenizer splits on `.`, so the `total` token never equalled
+    // `stats.total` and got tested (and matched) against MONEY_NAME_RE on its
+    // own — the accumulator self-corroborated. Must compare against the
+    // exclude's last dotted segment instead.
+    write(tmp, 'src/a.js', [
+      'function scale(stats, multiplier) {',
+      '  return stats.total * multiplier;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter(
+      (c) => c.passed === false && c.name && c.name.startsWith('money-float:arithmetic:'),
+    );
+    assert.strictEqual(hits.length, 0, `unexpected findings: ${JSON.stringify(hits, null, 2)}`);
+  });
+
+  it('STILL fires on a dotted generic accumulator (`stats.total * item.price`) when corroborated by a second money-named identifier', async () => {
+    write(tmp, 'src/price.js', [
+      'function scale(stats, item) {',
+      '  return stats.total * item.price;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name && c.name.startsWith('money-float:arithmetic:'));
+    assert.ok(hit, 'corroborated dotted total accumulation must still fire');
+    assert.strictEqual(hit.severity, 'error');
+  });
+
+  it('does NOT fire on a `credit`/`i` false match inside a regex literal chained to a method call', async () => {
+    // Corpus shape (website/app/lib/anthropic-error.js:43): the regex literal
+    // `/credit|balance/i.test(x)` reads as identifier "credit" followed by
+    // `/i` to a naive scan — that's a regex flag + method chain, not division.
+    write(tmp, 'src/a.js', [
+      'function classify(status, snippet) {',
+      '  if (status === 402 || /credit[_ ]balance|out[_ ]of[_ ]credit/i.test(snippet)) {',
+      '    return "out-of-credit";',
+      '  }',
+      '  return "unknown";',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter(
+      (c) => c.passed === false && c.name && c.name.startsWith('money-float:arithmetic:'),
+    );
+    assert.strictEqual(hits.length, 0, `unexpected findings: ${JSON.stringify(hits, null, 2)}`);
+  });
+});
+
 describe('MoneyFloatModule — insufficient .toFixed precision', () => {
   let tmp;
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-mf-tf-')); });

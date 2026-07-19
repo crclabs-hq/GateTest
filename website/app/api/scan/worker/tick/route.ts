@@ -34,6 +34,8 @@ import { getAdminOrgs } from "@/app/lib/admin-platforms";
 const scanWorker = require("@/app/lib/scan-worker");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const queueStore = require("@/app/lib/scan-queue-store");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const continuousStore = require("@/app/lib/continuous-subscription-store");
 
 interface CallbackArgs {
   repository: string;
@@ -94,6 +96,7 @@ export async function POST(req: NextRequest) {
       queueStore,
       runScan,
       sendCallback: (args: CallbackArgs) => dispatchCallback(args),
+      continuousStore,
     });
 
     return NextResponse.json(result, { status: 200 });
