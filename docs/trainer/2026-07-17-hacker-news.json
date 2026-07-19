@@ -1,0 +1,261 @@
+{
+  "generatedAt": "2026-07-17T05:53:20.536Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 16,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 11,
+      "SonarQube": 0,
+      "Semgrep": 0,
+      "CodeQL": 2,
+      "DeepSource": 0,
+      "Codacy": 1,
+      "Veracode": 1,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "48943426",
+        "author": "nyku",
+        "type": "story",
+        "title": "OpenAI encrypts Codex agent instructions, blocking local audit trail",
+        "text": "OpenAI encrypts Codex agent instructions, blocking local audit trail",
+        "url": "https://www.theregister.com/ai-and-ml/2026/07/15/openai-hides-codex-agent-instructions-behind-encryption-leaving-developers-in-the-dark/5271484",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 48943426,
+        "createdAt": "2026-07-17T04:46:38Z",
+        "createdAtUnix": 1784263598,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48942396",
+        "author": "rdegges",
+        "type": "comment",
+        "title": null,
+        "text": "Nice project!One question I have on the `tool boundary` methodology -- does this penalize a skill for having any sort of scripts&#x2F; embedded? I've found it really helpful to take larger skills, like ones I've built at Snyk which handle data processing, and encode the process in the SKILL.md, but also ship it with python&#x2F;go code in scripts&#x2F; to deterministically handle a lot of data validation&#x2F;etc. For data analysis skills I feel like it's really hard to just encode teaching logic without costing a fortune in inference.",
+        "url": "https://news.ycombinator.com/item?id=48942396",
+        "points": null,
+        "numComments": null,
+        "storyId": 48942014,
+        "createdAt": "2026-07-17T01:28:26Z",
+        "createdAtUnix": 1784251706,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48940274",
+        "author": "SirFatty",
+        "type": "comment",
+        "title": null,
+        "text": "Yeah, seems like snake oil with a dash of malarkey.",
+        "url": "https://news.ycombinator.com/item?id=48940274",
+        "points": null,
+        "numComments": null,
+        "storyId": 48939764,
+        "createdAt": "2026-07-16T21:08:04Z",
+        "createdAtUnix": 1784236084,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48939276",
+        "author": "teeray",
+        "type": "comment",
+        "title": null,
+        "text": "The problem is that ed-tech is absolutely ravenous for an LLM detector and would rather use snake oil than accept that it might not be possible.",
+        "url": "https://news.ycombinator.com/item?id=48939276",
+        "points": null,
+        "numComments": null,
+        "storyId": 48936880,
+        "createdAt": "2026-07-16T19:41:50Z",
+        "createdAtUnix": 1784230910,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48938666",
+        "author": "nyku",
+        "type": "story",
+        "title": "Telegram shortlinks knocked offline over sanctioned VPN connection",
+        "text": "Telegram shortlinks knocked offline over sanctioned VPN connection",
+        "url": "https://www.theregister.com/security/2026/07/16/telegram-shortlinks-knocked-offline-over-sanctioned-vpn-connection/5271964",
+        "points": 3,
+        "numComments": 0,
+        "storyId": 48938666,
+        "createdAt": "2026-07-16T18:54:03Z",
+        "createdAtUnix": 1784228043,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48934794",
+        "author": "preisschild",
+        "type": "comment",
+        "title": null,
+        "text": "Probably because they want snake oil salesmanWhy spend to resources to invent AGI when you can just gaslight the whole world by telling everyone that LLMs are already better than people?",
+        "url": "https://news.ycombinator.com/item?id=48934794",
+        "points": null,
+        "numComments": null,
+        "storyId": 48931588,
+        "createdAt": "2026-07-16T14:05:36Z",
+        "createdAtUnix": 1784210736,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48933957",
+        "author": "nyku",
+        "type": "story",
+        "title": "Microsoft's July 2026 Patch Tuesday fixes 622 CVEs, 2 exploited zero-days",
+        "text": "Microsoft's July 2026 Patch Tuesday fixes 622 CVEs, 2 exploited zero-days",
+        "url": "https://orca.security/resources/blog/microsoft-july-2026-patch-tuesday-sharepoint-zero-day/",
+        "points": 3,
+        "numComments": 0,
+        "storyId": 48933957,
+        "createdAt": "2026-07-16T13:05:40Z",
+        "createdAtUnix": 1784207140,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48933449",
+        "author": "nyku",
+        "type": "story",
+        "title": "Code scanning shows AI security detections on pull requests",
+        "text": "Code scanning shows AI security detections on pull requests",
+        "url": "https://github.blog/changelog/2026-07-14-code-scanning-shows-ai-security-detections-on-pull-requests/",
+        "points": 2,
+        "numComments": 1,
+        "storyId": 48933449,
+        "createdAt": "2026-07-16T12:17:23Z",
+        "createdAtUnix": 1784204243,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48932635",
+        "author": "maqp",
+        "type": "comment",
+        "title": null,
+        "text": "Very secure servers are openly documented (Kerckhoff's principle).Snake oil purporting itself as secure is always very hush hush and comes with claims of security.Besides, other messengers like Signal have already made the server open source, and they have native clients that end-to-end encrypt everything, so you don't even have to trust server.Durov requiring you to trust the server shows he has no idea how to build secure systems. He and his team are amateurs in security engineering.",
+        "url": "https://news.ycombinator.com/item?id=48932635",
+        "points": null,
+        "numComments": null,
+        "storyId": 48920475,
+        "createdAt": "2026-07-16T10:28:02Z",
+        "createdAtUnix": 1784197682,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48931820",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "Breaking someone's kneecaps is unquestionably a crime, copyright infringement for private consumption is not a crime, it's a civil offense (because listening to pirated MP3s doesn't make you a danger to society) so equating the two is a fallacy. I'm sure you already knew this since these arguments have been rehashed thousands of times over the past few decades.I don't think you'd find much (if any) support on the moral angle either when it comes to people who genuinely can't afford to pay the asking price. I've never seen any authors, artists, etc. openly object to fans pirating their work in these circumstances but I've seen many of them openly encourage it. Seeing how you're equating the two, do you think they also like to have their kneecaps broken?",
+        "url": "https://news.ycombinator.com/item?id=48931820",
+        "points": null,
+        "numComments": null,
+        "storyId": 48930454,
+        "createdAt": "2026-07-16T08:35:43Z",
+        "createdAtUnix": 1784190943,
+        "intent": "bug"
+      },
+      {
+        "objectId": "48931760",
+        "author": "nyku",
+        "type": "story",
+        "title": "Unpacking the AsyncAPI NPM supply chain compromise, import-time payload delivery",
+        "text": "Unpacking the AsyncAPI NPM supply chain compromise, import-time payload delivery",
+        "url": "https://www.microsoft.com/en-us/security/blog/2026/07/15/unpacking-asyncapi-npm-supply-chain-compromise-import-time-payload-delivery/",
+        "points": 3,
+        "numComments": 0,
+        "storyId": 48931760,
+        "createdAt": "2026-07-16T08:28:02Z",
+        "createdAtUnix": 1784190482,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [],
+    "CodeQL": [
+      {
+        "objectId": "48935975",
+        "author": "linktothenew",
+        "type": "story",
+        "title": "Show HN: Docs.dev Your Own Hosted Docs Platform in Minutes",
+        "text": "Hey we are launching Docs.dev, a full feature docs product that lets you host your developer docs on Cloudflare in a couple minutes.Why this exists:We don’t think every early stage startup should need to pay $300-$500 a month for beautiful docs, in fact every startup should just have beautiful human and agent ready docs ready to go. Additionally the workflow for docs is a lot different now in that Claude Code or Codex will generate 60-80% of the code, so why not have them update your docs as well. After they generate the docs, the missing piece is there will be some sentences, sections, and codeblocks maybe you want to eyeball or edit. The Docs.dev docs allows you to do it right in place in that your docs powered by Docs.dev, is the place that both your readers can learn and read about your tool but also the direct place you can edit your docs.If you want to check out how it works see the demo at https:&#x2F;&#x2F;docs.dev.Some features:- Ask AI using your own Cloudflare AI - Docs are editable and publishable in place exactly how users see the docs - AI generation tools built into the editor(again using your own Cloudflare) - Full markdown support for agents, every docs page can be served as MD - Docs can be served as MCP - Pretext.js editor allows images to be inline with the textBuilt upon other cool technology:- Fumadocs - Pretext - Cloudflare primitives - Other cool librariesThis is a side project from us at Keyboard.dev, so right now we want to support making this product better but we are looking at this more as a gift to the community. Essentially before our pivot we had the domain for docs.dev so wanted to build something cool in the docs space.",
+        "url": "https://docs.dev",
+        "points": 9,
+        "numComments": 5,
+        "storyId": 48935975,
+        "createdAt": "2026-07-16T15:34:37Z",
+        "createdAtUnix": 1784216077,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "48931950",
+        "author": "rishabhpoddar",
+        "type": "comment",
+        "title": null,
+        "text": "I was actually working on something like a \"claim checker\" recently. Inspired by stuff like Codeql. But I realised that all the really valuable business facing claims can't be checked just by static code analysis, and need to be done via integration and unit tests only. Given that claude code can pretty much write all the runtime tests fairly easily and quickly, I don't see how anything else can be better.",
+        "url": "https://news.ycombinator.com/item?id=48931950",
+        "points": null,
+        "numComments": null,
+        "storyId": 48931713,
+        "createdAt": "2026-07-16T08:51:33Z",
+        "createdAtUnix": 1784191893,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [
+      {
+        "objectId": "48932183",
+        "author": "ARayOutOfBounds",
+        "type": "story",
+        "title": "Why AI code review is not enough",
+        "text": "Why AI code review is not enough",
+        "url": "https://blog.codacy.com/ai-code-review-is-not-enough-how-engineering-leaders-should-gate-ai-generated-code",
+        "points": 2,
+        "numComments": 1,
+        "storyId": 48932183,
+        "createdAt": "2026-07-16T09:23:41Z",
+        "createdAtUnix": 1784193821,
+        "intent": "neutral"
+      }
+    ],
+    "Veracode": [
+      {
+        "objectId": "48941883",
+        "author": "ermantrout",
+        "type": "comment",
+        "title": null,
+        "text": "\"Code is a liability\" is the part that usually gets hand-waved, and there's a number on it now. Veracode's 2025 GenAI report ran 80 tasks across 100+ models: when a task could be solved securely or insecurely, the models picked the insecure path 45% of the time, at roughly 2.7x the vulnerability density of human-written code (Java was worst, at a 72% failure rate).So the mediocre-dev case may be worse than \"10x more mediocre code.\" It's more code that also skews insecure by default, and that cost shows up downstream in review and incidents, not at the PR. Throughput goes up, and so does the liability per line.",
+        "url": "https://news.ycombinator.com/item?id=48941883",
+        "points": null,
+        "numComments": null,
+        "storyId": 48933310,
+        "createdAt": "2026-07-17T00:03:21Z",
+        "createdAtUnix": 1784246601,
+        "intent": "criticism"
+      }
+    ],
+    "Checkmarx": [
+      {
+        "objectId": "48941045",
+        "author": "kyledrake",
+        "type": "comment",
+        "title": null,
+        "text": "pawn e2e8 checkmateVery cool this can be done in such a small amount of memory.",
+        "url": "https://news.ycombinator.com/item?id=48941045",
+        "points": null,
+        "numComments": null,
+        "storyId": 48938372,
+        "createdAt": "2026-07-16T22:21:08Z",
+        "createdAtUnix": 1784240468,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}

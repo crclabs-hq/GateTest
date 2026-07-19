@@ -59,7 +59,7 @@ const comparisonRows = [
   { feature: "AI code review (semantic bug detection)", gatetest: true, competitor: false },
   { feature: "Auto-fix pull requests", gatetest: true, competitor: false },
   { feature: "Performance analysis", gatetest: true, competitor: false },
-  { feature: "Accessibility scanning (WCAG 2.2 AAA)", gatetest: true, competitor: false },
+  { feature: "Accessibility scanning (WCAG 2.2, AA + AAA-aligned)", gatetest: true, competitor: false },
   { feature: "Visual regression testing", gatetest: true, competitor: false },
   { feature: "Mutation testing (via GitHub Action)", gatetest: true, competitor: false },
   { feature: "Chaos testing (via GitHub Action)", gatetest: true, competitor: false },

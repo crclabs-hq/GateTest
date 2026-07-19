@@ -5,6 +5,19 @@ Scope: every customer-facing copy surface in this repo
 Auditor: read-only audit, no code/copy changes
 Reviewer: Craig (final call on every redline)
 
+> **Status update 2026-07-19:** `docs/GITHUB-MARKETPLACE-LISTING.md` (referenced
+> throughout this doc) has been deleted and consolidated into the single
+> canonical `integrations/marketplace/listing.md`, which has no testimonials
+> (fabricated or otherwise) — item #1 below is resolved. The website's
+> module-count drift (item #2) was also independently fixed since this audit —
+> see `website/app/lib/module-count.ts`, now the single source of truth,
+> imported by Hero/Pricing/compare pages/OG metadata. The Marketplace listing
+> itself is a separate manually-pasted surface not covered by that fix; it now
+> pulls its count from a live `--list` check per `integrations/marketplace/listing.md`.
+> The rest of this audit (severities 2-5, the WCAG AAA claim, comparative
+> claims about competitors) has not been re-verified and may still be live —
+> treat as historical unless re-checked.
+
 ## Summary
 
 - **Severity 1 (must fix before launch):** 11 findings
