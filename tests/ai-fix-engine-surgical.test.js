@@ -244,6 +244,95 @@ test('aiFix: no API key returns fixed=false with fixSuggestion as description', 
   }
 });
 
+// ── Test 6b — diagnostic bundle: opts.details reaches the Claude prompt ──────
+
+test('aiFix surgical: opts.details (stack trace) is compiled into the prompt Claude sees', async () => {
+  const original = makeLines(50);
+  const filePath = makeTempFile(original);
+  const stack = 'TypeError: Cannot read properties of undefined (reading \'map\')\n  at renderList (app.js:25:10)';
+
+  let capturedPrompt = null;
+  try {
+    const mockCallAnthropic = async (_apiKey, _model, _systemPrompt, prompt) => {
+      capturedPrompt = prompt;
+      return makeLines(50).split('\n').slice(4, 45).join('\n'); // no-op replacement (unchanged window)
+    };
+
+    const result = await aiFix({
+      filePath,
+      issueTitle: 'runtime-errors:page-error',
+      issueMessage: 'Uncaught JS error: Cannot read properties of undefined',
+      lineNumber: 25,
+      details: stack,
+      apiKey: 'test-key',
+      _callAnthropic: mockCallAnthropic,
+    });
+
+    assert.equal(result.fixed, true);
+    assert.ok(capturedPrompt, 'expected the mock to capture a prompt');
+    assert.match(capturedPrompt, /## Diagnostic Bundle \(captured at detection time\)/);
+    assert.match(capturedPrompt, /renderList \(app\.js:25:10\)/);
+  } finally {
+    try { fs.unlinkSync(filePath); } catch { /* cleanup */ }
+  }
+});
+
+test('aiFix whole-file: opts.details (grouped network failure object) is compiled into the prompt', async () => {
+  const original = 'const x = 1;\n';
+  const filePath = makeTempFile(original);
+  const details = { sampleUrl: 'https://cdn.example.com/font.woff2', count: 3, resourceTypes: ['font'] };
+
+  let capturedMessage = null;
+  try {
+    const mockCallAnthropic = async (_apiKey, _model, _systemPrompt, userMessage) => {
+      capturedMessage = userMessage;
+      return JSON.stringify({ fixed: true, correctedContent: original, description: 'no-op' });
+    };
+
+    await aiFix({
+      filePath,
+      issueTitle: 'runtime-errors:network',
+      issueMessage: 'cdn.example.com → net::ERR_FAILED',
+      details,
+      apiKey: 'test-key',
+      _callAnthropic: mockCallAnthropic,
+    });
+
+    assert.ok(capturedMessage, 'expected the mock to capture a userMessage');
+    assert.match(capturedMessage, /## Diagnostic Bundle \(captured at detection time\)/);
+    assert.match(capturedMessage, /cdn\.example\.com\/font\.woff2/);
+  } finally {
+    try { fs.unlinkSync(filePath); } catch { /* cleanup */ }
+  }
+});
+
+test('aiFix: no details passed → no Diagnostic Bundle header (no fabrication)', async () => {
+  const original = makeLines(50);
+  const filePath = makeTempFile(original);
+
+  let capturedPrompt = null;
+  try {
+    const mockCallAnthropic = async (_apiKey, _model, _systemPrompt, prompt) => {
+      capturedPrompt = prompt;
+      return original.split('\n').slice(4, 45).join('\n');
+    };
+
+    await aiFix({
+      filePath,
+      issueTitle: 'money-float',
+      issueMessage: 'Do not use parseFloat for money',
+      lineNumber: 25,
+      apiKey: 'test-key',
+      _callAnthropic: mockCallAnthropic,
+    });
+
+    assert.ok(capturedPrompt);
+    assert.doesNotMatch(capturedPrompt, /Diagnostic Bundle/);
+  } finally {
+    try { fs.unlinkSync(filePath); } catch { /* cleanup */ }
+  }
+});
+
 // ── Test 6 — file too large → returns fixed=false, description mentions size ─
 
 test('aiFix: file larger than 120KB returns fixed=false with "too large"', async () => {

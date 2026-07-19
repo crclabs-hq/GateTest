@@ -36,6 +36,7 @@ const https = require('https');
 const surgicalFix  = require('../../lib/surgical-fix');
 const mutationGuard = require('../../lib/whole-file-mutation-guard');
 const { KNOWN_CONVENTION_FILES, extractConventions, formatGroundingHeader } = require('../../lib/contextual-grounding');
+const { buildDiagnosticBundle, formatDiagnosticHeader } = require('../../lib/diagnostic-bundle');
 
 // ─── per-process grounding cache ─────────────────────────────────────────────
 // Scanned once per process (the CLI runs one aiFix per check result, but the
@@ -148,6 +149,9 @@ function extractJson(text) {
  * @param {string}  opts.issueMessage    - Human-readable description of what's wrong.
  * @param {number}  [opts.lineNumber]    - 1-based line number where issue was found.
  * @param {string}  [opts.fixSuggestion] - Human-readable fix hint from the module.
+ * @param {*}       [opts.details]       - Raw `check.details` captured at detection
+ *   time (stack trace, network-failure group, render diff — shape varies per
+ *   module). Compiled into a "Diagnostic Bundle" prompt header when present.
  * @param {string}  [opts.apiKey]        - Anthropic API key (falls back to env).
  * @param {Function} [opts._callAnthropic] - Override for callAnthropic (test injection).
  *
@@ -197,6 +201,17 @@ async function aiFix(opts) {
   const projectRoot = opts.projectRoot || process.cwd();
   const conventionsHeader = _buildGroundingHeader(projectRoot);
 
+  // ── DIAGNOSTIC BUNDLE ──────────────────────────────────────────────────────
+  // Compiles whatever the detecting module captured beyond the one-line
+  // issueMessage (stack trace, network-failure group, render diff — see
+  // lib/diagnostic-bundle.js). issueMessage itself is deliberately excluded
+  // here — it's already carried elsewhere in both prompt shapes below, so
+  // this only surfaces genuinely EXTRA context. Empty when the module has
+  // nothing extra (the common case for static-analysis modules) — no header,
+  // no fabricated sections.
+  const diagnosticBundle = buildDiagnosticBundle({ details: opts.details });
+  const diagnosticHeader = formatDiagnosticHeader(diagnosticBundle);
+
   // ── SURGICAL MODE (lineNumber provided) ───────────────────────────────────
   if (Number.isInteger(lineNumber) && lineNumber > 0) {
     const ctx = surgicalFix.extractIssueContext(originalContent, lineNumber, 20);
@@ -207,9 +222,10 @@ async function aiFix(opts) {
       endLine: ctx.endLine,
       issues: [issueMessage],
     });
-    // Prepend grounding so Claude respects project conventions even when it
+    // Prepend grounding + diagnostic bundle so Claude respects project
+    // conventions AND sees the full captured failure context even when it
     // only sees the ±20-line window around the offending line.
-    const prompt = conventionsHeader + rawSurgicalPrompt;
+    const prompt = conventionsHeader + diagnosticHeader + rawSurgicalPrompt;
 
     let rawResponse;
     try {
@@ -273,7 +289,7 @@ async function aiFix(opts) {
 
   const systemPrompt = `You are a precise code fixer. You receive a source file with a specific issue and you fix ONLY that issue — nothing else. You do not reformat, rename, or improve unrelated code. You return JSON only.`;
 
-  const userMessage = `${conventionsHeader}Fix this issue in the file below:
+  const userMessage = `${conventionsHeader}${diagnosticHeader}Fix this issue in the file below:
 
 Issue: ${issueTitle}
 Description: ${issueMessage}${fixHint}
@@ -392,6 +408,7 @@ function injectAutoFixes(results, projectRoot) {
         issueMessage: message,
         lineNumber: check.line || check.lineNumber || check.location?.line,
         fixSuggestion: fixHint,
+        details: check.details,
         apiKey,
       });
     }
