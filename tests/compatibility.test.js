@@ -33,3 +33,39 @@ describe('CompatibilityModule — baseline shape', () => {
     await assert.doesNotReject(mod.run(result, { projectRoot: tmp }));
   });
 });
+
+describe('CompatibilityModule — RegExp v flag (KI #50)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-compat-vflag-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('does NOT flag an ordinary import path (/lib/validators — 202 of 237 self-scan findings were this bug)', async () => {
+    fs.writeFileSync(path.join(tmp, 'index.js'), `import { check } from "./lib/validators";\nconst x = 1;\n`);
+    const mod = new CompatibilityModule();
+    const result = makeResult();
+    await mod.run(result, { projectRoot: tmp });
+    assert.ok(
+      !result.checks.some((c) => c.name.includes('RegExp v flag')),
+      'a plain import path must not be flagged as a RegExp v-flag usage'
+    );
+  });
+
+  it('does NOT flag other v-word-after-slash paths (/api/version, /components/value)', async () => {
+    fs.writeFileSync(path.join(tmp, 'index.js'), `const a = require('./api/version');\nconst b = require('./components/value');\n`);
+    const mod = new CompatibilityModule();
+    const result = makeResult();
+    await mod.run(result, { projectRoot: tmp });
+    assert.ok(!result.checks.some((c) => c.name.includes('RegExp v flag')));
+  });
+
+  it('still flags a genuine RegExp literal using the v flag', async () => {
+    fs.writeFileSync(path.join(tmp, 'index.js'), `const re = /[\\p{ASCII}]/v;\n`);
+    const mod = new CompatibilityModule();
+    const result = makeResult();
+    await mod.run(result, { projectRoot: tmp });
+    assert.ok(
+      result.checks.some((c) => c.name.includes('RegExp v flag')),
+      'a genuine /pattern/v regex literal should still be flagged'
+    );
+  });
+});

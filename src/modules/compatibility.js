@@ -143,7 +143,11 @@ class CompatibilityModule extends BaseModule {
       { api: 'Promise.withResolvers', regex: /Promise\.withResolvers\s*\(/g, since: 'Chrome 119' },
       { api: 'Set methods (union/intersection)', regex: /\.union\s*\(|\.intersection\s*\(/g, since: 'Chrome 122' },
       { api: 'Iterator helpers', regex: /\.map\s*\(.*\)\.filter\s*\(/g, since: 'Very new' },
-      { api: 'RegExp v flag', regex: /\/[^/]+\/[gimsuy]*v/g, since: 'Chrome 112' },
+      // \b after the v is required — without it, ANY two-slash path segment
+      // followed by a word starting with 'v' false-matches (/lib/validators,
+      // /api/version, /components/value, ...). Confirmed on this repo: 202
+      // of 237 compatibility findings were this bug (KI #50).
+      { api: 'RegExp v flag', regex: /\/[^/]+\/[gimsuy]*v\b/g, since: 'Chrome 112' },
     ];
 
     for (const { api, regex, since } of modernApis) {
