@@ -62,6 +62,7 @@ const HALLUCINATED_METHODS = [
 const PATH_ALIAS_PREFIXES = [
   '@/', '~/', '#/', '$env/', '$app/', '$lib/', '@components/', '@utils/',
   '@hooks/', '@store/', '@types/', '@assets/', '@pages/', '@layouts/',
+  '@lib/', // this repo's own tsconfig path alias (see website/tsconfig.json)
 ];
 
 function isPathAlias(specifier) {
@@ -71,13 +72,15 @@ function isPathAlias(specifier) {
 // ─── common stdlib / well-known builtins (never flag these as unknown) ─────
 
 const BUILT_IN_MODULES = new Set([
-  'assert', 'async_hooks', 'buffer', 'child_process', 'cluster', 'console',
-  'constants', 'crypto', 'dgram', 'diagnostics_channel', 'dns', 'domain',
-  'events', 'fs', 'fs/promises', 'http', 'http2', 'https', 'inspector',
-  'module', 'net', 'os', 'path', 'path/posix', 'path/win32', 'perf_hooks',
-  'process', 'punycode', 'querystring', 'readline', 'repl', 'stream',
-  'stream/consumers', 'stream/promises', 'stream/web', 'string_decoder',
-  'sys', 'timers', 'timers/promises', 'tls', 'trace_events', 'tty', 'url',
+  'assert', 'assert/strict', 'async_hooks', 'buffer', 'child_process', 'cluster',
+  'console', 'constants', 'crypto', 'dgram', 'diagnostics_channel', 'dns',
+  'dns/promises', 'domain', 'events', 'fs', 'fs/promises', 'http', 'http2',
+  'https', 'inspector', 'inspector/promises', 'module', 'net', 'os', 'path',
+  'path/posix', 'path/win32', 'perf_hooks', 'process', 'punycode',
+  'querystring', 'readline', 'readline/promises', 'repl', 'sea', 'sqlite',
+  'stream', 'stream/consumers', 'stream/promises', 'stream/web',
+  'string_decoder', 'sys', 'test', 'test/reporters', 'timers',
+  'timers/promises', 'tls', 'trace_events', 'tty', 'url',
   'util', 'util/types', 'v8', 'vm', 'wasi', 'worker_threads', 'zlib',
   // Bun
   'bun', 'bun:sqlite', 'bun:ffi', 'bun:test',
@@ -89,7 +92,17 @@ const BUILT_IN_MODULES = new Set([
   'react-dom', 'react-dom/client', 'react-dom/server',
   // Webpack / Vite virtual
   '$env/static/public', '$app/environment', '$app/stores',
+  // VS Code extension host — injected at runtime, never an npm dependency
+  'vscode',
 ]);
+
+// `node:`-prefixed specifiers (e.g. `node:fs`, `node:test`) are the modern,
+// explicit way to import a Node built-in — functionally identical to the
+// bare form. BUILT_IN_MODULES lists bare names only; strip the prefix
+// before checking so both forms resolve the same way.
+function stripNodePrefix(specifier) {
+  return specifier.startsWith('node:') ? specifier.slice(5) : specifier;
+}
 
 // prefixes that are always local
 function isLocalImport(specifier) {
@@ -177,7 +190,7 @@ class AiHallucinationDetector extends BaseModule {
         if (isLocalImport(specifier)) continue;
         if (isPathAlias(specifier)) continue; // @/utils, ~/components, etc.
         const pkg = barePackage(specifier);
-        if (BUILT_IN_MODULES.has(pkg) || BUILT_IN_MODULES.has(specifier)) continue;
+        if (BUILT_IN_MODULES.has(stripNodePrefix(pkg)) || BUILT_IN_MODULES.has(stripNodePrefix(specifier))) continue;
         if (knownDeps.has(pkg)) continue;
         if (workspaceNames.has(pkg)) continue;
 

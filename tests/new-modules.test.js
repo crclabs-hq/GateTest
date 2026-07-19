@@ -214,6 +214,68 @@ import https from 'https';
     assert.strictEqual(result.errorChecks.length, 0);
   });
 
+  it('does NOT flag node:-prefixed builtin imports (KI: 890 of 1037 self-scan findings were this bug)', async () => {
+    const Mod = require('../src/modules/ai-hallucination');
+    const m   = new Mod();
+    const tmp = makeTmp();
+    write(tmp, 'package.json', JSON.stringify({ name: 'test', dependencies: {} }));
+    write(tmp, 'src/index.js', `
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawn } = require('node:child_process');
+import https from 'node:https';
+import { test } from 'node:test';
+import assert from 'node:assert';
+`);
+    const result = makeResult('aiHallucination');
+    await m.run(result, { projectRoot: tmp });
+    assert.strictEqual(result.errorChecks.length, 0);
+    assert.strictEqual(result.warningChecks.length, 0, `unexpected warnings: ${JSON.stringify(result.warningChecks)}`);
+  });
+
+  it('does NOT flag the @lib/ path alias (this repo\'s own tsconfig alias)', async () => {
+    const Mod = require('../src/modules/ai-hallucination');
+    const m   = new Mod();
+    const tmp = makeTmp();
+    write(tmp, 'package.json', JSON.stringify({ name: 'test', dependencies: {} }));
+    write(tmp, 'src/index.js', `const { rateLimit } = require('@lib/rate-limit');`);
+    const result = makeResult('aiHallucination');
+    await m.run(result, { projectRoot: tmp });
+    assert.strictEqual(result.errorChecks.length, 0);
+    assert.strictEqual(result.warningChecks.length, 0);
+  });
+
+  it('does NOT flag the vscode extension-host virtual module', async () => {
+    const Mod = require('../src/modules/ai-hallucination');
+    const m   = new Mod();
+    const tmp = makeTmp();
+    write(tmp, 'package.json', JSON.stringify({ name: 'test', dependencies: {} }));
+    write(tmp, 'src/extension.js', `const vscode = require('vscode');`);
+    const result = makeResult('aiHallucination');
+    await m.run(result, { projectRoot: tmp });
+    assert.strictEqual(result.errorChecks.length, 0);
+    assert.strictEqual(result.warningChecks.length, 0);
+  });
+
+  it('still flags a genuinely unknown package even with the node: prefix present elsewhere in the file', async () => {
+    // Control case — proves the fix targets the prefix specifically, not a
+    // blanket suppression of everything in a file that also imports builtins.
+    const Mod = require('../src/modules/ai-hallucination');
+    const m   = new Mod();
+    const tmp = makeTmp();
+    write(tmp, 'package.json', JSON.stringify({ name: 'test', dependencies: {} }));
+    write(tmp, 'src/index.js', `
+const fs = require('node:fs');
+const thing = require('totally-made-up-package-abc');
+`);
+    const result = makeResult('aiHallucination');
+    await m.run(result, { projectRoot: tmp });
+    assert.ok(
+      result.warningChecks.some((c) => c.name.includes('totally-made-up-package-abc')),
+      'the genuinely unknown package should still be flagged'
+    );
+  });
+
   it('flags hallucinated fs method', async () => {
     const Mod = require('../src/modules/ai-hallucination');
     const m   = new Mod();
