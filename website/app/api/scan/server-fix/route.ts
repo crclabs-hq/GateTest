@@ -136,6 +136,11 @@ function generateHeaderFixes(details: string[]): FixSnippet[] {
     netlifyLines.push(`  X-Frame-Options: SAMEORIGIN`);
   }
   if (missing.has("csp")) {
+    // 'unsafe-inline' is a deliberate, disclosed tradeoff (see CSP_CAVEAT
+    // below, appended to every fix whose code includes this header) — not
+    // an oversight. This is a one-click generator for non-technical users;
+    // a nonce/hash-based CSP would break existing inline scripts/styles on
+    // sites that rely on them. web-headers-ok
     const csp = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; object-src 'none';";
     nextHeaders.push(`{ key: "Content-Security-Policy", value: "${csp}" }`);
     vercelHeaders.push({ key: "Content-Security-Policy", value: csp });
@@ -156,6 +161,17 @@ function generateHeaderFixes(details: string[]): FixSnippet[] {
     netlifyLines.push(`  Permissions-Policy: ${perms}`);
   }
 
+  // Appended to a fix's instructions whenever this batch includes a CSP —
+  // see the web-headers-ok comment above for why the default allows inline
+  // scripts/styles rather than shipping a stricter nonce/hash-based policy.
+  const cspCaveatText =
+    " Note: the generated Content-Security-Policy allows inline scripts " +
+    "and styles (needed so it won't break existing inline <script>/" +
+    "<style>/onclick= code on your site). Once you've confirmed nothing " +
+    "relies on inline scripts, tighten it to a nonce or hash-based policy " +
+    "for stronger XSS protection.";
+  const cspCaveat = missing.has("csp") ? cspCaveatText : "";
+
   const fixes: FixSnippet[] = [];
 
   fixes.push({
@@ -171,7 +187,7 @@ ${nextHeaders.map(h => "        " + h + ",").join("\n")}
     },
   ];
 },`,
-    instructions: "Add this headers() function inside your nextConfig object, then redeploy.",
+    instructions: `Add this headers() function inside your nextConfig object, then redeploy.${cspCaveat}`,
   });
 
   fixes.push({
@@ -183,21 +199,21 @@ ${nextHeaders.map(h => "        " + h + ",").join("\n")}
         headers: vercelHeaders,
       }],
     }, null, 2),
-    instructions: "Add this to vercel.json in your project root, commit, and redeploy.",
+    instructions: `Add this to vercel.json in your project root, commit, and redeploy.${cspCaveat}`,
   });
 
   fixes.push({
     platform: "Nginx",
     title: "Add to your nginx server block",
     code: nginxLines.join("\n"),
-    instructions: "Add these lines inside your server { } block, then run: sudo nginx -t && sudo systemctl reload nginx",
+    instructions: `Add these lines inside your server { } block, then run: sudo nginx -t && sudo systemctl reload nginx${cspCaveat}`,
   });
 
   fixes.push({
     platform: "Netlify (_headers file)",
     title: "Create/update public/_headers",
     code: `/*\n${netlifyLines.join("\n")}`,
-    instructions: "Create a file at public/_headers (or your publish directory) with this content.",
+    instructions: `Create a file at public/_headers (or your publish directory) with this content.${cspCaveat}`,
   });
 
   return fixes;

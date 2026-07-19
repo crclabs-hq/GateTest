@@ -34,7 +34,16 @@ const SECURITY_HEADERS_MAP: Record<string, string> = {
   "referrer-policy":            "Referrer-Policy",
 };
 
+// The CSP default deliberately allows inline scripts and styles. This is a
+// non-technical, one-click-deploy generator (see file header) — going
+// straight to a nonce/hash-based policy would break any existing inline
+// <script>/<style>/onclick= the customer's site relies on, which for the
+// WordPress/legacy-site audience this targets is common. A working starter
+// CSP that's honestly disclosed as permissive (see cspCaveat() below,
+// appended to every CSP-bearing instructions string) is safer than a
+// "correct" one that takes their site down.
 const DEFAULT_HEADER_VALUES: Record<string, string> = {
+  // web-headers-ok — intentional, disclosed permissive default, see comment above.
   "Content-Security-Policy":    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;",
   "Strict-Transport-Security":  "max-age=31536000; includeSubDomains",
   "X-Frame-Options":            "SAMEORIGIN",
@@ -42,6 +51,20 @@ const DEFAULT_HEADER_VALUES: Record<string, string> = {
   "Referrer-Policy":            "strict-origin-when-cross-origin",
   "Permissions-Policy":         "camera=(), microphone=(), geolocation=()",
 };
+
+// Appended to a platform's instructions whenever CSP is among the headers
+// being generated, so customers aren't left thinking this is a maximally
+// strict policy when it's actually a safe, permissive starting point.
+const CSP_CAVEAT =
+  " Note: the generated Content-Security-Policy allows inline scripts " +
+  "and styles (needed so it won't break existing inline <script>/" +
+  "<style>/onclick= code on your site). Once you've confirmed nothing " +
+  "relies on inline scripts, tighten it to a nonce or hash-based policy " +
+  "for stronger XSS protection.";
+
+function withCspCaveat(instructions: string, missing: string[]): string {
+  return missing.includes("Content-Security-Policy") ? instructions + CSP_CAVEAT : instructions;
+}
 
 function getMissingHeaders(findings: WebFinding[]): string[] {
   return findings
@@ -85,8 +108,10 @@ ${headerEntries}
         filename: "vercel.json",
         language: "json",
         content,
-        instructions:
+        instructions: withCspCaveat(
           'Save this as vercel.json in the root of your repository. If you already have a vercel.json, add the "headers" array into your existing file. Commit and push — Vercel will pick it up automatically.',
+          missing
+        ),
       },
     ],
   };
@@ -112,8 +137,10 @@ function generateNetlifyFix(findings: WebFinding[]): PlatformFixResult {
         filename: "_headers",
         language: "text",
         content,
-        instructions:
+        instructions: withCspCaveat(
           'Save this as _headers in your website\'s publish directory (the folder Netlify deploys — usually "public", "dist", or "out"). Commit and push — Netlify applies it on the next deploy.',
+          missing
+        ),
       },
     ],
   };
@@ -151,7 +178,10 @@ ${phpLines}
         filename: "functions.php snippet",
         language: "php",
         content,
-        instructions: "Copy this snippet and add it to your WordPress theme's functions.php file, or use the 'Code Snippets' plugin to paste it without editing core files.",
+        instructions: withCspCaveat(
+          "Copy this snippet and add it to your WordPress theme's functions.php file, or use the 'Code Snippets' plugin to paste it without editing core files.",
+          missing
+        ),
       },
     ],
     manualSteps: steps,
@@ -187,7 +217,10 @@ ${addHeaders}
         filename: "nginx.conf snippet",
         language: "nginx",
         content,
-        instructions: "Copy these add_header lines into your nginx server block, then run 'sudo nginx -t' to verify syntax and 'sudo systemctl reload nginx' to apply.",
+        instructions: withCspCaveat(
+          "Copy these add_header lines into your nginx server block, then run 'sudo nginx -t' to verify syntax and 'sudo systemctl reload nginx' to apply.",
+          missing
+        ),
       },
     ],
     manualSteps: [
