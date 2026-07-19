@@ -1,0 +1,269 @@
+
+[1m[36m========================================[0m
+[1m[36m  GATETEST - Quality Assurance Gate[0m
+[1m[36m========================================[0m
+[2m  Modules: memory, syntax, lint, secrets, codeQuality, unitTests, integrationTests, e2e, visual, accessibility, performance, security, seo, links, compatibility, dataIntegrity, documentation, dependencies, sbom, dockerfile, ciSecurity, shell, sqlMigrations, terraform, kubernetes, promptSafety, deadCode, secretRotation, webHeaders, typescriptStrictness, undefinedRef, flakyTests, errorSwallow, nPlusOne, retryHygiene, raceCondition, resourceLeak, ssrf, hardcodedUrl, envVars, asyncIteration, homoglyph, openapiDrift, prSize, prQuality, redos, cronExpression, datetimeBug, importCycle, moneyFloat, logPii, featureFlag, tlsSecurity, cookieSecurity, crossFileTaint, mutation, python, go, rust, java, ruby, php, csharp, kotlin, swift, aiReview, agentic, fakeFixDetector, claudeCompliance, aiHallucination, authBypass, bashSafety, bundleSize, cacheHeaders, ciParamValidator, deployContract, deployReadiness, deployScriptValidator, duplicateCode, envIntegrity, monorepoConstraints, nativeBundlerGuard, rollbackHonesty, serviceConsistency, systemd, trpcContract, webhookPayload, zodSchemaPresence[0m
+
+  [34m[RUN][0m memory [32m[PASS][0m [2m(1 checks, 14ms)[0m
+  [34m[RUN][0m syntax [32m[PASS][0m [2m(30 checks, 26ms)[0m
+  [34m[RUN][0m lint [31m[FAIL][0m [2m(1 errors, 1662ms)[0m
+    [31mx[0m [31mlint:eslint[0m
+      [33mfix: Run "npx eslint . --fix" to auto-fix, then manually resolve remaining issues[0m
+  [34m[RUN][0m secrets [31m[FAIL][0m [2m(3 errors, 8ms)[0m
+    [31mx[0m [31msecrets:src\auth\login.js[0m
+      [2mfile: src\auth\login.js:[0m
+      [33mfix: Move secrets to environment variables and add file to .gitignore[0m
+    [31mx[0m [31msecrets:src\auth\session.js[0m
+      [2mfile: src\auth\session.js:[0m
+      [33mfix: Move secrets to environment variables and add file to .gitignore[0m
+    [31mx[0m [31msecrets:gitignore-exists[0m
+      [33mfix: Create a .gitignore that excludes .env, credentials, and key files[0m
+  [34m[RUN][0m codeQuality [31m[FAIL][0m [2m(5 errors, 12ms)[0m
+    [31mx[0m [31mquality:console.log/debug/info found:src\auth\session.js:3[0m
+      [2mfile: src\auth\session.js:3[0m
+      [33mfix: Remove or replace this pattern before committing[0m
+    [31mx[0m [31mquality:innerHTML assignment detected — use textContent or sanitize:src\components\render.js:3[0m
+      [2mfile: src\components\render.js:3[0m
+      [33mfix: Remove or replace this pattern before committing[0m
+    [31mx[0m [31mquality:innerHTML assignment detected — use textContent or sanitize:src\components\render.js:7[0m
+      [2mfile: src\components\render.js:7[0m
+      [33mfix: Remove or replace this pattern before committing[0m
+    [31mx[0m [31mquality:eval() usage detected:src\utils\eval-config.js:4[0m
+      [2mfile: src\utils\eval-config.js:4[0m
+      [33mfix: Remove or replace this pattern before committing[0m
+    [31mx[0m [31mquality:console.log/debug/info found:src\utils\logger.js:3[0m
+      [2mfile: src\utils\logger.js:3[0m
+      [33mfix: Remove or replace this pattern before committing[0m
+  [34m[RUN][0m unitTests [31m[FAIL][0m [2m(1 errors, 1ms)[0m
+    [31mx[0m [31munit-tests:detect[0m
+      [33mfix: Add a test script to package.json or install a test framework (jest, vitest, mocha)[0m
+  [34m[RUN][0m integrationTests [32m[PASS][0m [2m(9 checks, 12ms, 7 warnings)[0m
+    [33m~ integration-tests:missing[0m
+      [2m9 integration points found but no integration tests[0m
+    [33m~ integration:untested:USE:/users[0m
+      [2mUSE /users has no integration test[0m
+    [33m~ integration:untested:USE:/health[0m
+      [2mUSE /health has no integration test[0m
+    [33m~ integration:untested:GET:/[0m
+      [2mGET / has no integration test[0m
+    [33m~ integration:untested:POST:/login[0m
+      [2mPOST /login has no integration test[0m
+    [33m~ integration:untested:POST:/checkout[0m
+      [2mPOST /checkout has no integration test[0m
+    [33m~ integration:untested-count[0m
+      [2m9 endpoints lack integration tests (showing first 5)[0m
+  [34m[RUN][0m e2e [32m[PASS][0m [2m(1 checks, 0ms)[0m
+  [34m[RUN][0m visual [32m[PASS][0m [2m(2 checks, 2ms)[0m
+  [34m[RUN][0m accessibility [32m[PASS][0m [2m(3 checks, 2ms)[0m
+  [34m[RUN][0m performance [32m[PASS][0m [2m(2 checks, 39ms)[0m
+  [34m[RUN][0m security [31m[FAIL][0m [2m(10 errors, 47ms)[0m
+    [31mx[0m [31msecurity:npm-audit[0m
+      [33mfix: Run "npm audit" manually to check for vulnerabilities[0m
+    [31mx[0m [31msecurity:innerHTML assignment:src\components\render.js:3[0m
+      [2mfile: src\components\render.js:3[0m
+      [33mfix: Review and replace innerHTML assignment with a safe alternative[0m
+    [31mx[0m [31msecurity:innerHTML assignment:src\components\render.js:7[0m
+      [2mfile: src\components\render.js:7[0m
+      [33mfix: Review and replace innerHTML assignment with a safe alternative[0m
+    [31mx[0m [31msecurity:eval():src\utils\eval-config.js:1[0m [2m(low confidence: 0.20)[0m
+      [2mfile: src\utils\eval-config.js:1[0m
+      [33mfix: Review and replace eval() with a safe alternative[0m
+    [31mx[0m [31msecurity:eval():src\utils\eval-config.js:4[0m
+      [2mfile: src\utils\eval-config.js:4[0m
+      [33mfix: Review and replace eval() with a safe alternative[0m
+    [31mx[0m [31msecurity:sql-injection:src/db/query.js:11[0m
+      [2mfile: src/db/query.js:11[0m
+      [33mfix: Use parameterised queries (e.g. conn.query("...WHERE id = ?", [id])) or a tagged-template SQL builder (sql`...`) instead of concatenating/interpolating identifiers into SQL text[0m
+    [31mx[0m [31msecurity:sql-injection:src/db/query.js:16[0m
+      [2mfile: src/db/query.js:16[0m
+      [33mfix: Use parameterised queries (e.g. conn.query("...WHERE id = ?", [id])) or a tagged-template SQL builder (sql`...`) instead of concatenating/interpolating identifiers into SQL text[0m
+    [31mx[0m [31msecurity:sql-injection-scan[0m
+      [33mfix: Use parameterised queries (placeholders + a values array) or a tagged-template SQL builder instead of concatenating/interpolating identifiers into SQL text[0m
+    [31mx[0m [31msecurity:secret:src\auth\login.js:9[0m
+      [2mfile: src\auth\login.js:9[0m
+      [33mfix: Move this value to environment variables or a secrets manager. Never commit secrets to source control.[0m
+    [31mx[0m [31msecurity:secrets-scan[0m
+      [33mfix: Review all findings and move secrets to environment variables or a secrets manager[0m
+  [34m[RUN][0m seo [31m[FAIL][0m [2m(2 errors, 2ms)[0m
+    [31mx[0m [31mseo:sitemap[0m
+      [33mfix: Generate a sitemap.xml for search engine discovery[0m
+    [31mx[0m [31mseo:robots-txt[0m
+      [33mfix: Create a robots.txt to guide search engine crawlers[0m
+  [34m[RUN][0m links [32m[PASS][0m [2m(3 checks, 2ms)[0m
+  [34m[RUN][0m compatibility [32m[PASS][0m [2m(4 checks, 8ms, 3 warnings)[0m
+    [33m~ compat:browserslist[0m
+      [2mNo browserslist configuration found[0m
+    [33m~ compat:node-engine[0m
+      [2mNo engines.node field in package.json[0m
+    [33m~ compat:js:RegExp v flag:src\api\handler.js[0m
+      [2mAPI "RegExp v flag" (available since Chrome 112) may not work in all target browsers[0m
+  [34m[RUN][0m dataIntegrity [32m[PASS][0m [2m(3 checks, 15ms)[0m
+  [34m[RUN][0m documentation [31m[FAIL][0m [2m(2 errors, 12ms, 8 warnings)[0m
+    [31mx[0m [31mdocs:readme-setup/install[0m
+      [2mfile: README.md:[0m
+      [33mfix: Add a setup/install section to README.md[0m
+    [31mx[0m [31mdocs:readme-usage[0m
+      [2mfile: README.md:[0m
+      [33mfix: Add a usage section to README.md[0m
+    [33m~ docs:readme-api/reference[0m
+      [2mREADME missing recommended section: api/reference[0m
+    [33m~ docs:readme-contributing[0m
+      [2mREADME missing recommended section: contributing[0m
+    [33m~ docs:readme-license[0m
+      [2mREADME missing recommended section: license[0m
+    [33m~ docs:changelog[0m
+      [2mNo CHANGELOG.md found[0m
+    [33m~ docs:env-vars-undocumented[0m
+      [2m2 env vars used in code but no .env.example: PORT, NODE_ENV[0m
+    [33m~ docs:license[0m
+      [2mNo LICENSE file and no license field in package.json[0m
+    [33m~ docs:api[0m
+      [2mAPI routes found but no API documentation[0m
+    [33m~ docs:jsdoc-coverage[0m
+      [2mJSDoc coverage: 0% (0/33 functions documented)[0m
+  [34m[RUN][0m dependencies [32m[PASS][0m [2m(3 checks, 2ms, 1 warnings)[0m
+    [33m~ dependencies:no-lockfile:npm:package.json[0m
+      [2mpackage.json has no matching lockfile (package-lock.json / yarn.lock / pnpm-lock.yaml / bun.lockb) — builds are non-reproducible[0m
+  [34m[RUN][0m sbom [32m[PASS][0m [2m(3 checks, 2ms, 1 warnings)[0m
+    [33m~ sbom:npm-lockfile[0m
+      [2mpackage.json found but no lockfile (package-lock.json / yarn.lock / pnpm-lock.yaml)[0m
+  [34m[RUN][0m dockerfile [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m ciSecurity [32m[PASS][0m [2m(1 checks, 0ms)[0m
+  [34m[RUN][0m shell [32m[PASS][0m [2m(1 checks, 2ms)[0m
+  [34m[RUN][0m sqlMigrations [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m terraform [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m kubernetes [32m[PASS][0m [2m(1 checks, 2ms)[0m
+  [34m[RUN][0m promptSafety [32m[PASS][0m [2m(1 checks, 3ms)[0m
+  [34m[RUN][0m deadCode [32m[PASS][0m [2m(24 checks, 17ms, 2 warnings)[0m
+    [33m~ dead-code:unused-export:src\db\connection.js:7:query[0m
+      [2m`query` is exported from src\db\connection.js but no file in the project imports it — candidate dead code[0m
+    [33m~ dead-code:unused-export:src\utils\dead.js:7:legacyFormatCurrency[0m
+      [2m`legacyFormatCurrency` is exported from src\utils\dead.js but no file in the project imports it — candidate dead code[0m
+  [34m[RUN][0m secretRotation [32m[PASS][0m [2m(1 checks, 36ms)[0m
+  [34m[RUN][0m webHeaders [32m[PASS][0m [2m(2 checks, 4ms)[0m
+  [34m[RUN][0m typescriptStrictness [32m[PASS][0m [2m(1 checks, 2ms)[0m
+  [34m[RUN][0m undefinedRef [32m[PASS][0m [2m(2 checks, 11ms)[0m
+  [34m[RUN][0m flakyTests [32m[PASS][0m [2m(1 checks, 2ms)[0m
+  [34m[RUN][0m errorSwallow [32m[PASS][0m [2m(3 checks, 6ms, 1 warnings)[0m
+    [33m~ error-swallow:empty-catch:src\api\handler.js:24[0m
+      [2msrc\api\handler.js:24 catch block contains only comments — a comment documents intent but does not handle the error[0m
+  [34m[RUN][0m nPlusOne [32m[PASS][0m [2m(2 checks, 5ms)[0m
+  [34m[RUN][0m retryHygiene [32m[PASS][0m [2m(2 checks, 4ms)[0m
+  [34m[RUN][0m raceCondition [32m[PASS][0m [2m(2 checks, 5ms)[0m
+  [34m[RUN][0m resourceLeak [32m[PASS][0m [2m(2 checks, 7ms)[0m
+  [34m[RUN][0m ssrf [32m[PASS][0m [2m(2 checks, 12ms)[0m
+  [34m[RUN][0m hardcodedUrl [32m[PASS][0m [2m(2 checks, 6ms)[0m
+  [34m[RUN][0m envVars [32m[PASS][0m [2m(2 checks, 7ms)[0m
+  [34m[RUN][0m asyncIteration [32m[PASS][0m [2m(3 checks, 5ms, 1 warnings)[0m
+    [33m~ async-iteration:async-foreach:src\api\fetchAll.js:7[0m
+      [2msrc\api\fetchAll.js:7 `.forEach(async ...)` — forEach doesn't await returned Promises; the enclosing function returns before the inner awaits resolve and errors are swallowed[0m
+  [34m[RUN][0m homoglyph [32m[PASS][0m [2m(2 checks, 6ms)[0m
+  [34m[RUN][0m openapiDrift [32m[PASS][0m [2m(1 checks, 2ms)[0m
+  [34m[RUN][0m prSize [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m prQuality [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m redos [31m[FAIL][0m [2m(1 errors, 7ms)[0m
+    [31mx[0m [31mredos:nested-quantifier:src/utils/regex.js:3[0m
+      [2mfile: src/utils/regex.js:3[0m
+  [34m[RUN][0m cronExpression [32m[PASS][0m [2m(1 checks, 4ms)[0m
+  [34m[RUN][0m datetimeBug [32m[PASS][0m [2m(2 checks, 4ms)[0m
+  [34m[RUN][0m importCycle [32m[PASS][0m [2m(2 checks, 6ms)[0m
+  [34m[RUN][0m moneyFloat [31m[FAIL][0m [2m(2 errors, 8ms)[0m
+    [31mx[0m [31mmoney-float:js-parse-float:src/utils/price.js:3[0m
+      [2mfile: src/utils/price.js:3[0m
+    [31mx[0m [31mmoney-float:js-parse-float:src/utils/price.js:8[0m
+      [2mfile: src/utils/price.js:8[0m
+  [34m[RUN][0m logPii [31m[FAIL][0m [2m(1 errors, 6ms)[0m
+    [31mx[0m [31mlog-pii:sensitive-arg:src/auth/session.js:3[0m
+      [2mfile: src/auth/session.js:3[0m
+  [34m[RUN][0m featureFlag [32m[PASS][0m [2m(2 checks, 5ms)[0m
+  [34m[RUN][0m tlsSecurity [31m[FAIL][0m [2m(1 errors, 6ms)[0m
+    [31mx[0m [31mtls-security:js-reject-unauthorized:src/api/client.js:9[0m
+      [2mfile: src/api/client.js:9[0m
+  [34m[RUN][0m cookieSecurity [32m[PASS][0m [2m(2 checks, 5ms)[0m
+  [34m[RUN][0m crossFileTaint [32m[PASS][0m [2m(1 checks, 13ms)[0m
+  [34m[RUN][0m mutation [32m[PASS][0m [2m(1 checks, 0ms)[0m
+  [34m[RUN][0m python [32m[PASS][0m [2m(1 checks, 2ms)[0m
+  [34m[RUN][0m go [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m rust [32m[PASS][0m [2m(1 checks, 0ms)[0m
+  [34m[RUN][0m java [32m[PASS][0m [2m(1 checks, 0ms)[0m
+  [34m[RUN][0m ruby [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m php [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m csharp [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m kotlin [32m[PASS][0m [2m(1 checks, 0ms)[0m
+  [34m[RUN][0m swift [32m[PASS][0m [2m(1 checks, 3ms)[0m
+  [34m[RUN][0m aiReview [32m[PASS][0m [2m(1 checks, 0ms)[0m
+  [34m[RUN][0m agentic [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m fakeFixDetector [32m[PASS][0m [2m(4 checks, 137ms)[0m
+  [34m[RUN][0m claudeCompliance [32m[PASS][0m [2m(2 checks, 8ms)[0m
+  [34m[RUN][0m aiHallucination [32m[PASS][0m [2m(1 checks, 6ms)[0m
+  [34m[RUN][0m authBypass [31m[FAIL][0m [2m(2 errors, 6ms)[0m
+    [31mx[0m [31mauth-bypass:src\api\health.js[0m
+      [2mfile: src\api\health.js:6[0m
+    [31mx[0m [31mauth-bypass:src\api\routes.js[0m
+      [2mfile: src\api\routes.js:9[0m
+  [34m[RUN][0m bashSafety [32m[PASS][0m [2m(1 checks, 4ms)[0m
+  [34m[RUN][0m bundleSize [32m[PASS][0m [2m(1 checks, 0ms)[0m
+  [34m[RUN][0m cacheHeaders [32m[PASS][0m [2m(0 checks, 5ms)[0m
+  [34m[RUN][0m ciParamValidator [32m[PASS][0m [2m(1 checks, 0ms)[0m
+  [34m[RUN][0m deployContract [32m[PASS][0m [2m(1 checks, 10ms)[0m
+  [34m[RUN][0m deployReadiness [31m[FAIL][0m [2m(1 errors, 1ms, 1 warnings)[0m
+    [31mx[0m [31mdeploy-readiness:score[0m
+    [33m~ deploy-readiness:top-issues[0m
+      [2mTop issues blocking score: [CRITICAL] secrets:src\auth\login.js | [CRITICAL] secrets:src\auth\session.js | [CRITICAL] secrets:gitignore-exists[0m
+  [34m[RUN][0m deployScriptValidator [32m[PASS][0m [2m(1 checks, 4ms)[0m
+  [34m[RUN][0m duplicateCode [32m[PASS][0m [2m(1 checks, 9ms)[0m
+  [34m[RUN][0m envIntegrity [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m monorepoConstraints [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m nativeBundlerGuard [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m rollbackHonesty [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m serviceConsistency [32m[PASS][0m [2m(1 checks, 3ms)[0m
+  [34m[RUN][0m systemd [32m[PASS][0m [2m(1 checks, 2ms)[0m
+  [34m[RUN][0m trpcContract [32m[PASS][0m [2m(1 checks, 1ms)[0m
+  [34m[RUN][0m webhookPayload [32m[PASS][0m [2m(1 checks, 4ms)[0m
+  [34m[RUN][0m zodSchemaPresence [32m[PASS][0m [2m(1 checks, 0ms)[0m
+
+[1m[36m----------------------------------------[0m
+[1m[41m[37m  GATE: BLOCKED  [0m
+
+  Modules:  75/88 passed
+  Checks:   149/206 passed [2m(+22 info-only nit(s), never blocks — see Info below)[0m
+  Errors:   [31m31[0m blocking, [2m1 soft (low confidence)[0m
+  Warnings: [33m25[0m
+  Info:     [2m22[0m
+  Time:     2310ms
+
+[31m  Failed modules:[0m
+    [31m- lint: 1 error(s): lint:eslint[0m
+    [31m- secrets: 3 error(s): secrets:src\auth\login.js, secrets:src\auth\session.js, secrets:gitignore-exists[0m
+    [31m- codeQuality: 5 error(s): quality:console.log/debug/info found:src\auth\session.js:3, quality:innerHTML assignment detected — use textContent or sanitize:src\components\render.js:3, quality:innerHTML assignment detected — use textContent or sanitize:src\components\render.js:7, quality:eval() usage detected:src\utils\eval-config.js:4, quality:console.log/debug/info found:src\utils\logger.js:3[0m
+    [31m- unitTests: 1 error(s): unit-tests:detect[0m
+    [31m- security: 9 error(s): security:npm-audit, security:innerHTML assignment:src\components\render.js:3, security:innerHTML assignment:src\components\render.js:7, security:eval():src\utils\eval-config.js:4, security:sql-injection:src/db/query.js:11, security:sql-injection:src/db/query.js:16, security:sql-injection-scan, security:secret:src\auth\login.js:9, security:secrets-scan[0m
+    [31m- seo: 2 error(s): seo:sitemap, seo:robots-txt[0m
+    [31m- documentation: 2 error(s): docs:readme-setup/install, docs:readme-usage[0m
+    [31m- redos: 1 error(s): redos:nested-quantifier:src/utils/regex.js:3[0m
+    [31m- moneyFloat: 2 error(s): money-float:js-parse-float:src/utils/price.js:3, money-float:js-parse-float:src/utils/price.js:8[0m
+    [31m- logPii: 1 error(s): log-pii:sensitive-arg:src/auth/session.js:3[0m
+    [31m- tlsSecurity: 1 error(s): tls-security:js-reject-unauthorized:src/api/client.js:9[0m
+    [31m- authBypass: 2 error(s): auth-bypass:src\api\health.js, auth-bypass:src\api\routes.js[0m
+    [31m- deployReadiness: 1 error(s): deploy-readiness:score[0m
+
+[1m[35m  ────────────────────────────────────────[0m
+[1m  🔧 GateTest found [35m57[0m[1m fixable issues in this scan.[0m
+[2m     This scan ran the deterministic engine for free. To have them FIXED —[0m
+[2m     Claude opens a PR, re-scans each fix, and proves it worked:[0m
+     [36m[1m→ https://gatetest.ai[0m  [2m(Scan + Fix, one verified PR)[0m
+[2m     Already have an Anthropic key? Fix locally: [0m[36mgatetest fix[0m
+[1m[35m  ────────────────────────────────────────[0m
+
+[2m  Report generated at 2026-07-19T08:25:49.922Z[0m
+[1m[36m========================================[0m
+
+  [2m────────────────────────────────────────────────────[0m
+  [31m[1m✗ 31 issues are blocking this commit.[0m
+  [2m(+1 low-confidence finding(s) shown but NOT blocking.)[0m
+
+  [1mWhat now?[0m Pick one:
+    [36mgatetest fix --apply[0m   [2m— let AI fix them, then review the diff (needs ANTHROPIC_API_KEY)[0m
+    [36mgatetest --noise[0m       [2m— if these look like false alarms, see which modules are noisy[0m
+    [2madd a line to [0m[1m.gatetestignore[0m[2m — permanently silence a check you've judged safe[0m
+
