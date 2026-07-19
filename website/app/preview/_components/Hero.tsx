@@ -182,7 +182,7 @@ export function Hero() {
               className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:border-teal-300/30 hover:text-white"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-teal-300" />
-              110+ unified checks · auto-fix pull requests
+              120+ unified checks · auto-fix pull requests
               <I.arrow className="h-3.5 w-3.5 text-teal-300" />
             </a>
           </Reveal>
@@ -201,7 +201,7 @@ export function Hero() {
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-zinc-400">
               The enterprise QA guardrail for the AI-assisted era. Hook GateTest
               into your repo and ship every commit through{" "}
-              <span className="text-zinc-200">110+ deep checks</span> — security,
+              <span className="text-zinc-200">120+ deep checks</span> — security,
               memory leaks, type safety, edge cases, architecture — in one
               unified scan. Every issue comes back as an{" "}
               <span className="text-zinc-200">auto-fix pull request</span>, not
