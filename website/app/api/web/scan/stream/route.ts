@@ -25,6 +25,19 @@
 
 import { NextRequest } from "next/server";
 import { resolveFullReportAccess } from "@/app/lib/full-report-auth";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { resolveAndValidateUrl } = require("@/app/lib/ssrf-guard") as {
+  resolveAndValidateUrl: (input: string) => Promise<{ ok: true; url: URL } | { ok: false; reason: string }>;
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
+  createLimiter: (opts: { windowMs: number; maxRequests: number }) => {
+    guard: (req: NextRequest) => Promise<{ allowed: boolean; status?: number; body?: Record<string, unknown>; headers?: Record<string, string> }>;
+  };
+  PRESETS: Record<string, { windowMs: number; maxRequests: number }>;
+};
+
+const _webScanStreamLimiter = createLimiter(PRESETS.webScan);
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -46,27 +59,6 @@ interface WebFinding {
   body: string;
   module: string;
   ruleKey: string;
-}
-
-function parseUrl(input: string): URL | null {
-  if (!input || typeof input !== "string") return null;
-  let raw = input.trim();
-  if (!raw) return null;
-  if (!/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
-  try {
-    const u = new URL(raw);
-    if (
-      u.hostname === "localhost" ||
-      u.hostname.startsWith("127.") ||
-      u.hostname.startsWith("10.") ||
-      u.hostname.startsWith("192.168.") ||
-      u.hostname.startsWith("169.254.") ||
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(u.hostname)
-    ) return null;
-    return u;
-  } catch {
-    return null;
-  }
 }
 
 // Translation table — mirrors /api/web/scan/route.ts. Kept local to this
@@ -137,6 +129,14 @@ function translateFinding(check: { name: string; severity?: string; message?: st
 }
 
 export async function POST(req: NextRequest) {
+  const _rlWebScan = await _webScanStreamLimiter.guard(req);
+  if (!_rlWebScan.allowed) {
+    return new Response(JSON.stringify(_rlWebScan.body), {
+      status: _rlWebScan.status ?? 429,
+      headers: { "Content-Type": "application/json", ...(_rlWebScan.headers || {}) },
+    });
+  }
+
   let body: StreamRequest;
   try { body = await req.json(); } catch {
     return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 });
@@ -146,12 +146,13 @@ export async function POST(req: NextRequest) {
   // at all: `const fullReport = Boolean(body.fullReport)` let any caller
   // unlock the paid report for free. See full-report-auth.ts.
   const fullReport = await resolveFullReportAccess(req, body);
-  const parsed = parseUrl(body.url || "");
-  if (!parsed) {
+  const validated = await resolveAndValidateUrl(body.url || "");
+  if (!validated.ok) {
     return new Response(JSON.stringify({
       error: "Please paste a valid public website URL. Localhost and internal addresses are blocked.",
     }), { status: 400, headers: { "Content-Type": "application/json" } });
   }
+  const parsed = validated.url;
   const targetUrl = `${parsed.protocol}//${parsed.host}`;
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports

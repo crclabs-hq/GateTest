@@ -95,7 +95,7 @@ export function NavBar() {
                 className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-zinc-300 transition-colors hover:text-white"
                 aria-expanded={open}
               >
-                110 Checks Architecture
+                120 Checks Architecture
                 <I.chevron
                   className={`h-3.5 w-3.5 transition-transform duration-200 ${
                     open ? "rotate-180" : ""
@@ -209,7 +209,7 @@ export function NavBar() {
           <div className="border-t border-white/10 px-4 py-3 md:hidden">
             <div className="flex flex-col gap-1">
               <a href="#bento" className="rounded-lg px-3 py-2.5 text-sm text-zinc-300">
-                110 Checks Architecture
+                120 Checks Architecture
               </a>
               <a href="#playground" className="rounded-lg px-3 py-2.5 text-sm text-zinc-300">
                 Docs

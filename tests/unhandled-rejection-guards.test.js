@@ -96,3 +96,22 @@ test('stripe-webhook after() callback has a top-level try/catch', () => {
     "prevent unhandledRejection from killing the process under Node 24"
   );
 });
+
+// ── Test 7: app-server.js's git-clone in cloneAndScan uses array-args
+// execFileSync, not shell-interpolated execSync (command injection fix,
+// 2026-07-20 — `branch` is an attacker-controlled PR ref name; git ref
+// rules forbid whitespace/~^:?*[` but NOT $, (, ), ;, &, |, backticks).
+test('cloneAndScan uses execFileSync with array args for git clone, not string-interpolated execSync', () => {
+  const src = fs.readFileSync(APP_SERVER_PATH, 'utf-8');
+  assert.ok(
+    /execFileSync\('git',\s*\['clone'/.test(src),
+    "the git clone in cloneAndScan() must use execFileSync('git', [...]) — array " +
+    "args are never shell-interpreted, closing the injection path"
+  );
+  // Guard against a regression back to the vulnerable shape: no execSync call
+  // should string-interpolate `branch` into a `git clone` command.
+  assert.ok(
+    !/execSync\(`git clone[^`]*\$\{branch\}/.test(src),
+    "must not reintroduce execSync(`git clone --branch ${branch} ...`) — branch is attacker-controlled"
+  );
+});

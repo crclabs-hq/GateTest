@@ -25,7 +25,7 @@ const crypto = require('crypto');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 
 const PORT = process.env.PORT || 3333;
 const APP_ID = process.env.GATETEST_APP_ID;
@@ -242,9 +242,12 @@ async function cloneAndScan(owner, name, branch, token) {
   const tmpDir = path.join('/tmp', `gatetest-${owner}-${name}-${Date.now()}`);
 
   try {
-    // Clone
+    // Clone — array-args execFileSync, no shell, so an attacker-controlled
+    // PR branch name (git ref names allow $, (, ), ;, &, |, backticks —
+    // only whitespace and a handful of other chars are forbidden) can't be
+    // interpreted as shell syntax the way string-interpolated execSync would.
     const cloneUrl = `https://x-access-token:${token}@github.com/${owner}/${name}.git`;
-    execSync(`git clone --depth 1 --branch ${branch} ${cloneUrl} ${tmpDir}`, {
+    execFileSync('git', ['clone', '--depth', '1', '--branch', branch, cloneUrl, tmpDir], {
       stdio: 'pipe',
       timeout: 60000,
     });

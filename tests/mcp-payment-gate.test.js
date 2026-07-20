@@ -89,6 +89,12 @@ test('scan_local with quick suite passes without key', async () => {
   assert.equal(gated, null, 'scan_local quick must not be gated');
 });
 
+test('scan_repo passes without key — its own description and the quick-start prompt already promise this is free', async () => {
+  delete process.env.GATETEST_API_KEY;
+  const gated = simulateGate('scan_repo', { url: 'https://github.com/owner/repo' });
+  assert.equal(gated, null, 'scan_repo must not be gated (was a self-contradiction: docs said free, GATED_TOOLS charged $29/mo)');
+});
+
 test('scan_local with full suite is gated without key', async () => {
   delete process.env.GATETEST_API_KEY;
   const result = simulateGate('scan_local', { suite: 'full' });
@@ -188,7 +194,7 @@ function simulateGate(toolName, args) {
     'run_module', 'fix_issue', 'explain_finding', 'compose_pr',
     'capture_screenshot', 'get_visual_diff',
     'run_live_checks', 'get_production_errors',
-    'verify_fix', 'audit_log', 'compare_repos', 'get_report', 'scan_repo',
+    'verify_fix', 'audit_log', 'compare_repos', 'get_report',
   ]);
   const keyPresent = !!(process.env.GATETEST_API_KEY);
   const needsKey =

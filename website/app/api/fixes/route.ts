@@ -8,8 +8,19 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createHash } from "crypto";
+import { createHash, timingSafeEqual } from "crypto";
 import { getDb } from "@/app/lib/db";
+
+// Timing-safe token compare — matches the pattern used by every other
+// secret check in this codebase (admin-auth.ts, github-events.js,
+// stripe-webhook/route.ts, events-push.js, self-scan-status.js).
+function safeEqual(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 const { recordFix, listFixes, getFixStats } = require("@/app/lib/fixes-store");
 
@@ -57,7 +68,7 @@ export async function POST(req: NextRequest) {
   // Auth check — internal only
   const authHeader = req.headers.get("authorization") || "";
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-  if (!INTERNAL_TOKEN || token !== INTERNAL_TOKEN) {
+  if (!INTERNAL_TOKEN || !safeEqual(token, INTERNAL_TOKEN)) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 

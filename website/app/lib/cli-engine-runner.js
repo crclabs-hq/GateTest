@@ -252,7 +252,19 @@ async function runFullEngine({ fileContents, suite = DEFAULT_SUITE, deadlineMs, 
 
     let summary;
     try {
-      summary = await new GateTest(workspaceRoot, opts).init().runSuite(suite);
+      // mutation/chaos never run on the website-only scan flow (Bible
+      // commitment — GitHub Action only, since neither module has a real
+      // test runner / headless-browser environment to work with inside
+      // this /tmp workspace: node_modules is never installed here, so
+      // mutation.js's baseline `npm test` run fails before it can do
+      // anything useful). suites.full/suites.nuclear (src/core/config.js)
+      // still list them for the CI Action path — skipModules is the same
+      // mechanism CI's own gatetest-full job already uses (--skip-module
+      // mutation) to keep the main gate fast; reused here to keep the
+      // website's paid scans honest about what actually ran.
+      summary = await new GateTest(workspaceRoot, opts).init().runSuite(suite, {
+        skipModules: ['mutation', 'chaos'],
+      });
     } catch (err) {
       process.exitCode = previousExitCode;
       return {

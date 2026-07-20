@@ -23,6 +23,15 @@
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { MAX_ATTEMPTS } = require('./scan-queue-store');
+const { timingSafeEqual } = require('crypto');
+
+function safeEqual(a, b) {
+  if (!a || !b) return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 // Continuous-tier ($49/mo) diff-size circuit breaker.
 // When a push touches more than this many files, AI-fix is skipped and the
@@ -38,20 +47,24 @@ const MAX_DIFF_FILES = 20;
  * dashboard; the inline kick in /api/events/push forwards the same
  * header value so kicks pass this check too.
  *
+ * Fails closed when CRON_SECRET is unset — matches every other secret
+ * check in this codebase (admin-auth.ts, github-events.js, stripe-webhook,
+ * events-push.js, self-scan-status.js all fail closed on a missing
+ * secret). Previously failed OPEN in that case ("local dev, first
+ * deploy" grace period) — found during a security audit to have been
+ * left on indefinitely in production, meaning this endpoint currently
+ * accepts unauthenticated ticks. Deploying this fix REQUIRES CRON_SECRET
+ * to already be set in the production environment, or the cron/kick path
+ * stops firing entirely — see docs/ROADMAP.md.
+ *
  * @param {{ cronHeader: string|null, isAdmin: boolean, env: Record<string, string|undefined> }} args
  */
 function isAuthorisedTick({ cronHeader, isAdmin, env }) {
   if (isAdmin) return true;
   const expected = env.CRON_SECRET || '';
-  if (!expected) {
-    // If CRON_SECRET is not set (local dev, first deploy), accept the
-    // request so the cron can fire at all. This matches the pragmatic
-    // admin-auth pattern: fail closed only when the system was clearly
-    // intended to be closed.
-    return true;
-  }
+  if (!expected) return false;
   if (!cronHeader || typeof cronHeader !== 'string') return false;
-  return cronHeader === expected;
+  return safeEqual(cronHeader, expected);
 }
 
 /**

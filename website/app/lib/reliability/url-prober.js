@@ -27,7 +27,11 @@
 
 "use strict";
 
+const { resolveAndValidateUrl } = require("../ssrf-guard");
+
 const DEFAULT_TIMEOUT_MS = 20_000;
+const MAX_REDIRECTS = 5;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const DEFAULT_USER_AGENT = "GateTest-Reliability/1.0 (+https://gatetest.ai)";
 const MAX_BODY_BYTES = 256 * 1024; // 256 KB — enough for header / form scan
 
@@ -307,33 +311,92 @@ async function probeUrl({ url, _fetch, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
     return { findings: [], durationMs: 0, status: null, error: "unsupported-protocol" };
   }
 
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), timeoutMs);
   const startedAt = Date.now();
-  let response;
-  try {
-    response = await fetchImpl(url, {
-      method: "GET",
-      redirect: "follow",
-      signal: ac.signal,
-      headers: { "User-Agent": DEFAULT_USER_AGENT, Accept: "*/*" },
-    });
-  } catch (err) {
+
+  // Manual redirect handling — each hop is re-validated through the same
+  // SSRF guard as the initial URL before being followed. A URL that passes
+  // validation can still 302 to an internal/metadata address; redirect:
+  // "follow" would silently chase it. Capped at MAX_REDIRECTS.
+  let currentUrl = url;
+  let response = null;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const hopCheck = await resolveAndValidateUrl(currentUrl);
+    if (!hopCheck.ok) {
+      return {
+        findings: [{
+          module: "webHeaders",
+          severity: "error",
+          file: url,
+          rule: hop === 0 ? "blocked-address" : "redirect-blocked",
+          message: hop === 0
+            ? `Refusing to probe a blocked address (${hopCheck.reason})`
+            : `Redirected to a blocked address (${hopCheck.reason}) — refusing to follow`,
+        }],
+        durationMs: Date.now() - startedAt,
+        status: null,
+        error: hop === 0 ? "blocked-address" : "redirect-blocked",
+      };
+    }
+
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), timeoutMs);
+    let hopResponse;
+    try {
+      hopResponse = await fetchImpl(currentUrl, {
+        method: "GET",
+        redirect: "manual",
+        signal: ac.signal,
+        headers: { "User-Agent": DEFAULT_USER_AGENT, Accept: "*/*" },
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      return {
+        findings: [{
+          module: "webHeaders",
+          severity: "error",
+          file: url,
+          rule: "request-failed",
+          message: `Probe request failed: ${err && err.message ? err.message : String(err)}`,
+        }],
+        durationMs: Date.now() - startedAt,
+        status: null,
+        error: err && err.name === "AbortError" ? "timeout" : "fetch-error",
+      };
+    }
     clearTimeout(timer);
+
+    const location = REDIRECT_STATUSES.has(hopResponse.status) &&
+      hopResponse.headers && typeof hopResponse.headers.get === "function"
+      ? hopResponse.headers.get("location")
+      : null;
+
+    if (!location) {
+      response = hopResponse;
+      break;
+    }
+    try {
+      currentUrl = new URL(location, currentUrl).toString();
+    } catch {
+      response = hopResponse;
+      break;
+    }
+    // Loop continues — next iteration re-validates currentUrl before fetching it.
+  }
+
+  if (!response) {
     return {
       findings: [{
         module: "webHeaders",
-        severity: "error",
+        severity: "warning",
         file: url,
-        rule: "request-failed",
-        message: `Probe request failed: ${err && err.message ? err.message : String(err)}`,
+        rule: "too-many-redirects",
+        message: `Exceeded ${MAX_REDIRECTS} redirects while probing`,
       }],
       durationMs: Date.now() - startedAt,
       status: null,
-      error: err && err.name === "AbortError" ? "timeout" : "fetch-error",
+      error: "too-many-redirects",
     };
   }
-  clearTimeout(timer);
 
   let bodySnippet = "";
   try {

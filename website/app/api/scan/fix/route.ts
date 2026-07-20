@@ -20,6 +20,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import https from "https";
 import { isAdminRequest } from "@/app/lib/admin-auth";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const {
@@ -550,6 +551,95 @@ export const runtime = "nodejs";
 const TIME_BUDGET_MS = 240_000;
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
+
+// ── Payment verification ────────────────────────────────────────────
+// /api/scan/fix has no free tier — it burns real Anthropic spend and
+// opens a real PR. Every non-admin call must resolve to a completed
+// Stripe payment before any AI work starts. Mirrors the same pattern
+// used in /api/scan/run/route.ts (kept as a separate, self-contained
+// copy — matching how every route in this codebase owns its own small
+// Stripe glue rather than sharing a client).
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
+
+function stripeApi(
+  method: string,
+  path: string,
+): Promise<Record<string, unknown>> {
+  return new Promise((resolve, reject) => {
+    const options: https.RequestOptions = {
+      hostname: "api.stripe.com",
+      port: 443,
+      path,
+      method,
+      headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` },
+    };
+    const req = https.request(options, (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (c) => chunks.push(c));
+      res.on("end", () => {
+        try { resolve(JSON.parse(Buffer.concat(chunks).toString("utf-8"))); }
+        catch { resolve({}); }
+      });
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+/**
+ * Require a completed Stripe payment for a non-admin /api/scan/fix call.
+ * Returns the authoritative paid tier (from Stripe metadata, never the
+ * client-supplied tier) on success, or a NextResponse to return immediately
+ * on any failure (missing/invalid session, unpaid, lookup error — all fail
+ * closed, never fall through to running the fix for free).
+ */
+async function verifyFixPayment(
+  sessionId: string | undefined,
+): Promise<{ ok: true; paidTier: string | undefined } | { ok: false; response: ReturnType<typeof NextResponse.json> }> {
+  if (!sessionId) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Missing sessionId — a completed checkout session is required to run auto-fix" },
+        { status: 402 },
+      ),
+    };
+  }
+  if (!STRIPE_SECRET_KEY) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Payment verification unavailable" }, { status: 503 }),
+    };
+  }
+  try {
+    const existing = (await stripeApi("GET", `/v1/checkout/sessions/${sessionId}`)) as {
+      payment_intent?: string;
+    };
+    if (!existing.payment_intent) {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: "Invalid or incomplete checkout session" }, { status: 402 }),
+      };
+    }
+    const pi = (await stripeApi("GET", `/v1/payment_intents/${existing.payment_intent}`)) as {
+      metadata?: Record<string, string>;
+      status?: string;
+    };
+    if (pi.status !== "succeeded") {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: "Payment not completed" }, { status: 402 }),
+      };
+    }
+    return { ok: true, paidTier: pi.metadata?.tier };
+  } catch (err) { // error-ok — logged below; caller rejects the request rather than allowing it through
+    console.error("[GateTest] scan/fix payment verification failed:", err);
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Could not verify payment — please try again" }, { status: 503 }),
+    };
+  }
+}
 
 // Circuit breaker — stops AI invocations mid-flight when the repo is
 // so large that 1000 Claude calls would be needed. Partial fixes are
@@ -1084,6 +1174,9 @@ export async function POST(req: NextRequest) {
     originalFileContents?: OriginalFileInput[];
     originalFindingsByModule?: Record<string, string[]>;
     tier?: string;
+    // Stripe checkout session id — required for non-admin requests, verified
+    // against Stripe before any AI work runs. See verifyFixPayment() above.
+    sessionId?: string;
     // Customer-supplied GitHub PAT — used for ONE request only, never
     // stored, never logged. When supplied AND validated, overrides the
     // server-side resolveRepoAuth fallback so customers without our
@@ -1129,6 +1222,23 @@ export async function POST(req: NextRequest) {
 
   if (!repoUrl || !rawIssues || rawIssues.length === 0) {
     return NextResponse.json({ error: "Missing repoUrl or issues" }, { status: 400 });
+  }
+
+  // Payment verification — no free tier on this route. Admin requests skip
+  // Stripe entirely (never touch billing). Runs before any other work so an
+  // unpaid request never reaches clustering, budget tracking, or AI calls.
+  const isAdmin = isAdminRequest(req);
+  if (!isAdmin) {
+    const paymentCheck = await verifyFixPayment(input.sessionId);
+    if (!paymentCheck.ok) {
+      return paymentCheck.response;
+    }
+    if (paymentCheck.paidTier && paymentCheck.paidTier !== input.tier) {
+      console.warn(
+        `[GateTest] scan/fix tier mismatch on session ${(input.sessionId || "").slice(0, 12)}... — requested ${input.tier || "<none>"}, paid ${paymentCheck.paidTier}. Using paid tier.`
+      );
+      input.tier = paymentCheck.paidTier;
+    }
   }
 
   if (Array.isArray(input.originalFileContents) && input.originalFileContents.length > 500) {
@@ -1257,7 +1367,7 @@ export async function POST(req: NextRequest) {
 
   // Rate-limit AFTER body parsing + validation, BEFORE Anthropic/GitHub API calls.
   // Admin requests bypass the limiter — they are internal and authenticated.
-  if (!isAdminRequest(req)) {
+  if (!isAdmin) {
     const _rlScanFix = await _scanFixLimiter.guard(req);
     if (!_rlScanFix.allowed) {
       return NextResponse.json(_rlScanFix.body, {

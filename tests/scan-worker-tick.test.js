@@ -162,10 +162,17 @@ describe('isAuthorisedTick', () => {
     );
   });
 
-  it('returns true when CRON_SECRET is unset (first-deploy / local-dev lenient)', () => {
+  it('returns false when CRON_SECRET is unset — fails closed like every other secret check (was fail-open, a real production gap)', () => {
     assert.strictEqual(
       isAuthorisedTick({ cronHeader: null, isAdmin: false, env: {} }),
-      true
+      false
+    );
+  });
+
+  it('returns false when CRON_SECRET is unset even with a cron header present', () => {
+    assert.strictEqual(
+      isAuthorisedTick({ cronHeader: 'anything', isAdmin: false, env: {} }),
+      false
     );
   });
 });

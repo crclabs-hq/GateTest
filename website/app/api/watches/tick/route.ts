@@ -387,9 +387,12 @@ export async function GET(req: NextRequest) {
                     ${JSON.stringify({ reason: "no fixable issues extracted from scan", issuesFound: result.totalIssues, moduleSamples })}, NOW())
           `;
         } else {
+          const fixAdminToken = deriveAdminToken();
+          const fixHeaders: Record<string, string> = { "Content-Type": "application/json" };
+          if (fixAdminToken) fixHeaders["x-admin-token"] = fixAdminToken;
           const fixRes = await fetch(`${baseUrl}/api/scan/fix`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: fixHeaders,
             body: JSON.stringify({
               repoUrl: `https://github.com/${watch.target}`,
               issues: fixableIssues,

@@ -22,6 +22,19 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { resolveFullReportAccess } from "@/app/lib/full-report-auth";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { resolveAndValidateUrl } = require("@/app/lib/ssrf-guard") as {
+  resolveAndValidateUrl: (input: string) => Promise<{ ok: true; url: URL } | { ok: false; reason: string }>;
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
+  createLimiter: (opts: { windowMs: number; maxRequests: number }) => {
+    guard: (req: NextRequest) => Promise<{ allowed: boolean; status?: number; body?: Record<string, unknown>; headers?: Record<string, string> }>;
+  };
+  PRESETS: Record<string, { windowMs: number; maxRequests: number }>;
+};
+
+const _wpScanLimiter = createLimiter(PRESETS.webScan);
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -39,31 +52,6 @@ interface WpFinding {
   body: string;
   module: string;
   ruleKey: string;
-}
-
-function parseUrl(input: string): URL | null {
-  if (!input || typeof input !== "string") return null;
-  let raw = input.trim();
-  if (!raw) return null;
-  if (!/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
-  try {
-    const u = new URL(raw);
-    // Block private / loopback addresses — protects us from being abused
-    // as a port scanner against internal infrastructure.
-    if (
-      u.hostname === "localhost" ||
-      u.hostname.startsWith("127.") ||
-      u.hostname.startsWith("10.") ||
-      u.hostname.startsWith("192.168.") ||
-      u.hostname.startsWith("169.254.") ||
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(u.hostname)
-    ) {
-      return null;
-    }
-    return u;
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -209,6 +197,14 @@ function translateFinding(check: {
 }
 
 export async function POST(req: NextRequest) {
+  const _rlWpScan = await _wpScanLimiter.guard(req);
+  if (!_rlWpScan.allowed) {
+    return NextResponse.json(_rlWpScan.body, {
+      status: _rlWpScan.status ?? 429,
+      headers: _rlWpScan.headers as Record<string, string>,
+    });
+  }
+
   // Support both JSON body (XHR from React) and form submission (the
   // landing page's <form action="/api/wp/scan" method="POST">).
   let url: string | undefined;
@@ -232,8 +228,8 @@ export async function POST(req: NextRequest) {
   // See full-report-auth.ts.
   fullReport = await resolveFullReportAccess(req, body);
 
-  const parsed = parseUrl(url || "");
-  if (!parsed) {
+  const validated = await resolveAndValidateUrl(url || "");
+  if (!validated.ok) {
     return NextResponse.json(
       {
         error:
@@ -243,6 +239,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+  const parsed = validated.url;
 
   const targetUrl = `${parsed.protocol}//${parsed.host}`;
 

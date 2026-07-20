@@ -123,7 +123,7 @@ const GATED_TOOLS = new Set([
   'run_module', 'fix_issue', 'explain_finding', 'compose_pr',
   'capture_screenshot', 'get_visual_diff',
   'run_live_checks', 'get_production_errors',
-  'verify_fix', 'audit_log', 'compare_repos', 'get_report', 'scan_repo',
+  'verify_fix', 'audit_log', 'compare_repos', 'get_report',
   'resolve_stack_trace', 'blame_regression',
   'run_tests', 'stream_logs', 'query_db', 'http_request',
 ]);

@@ -22,10 +22,14 @@
  *
  * Sections retained from the previous homepage are intentionally dropped:
  *   - Problem / AiNative / HowItWorks / Modules / Install / Comparison /
- *     Integrations / ContinuousScanning / GateRules / Cta
+ *     Integrations / GateRules / Cta
  * The new homepage carries the same arguments in tighter, denser, more
  * code-forward form — Hacker News bar. The dropped components are not
- * deleted (other pages may reference them).
+ * deleted (other pages may reference them). ContinuousScanning.tsx WAS
+ * deleted (2026-07-20 security audit) — it was truly unreferenced
+ * anywhere and its "Full automated penetration testing against staging"
+ * bullet contradicted the live, correct PentestComingSoon ("coming soon")
+ * component.
  */
 
 import Navbar from "./components/Navbar";

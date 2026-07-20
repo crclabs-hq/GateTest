@@ -370,62 +370,82 @@ async function _postImpl(req: NextRequest): Promise<ReturnType<typeof NextRespon
     }
   }
 
-  // ── Idempotency guard + authoritative tier resolution ────────────
-  // /api/scan/run can be invoked multiple times for the same session
-  // (browser refresh, back-button, network retry, client re-render,
-  // or a concurrent stripe-webhook after() invocation). Without this
-  // check a second call would re-run the scan AND re-capture — in
-  // the worst case double-charging or overwriting a valid result.
-  // The Stripe metadata's `scan_status` is the canonical replay marker.
+  // ── Payment verification (REQUIRED for non-admin) + idempotency guard
+  // + authoritative tier resolution ─────────────────────────────────
+  // /api/scan/run has no free tier — every non-admin call must resolve to
+  // a real, completed Stripe payment. Previously this whole block only ran
+  // when a `sessionId` happened to be present in the request body, and a
+  // lookup failure silently fell through to running the scan anyway —
+  // meaning simply omitting `sessionId`, or any Stripe API hiccup, let a
+  // request run any tier (including the $399 Forensic tier) for free.
+  // Fixed: sessionId is required, the Stripe payment intent must show
+  // `succeeded`, and any verification failure (missing session, unpaid,
+  // lookup error) now rejects the request instead of proceeding.
   //
-  // We ALSO use this PI-fetch to resolve the authoritative tier. The URL
+  // This PI-fetch is ALSO used to resolve the authoritative tier. The URL
   // `tier` param is untrusted (customer can edit it); the PI metadata's
   // `tier` was stamped at checkout creation and cannot be tampered with.
   // If the URL claims a different tier than the customer paid for, we
   // log the attempt and silently honour the paid tier.
-  if (!isAdmin && sessionId && STRIPE_SECRET_KEY) {
+  if (!isAdmin) {
+    if (!sessionId) {
+      return NextResponse.json(
+        { error: "Missing sessionId — a completed checkout session is required to run a scan" },
+        { status: 402 }
+      );
+    }
+    if (!STRIPE_SECRET_KEY) {
+      // Can't verify payment without Stripe configured — fail closed
+      // rather than silently running paid work for free.
+      return NextResponse.json({ error: "Payment verification unavailable" }, { status: 503 });
+    }
     try {
       const existing = (await stripeApi(
         "GET",
         `/v1/checkout/sessions/${sessionId}`
       )) as { payment_intent?: string };
-      if (existing.payment_intent) {
-        const pi = (await stripeApi(
-          "GET",
-          `/v1/payment_intents/${existing.payment_intent}`
-        )) as { metadata?: Record<string, string>; status?: string };
-
-        // Authoritative tier override — silently corrects URL manipulation.
-        const paidTier = pi.metadata?.tier;
-        if (paidTier && paidTier !== tier) {
-          console.warn(
-            `[GateTest] Tier mismatch on session ${sessionId.slice(0, 12)}... — URL claimed ${tier || "<none>"}, paid ${paidTier}. Using paid tier.`
-          );
-          tier = paidTier;
-        }
-
-        const prevStatus = pi.metadata?.scan_status;
-        if (prevStatus === "complete" || prevStatus === "failed") {
-          // Already processed — return the cached state derived from
-          // metadata rather than re-running the scan or re-capturing.
-          return NextResponse.json({
-            status: prevStatus,
-            modules: [],
-            totalModules: Number(pi.metadata?.total_modules || 0),
-            completedModules: Number(pi.metadata?.total_modules || 0),
-            totalIssues: Number(pi.metadata?.total_issues || 0),
-            totalFixed: 0,
-            duration: Number(pi.metadata?.scan_duration || 0),
-            repoUrl,
-            tier,
-            cached: true,
-          });
-        }
+      if (!existing.payment_intent) {
+        return NextResponse.json({ error: "Invalid or incomplete checkout session" }, { status: 402 });
       }
-    } catch (err) { // error-ok — idempotency lookup failure must not block the scan
-      // Don't block a scan on an idempotency-check lookup failure — log
-      // and fall through to the normal scan path.
-      console.error("[GateTest] Idempotency check failed:", err);
+
+      const pi = (await stripeApi(
+        "GET",
+        `/v1/payment_intents/${existing.payment_intent}`
+      )) as { metadata?: Record<string, string>; status?: string };
+
+      if (pi.status !== "succeeded") {
+        return NextResponse.json({ error: "Payment not completed" }, { status: 402 });
+      }
+
+      // Authoritative tier override — silently corrects URL manipulation.
+      const paidTier = pi.metadata?.tier;
+      if (paidTier && paidTier !== tier) {
+        console.warn(
+          `[GateTest] Tier mismatch on session ${sessionId.slice(0, 12)}... — URL claimed ${tier || "<none>"}, paid ${paidTier}. Using paid tier.`
+        );
+        tier = paidTier;
+      }
+
+      const prevStatus = pi.metadata?.scan_status;
+      if (prevStatus === "complete" || prevStatus === "failed") {
+        // Already processed — return the cached state derived from
+        // metadata rather than re-running the scan or re-capturing.
+        return NextResponse.json({
+          status: prevStatus,
+          modules: [],
+          totalModules: Number(pi.metadata?.total_modules || 0),
+          completedModules: Number(pi.metadata?.total_modules || 0),
+          totalIssues: Number(pi.metadata?.total_issues || 0),
+          totalFixed: 0,
+          duration: Number(pi.metadata?.scan_duration || 0),
+          repoUrl,
+          tier,
+          cached: true,
+        });
+      }
+    } catch (err) { // error-ok — logged below; request is rejected, not silently allowed through
+      console.error("[GateTest] Payment verification failed:", err);
+      return NextResponse.json({ error: "Could not verify payment — please try again" }, { status: 503 });
     }
   }
 

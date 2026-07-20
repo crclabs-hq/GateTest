@@ -241,8 +241,8 @@ describe("createLimiter", () => {
 // ─── PRESETS sanity ──────────────────────────────────────────────────────────
 
 describe("PRESETS", () => {
-  test("all four presets exist with valid positive fields", () => {
-    const required = ["checkout", "scanRun", "scanFix", "publicApi"];
+  test("all five presets exist with valid positive fields", () => {
+    const required = ["checkout", "scanRun", "scanFix", "publicApi", "webScan"];
     for (const key of required) {
       assert.ok(PRESETS[key], `${key} preset missing`);
       assert.ok(PRESETS[key].windowMs > 0, `${key}.windowMs must be positive`);
@@ -260,6 +260,14 @@ describe("PRESETS", () => {
     assert.ok(
       PRESETS.scanFix.maxRequests <= PRESETS.checkout.maxRequests,
       "scanFix should be <= checkout"
+    );
+  });
+
+  test("webScan is as restrictive as scanRun (free, unauthenticated, at least as expensive per request — was completely unrated before 2026-07-20)", () => {
+    assert.equal(
+      PRESETS.webScan.maxRequests,
+      PRESETS.scanRun.maxRequests,
+      "webScan (/api/web/scan, /api/wp/scan) spins up a full CLI-engine workspace + headless-browser dispatch, same cost class as scanRun"
     );
   });
 

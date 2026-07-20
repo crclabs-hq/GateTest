@@ -24,6 +24,19 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { resolveFullReportAccess } from "@/app/lib/full-report-auth";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { resolveAndValidateUrl } = require("@/app/lib/ssrf-guard") as {
+  resolveAndValidateUrl: (input: string) => Promise<{ ok: true; url: URL } | { ok: false; reason: string }>;
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
+  createLimiter: (opts: { windowMs: number; maxRequests: number }) => {
+    guard: (req: NextRequest) => Promise<{ allowed: boolean; status?: number; body?: Record<string, unknown>; headers?: Record<string, string> }>;
+  };
+  PRESETS: Record<string, { windowMs: number; maxRequests: number }>;
+};
+
+const _webScanLimiter = createLimiter(PRESETS.webScan);
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -41,29 +54,6 @@ interface WebFinding {
   body: string;
   module: string;
   ruleKey: string;
-}
-
-function parseUrl(input: string): URL | null {
-  if (!input || typeof input !== "string") return null;
-  let raw = input.trim();
-  if (!raw) return null;
-  if (!/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
-  try {
-    const u = new URL(raw);
-    if (
-      u.hostname === "localhost" ||
-      u.hostname.startsWith("127.") ||
-      u.hostname.startsWith("10.") ||
-      u.hostname.startsWith("192.168.") ||
-      u.hostname.startsWith("169.254.") ||
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(u.hostname)
-    ) {
-      return null;
-    }
-    return u;
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -257,6 +247,14 @@ function translateProbeFinding(pf: {
 }
 
 export async function POST(req: NextRequest) {
+  const _rlWebScan = await _webScanLimiter.guard(req);
+  if (!_rlWebScan.allowed) {
+    return NextResponse.json(_rlWebScan.body, {
+      status: _rlWebScan.status ?? 429,
+      headers: _rlWebScan.headers as Record<string, string>,
+    });
+  }
+
   let url: string | undefined;
   let fullReport = false;
   let body: WebScanRequest = {};
@@ -283,8 +281,8 @@ export async function POST(req: NextRequest) {
   // report for free.
   fullReport = await resolveFullReportAccess(req, body);
 
-  const parsed = parseUrl(url || "");
-  if (!parsed) {
+  const validated = await resolveAndValidateUrl(url || "");
+  if (!validated.ok) {
     return NextResponse.json(
       {
         error:
@@ -294,6 +292,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+  const parsed = validated.url;
 
   const targetUrl = `${parsed.protocol}//${parsed.host}`;
 

@@ -246,11 +246,11 @@ export default function Pricing() {
         Pay only when it fixes something
       </h2>
       <p className="text-[var(--muted)] text-center mb-10 max-w-2xl mx-auto text-sm leading-relaxed">
-        Quick and Full scans are free via the open-source CLI —{" "}
+        The engine is free and open-source if you run it yourself —{" "}
         <code className="bg-[var(--background-alt)] text-[var(--accent)] px-1.5 py-0.5 rounded text-xs font-mono border border-[var(--border)]">
           npx @gatetest/cli --suite full
         </code>
-        . Pay per run only for auto-fix and deeper AI analysis, or subscribe for continuous protection.
+        . Quick and Full below run the same scan on our infra: zero setup, a shareable hosted report, nothing to install. Pay per run for auto-fix and deeper AI analysis, or subscribe for continuous protection.
       </p>
 
       {/* One-time scan tiers */}

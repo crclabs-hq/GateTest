@@ -1,13 +1,16 @@
 /**
  * Pricing-consistency tripwire (Bible Forbidden #17).
  *
- * Tier prices are intentionally defined in more than one file:
- *   1. website/app/api/checkout/route.ts      — TIERS (source of truth, cents)
- *   2. website/app/components/Pricing.tsx     — UI display strings ("$29")
+ * Tier prices are intentionally defined/checked in more than one place:
+ *   1. website/app/lib/checkout-tiers.ts       — TIERS (source of truth, cents)
+ *      — imported by both checkout/route.ts and stripe-checkout.js, NOT
+ *        re-declared in either (2026-07-20: was duplicated in both, drifted;
+ *        see docs/ROADMAP.md). checkout/route.ts itself intentionally has
+ *        no priceInCents literals to scrape anymore.
+ *   2. website/app/components/Pricing.tsx      — UI display strings ("$29")
  *   3. website/app/api/stripe-webhook/route.ts — tierPrices (USD, DB logging)
- *   4. website/app/lib/stripe-checkout.js     — test-helper mirror (cents)
  *
- * This test parses all four and fails the suite the moment any of them
+ * This test parses/requires all of them and fails the suite the moment any
  * disagree — a price change that doesn't touch every surface can't ship.
  */
 
@@ -31,23 +34,36 @@ function centsFor(source, tierKey) {
   return m ? Number(m[1]) : null;
 }
 
+const tiersSrc = read('website/app/lib/checkout-tiers.ts');
 const checkoutSrc = read('website/app/api/checkout/route.ts');
 const pricingSrc = read('website/app/components/Pricing.tsx');
 const webhookSrc = read('website/app/api/stripe-webhook/route.ts');
-const helperSrc = read('website/app/lib/stripe-checkout.js');
 
-// Source of truth — parsed, not hand-written, so this test tracks route.ts.
+// Source of truth — parsed, not hand-written, so this test tracks checkout-tiers.ts.
 const TIER_KEYS = ['quick', 'full', 'scan_fix', 'nuclear', 'continuous', 'mcp'];
-const truth = Object.fromEntries(TIER_KEYS.map((k) => [k, centsFor(checkoutSrc, k)]));
+const truth = Object.fromEntries(TIER_KEYS.map((k) => [k, centsFor(tiersSrc, k)]));
 
-describe('checkout TIERS (source of truth)', () => {
+describe('checkout-tiers.ts TIERS (source of truth)', () => {
   test('defines a price for all six tiers', () => {
     for (const key of TIER_KEYS) {
       assert.ok(
         Number.isInteger(truth[key]) && truth[key] > 0,
-        `checkout/route.ts is missing priceInCents for tier "${key}"`
+        `checkout-tiers.ts is missing priceInCents for tier "${key}"`
       );
     }
+  });
+
+  test('checkout/route.ts imports TIERS from checkout-tiers.ts rather than re-declaring it', () => {
+    assert.match(
+      checkoutSrc,
+      /import\s*\{\s*TIERS\s*\}\s*from\s*["']@\/app\/lib\/checkout-tiers["']/,
+      'checkout/route.ts should import TIERS, not define its own copy — that duplication is exactly what drifted before (KI: stripe-checkout.js stale "all-84" module count)'
+    );
+    assert.doesNotMatch(
+      checkoutSrc,
+      /priceInCents:\s*\d+/,
+      'checkout/route.ts should have no priceInCents literals of its own — they belong only in checkout-tiers.ts'
+    );
   });
 });
 
@@ -96,14 +112,33 @@ describe('stripe-webhook tierPrices (DB logging) match checkout cents', () => {
 });
 
 describe('stripe-checkout.js test helper matches checkout cents', () => {
-  // The helper intentionally mirrors only the tiers it validates.
+  // stripe-checkout.js no longer has its own priceInCents literals to
+  // scrape — it require()s TIERS from checkout-tiers.ts (2026-07-20 fix
+  // for the exact drift this test file exists to catch). Verify the
+  // require wiring directly instead of regex-scraping for now-absent text.
+  const helperSrc = read('website/app/lib/stripe-checkout.js');
+
+  test('requires TIERS from checkout-tiers.ts rather than re-declaring it', () => {
+    assert.match(
+      helperSrc,
+      /require\(["']\.\/checkout-tiers\.ts["']\)/,
+      'stripe-checkout.js should require TIERS from checkout-tiers.ts, not define its own copy'
+    );
+    assert.doesNotMatch(
+      helperSrc,
+      /priceInCents:\s*\d+/,
+      'stripe-checkout.js should have no priceInCents literals of its own'
+    );
+  });
+
   for (const key of ['quick', 'full']) {
-    test(`helper "${key}" agrees`, () => {
-      const cents = centsFor(helperSrc, key);
+    test(`helper "${key}" agrees (loaded at runtime)`, () => {
+      // eslint-disable-next-line global-require
+      const { TIERS } = require('../website/app/lib/stripe-checkout.js');
       assert.strictEqual(
-        cents,
+        TIERS[key].priceInCents,
         truth[key],
-        `stripe-checkout.js has ${cents}¢ for "${key}" but checkout charges ${truth[key]}¢`
+        `stripe-checkout.js's loaded TIERS.${key}.priceInCents is ${TIERS[key] && TIERS[key].priceInCents} but checkout-tiers.ts has ${truth[key]}¢`
       );
     });
   }

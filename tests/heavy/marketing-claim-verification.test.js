@@ -116,12 +116,20 @@ describe('marketing claim — hybrid engine models', () => {
 // ---------------------------------------------------------------------------
 
 describe('marketing claim — 4 pricing tiers wired', () => {
-  it('checkout route declares quick / full / scan_fix / nuclear TIERS', () => {
+  it('checkout-tiers.ts declares quick / full / scan_fix / nuclear TIERS, imported by the checkout route', () => {
+    // TIERS moved out of checkout/route.ts into a standalone zero-dependency
+    // module (2026-07-20 — see docs/ROADMAP.md) so the price table has
+    // exactly one home instead of drifting between route.ts and the
+    // stripe-checkout.js test helper. Assert both halves: the tiers are
+    // declared where they now live, AND the route actually imports them.
+    const tiersFile = readFile('website/app/lib/checkout-tiers.ts');
+    assert.match(tiersFile, /\bquick\b/);
+    assert.match(tiersFile, /\bfull\b/);
+    assert.match(tiersFile, /\bscan_fix\b/);
+    assert.match(tiersFile, /\bnuclear\b/);
+
     const checkout = readFile('website/app/api/checkout/route.ts');
-    assert.match(checkout, /\bquick\b/);
-    assert.match(checkout, /\bfull\b/);
-    assert.match(checkout, /\bscan_fix\b/);
-    assert.match(checkout, /\bnuclear\b/);
+    assert.match(checkout, /import\s*\{\s*TIERS\s*\}\s*from\s*["']@\/app\/lib\/checkout-tiers["']/);
   });
 
   it('budget-tracker has tier caps for all 4 tiers', () => {

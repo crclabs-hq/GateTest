@@ -1,7 +1,7 @@
 // =============================================================================
 // CLI-ENGINE-RUNNER TEST — website/app/lib/cli-engine-runner.js
 // =============================================================================
-// Bridges the website's in-memory fileContents to the full 94-module CLI
+// Bridges the website's in-memory fileContents to the full 120-module CLI
 // engine. Closes the "91 vs 22 modules" honesty gap.
 //
 // Tests are real-engine — we mkdtemp a workspace, write a tiny fixture,
@@ -209,6 +209,37 @@ describe('translateSummary', () => {
 // ---------------------------------------------------------------------------
 // runFullEngine — END-TO-END against the real CLI engine
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// mutation/chaos exclusion — Bible honesty commitment (2026-07-20 fix)
+//
+// suites.full/suites.nuclear (src/core/config.js) still list 'mutation' and
+// 'nuclear' additionally lists 'chaos' — they're real, tested modules used
+// by the GitHub Action path. But the website's /tmp workspace never runs
+// `npm install`, so mutation.js's baseline `npm test` step fails before it
+// can do anything useful, and CLAUDE.md explicitly promises these two
+// never run on the website-only scan flow. Verified via source text rather
+// than an end-to-end run — actually exercising mutation testing through
+// runFullEngine would be slow and isn't what's being protected here; what
+// matters is that the skipModules option is actually passed.
+// ---------------------------------------------------------------------------
+
+describe('runFullEngine — mutation/chaos exclusion', () => {
+  const fs2 = require('fs');
+  const path2 = require('path');
+  const src = fs2.readFileSync(
+    path2.join(__dirname, '..', 'website', 'app', 'lib', 'cli-engine-runner.js'),
+    'utf8'
+  );
+
+  it('passes skipModules: [mutation, chaos] to runSuite()', () => {
+    assert.match(
+      src,
+      /runSuite\(suite,\s*\{\s*\n?\s*skipModules:\s*\[\s*['"]mutation['"]\s*,\s*['"]chaos['"]\s*\]/,
+      'runFullEngine must call runSuite(suite, { skipModules: ["mutation", "chaos"] }) — without this, paying Full/Forensic customers can get a confusing false "mutation testing" failure since the /tmp workspace never gets npm install run'
+    );
+  });
+});
 
 describe('runFullEngine — end-to-end', () => {
   it('runs the quick suite against a tiny clean fixture', async () => {

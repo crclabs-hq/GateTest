@@ -6,6 +6,7 @@
 
 import Link from "next/link";
 import { UrlScanFlow } from "@/app/components/UrlScanFlow";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 export const metadata = {
   title: "GateTest for WordPress — Health Check, Security Audit, Auto-Fix",
@@ -160,7 +161,7 @@ export default function WordPressLanding() {
         </Link>
         <p className="text-xs text-muted mt-6">
           Built on the <Link href="/" className="text-accent hover:underline">GateTest</Link> engine
-          — the same 94-module QA gate developers use on their codebases.
+          — the same {TOTAL_MODULES}-module QA gate developers use on their codebases.
         </p>
       </section>
     </main>

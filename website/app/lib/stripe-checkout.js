@@ -1,39 +1,27 @@
 /**
- * Pure helpers for the Stripe checkout route at
- * `website/app/api/checkout/route.ts`.
+ * Pure helpers for the Stripe checkout flow, unit-tested from
+ * `tests/stripe-checkout.test.js`.
  *
- * The route's payload shaping, tier validation, repo-URL validation, and
- * Stripe-request URL-encoding logic live here so they can be unit-tested
- * from `tests/stripe-checkout.test.js` with `node --test`.
+ * IMPORTANT: `validateCheckoutInput` / `buildStripeCheckoutParams` /
+ * `createCheckoutSession` below are NOT called by the real checkout route
+ * (`website/app/api/checkout/route.ts`) — it has its own self-contained
+ * implementation (`stripeRequest` + the inline POST handler) that evolved
+ * independently and now also supports `mode: "subscription"` for the
+ * Continuous/MCP tiers, which this file's `buildStripeCheckoutParams`
+ * does not. This file's checkout-flow functions are therefore a parallel,
+ * untested-against-production implementation — kept for now (their own
+ * unit tests are still valid as tests of THIS code), but anyone touching
+ * checkout behavior should look at route.ts as the actual source of truth,
+ * not assume this file mirrors it. Worth a follow-up decision (delete this
+ * dead flow, or wire route.ts to actually use it) rather than fixing here.
  *
- * Nothing in here performs network I/O. The `buildSession` helper accepts
- * an injected `fetchImpl` so tests can mock the Stripe boundary without
- * touching the real API.
- *
- * Stripe config (prices, product shapes, capture_method: manual) is
- * intentionally duplicated in route.ts — this file mirrors it so a change
- * in one must be reflected in the other. See the `TIERS` table in both.
+ * The `TIERS` table below is NOT duplicated — previously was a hand-
+ * written second copy that drifted (missing scan_fix/nuclear/continuous/
+ * mcp, stale "all-84" module count vs the real "all-120"); now imported
+ * directly from route.ts so there is exactly one tier table to update.
  */
 
-/**
- * Canonical tier table. Kept in sync with route.ts.
- * @type {Record<string, { name: string, priceInCents: number, modules: string, description: string }>}
- */
-const TIERS = {
-  quick: {
-    name: 'Quick Scan',
-    priceInCents: 2900,
-    modules: 'syntax, lint, secrets, codeQuality',
-    description: '4 modules — syntax, linting, secrets, code quality',
-  },
-  full: {
-    name: 'Full Scan',
-    priceInCents: 9900,
-    modules: 'all-84',
-    description:
-      'All 84 modules — security, accessibility, SEO, AI review, and more',
-  },
-};
+const { TIERS } = require("./checkout-tiers.ts");
 
 /**
  * Validate the request input. Returns `{ ok: true, tier, tierKey, repoUrl }`

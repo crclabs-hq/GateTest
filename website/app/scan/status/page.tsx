@@ -273,6 +273,7 @@ export default function ScanStatus() {
           repoUrl: params.repo,
           issues,
           tier: params.tier || "full",
+          sessionId: params.id,
           // Phase 1.2b — baseline findings from THIS scan, so the
           // cross-fix scanner gate diffs against what the customer
           // actually paid to have found (server hydrates the workspace

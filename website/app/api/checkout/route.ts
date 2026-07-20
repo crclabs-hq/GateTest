@@ -21,6 +21,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import https from "https";
+// Next.js App Router route files only allow a restricted export set (GET,
+// POST, dynamic, runtime, etc.) — TIERS/ScanTier live in a standalone
+// zero-dependency module instead of being re-exported from here, both so
+// this file stays a valid route AND so plain CJS consumers (see
+// stripe-checkout.js) can require() the tier data without pulling in
+// next/server (which isn't resolvable outside the Next.js build).
+import { TIERS } from "@/app/lib/checkout-tiers";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
   createLimiter: (opts: { windowMs: number; maxRequests: number }) => {
@@ -33,81 +40,6 @@ const _checkoutLimiter = createLimiter(PRESETS.checkout);
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://gatetest.ai";
-
-interface ScanTier {
-  name: string;
-  priceInCents: number;
-  modules: string;
-  description: string;
-  /** Stripe Checkout mode — monthly subscription instead of one-time payment. */
-  recurring?: boolean;
-}
-
-const TIERS: Record<string, ScanTier> = {
-  quick: {
-    name: "Quick Scan",
-    priceInCents: 2900,
-    modules: "syntax, lint, secrets, codeQuality",
-    description: "4 modules — syntax, linting, secrets, code quality",
-  },
-  full: {
-    name: "Full Scan",
-    priceInCents: 9900,
-    modules: "all-120",
-    description:
-      "All 120 modules — security, supply chain, auth, CI hardening, AI review, and more. Scan-only (no auto-fix — that ships at Scan + Fix $199 and above).",
-  },
-  // Phase 2.3 — $199 Scan + Fix tier. Wired in once Phase 2.1 (pair-review),
-  // 2.2 (architecture annotator), and 2.4 (3 real-repo proofs validated:
-  // gatetest, Vapron, Gluecron) shipped per the loosened Boss Rule.
-  // Same full-module scan as Full, plus depth deliverables: pair-review
-  // critique on every fix and architecture-annotator design observations
-  // attached as separate PR comments.
-  scan_fix: {
-    name: "Scan + Fix",
-    priceInCents: 19900,
-    modules: "all-120+pair-review+architecture",
-    description:
-      "Everything in Full Scan, plus a second-Claude pair-review critique on every fix (correctness/completeness/readability/test-coverage rubric) and a separate architecture-annotator report on codebase-shape design observations. Same PR, deeper deliverable.",
-  },
-  // Phase 3.6 — $399 Forensic tier. Wired in once 3.1 (Claude diagnoser),
-  // 3.2 (cross-finding correlator), 3.3 (mutation testing), 3.4 (chaos),
-  // 3.5 (executive summary), and 3.7 (4/3 real-repo proofs validated)
-  // all shipped. Stripe product already exists at $399 (Craig confirmed
-  // via screenshot earlier this session).
-  nuclear: {
-    name: "Forensic Scan",
-    priceInCents: 39900,
-    modules: "all-120+nuclear-stack",
-    description:
-      "Everything in Scan + Fix, PLUS: real Claude diagnosis on every finding (no templated snippets), cross-finding attack-chain correlation (textbook session-forgery / supply-chain vectors no per-finding scanner can see), board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary report. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (mutation: true / chaos: true) — they need a CI runner so they ship wherever your CI runs.",
-
-  },
-  // Continuous subscription — Craig green-light 2026-06-12. Unlimited
-  // deterministic scans on every push (near-zero marginal cost); AI reviews
-  // metered by the continuous_ai_ledger monthly allowance (default $10/mo,
-  // env CONTINUOUS_AI_BUDGET_USD). Fix PRs are NOT included — they remain
-  // the per-scan upsell.
-  continuous: {
-    name: "Continuous",
-    priceInCents: 4900,
-    modules: "subscription-continuous",
-    description:
-      "Scan every push. Unlimited deterministic scans across all 120 modules, plus a monthly Claude AI-review allowance. Cancel anytime.",
-    recurring: true,
-  },
-  // MCP subscription — $29/mo. Key-based (no repo URL). Unlocks premium
-  // Eyes/Ears/Hands tools in the Claude MCP integration. Key delivered by
-  // email immediately after checkout. Craig-authorized 2026-07-04.
-  mcp: {
-    name: "GateTest MCP",
-    priceInCents: 2900,
-    modules: "subscription-mcp",
-    description:
-      "Full MCP server access — 120-module scans, AI fixes, live-page screenshots, production errors, test runs, and pass/fail fix verification. API key delivered by email instantly. Cancel anytime.",
-    recurring: true,
-  },
-};
 
 function stripeRequest(
   method: string,

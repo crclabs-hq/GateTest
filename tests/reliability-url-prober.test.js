@@ -239,6 +239,112 @@ test("probeUrl: produces findings + status + duration", async () => {
 });
 
 // ---------------------------------------------------------------------------
+// probeUrl — SSRF-safe redirect handling (2026-07-20)
+//
+// probeUrl previously used `redirect: "follow"`, so a URL that passed the
+// initial hostname check could 302 to an internal/metadata address and the
+// fetch would silently chase it. Now every hop uses `redirect: "manual"`
+// and is re-validated through the same SSRF guard as the initial URL.
+// These tests use real public hostnames (example.com/example.org) since
+// probeUrl's internal SSRF check always resolves real DNS (no injection
+// point) — confirmed to work in this sandbox by the existing tests above.
+// ---------------------------------------------------------------------------
+
+function mockFetchSequence(responses) {
+  let i = 0;
+  return async () => {
+    const r = responses[Math.min(i, responses.length - 1)];
+    i += 1;
+    return r;
+  };
+}
+
+function mockRedirectResponse(location, status = 302) {
+  return {
+    status,
+    ok: false,
+    headers: {
+      get: (n) => (n.toLowerCase() === "location" ? location : null),
+      getSetCookie: () => [],
+    },
+    text: async () => "",
+  };
+}
+
+test("probeUrl: follows a single redirect to a safe absolute URL", async () => {
+  const r = await probeUrl({
+    url: "https://example.com",
+    _fetch: mockFetchSequence([
+      mockRedirectResponse("https://example.org/"),
+      mockResponse({ status: 200, headers: {} }),
+    ]),
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.error, undefined);
+});
+
+test("probeUrl: follows a relative redirect Location by resolving against the current URL", async () => {
+  const r = await probeUrl({
+    url: "https://example.com/start",
+    _fetch: mockFetchSequence([
+      mockRedirectResponse("/moved"),
+      mockResponse({ status: 200, headers: {} }),
+    ]),
+  });
+  assert.equal(r.status, 200);
+});
+
+test("probeUrl: refuses to follow a redirect to a blocked/private address", async () => {
+  const r = await probeUrl({
+    url: "https://example.com",
+    _fetch: mockFetchSequence([
+      mockRedirectResponse("http://127.0.0.1/secret"),
+      mockResponse({ status: 200, headers: {} }), // must never be reached
+    ]),
+  });
+  assert.equal(r.error, "redirect-blocked");
+  assert.ok(r.findings.some((f) => f.rule === "redirect-blocked"));
+});
+
+test("probeUrl: refuses to follow a redirect to the cloud metadata IP", async () => {
+  const r = await probeUrl({
+    url: "https://example.com",
+    _fetch: mockFetchSequence([
+      mockRedirectResponse("http://169.254.169.254/latest/meta-data/"),
+    ]),
+  });
+  assert.equal(r.error, "redirect-blocked");
+});
+
+test("probeUrl: caps redirect chains at MAX_REDIRECTS", async () => {
+  // Every hop redirects to the next — never resolves, must give up rather
+  // than loop forever.
+  const responses = [];
+  for (let i = 0; i < 10; i++) {
+    responses.push(mockRedirectResponse(`https://example.com/hop-${i}`));
+  }
+  const r = await probeUrl({
+    url: "https://example.com",
+    _fetch: mockFetchSequence(responses),
+  });
+  assert.equal(r.error, "too-many-redirects");
+});
+
+test("probeUrl: a redirect response with no Location header is treated as the final response", async () => {
+  const r = await probeUrl({
+    url: "https://example.com",
+    _fetch: mockFetchOne({
+      status: 302,
+      ok: false,
+      headers: { get: () => null, getSetCookie: () => [] },
+      text: async () => "",
+    }),
+  });
+  assert.equal(r.status, 302);
+  assert.equal(r.error, undefined);
+});
+
+// ---------------------------------------------------------------------------
 // scanner adapter
 // ---------------------------------------------------------------------------
 
