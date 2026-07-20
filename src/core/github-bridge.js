@@ -155,7 +155,6 @@ async function respectRateLimit() {
           `wait inline. Refusing this request instead of hammering 429s; try again after the reset.`
         );
       }
-      // eslint-disable-next-line no-console
       console.warn(`[GateTest] GitHub API rate limit nearly exhausted — waiting ${Math.ceil(waitMs / 1000)}s for reset...`);
       await sleep(waitMs);
       return waitMs;

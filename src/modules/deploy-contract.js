@@ -42,7 +42,7 @@ class DeployContractModule extends BaseModule {
       return;
     }
 
-    for (const { file, url, path: urlPath, line } of healthUrls) {
+    for (const { file, path: urlPath, line } of healthUrls) {
       if (!urlPath) {
         result.addCheck('deploy-health-url-unresolvable', true, { severity: 'info', fix: `Dynamic URL in ${path.relative(root, file)} — cannot statically resolve` });
         continue;

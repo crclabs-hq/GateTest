@@ -12,7 +12,6 @@ const path = require('path');
 
 // Patterns that indicate a rollback branch
 const ROLLBACK_MARKERS  = /rollback|revert|restore|fallback|previous|prev_sha|PREV_SHA|prev_version/i;
-const FAILURE_BRANCH    = /(?:else|then|fi|\|\|)\s*.*(?:rollback|revert|restore)/im;
 const ON_FAILURE        = /on[-_]?failure|if.*fail|catch|ROLLBACK/i;
 
 // Health check patterns
@@ -79,7 +78,7 @@ class RollbackHonestyModule extends BaseModule {
         result.addCheck(`rollback:same-sha:${rel}`, false, {
           severity: 'error',
           file,
-          fix: `${rel}: Rollback uses git reset --hard HEAD/CURRENT_SHA — this resets to the same broken commit it's trying to recover from.\nFix: use git reset --hard \$PREV_SHA or git reset --hard HEAD~1 to go back to the known-good version.`,
+          fix: `${rel}: Rollback uses git reset --hard HEAD/CURRENT_SHA — this resets to the same broken commit it's trying to recover from.\nFix: use git reset --hard $PREV_SHA or git reset --hard HEAD~1 to go back to the known-good version.`,
         });
       }
 
@@ -92,7 +91,7 @@ class RollbackHonestyModule extends BaseModule {
         result.addCheck(`rollback:same-deploy-command:${rel}`, false, {
           severity: 'warning',
           file,
-          fix: `${rel}: Rollback runs the same deploy command(s) as the main deploy (${sharedCommands.join(', ')}) without switching to a different SHA/artifact.\nThis is not a rollback — it's a retry of the same broken thing.\nFix: capture \$PREV_SHA before deploying and use it in the rollback branch.`,
+          fix: `${rel}: Rollback runs the same deploy command(s) as the main deploy (${sharedCommands.join(', ')}) without switching to a different SHA/artifact.\nThis is not a rollback — it's a retry of the same broken thing.\nFix: capture $PREV_SHA before deploying and use it in the rollback branch.`,
         });
       }
 

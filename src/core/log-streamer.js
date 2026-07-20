@@ -2,7 +2,6 @@
 
 const { spawn } = require('child_process');
 const fs = require('fs');
-const path = require('path');
 
 // ---------------------------------------------------------------------------
 // Log Streamer — captures output from a running process or log file.

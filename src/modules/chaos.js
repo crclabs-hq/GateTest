@@ -15,8 +15,6 @@
  */
 
 const BaseModule = require('./base-module');
-const path = require('path');
-const fs = require('fs');
 
 class ChaosModule extends BaseModule {
   constructor() {

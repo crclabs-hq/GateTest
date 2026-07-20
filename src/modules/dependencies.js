@@ -206,7 +206,7 @@ class DependenciesModule extends BaseModule {
       if (!noComment) continue;
 
       // Match `name[extras]<op>version`
-      const m = noComment.match(/^([A-Za-z0-9_.\-]+)(\[[^\]]+\])?\s*([=<>!~]=?.*)?$/);
+      const m = noComment.match(/^([A-Za-z0-9_.-]+)(\[[^\]]+\])?\s*([=<>!~]=?.*)?$/);
       if (!m) continue;
       const name = m[1];
       const spec = (m[3] || '').trim();
@@ -249,13 +249,13 @@ class DependenciesModule extends BaseModule {
     // Rough TOML scan for `name = "*"` style deps
     const packagesMatch = content.match(/\[packages\][\s\S]*?(?=\n\[|$)/);
     const section = packagesMatch ? packagesMatch[0] : '';
-    const deps = [...section.matchAll(/^([A-Za-z0-9_.\-]+)\s*=\s*"([^"]*)"/gm)];
+    const deps = [...section.matchAll(/^([A-Za-z0-9_.-]+)\s*=\s*"([^"]*)"/gm)];
     for (const [, name, spec] of deps) {
       if (WILDCARD_SPECIFIERS.has(spec.trim())) {
         result.addCheck(`dependencies:wildcard:pipenv:${name}`, false, {
           severity: 'warning',
           file: manifest.rel,
-          message: `"${name} = \"${spec}\"" is a wildcard — Pipfile.lock should pin but the Pipfile shouldn't brag about it`,
+          message: `"${name} = "${spec}"" is a wildcard — Pipfile.lock should pin but the Pipfile shouldn't brag about it`,
         });
       }
       if (DEPRECATED_PACKAGES[name.toLowerCase()]) {
@@ -271,13 +271,13 @@ class DependenciesModule extends BaseModule {
   _checkPyproject(manifest, projectRoot, result) {
     this._checkLockfile(manifest, projectRoot, result);
     const content = manifest.content;
-    const deps = [...content.matchAll(/^([A-Za-z0-9_.\-]+)\s*=\s*"([^"]*)"/gm)];
+    const deps = [...content.matchAll(/^([A-Za-z0-9_.-]+)\s*=\s*"([^"]*)"/gm)];
     for (const [, name, spec] of deps) {
       if (WILDCARD_SPECIFIERS.has(spec.trim())) {
         result.addCheck(`dependencies:wildcard:pyproject:${name}`, false, {
           severity: 'warning',
           file: manifest.rel,
-          message: `"${name} = \"${spec}\"" is a wildcard — pin the version`,
+          message: `"${name} = "${spec}"" is a wildcard — pin the version`,
         });
       }
       if (DEPRECATED_PACKAGES[name.toLowerCase()]) {
@@ -345,7 +345,7 @@ class DependenciesModule extends BaseModule {
       lineNo += 1;
       const line = raw.trim();
       // Simple: `name = "spec"` or `name = { version = "spec", ... }`
-      const simpleMatch = line.match(/^([A-Za-z0-9_\-]+)\s*=\s*"([^"]*)"/);
+      const simpleMatch = line.match(/^([A-Za-z0-9_-]+)\s*=\s*"([^"]*)"/);
       if (simpleMatch) {
         const [, name, spec] = simpleMatch;
         if (WILDCARD_SPECIFIERS.has(spec.trim()) || spec.trim() === '*') {
@@ -353,12 +353,12 @@ class DependenciesModule extends BaseModule {
             severity: 'warning',
             file: manifest.rel,
             line: lineNo,
-            message: `"${name} = \"${spec}\"" is a wildcard — pin the version`,
+            message: `"${name} = "${spec}"" is a wildcard — pin the version`,
             suggestion: 'Cargo supports caret ranges like "1.2" — use those or pin exactly.',
           });
         }
       }
-      const tableMatch = line.match(/^([A-Za-z0-9_\-]+)\s*=\s*\{([^}]*)\}/);
+      const tableMatch = line.match(/^([A-Za-z0-9_-]+)\s*=\s*\{([^}]*)\}/);
       if (tableMatch) {
         const [, name, body] = tableMatch;
         if (/\bgit\s*=/.test(body) && !/\brev\s*=/.test(body) && !/\btag\s*=/.test(body)) {

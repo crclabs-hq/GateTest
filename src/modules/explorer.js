@@ -129,7 +129,7 @@ class ExplorerModule extends BaseModule {
             // 2. TEST EACH ELEMENT
             for (const element of elements) {
               try {
-                const interactionResult = await this._testElement(page, element, url, timeout);
+                const interactionResult = await this._testElement(page, element, url);
                 interactions.push(interactionResult);
 
                 if (!interactionResult.passed) {
@@ -322,7 +322,7 @@ class ExplorerModule extends BaseModule {
     });
   }
 
-  async _testElement(page, element, originalUrl, timeout) {
+  async _testElement(page, element, originalUrl) {
     const interaction = {
       url: originalUrl,
       type: element.type,

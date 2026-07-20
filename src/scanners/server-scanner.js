@@ -265,12 +265,10 @@ class ServerScanner {
 
     // Check A/AAAA records (with OS resolver fallback)
     mod.checks++;
-    let resolvedIp = null;
     try {
       const addresses = await new Promise((resolve, reject) => {
         dns.resolve4(hostname, (err, addrs) => err ? reject(err) : resolve(addrs));
       });
-      resolvedIp = addresses[0];
       mod.details.push(`pass: ${addresses.length} A record(s) → ${addresses.join(', ')}`);
     } catch {
       // Fallback to OS resolver (follows CNAMEs, matches nslookup behaviour)
@@ -278,7 +276,6 @@ class ServerScanner {
         const lookup = await new Promise((resolve, reject) => {
           dns.lookup(hostname, { family: 4 }, (err, addr) => err ? reject(err) : resolve(addr));
         });
-        resolvedIp = lookup;
         mod.details.push(`pass: Resolves to ${lookup} (via CNAME chain)`);
       } catch {
         mod.issues++;

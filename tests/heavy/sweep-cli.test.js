@@ -79,10 +79,10 @@ test('parseArgs records unknown flags so the CLI can complain', () => {
 // selectSteps
 // ============================================================
 
-test('selectSteps default returns all 7 steps in order', () => {
+test('selectSteps default returns all 8 steps in order', () => {
   const sel = cli.selectSteps(cli.parseArgs([]));
-  assert.equal(sel.steps.length, 7);
-  assert.deepEqual(sel.steps.map((s) => s.key), ['tests', 'build', 'modules', 'gate', 'secrets', 'todos', 'selfscan']);
+  assert.equal(sel.steps.length, 8);
+  assert.deepEqual(sel.steps.map((s) => s.key), ['tests', 'build', 'modules', 'gate', 'secrets', 'todos', 'selfscan', 'lint']);
 });
 
 test('--fast skips tests AND build (steps 1 + 2)', () => {
@@ -99,7 +99,7 @@ test('--no-build skips only step 2', () => {
   const keys = sel.steps.map((s) => s.key);
   assert.equal(keys.includes('tests'), true);
   assert.equal(keys.includes('build'), false);
-  assert.equal(sel.steps.length, 6);
+  assert.equal(sel.steps.length, 7);
 });
 
 test('--no-tests skips only step 1', () => {

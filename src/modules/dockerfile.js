@@ -33,7 +33,7 @@ const DOCKERFILE_PATTERN = /^(Dockerfile(\..+)?|.*\.[Dd]ockerfile)$/;
 // scoped to Dockerfile idioms.
 const SECRET_PATTERNS = [
   { name: 'aws-key', pattern: /AKIA[0-9A-Z]{16}/, message: 'AWS access key literal in Dockerfile' },
-  { name: 'generic-token', pattern: /(?:TOKEN|SECRET|PASSWORD|API_KEY)\s*=\s*["']?[A-Za-z0-9+/_\-]{16,}["']?/i,
+  { name: 'generic-token', pattern: /(?:TOKEN|SECRET|PASSWORD|API_KEY)\s*=\s*["']?[A-Za-z0-9+/_-]{16,}["']?/i,
     message: 'Hard-coded credential-shaped value in Dockerfile' },
   { name: 'private-key', pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
     message: 'Private key literal embedded in Dockerfile' },

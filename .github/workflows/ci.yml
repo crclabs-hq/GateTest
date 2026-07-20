@@ -242,6 +242,9 @@ jobs:
       - name: Website builds clean
         run: cd website && npx next build
 
+      - name: Lint (src/bin/lib/integrations)
+        run: npm run lint
+
       - name: All modules load (assert >= 90)
         run: |
           OUTPUT="$(node bin/gatetest.js --list)"

@@ -154,8 +154,6 @@ class ImportCycleModule extends BaseModule {
       }
     }
 
-    let issues = 0;
-
     // Report self-loops
     for (const abs of selfLoops) {
       const rel = path.relative(projectRoot, abs).replace(/\\/g, '/');
@@ -165,7 +163,6 @@ class ImportCycleModule extends BaseModule {
         message: `${rel} imports itself — runtime undefined import`,
         file: rel,
       });
-      issues += 1;
     }
 
     // Report cycles. Rotate each cycle to start at the lexicographically
@@ -182,7 +179,6 @@ class ImportCycleModule extends BaseModule {
         message: `Import cycle (${rels.length} files): ${display}`,
         files: rels,
       });
-      issues += 1;
     }
 
     result.addCheck('import-cycle:summary', true, {

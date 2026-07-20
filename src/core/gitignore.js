@@ -80,11 +80,11 @@ function compilePattern(line, basePrefix = '') {
   }
 
   // Convert to regex
-  const re = patternToRegex(pat, basePrefix, anchored);
+  const re = patternToRegex(pat, basePrefix);
   return { regex: re, negate, dirOnly, raw: line };
 }
 
-function patternToRegex(pat, basePrefix, anchored) {
+function patternToRegex(pat, basePrefix) {
   // Escape regex specials except for our wildcards
   let r = '';
   let i = 0;

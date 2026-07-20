@@ -72,14 +72,12 @@ function validateShippedRule(rule) {
   if (typeof rule.transform.replace !== 'string') return false;
   // Defensive: regex must compile.
   try {
-    // eslint-disable-next-line no-new
     new RegExp(rule.transform.find, rule.transform.flags || 'g');
   } catch {
     return false;
   }
   if (typeof rule.pattern === 'string') {
     try {
-      // eslint-disable-next-line no-new
       new RegExp(rule.pattern);
     } catch {
       return false;

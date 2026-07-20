@@ -77,7 +77,6 @@ const SOURCE_EXTS = new Set([
 ]);
 
 const SPEC_BASENAME_RE = /^(?:openapi|swagger|api-spec|api)(?:\.[A-Za-z0-9_-]+)?\.(?:ya?ml|json)$/i;
-const SPEC_DIR_RE = /(?:^|\/)(?:openapi|swagger|api-spec|specs?|docs?)\//i;
 
 const TEST_PATH_RE = /(?:^|\/)(?:tests?|__tests__|spec|fixtures?|stories|storybook|e2e)(?:\/|$)|\.(?:test|spec|stories|fixture|e2e)\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts)$/i;
 

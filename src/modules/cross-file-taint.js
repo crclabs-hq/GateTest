@@ -189,7 +189,6 @@ const SUPPRESS_TAINT_OK_RE = /\/\/\s*taint-ok\b/;
 const PARAMETERISED_ORM_RE = /(?:require\s*\(\s*['"]|from\s+['"])(?:drizzle-orm|@prisma\/client|kysely|postgres|slonik|typeorm|sequelize|mongoose|knex|@databases\/(?:pg|mysql|sqlite))(?:\/[^'"]*)?['"]/;
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
-const MAX_PROPAGATION_DEPTH = 5;
 
 // ---------------------------------------------------------------------------
 // Module
@@ -391,7 +390,7 @@ class CrossFileTaintModule extends BaseModule {
       }
 
       result.addCheck(
-        `cross-file-taint:sink:${f.sink}:${f.rel}:${f.line}`,
+        `${prefix}:sink:${f.sink}:${f.rel}:${f.line}`,
         false,
         {
           severity: f.severity,
@@ -407,10 +406,11 @@ class CrossFileTaintModule extends BaseModule {
 
     result.addCheck('cross-file-taint:summary', true, {
       severity: 'info',
-      message: `${files.length} file(s) scanned, ${totalSourcesFound} taint source(s), ${seen.size} taint path(s) found`,
+      message: `${files.length} file(s) scanned, ${totalSourcesFound} taint source(s), ${seen.size} taint path(s) found (${totalCrossHops} cross-file)`,
       fileCount: files.length,
       localSources: totalSourcesFound,
       crossFilePaths: seen.size,
+      crossFileHops: totalCrossHops,
     });
   }
 

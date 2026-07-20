@@ -11,7 +11,6 @@
 const BaseModule = require('./base-module');
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 // Mutation operators extracted to a testable engine module so they can
 // be unit-tested independently of the test-runner orchestration.
 const { MUTATIONS, shouldSkipLine } = require('../core/mutation-engine');

@@ -56,7 +56,7 @@ const SECRET_PATTERNS = [
   { name: 'aws-key',       pattern: /AKIA[0-9A-Z]{16}/ },
   { name: 'aws-secret',    pattern: /aws_secret_access_key\s*=\s*"[A-Za-z0-9+/]{40}"/ },
   { name: 'private-key',   pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },
-  { name: 'generic-token', pattern: /(?:token|secret|password|api_key)\s*=\s*"[A-Za-z0-9+/_\-]{20,}"/i },
+  { name: 'generic-token', pattern: /(?:token|secret|password|api_key)\s*=\s*"[A-Za-z0-9+/_-]{20,}"/i },
 ];
 
 class TerraformModule extends BaseModule {

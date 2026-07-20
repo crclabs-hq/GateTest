@@ -113,7 +113,6 @@ function printHelp() {
 
 async function ingestSessionFixes(repoRoot) {
   try {
-    // eslint-disable-next-line global-require
     const ST = require('../website/app/lib/session-telemetry.js');
     const stats = ST.ingestGitHistory({ repoRoot, since: '30 days ago' });
     return { ok: true, stats };
@@ -125,7 +124,6 @@ async function ingestSessionFixes(repoRoot) {
 async function runTrainer(t, opts) {
   let mod;
   try {
-    // eslint-disable-next-line global-require, import/no-dynamic-require
     mod = require(t.modulePath);
   } catch (err) {
     return {

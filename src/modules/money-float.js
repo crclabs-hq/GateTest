@@ -162,7 +162,7 @@ const JS_PROP_FLOAT_RE =
 
 // Python: `price = float(x)` / `self.total = float(x)`.
 const PY_ASSIGN_FLOAT_RE =
-  /\b(?:self\.)?([A-Za-z_][\w]*)\s*(?::\s*[\w\[\]., ]+)?\s*=\s*float\s*\(/;
+  /\b(?:self\.)?([A-Za-z_][\w]*)\s*(?::\s*[\w[\]., ]+)?\s*=\s*float\s*\(/;
 
 // `.toFixed(N)`. We capture N so we can check precision.
 const TOFIXED_RE = /([A-Za-z_$][\w$]*)\.toFixed\s*\(\s*(\d+)\s*\)/;

@@ -16,11 +16,11 @@ class CacheManager {
     this.purgeWebhook   = options.purgeWebhook   || process.env.GATETEST_PURGE_WEBHOOK || null;
   }
 
-  async flush(rawUrl, options = {}) {
+  async flush(rawUrl) {
     const url = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
     const report = { url, timestamp: new Date().toISOString(), actions: [], manualSteps: [] };
 
-    const results = await Promise.allSettled([
+    await Promise.allSettled([
       this._flushVercel(url, report),
       this._flushCloudflare(url, report),
       this._flushWebhook(url, report),
@@ -132,7 +132,6 @@ class CacheManager {
   }
 
   _manualInstructions(url) {
-    const parsed = new URL(url);
     return [
       `No cache API credentials found. Manual flush options:`,
       `  Vercel:     Set VERCEL_TOKEN env var, then re-run gatetest flush ${url}`,

@@ -307,7 +307,7 @@ class RedosModule extends BaseModule {
     // Regex literal: `/pattern/flags` — must be preceded by an
     // expression-start context, not a division.
     // Conservative heuristic: preceded by one of `=([,!&|?:;` or start-of-line.
-    const literalRe = /(^|[=([,!&|?:;{}]|\breturn\b|\btypeof\b|\b=>\s*)\s*\/((?:\\.|[^\/\n\\])+?)\/[gimsuy]*/g;
+    const literalRe = /(^|[=([,!&|?:;{}]|\breturn\b|\btypeof\b|\b=>\s*)\s*\/((?:\\.|[^/\n\\])+?)\/[gimsuy]*/g;
     let m;
     while ((m = literalRe.exec(line)) !== null) {
       out.push({ pattern: m[2], index: m.index });

@@ -218,7 +218,7 @@ class PromptSafetyModule extends BaseModule {
 
       // 2. Deprecated / unsafe model strings
       for (const m of DEPRECATED_MODELS) {
-        const re = new RegExp(`["\'\`]${m.replace(/\./g, '\\.')}["\'\`]`);
+        const re = new RegExp(`["'\`]${m.replace(/\./g, '\\.')}["'\`]`);
         const modelMatch = re.exec(line);
         if (modelMatch && !this._isInsideStringLiteral(line, modelMatch.index)) {
           issues += this._flag(result, `prompt-safety:deprecated-model:${m}:${rel}:${i + 1}`, {

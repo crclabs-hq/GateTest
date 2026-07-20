@@ -368,7 +368,7 @@ class InteractiveElementsModule extends BaseModule {
       }
 
       try {
-        const outcome = await this._testButton(page, btn, timeout);
+        const outcome = await this._testButton(page, btn);
         if (outcome.errored) {
           stats.buttonErrors.push({ description: btn.description, url: pageUrl, message: outcome.errorMessage });
         } else if (outcome.hoverOnly) {
@@ -391,7 +391,7 @@ class InteractiveElementsModule extends BaseModule {
     }
   }
 
-  async _testButton(page, btn, timeout) {
+  async _testButton(page, btn) {
     const locator = btn.selector.startsWith('#')
       ? page.locator(btn.selector).first()
       : page

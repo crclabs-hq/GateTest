@@ -147,7 +147,6 @@ async function fetchProductionErrors(opts = {}) {
     // Until it lands, an explicitly-passed rollbar config is reported
     // honestly rather than silently ignored.
     try {
-      // eslint-disable-next-line global-require
       const rollbarClient = require('./rollbar-client');
       const rbItems = await rollbarClient.fetchTopErrors({
         accessToken: rollbar.accessToken,

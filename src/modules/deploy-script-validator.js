@@ -69,15 +69,6 @@ function isK8sFile(rel) {
   );
 }
 
-function isRouteFile(rel, content) {
-  const lower = rel.toLowerCase();
-  if (lower.includes('node_modules') || lower.includes('.next')) return false;
-  return (
-    (lower.endsWith('route.ts') || lower.endsWith('route.js')) ||
-    (content && (EXPRESS_HEALTH_RE.test(content), EXPRESS_HEALTH_RE.lastIndex = 0, /(?:app|router|fastify)\s*\.\s*(?:get|all)\s*\(/.test(content)))
-  );
-}
-
 // ─── module ────────────────────────────────────────────────────────────────
 
 class DeployScriptValidator extends BaseModule {
@@ -102,8 +93,6 @@ class DeployScriptValidator extends BaseModule {
 
       // Harvest health-check URLs from deploy/CI files
       if (isDeployFile(rel) || isK8sFile(rel)) {
-        const lines = content.split('\n');
-
         let m;
         HEALTH_URL_RE_QUOTED.lastIndex = 0;
         while ((m = HEALTH_URL_RE_QUOTED.exec(content)) !== null) {

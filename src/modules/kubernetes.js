@@ -276,7 +276,7 @@ class KubernetesModule extends BaseModule {
       if (envMatch && /(?:TOKEN|SECRET|PASSWORD|API_KEY|APIKEY)$/i.test(envMatch[1])) {
         // Peek next few lines for `value: <long>`
         for (let j = i + 1; j < Math.min(i + 4, lines.length); j += 1) {
-          const v = lines[j].match(/^\s*value\s*:\s*["']?([A-Za-z0-9+/=._\-]{16,})["']?\s*$/);
+          const v = lines[j].match(/^\s*value\s*:\s*["']?([A-Za-z0-9+/=._-]{16,})["']?\s*$/);
           if (v) {
             issues += this._flag(result, `k8s:inline-secret:${rel}:${j + 1}`, {
               severity: 'warning',

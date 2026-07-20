@@ -121,10 +121,8 @@ const HTTP_CLIENT_RES = [
 ];
 
 // Request-body / query / params / header taint sources.
-const TAINT_SOURCE_RE = /\b(?:req|request|ctx|event)\.(?:body|query|params|headers|url|originalUrl|rawBody)\b|\breq\.body\b|\breq\.query\b|\breq\.params\b|\breq\.headers\b/;
-
 // Inline taint patterns that are OK to flag even without tracking.
-const INLINE_TAINT_RE = /\b(?:req|request|ctx|event)\.(?:body|query|params|headers)[\.\[][\w$'"\[\]]+/;
+const INLINE_TAINT_RE = /\b(?:req|request|ctx|event)\.(?:body|query|params|headers)[.[][\w$'"[\]]+/;
 
 // Known cloud / container metadata endpoints — baked-in SSRF exploits.
 const METADATA_ENDPOINT_RE = /\b(?:169\.254\.169\.254|100\.100\.100\.200|fd00:ec2::254|metadata\.google\.internal|metadata\.azure\.com|metadata\.goog)\b/i;

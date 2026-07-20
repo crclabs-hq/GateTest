@@ -375,7 +375,7 @@ function parseGenericStdout(stdout, stderr) {
 async function runTests(projectRoot, opts = {}) {
   const start = Date.now();
   // Accept timeoutMs (ms) or timeout (seconds); timeoutMs takes precedence
-  const timeoutMs = opts.timeoutMs != null ? opts.timeoutMs : (opts.timeout || 120) * 1000;
+  const timeoutMs = opts.timeoutMs != null ? opts.timeoutMs : (opts.timeout || DEFAULT_TIMEOUT_MS / 1000) * 1000;
   const runner = opts.runner || detectRunner(projectRoot);
 
   // Build command + args based on runner

@@ -138,7 +138,7 @@ function _validateSyntax(code, ext) {
     catch (e) { return { passed: false, error: e.message }; }
   }
   if (['.js', '.mjs', '.cjs'].includes(n)) {
-    try { new vm.Script(code); return { passed: true }; }  // eslint-disable-line no-new
+    try { new vm.Script(code); return { passed: true }; }
     catch (e) { return { passed: false, error: e.message }; }
   }
   // TypeScript/TSX — no runtime syntax validator; treat as passing

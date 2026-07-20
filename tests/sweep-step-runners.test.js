@@ -291,14 +291,51 @@ test('resolveStep resolves numeric and key selectors', () => {
   assert.equal(steps.resolveStep(null), null);
 });
 
-test('ALL_STEPS is the full ordered list of 7 sweep steps', () => {
-  assert.equal(steps.ALL_STEPS.length, 7);
+test('ALL_STEPS is the full ordered list of 8 sweep steps', () => {
+  assert.equal(steps.ALL_STEPS.length, 8);
   const numbers = steps.ALL_STEPS.map((s) => s.number);
-  assert.deepEqual(numbers, [1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(numbers, [1, 2, 3, 4, 5, 6, 7, 8]);
   assert.deepEqual(
     steps.ALL_STEPS.map((s) => s.key),
-    ['tests', 'build', 'modules', 'gate', 'secrets', 'todos', 'selfscan'],
+    ['tests', 'build', 'modules', 'gate', 'secrets', 'todos', 'selfscan', 'lint'],
   );
+});
+
+// ============================================================
+// Lint step
+// ============================================================
+
+test('runLintStep passes cleanly on exit 0 with no problems', () => {
+  const runner = makeRunner({
+    'npx eslint src bin lib integrations': { stdout: '', exitCode: 0 },
+  });
+  const r = steps.runLintStep({ runner });
+  assert.equal(r.ok, true);
+  assert.equal(r.summary, 'clean');
+});
+
+test('runLintStep parses error/warning counts and fails on non-zero exit', () => {
+  const runner = makeRunner({
+    'npx eslint src bin lib integrations': {
+      stdout: '✖ 3 problems (2 errors, 1 warning)\n',
+      exitCode: 1,
+    },
+  });
+  const r = steps.runLintStep({ runner });
+  assert.equal(r.ok, false);
+  assert.equal(r.errorCount, 2);
+  assert.equal(r.warningCount, 1);
+  assert.match(r.summary, /2 error/);
+});
+
+test('runLintStep surfaces spawn errors gracefully', () => {
+  const runner = () => ({
+    durationMs: 0, stdout: '', stderr: '', exitCode: null,
+    spawnError: new Error('npx not found'),
+  });
+  const r = steps.runLintStep({ runner });
+  assert.equal(r.ok, false);
+  assert.match(r.summary, /Could not run lint/);
 });
 
 test('SECRET_PATTERN matches each known credential shape', () => {

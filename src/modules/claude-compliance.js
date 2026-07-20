@@ -104,7 +104,7 @@ const NOISE_PATTERNS = [
   /^\s*\/\/\s*helper\s+function\s+(?:to|for)\b/i,
   /^\s*\/\/\s*(?:import|export|define|declare)\s+the\s+\w/i,
   /^\s*\/\/\s*(?:get|set|return)\s+the\s+\w/i,
-  /^\s*\/\/\s*step\s+\d+\s*[:\-]/i,
+  /^\s*\/\/\s*step\s+\d+\s*[:-]/i,
   /^\s*#\s*(?:loop\s+through|iterate\s+over)\s+\w/i,
   /^\s*#\s*check\s+if\s+\w/i,
   /^\s*#\s*initialize\s+(?:the\s+)?\w/i,

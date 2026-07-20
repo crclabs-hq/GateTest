@@ -58,18 +58,6 @@ function isRouterFile(rel) {
   ) && (lower.endsWith('.ts') || lower.endsWith('.js') || lower.endsWith('.tsx'));
 }
 
-function isClientFile(rel) {
-  const lower = rel.toLowerCase();
-  return (
-    lower.includes('component') ||
-    lower.includes('page') ||
-    lower.includes('hook') ||
-    lower.includes('client') ||
-    lower.endsWith('.tsx') ||
-    lower.endsWith('.jsx')
-  );
-}
-
 // ─── module ────────────────────────────────────────────────────────────────
 
 class TRPCContractDrift extends BaseModule {

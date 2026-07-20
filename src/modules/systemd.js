@@ -143,7 +143,7 @@ class SystemdModule extends BaseModule {
 
     // Absolute path — check if it looks like a home-dir binary
     if (binary.startsWith('/')) {
-      for (const { pattern, tool } of HOME_BIN_PATTERNS) {
+      for (const { pattern } of HOME_BIN_PATTERNS) {
         if (pattern.test(binary)) return; // handled in protect-home check
       }
       // Flag non-standard absolute paths that we can't verify exist

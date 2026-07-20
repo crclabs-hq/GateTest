@@ -69,8 +69,8 @@ const CREDENTIAL_PATTERNS = [
   { kind: 'stripe-live',    re: /\bsk_live_[A-Za-z0-9]{24,}\b/g },
   { kind: 'stripe-restricted', re: /\brk_live_[A-Za-z0-9]{24,}\b/g },
   { kind: 'slack-token',    re: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g },
-  { kind: 'google-api',     re: /\bAIza[0-9A-Za-z_\-]{35}\b/g },
-  { kind: 'anthropic-key',  re: /\bsk-ant-api\d{2}-[A-Za-z0-9_\-]{32,}\b/g },
+  { kind: 'google-api',     re: /\bAIza[0-9A-Za-z_-]{35}\b/g },
+  { kind: 'anthropic-key',  re: /\bsk-ant-api\d{2}-[A-Za-z0-9_-]{32,}\b/g },
   { kind: 'private-key',    re: /-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----/g },
   { kind: 'jwt',            re: /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g },
 ];
@@ -221,7 +221,6 @@ class SecretRotationModule extends BaseModule {
       return [];
     }
     const rel = path.relative(projectRoot, file);
-    const lines = content.split('\n');
     const hits = [];
     for (const { kind, re } of CREDENTIAL_PATTERNS) {
       re.lastIndex = 0;

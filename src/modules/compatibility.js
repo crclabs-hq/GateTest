@@ -205,6 +205,14 @@ class CompatibilityModule extends BaseModule {
       });
     }
 
+    if ((htmlFiles.length > 0 || layoutFiles.length > 0) && !hasViewportMeta) {
+      result.addCheck('compat:viewport-meta', false, {
+        severity: 'warning',
+        message: 'No viewport meta tag found in HTML or layout files — mobile browsers may render at desktop width',
+        suggestion: 'Add <meta name="viewport" content="width=device-width, initial-scale=1"> to your HTML head (or the Next.js viewport export in layout.tsx)',
+      });
+    }
+
     // Check minimum touch target sizes in CSS
     for (const file of cssFiles) {
       const relPath = path.relative(projectRoot, file);
@@ -242,7 +250,7 @@ class CompatibilityModule extends BaseModule {
       const hasBabel = deps['@babel/core'] || deps['@babel/preset-env'];
       const hasSwc = deps['@swc/core'];
 
-      if (!hasBabel && !hasSwc) {
+      if (!hasBabel && !hasSwc && !hasPolyfill) {
         result.addCheck('compat:transpiler', false, {
           severity: 'info',
           message: 'No transpiler (Babel/SWC) detected — modern JS features may not work in older browsers',

@@ -70,7 +70,7 @@ const TEST_PATH_RE = /(?:^|\/)(?:tests?|__tests__|spec|fixtures?|stories|storybo
 const SKIP_BASENAME_RE = /^(?:\.env(\..*)?|.*\.example|.*\.md|.*\.mdx|README.*|CHANGELOG.*|MIGRATION.*|playwright\.config\..*|vitest\.config\..*|jest\.config\..*|cypress\.config\..*|webpack\.config\..*|vite\.config\..*|rollup\.config\..*)$/i;
 
 // URL-shaped capture. We match `<scheme>://<host>[:port][/path]`.
-const URL_RE = /\b(https?):\/\/([A-Za-z0-9_.\-]+(?::\d+)?)(\/[^\s'"`)]*)?/g;
+const URL_RE = /\b(https?):\/\/([A-Za-z0-9_.-]+(?::\d+)?)(\/[^\s'"`)]*)?/g;
 
 // RFC1918 + link-local + loopback host shapes.
 // 10.x, 172.16-31.x, 192.168.x, 169.254.x, 127.x, 0.0.0.0

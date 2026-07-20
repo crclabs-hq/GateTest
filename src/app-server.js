@@ -25,7 +25,7 @@ const crypto = require('crypto');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const { execSync, execFile } = require('child_process');
+const { execSync } = require('child_process');
 
 const PORT = process.env.PORT || 3333;
 const APP_ID = process.env.GATETEST_APP_ID;

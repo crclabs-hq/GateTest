@@ -14,7 +14,6 @@ class LinksModule extends BaseModule {
 
   async run(result, config) {
     const projectRoot = config.projectRoot;
-    const linksConfig = config.getModuleConfig('links') || {};
 
     // Scan HTML, JSX, TSX, Vue, Svelte, and Markdown files — not just static HTML
     const allExtensions = ['.html', '.htm', '.jsx', '.tsx', '.vue', '.svelte', '.md', '.mdx'];
@@ -44,7 +43,7 @@ class LinksModule extends BaseModule {
       let match;
       while ((match = hrefRegex.exec(content)) !== null) {
         const link = match[1].trim();
-        this._categorizeLink(link, relPath, internalLinks, externalLinks, deadLinks);
+        this._categorizeLink(link, relPath, internalLinks, externalLinks);
       }
 
       // Pattern set 2: JSX/TSX — to="" prop (Next.js Link, React Router)
@@ -52,7 +51,7 @@ class LinksModule extends BaseModule {
         const toRegex = /\bto\s*=\s*["'`]([^"'`]+)/gi;
         while ((match = toRegex.exec(content)) !== null) {
           const link = match[1].trim();
-          this._categorizeLink(link, relPath, internalLinks, externalLinks, deadLinks);
+          this._categorizeLink(link, relPath, internalLinks, externalLinks);
         }
       }
 
@@ -61,7 +60,7 @@ class LinksModule extends BaseModule {
         const mdRegex = /\]\(([^)\s]+)/g;
         while ((match = mdRegex.exec(content)) !== null) {
           const link = match[1].trim();
-          this._categorizeLink(link, relPath, internalLinks, externalLinks, deadLinks);
+          this._categorizeLink(link, relPath, internalLinks, externalLinks);
         }
       }
 
@@ -95,7 +94,7 @@ class LinksModule extends BaseModule {
       uniqueInternal.set(key, { href, source });
 
       // Skip dynamic routes (e.g., /users/[id])
-      if (/[\[\]{}$]/.test(href)) continue;
+      if (/[[\]{}$]/.test(href)) continue;
       // Skip absolute URLs that start with / (these are route paths, not filesystem paths)
       // Only validate relative file references
       if (!href.startsWith('/') && !href.startsWith('http')) {
@@ -160,7 +159,7 @@ class LinksModule extends BaseModule {
     });
   }
 
-  _categorizeLink(link, source, internalLinks, externalLinks, deadLinks) {
+  _categorizeLink(link, source, internalLinks, externalLinks) {
     if (!link || link.length === 0) return;
     if (link.startsWith('http://') || link.startsWith('https://') || link.startsWith('//')) {
       externalLinks.add(link);

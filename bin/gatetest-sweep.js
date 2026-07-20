@@ -36,6 +36,7 @@ const HELP = `
     5. Secrets in tracked files    same pattern set as CI's pre-merge-sweep
     6. TODO/FIXME count            informational, never fails
     7. Self-scan dogfood           reuses step 4 when both run
+    8. Lint                        npx eslint src bin lib integrations
 
   OPTIONS
     --fast                  Skip steps 1 (tests) and 2 (website build).
@@ -43,8 +44,8 @@ const HELP = `
     --no-build              Skip step 2 only.
     --no-tests              Skip step 1 only.
     --only <step>           Run only one step. Selector is the step number
-                            (1-7) or its key (tests, build, modules, gate,
-                            secrets, todos, selfscan).
+                            (1-8) or its key (tests, build, modules, gate,
+                            secrets, todos, selfscan, lint).
     --json                  Emit JSON to stdout instead of human output.
     --quiet                 Suppress per-step progress; show only summary.
     --verbose               Include full stdout/stderr of each step.
@@ -126,11 +127,6 @@ function formatDuration(ms) {
 function padRight(s, n) {
   s = String(s);
   return s.length >= n ? s : s + ' '.repeat(n - s.length);
-}
-
-function padLeft(s, n) {
-  s = String(s);
-  return s.length >= n ? s : ' '.repeat(n - s.length) + s;
 }
 
 /**

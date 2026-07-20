@@ -773,7 +773,7 @@ function parseListeningPorts(output) {
   for (const line of (output || '').split('\n')) {
     // Match ss output: "LISTEN 0 128 0.0.0.0:80 0.0.0.0:*"
     // Match netstat output: "tcp 0 0 0.0.0.0:80 0.0.0.0:* LISTEN"
-    const m = line.match(/[:\[](\d{1,5})\s/) || line.match(/:(\d{1,5})\s+[\d.:*]+\s+LISTEN/);
+    const m = line.match(/[:[](\d{1,5})\s/) || line.match(/:(\d{1,5})\s+[\d.:*]+\s+LISTEN/);
     if (m) {
       const port = parseInt(m[1], 10);
       if (port > 0 && port <= 65535) ports.add(port);

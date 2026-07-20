@@ -526,7 +526,7 @@ async function main() {
         projectRoot,
         suite: args.module ? 'module' : (args.suite || 'standard'),
       });
-      maybeNoticeTelemetry(projectRoot);
+      maybeNoticeTelemetry();
       uploader.flushInBackground({ projectRoot });
     }
   } catch { /* telemetry is best-effort — never affects the gate */ } // error-ok
@@ -550,7 +550,7 @@ async function main() {
   // for entry-level users. Suppressed for machine-readable output modes and
   // when the developer opted into automation (--auto-pr / --sarif / --junit).
   if (!args.sarif && !args.junit && !args.githubAnnotations && !args.reportOnly) {
-    printPlainSummary(summary, args);
+    printPlainSummary(summary);
   }
 
   process.exit(summary.gateStatus === 'PASSED' ? 0 : 1);
@@ -562,7 +562,7 @@ async function main() {
  * no wall of findings (the reporter already printed those). The developer-facing
  * machine output modes skip this entirely.
  */
-function printPlainSummary(summary, args) {
+function printPlainSummary(summary) {
   const c = { g: '\x1b[32m', y: '\x1b[33m', r: '\x1b[31m', b: '\x1b[36m', bold: '\x1b[1m', dim: '\x1b[2m', off: '\x1b[0m' };
   const checks = summary.checks || {};
   const blocking = checks.blockingErrors || 0;
@@ -597,7 +597,7 @@ function printPlainSummary(summary, args) {
  * marker under ~/.gatetest so it never repeats. Best-effort — a failure to
  * read/write the marker simply means the notice may show again, never a crash.
  */
-function maybeNoticeTelemetry(projectRoot) {
+function maybeNoticeTelemetry() {
   try {
     const osMod = require('os');
     const fsMod = require('fs');
@@ -1161,7 +1161,7 @@ async function runCrawlLoop(gatetest, url, maxPages) {
     console.log(`[GateTest] Testing: ${url}`);
     console.log(`${'='.repeat(50)}\n`);
 
-    const summary = await gatetest.runModule('liveCrawler');
+    await gatetest.runModule('liveCrawler');
 
     const feedbackPath = path.join(gatetest.projectRoot, '.gatetest/reports/crawl-feedback.md');
     if (fs.existsSync(feedbackPath)) {

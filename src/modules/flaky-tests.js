@@ -244,7 +244,7 @@ class FlakyTestsModule extends BaseModule {
           severity: 'warning',
           file: rel,
           line: i + 1,
-          message: `${rel}:${i + 1} contains \`.skip\` / \`xit\` — skipped tests rot; if you can\'t fix it, delete it or convert to \`.todo\` with an issue link`,
+          message: `${rel}:${i + 1} contains \`.skip\` / \`xit\` — skipped tests rot; if you can't fix it, delete it or convert to \`.todo\` with an issue link`,
           suggestion: 'Fix the test, delete it, or change to `it.todo(\'... — see ISSUE-123\')`.',
         });
       }
@@ -254,7 +254,7 @@ class FlakyTestsModule extends BaseModule {
       const todoMatch = todoMatchOutside ? line.match(/\b(?:it|test)\.todo\s*\(\s*(['"`])([^'"`]*?)\1/) : null;
       if (todoMatch) {
         const title = todoMatch[2];
-        const hasLink = /(?:issue|#\d+|https?:\/\/|gh\/|pr[-\/]?\d+|bug[-\s]?\d+)/i.test(title);
+        const hasLink = /(?:issue|#\d+|https?:\/\/|gh\/|pr[-/]?\d+|bug[-\s]?\d+)/i.test(title);
         if (!hasLink) {
           issues += this._flag(result, `flaky-tests:todo-no-issue:${rel}:${i + 1}`, {
             severity: 'info',

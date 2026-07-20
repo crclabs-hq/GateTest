@@ -39,7 +39,7 @@ const SHELL_EXTENSIONS = new Set(['.sh', '.bash', '.zsh']);
 const SECRET_PATTERNS = [
   { name: 'aws-key',       pattern: /AKIA[0-9A-Z]{16}/ },
   { name: 'private-key',   pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },
-  { name: 'generic-token', pattern: /(?:TOKEN|SECRET|PASSWORD|API_KEY)\s*=\s*["']?[A-Za-z0-9+/_\-]{16,}["']?/i },
+  { name: 'generic-token', pattern: /(?:TOKEN|SECRET|PASSWORD|API_KEY)\s*=\s*["']?[A-Za-z0-9+/_-]{16,}["']?/i },
   { name: 'bearer',        pattern: /Bearer\s+[A-Za-z0-9\-_=]{20,}/ },
 ];
 
@@ -195,7 +195,7 @@ class ShellModule extends BaseModule {
       }
 
       // 3. eval of variables or command substitution
-      if (/\beval\s+[\"\']?\$/.test(trimmed) || /\beval\s+.*\$\(/.test(trimmed) || /\beval\s+.*`/.test(trimmed)) {
+      if (/\beval\s+["']?\$/.test(trimmed) || /\beval\s+.*\$\(/.test(trimmed) || /\beval\s+.*`/.test(trimmed)) {
         issues += this._flag(result, `shell:eval-var:${rel}:${i + 1}`, {
           severity: 'error',
           file: rel,

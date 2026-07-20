@@ -299,7 +299,6 @@ function renderDoctor(result) {
 
   out.push('');
   const { ok: passCount, warn: warnCount, bad: badCount } = result.summary;
-  const totalIssues = warnCount + badCount;
   if (badCount > 0) {
     out.push(`  ${C.red}${C.bold}${badCount} error(s)${C.reset}, ${C.yellow}${warnCount} warning(s)${C.reset}, ${C.green}${passCount} OK${C.reset}`);
     out.push(`  ${C.red}Action needed.${C.reset} See "Fix:" lines above — each is the exact command or steps.`);

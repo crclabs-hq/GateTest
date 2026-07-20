@@ -35,7 +35,7 @@ const { makeAutoFix } = require('../core/ai-fix-engine');
 // ─── patterns ─────────────────────────────────────────────────────────────
 
 const ZOD_IMPORT_RE      = /import\s+(?:\*\s+as\s+z|\{[^}]*\bz\b[^}]*\})\s+from\s+['"]zod['"]/;
-const ZOD_USAGE_RE       = /\bz\s*\.\s*(?:object|string|number|boolean|array|union|enum|literal|optional|nullable|infer|parse|safeParse|discriminatedUnion|record|tuple|function|lazy|any|unknown)\s*[\(\[]/;
+const ZOD_USAGE_RE       = /\bz\s*\.\s*(?:object|string|number|boolean|array|union|enum|literal|optional|nullable|infer|parse|safeParse|discriminatedUnion|record|tuple|function|lazy|any|unknown)\s*[([]/;
 const PROPTYPES_RE       = /\bPropTypes\s*\./;
 const PARSE_CALL_RE      = /\.\s*(?:parse|safeParse|parseAsync)\s*\(/;
 

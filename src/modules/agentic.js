@@ -77,7 +77,7 @@ class AgenticModule extends BaseModule {
 
     let plan;
     try {
-      plan = await this._planInvestigations(apiKey, memory, sourceFiles, projectRoot);
+      plan = await this._planInvestigations(apiKey, memory, sourceFiles);
     } catch (err) {
       result.addCheck('agentic:plan-error', false, {
         severity: 'warning',
@@ -118,7 +118,7 @@ class AgenticModule extends BaseModule {
       .filter((f) => !f.startsWith('.'));
   }
 
-  async _planInvestigations(apiKey, memory, sourceFiles, projectRoot) {
+  async _planInvestigations(apiKey, memory, sourceFiles) {
     const fingerprint = memory.fingerprint || {};
     const recurring = memory.recurring || [];
     const scanCount = memory.previous?.scans?.totalScans || 0;

@@ -24,6 +24,7 @@
     "url": "https://github.com/crclabs-hq/gatetest/issues"
   },
   "scripts": {
+    "lint": "eslint src bin lib integrations",
     "test": "node --test --test-force-exit --test-timeout=60000 tests/*.test.js",
     "test:heavy": "node --test --test-force-exit --test-timeout=120000 tests/heavy/*.test.js",
     "test:all": "node --test --test-force-exit --test-timeout=120000 tests/*.test.js tests/heavy/*.test.js",
@@ -69,5 +70,9 @@
     "acorn": "^8.17.0",
     "pixelmatch": "^7.2.0",
     "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5"
   }
 }

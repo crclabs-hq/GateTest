@@ -19,7 +19,6 @@
  */
 
 const fs   = require('fs');
-const os   = require('os');
 const path = require('path');
 
 const { SCAN_FINDINGS_FILE, telemetryEnabled } = require('./scan-telemetry');

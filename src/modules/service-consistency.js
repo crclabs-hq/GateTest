@@ -75,11 +75,11 @@ function parseDockerCompose(content) {
   const commands = [];
   // command: node src/app.js  or  command: ["node", "src/app.js"]
   for (const m of content.matchAll(/^\s*command\s*:\s*(.+)/gm)) {
-    commands.push(m[1].replace(/[\[\]"']/g, '').replace(/,/g, ' ').trim());
+    commands.push(m[1].replace(/[[\]"']/g, '').replace(/,/g, ' ').trim());
   }
   // entrypoint
   for (const m of content.matchAll(/^\s*entrypoint\s*:\s*(.+)/gm)) {
-    commands.push(m[1].replace(/[\[\]"']/g, '').replace(/,/g, ' ').trim());
+    commands.push(m[1].replace(/[[\]"']/g, '').replace(/,/g, ' ').trim());
   }
   return commands;
 }
@@ -87,10 +87,10 @@ function parseDockerCompose(content) {
 function parseDockerfile(content) {
   const commands = [];
   for (const m of content.matchAll(/^CMD\s+(.+)/gm)) {
-    commands.push(m[1].replace(/[\[\]"']/g, '').replace(/,/g, ' ').trim());
+    commands.push(m[1].replace(/[[\]"']/g, '').replace(/,/g, ' ').trim());
   }
   for (const m of content.matchAll(/^ENTRYPOINT\s+(.+)/gm)) {
-    commands.push(m[1].replace(/[\[\]"']/g, '').replace(/,/g, ' ').trim());
+    commands.push(m[1].replace(/[[\]"']/g, '').replace(/,/g, ' ').trim());
   }
   return commands;
 }

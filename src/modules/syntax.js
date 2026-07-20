@@ -95,7 +95,7 @@ class SyntaxModule extends BaseModule {
       // .mjs files are always ESM. .js files in a "type":"module" package are ESM.
       // .js files that contain top-level import/export are also ESM.
       // vm.Script rejects ESM syntax — use `node --check` for these.
-      const isEsm = ext === '.mjs' || this._isEsmFile(content, file, projectRoot);
+      const isEsm = ext === '.mjs' || this._isEsmFile(content, file);
       if (isEsm) {
         const { exitCode, stderr } = this._exec(`node --check "${file}" 2>&1`, {
           cwd: projectRoot,
@@ -144,7 +144,7 @@ class SyntaxModule extends BaseModule {
 
   // Detect whether a .js file is an ES module so we use node --check instead
   // of vm.Script (which rejects top-level import/export/import.meta).
-  _isEsmFile(content, file, projectRoot) {
+  _isEsmFile(content, file) {
     // Check for top-level import/export statements (not inside strings/comments)
     if (/^(?:import\s|export\s|export\s+default\b)/m.test(content)) return true;
     // import.meta is ESM-only

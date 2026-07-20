@@ -26,8 +26,6 @@ const https = require('https');
 const ANTHROPIC_API_HOST = 'api.anthropic.com';
 const MODEL_SONNET = 'claude-sonnet-5';
 const MODEL_HAIKU = 'claude-sonnet-5';
-// Kept for backwards compatibility with tests that may reference it.
-const MODEL = MODEL_SONNET;
 const MAX_DIFF_SIZE = 120000; // 120KB — cap the payload sent to AI
 const AI_TIMEOUT_MS = 60000;
 
@@ -95,10 +93,6 @@ function initCostLedger(scanId, tier) {
   };
   costLedger.set(scanId, entry);
   return entry;
-}
-
-function getLedgerEntry(scanId) {
-  return costLedger.get(scanId) || null;
 }
 
 /**

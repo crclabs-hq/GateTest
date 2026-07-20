@@ -279,7 +279,7 @@ class TypeScriptStrictnessModule extends BaseModule {
         severity: 'warning',
         file: rel,
         message: `${rel} sets \`skipLibCheck: true\` — type errors from \`node_modules/**/*.d.ts\` are hidden, including conflicts between library globals`,
-        suggestion: 'Remove `skipLibCheck` and fix the real dependency type issues; or, if a single dep is the culprit, shim it in a \`types/\` folder instead of disabling globally.',
+        suggestion: 'Remove `skipLibCheck` and fix the real dependency type issues; or, if a single dep is the culprit, shim it in a `types/` folder instead of disabling globally.',
       });
     }
 

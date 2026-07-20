@@ -234,7 +234,7 @@ class ResourceLeakModule extends BaseModule {
           line: i + 1,
           variable: varName,
           kind: pattern.kind,
-          message: `${rel}:${i + 1} \`${varName}\` (${pattern.kind}) acquired but never closed (\`${pattern.closeVerbs.map((v) => `.${v}()`).join('\` / \`')}\`) and never returned — resource leak`,
+          message: `${rel}:${i + 1} \`${varName}\` (${pattern.kind}) acquired but never closed (\`${pattern.closeVerbs.map((v) => `.${v}()`).join('` / `')}\`) and never returned — resource leak`,
           suggestion: `Close the ${pattern.kind} in a \`finally\` block: \`try { /* use ${varName} */ } finally { ${varName}.${pattern.closeVerbs[0]}(); }\`. For streams, prefer \`stream.pipeline(...)\` which handles cleanup automatically.`,
         });
         break;

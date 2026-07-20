@@ -557,7 +557,6 @@ class GateTestRunner extends EventEmitter {
     if (this._incrementalMode && this._incrementalFileSet) {
       const incCfg = (this.config && this.config.config && this.config.config.incremental) || {};
       const skipList = incCfg.skipList || [];
-      const alwaysRunList = incCfg.alwaysRunList || [];
       if (skipList.includes(name)) {
         result.start();
         result.addCheck('incremental:skipped', true, {

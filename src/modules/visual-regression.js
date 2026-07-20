@@ -222,7 +222,6 @@ class VisualRegressionModule extends BaseModule {
     const waitMs = typeof moduleCfg.waitMs === 'number' ? moduleCfg.waitMs : DEFAULT_WAIT_MS;
     const platform = moduleCfg.platform || safePlatformName(baseUrl);
     const baselineDir = moduleCfg.baselineDir || path.join(config.projectRoot, '.gatetest', 'visual-baselines');
-    const autoMaskDynamicContent = moduleCfg.autoMaskDynamicContent !== false;
     const maskSelectors = this._resolveMaskSelectors(moduleCfg);
 
     let browser;

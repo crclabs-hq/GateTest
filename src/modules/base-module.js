@@ -13,7 +13,7 @@ class BaseModule {
    * @param {TestResult} result - The result object to record checks against.
    * @param {GateTestConfig} config - The GateTest configuration.
    */
-  async run(result, config) {
+  async run(_result, _config) {
     throw new Error(`Module "${this.name}" must implement run()`);
   }
 

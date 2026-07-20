@@ -62,6 +62,17 @@ class VisualModule extends BaseModule {
       { regex: /position\s*:\s*absolute(?!.*contain)/g, name: 'absolute-positioning' },
     ];
 
+    for (const { regex, name } of clsPatterns) {
+      if (regex.test(content)) {
+        result.addCheck(`visual:cls:${name}:${relPath}`, false, {
+          file: relPath,
+          severity: 'info',
+          message: `Potential layout-shift pattern (${name}) found — absolutely-positioned elements without \`contain\` can cause CLS`,
+          suggestion: 'Add `contain: layout` (or a reserved-size wrapper) to absolutely-positioned elements that load async content',
+        });
+      }
+    }
+
     // Check for font-display strategy
     if (content.includes('@font-face') && !content.includes('font-display')) {
       result.addCheck(`visual:font-display:${relPath}`, false, {

@@ -71,7 +71,6 @@ class SecurityModule extends BaseModule {
   }
 
   _checkDependencies(projectRoot, result) {
-    const pkgLockPath = path.join(projectRoot, 'package-lock.json');
     const pkgPath = path.join(projectRoot, 'package.json');
 
     if (!fs.existsSync(pkgPath)) {
@@ -316,7 +315,7 @@ class SecurityModule extends BaseModule {
       // GitHub tokens
       { regex: /(?<![a-zA-Z0-9_])(ghp_[a-zA-Z0-9]{36,}|gho_[a-zA-Z0-9]{36,}|ghu_[a-zA-Z0-9]{36,}|ghs_[a-zA-Z0-9]{36,}|ghr_[a-zA-Z0-9]{36,})/g, name: 'GitHub Token' },
       // Slack tokens
-      { regex: /(?<![a-zA-Z0-9_])(xoxb-[a-zA-Z0-9\-]+|xoxp-[a-zA-Z0-9\-]+|xoxs-[a-zA-Z0-9\-]+)/g, name: 'Slack Token' },
+      { regex: /(?<![a-zA-Z0-9_])(xoxb-[a-zA-Z0-9-]+|xoxp-[a-zA-Z0-9-]+|xoxs-[a-zA-Z0-9-]+)/g, name: 'Slack Token' },
       // Stripe keys
       { regex: /(?<![a-zA-Z0-9_])(sk_live_[a-zA-Z0-9]{20,}|pk_live_[a-zA-Z0-9]{20,}|sk_test_[a-zA-Z0-9]{20,})/g, name: 'Stripe Key' },
       // Private keys
@@ -590,11 +589,11 @@ class SecurityModule extends BaseModule {
         const exists = this._collectFiles(projectRoot, ['*']).some(f =>
           path.basename(f).includes(item.pattern) || f.includes(item.pattern)
         );
-        if (item.pattern === 'node_modules' || item.pattern === '.env') {
+        if (exists) {
           result.addCheck(`security:gitignore:${item.pattern}`, false, {
             file: '.gitignore',
-            severity: item.pattern === '.env' ? 'error' : 'warning',
-            message: `${item.label} not in .gitignore`,
+            severity: item.pattern === 'node_modules' ? 'warning' : 'error',
+            message: `${item.label} present in the project but not in .gitignore`,
             suggestion: `Add "${item.pattern}" to .gitignore`,
           });
         }
