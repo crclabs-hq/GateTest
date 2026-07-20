@@ -1,0 +1,11 @@
+{
+  "generatedAt": "2026-07-20T06:29:34.875Z",
+  "sinceDays": 90,
+  "rulesAnalysed": 0,
+  "recommendations": [],
+  "byKind": {
+    "reviewer-attention": 0,
+    "add-suppression-marker": 0,
+    "downgrade-severity": 0
+  }
+}
