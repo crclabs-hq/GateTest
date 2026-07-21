@@ -12,7 +12,7 @@
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
     "@sentry/nextjs": "^10.51.0",
-    "next": "16.2.4",
+    "next": "16.2.10",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "ssh2": "^1.17.0"
@@ -25,7 +25,7 @@
     "@types/react-dom": "^19",
     "@types/ssh2": "^1.15.5",
     "eslint": "^9",
-    "eslint-config-next": "16.2.4",
+    "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
