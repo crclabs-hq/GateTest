@@ -16,7 +16,7 @@ export const pricingScans = [
       "Lint Violation Scanner",
       "Secret & API Key Exposure",
       "Code Quality Baseline",
-      "JSON / SARIF / JUnit Output",
+      "JSON / SARIF / JUnit output via the CLI & GitHub Action",
       "Scan-only (no auto-fix)"
     ],
     cta: "Run Quick Scan",
@@ -27,9 +27,9 @@ export const pricingScans = [
     name: "Full Scan",
     price: "$99",
     period: "per run",
-    description: "All 120 modules: security, supply chain, auth hardening, CI security, AI safety, and more.",
+    description: "The full engine suite — 88 modules: security, supply chain, auth hardening, CI security, AI safety, and more. (Mutation + chaos ship via the GitHub Action.)",
     features: [
-      "All 120 Specialized Modules",
+      "Full 88-Module Engine Suite",
       "Security & Auth Hardening",
       "Supply Chain & Dependency Audit",
       "CI/CD & Container Security",
@@ -44,9 +44,9 @@ export const pricingScans = [
     name: "Scan + Fix",
     price: "$199",
     period: "per run",
-    description: "120-module deep scan with iterative auto-fix PR, pair-review agent, and architecture annotations.",
+    description: "Full-suite deep scan with iterative auto-fix PR, pair-review agent, and architecture annotations.",
     features: [
-      "All 120 Specialized Modules",
+      "Full 88-Module Engine Suite",
       "Iterative Fix Loop (up to 3 retries per finding)",
       "Cross-Fix Syntax + Scanner Gate",
       "Regression Test Generated per Fix",
@@ -79,7 +79,7 @@ export const pricingScans = [
 ];
 
 export const continuousPlan = {
-  name: "Continuous Guard",
+  name: "Continuous",
   price: "$49",
   frequency: "per month",
   description: "Unlimited deterministic scans on every push. AI reviews metered by monthly allowance.",
@@ -97,12 +97,12 @@ export const mcpPlan = {
   name: "MCP Integration",
   price: "$29",
   frequency: "per month",
-  description: "Give Claude eyes, ears & hands: the full 120-module scanner inside Claude Code, Cursor, or any MCP agent — see the page, read production errors, and prove every fix worked.",
+  description: "Give Claude eyes, ears & hands: the GateTest engine inside Claude Code, Cursor, or any MCP agent — see the page, read production errors, and prove every fix worked.",
   features: [
     "Eyes — screenshot any URL or localhost",
     "Ears — pull Sentry / Datadog / Rollbar errors",
     "Hands — verify_fix proves the fix worked",
-    "Full 120-module local scans (vs 4 free)",
+    "Full-suite local scans — 88 modules (vs the free 41-module quick suite)",
     "AI fix + diagnose (fix_issue, explain_finding)",
     "API key delivered by email instantly"
   ],

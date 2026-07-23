@@ -115,7 +115,7 @@ export default function TrustPage() {
                 "Reporters emit findings to local files (.gatetest/reports/) which your CI uploads as artifacts. We have zero visibility unless you choose to publish them.",
               ]}
               dontList={[
-                "We have no telemetry. No usage metrics, no error reporting, no phone-home.",
+                "Telemetry is anonymized module names + finding counts only — never code, file paths, or findings. Opt out any time with GATETEST_NO_TELEMETRY=1 or `{\"telemetry\": false}` in .gatetest.json.",
                 "We have no licence server. The CLI runs offline forever, no kill-switch.",
                 "We do not require an account. You can run `npx @gatetest/cli` against any repo with zero signup.",
               ]}

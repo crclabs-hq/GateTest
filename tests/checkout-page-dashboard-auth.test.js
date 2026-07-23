@@ -43,6 +43,22 @@ test('playground upsell links still point at /checkout (the route the page now s
   assert.match(src, /\/checkout\?tier=/, 'playground must link to /checkout?tier=...');
 });
 
+test('scan/run maps the scan_fix tier to the full engine suite (no silent standard fallback)', () => {
+  // "scan_fix" is a pricing tier, not an engine suite — getSuite() falls back
+  // to the 45-module standard suite for unknown names, which quietly gave
+  // $199 Scan+Fix customers a SHALLOWER scan than $99 Full customers.
+  const src = fs.readFileSync(
+    path.resolve(__dirname, '..', 'website', 'app', 'api', 'scan', 'run', 'route.ts'),
+    'utf8'
+  );
+  assert.match(
+    src,
+    /shadowTier\s*===\s*"scan_fix"\s*\?\s*"full"\s*:\s*shadowTier/,
+    'scan/run must map the scan_fix tier to the "full" suite before calling runFullEngine'
+  );
+  assert.match(src, /suite:\s*engineSuite/, 'runFullEngine must receive the mapped suite, not the raw tier');
+});
+
 test('/api/dashboard requires a verified customer session (no body-email lookup)', () => {
   const src = fs.readFileSync(DASHBOARD_ROUTE, 'utf8');
   assert.match(src, /verifyCustomerSession/, 'must verify the session cookie');

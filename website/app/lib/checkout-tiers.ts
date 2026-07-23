@@ -35,7 +35,7 @@ export const TIERS: Record<string, ScanTier> = {
     priceInCents: 9900,
     modules: "all-120",
     description:
-      "All 120 modules — security, supply chain, auth, CI hardening, AI review, and more. Scan-only (no auto-fix — that ships at Scan + Fix $199 and above).",
+      "The full engine suite (88 modules) — security, supply chain, auth, CI hardening, AI review, and more; mutation + chaos ship via the GitHub Action. Scan-only (no auto-fix — that ships at Scan + Fix $199 and above).",
   },
   scan_fix: {
     name: "Scan + Fix",
@@ -61,7 +61,7 @@ export const TIERS: Record<string, ScanTier> = {
     priceInCents: 4900,
     modules: "subscription-continuous",
     description:
-      "Scan every push. Unlimited deterministic scans across all 120 modules, plus a monthly Claude AI-review allowance. Cancel anytime.",
+      "Scan every push. Unlimited deterministic push scans, plus a monthly Claude AI-review allowance that escalates pushes to the deeper full-suite scan while budget remains. Fix PRs are a per-scan upsell. Cancel anytime.",
     recurring: true,
   },
   // MCP subscription — $29/mo. Key-based (no repo URL). Unlocks premium

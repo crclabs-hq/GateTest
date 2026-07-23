@@ -249,9 +249,17 @@ async function scanRepo(owner: string, repo: string, tier: string): Promise<Scan
           engineMeta?: Record<string, unknown>;
         }>;
       };
+      // Tier names are NOT all engine suite names: "scan_fix" is a pricing
+      // tier with no matching suite in src/core/config.js, and getSuite()
+      // silently falls back to the 45-module "standard" suite for unknown
+      // names — which meant a $199 Scan+Fix customer got a SHALLOWER scan
+      // than a $99 Full customer (45 vs 88 modules) until 2026-07-23.
+      // Scan+Fix is "everything in Full Scan, plus fixes", so it runs the
+      // full suite; the fix deliverables live in /api/scan/fix.
+      const engineSuite = shadowTier === "scan_fix" ? "full" : shadowTier;
       const cliResult = await runFullEngine({
         fileContents,
-        suite: shadowTier,
+        suite: engineSuite,
         deadlineMs: deadline,
       });
       // Empty result from the CLI engine = workspace materialisation failed.
