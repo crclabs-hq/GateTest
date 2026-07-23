@@ -115,18 +115,20 @@ function resolveRequestedModel(args) {
 // ---------------------------------------------------------------------------
 // MCP Subscription Gate — $29/mo at gatetest.ai/mcp
 // Free: check_health, list_modules, get_badge, scan_url, scan_repo,
-//       scan_local (quick suite only — 41 modules, seconds, no key)
-// Gated: everything else (full scans, AI fix, Eyes/Ears/Hands tools)
+//       EVERY tool in this server — all local, all free (2026-07-23).
+// Gated: nothing here; the hosted remote MCP endpoint has its own gate.
 // ---------------------------------------------------------------------------
 
-const GATED_TOOLS = new Set([
-  'run_module', 'fix_issue', 'explain_finding', 'compose_pr',
-  'capture_screenshot', 'get_visual_diff',
-  'run_live_checks', 'get_production_errors',
-  'verify_fix', 'audit_log', 'compare_repos', 'get_report',
-  'resolve_stack_trace', 'blame_regression',
-  'run_tests', 'stream_logs', 'query_db', 'http_request',
-]);
+// EMPTY since 2026-07-23 (Craig-authorized pricing change, closes KI #39):
+// every tool in THIS server runs on the user's own machine — their compute,
+// their Playwright, their Anthropic key (fix paths are BYOK), their
+// Sentry/Datadog keys (get_production_errors). Charging $29/mo to use your
+// own laptop was our most-mockable decision. The $29/mo MCP tier now sells
+// the HOSTED remote MCP endpoint (usable from claude.ai web/mobile and
+// locked-down machines — see website/app/lib/mcp-remote-core.cjs, which
+// keeps its own gate) plus hosted scan history. Principle: free where it
+// runs on your machine, paid where it runs on ours.
+const GATED_TOOLS = new Set([]);
 
 // In-process validation cache — MCP server is a long-lived stdio process so
 // module-level state persists. Re-validates once per hour.
@@ -168,7 +170,7 @@ function gateDenied(toolName) {
         'claude mcp add gatetest -e GATETEST_API_KEY=gtmcp_xxx -- npx -y @gatetest/mcp-server',
         '```',
         '',
-        '**Free without a key:** `check_health` · `list_modules` · `get_badge` · `scan_url` · `scan_local` with `suite="quick"` (41 modules)',
+        '**Free without a key:** every tool in this server — all 120 modules, any suite, AI fixes on your own ANTHROPIC_API_KEY. No account needed.',
       ].join('\n'),
     }],
   };
@@ -2368,18 +2370,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args = {} } = request.params;
   const _callStart = Date.now();
 
-  // Gate premium tools behind the $29/mo MCP subscription key.
-  // scan_local is partially free — only the quick suite (41 modules) runs
-  // without a key. An omitted `suite` defaults to `standard` (45 modules,
-  // see handleScanLocal below) and an explicit `modules` array bypasses the
-  // suite selector entirely — both must be gated too, not just an explicit
-  // non-quick `suite`.
-  const needsKey =
-    GATED_TOOLS.has(name) ||
-    (name === 'scan_local' && (
-      (Array.isArray(args?.modules) && args.modules.length > 0) ||
-      (args?.suite || 'standard') !== 'quick'
-    ));
+  // All local tools are free (2026-07-23, KI #39 resolved) — GATED_TOOLS is
+  // empty and scan_local runs any suite without a key. The check stays wired
+  // so a future hosted-only tool added to this server can be gated again.
+  const needsKey = GATED_TOOLS.has(name);
 
   const hasKey = !!(process.env.GATETEST_API_KEY);
 

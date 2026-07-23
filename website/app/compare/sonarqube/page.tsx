@@ -46,7 +46,7 @@ const faqItems = [
   },
   {
     q: "Does GateTest support languages other than JavaScript and TypeScript?",
-    a: "Yes. GateTest includes 9 dedicated language modules covering Python, Go, Rust, Java, Ruby, PHP, C#, Kotlin, and Swift — in addition to deep JS/TS support. SonarQube's JavaScript/TypeScript coverage is one product tier; GateTest includes all languages in the $99 full scan.",
+    a: "Yes, with an honest caveat: GateTest is deepest on JavaScript/TypeScript. The 9 non-JS language modules (Python, Go, Rust, Java, Ruby, PHP, C#, Kotlin, Swift) are pattern-level checks — thinner than SonarQube's semantic per-language analyzers. Where GateTest wins is breadth per run: security, supply chain, a11y, performance, and AI-code checks all ship in the one $99 full scan.",
   },
   {
     q: "Can GateTest fix the issues it finds, like a PR suggestion?",

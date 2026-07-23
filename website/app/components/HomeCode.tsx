@@ -27,18 +27,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npx @gatetest/cli --suite full --reporter sarif
+      - run: npx @gatetest/cli --suite full --sarif
         # NOTE: do NOT add continue-on-error: true here
         # The whole point of a gate is that it gates.`;
 
 const CLI_BLOCK = `# scan a single repo locally
 $ npx @gatetest/cli --suite quick
 
-# all 120 modules, blocking gate
+# full suite (88 modules), blocking gate
 $ npx @gatetest/cli --suite full
 
-# scan a public website
-$ npx @gatetest/cli --url https://yoursite.com
+# crawl and test a live website
+$ npx @gatetest/cli --crawl https://yoursite.com
 
 # watch mode — re-run on every file change
 $ npx @gatetest/cli --watch`;
@@ -72,7 +72,7 @@ export default function HomeCode() {
             <code>
               <span className="text-emerald-400">$</span>{" "}
               <span className="text-white">npx</span>{" "}
-              <span className="text-teal-300">gatetest</span>{" "}
+              <span className="text-teal-300">@gatetest/cli</span>{" "}
               <span className="text-amber-200">--suite</span>{" "}
               <span className="text-purple-300">quick</span>
             </code>
@@ -106,7 +106,8 @@ export default function HomeCode() {
         </div>
 
         <p className="text-xs text-muted text-center mt-6">
-          Zero dependencies. Zero telemetry by default. Source is{" "}
+          Four small runtime dependencies. Anonymized module-count telemetry only
+          (never code or file paths) — opt out with GATETEST_NO_TELEMETRY=1. Source is{" "}
           <a
             href="https://github.com/crclabs-hq/GateTest"
             target="_blank"

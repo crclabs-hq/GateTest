@@ -1,7 +1,7 @@
 # ============================================================================
 # GateTest — Composite GitHub Action
 # ============================================================================
-# Lets any repo run the GateTest gate (102 modules) with a single
+# Lets any repo run the GateTest gate (120-module engine) with a single
 # `uses: crclabs-hq/GateTest@v1.1.1` line in their workflow.
 #
 # Optional AI auto-repair: when `auto-fix: true` AND the gate blocks AND
@@ -14,7 +14,7 @@
 # ============================================================================
 
 name: 'GateTest Quality Gate'
-description: '102-module AI-powered quality gate with self-healing CI'
+description: '120-module AI-powered quality gate with self-healing CI'
 author: 'GateTest (gatetest.ai)'
 
 branding:
@@ -23,9 +23,13 @@ branding:
 
 inputs:
   suite:
-    description: 'Which GateTest suite to run: quick (4 modules) / full (102) / scan_fix / nuclear'
+    description: 'Which GateTest suite to run: quick (41 modules) / standard (45) / full (88) / nuclear (95). Unknown values fall back to standard.'
     required: false
     default: 'quick'
+  diff-only:
+    description: 'On pull_request events, scan only the files the PR changes (vs the base branch). Keeps PRs from being flooded with pre-existing repo-wide findings. Set to false to scan the whole repo on every event. Non-PR events always scan the full repo.'
+    required: false
+    default: 'true'
   auto-fix:
     description: 'When true and the gate blocks, run the AI CI-fixer to propose a patch (requires ANTHROPIC_API_KEY).'
     required: false
@@ -123,32 +127,29 @@ runs:
         node-version: ${{ inputs.node-version }}
 
     # ----------------------------------------------------------------------
-    # 2. Install GateTest.
-    # First try the published npm package; fall back to cloning the repo
-    # if the package isn't published yet.
-    # TODO(publish): swap the fallback for `npm install -g @gatetest/cli`
-    # only once the npm package is published. Until then the clone path
-    # is the primary install method.
+    # 2. Install GateTest — from the action's own checkout.
+    # A composite action runs from a full checkout of this repo at the ref
+    # the user pinned (`uses: crclabs-hq/GateTest@vX`), so the engine AND
+    # the helper scripts (scripts/ai-ci-fixer.js, post-scan-summary-comment,
+    # suggestions, issue tracking) are already on disk at MATCHING versions.
+    # Do NOT swap this for `npm install -g @gatetest/cli`: the npm package
+    # ships only bin/ + src/ + lib/ (no scripts/), so an npm install leaves
+    # GATETEST_HOME unset and silently disables auto-repair, grades, and
+    # every PR-comment feature — exactly the bug this step used to have.
+    # Using the checkout also keeps the gate version-pinned instead of
+    # cloning mutable main at CI time.
     # ----------------------------------------------------------------------
     - name: Install GateTest
       shell: bash
       run: |
         set -euo pipefail
-        if npm install -g @gatetest/cli 2>/dev/null; then
-          echo "GATETEST_BIN=gatetest" >> "$GITHUB_ENV"
-          echo "Installed @gatetest/cli from npm."
-        else
-          # Fallback: clone the canonical repo (single source of truth).
-          # TODO(publish): remove this branch once @gatetest/cli is on npm.
-          GATETEST_HOME="$RUNNER_TEMP/gatetest"
-          git clone --depth 1 https://github.com/crclabs-hq/gatetest.git "$GATETEST_HOME"
-          chmod +x "$GATETEST_HOME/bin/gatetest.js"
-          # Install runtime deps without scripts to keep this fast + safe.
-          (cd "$GATETEST_HOME" && (npm ci --omit=dev --ignore-scripts 2>/dev/null || npm install --production --ignore-scripts 2>/dev/null || true))
-          echo "GATETEST_BIN=node $GATETEST_HOME/bin/gatetest.js" >> "$GITHUB_ENV"
-          echo "GATETEST_HOME=$GATETEST_HOME" >> "$GITHUB_ENV"
-          echo "Cloned GateTest from source (npm package not yet published)."
-        fi
+        GATETEST_HOME="${{ github.action_path }}"
+        chmod +x "$GATETEST_HOME/bin/gatetest.js"
+        # Install runtime deps without lifecycle scripts to keep this fast + safe.
+        (cd "$GATETEST_HOME" && (npm ci --omit=dev --ignore-scripts 2>/dev/null || npm install --production --ignore-scripts 2>/dev/null || true))
+        echo "GATETEST_BIN=node $GATETEST_HOME/bin/gatetest.js" >> "$GITHUB_ENV"
+        echo "GATETEST_HOME=$GATETEST_HOME" >> "$GITHUB_ENV"
+        echo "GateTest engine + scripts loaded from the pinned action checkout."
 
     # ----------------------------------------------------------------------
     # 3. Run the gate. Capture the exit code without aborting the step so
@@ -189,9 +190,25 @@ runs:
           BLOCK_FLAG="--report-only"
         fi
 
+        # Diff-aware PR scanning (inputs.diff-only, default true): on PR
+        # events, pass --pr so only files the PR touches are scanned —
+        # flooding a PR with pre-existing repo-wide findings is the #1
+        # reason teams rip out CI scanners. --pr diffs against
+        # origin/$GITHUB_BASE_REF, so fetch it first (user checkouts are
+        # usually shallow); if the fetch or diff fails, the engine itself
+        # falls back to a full scan rather than erroring.
+        DIFF_FLAG=""
+        if [ "${{ inputs.diff-only }}" = "true" ] && { [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.event_name }}" = "pull_request_target" ]; }; then
+          if [ -n "${GITHUB_BASE_REF:-}" ]; then
+            git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF" 2>/dev/null || true
+          fi
+          DIFF_FLAG="--pr"
+          echo "Diff-aware mode: scanning only files changed vs origin/${GITHUB_BASE_REF:-main} (set diff-only: false for full-repo scans)."
+        fi
+
         # Run the gate, capture stdout for parsing.
         set +e
-        OUTPUT=$(${GATETEST_BIN} --suite "${{ inputs.suite }}" $EXTRA_FLAGS $BLOCK_FLAG --project "$(pwd)" 2>&1)
+        OUTPUT=$(${GATETEST_BIN} --suite "${{ inputs.suite }}" $EXTRA_FLAGS $BLOCK_FLAG $DIFF_FLAG --project "$(pwd)" 2>&1)
         EXIT_CODE=$?
         set -e
         echo "$OUTPUT"

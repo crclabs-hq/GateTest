@@ -157,7 +157,7 @@ export async function runScan(
   const githubMatch = repoUrl.match(/github\.com\/([^/]+)\/([^/?#]+)/);
   const repoMatch = gluecronMatch || githubMatch;
   if (!repoMatch) {
-    return emptyResult(startTime, "Invalid repository URL (expected gluecron.com/<owner>/<repo>)");
+    return emptyResult(startTime, "Invalid repository URL (expected github.com/<owner>/<repo> or gluecron.com/<owner>/<repo>)");
   }
 
   const owner = repoMatch[1];

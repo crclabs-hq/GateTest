@@ -411,7 +411,13 @@ class GateTestRunner extends EventEmitter {
       timer = setTimeout(() => {
         reject(new Error(`Module "${name}" timed out after ${timeoutMs}ms — skipped, scan continues`));
       }, timeoutMs);
-      if (typeof timer.unref === 'function') timer.unref();
+      // Deliberately NOT unref()'d: if the module's promise never settles and
+      // nothing else is keeping the event loop alive, an unref'd timer lets
+      // the process drain and exit BEFORE the timeout fires — the exact
+      // no-result hang this race exists to prevent (Known Issue #40). The
+      // .finally(clearTimeout) below already stops the timer from holding a
+      // finished scan open, so a referenced timer costs nothing on the happy
+      // path.
     });
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
   }

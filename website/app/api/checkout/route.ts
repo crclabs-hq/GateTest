@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let input: { tier?: string; repoUrl?: string };
+  let input: { tier?: string; repoUrl?: string; url?: string };
   try {
     input = await req.json();
   } catch {
@@ -119,8 +119,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // MCP tier is key-based — no repo URL required. All other tiers need one.
-  if (input.tier !== "mcp") {
+  // URL tiers (web_scan / wp_health) take a live website URL; the MCP tier
+  // is key-based (no target at all); every other tier needs a repo URL.
+  let targetSiteUrl = "";
+  if (tier.target === "url") {
+    const raw = (input.url || "").trim();
+    let parsedUrl: URL | null = null;
+    try {
+      parsedUrl = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    } catch {
+      parsedUrl = null;
+    }
+    if (!parsedUrl || !/^https?:$/.test(parsedUrl.protocol) || !parsedUrl.hostname.includes(".")) {
+      return NextResponse.json(
+        { error: "A valid website URL is required (e.g. https://yoursite.com)" },
+        { status: 400 }
+      );
+    }
+    targetSiteUrl = `${parsedUrl.protocol}//${parsedUrl.host}${parsedUrl.pathname === "/" ? "" : parsedUrl.pathname}`;
+  } else if (input.tier !== "mcp") {
     if (
       !input.repoUrl ||
       !(input.repoUrl.includes("github.com") || input.repoUrl.includes("gluecron.com"))
@@ -131,6 +148,13 @@ export async function POST(req: NextRequest) {
       );
     }
   }
+
+  // URL tiers return the customer to the scanner page they came from —
+  // the page reads session_id + url from the query and re-runs the scan
+  // with the paid session attached (full-report-auth verifies it
+  // server-side before lifting the paywall).
+  const returnPath = input.tier === "wp_health" ? "/wp" : "/web";
+  const urlTierSuccess = `${BASE_URL}${returnPath}?session_id={CHECKOUT_SESSION_ID}&url=${encodeURIComponent(targetSiteUrl)}`;
 
   try {
     // Create Stripe Checkout Session — charge captures at checkout (no
@@ -166,17 +190,22 @@ export async function POST(req: NextRequest) {
           mode: "payment",
           "payment_intent_data[metadata][tier]": input.tier || "",
           "payment_intent_data[metadata][repo_url]": input.repoUrl || "",
+          "payment_intent_data[metadata][target_url]": targetSiteUrl,
           "payment_intent_data[metadata][modules]": tier.modules,
           "metadata[tier]": input.tier || "",
           "metadata[repo_url]": input.repoUrl || "",
+          "metadata[target_url]": targetSiteUrl,
           "metadata[modules]": tier.modules,
           "line_items[0][price_data][currency]": "usd",
           "line_items[0][price_data][unit_amount]": String(tier.priceInCents),
           "line_items[0][price_data][product_data][name]": `GateTest ${tier.name}`,
           "line_items[0][price_data][product_data][description]": tier.description,
           "line_items[0][quantity]": "1",
-          success_url: `${BASE_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${BASE_URL}/checkout/cancel`,
+          success_url:
+            tier.target === "url"
+              ? urlTierSuccess
+              : `${BASE_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${BASE_URL}${tier.target === "url" ? returnPath : "/checkout/cancel"}`,
         });
 
     const session = await stripeRequest(

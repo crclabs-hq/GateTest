@@ -514,7 +514,7 @@ export async function POST(req: NextRequest) {
           remainingCount: Math.max(0, clusterResult.clusters.length - findings.length),
           fullReportPriceUsd: 29,
           fullReportCadence: "one-shot",
-          ctaUrl: "/api/checkout?tier=quick",
+          ctaUrl: "/checkout?tier=web_scan",
         }
       : null,
   });

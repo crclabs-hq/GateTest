@@ -74,7 +74,7 @@ describe('Pricing.tsx display strings match checkout cents', () => {
     ['Full Scan', 'full'],
     ['Scan + Fix', 'scan_fix'],
     ['Forensic Scan', 'nuclear'],
-    ['Continuous Guard', 'continuous'],
+    ['Continuous', 'continuous'],
     ['MCP Integration', 'mcp'],
   ];
 

@@ -41,18 +41,17 @@ const FAQS: Faq[] = [
     q: "Is my code stored anywhere?",
     a: (
       <>
-        No. Scans are ephemeral. We clone, run the engine, post the report,
-        delete the clone. The repo never leaves your CI environment when
-        you install the GitHub Action — we never see it. For paid scans run
-        from our infra, the working copy lives on a Vercel function for the
-        duration of the scan and is gone when the response returns.{" "}
+        No. Scans are ephemeral. Hosted scans fetch your files over the
+        git host&apos;s API, scan them in memory, and discard them when the
+        response returns. The repo never leaves your CI environment when
+        you install the GitHub Action — we never see it.{" "}
         <Link href="/legal/privacy" className="text-accent hover:underline">
           Privacy policy.
         </Link>
       </>
     ),
     plain:
-      "No. Scans are ephemeral: we clone, run the engine, post the report, delete the clone. With the GitHub Action your repo never leaves your CI. For paid scans run from our infra, the working copy lives on a serverless function for the duration of the scan only.",
+      "No. Scans are ephemeral: hosted scans fetch your files over the git host API, scan them in memory, and discard them when the response returns. With the GitHub Action your repo never leaves your CI.",
   },
   {
     q: "Why not just ESLint + Snyk + the other 10 tools?",
@@ -60,7 +59,7 @@ const FAQS: Faq[] = [
       <>
         You can. Most teams do. The question is who maintains the
         compose-of-ten — and who pays the per-seat tax across all of them.
-        We replace 30+ tools with one CLI, one config, one bill. See{" "}
+        We replace a dozen tools with one CLI, one config, one bill. See{" "}
         <a href="#kills-table" className="text-accent hover:underline">
           the full replacement table
         </a>{" "}
@@ -72,7 +71,7 @@ const FAQS: Faq[] = [
       </>
     ),
     plain:
-      "You can — most teams do. The question is who maintains the compose-of-ten and who pays the per-seat tax across all of them. GateTest replaces 30+ tools with one CLI, one config, one bill.",
+      "You can — most teams do. The question is who maintains the compose-of-ten and who pays the per-seat tax across all of them. GateTest replaces a dozen tools with one CLI, one config, one bill.",
   },
   {
     q: "Per-scan pricing — what's the catch?",
@@ -84,8 +83,8 @@ const FAQS: Faq[] = [
         <a href="mailto:hello@gatetest.ai" className="text-accent hover:underline">
           hello@gatetest.ai
         </a>{" "}
-        — we re-run it or issue a credit at our discretion. Scan-finish rate
-        is well above 99% on real repos, so this rarely happens.
+        — we re-run it or issue a credit at our discretion. Failed scans
+        are marked failed, never silently swallowed.
       </>
     ),
     plain:

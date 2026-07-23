@@ -49,6 +49,12 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
   const tickerRef = useRef<NodeJS.Timeout | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const recAbortRef = useRef<AbortController | null>(null);
+  // Paid full-report unlock: after Stripe Checkout, the success_url returns
+  // here as /web?session_id=cs_...&url=<target>. The sessionId rides on every
+  // scan request; the server verifies payment_status=paid via
+  // full-report-auth before lifting the paywall — nothing client-asserted.
+  const sessionIdRef = useRef<string>("");
+  const autoRanRef = useRef(false);
 
   // Debounced pre-scan recommendation fetch. Fires when URL looks valid
   // and hasn't changed for 600ms. Aborts any in-flight previous fetch.
@@ -84,6 +90,23 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
     return () => clearTimeout(timer);
   }, [url, recommendEndpoint, phase]);
 
+  // Stripe-return auto-run: /web?session_id=cs_...&url=<target> lands here
+  // after a successful full-report checkout — pick up both params, run the
+  // scan once with the paid session attached.
+  useEffect(() => {
+    if (autoRanRef.current) return;
+    autoRanRef.current = true;
+    const sp = new URLSearchParams(window.location.search);
+    const sid = (sp.get("session_id") || "").trim();
+    const paidUrl = (sp.get("url") || "").trim();
+    if (sid) sessionIdRef.current = sid;
+    if (sid && paidUrl) {
+      setUrl(paidUrl);
+      void startScan(paidUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (phase === "scanning") {
       const start = Date.now();
@@ -105,7 +128,7 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
     const res = await fetch(streamEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-      body: JSON.stringify({ url: targetUrl }),
+      body: JSON.stringify({ url: targetUrl, ...(sessionIdRef.current ? { sessionId: sessionIdRef.current } : {}) }),
       signal: abort.signal,
     });
     if (!res.ok) {
@@ -170,7 +193,7 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
     const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: targetUrl }),
+      body: JSON.stringify({ url: targetUrl, ...(sessionIdRef.current ? { sessionId: sessionIdRef.current } : {}) }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || "Scan failed. Please try a different URL.");
@@ -180,7 +203,10 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!url.trim()) return;
-    const targetUrl = url.trim();
+    await startScan(url.trim());
+  }
+
+  async function startScan(targetUrl: string) {
     setError(null);
     setLiveModules([]);
     setPhase("scanning");

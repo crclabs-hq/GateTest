@@ -141,6 +141,13 @@ class SecretsModule extends BaseModule {
     const gitignorePath = path.join(projectRoot, '.gitignore');
     if (!fs.existsSync(gitignorePath)) {
       result.addCheck('secrets:gitignore-exists', false, {
+        // Warning, not error: missing setup files are hygiene advisories.
+        // Actually-committed secrets still block (the scanner checks the
+        // real file contents); a brand-new repo's first scan shouldn't be
+        // BLOCKED over a file it hasn't created yet (first-run audit
+        // 2026-07-23 — same rationale as lint:eslint-config and
+        // security:gitignore-missing).
+        severity: 'warning',
         message: 'No .gitignore file found',
         suggestion: 'Create a .gitignore that excludes .env, credentials, and key files',
         autoFix: () => {

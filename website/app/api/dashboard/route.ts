@@ -1,17 +1,23 @@
 /**
- * Customer Dashboard API — fetch scan history by email.
+ * Customer Dashboard API — fetch scan history for the signed-in customer.
  *
  * POST /api/dashboard
- *   Body: { email: string }
- *   Returns: { scans: [...], customer: {...} }
- *
- * No auth token — email is the lookup key. Scans are only created
- * after Stripe payment, so the email comes from Stripe checkout.
- * Rate-limited (20/min per IP) to prevent enumeration at scale.
+ *   Auth: gatetest_customer session cookie (OAuth sign-in). The lookup
+ *   email comes from the VERIFIED session payload — never from the
+ *   request body. A client-supplied email would let anyone enumerate any
+ *   customer's scan history, repos, and total spend (fixed 2026-07-23;
+ *   previously the body email was trusted with only IP rate limiting).
+ *   Returns: { scans: [...], customer: {...} } · 401 when not signed in.
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getDb } from "../../lib/db";
+import {
+  getOAuthConfig,
+  verifyCustomerSession,
+  CUSTOMER_COOKIE_NAME,
+} from "../../lib/customer-session";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
   createLimiter: (opts: { windowMs: number; maxRequests: number }) => {
@@ -32,21 +38,22 @@ export async function POST(req: NextRequest) {
       headers: _rl.headers as Record<string, string>,
     });
   }
-  let body: { email?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  // Identity comes from the verified session cookie, not the body.
+  const oauth = getOAuthConfig();
+  if (!oauth.ok || !oauth.config) {
+    return NextResponse.json({ error: "Not configured" }, { status: 503 });
   }
-
-  const email = (body.email || "").trim().toLowerCase();
-
-  if (!email || !email.includes("@")) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(CUSTOMER_COOKIE_NAME)?.value;
+  const session = verifyCustomerSession(token, oauth.config.sessionSecret);
+  if (!session || typeof session.e !== "string" || !session.e.includes("@")) {
     return NextResponse.json(
-      { error: "Please enter a valid email address" },
-      { status: 400 }
+      { error: "Sign in to view your scan history" },
+      { status: 401 }
     );
   }
+
+  const email = session.e.trim().toLowerCase();
 
   try {
     const sql = getDb();
