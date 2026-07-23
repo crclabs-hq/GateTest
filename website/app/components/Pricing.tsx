@@ -278,6 +278,28 @@ export default function Pricing() {
           needsRepo
         />
       </div>
+
+      {/* Enterprise — contact-based, no fixed price (Craig 2026-07-23).
+          Deliberately NOT a Stripe tier: enterprise terms (scan volume,
+          AI-review budget, invoicing, support) are negotiated per deal. */}
+      <div className="mx-auto max-w-5xl mt-8">
+        <div className="rounded-2xl border border-border bg-surface-solid p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          <div className="flex-1">
+            <h3 className="text-xl font-bold mb-1">Enterprise</h3>
+            <p className="text-muted text-sm leading-relaxed">
+              Running GateTest across a large organisation? We&apos;ll shape a plan
+              around you: custom scan volume, a raised AI-review budget,
+              priority support, and invoicing on your terms.
+            </p>
+          </div>
+          <a
+            href="mailto:hello@gatetest.ai?subject=GateTest%20Enterprise"
+            className="shrink-0 inline-flex items-center justify-center px-6 py-3 rounded-xl border border-border font-semibold text-sm hover:border-accent hover:text-accent transition-colors"
+          >
+            Talk to us
+          </a>
+        </div>
+      </div>
     </section>
   );
 }
