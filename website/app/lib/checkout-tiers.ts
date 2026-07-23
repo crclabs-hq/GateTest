@@ -87,7 +87,7 @@ export const TIERS: Record<string, ScanTier> = {
     priceInCents: 4900,
     modules: "subscription-continuous",
     description:
-      "Scan every push. Unlimited deterministic push scans, plus a monthly Claude AI-review allowance that escalates pushes to the deeper full-suite scan while budget remains. Fix PRs are a per-scan upsell. Cancel anytime.",
+      "Scan every push across EVERY repo in your org — one flat $49/mo, no per-seat, no per-repo (org-flat since 2026-07-23). Unlimited deterministic push scans, plus a monthly Claude AI-review allowance shared across the org that escalates pushes to the deeper full-suite scan while budget remains. Fix PRs are a per-scan upsell. Cancel anytime.",
     recurring: true,
   },
   // MCP subscription — $29/mo. Key-based (no repo URL). Unlocks premium
@@ -98,7 +98,7 @@ export const TIERS: Record<string, ScanTier> = {
     priceInCents: 2900,
     modules: "subscription-mcp",
     description:
-      "Full MCP server access — 120-module scans, AI fixes, live-page screenshots, production errors, test runs, and pass/fail fix verification. API key delivered by email instantly. Cancel anytime.",
+      "Hosted MCP access — use GateTest from claude.ai web, mobile, and locked-down machines with no local install, plus hosted scan history. The LOCAL MCP server is free with every tool ungated (2026-07-23) — this tier is for when you can't run npx. API key delivered by email instantly. Cancel anytime.",
     recurring: true,
   },
 };

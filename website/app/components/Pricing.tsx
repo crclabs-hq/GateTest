@@ -82,10 +82,11 @@ export const continuousPlan = {
   name: "Continuous",
   price: "$49",
   frequency: "per month",
-  description: "Unlimited deterministic scans on every push. AI reviews metered by monthly allowance.",
+  description: "Every repo in your org — one flat price, no seats, no per-repo billing. Unlimited deterministic scans on every push; AI reviews metered by a shared monthly allowance.",
   features: [
+    "All Repos In Your Org — One Flat Price",
     "Unlimited Deterministic Push Scans",
-    "AI Review Allowance ($10/mo default)",
+    "AI Review Allowance ($10/mo, shared org-wide)",
     "Continuous AI Ledger Protection",
     "Real-Time Pipeline Trace Feed"
   ],

@@ -68,3 +68,21 @@ test('/api/dashboard requires a verified customer session (no body-email lookup)
   // The email used in the SQL lookup must come from the session payload.
   assert.match(src, /session\.e/, 'lookup email must come from the verified session payload');
 });
+
+test('Continuous is org-flat: an active subscription on one repo covers sibling repos in the same org', async () => {
+  const store = require('../website/app/lib/continuous-subscription-store.js');
+  const rows = [{ stripe_subscription_id: 'sub_1', stripe_customer_id: 'cus_1', repo_url: 'github.com/acme/api', status: 'active', current_period_end: null }];
+  const queries = [];
+  const sql = async (strings, ...vals) => { queries.push({ text: strings.join('?'), vals }); 
+    return strings.join(' ').includes('SELECT') ? rows : []; };
+  const hit = await store.findActiveByRepo(sql, 'https://github.com/acme/other-repo');
+  assert.ok(hit, 'sibling repo in the same org must be covered (org-flat, Craig 2026-07-23)');
+  const sel = queries.find(q => q.text.includes('SELECT'));
+  assert.ok(sel.vals.includes('github.com/acme/%'), 'query must match by host/owner prefix');
+});
+
+test('local MCP server has an empty gate — every stdio tool is free (KI #39)', () => {
+  const src = fs.readFileSync(path.resolve(__dirname, '..', 'bin', 'gatetest-mcp.mjs'), 'utf8');
+  assert.match(src, /const GATED_TOOLS = new Set\(\[\]\);/, 'GATED_TOOLS must stay empty — local tools run on the user\'s own machine');
+  assert.doesNotMatch(src, /suite \|\| 'standard'\) !== 'quick'/, 'scan_local suite gate must not return');
+});
