@@ -83,26 +83,6 @@ export function Enterprise() {
                 ))}
               </div>
 
-              <figure className="mt-4 rounded-2xl border border-white/[0.07] bg-gradient-to-br from-teal-500/[0.07] to-transparent p-6">
-                <blockquote className="text-[17px] leading-relaxed text-zinc-200">
-                  &ldquo;We let the AI write at full throttle. GateTest is the
-                  reason we can sleep at night — every PR is gated, fixed, and
-                  proven before a human ever looks at it.&rdquo;
-                </blockquote>
-                <figcaption className="mt-4 flex items-center gap-3">
-                  <span className="grid h-9 w-9 place-items-center rounded-full bg-teal-400/15 font-semibold text-teal-200">
-                    VP
-                  </span>
-                  <span className="text-sm">
-                    <span className="block font-medium text-white">
-                      VP of Engineering
-                    </span>
-                    <span className="block text-zinc-500">
-                      Series-B fintech platform
-                    </span>
-                  </span>
-                </figcaption>
-              </figure>
             </div>
           </Reveal>
         </div>

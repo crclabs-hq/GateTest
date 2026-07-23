@@ -103,7 +103,9 @@ describe('mapSummaryToDiagnostics', () => {
   });
 
   it('leaves an already-absolute check.file untouched', () => {
-    const absFile = path.join('D:', 'elsewhere', 'b.js');
+    // path.resolve makes this absolute on both platforms; a hardcoded
+    // 'D:\...' style path is only absolute on Windows and fails on Linux CI.
+    const absFile = path.resolve(path.sep, 'elsewhere', 'b.js');
     const summary = makeSummary([
       { module: 'lint', checks: [{ file: absFile, line: 1, severity: 'error', message: 'x' }] },
     ]);

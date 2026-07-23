@@ -165,7 +165,7 @@ export default function HomeEyesEarsHands() {
           <div className="flex-shrink-0 w-full sm:w-auto">
             <pre className="rounded-xl bg-background border border-border text-xs font-mono text-foreground/90 px-5 py-3 overflow-x-auto">
               <span className="text-muted select-none">$ </span>
-              claude mcp add gatetest -- npx @gatetest/cli --mcp
+              claude mcp add gatetest -- npx -y @gatetest/mcp-server
             </pre>
           </div>
         </div>

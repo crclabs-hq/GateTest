@@ -567,7 +567,11 @@ class SecurityModule extends BaseModule {
     if (!fs.existsSync(gitignorePath)) {
       if (fs.existsSync(path.join(projectRoot, '.git'))) {
         result.addCheck('security:gitignore-missing', false, {
-          severity: 'error',
+          // Warning, not error: no .gitignore is a real risk signal but not
+          // itself a defect — the secrets module blocks on any actually
+          // committed secret. Blocking a brand-new repo's first scan over
+          // missing setup files trains distrust (first-run audit 2026-07-23).
+          severity: 'warning',
           message: 'Git repository has no .gitignore — sensitive files may be committed',
           suggestion: 'Create a .gitignore excluding .env, node_modules, .pem, credentials, etc.',
         });

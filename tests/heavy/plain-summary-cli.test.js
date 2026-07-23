@@ -17,7 +17,7 @@ const CLI = path.resolve(__dirname, '../../bin/gatetest.js');
 
 function runScan(cwd, extraArgs) {
   try {
-    const out = execFileSync(process.execPath, [CLI, '--module', 'secrets', ...extraArgs], {
+    const out = execFileSync(process.execPath, [CLI, '--module', 'codeQuality', ...extraArgs], {
       cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 60_000,
       env: { ...process.env, GATETEST_NO_TELEMETRY: '1', NODE_TEST_CONTEXT: undefined },
     });
@@ -31,10 +31,13 @@ describe('CLI plain-English recap', () => {
   let dir;
   before(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-plain-'));
-    // A source file with NO .gitignore guarantees a blocking secrets finding
-    // (secrets:gitignore-exists) — no secret-shaped literal, so this fixture
-    // never trips GitHub push-protection.
-    fs.writeFileSync(path.join(dir, 'app.js'), 'export const x = 1;\n');
+    // eval() is a guaranteed error-severity codeQuality finding, and it's
+    // not a secret-shaped literal so the fixture never trips GitHub
+    // push-protection. (Previously this used secrets:gitignore-exists,
+    // which was downgraded to a warning 2026-07-23 — missing setup files
+    // no longer block a first scan — so it stopped producing a BLOCKED
+    // gate for this test.)
+    fs.writeFileSync(path.join(dir, 'app.js'), 'const out = eval(input);\nmodule.exports = out;\n');
   });
   after(() => { fs.rmSync(dir, { recursive: true, force: true }); });
 

@@ -83,16 +83,22 @@ function parseModulesFromMetadata(meta: Record<string, string>): Array<Record<st
   return modules;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { QUICK_ANIMATION_MODULES, FULL_ANIMATION_MODULES } = require("@/app/lib/scan-animation-modules.js") as {
+  QUICK_ANIMATION_MODULES: string[];
+  FULL_ANIMATION_MODULES: string[];
+};
+
 function buildModuleAnimation(tier: string, startTime: number) {
-  const moduleNames =
-    tier === "quick"
-      ? ["syntax", "lint", "secrets", "codeQuality"]
-      : [
-          "syntax", "lint", "secrets", "codeQuality", "unitTests",
-          "integrationTests", "e2e", "visual", "accessibility",
-          "performance", "security", "seo", "links", "compatibility",
-          "dataIntegrity", "documentation", "mutation", "aiReview",
-        ];
+  // The while-scanning progress view. Module names are the REAL suite the
+  // paid scan runs (see scan-animation-modules.js — drift-tested against
+  // the engine config). Timing is a wall-clock ESTIMATE (`estimated: true`)
+  // because the scan executes inside a single serverless function response
+  // and can't report per-module progress mid-flight; what we never do is
+  // invent per-module check counts or durations — those stay 0 until the
+  // real result lands (KI #61: the old version fabricated `5 + i*3` checks
+  // and listed modules the website scan doesn't even run).
+  const moduleNames = tier === "quick" ? QUICK_ANIMATION_MODULES : FULL_ANIMATION_MODULES;
 
   // Progress based on time since scan started — never resets
   const elapsedMs = Date.now() - startTime;
@@ -105,14 +111,15 @@ function buildModuleAnimation(tier: string, startTime: number) {
 
   return {
     status: "scanning" as const,
+    estimated: true,
     progress,
     currentModule: moduleNames[completed],
     modules: moduleNames.map((name, i) => ({
       name,
       status: i < completed ? "passed" : i === completed ? "running" : "pending",
-      checks: i < completed ? 5 + (i * 3) : 0,
+      checks: 0,
       issues: 0,
-      duration: i < completed ? 100 + (i * 50) : 0,
+      duration: 0,
     })),
     totalModules: moduleNames.length,
     completedModules: completed,

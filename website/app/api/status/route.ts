@@ -43,6 +43,9 @@ const IMPORTANT: Array<{ name: string; why: string }> = [
   { name: "GATETEST_ADMIN_PASSWORD", why: "admin console password login disabled ('Admin access is not configured')" },
   { name: "CRON_SECRET", why: "background cron jobs (watch tick, scan worker) exit early in prod" },
   { name: "RESEND_API_KEY", why: "MCP $29/mo API-key emails can't send — subscriber pays, key never arrives (webhook 500s until set)" },
+  { name: "VAPRON_BASE_URL", why: "runtime-scan dispatch to the Vapron worker tier disabled — /web and /wp scans ship static probes only" },
+  { name: "VAPRON_API_TOKEN", why: "pairs with VAPRON_BASE_URL — Vapron rejects unauthenticated dispatch" },
+  { name: "VAPRON_DISPATCH_SECRET", why: "pairs with VAPRON_BASE_URL — signs outbound jobs and verifies Vapron's result callbacks (CRONTECH_DISPATCH_SECRET is the legacy alias)" },
 ];
 
 // Purely optional integrations.
@@ -54,9 +57,22 @@ const OPTIONAL = [
   "GATETEST_FIX_MODEL", "CONTINUOUS_AI_BUDGET_USD",
 ];
 
+// Legacy env names still honored by the code that reads the canonical var
+// (vapron-dispatch.js falls back to CRONTECH_*). A var counts as set when
+// either the canonical name or any alias is set — otherwise this probe would
+// report "missing" for a deployment that actually works.
+const ALIASES: Record<string, string[]> = {
+  VAPRON_BASE_URL: ["CRONTECH_BASE_URL"],
+  VAPRON_API_TOKEN: ["CRONTECH_API_TOKEN"],
+  VAPRON_DISPATCH_SECRET: ["CRONTECH_DISPATCH_SECRET"],
+};
+
 function isSet(name: string): boolean {
-  const v = process.env[name];
-  return typeof v === "string" && v.trim().length > 0;
+  const candidates = [name, ...(ALIASES[name] ?? [])];
+  return candidates.some((n) => {
+    const v = process.env[n];
+    return typeof v === "string" && v.trim().length > 0;
+  });
 }
 
 export async function GET(req: NextRequest) {

@@ -529,3 +529,47 @@ describe('MAX_DIFF_FILES', () => {
     assert.ok(MAX_DIFF_FILES < 50, 'MAX_DIFF_FILES should be below Scan+Fix cap of 50');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Route header contract — Vercel cron sends `Authorization: Bearer <secret>`,
+// never a custom header. The internal kicks (events-push.js,
+// github-events.js) send `X-Vercel-Cron-Secret`. The route must read BOTH:
+// before this regression test existed, the route only read the custom header,
+// so setting CRON_SECRET (fail-closed, KI #57e) would have 401'd every real
+// Vercel cron invocation and silently stopped queue processing.
+// ---------------------------------------------------------------------------
+
+describe('worker tick route — cron header contract (source-text)', () => {
+  const fs = require('fs');
+  const routeSrc = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '..',
+      'website',
+      'app',
+      'api',
+      'scan',
+      'worker',
+      'tick',
+      'route.ts'
+    ),
+    'utf8'
+  );
+
+  it('reads the internal kick header (x-vercel-cron-secret)', () => {
+    assert.match(routeSrc, /x-vercel-cron-secret/);
+  });
+
+  it('reads the Vercel cron Authorization bearer token', () => {
+    assert.match(routeSrc, /headers\.get\(\s*["']authorization["']\s*\)/);
+    assert.match(routeSrc, /Bearer /);
+  });
+
+  it('feeds either credential into isAuthorisedTick as cronHeader', () => {
+    assert.match(
+      routeSrc,
+      /x-vercel-cron-secret["']\s*\)\s*\|\|\s*bearer/,
+      'custom header must fall back to the bearer token'
+    );
+  });
+});

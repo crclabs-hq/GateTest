@@ -8,9 +8,7 @@
      badge at /badge/:owner/:repo (dynamic SVG, cached 5 min, "not scanned"
      fallback when no scan is on record yet — see website/app/badge). -->
 [![GateTest](https://gatetest.ai/badge/crclabs-hq/GateTest)](https://gatetest.ai)
-<!-- npm-version badge — re-enable after first `npm publish`:
 [![npm](https://img.shields.io/npm/v/@gatetest/cli.svg)](https://www.npmjs.com/package/@gatetest/cli)
--->
 [![CI](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml/badge.svg)](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Modules](https://img.shields.io/badge/modules-120-purple.svg)](#what-it-replaces)
@@ -59,7 +57,11 @@ The action is a composite — no Docker pull, no container build. It installs Ga
 ### CLI — local development
 
 ```bash
-# Run against the current directory, no install:
+# Install from npm:
+npm install -g @gatetest/cli
+gatetest --suite quick
+
+# Or run against the current directory with no install:
 npx github:crclabs-hq/GateTest --suite quick
 
 # Or clone and run from source:
@@ -67,8 +69,6 @@ git clone https://github.com/crclabs-hq/GateTest
 cd gatetest && npm install
 node bin/gatetest.js --suite quick
 ```
-
-> Install: `npm install -g @gatetest/cli`
 
 ### Pre-push sweep
 
@@ -87,6 +87,34 @@ npm run sweep -- --fast    # skip tests + build, gate-only, ~3-5s
 ```
 
 See `gatetest sweep --help` for every flag.
+
+### Silencing a false positive — 10 seconds
+
+Every scanner gets it wrong sometimes. When GateTest flags something you've judged safe, add one line to a `.gatetestignore` file at your repo root:
+
+```gitignore
+# Silence one rule from one module:
+secrets:generic-api-key
+
+# Silence a whole module:
+deadCode
+
+# Silence a rule everywhere it fires:
+*:trailing-whitespace
+
+# Scope a suppression to a path:
+secrets:generic-api-key@tests/fixtures/**
+
+# Skip a path entirely:
+vendor/**
+```
+
+Suppressed findings are excluded from the gate decision and every failure count, but stay visible in a `suppressedChecks` list — nothing is silently hidden. Two more controls:
+
+- `gatetest --noise` — ranks your noisiest modules and prints the exact ignore line to copy.
+- **Auto-softening** — a module you chronically dismiss stops blocking the gate on its own (never on thin evidence: it takes repeated dismissals at a high fire-rate).
+
+Project-wide options live in `.gatetest.json` (suites, per-module config, severity overrides) — run `gatetest --init` to scaffold one.
 
 ### Claude Code / MCP — give Claude eyes, ears & hands
 
@@ -215,14 +243,16 @@ One config, one bill, one gate decision. Twelve-plus tools dissolve into single 
 
 ## Tiers and pricing
 
-One-time payment per scan via Stripe at checkout. No subscription, no auto-renew. Refunds only at our discretion for scans that failed to start or crashed mid-way without producing a report (contact `hello@gatetest.ai`).
+Scan tiers are one-time payments via Stripe at checkout — no auto-renew. Continuous and MCP are monthly subscriptions (cancel anytime). Refunds only at our discretion for scans that failed to start or crashed mid-way without producing a report (contact `hello@gatetest.ai`).
 
 | Tier              | Price   | What you get                                                                                                                                       |
 | ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Quick Scan**    | $29     | 4 modules — syntax, linting, secrets, code quality. Fastest path to a first signal. Scan-only — no auto-fix.                                       |
-| **Full Scan**     | $99     | All 120 modules. SARIF + JUnit reports. Scan-only — auto-fix ships at the Scan + Fix tier.                                                         |
+| **Full Scan**     | $99     | The full engine suite (88 modules; mutation + chaos run via the GitHub Action instead — they need a CI runner). SARIF + JUnit reports via the CLI / GitHub Action. Scan-only — auto-fix ships at the Scan + Fix tier. |
 | **Scan + Fix**    | $199    | Everything in Full, plus a second-Claude pair-review critique on every fix and an architecture-shape design-observations report.                   |
 | **Forensic Scan** | $399    | Everything in Scan + Fix, plus real Claude diagnosis on every finding, cross-finding attack-chain correlation, board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (`mutation: true` / `chaos: true`) — they need a CI runner to execute your test suite and a headless browser, so they ship with the Action rather than the website-only scan. |
+| **Continuous**    | $49/mo  | Scan every push via the GitHub App. Unlimited deterministic push scans plus a monthly Claude AI-review allowance. Fix PRs are a per-scan upsell.    |
+| **MCP**           | $29/mo  | The **hosted** remote MCP endpoint — use GateTest from claude.ai web/mobile or locked-down machines, plus hosted scan history (`gtmcp_` key delivered by email after checkout). The **local** MCP server (`npx @gatetest/mcp-server`) is 100% free — every tool runs on your machine with your keys. |
 
 Live prices and Stripe checkout at [gatetest.ai](https://gatetest.ai).
 
@@ -233,8 +263,7 @@ Live prices and Stripe checkout at [gatetest.ai](https://gatetest.ai).
 GateTest is not magic. The things it does not yet do, said out loud:
 
 - **Headless-browser modules (`liveCrawler`, `runtimeErrors`, `explorer`, `chaos`) degrade gracefully on Vercel serverless.** Chromium cannot launch inside the function. The modules emit an info-level skip and the rest of the scan continues — full power requires the CLI, a worker, or local dev.
-- **`installation_id` is not persisted across GitHub App installs.** Multi-org customers cannot yet be correlated to a single billing account; this is tracked as Known Issue #22 in [CLAUDE.md](CLAUDE.md).
-- **PR comments are not idempotent.** A busy PR with many pushes will collect duplicate scan comments. Tracked as Known Issue #23.
+- **Hosted website scans read up to 50 source files per scan** (prioritised by relevance). Most small-to-mid repos fit; a large monorepo gets a representative slice. The CLI and GitHub Action scan everything with no cap.
 
 The full Known Issues table (with severity and status) lives in [CLAUDE.md](CLAUDE.md) — that file is the project's source of truth.
 
@@ -242,7 +271,7 @@ The full Known Issues table (with severity and status) lives in [CLAUDE.md](CLAU
 
 ## Architecture
 
-**Static engine.** 120 modules, every one extending `BaseModule`. Each module is a self-contained scanner that emits checks at three severity levels (error blocks the gate, warning reports, info is informational). The runner is `EventEmitter`-based, supports parallel execution, diff-mode (`--diff` scans only git-changed files), watch mode, and five output formats (Console, JSON, HTML, SARIF for the GitHub Security tab, JUnit XML for any CI). The gate has zero runtime dependencies aside from one MCP SDK pin — `node bin/gatetest.js --list` runs anywhere Node 20+ runs.
+**Static engine.** 120 modules, every one extending `BaseModule`. Each module is a self-contained scanner that emits checks at three severity levels (error blocks the gate, warning reports, info is informational). The runner is `EventEmitter`-based, supports parallel execution, diff-mode (`--diff` scans only git-changed files), watch mode, and five output formats (Console, JSON, HTML, SARIF for the GitHub Security tab, JUnit XML for any CI). The gate has four small runtime dependencies (`acorn`, `pngjs`, `pixelmatch`, and the MCP SDK) — `node bin/gatetest.js --list` runs anywhere Node 20+ runs.
 
 **Website and payments.** [gatetest.ai](https://gatetest.ai) is Next.js 16 with the App Router, Tailwind 4, and Stripe in per-scan upfront-charge mode. One-time payment per scan at checkout — no subscription, no auto-renew, no hold-then-capture flow. All scan state is persisted in Stripe metadata so the serverless functions stay stateless across requests — there is no shared in-memory state and no webhook is required for the critical user flow. The scan executes inside the function response and reports back directly.
 

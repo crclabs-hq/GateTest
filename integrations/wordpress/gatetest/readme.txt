@@ -16,7 +16,7 @@ Scan your WordPress theme, plugin, or custom code with 67 AI-powered quality mod
 
 Teams duct-tape 10+ tools together — ESLint for style, SonarQube for quality, Snyk for security, Lighthouse for performance, axe for accessibility. Each has its own config, its own dashboard, its own billing. GateTest replaces all of them with a single scan.
 
-**67 modules. One gate. One decision.**
+**120 modules. One gate. One decision.**
 
 = What GateTest scans =
 
@@ -77,10 +77,11 @@ On the Full scan tier, GateTest uses Claude AI to read your code and automatical
 
 GateTest charges per scan — you only pay when the scan completes and delivers value.
 
-* **Quick** — 39 modules — $29/scan
-* **Full** — 67 modules — $99/scan (includes AI fix PR)
+* **Quick** — $29/scan — the fastest first signal (syntax, lint, secrets, code quality)
+* **Full** — $99/scan — the full engine suite (88 modules; mutation + chaos run via the GitHub Action, which has a CI runner)
+* **Scan + Fix** — $199/scan — everything in Full, plus an AI auto-fix PR opened in your repo
 
-There are no subscriptions, no per-seat pricing, and no lock-in. Get your first scan free at gatetest.ai.
+Per-scan pricing has no per-seat fees and no lock-in. Continuous scanning ($49/mo, org-wide) is also available at gatetest.ai.
 
 = Privacy =
 
@@ -111,7 +112,7 @@ No — GateTest scans any JavaScript, TypeScript, Python, PHP, Go, Rust, Ruby, J
 
 = How long does a scan take? =
 
-Quick scans (39 modules) complete in under 30 seconds. Full scans (67 modules) complete in under 60 seconds. Results are shown directly in your WordPress dashboard.
+Quick scans complete in under 30 seconds. Full scans (88 modules) complete in a few minutes on typical repositories. Results are shown directly in your WordPress dashboard.
 
 = Is my code sent to GateTest's servers? =
 
@@ -139,7 +140,7 @@ GateTest supports GitHub and Gluecron.com. Additional git host support is in dev
 
 = 1.0.0 =
 * Initial release
-* 67-module scan via GateTest API
+* Full-suite scan via GateTest API
 * Dashboard widget with quality score
 * Weekly auto-scan via WP-Cron
 * AJAX scan runner with real-time status

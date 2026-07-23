@@ -23,7 +23,7 @@ Every tool here was chosen because it is the **best in its class right now.** If
 |---|---|---|
 | **Framework** | Next.js 16 (App Router) | Latest, fastest, Vercel-native |
 | **Styling** | Tailwind CSS 4 | Utility-first, dark theme, zero unused CSS |
-| **Hosting** | Vercel | Auto-deploy from main, serverless |
+| **Hosting** | **Vapron** (Craig 2026-07-14 cutover; re-confirmed "zero old services" 2026-07-23) | Craig's platform; deploy per `docs/deploy/VAPRON-DEPLOY.md`. Vercel is RETIRED for production — its GitHub integration may still build PR previews until Craig disconnects it. |
 | **Domain** | gatetest.ai | Secured |
 
 ### Payments
@@ -185,7 +185,7 @@ GateTest/
 
 ---
 
-## ENVIRONMENT VARIABLES (Vercel)
+## ENVIRONMENT VARIABLES (production host — Vapron; see `docs/deploy/VAPRON-DEPLOY.md`)
 
 | Variable | Purpose |
 |----------|---------|
@@ -209,7 +209,7 @@ GateTest/
 | `RESEND_API_KEY` | Resend.com API key — weekly digest emails to Continuous subscribers (`watchdog@gatetest.ai` sender). Optional: if not set, email delivery is silently skipped; Slack digests still fire via `SLACK_WEBHOOK_URL`. |
 | `RESEND_FROM` | Override the From address for digest emails (default: `GateTest <watchdog@gatetest.ai>`) |
 | `GATETEST_API_KEY` | *(MCP server env, not Vercel)* Premium MCP subscription key (`gtmcp_<64hex>`, 70 chars). Set in the MCP server's environment. Unlocks premium tools in `bin/gatetest-mcp.mjs`. Free tools work without it. |
-| `CRON_SECRET` | Vercel Cron auth — sent as `Authorization: Bearer <value>`. **Without this, `/api/watches/tick` and `/api/scan/worker/tick` are open to any caller in production** — see Known Issue #41. |
+| `CRON_SECRET` | Cron-endpoint auth — the scheduler (Vapron cron / systemd timer / GH Actions stopgap) sends `Authorization: Bearer <value>` to `/api/scan/worker/tick` (~2 min) and `/api/watches/tick` (~5 min). **Both endpoints fail closed without it (KI #57e), and nothing schedules them off-Vercel unless Vapron does (KI #41).** |
 | `GATETEST_APP_ID` | GitHub App ID for the dual-host GitHub Marketplace distribution flow — backs the JWT (RS256) auth described above. |
 | `GATETEST_PRIVATE_KEY` | GitHub App private key (`.pem`) — pairs with `GATETEST_APP_ID` for JWT signing. |
 | `GATETEST_WEBHOOK_SECRET` | GitHub App webhook payload signature verification. |

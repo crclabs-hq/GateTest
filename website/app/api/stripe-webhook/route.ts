@@ -346,6 +346,7 @@ export async function POST(req: NextRequest) {
   // Tier price mapping (cents to USD)
   const tierPrices: Record<string, number> = {
     quick: 29, full: 99, scan_fix: 199, nuclear: 399,
+    web_scan: 29, wp_health: 19,
   };
   const tierPriceUsd = tierPrices[tier] || 0;
 

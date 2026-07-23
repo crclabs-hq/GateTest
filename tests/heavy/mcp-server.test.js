@@ -265,7 +265,10 @@ describeOrSkip('MCP server — scan_local', () => {
     );
   });
 
-  it('gates a call with no suite arg (defaults to standard, not quick)', async () => {
+  // INVERTED 2026-07-23 (KI #39 resolved, Craig-authorized): the local
+  // stdio server is 100% free — no suite or modules-array combination may
+  // be gated. These two tests now pin the FREE policy.
+  it('does NOT gate a call with no suite arg (local tools are free)', async () => {
     const noKeyEnv = { ...process.env };
     delete noKeyEnv.GATETEST_API_KEY;
     const res = await callMcp(
@@ -274,10 +277,10 @@ describeOrSkip('MCP server — scan_local', () => {
       10000,
       noKeyEnv
     );
-    assert.ok(res.result.content[0].text.includes('🔒'), 'omitted suite must be gated, not silently free');
+    assert.ok(!res.result.content[0].text.includes('🔒'), 'local scan_local must be free for any suite (KI #39)');
   });
 
-  it('gates a call with an explicit modules array and no key', async () => {
+  it('does NOT gate an explicit modules array without a key (local tools are free)', async () => {
     const noKeyEnv = { ...process.env };
     delete noKeyEnv.GATETEST_API_KEY;
     const res = await callMcp(
@@ -286,7 +289,7 @@ describeOrSkip('MCP server — scan_local', () => {
       10000,
       noKeyEnv
     );
-    assert.ok(res.result.content[0].text.includes('🔒'), 'modules array must not bypass the payment gate');
+    assert.ok(!res.result.content[0].text.includes('🔒'), 'modules array must be free on the local server (KI #39)');
   });
 });
 

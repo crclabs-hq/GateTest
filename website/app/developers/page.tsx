@@ -114,7 +114,7 @@ export default function DevelopersPage() {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-400 font-medium mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
-              120 modules · 6 tiers · no subscription
+              120 modules · 6 tiers · pay per scan or subscribe
             </div>
             <h1 className="text-4xl sm:text-5xl font-bold mb-4 leading-tight">
               The QA gate<br />your CI is{" "}

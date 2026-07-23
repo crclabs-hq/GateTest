@@ -704,8 +704,8 @@ export default function PlaygroundPage() {
               },
               {
                 icon: "🎯",
-                title: "Same engine, full power",
-                body: "This isn't a demo. It's the identical engine that runs in production for paid scans — just limited to the quick tier.",
+                title: "Real checks, real findings",
+                body: "This isn't a canned demo — it runs the same four checks a paid Quick Scan does against your actual code. Paid Full and Forensic scans run the full 120-module CLI engine on top.",
               },
               {
                 icon: "🔒",

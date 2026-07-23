@@ -46,7 +46,7 @@ const faqItems = [
   },
   {
     q: "Does GateTest cover the same languages as DeepSource?",
-    a: "Yes and more. GateTest has dedicated modules for Python, Go, Java, JavaScript, TypeScript, Ruby, PHP, C#, Kotlin, Swift, and Rust — plus the universal checker engine applies security and quality patterns across all languages simultaneously. DeepSource supports Python, Go, JavaScript, TypeScript, Java, and Ruby in its primary analyzers.",
+    a: "Different shapes of coverage. GateTest is deepest on JavaScript/TypeScript (AST-level analysis), with pattern-level modules for Python, Go, Java, Ruby, PHP, C#, Kotlin, Swift, and Rust — the non-JS depth is honestly thinner than a dedicated per-language analyzer. DeepSource has deeper single-language analyzers for its ~16 supported languages; GateTest covers a wider surface (security, a11y, performance, infra, AI-code checks) in one engine.",
   },
   {
     q: "Can GateTest replace DeepSource for continuous scanning?",

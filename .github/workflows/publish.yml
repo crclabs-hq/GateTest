@@ -57,11 +57,15 @@ jobs:
       - name: Install deps
         run: npm ci
 
-      - name: Verify all 90 modules load
+      - name: Verify all 120 modules load
         run: node bin/gatetest.js --list >/dev/null
 
       - name: Run test suite
-        run: node --test tests/*.test.js
+        # --test-force-exit is required: the bare `node --test` form hangs
+        # (leaked timer/socket keeps the runner alive) — same fix ci.yml got
+        # in 180bf7c; this workflow was missed, which is why past publish
+        # runs stalled or were cancelled.
+        run: node --test --test-force-exit --test-timeout=60000 tests/*.test.js
 
       - name: Verify package version matches the git tag
         if: startsWith(github.ref, 'refs/tags/v')

@@ -71,7 +71,15 @@ async function dispatchCallback(args: CallbackArgs): Promise<void> {
 
 export async function POST(req: NextRequest) {
   try {
-    const cronHeader = req.headers.get("x-vercel-cron-secret");
+    // Vercel cron invocations authenticate with `Authorization: Bearer
+    // <CRON_SECRET>` — the platform never sends a custom header. The
+    // x-vercel-cron-secret header is our own convention, sent only by the
+    // internal inline kicks (events-push.js, github-events.js). Accept both;
+    // before this, setting CRON_SECRET (fail-closed, KI #57e) would have
+    // 401'd every real Vercel cron tick and silently stopped the queue.
+    const authHeader = req.headers.get("authorization") || "";
+    const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    const cronHeader = req.headers.get("x-vercel-cron-secret") || bearer || null;
     const isAdmin = isAdminRequest(req);
 
     const authed = scanWorker.isAuthorisedTick({
