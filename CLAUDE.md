@@ -271,10 +271,11 @@ Build the most advanced, most aggressive, most beautiful QA testing platform eve
 
 ### 12. Deployment
 
-- [ ] Vercel deploys from main branch
-- [ ] Root Directory set to website
-- [ ] All 9 environment variables set
-- [ ] DNS pointing to Vercel
+- [ ] Production runs on **Vapron** (Craig 2026-07-14, re-confirmed 2026-07-23 — "zero old services"); deploy per `docs/deploy/VAPRON-DEPLOY.md`
+- [ ] Built with `npm run build` in `website/` (prebuild stamps the git SHA — `/api/platform-status` must show the deployed commit, never "unknown")
+- [ ] All required environment variables set on Vapron (`/api/status` lists what's missing)
+- [ ] Cron scheduler hitting `/api/scan/worker/tick` (~2 min) + `/api/watches/tick` (~5 min) with `Authorization: Bearer $CRON_SECRET` — nothing fires them off-Vercel otherwise (KI #41)
+- [ ] DNS pointing to Vapron; Vercel project retired/disconnected (no second deployment processing the shared queue with stale code)
 
 ### 13. Pre-Launch
 

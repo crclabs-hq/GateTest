@@ -88,6 +88,34 @@ npm run sweep -- --fast    # skip tests + build, gate-only, ~3-5s
 
 See `gatetest sweep --help` for every flag.
 
+### Silencing a false positive — 10 seconds
+
+Every scanner gets it wrong sometimes. When GateTest flags something you've judged safe, add one line to a `.gatetestignore` file at your repo root:
+
+```gitignore
+# Silence one rule from one module:
+secrets:generic-api-key
+
+# Silence a whole module:
+deadCode
+
+# Silence a rule everywhere it fires:
+*:trailing-whitespace
+
+# Scope a suppression to a path:
+secrets:generic-api-key@tests/fixtures/**
+
+# Skip a path entirely:
+vendor/**
+```
+
+Suppressed findings are excluded from the gate decision and every failure count, but stay visible in a `suppressedChecks` list — nothing is silently hidden. Two more controls:
+
+- `gatetest --noise` — ranks your noisiest modules and prints the exact ignore line to copy.
+- **Auto-softening** — a module you chronically dismiss stops blocking the gate on its own (never on thin evidence: it takes repeated dismissals at a high fire-rate).
+
+Project-wide options live in `.gatetest.json` (suites, per-module config, severity overrides) — run `gatetest --init` to scaffold one.
+
 ### Claude Code / MCP — give Claude eyes, ears & hands
 
 Connect GateTest directly to Claude Code (or any MCP-compatible AI) in one command:
@@ -224,7 +252,7 @@ Scan tiers are one-time payments via Stripe at checkout — no auto-renew. Conti
 | **Scan + Fix**    | $199    | Everything in Full, plus a second-Claude pair-review critique on every fix and an architecture-shape design-observations report.                   |
 | **Forensic Scan** | $399    | Everything in Scan + Fix, plus real Claude diagnosis on every finding, cross-finding attack-chain correlation, board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (`mutation: true` / `chaos: true`) — they need a CI runner to execute your test suite and a headless browser, so they ship with the Action rather than the website-only scan. |
 | **Continuous**    | $49/mo  | Scan every push via the GitHub App. Unlimited deterministic push scans plus a monthly Claude AI-review allowance. Fix PRs are a per-scan upsell.    |
-| **MCP**           | $29/mo  | Unlocks the premium Eyes/Ears/Hands MCP tools (`gtmcp_` key delivered by email after checkout). The quick-suite tools stay free without a key.      |
+| **MCP**           | $29/mo  | The **hosted** remote MCP endpoint — use GateTest from claude.ai web/mobile or locked-down machines, plus hosted scan history (`gtmcp_` key delivered by email after checkout). The **local** MCP server (`npx @gatetest/mcp-server`) is 100% free — every tool runs on your machine with your keys. |
 
 Live prices and Stripe checkout at [gatetest.ai](https://gatetest.ai).
 

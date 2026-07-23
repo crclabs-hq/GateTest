@@ -155,7 +155,7 @@ step — works the moment the file is on `main`.
 ## Pre-publish checklist (before every `npm publish`)
 
 - [ ] `node --test tests/*.test.js` — green
-- [ ] `node bin/gatetest.js --list` — all 90 modules load
+- [ ] `node bin/gatetest.js --list` — all 120 modules load
 - [ ] `cd website && npx next build` — clean build
 - [ ] CLAUDE.md `## VERSION` reflects what's shipping
 - [ ] README module count matches `--list` output
