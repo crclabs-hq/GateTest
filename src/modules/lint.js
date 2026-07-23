@@ -36,6 +36,11 @@ class LintModule extends BaseModule {
       const jsFiles = this._collectFiles(projectRoot, ['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts']);
       if (jsFiles.length > 0) {
         result.addCheck('lint:eslint-config', false, {
+          // Warning, not error: a missing linter config is setup hygiene,
+          // not a defect in the customer's code. Blocking a fresh repo's
+          // very first scan over "you don't have ESLint yet" teaches
+          // people to distrust the gate (first-run audit 2026-07-23).
+          severity: 'warning',
           message: 'No ESLint configuration found',
           suggestion: 'Initialize ESLint: npx eslint --init',
         });

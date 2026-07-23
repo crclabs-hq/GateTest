@@ -81,7 +81,7 @@ export default function Hero() {
               fix already written, tested, and pair-reviewed by a second AI.
             </p>
             <p className="text-base text-gray-500 mb-8 fade-up">
-              Pay per scan &mdash; no subscription, no minimum. Built on{" "}
+              Pay per scan &mdash; no seat licences, no minimum. Built on{" "}
               <span className="font-semibold text-gray-700">Claude Sonnet 5</span>.
             </p>
 
@@ -215,7 +215,7 @@ export default function Hero() {
           <BandStat num={siteStats.tests.displayPassing} label="tests passing, every commit" />
           <BandStat num={String(siteStats.modules.total)} label="modules in one gate" />
           <BandStat num={siteStats.modules.displayGreen} label="green on our own repo" />
-          <BandStat num="$29+" label="per scan · no subscription" />
+          <BandStat num="$29+" label="per scan · no seat licences" />
         </div>
       </div>
     </section>

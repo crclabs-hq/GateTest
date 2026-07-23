@@ -25,10 +25,10 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-sm mb-4">Product</h4>
             <ul className="space-y-2">
-              <li><a href="#features" className="text-sm text-muted hover:text-foreground transition-colors">Features</a></li>
-              <li><a href="#modules" className="text-sm text-muted hover:text-foreground transition-colors">Modules</a></li>
-              <li><a href="#pricing" className="text-sm text-muted hover:text-foreground transition-colors">Pricing</a></li>
-              <li><a href="#comparison" className="text-sm text-muted hover:text-foreground transition-colors">Compare</a></li>
+              <li><a href="/#features" className="text-sm text-muted hover:text-foreground transition-colors">Features</a></li>
+              <li><a href="/#modules" className="text-sm text-muted hover:text-foreground transition-colors">Modules</a></li>
+              <li><a href="/#pricing" className="text-sm text-muted hover:text-foreground transition-colors">Pricing</a></li>
+              <li><a href="/#comparison" className="text-sm text-muted hover:text-foreground transition-colors">Compare</a></li>
               <li><Link href="/web" className="text-sm text-muted hover:text-foreground transition-colors">Website Scanner</Link></li>
               <li><Link href="/wp" className="text-sm text-muted hover:text-foreground transition-colors">WordPress Scanner</Link></li>
             </ul>

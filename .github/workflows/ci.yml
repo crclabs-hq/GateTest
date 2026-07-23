@@ -251,8 +251,8 @@ jobs:
           echo "$OUTPUT"
           LINES="$(printf '%s\n' "$OUTPUT" | wc -l)"
           echo "module list line count: $LINES"
-          if [ "$LINES" -lt 90 ]; then
-            echo "FAIL: expected at least 90 module-list lines, got $LINES" >&2
+          if [ "$LINES" -lt 120 ]; then
+            echo "FAIL: expected at least 120 module-list lines, got $LINES" >&2
             exit 1
           fi
 

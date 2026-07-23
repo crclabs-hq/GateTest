@@ -16,7 +16,7 @@ export const pricingScans = [
       "Lint Violation Scanner",
       "Secret & API Key Exposure",
       "Code Quality Baseline",
-      "JSON / SARIF / JUnit Output",
+      "JSON / SARIF / JUnit output via the CLI & GitHub Action",
       "Scan-only (no auto-fix)"
     ],
     cta: "Run Quick Scan",
@@ -27,9 +27,9 @@ export const pricingScans = [
     name: "Full Scan",
     price: "$99",
     period: "per run",
-    description: "All 120 modules: security, supply chain, auth hardening, CI security, AI safety, and more.",
+    description: "The full engine suite — 88 modules: security, supply chain, auth hardening, CI security, AI safety, and more. (Mutation + chaos ship via the GitHub Action.)",
     features: [
-      "All 120 Specialized Modules",
+      "Full 88-Module Engine Suite",
       "Security & Auth Hardening",
       "Supply Chain & Dependency Audit",
       "CI/CD & Container Security",
@@ -44,9 +44,9 @@ export const pricingScans = [
     name: "Scan + Fix",
     price: "$199",
     period: "per run",
-    description: "120-module deep scan with iterative auto-fix PR, pair-review agent, and architecture annotations.",
+    description: "Full-suite deep scan with iterative auto-fix PR, pair-review agent, and architecture annotations.",
     features: [
-      "All 120 Specialized Modules",
+      "Full 88-Module Engine Suite",
       "Iterative Fix Loop (up to 3 retries per finding)",
       "Cross-Fix Syntax + Scanner Gate",
       "Regression Test Generated per Fix",
@@ -79,13 +79,14 @@ export const pricingScans = [
 ];
 
 export const continuousPlan = {
-  name: "Continuous Guard",
+  name: "Continuous",
   price: "$49",
   frequency: "per month",
-  description: "Unlimited deterministic scans on every push. AI reviews metered by monthly allowance.",
+  description: "Every repo in your org — one flat price, no seats, no per-repo billing. Unlimited deterministic scans on every push; AI reviews metered by a shared monthly allowance.",
   features: [
+    "All Repos In Your Org — One Flat Price",
     "Unlimited Deterministic Push Scans",
-    "AI Review Allowance ($10/mo default)",
+    "AI Review Allowance ($10/mo, shared org-wide)",
     "Continuous AI Ledger Protection",
     "Real-Time Pipeline Trace Feed"
   ],
@@ -97,13 +98,13 @@ export const mcpPlan = {
   name: "MCP Integration",
   price: "$29",
   frequency: "per month",
-  description: "Give Claude eyes, ears & hands: the full 120-module scanner inside Claude Code, Cursor, or any MCP agent — see the page, read production errors, and prove every fix worked.",
+  description: "The hosted GateTest MCP endpoint: use GateTest from claude.ai on web and mobile — no terminal, no npm, nothing installed. The full local MCP server stays 100% free on your own machine.",
   features: [
-    "Eyes — screenshot any URL or localhost",
-    "Ears — pull Sentry / Datadog / Rollbar errors",
-    "Hands — verify_fix proves the fix worked",
-    "Full 120-module local scans (vs 4 free)",
-    "AI fix + diagnose (fix_issue, explain_finding)",
+    "Works in claude.ai web + mobile (and locked-down machines)",
+    "Hosted scans — runs on our infrastructure, not yours",
+    "AI fix + diagnose, hosted (fix_issue, explain_finding)",
+    "Hosted scan history (get_report)",
+    "Free local server: npx @gatetest/mcp-server — every tool, your keys",
     "API key delivered by email instantly"
   ],
   cta: "Get MCP Access",
@@ -276,6 +277,28 @@ export default function Pricing() {
           period={continuousPlan.frequency}
           needsRepo
         />
+      </div>
+
+      {/* Enterprise — contact-based, no fixed price (Craig 2026-07-23).
+          Deliberately NOT a Stripe tier: enterprise terms (scan volume,
+          AI-review budget, invoicing, support) are negotiated per deal. */}
+      <div className="mx-auto max-w-5xl mt-8">
+        <div className="rounded-2xl border border-border bg-surface-solid p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          <div className="flex-1">
+            <h3 className="text-xl font-bold mb-1">Enterprise</h3>
+            <p className="text-muted text-sm leading-relaxed">
+              Running GateTest across a large organisation? We&apos;ll shape a plan
+              around you: custom scan volume, a raised AI-review budget,
+              priority support, and invoicing on your terms.
+            </p>
+          </div>
+          <a
+            href="mailto:hello@gatetest.ai?subject=GateTest%20Enterprise"
+            className="shrink-0 inline-flex items-center justify-center px-6 py-3 rounded-xl border border-border font-semibold text-sm hover:border-accent hover:text-accent transition-colors"
+          >
+            Talk to us
+          </a>
+        </div>
       </div>
     </section>
   );

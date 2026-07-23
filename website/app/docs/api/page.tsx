@@ -14,7 +14,7 @@ const curlQuick = `curl -X POST https://gatetest.ai/api/v1/scan \\
     "tier": "quick"
   }'`;
 
-const curlDirect = `curl -X POST https://gatetest.io/api/v1/scan \\
+const curlDirect = `curl -X POST https://gatetest.ai/api/v1/scan \\
   -H "Authorization: Bearer gt_live_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -26,7 +26,7 @@ const curlDirect = `curl -X POST https://gatetest.io/api/v1/scan \\
     "project": "zoobicon"
   }'`;
 
-const curlFullIdem = `curl -X POST https://gatetest.io/api/v1/scan \\
+const curlFullIdem = `curl -X POST https://gatetest.ai/api/v1/scan \\
   -H "Authorization: Bearer gt_live_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -H "Idempotency-Key: scan-20260415-build-847" \\
@@ -125,7 +125,7 @@ export default function ApiDocs() {
           <p className="text-muted mb-4">
             Two input modes: provide a <code className="font-mono text-sm">repo_url</code>{" "}
             (GitHub) or upload <code className="font-mono text-sm">files[]</code> directly
-            (any platform — no GitHub required). Same 120 modules, same response format.
+            (any platform — no GitHub required). Same in-memory scan engine, same response format.
             Typical latency: 5–15 s for <code className="font-mono text-sm">quick</code>,
             20–60 s for <code className="font-mono text-sm">full</code>.
           </p>
@@ -166,7 +166,7 @@ export default function ApiDocs() {
                   <td className="px-4 py-2 text-xs">no</td>
                   <td className="px-4 py-2 text-xs text-muted">
                     <code className="font-mono">quick</code> (default, 4 modules) or{" "}
-                    <code className="font-mono">full</code> (120 modules). Key must be
+                    <code className="font-mono">full</code> (the in-memory engine&apos;s full tier, ~23 modules — the deep 88-module CLI-engine suites run on paid website scans and the CLI/Action). Key must be
                     entitled.
                   </td>
                 </tr>

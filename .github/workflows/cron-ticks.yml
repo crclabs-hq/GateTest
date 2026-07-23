@@ -1,0 +1,48 @@
+name: Cron Ticks (off-Vercel stopgap)
+
+# KI #41: production runs on Vapron (Craig 2026-07-14, re-confirmed
+# 2026-07-23) and nothing off-Vercel fires the two cron endpoints, so queued
+# push-scans stall and watches never run. The REAL fix is Vapron's own
+# scheduler (see docs/deploy/VAPRON-DEPLOY.md §3 — crontab / systemd timer
+# every 2 and 5 minutes). This workflow is the sanctioned stopgap so the
+# Continuous ($49/mo) tier works the moment the CRON_SECRET repo secret is
+# set, even before the box-level cron lands.
+#
+# - No-ops silently (exit 0) while the CRON_SECRET secret is unset.
+# - GitHub schedule granularity is ~5 min and often delayed — good enough as
+#   a stopgap, NOT a replacement for the box cron. Delete this file once
+#   Vapron's scheduler is confirmed firing.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit tick endpoints
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BASE_URL: https://gatetest.ai
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET secret not set — stopgap disarmed, nothing to do."
+            exit 0
+          fi
+          for path in /api/scan/worker/tick /api/watches/tick; do
+            code=$(curl -s -o /tmp/tick-body -w "%{http_code}" -X POST \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              -H "Content-Type: application/json" \
+              --max-time 120 \
+              -d '{}' "$BASE_URL$path" || echo "000")
+            echo "$path -> HTTP $code"
+            if [ "$code" = "401" ]; then
+              echo "::error::$path returned 401 — CRON_SECRET here does not match the one on the production host."
+              exit 1
+            fi
+            # 000/5xx: host briefly unreachable — next tick retries; don't page.
+          done

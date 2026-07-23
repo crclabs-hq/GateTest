@@ -245,7 +245,8 @@ class DirectRepair {
     // Lazy-require the GateTest runner so this module doesn't force the full
     // engine to load in serverless contexts where it's not needed.
     const { GateTestRunner } = require('./runner');
-    const config = require('./config');
+    const { GateTestConfig } = require('./config');
+    const config = new GateTestConfig();
 
     const suite = options.suite || 'full';
     const modules = options.modules || config.getSuite(suite);

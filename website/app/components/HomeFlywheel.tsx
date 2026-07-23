@@ -32,7 +32,7 @@ const LAYERS: Layer[] = [
     step: "01",
     name: "AST fix",
     cost: "$0",
-    share: "~47%",
+    share: "deterministic",
     blurb: "Deterministic transforms on the parse tree.",
     detail:
       "rejectUnauthorized: false → true. httpOnly: false → true. The compiler proves correctness; no LLM needed.",
@@ -41,7 +41,7 @@ const LAYERS: Layer[] = [
     step: "02",
     name: "Rule fix",
     cost: "$0",
-    share: "~22%",
+    share: "deterministic",
     blurb: "Codemod recipes per finding class.",
     detail:
       "Wildcard CORS origin + credentials. Missing CSP. Cookie hardening. One regex-bounded rewrite per pattern.",
@@ -50,7 +50,7 @@ const LAYERS: Layer[] = [
     step: "03",
     name: "Recipe lookup",
     cost: "$0",
-    share: "~16%",
+    share: "compounding",
     blurb: "Cached fixes from every prior scan, compounding.",
     detail:
       "When a scan resolves a novel finding, the diff is stored. Next time that finding shape arrives — local or someone else&apos;s repo — we apply the cached patch.",
@@ -59,7 +59,7 @@ const LAYERS: Layer[] = [
     step: "04",
     name: "Claude",
     cost: "~$0.03",
-    share: "~5%",
+    share: "novel cases",
     blurb: "Only the genuinely novel cases reach the LLM.",
     detail:
       "Iterative loop with N retries, syntax gate, scanner re-validation, pair-review on $199+, attack-chain correlation on $399.",
@@ -80,8 +80,9 @@ export default function HomeFlywheel() {
           <p className="text-muted text-lg max-w-3xl mx-auto">
             Every competitor either ships pattern matchers (cheap, brittle)
             or ships LLM-only fixes (slow, expensive, hallucinates). We
-            stack four deterministic layers in front of Claude. Most fixes
-            never reach the LLM. Margin works. Quality compounds. And every
+            stack three deterministic layers in front of Claude, and every
+            recipe a Claude fix produces makes the cheap layers catch more
+            next time. Margin improves as the cache grows. Quality compounds. And every
             fix is <span className="text-foreground font-semibold">re-scanned to prove it worked</span> —
             we don&apos;t tell you it&apos;s fixed, we show you the green.
           </p>

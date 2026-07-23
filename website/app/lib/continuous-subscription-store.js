@@ -161,17 +161,37 @@ async function setSubscriptionStatus(sql, stripeSubscriptionId, status) {
 /**
  * Active subscription covering a repo, or null. Used by the push-scan
  * pipeline to decide whether a push is subscription-covered.
+ *
+ * ORG-FLAT since 2026-07-23 (Craig-authorized pricing change): one $49/mo
+ * subscription covers EVERY repo under the same owner/org on the same host,
+ * not just the repo named at checkout. Normalized shape is
+ * "host/owner/repo" (see normalizeRepoUrl), so the org prefix is the first
+ * two segments. Exact repo match is preferred when both exist (its ledger
+ * carries any per-repo history); otherwise any active subscription under
+ * the owner covers the push. The AI allowance stays per-subscription, so an
+ * org's repos share one monthly AI budget — that's the intended economics
+ * (deterministic scans are near-free; AI spend is the metered part).
  */
 async function findActiveByRepo(sql, repoUrl) {
   if (!sql || typeof sql !== 'function') throw new Error('sql is required');
   const normalized = normalizeRepoUrl(repoUrl);
   if (!normalized) return null;
   await ensureSchema(sql);
-  const rows = await sql`SELECT stripe_subscription_id, stripe_customer_id, repo_url, status, current_period_end
-    FROM continuous_subscriptions
-    WHERE repo_url = ${normalized} AND status = 'active'
-    ORDER BY updated_at DESC
-    LIMIT 1`;
+  const segments = normalized.split('/');
+  // host/owner prefix — "github.com/acme". A malformed value with fewer
+  // than 3 segments (no repo part) falls back to exact-match-only.
+  const ownerPrefix = segments.length >= 3 ? `${segments[0]}/${segments[1]}/%` : null;
+  const rows = ownerPrefix
+    ? await sql`SELECT stripe_subscription_id, stripe_customer_id, repo_url, status, current_period_end
+        FROM continuous_subscriptions
+        WHERE (repo_url = ${normalized} OR repo_url LIKE ${ownerPrefix}) AND status = 'active'
+        ORDER BY (repo_url = ${normalized}) DESC, updated_at DESC
+        LIMIT 1`
+    : await sql`SELECT stripe_subscription_id, stripe_customer_id, repo_url, status, current_period_end
+        FROM continuous_subscriptions
+        WHERE repo_url = ${normalized} AND status = 'active'
+        ORDER BY updated_at DESC
+        LIMIT 1`;
   return rows && rows[0] ? rows[0] : null;
 }
 

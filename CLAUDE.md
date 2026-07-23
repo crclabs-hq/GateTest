@@ -271,10 +271,11 @@ Build the most advanced, most aggressive, most beautiful QA testing platform eve
 
 ### 12. Deployment
 
-- [ ] Vercel deploys from main branch
-- [ ] Root Directory set to website
-- [ ] All 9 environment variables set
-- [ ] DNS pointing to Vercel
+- [ ] Production runs on **Vapron** (Craig 2026-07-14, re-confirmed 2026-07-23 — "zero old services"); deploy per `docs/deploy/VAPRON-DEPLOY.md`
+- [ ] Built with `npm run build` in `website/` (prebuild stamps the git SHA — `/api/platform-status` must show the deployed commit, never "unknown")
+- [ ] All required environment variables set on Vapron (`/api/status` lists what's missing)
+- [ ] Cron scheduler hitting `/api/scan/worker/tick` (~2 min) + `/api/watches/tick` (~5 min) with `Authorization: Bearer $CRON_SECRET` — nothing fires them off-Vercel otherwise (KI #41)
+- [ ] DNS pointing to Vapron; Vercel project retired/disconnected (no second deployment processing the shared queue with stale code)
 
 ### 13. Pre-Launch
 
@@ -384,8 +385,9 @@ When something breaks:
 | Full Scan | $99 | All 120 modules (scan-only, no auto-fix) |
 | Scan + Fix | $199 | 120 modules + auto-fix PR + pair-review + architecture annotator |
 | Forensic (renamed from Nuclear, Craig 2026-06-02) | $399 | Everything on the website-only scan: full deep scan, per-finding Claude diagnosis, cross-finding correlation, auto-fix PR, pair-review, executive summary, board-ready CISO report. Mutation testing + chaos / fuzz pass are NOT part of the website-only flow — they ship via the GitHub Action (`mutation: true` / `chaos: true`) because they need a CI runner to execute the customer's test suite and a headless browser. |
-| Continuous | $49/mo | Scan every push — **LIVE** (Craig green-light 2026-06-12). Stripe subscription checkout (mode=subscription, inline recurring price_data — no dashboard product needed). Unlimited deterministic scans (near-zero marginal cost); AI reviews metered by `continuous_ai_ledger` monthly allowance (default $10/mo, env `CONTINUOUS_AI_BUDGET_USD`). Fix PRs NOT included — per-scan upsell. Store: `website/app/lib/continuous-subscription-store.js` (19 tests). Lifecycle synced via `customer.subscription.updated/deleted` webhooks. |
-| MCP | $29/mo | Premium MCP tools (Eyes/Ears/Hands + debug tools) gated behind `GATETEST_API_KEY` (`gtmcp_` prefix, 70 chars), delivered by email after Stripe checkout — **LIVE** (Craig-authorized 2026-07-04). Free without a key: `check_health`, `list_modules`, `get_badge`, `scan_url`, `scan_repo`, `scan_local` (quick suite). `scan_repo` was fixed onto this list 2026-07-20 — it was already documented as free in the tool's own description/quick-start prompt, but `GATED_TOOLS` in `bin/gatetest-mcp.mjs` charged for it anyway; the code now matches. Store: `website/app/lib/mcp-subscription-store.js`. |
+| Continuous | $49/mo | **ORG-FLAT (Craig-authorized 2026-07-23): one subscription covers every repo under the same owner/org** — no per-seat, no per-repo; `findActiveByRepo` matches by host/owner prefix, exact-repo match preferred; the AI allowance is shared org-wide. Scan every push — **LIVE** (Craig green-light 2026-06-12). Stripe subscription checkout (mode=subscription, inline recurring price_data — no dashboard product needed). Unlimited deterministic scans (near-zero marginal cost); AI reviews metered by `continuous_ai_ledger` monthly allowance (default $10/mo, env `CONTINUOUS_AI_BUDGET_USD`). Fix PRs NOT included — per-scan upsell. Store: `website/app/lib/continuous-subscription-store.js` (19 tests). Lifecycle synced via `customer.subscription.updated/deleted` webhooks. |
+| MCP | $29/mo | **REPOSITIONED (Craig-authorized 2026-07-23, closes KI #39): the LOCAL stdio MCP server is now 100% free — `GATED_TOOLS` in `bin/gatetest-mcp.mjs` is empty; every tool runs on the user's own machine/keys (principle: free where it runs on your machine, paid where it runs on ours).** The $29/mo tier now sells the HOSTED remote MCP endpoint (claude.ai web/mobile, locked-down machines; `mcp-remote-core.cjs` keeps its gate) + hosted scan history, behind `GATETEST_API_KEY` (`gtmcp_` prefix, 70 chars), delivered by email after Stripe checkout — **LIVE** (Craig-authorized 2026-07-04). Free without a key: `check_health`, `list_modules`, `get_badge`, `scan_url`, `scan_repo`, `scan_local` (quick suite). `scan_repo` was fixed onto this list 2026-07-20 — it was already documented as free in the tool's own description/quick-start prompt, but `GATED_TOOLS` in `bin/gatetest-mcp.mjs` charged for it anyway; the code now matches. Store: `website/app/lib/mcp-subscription-store.js`. |
+| Enterprise | Contact | **Contact-based (Craig 2026-07-23)** — no fixed price, no Stripe tier; negotiated per deal (custom scan volume, raised AI-review budget, priority support, invoicing). Pricing-page card links mailto:hello@gatetest.ai. |
 
 **Honesty note (Bible Forbidden #1 / Boss Rule #8):** the website-only Nuclear path cannot run mutation testing or chaos / fuzz pass — those two modules need the customer's CI environment (Vercel serverless cannot safely run a customer's test suite, and Chromium typically cannot launch inside the function). Both modules are first-class in the engine and run cleanly via the GitHub Action where `mutation.js` and `chaos.js` have a real runner. Marketing copy must reflect this on every public surface; future sessions DO NOT regress this wording back to "every Nuclear scan includes mutation + chaos."
 

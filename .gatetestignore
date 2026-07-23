@@ -13,6 +13,16 @@ hardcoded-url:localhost@website/app/components/HomeEyesEarsHands.tsx
 # self-deception in the other direction.
 reliability-corpus/**
 
+# benchmarks/bench-target/ is the frozen, deliberately-vulnerable target repo
+# the competitive benchmark (docs/COMPETITIVE-BENCHMARK.md, KI #31/#46)
+# measures GateTest and rival tools against. Its hardcoded secrets, eval(),
+# SQL concatenation, parseFloat money math, etc. are the corpus doing its
+# job — same rationale as reliability-corpus above. Discovered blocking the
+# CI Pre-Merge Sweep 2026-07-23: the sweep step (added 2026-07-20) had never
+# actually executed before, because CI's install step was broken from
+# 2026-07-19 until today — the first real sweep run surfaced this gap.
+benchmarks/bench-target/**
+
 # Playground.tsx deliberately renders the money-float anti-pattern
 # (parseFloat + `total * tax`) as marketing sample code showing customers
 # what GateTest catches. It legitimately corroborates (total + tax both

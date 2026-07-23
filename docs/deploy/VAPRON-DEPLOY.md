@@ -52,6 +52,9 @@ missing. The site returns `503` until every REQUIRED var is set.
 | `RESEND_API_KEY` | **MCP $29/mo API-key emails** — subscriber pays, key never arrives if unset (webhook now 500s until set) |
 | `CRON_SECRET` | authorizes the cron endpoints below |
 | `GATETEST_ADMIN_PASSWORD` | admin console password login (unset → "Admin access is not configured") |
+| `VAPRON_BASE_URL` | GateTest → Vapron runtime-scan dispatch (`vapron-dispatch.js` → `POST {base}/api/jobs/web-runtime-scan`); without all three VAPRON vars, /web and /wp scans ship static probes only ("runtime checks unavailable") |
+| `VAPRON_API_TOKEN` | bearer auth on the dispatch call |
+| `VAPRON_DISPATCH_SECRET` | HMAC signing of outbound jobs + verification of Vapron's result callbacks (`CRONTECH_*` legacy aliases still honored) |
 
 ---
 

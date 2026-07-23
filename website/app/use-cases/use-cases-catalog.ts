@@ -157,7 +157,7 @@ export const USE_CASES: UseCaseEntry[] = [
       "What you want is one gate that walks the whole repository, understands each package's stack, and reports findings against their actual paths.",
     ],
     solution: [
-      "GateTest's analyzers are polyglot — JavaScript, TypeScript, Python, Go, Java, Ruby, PHP, plus infrastructure-as-code — so a single run covers a mixed monorepo.",
+      "A single run covers a mixed monorepo: deep JavaScript/TypeScript analysis, pattern-level checks for Python, Go, Java, Ruby, and PHP, plus infrastructure-as-code (Dockerfile, Terraform, Kubernetes) and polyglot dependency manifests.",
       "The monorepo-constraints module additionally checks for cross-package boundary violations and dependency drift between workspaces, which are the bugs unique to the monorepo shape.",
     ],
     code: { lang: "yaml", label: ".github/workflows/gatetest.yml", content: GH_ACTION_SNIPPET },
