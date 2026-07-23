@@ -20,7 +20,7 @@
     ]
   },
   "dependencies": {
-    "@gatetest/cli": "^1.59.0"
+    "@gatetest/cli": "^1.58.1"
   },
   "repository": {
     "type": "git",
