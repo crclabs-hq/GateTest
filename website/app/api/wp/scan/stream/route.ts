@@ -292,7 +292,7 @@ export async function POST(req: NextRequest) {
           paywall: isPreview ? {
             remainingCount: Math.max(0, clusterResult.clusters.length - findings.length),
             fullReportPriceUsd: 19, fullReportCadence: "one-shot",
-            ctaUrl: "/api/checkout?tier=wp_health",
+            ctaUrl: "/checkout?tier=wp_health",
           } : null,
         });
       } catch (err) {

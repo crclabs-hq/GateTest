@@ -26,6 +26,10 @@ inputs:
     description: 'Which GateTest suite to run: quick (41 modules) / standard (45) / full (88) / nuclear (95). Unknown values fall back to standard.'
     required: false
     default: 'quick'
+  diff-only:
+    description: 'On pull_request events, scan only the files the PR changes (vs the base branch). Keeps PRs from being flooded with pre-existing repo-wide findings. Set to false to scan the whole repo on every event. Non-PR events always scan the full repo.'
+    required: false
+    default: 'true'
   auto-fix:
     description: 'When true and the gate blocks, run the AI CI-fixer to propose a patch (requires ANTHROPIC_API_KEY).'
     required: false
@@ -186,9 +190,25 @@ runs:
           BLOCK_FLAG="--report-only"
         fi
 
+        # Diff-aware PR scanning (inputs.diff-only, default true): on PR
+        # events, pass --pr so only files the PR touches are scanned —
+        # flooding a PR with pre-existing repo-wide findings is the #1
+        # reason teams rip out CI scanners. --pr diffs against
+        # origin/$GITHUB_BASE_REF, so fetch it first (user checkouts are
+        # usually shallow); if the fetch or diff fails, the engine itself
+        # falls back to a full scan rather than erroring.
+        DIFF_FLAG=""
+        if [ "${{ inputs.diff-only }}" = "true" ] && { [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.event_name }}" = "pull_request_target" ]; }; then
+          if [ -n "${GITHUB_BASE_REF:-}" ]; then
+            git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF" 2>/dev/null || true
+          fi
+          DIFF_FLAG="--pr"
+          echo "Diff-aware mode: scanning only files changed vs origin/${GITHUB_BASE_REF:-main} (set diff-only: false for full-repo scans)."
+        fi
+
         # Run the gate, capture stdout for parsing.
         set +e
-        OUTPUT=$(${GATETEST_BIN} --suite "${{ inputs.suite }}" $EXTRA_FLAGS $BLOCK_FLAG --project "$(pwd)" 2>&1)
+        OUTPUT=$(${GATETEST_BIN} --suite "${{ inputs.suite }}" $EXTRA_FLAGS $BLOCK_FLAG $DIFF_FLAG --project "$(pwd)" 2>&1)
         EXIT_CODE=$?
         set -e
         echo "$OUTPUT"

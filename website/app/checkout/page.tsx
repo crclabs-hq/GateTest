@@ -11,6 +11,7 @@ import Link from "next/link";
 import { TIERS } from "@/app/lib/checkout-tiers";
 
 const REPO_FREE_TIERS = new Set(["mcp"]);
+const URL_TIERS = new Set(["web_scan", "wp_health"]);
 
 function formatPrice(cents: number, recurring?: boolean): string {
   return `$${Math.round(cents / 100)}${recurring ? "/mo" : ""}`;
@@ -23,14 +24,21 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string>("");
   const started = useRef(false);
 
-  async function startCheckout(t: string, repo: string) {
+  async function startCheckout(t: string, target: string) {
     setPhase("redirecting");
     setError("");
+    // URL tiers (website / WP full reports) send `url`; scan tiers send
+    // `repoUrl`; MCP sends neither.
+    const body: Record<string, string> = { tier: t };
+    if (target) {
+      if (URL_TIERS.has(t)) body.url = target;
+      else body.repoUrl = target;
+    }
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(repo ? { tier: t, repoUrl: repo } : { tier: t }),
+        body: JSON.stringify(body),
       });
       const data = (await res.json()) as { checkoutUrl?: string; error?: string };
       if (data.checkoutUrl) {
@@ -50,7 +58,7 @@ export default function CheckoutPage() {
     started.current = true;
     const sp = new URLSearchParams(window.location.search);
     const t = (sp.get("tier") || "").trim();
-    const repo = (sp.get("repo") || sp.get("repoUrl") || "").trim();
+    const repo = (sp.get("repo") || sp.get("repoUrl") || sp.get("url") || "").trim();
     setTier(t);
     setRepoUrl(repo);
 
@@ -101,7 +109,7 @@ export default function CheckoutPage() {
             }}
           >
             <label htmlFor="repo-url" className="block text-sm text-muted mb-2 text-left">
-              Which repository should we scan?
+              {URL_TIERS.has(tier) ? "Which website should we scan?" : "Which repository should we scan?"}
             </label>
             <input
               id="repo-url"
@@ -109,7 +117,7 @@ export default function CheckoutPage() {
               required
               value={repoUrl}
               onChange={(e) => setRepoUrl(e.target.value)}
-              placeholder="https://github.com/owner/repo"
+              placeholder={URL_TIERS.has(tier) ? "https://yoursite.com" : "https://github.com/owner/repo"}
               className="w-full px-4 py-3 rounded-xl border border-border bg-transparent text-sm mb-4"
             />
             <button type="submit" className="btn-cta w-full py-3.5 text-sm rounded-xl font-semibold">
