@@ -348,7 +348,7 @@ async function _postImpl(req: NextRequest): Promise<ReturnType<typeof NextRespon
   const githubMatch = repoUrl.match(/github\.com\/([^/]+)\/([^/?#]+)/);
   const repoMatch = gluecronMatch || githubMatch;
   if (!repoMatch) {
-    return NextResponse.json({ error: "Invalid repo URL (expected gluecron.com/<owner>/<repo>)" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid repo URL (expected github.com/<owner>/<repo> or gluecron.com/<owner>/<repo>)" }, { status: 400 });
   }
 
   const owner = repoMatch[1];

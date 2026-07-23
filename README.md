@@ -8,9 +8,7 @@
      badge at /badge/:owner/:repo (dynamic SVG, cached 5 min, "not scanned"
      fallback when no scan is on record yet — see website/app/badge). -->
 [![GateTest](https://gatetest.ai/badge/crclabs-hq/GateTest)](https://gatetest.ai)
-<!-- npm-version badge — re-enable after first `npm publish`:
 [![npm](https://img.shields.io/npm/v/@gatetest/cli.svg)](https://www.npmjs.com/package/@gatetest/cli)
--->
 [![CI](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml/badge.svg)](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Modules](https://img.shields.io/badge/modules-120-purple.svg)](#what-it-replaces)
@@ -59,7 +57,11 @@ The action is a composite — no Docker pull, no container build. It installs Ga
 ### CLI — local development
 
 ```bash
-# Run against the current directory, no install:
+# Install from npm:
+npm install -g @gatetest/cli
+gatetest --suite quick
+
+# Or run against the current directory with no install:
 npx github:crclabs-hq/GateTest --suite quick
 
 # Or clone and run from source:
@@ -67,8 +69,6 @@ git clone https://github.com/crclabs-hq/GateTest
 cd gatetest && npm install
 node bin/gatetest.js --suite quick
 ```
-
-> Install: `npm install -g @gatetest/cli`
 
 ### Pre-push sweep
 
