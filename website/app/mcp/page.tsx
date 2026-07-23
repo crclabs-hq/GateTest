@@ -3,21 +3,21 @@ import McpCheckoutButton from "./McpCheckoutButton";
 import { ALL_TOOLS, TOOL_COUNT } from "./tools-data";
 
 export const metadata: Metadata = {
-  title: "GateTest MCP — The 120-Module Engine in Your Editor | $29/mo",
+  title: "GateTest MCP — Free Local Server, $29/mo Hosted Endpoint",
   description:
-    "The full 120-module GateTest engine inside Claude Code, Cursor, and any MCP-compatible AI. Scan, screenshot live pages, pull production errors, run tests, query your DB — and prove fixes worked.",
+    "The full 120-module GateTest engine inside Claude Code, Cursor, and any MCP-compatible AI — 100% free on your own machine. $29/mo adds the hosted endpoint for claude.ai web/mobile plus hosted scan history.",
   openGraph: {
     title: "GateTest MCP — The 120-Module Engine in Your Editor",
     description:
-      `Give Claude eyes, ears & hands: all 120 scan modules plus live-page screenshots (eyes), Sentry/Datadog/Rollbar errors (ears), and a pass/fail re-scan that proves each fix (hands). ${TOOL_COUNT} tools. $29/mo.`,
+      `Give Claude eyes, ears & hands: all ${TOOL_COUNT} tools — live-page screenshots (eyes), Sentry/Datadog/Rollbar errors (ears), pass/fail fix verification (hands) — free on your machine. $29/mo for the hosted endpoint (claude.ai web/mobile) + hosted history.`,
     url: "https://gatetest.ai/mcp",
   },
 };
 
 const FAQ = [
   {
-    q: "What's free without a key?",
-    a: "check_health, list_modules, get_badge, scan_url, and scan_local with the quick suite (41 modules — syntax, lint, secrets, codeQuality, and more, runs in seconds). Everything else requires a key.",
+    q: "What's free?",
+    a: "The entire local server. Every tool — full-suite scans, screenshots, production errors, run_tests, fix_issue — runs 100% free on your own machine via npx @gatetest/mcp-server (AI tools use your own Anthropic key). The $29/mo key unlocks the HOSTED endpoint: use GateTest from claude.ai web/mobile or locked-down machines where you can't run npm, plus hosted scan history. On the hosted endpoint, check_health, list_modules, get_badge, scan_url, and scan_repo work with no key at all.",
   },
   {
     q: "How do I get my API key?",
@@ -25,7 +25,7 @@ const FAQ = [
   },
   {
     q: "How do I add it to Claude Code?",
-    a: "Run: claude mcp add gatetest -e GATETEST_API_KEY=gtmcp_xxx -- npx -y @gatetest/mcp-server\nOr set GATETEST_API_KEY in your MCP server config environment.",
+    a: "Free local server (every tool): claude mcp add gatetest -- npx -y @gatetest/mcp-server\nHosted endpoint (claude.ai web/mobile): add https://gatetest.ai/api/mcp as a custom connector, with Authorization: Bearer gtmcp_xxx for the paid tools.",
   },
   {
     q: "Does the key expire?",
@@ -61,28 +61,31 @@ export default function McpPage() {
           assistant — plus {TOOL_COUNT} tools that let it{" "}
           <span className="text-blue-400">see</span> the rendered page,{" "}
           <span className="text-emerald-400">hear</span> what&apos;s breaking in production, and{" "}
-          <span className="text-violet-400">prove</span> each fix worked. Claude Code, Cursor,
-          Windsurf, any MCP agent.
+          <span className="text-violet-400">prove</span> each fix worked.{" "}
+          <span className="text-white font-semibold">100% free on your own machine</span> — Claude Code,
+          Cursor, Windsurf, any MCP agent.
         </p>
 
-        {/* Price + CTA */}
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex items-baseline gap-2">
-            <span className="text-5xl font-black text-blue-400">$29</span>
-            <span className="text-neutral-500 text-sm">/ month</span>
-          </div>
-          <McpCheckoutButton label="Subscribe — $29/mo →" />
-          <p className="text-neutral-500 text-xs">Cancel anytime · API key emailed instantly</p>
+        {/* Free install first — the local server is the product's front door */}
+        <div className="bg-neutral-900 border border-emerald-500/30 rounded-xl p-4 text-left max-w-2xl mx-auto">
+          <p className="text-emerald-400 text-xs mb-2 font-mono uppercase tracking-wider">Free · every tool · your machine, your keys</p>
+          <pre className="text-emerald-300 text-sm font-mono overflow-x-auto whitespace-pre-wrap break-all">
+{`claude mcp add gatetest -- npx -y @gatetest/mcp-server`}
+          </pre>
         </div>
 
-        {/* Install snippet */}
-        <div className="mt-10 bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-left max-w-2xl mx-auto">
-          <p className="text-neutral-500 text-xs mb-2 font-mono uppercase tracking-wider">After subscribing</p>
-          <pre className="text-emerald-300 text-sm font-mono overflow-x-auto whitespace-pre-wrap break-all">
-{`claude mcp add gatetest \\
-  -e GATETEST_API_KEY=gtmcp_xxx \\
-  -- npx -y @gatetest/mcp-server`}
-          </pre>
+        {/* Paid: the hosted endpoint */}
+        <div className="flex flex-col items-center gap-4 mt-10">
+          <p className="text-neutral-400 text-sm max-w-xl">
+            Can&apos;t run npm — or want GateTest inside <span className="text-white font-semibold">claude.ai on web and mobile</span>?
+            The hosted endpoint runs the scans on our infrastructure and keeps your scan history.
+          </p>
+          <div className="flex items-baseline gap-2">
+            <span className="text-5xl font-black text-blue-400">$29</span>
+            <span className="text-neutral-500 text-sm">/ month — hosted endpoint</span>
+          </div>
+          <McpCheckoutButton label="Get the hosted endpoint — $29/mo →" />
+          <p className="text-neutral-500 text-xs">Cancel anytime · API key emailed instantly · The local server stays free forever</p>
         </div>
       </section>
 
@@ -137,7 +140,13 @@ export default function McpPage() {
 
       {/* Tool table */}
       <section className="max-w-5xl mx-auto px-6 py-12">
-        <h2 className="text-2xl font-bold mb-6 text-center">{TOOL_COUNT} tools — what&apos;s free vs paid</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center">{TOOL_COUNT} tools — every one free on the local server</h2>
+        <p className="text-neutral-500 text-sm text-center mb-6 max-w-2xl mx-auto">
+          The table shows the local server (<span className="font-mono">npx @gatetest/mcp-server</span>).
+          On the <span className="text-blue-400">hosted endpoint</span>, five tools work with no key
+          (check_health, list_modules, get_badge, scan_url, scan_repo); hosted scans, AI fix/diagnose,
+          and scan history need the $29/mo key.
+        </p>
         <div className="rounded-xl border border-neutral-800 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -231,9 +240,12 @@ export default function McpPage() {
       {/* Bottom CTA */}
       <section className="max-w-xl mx-auto px-6 py-16 text-center">
         <h2 className="text-3xl font-bold mb-4">Ready?</h2>
-        <p className="text-neutral-400 mb-8">Subscribe and your key arrives in seconds.</p>
-        <McpCheckoutButton label="Subscribe — $29/mo →" />
-        <p className="text-neutral-500 text-xs mt-3">Cancel anytime · API key emailed instantly · Works with Claude Code, Cursor, Windsurf, Cline</p>
+        <p className="text-neutral-400 mb-8">
+          Free on your machine: <span className="font-mono text-emerald-300 text-sm">npx -y @gatetest/mcp-server</span>.
+          Want it in claude.ai web/mobile? Subscribe and your key arrives in seconds.
+        </p>
+        <McpCheckoutButton label="Get the hosted endpoint — $29/mo →" />
+        <p className="text-neutral-500 text-xs mt-3">Cancel anytime · API key emailed instantly · Local server free forever</p>
       </section>
     </main>
   );

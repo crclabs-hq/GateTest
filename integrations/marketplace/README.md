@@ -93,25 +93,31 @@ In the **Optional features** section of the App settings (not the Marketplace li
 
 In the Marketplace listing editor, scroll to **Pricing and setup**. GitHub offers two billing models:
 
-### Option A — GitHub-native billing (recommended for launch)
+### The chosen approach — Free plan only, Stripe on gatetest.ai (see `listing.md`)
 
-GitHub handles payments and remits to you monthly. Lower friction for users (one click — uses their existing GitHub payment method).
-
-Click **Add a plan** for each tier:
+**Submit with a single Free plan.** The 2026-05-14 submission was rejected for
+describing paid functionality without meeting GitHub's ≥100-install threshold for
+paid plans — `listing.md` (the canonical, verified listing copy) is written around
+a Free-only plan for exactly that reason. Do not re-add paid Marketplace plans
+without re-reading `listing.md`'s header note.
 
 | Plan name | Unit | Price | Description (shown to buyer) |
 |-----------|------|-------|-------------------------------|
-| Free | — | $0/month | 1 scan/month on public repos. No credit card required. |
-| Quick Scan | per-use or flat | $29/month | Quick Scan (4 modules): security, secrets, syntax, lint. |
-| Full Scan | per-use or flat | $99/month | All 67 AI-powered modules. Full report + SARIF output. |
-| Scan + Fix | per-use or flat | $199/month | All 67 modules + automatic fix PR opened in your repo. |
-| Continuous | flat | $49/month | Scan on every push. All 67 modules. Always-on protection. |
+| Free | — | $0/month | Continuous quality gate on every push and PR. Deeper scans and auto-fix PRs available at gatetest.ai. |
 
-> **Note on per-use vs flat:** GitHub Marketplace currently supports flat-fee monthly/yearly plans and one-time charges via "per-unit" plans. For the one-time-per-scan model, select **per-unit** and set the unit label to "scan". Users purchase N scans upfront.
+Payment stays on Stripe via gatetest.ai: the **Setup URL**
+(`https://gatetest.ai/github/setup`) drives users to the site, where the real
+tiers live — Quick $29 / Full $99 / Scan + Fix $199 / Forensic $399 (one-time)
+plus Continuous $49/mo and MCP $29/mo. Marketplace copy must never quote a
+module count other than **120** (the engine total; the website suite runs 88
+modules — mutation + chaos need the GitHub Action's CI runner).
 
-### Option B — Redirect to gatetest.ai (Stripe)
+### Later — GitHub-native billing (only after ≥100 installs)
 
-If you prefer to keep Stripe as the payment processor, set all Marketplace plans as **Free** and use the **Setup URL** (`https://gatetest.ai/github/setup`) to drive users to the Stripe checkout on your own site. This is a valid pattern and gives you full control over pricing and billing.
+GitHub Marketplace supports flat monthly/yearly plans and per-unit plans (unit
+label "scan" for one-time-style purchases). Revisit only once the Free listing
+crosses GitHub's paid-plan eligibility threshold, and with Craig's sign-off
+(pricing = Boss Rule #3).
 
 ---
 

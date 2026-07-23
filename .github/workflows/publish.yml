@@ -57,7 +57,7 @@ jobs:
       - name: Install deps
         run: npm ci
 
-      - name: Verify all 90 modules load
+      - name: Verify all 120 modules load
         run: node bin/gatetest.js --list >/dev/null
 
       - name: Run test suite
