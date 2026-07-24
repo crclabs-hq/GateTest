@@ -1,0 +1,25 @@
+{
+  "generatedAt": "2026-07-24T05:51:06.031Z",
+  "underTestedTargets": 3,
+  "draftsTotal": 3,
+  "drafted": 0,
+  "skipped": 3,
+  "failed": 0,
+  "drafts": [
+    {
+      "module": "ci",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/ci.js or website/app/lib/ci.js"
+    },
+    {
+      "module": "pricing",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/pricing.js or website/app/lib/pricing.js"
+    },
+    {
+      "module": "website",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/website.js or website/app/lib/website.js"
+    }
+  ]
+}
