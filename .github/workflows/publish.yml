@@ -13,7 +13,7 @@ on:
 
 permissions:
   contents: write   # for creating the GitHub Release on tag push
-  id-token: write   # for npm provenance
+  id-token: write   # for npm provenance AND OIDC trusted publishing
 
 jobs:
   publish:
@@ -27,32 +27,20 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Verify NPM_TOKEN is configured
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # Auth model (2026-07-25, Craig + npm's token changes): OIDC trusted
+      # publishing — npmjs.com > @gatetest/cli > Settings > Trusted Publisher
+      # is configured with (GitHub Actions, crclabs-hq / GateTest,
+      # publish.yml, no environment). No NPM_TOKEN secret, no expiry, no
+      # OTP. The 2026-07-24 token attempts died on EOTP because the
+      # account's 2FA mode demands a one-time code from ANY token auth;
+      # OIDC sidesteps tokens entirely.
+      #
+      # Node 22 bundles npm 10.x, which predates trusted publishing —
+      # npm >= 11.5.1 is required for the OIDC exchange.
+      - name: Update npm for OIDC trusted publishing
         run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::error::NPM_TOKEN secret is not set."
-            echo ""
-            echo "  HOW TO FIX (one-time setup, ~2 minutes):"
-            echo ""
-            echo "  1. On your laptop (with npm logged in):"
-            echo "       npm token create"
-            echo ""
-            echo "  2. Copy the npm_xxxxxxxx string."
-            echo ""
-            echo "  3. In this repo on GitHub:"
-            echo "       Settings -> Secrets and variables -> Actions"
-            echo "       -> New repository secret"
-            echo "       Name:  NPM_TOKEN"
-            echo "       Value: (paste the npm_xxxxxxxx string)"
-            echo ""
-            echo "  4. Re-run this workflow."
-            echo ""
-            echo "  After that, every 'git push --tags' auto-publishes."
-            exit 1
-          fi
-          echo "NPM_TOKEN is set ✓"
+          npm install -g npm@latest
+          echo "npm $(npm --version)"
 
       - name: Install deps
         run: npm ci
@@ -79,60 +67,35 @@ jobs:
           fi
           echo "Tag matches package.json version ✓"
 
-      # Diagnostics: surfaces the npm identity + registry the token resolves
-      # to BEFORE publish. When publish 404s, the log already contains the
-      # info needed to diagnose: wrong account, wrong registry, or token
-      # without publish scope (whoami succeeds for any valid token but
-      # PUT 404s when the token lacks publish rights for the package name).
-      - name: npm whoami (diagnostic)
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          echo "Registry: $(npm config get registry)"
-          if ! WHO=$(npm whoami 2>&1); then
-            echo "::error::npm whoami failed — token is invalid or expired."
-            echo "$WHO"
-            exit 1
-          fi
-          echo "npm identity: $WHO"
-
       - name: npm publish (dry-run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public --dry-run
 
       - name: npm publish
         if: "!(github.event_name == 'workflow_dispatch' && inputs.dry_run == true)"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if ! npm publish --access public --provenance 2> /tmp/npm-publish-err; then
             cat /tmp/npm-publish-err
-            if grep -qE "E404|404 Not Found.*PUT" /tmp/npm-publish-err; then
+            if grep -qE "ENEEDAUTH|E401|E404|EOTP" /tmp/npm-publish-err; then
               echo ""
-              echo "::error::npm returned E404 on PUT. Name 'gatetest' is free but the token can't create it."
+              echo "::error::npm auth failed. This workflow publishes via OIDC trusted publishing — no token."
               echo ""
-              echo "  npm masks four different auth/permission failures as 404 on first publish."
-              echo "  Most likely (in order):"
+              echo "  Checklist (npmjs.com, logged in as the package owner):"
               echo ""
-              echo "  1. NPM_TOKEN is a GRANULAR access token without 'gatetest' (or the right org)"
-              echo "     in its package scope. Granular tokens default to no packages."
-              echo "     Fix: regenerate as a CLASSIC Automation token via 'npm token create' on the CLI"
-              echo "          (NOT via npmjs.com -> Settings -> Granular tokens)."
+              echo "  1. Package page -> @gatetest/cli -> Settings -> Trusted Publisher:"
+              echo "       Publisher:          GitHub Actions"
+              echo "       Organization/user:  crclabs-hq"
+              echo "       Repository:         GateTest"
+              echo "       Workflow filename:  publish.yml"
+              echo "       Environment name:   (leave blank)"
+              echo "       Allowed actions:    Publish (at minimum)"
               echo ""
-              echo "  2. NPM_TOKEN is READ-ONLY (Read & List), not Publish."
-              echo "     Fix: regenerate via 'npm token create' which creates a publish-scope token."
+              echo "  2. The org/repo must match GitHub's CANONICAL name for this repo"
+              echo "     (crclabs-hq/GateTest — the ccantynz-alt/gatetest URL is an alias)."
               echo ""
-              echo "  3. The npm account has 2FA mode 'Authorization and Publishing'. That mode blocks"
-              echo "     automation tokens entirely (every publish requires an OTP)."
-              echo "     Fix: npmjs.com -> Profile Settings -> Two-Factor Authentication ->"
-              echo "          set to 'Authorization only'. Then re-run 'npm token create'."
-              echo ""
-              echo "  4. NPM_TOKEN belongs to a different npm account than expected."
-              echo "     Compare 'npm identity' from the diagnostic step above."
-              echo ""
-              echo "  After fixing the token, update the NPM_TOKEN repo secret and re-run this workflow."
+              echo "  3. EOTP specifically means npm fell back to TOKEN auth — if an NPM_TOKEN"
+              echo "     secret still exists and npm is too old for OIDC, delete the secret or"
+              echo "     check the 'Update npm' step above printed npm >= 11.5.1."
             fi
             exit 1
           fi
