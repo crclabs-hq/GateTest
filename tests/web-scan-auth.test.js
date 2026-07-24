@@ -125,9 +125,11 @@ describe('web-scan route — authed-scan contract (source text)', () => {
     assert.match(src, /authHeaders/);
   });
 
-  it('exposes the authenticatedScan honesty flag and the runtime-coverage note', () => {
+  it('exposes the authenticatedScan honesty flag and forwards the session to the runtime worker', () => {
     assert.match(src, /authenticatedScan: Boolean\(sanitizedAuth\)/);
-    assert.match(src, /Runtime browser checks run without your session/);
+    // Session is forwarded to the runtime worker (KI #70 follow-up closed).
+    assert.match(src, /\.\.\.\(sanitizedAuth \? \{ auth: sanitizedAuth \} : \{\}\)/);
+    assert.match(src, /forwarded to the runtime browser worker/);
   });
 
   it('never logs the auth material', () => {

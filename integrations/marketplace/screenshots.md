@@ -12,7 +12,7 @@ GitHub Marketplace allows up to 10 screenshots. Capture at least 5. All screensh
 **What to capture:**
 - Open a pull request on a test repository where GateTest is installed and the scan passes.
 - Scroll to the **Checks** section at the bottom of the PR (below the timeline, above the merge button).
-- The GateTest check should show a green checkmark with the text "GateTest — Quality Gate" and a subtitle like "All 120 modules passed · 0 errors · 0 warnings".
+- The GateTest check should show a green checkmark with whatever text the LIVE App check actually renders. IMPORTANT: the free App install runs the quick gate (syntax, lint, hardcoded-secrets) — NOT all 120 modules — so do not stage a "120 modules passed" subtitle. Capture the real status text the App posts (generated from real module counts in `github-callback.js`); a screenshot claiming more coverage than the free install delivers is exactly what a reviewer flags. Full 120-module scans are the separately-purchased gatetest.ai flow, not this App check.
 - The merge button should be green and unblocked.
 - Frame the screenshot to show: the PR title at the top, the diff summary line, and the full checks section.
 - Include the browser chrome (URL bar showing `github.com/...`) for authenticity.
@@ -30,7 +30,7 @@ GitHub Marketplace allows up to 10 screenshots. Capture at least 5. All screensh
 - Open a pull request where GateTest found real issues (or a staged repo with intentional bugs).
 - Scroll to the GateTest bot comment on the PR timeline.
 - The comment should show:
-  - A header like "GateTest Scan Results — 3 errors, 12 warnings"
+  - The real comment header the bot posts (e.g. `## ✅ GateTest — All checks passed` or the failing-state equivalent from `github-callback.js`) — screenshot the LIVE format, not an invented "Scan Results — N errors" string
   - A table or list of failing modules with issue counts
   - At least 2–3 specific issue examples with file path, line number, and description. For example:
     - `src/api/proxy.js:47` — **SSRF** — User-controlled URL passed to `fetch()` without validation
@@ -49,7 +49,7 @@ GitHub Marketplace allows up to 10 screenshots. Capture at least 5. All screensh
 **Caption:** "GateTest opens a fix PR automatically — review the diff, merge, done"
 
 **What to capture:**
-- Open the auto-fix PR that GateTest created (on Scan + Fix or Nuclear tier).
+- Open the auto-fix PR that GateTest created (on Scan + Fix or Forensic tier — Forensic was renamed from "Nuclear" 2026-06-02). NOTE: auto-fix is a paid gatetest.ai tier, not part of the free App install — if this screenshot appears on the free Marketplace listing, caption it clearly as a gatetest.ai feature so it doesn't imply the free App auto-fixes.
 - Show the **Files changed** tab of the fix PR.
 - The diff should show a real, sensible fix — for example:
   - Before: `rejectUnauthorized: false` in an HTTPS agent options object

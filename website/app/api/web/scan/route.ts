@@ -536,6 +536,7 @@ export async function POST(req: NextRequest) {
         suite: string;
         callbackUrl: string;
         deadlineSec?: number;
+        auth?: { headers?: Record<string, string>; cookie?: string };
       }) => Promise<{ ok: true; jobId: string; queuedAt: string } | { ok: false; reason: string; status?: number }>;
     };
     const callbackBase = process.env.GATETEST_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_BASE_URL || "";
@@ -546,6 +547,10 @@ export async function POST(req: NextRequest) {
         suite: "web",
         callbackUrl: `${callbackBase.replace(/\/$/, "")}/api/web/scan/runtime-callback`,
         deadlineSec: 60,
+        // Authed scans: forward the session so the headless-browser worker
+        // reaches the same pages the crawl did. Vapron scopes it same-origin
+        // (its own live-crawler-auth). Rides the HMAC-signed body.
+        ...(sanitizedAuth ? { auth: sanitizedAuth } : {}),
       });
       if (result.ok) {
         runtimeStatus = "queued";
@@ -577,17 +582,16 @@ export async function POST(req: NextRequest) {
     infoCount: clusterResult.droppedInfo,
     preview: isPreview,
     findings,
-    // Honesty flag: true when the crawl + live probe carried the caller's
-    // session. The runtime browser worker does NOT receive the session yet
-    // (forwarding customer tokens to the worker tier needs its own design)
-    // — runtime.note says so instead of implying full authed coverage.
+    // Honesty flag: true when the caller supplied a session. It is carried
+    // by the crawl, the live probe, AND (in the HMAC-signed dispatch body)
+    // the runtime browser worker — so authenticated coverage is end-to-end.
     authenticatedScan: Boolean(sanitizedAuth),
     runtime: {
       status: runtimeStatus,
       jobId: runtimeJobId,
       reason: runtimeReason,
       note: sanitizedAuth
-        ? "Runtime browser checks run without your session — authenticated coverage applies to the crawl and live probe."
+        ? "Your session was forwarded to the runtime browser worker — authenticated coverage applies to the crawl, live probe, and runtime checks."
         : null,
       pollUrl: runtimeStatus === "queued" ? `/api/web/scan/runtime-status?scanId=${scanId}` : null,
     },

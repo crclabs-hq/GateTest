@@ -97,20 +97,35 @@ function verifySignature(body, providedSignature, secret) {
  * @param {string} opts.suite      'web' | 'wp'
  * @param {string} opts.callbackUrl
  * @param {number} [opts.deadlineSec]
- * @returns {{scanId:string, targetUrl:string, suite:string, callbackUrl:string, deadlineSec:number}}
+ * @param {{headers?:Object, cookie?:string}} [opts.auth] - session auth for
+ *   an authenticated runtime scan. Vapron applies it same-origin only
+ *   (browser context.route + addCookies) exactly like the local engine's
+ *   live-crawler-auth. Carried inside the HMAC-signed body — never a query
+ *   param, never logged. Omitted entirely when absent so unauthenticated
+ *   dispatch bytes are unchanged.
+ * @returns {{scanId:string, targetUrl:string, suite:string, callbackUrl:string, deadlineSec:number, auth?:Object}}
  */
-function buildDispatchPayload({ scanId, targetUrl, suite, callbackUrl, deadlineSec = 60 }) {
+function buildDispatchPayload({ scanId, targetUrl, suite, callbackUrl, deadlineSec = 60, auth }) {
   if (!scanId) throw new Error('buildDispatchPayload: scanId is required');
   if (!targetUrl) throw new Error('buildDispatchPayload: targetUrl is required');
   if (!suite) throw new Error('buildDispatchPayload: suite is required');
   if (!callbackUrl) throw new Error('buildDispatchPayload: callbackUrl is required');
-  return {
+  const payload = {
     scanId: String(scanId),
     targetUrl: String(targetUrl),
     suite: String(suite),
     callbackUrl: String(callbackUrl),
     deadlineSec: Math.max(10, Math.min(300, Number(deadlineSec) || 60)),
   };
+  if (auth && typeof auth === 'object') {
+    const scoped = {};
+    if (auth.headers && typeof auth.headers === 'object' && Object.keys(auth.headers).length > 0) {
+      scoped.headers = auth.headers;
+    }
+    if (typeof auth.cookie === 'string' && auth.cookie) scoped.cookie = auth.cookie;
+    if (scoped.headers || scoped.cookie) payload.auth = scoped;
+  }
+  return payload;
 }
 
 /**

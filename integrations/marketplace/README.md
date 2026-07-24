@@ -2,8 +2,10 @@
 
 ## Overview
 
-This guide walks Craig through submitting GateTest to the GitHub Marketplace as a paid GitHub App listing.
+This guide walks Craig through submitting GateTest to the GitHub Marketplace as a **FREE** GitHub App listing.
 Complete every step in order. The listing will be reviewed by GitHub staff (typically 3–7 business days).
+
+> **Canonical copy lives in [`listing.md`](listing.md), not here.** This file is the click-through procedure; `listing.md` is the exact text to paste. The 2026-05-14 submission was rejected for describing PAID functionality on an app below GitHub's ≥100-install threshold — so the listing is **Free-only** (no paid Marketplace plan attached; paid tiers are sold separately on gatetest.ai and must never be described as purchasable through this install). Any field below that still reads "paid," "67 modules," or "enter payment details" is stale — defer to `listing.md`.
 
 ---
 
@@ -35,8 +37,8 @@ On the **Marketplace listing** page:
 | Field | Value |
 |-------|-------|
 | **Listing name** | GateTest — AI Code Quality |
-| **Short description** | 67 AI-powered quality modules scan your repo on every PR. Security, performance, accessibility, and more. Issues found AND fixed automatically. |
-| **Categories** | Code review · Testing · Security · Continuous integration |
+| **Short description** | (use the verified copy in `listing.md` → "Short description": 120-module code quality gate for GitHub. Free continuous scanning on every push. Deeper AI-powered scans and auto-fix PRs available on gatetest.ai.) |
+| **Categories** | Code quality (primary) · Security (secondary) — per `listing.md` |
 | **Primary language** | (leave blank — GateTest is language-agnostic) |
 
 Paste the **Full description** from `listing.md` into the long description field. GitHub Marketplace renders standard Markdown.
@@ -84,7 +86,7 @@ In the **Optional features** section of the App settings (not the Marketplace li
 
 - **Setup URL (after installation):** `https://gatetest.ai/github/setup`
   - This is where GitHub redirects users immediately after they install the app.
-  - The page at this URL should prompt them to select a scan tier and enter payment details.
+  - The page at this URL (gatetest.ai/github/setup) explains the free install — it must NOT prompt for payment. The free App install runs the quick gate with no card; paid deeper scans live separately on gatetest.ai.
 - **Redirect on update:** `https://gatetest.ai/github/setup`
 
 ---

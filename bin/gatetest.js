@@ -105,6 +105,13 @@ const HELP = `
                        a report-only env/config flag is set. Use once
                        you've triaged the baseline and want the gate to
                        enforce. Wins over --report-only when both pass.
+    --baseline         Snapshot every CURRENT finding into
+                       .gatetest/baseline.json ("clean as you code").
+                       Commit the file; later runs only fail on NEW
+                       findings — pre-existing ones stay visible but never
+                       block. Onboard a mature repo without eating the
+                       backlog on day one. Re-run to refresh; delete the
+                       file to see everything again. Respects --suite.
     --watch            Watch for file changes and re-scan continuously
     --sarif            Output results in SARIF format (for GitHub Security)
     --junit            Output results in JUnit XML format (for CI)
@@ -353,6 +360,7 @@ async function main() {
     // workflow on them. Strict mode (default OFF) reverses this and
     // blocks on confident errors. See `runner.js` for the mechanism.
     reportOnly: args.reportOnly === true && args.strict !== true,
+    ...(args.baseline ? { captureBaseline: true } : {}),
     ...(incrementalSince ? { incrementalSince } : {}),
     ...(typeof args.confidenceThreshold === 'number'
       ? { confidenceThreshold: args.confidenceThreshold }
@@ -522,6 +530,24 @@ async function main() {
     summary = await gatetest.runSuite(args.suite || 'standard', { skipModules: args.skipModules });
   }
 
+  // --baseline: the run above executed with captureBaseline (old baseline
+  // ignored, full failure surface visible) and the runner wrote the
+  // snapshot. Capturing is setup, not a gate run — exit green so a team
+  // can baseline a red repo, which is the entire point.
+  if (args.baseline) {
+    const b = summary.baseline || {};
+    if (b.error) {
+      console.error(`\n  \x1b[31m[GateTest] Baseline capture failed: ${b.error}\x1b[0m\n`);
+      process.exit(1);
+    }
+    console.log(`\n  \x1b[32m[GateTest] Baseline captured: ${b.captured} pre-existing finding(s) grandfathered.\x1b[0m`);
+    console.log(`  File: ${b.path}`);
+    console.log('  Commit this file. From now on the gate only fails on NEW findings.');
+    console.log('  Refresh after paying down debt: gatetest --baseline');
+    console.log('  See everything again: delete .gatetest/baseline.json\n');
+    process.exit(0);
+  }
+
   // Flywheel: record this scan's anonymized finding signal (module names +
   // counts only, no code/paths) and kick a best-effort central flush. Both
   // are no-ops under GATETEST_NO_TELEMETRY / .gatetest.json telemetry:false,
@@ -580,8 +606,15 @@ function printPlainSummary(summary) {
 
   console.log(`  ${c.dim}${'─'.repeat(52)}${c.off}`);
 
+  // Baseline transparency — never let grandfathered findings look like a
+  // clean bill of health.
+  const baselined = checks.baselined || 0;
+  if (baselined > 0) {
+    console.log(`  ${c.dim}${baselined} pre-existing finding(s) baselined — not blocking. Refresh: gatetest --baseline${c.off}`);
+  }
+
   if (summary.gateStatus === 'PASSED') {
-    console.log(`  ${c.g}${c.bold}✓ You're good.${c.off} Nothing is blocking this commit.`);
+    console.log(`  ${c.g}${c.bold}✓ You're good.${c.off} Nothing${baselined > 0 ? ' NEW' : ''} is blocking this commit.`);
     if (soft || warnings) {
       console.log(`  ${c.dim}${soft + warnings} low-priority note(s) noted — worth a look, but not blockers.${c.off}`);
     }
@@ -992,6 +1025,7 @@ function parseArgs(argv) {
     else if (arg === '--diff') args.diff = true;
     else if (arg === '--report-only') args.reportOnly = true;
     else if (arg === '--strict') args.strict = true;
+    else if (arg === '--baseline') args.baseline = true;
     else if (arg === '--watch') args.watch = true;
     else if (arg === '--sarif') args.sarif = true;
     else if (arg === '--junit') args.junit = true;

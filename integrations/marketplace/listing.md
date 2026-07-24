@@ -158,12 +158,17 @@ resubmitting rather than starting over.
 | **Setup URL** | `https://gatetest.ai/github/setup` |
 | **Webhook URL** | `https://gatetest.ai/api/webhook` |
 | **Callback URL** | `https://gatetest.ai/api/github/callback` |
-| **Webhook events** | `push`, `pull_request` |
+| **Webhook events** | `push`, `pull_request`, `workflow_run` |
 | **Contents permission** | Read |
 | **Pull requests permission** | Read & write |
 | **Commit statuses permission** | Read & write |
 | **Issues permission** | Read & write |
 | **Metadata permission** | Read |
+
+> **Verify these three against the LIVE App settings before submitting (reviewers audit permission scope):**
+> 1. **`workflow_run` event** — the webhook handler (`website/app/lib/github-events.js`) processes `workflow_run` (completed+failure → CI-fix kick), so the live App must subscribe to it. It was previously omitted from this table; added now. If the live App does NOT subscribe to it, CI-fix silently never fires on the App path.
+> 2. **`Issues` permission** — the only App-path use is posting PR comments via `POST /repos/{o}/{r}/issues/{n}/comments`. On pull requests this may be covered by `Pull requests: write` alone. Confirm in a live test (install → open PR → check a comment posts) whether `Issues: write` is actually required; if PR comments post without it, drop it to avoid an over-broad-scope flag from the reviewer. Do NOT drop it blind — verify first.
+> 3. **The setup page (`website/app/github/setup/page.tsx`) lists 4 permissions and this table lists 5 (adds Issues).** Whichever way #2 resolves, make the setup page, this table, AND the live App config all state the SAME permission set — a mismatch between the install prompt and the disclosed list is a reviewer red flag.
 
 ---
 

@@ -486,6 +486,9 @@ async function findExistingComment({ owner, repo, prNumber, token, fetchImpl, ma
  * @param {string|null} [opts.ref]
  * @param {number|null} [opts.pullRequestNumber]
  * @param {object} opts.scanResult
+ * @param {string} [opts.token]            explicit GitHub token (App installation
+ *                                         token minted per-repo by the caller);
+ *                                         takes precedence over env PATs
  * @param {string[]} [opts.dbAdminOrgs]    admin orgs pre-fetched from the platform registry DB
  * @param {typeof fetch} [opts.fetchImpl]  override for testing
  * @param {Record<string, string|undefined>} [opts.env]
@@ -501,10 +504,16 @@ async function sendGithubCallback(opts) {
   const mergedEnv = allAdminOrgs.length > 0
     ? { ...env, GATETEST_ADMIN_ORGS: allAdminOrgs.join(',') }
     : env;
-  const token = resolveGitHubToken(env);
+  // Token precedence: an explicit token from the caller (a GitHub App
+  // INSTALLATION token, minted per-repo in the TS layer that can reach
+  // github-app.ts) wins over an env PAT. Without this, a customer who
+  // installed the App but set no PAT got NO commit status at all — the
+  // free-tier's core promise silently failed, and a Marketplace reviewer
+  // installing on their own repo would see nothing post. (KI #29.)
+  const token = opts.token || resolveGitHubToken(env);
 
   if (!token) {
-    console.warn('[github-callback] no GitHub token configured — skipping feedback');
+    console.warn('[github-callback] no GitHub token configured (no App installation token and no PAT) — skipping feedback');
     return { statusSent: false, commentSent: false, reason: 'no-token' };
   }
 

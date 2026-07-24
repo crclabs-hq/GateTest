@@ -51,6 +51,28 @@ async function dispatchCallback(args: CallbackArgs): Promise<void> {
   if (args.host === "github") {
     // Pre-fetch admin orgs from the platform registry (fail-open).
     const dbAdminOrgs = await getAdminOrgs().catch(() => [] as string[]);
+    // Mint a GitHub App INSTALLATION token for this specific repo. Without
+    // this, sendGithubCallback only sees env PATs — so a customer who
+    // installed the App (the entire free-tier flow) but configured no PAT
+    // got zero commit statuses, and a Marketplace reviewer installing on
+    // their own repo would see nothing post. resolveGithubToken returns the
+    // env PAT if one is set (unchanged for the self-hosted path) or mints an
+    // App token via the private key; null when neither is available, in
+    // which case sendGithubCallback logs and skips. (KI #29.)
+    let appToken: string | undefined;
+    const slashParts = args.repository.split("/");
+    if (slashParts.length === 2) {
+      try {
+        const { resolveGithubToken } = await import("@/app/lib/github-app");
+        const resolved = await resolveGithubToken(slashParts[0], slashParts[1]);
+        if (resolved.token) appToken = resolved.token;
+      } catch (err) {
+        console.error("[worker-tick] App token resolution failed", {
+          repository: args.repository,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
     await sendGithubCallback({
       repository: args.repository,
       sha: args.sha,
@@ -58,6 +80,7 @@ async function dispatchCallback(args: CallbackArgs): Promise<void> {
       pullRequestNumber: args.pullRequestNumber ?? null,
       scanResult: args.scanResult as object,
       dbAdminOrgs,
+      ...(appToken ? { token: appToken } : {}),
     });
   } else {
     await sendGluecronCallback({

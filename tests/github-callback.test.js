@@ -512,6 +512,43 @@ describe('sendGithubCallback — no token', () => {
   });
 });
 
+describe('sendGithubCallback — explicit token (App installation token)', () => {
+  it('an explicit opts.token posts statuses even with NO env PAT (the App-install path)', async () => {
+    const doFetch = makeFetch(201);
+    const result = await sendGithubCallback({
+      repository: 'owner/repo',
+      sha: 'a'.repeat(40),
+      pullRequestNumber: null,
+      scanResult: makeScanResult(),
+      token: 'ghs_installation_token', // minted by the App layer per-repo
+      env: {}, // deliberately no PAT — the exact reviewer/customer scenario
+      fetchImpl: doFetch,
+    });
+    assert.strictEqual(result.statusSent, true, 'App installation token must let statuses post with no PAT');
+    for (const call of doFetch.calls) {
+      const auth = call.init && call.init.headers && call.init.headers['Authorization'];
+      assert.strictEqual(auth, 'Bearer ghs_installation_token');
+    }
+  });
+
+  it('opts.token takes precedence over an env PAT', async () => {
+    const doFetch = makeFetch(201);
+    await sendGithubCallback({
+      repository: 'owner/repo',
+      sha: 'a'.repeat(40),
+      pullRequestNumber: null,
+      scanResult: makeScanResult(),
+      token: 'ghs_app_token',
+      env: { GATETEST_GITHUB_TOKEN: 'ghp_pat' },
+      fetchImpl: doFetch,
+    });
+    for (const call of doFetch.calls) {
+      const auth = call.init && call.init.headers && call.init.headers['Authorization'];
+      assert.strictEqual(auth, 'Bearer ghs_app_token', 'explicit App token must win over env PAT');
+    }
+  });
+});
+
 describe('sendGithubCallback — happy path (no PR)', () => {
   it('posts commit status and skips PR comment when no pullRequestNumber', async () => {
     const doFetch = makeFetch(201);

@@ -116,6 +116,35 @@ Suppressed findings are excluded from the gate decision and every failure count,
 
 Project-wide options live in `.gatetest.json` (suites, per-module config, severity overrides) — run `gatetest --init` to scaffold one.
 
+### Onboarding a mature repo — baseline mode
+
+Turning a scanner on against a large existing codebase usually means drowning in a backlog you didn't write. GateTest's baseline mode grandfathers everything that exists today so the gate only ever fails on **new** findings — "clean as you code."
+
+```bash
+# Snapshot every current finding into .gatetest/baseline.json — commit it:
+gatetest --baseline
+
+# From now on, normal runs pass on the pre-existing findings and only
+# block on NEW ones. Baselined findings stay visible, never hidden.
+gatetest --suite full
+```
+
+Fix a baselined finding and it's gone for good; the count is tracked per file, so adding a *second* secret to a file that already had one baselined re-blocks the gate (you can't sneak a new problem in behind an old one). Refresh the snapshot after paying down debt with `gatetest --baseline`; delete `.gatetest/baseline.json` to see everything again.
+
+### Testing pages behind a login — authenticated crawl
+
+The live crawler can carry a session so it reaches authed areas (`/dashboard/*`, account pages) instead of bouncing off the login redirect:
+
+```bash
+# A header (repeatable), a cookie, or an exported browser session —
+# values support ${ENV_VAR} so secrets stay out of committed config:
+gatetest --crawl https://app.example.com --crawl-header "Authorization: Bearer ${TOKEN}"
+gatetest --crawl https://app.example.com --crawl-cookie "session=${SESSION}"
+gatetest --crawl https://app.example.com --crawl-storage-state state.json
+```
+
+Session material is only ever sent to the target's own origin — never to third-party links, assets, or cross-origin redirects. Without a session, a crawl that hits a login wall tells you exactly which flag to add rather than silently skipping the protected pages. The hosted scanner at [gatetest.ai](https://gatetest.ai) accepts the same session auth.
+
 ### Claude Code / MCP — give Claude eyes, ears & hands
 
 Connect GateTest directly to Claude Code (or any MCP-compatible AI) in one command:
@@ -243,7 +272,7 @@ One config, one bill, one gate decision. Twelve-plus tools dissolve into single 
 
 ## Tiers and pricing
 
-Scan tiers are one-time payments via Stripe at checkout — no auto-renew. Continuous and MCP are monthly subscriptions (cancel anytime). Refunds only at our discretion for scans that failed to start or crashed mid-way without producing a report (contact `hello@gatetest.ai`).
+Scan tiers are one-time payments via Stripe at checkout — no auto-renew. Continuous and MCP are monthly subscriptions; manage or cancel them yourself at [gatetest.ai/billing](https://gatetest.ai/billing) (enter your checkout email, get a secure Stripe portal link by email — update your card, view invoices, change plan, or cancel). Refunds only at our discretion for scans that failed to start or crashed mid-way without producing a report (contact `hello@gatetest.ai`).
 
 | Tier              | Price   | What you get                                                                                                                                       |
 | ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |

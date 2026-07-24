@@ -89,6 +89,41 @@ test('buildDispatchPayload — happy path', () => {
   assert.equal(p.deadlineSec, 60);
 });
 
+test('buildDispatchPayload — omits auth entirely when absent (unchanged unauth bytes)', () => {
+  const p = buildDispatchPayload({ scanId: 'a', targetUrl: 'b', suite: 'web', callbackUrl: 'c' });
+  assert.ok(!('auth' in p), 'auth key must not appear when no session supplied');
+});
+
+test('buildDispatchPayload — includes scoped auth (headers + cookie) when supplied', () => {
+  const p = buildDispatchPayload({
+    scanId: 'a', targetUrl: 'b', suite: 'web', callbackUrl: 'c',
+    auth: { headers: { Authorization: 'Bearer tok' }, cookie: 'session=x' },
+  });
+  assert.deepEqual(p.auth, { headers: { Authorization: 'Bearer tok' }, cookie: 'session=x' });
+});
+
+test('buildDispatchPayload — drops empty auth sub-fields', () => {
+  const p = buildDispatchPayload({
+    scanId: 'a', targetUrl: 'b', suite: 'web', callbackUrl: 'c',
+    auth: { headers: {}, cookie: '' },
+  });
+  assert.ok(!('auth' in p), 'empty headers + empty cookie yields no auth key');
+});
+
+test('buildDispatchPayload — auth is inside the body, so it rides the HMAC signature', () => {
+  const { signBody, verifySignature } = require('../website/app/lib/vapron-dispatch');
+  const p = buildDispatchPayload({
+    scanId: 'a', targetUrl: 'b', suite: 'web', callbackUrl: 'c',
+    auth: { cookie: 'session=secret' },
+  });
+  const body = JSON.stringify(p);
+  const sig = signBody(body, 'shared-secret');
+  assert.ok(verifySignature(body, sig, 'shared-secret'));
+  // Tampering with the auth after signing must break verification.
+  const tampered = body.replace('session=secret', 'session=stolen');
+  assert.ok(!verifySignature(tampered, sig, 'shared-secret'));
+});
+
 test('buildDispatchPayload — deadline clamped 10-300', () => {
   const p1 = buildDispatchPayload({ scanId: 'a', targetUrl: 'b', suite: 'c', callbackUrl: 'd', deadlineSec: 5 });
   assert.equal(p1.deadlineSec, 10);

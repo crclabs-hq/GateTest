@@ -33,6 +33,14 @@ try { _ignoreFile = require('./ignore-file'); } catch { _ignoreFile = null; }
 let _noiseModel = null;
 try { _noiseModel = require('./noise-model'); } catch { _noiseModel = null; }
 
+function _loadBaselineMatcher(projectRoot) {
+  try {
+    const baseline = require('./baseline');
+    const matcher = baseline.load(projectRoot);
+    return matcher.isEmpty ? null : matcher;
+  } catch { return null; }
+}
+
 function _loadIgnoreMatcher(projectRoot) {
   try { return _ignoreFile ? _ignoreFile.load(projectRoot) : null; }
   catch { return null; }
@@ -118,6 +126,10 @@ class TestResult {
     // suppressed: excluded from block/soft/warning counts, kept visible in
     // the suppressed list. Null → nothing suppressed.
     this._ignoreMatcher = options.ignoreMatcher || null;
+    // Baseline matcher (KI #66) — grandfathered findings suppress the same
+    // way, with suppressReason 'baseline' so reporters can distinguish.
+    this._baselineMatcher = options.baselineMatcher || null;
+    this._projectRoot = options.projectRoot || null;
     // Per-module confidence penalty (0..1) learned from the flywheel: a module
     // that fires constantly AND gets dismissed repeatedly has its findings
     // softened below the block threshold until reviewed. 1 = no penalty.
@@ -197,6 +209,21 @@ class TestResult {
       if (this._ignoreMatcher.matches({ module: this.module, ruleKey: name, name, file: filePath })) {
         check.suppressed = true;
         check.suppressReason = 'gatetestignore';
+      }
+    }
+
+    // Baseline suppression (KI #66) — a finding grandfathered by
+    // `gatetest --baseline` doesn't block; only NEW findings do. Count-aware:
+    // an aggregated per-file check resurfaces when it grows MORE instances
+    // than were baselined (e.g. a second secret lands in a file that had one).
+    if (!passed && !check.suppressed && this._baselineMatcher) {
+      const filePath = details.file || details.filePath;
+      const instances = Array.isArray(details.details) && details.details.length > 0
+        ? details.details.length
+        : 1;
+      if (this._baselineMatcher.has(this.module, name, filePath, instances)) {
+        check.suppressed = true;
+        check.suppressReason = 'baseline';
       }
     }
 
@@ -363,6 +390,12 @@ class GateTestRunner extends EventEmitter {
     // every TestResult so suppression and softening apply uniformly.
     this._ignoreMatcher = _loadIgnoreMatcher(projectRoot);
     this._confidencePenalties = _loadConfidencePenalties(projectRoot);
+    // Baseline ("only fail on NEW issues", KI #66). When capturing a fresh
+    // baseline the old one must NOT suppress anything — the snapshot has to
+    // see the full current state.
+    this._captureBaseline = options.captureBaseline === true;
+    this._baselineMatcher = this._captureBaseline ? null : _loadBaselineMatcher(projectRoot);
+    this._projectRoot = projectRoot;
     // Incremental mode state — set at construction when a pre-resolved file
     // Set is supplied (test / external caller), or set at run() time when
     // incrementalSince resolves successfully.
@@ -547,6 +580,8 @@ class GateTestRunner extends EventEmitter {
       // see the default 0.7 threshold.
       blockThreshold: this._blockThreshold,
       ignoreMatcher: this._ignoreMatcher,
+      baselineMatcher: this._baselineMatcher,
+      projectRoot: this._projectRoot,
       confidencePenalties: this._confidencePenalties,
     });
 
@@ -793,6 +828,29 @@ class GateTestRunner extends EventEmitter {
     const totalWarnings = this.results.reduce((sum, r) => sum + r.warningChecks.length, 0);
     const totalInfoFindings = this.results.reduce((sum, r) => sum + r.infoFindingChecks.length, 0);
     const totalFixes = this.results.reduce((sum, r) => sum + r.fixes.length, 0);
+    const totalBaselined = this.results.reduce(
+      (sum, r) => sum + r.checks.filter(c => c.suppressReason === 'baseline').length, 0,
+    );
+
+    // Baseline capture (`gatetest --baseline`) — snapshot the full current
+    // failure surface so future runs only fail on NEW findings.
+    let baselineInfo = null;
+    if (this._captureBaseline) {
+      try {
+        const baseline = require('./baseline');
+        const captured = baseline.capture(this.results, this._projectRoot);
+        baselineInfo = { captured: captured.count, path: captured.path };
+      } catch (err) {
+        baselineInfo = { error: err.message || String(err) };
+      }
+    } else if (this._baselineMatcher) {
+      baselineInfo = {
+        active: true,
+        fingerprints: this._baselineMatcher.count,
+        suppressed: totalBaselined,
+        capturedAt: this._baselineMatcher.capturedAt,
+      };
+    }
 
     // GATE DECISION: only CONFIDENT errors block. Failed modules block
     // unconditionally (runtime exceptions, module crashes). Soft errors
@@ -809,6 +867,7 @@ class GateTestRunner extends EventEmitter {
       incremental: this._incrementalMode
         ? { fileCount: this._incrementalFileSet ? this._incrementalFileSet.size : 0 }
         : null,
+      baseline: baselineInfo,
       modules: {
         total: this.results.length,
         passed: passed.length,
@@ -824,6 +883,7 @@ class GateTestRunner extends EventEmitter {
         softErrors: totalSoftErrors,
         warnings: totalWarnings,
         infoFindings: totalInfoFindings,
+        baselined: totalBaselined,
       },
       fixes: {
         total: totalFixes,
