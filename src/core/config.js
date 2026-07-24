@@ -710,6 +710,29 @@ class GateTestConfig {
     return keyPath.split('.').reduce((obj, key) => obj?.[key], this.config);
   }
 
+  /**
+   * Dot-path setter, the write twin of get(). Creates intermediate objects
+   * as needed: set('modules.liveCrawler.cookie', 'x').
+   *
+   * NOTE this existed as an ASSUMED API long before it existed as a real
+   * one — website/app/api/web/scan/route.ts guarded `typeof config.set ===
+   * "function"` and silently fell through when it wasn't, which meant the
+   * hosted URL scan ran the whole web suite with NO targetUrl configured
+   * (every URL-driven module no-op'd; findings came only from the separate
+   * live probe + runtime worker). Found 2026-07-25 wiring authed crawls.
+   */
+  set(keyPath, value) {
+    const keys = keyPath.split('.');
+    let obj = this.config;
+    for (let i = 0; i < keys.length - 1; i += 1) {
+      if (typeof obj[keys[i]] !== 'object' || obj[keys[i]] === null) {
+        obj[keys[i]] = {};
+      }
+      obj = obj[keys[i]];
+    }
+    obj[keys[keys.length - 1]] = value;
+  }
+
   getThreshold(name) {
     return this.config.thresholds[name];
   }

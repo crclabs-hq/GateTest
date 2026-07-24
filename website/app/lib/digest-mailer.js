@@ -396,10 +396,116 @@ async function sendApiKeyEmail(opts) {
   });
 }
 
+/**
+ * Send a billing-portal link email. The link is a short-lived Stripe
+ * billing-portal session URL — emailed rather than returned over HTTP so
+ * only the inbox owner can reach the portal.
+ *
+ * @param {{ to: string, links: Array<{ url: string, source: string }> }} opts
+ * @returns {Promise<{ ok: boolean, id?: string, error?: string }>}
+ */
+async function sendBillingPortalEmail(opts) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return { ok: false, error: 'RESEND_API_KEY not set' };
+
+  const { to, links } = opts || {};
+  if (!to) return { ok: false, error: 'to is required' };
+  if (!Array.isArray(links) || links.length === 0) return { ok: false, error: 'links are required' };
+
+  const from = process.env.RESEND_FROM || DEFAULT_FROM;
+  const sourceLabel = { continuous: 'Continuous ($49/mo)', mcp: 'MCP ($29/mo)' };
+
+  const linkBlocks = links.map(l => `
+    <tr><td style="padding-bottom:12px;">
+      <a href="${escapeHtml(l.url)}"
+         style="display:block;background:#22c55e;color:#09090b;font-size:14px;font-weight:700;text-decoration:none;border-radius:8px;padding:14px 20px;text-align:center;">
+        Manage ${escapeHtml(sourceLabel[l.source] || 'your')} subscription
+      </a>
+    </td></tr>`).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Manage your GateTest subscription</title></head>
+<body style="margin:0;padding:0;background:#09090b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#09090b;padding:40px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+  <tr><td style="padding-bottom:24px;">
+    <span style="color:#22c55e;font-size:20px;font-weight:700;letter-spacing:-0.5px;">GateTest</span>
+  </td></tr>
+  <tr><td style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:32px;">
+    <h1 style="color:#f4f4f5;font-size:22px;font-weight:700;margin:0 0 8px;">Manage your subscription</h1>
+    <p style="color:#a1a1aa;font-size:14px;margin:0 0 24px;">
+      Use the secure link below to update your payment method, view invoices,
+      change plan, or cancel. The link expires shortly after being issued —
+      request a fresh one from gatetest.ai/billing any time.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0">${linkBlocks}</table>
+    <p style="color:#71717a;font-size:12px;margin:16px 0 0;">
+      Didn&rsquo;t request this? You can safely ignore this email — the link only
+      works for the subscription tied to this address. Questions:
+      <a href="mailto:hello@gatetest.ai" style="color:#22c55e;">hello@gatetest.ai</a>.
+    </p>
+  </td></tr>
+  <tr><td style="padding-top:24px;text-align:center;">
+    <p style="color:#3f3f46;font-size:11px;margin:0;">GateTest &middot; gatetest.ai</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+  const text = [
+    'Manage your GateTest subscription',
+    '',
+    ...links.map(l => `${sourceLabel[l.source] || 'Subscription'}: ${l.url}`),
+    '',
+    'The link expires shortly after being issued — request a fresh one from gatetest.ai/billing any time.',
+    "Didn't request this? Ignore this email.",
+  ].join('\n');
+
+  const body = JSON.stringify({ from, to: [to], subject: 'Manage your GateTest subscription', html, text });
+
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: 'api.resend.com',
+      path:     '/emails',
+      method:   'POST',
+      headers: {
+        Authorization:  `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(Buffer.concat(chunks).toString());
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve({ ok: true, id: parsed.id });
+          } else {
+            resolve({ ok: false, error: parsed.message || parsed.name || `HTTP ${res.statusCode}` });
+          }
+        } catch {
+          resolve({ ok: false, error: `HTTP ${res.statusCode}` });
+        }
+      });
+    });
+
+    req.on('error', e => resolve({ ok: false, error: e.message }));
+    req.setTimeout(12_000, () => { req.destroy(); resolve({ ok: false, error: 'timeout' }); });
+    req.write(body);
+    req.end();
+  });
+}
+
 module.exports = {
   buildDigestEmailHtml,
   buildDigestEmailText,
   sendDigestEmail,
   sendApiKeyEmail,
+  sendBillingPortalEmail,
   escapeHtml,
 };

@@ -299,7 +299,7 @@ function findingsFromResponse({ url, response, bodySnippet }) {
  * @param {number} [args.timeoutMs]
  * @returns {Promise<{ findings: Array, durationMs: number, status: number|null, error?: string }>}
  */
-async function probeUrl({ url, _fetch, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+async function probeUrl({ url, _fetch, timeoutMs = DEFAULT_TIMEOUT_MS, authHeaders } = {}) {
   const fetchImpl = _fetch || (typeof fetch === "function" ? fetch : null);
   if (!fetchImpl) throw new Error("probeUrl: no fetch available; pass _fetch for tests");
 
@@ -342,11 +342,20 @@ async function probeUrl({ url, _fetch, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
     const timer = setTimeout(() => ac.abort(), timeoutMs);
     let hopResponse;
     try {
+      // Session auth (authed scans) is attached ONLY while the hop is on
+      // the original target's origin — a redirect to any other origin
+      // continues without it, so tokens can't leak off-target.
+      let sameOriginAuth = {};
+      if (authHeaders && typeof authHeaders === "object") {
+        try {
+          if (new URL(currentUrl).origin === parsed.origin) sameOriginAuth = authHeaders;
+        } catch { /* unparseable hop — no auth */ }
+      }
       hopResponse = await fetchImpl(currentUrl, {
         method: "GET",
         redirect: "manual",
         signal: ac.signal,
-        headers: { "User-Agent": DEFAULT_USER_AGENT, Accept: "*/*" },
+        headers: { "User-Agent": DEFAULT_USER_AGENT, Accept: "*/*", ...sameOriginAuth },
       });
     } catch (err) {
       clearTimeout(timer);

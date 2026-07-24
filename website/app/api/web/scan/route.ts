@@ -46,6 +46,60 @@ interface WebScanRequest {
   url?: string;
   fullReport?: boolean;
   sessionId?: string;
+  /**
+   * Optional session auth so the crawl can reach pages behind a login
+   * (Craig-authorized 2026-07-25, hosted half of the authed-crawl feature).
+   * Engine-side same-origin gating (src/modules/live-crawler-auth.js)
+   * guarantees these values are only ever sent to the scan target's origin.
+   * Per-request only — never stored, never logged, never echoed back.
+   */
+  auth?: {
+    headers?: Record<string, string>;
+    cookie?: string;
+  };
+}
+
+const AUTH_MAX_HEADERS = 10;
+const AUTH_MAX_VALUE_LEN = 4096;
+const AUTH_HEADER_NAME_RE = /^[A-Za-z0-9-]{1,64}$/;
+
+/**
+ * Validate + sanitize the optional auth block. Returns null when absent,
+ * a sanitized copy when valid, or an { error } when malformed — malformed
+ * auth must 400 rather than silently scan unauthenticated (the customer
+ * would get a report full of login-redirect noise believing it covered
+ * their authed pages).
+ */
+function sanitizeAuth(auth: WebScanRequest["auth"]): { headers?: Record<string, string>; cookie?: string } | { error: string } | null {
+  if (auth === undefined || auth === null) return null;
+  if (typeof auth !== "object" || Array.isArray(auth)) return { error: "auth must be an object" };
+  const out: { headers?: Record<string, string>; cookie?: string } = {};
+
+  if (auth.headers !== undefined) {
+    if (typeof auth.headers !== "object" || auth.headers === null || Array.isArray(auth.headers)) {
+      return { error: "auth.headers must be an object of header name → value" };
+    }
+    const entries = Object.entries(auth.headers);
+    if (entries.length > AUTH_MAX_HEADERS) return { error: `auth.headers: at most ${AUTH_MAX_HEADERS} headers` };
+    const headers: Record<string, string> = {};
+    for (const [name, value] of entries) {
+      if (!AUTH_HEADER_NAME_RE.test(name)) return { error: `auth.headers: invalid header name "${name.slice(0, 40)}"` };
+      if (typeof value !== "string" || value.length === 0 || value.length > AUTH_MAX_VALUE_LEN || /[\r\n]/.test(value)) {
+        return { error: `auth.headers: invalid value for "${name}"` };
+      }
+      headers[name] = value;
+    }
+    if (Object.keys(headers).length > 0) out.headers = headers;
+  }
+
+  if (auth.cookie !== undefined) {
+    if (typeof auth.cookie !== "string" || auth.cookie.length === 0 || auth.cookie.length > AUTH_MAX_VALUE_LEN || /[\r\n]/.test(auth.cookie)) {
+      return { error: "auth.cookie must be a non-empty single-line string" };
+    }
+    out.cookie = auth.cookie;
+  }
+
+  return out.headers || out.cookie ? out : null;
 }
 
 interface WebFinding {
@@ -281,6 +335,11 @@ export async function POST(req: NextRequest) {
   // report for free.
   fullReport = await resolveFullReportAccess(req, body);
 
+  const sanitizedAuth = sanitizeAuth(body.auth);
+  if (sanitizedAuth && "error" in sanitizedAuth) {
+    return NextResponse.json({ error: sanitizedAuth.error }, { status: 400 });
+  }
+
   const validated = await resolveAndValidateUrl(url || "");
   if (!validated.ok) {
     return NextResponse.json(
@@ -348,14 +407,24 @@ export async function POST(req: NextRequest) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const urlProber = require("@/app/lib/reliability/url-prober") as {
-      probeUrl: (args: { url: string; timeoutMs?: number }) => Promise<{
+      probeUrl: (args: { url: string; timeoutMs?: number; authHeaders?: Record<string, string> }) => Promise<{
         findings: Array<{ module: string; severity: string; rule: string; message: string; file: string }>;
         durationMs: number;
         status: number | null;
         error?: string;
       }>;
     };
-    liveProbePromise = urlProber.probeUrl({ url: targetUrl, timeoutMs: 12_000 })
+    // Authed scans: the probe carries the session too (same-origin only —
+    // url-prober drops these headers the moment a redirect leaves the
+    // target's origin).
+    const probeAuthHeaders = sanitizedAuth
+      ? { ...(sanitizedAuth.headers || {}), ...(sanitizedAuth.cookie ? { Cookie: sanitizedAuth.cookie } : {}) }
+      : undefined;
+    liveProbePromise = urlProber.probeUrl({
+      url: targetUrl,
+      timeoutMs: 12_000,
+      ...(probeAuthHeaders && Object.keys(probeAuthHeaders).length > 0 ? { authHeaders: probeAuthHeaders } : {}),
+    })
       .then((r) => r.findings)
       .catch(() => []);
   } catch {
@@ -367,13 +436,18 @@ export async function POST(req: NextRequest) {
   try {
     const gt = new GateTest(workspace, { silent: true });
     gt.init();
-    if (gt.config && typeof gt.config === "object") {
-      if (typeof (gt.config as { set?: (k: string, v: unknown) => void }).set === "function") {
-        (gt.config as { set: (k: string, v: unknown) => void }).set("targetUrl", targetUrl);
-        (gt.config as { set: (k: string, v: unknown) => void }).set("webUrl", targetUrl);
-      } else if ((gt.config as { data?: Record<string, unknown> }).data) {
-        (gt.config as { data: Record<string, unknown> }).data.targetUrl = targetUrl;
-        (gt.config as { data: Record<string, unknown> }).data.webUrl = targetUrl;
+    // GateTestConfig.set is a real dot-path setter as of 2026-07-25 — before
+    // that this whole block silently no-op'd (neither `.set` nor `.data`
+    // existed) and the suite ran without a targetUrl. See config.js set().
+    if (gt.config && typeof (gt.config as { set?: (k: string, v: unknown) => void }).set === "function") {
+      const cfg = gt.config as { set: (k: string, v: unknown) => void };
+      cfg.set("targetUrl", targetUrl);
+      cfg.set("webUrl", targetUrl);
+      if (sanitizedAuth) {
+        // Same-origin gating happens engine-side (live-crawler-auth.js):
+        // these values only ever reach the scan target's own origin.
+        if (sanitizedAuth.headers) cfg.set("modules.liveCrawler.headers", sanitizedAuth.headers);
+        if (sanitizedAuth.cookie) cfg.set("modules.liveCrawler.cookie", sanitizedAuth.cookie);
       }
     }
     summary = (await gt.init().runSuite("web")) as typeof summary;
@@ -503,10 +577,18 @@ export async function POST(req: NextRequest) {
     infoCount: clusterResult.droppedInfo,
     preview: isPreview,
     findings,
+    // Honesty flag: true when the crawl + live probe carried the caller's
+    // session. The runtime browser worker does NOT receive the session yet
+    // (forwarding customer tokens to the worker tier needs its own design)
+    // — runtime.note says so instead of implying full authed coverage.
+    authenticatedScan: Boolean(sanitizedAuth),
     runtime: {
       status: runtimeStatus,
       jobId: runtimeJobId,
       reason: runtimeReason,
+      note: sanitizedAuth
+        ? "Runtime browser checks run without your session — authenticated coverage applies to the crawl and live probe."
+        : null,
       pollUrl: runtimeStatus === "queued" ? `/api/web/scan/runtime-status?scanId=${scanId}` : null,
     },
     paywall: isPreview

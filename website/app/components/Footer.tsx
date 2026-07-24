@@ -31,6 +31,7 @@ export default function Footer() {
               <li><a href="/#comparison" className="text-sm text-muted hover:text-foreground transition-colors">Compare</a></li>
               <li><Link href="/web" className="text-sm text-muted hover:text-foreground transition-colors">Website Scanner</Link></li>
               <li><Link href="/wp" className="text-sm text-muted hover:text-foreground transition-colors">WordPress Scanner</Link></li>
+              <li><Link href="/billing" className="text-sm text-muted hover:text-foreground transition-colors">Manage Subscription</Link></li>
             </ul>
           </div>
 
