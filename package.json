@@ -1,7 +1,7 @@
 {
   "name": "@gatetest/cli",
   "mcpName": "ai.gatetest.www/gatetest",
-  "version": "1.59.0",
+  "version": "1.60.0",
   "description": "GateTest — 120-module QA gate with MCP. Eyes (screenshot live pages), ears (production errors), hands (verify fixes worked). Security, supply chain, AI safety, mutation testing. Iterative Claude fix loop. Replaces SonarQube + Snyk + ESLint + 10 others.",
   "main": "src/index.js",
   "bin": {

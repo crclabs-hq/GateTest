@@ -448,7 +448,7 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.59.0 — **120 modules**, **hybrid AI layer** (Craig 2026-07-07;
+GateTest v1.60.0 — **120 modules**, **hybrid AI layer** (Craig 2026-07-07;
 Sonnet 5 upgrade + user-selectable model + BYOK Craig 2026-07-10):
 **Fable 5** (`claude-fable-5`) on the paid fix tiers (Scan+Fix, Forensic),
 **Sonnet 5** (`claude-sonnet-5`) on free/cheap/high-volume paths, **Opus
@@ -482,6 +482,10 @@ control:** repo-root `.gatetestignore` suppresses findings (`module:rule` | `mod
 | `*:rule` | `module:rule@glob` | `path/**`); `gatetest --noise` shows noisy modules;
 chronically-dismissed high-fire modules auto-soften below the block threshold. See
 `src/core/{scan-telemetry,telemetry-uploader,ignore-file,noise-model}.js`.
+**v1.60.0 (2026-07-25):** authenticated crawls — `--crawl-header` /
+`--crawl-cookie` / `--crawl-storage-state` (+ hosted `/api/web/scan` auth,
+same-origin-gated engine-side); self-serve Stripe billing portal
+(gatetest.ai/billing); npm publishing via OIDC trusted publishing (token-free).
 Date stamp last fully reconciled: 2026-07-11 (core-engine program: every-scan
 flywheel + false-positive control + entry-level CLI recap).
 
