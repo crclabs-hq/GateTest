@@ -21,6 +21,7 @@ const { checkUrl, getSuggestion } = require('./live-crawler-http-helpers');
 const { crawlWithBrowser } = require('./live-crawler-browser-engine');
 const { crawlWithHttp } = require('./live-crawler-http-engine');
 const { generateFeedbackReport } = require('./live-crawler-report');
+const { resolveAuth, authHeadersFor, isLoginUrl } = require('./live-crawler-auth');
 
 class LiveCrawlerModule extends BaseModule {
   constructor() {
@@ -47,6 +48,24 @@ class LiveCrawlerModule extends BaseModule {
     const timeout = crawlConfig.timeout || 10000;
     const checkExternal = crawlConfig.checkExternal !== false;
     const slowThresholdMs = crawlConfig.slowThresholdMs || 2500;
+
+    const auth = resolveAuth(crawlConfig, baseUrl);
+    if (auth.storageStateMissing) {
+      result.addCheck('crawl:auth-config', false, {
+        severity: 'error',
+        message: `storageState file not found: ${auth.storageState}`,
+        suggestion: 'Export a Playwright storage state (e.g. `npx playwright codegen --save-storage=state.json <url>`) and point modules.liveCrawler.storageState / --crawl-storage-state at it.',
+      });
+    }
+    if (auth.enabled) {
+      const parts = [];
+      if (Object.keys(auth.headers).length > 0) parts.push(`${Object.keys(auth.headers).length} header(s)`);
+      if (auth.cookie) parts.push('cookie');
+      if (auth.storageState && !auth.storageStateMissing) parts.push('storage state');
+      result.addCheck('crawl:auth', true, {
+        message: `Authenticated crawl: carrying ${parts.join(' + ')} (same-origin only — never sent to external hosts)`,
+      });
+    }
 
     const collectors = {
       visited: new Set(),
@@ -77,7 +96,7 @@ class LiveCrawlerModule extends BaseModule {
     });
 
     const engineCtx = {
-      baseUrl, maxPages, timeout, checkExternal, slowThresholdMs,
+      baseUrl, maxPages, timeout, checkExternal, slowThresholdMs, auth,
       ...collectors,
     };
 
@@ -88,16 +107,17 @@ class LiveCrawlerModule extends BaseModule {
     }
 
     this._emitChecks(result, baseUrl, collectors);
+    this._emitAuthWallCheck(result, collectors, auth);
 
     if (crawlConfig.checkSitemap !== false) await this._checkAuxUrl(result, baseUrl, '/sitemap.xml', timeout,
       'crawl:sitemap-missing', 'warning', 'No /sitemap.xml found',
-      'Generate a sitemap.xml. Most frameworks have a plugin for this.');
+      'Generate a sitemap.xml. Most frameworks have a plugin for this.', auth);
     if (crawlConfig.checkRobotsTxt !== false) await this._checkAuxUrl(result, baseUrl, '/robots.txt', timeout,
       'crawl:robots-missing', 'info', 'No /robots.txt found',
-      'Add a /robots.txt even if it just says "User-agent: *\\nAllow: /" — signals intentionality.');
+      'Add a /robots.txt even if it just says "User-agent: *\\nAllow: /" — signals intentionality.', auth);
     if (crawlConfig.checkFavicon !== false) await this._checkAuxUrl(result, baseUrl, '/favicon.ico', timeout,
       'crawl:favicon-missing', 'info', 'No /favicon.ico found',
-      'Add a favicon.ico in the site root. Modern alternative: <link rel="icon" href="..."> in <head>.');
+      'Add a favicon.ico in the site root. Modern alternative: <link rel="icon" href="..."> in <head>.', auth);
 
     generateFeedbackReport(config, {
       baseUrl,
@@ -188,6 +208,33 @@ class LiveCrawlerModule extends BaseModule {
     }
   }
 
+  /**
+   * Detect the auth-wall pattern: internal pages redirecting to a login
+   * screen. Without a session this means whole authed sections (/dashboard/*)
+   * were never actually tested — the exact failure mode that makes agents
+   * bypass the crawler instead of using it.
+   */
+  _emitAuthWallCheck(result, c, auth) {
+    const loginRedirects = c.redirects.filter(r => isLoginUrl(r.to) && !isLoginUrl(r.from));
+    if (loginRedirects.length === 0) return;
+
+    if (!auth.enabled) {
+      result.addCheck('crawl:auth-wall', false, {
+        severity: 'warning',
+        message: `${loginRedirects.length} page(s) redirected to a login screen — the crawler has no session, so pages behind auth were NOT tested`,
+        details: loginRedirects.slice(0, 20),
+        suggestion: 'Give the crawler a session: --crawl-header "Authorization: Bearer $TOKEN", --crawl-cookie "session=...", or --crawl-storage-state state.json (config: modules.liveCrawler.headers / cookie / storageState; values support ${ENV_VAR}).',
+      });
+    } else {
+      result.addCheck('crawl:auth-rejected', false, {
+        severity: 'error',
+        message: `Auth was configured but ${loginRedirects.length} page(s) still redirected to a login screen — the session appears invalid or expired`,
+        details: loginRedirects.slice(0, 20),
+        suggestion: 'Refresh the token/cookie/storage state and re-run. Check the header name and cookie name match what the app expects.',
+      });
+    }
+  }
+
   _emitListCheck(result, list, key, severity, messageSuffix, suggestion) {
     if (list.length === 0) return;
     result.addCheck(key, false, {
@@ -198,10 +245,10 @@ class LiveCrawlerModule extends BaseModule {
     });
   }
 
-  async _checkAuxUrl(result, baseUrl, urlPath, timeout, key, severity, baseMessage, suggestion) {
+  async _checkAuxUrl(result, baseUrl, urlPath, timeout, key, severity, baseMessage, suggestion, auth) {
     try {
       const auxUrl = new URL(urlPath, baseUrl).href;
-      const r = await checkUrl(auxUrl, timeout);
+      const r = await checkUrl(auxUrl, timeout, authHeadersFor(auxUrl, auth));
       if (r.status >= 400) {
         result.addCheck(key, false, {
           severity,

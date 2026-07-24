@@ -6,7 +6,7 @@ const { URL } = require('url');
 
 const UA = 'GateTest/1.0 (Quality Assurance Crawler)';
 
-function fetchPage(url, timeout) {
+function fetchPage(url, timeout, extraHeaders) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
     const client = parsedUrl.protocol === 'https:' ? https : http;
@@ -14,11 +14,19 @@ function fetchPage(url, timeout) {
 
     const req = client.get(url, {
       timeout,
-      headers: { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml,*/*' },
+      headers: {
+        'User-Agent': UA,
+        'Accept': 'text/html,application/xhtml+xml,*/*',
+        ...(extraHeaders || {}),
+      },
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         const redirectUrl = new URL(res.headers.location, url).href;
-        fetchPage(redirectUrl, timeout).then(redirectResult => {
+        // Auth headers only follow a redirect that stays on the same origin —
+        // never leak session material to a third-party redirect target.
+        const redirectHeaders =
+          new URL(redirectUrl).origin === parsedUrl.origin ? extraHeaders : undefined;
+        fetchPage(redirectUrl, timeout, redirectHeaders).then(redirectResult => {
           resolve({
             ...redirectResult,
             redirected: true,
@@ -53,7 +61,7 @@ function fetchPage(url, timeout) {
   });
 }
 
-function checkUrl(url, timeout) {
+function checkUrl(url, timeout, extraHeaders) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
     const client = parsedUrl.protocol === 'https:' ? https : http;
@@ -61,7 +69,7 @@ function checkUrl(url, timeout) {
     const req = client.request(url, {
       method: 'HEAD',
       timeout,
-      headers: { 'User-Agent': UA },
+      headers: { 'User-Agent': UA, ...(extraHeaders || {}) },
     }, (res) => {
       resolve({ url, status: res.statusCode, statusText: res.statusMessage });
       res.resume();

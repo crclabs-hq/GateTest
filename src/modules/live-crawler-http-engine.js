@@ -2,6 +2,7 @@
 
 const { URL } = require('url');
 const { fetchPage, checkUrl, extractLinks, extractImages } = require('./live-crawler-http-helpers');
+const { authHeadersFor } = require('./live-crawler-auth');
 
 const ERROR_PATTERNS = [
   { regex: /application error/i, type: 'app-error' },
@@ -23,6 +24,7 @@ async function crawlWithHttp(ctx) {
     brokenScripts, brokenStylesheets,
     missingMetaDescription, missingCanonical,
     slowPages, slowThresholdMs, anchorMissingId, titlesByUrl,
+    auth,
   } = ctx;
 
   while (queue.length > 0 && visited.size < maxPages) {
@@ -31,7 +33,7 @@ async function crawlWithHttp(ctx) {
     visited.add(url);
 
     try {
-      const pageResult = await fetchPage(url, timeout);
+      const pageResult = await fetchPage(url, timeout, authHeadersFor(url, auth));
       pages.push(pageResult);
 
       if (pageResult.status >= 400) {
@@ -105,7 +107,8 @@ async function crawlWithHttp(ctx) {
       const images = extractImages(body, baseUrl, url);
       for (const imgUrl of images) {
         try {
-          const imgResult = await checkUrl(imgUrl, timeout);
+          // authHeadersFor is same-origin gated — external images get no auth
+          const imgResult = await checkUrl(imgUrl, timeout, authHeadersFor(imgUrl, auth));
           if (imgResult.status >= 400) {
             brokenImages.push({ page: url, image: imgUrl, status: imgResult.status });
           }
@@ -114,7 +117,7 @@ async function crawlWithHttp(ctx) {
         }
       }
 
-      await collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets);
+      await collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets, auth);
 
       if (checkExternal) {
         for (const link of links.external.slice(0, 20)) {
@@ -143,7 +146,7 @@ async function crawlWithHttp(ctx) {
   }
 }
 
-async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets) {
+async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets, auth) {
   const scriptRegex = /<script[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi;
   const scriptUrls = new Set();
   let scriptMatch;
@@ -155,7 +158,7 @@ async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenSty
   }
   for (const scriptUrl of scriptUrls) {
     try {
-      const r = await checkUrl(scriptUrl, timeout);
+      const r = await checkUrl(scriptUrl, timeout, authHeadersFor(scriptUrl, auth));
       if (r.status >= 400) brokenScripts.push({ page: url, script: scriptUrl, status: r.status });
     } catch {
       brokenScripts.push({ page: url, script: scriptUrl, status: 'timeout/error' });
@@ -173,7 +176,7 @@ async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenSty
   }
   for (const styleUrl of styleUrls) {
     try {
-      const r = await checkUrl(styleUrl, timeout);
+      const r = await checkUrl(styleUrl, timeout, authHeadersFor(styleUrl, auth));
       if (r.status >= 400) brokenStylesheets.push({ page: url, stylesheet: styleUrl, status: r.status });
     } catch {
       brokenStylesheets.push({ page: url, stylesheet: styleUrl, status: 'timeout/error' });

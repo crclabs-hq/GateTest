@@ -1,6 +1,7 @@
 'use strict';
 
 const { checkUrl } = require('./live-crawler-http-helpers');
+const { sameOrigin, parseCookiesForBrowser } = require('./live-crawler-auth');
 
 const RENDERED_ERROR_PATTERNS = [
   { regex: /application error/i, type: 'app-error' },
@@ -18,12 +19,36 @@ async function crawlWithBrowser(playwright, ctx) {
   const {
     baseUrl, maxPages, timeout, checkExternal,
     visited, pages, errors, brokenLinks, brokenImages, queue,
+    redirects, auth,
   } = ctx;
 
   const browser = await playwright.chromium.launch({ headless: true });
-  const context = await browser.newContext({
+  const contextOptions = {
     userAgent: 'GateTest/1.0 (Quality Assurance Browser Crawler)',
-  });
+  };
+  if (auth && auth.enabled && auth.storageState) {
+    contextOptions.storageState = auth.storageState;
+  }
+  const context = await browser.newContext(contextOptions);
+
+  if (auth && auth.enabled) {
+    if (auth.cookie) {
+      await context.addCookies(parseCookiesForBrowser(auth.cookie, baseUrl));
+    }
+    if (Object.keys(auth.headers).length > 0) {
+      // Route interception instead of setExtraHTTPHeaders: auth headers must
+      // ONLY reach the crawl target's origin, never third-party requests the
+      // page happens to make (analytics, CDNs, external links).
+      await context.route('**/*', (route) => {
+        const request = route.request();
+        if (sameOrigin(request.url(), auth.origin)) {
+          route.continue({ headers: { ...request.headers(), ...auth.headers } });
+        } else {
+          route.continue();
+        }
+      });
+    }
+  }
 
   const consoleErrors = [];
   const jsErrors = [];
@@ -50,6 +75,11 @@ async function crawlWithBrowser(playwright, ctx) {
         const status = response?.status() || 0;
         const body = await page.content();
         pages.push({ url, status, body });
+
+        const finalUrl = page.url();
+        if (redirects && finalUrl && finalUrl !== url) {
+          redirects.push({ from: url, to: finalUrl, status });
+        }
 
         if (status >= 400) {
           errors.push({ url, status, type: 'http-error', message: `HTTP ${status}` });

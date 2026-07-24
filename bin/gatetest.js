@@ -139,6 +139,13 @@ const HELP = `
     --crawl <url>      Crawl a live website and test every page
     --crawl-loop <url> Crawl, report failures, wait for fixes, repeat until clean
     --crawl-max <n>    Max pages to crawl (default: 100)
+    --crawl-header "Name: value"   Send a header on same-origin requests so the
+                       crawler can reach pages behind auth (repeatable;
+                       values support \${ENV_VAR} expansion)
+    --crawl-cookie "name=value; n2=v2"  Send session cookies (same-origin only)
+    --crawl-storage-state <file>   Playwright storage-state JSON for a fully
+                       logged-in browser crawl (export via
+                       npx playwright codegen --save-storage=state.json <url>)
     --feedback         Show the latest crawl feedback report
 
     --diagnose <url>   Full real-time diagnosis: availability, response time, cache, bottleneck, action plan
@@ -157,6 +164,8 @@ const HELP = `
     gatetest --suite quick            Fast pre-commit checks
     gatetest --server https://gatetest.ai    Scan server SSL, headers, DNS
     gatetest --crawl https://zoobicon.com   Crawl and test live site
+    gatetest --crawl https://app.example.com --crawl-cookie "session=\${SESSION}"
+                                      Authenticated crawl (reaches /dashboard/*)
     gatetest --diagnose https://mysite.com  Full real-time diagnosis + action plan
     gatetest --monitor https://mysite.com   Start continuous monitoring (60s poll)
     gatetest --monitor https://mysite.com --monitor-interval 30 --monitor-heal
@@ -403,13 +412,13 @@ async function main() {
 
   // Live site crawl
   if (args.crawl) {
-    await runCrawl(gatetest, args.crawl, args.crawlMax || 100);
+    await runCrawl(gatetest, args.crawl, args.crawlMax || 100, crawlAuthFromArgs(args));
     return;
   }
 
   // Continuous crawl-fix loop
   if (args.crawlLoop) {
-    await runCrawlLoop(gatetest, args.crawlLoop, args.crawlMax || 100);
+    await runCrawlLoop(gatetest, args.crawlLoop, args.crawlMax || 100, crawlAuthFromArgs(args));
     return;
   }
 
@@ -1002,6 +1011,9 @@ function parseArgs(argv) {
     else if (arg === '--crawl' && argv[i + 1]) args.crawl = argv[++i];
     else if (arg === '--crawl-loop' && argv[i + 1]) args.crawlLoop = argv[++i];
     else if (arg === '--crawl-max' && argv[i + 1]) args.crawlMax = parseInt(argv[++i]);
+    else if (arg === '--crawl-header' && argv[i + 1]) (args.crawlHeaders = args.crawlHeaders || []).push(argv[++i]);
+    else if (arg === '--crawl-cookie' && argv[i + 1]) args.crawlCookie = argv[++i];
+    else if (arg === '--crawl-storage-state' && argv[i + 1]) args.crawlStorageState = argv[++i];
     else if (arg === '--feedback') args.feedback = true;
     else if (arg === '--diagnose' && argv[i + 1]) args.diagnose = argv[++i];
     else if (arg === '--monitor' && argv[i + 1]) args.monitor = argv[++i];
@@ -1123,13 +1135,32 @@ function showLatestReport(projectRoot) {
   console.log('');
 }
 
-async function runCrawl(gatetest, url, maxPages) {
-  // Inject crawl URL into config
+/** Translate --crawl-header/--crawl-cookie/--crawl-storage-state into liveCrawler config. */
+function crawlAuthFromArgs(args) {
+  const auth = {};
+  if (args.crawlHeaders) {
+    auth.headers = {};
+    for (const raw of args.crawlHeaders) {
+      const sep = raw.indexOf(':');
+      if (sep > 0) auth.headers[raw.slice(0, sep).trim()] = raw.slice(sep + 1).trim();
+      else console.warn(`[GateTest] Ignoring malformed --crawl-header "${raw}" — expected "Name: value"`);
+    }
+  }
+  if (args.crawlCookie) auth.cookie = args.crawlCookie;
+  if (args.crawlStorageState) auth.storageState = args.crawlStorageState;
+  return auth;
+}
+
+async function runCrawl(gatetest, url, maxPages, authConfig = {}) {
+  // Inject crawl URL into config — merged over any .gatetest config so
+  // file-based crawl settings (headers, cookie, thresholds) still apply
   gatetest.config.config.modules.liveCrawler = {
+    ...(gatetest.config.config.modules.liveCrawler || {}),
     url,
     maxPages,
     timeout: 10000,
     checkExternal: true,
+    ...authConfig,
   };
 
   console.log(`\n[GateTest] Crawling ${url} (max ${maxPages} pages)...\n`);
@@ -1144,12 +1175,14 @@ async function runCrawl(gatetest, url, maxPages) {
   process.exit(summary.gateStatus === 'PASSED' ? 0 : 1);
 }
 
-async function runCrawlLoop(gatetest, url, maxPages) {
+async function runCrawlLoop(gatetest, url, maxPages, authConfig = {}) {
   gatetest.config.config.modules.liveCrawler = {
+    ...(gatetest.config.config.modules.liveCrawler || {}),
     url,
     maxPages,
     timeout: 10000,
     checkExternal: true,
+    ...authConfig,
   };
 
   let round = 1;
