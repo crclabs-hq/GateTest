@@ -1,0 +1,109 @@
+{
+  "generatedAt": "2026-08-04T05:47:40.990Z",
+  "inputs": {
+    "sessionFixCount": 103,
+    "fixAttemptCount": 0,
+    "mcpEventCount": 0
+  },
+  "topModulesByFixCount": [
+    {
+      "module": "ci",
+      "count": 13
+    },
+    {
+      "module": "website",
+      "count": 5
+    },
+    {
+      "module": "mcp",
+      "count": 5
+    },
+    {
+      "module": "security",
+      "count": 5
+    },
+    {
+      "module": "launch",
+      "count": 5
+    },
+    {
+      "module": "engine",
+      "count": 4
+    },
+    {
+      "module": "cli",
+      "count": 3
+    },
+    {
+      "module": "confidence",
+      "count": 3
+    },
+    {
+      "module": "modules",
+      "count": 3
+    },
+    {
+      "module": "audit",
+      "count": 3
+    }
+  ],
+  "topRuleKeysByAttempts": [],
+  "recurringSubjects": [],
+  "underTestedModules": [],
+  "layerStats": {
+    "layers": {
+      "ast": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "rule": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "recipe": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "claude": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "null": {
+        "attempts": 0,
+        "successes": 0
+      }
+    },
+    "total": 0,
+    "claudeShare": 0,
+    "deterministicShare": 0
+  },
+  "mcpUsage": {
+    "totalCalls": 0,
+    "tools": [],
+    "neverCalled": [
+      "scan_local",
+      "scan_url",
+      "check_health",
+      "list_modules",
+      "get_badge"
+    ],
+    "highFailTools": []
+  },
+  "recommendations": [
+    {
+      "kind": "investigate-module",
+      "module": "ci",
+      "reason": "13 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "website",
+      "reason": "5 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "mcp",
+      "reason": "5 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    }
+  ]
+}

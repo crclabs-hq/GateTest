@@ -1,0 +1,261 @@
+{
+  "generatedAt": "2026-08-04T05:48:01.249Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 15,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 12,
+      "SonarQube": 1,
+      "Semgrep": 0,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 1,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49164600",
+        "author": "snakeboy",
+        "type": "comment",
+        "title": null,
+        "text": "Bad economic policy is subtly \"evil\", by way of allocating finite resources inefficiently. Usually this is unintentionally done by not appropriately taking second, third, ..., nth order effects into account.",
+        "url": "https://news.ycombinator.com/item?id=49164600",
+        "points": null,
+        "numComments": null,
+        "storyId": 49157930,
+        "createdAt": "2026-08-04T05:21:04Z",
+        "createdAtUnix": 1785820864,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49163386",
+        "author": "defrost",
+        "type": "story",
+        "title": "Snakes aren't simple tubes. Their bodies have 5 regions, including a short neck",
+        "text": "Snakes aren't simple tubes. Their bodies have 5 regions, including a short neck",
+        "url": "https://theconversation.com/snakes-arent-simple-tubes-their-bodies-have-five-regions-including-a-short-neck-288904",
+        "points": 3,
+        "numComments": 0,
+        "storyId": 49163386,
+        "createdAt": "2026-08-04T01:23:55Z",
+        "createdAtUnix": 1785806635,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49159656",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "> There are a lot of things that are bugs, but cannot be exploited in a standard configurationAnd this describes the vast majority of CVEs you see when you scan your dependencies. Typical case: Your regex library has a denial of service vulnerability for crafted regular expressions but your program never allows users to have any influence over the regex.",
+        "url": "https://news.ycombinator.com/item?id=49159656",
+        "points": null,
+        "numComments": null,
+        "storyId": 49154332,
+        "createdAt": "2026-08-03T18:30:00Z",
+        "createdAtUnix": 1785781800,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49158014",
+        "author": "nerdsniper",
+        "type": "comment",
+        "title": null,
+        "text": "Why should I put any stock in what some snake oil \"AI detector\" says?",
+        "url": "https://news.ycombinator.com/item?id=49158014",
+        "points": null,
+        "numComments": null,
+        "storyId": 49157128,
+        "createdAt": "2026-08-03T16:33:00Z",
+        "createdAtUnix": 1785774780,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49157997",
+        "author": "BenceRed",
+        "type": "story",
+        "title": "Launch HN: Hoplite (YC S26) – Effortlessly deploy cloud coding agents",
+        "text": "Hi HN, we’re Bence and Ryan, founders of Hoplite (https:&#x2F;&#x2F;hoplite.sh). Hoplite lets you deploy coding agents in the cloud, with a suite of tools that makes it incredibly easy to QA features. During onboarding, we port over your local setup - sessions, memories, MCP servers, and get your projects ready to run in the cloud.Here’s a demo: https:&#x2F;&#x2F;youtu.be&#x2F;bnyktZ_9pjEWe got here after pivoting away from the idea we applied to YC with; AI for retail investing. It ultimately wasn’t a product that we ourselves would use, nor served a customer base that we felt connected to. In reflecting on what we really wanted to do, we realised that we loved talking to founders and developers, and were really opinionated about the specific area of cloud agents. We tried out all the existing solutions, and didn’t find one that A) took good advantage of being in the cloud, and B) was performant and felt good to use.We’re building a product that we feel reflects what mainstream development will look like in 6-12 months. As models improve, developers will end up reviewing less and less code, and will instead focus on reviewing the product output. That means evaluating new user flows, visually verifying that new features look good, that the API works as expected, that the CLI works on Windows, etc. And doing it while running hundreds of agents concurrently.On the agent side, we’ve created a custom harness. We spent a lot of time deciding on whether we should use an off the shelf solution like Codex&#x2F;Claude Code, but ultimately wanted the independence and freedom that came with building it in house. It also means that we can test out completely new features without relying on Anthropic and OpenAI to catch up.Everything is hosted on AWS, with the exception of: Temporal for durable workflows, Modal for sandboxes, and Planetscale for our database. Our infra decisions were driven by a strong belief that agents are becoming a tier 0 piece of infrastructure, and they need the reliability and security to match that.You can try it now for free with the code ‘HACKERNEWS’ - we’ve included $100 in free credits, plus you can connect your Codex subscription and use OpenAI models via it. You can see some more details around our pricing at https:&#x2F;&#x2F;hoplite.sh&#x2F;pricing.At the moment we’re focusing on optimising two key experiences: onboarding and previews, and would love to hear your feedback on them. And if you find that the agent's performance in certain tasks doesn’t match your expectations, please let us know!",
+        "url": "https://hoplite.sh",
+        "points": 65,
+        "numComments": 51,
+        "storyId": 49157997,
+        "createdAt": "2026-08-03T16:32:06Z",
+        "createdAtUnix": 1785774726,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49155891",
+        "author": "javcasas",
+        "type": "comment",
+        "title": null,
+        "text": "Snyk routinely tells us that we need to upgrade urgently because they found a vulnerability in the Windows version of a package. We run everything in Linux.",
+        "url": "https://news.ycombinator.com/item?id=49155891",
+        "points": null,
+        "numComments": null,
+        "storyId": 49154332,
+        "createdAt": "2026-08-03T13:58:11Z",
+        "createdAtUnix": 1785765491,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49155589",
+        "author": "jodacola",
+        "type": "comment",
+        "title": null,
+        "text": "I'm sending all my condolences out to everyone who is in a corporate environment using tools like Veracode or Snyk to automatically assess for CVEs and block merges or deployments based on \"findings\".My experience in such environments leads me to believe this is going to be a rough ride for those heavily locked-down enterprises, because depending on the environment, an exception of \"this CVE was hallucinated by AI\" is probably going to be difficult to get accepted, and when it does, starts to become its own avenue for exploitation and adds even more noise and confusion to the mix.",
+        "url": "https://news.ycombinator.com/item?id=49155589",
+        "points": null,
+        "numComments": null,
+        "storyId": 49154332,
+        "createdAt": "2026-08-03T13:31:31Z",
+        "createdAtUnix": 1785763891,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49155423",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "Of course you learn more if you retype material than if you do nothing, but it's still a waste of time, comparatively speaking, because there are much better ways of engaging with the material like solving practice problems.Having to spend 95% of the time taking notes of things that could be distributed in a PDF has only ever hindered me academically. It's mechanical and boring, my mind tunes out and I get nothing out of it.",
+        "url": "https://news.ycombinator.com/item?id=49155423",
+        "points": null,
+        "numComments": null,
+        "storyId": 49153374,
+        "createdAt": "2026-08-03T13:18:36Z",
+        "createdAtUnix": 1785763116,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49155386",
+        "author": "Forgeties79",
+        "type": "comment",
+        "title": null,
+        "text": "Look man I am incredibly skeptical of how LLM’s have been rolled out and all the promises people make (it’s so much snake oil and pipedreams), but I also found it very trivial to hop on LM studio and start tinkering with models. If you’ve already got a decent midtier computer on hand, which I imagine a lot of us already do, then it’s really not hard to get started and get immediate results.",
+        "url": "https://news.ycombinator.com/item?id=49155386",
+        "points": null,
+        "numComments": null,
+        "storyId": 49150470,
+        "createdAt": "2026-08-03T13:15:48Z",
+        "createdAtUnix": 1785762948,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49155115",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "Steps to patch a hallucinated CVE: git stash -m \"sigh\" git commit --allow-empty -m \"Patch: CVE-2026-51302\" git stash pop",
+        "url": "https://news.ycombinator.com/item?id=49155115",
+        "points": null,
+        "numComments": null,
+        "storyId": 49154332,
+        "createdAt": "2026-08-03T12:52:00Z",
+        "createdAtUnix": 1785761520,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49154773",
+        "author": "pliny",
+        "type": "comment",
+        "title": null,
+        "text": ">Returns like that are not asymmetrical and can only be produced with leverage, at least when you're trading paper.Definitely not true, looking at their last 13f (filed in may 2026) their top3 holdings were BE, SNDK and CRWV which had 1y returns of 1,500%, 2,000% and 500% at the time of the filing. They accounted together for 15% of the fund (plus an unknown amount of exposure through options). These tickers show up in the 2 and 3 previous filings so they had exposure to some of that run up, and looking at the filings further back they had some very concentrated exposure to INTC in a half year period where the stock went up about 200%",
+        "url": "https://news.ycombinator.com/item?id=49154773",
+        "points": null,
+        "numComments": null,
+        "storyId": 49151871,
+        "createdAt": "2026-08-03T12:19:25Z",
+        "createdAtUnix": 1785759565,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49151716",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "I've run out of patience because it's always the same bad faith arguments, and because you feel entitled to tell other people what to do with their own bodies.https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=49147339",
+        "url": "https://news.ycombinator.com/item?id=49151716",
+        "points": null,
+        "numComments": null,
+        "storyId": 49139052,
+        "createdAt": "2026-08-03T05:57:46Z",
+        "createdAtUnix": 1785736666,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [
+      {
+        "objectId": "49163771",
+        "author": "ricky86",
+        "type": "comment",
+        "title": null,
+        "text": "Location: IndonesiaRemote: YesWilling to relocate: NoResume: https:&#x2F;&#x2F;drive.google.com&#x2F;file&#x2F;d&#x2F;1RZRRkR3Qafo_g1HM6_QjtAwoEo4...Email: riq.ricky@gmail.comTechnologies:*Backend: Spring Boot, Node.js.*Frontend: Angular, React.*Middleware: Keycloak, Artemis, RabbitMQ, Kafka, Flowable, Redis, ELK Stack, S3 MinIO, Drools, SonarQube, Apache Camel.*Devops: Docker, Jenkins. \\n*Database: RDBMS (PostgresSql, MsSQL), NoSQL (MongoDb).*Monitoring: OpenTelemetry, ElasticAPM, Grafana.*Cloud: Openshift",
+        "url": "https://news.ycombinator.com/item?id=49163771",
+        "points": null,
+        "numComments": null,
+        "storyId": 49156682,
+        "createdAt": "2026-08-04T02:29:38Z",
+        "createdAtUnix": 1785810578,
+        "intent": "neutral"
+      }
+    ],
+    "Semgrep": [],
+    "CodeQL": [
+      {
+        "objectId": "49159174",
+        "author": "simonpure",
+        "type": "story",
+        "title": "Codexloom: Turn Codex threads into an organization of long-lived domain agents",
+        "text": "Codexloom: Turn Codex threads into an organization of long-lived domain agents",
+        "url": "https://github.com/yan5xu/codexloom",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 49159174,
+        "createdAt": "2026-08-03T17:51:57Z",
+        "createdAtUnix": 1785779517,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [
+      {
+        "objectId": "49155589",
+        "author": "jodacola",
+        "type": "comment",
+        "title": null,
+        "text": "I'm sending all my condolences out to everyone who is in a corporate environment using tools like Veracode or Snyk to automatically assess for CVEs and block merges or deployments based on \"findings\".My experience in such environments leads me to believe this is going to be a rough ride for those heavily locked-down enterprises, because depending on the environment, an exception of \"this CVE was hallucinated by AI\" is probably going to be difficult to get accepted, and when it does, starts to become its own avenue for exploitation and adds even more noise and confusion to the mix.",
+        "url": "https://news.ycombinator.com/item?id=49155589",
+        "points": null,
+        "numComments": null,
+        "storyId": 49154332,
+        "createdAt": "2026-08-03T13:31:31Z",
+        "createdAtUnix": 1785763891,
+        "intent": "neutral"
+      }
+    ],
+    "Checkmarx": [
+      {
+        "objectId": "49161264",
+        "author": "jknoepfler",
+        "type": "comment",
+        "title": null,
+        "text": "I'm 100% confident it's real but I have no expertise on the subject. Checkmate, Atheists.",
+        "url": "https://news.ycombinator.com/item?id=49161264",
+        "points": null,
+        "numComments": null,
+        "storyId": 49160437,
+        "createdAt": "2026-08-03T20:51:43Z",
+        "createdAtUnix": 1785790303,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
