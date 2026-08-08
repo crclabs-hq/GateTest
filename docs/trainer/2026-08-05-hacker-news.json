@@ -1,0 +1,163 @@
+{
+  "generatedAt": "2026-08-05T05:47:02.952Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 9,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 4,
+      "SonarQube": 1,
+      "Semgrep": 1,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 2
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49178273",
+        "author": "snikolaev",
+        "type": "story",
+        "title": "How to secure Manticore Search with built-in authentication and authorization",
+        "text": "How to secure Manticore Search with built-in authentication and authorization",
+        "url": "https://medium.com/@s_nikolaev/how-to-secure-manticore-search-with-built-in-authentication-and-authorization-6bc8b35ab48e",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 49178273,
+        "createdAt": "2026-08-05T03:28:18Z",
+        "createdAtUnix": 1785900498,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49173557",
+        "author": "gamerdonkey",
+        "type": "comment",
+        "title": null,
+        "text": "This is mentioned in the article when discussing a player that found the optimum route:> Sarah also did something that appeared a bit unnatural. Instead of simply continuing straight a few times, she intuitively and preemptively turned in a snake-like pattern. This highlighted a key difference between real-life mowing and our simplified game, an approach that strong mowers exploited. Sarah, an avid gamer, seemed to recognize this strategy immediately.",
+        "url": "https://news.ycombinator.com/item?id=49173557",
+        "points": null,
+        "numComments": null,
+        "storyId": 49172550,
+        "createdAt": "2026-08-04T19:17:47Z",
+        "createdAtUnix": 1785871067,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49173337",
+        "author": "dgently7",
+        "type": "comment",
+        "title": null,
+        "text": "have to say i really enjoyed how this was presented.no comment on the results or the premise of are people good at mowing or just good at playing \"snake\"i would be very curious to see if this same result held up when you also factor things like turn effort or \"prioritize the longest straight lines bc they look cool\"",
+        "url": "https://news.ycombinator.com/item?id=49173337",
+        "points": null,
+        "numComments": null,
+        "storyId": 49172550,
+        "createdAt": "2026-08-04T19:02:30Z",
+        "createdAtUnix": 1785870150,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49165080",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "> Over the last few years insurers have aggressively been adding \"no vulnerability patch, no claim\" exclusion clauses.If you take an even closer look- what exactly does that mean?It should stipulate patching real vulnerabilities in your system and not \"all CVEs in all dependencies irrespective of their usage or applicability to your system\", that's madness. It's like voiding your health insurance policy because a smoker moved in across the street.Most vulnerabilities in your dependencies don't become vulnerabilities in your system, and most vulnerabilities in your system (probably) don't originate from your dependencies.",
+        "url": "https://news.ycombinator.com/item?id=49165080",
+        "points": null,
+        "numComments": null,
+        "storyId": 49154332,
+        "createdAt": "2026-08-04T06:47:00Z",
+        "createdAtUnix": 1785826020,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [
+      {
+        "objectId": "49165956",
+        "author": "zs1m",
+        "type": "comment",
+        "title": null,
+        "text": "Location: Nanjing, ChinaRemote: Yes, actively seeking overseas remote rolesWilling to relocate: Yes, for the right opportunityTechnologies: React 19, TypeScript, Vite, TailwindCSS, Zustand, TanStack Query, React Router, shadcn&#x2F;ui, SSE&#x2F;streaming UI, Vue 2&#x2F;3, Angular (migration), Three.js&#x2F;React Three Fiber, Echarts, AntV G6, Grafana plugin dev, i18n, SonarQube + Jenkins CIRésumé&#x2F;CV: https:&#x2F;&#x2F;contrails.space&#x2F;en (blog) | https:&#x2F;&#x2F;github.com&#x2F;zS1mEmail: mail@contrails.space5+ years of frontend engineering, most recently focused on AI&#x2F;Agent product frontends. At my current company I'm one of the earliest engineers on a digital-twin + AI life-sciences platform, owning the frontend from scratch: React 19 + Vite + TailwindCSS, SSE-based streaming chat, agent \"thinking process\" visualization, tool-call rendering, and markdown rendering — took it from 0 through PoC&#x2F;demo to an internal beta in about 3 months.Before that, 4.5 years at a large telecom company building B2B enterprise platforms (video terminal management, cloud-PC&#x2F;VDI monitoring, network device management). Highlights:- Two full framework migrations: Angular 9 → Vue2, then Vue2 → Vue3, including iframe-based micro-frontend dual-stack coexistence while de-risking heavily coupled legacy code - Sole frontend owner on a cloud-PC operations&#x2F;monitoring platform: built the entire Vue2 foundation (routing, permissions, i18n, component library) from zero, plus a JSON-config-driven reporting system covering 15–20+ reports with zero-code extensibility - Data visualization: Echarts monitoring dashboards, AntV G6 network topology, responsive big-screen layouts across varied hardware - Shipped a company-wide CI&#x2F;code-quality dashboard (SonarQube + Jenkins) used by 100+ teams, earned the top performance rating and a promotion for it - Backfilled a Grafana plugin (custom Echarts flow visualization) after self-teaching React under deadline pressureComfortable owning frontend architecture end-to-end: from tooling&#x2F;framework selection to shipping. I've been practicing AI-assisted development since ChatGPT's early days, using Cursor &#x2F; Claude Code daily inside a disciplined spec-driven workflow (SDD + OpenSpec), treating AI as leverage for velocity, not a substitute for engineering judgment.Open to full-time remote roles; willing to relocate for the right team.",
+        "url": "https://news.ycombinator.com/item?id=49165956",
+        "points": null,
+        "numComments": null,
+        "storyId": 49156682,
+        "createdAt": "2026-08-04T08:55:03Z",
+        "createdAtUnix": 1785833703,
+        "intent": "neutral"
+      }
+    ],
+    "Semgrep": [
+      {
+        "objectId": "49165025",
+        "author": "stndef",
+        "type": "comment",
+        "title": null,
+        "text": "It's been a while, but at a previous job (maybe 8 years ago) I was responsible for managing mobile devices and using Blackberry's MDM suite, you could have segregation of personal and private data, where you couldn't move data from one \"container\" to the other, including clipboard data.I'm out of the loop now, though.Android did have better support at the time, but if I remember correctly, devices that had a work managed profile on them could still be completely wiped, including the personal&#x2F;private container.A bit of a pain, but I've always preferred (where possible) to have separate work and personal devices.",
+        "url": "https://news.ycombinator.com/item?id=49165025",
+        "points": null,
+        "numComments": null,
+        "storyId": 49164649,
+        "createdAt": "2026-08-04T06:38:23Z",
+        "createdAtUnix": 1785825503,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "49169280",
+        "author": "hajipour",
+        "type": "story",
+        "title": "Show HN: Guide AI coding agents on how to use libraries securely",
+        "text": "Hi HN,TL;DR: AI Code Security Cards give coding agents library- and version-specific guidance to generate safer code.AI coding agents can generate working code, but they often lack library- and version-specific security knowledge. We've developed AI Code Security Cards, an open-source security knowledge layer, to provide that missing context.The project is related to my PhD, in which I focused on the security of LLM-generated code. During my research, I studied how code generation models behave, how they introduce security issues, and how we can guide them toward generating safer code.My research [1] and several other studies [2–4] show that at least 40% of code generated by state-of-the-art models contains one or more security issues. Similar problems also affect AI coding agents.One reason is that these models often lack sufficient library-specific security knowledge in their context. They may not know which configurations are unsafe, which validation steps are required, or what security-related behavior has changed between library versions.AI Code Security Cards provide practical, version-specific security guidance for open-source libraries. For example, the Django security cards can guide an AI agent on how to implement authentication and authorization securely.The easiest way to use the cards is to install the AI skill provided in the repository (And in the integration page: https:&#x2F;&#x2F;securitycards.rewarelabs.com&#x2F;integration&#x2F;). You can also download them and add them directly to your AI agent’s rules or instructions.We’d be glad to hear your feedback, especially on where these cards would be most useful in your workflow, which libraries we should support next, and whether you’ve encountered similar security issues caused by missing context.Website: https:&#x2F;&#x2F;securitycards.rewarelabs.com&#x2F;GitHub Repository: https:&#x2F;&#x2F;github.com&#x2F;Reware-Labs&#x2F;securitycardsReferences[1] Hajipour, Hossein, et al. “CodeLMSec Benchmark: Systematically Evaluating and Finding Security Vulnerabilities in Black-Box Code Language Models.” 2024 IEEE Conference on Secure and Trustworthy Machine Learning (SaTML), IEEE, 2024, pp. 684–709. https:&#x2F;&#x2F;doi.org&#x2F;10.1109&#x2F;SaTML59370.2024.00040.[2] Pearce, Hammond, et al. “Asleep at the Keyboard? Assessing the Security of GitHub Copilot’s Code Contributions.” Communications of the ACM, vol. 68, no. 2, 2025, pp. 96–105. https:&#x2F;&#x2F;doi.org&#x2F;10.1145&#x2F;3610721.[3] Vero, Mark, et al. “BaxBench: Can LLMs Generate Correct and Secure Backends?” arXiv, 2025, https:&#x2F;&#x2F;doi.org&#x2F;10.48550&#x2F;arXiv.2502.11844.[4] von Arx, Tobias, et al. “AutoBaxBuilder: Bootstrapping Code Security Benchmarking.” arXiv, 2025, https:&#x2F;&#x2F;doi.org&#x2F;10.48550&#x2F;arXiv.2512.21132.",
+        "url": "https://github.com/Reware-Labs/securitycards",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 49169280,
+        "createdAt": "2026-08-04T14:12:10Z",
+        "createdAtUnix": 1785852730,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "49171991",
+        "author": "zshrdlu",
+        "type": "comment",
+        "title": null,
+        "text": "Checkmate of a move asking for the passport along with the resume. The latter should stand in for the former before an offer is made.",
+        "url": "https://news.ycombinator.com/item?id=49171991",
+        "points": null,
+        "numComments": null,
+        "storyId": 49156683,
+        "createdAt": "2026-08-04T17:24:33Z",
+        "createdAtUnix": 1785864273,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49168962",
+        "author": "EPWN3D",
+        "type": "comment",
+        "title": null,
+        "text": "It's kind of how stupid people think the law works. \"The cop misspelled my last name on the ticket your honor, so I don't have to pay it, checkmate!\"",
+        "url": "https://news.ycombinator.com/item?id=49168962",
+        "points": null,
+        "numComments": null,
+        "storyId": 49164649,
+        "createdAt": "2026-08-04T13:48:09Z",
+        "createdAtUnix": 1785851289,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
