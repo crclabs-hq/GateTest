@@ -1,0 +1,229 @@
+{
+  "generatedAt": "2026-08-21T03:50:57.548Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 13,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 11,
+      "SonarQube": 0,
+      "Semgrep": 0,
+      "CodeQL": 0,
+      "DeepSource": 0,
+      "Codacy": 1,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 1
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49383246",
+        "author": "hinkley",
+        "type": "comment",
+        "title": null,
+        "text": "For resolution of a problem you can’t prevent categorically, you have to spend a good bit of time pretending to be the computer before you can trust the computer to do it. A run book is a draft of a requirements doc for a program to do the same thing. And you can’t afford to test that program in production without loads of simulations first. And that’s running the process manually and checking aggressively for any signs of problems.Some coworkers snaked the autoscaling work out from under me, and then ignored the advice I offered on low water marks and weeks of testing and rehearsals. All I can figure about their irrational exhuberence is something to do with claiming something for annual reviews? All I do know is we didn’t make it 40 hours from when they flipped it on until we had our worst outage in two years. Classic FAFO.They were hoping to eventually get to a low water mark of just over 30% of our static cluster size, and they decided to use that for their initial go instead of my estimate of 40% being the low, and a recommendation that they start with 50-60% for the initial weeks and then ramp it down. When I refused to let it go in the status meeting, the team decided we should vote on it. Two guesses how that went.A bug in the deployment logic the Ops team had for doing things like upgrading VMs caused the next update during daylight hours to spin up the new instances at the minimum cluster size, instead of the current cluster size. It was done outside peek hours but that still had us cut over with just under half of the hardware we needed at that moment. Because we were in such a fucking hurry to be something like third in line to use the new autoscaling support, nobody else had run into this problem yet (or system did a pretty good job of buffering everyone else).A couple weeks later they’d looked at the stats and decided that we were spending less than a half hour a day running at the low water mark, and the additional shutdowns were causing churn that made it harder for us to detect problems like memory leaks. Surprise, surprise, they increased the min cluster size to exactly what I’d told them two weeks before.Since “listen to me” isn’t a lesson that transfers to other teams, I will instead say, don’t transfer initiatives to a new team when there is less than 10% of the project left. The lack of friction you encounter may result in a lack of respect for the danger, and attention to potential problems. And if you must transfer, if your ideas about rollout timeline end up being less conservative than theirs, be patient and do it the slow way. They probably have encountered problems you haven’t seen yet.",
+        "url": "https://news.ycombinator.com/item?id=49383246",
+        "points": null,
+        "numComments": null,
+        "storyId": 49378957,
+        "createdAt": "2026-08-21T03:04:39Z",
+        "createdAtUnix": 1787281479,
+        "intent": "bug"
+      },
+      {
+        "objectId": "49379747",
+        "author": "Tadpole9181",
+        "type": "comment",
+        "title": null,
+        "text": "I also think it's important to distinguish selling out from participating in culture and making things people may enjoy. The pendulum often swings between extremes before settling on reasonable middle ground.Having fun colors for one of the world's most popular cookie brands is pretty low on the scale of harm compared to, say, actively promoting people to go use online gambling services or buy snakeoil supplements.",
+        "url": "https://news.ycombinator.com/item?id=49379747",
+        "points": null,
+        "numComments": null,
+        "storyId": 49379253,
+        "createdAt": "2026-08-20T20:23:30Z",
+        "createdAtUnix": 1787257410,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49378773",
+        "author": "lbeurerkellner",
+        "type": "story",
+        "title": "How We Evaluate Model Risk",
+        "text": "How We Evaluate Model Risk",
+        "url": "https://research.snyk.io/blog/model-risk/",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 49378773,
+        "createdAt": "2026-08-20T19:06:07Z",
+        "createdAtUnix": 1787252767,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49378311",
+        "author": "yawpitch",
+        "type": "comment",
+        "title": null,
+        "text": "> Those species do not care about ethics. Our discussion started from ethics, which is uniquely human. We are not discussing if a behavior occurs in nature. We are discussing if that behavior is ethical for humans.Those species also don’t care if they’re domesticated or enslaved. The cow doesn’t care if it’s milked, so long as it’s done gently, indeed it seemingly enjoys it and will avidly seek out a milker. The cow doesn’t care if any excess of milk surplus to its calf’s requirements is taken from it, indeed it will loudly call for it to be taken. The cow doesn’t care about consent, or the fact it hasn’t given it (and can’t)… the cow cares only for ample water, some salt, good grass, a warm and dry place to sleep, a minimum number of flies, an occasional burp, someone to remove the pies that keep piling up everywhere, and nothing nearby with claws or teeth. If its “enslaver” provides all of that, the cow wouldn’t (and couldn’t) consider itself “enslaved”.Is it ethical for a human to consume the meat of a cow? Sure… right up until that human seriously engages with ethics. Is it ethical for them to continue to treat as domesticated a species that has adapted to that domestication? Yes, or that species will suffer an environment it’s no longer adapted for. Is it more ethical to do so without consuming the animal’s meat? Sure, or at least until after that animal’s natural death. Is it more ethical to do so without consuming the animal’s milk? No, not inherently, because the cow does not have to suffer for that milk. If I have a cow and I care for that cow and that cow wants rid of some excess milk and I rid it of that milk in a caring way then there’s no cognizable ethical reason for me to not consume the resulting milk, any more than it would be unethical of me to eat the cast off skin of a snake or unfertilized eggs in an abandoned nest or apples fallen from the tree. Is it more ethical of me to consume only the dairy I know was sourced in an ethical manner? Of course. Should we move towards an entirely symbiotic relationship with the species we’ve domesticated? One that isn’t parasitic? Absolutely, and we certainly should… and the further the degree to which we do the less we can cast that symbiosis as slavery and still sound reasonable.One hopes the decorator crab and the anemone evolve towards that mutually-aiding symbiosis as well; and one hopes if the former ever evolves to consider ethics it then walks a long road towards expanding its circle of empathy to the point where it considers caring for the weird little death-dealing hairball on its claws. But where it discovers said hairballs have been evolved to suit those claws it shouldn’t feel particularly guilty for benefitting from the symbiosis that has now attained.",
+        "url": "https://news.ycombinator.com/item?id=49378311",
+        "points": null,
+        "numComments": null,
+        "storyId": 49353221,
+        "createdAt": "2026-08-20T18:25:55Z",
+        "createdAtUnix": 1787250355,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49378305",
+        "author": "brandonpayton",
+        "type": "story",
+        "title": "Show HN: Kandelo – a POSIX-compatible multi-process WASM kernel for the browser",
+        "text": "Kandelo is an open-source, Wasm-based multi-process kernel that runs POSIX programs in browsers and Node.js.Kandelo is still experimental, but it already runs a substantial range of existing software.Do you have use cases for this?We are trying Kandelo as a new foundation for WordPress Playground which runs server-side WordPress entirely in the browser. Kandelo also looks promising as a sandbox for running agents in the the browser and on the command line. On the side, we've been playing with porting games and desktop environments and even compiling runnable programs within Kandelo.Yet it feels like there are many possibilities we haven't considered.How would you like to use something like this?Demos:Some notes: The demos have been tested in desktop browsers. Unfortunately, YMMV on mobile today. Some of the disk images are large (~50MB) and may take a while to boot initially.Main set, with Shell (bash, vim, nethack, and more), Nginx, PHP, WordPress, and Doom: https:&#x2F;&#x2F;kandelo.dev&#x2F;20260819-demo&#x2F;LÖVE game engine: https:&#x2F;&#x2F;kandelo.dev&#x2F;20260819-demo-love&#x2F;SNKRX running under LÖVE: https:&#x2F;&#x2F;kandelo.dev&#x2F;20260819-demo-love&#x2F;?vfs=love-snkrx-abi44...Commander Keen running in DOSBox: https:&#x2F;&#x2F;kandelo.dev&#x2F;20260819-demo-dos&#x2F;?demo=keenLXDE desktop PoC: https:&#x2F;&#x2F;kandelo.dev&#x2F;20260819-demo-lxde&#x2F;?demo=desktop-lxdeBackgroundI wanted an authentic OS-level foundation for running systems software in the browser and started this as a vibe-coded exploration. I figured it would end up being too slow and that we would have to offer many different ways to compromise default POSIX behavior to get anything usable. But after weeks of fighting agents, insisting on genuine POSIX compatibility as the default, I was surprised at how well the system worked without those compromises.Nginx, PHP, Python, Ruby, Redis, and even MariaDB were able to be built using the SDK with minimal hacks.Then we started porting games, having fun, and playing to see how far we could push it.Notes on architecture:There is a central, single-worker kernel, aiming to provide all supportable POSIX syscalls. Each process is a dedicated worker with independent memory. Each process thread is a dedicated worker that shares memory with threads from the same process. Syscalls are done with the process SharedArrayBuffer and the Atomics API. fork() is supported. The system is centered around virtual file system (VFS) images, and the VFS can contain lazy references to programs that may or may not be used. Vim is such a reference in the shell demo.On GitHub: https:&#x2F;&#x2F;github.com&#x2F;Automattic&#x2F;kandelo",
+        "url": "https://kandelo.dev/20260819-demo/",
+        "points": 9,
+        "numComments": 10,
+        "storyId": 49378305,
+        "createdAt": "2026-08-20T18:25:30Z",
+        "createdAtUnix": 1787250330,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49377602",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "\"Understanding\" someone else's solution is not comparable to solving it on your own, even if you can answer some questions about it. It builds extremely fragile surface-level understanding.That struggle and repeated failure before finally connecting the dots on your own is how you build intuition and deep understanding.",
+        "url": "https://news.ycombinator.com/item?id=49377602",
+        "points": null,
+        "numComments": null,
+        "storyId": 49373269,
+        "createdAt": "2026-08-20T17:29:10Z",
+        "createdAtUnix": 1787246950,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49377415",
+        "author": "fmbb",
+        "type": "comment",
+        "title": null,
+        "text": "Snake oil salesmen of all kinds make money all the time.What does that have to do with providing value?",
+        "url": "https://news.ycombinator.com/item?id=49377415",
+        "points": null,
+        "numComments": null,
+        "storyId": 49351324,
+        "createdAt": "2026-08-20T17:14:56Z",
+        "createdAtUnix": 1787246096,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49377261",
+        "author": "ydat",
+        "type": "comment",
+        "title": null,
+        "text": "> Anthropic started out as the \"safe\", \"ethical\" and \"computer science elite\" type personality facade but after that stopped working (i.e., they were booted out of the US gov), they went full enshittification.Wow you mean the things that keeps happening happened again? Eventually we’ll have to learn to recognize and stomp out the snakes.",
+        "url": "https://news.ycombinator.com/item?id=49377261",
+        "points": null,
+        "numComments": null,
+        "storyId": 49367350,
+        "createdAt": "2026-08-20T17:01:51Z",
+        "createdAtUnix": 1787245311,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49375590",
+        "author": "snaking0776",
+        "type": "comment",
+        "title": null,
+        "text": "While it would be insane to get a PhD if you had to pay for it, at least in the US you are paid a stipend (if not a good one) so you can generally avoid any debt. There is definitely an opportunity cost though.",
+        "url": "https://news.ycombinator.com/item?id=49375590",
+        "points": null,
+        "numComments": null,
+        "storyId": 49374437,
+        "createdAt": "2026-08-20T14:59:18Z",
+        "createdAtUnix": 1787237958,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49374743",
+        "author": "nyku",
+        "type": "story",
+        "title": "'Not a theoretical risk,' feds warn as attackers use AI-made code",
+        "text": "'Not a theoretical risk,' feds warn as attackers use AI-made code",
+        "url": "https://www.theregister.com/security/2026/08/19/not-a-theoretical-risk-feds-warn-as-attackers-use-ai-made-code-to-hack-critical-infrastructure-controllers/5289960",
+        "points": 4,
+        "numComments": 0,
+        "storyId": 49374743,
+        "createdAt": "2026-08-20T14:05:13Z",
+        "createdAtUnix": 1787234713,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49370700",
+        "author": "solid_snake",
+        "type": "comment",
+        "title": null,
+        "text": "Don Draper of LLMs",
+        "url": "https://news.ycombinator.com/item?id=49370700",
+        "points": null,
+        "numComments": null,
+        "storyId": 49348189,
+        "createdAt": "2026-08-20T05:29:58Z",
+        "createdAtUnix": 1787203798,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [],
+    "CodeQL": [],
+    "DeepSource": [],
+    "Codacy": [
+      {
+        "objectId": "49380605",
+        "author": "ARayOutOfBounds",
+        "type": "story",
+        "title": "Show HN: Let your coding agents set up your test coverage",
+        "text": "Show HN: Let your coding agents set up your test coverage",
+        "url": "https://blog.codacy.com/introducing-codacy-skills-part-3-let-your-agent-set-up-test-coverage",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 49380605,
+        "createdAt": "2026-08-20T21:36:44Z",
+        "createdAtUnix": 1787261804,
+        "intent": "neutral"
+      }
+    ],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "49382897",
+        "author": "brailsafe",
+        "type": "comment",
+        "title": null,
+        "text": "I am now and have in the past been in this sort of position, albeit not with an existing completed degree under my belt, just a simple one-year continuing-ed diploma and years of sporadic career experience.I went back to attempt to complete my CS degree on the basis that I figured I already had learnt most of what I would learn anyway and might as well both prove to myself I can do it, as well as get the credential for whatever it was worth. This was when I was ~27, and hadn't been diagnosed with ADHD yet. I discovered that I was absolutely capable in theory, but that the hard part wasn't the material, rather it was doing rote tasks to get the grade regardless of that grade's relevance in the field. I found myself completely capable of doing the homework and understanding, writing various persuasive essays, and intellectually applying myself, but failing horribly when it came to anything my brain identified as less interesting than any other subject matter, and I had effectively no control over that (unmedicated). I also had no ability to be on time, and once I realized that I was effectively wasting time and money trying to pass through the Type A Gen X career gate defined largely by the binary of having a degree&#x2F;not having a degree, I opted to not continue. It wasn't about learning anything, it was about a checkmark, and I didn't and never have really internally care about checkmarks.It would be the easiest material or courses that I'd bomb the hardest at, forget to do entirely, or simply not be stressed enough to do well; basic trivia, courses where 50% of the grade depended on labs where I'd be required to draw diagrams by hand, exams that required writing Java for 3 hours in pencil. When other students were anxiously scribbling away, I just flatout wasn't worried about it and just kind of spaced out for a while wondering why I was trying to bother. Exams require anxiety in some form or fashion, and in many cases I could not provoke that in myself. In some cases, I indeed didn't do so well on an exam either because I couldn't burn it into working memory well-enough (never having learned a study practice that worked for me) or I overslept... as a 27 year old adult.Now, I'm once again out of work, considering going back to school for... something, but I have all that exposure in the back of my mind. Even now that I'm medicated and otherwise quite happy, I have doubts that I'd be able to succeed in any type of educational institute unless every facet was perfectly aligned for me. Having money on the line or an abstract incentive aren't sufficient rewards to have a functional impact; I need to find it intriguing throughout and believe it's useful, or be fighting my way out of a tangible corner, of which I'm not in and don't naturally panic about being in.",
+        "url": "https://news.ycombinator.com/item?id=49382897",
+        "points": null,
+        "numComments": null,
+        "storyId": 49378446,
+        "createdAt": "2026-08-21T02:15:32Z",
+        "createdAtUnix": 1787278532,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [
+    {
+      "phrase": "too slow",
+      "count": 1,
+      "examples": [
+        {
+          "objectId": "49378305",
+          "url": "https://kandelo.dev/20260819-demo/",
+          "snippet": "Kandelo is an open-source, Wasm-based multi-process kernel that runs POSIX programs in browsers and Node.js.Kandelo is still experimental, but it already runs a substantial range of existing software."
+        }
+      ]
+    }
+  ],
+  "actionItems": []
+}
