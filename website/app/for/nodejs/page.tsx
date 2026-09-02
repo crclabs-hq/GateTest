@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 export const metadata: Metadata = {
   title: "Node.js Security & Quality Scanning — GateTest",
@@ -191,7 +192,7 @@ export default function NodeJsPage() {
               href="/"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
             >
-              See All 120 Modules
+              See All {TOTAL_MODULES} Modules
             </Link>
           </div>
         </div>

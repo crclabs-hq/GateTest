@@ -1,0 +1,37 @@
+{
+  "name": "axios",
+  "repo": "axios/axios",
+  "sha": "81df7a519431f5d703074df700dc40782a61fa9e",
+  "kind": "clean",
+  "capturedAt": "2026-09-02",
+  "engine": "1.61.0",
+  "modulesRan": 85,
+  "blockingCount": 1,
+  "blocking": [
+    "errorSwallow|error-swallow:empty-catch:lib/adapters/http.js"
+  ],
+  "warnings": {
+    "lint": 2,
+    "secrets": 9,
+    "codeQuality": 4,
+    "integrationTests": 1,
+    "performance": 1,
+    "security": 2,
+    "compatibility": 19,
+    "documentation": 8,
+    "dependencies": 1,
+    "ciSecurity": 1,
+    "deadCode": 35,
+    "typescriptStrictness": 4,
+    "flakyTests": 111,
+    "errorSwallow": 15,
+    "retryHygiene": 2,
+    "raceCondition": 1,
+    "envVars": 4,
+    "prQuality": 7,
+    "spineHealth": 7,
+    "tlsSecurity": 19,
+    "aiHallucination": 5,
+    "duplicateCode": 3
+  }
+}

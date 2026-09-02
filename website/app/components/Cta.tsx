@@ -29,7 +29,7 @@
             <div className="p-5 text-left">
               <p className="text-sm font-bold text-foreground mb-2">Full Scan &mdash; $99</p>
               <p className="text-xs text-muted mb-3">
-                121 modules. Full report. Scan-only — upgrade to Scan + Fix ($199) for the auto-fix PR.
+                Every applicable module of the 121-module engine. Full report. Scan-only — upgrade to Scan + Fix ($199) for the auto-fix PR.
               </p>
               <a
                 href="#pricing"

@@ -1,0 +1,39 @@
+{
+  "name": "lodash",
+  "repo": "lodash/lodash",
+  "sha": "a666ba591064c8011988275790ad7d625279f09c",
+  "kind": "clean",
+  "capturedAt": "2026-09-02",
+  "engine": "1.61.0",
+  "modulesRan": 85,
+  "blockingCount": 17,
+  "blocking": [
+    "codeQuality|quality:innerHTML assignment detected — use textContent or sanitize:perf/asset/perf-ui.js",
+    "errorSwallow|error-swallow:empty-catch:lodash.js",
+    "errorSwallow|error-swallow:empty-catch:perf/perf.js",
+    "performance|perf:event-cleanup:perf/asset/perf-ui.js",
+    "security|security:innerHTML assignment:perf/asset/perf-ui.js",
+    "security|security:npm-audit",
+    "security|security:npm-audit:json5",
+    "security|security:npm-audit:lodash",
+    "security|security:npm-audit:minimist",
+    "security|security:npm-audit:optimist"
+  ],
+  "warnings": {
+    "lint": 1,
+    "secrets": 3,
+    "codeQuality": 3,
+    "security": 53,
+    "compatibility": 12,
+    "documentation": 4,
+    "dependencies": 2,
+    "ciSecurity": 6,
+    "flakyTests": 52,
+    "errorSwallow": 59,
+    "envVars": 2,
+    "spineHealth": 5,
+    "aiHallucination": 5,
+    "bundleSize": 2,
+    "duplicateCode": 7
+  }
+}

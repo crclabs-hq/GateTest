@@ -500,14 +500,25 @@ class AuthBypassDetector extends BaseModule {
   _findUnauthenticatedRoutes(file, rel, content, lines) {
     const issues = [];
 
-    // Check Next.js App Router exports first (method-level granularity)
-    if (file.includes('/api/') || file.endsWith('route.ts') || file.endsWith('route.js')) {
+    // Check Next.js App Router exports first (method-level granularity).
+    //
+    // Path is normalised so the branch behaves identically on Windows and
+    // Linux — `file.includes('/api/')` never matched a backslash path, which
+    // is how `server/api/account.js` (an Express file) scanned correctly on a
+    // Windows dev box and was silently skipped on every Linux CI runner.
+    // And the branch only CLAIMS the file if it actually finds a Next.js
+    // export; an Express app that merely lives under an `api/` directory
+    // falls through to the registration scan below.
+    const fileFwd = String(file).replace(/\\/g, '/');
+    if (fileFwd.includes('/api/') || /\/route\.(?:ts|js|tsx|jsx)$/.test(fileFwd)) {
       let m;
+      let sawNextExport = false;
       // Built once per file, lazily — most route files never need it.
       let fnBodies = null;
       NEXTJS_EXPORT_RE.lastIndex = 0;
       while ((m = NEXTJS_EXPORT_RE.exec(content)) !== null) {
         const method = m[1];
+        sawNextExport = true;
         const matchIdx = m.index;
         const lineNo   = content.slice(0, matchIdx).split('\n').length;
         const lineText = lines[lineNo - 1] || '';
@@ -545,7 +556,7 @@ class AuthBypassDetector extends BaseModule {
         issues.push({ method, route: routePath, line: lineNo });
       }
       NEXTJS_EXPORT_RE.lastIndex = 0;
-      return issues;
+      if (sawNextExport) return issues;
     }
 
     // Express / Fastify / Hono / Koa — one registration grammar, one pass

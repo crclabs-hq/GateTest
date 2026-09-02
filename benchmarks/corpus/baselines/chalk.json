@@ -1,0 +1,25 @@
+{
+  "name": "chalk",
+  "repo": "chalk/chalk",
+  "sha": "661317e6f91fe7c90306c2c48ea9354562ee9146",
+  "kind": "clean",
+  "capturedAt": "2026-09-02",
+  "engine": "1.61.0",
+  "modulesRan": 85,
+  "blockingCount": 0,
+  "blocking": [],
+  "warnings": {
+    "lint": 1,
+    "secrets": 3,
+    "codeQuality": 1,
+    "performance": 2,
+    "compatibility": 4,
+    "documentation": 6,
+    "dependencies": 1,
+    "sbom": 1,
+    "ciSecurity": 1,
+    "deadCode": 9,
+    "retryHygiene": 2,
+    "aiHallucination": 2
+  }
+}

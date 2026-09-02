@@ -1,0 +1,67 @@
+name: Corpus Gate (precision + recall on real repos)
+
+# The nine-repo benchmark that found four scope defects on 2026-09-01 was run
+# by hand and referenced by nothing. The same day, precision fixes over-muted
+# two rules and only a pair of Linux-only negative-control tests noticed.
+#
+# This job runs the full engine on pinned third-party repos on every PR:
+#   clean repos      — any NEW blocking finding is a false positive; per-module
+#                      warning volume may not grow past baseline * 1.25 + 5.
+#   vulnerable repos — every planted class in the baseline must still fire, and
+#                      blocking may not fall below 80% of baseline.
+# Baselines: benchmarks/corpus/baselines/<repo>.json. Accept a reviewed change
+# with `node scripts/corpus-gate.js --capture --only <repo>` and commit the
+# diff — the baseline diff is the review artifact. Bible Forbidden #24: no
+# continue-on-error here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  corpus:
+    name: ${{ matrix.repo }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: [express, multer, chalk, fastify, axios, lodash, dvna, nodegoat, juice-shop]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Pinned SHA for the cache key
+        id: pin
+        run: |
+          SHA=$(node -e "const m=require('./benchmarks/corpus/manifest.json');console.log(m.repos.find(r=>r.name==='${{ matrix.repo }}').sha)")
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Restore corpus clone
+        uses: actions/cache@v4
+        with:
+          path: .corpus-cache/${{ matrix.repo }}
+          key: corpus-${{ matrix.repo }}-${{ steps.pin.outputs.sha }}
+
+      - name: Gate
+        run: node scripts/corpus-gate.js --only ${{ matrix.repo }}
+
+      - name: Upload scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-${{ matrix.repo }}-${{ github.run_id }}
+          path: .corpus-cache/${{ matrix.repo }}/.gatetest/reports/gatetest-report-latest.json
+          if-no-files-found: ignore
+          retention-days: 14

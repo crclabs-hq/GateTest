@@ -12,6 +12,8 @@
  */
 
 const https = require('https');
+// Read from the generated stats, never typed (the MCP server is the source).
+const MCP_TOOL_COUNT = require('../data/site-stats.json').mcpTools.count;
 
 /**
  * Sending address. DELIBERATELY still on the legacy domain after the
@@ -321,7 +323,7 @@ async function sendApiKeyEmail(opts) {
     <h1 style="color:#f4f4f5;font-size:22px;font-weight:700;margin:0 0 8px;">Your MCP API Key</h1>
     <p style="color:#a1a1aa;font-size:14px;margin:0 0 24px;">
       Here&rsquo;s your GateTest MCP subscription key. Add it to Claude Code (or Cursor / Windsurf)
-      to unlock all 24 tools: full 121-module scans, AI fixes, live-page screenshots,
+      to unlock all ${MCP_TOOL_COUNT} tools: full 121-module scans, AI fixes, live-page screenshots,
       production errors, test runs, and pass/fail fix verification.
     </p>
 
@@ -364,7 +366,7 @@ async function sendApiKeyEmail(opts) {
     'Install in Claude Code:',
     installCmd,
     '',
-    'This unlocks all 24 MCP tools: full 121-module scans, AI fixes,',
+    `This unlocks all ${MCP_TOOL_COUNT} MCP tools: full 121-module scans, AI fixes,`,
     'live-page screenshots, production errors, test runs, and fix verification.',
     '',
     'Keep this key secret. To regenerate contact hello@gatetest.ai.',

@@ -4,6 +4,15 @@
  */
 
 const BaseModule = require('./base-module');
+const { isNonUserFacingPage } = require('../core/scan-scope');
+
+/** Blank out fenced code blocks and inline code spans, preserving line count. */
+function stripMarkdownCode(md) {
+  return md
+    .replace(/```[\s\S]*?```/g, (block) => block.replace(/[^\n]/g, ' '))
+    .replace(/~~~[\s\S]*?~~~/g, (block) => block.replace(/[^\n]/g, ' '))
+    .replace(/`[^`\n]*`/g, (span) => ' '.repeat(span.length));
+}
 const fs = require('fs');
 const path = require('path');
 
@@ -35,8 +44,17 @@ class LinksModule extends BaseModule {
     for (const file of allFiles) {
       const relPath = path.relative(projectRoot, file);
       if (INTERNAL_DOCS_RE.test('/' + relPath.replace(/\\/g, '/'))) continue;
-      const content = fs.readFileSync(file, 'utf-8');
+      // A test/benchmark harness page is not a page a user visits: lodash's
+      // perf/index.html links ../node_modules/benchmark/benchmark.js and
+      // that is the harness working, not a broken link (corpus gate
+      // 2026-09-02). Markdown under those dirs is still read — a README in
+      // tests/ is documentation.
       const ext = path.extname(file);
+      if (!['.md', '.mdx'].includes(ext) && isNonUserFacingPage(relPath)) continue;
+      let content = fs.readFileSync(file, 'utf-8');
+      // Links inside code are illustrations — `[text](url)` shown in a fenced
+      // block or a backtick span is documentation of syntax, not a link.
+      if (['.md', '.mdx'].includes(ext)) content = stripMarkdownCode(content);
 
       // Pattern set 1: HTML-style href/src attributes (works for HTML, JSX, TSX, Vue, Svelte)
       const hrefRegex = /(?:href|src)\s*=\s*["'{]?\s*["'`]([^"'`{}\s>]+)/gi;
@@ -101,6 +119,14 @@ class LinksModule extends BaseModule {
 
       // Skip dynamic routes (e.g., /users/[id])
       if (/[[\]{}$]/.test(href)) continue;
+      // Placeholders and non-paths: `LINK`, `www.websitename.com`,
+      // `sponsor.imageUrl` (a template variable whose braces were stripped),
+      // `string,` (a signature captured from prose). A file reference has a
+      // slash or a file extension; a bare token has neither.
+      if (!href.includes('/') && !/\.(?:md|mdx|html?|txt|json|ya?ml|png|jpe?g|gif|svg|webp|pdf|css|js|ts|tsx|jsx|mjs|cjs)$/i.test(href)) continue;
+      if (/^(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?:\/|$)/i.test(href) && !href.startsWith('.')) continue; // bare domain
+      // Dependency assets are installed, not committed.
+      if (/(?:^|\/)node_modules\//.test(href)) continue;
       // Skip absolute URLs that start with / (these are route paths, not filesystem paths)
       // Only validate relative file references
       if (!href.startsWith('/') && !href.startsWith('http')) {

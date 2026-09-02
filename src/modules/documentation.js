@@ -27,11 +27,29 @@ class DocumentationModule extends BaseModule {
     this._checkDeadLinks(projectRoot, result);
   }
 
+  /**
+   * The README, whatever it is called. expressjs/express ships `Readme.md`;
+   * many repos ship `README`, `README.rst` or `readme.markdown`. The old
+   * `existsSync('README.md')` passed on Windows (case-insensitive FS) and
+   * reported "No README.md found" on every Linux CI runner — the 2026-09-02
+   * corpus gate caught us BLOCKING express for a file that was right there.
+   */
+  static findReadme(projectRoot) {
+    let entries;
+    try { entries = fs.readdirSync(projectRoot); } catch { return null; }
+    const hit = entries.find((e) => /^readme(?:\.(?:md|markdown|mdx|rst|txt|adoc))?$/i.test(e));
+    return hit ? path.join(projectRoot, hit) : null;
+  }
+
   _checkReadme(projectRoot, result) {
-    const readmePath = path.join(projectRoot, 'README.md');
-    if (!fs.existsSync(readmePath)) {
+    const readmePath = DocumentationModule.findReadme(projectRoot);
+    if (!readmePath) {
+      // WARNING, not error: a missing README is a real quality signal, but
+      // no build is broken by it, and a gate that blocks on documentation
+      // is the bottleneck (Forbidden #25). Same for the section checks.
       result.addCheck('docs:readme', false, {
-        message: 'No README.md found',
+        severity: 'warning',
+        message: 'No README found',
         suggestion: 'Create a README.md with project description, setup, and usage instructions',
       });
       return;
@@ -42,9 +60,9 @@ class DocumentationModule extends BaseModule {
 
     // Check for essential sections
     const requiredSections = [
-      { name: 'setup/install', keywords: ['install', 'setup', 'getting started', 'quick start'], severity: 'error' },
-      { name: 'usage', keywords: ['usage', 'how to use', 'example', 'quick start'], severity: 'error' },
-      { name: 'description', keywords: ['##', '# '], severity: 'error' },
+      { name: 'setup/install', keywords: ['install', 'setup', 'getting started', 'quick start'], severity: 'warning' },
+      { name: 'usage', keywords: ['usage', 'how to use', 'example', 'quick start'], severity: 'warning' },
+      { name: 'description', keywords: ['##', '# '], severity: 'warning' },
     ];
 
     const recommendedSections = [

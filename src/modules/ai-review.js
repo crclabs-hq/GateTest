@@ -10,7 +10,7 @@
  */
 
 const BaseModule = require('./base-module');
-const { JS_SOURCE_EXTS, JS_SOURCE_EXTS_NO_JSX } = require('../core/source-extensions');
+const { JS_SOURCE_EXTS } = require('../core/source-extensions');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
@@ -338,7 +338,6 @@ ${filesText}`;
     // see bugs well and count lines badly. Rejects are surfaced in one
     // aggregate info line so the gate is auditable, never silent.
     if (Array.isArray(fileContents) && fileContents.length > 0) {
-      // eslint-disable-next-line global-require
       const { gateAiReview } = require('../core/ai-evidence-gate');
       const gated = gateAiReview(issues, fileContents);
       if (gated.rejected.length > 0) {

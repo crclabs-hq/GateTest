@@ -19,6 +19,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 import { cookies } from "next/headers";
 import https from "https";
 import { isAdminRequest } from "@/app/lib/admin-auth";
@@ -823,7 +824,7 @@ async function askClaude(fileContent: string, filePath: string, issues: string[]
     return issue;
   }));
 
-  const prompt = `${conventionsHeader}You are an expert code fixer for GateTest, an AI-powered QA platform with 120 scanning modules.
+  const prompt = `${conventionsHeader}You are an expert code fixer for GateTest, an AI-powered QA platform with ${TOTAL_MODULES} scanning modules.
 
 Fix ALL of the following issues in this file. Every fix must pass GateTest's re-scan.
 
@@ -903,7 +904,7 @@ async function askClaudeConsensus(
   conventionsHeader: string,
   onReport: (result: ConsensusResult) => void
 ): Promise<string> {
-  const systemPrompt = "You are an expert code fixer for GateTest, an AI-powered QA platform with 120 scanning modules.";
+  const systemPrompt = `You are an expert code fixer for GateTest, an AI-powered QA platform with ${TOTAL_MODULES} scanning modules.`;
   const userPrompt = `${conventionsHeader}Fix ALL of the following issues in this file. Every fix must pass GateTest's re-scan.
 
 FILE: ${filePath}

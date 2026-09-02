@@ -121,3 +121,53 @@ describe('jsonc — genuinely broken input is still broken', () => {
     });
   }
 });
+
+// =============================================================================
+// END TO END — through the syntax MODULE, not the helper.
+// =============================================================================
+// The helper tests above all passed on 2026-09-01 while the module's JSONC
+// retry was dead code: `content` was declared inside the `try`, the retry in
+// the `catch` threw ReferenceError, and its own bare `catch {}` swallowed that.
+// A commented tsconfig blocked the gate for every customer until 2026-09-02.
+// A test of the helper cannot see that; only a test of the module can.
+// =============================================================================
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const SyntaxModule = require('../src/modules/syntax');
+
+function jsonCheck(rel, body) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-jsonc-e2e-'));
+  try {
+    const full = path.join(root, rel);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, body);
+    const r = { checks: [], addCheck(name, passed, meta) { this.checks.push({ name, passed, ...(meta || {}) }); }, addInfo() {} };
+    new SyntaxModule()._checkJsonSyntax(full, r, root);
+    return r.checks[0];
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+describe('jsonc — the syntax module itself accepts JSONC config files', () => {
+  it('a tsconfig with comments and a trailing comma PASSES through the module', () => {
+    const c = jsonCheck('tsconfig.json', '{\n  // strict on purpose\n  "compilerOptions": { "strict": true, },\n}\n');
+    assert.strictEqual(c.passed, true, `module reported: ${c.message}`);
+  });
+
+  it('a .devcontainer/devcontainer.json with a trailing comma PASSES (the axios case)', () => {
+    const c = jsonCheck('.devcontainer/devcontainer.json', '{\n  "name": "dev",\n  "features": {},\n}\n');
+    assert.strictEqual(c.passed, true, `module reported: ${c.message}`);
+  });
+
+  it('NEGATIVE CONTROL: a tsconfig that is malformed even as JSONC still FAILS', () => {
+    const c = jsonCheck('tsconfig.json', '{ "compilerOptions": { strict: true } }\n');
+    assert.strictEqual(c.passed, false, 'unquoted keys are not JSONC');
+  });
+
+  it('NEGATIVE CONTROL: a trailing comma in an ordinary data file still FAILS', () => {
+    const c = jsonCheck('data/config.json', '{ "a": 1, }\n');
+    assert.strictEqual(c.passed, false, 'plain JSON is not JSONC');
+  });
+});

@@ -267,11 +267,17 @@ class BashSafetyModule extends BaseModule {
 
   _glob(root, pattern, excludes = []) {
     const results = [];
+    // Segment-anchored exclusion. The previous `dir.includes('/.git')` also
+    // matched `/.github`, so on Linux (every CI runner) no workflow file was
+    // ever scanned — the module's whole CI-YAML surface was silently off.
+    // On Windows the separators are backslashes and the substring never
+    // matched, which is why the YAML tests passed locally and failed on CI.
+    const excluded = new Set(excludes);
     const walk = (dir) => {
       let entries;
       try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
       for (const e of entries) {
-        if (excludes.some(x => e.name === x || dir.includes(`/${x}`))) continue;
+        if (excluded.has(e.name)) continue;
         const full = path.join(dir, e.name);
         if (e.isDirectory()) walk(full);
         else if (pattern.test(full.replace(/\\/g, '/'))) results.push(full);

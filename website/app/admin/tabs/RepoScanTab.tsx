@@ -127,9 +127,9 @@ export function RepoScanTab({ onScanRecorded }: { onScanRecorded: () => void }) 
             className="px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 focus:border-emerald-500 focus:outline-none text-sm"
           >
             <option value="quick">Quick (41 modules)</option>
-            <option value="full">Full (121 modules)</option>
-            <option value="scan_fix">Scan + Fix (121 modules + pair-review + architecture)</option>
-            <option value="nuclear">Forensic (121 modules + Claude diagnosis + correlation + exec summary)</option>
+            <option value="full">Full (every applicable module)</option>
+            <option value="scan_fix">Scan + Fix (every applicable module + pair-review + architecture)</option>
+            <option value="nuclear">Forensic (every applicable module + Claude diagnosis + correlation + exec summary)</option>
           </select>
           <button
             onClick={runScan}

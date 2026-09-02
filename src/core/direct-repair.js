@@ -184,6 +184,14 @@ class DirectRepair {
     this.claudeFn     = options.claudeFn || null;  // async (prompt) => string
     this.maxFixes     = options.maxFixes || 20;
     this.branchPrefix = options.branchPrefix || 'gatetest/direct-fix';
+    // Verification is ON by default and FAIL-CLOSED: a fix that cannot be
+    // shown to (a) still parse and (b) make its finding disappear without
+    // adding a blocking one is reverted before anything is committed. The
+    // header of this file promised a verify step since day one; until
+    // 2026-09-02 `_verify` was never called, returned a boolean nothing
+    // read, and its catch returned true — so this engine pushed AI patches
+    // to real branches with no re-scan, no syntax check, and no test run.
+    this.verify = options.verify !== false;
   }
 
   /**
@@ -218,6 +226,7 @@ class DirectRepair {
       await this._clone(repoUrl, token, workspace, report);
       await this._scan(workspace, options, report);
       await this._applyFixes(workspace, report);
+      if (this.verify && report.fixes.length > 0) await this._verifyOrRevert(workspace, report);
       if (!this.dryRun && report.fixes.length > 0) {
         await this._commit(workspace, options, report);
         await this._push(workspace, token, report);
@@ -405,24 +414,111 @@ class DirectRepair {
     return await this.claudeFn(prompt);
   }
 
-  // ── step 4: verify (re-scan changed files) ────────────────────────────────
+  // ── step 4: verify (syntax + re-scan), revert what does not hold ─────────
 
-  async _verify(workspace, report) {
-    const changedModules = [...new Set(report.fixes.map(f => f.finding.module))];
-    if (changedModules.length === 0) return true;
+  /**
+   * Every fix must survive two checks or it is reverted on disk and moved to
+   * `report.skipped` with the reason:
+   *   1. the patched file still parses (JS/TS/JSON — see _syntaxError);
+   *   2. re-running the modules that reported the fixed findings shows the
+   *      finding GONE from that file and NO blocking finding in that file
+   *      that was not there before.
+   * If the re-scan itself fails, every fix is reverted: an unverifiable
+   * patch is never pushed. `report.verified` counts the survivors.
+   */
+  async _verifyOrRevert(workspace, report) {
+    const revert = (fix, reason) => {
+      let outcome = reason;
+      try {
+        fs.writeFileSync(path.join(workspace, fix.finding.file), fix.before, 'utf8');
+      } catch (err) {
+        // The patched file is still on disk; it is excluded from the commit
+        // (only report.fixes files are staged) but the operator must know.
+        outcome = `${reason} (revert failed: ${err.message})`;
+      }
+      report.skipped.push({ finding: fix.finding, reason: outcome });
+    };
 
+    // 1. Syntax — cheap, per fix, before any module runs.
+    let surviving = [];
+    for (const fix of report.fixes) {
+      const err = this._syntaxError(fix.finding.file, fix.after);
+      if (err) revert(fix, `verify-failed:syntax:${err}`);
+      else surviving.push(fix);
+    }
+
+    // 2. Re-scan the reporting modules over the patched workspace.
+    if (surviving.length > 0) {
+      let after;
+      try {
+        after = await this._rescan(workspace, [...new Set(surviving.map(f => f.finding.module))]);
+      } catch (err) {
+        for (const fix of surviving) revert(fix, `verify-failed:rescan-error:${err.message}`);
+        surviving = [];
+      }
+      if (after) {
+        const before = report.findings;
+        const kept = [];
+        for (const fix of surviving) {
+          const { module, file, pHash } = fix.finding;
+          const still = after.some(f => f.module === module && f.file === file && f.pHash === pHash);
+          const regressed = after.some(f => f.file === file && f.severity === 'error' &&
+            !before.some(b => b.module === f.module && b.file === f.file && b.pHash === f.pHash));
+          if (still) revert(fix, 'verify-failed:finding-persists');
+          else if (regressed) revert(fix, 'verify-failed:new-blocking-finding');
+          else kept.push(fix);
+        }
+        surviving = kept;
+      }
+    }
+
+    report.fixes = surviving;
+    report.verified = surviving.length;
+  }
+
+  /** Re-run `modules` over the workspace; same finding shape as _scan. */
+  async _rescan(workspace, modules) {
+    const { GateTestRunner } = require('./runner');
+    const runner = new GateTestRunner({ projectRoot: workspace, modules, silent: true });
+    const results = await runner.run();
+    const out = [];
+    for (const mod of (results.modules || [])) {
+      if (mod.status !== 'failed') continue;
+      for (const detail of (mod.details || [])) {
+        const fileMatch = detail.match(/^([^\s:]+\.[a-z]{1,4}):(\d+)/);
+        out.push({ module: mod.name, file: fileMatch ? fileMatch[1] : null, detail, severity: mod.severity || 'warning', pHash: patternHash(mod.name, detail) });
+      }
+    }
+    return out;
+  }
+
+  /**
+   * A parse error message for the patched content, or null. Covers the file
+   * types the built-in patterns and Claude fixes touch. TypeScript needs the
+   * `typescript` package; without it the check reports 'unavailable' and the
+   * fix is REVERTED — the absence of a checker is not a pass.
+   */
+  _syntaxError(file, content) {
+    const ext = path.extname(file || '').toLowerCase();
     try {
-      const { GateTestRunner } = require('./runner');
-      const runner = new GateTestRunner({
-        projectRoot: workspace,
-        modules: changedModules,
-        silent: true,
-      });
-      const results = await runner.run();
-      const remaining = (results.modules || []).filter(m => m.status === 'failed').length;
-      return remaining === 0;
-    } catch {
-      return true; // verification failure is non-blocking
+      if (ext === '.json') { JSON.parse(content); return null; }
+      if (['.js', '.cjs', '.mjs', '.jsx'].includes(ext)) {
+        const acorn = require('acorn');
+        const opts = { ecmaVersion: 'latest', allowHashBang: true, allowReturnOutsideFunction: true };
+        try { acorn.parse(content, { ...opts, sourceType: 'module' }); }
+        catch { if (ext === '.mjs' || ext === '.jsx') throw new Error('does not parse'); acorn.parse(content, { ...opts, sourceType: 'script' }); }
+        return null;
+      }
+      if (['.ts', '.tsx', '.mts', '.cts'].includes(ext)) {
+        let ts;
+        try { ts = require('typescript'); } catch { return 'typescript-unavailable'; }
+        const sf = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, ext === '.tsx' ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+        const diag = sf.parseDiagnostics && sf.parseDiagnostics[0];
+        return diag ? String(ts.flattenDiagnosticMessageText(diag.messageText, ' ')) : null;
+      }
+      return null; // not a language we parse — the re-scan is the only check
+    } catch (err) {
+      return err.message.split('\n')[0].slice(0, 120);
     }
   }
 

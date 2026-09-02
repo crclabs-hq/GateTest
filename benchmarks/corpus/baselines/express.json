@@ -1,0 +1,29 @@
+{
+  "name": "express",
+  "repo": "expressjs/express",
+  "sha": "023767fe9872e029271df1418f73401bff20ff40",
+  "kind": "clean",
+  "capturedAt": "2026-09-02",
+  "engine": "1.61.0",
+  "modulesRan": 85,
+  "blockingCount": 0,
+  "blocking": [],
+  "warnings": {
+    "syntax": 6,
+    "lint": 2,
+    "secrets": 3,
+    "codeQuality": 1,
+    "integrationTests": 7,
+    "compatibility": 1,
+    "documentation": 4,
+    "dependencies": 1,
+    "sbom": 1,
+    "deadCode": 18,
+    "flakyTests": 13,
+    "errorSwallow": 10,
+    "envVars": 1,
+    "spineHealth": 5,
+    "aiHallucination": 4,
+    "duplicateCode": 4
+  }
+}

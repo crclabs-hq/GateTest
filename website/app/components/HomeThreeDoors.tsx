@@ -30,6 +30,7 @@
 
 import Link from "next/link";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { TOOL_COUNT } from "@/app/mcp/tools-data";
 
 type Door = {
   id: string;
@@ -101,7 +102,7 @@ const DOORS: Door[] = [
     blurb: `The full ${TOTAL_MODULES}-module scanner runs inside Claude Code, Cursor, or any MCP client — so your agent can find the bug, fix it, and prove the fix worked without leaving the editor.`,
     points: [
       "Runs on your machine, on your own API keys",
-      "24 tools: scan, explain, fix, run tests, verify",
+      `${TOOL_COUNT} tools: scan, explain, fix, run tests, verify`,
       "Catches fake fixes — the symptom silenced, not solved",
     ],
     cta: { label: "Connect your agent", href: "/mcp" },

@@ -102,7 +102,30 @@ function formatPlus(n) {
  * `previous` carries forward fields we don't measure this run (e.g. the
  * self-scan green count when no fresh measurement was supplied).
  */
-function buildSiteStats({ tap, moduleCount, flywheel, previous = {}, green, scanned, now }) {
+/**
+ * Suite sizes and the MCP tool count, read from the engine — never typed.
+ * The 2026-09-02 audit found "41-module quick scan", "45-module standard",
+ * "88-module full" and "24 tools" hand-written on four surfaces while the
+ * engine said 42 / 46 / 89 / 24. Numbers that are typed rot; these are read.
+ */
+function measureSuites() {
+  const { DEFAULT_CONFIG } = require('../src/core/config');
+  const out = {};
+  for (const [name, mods] of Object.entries(DEFAULT_CONFIG.suites || {})) out[name] = Array.isArray(mods) ? mods.length : 0;
+  return out;
+}
+
+function measureMcpTools() {
+  const src = fs.readFileSync(path.join(ROOT, 'bin', 'gatetest-mcp.mjs'), 'utf8');
+  const start = src.indexOf('const TOOLS');
+  const end = src.indexOf('\n];', start);
+  if (start === -1 || end === -1) throw new Error('generate-site-stats: cannot find the TOOLS array in bin/gatetest-mcp.mjs');
+  const names = new Set([...src.slice(start, end).matchAll(/^\s*name:\s*['"]([a-z_]+)['"]/gm)].map((m) => m[1]));
+  if (names.size === 0) throw new Error('generate-site-stats: TOOLS array parsed to zero tools');
+  return { count: names.size, names: [...names].sort() };
+}
+
+function buildSiteStats({ tap, moduleCount, flywheel, previous = {}, green, scanned, now, suites, mcpTools }) {
   const prevModules = previous.modules || {};
   const resolvedScanned = Number.isFinite(scanned) ? scanned : (Number.isFinite(prevModules.scanned) ? prevModules.scanned : moduleCount);
   const resolvedGreen = Number.isFinite(green) ? green : (Number.isFinite(prevModules.green) ? prevModules.green : moduleCount);
@@ -132,6 +155,10 @@ function buildSiteStats({ tap, moduleCount, flywheel, previous = {}, green, scan
       greenSource: greenFresh ? 'measured' : (prevModules.greenSource || 'carried'),
       greenMeasuredAt: greenFresh ? new Date(now || Date.now()).toISOString() : (prevModules.greenMeasuredAt || null),
     },
+    // Engine suite sizes (module names per suite in src/core/config.js).
+    suites: suites || measureSuites(),
+    // Distinct tools registered by bin/gatetest-mcp.mjs.
+    mcpTools: mcpTools || measureMcpTools(),
     flywheel: {
       totalFixAttempts: flywheel.all.total,
       claudeRatioPct: Number(flywheel.all.claudeRatioPct.toFixed(1)),
@@ -183,13 +210,14 @@ function measureModuleCount() {
 }
 
 function parseArgs(argv) {
-  const args = { dryRun: false, green: undefined, scanned: undefined, tapLog: undefined };
+  const args = { dryRun: false, green: undefined, scanned: undefined, tapLog: undefined, noTests: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
     else if (a === '--green') args.green = Number(argv[++i]);
     else if (a === '--scanned') args.scanned = Number(argv[++i]);
     else if (a === '--tap-log') args.tapLog = argv[++i];
+    else if (a === '--no-tests') args.noTests = true;
     else if (a === '--help' || a === '-h') args.help = true;
   }
   return args;
@@ -203,7 +231,15 @@ function main() {
   }
 
   let tap;
-  if (args.tapLog) {
+  if (args.noTests) {
+    // Carry the previous run's measured test numbers forward — for a
+    // regeneration that only needs the engine-derived fields (suites,
+    // tool count, module count) without a 40-second test run.
+    const prev = readPrevious().tests;
+    if (!prev) throw new Error('--no-tests needs an existing site-stats.json to carry test numbers from');
+    tap = { total: prev.total, passing: prev.passing, failing: prev.failing, skipped: prev.skipped };
+    process.stderr.write('generate-site-stats: --no-tests, carrying previous test numbers\n');
+  } else if (args.tapLog) {
     process.stderr.write(`generate-site-stats: parsing TAP log ${args.tapLog}\n`);
     tap = parseTapSummary(fs.readFileSync(args.tapLog, 'utf8'));
   } else {

@@ -48,6 +48,29 @@ const SHA_REGEX = /^[a-f0-9]{7,40}$/i;
 // over branch names, but still warn (SHA is the gold standard).
 const TAG_LOOKS_SEMVER = /^v?\d+(\.\d+)*([.-][A-Za-z0-9_.-]+)?$/;
 // Pull-request-target + untrusted checkout is the classic pwn-request.
+/**
+ * Which `${{ github.event.* }}` expressions can carry attacker text into a
+ * shell? Titles, bodies, branch names, labels, commit messages, user logins.
+ * NOT commit SHAs (40 hex chars, validated by GitHub), PR/issue/run NUMBERS,
+ * or ids. Corpus gate 2026-09-02: fastify's links-check.yml interpolates
+ * `pull_request.base.sha` / `head.sha` into `git diff` — GitHub's own
+ * security-lab guidance lists those as safe, and blocking fastify for it is
+ * a false positive at error severity.
+ */
+const SAFE_EVENT_FIELD_RE = /\.(?:sha|number|id|run_id|run_number|run_attempt|installation\.id|repository\.id)\s*$/;
+const EVENT_EXPR_RE = /\$\{\{\s*(github\.event\.[A-Za-z0-9_.[\]'"-]+|github\.head_ref)\s*\}\}/g;
+
+function hasInjectableEventExpr(line) {
+  let m;
+  EVENT_EXPR_RE.lastIndex = 0;
+  while ((m = EVENT_EXPR_RE.exec(line)) !== null) {
+    const expr = m[1];
+    if (expr === 'github.head_ref') return true;
+    if (!SAFE_EVENT_FIELD_RE.test(expr)) return true;
+  }
+  return false;
+}
+
 const DANGEROUS_PR_REF = /github\.event\.pull_request\.head\.(sha|ref)|github\.head_ref/;
 
 class CiSecurityModule extends BaseModule {
@@ -332,7 +355,7 @@ class CiSecurityModule extends BaseModule {
     for (let k = 0; k < block.length; k += 1) {
       const l = block[k];
       const lineNo = startIdx + 1 + k;
-      if (/\$\{\{\s*github\.event\./.test(l) || /\$\{\{\s*github\.head_ref\s*\}\}/.test(l)) {
+      if (hasInjectableEventExpr(l)) {
         issues += this._flag(result, `ci-security:shell-injection:${rel}:${lineNo}`, {
           severity: 'error',
           file: rel,

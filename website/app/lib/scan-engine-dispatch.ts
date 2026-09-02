@@ -105,7 +105,7 @@ interface CliEngineRunner {
 
 export function engineSuiteForTier(tier: string): string {
   // "scan_fix" is a pricing tier with no matching engine suite — getSuite()
-  // silently falls back to the 45-module "standard" suite for unknown names,
+  // silently falls back to the smaller "standard" suite for unknown names,
   // which once gave a $199 customer a SHALLOWER scan than a $99 one.
   if (tier === "nuclear") return "nuclear";
   return "full";

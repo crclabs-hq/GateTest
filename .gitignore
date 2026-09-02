@@ -32,3 +32,6 @@ reliability-corpus/**/.gatetest/
 # and the guard silently tests nothing while the manifest ceilings no longer
 # match. Re-include it explicitly.
 !reliability-corpus/**/.env.example
+
+# corpus-gate clone cache (scripts/corpus-gate.js)
+.corpus-cache/

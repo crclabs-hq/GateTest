@@ -1,4 +1,5 @@
 ﻿import type { Metadata } from "next";
+import { FULL_SUITE_MODULES } from "@/app/mcp/tools-data";
 
 export const metadata: Metadata = {
   title: "API Reference — GateTest",
@@ -166,7 +167,7 @@ export default function ApiDocs() {
                   <td className="px-4 py-2 text-xs">no</td>
                   <td className="px-4 py-2 text-xs text-muted">
                     <code className="font-mono">quick</code> (default, 4 modules) or{" "}
-                    <code className="font-mono">full</code> (the in-memory engine&apos;s full tier, ~23 modules — the deep 88-module CLI-engine suites run on paid website scans and the CLI/Action). Key must be
+                    <code className="font-mono">full</code> (the in-memory engine&apos;s full tier, ~23 modules — the deep {FULL_SUITE_MODULES}-module CLI-engine suite runs on paid website scans and the CLI/Action). Key must be
                     entitled.
                   </td>
                 </tr>

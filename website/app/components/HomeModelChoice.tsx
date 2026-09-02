@@ -21,11 +21,18 @@ const MODELS = [
     blurb: "Fast and cheapest. The default for scans, chat, and everyday fixes.",
   },
   {
-    name: "Opus 4.8",
-    id: "claude-opus-4-8",
+    name: "Opus 5",
+    id: "claude-opus-5",
     tag: "Deeper",
     tagClass: "bg-blue-500/10 text-blue-500 border-blue-500/25",
-    blurb: "Heavier reasoning when a fix is subtle or spans many files.",
+    blurb: "Heavier reasoning when a fix is subtle or spans many files — half the cost of Fable.",
+  },
+  {
+    name: "Opus 4.8",
+    id: "claude-opus-4-8",
+    tag: "Previous gen",
+    tagClass: "bg-neutral-500/10 text-neutral-400 border-neutral-500/25",
+    blurb: "The previous-generation Opus, kept for teams that pinned it.",
   },
   {
     name: "Fable 5",

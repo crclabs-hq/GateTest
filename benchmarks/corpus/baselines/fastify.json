@@ -1,0 +1,37 @@
+{
+  "name": "fastify",
+  "repo": "fastify/fastify",
+  "sha": "4cdb0c5def812f5773c952efdb79f1e99dcfae92",
+  "kind": "clean",
+  "capturedAt": "2026-09-02",
+  "engine": "1.61.0",
+  "modulesRan": 85,
+  "blockingCount": 3,
+  "blocking": [
+    "authBypass|auth-bypass:integration/server.js",
+    "errorSwallow|error-swallow:catch-noop:lib/reply.js"
+  ],
+  "warnings": {
+    "lint": 1,
+    "secrets": 4,
+    "codeQuality": 3,
+    "integrationTests": 2,
+    "security": 1,
+    "compatibility": 12,
+    "documentation": 12,
+    "dependencies": 1,
+    "sbom": 1,
+    "ciSecurity": 1,
+    "deadCode": 27,
+    "flakyTests": 69,
+    "errorSwallow": 12,
+    "retryHygiene": 2,
+    "envVars": 2,
+    "spineHealth": 6,
+    "logPii": 2,
+    "tlsSecurity": 8,
+    "cookieSecurity": 3,
+    "claudeCompliance": 1,
+    "duplicateCode": 10
+  }
+}

@@ -176,6 +176,13 @@ class SarifReporter {
     for (const moduleResult of summary.results) {
       for (const check of moduleResult.checks) {
         if (check.passed) continue;
+        // Info-level findings are nits the gate never blocks on, and a
+        // .gatetestignore suppression is a reviewed decision. GitHub Code
+        // Scanning turns every uploaded result into a PR review comment, so
+        // uploading them re-litigates both on every pull request (PR #418:
+        // three "hardcoded localhost" notes on a test fixture, 2026-09-02).
+        // Errors and warnings still ride.
+        if (check.severity === 'info' || check.suppressReason) continue;
 
         // Create rule if not exists
         const ruleId = `gatetest/${moduleResult.module}/${this._sanitizeRuleId(check.name)}`;

@@ -78,10 +78,28 @@ describe('secrets — vendor-shaped credentials block in prose', () => {
     assert.ok(isConfident(found[0]), 'an AWS key in a README must be blocking, not soft');
   });
 
-  it('a PEM header in docs/setup.md is confident', async () => {
-    const found = await scan({ 'docs/setup.md': `# Setup\n\n${PEM}\nMIIEow...\n` });
+  // A real PEM body is 64-column base64. The fixture carries one such line so
+  // the test asserts what it claims: a KEY in docs blocks.
+  const PEM_BODY = 'MIIEowIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0AW2fD1jsJ6fCJgq1gz0i';
+
+  it('a PEM key in docs/setup.md is confident', async () => {
+    const found = await scan({ 'docs/setup.md': `# Setup\n\n${PEM}\n${PEM_BODY}\n` });
     assert.ok(found.length > 0, 'the private key was not detected at all');
-    assert.ok(isConfident(found[0]), 'a PEM header in docs must be blocking');
+    assert.ok(isConfident(found[0]), 'a PEM key in docs must be blocking');
+  });
+
+  it('a single-line env-style PEM with a literal \\n body is still detected', async () => {
+    const found = await scan({ 'docs/setup.md': `Set it like this:\n\nKEY="${PEM}\\n${PEM_BODY}\\n-----END RSA PRIVATE KEY-----"\n` });
+    assert.ok(found.length > 0, 'a one-line PEM with real material must be detected');
+  });
+
+  it('control: a PEM header followed by an ellipsis placeholder is the FORMAT, not a key', async () => {
+    // docs/ops/GO_LIVE_RUNBOOK.md blocked the self-scan at confidence 1.0 on
+    // exactly this: `-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END…`.
+    const found = await scan({ 'docs/setup.md': `# Setup\n\nPaste the whole file, e.g. \`${PEM}\\nMIIE...\\n-----END RSA PRIVATE KEY-----\`\n` });
+    assert.strictEqual(found.length, 0, 'a header with no key material behind it must not be reported');
+    const found2 = await scan({ 'docs/setup.md': `# Setup\n\n${PEM}\nMIIEow...\n-----END RSA PRIVATE KEY-----\n` });
+    assert.strictEqual(found2.length, 0, 'a multi-line placeholder body must not be reported either');
   });
 });
 

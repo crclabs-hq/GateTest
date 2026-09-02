@@ -4,7 +4,7 @@
  */
 
 const BaseModule = require('./base-module');
-const { JS_SOURCE_EXTS, JS_SOURCE_EXTS_NO_JSX } = require('../core/source-extensions');
+const { JS_SOURCE_EXTS } = require('../core/source-extensions');
 const { innerHtmlAssignmentIsSafe, splitTopLevel } = require('../core/inner-html-safety');
 const fs = require('fs');
 const path = require('path');

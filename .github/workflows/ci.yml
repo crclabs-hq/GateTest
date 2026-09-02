@@ -310,6 +310,13 @@ jobs:
           echo "TODO/FIXME occurrences in src/ and website/app/: $COUNT"
 
   gatetest-full:
+    # The job was NAMED "Full Scan" and ran `--suite quick` (2026-09-02 audit);
+    # its comment cited a nightly-mutation.yml that does not exist. It now runs
+    # the full deterministic suite on every push to main — the same suite the
+    # nightly dogfood measures, minus the four modules that need the repo's own
+    # test runner or a browser (mutation, e2e, unitTests, dataIntegrity). No
+    # continue-on-error on the scan step (Bible Forbidden #24): a full-suite
+    # false positive on our own repo is a defect a customer will hit next.
     name: GateTest Full Scan (Push to main)
     runs-on: ubuntu-latest
     needs: test
@@ -332,17 +339,12 @@ jobs:
       - name: Install all workspaces
         run: bash scripts/install-workspaces.sh
 
-      - name: Run GateTest full scan
-        # --confidence-threshold 0.95 — same rationale as the quick-scan job
-        # above. This is the SARIF-feeding job, not the dogfood gate. The
-        # strict `self-scan` job keeps the default 0.7 and is the one that
-        # decides whether main is green.
-        # --skip-module mutation — mutation testing mutates source files and
-        # re-runs the full test suite per mutation (~28 min in CI). It's run
-        # nightly via .github/workflows/nightly-mutation.yml instead so the
-        # main CI gate stays under 5 min.
-        run: node bin/gatetest.js --suite quick --sarif --junit --confidence-threshold 0.95 --parallel
+      - name: Run GateTest full scan (blocking, default confidence threshold)
+        run: >-
+          node bin/gatetest.js --suite full --parallel --sarif --junit
+          --skip-module mutation --skip-module e2e --skip-module unitTests --skip-module dataIntegrity
         env:
+          GATETEST_NO_TELEMETRY: '1'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload SARIF to GitHub Security

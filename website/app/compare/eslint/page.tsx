@@ -129,7 +129,7 @@ export default function EsLintPage() {
           </h1>
           <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
             ESLint is great at what it does — and what it does is pattern matching on syntax trees.
-            GateTest is 120 tools in one: it includes everything ESLint does, plus security scanning,
+            GateTest is {TOTAL_MODULES} modules in one: it includes everything ESLint does, plus security scanning,
             AI code review, N+1 detection, accessibility, performance, mutation testing, and 60 more
             dimensions that no linter can touch.
           </p>

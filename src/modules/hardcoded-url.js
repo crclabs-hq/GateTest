@@ -238,6 +238,17 @@ class HardcodedUrlModule extends BaseModule {
         // explicitly the "use env in prod, localhost in dev" pattern.
         if (/\bprocess\.env\.[A-Z_][A-Z0-9_]*\s*(?:\|\||\?\?)\s*['"`]$/.test(before)) continue;
 
+        // A BARE `http://localhost` — no port, no path, the string ends right
+        // after the host — is the WHATWG URL base idiom, not an endpoint:
+        //   new URL(relative, 'http://localhost')
+        //   const origin = window.location.href || 'http://localhost'
+        // A leaked dev endpoint always carries a port or a path
+        // (`http://localhost:3000/api`). Corpus gate 2026-09-02: both axios
+        // findings (lib/adapters/http.js, lib/platform/common/utils.js) were
+        // this idiom.
+        const after = line.slice(m.index + m[0].length);
+        if (/^https?:\/\/localhost\/?$/i.test(m[0]) && /^['"`]/.test(after)) continue;
+
         if (LOCALHOST_RE.test(host)) {
           issues += this._flag(result, `hardcoded-url:localhost:${rel}:${i + 1}`, {
             severity: isTestFile ? 'info' : 'error',

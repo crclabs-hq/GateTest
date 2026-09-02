@@ -117,6 +117,33 @@ class SecretsModule extends BaseModule {
    * @param {string} match - full regex match, e.g. `SECRET="$(cmd)"`
    * @returns {boolean}
    */
+  /**
+   * Does a `-----BEGIN … PRIVATE KEY-----` header have key material behind
+   * it? A real PEM body is base64 in 64-column lines; a doc that shows the
+   * FORMAT writes `-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END` and
+   * stops. Found by the self-scan on docs/ops/GO_LIVE_RUNBOOK.md, which
+   * blocked the gate at confidence 1.0 on exactly that placeholder — the
+   * header regex is vendor-shaped (never a false positive on its own), so
+   * the body is the only thing left to check.
+   *
+   * Looks at the remainder of the header's own line (single-line env-style
+   * keys with literal `\n`) and the next three lines. Fail-closed: any run of
+   * 40+ base64 characters counts, so a truncated-but-real key still fires.
+   *
+   * @param {string[]} lines
+   * @param {number} i - index of the header line
+   * @param {number} afterIdx - offset in that line just past the header
+   * @returns {boolean}
+   */
+  _pemHasBody(lines, i, afterIdx) {
+    const BODY_RUN = /[A-Za-z0-9+/=]{40,}/;
+    if (BODY_RUN.test(lines[i].slice(afterIdx))) return true;
+    for (let j = i + 1; j <= i + 3 && j < lines.length; j++) {
+      if (BODY_RUN.test(lines[j])) return true;
+    }
+    return false;
+  }
+
   _looksLikeReference(match) {
     // Anchor on the FIRST quote — the one that opens the assignment's value.
     // (_looksLikeProse anchors on the last quote, which is right for its own
@@ -358,6 +385,9 @@ class SecretsModule extends BaseModule {
               // Skip values that READ a secret rather than contain one.
               // See _looksLikeReference for the exact test.
               if (this._looksLikeReference(m[0])) continue;
+              // A PEM header with no key material after it is documentation
+              // of the format, not a key. See _pemHasBody.
+              if (pattern.type === 'Private Key' && !this._pemHasBody(lines, i, m.index + m[0].length)) continue;
             }
             found.push({
               type: pattern.type,
@@ -428,14 +458,74 @@ class SecretsModule extends BaseModule {
           cwd: projectRoot,
         });
         if (exitCode === 0) {
+          const verdict = this._trackedFileVerdict(filename, filePath);
+          if (!verdict) continue;
           result.addCheck(`secrets:tracked-${filename}`, false, {
             file: filename,
-            message: `${filename} is tracked by git — this file likely contains secrets`,
+            severity: verdict.severity,
+            message: verdict.message,
             suggestion: `Add "${filename}" to .gitignore and remove from git tracking`,
           });
         }
       }
     }
+  }
+
+  /**
+   * What a TRACKED sensitive-looking file actually holds decides its severity.
+   *
+   * expressjs/express commits a `.npmrc` containing exactly four lines:
+   * `package-lock=false`, `min-release-age=7`, `ignore-scripts=true`,
+   * `allow-git=none`. That is supply-chain hygiene, and the 2026-09-02 corpus
+   * gate found us BLOCKING express for it with "this file likely contains
+   * secrets" at confidence 1.0. The filename is a prior, not evidence; the
+   * content is the evidence.
+   *
+   *   - key material (`key.pem`, `id_rsa`)            -> error, always
+   *   - `.npmrc` with `_authToken` / `_auth` / `_password` -> error
+   *   - `.npmrc` with only config keys                 -> null (no finding)
+   *   - `.env*` with a real-looking value              -> error
+   *   - `.env*` with only blanks / placeholders / refs -> warning (hygiene)
+   *   - `credentials.json` etc. with a credential key  -> error, else warning
+   *
+   * @returns {{severity: string, message: string}|null}
+   */
+  _trackedFileVerdict(filename, filePath) {
+    let content = '';
+    try {
+      content = fs.readFileSync(filePath, 'utf-8');
+    } catch (err) {
+      return { severity: 'warning', message: `${filename} is tracked by git but could not be read (${err.message}) — verify it holds no credential` };
+    }
+    const lines = content.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#') && !l.startsWith(';'));
+    const tracked = `${filename} is tracked by git`;
+
+    if (/^(?:key\.pem|id_rsa)$/.test(filename)) {
+      return { severity: 'error', message: `${tracked} — private key material must never be committed` };
+    }
+    if (filename === '.npmrc') {
+      if (lines.some((l) => /(?:_authToken|_auth|_password|:username|:email)\s*=/i.test(l))) {
+        return { severity: 'error', message: `${tracked} and carries a registry credential` };
+      }
+      return null; // config-only .npmrc is the recommended way to pin npm behaviour
+    }
+    if (filename.startsWith('.env')) {
+      const live = lines.some((l) => {
+        const m = l.match(/^(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=\s*(.*)$/);
+        if (!m) return false;
+        const v = m[1].replace(/^['"]|['"]$/g, '').trim();
+        if (v.length < 8) return false;
+        if (/^\$\{?[A-Za-z_]/.test(v)) return false;           // ${VAR} / $VAR reference
+        return !PLACEHOLDER_VALUE_RE.test(v);
+      });
+      return live
+        ? { severity: 'error', message: `${tracked} and holds at least one real-looking value` }
+        : { severity: 'warning', message: `${tracked} — it holds only blanks or placeholders today; a real value will be committed the first time someone fills it in` };
+    }
+    if (/"(?:private_key|client_secret|secret|token|password|api_key)"\s*:\s*"[^"]{8,}"/i.test(content)) {
+      return { severity: 'error', message: `${tracked} and contains a credential-shaped value` };
+    }
+    return { severity: 'warning', message: `${tracked} — this filename usually holds credentials; verify it is meant to be public` };
   }
 
   /**

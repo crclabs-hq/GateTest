@@ -111,6 +111,9 @@ const DEFAULT_EXCLUDE_PATTERNS = [
   /(?:^|\/)go\.sum$/,
   /(?:^|\/)mix\.lock$/,
   /(?:^|\/)flake\.lock$/,
+  /(?:^|\/)bun\.lockb?$/,
+  /(?:^|\/)deno\.lock$/,
+  /(?:^|\/)uv\.lock$/,
   // Generated / build output
   /(?:^|\/)dist\//,
   /(?:^|\/)build\//,
@@ -143,6 +146,9 @@ const DEFAULT_EXCLUDE_PATTERNS = [
   /\.test\.(?:js|jsx|mjs|cjs|ts|tsx|mts|cts)$/,
   /\.spec\.(?:js|jsx|mjs|cjs|ts|tsx|mts|cts)$/,
 ];
+
+/** Sentinel: the auto-detected base proves this checkout is not a PR. */
+const NOT_A_PR = Symbol('not-a-pr');
 
 const DEFAULTS = {
   maxFilesChangedWarning: 50,
@@ -446,8 +452,12 @@ class PrSizeModule extends BaseModule {
     //    staged / working-tree / HEAD~1..HEAD (the "local pre-push"
     //    case).
     if (!explicitBase && !against) {
-      for (const candidate of ['origin/main', 'main']) {
+      // `origin/HEAD` first: it is the remote's DEFAULT branch, whatever it
+      // is called. axios develops on `v1.x`; against `origin/main` a pinned
+      // v1.x commit diffed as the entire branch (corpus gate 2026-09-02).
+      for (const candidate of ['origin/HEAD', 'origin/main', 'main', 'origin/master', 'master']) {
         const diff = this._diffSinceMergeBase(projectRoot, candidate);
+        if (diff === NOT_A_PR) return '';
         if (diff) return diff;
       }
     }
@@ -483,6 +493,22 @@ class PrSizeModule extends BaseModule {
     if (mergeBaseRes.exitCode !== 0) return null;
     const mergeBase = (mergeBaseRes.stdout || '').trim();
     if (!mergeBase) return null;
+
+    // HEAD already ON the base branch (merge-base == HEAD) means there is no
+    // pull request to size: a checkout of a pinned commit, a scan of main
+    // itself, a nightly. Diffing `mergeBase..HEAD` there is empty, and the
+    // old code then fell through to `HEAD~1..HEAD` — or, when the pinned
+    // commit was BEHIND the base, to whatever git produced. Corpus gate
+    // 2026-09-02: axios @81df7a5 reported "366 files changed, 52447 lines —
+    // split the PR" at error severity for a repo with no PR at all.
+    // Only a REMOTE base proves it: HEAD sitting on `origin/HEAD` means the
+    // commit is already on the shared branch. A local `main` with no remote
+    // is the developer committing directly and running the pre-push hook —
+    // there the last commit is the thing to size, so fall through.
+    if (base.startsWith('origin/')) {
+      const headRes = this._exec('git rev-parse HEAD', { cwd: projectRoot });
+      if (headRes.exitCode === 0 && (headRes.stdout || '').trim() === mergeBase) return NOT_A_PR;
+    }
 
     const diffRes = this._exec(
       `git diff --numstat -C ${mergeBase}..HEAD`,

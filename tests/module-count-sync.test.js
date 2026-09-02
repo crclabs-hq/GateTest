@@ -111,7 +111,11 @@ function collectClaims() {
 
     let src;
     try { src = fs.readFileSync(full, 'utf8'); } catch { continue; } // error-ok
-    if (!/\d{3}[\s-]modules?/.test(src)) continue;
+    // The prefilter must be at least as loose as CLAIM_RE. It used to be a
+    // case-sensitive, no-intervening-word regex, so a file whose only stale
+    // claim was "See All 120 Modules" (for/nodejs) was skipped whole-file
+    // while this suite reported green (2026-09-02 audit).
+    if (!/\d{3}[\s-](?:[A-Za-z][A-Za-z+-]*[\s-]){0,3}modules?/i.test(src)) continue;
 
     src.split(/\r?\n/).forEach((line, i) => {
       if (LOOSE_RE.test(line)) return;

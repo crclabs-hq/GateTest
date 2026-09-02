@@ -197,7 +197,7 @@ function applyConfidenceToScan(scanResult, resolveAction) {
 /**
  * Helper to build a `resolveAction` closure backed by getConfidenceScore.
  * Caches each (module, patternHash) lookup for the duration of one scan
- * so a 100-finding module doesn't fire 100 SQL queries.
+ * so a module with a hundred findings doesn't fire a hundred SQL queries.
  */
 function buildResolveAction(opts) {
   const { sql, getConfidenceScore, defaultAction = 'trust' } = opts;

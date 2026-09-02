@@ -481,7 +481,15 @@ class UndefinedRefModule extends BaseModule {
     // Function parameters at any level — broad-stroke heuristic that
     // inflates the set conservatively. Pattern: `(name: Type, ...)` or
     // `(name, ...)` after a `function`/arrow.
-    for (const m of src.matchAll(/(?:function\s*\*?\s*[A-Za-z_$\w$]*\s*\(|\(\s*)([^()]*?)\)\s*(?:=>|\{|:)/g)) {
+    // Two levels of nested parens are allowed inside the list so a default
+    // value that is a call with a callback — `priorFindings = fixes.map((f)
+    // => f.finding)` — still yields its parameter name. `[^()]*` stopped at
+    // the inner `(`, the whole list failed to match, and `priorFindings`
+    // was reported as "never declared — module will crash on load"
+    // (PR #418, 2026-09-02).
+    const NESTED2 = '(?:[^()]|\\((?:[^()]|\\([^()]*\\))*\\))*?';
+    const PARAM_LIST_RE = new RegExp('(?:function\\s*\\*?\\s*[A-Za-z_$\\w$]*\\s*\\(|\\(\\s*)(' + NESTED2 + ')\\)\\s*(?:=>|\\{|:)', 'g');
+    for (const m of src.matchAll(PARAM_LIST_RE)) {
       const params = m[1];
       // Split on commas at depth 0 only — primitive but works for typical
       // signatures. Destructured params and defaults inflate the set further.

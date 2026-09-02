@@ -149,11 +149,19 @@ class BundleSize extends BaseModule {
       } catch { /* skip */ }
     }
 
-    // Generic dist scan (if no manifest found)
+    // Generic dist scan (if no manifest found). Without a bundler manifest
+    // we cannot know these are PAGE bundles: lodash commits `dist/lodash.js`
+    // (533 KB) and it is a library artefact a consumer tree-shakes, not a
+    // chunk a browser downloads. Budgets designed for web apps report at
+    // WARNING here — visible, never blocking (corpus gate 2026-09-02).
+    let genericDist = false;
     if (chunks.length === 0) {
       const distDir = path.join(projectRoot, 'dist');
       chunks.push(...scanDistDir(distDir));
+      genericDist = chunks.length > 0;
     }
+    const overBudgetSeverity = genericDist ? 'warning' : 'error';
+    const budgetNote = genericDist ? ' (no bundler manifest found — dist/ measured as generic output, so this is advisory)' : '';
 
     if (chunks.length === 0) {
       result.addCheck('bundle-size:no-build-output', true, {
@@ -170,8 +178,8 @@ class BundleSize extends BaseModule {
     if (largest.size > budgets.largestSingleChunk.error) {
       issueCount++;
       result.addCheck('bundle-size:largest-chunk-error', false, {
-        severity: 'error',
-        message: `Largest JS chunk \`${largest.name}\` is ${fmtKB(largest.size)} — exceeds ${fmtKB(budgets.largestSingleChunk.error)} error budget`,
+        severity: overBudgetSeverity,
+        message: `Largest JS chunk \`${largest.name}\` is ${fmtKB(largest.size)} — exceeds ${fmtKB(budgets.largestSingleChunk.error)} error budget${budgetNote}`,
         fix: 'Use dynamic import() to code-split this chunk. Identify large dependencies with `npm run analyze` or `npx source-map-explorer`.',
       });
     } else if (largest.size > budgets.largestSingleChunk.warning) {
@@ -188,8 +196,8 @@ class BundleSize extends BaseModule {
     if (totalSize > budgets.totalPageJs.error) {
       issueCount++;
       result.addCheck('bundle-size:total-error', false, {
-        severity: 'error',
-        message: `Total JS output is ${fmtKB(totalSize)} — exceeds ${fmtKB(budgets.totalPageJs.error)} error budget`,
+        severity: overBudgetSeverity,
+        message: `Total JS output is ${fmtKB(totalSize)} — exceeds ${fmtKB(budgets.totalPageJs.error)} error budget${budgetNote}`,
         fix: 'Audit large dependencies with `npx bundlephobia`. Remove unused libraries. Use tree-shakeable alternatives.',
       });
     } else if (totalSize > budgets.totalPageJs.warning) {

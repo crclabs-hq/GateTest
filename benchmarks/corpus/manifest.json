@@ -1,0 +1,15 @@
+{
+  "$comment": "The precision/recall corpus. Pinned SHAs; clean repos must not block, vulnerable repos must keep every planted class. Baselines live in benchmarks/corpus/baselines/ and are rewritten with `node scripts/corpus-gate.js --capture`. Measured first on 2026-09-01 (docs/benchmarks/2026-09-01-corpus-nine-repos.md), automated 2026-09-02.",
+  "skipModules": ["mutation", "e2e", "unitTests", "dataIntegrity"],
+  "repos": [
+    { "name": "express",    "repo": "expressjs/express",   "sha": "023767fe9872e029271df1418f73401bff20ff40", "kind": "clean" },
+    { "name": "multer",     "repo": "expressjs/multer",    "sha": "a53296bbd6d57349bcf56da3b2de5111e1c87c54", "kind": "clean" },
+    { "name": "chalk",      "repo": "chalk/chalk",         "sha": "661317e6f91fe7c90306c2c48ea9354562ee9146", "kind": "clean" },
+    { "name": "fastify",    "repo": "fastify/fastify",     "sha": "4cdb0c5def812f5773c952efdb79f1e99dcfae92", "kind": "clean" },
+    { "name": "axios",      "repo": "axios/axios",         "sha": "81df7a519431f5d703074df700dc40782a61fa9e", "kind": "clean" },
+    { "name": "lodash",     "repo": "lodash/lodash",       "sha": "a666ba591064c8011988275790ad7d625279f09c", "kind": "clean" },
+    { "name": "dvna",       "repo": "appsecco/dvna",       "sha": "9ba473add536f66ac9007966acb2a775dd31277a", "kind": "vulnerable" },
+    { "name": "nodegoat",   "repo": "OWASP/NodeGoat",      "sha": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8", "kind": "vulnerable" },
+    { "name": "juice-shop", "repo": "juice-shop/juice-shop", "sha": "1618a611b173b4bf114028e6e02549950606e29d", "kind": "vulnerable" }
+  ]
+}

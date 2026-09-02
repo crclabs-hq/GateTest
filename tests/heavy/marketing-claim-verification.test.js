@@ -121,8 +121,8 @@ describe('marketing claim — hybrid engine models', () => {
 // Claim: 4 pricing tiers wired through /api/checkout
 // ---------------------------------------------------------------------------
 
-describe('marketing claim — 4 pricing tiers wired', () => {
-  it('checkout-tiers.ts declares quick / full / scan_fix / nuclear TIERS, imported by the checkout route', () => {
+describe('marketing claim — six pricing tiers wired (Quick, Full, Scan+Fix, Forensic, Continuous, MCP)', () => {
+  it('checkout-tiers.ts declares every tier the Bible lists, imported by the checkout route', () => {
     // TIERS moved out of checkout/route.ts into a standalone zero-dependency
     // module (2026-07-20 — see docs/ROADMAP.md) so the price table has
     // exactly one home instead of drifting between route.ts and the
@@ -133,12 +133,14 @@ describe('marketing claim — 4 pricing tiers wired', () => {
     assert.match(tiersFile, /\bfull\b/);
     assert.match(tiersFile, /\bscan_fix\b/);
     assert.match(tiersFile, /\bnuclear\b/);
+    assert.match(tiersFile, /\bcontinuous\b/);
+    assert.match(tiersFile, /\bmcp\b/);
 
     const checkout = readFile('website/app/api/checkout/route.ts');
     assert.match(checkout, /import\s*\{\s*TIERS\s*\}\s*from\s*["']@\/app\/lib\/checkout-tiers["']/);
   });
 
-  it('budget-tracker has tier caps for all 4 tiers', () => {
+  it('budget-tracker has tier caps for the four one-time tiers', () => {
     const { capsForTier } = require('../../website/app/lib/budget-tracker');
     assert.strictEqual(capsForTier('quick').tier, 'quick');
     assert.strictEqual(capsForTier('full').tier, 'full');

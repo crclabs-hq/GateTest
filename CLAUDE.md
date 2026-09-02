@@ -146,12 +146,13 @@ While working on any task in this repo, if you observe any of the following, **a
 Every turn ends with the **sweep checklist**:
 - [ ] `node --test --test-force-exit --test-timeout=60000 tests/*.test.js` — all pass (the bare `node --test` form hangs for HOURS locally — a leaked timer/socket keeps the runner alive; CI got the same force-exit fix in `180bf7c`)
 - [ ] `node --test --test-force-exit --test-timeout=120000 tests/heavy/*.test.js` — heavy suite (subprocess/CLI tests moved here in v1.57.1); non-blocking in CI but must be green before shipping
+- [ ] `node scripts/corpus-gate.js` — the precision/recall gate on nine real repos (blocking in CI since 2026-09-02). A detection change that adds a blocking finding to a clean repo, or silences a planted class on a vulnerable one, fails here. Accept a reviewed change with `--capture --only <repo>` and commit the baseline diff. **Run it on Linux** — four modules passed on Windows and failed on every Linux runner before this gate existed (KI #103).
 - [ ] `cd website && npx next build` — zero errors
 - [ ] `node bin/gatetest.js --list` — all modules load
 - [ ] `grep -rn "TODO\|FIXME" src/ website/app/ --include="*.js" --include="*.ts" --include="*.tsx"` — none left unresolved in code you touched
 - [ ] Known Issues table reviewed — any HIGH item still in the pre-authorization scope gets picked up
 
-If the sweep is red, **fix it before stopping**. The Stop hook enforces this.
+If the sweep is red, **fix it before stopping**. The Stop hook (`.claude/scripts/sweep.sh`, registered in `.claude/settings.json` since 2026-09-02 — it was written but never wired before) enforces this.
 
 ### Boundaries
 

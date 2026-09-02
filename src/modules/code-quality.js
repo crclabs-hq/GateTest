@@ -4,7 +4,7 @@
  */
 
 const BaseModule = require('./base-module');
-const { JS_SOURCE_EXTS, JS_SOURCE_EXTS_NO_JSX } = require('../core/source-extensions');
+const { JS_SOURCE_EXTS } = require('../core/source-extensions');
 const fs = require('fs');
 const path = require('path');
 
@@ -277,8 +277,76 @@ class CodeQualityModule extends BaseModule {
    * @param {string} relFwd - repo-relative path, forward slashes
    * @returns {boolean}
    */
-  _isLibraryPath(relFwd) {
-    return !relFwd.split('/').some(seg => CodeQualityModule.NON_LIBRARY_DIRS.has(seg.toLowerCase()));
+  _isLibraryPath(relFwd, projectRoot) {
+    if (relFwd.split('/').some(seg => CodeQualityModule.NON_LIBRARY_DIRS.has(seg.toLowerCase()))) return false;
+    if (!projectRoot) return true;
+    const pkg = this._nearestPackage(projectRoot, relFwd);
+    return pkg ? this._isPublishedPath(pkg, relFwd) : true;
+  }
+
+  /**
+   * The package.json that OWNS a file — the nearest one walking up from the
+   * file's directory to the project root. In a repo that publishes from its
+   * root and also carries a private app in a subdirectory (this repo:
+   * `website/`), a file in the app was being judged as library code of the
+   * root package. Self-scan 2026-09-02: 30 blocking findings, all console.log
+   * in `website/capture-baseline.mjs`, a Playwright capture script nobody
+   * imports.
+   *
+   * Cached per directory. Returns `{ dir, json }` or null.
+   */
+  _nearestPackage(projectRoot, relFwd) {
+    if (!this._pkgCache || this._pkgCache.root !== projectRoot) this._pkgCache = { root: projectRoot, byDir: new Map() };
+    const segs = relFwd.split('/');
+    segs.pop();
+    for (let n = segs.length; n >= 0; n--) {
+      const dir = segs.slice(0, n).join('/');
+      if (this._pkgCache.byDir.has(dir)) {
+        const hit = this._pkgCache.byDir.get(dir);
+        if (hit) return hit;
+        continue;
+      }
+      let entry = null;
+      try {
+        const json = JSON.parse(fs.readFileSync(path.join(projectRoot, dir, 'package.json'), 'utf-8'));
+        entry = { dir, json };
+      } catch (err) {
+        // ENOENT: no package.json at this level, keep walking up. Anything
+        // else (malformed JSON) still OWNS the file — with no `main` or
+        // `files` it reads as an application, which is the safe direction.
+        entry = err && err.code === 'ENOENT' ? null : { dir, json: {}, error: err.message };
+      }
+      this._pkgCache.byDir.set(dir, entry);
+      if (entry) return entry;
+    }
+    return null;
+  }
+
+  /**
+   * Is the file inside what its package actually ships? When package.json
+   * declares `files`, npm publishes only those paths (plus README/LICENSE/
+   * main), so anything outside them cannot be "code a consumer imports". No
+   * `files` list means everything not .npmignored ships — treated as
+   * published.
+   */
+  _isPublishedPath(pkg, relFwd) {
+    const files = Array.isArray(pkg.json.files) ? pkg.json.files : null;
+    if (!files || files.length === 0) return true;
+    const inPkg = pkg.dir ? relFwd.slice(pkg.dir.length + 1) : relFwd;
+    const entries = files.concat(pkg.json.main ? [String(pkg.json.main)] : []);
+    return entries.some((raw) => {
+      let e = String(raw).replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
+      const glob = e.search(/[*?[{]/);
+      if (glob === 0) {
+        // `*.d.ts` publishes top-level files with that suffix; `**` publishes
+        // everything; any other leading-glob shape fails toward "published".
+        const suffix = e.match(/^\*(\.[A-Za-z0-9.]+)$/);
+        if (suffix) return !inPkg.includes('/') && inPkg.endsWith(suffix[1]);
+        return true;
+      }
+      if (glob !== -1) e = e.slice(0, glob).replace(/\/+$/, '');
+      return inPkg === e || inPkg.startsWith(e + '/');
+    });
   }
 
   /**
@@ -290,17 +358,11 @@ class CodeQualityModule extends BaseModule {
    * @param {string} projectRoot
    * @returns {boolean}
    */
-  _publishesPackage(projectRoot) {
-    if (this._publishesCache && this._publishesCache.root === projectRoot) {
-      return this._publishesCache.value;
-    }
-    let value = false;
-    try {
-      const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf-8'));
-      value = pkg.private !== true && Boolean(pkg.main || pkg.exports || pkg.module || pkg.bin);
-    } catch { /* no/unreadable package.json — treat as an application */ }
-    this._publishesCache = { root: projectRoot, value };
-    return value;
+  _publishesPackage(projectRoot, relFwd = '') {
+    const owner = this._nearestPackage(projectRoot, relFwd);
+    if (!owner) return false;
+    const pkg = owner.json;
+    return pkg.private !== true && Boolean(pkg.main || pkg.exports || pkg.module || pkg.bin);
   }
 
   /**
@@ -352,9 +414,9 @@ class CodeQualityModule extends BaseModule {
     // Info is still disclosed and still counted — it moves out of the warning
     // wall, not out of the report. Library paths are untouched: a published
     // package logging from lib/ is still an error.
-    if (!this._isLibraryPath(relFwd)) return 'info';
+    if (!this._isLibraryPath(relFwd, projectRoot)) return 'info';
     if (this._isDeliberateLogging(rawLine)) return 'warning';
-    if (!this._publishesPackage(projectRoot)) return 'warning';
+    if (!this._publishesPackage(projectRoot, relFwd)) return 'warning';
     return undefined;
   }
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-24T04:02:54.978Z",
+  "generatedAt": "2026-09-02T05:34:52.675Z",
   "source": "scripts/generate-site-stats.js",
   "note": "Measured on every run. Displayed counts are rounded DOWN so the public \"N+\" claim is always an under-statement. Do not hand-edit — run the script.",
   "version": "1.61.0",
@@ -18,10 +18,48 @@
     "greenSource": "measured",
     "greenMeasuredAt": "2026-08-24T04:02:54.992Z"
   },
+  "suites": {
+    "quick": 42,
+    "standard": 46,
+    "full": 89,
+    "live": 3,
+    "nuclear": 96,
+    "wp": 30,
+    "web": 20
+  },
+  "mcpTools": {
+    "count": 24,
+    "names": [
+      "audit_log",
+      "blame_regression",
+      "capture_screenshot",
+      "check_health",
+      "compare_repos",
+      "compose_pr",
+      "explain_finding",
+      "fix_issue",
+      "get_badge",
+      "get_production_errors",
+      "get_report",
+      "get_visual_diff",
+      "http_request",
+      "list_modules",
+      "query_db",
+      "resolve_stack_trace",
+      "run_live_checks",
+      "run_module",
+      "run_tests",
+      "scan_local",
+      "scan_repo",
+      "scan_url",
+      "stream_logs",
+      "verify_fix"
+    ]
+  },
   "flywheel": {
-    "totalFixAttempts": 76,
-    "claudeRatioPct": 64.5,
-    "accuracyPct": 36.8,
-    "recent7dFixAttempts": 76
+    "totalFixAttempts": 156,
+    "claudeRatioPct": 65.4,
+    "accuracyPct": 38.5,
+    "recent7dFixAttempts": 156
   }
 }

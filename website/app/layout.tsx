@@ -124,7 +124,7 @@ export default function RootLayout({
                   price: "99.00",
                   priceCurrency: "USD",
                   description:
-                    "All 121 modules including AI code review, security, supply chain, auth flaws, and more",
+                    "Every applicable module of the 121-module engine, including AI code review, security, supply chain, auth flaws, and more",
                 },
                 {
                   "@type": "Offer",
@@ -132,7 +132,7 @@ export default function RootLayout({
                   price: "199.00",
                   priceCurrency: "USD",
                   description:
-                    "All 121 modules plus an AI auto-fix pull request with regression tests, pair-review, and architecture annotations",
+                    "Every applicable module of the 121-module engine plus an AI auto-fix pull request with regression tests, pair-review, and architecture annotations",
                 },
                 {
                   "@type": "Offer",

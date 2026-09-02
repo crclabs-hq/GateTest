@@ -206,8 +206,16 @@ class SyntaxModule extends BaseModule {
 
   _checkJsonSyntax(file, result, projectRoot) {
     const relPath = path.relative(projectRoot, file);
+    // Declared OUTSIDE the try: the JSONC retry in the catch block reads it.
+    // Shipped 2026-09-01 with `const content` inside the try, which is out of
+    // scope in the catch — the retry threw ReferenceError, was swallowed by
+    // its own catch, and every commented tsconfig / devcontainer.json kept
+    // blocking the gate exactly as before. The unit test exercised the JSONC
+    // helper, never this method; the end-to-end control now lives in
+    // tests/jsonc-config-files.test.js and ESLint's no-undef is blocking.
+    let content = '';
     try {
-      const content = fs.readFileSync(file, 'utf-8');
+      content = fs.readFileSync(file, 'utf-8');
       JSON.parse(content);
       result.addCheck(`json:${relPath}`, true);
     } catch (err) {

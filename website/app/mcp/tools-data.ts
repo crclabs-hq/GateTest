@@ -1,8 +1,17 @@
 /**
  * The MCP tool catalog — single source of truth for every surface that
  * mentions the tool count (MCP page, homepage Eyes/Ears/Hands section).
- * The count is derived, never hand-written, so "18 tools" drift can't recur.
+ * The count is derived, never hand-written, so a stale typed count can't recur.
  */
+
+import siteStats from "../data/site-stats.json";
+
+// Suite sizes come from the engine via scripts/generate-site-stats.js —
+// the quick-suite size was hand-typed here one below the engine's (2026-09-02).
+const SUITES = siteStats.suites as Record<string, number>;
+const QUICK_SUITE_MODULES = SUITES.quick;
+const STANDARD_SUITE_MODULES = SUITES.standard;
+export const FULL_SUITE_MODULES = SUITES.full;
 
 export const ALL_TOOLS = [
   // Free
@@ -10,9 +19,9 @@ export const ALL_TOOLS = [
   { name: "list_modules", paid: false, desc: "List all 121 modules with descriptions" },
   { name: "get_badge", paid: false, desc: "Get embeddable README badge for any repo" },
   { name: "scan_url", paid: false, desc: "Quick scan any live URL via hosted API" },
-  { name: "scan_local (quick)", paid: false, desc: "41-module quick scan — syntax, lint, secrets, codeQuality, and more" },
+  { name: "scan_local (quick)", paid: false, desc: `${QUICK_SUITE_MODULES}-module quick scan — syntax, lint, secrets, codeQuality, and more` },
   // Paid
-  { name: "scan_local (standard/full/smart)", paid: false, desc: "45-module standard, 88-module full, or diff-aware smart scan" },
+  { name: "scan_local (standard/full/smart)", paid: false, desc: `${STANDARD_SUITE_MODULES}-module standard, ${FULL_SUITE_MODULES}-module full, or diff-aware smart scan` },
   { name: "run_module", paid: false, desc: "Run one specific module against a path" },
   { name: "fix_issue", paid: false, desc: "AI-driven auto-fix for a specific finding" },
   { name: "explain_finding", paid: false, desc: "Forensic-tier Claude diagnosis per finding" },
@@ -37,3 +46,13 @@ export const ALL_TOOLS = [
 // Distinct tool count — scan_local appears twice above (quick = free,
 // full/smart = paid) but is one tool on the server.
 export const TOOL_COUNT = new Set(ALL_TOOLS.map((t) => t.name.split(" ")[0])).size;
+
+// The server's own count (bin/gatetest-mcp.mjs, measured by generate-site-stats).
+// A tool added to the server must be listed here: the build fails, not just
+// tests/website-claims-sync.test.js, when the catalogue and server disagree.
+const SERVER_TOOL_COUNT: number = siteStats.mcpTools.count;
+if (TOOL_COUNT !== SERVER_TOOL_COUNT) {
+  throw new Error(
+    `website/app/mcp/tools-data.ts lists ${TOOL_COUNT} tools but bin/gatetest-mcp.mjs registers ${SERVER_TOOL_COUNT} — update the catalogue (and run scripts/generate-site-stats.js --no-tests)`,
+  );
+}

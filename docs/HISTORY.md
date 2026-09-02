@@ -415,6 +415,53 @@ pre-existing skips), 0 fail. Website builds clean throughout.
 
 ## VERSION CHANGELOGS (moved from the Bible)
 
+## v1.61.0 hardening — 2026-09-02 (corpus gate, red-main repair, website truth)
+
+Craig: *"Very deep checks and audit — we can't look like fools when dev agents
+start smashing us online."* Session record; measurement in
+`docs/benchmarks/2026-09-02-corpus-gate-automated.md`.
+
+**Main was red for five commits** and every one of them said "fast tests
+pass". Two negative-control tests were failing on Linux only; the root causes
+were path bugs that behave differently on Windows (KI #103). The quick-suite
+self-scan CI runs on every PR was also BLOCKED on this repo with 31 findings
+and zero true positives, hidden because the test job failed first. The JSONC
+fix shipped 2026-09-01 had never worked (`content` out of scope in the
+catch). All fixed in `7e9f2d0`.
+
+**The corpus gate now exists and blocks.** `scripts/corpus-gate.js` runs the
+full engine on nine pinned third-party repos (six clean, three deliberately
+vulnerable) on every PR via `.github/workflows/corpus-gate.yml`. Clean repos
+may not gain a blocking finding; vulnerable repos may not lose a planted
+class; per-module warning volume is budgeted. Baselines are committed and the
+baseline diff is the review artifact. Its first run found eleven false-
+positive classes on clean repos, every one now fixed with a still-fires
+control (table in the benchmark doc). express, multer and chalk went from
+2/1/3 blocking to 0/0/0; axios from 20 to 1; recall on the vulnerable repos
+did not move.
+
+**Website truth.** Nine live contradictions fixed (stale "120", "120 tools",
+suite sizes 41/45/88 vs the engine's 42/46/89, the `opus` alias described as
+Opus 4.8 while it resolves to Opus 5, Opus 5 absent from the picker, "All 121
+modules" on a scan that runs every APPLICABLE module). Suite sizes and the
+MCP tool count are now generated into `site-stats.json` and imported; the
+module-count guard's prefilter bug (case-sensitive, no intervening words) is
+fixed and immediately caught four more stale claims;
+`tests/website-claims-sync.test.js` guards suite sizes, tool counts, model
+names, and the prefilter itself.
+
+**Repair verification.** `direct-repair.js` now verifies every fix
+fail-closed (syntax via acorn/typescript, re-scan of the reporting modules,
+revert on persistence, regression, or an unrunnable scan) before commit —
+`_verify` had been dead code whose catch returned true. Remaining pipeline
+gaps recorded as KI #105.
+
+**CI honesty.** The job named "GateTest Full Scan" ran the quick suite; it
+now runs the full suite, blocking, on every push to main. The Stop hook the
+Bible described (`.claude/scripts/sweep.sh`) was never registered; it is now
+wired in `.claude/settings.json` and uses `--test-force-exit`.
+
+
 **Deep audit day (2026-08-18, commits b0b45c25 → 5df15098):** four parallel audits (competitor complaints ~60 sources; engine false positives on 8 real repos; website/sync; engineering/security) → same-day fixes. (1) Free funnel reads public repos through one anonymous archive download (`repo-snapshot.js`) — KI #101 product half closed in production without the box key. (2) Every hosted scan path runs the real engine on the whole repo via `scan-engine-dispatch.ts` + `loadRepoFiles`; worker default tier `deterministic`, pushed SHA scanned, coverage reported. (3) Blocking false positives −~90% on express/flask/gin/sinatra/petclinic/taxonomy/NodeGoat/fastapi with positive+negative controls per rule (seo fragments, authBypass grammar/handler/heuristics/severity-by-risk, visual, a11y, subprocess "couldn't run" = info, unitTests toolchains, undefinedRef multi-declarators, secrets comments/placeholders/dedupe, python/ruby exec/eval, claudeCompliance abstract methods, links schemes/templates, envVars guarded reads, deployScriptValidator, performance images, deployReadiness never blocks alone); fakeFixDetector diff scoped to the project path. (4) Security: SSRF guard + rate limits on url/nuclear/server scans, Slack fail-closed, cron header bypass removed, recipe writes tokenised, server-fix Forensic admin-only, chat limiter fixed, webhook status passthrough, ssrf-guard reserved ranges. (5) Website: playground upsell price/tier, subscription success page, single scan trigger + honest progress + re-run, MCP button pauses without email, generated MCP manifest (120→121), 15 stale counts, root canonical, OG images, compare-page facts, Nuclear→Forensic deliverables, measured self-scan green stat, phantom Continuous cards removed. Report: `docs/audits/2026-08-18-deep-audit.md`.
 
 **Pre-launch credibility pass — overnight session (2026-07-12, commits 81d6382 + ca4ce4b + follow-ups):** Craig's directive: website info must be correct, professional, trust-building, no cyberpunk; full autonomy granted overnight. Two fronts:

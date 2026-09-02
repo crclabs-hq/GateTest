@@ -1,0 +1,23 @@
+{
+  "name": "multer",
+  "repo": "expressjs/multer",
+  "sha": "a53296bbd6d57349bcf56da3b2de5111e1c87c54",
+  "kind": "clean",
+  "capturedAt": "2026-09-02",
+  "engine": "1.61.0",
+  "modulesRan": 85,
+  "blockingCount": 0,
+  "blocking": [],
+  "warnings": {
+    "lint": 1,
+    "secrets": 3,
+    "codeQuality": 2,
+    "performance": 1,
+    "documentation": 3,
+    "dependencies": 1,
+    "sbom": 1,
+    "flakyTests": 31,
+    "envVars": 1,
+    "spineHealth": 5
+  }
+}

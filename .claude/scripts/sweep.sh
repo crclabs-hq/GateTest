@@ -24,7 +24,8 @@ fi
 findings=""
 
 # 1. Tests
-if ! node --test tests/*.test.js >/tmp/gatetest-sweep-tests.log 2>&1; then
+# --test-force-exit: the bare form hangs for hours on a leaked handle (Bible sweep checklist).
+if ! node --test --test-force-exit --test-timeout=60000 tests/*.test.js >/tmp/gatetest-sweep-tests.log 2>&1; then
   failed=$(grep -E "^(not ok|# fail)" /tmp/gatetest-sweep-tests.log | head -5 | sed 's/^/    /')
   findings+=$'\n- Tests failing:\n'"$failed"
 fi
