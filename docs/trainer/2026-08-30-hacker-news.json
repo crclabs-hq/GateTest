@@ -1,0 +1,132 @@
+{
+  "generatedAt": "2026-08-30T08:58:45.285Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 7,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 5,
+      "SonarQube": 0,
+      "Semgrep": 0,
+      "CodeQL": 2,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 0
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49493043",
+        "author": "flyingshelf",
+        "type": "comment",
+        "title": null,
+        "text": "Really. I think snake oil sellers were so popular because people believed them. It's no different today.Today you can recognize snake oil scams, most people can't. Nothing has changed.Millions of people still fall victims to pyramid schemes and that's not due to the internet.",
+        "url": "https://news.ycombinator.com/item?id=49493043",
+        "points": null,
+        "numComments": null,
+        "storyId": 49492193,
+        "createdAt": "2026-08-29T20:22:47Z",
+        "createdAtUnix": 1788034967,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49492951",
+        "author": "seydor",
+        "type": "comment",
+        "title": null,
+        "text": "In a previous generation, people would detect those technological snake oil sellers , call them out , even chase them. Because they could tell scammers from non-scammers.Now we have already 2-3 generations raised to consider scam practices to be the norm , and even to celebrate behavioral tricks and audience maximizing optimization at any cost (clickbait!).I cannot be convinced this is a normal thing. Over time, things revert to normal, but often in an explosive way.",
+        "url": "https://news.ycombinator.com/item?id=49492951",
+        "points": null,
+        "numComments": null,
+        "storyId": 49492193,
+        "createdAt": "2026-08-29T20:13:47Z",
+        "createdAtUnix": 1788034427,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49492588",
+        "author": "Glyptodon",
+        "type": "comment",
+        "title": null,
+        "text": "So I think there is an oversight in this essay, and it's that society becoming predatory is much bigger than the Internet: it is the story of the decay of America, reflected and exacerbated by the internet, as it becomes a anti-democratic huckster society dominated by grifters, theocrats, and snake-oil sellers.Forget the internet, you can't get your home repaired, your car worked on, an appliance purchased, shop for food, or do anything else without wading through a corrupt morass of that mixes woo, subcultures, grift, and subscriptions. Maybe it's the hospital that wants to charge a $25 a day fee to make the hospital room TV grant access to basic cable channels instead of nothing. Maybe it's the elementary school district that mandates every physical interaction between students is called in to the police - like little Jenny shoved Johnny who skinned his knee because he teased her, call the cops, it's policy. Or the way that every customer service interaction is routed through endless AIs because it's cheaper than solving a problem. Or how it seems like nobody will do right by anyone else until lawyers get involved. Cut taxes year after year, while everything decays, we fail the younger generations, and everyone thinks you fake it till you make it because it's all zero sum... It's how America heads straight to banana republic, and it might be too late to turn.",
+        "url": "https://news.ycombinator.com/item?id=49492588",
+        "points": null,
+        "numComments": null,
+        "storyId": 49492193,
+        "createdAt": "2026-08-29T19:28:56Z",
+        "createdAtUnix": 1788031736,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49492277",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "Well sure, but people still do it.",
+        "url": "https://news.ycombinator.com/item?id=49492277",
+        "points": null,
+        "numComments": null,
+        "storyId": 49483052,
+        "createdAt": "2026-08-29T18:51:30Z",
+        "createdAtUnix": 1788029490,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49489126",
+        "author": "snikeris",
+        "type": "comment",
+        "title": null,
+        "text": "Whether a medication leads to dependence and withdrawal should be given greater weight than it gets in the regulatory process. There needs to be a greater counterweight to the obvious conflict of interest in selling a medication that makes you ill when you stop taking it. Doctors should hold themselves to a higher standard than the chronic disease paradigm.",
+        "url": "https://news.ycombinator.com/item?id=49489126",
+        "points": null,
+        "numComments": null,
+        "storyId": 49472090,
+        "createdAt": "2026-08-29T11:55:03Z",
+        "createdAtUnix": 1788004503,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [],
+    "CodeQL": [
+      {
+        "objectId": "49496566",
+        "author": "codeflo",
+        "type": "comment",
+        "title": null,
+        "text": "It's still a wild logical leap to me that we went from this observation, that maybe the bottom half of users never learn how the software works, to the idea that we should build software that is actively learning-hostile. In the old era, we established consistent UI patterns: this kind of button does X, this kind of button behaves like Y, here are the tools to solve your problem. Maybe not everyone learned the patterns, but those that did became wildly productive. Now: who cares if buttons are recognizable as such, your bottom half of users tap all over the place anyway, so design for them exclusively. It's good to enable more people, but we also lost something in the process.",
+        "url": "https://news.ycombinator.com/item?id=49496566",
+        "points": null,
+        "numComments": null,
+        "storyId": 49494520,
+        "createdAt": "2026-08-30T07:39:44Z",
+        "createdAtUnix": 1788075584,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49496511",
+        "author": "yonran",
+        "type": "comment",
+        "title": null,
+        "text": "In San Francisco, I’m not a fan of Aaron Peskin’s ban on algorithmic rent-setting (Admin Code 37.10C https:&#x2F;&#x2F;codelibrary.amlegal.com&#x2F;codes&#x2F;san_francisco&#x2F;latest&#x2F;s...) (which is probably similar to the other cities) because 1) it goes beyond antitrust law in just banning data gathering for no good reason, and 2) it rewards bounty hunters.1. It goes beyond antitrust guidelines by banning rent prediction using any “non-public competitor data”, which is stricter than the former antitrust guidelines which prohibited sharing “competitively sensitive variables” (https:&#x2F;&#x2F;www.ftc.gov&#x2F;sites&#x2F;default&#x2F;files&#x2F;attachments&#x2F;dealings...). To the extent that it differs from banning competitively sensitive data, it is just banning the use of data to make rentals more efficient. If landlords are pricing accurately but not monopolistically, this should reduce turnover, reduce vacancy, and reduce the occasions where a listing gets a crowd of applicants, which is good for both landlord and tenant. It’s bad to try to ban accurate data.2. It provides a private right of action for tenants and nonprofits to sue, just like Proposition 65 (Known by the State of California to cause cancer) incentivizes bounty hunters to sue. The point seems to be to punish landlords more than it is to establish fair rules.And it seems that these lawsuits are just piggybacking on the DOJ settlement by punishing anyone who uses RealPage as soon as the ordinance becomes effective in 30 days while RealPage was already working to settle federally. The complaints (e.g. the SF one https:&#x2F;&#x2F;www.courtlistener.com&#x2F;docket&#x2F;73573242&#x2F;gomez-v-greyst...) don’t have any new violations; just companies who are already settling. I don’t think that’s justice for a city to frontrun the federal settlement with new violations for the same program.",
+        "url": "https://news.ycombinator.com/item?id=49496511",
+        "points": null,
+        "numComments": null,
+        "storyId": 49495127,
+        "createdAt": "2026-08-30T07:30:52Z",
+        "createdAtUnix": 1788075052,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": []
+  },
+  "painPoints": [],
+  "actionItems": []
+}

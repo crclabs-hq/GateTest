@@ -1,0 +1,111 @@
+{
+  "generatedAt": "2026-08-30T08:58:24.828Z",
+  "inputs": {
+    "sessionFixCount": 45,
+    "fixAttemptCount": 0,
+    "mcpEventCount": 0
+  },
+  "topModulesByFixCount": [
+    {
+      "module": "deploy",
+      "count": 6
+    },
+    {
+      "module": "tests",
+      "count": 3
+    },
+    {
+      "module": "security",
+      "count": 3
+    },
+    {
+      "module": "scan",
+      "count": 3
+    },
+    {
+      "module": "config",
+      "count": 2
+    },
+    {
+      "module": "preview",
+      "count": 2
+    },
+    {
+      "module": "ops",
+      "count": 2
+    },
+    {
+      "module": "accuracy",
+      "count": 2
+    },
+    {
+      "module": "ci",
+      "count": 2
+    },
+    {
+      "module": "pricing",
+      "count": 2
+    }
+  ],
+  "topRuleKeysByAttempts": [],
+  "recurringSubjects": [],
+  "underTestedModules": [
+    {
+      "module": "deploy",
+      "fixes": 6,
+      "tests": 0,
+      "testPerFix": 0
+    }
+  ],
+  "layerStats": {
+    "layers": {
+      "ast": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "rule": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "recipe": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "claude": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "null": {
+        "attempts": 0,
+        "successes": 0
+      }
+    },
+    "total": 0,
+    "claudeShare": 0,
+    "deterministicShare": 0
+  },
+  "mcpUsage": {
+    "totalCalls": 0,
+    "tools": [],
+    "neverCalled": [
+      "scan_local",
+      "scan_url",
+      "check_health",
+      "list_modules",
+      "get_badge"
+    ],
+    "highFailTools": []
+  },
+  "recommendations": [
+    {
+      "kind": "investigate-module",
+      "module": "deploy",
+      "reason": "6 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "deploy",
+      "reason": "6 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    }
+  ]
+}

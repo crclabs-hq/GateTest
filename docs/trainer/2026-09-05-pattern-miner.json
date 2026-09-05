@@ -1,0 +1,109 @@
+{
+  "generatedAt": "2026-09-05T07:28:16.539Z",
+  "inputs": {
+    "sessionFixCount": 117,
+    "fixAttemptCount": 0,
+    "mcpEventCount": 0
+  },
+  "topModulesByFixCount": [
+    {
+      "module": "recall",
+      "count": 12
+    },
+    {
+      "module": "precision",
+      "count": 12
+    },
+    {
+      "module": "security",
+      "count": 5
+    },
+    {
+      "module": "gate",
+      "count": 4
+    },
+    {
+      "module": "scope",
+      "count": 4
+    },
+    {
+      "module": "secrets",
+      "count": 4
+    },
+    {
+      "module": "mutation",
+      "count": 3
+    },
+    {
+      "module": "scan",
+      "count": 3
+    },
+    {
+      "module": "flakyTests",
+      "count": 2
+    },
+    {
+      "module": "ci",
+      "count": 2
+    }
+  ],
+  "topRuleKeysByAttempts": [],
+  "recurringSubjects": [],
+  "underTestedModules": [],
+  "layerStats": {
+    "layers": {
+      "ast": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "rule": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "recipe": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "claude": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "null": {
+        "attempts": 0,
+        "successes": 0
+      }
+    },
+    "total": 0,
+    "claudeShare": 0,
+    "deterministicShare": 0
+  },
+  "mcpUsage": {
+    "totalCalls": 0,
+    "tools": [],
+    "neverCalled": [
+      "scan_local",
+      "scan_url",
+      "check_health",
+      "list_modules",
+      "get_badge"
+    ],
+    "highFailTools": []
+  },
+  "recommendations": [
+    {
+      "kind": "investigate-module",
+      "module": "recall",
+      "reason": "12 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "precision",
+      "reason": "12 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "security",
+      "reason": "5 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    }
+  ]
+}

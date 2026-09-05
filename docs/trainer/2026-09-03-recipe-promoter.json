@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-09-03T07:50:56.397Z",
+  "minerInputs": {
+    "sessionFixCount": 68,
+    "fixAttemptCount": 0,
+    "mcpEventCount": 0
+  },
+  "proposalsTotal": 0,
+  "highConfidence": 0,
+  "review": 0,
+  "skipped": 0,
+  "proposals": []
+}

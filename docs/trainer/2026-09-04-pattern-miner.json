@@ -1,0 +1,99 @@
+{
+  "generatedAt": "2026-09-04T07:53:29.408Z",
+  "inputs": {
+    "sessionFixCount": 57,
+    "fixAttemptCount": 0,
+    "mcpEventCount": 0
+  },
+  "topModulesByFixCount": [
+    {
+      "module": "security",
+      "count": 5
+    },
+    {
+      "module": "secrets",
+      "count": 4
+    },
+    {
+      "module": "scan",
+      "count": 3
+    },
+    {
+      "module": "scope",
+      "count": 2
+    },
+    {
+      "module": "status",
+      "count": 2
+    },
+    {
+      "module": "lint",
+      "count": 2
+    },
+    {
+      "module": "config",
+      "count": 2
+    },
+    {
+      "module": "tests",
+      "count": 2
+    },
+    {
+      "module": "preview",
+      "count": 2
+    },
+    {
+      "module": "ops",
+      "count": 2
+    }
+  ],
+  "topRuleKeysByAttempts": [],
+  "recurringSubjects": [],
+  "underTestedModules": [],
+  "layerStats": {
+    "layers": {
+      "ast": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "rule": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "recipe": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "claude": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "null": {
+        "attempts": 0,
+        "successes": 0
+      }
+    },
+    "total": 0,
+    "claudeShare": 0,
+    "deterministicShare": 0
+  },
+  "mcpUsage": {
+    "totalCalls": 0,
+    "tools": [],
+    "neverCalled": [
+      "scan_local",
+      "scan_url",
+      "check_health",
+      "list_modules",
+      "get_badge"
+    ],
+    "highFailTools": []
+  },
+  "recommendations": [
+    {
+      "kind": "investigate-module",
+      "module": "security",
+      "reason": "5 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    }
+  ]
+}
