@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-08-31T09:25:08.028Z",
+  "underTestedTargets": 1,
+  "draftsTotal": 1,
+  "drafted": 0,
+  "skipped": 1,
+  "failed": 0,
+  "drafts": [
+    {
+      "module": "deploy",
+      "status": "skipped-no-source-file",
+      "reason": "Could not find src/modules/deploy.js or website/app/lib/deploy.js"
+    }
+  ]
+}

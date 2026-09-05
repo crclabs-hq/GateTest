@@ -1,0 +1,162 @@
+{
+  "generatedAt": "2026-09-01T08:22:46.847Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 9,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 5,
+      "SonarQube": 0,
+      "Semgrep": 2,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 1,
+      "Veracode": 0,
+      "Checkmarx": 0
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49518879",
+        "author": "NitpickLawyer",
+        "type": "comment",
+        "title": null,
+        "text": "It really isn't and it's sad seeing so many people say it so confidently on this site. It only detects plain &#x2F; basic prompted stuff. \"write me an essay on x\", sure. The moment you prompt it differently, it stops working. Add \"output should be STE100 compliant\" or something to your prompts and detection goes away. Fine-tune any local llm on real human prose, and detection goes away. Edit 2-3 characters (emdashes, lists, etc) and detection goes away.And that's for just basic detection. There have been plenty of examples of 100% human written content (either old, or unpublished) that gets falsely flagged as AI.And these are just technical aspects. The main issue is that pangram and other solutions are being used to summarily judge students work, and that is orders of magnitude more fucked up. Accusing someone of cheating can have devastating effects on their education&#x2F;career&#x2F;etc. and they're doing it with snake-oil closed boxes, at scale. We really really shouldn't support this, especially here on a technical site.",
+        "url": "https://news.ycombinator.com/item?id=49518879",
+        "points": null,
+        "numComments": null,
+        "storyId": 49517584,
+        "createdAt": "2026-09-01T07:01:56Z",
+        "createdAtUnix": 1788246116,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49517251",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "They could just drive it into someone.>hazardous gas detection, search and rescue, as well as suspicious package investigationsWhat the fuck does that have to do with immigration and customs enforcement?",
+        "url": "https://news.ycombinator.com/item?id=49517251",
+        "points": null,
+        "numComments": null,
+        "storyId": 49515896,
+        "createdAt": "2026-09-01T02:23:18Z",
+        "createdAtUnix": 1788229398,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49517103",
+        "author": "LastTrain",
+        "type": "comment",
+        "title": null,
+        "text": "Snakes and Ladders is about learning social skills. That’s why who wins is random, it gives kids an experience at both. If you want to play a fun game, play something else.",
+        "url": "https://news.ycombinator.com/item?id=49517103",
+        "points": null,
+        "numComments": null,
+        "storyId": 49449356,
+        "createdAt": "2026-09-01T02:00:49Z",
+        "createdAtUnix": 1788228049,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49510587",
+        "author": "Brajeshwar",
+        "type": "story",
+        "title": "Snake embryos often coil in one direction. Now, we may know why",
+        "text": "Snake embryos often coil in one direction. Now, we may know why",
+        "url": "https://www.science.org/content/article/snake-embryos-often-coil-one-direction-now-we-may-know-why",
+        "points": 3,
+        "numComments": 0,
+        "storyId": 49510587,
+        "createdAt": "2026-08-31T14:58:30Z",
+        "createdAtUnix": 1788188310,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49508186",
+        "author": "bewareofscams",
+        "type": "comment",
+        "title": null,
+        "text": "> Boris Cherny from Anthropic recently posted that layered defenses could reduce indirect prompt injection on unseen attacks to approximately zero.> I got attack success rates up to 80% using a small sample size.Snake oil salesman misrepresents the data. Color me surprised! &#x2F;s",
+        "url": "https://news.ycombinator.com/item?id=49508186",
+        "points": null,
+        "numComments": null,
+        "storyId": 49506819,
+        "createdAt": "2026-08-31T10:55:31Z",
+        "createdAtUnix": 1788173731,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "49515606",
+        "author": "bigyabai",
+        "type": "comment",
+        "title": null,
+        "text": "The realpolitik is not lost on American HN readers. It's like you say - there's a balance between maintaining a competitive economy and a fair one.In this instance, should we let AdSense persist as a platform? It does turn out lots of revenue, but it does so by creating a closed ad space economy that Alphabet manages. This not only gives Google and YouTube unfair advantages on their own ad service, but it also creates a blind auction for businesses that don't know what their advertisements are worth. The entire system is deliberately and artificially segregated from competitors to AdSense.We see this throughout America's economy, with Apple and Microsoft too. It undoubtedly incurs fiscal damage to legitimate competitors that should be given fair ground to offer a better service. But since the US federal government encourages consolidation, all of America's services get described as \"enshittified\" by their customers while China innovates.",
+        "url": "https://news.ycombinator.com/item?id=49515606",
+        "points": null,
+        "numComments": null,
+        "storyId": 49514878,
+        "createdAt": "2026-08-31T22:25:52Z",
+        "createdAtUnix": 1788215152,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49509627",
+        "author": "setgree",
+        "type": "comment",
+        "title": null,
+        "text": "It's fun to see that even an extremely large company can find unexpected product market fit [0]. Per this article, \"The company reportedly did not possess an engineering team dedicated to business customers or staff focused on developer relations, and lacked an enterprise AI strategy.\" That sounds insane in retrospect, but I think there's just inherent uncertainty in what people actually need and will use things for.[0]https:&#x2F;&#x2F;pmarchive.com&#x2F;guide_to_startups_part4.html: \"In a great market—a market with lots of real potential customers—the market pulls product out of the startup... The product doesn’t need to be great; it just has to basically work.\"",
+        "url": "https://news.ycombinator.com/item?id=49509627",
+        "points": null,
+        "numComments": null,
+        "storyId": 49508982,
+        "createdAt": "2026-08-31T13:35:20Z",
+        "createdAtUnix": 1788183320,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "49519071",
+        "author": "codegladiator",
+        "type": "story",
+        "title": "Ask HN: How fast can you ship a production ready SaaS from scratch",
+        "text": "Consider you have a SAAS idea sorted out. Not just build it, but ship it in completion (domain&#x2F;deploy&#x2F;payments&#x2F;invoicing&#x2F;anti-abuse&#x2F;publish (if its android&#x2F;iphone app))",
+        "url": "https://news.ycombinator.com/item?id=49519071",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 49519071,
+        "createdAt": "2026-09-01T07:27:08Z",
+        "createdAtUnix": 1788247628,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [
+      {
+        "objectId": "49514524",
+        "author": "shakna",
+        "type": "comment",
+        "title": null,
+        "text": "In 1971, the Database Task Group, presented the formalisation of a standard to approaches used at the time, CODASYL (1959), in the formation of... COBOL.There is no query primitives in the CODASYL Data Model. Only a Data Manipulation Language.Because \"relational\" databases didn't really happen until the early '80s - nearly a decade later. (SQL came directly out of work on CODASYL).We had a Database Task Group, long, long, before we had the concept of a query primitive.",
+        "url": "https://news.ycombinator.com/item?id=49514524",
+        "points": null,
+        "numComments": null,
+        "storyId": 49486334,
+        "createdAt": "2026-08-31T20:31:04Z",
+        "createdAtUnix": 1788208264,
+        "intent": "neutral"
+      }
+    ],
+    "Veracode": [],
+    "Checkmarx": []
+  },
+  "painPoints": [],
+  "actionItems": []
+}

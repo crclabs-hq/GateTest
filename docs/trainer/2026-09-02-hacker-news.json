@@ -1,0 +1,175 @@
+{
+  "generatedAt": "2026-09-02T07:42:04.269Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 10,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 8,
+      "SonarQube": 1,
+      "Semgrep": 1,
+      "CodeQL": 0,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 0
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49531721",
+        "author": "jauntywundrkind",
+        "type": "comment",
+        "title": null,
+        "text": "The trigger has a deliberate defect where it has the least possible amount of material right at the weakest most leveraged part.It's a cheap part to replace. It also means a complete disassembly! A lot of it isn't hard but there are some wires that have to snake around, and popping out certain things requires some scary use of force. It took like 3 hours to do for mine.Also these things don't seem to be great at battery maintenance. I forget how long that took me but it didn't leave any scars, I think it was easy. Just, more expensive. Less so now that batteries are cheaper. But I have my suspicion that their float charge mode is maybe not good & injured batteries. I specifically avoided that but still had issues.The trigger really made me mad when I finally dug it out of mine. It was such a blatantly obviously designed-to-fail system. It really makes me super distrust this company.",
+        "url": "https://news.ycombinator.com/item?id=49531721",
+        "points": null,
+        "numComments": null,
+        "storyId": 49527879,
+        "createdAt": "2026-09-02T04:27:15Z",
+        "createdAtUnix": 1788323235,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49531498",
+        "author": "davidw",
+        "type": "comment",
+        "title": null,
+        "text": "This makes sense, but boy would it be easy to mix up something like this with some fancy graphics and sell some snake oil. Stuff that sounds like\"What is therefore required is not merely a more capable agent, but a closed-loop capability orchestration substrate capable of continuously reconciling observed product reality against an evolving demand manifold.\"",
+        "url": "https://news.ycombinator.com/item?id=49531498",
+        "points": null,
+        "numComments": null,
+        "storyId": 49489098,
+        "createdAt": "2026-09-02T03:50:07Z",
+        "createdAtUnix": 1788321007,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49531420",
+        "author": "ChannelFence",
+        "type": "comment",
+        "title": null,
+        "text": ">How is your Chrome extension going these days?Slow progress, but better than what product hunt made it look :) 10 active users on the chrome store, but even a small amount of strangers installing and keeping it feels way more real than that snake bullshit I saw upvoted.",
+        "url": "https://news.ycombinator.com/item?id=49531420",
+        "points": null,
+        "numComments": null,
+        "storyId": 49522019,
+        "createdAt": "2026-09-02T03:36:28Z",
+        "createdAtUnix": 1788320188,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49524959",
+        "author": "martythemaniak",
+        "type": "comment",
+        "title": null,
+        "text": "I'll give you my diagnosis, which is derived from this: https:&#x2F;&#x2F;www.semafor.com&#x2F;article&#x2F;04&#x2F;27&#x2F;2025&#x2F;the-group-chats-t...The thing to realize about the SV executive class is that they have constructed a closed ecosystem around them where they only talk amongst themselves and a small number of supporting actors who say what the execs need to hear. A CEO will talk to other CEOs he will not talk to his skip reports. Alternative viewpoints or dissent are not part of this social circle, and despite their 'conterarian' self-image, there's an immense amount of social pressure to conform.You can can see hints of this outside - for example this site used to see YC folks as regular commenters, but no more. Twitter was changed so that only views favoured by Musk show up prominently in replies. These people certainly do not encounter normal people in their day-to-day lives.In this information environment you see extremely rapid horizontal spread of weird, stupid and esoteric ideas - one CEO does a layoff, all of them will do layoffs. One turns MAGA, they all turn MAGA, etc. One guy starts yapping about some snake oil, they all yap about snake oil. There no negative feedback loop there.",
+        "url": "https://news.ycombinator.com/item?id=49524959",
+        "points": null,
+        "numComments": null,
+        "storyId": 49523720,
+        "createdAt": "2026-09-01T17:20:02Z",
+        "createdAtUnix": 1788283202,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49523701",
+        "author": "jon-wood",
+        "type": "comment",
+        "title": null,
+        "text": "The first time I went for a diagnosis I was made to sit the same QbCheck test, which was then used as the entire justification for why I couldn't possibly have ADHD despite every other aspect saying I did. Apparently 30 years of having to sit at a computer and do a task in order to eat and pay rent means that I can sit down for 20 minutes and do a task at a computer.I'm still quite bitter about this because it then took me another two years to work up the motivation to go get retested (this time somewhere that doesn't use snake oil), followed by an additional year to work up the motivation to sort out coordinating with my GP to get on meds. That's three years I could have been a functioning human being.",
+        "url": "https://news.ycombinator.com/item?id=49523701",
+        "points": null,
+        "numComments": null,
+        "storyId": 49467700,
+        "createdAt": "2026-09-01T15:52:39Z",
+        "createdAtUnix": 1788277959,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49523530",
+        "author": "snikeris",
+        "type": "comment",
+        "title": null,
+        "text": "The two issues I have with relying on the cloud for intelligence is:- I don't trust them with my data- I don't trust the data they send back to meThe first is about my privacy, the second is about not being manipulated by what is considered the politically correct answer to my questions.",
+        "url": "https://news.ycombinator.com/item?id=49523530",
+        "points": null,
+        "numComments": null,
+        "storyId": 49508982,
+        "createdAt": "2026-09-01T15:43:31Z",
+        "createdAtUnix": 1788277411,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49522140",
+        "author": "ChannelFence",
+        "type": "comment",
+        "title": null,
+        "text": "I launched a chrome extnsion there and had almost the same experience. One of the products above me was where startups literally pay to become pieces of a snake and move toward the head. Whoever pays the most gets the head and so on and so on. It had 73 upvotes. Super scammy shit being upvoted was a sign of bots to me, so I wouldn't take it seriously. The site seemed kind of shitty to me.",
+        "url": "https://news.ycombinator.com/item?id=49522140",
+        "points": null,
+        "numComments": null,
+        "storyId": 49522019,
+        "createdAt": "2026-09-01T14:00:38Z",
+        "createdAtUnix": 1788271238,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49520412",
+        "author": "snikolaev",
+        "type": "story",
+        "title": "Full-Text Search Still Works. It Just Doesn't Get You to an Answer",
+        "text": "Full-Text Search Still Works. It Just Doesn't Get You to an Answer",
+        "url": "https://medium.com/@s_nikolaev/full-text-search-still-works-it-just-doesnt-get-you-to-an-answer-223469ac9d2c",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 49520412,
+        "createdAt": "2026-09-01T11:13:53Z",
+        "createdAtUnix": 1788261233,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [
+      {
+        "objectId": "49526831",
+        "author": "prmehta24",
+        "type": "comment",
+        "title": null,
+        "text": "Leidos | https:&#x2F;&#x2F;www.leidos.com&#x2F; | Oklahoma City, OK, USA | Full Time | Onsite* Great opportunity to do meaningful work at the FAA with a welcoming team, interesting projects, and amazing benefits.* Tech Stack: C++ (14&#x2F;17&#x2F;20), Sockets (TCP&#x2F;IP), MFC v14, Git&#x2F;Bitbucket, Jira, Confluence, Agile, Kanban, Unreal Engine 5 (UE5), Swift, Blender, GDI&#x2F;GDI+, PowerShell, Gemini, Jenkins, SonarQube, GoogleTest.* Only hiring US Citizens&#x2F;Green Card Holders for this position due to contractual requirements.* Check out the posting and apply below:https:&#x2F;&#x2F;www.linkedin.com&#x2F;jobs&#x2F;view&#x2F;4460147611&#x2F;https:&#x2F;&#x2F;careers.leidos.com&#x2F;jobs&#x2F;18180624-software-engineer",
+        "url": "https://news.ycombinator.com/item?id=49526831",
+        "points": null,
+        "numComments": null,
+        "storyId": 49522897,
+        "createdAt": "2026-09-01T19:27:50Z",
+        "createdAtUnix": 1788290870,
+        "intent": "neutral"
+      }
+    ],
+    "Semgrep": [
+      {
+        "objectId": "49528276",
+        "author": "Jtsummers",
+        "type": "comment",
+        "title": null,
+        "text": "There's already some precedent when dealing with humans reverse engineering systems. We use \"cleanroom\" approaches where the ones doing the reverse engineering are segregated from those doing the later design and development work. Instead of producing a design document based on the thing being studied, the reverse engineers produce a specification from which a new design, untainted by knowledge of the original design, is produced.People using ML to try and reverse-engineer and create a \"clean\" version of things will likely need to use a similar approach. You can't ask one LLM to take in a circuit design as input and produce a specification and design within the same context. The resulting design will be at least partially informed by knowledge of the original design. The way to do this safely (potentially still with suits happening, but safer at least) will be to have one execution to produce a specification, and a second fresh execution taking the specification to produce a design. At least then you know your LLM was not aware of the original design.Of course, LLM agents \"cheat\", so you'll also want to be careful to ensure a clean environment if you're using an agent that does not provide access to the original design material.",
+        "url": "https://news.ycombinator.com/item?id=49528276",
+        "points": null,
+        "numComments": null,
+        "storyId": 49527573,
+        "createdAt": "2026-09-01T21:12:35Z",
+        "createdAtUnix": 1788297155,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": []
+  },
+  "painPoints": [],
+  "actionItems": []
+}

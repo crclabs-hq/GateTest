@@ -1,0 +1,276 @@
+{
+  "generatedAt": "2026-09-04T07:53:49.912Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 17,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 10,
+      "SonarQube": 1,
+      "Semgrep": 2,
+      "CodeQL": 2,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 1,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49561298",
+        "author": "snikolaev",
+        "type": "story",
+        "title": "KupujemProdajem searches 5.6M ads at ~10 ms with Manticore Search",
+        "text": "KupujemProdajem searches 5.6M ads at ~10 ms with Manticore Search",
+        "url": "https://medium.com/@s_nikolaev/how-kupujemprodajem-searches-5-6-million-ads-at-10-ms-with-manticore-search-7e1e15576d99",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 49561298,
+        "createdAt": "2026-09-04T06:45:12Z",
+        "createdAtUnix": 1788504312,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49558466",
+        "author": "karim79",
+        "type": "comment",
+        "title": null,
+        "text": "There will probably never be AGI. This shit is just snake oil. Nor do we have a proper definition of what AGI actually is or what it's supposed to do.There will be a small handful of billionaires claiming that AGI is just around the corner ad infinitum just to serve themselves at this moment in time, and capitalise from the hype.There is no \"AGI\" endgame. This is shitty ass hypercapitalism in action and nothing more. I'll repeat: snake oil.",
+        "url": "https://news.ycombinator.com/item?id=49558466",
+        "points": null,
+        "numComments": null,
+        "storyId": 49554643,
+        "createdAt": "2026-09-03T23:17:25Z",
+        "createdAtUnix": 1788477445,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49557991",
+        "author": "torginus",
+        "type": "comment",
+        "title": null,
+        "text": "Btw, I kind of changed my opinion on AI. Finally, everybody can build an app, so we no longer have to pretend the people who built one and made it big are some sort tech pioneers pushing humanity forward.Likewise, if you're a nerd, you can spend your free time building stuff you thought you would never get around to.Yes, AI as marketed is a bit of a snakeoil, but much more real and meaningful than crypto and social media. And math nerds finally can get a high paying job that's not about peddling ads or figuring out how to make a hedge fund even richer.",
+        "url": "https://news.ycombinator.com/item?id=49557991",
+        "points": null,
+        "numComments": null,
+        "storyId": 49526453,
+        "createdAt": "2026-09-03T22:26:55Z",
+        "createdAtUnix": 1788474415,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49557246",
+        "author": "snakeboy",
+        "type": "comment",
+        "title": null,
+        "text": "> She was even able to change the text in one of their images to its new product name without having to contact the graphic designer.Is that legal... ? I admit I don't know much about graphic design is contracted.",
+        "url": "https://news.ycombinator.com/item?id=49557246",
+        "points": null,
+        "numComments": null,
+        "storyId": 49555233,
+        "createdAt": "2026-09-03T21:23:14Z",
+        "createdAtUnix": 1788470594,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49557202",
+        "author": "adan1719",
+        "type": "comment",
+        "title": null,
+        "text": "The benchmarks are so boring that the comparison against humans is meaningless. So it performs in some snake game (hard to say since all AI websites use 100% CPU and prevent normal reading, maybe written by AGI).If I were a test subject for that low salary, I'd cruise and not care at all about my performance. Which is exactly what they want anyway.",
+        "url": "https://news.ycombinator.com/item?id=49557202",
+        "points": null,
+        "numComments": null,
+        "storyId": 49554643,
+        "createdAt": "2026-09-03T21:20:05Z",
+        "createdAtUnix": 1788470405,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49557140",
+        "author": "dist-epoch",
+        "type": "comment",
+        "title": null,
+        "text": "1.5 years ago Gemini Pro 2.5 needed 1 page of thinking for every move in tic-tac-toe.Playing tic-tac-toe or snake does not imply AGI, but is required to claim AGI.",
+        "url": "https://news.ycombinator.com/item?id=49557140",
+        "points": null,
+        "numComments": null,
+        "storyId": 49555691,
+        "createdAt": "2026-09-03T21:15:54Z",
+        "createdAtUnix": 1788470154,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49556879",
+        "author": "rcoveson",
+        "type": "comment",
+        "title": null,
+        "text": "No, but figuring out that you're playing a snake-like puzzle game at all in an extremely general input domain and then solving it in the least number of moves definitely feels like evidence of intelligence.",
+        "url": "https://news.ycombinator.com/item?id=49556879",
+        "points": null,
+        "numComments": null,
+        "storyId": 49555691,
+        "createdAt": "2026-09-03T20:58:15Z",
+        "createdAtUnix": 1788469095,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49556562",
+        "author": "malfist",
+        "type": "comment",
+        "title": null,
+        "text": "Is solving a snake like puzzle game in the least number of moves really what defines intelligence?",
+        "url": "https://news.ycombinator.com/item?id=49556562",
+        "points": null,
+        "numComments": null,
+        "storyId": 49555691,
+        "createdAt": "2026-09-03T20:37:14Z",
+        "createdAtUnix": 1788467834,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49550379",
+        "author": "KPGv2",
+        "type": "comment",
+        "title": null,
+        "text": "The article really glosses over the fact that the kid was 5yo walking to a pond. It mentions it at the very start and then never brings it up again. That's the part that got me: the mom gave her 5yo permission to go to a large body of water unsupervised.I'm a parent of three and strongly believe in letting your kids roam around (indeed, I live on acreage and taught my kids about the venomous snakes and spiders in our area, and then let er rip). But a 5yo who specifically asks to go back to a large body of water unsupervised is a bit too much for me.Reason always strikes me as an opinionated libertarian media outlet, and this article really feels that way to me, where they keep playing up the \"walking on the street\" type stuff, the \"we're too afraid of kidnappings\" part, but not the fact that a 5yo unsupervised at a pond is by far the most dangerous part of this entire story.Even as a kid of the 80s, I never saw 5yos out and about unsupervised, let alone by a pond. 5yo is possibly preschool.Religious conservative, likely politically so, whose college degree was in family science at BYU—a degree Mormons steer their daughter into for her Mrs Degree—with experience in conservative politics at the state level who is responsible for passing a law giving parents a lot of freedom to let their little kids run around by basically saying \"unless they're in immediate danger, YOLO\"? So of course a reasonable judicial system tried to find a way to stop this wild behavior perpetrated by a woman with self-dealing political sway.Article does not pass the vibe check. Letting your PRESCHOOL age kid go to a pond alone is pretty damn irresponsible, and Reason is trying to gin up anti-gov't feelings when this is probably the best possible outcome. Mom gets slapped on the wrist for fucking up in a way that just barely skirts a law she helped get passed and politicians were too stupid to think about before passing.",
+        "url": "https://news.ycombinator.com/item?id=49550379",
+        "points": null,
+        "numComments": null,
+        "storyId": 49550174,
+        "createdAt": "2026-09-03T14:28:41Z",
+        "createdAtUnix": 1788445721,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49548927",
+        "author": "ethbr1",
+        "type": "comment",
+        "title": null,
+        "text": "It is a key point... if splits are encouraged and made easier (and I agree it'd be healthier for the market if the largest companies did), then liability needs to be handled carefully.One doesn't want to create a 'snake sheds its skin' scenario where Meta (for example), stuffs all its liability in a spin-off, yet keeps the profits those actions accrued in the other entity.",
+        "url": "https://news.ycombinator.com/item?id=49548927",
+        "points": null,
+        "numComments": null,
+        "storyId": 49537131,
+        "createdAt": "2026-09-03T12:08:39Z",
+        "createdAtUnix": 1788437319,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [
+      {
+        "objectId": "49560112",
+        "author": "edsteine",
+        "type": "comment",
+        "title": null,
+        "text": "Location: Casablanca, Morocco (UTC+1) Remote: Yes, preferred Willing to relocate: Yes, to EU, or UK with visa sponsorshipTechnologies: Java, Spring Boot 3, Angular 17, TypeScript, JavaScript, Kotlin, Flutter&#x2F;Dart, Android SDK, Jetpack Compose, Clean Architecture, MVVM, Riverpod, Hilt, Room&#x2F;SQLite, DataStore, Flow&#x2F;StateFlow, Retrofit, REST&#x2F;SOAP APIs, GraphQL, OpenAPI&#x2F;Swagger, OAuth2&#x2F;JWT, PostgreSQL&#x2F;PostGIS, MySQL, MongoDB, Redis, Elasticsearch, Kafka, RabbitMQ, gRPC, Docker, Kubernetes, Jenkins, GitHub Actions, Fastlane, Prometheus, Grafana, Sentry, Datadog, JUnit, Mockito, MockK, Espresso, TDD, SonarQube, Python&#x2F;Django REST Framework, Smallworld&#x2F;Magik GIS, GPS&#x2F;GNSS, OpenStreetMap, QGIS, ArcGIS, Firebase, Shopify GraphQLRésumé&#x2F;CV: https:&#x2F;&#x2F;drive.google.com&#x2F;file&#x2F;d&#x2F;1k514V1UHNma_WX_ndmcVwUv1aNR... Email: a.ajdaa@outlook.com LinkedIn: linkedin.com&#x2F;in&#x2F;edsteine GitHub: github.com&#x2F;edsteineSenior Full-Stack & Mobile Developer, 10+ years, leading a small team as Tech Lead at NTT DATA on a Spring Boot 3 &#x2F; Angular 17 enterprise platform for a Spain-based client. My background covers both ends genuinely, not superficially — 6 years at Implemental Systems shipping Java&#x2F;Spring Boot + Kotlin&#x2F;Android GIS systems for telecom, utilities, and airport operations (rebuilt a core airport-ops module with a 3-person team, +45% performance), plus freelance work spanning Flutter e-commerce (Shopify GraphQL integration) and a Spring Boot + PostGIS + Kotlin field-data GIS platform with offline-first sync.I end up doing full-stack more often than not simply because few teams I've worked with have anyone who knows mobile — so backend, frontend, and mobile depth all grew together out of necessity rather than by design.Looking for senior&#x2F;architect-level roles, EU-remote or Spain-based, full-time or contract.",
+        "url": "https://news.ycombinator.com/item?id=49560112",
+        "points": null,
+        "numComments": null,
+        "storyId": 49522896,
+        "createdAt": "2026-09-04T03:14:54Z",
+        "createdAtUnix": 1788491694,
+        "intent": "neutral"
+      }
+    ],
+    "Semgrep": [
+      {
+        "objectId": "49559766",
+        "author": "nextaccountic",
+        "type": "comment",
+        "title": null,
+        "text": "> This spatial segregation of memory is the worst hangover from the “brain is a computer” analogy.It's a computer, it's just not a digital computerBut even digital computers can have stuff like processing-in-memory. \"Computers\" doesn't need to mean whatever architecture usually run as of 2026",
+        "url": "https://news.ycombinator.com/item?id=49559766",
+        "points": null,
+        "numComments": null,
+        "storyId": 49535548,
+        "createdAt": "2026-09-04T02:23:16Z",
+        "createdAtUnix": 1788488596,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49552314",
+        "author": "saturn8601",
+        "type": "comment",
+        "title": null,
+        "text": "Companies that have massive startup costs (Automakers, Airlines) are harder to replace. This is a failure of the system we are in. Seems like the free market cannot properly evaluate value when all the cash is going into nonsense like Bitcoin, NFT and now a lot of the AI.Allegiant is an old Airline that has had a lot of problems. Breeze is new but both are starting super small and are not planning to really cover Spirits extended network anytime soon. The result of Spirit dying is alot of that prior investment in second tier cities&#x2F;airports is just gone for the forseeable future. The potential value that could have generated will now not come to pass.>Poorly run companies are supposed to go bankrupt, that’s the feedback loop keeping management in check.The problem that is occuring in my opinion is that Spirit is a symptom of a greater problem. The \"K shaped\" economy is not only segregating groups of people into haves and have nots, its extending into regions of the country. Losing major airlines access is the precursor to entire regions declining, and ultimately dying completly. If the AI robot world comes to fruition maybe many humans just have no economic value at all.",
+        "url": "https://news.ycombinator.com/item?id=49552314",
+        "points": null,
+        "numComments": null,
+        "storyId": 49537131,
+        "createdAt": "2026-09-03T16:07:03Z",
+        "createdAtUnix": 1788451623,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "49561039",
+        "author": "CoderLim110",
+        "type": "story",
+        "title": "NeoMME: Multimodal encoders trained from scratch with a single Transformer",
+        "text": "NeoMME: Multimodal encoders trained from scratch with a single Transformer",
+        "url": "https://huggingface.co/blog/Hcompany/neomme",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 49561039,
+        "createdAt": "2026-09-04T06:01:36Z",
+        "createdAtUnix": 1788501696,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49559919",
+        "author": "entrope",
+        "type": "comment",
+        "title": null,
+        "text": "M-Code is a new encrypted signal that is not fully operational yet. OCX was supposed to enable it.GPS has always had the P(Y) code, which is an encrypted signal, at a higher chip rate than the C&#x2F;A code that has been broadcast on L1 forever. The P(Y) code has its own interesting history of (semi-)codeless processing. If the US military is lucky, the history books will close on that by 2030: https:&#x2F;&#x2F;www.gps.gov&#x2F;codelesssemi-codeless-gps-access-commitm... . (Currently, 21 GPS satellites broadcast L5.)",
+        "url": "https://news.ycombinator.com/item?id=49559919",
+        "points": null,
+        "numComments": null,
+        "storyId": 49544618,
+        "createdAt": "2026-09-04T02:42:52Z",
+        "createdAtUnix": 1788489772,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [
+      {
+        "objectId": "49554666",
+        "author": "jawns",
+        "type": "comment",
+        "title": null,
+        "text": "I'm no lawyer, but I can't see how the judge is able to square this with a plain reading of the law.Here is the Virginia code on contributing to the delinquency of a minor: https:&#x2F;&#x2F;law.lis.virginia.gov&#x2F;vacode&#x2F;title18.2&#x2F;chapter5&#x2F;secti...The only portion that is even remotely relevant is:> (b) renders a child delinquent, in need of services, in need of supervision, or abused or neglected as defined in § 16.1-228;However, here is that section: https:&#x2F;&#x2F;law.lis.virginia.gov&#x2F;vacode&#x2F;16.1-228&#x2F;Paragraph 2 is the relevant one:> No child whose parent or other person responsible for his care allows the child to engage in independent activities without adult supervision shall for that reason alone be considered to be an abused or neglected child, provided that (a) such independent activities are appropriate based on the child's age, maturity, and physical and mental abilities and (b) such lack of supervision does not constitute conduct that is so grossly negligent as to endanger the health or safety of the child. Such independent activities include traveling to or from school or nearby locations by bicycle or on foot, playing outdoors, or remaining at home for a reasonable period of time.I would think that in order to justify a conviction, prosecutors would have had to overcome the above by showing evidence that this particular child is INCAPABLE of safely walking to a nearby location within his neighborhood, or that the child ACTUALLY DID put himself in danger, i.e. by entering the pond.Something tells me that evidence does not exist, and the judge ruled based on something other than a correct reading of the law.",
+        "url": "https://news.ycombinator.com/item?id=49554666",
+        "points": null,
+        "numComments": null,
+        "storyId": 49550174,
+        "createdAt": "2026-09-03T18:42:31Z",
+        "createdAtUnix": 1788460951,
+        "intent": "neutral"
+      }
+    ],
+    "Checkmarx": [
+      {
+        "objectId": "49559604",
+        "author": "vel0city",
+        "type": "comment",
+        "title": null,
+        "text": "How good was Einstein at drawing pelicans on bicycles by writing SVG code?Checkmate, meatbags.",
+        "url": "https://news.ycombinator.com/item?id=49559604",
+        "points": null,
+        "numComments": null,
+        "storyId": 49554643,
+        "createdAt": "2026-09-04T01:58:49Z",
+        "createdAtUnix": 1788487129,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}

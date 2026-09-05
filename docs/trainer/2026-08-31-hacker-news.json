@@ -1,0 +1,213 @@
+{
+  "generatedAt": "2026-08-31T09:25:28.742Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 11,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 8,
+      "SonarQube": 0,
+      "Semgrep": 1,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 2
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49506852",
+        "author": "bharatsuthar",
+        "type": "comment",
+        "title": null,
+        "text": "Maybe I'm just too primitive but I let dogs handle it. I homestead in a remote Indian village and many stray dogs I look after instinctively take care of my property. There are false positives sometimes but that's okay. I like it when they alert me for potential small intrusions around my house, like snakes, monitor lizards etc.",
+        "url": "https://news.ycombinator.com/item?id=49506852",
+        "points": null,
+        "numComments": null,
+        "storyId": 49480091,
+        "createdAt": "2026-08-31T07:54:49Z",
+        "createdAtUnix": 1788162889,
+        "intent": "bug"
+      },
+      {
+        "objectId": "49505648",
+        "author": "CodeMage",
+        "type": "comment",
+        "title": null,
+        "text": "Others have already talked to you about the significance of your anecdata and your faintly dismissive tone, but there's something else in your comment that tickled me and that no one's addressed yet:> 2010-2020 felt like tech dystopia to me. Cellphone incrementalism, walled gardens, adtech, crypto, locked down devices. It was a pale shadow of the excitement of the early web. Personal websites, kids making Flash games, the indie web, p2p, people building stuff being 70% of the internet. For the first time in a long time, I feel extremely hopeful about the future and excited to work with tech again.Who do you think was responsible for that dystopia? It wasn't those people you mentioned, who built the 70% of the old internet. The enshittification started when the people whose passion in life is to make money caught the scent of money-making potential the internet had.But then, how did those people actually accomplish the enshittification we're dealing with now? The answer is: with the enthusiastic help of the True Believers. Crypto is the best example. Just recall how many devs were convinced that the blockchain was going to revolutionize everything. And I mean devs. Not snake-oil peddlers in suits, not LinkedIn influencers, none of the usual posse of posers, but people who actually wrote code and were reasonably good at that.And that's not the only example, just the best one. I've been there myself. Back when OOP, UML, capital-A Agile, CMMi, and MDA (Model Driven Architecture) were the Hot New Thing, I was one of the True Believers, following the trends and proselytizing my colleagues.Every bit of the dystopia you lament was pushed by the combination of ambitious MBAs and True Believer devs.And the reason I bring this up is because you're one of those True Believers now. It's easy to fall into that trap. All you need is to have enough good experiences with the Hot New Thing to suppress your critical thinking and believe that this will Make Everything Great Again.The same kind of people who profited off the tech dystopia you saw are now ushering a new, worse tech dystopia that you're turning a blind eye to. Your belief that this new tech will somehow balance and even counteract what those people did to the internet you loved is not based in facts. It's faith.",
+        "url": "https://news.ycombinator.com/item?id=49505648",
+        "points": null,
+        "numComments": null,
+        "storyId": 49498095,
+        "createdAt": "2026-08-31T04:38:44Z",
+        "createdAtUnix": 1788151124,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49503799",
+        "author": "hackable_sand",
+        "type": "comment",
+        "title": null,
+        "text": "Don't waste your time biting the snakes back.Good luck.",
+        "url": "https://news.ycombinator.com/item?id=49503799",
+        "points": null,
+        "numComments": null,
+        "storyId": 49489547,
+        "createdAt": "2026-08-30T23:17:55Z",
+        "createdAtUnix": 1788131875,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49500126",
+        "author": "bushwart",
+        "type": "story",
+        "title": "Estimates of Global Burden of Snakebite",
+        "text": "Estimates of Global Burden of Snakebite",
+        "url": "https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.1005201",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 49500126,
+        "createdAt": "2026-08-30T16:28:57Z",
+        "createdAtUnix": 1788107337,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49499673",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "At least I could walk right up to JD Power and shake His hand.",
+        "url": "https://news.ycombinator.com/item?id=49499673",
+        "points": null,
+        "numComments": null,
+        "storyId": 49498296,
+        "createdAt": "2026-08-30T15:41:09Z",
+        "createdAtUnix": 1788104469,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49499660",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": ">You cannot surrender your legal obligations to an autonomous systemHa ha. What is the legal system but autonomous, for those without the money to access it fairly?",
+        "url": "https://news.ycombinator.com/item?id=49499660",
+        "points": null,
+        "numComments": null,
+        "storyId": 49497357,
+        "createdAt": "2026-08-30T15:39:54Z",
+        "createdAtUnix": 1788104394,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49499629",
+        "author": "saikatsg",
+        "type": "story",
+        "title": "Security scanner for AI agents, MCP servers and agent skills",
+        "text": "Security scanner for AI agents, MCP servers and agent skills",
+        "url": "https://github.com/snyk/agent-scan/",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 49499629,
+        "createdAt": "2026-08-30T15:36:40Z",
+        "createdAtUnix": 1788104200,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49499499",
+        "author": "lopatin",
+        "type": "story",
+        "title": "Show HN: Snaketron – Competitive multiplayer Snake. Back after 14 years",
+        "text": "Hi HN, I just completed a rewrite of Snaketron, a competitive multiplayer Snake game. (Yes, yes, in Rust)A quick funny story about this game's history:Back in 2012 I had (poorly) implemented the first version of Snaketron. The issue with it was that I was keeping game state on the client, and while I did realize that it was insecure, I also had no idea what to do about it without increasing latency to unplayable levels. I was still in school, never worked on games, and haven't even heard of the term \"netcode\" before. The excitement of releasing my first pet project got the better of me, and I placed this security concern in the \"theoretical issues\" bucket, and shipped it.No one would even notice, and if they did, they wouldn't take the time to break into my little Snake game project, right?WRONG! Hacker News absolutely lived up to its name. While I was busy with my first experience of handling a traffic surge, scaling up my database and fixing bugs, several players found the security holes and were beginning their Snake rampage. Reports were coming in of unkillable snakes so I decided to start up a game to see if I could catch it.I loaded a 1v1 and my opponent was ... space invaders. My snake was a snake. Their \"snake\" was a rendering of the game Space Invaders. Needless to say they were also moving around and were invincible. I really wish I had taken a video of that, but I was floored that HN not just played, but hacked, my project is such an epic way.I always wanted to rebuild it properly, so here's V2! The architecture and motivations are quite different this time around.First, the state is server authoritative and lag is compensated for by client-state prediction. The game engine is written in Rust and compiled to WASM for the client side library.To minimize the ops burden, I also imposed a strict resiliency requirement on this project: it must be auto-scalable. So a node can join the cluster and live games will rebalance to it without disrupting gameplay.I also tried to make the new Snaketron a little more fun. The core mechanic is still, like classic Snake, collecting food without crashing. But now team matches have an objective to make competitive games more structured. There's also a Bronze to Grand Master ranking sub system (if enough people play, calibrating this will be interesting) and some fun features like boosting, combos, skins, and Play Of The Game detection.On Rust: One of my original goals for doing this in Rust was so that I could learn the language. That didn't work out as well as I thought it would. Usually I learn by building stuff, but AI got so good that I stopped writing code by hand and preferred to spend my nights & weekends working on what was more intereting to me than borrow checking errors: game design and the high availability stuff.On AI: Who knows if this would have gotten done without AI. Probably not, what with my day job and other things going on in life. It's 200k LOC (most of that is tests don't worry) but still.Anyway, here are the project links. Thank you for reading, I hope you enjoy the game and any feedback is very much appreciated![0] https:&#x2F;&#x2F;snaketron.io[1] https:&#x2F;&#x2F;github.com&#x2F;lopatin&#x2F;snaketron[2] https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=4028597 (original post from 2012)",
+        "url": "https://snaketron.io",
+        "points": 5,
+        "numComments": 1,
+        "storyId": 49499499,
+        "createdAt": "2026-08-30T15:23:52Z",
+        "createdAtUnix": 1788103432,
+        "intent": "bug"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "49503140",
+        "author": "atmavatar",
+        "type": "comment",
+        "title": null,
+        "text": "> All the while voter turnout is a complete joke.To be fair, the US electoral system is designed to discourage or outright disenfranchise most voters:* First-past-the-post, winner-take-all elections ensure that anyone who isn't living in a swing state&#x2F;district may as well not bother.* Heavy gerrymandering exacerbates this effect.* Voter suppression tactics like attacking mail-in ballots and closing voting locations makes it more difficult for those people who still want to vote. Note that Voter ID laws are included in this because there still live today people who were denied birth certificates due to segregation-era hospitals refusing non-white mothers delivery care.* Holding elections on non-holiday weekdays makes it harder for those living paycheck-to-paycheck and working hourly jobs, though this is blunted somewhat by states which allow early voting.",
+        "url": "https://news.ycombinator.com/item?id=49503140",
+        "points": null,
+        "numComments": null,
+        "storyId": 49501791,
+        "createdAt": "2026-08-30T21:42:25Z",
+        "createdAtUnix": 1788126145,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "49506445",
+        "author": "rabc",
+        "type": "story",
+        "title": "Show HN: Albums Vault, my take on how to manage Spotify album library",
+        "text": "I am a long-time Spotify user, with tons of albums saved but never with a proper way to manage it: display genres, see what I've already listened, and many other things.I was finally able to bring to life the idea on how to handle the tons of music and it is named [Albums Vault](https:&#x2F;&#x2F;codefloe.com&#x2F;rabc&#x2F;albums-vault&#x2F;). It is a macOS app built with Tauri + Rust, with plans to release to more platforms soon.Since Spotify now restricts the creation of apps keys, it works in a BYOK: at first install the app instructs you on how to register for an app in Spotify and asks for your client ID.",
+        "url": "https://codefloe.com/rabc/albums-vault",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 49506445,
+        "createdAt": "2026-08-31T06:53:07Z",
+        "createdAtUnix": 1788159187,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "49504637",
+        "author": "lowbloodsugar",
+        "type": "comment",
+        "title": null,
+        "text": "I use AI every day and have unlimited budget. I will certainly not trust it to write safe, system level code for our systems. You absolutely do need to be playing blindfold chess and you can’t do that if the other actor doesn’t tell you the moves it made. Using LLMs as described here is essentially what vibe coding is all about. To use this chess analogy, the model says “checkmate!” and you just believe it because you never heard or looked at the moves it claimed to have made.",
+        "url": "https://news.ycombinator.com/item?id=49504637",
+        "points": null,
+        "numComments": null,
+        "storyId": 49419381,
+        "createdAt": "2026-08-31T01:30:17Z",
+        "createdAtUnix": 1788139817,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [
+    {
+      "phrase": "false positive",
+      "count": 1,
+      "examples": [
+        {
+          "objectId": "49506852",
+          "url": "https://news.ycombinator.com/item?id=49506852",
+          "snippet": "Maybe I'm just too primitive but I let dogs handle it. I homestead in a remote Indian village and many stray dogs I look after instinctively take care of my property. There are false positives sometim"
+        }
+      ]
+    },
+    {
+      "phrase": "false positives",
+      "count": 1,
+      "examples": [
+        {
+          "objectId": "49506852",
+          "url": "https://news.ycombinator.com/item?id=49506852",
+          "snippet": "Maybe I'm just too primitive but I let dogs handle it. I homestead in a remote Indian village and many stray dogs I look after instinctively take care of my property. There are false positives sometim"
+        }
+      ]
+    }
+  ],
+  "actionItems": []
+}
