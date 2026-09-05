@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-05T06:53:34.026Z",
+  "generatedAt": "2026-09-05T07:51:48.795Z",
   "source": "scripts/real-world-precision.js",
   "note": "Measured on every run against pinned commits of repositories we do not control. Ceilings only ratchet down. Do not hand-edit — run the script.",
   "engineVersion": "1.61.0",
-  "engineCommit": "87433247",
+  "engineCommit": "1ada58b3",
   "repos": [
     {
       "name": "express",
@@ -91,8 +91,8 @@
       "url": "https://github.com/gin-gonic/gin.git",
       "sha": "dcaa4296d111981ffb31ac3eba90bb63e1eb5ab9",
       "why": "Go — the ignored-error idiom the go module could not see until 2026-09-04",
-      "blocking": 2,
-      "ceiling": 2,
+      "blocking": 1,
+      "ceiling": 1,
       "softened": 0
     },
     {
@@ -191,7 +191,7 @@
     "bands": [
       {
         "confidence": 1,
-        "precision": 222,
+        "precision": 221,
         "recall": 57,
         "rules": {
           "precision": {
@@ -245,7 +245,6 @@
             "a11y:img-alt": 6,
             "a11y:contrast-static": 2,
             "k8s:image-tag": 1,
-            "unit-tests:run": 1,
             "ci-security:codeql-sarif-missing-actions-read": 1,
             "rust:unimplemented": 1,
             "php:eval": 2,
@@ -420,61 +419,61 @@
     "sweep": [
       {
         "threshold": 0.5,
-        "precisionBlocking": 309,
+        "precisionBlocking": 308,
         "recallBlocking": 57,
         "shipped": false
       },
       {
         "threshold": 0.6,
-        "precisionBlocking": 309,
+        "precisionBlocking": 308,
         "recallBlocking": 57,
         "shipped": false
       },
       {
         "threshold": 0.65,
-        "precisionBlocking": 222,
+        "precisionBlocking": 221,
         "recallBlocking": 57,
         "shipped": false
       },
       {
         "threshold": 0.7,
-        "precisionBlocking": 222,
+        "precisionBlocking": 221,
         "recallBlocking": 57,
         "shipped": true
       },
       {
         "threshold": 0.75,
-        "precisionBlocking": 222,
+        "precisionBlocking": 221,
         "recallBlocking": 57,
         "shipped": false
       },
       {
         "threshold": 0.8,
-        "precisionBlocking": 222,
+        "precisionBlocking": 221,
         "recallBlocking": 57,
         "shipped": false
       },
       {
         "threshold": 0.85,
-        "precisionBlocking": 222,
+        "precisionBlocking": 221,
         "recallBlocking": 57,
         "shipped": false
       },
       {
         "threshold": 0.9,
-        "precisionBlocking": 222,
+        "precisionBlocking": 221,
         "recallBlocking": 57,
         "shipped": false
       },
       {
         "threshold": 0.95,
-        "precisionBlocking": 222,
+        "precisionBlocking": 221,
         "recallBlocking": 57,
         "shipped": false
       },
       {
         "threshold": 1,
-        "precisionBlocking": 222,
+        "precisionBlocking": 221,
         "recallBlocking": 57,
         "shipped": false
       }
@@ -484,8 +483,8 @@
       "above": 1
     },
     "softened": {
-      "precisionTotal": 416,
-      "precisionBlocking": 222,
+      "precisionTotal": 415,
+      "precisionBlocking": 221,
       "precisionSoftened": 194,
       "recallTotal": 58,
       "recallBlocking": 57,

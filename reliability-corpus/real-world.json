@@ -88,7 +88,7 @@
       "url": "https://github.com/gin-gonic/gin.git",
       "sha": "dcaa4296d111981ffb31ac3eba90bb63e1eb5ab9",
       "why": "Go — the ignored-error idiom the go module could not see until 2026-09-04",
-      "maxBlocking": 2
+      "maxBlocking": 1
     },
     {
       "name": "axum",
