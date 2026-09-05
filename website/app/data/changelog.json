@@ -1,8 +1,8 @@
 {
   "source": "scripts/generate-changelog.js",
-  "generatedAt": "2026-09-05T06:31:03.410Z",
+  "generatedAt": "2026-09-05T07:51:49.767Z",
   "ref": "origin/main",
-  "head": "9ffc9a277103afe397d6054a1ff13adc9e10adf6",
+  "head": "1ada58b3791a31ced7ff588a8d72603d598e6a9d",
   "currentVersion": "1.61.0",
   "limit": 150,
   "areas": [
@@ -17,6 +17,13 @@
     "other"
   ],
   "entries": [
+    {"sha":"1ada58b3791a31ced7ff588a8d72603d598e6a9d","short":"1ada58b","date":"2026-09-05","pr":440,"title":"Confidence: the block threshold is calibrated on the corpus, on every run (Move 09)","area":"engine","areas":{"engine":23,"tests":4,"docs":3,"website":2,"ci":1,"tooling":1},"files":34,"modules":["aiReview","authBypass","ciSecurity","codeQuality","crossFileTaint","duplicateCode","errorSwallow","fakeFixDetector","hardcodedUrl","integrationTests","kubernetes","lint","mutation","nPlusOne","raceCondition","regressionPredictor","retryHygiene","rollbackHonesty","runtimeErrors","sqlMigrations","ssrf","terraform"],"version":null},
+    {"sha":"54d2bbcab3e050f02b1e26ca515f36b4048f15f7","short":"54d2bbc","date":"2026-09-05","pr":442,"title":"Modules: the last 22 CRLF conversions — split and join together, and a fix keeps the file's line endings (KI #77)","area":"engine","areas":{"engine":22,"website":6,"tests":5,"docs":3,"ci":2,"tooling":1},"files":39,"modules":["aiReview","authBypass","ciSecurity","codeQuality","crossFileTaint","duplicateCode","errorSwallow","fakeFixDetector","hardcodedUrl","integrationTests","kubernetes","lint","mutation","nPlusOne","raceCondition","regressionPredictor","retryHygiene","rollbackHonesty","runtimeErrors","sqlMigrations","ssrf","terraform"],"version":null},
+    {"sha":"b749dcbee942112b636de99322ade19ee364458b","short":"b749dcb","date":"2026-09-05","pr":441,"title":"CI: the Dogfood Gate checks out full history so prSize measures the same diff as the Quality Gate (KI #107)","area":"website","areas":{"website":6,"tests":3,"ci":2,"docs":2,"tooling":1},"files":14,"modules":[],"version":null},
+    {"sha":"b6817afb97e952d3915d2895f5b09b67c7e62420","short":"b6817af","date":"2026-09-05","pr":439,"title":"Website: /changelog — every change to main, generated from the branch history (Move 39)","area":"website","areas":{"website":6,"tests":3,"ci":1,"tooling":1,"docs":1},"files":12,"modules":[],"version":null},
+    {"sha":"c84d5b760d35814f7e2a6cf38bd15bf43fee4d9f","short":"c84d5b7","date":"2026-09-04","pr":438,"title":"CLI: --offline / GATETEST_OFFLINE=1 — air-gapped mode, stated and recorded (Move 42)","area":"engine","areas":{"engine":8,"tests":2,"docs":2,"website":1},"files":13,"modules":["hardcodedUrl"],"version":null},
+    {"sha":"8743324766a3cb143811dfe5c6cc3bf80a2f0042","short":"8743324","date":"2026-09-04","pr":437,"title":"Mutation: mutants live in a sandbox copy — the user's tree is never opened for writing (Move 20)","area":"engine","areas":{"engine":17,"tests":10,"docs":3,"integrations":2},"files":32,"modules":["fakeFixDetector","mutation","prSize","raceCondition","undefinedRef"],"version":null},
+    {"sha":"c062f4f984092042cafb40b3a9e9de9e06887e7a","short":"c062f4f","date":"2026-09-04","pr":435,"title":"Gate: one diff base for every module, merge queues, and monorepo path filters (Move 27)","area":"engine","areas":{"engine":11,"tests":4,"integrations":2,"docs":2},"files":19,"modules":["fakeFixDetector","prSize","undefinedRef"],"version":null},
     {"sha":"9ffc9a277103afe397d6054a1ff13adc9e10adf6","short":"9ffc9a2","date":"2026-09-04","pr":436,"title":"Gate: policy-change findings and the policy hash in every report (Move 26)","area":"engine","areas":{"engine":4,"tests":2,"docs":2},"files":8,"modules":["fakeFixDetector"],"version":null},
     {"sha":"62fc77f7e707d64f1214c3734e029fcb52883d38","short":"62fc77f","date":"2026-09-04","pr":434,"title":"Flywheel: per-rule silenced rate, published at /noise (Move 07)","area":"website","areas":{"website":12,"engine":11,"tests":7,"docs":7,"integrations":1},"files":38,"modules":["fakeFixDetector"],"version":null},
     {"sha":"7425cf8da6c28ba8886afeb3ee02c131b690ca0b","short":"7425cf8","date":"2026-09-04","pr":433,"title":"Reports: the compliance evidence pack — `gatetest --compliance`, one mapping table for SARIF, CISO and the pack (Move 46)","area":"engine","areas":{"engine":8,"tests":4,"docs":4,"website":3,"integrations":1},"files":20,"modules":["fakeFixDetector"],"version":null},
@@ -159,13 +166,6 @@
     {"sha":"0e581a784475503d876ae7447f3ecbf1f0ff6b3d","short":"0e581a7","date":"2026-07-30","pr":null,"title":"docs(roadmap): KI #96 — measured the detector for the dead-code class, did not ship it","area":"docs","areas":{"docs":1},"files":1,"modules":[],"version":null},
     {"sha":"f2fcff930e7d2181e89dec81a51f7f7e66111322","short":"f2fcff9","date":"2026-07-30","pr":null,"title":"docs(roadmap): correct KI #95 overclaim, and record how the bug was created","area":"docs","areas":{"docs":1},"files":1,"modules":[],"version":null},
     {"sha":"409c00b01106f0fe8d2d9d6defbacc82f6043f8f","short":"409c00b","date":"2026-07-30","pr":null,"title":"docs(roadmap): KI #95 — cross-repo prior-art facade has zero production callers","area":"docs","areas":{"docs":1},"files":1,"modules":[],"version":null},
-    {"sha":"09fe694dafdf8a7d0f91000fe930397b8223f6e2","short":"09fe694","date":"2026-07-30","pr":null,"title":"fix(flywheel): prior-art was silently dropped before reaching the diagnosis prompt","area":"tests","areas":{"tests":8,"website":1},"files":9,"modules":[],"version":null},
-    {"sha":"5efe5646d260a39e4cbaa427888330d8aa3bcb87","short":"5efe564","date":"2026-07-30","pr":null,"title":"docs: --ci-init gitlab/circleci existed and was documented nowhere (KI #68)","area":"docs","areas":{"docs":2,"website":1},"files":3,"modules":[],"version":null},
-    {"sha":"62c5b81673631f47b30172e845604c291e5f45ac","short":"62c5b81","date":"2026-07-30","pr":null,"title":"docs(roadmap): close KI #51 — deadCode is accurate; no code change","area":"docs","areas":{"docs":1},"files":1,"modules":[],"version":null},
-    {"sha":"c1afc7100c47a52cd87cbd2ecd20fbbc5d750aa7","short":"c1afc71","date":"2026-07-30","pr":null,"title":"test(fp): inert sweep goes blocking, 41 shapes, and covered 12 more modules","area":"ci","areas":{"ci":1,"tests":1},"files":2,"modules":[],"version":null},
-    {"sha":"adf2943ad66447bdd01d1232462e7ffba3d9a708","short":"adf2943","date":"2026-07-30","pr":null,"title":"fix(auth-bypass,integration-tests): a quoted route is not a route","area":"engine","areas":{"engine":2,"tests":1},"files":3,"modules":["authBypass","integrationTests"],"version":null},
-    {"sha":"b10cde5a3bcf8cdbe13e1de6730d47409ad4b4fa","short":"b10cde5","date":"2026-07-30","pr":null,"title":"fix(data-integrity): PII rule flagged quoted code; sweep extended to 18 shapes","area":"engine","areas":{"engine":1,"tests":1},"files":2,"modules":["dataIntegrity"],"version":null},
-    {"sha":"5c4ea8c7a10384b719a98625a2aa20ff9932a77d","short":"5c4ea8c","date":"2026-07-30","pr":null,"title":"test(fp): all-module inert sweep, as a test — and it found a blocking FP","area":"engine","areas":{"engine":1,"tests":1},"files":2,"modules":["moneyFloat"],"version":null},
-    {"sha":"466109c3a150c68c6ed1b07593d9f9c033cba402","short":"466109c","date":"2026-07-30","pr":null,"title":"fix(ai-hallucination): 136 -> 31 false imports; the KI's diagnosis was wrong","area":"engine","areas":{"engine":1,"tests":1,"docs":1},"files":3,"modules":["aiHallucination"],"version":null}
+    {"sha":"09fe694dafdf8a7d0f91000fe930397b8223f6e2","short":"09fe694","date":"2026-07-30","pr":null,"title":"fix(flywheel): prior-art was silently dropped before reaching the diagnosis prompt","area":"tests","areas":{"tests":8,"website":1},"files":9,"modules":[],"version":null}
   ]
 }
