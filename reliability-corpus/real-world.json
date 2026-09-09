@@ -67,7 +67,7 @@
       "url": "https://github.com/django/django.git",
       "sha": "b3f4d83aad7f589f165a6d8b020b7acba4936f35",
       "why": "Python at scale — the ORM builds SQL by string in django/db, which is the one place that is the job; 74 of 76 \"secrets\" were test fixtures before the identifier-keyed rules learned about test paths",
-      "maxBlocking": 60
+      "maxBlocking": 59
     },
     {
       "name": "rails",

@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-06T08:08:25.610Z",
+  "generatedAt": "2026-09-09T08:22:44.547Z",
   "source": "scripts/real-world-precision.js",
   "note": "Measured on every run against pinned commits of repositories we do not control. Ceilings only ratchet down. Do not hand-edit — run the script.",
   "engineVersion": "1.61.0",
-  "engineCommit": "34107810",
+  "engineCommit": "c51f923b",
   "repos": [
     {
       "name": "express",
@@ -64,8 +64,8 @@
       "url": "https://github.com/django/django.git",
       "sha": "b3f4d83aad7f589f165a6d8b020b7acba4936f35",
       "why": "Python at scale — the ORM builds SQL by string in django/db, which is the one place that is the job; 74 of 76 \"secrets\" were test fixtures before the identifier-keyed rules learned about test paths",
-      "blocking": 60,
-      "ceiling": 60,
+      "blocking": 59,
+      "ceiling": 59,
       "softened": 13
     },
     {
@@ -191,7 +191,7 @@
     "bands": [
       {
         "confidence": 1,
-        "precision": 208,
+        "precision": 207,
         "recall": 53,
         "rules": {
           "precision": {
@@ -226,7 +226,6 @@
             "security:secret": 2,
             "links:dead-links": 2,
             "links:javascript-href": 2,
-            "docs:readme-description": 1,
             "ci-security:branch-pin": 6,
             "shell:unsafe-rm": 2,
             "datetime-bug:naive-now": 7,
@@ -399,61 +398,61 @@
     "sweep": [
       {
         "threshold": 0.5,
-        "precisionBlocking": 295,
+        "precisionBlocking": 294,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.6,
-        "precisionBlocking": 295,
+        "precisionBlocking": 294,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.65,
-        "precisionBlocking": 208,
+        "precisionBlocking": 207,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.7,
-        "precisionBlocking": 208,
+        "precisionBlocking": 207,
         "recallBlocking": 53,
         "shipped": true
       },
       {
         "threshold": 0.75,
-        "precisionBlocking": 208,
+        "precisionBlocking": 207,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.8,
-        "precisionBlocking": 208,
+        "precisionBlocking": 207,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.85,
-        "precisionBlocking": 208,
+        "precisionBlocking": 207,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.9,
-        "precisionBlocking": 208,
+        "precisionBlocking": 207,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.95,
-        "precisionBlocking": 208,
+        "precisionBlocking": 207,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 1,
-        "precisionBlocking": 208,
+        "precisionBlocking": 207,
         "recallBlocking": 53,
         "shipped": false
       }
@@ -463,8 +462,8 @@
       "above": 1
     },
     "softened": {
-      "precisionTotal": 398,
-      "precisionBlocking": 208,
+      "precisionTotal": 397,
+      "precisionBlocking": 207,
       "precisionSoftened": 190,
       "recallTotal": 53,
       "recallBlocking": 53,
