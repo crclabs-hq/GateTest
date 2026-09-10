@@ -147,7 +147,7 @@ export function organizationSchema() {
     url: SITE.baseUrl,
     logo: absUrl("/icon.svg"),
     description:
-      "GateTest is an AI-powered code quality and security gate. 121 modules scan your codebase for security, supply-chain, accessibility, and reliability issues, then open auto-fix pull requests. Pay per scan, no subscription.",
+      "GateTest is an AI-powered code quality and security gate. 121 modules scan your codebase for security, supply-chain, accessibility, and reliability issues, then open auto-fix pull requests. Pay per scan — subscriptions optional.",
     sameAs: ["https://github.com/crclabs-hq/gatetest"],
   };
 }
