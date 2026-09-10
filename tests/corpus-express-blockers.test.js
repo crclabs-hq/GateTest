@@ -73,7 +73,10 @@ describe('secrets — a tracked .npmrc is judged by its contents', () => {
   });
 
   it('NEGATIVE CONTROL: tracked key material always BLOCKS regardless of content', () => {
-    const f = trackedFinding({ 'id_rsa': '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwAAAAdzc2gtcn\n', 'index.js': '' }, 'id_rsa');
+    // The verdict is by FILENAME, so the body can be elided — and an elided
+    // body is what keeps our own line scanner (which reads this test as source)
+    // from reporting the fixture as a committed key (Code Scanning 4308).
+    const f = trackedFinding({ 'id_rsa': '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAA...\n', 'index.js': '' }, 'id_rsa');
     assert.ok(f && f.severity === 'error');
   });
 });
