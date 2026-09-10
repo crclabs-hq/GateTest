@@ -56,27 +56,38 @@ fi
 
 echo "[deploy] $BEFORE -> $AFTER"
 
-# Clear a STALE Next.js build lock. `next build` refuses to start while
-# `next.lock/lock.json` exists ("Another next build process is already
-# running"), and a build that was killed or crashed leaves the lock behind —
-# the 2026-09-10 deploy of 1b1ad5db failed exactly this way, six seconds in,
-# with nothing actually building. The lock records the pid; if that process
-# is gone (or there is no `next build` running at all), the lock is a corpse.
-# A LIVE build keeps its lock and this deploy fails loudly, as it should.
-for lock in website/.next/next.lock/lock.json website/next.lock/lock.json; do
-  [ -f "$lock" ] || continue
-  pid=$(node -e "try{const j=require(process.argv[1]);console.log(j.pid||j.serverInfo?.pid||'')}catch{console.log('')}" "$(pwd)/$lock" 2>/dev/null || true)
-  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-    echo "[deploy] ERROR: a next build (pid $pid) is still running — not clearing $lock" >&2
-    exit 1
-  fi
-  if pgrep -f "next build" >/dev/null 2>&1; then
-    echo "[deploy] ERROR: a next build is running without a readable pid in $lock — not clearing it" >&2
-    exit 1
-  fi
-  echo "[deploy] removing stale build lock $lock (pid '${pid:-none}' is not running)"
-  rm -rf "$(dirname "$lock")"
+# A hung `next build` must not block every future deploy. Next 16 takes an
+# OS-level exclusive lock on website/.next/lock through its native binding
+# (build/index.js → Lockfile.acquireWithRetriesOrExit); the lock is held by a
+# LIVE process, so a build that hangs (or is orphaned when an SSH session
+# drops) holds it forever and every later deploy dies six seconds in with
+# "Another next build process is already running" — 2026-09-10, twice
+# (1b1ad5db, 3a831a84). Policy: a build younger than BUILD_GRACE_S is a real
+# concurrent build → wait for it; older than that it is hung → kill it and
+# proceed. Deploy builds on this box finish in well under ten minutes.
+BUILD_GRACE_S="${GATETEST_BUILD_GRACE_S:-900}"
+for _ in $(seq 1 60); do
+  hung=0; young=0
+  for pid in $(pgrep -f "next build" 2>/dev/null || true); do
+    [ "$pid" = "$$" ] && continue
+    age=$(ps -o etimes= -p "$pid" 2>/dev/null | tr -d ' ' || echo 0)
+    if [ "${age:-0}" -gt "$BUILD_GRACE_S" ]; then
+      echo "[deploy] killing hung next build pid $pid (running ${age}s > ${BUILD_GRACE_S}s)"
+      kill "$pid" 2>/dev/null || true; sleep 2; kill -9 "$pid" 2>/dev/null || true
+      hung=1
+    else
+      young=1
+    fi
+  done
+  [ "$young" = 1 ] || break
+  echo "[deploy] another next build is in progress — waiting 10s for it to finish"
+  sleep 10
 done
+if pgrep -f "next build" >/dev/null 2>&1; then
+  echo "[deploy] ERROR: a next build is still running after waiting — not starting a second one" >&2
+  pgrep -af "next build" >&2 || true
+  exit 1
+fi
 
 npm install --no-audit --no-fund
 # `npm run build`, NOT `npx next build` — the `prebuild` script stamps the real
