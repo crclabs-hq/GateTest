@@ -158,6 +158,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const legal: MetadataRoute.Sitemap = [
     { url: `${base}/legal/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/legal/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${base}/legal/dpa`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${base}/legal/sub-processors`, lastModified: now, changeFrequency: "monthly", priority: 0.3 },
+    { url: `${base}/legal/cookies`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/legal/refunds`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/legal/acceptable-use`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];

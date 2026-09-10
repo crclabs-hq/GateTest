@@ -35,7 +35,9 @@ const COUNTRY_SLUGS = [
   "singapore",
   "canada",
 ];
-const LEGAL_SLUGS = ["terms", "privacy", "refunds", "acceptable-use"];
+// Kept in lockstep with LEGAL_NAV in components/legal/LegalDocument.tsx —
+// tests/legal-facts.test.js fails if a document is missing here.
+const LEGAL_SLUGS = ["terms", "privacy", "dpa", "sub-processors", "cookies", "refunds", "acceptable-use"];
 
 // Glossary slugs — kept in lockstep with
 // website/app/glossary/glossary-catalog.ts. Drift test asserts no skew.

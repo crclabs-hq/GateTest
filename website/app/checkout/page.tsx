@@ -123,6 +123,13 @@ export default function CheckoutPage() {
             <button type="submit" className="btn-cta w-full py-3.5 text-sm rounded-xl font-semibold">
               Continue to checkout
             </button>
+            <p className="mt-4 text-xs text-muted leading-relaxed">
+              By continuing you agree to the{" "}
+              <Link href="/legal/terms" className="text-accent-light hover:underline">Terms of Service</Link>,{" "}
+              <Link href="/legal/privacy" className="text-accent-light hover:underline">Privacy Policy</Link> and{" "}
+              <Link href="/legal/refunds" className="text-accent-light hover:underline">Refund Policy</Link>.
+              Payment is taken securely by Stripe; card details never touch our servers.
+            </p>
           </form>
         )}
 

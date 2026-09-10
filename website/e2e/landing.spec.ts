@@ -74,13 +74,13 @@ test.describe("Legal Pages", () => {
   test("terms of service loads", async ({ page }) => {
     await page.goto("/legal/terms");
     await expect(page).toHaveTitle(/Terms of Service/);
-    await expect(page.locator("text=Agreement to Terms")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Agreement to Terms/ })).toBeVisible();
   });
 
   test("privacy policy loads", async ({ page }) => {
     await page.goto("/legal/privacy");
     await expect(page).toHaveTitle(/Privacy Policy/);
-    await expect(page.locator("text=Who We Are")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Who We Are/ })).toBeVisible();
   });
 
 });

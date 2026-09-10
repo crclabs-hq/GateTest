@@ -1,0 +1,5 @@
+Contact: mailto:hello@gatetest.ai
+Expires: 2027-03-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://gatetest.io/.well-known/security.txt
+Policy: https://gatetest.io/trust#responsible-disclosure

@@ -30,7 +30,7 @@ const eslintConfig = defineConfig([
     // legitimately use require()/module.exports. Likewise some route.ts
     // files load these CJS modules via require() to bypass Turbopack tracing
     // of the dynamic CLI registry (see cli-engine-runner.js comment).
-    files: ["app/lib/**/*.js", "app/lib/**/*.cjs"],
+    files: ["app/lib/**/*.js", "app/lib/**/*.cjs", "app/legal/_facts.js"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
       "@next/next/no-assign-module-variable": "off",

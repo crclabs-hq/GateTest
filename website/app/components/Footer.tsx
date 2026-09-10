@@ -68,10 +68,13 @@ export default function Footer() {
               <li><Link href="/#features" className="text-sm text-muted hover:text-foreground transition-colors">About</Link></li>
               <li><Link href="/trust" className="text-sm text-muted hover:text-foreground transition-colors">Trust &amp; Security</Link></li>
               <li><a href="mailto:hello@gatetest.ai" className="text-sm text-muted hover:text-foreground transition-colors">Contact</a></li>
-              <li><a href="/legal/privacy" className="text-sm text-muted hover:text-foreground transition-colors">Privacy Policy</a></li>
-              <li><a href="/legal/terms" className="text-sm text-muted hover:text-foreground transition-colors">Terms of Service</a></li>
-              <li><a href="/legal/refunds" className="text-sm text-muted hover:text-foreground transition-colors">Refund Policy</a></li>
-              <li><a href="/legal/acceptable-use" className="text-sm text-muted hover:text-foreground transition-colors">Acceptable Use</a></li>
+              <li><Link href="/legal/privacy" className="text-sm text-muted hover:text-foreground transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/legal/terms" className="text-sm text-muted hover:text-foreground transition-colors">Terms of Service</Link></li>
+              <li><Link href="/legal/dpa" className="text-sm text-muted hover:text-foreground transition-colors">Data Processing Addendum</Link></li>
+              <li><Link href="/legal/sub-processors" className="text-sm text-muted hover:text-foreground transition-colors">Sub-processors</Link></li>
+              <li><Link href="/legal/cookies" className="text-sm text-muted hover:text-foreground transition-colors">Cookie Policy</Link></li>
+              <li><Link href="/legal/refunds" className="text-sm text-muted hover:text-foreground transition-colors">Refund Policy</Link></li>
+              <li><Link href="/legal/acceptable-use" className="text-sm text-muted hover:text-foreground transition-colors">Acceptable Use</Link></li>
             </ul>
           </div>
         </div>

@@ -13,16 +13,9 @@ export default function Refunds() {
         <h1 className="text-3xl font-bold mb-2">Refund &amp; Cancellation Policy</h1>
         <p className="text-sm text-muted mb-8">Effective date: May 18, 2026</p>
 
-        {/* DRAFT — requires attorney review. Priority review items:
-        (1) the characterisation of a delivered scan as "service rendered" for digital-services
-        refund exceptions under EU Consumer Rights Directive Art. 16(m);
-        (2) consumer cooling-off overrides for consumers in NZ, EU/UK, and Australia;
-        (3) subscription cancellation terms for Continuous tier vs state-level
-        automatic-renewal laws (California SB-313, etc.).
-        Policy posture updated 2026-05-18 per Craig: moved from hold-then-capture
-        to per-scan upfront charge to eliminate the chargeback-abuse vector that
-        the prior model invited. Refunds are now discretionary exceptions,
-        not automatic entitlements. */}
+        {/* Posture since 2026-05-18: per-scan upfront charge (replaced
+        hold-then-capture, which invited chargeback abuse). Refunds are
+        discretionary exceptions, not automatic entitlements. */}
 
         <div className="space-y-6 text-sm text-muted leading-relaxed">
           <section>
