@@ -11,6 +11,8 @@
  * No external CDN dependency — text chips, monospace style.
  */
 
+import { TOTAL_MODULES } from "@/app/lib/module-count";
+
 interface KillTile {
   tool: string;
   module: string;
@@ -37,7 +39,7 @@ const CAP_ROWS: CapRow[] = [
   { label: "You pick the AI model", gt: "yes", sonar: "no", snyk: "no", deep: "no" },
   { label: "Bring your own API key", gt: "yes", sonar: "no", snyk: "no", deep: "no" },
   { label: "Pay per scan — no per-seat tax", gt: "yes", sonar: "no", snyk: "no", deep: "no" },
-  { label: "One gate across the whole stack", gt: "yes", sonar: "no", snyk: "no", deep: "no", note: "121 modules, one verdict" },
+  { label: "One gate across the whole stack", gt: "yes", sonar: "no", snyk: "no", deep: "no", note: `${TOTAL_MODULES} modules, one verdict` },
 ];
 
 function CapCell({ v }: { v: Cap }) {
@@ -49,7 +51,7 @@ function CapCell({ v }: { v: Cap }) {
 const TILES: KillTile[] = [
   { tool: "Snyk", module: "security", blurb: "OWASP + supply chain + CVE database, no SaaS lock-in." },
   { tool: "SonarQube", module: "codeQuality", blurb: "Same rules, no Java daemon, no per-seat seat tax." },
-  { tool: "ESLint", module: "lint", blurb: "Plus 90 more checks ESLint never tries to run." },
+  { tool: "ESLint", module: "lint", blurb: `Plus ${TOTAL_MODULES - 1} more modules ESLint never tries to run.` },
   { tool: "Cypress", module: "e2e", blurb: "Runs your existing Cypress/Playwright suites inside the gate — one verdict." },
   { tool: "BrowserStack", module: "compatibility", blurb: "Static browser-compat checks against your browserslist — catches the common breakages before a device farm ever runs." },
   { tool: "Lighthouse", module: "performance", blurb: "Perf, SEO, A11y unified — and gate-blocking, not advisory." },
@@ -177,11 +179,12 @@ export default function HomeKills() {
             ))}
           </div>
           <p className="text-xs text-muted mt-6 pt-6 border-t border-border/40">
-            Plus 12 more modules with no direct competitor: AI code review,
+            Plus ten modules with no direct competitor: AI code review,
             fake-fix detector, mutation testing (via GitHub Action), chaos / fuzz
             pass (via GitHub Action), autonomous exploration, live crawling, data
             integrity, documentation validation, compatibility analysis,
-            integration-test detection, CI generation, SARIF output.
+            integration-test detection &mdash; and CI config generation and SARIF
+            output built into the CLI.
           </p>
         </div>
       </div>

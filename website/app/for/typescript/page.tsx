@@ -65,7 +65,7 @@ const tsModules = [
   },
   {
     name: "importCycle",
-    checks: ["Circular import chains (Tarjan SCC)", "Self-imports", "Type-only imports correctly excluded", "Extension fallback resolution", "index.ts re-export cycles"],
+    checks: ["Circular import chains (Tarjan SCC)", "Type-only imports correctly excluded", "Extension fallback resolution", "index.ts re-export cycles"],
   },
   {
     name: "deadCode",
@@ -187,7 +187,8 @@ export default function TypeScriptPage() {
           </p>
           <p className="text-foreground-secondary text-sm leading-relaxed">
             GateTest makes strictness erosion impossible to merge silently — every tsconfig regression
-            and suppression annotation is a gate failure that blocks the PR.
+            is a gate failure that blocks the PR, and every reason-less suppression annotation surfaces
+            as a warning on the diff.
           </p>
         </div>
 
@@ -248,7 +249,7 @@ export default function TypeScriptPage() {
             Scan My TypeScript Repo — From $29
           </Link>
           <p className="text-muted text-xs mt-6">
-            One-time charge at checkout. No subscription, no per-seat licensing.
+            One-time charge at checkout for per-scan tiers — no per-seat licensing. Continuous ($49/mo) is optional if you want every push scanned.
           </p>
         </div>
         <p className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">

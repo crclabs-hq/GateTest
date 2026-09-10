@@ -38,11 +38,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: crclabs-hq/gatetest-action@v1
+      - uses: crclabs-hq/GateTest@v1
         with:
           suite: full
-          # error-severity findings fail the job and block the merge
-          fail-on: error`;
+          # error-severity findings fail the job and block the merge;
+          # set fail-on-warning: true to block on warnings as well
+          fail-on-warning: false`;
 
 export const USE_CASES: UseCaseEntry[] = [
   {
@@ -90,14 +91,14 @@ export const USE_CASES: UseCaseEntry[] = [
       "A quality gate makes the standard executable: it runs in the pipeline, evaluates the change against thresholds, and returns a single verdict that the pipeline obeys.",
     ],
     solution: [
-      "Run GateTest's full 121-module suite as a CI step. Error-severity findings fail the build; warnings surface without blocking.",
+      "Run GateTest's full suite — every module that applies to a repository — as a CI step. Error-severity findings fail the build; warnings surface without blocking.",
       "Because GateTest emits SARIF, the same run also feeds GitHub code scanning, so findings appear inline on the diff as well as in the build log.",
     ],
     code: { lang: "yaml", label: ".github/workflows/gatetest.yml", content: GH_ACTION_SNIPPET },
     steps: [
       "Drop the GateTest Action into your pipeline (GitHub Actions, or the CLI in any other CI).",
       "Choose a suite: quick (fast feedback) or full (the complete gate).",
-      "Set fail-on: error so only high-confidence problems block.",
+      "Leave fail-on-warning at its default (false) so only error-severity problems block.",
       "Optionally upload the SARIF output to GitHub code scanning for inline annotations.",
     ],
     related: ["block-pull-requests-on-security-findings", "sarif-github-code-scanning", "monorepo-scanning"],
@@ -109,7 +110,7 @@ export const USE_CASES: UseCaseEntry[] = [
       },
       {
         q: "Will a quality gate slow my pipeline down?",
-        a: "The quick suite is designed for fast PR feedback; the full suite runs the complete 121-module gate. You choose per-workflow, so you can gate PRs quickly and run the deep suite on merges to main.",
+        a: "The quick suite is designed for fast PR feedback; the full suite runs every module that applies to a repository. You choose per-workflow, so you can gate PRs quickly and run the deep suite on merges to main. Mutation testing and the chaos pass are opt-in (mutation: true / chaos: true) because they execute your tests and need the CI runner.",
       },
     ],
   },
@@ -134,7 +135,7 @@ export const USE_CASES: UseCaseEntry[] = [
       "Review the resulting pull request and merge — the fix is as fast as the finding.",
     ],
     related: ["block-pull-requests-on-security-findings", "ci-cd-quality-gate", "dependency-supply-chain-gate"],
-    modules: ["security", "dependencies", "cveFeed"],
+    modules: ["security", "dependencies", "secrets"],
     faqs: [
       {
         q: "Does the AI fix get merged automatically?",
@@ -158,7 +159,7 @@ export const USE_CASES: UseCaseEntry[] = [
     ],
     solution: [
       "A single run covers a mixed monorepo: deep JavaScript/TypeScript analysis, pattern-level checks for Python, Go, Java, Ruby, and PHP, plus infrastructure-as-code (Dockerfile, Terraform, Kubernetes) and polyglot dependency manifests.",
-      "The monorepo-constraints module additionally checks for cross-package boundary violations and dependency drift between workspaces, which are the bugs unique to the monorepo shape.",
+      "The monorepo-constraints module additionally checks for cross-package boundary violations — an app importing a sibling app, a shared package importing an app, relative imports that walk into a sibling member, and sibling packages used without being declared in the member's package.json — which are the bugs unique to the monorepo shape.",
     ],
     code: { lang: "yaml", label: ".github/workflows/gatetest.yml", content: GH_ACTION_SNIPPET },
     steps: [
@@ -171,7 +172,7 @@ export const USE_CASES: UseCaseEntry[] = [
     faqs: [
       {
         q: "Does GateTest need per-package configuration?",
-        a: "No. It discovers packages and languages from the repository structure and manifests, so a single run from the root covers the whole monorepo. Per-package overrides are supported but not required.",
+        a: "No. It discovers packages and languages from the repository structure and the declared workspaces (npm/yarn/pnpm workspaces, lerna), so a single run from the root covers the whole monorepo. A single .gatetest.json at the root is all the configuration it needs.",
       },
       {
         q: "Can it catch cross-package problems?",
@@ -184,23 +185,24 @@ export const USE_CASES: UseCaseEntry[] = [
     title: "Catch issues before they're pushed",
     intent: "Run the gate locally as a pre-push hook for instant feedback",
     shortDef:
-      "Install GateTest as a git pre-push hook so secrets, syntax errors, and obvious vulnerabilities are caught on your machine — before they ever reach the shared history where a leaked credential is already compromised.",
+      "Install GateTest as a git pre-push hook so secrets, syntax errors, and obvious vulnerabilities are surfaced on your machine, at the moment you push — the last point where a leaked credential can still be pulled before anyone else clones it.",
     problem: [
       "Some problems are far cheaper to catch before the push than after. A secret that lands in shared git history is compromised permanently, even if you delete it in the next commit — the value still sits in history, on every clone and fork.",
       "A local pre-push hook moves that catch left to the last safe moment: your machine, before anything leaves it.",
     ],
     solution: [
-      "GateTest ships a pre-push hook that runs a fast suite before `git push` completes. Catch a secret or a syntax error and the push is stopped with the finding shown inline.",
-      "Local hooks can be advisory (surface findings without blocking developer flow) while the CI gate stays authoritative — the hook is for speed, CI is for enforcement.",
+      "GateTest ships a pre-push hook that runs a fast suite as `git push` runs and prints every finding inline — a leaked secret or a syntax error is on your screen seconds after you typed the command, with the file and line.",
+      "The shipped hook is deliberately advisory: it surfaces findings without blocking developer flow (set GATETEST_SKIP=1 to skip it entirely), while the CI gate stays authoritative — the hook is for speed, CI is for enforcement.",
     ],
     code: {
       lang: "bash",
       label: "install the pre-push hook",
-      content: `# from your repo root
-npx @gatetest/cli install-hook pre-push
+      content: `# from your repo root — installs .husky/pre-push,
+# the CI gate workflow and a .gatetest.json marker
+curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integrations/scripts/install.sh | bash
 
-# now every 'git push' runs a fast scan first;
-# a leaked secret or syntax error stops the push.`,
+# now every 'git push' runs a fast advisory scan;
+# a leaked secret or syntax error is shown inline, with file and line.`,
     },
     steps: [
       "Install the GateTest pre-push hook in your repo.",
@@ -213,11 +215,11 @@ npx @gatetest/cli install-hook pre-push
     faqs: [
       {
         q: "Should the pre-push hook block the push?",
-        a: "It can, but many teams run it advisory — surfacing findings without blocking flow — and rely on the CI gate as the hard enforcement layer. The hook is about fast local feedback; CI is the gate of record.",
+        a: "The hook GateTest ships does not block — it surfaces findings without interrupting developer flow, and relies on the CI gate as the hard enforcement layer. The hook is about fast local feedback; CI is the gate of record. If you want a blocking local gate, run the CLI in your own hook with its exit code honoured.",
       },
       {
         q: "Why catch secrets before the push specifically?",
-        a: "Because once a secret is in shared git history it's compromised even if you delete it later — it persists in earlier commits and every clone. Catching it pre-push is the difference between 'don't commit that' and rotating a live credential.",
+        a: "Because once a secret is in shared git history it's compromised even if you delete it later — it persists in earlier commits and every clone. Seeing it at push time, before a teammate has pulled, is the difference between a quick force-push and rotating a live credential.",
       },
     ],
   },
@@ -238,13 +240,15 @@ npx @gatetest/cli install-hook pre-push
     code: {
       lang: "yaml",
       label: "upload SARIF to code scanning",
-      content: `- uses: crclabs-hq/gatetest-action@v1
+      content: `- uses: crclabs-hq/GateTest@v1
+  id: gate
   with:
     suite: full
-    sarif-file: gatetest.sarif
+    report-format: sarif
 - uses: github/codeql-action/upload-sarif@v3
+  if: always()
   with:
-    sarif_file: gatetest.sarif`,
+    sarif_file: \${{ steps.gate.outputs.report-path }}`,
     },
     steps: [
       "Run GateTest with SARIF output enabled.",
@@ -270,24 +274,24 @@ npx @gatetest/cli install-hook pre-push
     title: "Gate on vulnerable and risky dependencies",
     intent: "Block builds that pull in vulnerable or unpinned packages",
     shortDef:
-      "GateTest inventories your dependencies across ten ecosystems and fails the gate on known-vulnerable packages, wildcard or unpinned versions, missing lockfiles, and abandoned dependencies — the supply-chain layer your own code never touches.",
+      "GateTest inventories your dependencies across ten ecosystems and fails the gate on wildcard or unpinned versions, missing lockfiles and deprecated packages — and, for npm projects, on reachable critical/high advisories from npm audit — the supply-chain layer your own code never touches.",
     problem: [
       "Most of your attack surface is third-party code you didn't write and rarely read. A transitively-pulled package with a fresh CVE, a wildcard pin that lets a malicious update slip in, a dependency abandoned two years ago — none of these show up in a review of your own diff.",
       "Gating the supply chain means evaluating the dependency graph itself, on every change to a lockfile and on a schedule, because a clean dependency today can have a CVE disclosed tomorrow.",
     ],
     solution: [
       "GateTest's dependencies module resolves manifests across npm, pip, Pipenv, Poetry, go.mod, Cargo, Bundler, Composer, Maven, and Gradle, and flags wildcards, `latest` pins, missing lockfiles, deprecated packages, and git-without-rev specifiers.",
-      "The CVE-feed module maps vulnerable packages to concrete version-bump fixes, so the auto-fix PR can raise the pin to a safe release rather than just reporting the problem.",
+      "Known-vulnerability lookup is the security module's job: for npm projects it runs npm audit and triages every advisory by reachability, so a critical advisory in a package your code actually imports blocks the gate, while dev-only and installed-but-unused advisories are reported without blocking — the noise that makes teams ignore Dependabot.",
     ],
     code: { lang: "yaml", label: ".github/workflows/gatetest.yml", content: GH_ACTION_SNIPPET },
     steps: [
-      "Run GateTest with the dependencies and CVE-feed modules (included in the full suite).",
+      "Run GateTest with the dependencies and security modules (both in the full suite).",
       "Fail the gate on error-severity dependency findings.",
-      "On Scan + Fix, accept the version-bump PR GateTest opens.",
-      "Schedule a periodic re-scan to catch newly-disclosed CVEs.",
+      "On Scan + Fix, review the PR GateTest opens for the code-level findings; raise the vulnerable pin in the same PR.",
+      "Schedule a periodic re-scan to catch newly-disclosed advisories.",
     ],
     related: ["auto-fix-vulnerabilities", "ci-cd-quality-gate", "block-pull-requests-on-security-findings"],
-    modules: ["dependencies", "cveFeed", "secretRotation"],
+    modules: ["dependencies", "security", "secretRotation"],
     faqs: [
       {
         q: "Which ecosystems does GateTest cover?",
@@ -295,7 +299,7 @@ npx @gatetest/cli install-hook pre-push
       },
       {
         q: "Can it fix a vulnerable dependency automatically?",
-        a: "On the Scan + Fix tier, yes. The CVE-feed module maps a vulnerable package to a safe version, and the auto-fix PR raises the pin in package.json / requirements.txt / Cargo.toml accordingly.",
+        a: "Partly. The security module's npm audit finding tells you which package, whether a non-breaking fix is available, and whether your code actually reaches it; the Scan + Fix PR targets code-level findings, and a dependency bump is a one-line change you make in the same PR. Automatic version-bump patches only fire when a finding carries a CVE/GHSA id, which the shipped scan does not currently emit.",
       },
     ],
   },

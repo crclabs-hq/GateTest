@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "GateTest — AI writes fast. GateTest keeps it honest.",
   description:
-    "121 modules scan your entire codebase. Security, accessibility, performance, and more. We find the bugs AND fix them. Pay per scan, no subscription.",
+    "121 modules scan your entire codebase. Security, accessibility, performance, and more. We find the bugs AND fix them. Pay per scan — subscriptions optional.",
   keywords: [
     "QA",
     "testing",
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest — AI writes fast. GateTest keeps it honest.",
     description:
-      "121 modules scan your entire codebase. We find the bugs AND fix them. Pay per scan, no subscription.",
+      "121 modules scan your entire codebase. We find the bugs AND fix them. Pay per scan — subscriptions optional.",
     url: "/",
     siteName: "GateTest",
     type: "website",
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "GateTest — AI writes fast. GateTest keeps it honest.",
     description:
-      "121 modules scan your entire codebase. We find the bugs AND fix them. Pay per scan, no subscription.",
+      "121 modules scan your entire codebase. We find the bugs AND fix them. Pay per scan — subscriptions optional.",
   },
   robots: {
     index: true,
@@ -110,7 +110,7 @@ export default function RootLayout({
               operatingSystem: "Any",
               url: SITE_URL,
               description:
-                "AI-powered QA platform that scans your entire codebase with 121 modules — security, supply chain, auth flaws, CI hardening, and more. Pay per scan via Stripe. One-time payment, no subscription.",
+                "AI-powered QA platform that scans your entire codebase with 121 modules — security, supply chain, auth flaws, CI hardening, and more. Pay per scan via Stripe — one-time scan tiers, with optional Continuous and hosted MCP subscriptions.",
               offers: [
                 {
                   "@type": "Offer",

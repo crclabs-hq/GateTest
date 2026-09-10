@@ -37,10 +37,10 @@ test("triage marketing page: file exists", () => {
   assert.ok(fs.existsSync(TRIAGE_PAGE), `expected ${TRIAGE_PAGE}`);
 });
 
-test("triage marketing page: has H1 mentioning Triage", () => {
+test("triage marketing page: opens with a PageHero whose title mentions Triage", () => {
   const src = readSrc(TRIAGE_PAGE);
-  // The H1 includes the gradient span "Triage"
-  assert.match(src, /<h1[\s\S]*?Triage[\s\S]*?<\/h1>/);
+  // Since the 2026-09-10 site shell the H1 is rendered by <PageHero title=…>.
+  assert.match(src, /<PageHero[\s\S]*?title=[\s\S]*?Triage/);
 });
 
 test("triage marketing page: has CTA(s) linking to /scan", () => {
@@ -95,16 +95,22 @@ test("triage marketing page: NO eslint-disable directives", () => {
   assert.doesNotMatch(src, /eslint-disable/);
 });
 
-test("triage marketing page: mobile-responsive — uses sm: / md: breakpoints", () => {
+test("triage marketing page: mobile-responsive — breakpoints or the responsive shell primitives", () => {
   const src = readSrc(TRIAGE_PAGE);
-  assert.match(src, /\bsm:/);
-  assert.match(src, /\bmd:/);
+  // Since the 2026-09-10 site shell, responsiveness comes from <PageHero>/<Section>
+  // (verified by the Playwright render pass at 390/820/1440), so a page need not
+  // carry its own breakpoint classes.
+  const responsive = /\b(sm|md|lg):/.test(src) || /import\s+(PageHero|Section)\s+from/.test(src);
+  assert.ok(responsive, "expected breakpoint classes or the PageHero/Section primitives");
 });
 
-test("triage marketing page: imports shared Navbar + Footer", () => {
+test("triage marketing page: uses the site shell — no per-page Navbar / Footer", () => {
   const src = readSrc(TRIAGE_PAGE);
-  assert.match(src, /import\s+Navbar\s+from\s+["'][^"']+\/components\/Navbar["']/);
-  assert.match(src, /import\s+Footer\s+from\s+["'][^"']+\/components\/Footer["']/);
+  // Header and footer come from app/layout.tsx (tests/site-shell.test.js);
+  // a page importing its own would render them twice.
+  assert.doesNotMatch(src, /import\s+Navbar\s+from/);
+  assert.doesNotMatch(src, /import\s+Footer\s+from/);
+  assert.match(src, /import\s+PageHero\s+from/);
 });
 
 test("triage marketing page: gates HN/Product Hunt badge behind NEXT_PUBLIC_LAUNCH_HN env var", () => {
@@ -128,9 +134,9 @@ test("pipeline-trace marketing page: file exists", () => {
   assert.ok(fs.existsSync(PIPELINE_PAGE), `expected ${PIPELINE_PAGE}`);
 });
 
-test("pipeline-trace marketing page: has H1 mentioning Pipeline Trace", () => {
+test("pipeline-trace marketing page: opens with a PageHero whose title mentions Pipeline Trace", () => {
   const src = readSrc(PIPELINE_PAGE);
-  assert.match(src, /<h1[\s\S]*?Pipeline Trace[\s\S]*?<\/h1>/);
+  assert.match(src, /<PageHero[\s\S]*?title=[\s\S]*?Pipeline Trace/);
 });
 
 test("pipeline-trace marketing page: has CTA(s) linking to /scan", () => {
@@ -190,10 +196,11 @@ test("pipeline-trace marketing page: mobile-responsive — uses sm: / md: breakp
   assert.match(src, /flex-col\s+md:flex-row/);
 });
 
-test("pipeline-trace marketing page: imports shared Navbar + Footer", () => {
+test("pipeline-trace marketing page: uses the site shell — no per-page Navbar / Footer", () => {
   const src = readSrc(PIPELINE_PAGE);
-  assert.match(src, /import\s+Navbar\s+from\s+["'][^"']+\/components\/Navbar["']/);
-  assert.match(src, /import\s+Footer\s+from\s+["'][^"']+\/components\/Footer["']/);
+  assert.doesNotMatch(src, /import\s+Navbar\s+from/);
+  assert.doesNotMatch(src, /import\s+Footer\s+from/);
+  assert.match(src, /import\s+PageHero\s+from/);
 });
 
 test("pipeline-trace marketing page: gates HN/Product Hunt badge behind NEXT_PUBLIC_LAUNCH_HN env var", () => {

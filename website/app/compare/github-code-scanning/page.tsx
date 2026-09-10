@@ -45,7 +45,7 @@ const faqItems = [
   },
   {
     q: "GitHub Code Scanning is free for public repos. Does GateTest offer anything similar?",
-    a: "GateTest's pricing is per scan ($29 quick / $99 full 121 modules). There's no subscription or per-seat billing — a public-repo open-source project pays exactly the same as an enterprise. We don't currently offer a free tier, but $99 for a full 121-module scan including AI code review is substantially cheaper than what GitHub Advanced Security costs at enterprise scale.",
+    a: "Yes, two things are free: the preview scan on this site (4 modules, no account) and the local CLI, which runs every module on your own machine. Hosted scans are per scan ($29 quick / $99 full, every applicable module of 121) with no per-seat billing — a public-repo open-source project pays exactly the same as an enterprise. $99 for a full scan including AI code review is substantially cheaper than what GitHub Advanced Security costs at enterprise scale.",
   },
   {
     q: "Does GateTest work with repos on git hosts other than GitHub?",
@@ -106,7 +106,7 @@ export default function GitHubCodeScanningPage() {
         lede={
           <>
             GitHub Code Scanning (CodeQL) is a well-engineered security tool with one job: finding
-            known vulnerability patterns. It&rsquo;s good at that job. But security is one of 90
+            known vulnerability patterns. It&rsquo;s good at that job. But security is one of {TOTAL_MODULES}
             quality dimensions your code needs — and GitHub Code Scanning covers exactly one of them.
           </>
         }
@@ -197,7 +197,7 @@ export default function GitHubCodeScanningPage() {
           <div className="grid sm:grid-cols-2 gap-5">
             {[
               {
-                title: "Same workflow, 67x more coverage",
+                title: `Same workflow, ${TOTAL_MODULES} modules of coverage`,
                 body: "GateTest posts commit statuses and PR comments in exactly the same format as GitHub Code Scanning. The developer experience is identical — install the GitHub App, push code, see results on the PR. But instead of security-only CodeQL alerts, you get 121 modules: security, performance, accessibility, AI safety, visual regression, and more.",
               },
               {
@@ -256,7 +256,7 @@ export default function GitHubCodeScanningPage() {
             Scan My Repo — From $29
           </Link>
           <p className="text-muted text-xs mt-6">
-            One-time charge at checkout. No subscription, no per-seat licensing.
+            One-time charge at checkout for scan tiers — no per-seat licensing. Continuous ($49/mo, org-flat) is the optional every-push plan.
           </p>
         </section>
         <ComparisonReviewed slug="github-code-scanning" />

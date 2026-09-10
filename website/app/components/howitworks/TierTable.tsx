@@ -13,7 +13,7 @@ type Row = {
 
 const ROWS: Row[] = [
   { feature: "Price",                                       quick: "$29",   full: "$99",  scanFix: "$199", nuclear: "$399" },
-  { feature: "Modules run",                                 quick: "4",     full: "All",  scanFix: "All",  nuclear: "All"  },
+  { feature: "Modules run (every module that applies to a repo)", quick: "4", full: "All", scanFix: "All", nuclear: "All + nuclear suite" },
   { feature: "Findings clustering by root cause",           quick: true,    full: true,   scanFix: true,   nuclear: true   },
   { feature: "Health score / verdict",                      quick: true,    full: true,   scanFix: true,   nuclear: true   },
   { feature: "Detailed report (file, line, advisory)",      quick: true,    full: true,   scanFix: true,   nuclear: true   },

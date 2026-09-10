@@ -253,6 +253,6 @@ export async function GET() {
       description: tier.description,
     })),
     paymentModel: "per-scan-upfront",
-    note: "Scan tiers are one-time payments charged at checkout — no auto-renew. The Continuous tier is a $49/month subscription (cancel anytime). Refunds discretionary — contact support if a scan fails to start or crashes mid-way.",
+    note: "Scan tiers are one-time payments charged at checkout — no auto-renew. The Continuous ($49/month) and MCP ($29/month) tiers are subscriptions (cancel anytime). Refunds discretionary — contact support if a scan fails to start or crashes mid-way.",
   });
 }

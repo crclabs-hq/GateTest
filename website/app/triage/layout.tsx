@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title:
     "Triage — find where the bug actually lives between source, server, and browser · GateTest",
   description:
-    "GateTest's triage workflow runs three scans in parallel and tells you which layer the bug lives in. Heuristic 9-rule cascade. Source-server-browser localisation. Admin-only today, public scan soon.",
+    "GateTest's triage workflow runs three scans in parallel and tells you which layer the bug lives in. Heuristic 9-rule cascade. Source-server-browser localisation. Operator-console tool today.",
   keywords: [
     "code triage",
     "bug localisation",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     title:
       "Triage — find where the bug actually lives between source, server, and browser",
     description:
-      "Three scans in parallel, one verdict. A heuristic 9-rule cascade localises the bug to SOURCE, SERVER, BROWSER, BUILD, or MIXED. From $29.",
+      "Three scans in parallel, one verdict. A heuristic 9-rule cascade localises the bug to SOURCE, SERVER, BROWSER, BUILD, or MIXED. Operator-console tool today.",
     url: "/triage",
     siteName: "GateTest",
     type: "website",

@@ -109,16 +109,16 @@ export default async function Image() {
           }}
         >
           <span style={{ padding: "6px 14px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 999 }}>
-            AST
-          </span>
-          <span style={{ padding: "6px 14px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 999 }}>
-            Rule
-          </span>
-          <span style={{ padding: "6px 14px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 999 }}>
             Recipe
           </span>
           <span style={{ padding: "6px 14px", border: "1px solid rgba(45,212,191,0.4)", borderRadius: 999, color: "#2dd4bf" }}>
             Claude
+          </span>
+          <span style={{ padding: "6px 14px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 999 }}>
+            Syntax gate
+          </span>
+          <span style={{ padding: "6px 14px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 999 }}>
+            Scanner gate
           </span>
         </div>
 

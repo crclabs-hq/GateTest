@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     title:
       "Pipeline Trace — find where in your deploy chain the update is stuck",
     description:
-      "Source HEAD, CI, deploy, live — four probes, one verdict. A 10-rule cascade points at the exact stage holding your update. From $29.",
+      "Source HEAD, CI, deploy, live — four probes, one verdict. A 10-rule cascade points at the exact stage holding your update. Operator-console tool today.",
     url: "/pipeline-trace",
     siteName: "GateTest",
     type: "website",

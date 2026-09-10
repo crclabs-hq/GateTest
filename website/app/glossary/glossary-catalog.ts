@@ -45,7 +45,7 @@ export const GLOSSARY: GlossaryEntry[] = [
       "The trade-off is precision. A static analyzer reasons about all possible paths, so it can flag code that is technically reachable but practically safe (a false positive), and it can't see issues that only appear at runtime — misconfigured infrastructure, an exposed admin route, a broken auth check under real load. Mature programs pair SAST with DAST and software-composition analysis rather than treating any one of them as complete.",
     ],
     gatetest:
-      "Most of GateTest's 121 modules are SAST checks: secret scanning, SSRF and injection detection, the TLS/cookie/CORS hardening scanners, the cross-file taint tracker, and language analyzers for JavaScript, TypeScript, Python, Go, Java, Ruby, and PHP. Every finding carries a file and line, and on the Scan + Fix tier Claude opens a pull request with the fix.",
+      "Most of GateTest's 121 modules are SAST checks: secret scanning, SSRF and injection detection, the TLS/cookie/CORS hardening scanners, the cross-file taint tracker, and language analyzers for JavaScript, TypeScript, Python, Go, Rust, Java, Ruby, PHP, C#, Kotlin, and Swift. Every finding carries a file and line, and on the Scan + Fix tier Claude opens a pull request with the fix.",
     related: ["dast", "sca", "quality-gate", "false-positive-rate", "shift-left"],
     modules: ["security", "secrets", "ssrf", "crossFileTaint", "tlsSecurity"],
     faqs: [
@@ -71,9 +71,9 @@ export const GLOSSARY: GlossaryEntry[] = [
       "The cost is that DAST needs something running and reachable, it lands later in the lifecycle, and a finding tells you the symptom (an exposed endpoint) without always pointing at the line of code responsible. Good pipelines run DAST against staging on every deploy and feed the results back to the team that owns the code.",
     ],
     gatetest:
-      "GateTest's live-scan modules are DAST: the headless-browser runtime-error capture, the live auth-bypass / IDOR / XSS / path-traversal probes, and the web-headers and TLS checks against a deployed URL. They run where a browser and a target URL are available (the GitHub Action, a worker, or the URL-scan flow) and complement the static modules.",
+      "GateTest's live-scan modules are DAST: the headless-browser runtime-error capture, the live crawler and API health probe, and the live auth-bypass / IDOR / SQL-injection / XSS / path-traversal probes (the pen-test set, which needs your explicit authorisation). They run where a browser and a target URL are available (the GitHub Action, a worker, or the URL-scan flow) and complement the static modules — the header, TLS and cookie scanners read your config and source rather than probing the deployed site.",
     related: ["sast", "quality-gate", "shift-left", "secret-scanning"],
-    modules: ["runtimeErrors", "liveAuthBypass", "liveXss", "webHeaders"],
+    modules: ["runtimeErrors", "liveCrawler", "apiHealth", "liveAuthBypass", "liveXss"],
     faqs: [
       {
         q: "When should I run DAST instead of SAST?",
@@ -97,9 +97,9 @@ export const GLOSSARY: GlossaryEntry[] = [
       "Because the dependency graph changes whenever you update a lockfile, SCA belongs in CI and in a scheduled re-scan: a package that was clean at merge time can have a CVE disclosed against it next week.",
     ],
     gatetest:
-      "GateTest's dependencies module is polyglot SCA — npm, pip, Pipenv, Poetry, go.mod, Cargo, Bundler, Composer, Maven, and Gradle. It flags wildcard and `latest` pins, missing lockfiles, deprecated packages, and git-without-rev specifiers, and the CVE-feed module maps findings to version-bump fixes the auto-fix PR can apply.",
+      "GateTest's dependencies module is polyglot SCA hygiene — npm, pip, Pipenv, Poetry, go.mod, Cargo, Bundler, Composer, Maven, and Gradle — with zero network calls: it flags wildcard and `latest` pins, missing lockfiles, deprecated packages, and git-without-rev specifiers. Known-vulnerability lookup is the security module's job: for npm projects it runs npm audit and triages each advisory by reachability, so only critical/high advisories in packages your code actually imports block the gate; dev-only and installed-but-unused advisories are shown, not blocking.",
     related: ["sbom", "supply-chain-security", "sast", "quality-gate"],
-    modules: ["dependencies", "cveFeed", "secretRotation"],
+    modules: ["dependencies", "security", "secretRotation"],
     faqs: [
       {
         q: "What is the difference between SCA and SAST?",
@@ -173,7 +173,7 @@ export const GLOSSARY: GlossaryEntry[] = [
       "Surviving mutants are the most actionable signal in testing: each one points at a specific line where your assertions don't actually constrain behaviour. It is more expensive than coverage (you rerun the suite many times), so it is usually reserved for critical code paths.",
     ],
     gatetest:
-      "GateTest's mutation module applies 19 canonical operators — equality flips, boundary swaps, math-operator swaps, return-value flips — and reports any mutant that slips through your suite as a coverage hole. Because it has to run your tests, it executes via the GitHub Action where a CI runner is available rather than in the serverless web scan.",
+      "GateTest's mutation module applies 19 canonical operators — equality flips, boundary swaps, math-operator swaps, return-value flips — and reports any mutant that slips through your suite as a coverage hole. Because it has to run your tests, it executes via the GitHub Action (`mutation: true`) or the CLI on your own machine; the hosted scan refuses to execute customer code, so it never runs there.",
     related: ["quality-gate", "technical-debt", "false-positive-rate"],
     modules: ["mutation"],
     faqs: [
@@ -183,7 +183,7 @@ export const GLOSSARY: GlossaryEntry[] = [
       },
       {
         q: "Why does mutation testing need a CI runner?",
-        a: "Because it works by rerunning your test suite against each injected bug. That requires executing your tests, which GateTest does in the GitHub Action rather than in the serverless web scan.",
+        a: "Because it works by rerunning your test suite against each injected bug. That requires executing your tests, which GateTest does in the GitHub Action or the CLI — never on the hosted scan servers, which do not execute customer code.",
       },
     ],
   },
@@ -223,7 +223,7 @@ export const GLOSSARY: GlossaryEntry[] = [
       "Defences are concrete: pin dependencies and Actions to immutable versions (a commit SHA, not a moving tag), generate and verify an SBOM, scan for known-vulnerable packages, lock down CI permissions so a poisoned step can't exfiltrate secrets, and watch for typosquatted or newly-malicious packages.",
     ],
     gatetest:
-      "Several GateTest modules target the supply chain directly: dependencies (vulnerable / wildcard / unpinned packages), ci-security (unpinned Actions, pwn-request, secret-echo, missing permissions blocks), dockerfile (untrusted base images, curl-pipe-sh), and secret-rotation. Together they harden the chain, not just first-party code.",
+      "Several GateTest modules target the supply chain directly: dependencies (wildcard / unpinned packages, missing lockfiles), security (npm audit with reachability triage), ci-security (unpinned Actions, pwn-request, secret-echo, missing permissions blocks, soft-failed gates), dockerfile (`:latest` or untagged base images, curl-pipe-sh, running as root), and secret-rotation. Together they harden the chain, not just first-party code.",
     related: ["sca", "sbom", "sast"],
     modules: ["dependencies", "ciSecurity", "dockerfile", "secretRotation"],
     faqs: [
@@ -249,9 +249,9 @@ export const GLOSSARY: GlossaryEntry[] = [
       "An SBOM is only useful if it's current and verifiable, so it's generated as part of the build and stored alongside the artifact — not written by hand after the fact.",
     ],
     gatetest:
-      "GateTest exposes an SBOM endpoint and inventories dependencies as part of a scan, so the components it's reasoning about are enumerated rather than implicit. Paired with the dependencies and CVE-feed modules, the same inventory drives 'are we affected' answers and version-bump fixes.",
+      "GateTest's sbom module generates a CycloneDX 1.4 bill of materials as part of a scan, and the hosted API exposes an SBOM endpoint, so the components it's reasoning about are enumerated rather than implicit. Paired with the dependencies module (manifest hygiene) and the security module (npm audit with reachability triage), the same inventory drives 'are we affected' answers.",
     related: ["sca", "supply-chain-security", "sast"],
-    modules: ["dependencies", "cveFeed"],
+    modules: ["sbom", "dependencies", "security"],
     faqs: [
       {
         q: "Why do I need an SBOM?",
@@ -274,7 +274,7 @@ export const GLOSSARY: GlossaryEntry[] = [
       "That's why secret scanning belongs at the gate, before the push lands: catching the key in a pre-push hook or a pull-request check is the difference between 'don't commit that' and an incident-response exercise.",
     ],
     gatetest:
-      "GateTest's secrets module detects AWS keys, GitHub PAT/OAuth/fine-grained tokens, Stripe live/restricted keys, Slack, Google, and Anthropic keys, private keys, and JWTs. The secret-rotation module goes further — it dates credential-shaped strings via git history and flags ones that are stale or overdue for rotation, plus .env vs .env.example drift.",
+      "GateTest's secrets module detects AWS access keys and credentials, GitHub PAT/OAuth/fine-grained tokens, Stripe live keys and other sk-prefixed API keys, Slack tokens, database connection strings with embedded passwords, private-key blocks, JWTs, and generic password/token/api-key assignments. The secret-rotation module goes further — it dates credential-shaped strings via git history and flags ones that are stale or overdue for rotation, plus .env vs .env.example drift.",
     related: ["sast", "supply-chain-security", "shift-left"],
     modules: ["secrets", "secretRotation"],
     faqs: [

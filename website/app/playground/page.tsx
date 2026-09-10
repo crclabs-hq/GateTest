@@ -664,7 +664,7 @@ export default function PlaygroundPage() {
                     </Link>
                   </div>
                   <p className="text-xs text-muted">
-                    One-time payment · No subscription · Results in minutes
+                    One-time payment · Never auto-renews · Results in minutes
                   </p>
                 </div>
 
@@ -698,7 +698,7 @@ export default function PlaygroundPage() {
               {
                 icon: "🎯",
                 title: "Real checks, real findings",
-                body: "This isn't a canned demo — it runs the same four checks a paid Quick Scan does against your actual code. Paid Full and Forensic scans run the full 121-module CLI engine on top.",
+                body: "This isn't a canned demo — it runs the same four checks a paid Quick Scan does against your actual code. Paid Full, Scan + Fix and Forensic scans run every applicable module of the 121-module engine on top.",
               },
               {
                 icon: "🔒",

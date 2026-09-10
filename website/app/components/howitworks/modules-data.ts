@@ -201,7 +201,7 @@ export const MODULE_CATEGORIES: ModuleCategory[] = [
   {
     id: "wp-specific",
     title: "WordPress",
-    blurb: "Live-URL probes for the wp.gatetest.io product. Run against any public WordPress site.",
+    blurb: "Live-URL probes for the WordPress health check at /wp. Run against any public WordPress site.",
     modules: [
       { name: "wpVersionLeak", description: "Where the site leaks its core version (readme.html, meta generator, RSS feed, CSS/JS ver=).", example: "Meta generator: 'WordPress 5.8.1' — readable from view-source" },
       { name: "wpPluginCveCheck", description: "Detects installed plugins via fingerprinting and flags any with known CVEs.", example: "elementor 3.5.2 detected — CVE-2023-XXXX critical" },

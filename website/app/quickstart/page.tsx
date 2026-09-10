@@ -191,7 +191,7 @@ git add -A && git commit -m "test: trigger gate" && git push`}</CodeBlock>
           </Trouble>
           <Trouble q="I&apos;m on GitLab/Jenkins/CircleCI, not GitHub.">
             Don&apos;t hand-write the pipeline &mdash;{" "}
-            <code className="text-foreground">npx @gatetest/cli --ci-init gitlab</code>{" "}
+            <code className="text-foreground">npx -p @gatetest/cli gatetest --ci-init gitlab</code>{" "}
             writes a complete{" "}
             <code className="text-foreground">.gitlab-ci.yml</code>, and{" "}
             <code className="text-foreground">--ci-init circleci</code> writes{" "}
@@ -200,7 +200,7 @@ git add -A && git commit -m "test: trigger gate" && git push`}</CodeBlock>
             Both generate a quick gate on merge requests, a full scan on the
             main branch, and JUnit + SARIF artifacts wired to the native test
             reporting. On any other CI,{" "}
-            <code className="text-foreground">npx @gatetest/cli --suite full</code>{" "}
+            <code className="text-foreground">npx -p @gatetest/cli gatetest --suite full</code>{" "}
             from your pipeline runs the same 121 modules. Auto-fix PRs are also
             available from the CLI via{" "}
             <code className="text-foreground">gatetest fix --apply</code> and{" "}

@@ -4,10 +4,11 @@ import { TOTAL_MODULES } from "@/app/lib/module-count";
 import PageHero from "../../components/site/PageHero";
 import Section from "../../components/site/Section";
 
+const DESCRIPTION = `Next.js-aware checks from GateTest's ${TOTAL_MODULES}-module engine: App Router conventions, import cycles, TypeScript strict mode, performance budgets, security headers, NEXT_PUBLIC_* exposure, accessibility. AI-powered fixes at the Scan + Fix tier and above.`;
+
 export const metadata: Metadata = {
   title: "Code Quality for Next.js Apps — GateTest",
-  description:
-    "121 checks built for Next.js: App Router route validation, React Hook exhaustive-deps, TypeScript strict mode, Core Web Vitals, OpenGraph tags, accessibility, security headers. AI-powered fixes at the Scan + Fix tier and above.",
+  description: DESCRIPTION,
   keywords: [
     "Next.js code quality",
     "Next.js testing",
@@ -23,8 +24,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Code Quality for Next.js Apps — GateTest",
-    description:
-      "121 checks built for Next.js: App Router route validation, React Hook exhaustive-deps, TypeScript strict mode, Core Web Vitals, OpenGraph tags, accessibility, security headers. AI-powered fixes at the Scan + Fix tier and above.",
+    description: DESCRIPTION,
     url: "/for/nextjs",
     siteName: "GateTest",
     type: "website",
@@ -76,8 +76,8 @@ const nextjsModules = [
   },
   {
     name: "performance",
-    label: "Core Web Vitals",
-    description: "Lighthouse-equivalent performance analysis — LCP, CLS, FID, bundle size, image optimization, font loading, and render-blocking resources.",
+    label: "Performance Budgets",
+    description: "JS and CSS bundle-size budgets against your build output, oversized and non-modern images, missing lazy-loading, render-blocking resources, and leaked listeners / intervals — plus a Lighthouse run where a browser is available.",
     tag: "Performance",
   },
   {
@@ -135,10 +135,10 @@ const realBugs = [
     detail: "Circular imports in Next.js cause random 'undefined' values depending on module-cache initialization order. Tarjan's SCC finds every cycle — not just the obvious ones.",
   },
   {
-    bug: "CSP header missing 'upgrade-insecure-requests' in next.config.js",
+    bug: "Strict-Transport-Security max-age=86400 in next.config.js headers()",
     module: "webHeaders",
     severity: "warning",
-    detail: "GateTest reads your next.config.js headers() export and validates the full Content Security Policy against OWASP recommendations.",
+    detail: "GateTest reads your next.config.js headers() export and flags HSTS below the 180-day floor (preload-ineligible), CSP unsafe-eval / unsafe-inline, wildcard CORS with credentials, and missing nosniff / X-Frame-Options.",
   },
   {
     bug: "await prisma.user.findMany() inside users.map(async u => ...)",
@@ -275,13 +275,13 @@ export default function NextJsPage() {
             Ship Next.js apps with confidence.
           </h2>
           <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
-            {TOTAL_MODULES} modules, App Router awareness, AI-powered review on every paid tier, and AI auto-fix PRs at the Scan + Fix tier ($199) and Forensic Scan ($399). One price per scan, no seats.
+            {TOTAL_MODULES} modules, App Router awareness, AI-powered review from the Full tier ($99) up, and AI auto-fix PRs at the Scan + Fix tier ($199) and Forensic Scan ($399). One price per scan, no seats.
           </p>
           <Link href="/" className="btn-cta px-8 py-4">
             Scan My Next.js App — From $29
           </Link>
           <p className="text-muted text-xs mt-6">
-            One-time charge at checkout. No subscription, no per-seat licensing.
+            One-time charge at checkout for per-scan tiers — no per-seat licensing. Continuous ($49/mo) is optional if you want every push scanned.
           </p>
         </div>
         <p className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">

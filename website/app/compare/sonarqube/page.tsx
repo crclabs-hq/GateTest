@@ -244,7 +244,7 @@ export default function SonarQubePage() {
             </Link>
           </div>
           <p className="text-muted text-xs mt-6">
-            One-time payment per scan via Stripe. No subscription, no auto-renew.
+            One-time payment per scan via Stripe — scan tiers never auto-renew. Continuous ($49/mo) and hosted MCP ($29/mo) are optional monthly plans.
           </p>
         </section>
         <ComparisonReviewed slug="sonarqube" />

@@ -1,7 +1,7 @@
 ﻿import Link from "next/link";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
-import { SITE_URL } from "@/app/lib/site-url";
+import { SITE_URL, SUPPORT_EMAIL } from "@/app/lib/site-url";
 
 /**
  * Public marketing page for the Triage workflow.
@@ -12,7 +12,10 @@ import { SITE_URL } from "@/app/lib/site-url";
  * matches what we actually ship.
  *
  * Honesty rules per CLAUDE.md Forbidden #1 + Bible Boss Rule:
- * - Module count = 91 (from CLAUDE.md v1.43.0 / VERSION section).
+ * - The source layer is the website Quick tier (api/admin/triage/route.ts
+ *   calls /api/scan/run with tier "quick") — say so, never "all modules".
+ * - Triage is an operator-console tool (admin cookie), not a self-serve
+ *   purchase — the $29 Offer in the JSON-LD is the Quick scan.
  * - Claims here must be defensible against the source files.
  * - "Available on GitHub Marketplace soon" is allowed because the listing
  *   is in flight (Known Issue #29) — the wording does NOT claim it's live.
@@ -153,7 +156,7 @@ const STAGE_ICONS = [
   {
     name: "SOURCE",
     role: "Static analysis of the repo",
-    detail: "121 modules — same engine as a repo scan. Looks at the code on disk.",
+    detail: "Quick-tier static scan — syntax, lint, secrets, code quality — from the same engine as a repo scan. Looks at the code on disk.",
     color: "from-blue-500/15 to-blue-500/5",
     border: "border-blue-500/30",
     text: "text-blue-700",
@@ -209,8 +212,11 @@ export default function TriagePage() {
       "GateTest Triage runs source, server, and browser scans in parallel and applies a 9-rule cascade to localise the bug to one layer.",
     offers: {
       "@type": "Offer",
+      name: "Quick Scan",
+      description: "Triage itself runs from the operator console; the $29 Quick scan is the self-serve entry point.",
       price: "29",
       priceCurrency: "USD",
+      url: `${SITE_URL}/scan`,
     },
     url: `${SITE_URL}/triage`,
     publisher: {
@@ -256,8 +262,8 @@ export default function TriagePage() {
                 See it in action
               </a>
               <p className="basis-full mt-3 text-xs text-muted leading-relaxed">
-                MIT-licensed CLI · No new dependencies · Same Claude
-                pipeline as Forensic Scan
+                MIT-licensed CLI · Deterministic 9-rule cascade — no model
+                call in the verdict
               </p>
             </>
           }
@@ -455,9 +461,10 @@ export default function TriagePage() {
         <Section alt>
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-foreground-secondary text-sm leading-relaxed">
-              Triage is an admin tool today — available to GateTest
-              subscribers via the admin dashboard. Public per-scan checkout
-              for Triage is planned for v1.45.
+              Triage is an operator-console tool today — GateTest staff run
+              it from the admin console; it is not yet a self-serve purchase.
+              E-mail {SUPPORT_EMAIL} if you want it run against your site.
+              The scan button below runs a standard repo scan.
             </p>
           </div>
 

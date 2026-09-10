@@ -364,7 +364,7 @@ export default function ScanStatus() {
             <p className="text-sm text-muted font-mono">{params.repo}</p>
           )}
           <p className="mt-2 text-xs text-muted">
-            🔒 Your code is scanned in memory and never stored on our servers.
+            🔒 Your source is held only while the scan runs and never stored; findings stay in your scan history.
           </p>
         </div>
 

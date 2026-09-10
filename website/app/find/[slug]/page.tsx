@@ -80,7 +80,9 @@ export default async function CwePage({ params }: PageParams) {
         }
       : {
           q: `Does GateTest detect CWE-${cwe.id}?`,
-          a: `Not directly today. GateTest focuses on web-stack languages (JavaScript, TypeScript, Python, Go, Java, Ruby, PHP) and infrastructure-as-code. ${cwe.name} is most relevant to ${slug.includes("buffer") || slug.includes("memory") || slug.includes("overflow") || slug.includes("null-pointer") || slug.includes("integer") || slug.includes("out-of-bounds") || slug.includes("use-after-free") ? "C / C++" : "lower-level"} code. For full coverage of this class, pair GateTest with CodeQL or a memory-safety analyzer.`,
+          a: isMemorySafetyClass(slug)
+            ? `Not directly today. GateTest focuses on web-stack languages (JavaScript, TypeScript, Python, Go, Rust, Java, Ruby, PHP, C#, Kotlin, Swift) and infrastructure-as-code. ${cwe.name} is most relevant to C / C++ code. For full coverage of this class, pair GateTest with CodeQL or a memory-safety analyzer.`
+            : `Not with a dedicated rule today. ${cwe.name} depends on application logic or runtime behaviour that a static pattern cannot see on its own. ${cwe.remediation}`,
         },
     {
       q: `What rank is ${cwe.name} in the CWE Top 25?`,
@@ -153,7 +155,10 @@ export default async function CwePage({ params }: PageParams) {
           <div className="mb-12 rounded-xl border border-warning/25 bg-warning/5 p-6">
             <h2 className="text-sm uppercase tracking-wider text-warning font-semibold mb-3">GateTest coverage</h2>
             <p className="text-foreground leading-relaxed">
-              <strong className="text-warning">Not directly covered today.</strong> GateTest focuses on web-stack languages and infrastructure-as-code. For this class of bug, pair GateTest with a C/C++-aware analyzer.
+              <strong className="text-warning">Not directly covered today.</strong>{" "}
+              {isMemorySafetyClass(slug)
+                ? "GateTest focuses on web-stack languages and infrastructure-as-code. For this class of bug, pair GateTest with a C/C++-aware analyzer."
+                : "GateTest has no dedicated rule for this class yet — it depends on application logic or runtime behaviour a static pattern cannot see. The remediation below says which adjacent GateTest checks apply."}
             </p>
           </div>
         )}
@@ -174,7 +179,7 @@ export default async function CwePage({ params }: PageParams) {
         {covered && (
           <div className="rounded-2xl border border-accent/20 bg-accent/5 p-8 text-center">
             <h2 className="font-display text-2xl font-bold text-foreground mb-3">Scan your repo for CWE-{cwe.id}</h2>
-            <p className="text-foreground-secondary mb-6">Free preview of findings. Pay per scan — no subscription. AI auto-fix PR included on the Scan + Fix tier.</p>
+            <p className="text-foreground-secondary mb-6">Free preview of findings. Pay per scan — no subscription required. AI auto-fix PR included on the Scan + Fix tier.</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/#pricing" className="btn-cta px-6 py-3 text-sm">
                 Run a scan &mdash; from $29
@@ -223,6 +228,13 @@ function moduleToSlug(name: string): string {
     .replace(/[^a-z0-9-]/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+/** The C/C++ memory-safety classes GateTest does not scan for — the
+ *  "pair with a memory-safety analyzer" advice only makes sense for these;
+ *  an uncovered authorisation or upload class needs different advice. */
+function isMemorySafetyClass(slug: string): boolean {
+  return ["buffer", "memory", "overflow", "null-pointer", "integer", "out-of-bounds", "use-after-free"].some((k) => slug.includes(k));
 }
 
 // Silence unused-export warnings on the type when imported only for shape

@@ -62,7 +62,7 @@ const comparisonRows = [
   { feature: "SSRF detection", gatetest: true, competitor: true },
   { feature: "Command injection detection", gatetest: true, competitor: true },
   { feature: "Auto-fix PR (working code changes)", gatetest: true, competitor: false },
-  { feature: "Scan time under 2 minutes", gatetest: true, competitor: false },
+  { feature: "Full scan in minutes, not 15-30", gatetest: true, competitor: false },
   { feature: "Works on private repos without per-seat licensing", gatetest: true, competitor: false },
   { feature: "IaC security (Terraform, K8s, Dockerfile, CI)", gatetest: true, competitor: false },
   { feature: "Dependency / SCA scanning", gatetest: true, competitor: false },
@@ -285,7 +285,7 @@ export default function CodeQLPage() {
             Scan My Repo — From $29
           </Link>
           <p className="text-muted text-xs mt-6">
-            One-time payment per scan via Stripe. No subscription, no auto-renew.
+            One-time payment per scan via Stripe — scan tiers never auto-renew. Continuous ($49/mo) and hosted MCP ($29/mo) are optional monthly plans.
           </p>
         </section>
         <ComparisonReviewed slug="codeql" />

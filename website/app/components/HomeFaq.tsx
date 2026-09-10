@@ -27,7 +27,7 @@ const FAQS: Faq[] = [
         No. The deterministic engine ships first — AST, regex, file
         walkers across 121 modules, no LLM in the loop. Claude only
         enters when the deterministic layers can&apos;t resolve a finding
-        (roughly 5% of fixes). The 4-layer{" "}
+        The 4-layer{" "}
         <a href="#flywheel" className="text-accent hover:underline">
           flywheel architecture
         </a>{" "}
@@ -35,23 +35,26 @@ const FAQS: Faq[] = [
       </>
     ),
     plain:
-      "No. The deterministic engine ships first — AST, regex, file walkers across 121 modules, no LLM in the loop. Claude only enters when the deterministic layers can't resolve a finding (roughly 5% of fixes). The 4-layer flywheel architecture is the moat.",
+      "No. The deterministic engine ships first — AST, regex, file walkers across 121 modules, no LLM in the loop. Claude only enters when the deterministic layers can't resolve a finding. The 4-layer flywheel architecture is the moat.",
   },
   {
     q: "Is my code stored anywhere?",
     a: (
       <>
-        No. Scans are ephemeral. Hosted scans fetch your files over the
-        git host&apos;s API, scan them in memory, and discard them when the
-        response returns. The repo never leaves your CI environment when
-        you install the GitHub Action — we never see it.{" "}
+        Your source is not. Hosted scans fetch your files over the git
+        host&apos;s API, scan them in memory, and discard the source when the
+        response returns; what we keep is the findings (message, file path,
+        line number) so your report exists. With the GitHub Action or the CLI
+        the repo stays in your own environment. AI fix and diagnosis send the
+        files being fixed to Anthropic under its standard 30-day retention —
+        never for training.{" "}
         <Link href="/legal/privacy" className="text-accent hover:underline">
           Privacy policy.
         </Link>
       </>
     ),
     plain:
-      "No. Scans are ephemeral: hosted scans fetch your files over the git host API, scan them in memory, and discard them when the response returns. With the GitHub Action your repo never leaves your CI.",
+      "Your source is not. Hosted scans fetch your files over the git host API, scan them in memory, and discard the source when the response returns; the findings (message, file path, line number) are kept so your report exists. With the GitHub Action or the CLI the repo stays in your own environment. AI fix and diagnosis send the files being fixed to Anthropic under its standard 30-day retention, never for training.",
   },
   {
     q: "Why not just ESLint + Snyk + the other 10 tools?",
@@ -78,8 +81,10 @@ const FAQS: Faq[] = [
     a: (
       <>
         None. You pay once via Stripe at checkout, we run the scan, you get
-        the report. No subscription, no auto-renew, no per-seat billing. If
-        the scan fails to start or crashes mid-way, contact{" "}
+        the report. Scan tiers are one-time &mdash; no auto-renew, no per-seat
+        billing. Continuous and the hosted MCP endpoint are optional monthly
+        subscriptions you can cancel anytime. If the scan fails to start or
+        crashes mid-way, contact{" "}
         <a href="mailto:hello@gatetest.ai" className="text-accent hover:underline">
           hello@gatetest.ai
         </a>{" "}
@@ -88,7 +93,7 @@ const FAQS: Faq[] = [
       </>
     ),
     plain:
-      "None. You pay once via Stripe at checkout, we run the scan, you get the report. No subscription, no auto-renew, no per-seat billing. If a scan fails to start or crashes, contact hello@gatetest.ai and we re-run it or issue a credit.",
+      "None. You pay once via Stripe at checkout, we run the scan, you get the report. Scan tiers are one-time — no auto-renew, no per-seat billing; Continuous and the hosted MCP endpoint are optional monthly subscriptions you can cancel anytime. If a scan fails to start or crashes, contact hello@gatetest.ai and we re-run it or issue a credit.",
   },
   {
     q: "Is the gate actually strict?",

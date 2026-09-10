@@ -155,7 +155,7 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         heading: "Where GateTest sits",
         paragraphs: [
-          "GateTest is primarily a SAST engine — most of its 121 modules read code at rest — with SCA built in (the dependencies and CVE-feed modules) and a DAST slice (the live browser-driven probes that run where a runner and target URL exist). The point isn't that one tool is all three perfectly; it's that one gate covering all three slices beats three disconnected tools with three dashboards and three bills.",
+          "GateTest is primarily a SAST engine — most of its 121 modules read code at rest — with SCA built in (the dependencies module for manifest hygiene, and the security module's reachability-triaged npm audit for known advisories) and a DAST slice (the live browser-driven probes that run where a runner and target URL exist). The point isn't that one tool is all three perfectly; it's that one gate covering all three slices beats three disconnected tools with three dashboards and three bills.",
         ],
       },
     ],
@@ -211,8 +211,8 @@ const total = new Decimal(req.body.amount);   // no finding`,
       {
         heading: "3. Explicit, auditable suppression",
         paragraphs: [
-          "Sometimes the tool is right that a pattern is present and the developer is right that it's fine. The answer isn't to weaken the rule globally; it's a local, explicit, reviewable suppression — a `// gatetest-ok` style marker on the line, which shows up in code review so a teammate can see the override and the reason.",
-          "This keeps the decision where it belongs (with the author, in the diff) instead of in a global config file nobody reads, and it leaves an audit trail.",
+          "Sometimes the tool is right that a pattern is present and the developer is right that it's fine. The answer isn't to weaken the rule globally; it's a local, explicit, reviewable suppression — a per-rule marker on the line, such as `// taint-ok` or `// pii-ok` in GateTest, which shows up in code review so a teammate can see the override and the reason.",
+          "This keeps the decision where it belongs (with the author, in the diff) instead of in a global config file nobody reads, and it leaves an audit trail. A repo-level `.gatetestignore` exists for the cases that genuinely are repo-wide (a vendored directory, a rule that doesn't apply to your stack) — suppressed findings stay visible in a separate list rather than vanishing.",
         ],
       },
       {

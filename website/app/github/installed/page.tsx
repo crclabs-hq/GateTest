@@ -5,13 +5,13 @@ import Section from "../../components/site/Section";
 
 export const metadata: Metadata = {
   title: "GateTest Installed — You're All Set",
-  description: "GateTest is now running a free quick gate on your repos on every push and PR.",
+  description: "GateTest is now running the free deterministic gate on your repos on every push and PR.",
 };
 
 const NEXT_STEPS = [
   "Push code to any connected repo",
-  "GateTest scans automatically (syntax, lint, secrets, code quality)",
-  "Green check or red X appears on your commit",
+  "GateTest scans automatically (full deterministic engine — Claude-powered modules skipped)",
+  "A commit status appears on your commit (advisory mode by default — set mode: strict in .gatetest.json to block)",
   "Open a PR — detailed scan report posted as a comment",
 ];
 
@@ -22,7 +22,7 @@ export default function Installed() {
         align="center"
         eyebrow="Installed"
         title={<span className="gradient-text">GateTest is live.</span>}
-        lede="Every push and pull request now gets a free quick gate — syntax, lint, and hardcoded-secret detection. Results appear as commit statuses and PR comments."
+        lede="Every push and pull request now runs the free deterministic gate — secrets, security, CI hardening, supply chain, code quality and more. Results appear as commit statuses and PR comments."
       />
 
       <Section narrow>

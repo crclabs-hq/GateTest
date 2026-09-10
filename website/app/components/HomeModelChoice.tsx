@@ -79,12 +79,13 @@ export default function HomeModelChoice() {
               Point GateTest at your own{" "}
               <code className="font-mono text-sm text-accent">ANTHROPIC_API_KEY</code>.
               You pick the model, you own the spend, and there&apos;s no cap.
-              Calls go straight from your machine to Anthropic —{" "}
-              <span className="text-foreground font-semibold">never through our servers.</span>
+              On the CLI and MCP server, calls go straight from your machine to Anthropic —{" "}
+              <span className="text-foreground font-semibold">never through our servers.</span>{" "}
+              On the web fix route your key is used for that one request and never stored.
             </p>
             <ul className="mt-auto space-y-2 text-sm text-muted">
               <li className="flex items-start gap-2"><span className="text-accent mt-0.5">✓</span> Your usage, your bill, your control</li>
-              <li className="flex items-start gap-2"><span className="text-accent mt-0.5">✓</span> Any of the three models, per fix</li>
+              <li className="flex items-start gap-2"><span className="text-accent mt-0.5">✓</span> Any of the four models, per fix</li>
               <li className="flex items-start gap-2"><span className="text-accent mt-0.5">✓</span> Works on CLI, MCP, and the web fix route</li>
             </ul>
           </div>

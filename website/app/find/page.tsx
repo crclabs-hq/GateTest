@@ -54,7 +54,7 @@ export default function CweIndexPage() {
           <>
             MITRE&apos;s annual CWE Top 25 ranks the most dangerous software weaknesses by prevalence and severity. We show which classes GateTest catches today, which we don&apos;t, and the fix shape for each.
             <span className="block mt-4 text-sm text-muted">
-              Honest scoring — we cover the web-stack and infrastructure-as-code classes. The C/C++ memory-safety classes (out-of-bounds writes, use-after-free, NULL deref) we don&apos;t scan today. Each page says so.
+              Honest scoring — we cover the injection, secrets, SSRF, race-condition and infrastructure-as-code classes. The C/C++ memory-safety classes (out-of-bounds writes, use-after-free, NULL deref) we don&apos;t scan today, and a few logic-level classes (missing or incorrect authorisation, unrestricted upload) have no dedicated rule yet. Each page says so.
             </span>
           </>
         }

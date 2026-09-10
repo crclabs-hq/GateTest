@@ -15,9 +15,9 @@ const LIMITS = [
   "Doesn't catch logic bugs that need domain context. If your invariant is 'don't ever discount over 30%', no scanner can know that without you telling it.",
   "Doesn't fix bugs that span 5+ files without human review. Multi-file refactors are flagged but require an engineer to drive.",
   "Coverage on Rust, Go, and Java is shallower than JS/TS/Python today. We have language-specific modules for nine non-JS backends but the depth is honestly thinner than our JS coverage.",
-  "Hosted website scans read up to 50 source files per scan (prioritised by relevance) — enough for most small-to-mid repos, but a large monorepo gets a representative slice, not exhaustive coverage. The CLI and GitHub Action scan everything, with no file cap.",
+  "Hosted scans have a file cap. Full, Scan + Fix and Forensic read up to 4,000 source files per scan (prioritised by relevance); the free preview and the Quick tier sample 60. A very large monorepo gets a representative slice, not exhaustive coverage. The CLI and GitHub Action scan everything, with no file cap.",
   "No on-prem deployment yet. Everything runs on our own managed host with a Postgres (Neon) queue today. Air-gapped customers are on the roadmap.",
-  "No VSCode extension that runs in real time yet. Today's loop is push → CI → PR comment. Editor integration is on the list.",
+  "No published VS Code extension yet. One is built but not on the Marketplace; today's loop is push → CI → PR comment.",
 ];
 
 const QUIET_RULES = [
@@ -78,7 +78,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: npx @gatetest/cli --suite full --auto-pr
+      - run: npx -p @gatetest/cli gatetest --suite full --auto-pr
         env:
           ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN:      \${{ secrets.GITHUB_TOKEN }}`;
@@ -107,7 +107,7 @@ export default function HowItWorksPage() {
           Most QA scanners are either purely pattern-matched (cheap, noisy) or purely LLM-driven (expensive,
           unpredictable). GateTest is neither. The default scan is a static engine with no AI in the loop —
           predictable, reproducible, no surprise API spend. AI is reserved for fix generation, and even there
-          we try three deterministic layers first.
+          a proven recipe replays first — Claude is only called for a shape it has not solved before.
         </p>
       </PageHero>
 

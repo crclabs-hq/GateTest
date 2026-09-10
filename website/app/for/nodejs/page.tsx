@@ -4,10 +4,12 @@ import { TOTAL_MODULES } from "@/app/lib/module-count";
 import PageHero from "../../components/site/PageHero";
 import Section from "../../components/site/Section";
 
+const DESCRIPTION =
+  "Security headers, SQL injection detection, N+1 queries, resource leaks, SSRF vulnerabilities, ReDoS patterns, race conditions — GateTest covers the Node.js failure modes linters miss.";
+
 export const metadata: Metadata = {
   title: "Node.js Security & Quality Scanning — GateTest",
-  description:
-    "Security headers, SQL injection detection, N+1 queries, resource leaks, SSRF vulnerabilities, ReDoS patterns, race conditions — GateTest covers every Node.js failure mode.",
+  description: DESCRIPTION,
   keywords: [
     "Node.js security scanning",
     "Node.js code quality",
@@ -23,8 +25,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Node.js Security & Quality Scanning — GateTest",
-    description:
-      "Security headers, SQL injection detection, N+1 queries, resource leaks, SSRF vulnerabilities, ReDoS patterns, race conditions — GateTest covers every Node.js failure mode.",
+    description: DESCRIPTION,
     url: "/for/nodejs",
     siteName: "GateTest",
     type: "website",
@@ -34,11 +35,11 @@ export const metadata: Metadata = {
 const faqItems = [
   {
     q: "What Node.js security issues does GateTest find?",
-    a: "GateTest covers the full OWASP Top 10 for Node.js: SSRF (tracking user-controlled input from req.body to fetch()), SQL injection patterns, ReDoS (catastrophic regex that can halt your event loop), TLS validation bypass (rejectUnauthorized: false, NODE_TLS_REJECT_UNAUTHORIZED=0), cookie security misconfigs (httpOnly: false, secure: false, weak secrets), hardcoded localhost URLs that leak to production, PII in logs (console.log(user), logger.info(req.body)), and more.",
+    a: "GateTest covers the Node.js side of the OWASP Top 10 classes a static scanner can see: SSRF (tracking user-controlled input from req.body to fetch()), SQL injection patterns, ReDoS (catastrophic regex that can halt your event loop), TLS validation bypass (rejectUnauthorized: false, NODE_TLS_REJECT_UNAUTHORIZED=0), cookie security misconfigs (httpOnly: false, secure: false, weak secrets), hardcoded localhost URLs that leak to production, PII in logs (console.log(user), logger.info(req.body)), and more.",
   },
   {
     q: "Does GateTest detect N+1 query problems in Node.js ORMs?",
-    a: "Yes. The nPlusOne module covers Prisma, Sequelize, TypeORM, Mongoose, Knex, Drizzle, node-postgres, MySQL2, and generic db/orm/repo shapes. It finds database calls inside loop bodies — for loops, while loops, .map(), .forEach(), .filter(), .reduce(). It recognises await Promise.all(arr.map(async () => await db.query(...))) as the batched fix pattern and records it as info rather than error.",
+    a: "Yes. The nPlusOne module covers Prisma, Sequelize, TypeORM, Mongoose, Knex, Drizzle, node-postgres, mysql, and generic db/orm/repo shapes. It finds database calls inside loop bodies — for loops, while loops, .map(), .forEach(), .filter(), .reduce(). It recognises await Promise.all(arr.map(async () => await db.query(...))) as the batched fix pattern and records it as info rather than error.",
   },
   {
     q: "Does GateTest detect resource leaks in Node.js?",
@@ -184,7 +185,7 @@ export default function NodeJsPage() {
             Node.js has a unique failure-mode profile: SSRF from request-to-fetch data flows,
             N+1 queries hidden inside async loops, race conditions in concurrent request handlers,
             resource leaks from unclosed streams, and ReDoS that can halt the event loop.
-            GateTest covers every one.
+            GateTest has a dedicated detector for each of them.
           </>
         }
         actions={
@@ -251,13 +252,13 @@ export default function NodeJsPage() {
             Find the bugs that survive code review.
           </h2>
           <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
-            SSRF, N+1, race conditions, resource leaks, ReDoS — GateTest catches every Node.js failure mode. One-time payment per scan.
+            SSRF, N+1, race conditions, resource leaks, ReDoS — GateTest catches the Node.js failure modes that survive code review. One-time payment per scan.
           </p>
           <Link href="/" className="btn-cta px-8 py-4">
             Scan My Node.js App — From $29
           </Link>
           <p className="text-muted text-xs mt-6">
-            One-time payment per scan via Stripe. No subscription, no auto-renew.
+            One-time payment per scan via Stripe — no auto-renew on per-scan tiers. Continuous ($49/mo) is the optional subscription for every-push scanning.
           </p>
         </div>
         <p className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">

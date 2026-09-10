@@ -53,7 +53,7 @@ const faqItems = [
   },
   {
     q: "Does GateTest support TypeScript like ESLint does?",
-    a: "Yes. GateTest's TypeScript module goes beyond @typescript-eslint: it catches tsconfig regressions (strict: false, noImplicitAny: false), @ts-ignore abuse, any-type leaks in exported signatures, and unused exports. It also includes the full lint module for TypeScript-specific style rules.",
+    a: "Yes. GateTest's typescriptStrictness module goes beyond @typescript-eslint: it catches tsconfig regressions (strict: false, noImplicitAny: false), @ts-ignore abuse, and any-type leaks in exported signatures; the deadCode module catches unused exports. The lint module runs ESLint for TypeScript-specific style rules in the CLI and GitHub Action.",
   },
 ];
 
@@ -263,7 +263,7 @@ export default function EsLintPage() {
             Scan My Repo — From $29
           </Link>
           <p className="text-muted text-xs mt-6">
-            One-time payment per scan via Stripe. No subscription, no auto-renew.
+            One-time payment per scan via Stripe — scan tiers never auto-renew. Continuous ($49/mo) and hosted MCP ($29/mo) are optional monthly plans.
           </p>
         </section>
         <ComparisonReviewed slug="eslint" />

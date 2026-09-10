@@ -8,19 +8,19 @@ import Section from "../../components/site/Section";
 export const metadata: Metadata = {
   title: "Install GateTest — GitHub App · Private repo scanning",
   description:
-    "Install GateTest on GitHub free. Auto-scans every push and PR with a quick quality gate — syntax, lint, and secrets detection. Deeper 121-module scans and auto-fix PRs available on gatetest.io.",
+    "Install GateTest on GitHub free. Every push and PR runs the full deterministic engine — secrets, security, CI hardening, supply chain, code quality and more — with results as commit statuses and PR comments. AI code review and auto-fix PRs are paid on gatetest.io.",
 };
 
 const AFTER_INSTALL = [
   { t: "info", text: "  GateTest detected push to feature/billing-overhaul" },
-  { t: "info", text: "  Running free quick gate — syntax, lint, secrets, code quality..." },
+  { t: "info", text: "  Running free deterministic gate — full suite, Claude-powered modules skipped..." },
   { t: "fail", text: "  [FAIL] secrets      — 1 issue" },
   { t: "sep",  text: "" },
   { t: "err",  text: "  ERR  secrets › src/billing/invoice.ts:94" },
   { t: "dim",  text: "       hardcoded API key detected" },
   { t: "sep",  text: "" },
-  { t: "sum",  text: "  Commit status: FAILED. PR comment posted." },
-  { t: "dim",  text: "  Want the full 121-module scan + auto-fix PR? → gatetest.io" },
+  { t: "sum",  text: "  Commit status: 1 error · advisory mode. PR comment posted." },
+  { t: "dim",  text: "  Block on it: set mode: strict in .gatetest.json. Want an auto-fix PR? → gatetest.io" },
 ];
 
 const T: Record<string, string> = {
@@ -69,9 +69,9 @@ export default function GitHubSetup() {
   return (
     <main>
       <PageHero
-        eyebrow="GitHub App · free quick gate · private repos supported"
+        eyebrow="GitHub App · free deterministic gate · private repos supported"
         title={<>GateTest on GitHub — <span className="text-accent">install once, forget about config.</span></>}
-        lede={<>Free the moment you install: every push and PR gets a quick quality gate — syntax, lint, and hardcoded-secret detection — with results posted as commit statuses and PR comments. Want the full 121-module scan, AI code review, and auto-fix PRs? Run a deeper scan or subscribe to Continuous at <a href={SITE_URL} className="text-accent hover:underline">gatetest.io</a>.</>}
+        lede={<>Free the moment you install: every push and PR runs the full deterministic engine — secrets, security, CI hardening, supply chain, code quality and more; only the Claude-powered modules are skipped — with results posted as commit statuses and PR comments. Want AI code review on every push? Subscribe to Continuous. Want an auto-fix PR? Run a Scan + Fix or Forensic scan at <a href={SITE_URL} className="text-accent hover:underline">gatetest.io</a>.</>}
         actions={<InstallButton />}
       >
         {/* What happens after install — what the CI sees, so it stays a dark panel */}
@@ -103,7 +103,7 @@ export default function GitHubSetup() {
               Select which repos GateTest can access. Public or private. You control the scope — single repo or entire org.
             </p>
             <InstallButton />
-            <p className="text-xs text-muted">No credit card for the GitHub App install. Scans under 30s.</p>
+            <p className="text-xs text-muted">No credit card for the GitHub App install. Scans typically finish in under a minute.</p>
           </div>
         </div>
 
@@ -111,9 +111,9 @@ export default function GitHubSetup() {
         <div className="space-y-3 mb-10">
           {[
             { n: "1", title: "Install the app", desc: "Pick individual repos or the whole org. Takes 30 seconds. Free, no card required." },
-            { n: "2", title: "Push or open a PR", desc: "GateTest hooks into GitHub webhooks — no config file needed. Free quick gate runs automatically on every push." },
-            { n: "3", title: "See results in your PR", desc: "Commit status (pass/fail) and a PR comment with what the quick gate found." },
-            { n: "4", title: "Go deeper (optional, paid)", desc: "Full 121-module scan with AI code review, or a $49/mo Continuous subscription that also opens auto-fix PRs — both purchased separately at gatetest.io." },
+            { n: "2", title: "Push or open a PR", desc: "GateTest hooks into GitHub webhooks — no config file needed. The free deterministic gate runs automatically on every push." },
+            { n: "3", title: "See results in your PR", desc: "Commit status and a PR comment with what the gate found. Fresh installs run in advisory mode — the check stays green until you set mode: strict in .gatetest.json." },
+            { n: "4", title: "Go deeper (optional, paid)", desc: "AI code review on every push with the Continuous subscription, or an auto-fix PR with a Scan + Fix or Forensic scan — both purchased separately at gatetest.io. Fix PRs are not part of Continuous." },
           ].map((s) => (
             <div key={s.n} className="card flex items-start gap-4 p-4">
               <div className="w-7 h-7 rounded-lg bg-accent/10 border border-accent/30 flex items-center justify-center shrink-0">
@@ -145,7 +145,7 @@ export default function GitHubSetup() {
 
         {/* Privacy */}
         <div className="rounded-xl bg-accent/5 border border-accent/15 px-5 py-4 mb-10 text-xs text-muted leading-relaxed">
-          🔒 <strong className="text-foreground">Code is never stored.</strong> GateTest reads your files, runs them through the modules included in your tier in memory, posts results to GitHub, then discards everything. No database of your code. No training on your codebase.
+          🔒 <strong className="text-foreground">Code is never stored.</strong> GateTest reads your files, runs them through the modules included in your tier in memory, posts results to GitHub, then discards the source. What we keep is the findings — message, file path, line number — so your report exists. No database of your code. No training on your codebase.
         </div>
 
         {/* Not on GitHub? */}

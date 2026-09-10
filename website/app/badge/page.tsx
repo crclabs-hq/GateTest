@@ -100,7 +100,7 @@ export default function BadgePage() {
               <h3 className="text-sm font-bold text-foreground">Run your first scan</h3>
             </div>
             <p className="text-xs text-muted ml-10">
-              Paste your GitHub repo URL in the playground to get a grade. Or buy a full scan from $29.
+              Paste your GitHub repo URL in the playground for a free preview. The badge shows a grade once a paid scan (from $29) is on record.
             </p>
             <div className="ml-10">
               <Link href="/playground" className="btn-cta inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl">
@@ -182,11 +182,7 @@ export default function BadgePage() {
             <tbody className="divide-y divide-border">
               <tr>
                 <td className="px-5 py-3 font-mono text-xs text-accent">repo</td>
-                <td className="px-5 py-3 text-xs text-muted">GitHub repo in <code className="font-mono">owner/name</code> format (required)</td>
-              </tr>
-              <tr>
-                <td className="px-5 py-3 font-mono text-xs text-muted">style</td>
-                <td className="px-5 py-3 text-xs text-muted">Badge style — <code className="font-mono">flat</code> (default) or <code className="font-mono">shields</code></td>
+                <td className="px-5 py-3 text-xs text-muted">GitHub repo in <code className="font-mono">owner/name</code> format (required). Shows <code className="font-mono">not scanned</code> until a scan is on record.</td>
               </tr>
             </tbody>
           </table>
@@ -195,7 +191,7 @@ export default function BadgePage() {
           Endpoint: <span className="text-foreground">GET {badgeUrlFor("/badge/owner/repo.svg")}</span>
         </p>
         <p className="text-xs text-muted font-mono mt-1">
-          Cache: <span className="text-foreground">5 minutes (CDN) · Stale-while-revalidate</span>
+          Cache: <span className="text-foreground">5 minutes (max-age=300, public)</span>
         </p>
       </Section>
 

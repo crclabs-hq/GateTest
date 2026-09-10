@@ -167,7 +167,7 @@ const PRODUCTS = [
     body:
       `QA + security audit for your codebase OR your live website. ${siteStats.modules.total} modules covering security, performance, accessibility, SEO, supply chain, AI safety. Pay per scan, not per seat.`,
     bullets: [
-      "Free preview shows your top 3 issues",
+      "Free preview shows your top issues — no card, no signup",
       "Pay-per-scan from $29 — no subscription required",
       "Same engine scans your code AND your live URL",
       "Plain-language report you can hand to anyone",
@@ -182,7 +182,7 @@ const PRODUCTS = [
     badgeColor: "bg-indigo-500",
     tagline: "The git host built around Claude.",
     body:
-      "A git host designed from day one for the era when most of the code is being written by AI agents. Programmatic webhook API, agent-friendly auth, Claude-aware tooling. The platform GateTest itself runs on.",
+      "A git host designed from day one for the era when most of the code is being written by AI agents. Programmatic webhook API, agent-friendly auth, Claude-aware tooling. GateTest scans Gluecron repos first-class through its Signal Bus.",
     bullets: [
       "Repos, branches, PRs — done the way Claude expects them",
       "Programmatic webhook registration via REST (no clicking through UIs)",

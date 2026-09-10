@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs Semgrep — 121 modules vs pattern matching in 2026",
     description:
-      "Semgrep is excellent at finding patterns you wrote rules for. GateTest uses Claude to find what nobody wrote a rule for — plus 109 other checks — and opens a fix PR.",
+      `Semgrep is excellent at finding patterns you wrote rules for. GateTest uses Claude to find what nobody wrote a rule for — plus ${TOTAL_MODULES - 1} other checks — and opens a fix PR.`,
     url: "/compare/semgrep",
     siteName: "GateTest",
     type: "website",
@@ -259,7 +259,7 @@ export default function SemgrepPage() {
             Scan My Repo — From $29
           </Link>
           <p className="text-muted text-xs mt-6">
-            One-time payment per scan via Stripe. No subscription, no auto-renew.
+            One-time payment per scan via Stripe — scan tiers never auto-renew. Continuous ($49/mo) and hosted MCP ($29/mo) are optional monthly plans.
           </p>
         </section>
         <ComparisonReviewed slug="semgrep" />

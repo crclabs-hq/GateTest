@@ -178,7 +178,7 @@ function PreviewPageContent() {
               <div className="w-3 h-3 rounded-full bg-warning/80" />
               <div className="w-3 h-3 rounded-full bg-success/80" />
               <span className="ml-3 text-xs text-panel-muted font-mono truncate">
-                gatetest --suite quick {repoUrl.replace("https://github.com/", "")}
+                gatetest preview · quick tier · {repoUrl.replace("https://github.com/", "")}
               </span>
             </div>
             <div className="p-5 font-mono text-sm space-y-2">

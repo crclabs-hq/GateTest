@@ -130,7 +130,7 @@ export default function ModulesIndexPage() {
             {total} checks. One scan. From $29.
           </h2>
           <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
-            Per-scan pricing. No subscription. AI auto-fix PR on the Scan + Fix and Forensic Scan tiers.
+            Per-scan pricing, not per seat — one-time scans never auto-renew. AI auto-fix PR on the Scan + Fix and Forensic Scan tiers.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/#pricing" className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm">

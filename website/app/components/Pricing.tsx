@@ -52,7 +52,7 @@ export const pricingScans = [
     description: "Full-suite deep scan with iterative auto-fix PR, pair-review agent, and architecture annotations.",
     features: [
       `Full ${TOTAL_MODULES}-Module Engine Suite`,
-      "Iterative Fix Loop (up to 3 retries per finding)",
+      "Iterative Fix Loop (up to 3 attempts per finding)",
       "Cross-Fix Syntax + Scanner Gate",
       "Regression Test Generated per Fix",
       "Pair-Review Agent (4-axis critique)",
@@ -254,7 +254,7 @@ export default function Pricing() {
       <p className="text-[var(--muted)] text-center mb-10 max-w-2xl mx-auto text-sm leading-relaxed">
         The engine is free and open-source if you run it yourself —{" "}
         <code className="bg-[var(--background-alt)] text-[var(--accent)] px-1.5 py-0.5 rounded text-xs font-mono border border-[var(--border)]">
-          npx @gatetest/cli --suite full
+          npx -p @gatetest/cli gatetest --suite full
         </code>
         . Quick and Full below run the same scan on our infra: zero setup, a shareable hosted report, nothing to install. Pay per run for auto-fix and deeper AI analysis, or subscribe for continuous protection.
       </p>

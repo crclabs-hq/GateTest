@@ -6,12 +6,15 @@
  *   2. Proof — a real scan on a real production repo, with real numbers
  *      (Crontech, from docs/proofs/phase-2-3-crontech-real-customer-grade.md).
  *      Honest and verifiable — Bible Forbidden #1.
- *   3. Staying power — Fable 5 still has the limitations GateTest solves,
- *      so this is a permanent layer, not a one-model-generation bet.
+ *   3. Staying power — each new model generation still has the limitations
+ *      GateTest solves, so this is a permanent layer, not a one-generation
+ *      bet. Never name a model generation here; it dates the page.
  *
  * Light / teal editorial system (var(--*) tokens) to match the rest of the
  * page. Static server component.
  */
+
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 const REPLACED = [
   "SonarQube", "Snyk", "ESLint", "BrowserStack", "Lighthouse CI",
@@ -59,12 +62,12 @@ export default function HomeProof() {
         <div className="rounded-2xl border-2 border-[var(--accent)] bg-[var(--surface-solid)] p-7 shadow-lg shadow-[var(--accent)]/10">
           <h3 className="font-bold text-[var(--accent)] mb-1">GateTest</h3>
           <p className="text-sm text-[var(--muted)] mb-5">
-            One engine, 121 modules, one decision.
+            One engine, {TOTAL_MODULES} modules, one decision.
           </p>
           <ul className="text-sm text-[var(--foreground-secondary)] space-y-2.5 mb-6">
             <li className="flex gap-2"><span className="text-[var(--accent)]">✓</span> One config file, one gate — pass or the build stops</li>
             <li className="flex gap-2"><span className="text-[var(--accent)]">✓</span> Pay per run ($29–$399) or $49/mo continuous — <strong>no seats</strong></li>
-            <li className="flex gap-2"><span className="text-[var(--accent)]">✓</span> Free forever on the CLI: <code className="font-mono text-xs bg-[var(--background-alt)] px-1 rounded">npx @gatetest/cli</code></li>
+            <li className="flex gap-2"><span className="text-[var(--accent)]">✓</span> Free forever on the CLI: <code className="font-mono text-xs bg-[var(--background-alt)] px-1 rounded">npx -p @gatetest/cli gatetest</code></li>
             <li className="flex gap-2"><span className="text-[var(--accent)]">✓</span> Findings correlate into attack chains no single linter sees</li>
           </ul>
           <p className="text-xs text-[var(--muted)]">
@@ -122,11 +125,12 @@ export default function HomeProof() {
           Why this isn&apos;t a fad
         </p>
         <p className="text-lg md:text-xl leading-relaxed max-w-3xl mx-auto">
-          We&apos;re already on <strong className="text-[var(--accent-light)]">Fable 5</strong> — and the
-          same failure modes remain. The model still can&apos;t see the rendered page, doesn&apos;t
-          know what production is throwing, and can&apos;t prove its own fix worked. GateTest is
-          the permanent layer around that: a <strong>deterministic gate</strong>, real{" "}
-          <strong>senses</strong>, and <strong>proof</strong> — not a bet on one model generation.
+          Every new model generation arrives smarter — and the{" "}
+          <strong className="text-[var(--accent-light)]">same failure modes remain</strong>. The
+          model still can&apos;t see the rendered page, doesn&apos;t know what production is
+          throwing, and can&apos;t prove its own fix worked. GateTest is the permanent layer
+          around that: a <strong>deterministic gate</strong>, real <strong>senses</strong>, and{" "}
+          <strong>proof</strong> — not a bet on one model generation.
         </p>
       </div>
     </section>

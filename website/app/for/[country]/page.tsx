@@ -102,7 +102,7 @@ const MODULE_BLURBS: Record<string, string> = {
   ssrf:
     "Taints req.* sources to fetch/axios/http.request sinks and flags hardcoded cloud-metadata endpoints.",
   prSize:
-    "Per-PR file + line cap. Produces timestamped change-management evidence on every commit status.",
+    "Per-PR file + line cap so no change lands unreviewably large — the reviewable-change evidence change-management audits ask for.",
   errorSwallow:
     "Empty catch blocks, .catch(() => {}) on Promise chains, Node-callback handlers that ignore err.",
   kubernetes:
@@ -250,7 +250,7 @@ export default async function CountryPage({ params }: PageParams) {
       <Section
         alt
         title={<>The 3 modules most relevant in {data.name}</>}
-        lede={<>Every {data.name} scan runs all {MODULE_COUNT} modules — these three are the highest-signal for {data.primaryRegulation}.</>}
+        lede={<>A Full scan runs every one of the {MODULE_COUNT} modules that applies to your repository — these three are the highest-signal for {data.primaryRegulation}.</>}
       >
         <div className="grid sm:grid-cols-3 gap-4">
           {data.topThreeModules.map((mod) => (
@@ -337,13 +337,13 @@ export default async function CountryPage({ params }: PageParams) {
       </Section>
 
       {/* Pricing strip */}
-      <Section title="Pricing" lede="Starting at $29 USD — paid via Stripe in your local currency.">
+      <Section title="Pricing" lede="Starting at $29 USD — one-time, charged via Stripe at checkout.">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { tier: "Quick", price: "$29", modules: "4 modules" },
-            { tier: "Full", price: "$99", modules: `All ${MODULE_COUNT} modules` },
-            { tier: "Scan + Fix", price: "$199", modules: "+ AI auto-fix PR" },
-            { tier: "Forensic", price: "$399", modules: "+ pair review + exec summary" },
+            { tier: "Full", price: "$99", modules: `All ${MODULE_COUNT} modules — scan only` },
+            { tier: "Scan + Fix", price: "$199", modules: "+ AI auto-fix PR + pair review" },
+            { tier: "Forensic", price: "$399", modules: "+ per-finding diagnosis + CISO report" },
           ].map((p) => (
             <div key={p.tier} className="card p-5">
               <div className="text-xs uppercase tracking-wider text-muted mb-2">{p.tier}</div>
@@ -374,7 +374,7 @@ export default async function CountryPage({ params }: PageParams) {
             Try it on your own repo
           </h2>
           <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
-            $29 Quick scan, no signup. One-time charge, no subscription.
+            $29 Quick scan, no signup. One-time charge per scan — no subscription required (Continuous, $49/mo, is optional if you want every push scanned).
           </p>
           <Link href="/scan" className="btn-cta px-8 py-4">
             Run a {data.name} scan — $29

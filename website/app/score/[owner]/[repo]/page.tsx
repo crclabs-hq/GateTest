@@ -99,7 +99,7 @@ export default async function ScorePage({
             <span>{repo}</span>
           </>
         }
-        lede="GateTest quality score · powered by Claude Sonnet 5"
+        lede="GateTest quality score · computed from the latest scan on record"
       />
 
       <div className="max-w-5xl mx-auto px-6 py-16">
@@ -162,7 +162,8 @@ export default async function ScorePage({
                 {[
                   { label: "Start", value: "100", note: "base score" },
                   { label: "Issues", value: `−${Math.min(50, (data.lastScan?.issues || 0) * 5)}`, note: `−5 each (max −50)` },
-                  { label: "Fix tier bonus", value: ["scan_fix", "nuclear"].includes(data.lastScan?.tier || "") ? "+5" : "+0", note: "scan_fix / nuclear" },
+                  { label: "Modules passed", value: "up to +10", note: "pass rate × 10" },
+                  { label: "Fix tier bonus", value: ["scan_fix", "nuclear"].includes(data.lastScan?.tier || "") ? "+5" : "+0", note: "Scan + Fix / Forensic" },
                   { label: "Staleness", value: (data.lastScan?.ageDays || 0) > 7 ? `−${Math.floor(((data.lastScan?.ageDays || 0) - 7) / 7) * 5}` : "−0", note: `−5/week after 7d` },
                   { label: "Final score", value: String(data.score), note: data.label || "" },
                 ].map((r) => (

@@ -7,7 +7,7 @@ import { TOTAL_MODULES } from "@/app/lib/module-count";
 export const metadata: Metadata = {
   title: "GateTest vs DeepSource — AI-Native Code Quality in 2026",
   description:
-    "DeepSource finds issues. GateTest finds them and — at the Scan + Fix tier ($199) and above — fixes them. 121 modules, per-scan pricing, no per-seat licensing, AI auto-fix PRs created in seconds.",
+    "DeepSource finds issues. GateTest finds them and — at the Scan + Fix tier ($199) and above — fixes them. 121 modules, per-scan pricing, no per-seat licensing, AI auto-fix PRs opened in minutes.",
   keywords: [
     "DeepSource alternative",
     "DeepSource vs GateTest",
@@ -53,7 +53,7 @@ const faqItems = [
   },
   {
     q: "Can GateTest replace DeepSource for continuous scanning?",
-    a: "Yes. Install the GateTest GitHub App and every push to your repo triggers a scan automatically — commit status posted, PR comment added, full report available. The Continuous plan ($49/month) enables scans on every push. DeepSource's continuous model requires a subscription; GateTest's per-push scanning through the GitHub App is available on any paid plan.",
+    a: "Yes. Install the GateTest GitHub App and every push to your repo triggers a scan automatically — commit status posted, PR comment added, full report available. The Continuous plan ($49/month, one flat price for every repo in your org) is what enables scans on every push; the one-time tiers are single scans. Continuous includes unlimited deterministic scans plus a monthly AI-review allowance; fix PRs remain a per-scan purchase.",
   },
 ];
 
@@ -237,7 +237,7 @@ export default function DeepSourcePage() {
             Find issues. Fix issues. Ship faster.
           </h2>
           <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
-            121 modules and AI-powered review on every paid tier. AI auto-fix PRs at Scan + Fix ($199) and Forensic Scan ($399). One-time payment per scan.
+            121 modules and AI-powered review on Full ($99) and above. AI auto-fix PRs at Scan + Fix ($199) and Forensic Scan ($399). One-time payment per scan.
           </p>
           <Link
             href="/playground"
@@ -246,7 +246,7 @@ export default function DeepSourcePage() {
             Scan My Repo — From $29
           </Link>
           <p className="text-muted text-xs mt-6">
-            One-time payment per scan via Stripe. No subscription, no auto-renew.
+            One-time payment per scan via Stripe — scan tiers never auto-renew. Continuous ($49/mo) and hosted MCP ($29/mo) are optional monthly plans.
           </p>
         </section>
         <ComparisonReviewed slug="deepsource" />

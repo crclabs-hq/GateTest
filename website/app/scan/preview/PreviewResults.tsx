@@ -105,7 +105,7 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
             <div className="min-w-0">
               <p className="font-mono text-sm font-semibold text-panel-foreground truncate">{result.repo}</p>
               <p className="text-xs text-panel-muted mt-0.5 font-mono">
-                {result.durationMs != null ? `${(result.durationMs / 1000).toFixed(1)}s` : ""} · quick suite · 4 modules
+                {result.durationMs != null ? `${(result.durationMs / 1000).toFixed(1)}s` : ""} · quick tier · 4 modules
               </p>
             </div>
             <div className="text-right shrink-0">
@@ -176,7 +176,7 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
         <div className="rounded-xl bg-success/5 border border-success/20 p-6 text-center">
           <p className="font-mono text-success font-semibold mb-1">[PASS] all 4 modules — no issues found</p>
           <p className="text-sm text-muted mt-2">
-            Quick suite covers 4 modules. Full scan ($99) runs every applicable module of the 121-module engine — security, supply chain, auth flaws, CI hardening.
+            The Quick tier covers 4 modules. Full scan ($99) runs every applicable module of the 121-module engine — security, supply chain, auth flaws, CI hardening.
           </p>
         </div>
       )}
@@ -220,7 +220,7 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
             Scan + Fix ($199) opens a pull request with fixes written, pair-reviewed, and regression-tested. You review, you merge.
           </p>
           <Link href="/#pricing" className="btn-cta inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl">
-            Fix these issues — from $99 →
+            Fix these issues — Scan + Fix $199 →
           </Link>
         </div>
       )}

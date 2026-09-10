@@ -1,7 +1,7 @@
 import Link from "next/link";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
-import { SITE_URL } from "@/app/lib/site-url";
+import { SITE_URL, SUPPORT_EMAIL } from "@/app/lib/site-url";
 
 /**
  * Public marketing page for the Pipeline Trace workflow.
@@ -11,7 +11,9 @@ import { SITE_URL } from "@/app/lib/site-url";
  *
  * Honesty rules per CLAUDE.md Forbidden #1:
  * - "Reads GitHub APIs" is literally true — see correlator.js / route.
- * - Module count = 91 (CLAUDE.md v1.43.0).
+ * - This page makes no module-count claim; the count lives in site-stats.
+ * - Pipeline Trace is an operator-console tool (admin cookie), not a
+ *   self-serve purchase — the $29 Offer in the JSON-LD is the Quick scan.
  * - No claims about "tracking N teams" — we have no proof.
  *
  * Chrome: the site header and footer come from app/layout.tsx; this page
@@ -216,8 +218,11 @@ export default function PipelineTracePage() {
       "GateTest Pipeline Trace checks source HEAD, latest CI, latest deploy, and the live URL — then localises divergence to one stage via a 10-rule cascade.",
     offers: {
       "@type": "Offer",
+      name: "Quick Scan",
+      description: "Pipeline Trace itself runs from the operator console; the $29 Quick scan is the self-serve entry point.",
       price: "29",
       priceCurrency: "USD",
+      url: `${SITE_URL}/scan`,
     },
     url: `${SITE_URL}/pipeline-trace`,
     publisher: {
@@ -263,8 +268,8 @@ export default function PipelineTracePage() {
                 See it in action
               </a>
               <p className="basis-full mt-3 text-xs text-muted leading-relaxed">
-                MIT-licensed CLI · No new dependencies · Same Claude
-                pipeline as Forensic Scan
+                MIT-licensed CLI · Deterministic 10-rule cascade — no model
+                call in the verdict
               </p>
             </>
           }
@@ -466,9 +471,10 @@ export default function PipelineTracePage() {
         <Section alt>
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-foreground-secondary text-sm leading-relaxed">
-              Pipeline Trace is an admin tool today — available to GateTest
-              subscribers via the admin dashboard. Public per-scan checkout
-              for Pipeline Trace is planned for v1.45.
+              Pipeline Trace is an operator-console tool today — GateTest
+              staff run it from the admin console; it is not yet a self-serve
+              purchase. E-mail {SUPPORT_EMAIL} if you want it run against
+              your pipeline. The scan button below runs a standard repo scan.
             </p>
           </div>
 

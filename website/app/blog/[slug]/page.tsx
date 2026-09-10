@@ -123,7 +123,7 @@ export default async function BlogPostPage({ params }: PageParams) {
       <Section narrow>
         <div className="rounded-2xl border border-accent/20 bg-accent/5 p-8 text-center">
           <h2 className="font-display text-2xl font-bold text-foreground mb-3">Put a gate between your AI and your main branch</h2>
-          <p className="text-foreground-secondary mb-6">{siteStats.modules.total} modules. Pay per scan, no subscription. AI auto-fix PR on the Scan + Fix tier.</p>
+          <p className="text-foreground-secondary mb-6">{siteStats.modules.total} modules. Pay per scan — no subscription required. AI auto-fix PR on the Scan + Fix tier.</p>
           <Link href="/#pricing" className="btn-cta px-6 py-3 text-sm">
             Run a scan &mdash; from $29
           </Link>

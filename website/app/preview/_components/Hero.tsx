@@ -203,7 +203,7 @@ export function Hero() {
               into your repo and ship every commit through{" "}
               <span className="text-zinc-200">120+ deep checks</span> — security,
               memory leaks, type safety, edge cases, architecture — in one
-              unified scan. Every issue comes back as an{" "}
+              unified scan. On the Scan + Fix tier every issue comes back as an{" "}
               <span className="text-zinc-200">auto-fix pull request</span>, not
               just another alert.
             </p>
@@ -233,7 +233,7 @@ export function Hero() {
             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-zinc-500">
               <span className="flex items-center gap-1.5">
                 <I.check className="h-4 w-4 text-teal-300" />
-                No subscription — pay per scan
+                Pay per scan — no seats
               </span>
               <span className="flex items-center gap-1.5">
                 <I.check className="h-4 w-4 text-teal-300" />
@@ -241,7 +241,7 @@ export function Hero() {
               </span>
               <span className="flex items-center gap-1.5">
                 <I.check className="h-4 w-4 text-teal-300" />
-                SOC 2–aligned controls
+                Source never retained after a scan
               </span>
             </div>
           </Reveal>

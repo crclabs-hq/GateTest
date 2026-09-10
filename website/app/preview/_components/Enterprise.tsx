@@ -12,12 +12,12 @@ const POSTURE = [
   {
     icon: I.lock,
     t: "Least-privilege by design",
-    d: "Read scoped access, ephemeral runners, no long-lived credentials stored.",
+    d: "Scoped git-host access, an ephemeral per-scan workspace, connected tokens encrypted at rest.",
   },
   {
     icon: I.shield,
     t: "Fail-closed webhooks",
-    d: "Every event is HMAC-verified. Missing secret rejects — never fails open.",
+    d: "Every event is signature- or bearer-verified before anything runs. Missing or placeholder secret rejects — never fails open.",
   },
   {
     icon: I.eye,

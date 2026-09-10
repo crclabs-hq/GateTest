@@ -13,7 +13,7 @@
 
 import CopyButton from "./CopyButton";
 
-const INSTALL_CMD = "npx @gatetest/cli --suite quick";
+const INSTALL_CMD = "npx -p @gatetest/cli gatetest --suite quick";
 
 const ACTION_YAML = `# .github/workflows/gatetest.yml
 name: GateTest
@@ -27,21 +27,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npx @gatetest/cli --suite full --sarif
+      - run: npx -p @gatetest/cli gatetest --suite full --sarif
         # NOTE: do NOT add continue-on-error: true here
         # The whole point of a gate is that it gates.`;
 
 const CLI_BLOCK = `# scan a single repo locally
-$ npx @gatetest/cli --suite quick
+$ npx -p @gatetest/cli gatetest --suite quick
 
 # full suite (88 modules), blocking gate
-$ npx @gatetest/cli --suite full
+$ npx -p @gatetest/cli gatetest --suite full
 
 # crawl and test a live website
-$ npx @gatetest/cli --crawl https://yoursite.com
+$ npx -p @gatetest/cli gatetest --crawl https://yoursite.com
 
 # watch mode — re-run on every file change
-$ npx @gatetest/cli --watch`;
+$ npx -p @gatetest/cli gatetest --watch`;
 
 export default function HomeCode() {
   return (

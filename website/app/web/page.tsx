@@ -7,6 +7,8 @@
 
 import Link from "next/link";
 import { UrlScanFlow } from "@/app/components/UrlScanFlow";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
+import siteStats from "../data/site-stats.json";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 
@@ -102,7 +104,8 @@ export default function WebLanding() {
           </Link>
           <p className="text-xs text-muted mt-6">
             Same engine as the developer <Link href="/" className="text-accent hover:underline">GateTest</Link> CLI —
-            90+ static checks plus live headless-browser runtime capture. WordPress
+            this scan runs its {siteStats.suites.web}-module live-site suite (header, TLS and cookie probes plus
+            headless-browser runtime capture) out of the {TOTAL_MODULES}-module engine. WordPress
             owner? <Link href="/wp" className="text-accent hover:underline">WordPress-specific scan here</Link>.
           </p>
         </div>
@@ -167,12 +170,12 @@ const TIERS = [
     ],
   },
   {
-    name: "Quick Scan",
+    name: "Full Report",
     price: "$29",
     cadence: "one-shot",
     highlighted: true,
     includes: [
-      "Full scan — every clustered issue",
+      "Every clustered issue on your site",
       "Per-cluster fix instructions",
       "Live browser runtime capture",
       "Health Score + per-rule deductions",

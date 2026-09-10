@@ -88,7 +88,7 @@ export default function CheckoutSuccess() {
             </p>
           ) : (
             <p className="text-muted mb-6">
-              Every push to any repository under your org is now scanned by the full engine. If the GateTest GitHub App is
+              Every push to any repository under your org is now scanned — unlimited deterministic scans, with AI review escalating pushes to the full suite while your monthly allowance lasts. If the GateTest GitHub App is
               not installed yet, install it once and pushes start flowing; results post as commit statuses and PR comments.
             </p>
           )}

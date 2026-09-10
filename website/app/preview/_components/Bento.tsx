@@ -1,6 +1,9 @@
 import { I } from "../_lib/icons";
 import { Reveal } from "./Reveal";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
+// Per-domain counts are an illustrative grouping for the preview layout,
+// not a registry-derived figure; the headline number is the real one.
 const BENTO = [
   {
     icon: I.shield,
@@ -87,7 +90,6 @@ const BENTO = [
 ];
 
 export function Bento() {
-  const total = BENTO.reduce((s, b) => s + b.count, 0);
   return (
     <section id="bento" className="px-4 py-24">
       <div className="mx-auto max-w-6xl">
@@ -95,7 +97,7 @@ export function Bento() {
           <div className="flex flex-col items-center gap-4 text-center md:flex-row md:items-end md:justify-between md:text-left">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-300">
-                The 110-check architecture
+                The {TOTAL_MODULES}-module architecture
               </p>
               <h2 className="mt-3 font-display text-[clamp(2rem,4vw,3rem)] font-bold tracking-tight text-white">
                 Ten domains. One unified gate.
@@ -103,10 +105,10 @@ export function Bento() {
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-5 py-3 text-center">
               <div className="font-display text-4xl font-bold text-teal-200">
-                {total}
+                {TOTAL_MODULES}
               </div>
               <div className="text-xs uppercase tracking-wider text-zinc-500">
-                checks per scan
+                modules in a full scan
               </div>
             </div>
           </div>

@@ -57,7 +57,7 @@ const POSTURE = [
   {
     icon: I.lock,
     t: "Least-privilege by design",
-    d: "Read scoped access, ephemeral runners, no long-lived credentials stored.",
+    d: "Scoped App permissions, short-lived installation tokens minted per scan, no long-lived credentials stored.",
   },
   {
     icon: I.shield,

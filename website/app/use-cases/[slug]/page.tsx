@@ -135,7 +135,7 @@ export default async function UseCasePage({ params }: PageParams) {
       <Section narrow>
         <div className="rounded-2xl border border-accent/20 bg-accent/5 p-8 text-center">
           <h2 className="font-display text-2xl font-bold text-foreground mb-3">Put this gate on your repo</h2>
-          <p className="text-foreground-secondary mb-6">Free preview of findings. Pay per scan — no subscription. AI auto-fix PR on the Scan + Fix tier.</p>
+          <p className="text-foreground-secondary mb-6">Free preview of findings. Pay per scan — no subscription required. AI auto-fix PR on the Scan + Fix tier.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/github/setup" className="btn-cta px-6 py-3 text-sm">
               Install the GitHub App

@@ -126,6 +126,17 @@ body {
   color: var(--foreground);
 }
 
+/* Inside a dark panel the page selection colour (dark text on a faint wash)
+   made selected text vanish — "when I try and copy it the text goes black"
+   (Craig 2026-09-10). Panels get a visible teal wash and light text. */
+.bg-panel ::selection,
+.bg-panel::selection,
+.stats-band ::selection,
+.product-card ::selection {
+  background: rgba(45, 212, 191, 0.35);
+  color: #ffffff;
+}
+
 /* === BACKGROUNDS === */
 
 .hero-dark {

@@ -60,7 +60,7 @@ const DOORS: Door[] = [
     ],
     cta: { label: "Install the GitHub App", href: "/github/setup" },
     secondary: { label: "See how the fix flow works", href: "/how-it-works" },
-    noBarrier: "Free quick gate on install — no card",
+    noBarrier: "Free deterministic gate on every push after install — no card",
     accent: "text-teal-400",
     glow: "from-teal-500/20",
     icon: (

@@ -82,7 +82,7 @@ export const COUNTRIES: Country[] = [
         clause: "SOX ITGC — change-management evidence",
         module: "prSize",
         explanation:
-          "prSize module enforces a per-PR file + line cap and produces a timestamped report attached to every commit status — the same evidence a SOX auditor wants for change-management controls.",
+          "prSize module enforces a per-PR file + line cap so no change lands unreviewably large, and every gate run leaves a timestamped scan record against the commit — the reviewable-change evidence a SOX auditor asks for under change-management controls.",
       },
       {
         clause: "HIPAA §164.312(b) — audit logs without PII leakage",
@@ -178,7 +178,7 @@ export const COUNTRIES: Country[] = [
         clause: "GDPR Article 32 — appropriate technical measures",
         module: "secrets",
         explanation:
-          "Hardcoded credentials are the single most common Article 32 failure cited in DPA notices. secrets module catches AKIA / ASIA / GitHub PAT / Stripe live / Slack / Anthropic / private-key shapes pre-commit.",
+          "Hardcoded credentials are the single most common Article 32 failure cited in DPA notices. secrets module catches AKIA-prefixed AWS keys, GitHub PAT / OAuth / fine-grained tokens, Stripe live keys, Slack tokens, private-key blocks, JWTs and password-bearing database URLs pre-commit.",
       },
       {
         clause: "GDPR Article 5(1)(f) — confidentiality",
@@ -238,10 +238,10 @@ export const COUNTRIES: Country[] = [
         clause: "Essential Eight — patch applications",
         module: "dependencies",
         explanation:
-          "dependencies flags pinned-to-vulnerable, 'latest' pins (silent drift), deprecated packages and missing lockfiles across every major ecosystem — the gate ACSC Essential Eight maturity 2 asks for.",
+          "dependencies flags wildcard and 'latest' pins (silent drift), deprecated packages and missing lockfiles across every major ecosystem, and the security module's npm audit adds reachability-triaged advisories for npm projects — the patching evidence ACSC Essential Eight maturity 2 asks for.",
       },
       {
-        clause: "Essential Eight — configure Microsoft Office macro settings / restrict admin",
+        clause: "Essential Eight — restrict administrative privileges",
         module: "kubernetes",
         explanation:
           "kubernetes module flags privileged containers, hostNetwork, runAsUser: 0, docker.sock mounts and dangerous capabilities — the misconfigurations Essential Eight 'restrict administrative privileges' translates into for K8s.",
@@ -310,7 +310,7 @@ export const COUNTRIES: Country[] = [
         clause: "NZISM 14.1.8 — patching",
         module: "dependencies",
         explanation:
-          "dependencies flags out-of-date pins, deprecated packages, missing lockfiles. The NZISM patching control treats outdated runtime dependencies as a finding.",
+          "dependencies flags wildcard and 'latest' pins, deprecated packages and missing lockfiles, and the security module's npm audit surfaces known advisories in npm projects. The NZISM patching control treats outdated runtime dependencies as a finding.",
       },
     ],
     useCases: [
@@ -394,7 +394,7 @@ export const COUNTRIES: Country[] = [
         clause: "PIPEDA Principle 7 — safeguards",
         module: "secrets",
         explanation:
-          "secrets module catches AWS / GitHub / Stripe / Anthropic / Slack credential shapes pre-commit — the OPC's PIPEDA reports list exposed credentials as a recurring root cause.",
+          "secrets module catches AWS / GitHub / Stripe / Slack credential shapes, private keys and password-bearing database URLs pre-commit — the OPC's PIPEDA reports list exposed credentials as a recurring root cause.",
       },
       {
         clause: "PIPEDA Principle 7 — physical, organizational, technological",
@@ -406,7 +406,7 @@ export const COUNTRIES: Country[] = [
         clause: "Bill C-26 (CCSPA) — cyber-security programs",
         module: "dependencies",
         explanation:
-          "dependencies flags vulnerable / deprecated / wildcard pins and missing lockfiles — the supply-chain control CCSPA explicitly requires designated operators to maintain.",
+          "dependencies flags deprecated packages, wildcard / 'latest' pins and missing lockfiles, and the security module's npm audit adds known advisories for npm projects — the supply-chain control CCSPA explicitly requires designated operators to maintain.",
       },
       {
         clause: "PIPEDA Principle 7 — authentication strength",

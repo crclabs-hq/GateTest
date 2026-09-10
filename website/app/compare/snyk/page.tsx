@@ -53,7 +53,7 @@ const faqItems = [
   },
   {
     q: "Does GateTest work with private repos?",
-    a: "Yes. GateTest scans private repos via the GitHub App (which you install once and grants scoped read-only access per repo) or via direct GitHub API with a PAT. All scans run server-side — your code is read for scanning and never stored permanently.",
+    a: "Yes. GateTest scans private repos via the GitHub App (which you install once and scope to the repos you choose — read access for scanning, write access only so a fix PR can push its branch) or via the GitHub API with a personal access token. All scans run server-side: your source is held only for the duration of the scan and never stored; the findings (message, file path, line) are kept in your scan history.",
   },
 ];
 
@@ -261,7 +261,7 @@ export default function SnykPage() {
             Scan My Repo — From $29
           </Link>
           <p className="text-muted text-xs mt-6">
-            One-time payment per scan via Stripe. No subscription, no auto-renew.
+            One-time payment per scan via Stripe — scan tiers never auto-renew. Continuous ($49/mo) and hosted MCP ($29/mo) are optional monthly plans.
           </p>
         </section>
         <ComparisonReviewed slug="snyk" />

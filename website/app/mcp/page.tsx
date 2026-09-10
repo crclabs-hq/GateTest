@@ -41,7 +41,7 @@ const FAQ = [
   },
   {
     q: "Which AI model runs my fixes — and who pays for it?",
-    a: "You choose, and you pay Anthropic directly (bring-your-own-key). AI fixes run on YOUR ANTHROPIC_API_KEY — calls go straight from your machine to Anthropic, never through our servers, and you control the spend. Pick the model per call: sonnet (Claude Sonnet 5, default — fast and cheapest), opus (Opus 5 — deeper reasoning at half Fable cost), opus-4-8 (Opus 4.8 — previous generation), or fable (Fable 5 — the most capable model Anthropic ships, ~3.3x Sonnet cost). No other QA tool lets you do this.",
+    a: "You choose, and you pay Anthropic directly (bring-your-own-key). AI fixes run on YOUR ANTHROPIC_API_KEY — calls go straight from your machine to Anthropic, never through our servers, and you control the spend. Pick the model per call: sonnet (Claude Sonnet 5, default — fast and cheapest), opus (Opus 5 — deeper reasoning at half Fable cost), opus-4-8 (Opus 4.8 — previous generation), or fable (Fable 5 — the most capable model Anthropic ships, ~3.3x Sonnet cost). On the hosted endpoint, fix_issue and explain_finding run on our key and are covered by the subscription. No other QA tool lets you do this.",
   },
 ];
 
