@@ -63,6 +63,17 @@ export default function Footer() {
           </div>
 
           <div>
+            <h4 className="font-semibold text-sm mb-4">Ecosystem</h4>
+            <ul className="space-y-2">
+              <li><a href="https://gluecron.com" rel="noopener noreferrer" className="text-sm text-muted hover:text-foreground transition-colors">Gluecron — git hosting, gate built in</a></li>
+              <li><a href="https://vapron.ai" rel="noopener noreferrer" className="text-sm text-muted hover:text-foreground transition-colors">Vapron — the platform that runs it</a></li>
+              <li><Link href="/stack" className="text-sm text-muted hover:text-foreground transition-colors">How the stack fits together</Link></li>
+              <li><Link href="/github/setup" className="text-sm text-muted hover:text-foreground transition-colors">GitHub App</Link></li>
+              <li><Link href="/wp" className="text-sm text-muted hover:text-foreground transition-colors">WordPress</Link></li>
+            </ul>
+          </div>
+
+          <div>
             <h4 className="font-semibold text-sm mb-4">Company</h4>
             <ul className="space-y-2">
               <li><Link href="/#features" className="text-sm text-muted hover:text-foreground transition-colors">About</Link></li>

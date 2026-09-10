@@ -117,22 +117,22 @@ export default function HomeSelfScan() {
         </div>
 
         <div
-          className="rounded-2xl bg-[#14141d] text-white shadow-2xl overflow-hidden"
+          className="rounded-2xl bg-panel text-panel-foreground shadow-2xl overflow-hidden"
           role="status"
           aria-live="polite"
           aria-label={badge.ariaLabel}
         >
           {/* Terminal-style header */}
-          <div className="px-5 py-3 flex items-center gap-2 border-b border-white/8">
+          <div className="px-5 py-3 flex items-center gap-2 border-b border-panel-border">
             <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
             <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
             <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
-            <span className="ml-2 text-[11px] text-white/40 font-mono">
+            <span className="ml-2 text-[11px] text-panel-muted font-mono">
               crclabs-hq/gatetest &nbsp;&middot;&nbsp; main &nbsp;&middot;&nbsp; gate
               {badge.commitShaShort && (
                 <>
                   &nbsp;&middot;&nbsp;
-                  <span className="text-white/60">{badge.commitShaShort}</span>
+                  <span className="text-panel-foreground/60">{badge.commitShaShort}</span>
                 </>
               )}
             </span>
@@ -157,16 +157,16 @@ export default function HomeSelfScan() {
 
           <div className="p-6 sm:p-8">
             {/* Status hero row */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 pb-6 border-b border-white/8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 pb-6 border-b border-panel-border">
               <div>
-                <div className="text-xs uppercase tracking-wider text-white/40 font-semibold mb-2">
+                <div className="text-xs uppercase tracking-wider text-panel-muted font-semibold mb-2">
                   Our own gate
                 </div>
                 <div className="flex items-baseline gap-3 flex-wrap">
                   <span className={`text-4xl font-bold ${statusColor} tracking-tight`}>
                     {badge.labelText}
                   </span>
-                  <span className="text-sm text-white/40 font-mono">
+                  <span className="text-sm text-panel-muted font-mono">
                     {badge.metricLine
                       ? badge.metricLine
                       : "self-scan workflow runs on every push to main"}
@@ -177,7 +177,7 @@ export default function HomeSelfScan() {
                 href="https://github.com/crclabs-hq/GateTest/actions"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white/80 hover:text-white hover:bg-white/10 hover:border-white/20 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-panel-alt border border-panel-border text-sm text-panel-foreground/80 hover:text-panel-foreground hover:bg-white/10 hover:border-white/20 transition-colors"
               >
                 View CI runs
                 <span aria-hidden="true">&rarr;</span>
@@ -206,21 +206,21 @@ export default function HomeSelfScan() {
               ].map((mod) => (
                 <div
                   key={mod}
-                  className="flex items-center gap-2 py-1 text-white/70"
+                  className="flex items-center gap-2 py-1 text-panel-foreground/70"
                 >
                   <span className="text-emerald-400" aria-hidden="true">&#10003;</span>
-                  <span className="text-white/85">{mod}</span>
+                  <span className="text-panel-foreground/85">{mod}</span>
                 </div>
               ))}
               {typeof totalCount === "number" && totalCount > 16 && (
-                <div className="flex items-center gap-2 py-1 col-span-2 sm:col-span-4 text-white/40 text-xs italic">
+                <div className="flex items-center gap-2 py-1 col-span-2 sm:col-span-4 text-panel-muted text-xs italic">
                   ...{totalCount - 16} more modules in this scan
                 </div>
               )}
             </div>
 
             {/* Bottom stats — live values when available, static labels otherwise */}
-            <div className="mt-8 pt-6 border-t border-white/8 grid grid-cols-3 gap-4">
+            <div className="mt-8 pt-6 border-t border-panel-border grid grid-cols-3 gap-4">
               <SelfStat
                 label="Scan time"
                 value={durationSec ? `${durationSec}s` : "—"}
@@ -238,7 +238,7 @@ export default function HomeSelfScan() {
 
             {/* Stats footer — renders for live AND measured-fallback data */}
             {typeof errorCount === "number" && (
-              <div className="mt-4 text-xs text-white/40 font-mono">
+              <div className="mt-4 text-xs text-panel-muted font-mono">
                 Errors: {errorCount} &middot; Warnings: {warningCount ?? 0} &middot;
                 Modules passed: {passedCount}/{totalCount}
               </div>
@@ -262,10 +262,10 @@ export default function HomeSelfScan() {
 function SelfStat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
+      <div className="text-[10px] uppercase tracking-wider text-panel-muted font-semibold">
         {label}
       </div>
-      <div className="text-sm font-bold text-white/90 tabular-nums mt-1 font-mono">
+      <div className="text-sm font-bold text-panel-foreground/90 tabular-nums mt-1 font-mono">
         {value}
       </div>
     </div>

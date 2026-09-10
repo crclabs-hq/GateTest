@@ -23,9 +23,8 @@
  * free scan, paywall, health score, and result rendering.
  */
 
-import { useState } from "react";
 import Link from "next/link";
-import { UrlScanFlow } from "./UrlScanFlow";
+import HeroScanTabs from "./HeroScanTabs";
 import CountUp from "./CountUp";
 import LiveStats from "./LiveStats";
 import siteStats from "../data/site-stats.json";
@@ -36,28 +35,12 @@ import precision from "../data/precision.json";
 // set; the recall floor (NodeGoat) is not a "real repository we scan clean".
 const CORPUS_SIZE = precision.repos.filter((r) => typeof r.ceiling === "number").length;
 
-const SAMPLE_URLS = [
-  { label: "example.com", url: "https://example.com" },
-  { label: "nextjs.org", url: "https://nextjs.org" },
-  { label: "vercel.com", url: "https://vercel.com" },
-];
-
 // Honest positioning: the fragmented tools one GateTest gate replaces.
 const REPLACES = ["SonarQube", "Snyk", "ESLint", "Semgrep", "CodeQL", "DeepSource"];
 
 export default function Hero() {
-  const [seed, setSeed] = useState<{ url: string; nonce: number }>({ url: "", nonce: 0 });
-
-  function prefill(url: string) {
-    setSeed((s) => ({ url, nonce: s.nonce + 1 }));
-    requestAnimationFrame(() => {
-      const el = document.getElementById("url-scan-input") as HTMLInputElement | null;
-      if (el) el.focus();
-    });
-  }
-
   return (
-    <section className="hero-warm relative overflow-hidden pt-20">
+    <section className="hero-warm relative overflow-hidden">
       <div className="hero-aurora" aria-hidden="true" />
       <div className="hero-warm-grid" aria-hidden="true" />
 
@@ -90,40 +73,9 @@ export default function Hero() {
               <span className="font-semibold text-gray-700">Claude</span> &mdash; Fable 5 on the fix tiers, Sonnet 5 everywhere else.
             </p>
 
-            {/* Live URL scan — the real product, in-hero */}
+            {/* One action, three audiences: repository, website, WordPress. */}
             <div className="fade-up">
-              <UrlScanFlow
-                key={seed.nonce}
-                suite="web"
-                endpoint="/api/web/scan"
-                streamEndpoint="/api/web/scan/stream"
-                recommendEndpoint="/api/scan/recommend"
-                placeholderUrl="https://yoursite.com — free preview, no signup"
-                brandLabel="GateTest"
-                initialUrl={seed.url}
-              />
-
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-                <span className="text-gray-400 uppercase tracking-wider font-semibold">
-                  Try a sample
-                </span>
-                {SAMPLE_URLS.map((s) => (
-                  <button
-                    key={s.url}
-                    type="button"
-                    onClick={() => prefill(s.url)}
-                    className="replace-pill px-3 py-1.5 rounded-full text-gray-600 hover:text-gray-900 hover:border-[#0f766e]/30 transition-colors font-mono"
-                  >
-                    {s.label}
-                  </button>
-                ))}
-                <Link
-                  href="/playground"
-                  className="replace-pill px-3 py-1.5 rounded-full text-[#059669] hover:text-[#047857] hover:border-[#0f766e]/40 transition-colors font-semibold"
-                >
-                  Playground →
-                </Link>
-              </div>
+              <HeroScanTabs />
             </div>
           </div>
 
@@ -137,7 +89,10 @@ export default function Hero() {
                   <span className="h-3 w-3 rounded-full bg-amber-400/80" />
                   <span className="h-3 w-3 rounded-full bg-emerald-400/80" />
                 </div>
-                <div className="url-bar flex-1 flex items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-mono text-white/45 truncate">
+                {/* min-w-0: without it this flex item's minimum width is the full URL text,
+                    which made the whole hero column 487px on a 390px phone — the section's
+                    overflow-hidden hid it from the page-width check (2026-09-10). */}
+                <div className="url-bar flex-1 w-0 min-w-0 flex items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-mono text-white/45 truncate">
                   <span className="text-emerald-400/70" aria-hidden="true">&#128274;</span>
                   github.com/your-org/your-repo
                   <span className="text-white/25">/pull/248</span>

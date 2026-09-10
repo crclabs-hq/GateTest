@@ -30,7 +30,7 @@ const LAYERS: Layer[] = [
       before: "// match by ruleKey + file ext\n// hit: js-reject-unauthorized\n// recipe status: stable",
       after:  "// recipe applied, zero cost\n// Claude never called",
     },
-    accent: "text-amber-300",
+    accent: "text-amber-700",
     border: "border-amber-500/30",
     bg: "bg-amber-500/[0.04]",
   },
@@ -44,7 +44,7 @@ const LAYERS: Layer[] = [
       before: "// novel pattern: ad-hoc auth check\n// mixed with feature-flag rollout\n// no canonical shape",
       after:  "// Claude reasons from your code\n// three hypotheses, best wins\n// smallest diff that fixes it",
     },
-    accent: "text-pink-300",
+    accent: "text-pink-700",
     border: "border-pink-500/30",
     bg: "bg-pink-500/[0.04]",
   },
@@ -58,7 +58,7 @@ const LAYERS: Layer[] = [
       before: "// candidate patch B\n// parse → SyntaxError",
       after:  "// discarded, never applied\n// candidate A carries on",
     },
-    accent: "text-indigo-300",
+    accent: "text-indigo-700",
     border: "border-indigo-500/30",
     bg: "bg-indigo-500/[0.04]",
   },
@@ -72,7 +72,7 @@ const LAYERS: Layer[] = [
       before: "// re-scan: finding gone?\n// new findings introduced?\n// tests still green?",
       after:  "// all three yes → patch lands\n// any no → rejected",
     },
-    accent: "text-teal-300",
+    accent: "text-accent",
     border: "border-teal-500/30",
     bg: "bg-teal-500/[0.04]",
   },
@@ -88,31 +88,31 @@ export default function FlywheelTable() {
         >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-white/40">{layer.number}</span>
+              <span className="font-mono text-xs text-muted">{layer.number}</span>
               <span className={`font-mono font-bold text-base ${layer.accent}`}>{layer.name}</span>
             </div>
-            <span className="text-xs font-mono text-white/50 px-2 py-0.5 rounded-full border border-white/10 bg-white/[0.03]">
+            <span className="text-xs font-mono text-muted px-2 py-0.5 rounded-full border border-border bg-surface-light">
               {layer.cost}
             </span>
           </div>
 
-          <p className="text-sm text-white/60 leading-relaxed mb-4">{layer.description}</p>
+          <p className="text-sm text-foreground-secondary leading-relaxed mb-4">{layer.description}</p>
 
           <div className="mb-4">
-            <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold mb-1.5">
+            <div className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-1.5">
               When it wins
             </div>
-            <p className="text-sm text-white/65 leading-relaxed">{layer.wins}</p>
+            <p className="text-sm text-foreground-secondary leading-relaxed">{layer.wins}</p>
           </div>
 
-          <div className="mt-auto pt-3 border-t border-white/[0.06]">
-            <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold mb-1.5">
+          <div className="mt-auto pt-3 border-t border-border">
+            <div className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-1.5">
               Example
             </div>
-            <pre className="text-[11px] text-red-300/80 font-mono whitespace-pre-wrap leading-snug bg-black/30 rounded-md p-2 mb-1.5 border border-red-500/15">
+            <pre className="text-[11px] text-danger font-mono whitespace-pre-wrap leading-snug bg-red-500/[0.06] rounded-md p-2 mb-1.5 border border-red-500/15">
 {layer.example.before}
             </pre>
-            <pre className="text-[11px] text-emerald-300/80 font-mono whitespace-pre-wrap leading-snug bg-black/30 rounded-md p-2 border border-emerald-500/15">
+            <pre className="text-[11px] text-success font-mono whitespace-pre-wrap leading-snug bg-emerald-500/[0.06] rounded-md p-2 border border-emerald-500/15">
 {layer.example.after}
             </pre>
           </div>

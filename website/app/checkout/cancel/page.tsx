@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 
 export default function CheckoutCancel() {
   return (
-    <div className="min-h-screen grid-bg flex items-center justify-center px-6 py-24">
+    <div className="flex-1 bg-background flex items-center justify-center px-6 py-16 sm:py-24">
       <div className="max-w-xl w-full text-center">
-        <h1 className="text-3xl font-bold mb-4">Checkout cancelled</h1>
+        <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-4">Checkout cancelled</h1>
         <p className="text-lg text-muted mb-8">
           No worries — no charge was made. Your card was not held.
         </p>

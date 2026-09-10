@@ -108,17 +108,17 @@ export default function IntelligenceDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-6 py-12">
+    <div className="flex-1 bg-background px-6 py-12 sm:py-16">
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-2">
             <span
-              className="inline-flex items-center justify-center w-7 h-7 rounded-md text-xs font-bold text-white"
-              style={{ background: "linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)" }}
+              className="inline-flex items-center justify-center w-7 h-7 rounded-md text-xs font-bold text-white bg-gradient-to-br from-accent to-accent-light"
+              aria-hidden="true"
             >
               ✦
             </span>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Intelligence</h1>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Intelligence</h1>
             <span className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-accent/10 text-accent border border-accent/20">
               Brain
             </span>
@@ -137,13 +137,12 @@ export default function IntelligenceDashboard() {
             onChange={(e) => setRepoUrl(e.target.value)}
             placeholder="https://github.com/owner/repo"
             aria-label="Repository URL"
-            className="flex-1 px-4 py-2 rounded-lg border border-border bg-white text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
+            className="flex-1 px-4 py-2 rounded-lg border border-border bg-[var(--surface-solid)] text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
           />
           <button
             type="submit"
             disabled={loading || !repoUrl.trim()}
             className="btn-primary px-5 py-2 text-sm disabled:opacity-50"
-            style={{ background: "#0f766e" }}
           >
             {loading ? "Looking up…" : "Compare"}
           </button>
@@ -156,7 +155,7 @@ export default function IntelligenceDashboard() {
         )}
 
         {!data && !loading && !error && (
-          <div className="p-8 rounded-2xl border border-border bg-white text-center text-sm text-muted">
+          <div className="p-8 rounded-2xl border border-border bg-[var(--surface-solid)] text-center text-sm text-muted">
             Enter a repo URL above to see how it compares to similar codebases scanned by GateTest.
           </div>
         )}
@@ -167,7 +166,7 @@ export default function IntelligenceDashboard() {
             <p className="text-sm text-amber-700">
               Run a Full or Forensic scan first — then come back here to see how it compares to similar stacks.
             </p>
-            <Link href="/#pricing" className="mt-4 inline-block btn-primary px-5 py-2 text-sm" style={{ background: "#0f766e" }}>
+            <Link href="/#pricing" className="mt-4 inline-block btn-primary px-5 py-2 text-sm">
               Run a scan →
             </Link>
           </div>
@@ -178,8 +177,7 @@ export default function IntelligenceDashboard() {
             {/* Position card — the headline */}
             {data.positioning && (
               <div
-                className="rounded-2xl border border-border bg-white overflow-hidden"
-                style={{ background: "linear-gradient(135deg, rgba(15,118,110,0.04) 0%, rgba(255,255,255,0) 100%)" }}
+                className="card overflow-hidden bg-gradient-to-br from-accent/5 to-transparent"
               >
                 <div className="px-6 py-5 flex items-center justify-between flex-wrap gap-3">
                   <div>
@@ -344,7 +342,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "po
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border bg-white overflow-hidden">
+    <div className="rounded-2xl border border-border bg-[var(--surface-solid)] overflow-hidden">
       <div className="px-5 py-3 border-b border-border bg-background-alt">
         <h3 className="text-sm font-bold text-foreground">{title}</h3>
       </div>
@@ -373,7 +371,7 @@ function LanguageBar({ lang, share }: { lang: string; share: number }) {
     <div className="flex items-center gap-2 text-xs">
       <span className="font-mono w-12 text-foreground">{lang}</span>
       <div className="flex-1 h-1.5 rounded-full bg-background-alt overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "#0f766e" }} />
+        <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
       </div>
       <span className="text-muted tabular-nums w-10 text-right">{pct}%</span>
     </div>
@@ -387,8 +385,8 @@ function ModuleBar({ name, rate, count, suffix }: { name: string; rate: number; 
       <span className="font-medium text-foreground w-32 truncate">{name}</span>
       <div className="flex-1 h-2 rounded-full bg-background-alt overflow-hidden">
         <div
-          className="h-full rounded-full transition-all"
-          style={{ width: `${pct}%`, background: "linear-gradient(90deg, #0f766e 0%, #14b8a6 100%)" }}
+          className="h-full rounded-full transition-all bg-gradient-to-r from-accent to-accent-light"
+          style={{ width: `${pct}%` }}
         />
       </div>
       <span className="text-muted tabular-nums w-20 text-right">

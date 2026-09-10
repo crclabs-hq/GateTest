@@ -1,12 +1,13 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import ComparisonReviewed from "@/app/components/ComparisonReviewed";
+import PageHero from "../../components/site/PageHero";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 export const metadata: Metadata = {
   title: "GateTest vs GitHub Code Scanning — The Complete QA Platform",
   description:
-    "GitHub Code Scanning covers security basics. GateTest covers 120 quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing (via GitHub Action), and auto-fix at the Scan + Fix tier and above.",
+    `GitHub Code Scanning covers security basics. GateTest covers ${TOTAL_MODULES} quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing (via GitHub Action), and auto-fix at the Scan + Fix tier and above.`,
   keywords: [
     "GitHub Code Scanning alternative",
     "GitHub Advanced Security alternative",
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs GitHub Code Scanning — The Complete QA Platform",
     description:
-      "GitHub Code Scanning covers security basics. GateTest covers 120 quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing (via GitHub Action), and auto-fix at the Scan + Fix tier and above.",
+      `GitHub Code Scanning covers security basics. GateTest covers ${TOTAL_MODULES} quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing (via GitHub Action), and auto-fix at the Scan + Fix tier and above.`,
     url: "/compare/github-code-scanning",
     siteName: "GateTest",
     type: "website",
@@ -87,74 +88,45 @@ export default function GitHubCodeScanningPage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0a12" }}>
+    <main>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Nav */}
-      <nav className="border-b border-white/[0.06] px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm font-mono">G</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              Gate<span className="text-teal-400">Test</span>
-            </span>
-          </Link>
-          <Link href="/" className="text-sm text-white/50 hover:text-white transition-colors">
-            &larr; Back to GateTest
-          </Link>
-        </div>
-      </nav>
-
-      <main className="px-6 py-16 max-w-5xl mx-auto">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-white/40 mb-10">
-          <Link href="/" className="hover:text-white/70 transition-colors">GateTest</Link>
-          <span>/</span>
-          <span className="text-white/60">Compare</span>
-          <span>/</span>
-          <span className="text-white/60">GitHub Code Scanning</span>
-        </nav>
-
-        {/* Hero */}
-        <div className="mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-400 font-medium mb-6">
-            Tool Comparison
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-6">
+      <PageHero
+        eyebrow="Tool Comparison"
+        title={
+          <>
             GateTest vs GitHub Code Scanning
             <br />
-            <span className="text-teal-400">The Complete QA Platform</span>
-          </h1>
-          <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
+            <span className="text-accent">The Complete QA Platform</span>
+          </>
+        }
+        lede={
+          <>
             GitHub Code Scanning (CodeQL) is a well-engineered security tool with one job: finding
             known vulnerability patterns. It&rsquo;s good at that job. But security is one of 90
             quality dimensions your code needs — and GitHub Code Scanning covers exactly one of them.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 mt-8">
-            <Link
-              href="/playground"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
-              style={{ background: "#2dd4bf", color: "#0a0a12" }}
-            >
+          </>
+        }
+        actions={
+          <>
+            <Link href="/playground" className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm">
               Scan My Repo — From $29
             </Link>
-            <Link
-              href="/modules"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
-            >
+            <Link href="/modules" className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm">
               See All {TOTAL_MODULES} Modules
             </Link>
-          </div>
-        </div>
+          </>
+        }
+      />
+
+      <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
 
         {/* Coverage gap visual */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-6">What GitHub Code Scanning doesn&rsquo;t cover</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-6">What GitHub Code Scanning doesn&rsquo;t cover</h2>
           <div className="grid sm:grid-cols-3 gap-4">
             {[
               { label: "Performance", items: ["Core Web Vitals", "Bundle size", "N+1 queries", "Lighthouse scores"] },
@@ -166,13 +138,12 @@ export default function GitHubCodeScanningPage() {
             ].map((group) => (
               <div
                 key={group.label}
-                className="rounded-xl border border-red-500/15 p-4"
-                style={{ background: "rgba(239,68,68,0.04)" }}
+                className="rounded-xl border border-red-500/15 p-4 bg-red-500/5"
               >
-                <div className="text-red-400 text-xs font-semibold uppercase tracking-wider mb-3">
+                <div className="text-danger text-xs font-semibold uppercase tracking-wider mb-3">
                   &#10007; GitHub CS misses: {group.label}
                 </div>
-                <ul className="text-xs text-white/50 space-y-1">
+                <ul className="text-xs text-muted space-y-1">
                   {group.items.map((item) => <li key={item}>{item}</li>)}
                 </ul>
               </div>
@@ -182,35 +153,35 @@ export default function GitHubCodeScanningPage() {
 
         {/* Comparison table */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-6">Feature Comparison</h2>
-          <div className="rounded-xl border border-white/[0.08] overflow-hidden">
-            <table className="w-full text-sm">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-6">Feature Comparison</h2>
+          <div className="rounded-xl border border-border overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
               <thead>
-                <tr className="border-b border-white/[0.08]" style={{ background: "rgba(255,255,255,0.03)" }}>
-                  <th className="text-left px-5 py-4 text-white/50 font-medium">Feature</th>
-                  <th className="text-center px-5 py-4 text-teal-400 font-semibold">GateTest</th>
-                  <th className="text-center px-5 py-4 text-white/40 font-medium">GitHub Code Scanning</th>
+                <tr className="border-b border-border bg-surface-light">
+                  <th className="text-left px-5 py-4 text-muted font-medium">Feature</th>
+                  <th className="text-center px-5 py-4 text-accent font-semibold">GateTest</th>
+                  <th className="text-center px-5 py-4 text-muted font-medium">GitHub Code Scanning</th>
                 </tr>
               </thead>
               <tbody>
                 {comparisonRows.map((row) => (
                   <tr
                     key={row.feature}
-                    className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.02] transition-colors"
+                    className="border-b border-border last:border-0 hover:bg-surface-light transition-colors"
                   >
-                    <td className="px-5 py-3.5 text-white/70">{row.feature}</td>
+                    <td className="px-5 py-3.5 text-foreground-secondary">{row.feature}</td>
                     <td className="px-5 py-3.5 text-center">
                       {row.gatetest ? (
-                        <span className="text-emerald-400 font-bold text-base">&#10003;</span>
+                        <span className="text-success font-bold text-base">&#10003;</span>
                       ) : (
-                        <span className="text-white/20">&#8212;</span>
+                        <span className="text-muted">&#8212;</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-center">
                       {row.competitor ? (
-                        <span className="text-emerald-400/60 font-bold text-base">&#10003;</span>
+                        <span className="text-success/70 font-bold text-base">&#10003;</span>
                       ) : (
-                        <span className="text-red-400/60">&#10007;</span>
+                        <span className="text-danger/70">&#10007;</span>
                       )}
                     </td>
                   </tr>
@@ -222,7 +193,7 @@ export default function GitHubCodeScanningPage() {
 
         {/* Key differentiators */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-8">The complete picture</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8">The complete picture</h2>
           <div className="grid sm:grid-cols-2 gap-5">
             {[
               {
@@ -244,11 +215,10 @@ export default function GitHubCodeScanningPage() {
             ].map((card) => (
               <div
                 key={card.title}
-                className="rounded-xl p-5 border border-white/[0.08]"
-                style={{ background: "rgba(255,255,255,0.03)" }}
+                className="card p-5"
               >
-                <h3 className="text-white font-semibold mb-2">{card.title}</h3>
-                <p className="text-white/55 text-sm leading-relaxed">{card.body}</p>
+                <h3 className="text-foreground font-semibold mb-2">{card.title}</h3>
+                <p className="text-foreground-secondary text-sm leading-relaxed">{card.body}</p>
               </div>
             ))}
           </div>
@@ -256,55 +226,41 @@ export default function GitHubCodeScanningPage() {
 
         {/* FAQ */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-8">Frequently asked questions</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8">Frequently asked questions</h2>
           <div className="space-y-4">
             {faqItems.map((item) => (
               <div
                 key={item.q}
-                className="rounded-xl border border-white/[0.08] p-5"
-                style={{ background: "rgba(255,255,255,0.03)" }}
+                className="card p-5"
               >
-                <h3 className="text-white font-semibold mb-3 leading-snug">{item.q}</h3>
-                <p className="text-white/55 text-sm leading-relaxed">{item.a}</p>
+                <h3 className="text-foreground font-semibold mb-3 leading-snug">{item.q}</h3>
+                <p className="text-foreground-secondary text-sm leading-relaxed">{item.a}</p>
               </div>
             ))}
           </div>
         </section>
 
         {/* CTA */}
-        <section className="rounded-2xl border border-teal-500/20 p-10 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
-          <h2 className="text-3xl font-bold text-white mb-4">
+        <section className="rounded-2xl border border-accent/20 bg-accent/5 px-6 py-10 sm:p-12 text-center">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-4">
             Security is just the beginning.
           </h2>
-          <p className="text-white/60 mb-8 max-w-xl mx-auto">
-            Get 120 quality dimensions in one scan — security, performance, accessibility, AI safety,
+          <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
+            Get {TOTAL_MODULES} quality dimensions in one scan — security, performance, accessibility, AI safety,
             visual regression, and more. Same PR workflow as GitHub Code Scanning.
           </p>
           <Link
             href="/playground"
-            className="inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold"
-            style={{ background: "#2dd4bf", color: "#0a0a12" }}
+            className="btn-cta inline-flex items-center justify-center px-8 py-4"
           >
             Scan My Repo — From $29
           </Link>
-          <p className="text-white/30 text-xs mt-6">
+          <p className="text-muted text-xs mt-6">
             One-time charge at checkout. No subscription, no per-seat licensing.
           </p>
         </section>
-              <ComparisonReviewed slug="github-code-scanning" />
-      </main>
-
-      <footer className="border-t border-white/[0.06] px-6 py-8 mt-16">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/30">
-          <span>GateTest &copy; 2026</span>
-          <div className="flex items-center gap-6">
-            <Link href="/compare/sonarqube" className="hover:text-white/60 transition-colors">vs SonarQube</Link>
-            <Link href="/compare/snyk" className="hover:text-white/60 transition-colors">vs Snyk</Link>
-            <Link href="/compare/eslint" className="hover:text-white/60 transition-colors">vs ESLint</Link>
-            <Link href="/compare/deepsource" className="hover:text-white/60 transition-colors">vs DeepSource</Link>
-          </div>
-        </div>
-      </footer>
-    </div>
+        <ComparisonReviewed slug="github-code-scanning" />
+      </div>
+    </main>
   );
 }

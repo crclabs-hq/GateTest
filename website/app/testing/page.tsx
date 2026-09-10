@@ -14,6 +14,9 @@
  * about "AI opens the fix PR while you sleep" is backed by this page.
  */
 
+import PageHero from "../components/site/PageHero";
+import Section from "../components/site/Section";
+
 export const revalidate = 60;
 
 const ARENA_REPO = process.env.ARENA_REPO || "crclabs-hq/gatetest-arena";
@@ -169,16 +172,13 @@ export default async function TestingPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground px-6 py-16">
-      <div className="max-w-5xl mx-auto">
-        <header className="text-center mb-12">
-          <span className="text-sm font-semibold text-accent uppercase tracking-wider">
-            Live arena
-          </span>
-          <h1 className="text-4xl sm:text-5xl font-bold mt-3 mb-4 text-foreground">
-            Watch the auto-fix loop, live.
-          </h1>
-          <p className="text-lg text-muted max-w-2xl mx-auto">
+    <main>
+      <PageHero
+        eyebrow="Live arena"
+        align="center"
+        title="Watch the auto-fix loop, live."
+        lede={
+          <>
             Every 2 hours, a bug is injected into{" "}
             <a
               href={`https://github.com/${ARENA_REPO}`}
@@ -190,10 +190,12 @@ export default async function TestingPage() {
             </a>
             . The ai-ci-fixer opens the PR with the fix. Nothing here is
             curated — this is the live data feed.
-          </p>
-        </header>
+          </>
+        }
+      />
 
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
+      <Section>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
           <StatTile label="Cycles" value={String(stats.total)} sub="last 40" />
           <StatTile
             label="Auto-fixed"
@@ -212,28 +214,26 @@ export default async function TestingPage() {
             sub="fix in flight"
             tone="info"
           />
-        </section>
+        </div>
 
-        <section className="space-y-3">
+        <div className="space-y-3">
           {cycles.map((cycle) => (
             <CycleRow key={cycle.bugPr.number} cycle={cycle} />
           ))}
-        </section>
+        </div>
 
-        <footer className="mt-16 text-center text-sm text-muted">
-          <p>
-            Data sourced live from the GitHub REST API. Updated every 60s.{" "}
-            <a
-              href={`https://github.com/${ARENA_REPO}/pulls?q=is%3Apr`}
-              className="text-accent hover:underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              See all PRs on GitHub &rarr;
-            </a>
-          </p>
-        </footer>
-      </div>
+        <p className="mt-16 text-center text-sm text-muted">
+          Data sourced live from the GitHub REST API. Updated every 60s.{" "}
+          <a
+            href={`https://github.com/${ARENA_REPO}/pulls?q=is%3Apr`}
+            className="text-accent hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            See all PRs on GitHub &rarr;
+          </a>
+        </p>
+      </Section>
     </main>
   );
 }
@@ -251,16 +251,16 @@ function StatTile({
 }) {
   const valueColor =
     tone === "ok"
-      ? "text-emerald-600"
+      ? "text-success"
       : tone === "info"
-        ? "text-amber-600"
+        ? "text-warning"
         : "text-foreground";
   return (
-    <div className="rounded-xl border border-border bg-background-alt p-5 text-center">
+    <div className="card p-5 text-center">
       <div className="text-xs uppercase tracking-wider text-muted font-semibold">
         {label}
       </div>
-      <div className={`text-3xl font-bold mt-2 tabular-nums ${valueColor}`}>
+      <div className={`font-display text-3xl font-bold mt-2 tabular-nums ${valueColor}`}>
         {value}
       </div>
       <div className="text-xs text-muted mt-1">{sub}</div>
@@ -273,18 +273,18 @@ function CycleRow({ cycle }: { cycle: Cycle }) {
     Cycle["outcome"],
     { text: string; cls: string }
   > = {
-    fixed: { text: "FIXED", cls: "bg-emerald-100 text-emerald-800" },
+    fixed: { text: "FIXED", cls: "bg-success/10 text-success" },
     "fix-pending": {
       text: "FIX IN FLIGHT",
-      cls: "bg-amber-100 text-amber-800",
+      cls: "bg-warning/10 text-warning",
     },
-    "fix-failed": { text: "FIX FAILED", cls: "bg-red-100 text-red-800" },
-    "no-fix-yet": { text: "AWAITING FIX", cls: "bg-gray-100 text-gray-700" },
+    "fix-failed": { text: "FIX FAILED", cls: "bg-danger/10 text-danger" },
+    "no-fix-yet": { text: "AWAITING FIX", cls: "bg-surface-light border border-border text-muted" },
   };
   const badge = outcomeBadge[cycle.outcome];
 
   return (
-    <div className="rounded-lg border border-border bg-background-alt p-4 sm:p-5">
+    <div className="card p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-3 mb-3">
         <span
           className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-full ${badge.cls}`}
@@ -302,7 +302,7 @@ function CycleRow({ cycle }: { cycle: Cycle }) {
       </div>
 
       <div className="grid sm:grid-cols-3 gap-3 text-sm">
-        <div>
+        <div className="min-w-0">
           <div className="text-xs uppercase tracking-wider text-muted font-semibold mb-1">
             Bug injected
           </div>
@@ -310,12 +310,12 @@ function CycleRow({ cycle }: { cycle: Cycle }) {
             href={cycle.bugPr.html_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-accent hover:underline font-mono text-xs"
+            className="text-accent hover:underline font-mono text-xs break-words"
           >
             #{cycle.bugPr.number} {cycle.bugPr.title.replace(/^arena\(bug\):\s*/, "")}
           </a>
         </div>
-        <div>
+        <div className="min-w-0">
           <div className="text-xs uppercase tracking-wider text-muted font-semibold mb-1">
             Fix PR
           </div>
@@ -324,7 +324,7 @@ function CycleRow({ cycle }: { cycle: Cycle }) {
               href={cycle.fixPr.html_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-accent hover:underline font-mono text-xs"
+              className="text-accent hover:underline font-mono text-xs break-words"
             >
               #{cycle.fixPr.number} {cycle.fixPr.title.slice(0, 50)}
               {cycle.fixPr.title.length > 50 ? "…" : ""}
@@ -348,48 +348,56 @@ function CycleRow({ cycle }: { cycle: Cycle }) {
 
 function WarmingUpState({ repo }: { repo: string }) {
   return (
-    <main className="min-h-screen bg-background text-foreground px-6 py-24">
-      <div className="max-w-3xl mx-auto text-center">
-        <h1 className="text-4xl font-bold mb-4 text-foreground">
-          Arena is warming up
-        </h1>
-        <p className="text-lg text-muted mb-6">
-          The arena repo{" "}
-          <code className="text-accent">{repo}</code> exists, but no cycles
-          have run yet. The injector cron runs every 2 hours at :17 past —
-          the first cycle should appear shortly.
-        </p>
-        <a
-          href={`https://github.com/${repo}/actions`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-accent hover:underline"
-        >
-          See workflow runs on GitHub &rarr;
-        </a>
-      </div>
+    <main>
+      <PageHero
+        eyebrow="Live arena"
+        align="center"
+        title="Arena is warming up"
+        lede={
+          <>
+            The arena repo{" "}
+            <code className="text-accent font-mono">{repo}</code> exists, but no cycles
+            have run yet. The injector cron runs every 2 hours at :17 past —
+            the first cycle should appear shortly.
+          </>
+        }
+        actions={
+          <a
+            href={`https://github.com/${repo}/actions`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm"
+          >
+            See workflow runs on GitHub &rarr;
+          </a>
+        }
+      />
     </main>
   );
 }
 
 function ErrorState({ reason, repo }: { reason: string; repo: string }) {
   return (
-    <main className="min-h-screen bg-background text-foreground px-6 py-24">
-      <div className="max-w-3xl mx-auto text-center">
-        <h1 className="text-4xl font-bold mb-4 text-foreground">
-          Arena not reachable
-        </h1>
-        <p className="text-lg text-muted mb-2">
-          Tried to fetch from{" "}
-          <code className="text-accent">{repo}</code> but got back:{" "}
-          <code className="text-red-600">{reason}</code>
-        </p>
-        <p className="text-sm text-muted">
+    <main>
+      <PageHero
+        eyebrow="Live arena"
+        align="center"
+        title="Arena not reachable"
+        lede={
+          <>
+            Tried to fetch from{" "}
+            <code className="text-accent font-mono">{repo}</code> but got back:{" "}
+            <code className="text-danger font-mono">{reason}</code>
+          </>
+        }
+      />
+      <Section narrow>
+        <p className="text-sm text-muted text-center">
           If the arena repo hasn&apos;t been created yet, see{" "}
-          <code>arena-scaffold/README.md</code> in the main GateTest repo for
+          <code className="font-mono">arena-scaffold/README.md</code> in the main GateTest repo for
           setup instructions.
         </p>
-      </div>
+      </Section>
     </main>
   );
 }

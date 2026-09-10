@@ -6,6 +6,8 @@ import {
   breadcrumbSchema,
   jsonLd,
 } from "../lib/seo/schema";
+import PageHero from "../components/site/PageHero";
+import Section from "../components/site/Section";
 
 export const metadata: Metadata = contentMetadata({
   title: "GateTest vs SonarQube, Snyk, ESLint & more — comparisons",
@@ -37,63 +39,38 @@ export default function CompareIndexPage() {
   const items = COMPARISONS.map((c) => ({ name: `GateTest vs ${c.name}`, path: `/compare/${c.slug}` }));
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(collectionPageSchema({ name: "GateTest comparisons", description: "Honest comparisons of GateTest against the tools it replaces or complements.", path: "/compare", items })) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema([{ name: "GateTest", path: "/" }, { name: "Compare" }])) }} />
 
-      <nav className="border-b border-white/[0.06] px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm font-mono">G</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              Gate<span className="text-teal-400">Test</span>
-            </span>
-          </Link>
-          <Link href="/modules" className="text-sm text-white/50 hover:text-white transition-colors">
-            121 modules &rarr;
-          </Link>
-        </div>
-      </nav>
-
-      <main className="px-6 py-16 max-w-5xl mx-auto">
-        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-white/40 mb-10">
-          <Link href="/" className="hover:text-white/70 transition-colors">GateTest</Link>
-          <span>/</span>
-          <span className="text-white/60">Compare</span>
-        </nav>
-
-        <div className="mb-12 max-w-2xl">
-          <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-5">How GateTest compares</h1>
-          <p className="text-lg text-white/70 leading-relaxed">
+      <PageHero
+        eyebrow="Compare"
+        title="How GateTest compares"
+        lede={
+          <>
             Most teams duct-tape several quality and security tools together. Here&apos;s
             an honest look at where GateTest replaces them, where it complements them,
             and where the alternative is genuinely the right call.
-          </p>
-        </div>
+          </>
+        }
+      />
 
+      <Section>
         <div className="grid sm:grid-cols-2 gap-4">
           {COMPARISONS.map((c) => (
-            <Link key={c.slug} href={`/compare/${c.slug}`} className="block rounded-xl border border-white/[0.08] p-5 hover:border-teal-500/30 transition-colors" style={{ background: "rgba(255,255,255,0.02)" }}>
-              <h2 className="text-white font-semibold leading-snug mb-1.5">GateTest <span className="text-white/40">vs</span> {c.name}</h2>
-              <p className="text-white/55 text-sm leading-relaxed">{c.tagline}</p>
+            <Link key={c.slug} href={`/compare/${c.slug}`} className="card block p-5">
+              <h2 className="font-display text-foreground font-semibold leading-snug mb-1.5">GateTest <span className="text-muted">vs</span> {c.name}</h2>
+              <p className="text-foreground-secondary text-sm leading-relaxed">{c.tagline}</p>
             </Link>
           ))}
         </div>
-      </main>
-
-      <footer className="border-t border-white/[0.06] px-6 py-8">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/30">
-          <span>GateTest &copy; 2026</span>
-          <div className="flex gap-6">
-            <Link href="/glossary" className="hover:text-white/60 transition-colors">Glossary</Link>
-            <Link href="/use-cases" className="hover:text-white/60 transition-colors">Use cases</Link>
-            <Link href="/modules" className="hover:text-white/60 transition-colors">Modules</Link>
-            <Link href="/#pricing" className="hover:text-white/60 transition-colors">Pricing</Link>
-          </div>
+        <div className="mt-10 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
+          <Link href="/glossary" className="hover:text-foreground transition-colors">Glossary</Link>
+          <Link href="/use-cases" className="hover:text-foreground transition-colors">Use cases</Link>
+          <Link href="/modules" className="hover:text-foreground transition-colors">Modules</Link>
+          <Link href="/#pricing" className="hover:text-foreground transition-colors">Pricing</Link>
         </div>
-      </footer>
+      </Section>
     </main>
   );
 }

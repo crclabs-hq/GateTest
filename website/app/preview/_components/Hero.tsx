@@ -149,7 +149,7 @@ function HeroMock() {
 
 export function Hero() {
   return (
-    <section id="top" className="relative overflow-hidden px-4 pb-24 pt-36 sm:pt-40">
+    <section id="top" className="relative overflow-hidden px-4 pb-24 pt-16 sm:pt-24">
       {/* ambient glows */}
       <div
         aria-hidden

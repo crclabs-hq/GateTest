@@ -57,7 +57,7 @@ export function inline(text: string): ReactNode[] {
     if (tok.startsWith("**")) {
       out.push(<strong key={k++} className="text-foreground">{tok.slice(2, -2)}</strong>);
     } else if (tok.startsWith("`")) {
-      out.push(<code key={k++} className="text-xs bg-white/5 px-1 rounded">{tok.slice(1, -1)}</code>);
+      out.push(<code key={k++} className="text-xs bg-surface-light px-1 rounded">{tok.slice(1, -1)}</code>);
     } else {
       const lm = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(tok);
       const label = lm ? lm[1] : tok;
@@ -97,13 +97,13 @@ function Block({ b }: { b: LegalBlock }) {
         <thead>
           <tr>
             {b.table.headers.map((h, i) => (
-              <th key={i} className="text-left font-semibold text-foreground border-b border-white/10 py-2 pr-3">{h}</th>
+              <th key={i} className="text-left font-semibold text-foreground border-b border-border-strong py-2 pr-3">{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {b.table.rows.map((r, i) => (
-            <tr key={i} className="border-b border-white/5 align-top">
+            <tr key={i} className="border-b border-border align-top">
               {r.map((c, j) => <td key={j} className="py-2 pr-3">{inline(c)}</td>)}
             </tr>
           ))}
@@ -115,16 +115,16 @@ function Block({ b }: { b: LegalBlock }) {
 
 export default function LegalDocument({ doc, current }: { doc: LegalDoc; current: string }) {
   return (
-    <div className="min-h-screen grid-bg px-6 py-24">
+    <div className="px-6 py-12 sm:py-16">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold mb-2">{doc.title}</h1>
+        <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">{doc.title}</h1>
         <p className="text-sm text-muted mb-1">Effective date: {fmt(doc.effective)}</p>
         {doc.updated && doc.updated !== doc.effective && (
           <p className="text-sm text-muted mb-1">Last updated: {fmt(doc.updated)}</p>
         )}
         {doc.intro && <p className="text-sm text-muted mt-4 mb-6 leading-relaxed">{inline(doc.intro)}</p>}
 
-        <nav aria-label="Contents" className="mb-8 border border-white/10 rounded p-4 text-xs">
+        <nav aria-label="Contents" className="mb-8 border border-border rounded p-4 text-xs">
           <p className="font-semibold text-foreground mb-2">Contents</p>
           <ol className="columns-1 sm:columns-2 gap-x-6 space-y-1 list-decimal pl-5 text-muted">
             {doc.sections.map((s) => (
@@ -144,16 +144,13 @@ export default function LegalDocument({ doc, current }: { doc: LegalDoc; current
           ))}
         </div>
 
-        <nav aria-label="Legal documents" className="mt-12 pt-6 border-t border-white/10 text-xs text-muted">
+        <nav aria-label="Legal documents" className="mt-12 pt-6 border-t border-border text-xs text-muted">
           <p className="mb-2">Related policies</p>
           <ul className="flex flex-wrap gap-x-4 gap-y-1">
             {LEGAL_NAV.filter((n) => n.href !== current).map((n) => (
               <li key={n.href}><Link href={n.href} className={LINK}>{n.label}</Link></li>
             ))}
           </ul>
-          <p className="mt-6">
-            <Link href="/" className="hover:text-foreground transition-colors">&larr; Back to home</Link>
-          </p>
         </nav>
       </div>
     </div>

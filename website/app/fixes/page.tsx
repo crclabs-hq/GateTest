@@ -7,6 +7,9 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import PageHero from '../components/site/PageHero';
+import Section from '../components/site/Section';
+import StatTiles from '../components/site/StatTiles';
 
 export const metadata: Metadata = {
   title: 'Fixed by GateTest — Public Fix Registry',
@@ -36,27 +39,43 @@ interface Stats {
   unique_repos: number;
 }
 
+const EMPTY_PAGE = { fixes: [] as Fix[], pagination: { page: 1, pageSize: 50, total: 0, totalPages: 0 } };
+const EMPTY_STATS: Stats = { total_fixes: 0, total_errors_fixed: 0, total_warnings_fixed: 0, unique_repos: 0 };
+
+// The registry is read from our own API. If that call cannot complete (the
+// API is down, or the public base URL points somewhere unreachable from this
+// process) the page renders empty rather than 500ing — a public page must
+// never die on its own dependency (Forbidden #15; found by the 2026-09-10
+// render pass, where every width returned 500).
 async function fetchFixes(page = 1): Promise<{ fixes: Fix[]; pagination: Record<string, number> }> {
   const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
-  const res = await fetch(`${base}/api/fixes?page=${page}`, { next: { revalidate: 60 } });
-  if (!res.ok) return { fixes: [], pagination: { page: 1, pageSize: 50, total: 0, totalPages: 0 } };
-  const data = await res.json();
-  return data.ok ? data : { fixes: [], pagination: { page: 1, pageSize: 50, total: 0, totalPages: 0 } };
+  try {
+    const res = await fetch(`${base}/api/fixes?page=${page}`, { next: { revalidate: 60 } });
+    if (!res.ok) return EMPTY_PAGE;
+    const data = await res.json();
+    return data.ok ? data : EMPTY_PAGE;
+  } catch {
+    return EMPTY_PAGE;
+  }
 }
 
 async function fetchStats(): Promise<Stats> {
   const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
-  const res = await fetch(`${base}/api/fixes?stats=1`, { next: { revalidate: 60 } });
-  if (!res.ok) return { total_fixes: 0, total_errors_fixed: 0, total_warnings_fixed: 0, unique_repos: 0 };
-  const data = await res.json();
-  return data.ok ? data.stats : { total_fixes: 0, total_errors_fixed: 0, total_warnings_fixed: 0, unique_repos: 0 };
+  try {
+    const res = await fetch(`${base}/api/fixes?stats=1`, { next: { revalidate: 60 } });
+    if (!res.ok) return EMPTY_STATS;
+    const data = await res.json();
+    return data.ok ? data.stats : EMPTY_STATS;
+  } catch {
+    return EMPTY_STATS;
+  }
 }
 
 const TIER_LABELS: Record<string, { label: string; color: string }> = {
-  quick: { label: 'Quick', color: 'text-slate-400 bg-slate-400/10' },
-  full: { label: 'Full', color: 'text-blue-400 bg-blue-400/10' },
-  'scan_fix': { label: 'Scan+Fix', color: 'text-violet-400 bg-violet-400/10' },
-  nuclear: { label: 'Forensic', color: 'text-rose-400 bg-rose-400/10' },
+  quick: { label: 'Quick', color: 'text-muted bg-surface-light border border-border' },
+  full: { label: 'Full', color: 'text-blue-700 bg-blue-500/10' },
+  'scan_fix': { label: 'Scan+Fix', color: 'text-violet-700 bg-violet-500/10' },
+  nuclear: { label: 'Forensic', color: 'text-danger bg-danger/10' },
 };
 
 function formatDate(iso: string) {
@@ -76,68 +95,54 @@ export default async function FixesPage() {
   const [{ fixes, pagination }, stats] = await Promise.all([fetchFixes(), fetchStats()]);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16">
-        {/* Header */}
-        <div className="mb-12 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-medium mb-4">
-            🔧 Public Registry
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
-            Fixed by GateTest
-          </h1>
-          <p className="text-lg text-slate-400 max-w-xl mx-auto">
-            Real bugs, vulnerabilities, and code issues fixed by GateTest across real repos.
-            Every entry is a delivered PR.
-          </p>
-        </div>
+    <main>
+      <PageHero
+        eyebrow="Public registry"
+        title="Fixed by GateTest"
+        lede="Real bugs, vulnerabilities, and code issues fixed by GateTest across real repos. Every entry is a delivered PR."
+        align="center"
+      />
 
+      <Section narrow>
         {/* Stats banner */}
         {stats.total_fixes > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
-            {[
-              { label: 'PRs shipped', value: stats.total_fixes.toLocaleString() },
-              { label: 'Errors fixed', value: stats.total_errors_fixed.toLocaleString() },
-              { label: 'Warnings fixed', value: stats.total_warnings_fixed.toLocaleString() },
-              { label: 'Unique repos', value: stats.unique_repos.toLocaleString() },
-            ].map(({ label, value }) => (
-              <div key={label} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 text-center">
-                <div className="text-2xl font-bold text-teal-400">{value}</div>
-                <div className="text-xs text-slate-500 mt-1">{label}</div>
-              </div>
-            ))}
+          <div className="mb-12">
+            <StatTiles
+              items={[
+                { label: 'PRs shipped', value: stats.total_fixes.toLocaleString() },
+                { label: 'Errors fixed', value: stats.total_errors_fixed.toLocaleString() },
+                { label: 'Warnings fixed', value: stats.total_warnings_fixed.toLocaleString() },
+                { label: 'Unique repos', value: stats.unique_repos.toLocaleString() },
+              ]}
+            />
           </div>
         )}
 
         {/* Fix list */}
         {fixes.length === 0 ? (
-          <div className="text-center py-24 text-slate-500">
-            <div className="text-4xl mb-4">🔧</div>
-            <p>No fixes recorded yet.</p>
+          <div className="card text-center py-20 px-6 text-muted">
+            <p className="text-foreground font-semibold">No fixes recorded yet.</p>
             <p className="text-sm mt-2">Every GateTest-delivered PR will appear here.</p>
           </div>
         ) : (
           <div className="space-y-3">
             {fixes.map((fix) => {
-              const tier = TIER_LABELS[fix.tier] ?? { label: fix.tier, color: 'text-slate-400 bg-slate-400/10' };
+              const tier = TIER_LABELS[fix.tier] ?? { label: fix.tier, color: 'text-muted bg-surface-light border border-border' };
               const modules = (fix.modules_fired ?? []).slice(0, 4);
               const moreModules = (fix.modules_fired ?? []).length - modules.length;
 
               return (
-                <div
-                  key={fix.id}
-                  className="rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-teal-500/20 transition-colors p-5"
-                >
+                <div key={fix.id} className="card p-5">
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-slate-400 font-mono text-sm truncate max-w-[180px]" title={fix.repo_name}>
+                      <span className="text-foreground-secondary font-mono text-sm truncate max-w-[180px]" title={fix.repo_name}>
                         {repoShortName(fix.repo_name)}
                       </span>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${tier.color}`}>
                         {tier.label}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-500 shrink-0">
+                    <div className="flex items-center gap-3 text-xs text-muted shrink-0">
                       <span>{formatDate(fix.created_at)}</span>
                       {/* PR links are withheld on the public registry — they
                           identify the customer's repo (Craig 2026-06-12). */}
@@ -146,7 +151,7 @@ export default async function FixesPage() {
                           href={fix.pr_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-teal-400 hover:text-teal-300 transition-colors"
+                          className="text-accent hover:text-accent-hover transition-colors"
                           aria-label={`View PR for ${fix.repo_name}`}
                         >
                           View PR →
@@ -156,25 +161,25 @@ export default async function FixesPage() {
                   </div>
 
                   {fix.message && (
-                    <p className="text-sm text-slate-300 mt-2 line-clamp-2">{fix.message}</p>
+                    <p className="text-sm text-foreground-secondary mt-2 line-clamp-2">{fix.message}</p>
                   )}
 
-                  <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
+                  <div className="flex items-center gap-4 mt-3 text-xs text-muted flex-wrap">
                     {fix.errors_fixed > 0 && (
-                      <span className="text-rose-400">🔴 {fix.errors_fixed} error{fix.errors_fixed !== 1 ? 's' : ''} fixed</span>
+                      <span className="text-danger">🔴 {fix.errors_fixed} error{fix.errors_fixed !== 1 ? 's' : ''} fixed</span>
                     )}
                     {fix.warnings_fixed > 0 && (
-                      <span className="text-amber-400">🟡 {fix.warnings_fixed} warning{fix.warnings_fixed !== 1 ? 's' : ''} fixed</span>
+                      <span className="text-warning">🟡 {fix.warnings_fixed} warning{fix.warnings_fixed !== 1 ? 's' : ''} fixed</span>
                     )}
                     {modules.length > 0 && (
                       <div className="flex items-center gap-1 flex-wrap">
                         {modules.map((m) => (
-                          <span key={m} className="px-1.5 py-0.5 rounded bg-white/[0.04] text-slate-400">
+                          <span key={m} className="px-1.5 py-0.5 rounded bg-surface-light border border-border text-foreground-secondary font-mono">
                             {m}
                           </span>
                         ))}
                         {moreModules > 0 && (
-                          <span className="text-slate-500">+{moreModules} more</span>
+                          <span className="text-muted">+{moreModules} more</span>
                         )}
                       </div>
                     )}
@@ -187,43 +192,40 @@ export default async function FixesPage() {
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
-          <div className="flex justify-center gap-4 mt-8">
+          <nav aria-label="Pagination" className="flex justify-center items-center gap-4 mt-8">
             {pagination.page > 1 && (
               <Link
                 href={`/fixes?page=${pagination.page - 1}`}
-                className="px-4 py-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.08] text-sm text-slate-300 transition-colors"
+                className="btn-secondary px-4 py-2 text-sm"
               >
                 ← Previous
               </Link>
             )}
-            <span className="px-4 py-2 text-sm text-slate-500">
+            <span className="px-4 py-2 text-sm text-muted">
               Page {pagination.page} of {pagination.totalPages}
             </span>
             {pagination.page < pagination.totalPages && (
               <Link
                 href={`/fixes?page=${pagination.page + 1}`}
-                className="px-4 py-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.08] text-sm text-slate-300 transition-colors"
+                className="btn-secondary px-4 py-2 text-sm"
               >
                 Next →
               </Link>
             )}
-          </div>
+          </nav>
         )}
 
         {/* CTA */}
-        <div className="mt-16 rounded-xl bg-teal-500/5 border border-teal-500/15 p-8 text-center">
-          <h2 className="text-xl font-semibold mb-2">Want your repo in this list?</h2>
-          <p className="text-slate-400 text-sm mb-6">
+        <div className="mt-16 rounded-2xl border border-accent/20 bg-accent/5 px-6 py-8 text-center">
+          <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground mb-2">Want your repo in this list?</h2>
+          <p className="text-foreground-secondary text-sm mb-6">
             GateTest scans your code. On Scan + Fix ($199) and Forensic Scan ($399) it fixes the issues and opens a PR. You merge. Done.
           </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-teal-500 hover:bg-teal-400 text-black font-semibold rounded-lg transition-colors"
-          >
+          <Link href="/" className="btn-cta inline-flex items-center gap-2 px-6 py-3">
             Scan your repo →
           </Link>
         </div>
-      </div>
-    </div>
+      </Section>
+    </main>
   );
 }

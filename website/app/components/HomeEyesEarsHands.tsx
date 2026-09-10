@@ -108,7 +108,7 @@ export default function HomeEyesEarsHands() {
           {CAPABILITIES.map((cap) => (
             <div
               key={cap.id}
-              className={`rounded-2xl border ${cap.borderColor} ${cap.bgGlow} p-6 flex flex-col`}
+              className={`rounded-2xl border ${cap.borderColor} ${cap.bgGlow} p-6 flex flex-col min-w-0`}
             >
               {/* Badge: the metaphor tag + the plain benefit it names */}
               <div className="flex items-center gap-2 mb-1.5">
@@ -162,7 +162,7 @@ export default function HomeEyesEarsHands() {
               runs in-process on your local filesystem.
             </p>
           </div>
-          <div className="flex-shrink-0 w-full sm:w-auto">
+          <div className="flex-shrink-0 w-full sm:w-auto min-w-0 max-w-full">
             <pre className="rounded-xl bg-background border border-border text-xs font-mono text-foreground/90 px-5 py-3 overflow-x-auto">
               <span className="text-muted select-none">$ </span>
               claude mcp add gatetest -- npx -y @gatetest/mcp-server

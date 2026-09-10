@@ -11,22 +11,26 @@
  * teal/emerald brand glow, mono code surfaces.
  */
 
-import { NavBar } from "./_components/Nav";
 import { Hero } from "./_components/Hero";
 import { TrustStrip } from "./_components/TrustStrip";
 import { Pipeline } from "./_components/Pipeline";
 import { Bento } from "./_components/Bento";
 import { Playground } from "./_components/Playground";
 import { Enterprise } from "./_components/Enterprise";
-import { FinalCTA, Footer } from "./_components/Cta";
+import { FinalCTA } from "./_components/Cta";
 
+/**
+ * The site header and footer come from app/layout.tsx (tests/site-shell.test.js);
+ * the prototype's own NavBar and Footer are no longer rendered. The body keeps
+ * its deliberate deep-ink look via the panel tokens rather than a raw hex.
+ */
 export default function PreviewHomepage() {
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-[#06070b] text-zinc-200 antialiased selection:bg-teal-400/20 selection:text-white">
+    <main className="relative overflow-x-hidden bg-panel text-panel-foreground antialiased selection:bg-teal-400/20 selection:text-white">
       {/* scoped styles: keyframes + reveal + scroll behaviour */}
       <style>{`
         html { scroll-behavior: smooth; }
-        .gt-preview-root { background: #06070b; }
+        .gt-preview-root { background: var(--panel); }
         .gt-reveal {
           opacity: 0;
           transform: translateY(16px);
@@ -52,7 +56,6 @@ export default function PreviewHomepage() {
         }
       `}</style>
 
-      <NavBar />
       <Hero />
       <TrustStrip />
       <Pipeline />
@@ -60,7 +63,6 @@ export default function PreviewHomepage() {
       <Playground />
       <Enterprise />
       <FinalCTA />
-      <Footer />
     </main>
   );
 }

@@ -2,6 +2,7 @@
 import { Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import { ChatWidget } from "./components/ChatWidget";
+import { SiteHeader, SiteFooter } from "./components/SiteChrome";
 import { organizationSchema, webSiteSchema, jsonLd } from "./lib/seo/schema";
 import { SITE_URL } from "./lib/site-url";
 
@@ -154,7 +155,11 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLd(webSiteSchema()) }}
         />
-        {children}
+        {/* One header and one footer for the whole site — pages never render
+            their own (tests/site-shell.test.js). */}
+        <SiteHeader />
+        <div className="flex-1 flex flex-col">{children}</div>
+        <SiteFooter />
         <ChatWidget />
       </body>
     </html>

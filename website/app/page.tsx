@@ -37,7 +37,6 @@
  * component.
  */
 
-import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import HomePrecision from "./components/HomePrecision";
 import HomeHonest from "./components/HomeHonest";
@@ -56,7 +55,6 @@ import PentestComingSoon from "./components/PentestComingSoon";
 import HomeFaq from "./components/HomeFaq";
 import HomeStack from "./components/HomeStack";
 import HomeTrust from "./components/HomeTrust";
-import Footer from "./components/Footer";
 
 // The homepage owns its own canonical. It used to live on the ROOT layout
 // (`alternates.canonical: "/"`), which every page without its own metadata
@@ -67,11 +65,14 @@ export const metadata = { alternates: { canonical: "/" } };
 export default function Home() {
   return (
     <>
-      <Navbar />
       <main>
         <Hero />
         <HomePrecision />
         <HomeThreeDoors />
+        {/* The stack sits high on purpose (Craig 2026-09-10): the site's job is
+            to lead GitHub, website and WordPress visitors toward Gluecron and
+            Vapron, not to mention them after the FAQ. */}
+        <HomeStack />
         <BeforeAfterDemo />
         <HomeHonest />
         <HomeKills />
@@ -85,10 +86,8 @@ export default function Home() {
         <Pricing />
         <PentestComingSoon />
         <HomeFaq />
-        <HomeStack />
         <HomeTrust />
       </main>
-      <Footer />
     </>
   );
 }

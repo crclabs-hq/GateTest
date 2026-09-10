@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { contentMetadata, breadcrumbSchema, jsonLd } from "../lib/seo/schema";
 import precision from "../data/precision.json";
+import siteStats from "../data/site-stats.json";
+import PageHero from "../components/site/PageHero";
+import Section from "../components/site/Section";
 
 // Every number on this page comes from website/app/data/precision.json,
 // which scripts/real-world-precision.js writes from its own measurement —
@@ -51,9 +54,14 @@ const recallRows = rows.filter((r) => typeof r.floor === "number");
 const commitUrl = (r: Row) => `${r.url.replace(/\.git$/, "")}/commit/${r.sha}`;
 const generated = new Date(precision.generatedAt);
 
+const label = "text-xs font-mono uppercase tracking-[0.13em] text-accent mb-4";
+const headRow = "border-b border-border bg-surface-light text-left text-muted";
+const bodyRow = "border-b border-border last:border-0";
+const numCell = "px-4 py-3 font-mono text-right tabular-nums";
+
 export default function PrecisionPage() {
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -61,44 +69,33 @@ export default function PrecisionPage() {
         }}
       />
 
-      <nav className="border-b border-white/[0.06] px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm font-mono">G</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              Gate<span className="text-teal-400">Test</span>
-            </span>
+      <PageHero
+        eyebrow="Measured"
+        title="Precision, on code we do not control"
+        lede={
+          <>
+            A scanner tuned against its own repository looks perfect on its own repository. The only
+            honest test is code its authors did not write and cannot quietly adjust. Each repository
+            below is cloned fresh at a pinned commit and scanned with{" "}
+            <code className="font-mono text-foreground text-[0.92em]">--suite full</code> — exactly what a
+            paying Full Scan runs. The number is blocking findings; the ceiling is what CI holds the engine
+            to, and it only ever moves down.
+          </>
+        }
+        actions={
+          <Link href="/modules" className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm">
+            {siteStats.modules.total} modules &rarr;
           </Link>
-          <Link href="/modules" className="text-sm text-white/50 hover:text-white transition-colors">
-            121 modules &rarr;
-          </Link>
-        </div>
-      </nav>
+        }
+      />
 
-      <main className="px-6 py-16 max-w-5xl mx-auto">
-        <p className="text-xs font-mono uppercase tracking-[0.14em] text-white/40 mb-4">Measured</p>
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-5" style={{ textWrap: "balance" }}>
-          Precision, on code we do not control
-        </h1>
-        <p className="text-lg text-white/60 max-w-[62ch] leading-relaxed">
-          A scanner tuned against its own repository looks perfect on its own repository. The only
-          honest test is code its authors did not write and cannot quietly adjust. Each repository
-          below is cloned fresh at a pinned commit and scanned with{" "}
-          <code className="font-mono text-white/80 text-[0.92em]">--suite full</code> — exactly what a
-          paying Full Scan runs. The number is blocking findings; the ceiling is what CI holds the engine
-          to, and it only ever moves down.
-        </p>
-
-        <section className="mt-14">
-          <h2 className="text-xs font-mono uppercase tracking-[0.13em] text-teal-400 mb-4">
-            Precision — clean code must pass
-          </h2>
-          <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+      <Section>
+        <section>
+          <h2 className={label}>Precision — clean code must pass</h2>
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
-                <tr className="border-b border-white/[0.08] text-left text-white/40">
+                <tr className={headRow}>
                   <th className="px-4 py-3 font-medium">Repository</th>
                   <th className="px-4 py-3 font-medium">Commit</th>
                   <th className="px-4 py-3 font-medium text-right">Blocking</th>
@@ -108,22 +105,16 @@ export default function PrecisionPage() {
               </thead>
               <tbody>
                 {precisionRows.map((r) => (
-                  <tr key={r.name} className="border-b border-white/[0.05] last:border-0">
-                    <td className="px-4 py-3 font-medium text-white">{r.name}</td>
-                    <td className="px-4 py-3 font-mono text-white/50">
-                      <a href={commitUrl(r)} className="hover:text-teal-400 transition-colors" rel="noopener">
+                  <tr key={r.name} className={bodyRow}>
+                    <td className="px-4 py-3 font-medium text-foreground">{r.name}</td>
+                    <td className="px-4 py-3 font-mono text-muted">
+                      <a href={commitUrl(r)} className="hover:text-accent transition-colors" rel="noopener">
                         {r.sha.slice(0, 8)}
                       </a>
                     </td>
-                    <td
-                      className={`px-4 py-3 font-mono text-right tabular-nums ${
-                        r.blocking === 0 ? "text-emerald-400" : "text-white"
-                      }`}
-                    >
-                      {r.blocking}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-right tabular-nums text-white/50">{r.ceiling}</td>
-                    <td className="px-4 py-3 text-white/55 max-w-[38ch]">{r.why}</td>
+                    <td className={`${numCell} ${r.blocking === 0 ? "text-success" : "text-foreground"}`}>{r.blocking}</td>
+                    <td className={`${numCell} text-muted`}>{r.ceiling}</td>
+                    <td className="px-4 py-3 text-foreground-secondary max-w-[38ch]">{r.why}</td>
                   </tr>
                 ))}
               </tbody>
@@ -132,17 +123,15 @@ export default function PrecisionPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="text-xs font-mono uppercase tracking-[0.13em] text-teal-400 mb-4">
-            Recall — a vulnerable app must keep failing
-          </h2>
-          <p className="text-white/60 max-w-[62ch] leading-relaxed mb-4">
+          <h2 className={label}>Recall — a vulnerable app must keep failing</h2>
+          <p className="text-foreground-secondary max-w-[62ch] leading-relaxed mb-4">
             Precision alone is satisfied by a scanner that reports nothing. So a deliberately vulnerable
             application is held to a <em>floor</em>: if it ever stops failing, the gate goes red.
           </p>
-          <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-[520px] text-sm">
               <thead>
-                <tr className="border-b border-white/[0.08] text-left text-white/40">
+                <tr className={headRow}>
                   <th className="px-4 py-3 font-medium">Repository</th>
                   <th className="px-4 py-3 font-medium">Commit</th>
                   <th className="px-4 py-3 font-medium text-right">Blocking</th>
@@ -151,15 +140,15 @@ export default function PrecisionPage() {
               </thead>
               <tbody>
                 {recallRows.map((r) => (
-                  <tr key={r.name} className="border-b border-white/[0.05] last:border-0">
-                    <td className="px-4 py-3 font-medium text-white">{r.name}</td>
-                    <td className="px-4 py-3 font-mono text-white/50">
-                      <a href={commitUrl(r)} className="hover:text-teal-400 transition-colors" rel="noopener">
+                  <tr key={r.name} className={bodyRow}>
+                    <td className="px-4 py-3 font-medium text-foreground">{r.name}</td>
+                    <td className="px-4 py-3 font-mono text-muted">
+                      <a href={commitUrl(r)} className="hover:text-accent transition-colors" rel="noopener">
                         {r.sha.slice(0, 8)}
                       </a>
                     </td>
-                    <td className="px-4 py-3 font-mono text-right tabular-nums text-rose-300">{r.blocking}</td>
-                    <td className="px-4 py-3 font-mono text-right tabular-nums text-white/50">{r.floor}</td>
+                    <td className={`${numCell} text-danger`}>{r.blocking}</td>
+                    <td className={`${numCell} text-muted`}>{r.floor}</td>
                   </tr>
                 ))}
               </tbody>
@@ -168,10 +157,8 @@ export default function PrecisionPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="text-xs font-mono uppercase tracking-[0.13em] text-teal-400 mb-4">
-            Confidence — the block threshold, measured on the same run
-          </h2>
-          <p className="text-white/60 max-w-[62ch] leading-relaxed mb-4">
+          <h2 className={label}>Confidence — the block threshold, measured on the same run</h2>
+          <p className="text-foreground-secondary max-w-[62ch] leading-relaxed mb-4">
             Every error finding carries a confidence score: 1.0 unless a signal fires (a test file, a
             fixture, a comment, a string literal), and only findings at or above the block threshold
             fail the gate. The threshold used to be a number someone liked. Now each corpus run sweeps
@@ -180,10 +167,10 @@ export default function PrecisionPage() {
           </p>
           {calibration ? (
             <>
-              <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+              <div className="overflow-x-auto rounded-xl border border-border">
                 <table className="w-full min-w-[520px] text-sm">
                   <thead>
-                    <tr className="border-b border-white/[0.08] text-left text-white/40">
+                    <tr className={headRow}>
                       <th className="px-4 py-3 font-medium">Block at confidence ≥</th>
                       <th className="px-4 py-3 font-medium text-right">Blocking on clean repos</th>
                       <th className="px-4 py-3 font-medium text-right">Still caught on NodeGoat</th>
@@ -191,19 +178,19 @@ export default function PrecisionPage() {
                   </thead>
                   <tbody>
                     {calibration.sweep.map((s) => (
-                      <tr key={s.threshold} className={`border-b border-white/[0.05] last:border-0 ${s.shipped ? "bg-teal-500/[0.07]" : ""}`}>
-                        <td className="px-4 py-3 font-mono tabular-nums text-white">
+                      <tr key={s.threshold} className={`${bodyRow} ${s.shipped ? "bg-accent/10" : ""}`}>
+                        <td className="px-4 py-3 font-mono tabular-nums text-foreground">
                           {s.threshold.toFixed(2)}
-                          {s.shipped && <span className="ml-2 text-[11px] uppercase tracking-[0.08em] text-teal-300">shipped</span>}
+                          {s.shipped && <span className="ml-2 text-[11px] uppercase tracking-[0.08em] text-accent">shipped</span>}
                         </td>
-                        <td className="px-4 py-3 font-mono text-right tabular-nums text-white/80">{s.precisionBlocking}</td>
-                        <td className="px-4 py-3 font-mono text-right tabular-nums text-rose-300">{s.recallBlocking}</td>
+                        <td className={`${numCell} text-foreground-secondary`}>{s.precisionBlocking}</td>
+                        <td className={`${numCell} text-danger`}>{s.recallBlocking}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <p className="mt-4 text-sm text-white/45 max-w-[66ch] leading-relaxed">
+              <p className="mt-4 text-sm text-muted max-w-[66ch] leading-relaxed">
                 Confidence is not a continuum: this run produced only{" "}
                 {calibration.bands.length} distinct values (
                 {calibration.bands.map((b) => b.confidence.toFixed(2)).join(", ")}). The shipped threshold
@@ -215,11 +202,11 @@ export default function PrecisionPage() {
               </p>
             </>
           ) : (
-            <p className="text-sm text-amber-300/80 max-w-[62ch]">{calibrationNote || "Not measured on this run."}</p>
+            <p className="text-sm text-warning max-w-[62ch]">{calibrationNote || "Not measured on this run."}</p>
           )}
         </section>
 
-        <section className="mt-12 text-sm text-white/45 max-w-[66ch] leading-relaxed space-y-3">
+        <section className="mt-12 text-sm text-muted max-w-[66ch] leading-relaxed space-y-3">
           <p>
             What remains on a repository is reported, not hidden. Django&rsquo;s ORM builds SQL by string
             inside <code className="font-mono">django/db</code>, which is the one place that is the job;{" "}
@@ -231,15 +218,15 @@ export default function PrecisionPage() {
             <code className="font-mono">{precision.source}</code> on engine v{precision.engineVersion}
             {precision.engineCommit && precision.engineCommit !== "unknown" ? ` @ ${precision.engineCommit}` : ""}.
             The corpus manifest and the runner are in the repository, so anyone can re-run the table.{" "}
-            <Link href="/modules" className="text-teal-400 hover:underline">
-              What the 121 modules check &rarr;
+            <Link href="/modules" className="text-accent hover:underline">
+              What the {siteStats.modules.total} modules check &rarr;
             </Link>{" "}
-            <Link href="/noise" className="text-teal-400 hover:underline">
+            <Link href="/noise" className="text-accent hover:underline">
               Which rules teams silence &rarr;
             </Link>
           </p>
         </section>
-      </main>
+      </Section>
     </main>
   );
 }

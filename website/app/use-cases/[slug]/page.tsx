@@ -13,6 +13,8 @@ import {
   breadcrumbSchema,
   jsonLd,
 } from "../../lib/seo/schema";
+import PageHero from "../../components/site/PageHero";
+import Section from "../../components/site/Section";
 
 interface PageParams {
   params: Promise<{ slug: string }>;
@@ -54,133 +56,110 @@ export default async function UseCasePage({ params }: PageParams) {
   ];
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(articleSchema({ headline: uc.title, description: uc.shortDef, path: `/use-cases/${uc.slug}` })) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(faqSchema(uc.faqs)) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema(crumbs)) }} />
 
-      <nav className="border-b border-white/[0.06] px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm font-mono">G</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              Gate<span className="text-teal-400">Test</span>
-            </span>
-          </Link>
-          <Link href="/use-cases" className="text-sm text-white/50 hover:text-white transition-colors">
-            Use cases &rarr;
-          </Link>
-        </div>
-      </nav>
-
-      <main className="px-6 py-16 max-w-3xl mx-auto">
-        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-white/40 mb-10">
-          <Link href="/" className="hover:text-white/70 transition-colors">GateTest</Link>
-          <span>/</span>
-          <Link href="/use-cases" className="hover:text-white/70 transition-colors">Use cases</Link>
-          <span>/</span>
-          <span className="text-white/60">{uc.title}</span>
+      <div className="section-alt relative z-10 -mb-8">
+        <nav aria-label="Breadcrumb" className="mx-auto max-w-7xl px-6 pt-6 flex flex-wrap items-center gap-2 text-sm text-muted">
+          <Link href="/" className="hover:text-foreground transition-colors">GateTest</Link>
+          <span aria-hidden="true">/</span>
+          <Link href="/use-cases" className="hover:text-foreground transition-colors">Use cases</Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-foreground-secondary">{uc.title}</span>
         </nav>
+      </div>
 
+      <PageHero
+        eyebrow="Use case"
+        title={uc.title}
+        lede={
+          <>
+            <span className="block text-accent mb-4">{uc.intent}</span>
+            {uc.shortDef}
+          </>
+        }
+      />
+
+      <Section narrow>
         <div className="mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-300 font-medium mb-6">
-            Use case
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-4">{uc.title}</h1>
-          <p className="text-lg text-teal-200/70 mb-5">{uc.intent}</p>
-          <p className="text-lg text-white/75 leading-relaxed">{uc.shortDef}</p>
-        </div>
-
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold text-white mb-4">The problem</h2>
+          <h2 className="font-display text-2xl font-bold text-foreground mb-4">The problem</h2>
           <div className="space-y-4">
             {uc.problem.map((p, i) => (
-              <p key={i} className="text-white/70 leading-relaxed">{p}</p>
+              <p key={i} className="text-foreground-secondary leading-relaxed">{p}</p>
             ))}
           </div>
-        </section>
+        </div>
 
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold text-white mb-4">How GateTest does it</h2>
+        <div className="mb-10">
+          <h2 className="font-display text-2xl font-bold text-foreground mb-4">How GateTest does it</h2>
           <div className="space-y-4">
             {uc.solution.map((p, i) => (
-              <p key={i} className="text-white/70 leading-relaxed">{p}</p>
+              <p key={i} className="text-foreground-secondary leading-relaxed">{p}</p>
             ))}
           </div>
-        </section>
+        </div>
 
         {uc.code && (
-          <section className="mb-10">
-            <div className="text-xs font-mono text-white/40 mb-2">{uc.code.label}</div>
-            <pre className="text-sm font-mono text-teal-100/90 whitespace-pre-wrap leading-relaxed rounded-xl border border-white/[0.08] p-5 overflow-x-auto" style={{ background: "rgba(255,255,255,0.02)" }}>{uc.code.content}</pre>
-          </section>
+          <div className="mb-10">
+            <div className="text-xs font-mono text-muted mb-2">{uc.code.label}</div>
+            <pre className="text-sm font-mono whitespace-pre-wrap leading-relaxed rounded-xl bg-panel text-panel-foreground border border-panel-border p-5 overflow-x-auto">{uc.code.content}</pre>
+          </div>
         )}
 
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold text-white mb-5">Steps</h2>
+        <div>
+          <h2 className="font-display text-2xl font-bold text-foreground mb-5">Steps</h2>
           <ol className="space-y-3">
             {uc.steps.map((s, i) => (
-              <li key={i} className="flex gap-3 text-white/70 leading-relaxed">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-teal-500/15 border border-teal-500/30 text-teal-300 text-xs font-semibold flex items-center justify-center">{i + 1}</span>
+              <li key={i} className="flex gap-3 text-foreground-secondary leading-relaxed">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/10 border border-accent/30 text-accent text-xs font-semibold flex items-center justify-center">{i + 1}</span>
                 <span>{s}</span>
               </li>
             ))}
           </ol>
-        </section>
+        </div>
+      </Section>
 
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold text-white mb-6">Frequently asked questions</h2>
-          <div className="space-y-4">
-            {uc.faqs.map((f) => (
-              <div key={f.q} className="rounded-xl border border-white/[0.08] p-5" style={{ background: "rgba(255,255,255,0.02)" }}>
-                <h3 className="text-white font-semibold mb-2 leading-snug">{f.q}</h3>
-                <p className="text-white/60 text-sm leading-relaxed">{f.a}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+      <Section alt narrow title="Frequently asked questions">
+        <div className="space-y-4">
+          {uc.faqs.map((f) => (
+            <div key={f.q} className="card p-5">
+              <h3 className="text-foreground font-semibold mb-2 leading-snug">{f.q}</h3>
+              <p className="text-foreground-secondary text-sm leading-relaxed">{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
 
-        <section className="mb-12 rounded-2xl border border-teal-500/20 p-8 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
-          <h2 className="text-2xl font-bold text-white mb-3">Put this gate on your repo</h2>
-          <p className="text-white/60 mb-6">Free preview of findings. Pay per scan — no subscription. AI auto-fix PR on the Scan + Fix tier.</p>
+      <Section narrow>
+        <div className="rounded-2xl border border-accent/20 bg-accent/5 p-8 text-center">
+          <h2 className="font-display text-2xl font-bold text-foreground mb-3">Put this gate on your repo</h2>
+          <p className="text-foreground-secondary mb-6">Free preview of findings. Pay per scan — no subscription. AI auto-fix PR on the Scan + Fix tier.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/github/setup" className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm" style={{ background: "#2dd4bf", color: "#0a0a12" }}>
+            <Link href="/github/setup" className="btn-cta px-6 py-3 text-sm">
               Install the GitHub App
             </Link>
-            <Link href="/use-cases" className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors">
+            <Link href="/use-cases" className="btn-secondary px-6 py-3 text-sm">
               More use cases
             </Link>
           </div>
-        </section>
+        </div>
 
         {related.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-white mb-6">Related use cases</h2>
+          <div className="mt-12">
+            <h2 className="font-display text-2xl font-bold text-foreground mb-6">Related use cases</h2>
             <div className="grid sm:grid-cols-2 gap-3">
               {related.map((r) => (
-                <Link key={r.slug} href={`/use-cases/${r.slug}`} className="block rounded-xl border border-white/[0.08] p-4 hover:border-teal-500/30 transition-colors" style={{ background: "rgba(255,255,255,0.02)" }}>
-                  <div className="text-white font-semibold mb-1">{r.title}</div>
-                  <div className="text-white/55 text-sm leading-snug">{r.intent}</div>
+                <Link key={r.slug} href={`/use-cases/${r.slug}`} className="card block p-4">
+                  <div className="text-foreground font-semibold mb-1">{r.title}</div>
+                  <div className="text-foreground-secondary text-sm leading-snug">{r.intent}</div>
                 </Link>
               ))}
             </div>
-          </section>
-        )}
-      </main>
-
-      <footer className="border-t border-white/[0.06] px-6 py-8">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/30">
-          <span>GateTest &copy; 2026</span>
-          <div className="flex gap-6">
-            <Link href="/use-cases" className="hover:text-white/60 transition-colors">Use cases</Link>
-            <Link href="/glossary" className="hover:text-white/60 transition-colors">Glossary</Link>
-            <Link href="/modules" className="hover:text-white/60 transition-colors">Modules</Link>
-            <Link href="/#pricing" className="hover:text-white/60 transition-colors">Pricing</Link>
           </div>
-        </div>
-      </footer>
+        )}
+      </Section>
     </main>
   );
 }

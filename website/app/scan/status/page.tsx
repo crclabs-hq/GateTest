@@ -94,6 +94,12 @@ const MODULE_LABELS: Record<string, string> = {
 export default function ScanStatus() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [scanning, setScanning] = useState(true);
+  // The server cannot know the query string, so the first paint used to be
+  // "Scanning… Module 1 of 0 · 5%" for every visitor, including one with no
+  // scan at all (Forbidden #4). Until the client has read the URL and either
+  // found a repo or produced a result, show a neutral loading state instead.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
   const [elapsed, setElapsed] = useState(0);
   const [animModules, setAnimModules] = useState<ModuleResult[]>([]);
   const [animIndex, setAnimIndex] = useState(0);
@@ -318,11 +324,12 @@ export default function ScanStatus() {
   const isFailed = scanResult?.status === "failed";
   const isExpired = scanResult?.status === "expired";
   const isEndState = isComplete || isFailed || isExpired;
+  const loading = !hydrated || (!scanResult && !params.repo);
   const displayModules = scanResult ? scanResult.modules : animModules;
   const displayProgress = scanResult ? 100 : Math.min(Math.round((animIndex / Math.max(animModules.length, 1)) * 95) + 5, 95);
 
   return (
-    <main className="min-h-screen bg-background px-6 py-12">
+    <main className="flex-1 bg-background px-6 py-12 sm:py-16">
       <div className={`${isComplete && (scanResult?.totalIssues || 0) > 0 ? "max-w-4xl" : "max-w-3xl"} mx-auto transition-all duration-300`}>
         {/* Header */}
         <div className="text-center mb-8">
@@ -339,34 +346,37 @@ export default function ScanStatus() {
             }`} />
             {isComplete ? "Scan Complete" :
              isExpired ? "Session Expired" :
-             isFailed ? "Scan Failed" : "Scanning..."}
+             isFailed ? "Scan Failed" :
+             loading ? "Loading scan" : "Scanning..."}
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-bold mb-3 text-foreground">
+          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-3 text-foreground">
             {isComplete ? (
               (scanResult?.totalIssues || 0) === 0
                 ? "All Clear"
                 : `${scanResult?.totalIssues} Issue${(scanResult?.totalIssues || 0) > 1 ? "s" : ""} Found`
             ) : isExpired ? "Session Expired" :
-               isFailed ? "Scan Failed" : "Scanning..."}
+               isFailed ? "Scan Failed" :
+               loading ? "Loading your scan" : "Scanning..."}
           </h1>
 
           {params.repo && (
             <p className="text-sm text-muted font-mono">{params.repo}</p>
           )}
-          <p className="mt-2 text-xs text-slate-400">
+          <p className="mt-2 text-xs text-muted">
             🔒 Your code is scanned in memory and never stored on our servers.
           </p>
         </div>
 
-        {/* Progress */}
+        {/* Progress — never rendered before the client knows there is a scan */}
+        {!loading && (
         <div className="mb-8">
           <div className="flex justify-between items-center text-sm mb-2">
             <span className="text-muted">{scanResult ? `${scanResult.completedModules} modules` : `Module ${animIndex + 1} of ${animModules.length}`}</span>
             <span className="font-bold text-accent">{displayProgress}%</span>
             <span className="text-muted font-mono">{formatTime(elapsed)}</span>
           </div>
-          <div className="w-full h-2 bg-surface-dark rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-[var(--border)] rounded-full overflow-hidden">
             <div className={`h-full rounded-full transition-all duration-700 ${scanning ? "progress-glow" : ""}`}
               style={{
                 width: `${displayProgress}%`,
@@ -376,6 +386,7 @@ export default function ScanStatus() {
               }} />
           </div>
         </div>
+        )}
 
         {/* Live terminal — visible during scan */}
         {scanning && params.repo && (
@@ -430,7 +441,7 @@ export default function ScanStatus() {
             return (
               <div key={mod.name}
                 className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                  mod.status === "passed" ? "bg-white border-green-100" :
+                  mod.status === "passed" ? "bg-[var(--surface-solid)] border-green-100" :
                   mod.status === "failed" ? "bg-amber-50/50 border-amber-200" :
                   mod.status === "running" ? "bg-amber-50/50 border-amber-200" :
                   mod.status === "skipped" ? "bg-slate-50 border-slate-200" :
@@ -596,7 +607,7 @@ export default function ScanStatus() {
                 nuclear) get the "Fix with AI" button. Quick / Full are
                 scan-only tiers; they see an upgrade card instead. */}
             {(scanResult?.totalIssues || 0) > 0 && (params.tier === "scan_fix" || params.tier === "nuclear") && (
-              <div className="p-5 rounded-xl border border-border bg-white">
+              <div className="p-5 rounded-xl border border-border bg-[var(--surface-solid)]">
                 <h2 className="font-bold text-foreground mb-2">Or let GateTest fix it for you</h2>
                 <p className="text-sm text-muted mb-4">
                   Skip the copy-paste — Claude reads each finding, generates the fix, re-validates against the scanner, writes a regression test, and opens a pull request on your repo. Included with your {params.tier === "nuclear" ? "Forensic Scan" : "Scan + Fix"} tier.
@@ -677,7 +688,7 @@ export default function ScanStatus() {
                             value={customerPat}
                             onChange={(e) => setCustomerPat(e.target.value.trim())}
                             placeholder="ghp_… or github_pat_…"
-                            className="w-full px-3 py-2 rounded-lg border border-border bg-white text-sm font-mono"
+                            className="w-full px-3 py-2 rounded-lg border border-border bg-[var(--surface-solid)]text-sm font-mono"
                           />
                           <p className="text-[11px] text-muted mt-2 leading-relaxed">
                             Used <strong>only for this one fix request</strong>, never persisted,
@@ -836,7 +847,7 @@ export default function ScanStatus() {
                         type="button"
                         onClick={() => handleUpgradeToFix("full")}
                         disabled={upgradingToFix}
-                        className="group p-5 rounded-lg border border-border bg-white hover:border-accent/40 hover:shadow-md transition-all text-left disabled:opacity-60"
+                        className="group p-5 rounded-lg border border-border bg-[var(--surface-solid)]hover:border-accent/40 hover:shadow-md transition-all text-left disabled:opacity-60"
                       >
                         <p className="text-xs uppercase tracking-wider text-muted/70 font-semibold mb-1">Step 1</p>
                         <p className="font-bold text-foreground mb-1 text-base">Full Scan &mdash; $99</p>
@@ -847,7 +858,7 @@ export default function ScanStatus() {
                       type="button"
                       onClick={() => handleUpgradeToFix("scan_fix")}
                       disabled={upgradingToFix}
-                      className="group relative p-5 rounded-lg border-2 border-accent bg-white hover:bg-accent/5 hover:shadow-lg transition-all text-left ring-2 ring-accent/20 disabled:opacity-60"
+                      className="group relative p-5 rounded-lg border-2 border-accent bg-[var(--surface-solid)]hover:bg-accent/5 hover:shadow-lg transition-all text-left ring-2 ring-accent/20 disabled:opacity-60"
                     >
                       <div className="absolute -top-2.5 left-4 px-2 py-0.5 rounded-full bg-accent text-white text-[10px] font-bold uppercase tracking-wider">
                         Most popular
@@ -864,7 +875,7 @@ export default function ScanStatus() {
                       type="button"
                       onClick={() => handleUpgradeToFix("nuclear")}
                       disabled={upgradingToFix}
-                      className="group p-5 rounded-lg border border-border bg-white hover:border-accent/40 hover:shadow-md transition-all text-left disabled:opacity-60"
+                      className="group p-5 rounded-lg border border-border bg-[var(--surface-solid)]hover:border-accent/40 hover:shadow-md transition-all text-left disabled:opacity-60"
                     >
                       <p className="text-xs uppercase tracking-wider text-muted/70 font-semibold mb-1">For CTOs</p>
                       <p className="font-bold text-foreground mb-1 text-base">Forensic Scan &mdash; $399</p>
@@ -879,7 +890,7 @@ export default function ScanStatus() {
             )}
 
             {(scanResult?.totalIssues || 0) === 0 && (
-              <div className="p-5 rounded-xl border border-border bg-white text-center">
+              <div className="p-5 rounded-xl border border-border bg-[var(--surface-solid)]text-center">
                 <p className="text-sm text-muted mb-4">
                   {params.tier === "quick"
                     ? "Passed the Quick Scan. Want to go deeper with the full 121-module engine?"

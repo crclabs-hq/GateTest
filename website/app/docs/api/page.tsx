@@ -2,6 +2,8 @@
 import { SITE_URL } from "@/app/lib/site-url";
 import { appInstallUrl } from "@/app/lib/github-app-permissions";
 import { FULL_SUITE_MODULES } from "@/app/mcp/tools-data";
+import PageHero from "../../components/site/PageHero";
+import Section from "../../components/site/Section";
 
 export const metadata: Metadata = {
   title: "API Reference — GateTest",
@@ -92,24 +94,27 @@ const res = await fetch("${SITE_URL}/api/v1/scan", {
 const result = await res.json();
 if (result.totalIssues > 0) process.exit(1);`;
 
+// Code samples are what the terminal shows, so they stay dark panels.
+const CODE = "rounded-xl bg-panel text-panel-foreground border border-panel-border p-4 text-xs font-mono overflow-x-auto";
+const H2 = "font-display text-2xl font-bold text-foreground mb-3";
+const H3 = "text-lg font-semibold text-foreground mb-2";
+
 export default function ApiDocs() {
   return (
-    <div className="min-h-screen grid-bg px-6 py-24">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-10">
-          <p className="text-xs font-mono uppercase tracking-wider text-accent mb-2">
-            API Reference · v1
-          </p>
-          <h1 className="text-4xl font-bold mb-3">GateTest Public API</h1>
-          <p className="text-muted leading-relaxed">
-            Scan any GitHub repo programmatically. Every module advertised runs real
-            analysis or returns an honest <code className="font-mono text-sm">skipped</code>{" "}
-            reason — we never fake-pass.
-          </p>
-        </div>
+    <main>
+      <PageHero
+        eyebrow="API Reference · v1"
+        title="GateTest Public API"
+        lede={<>
+          Scan any GitHub repo programmatically. Every module advertised runs real
+          analysis or returns an honest <code className="font-mono text-base">skipped</code>{" "}
+          reason — we never fake-pass.
+        </>}
+      />
 
+      <Section narrow>
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-3">Authentication</h2>
+          <h2 className={H2}>Authentication</h2>
           <p className="text-muted mb-4">
             Every request requires a GateTest API key. Pass it via{" "}
             <code className="font-mono text-sm">Authorization: Bearer &lt;key&gt;</code>{" "}
@@ -124,7 +129,7 @@ export default function ApiDocs() {
         </section>
 
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-3">POST /api/v1/scan</h2>
+          <h2 className={H2}>POST /api/v1/scan</h2>
           <p className="text-muted mb-4">
             Two input modes: provide a <code className="font-mono text-sm">repo_url</code>{" "}
             (GitHub) or upload <code className="font-mono text-sm">files[]</code> directly
@@ -133,11 +138,11 @@ export default function ApiDocs() {
             20–60 s for <code className="font-mono text-sm">full</code>.
           </p>
 
-          <h3 className="text-lg font-semibold mb-2">Request body</h3>
-          <div className="card overflow-hidden mb-6">
+          <h3 className={H3}>Request body</h3>
+          <div className="card overflow-x-auto mb-6">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-surface-solid">
+                <tr className="border-b border-border section-alt">
                   <th className="text-left px-4 py-2 font-medium">Field</th>
                   <th className="text-left px-4 py-2 font-medium">Type</th>
                   <th className="text-left px-4 py-2 font-medium">Required</th>
@@ -177,33 +182,33 @@ export default function ApiDocs() {
             </table>
           </div>
 
-          <h3 className="text-lg font-semibold mb-2">Mode A — GitHub repo</h3>
-          <pre className="card p-4 text-xs font-mono overflow-x-auto mb-6">{curlQuick}</pre>
+          <h3 className={H3}>Mode A — GitHub repo</h3>
+          <pre className={`${CODE} mb-6`}>{curlQuick}</pre>
 
-          <h3 className="text-lg font-semibold mb-2">Mode B — Direct file upload</h3>
+          <h3 className={H3}>Mode B — Direct file upload</h3>
           <p className="text-muted text-sm mb-3">
             No GitHub required. Send file paths and contents inline — works for any
             platform, any language, any framework.
           </p>
-          <pre className="card p-4 text-xs font-mono overflow-x-auto mb-6">{curlDirect}</pre>
+          <pre className={`${CODE} mb-6`}>{curlDirect}</pre>
 
-          <h3 className="text-lg font-semibold mb-2">Full scan with idempotency</h3>
+          <h3 className={H3}>Full scan with idempotency</h3>
           <p className="text-muted text-sm mb-3">
             Pass an <code className="font-mono">Idempotency-Key</code> header to deduplicate
             retries within 24 hours. Useful from CI where a build may retry.
           </p>
-          <pre className="card p-4 text-xs font-mono overflow-x-auto mb-6">{curlFullIdem}</pre>
+          <pre className={`${CODE} mb-6`}>{curlFullIdem}</pre>
 
-          <h3 className="text-lg font-semibold mb-2">Example response</h3>
-          <pre className="card p-4 text-xs font-mono overflow-x-auto">{responseExample}</pre>
+          <h3 className={H3}>Example response</h3>
+          <pre className={CODE}>{responseExample}</pre>
         </section>
 
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-3">Module statuses</h2>
-          <div className="card overflow-hidden">
+          <h2 className={H2}>Module statuses</h2>
+          <div className="card overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-surface-solid">
+                <tr className="border-b border-border section-alt">
                   <th className="text-left px-4 py-2 font-medium">Status</th>
                   <th className="text-left px-4 py-2 font-medium">Meaning</th>
                 </tr>
@@ -236,11 +241,11 @@ export default function ApiDocs() {
         </section>
 
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-3">Errors</h2>
-          <div className="card overflow-hidden">
+          <h2 className={H2}>Errors</h2>
+          <div className="card overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-surface-solid">
+                <tr className="border-b border-border section-alt">
                   <th className="text-left px-4 py-2 font-medium">HTTP</th>
                   <th className="text-left px-4 py-2 font-medium">Reason</th>
                 </tr>
@@ -283,12 +288,12 @@ export default function ApiDocs() {
         </section>
 
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-3">Node.js example (CI gate)</h2>
-          <pre className="card p-4 text-xs font-mono overflow-x-auto">{nodeExample}</pre>
+          <h2 className={H2}>Node.js example (CI gate)</h2>
+          <pre className={CODE}>{nodeExample}</pre>
         </section>
 
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-3">Private repos</h2>
+          <h2 className={H2}>Private repos</h2>
           <p className="text-muted leading-relaxed">
             Install the{" "}
             <a
@@ -307,7 +312,7 @@ export default function ApiDocs() {
           <a className="text-accent hover:underline" href="/legal/terms">Terms</a> ·{" "}
           <a className="text-accent hover:underline" href="/legal/privacy">Privacy</a>
         </div>
-      </div>
-    </div>
+      </Section>
+    </main>
   );
 }

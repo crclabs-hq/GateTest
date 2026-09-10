@@ -7,6 +7,7 @@
  */
 import Link from "next/link";
 import { SITE_URL } from "@/app/lib/site-url";
+import PageHero from "../../../components/site/PageHero";
 export const dynamic = "force-dynamic";
 
 interface ScoreData {
@@ -52,7 +53,7 @@ function GradeRing({ score, grade, color }: { score: number; grade: string; colo
   return (
     <div className="relative flex items-center justify-center w-40 h-40">
       <svg className="w-40 h-40 -rotate-90" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+        <circle cx="60" cy="60" r={r} fill="none" stroke="var(--border-strong)" strokeWidth="10" />
         <circle
           cx="60" cy="60" r={r} fill="none"
           stroke={color} strokeWidth="10"
@@ -63,7 +64,7 @@ function GradeRing({ score, grade, color }: { score: number; grade: string; colo
         />
       </svg>
       <div className="absolute text-center">
-        <div className="text-4xl font-black text-white">{grade}</div>
+        <div className="font-display text-4xl font-black text-foreground">{grade}</div>
         <div className="text-lg font-bold" style={{ color }}>{score}/100</div>
       </div>
     </div>
@@ -87,50 +88,45 @@ export default async function ScorePage({
   };
 
   return (
-    <main className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <div className="border-b border-white/8 px-6 py-4 flex items-center justify-between max-w-5xl mx-auto">
-        <Link href="/" className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm">
-          <span className="text-lg">←</span> gatetest.io
-        </Link>
-        <span className="text-xs text-white/30 font-mono">public quality score</span>
-      </div>
+    <main>
+      <PageHero
+        eyebrow="Public quality score"
+        align="center"
+        title={
+          <>
+            <span className="text-muted">{owner}</span>
+            <span className="text-muted/50 mx-2">/</span>
+            <span>{repo}</span>
+          </>
+        }
+        lede="GateTest quality score · powered by Claude Sonnet 5"
+      />
 
       <div className="max-w-5xl mx-auto px-6 py-16">
-        {/* Repo title */}
-        <div className="mb-12 text-center">
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
-            <span className="text-white/40">{owner}</span>
-            <span className="text-white/20 mx-2">/</span>
-            <span>{repo}</span>
-          </h1>
-          <p className="text-white/40 text-sm">GateTest quality score · powered by Claude Sonnet 5</p>
-        </div>
-
         {hasScore ? (
           <>
             {/* Score card */}
-            <div className="flex flex-col sm:flex-row items-center gap-10 p-8 rounded-2xl border border-white/10 bg-white/[0.02] mb-8">
+            <div className="card flex flex-col sm:flex-row items-center gap-10 p-8 mb-8">
               <GradeRing
                 score={data.score!}
                 grade={data.grade!}
                 color={data.color!}
               />
               <div className="flex-1 text-center sm:text-left">
-                <div className="text-2xl font-bold text-white mb-1">{data.label}</div>
-                <div className="text-white/50 mb-4">
+                <div className="font-display text-2xl font-bold text-foreground mb-1">{data.label}</div>
+                <div className="text-muted mb-4">
                   {data.lastScan?.issues} {data.lastScan?.issues === 1 ? "issue" : "issues"} ·{" "}
                   {data.lastScan?.tier ? tierLabel[data.lastScan.tier] || data.lastScan.tier : ""}
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-3 justify-center sm:justify-start items-center">
                   <a
                     href={`${SITE_URL}?repo=${encodeURIComponent(`${owner}/${repo}`)}`}
-                    className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors"
+                    className="btn-cta px-4 py-2 text-sm"
                   >
                     Improve this score →
                   </a>
                   {data.lastScan && (
-                    <span className="px-4 py-2 text-white/30 text-sm">
+                    <span className="px-2 py-2 text-muted text-sm">
                       Last scanned {data.lastScan.ageDays === 0 ? "today" : `${data.lastScan.ageDays}d ago`}
                     </span>
                   )}
@@ -140,8 +136,8 @@ export default async function ScorePage({
 
             {/* Badge + README embed */}
             <div className="grid sm:grid-cols-2 gap-4 mb-8">
-              <div className="p-5 rounded-xl border border-white/8 bg-white/[0.02]">
-                <div className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-3">Badge preview</div>
+              <div className="card p-5">
+                <div className="text-xs text-muted font-semibold uppercase tracking-wider mb-3">Badge preview</div>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={data.badge}
@@ -151,18 +147,18 @@ export default async function ScorePage({
                   className="mb-3"
                 />
               </div>
-              <div className="p-5 rounded-xl border border-white/8 bg-white/[0.02]">
-                <div className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-3">Add to README</div>
-                <pre className="text-xs text-white/60 font-mono bg-black/40 p-3 rounded-lg overflow-x-auto whitespace-pre-wrap break-all">
+              <div className="card p-5 min-w-0">
+                <div className="text-xs text-muted font-semibold uppercase tracking-wider mb-3">Add to README</div>
+                <pre className="text-xs text-panel-foreground font-mono bg-panel border border-panel-border p-3 rounded-lg overflow-x-auto whitespace-pre-wrap break-all">
                   {data.readme}
                 </pre>
               </div>
             </div>
 
             {/* Score breakdown */}
-            <div className="p-6 rounded-xl border border-white/8 bg-white/[0.02]">
-              <div className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-4">How the score is calculated</div>
-              <div className="grid sm:grid-cols-3 gap-4 text-sm">
+            <div className="card p-6">
+              <div className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">How the score is calculated</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                 {[
                   { label: "Start", value: "100", note: "base score" },
                   { label: "Issues", value: `−${Math.min(50, (data.lastScan?.issues || 0) * 5)}`, note: `−5 each (max −50)` },
@@ -170,10 +166,10 @@ export default async function ScorePage({
                   { label: "Staleness", value: (data.lastScan?.ageDays || 0) > 7 ? `−${Math.floor(((data.lastScan?.ageDays || 0) - 7) / 7) * 5}` : "−0", note: `−5/week after 7d` },
                   { label: "Final score", value: String(data.score), note: data.label || "" },
                 ].map((r) => (
-                  <div key={r.label} className="text-center p-3 rounded-lg bg-white/5">
-                    <div className="text-lg font-bold text-white">{r.value}</div>
-                    <div className="text-white/60 text-xs">{r.label}</div>
-                    <div className="text-white/25 text-xs mt-0.5">{r.note}</div>
+                  <div key={r.label} className="text-center p-3 rounded-lg bg-surface-light border border-border">
+                    <div className="text-lg font-bold text-foreground tabular-nums">{r.value}</div>
+                    <div className="text-foreground-secondary text-xs">{r.label}</div>
+                    <div className="text-muted text-xs mt-0.5">{r.note}</div>
                   </div>
                 ))}
               </div>
@@ -181,20 +177,23 @@ export default async function ScorePage({
           </>
         ) : (
           /* No scan yet */
-          <div className="text-center py-16">
-            <div className="text-6xl font-black text-white/10 mb-4">?</div>
-            <h2 className="text-2xl font-bold text-white mb-2">No scans found</h2>
-            <p className="text-white/50 mb-8">
+          <div className="card text-center py-16 px-6">
+            <div className="font-display text-6xl font-black text-muted/30 mb-4" aria-hidden="true">?</div>
+            <h2 className="font-display text-2xl font-bold text-foreground mb-2">No scans found</h2>
+            <p className="text-foreground-secondary mb-8">
               {owner}/{repo} hasn&apos;t been scanned yet. Run a GateTest scan to get a public score.
             </p>
             <a
               href={`${SITE_URL}#pricing`}
-              className="inline-block px-8 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold transition-colors"
+              className="btn-cta inline-block px-8 py-3"
             >
               Scan this repo →
             </a>
           </div>
         )}
+        <p className="mt-8 text-center text-sm text-muted">
+          <Link href="/" className="hover:text-foreground transition-colors">&larr; Back to GateTest</Link>
+        </p>
       </div>
     </main>
   );

@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 
 export default function Refunds() {
   return (
-    <div className="min-h-screen grid-bg px-6 py-24">
-      <div className="max-w-3xl mx-auto prose-invert">
-        <h1 className="text-3xl font-bold mb-2">Refund &amp; Cancellation Policy</h1>
+    <div className="px-6 py-12 sm:py-16">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">Refund &amp; Cancellation Policy</h1>
         <p className="text-sm text-muted mb-8">Effective date: May 18, 2026</p>
 
         {/* Posture since 2026-05-18: per-scan upfront charge (replaced

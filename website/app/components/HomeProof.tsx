@@ -117,7 +117,7 @@ export default function HomeProof() {
       </div>
 
       {/* ── STAYING POWER ───────────────────────────────────────────── */}
-      <div className="mt-16 rounded-2xl bg-[var(--foreground)] text-white p-8 md:p-10 text-center">
+      <div className="mt-16 rounded-2xl bg-panel text-panel-foreground p-8 md:p-10 text-center">
         <p className="text-xs uppercase tracking-widest text-[var(--accent-light)] font-semibold mb-3">
           Why this isn&apos;t a fad
         </p>

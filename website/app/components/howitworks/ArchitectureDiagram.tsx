@@ -28,13 +28,13 @@ const NODES: Node[] = [
 ];
 
 const VARIANT_STYLES: Record<NonNullable<Node["variant"]>, { fill: string; stroke: string; label: string; detail: string }> = {
-  input:   { fill: "rgba(20, 184, 166, 0.10)", stroke: "rgba(45, 212, 191, 0.55)", label: "#5eead4", detail: "rgba(94, 234, 212, 0.55)" },
-  queue:   { fill: "rgba(99, 110, 241, 0.10)", stroke: "rgba(129, 140, 248, 0.55)", label: "#a5b4fc", detail: "rgba(165, 180, 252, 0.55)" },
-  engine:  { fill: "rgba(255, 255, 255, 0.04)", stroke: "rgba(255, 255, 255, 0.20)", label: "#ffffff", detail: "rgba(255, 255, 255, 0.50)" },
-  fix:     { fill: "rgba(245, 158, 11, 0.08)", stroke: "rgba(251, 191, 36, 0.45)", label: "#fcd34d", detail: "rgba(252, 211, 77, 0.55)" },
-  review:  { fill: "rgba(168, 85, 247, 0.10)", stroke: "rgba(192, 132, 252, 0.50)", label: "#d8b4fe", detail: "rgba(216, 180, 254, 0.55)" },
-  nuclear: { fill: "rgba(236, 72, 153, 0.10)", stroke: "rgba(244, 114, 182, 0.50)", label: "#f9a8d4", detail: "rgba(249, 168, 212, 0.55)" },
-  output:  { fill: "rgba(16, 185, 129, 0.10)", stroke: "rgba(52, 211, 153, 0.55)", label: "#6ee7b7", detail: "rgba(110, 231, 183, 0.55)" },
+  input:   { fill: "rgba(20, 184, 166, 0.08)", stroke: "rgba(15, 118, 110, 0.45)", label: "var(--accent)", detail: "var(--muted)" },
+  queue:   { fill: "rgba(99, 102, 241, 0.08)", stroke: "rgba(67, 56, 202, 0.45)", label: "#4338ca", detail: "var(--muted)" },
+  engine:  { fill: "var(--background-alt)", stroke: "var(--border-strong)", label: "var(--foreground)", detail: "var(--muted)" },
+  fix:     { fill: "rgba(245, 158, 11, 0.08)", stroke: "rgba(180, 83, 9, 0.45)", label: "#b45309", detail: "var(--muted)" },
+  review:  { fill: "rgba(168, 85, 247, 0.08)", stroke: "rgba(126, 34, 206, 0.45)", label: "#7e22ce", detail: "var(--muted)" },
+  nuclear: { fill: "rgba(236, 72, 153, 0.08)", stroke: "rgba(190, 24, 93, 0.45)", label: "#be185d", detail: "var(--muted)" },
+  output:  { fill: "rgba(16, 185, 129, 0.08)", stroke: "rgba(5, 150, 105, 0.45)", label: "var(--success)", detail: "var(--muted)" },
 };
 
 const BOX_WIDTH = 720;
@@ -62,7 +62,7 @@ export default function ArchitectureDiagram() {
             markerHeight="6"
             orient="auto-start-reverse"
           >
-            <path d="M0,0 L10,5 L0,10 Z" fill="rgba(255, 255, 255, 0.35)" />
+            <path d="M0,0 L10,5 L0,10 Z" fill="var(--muted)" />
           </marker>
         </defs>
 
@@ -79,7 +79,7 @@ export default function ArchitectureDiagram() {
               y1={startY}
               x2={CENTER_X}
               y2={endY - 2}
-              stroke="rgba(255, 255, 255, 0.18)"
+              stroke="var(--border-strong)"
               strokeWidth="2"
               markerEnd="url(#arrow-head)"
             />

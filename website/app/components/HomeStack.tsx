@@ -59,13 +59,14 @@ export default function HomeStack() {
           <span className="text-sm font-semibold text-accent uppercase tracking-wider">
             The Stack
           </span>
-          <h2 className="text-3xl sm:text-4xl font-bold mt-4 mb-3 text-foreground">
-            One team. Three products. Zero lock-in.
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mt-4 mb-3 text-foreground [text-wrap:balance]">
+            GateTest gates it. Gluecron hosts it. Vapron runs it.
           </h2>
           <p className="text-muted text-base max-w-2xl mx-auto">
-            GateTest keeps your code honest. Gluecron hosts your git. Vapron runs
-            your scheduled jobs. Each stands alone — together they cover the whole
-            &ldquo;real software in production&rdquo; problem.
+            Three independent products from one team, built to work together and
+            used on each other every day. Keep GitHub if you like — GateTest runs
+            there too — or move your git to Gluecron and your jobs to Vapron and
+            get the whole loop from one place.
           </p>
         </div>
 
@@ -110,7 +111,7 @@ export default function HomeStack() {
                 </a>
                 <Link
                   href="/scans"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border text-foreground font-semibold text-sm hover:bg-surface-dark transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border text-foreground font-semibold text-sm hover:bg-[var(--background-alt)] transition-colors"
                 >
                   See the scan proof
                 </Link>

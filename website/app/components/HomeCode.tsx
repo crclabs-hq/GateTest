@@ -68,7 +68,7 @@ export default function HomeCode() {
             </span>
             <CopyButton text={INSTALL_CMD} label="install command" variant="label" />
           </div>
-          <pre className="rounded-xl border border-border bg-[#14141d] text-white p-5 overflow-x-auto text-sm font-mono leading-relaxed">
+          <pre className="rounded-xl border border-border bg-panel text-panel-foreground p-5 overflow-x-auto text-sm font-mono leading-relaxed">
             <code>
               <span className="text-emerald-400">$</span>{" "}
               <span className="text-white">npx</span>{" "}
@@ -87,7 +87,7 @@ export default function HomeCode() {
             </span>
             <CopyButton text={CLI_BLOCK} label="CLI commands" variant="label" />
           </div>
-          <pre className="rounded-xl border border-border bg-[#14141d] text-white p-5 overflow-x-auto text-sm font-mono leading-relaxed">
+          <pre className="rounded-xl border border-border bg-panel text-panel-foreground p-5 overflow-x-auto text-sm font-mono leading-relaxed">
             <code>{highlightShell(CLI_BLOCK)}</code>
           </pre>
         </div>
@@ -100,7 +100,7 @@ export default function HomeCode() {
             </span>
             <CopyButton text={ACTION_YAML} label="GitHub Actions workflow" variant="label" />
           </div>
-          <pre className="rounded-xl border border-border bg-[#14141d] text-white p-5 overflow-x-auto text-sm font-mono leading-relaxed">
+          <pre className="rounded-xl border border-border bg-panel text-panel-foreground p-5 overflow-x-auto text-sm font-mono leading-relaxed">
             <code>{highlightYaml(ACTION_YAML)}</code>
           </pre>
         </div>

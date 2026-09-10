@@ -47,8 +47,8 @@ export default function CostTrendChart() {
       >
         <defs>
           <linearGradient id="cost-area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(45, 212, 191, 0.35)" />
-            <stop offset="100%" stopColor="rgba(45, 212, 191, 0.02)" />
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.30" />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.02" />
           </linearGradient>
         </defs>
 
@@ -60,7 +60,7 @@ export default function CostTrendChart() {
             x2={WIDTH - PADDING_X}
             y1={toSvgY(y)}
             y2={toSvgY(y)}
-            stroke="rgba(255, 255, 255, 0.06)"
+            stroke="var(--border)"
             strokeWidth="1"
           />
         ))}
@@ -74,7 +74,7 @@ export default function CostTrendChart() {
             textAnchor="end"
             fontFamily="ui-monospace, 'SF Mono', Menlo, monospace"
             fontSize="11"
-            fill="rgba(255, 255, 255, 0.40)"
+            fill="var(--muted)"
           >
             {y}%
           </text>
@@ -87,7 +87,7 @@ export default function CostTrendChart() {
         <path
           d={linePath}
           fill="none"
-          stroke="#2dd4bf"
+          stroke="var(--accent)"
           strokeWidth="2.5"
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -96,14 +96,14 @@ export default function CostTrendChart() {
         {/* Endpoint dots and labels */}
         {POINTS.filter((p) => p.label).map((p) => (
           <g key={`pt-${p.x}`}>
-            <circle cx={toSvgX(p.x)} cy={toSvgY(p.y)} r="4" fill="#2dd4bf" />
+            <circle cx={toSvgX(p.x)} cy={toSvgY(p.y)} r="4" fill="var(--accent)" />
             <text
               x={toSvgX(p.x)}
               y={toSvgY(p.y) - 14}
               textAnchor={p.x > 80 ? "end" : p.x < 20 ? "start" : "middle"}
               fontFamily="ui-monospace, 'SF Mono', Menlo, monospace"
               fontSize="11"
-              fill="rgba(94, 234, 212, 0.85)"
+              fill="var(--accent)"
             >
               {p.label} · {p.y}%
             </text>
@@ -117,7 +117,7 @@ export default function CostTrendChart() {
           textAnchor="middle"
           fontFamily="ui-monospace, 'SF Mono', Menlo, monospace"
           fontSize="11"
-          fill="rgba(255, 255, 255, 0.40)"
+          fill="var(--muted)"
         >
           Scans completed  →
         </text>
@@ -130,12 +130,12 @@ export default function CostTrendChart() {
           textAnchor="middle"
           fontFamily="ui-monospace, 'SF Mono', Menlo, monospace"
           fontSize="11"
-          fill="rgba(255, 255, 255, 0.40)"
+          fill="var(--muted)"
         >
           % fixes served by Claude
         </text>
       </svg>
-      <p className="text-xs text-white/40 italic mt-2 px-2">
+      <p className="text-xs text-muted italic mt-2 px-2">
         Illustrative — actual ratio depends on codebase shape and recipe-hit rate. The architectural goal is that
         repeat patterns stop reaching Claude entirely.
       </p>

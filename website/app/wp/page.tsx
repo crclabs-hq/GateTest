@@ -7,6 +7,8 @@
 import Link from "next/link";
 import { UrlScanFlow } from "@/app/components/UrlScanFlow";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
+import PageHero from "../components/site/PageHero";
+import Section from "../components/site/Section";
 
 export const metadata = {
   title: "GateTest for WordPress — Health Check, Security Audit, Auto-Fix",
@@ -14,49 +16,50 @@ export const metadata = {
     "Scan your WordPress site in 60 seconds. Find malware exposure, leaked credentials, security misconfigurations, and slow pages. Plain-language report. $19 one-shot, no subscription.",
 };
 
+const DONTS = [
+  {
+    title: "We don't remove malware.",
+    body: "We tell you what's exposed, where, and how to fix it. Cleanup is a manual step. If your site is actively compromised, we'll point you at Sucuri or Wordfence for the cleanup.",
+  },
+  {
+    title: "We don't take backups for you.",
+    body: "We tell you if you don't have one. UpdraftPlus is free and we'll walk you through setup if needed.",
+  },
+  {
+    title: "We don't block attackers in real time.",
+    body: "That's a firewall — Wordfence and Cloudflare are good at it. We're the audit that tells you whether your firewall is doing its job.",
+  },
+];
+
 export default function WordPressLanding() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <section className="px-6 py-20 max-w-4xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-sm font-medium mb-8">
-          <span className="w-2 h-2 rounded-full bg-accent animate-pulse" aria-hidden />
-          New — built for WordPress owners
-        </div>
-
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
-          Find out what&apos;s wrong with your WordPress site.
-          <br />
-          <span className="text-accent">In 60 seconds.</span>
-        </h1>
-
-        <p className="text-lg sm:text-xl text-muted max-w-2xl mx-auto mb-10 leading-relaxed">
+    <main>
+      <PageHero
+        align="center"
+        eyebrow="For WordPress sites"
+        title={<>Find out what&apos;s wrong with your WordPress site.<br /><span className="text-accent">In 60 seconds.</span></>}
+        lede={<>
           Paste your URL. We&apos;ll check 30+ things attackers look for first —
           leaked database backups, exposed config files, brute-force-friendly
           login pages, slow pages, accessibility complaints waiting to happen.
           Plain-English report you can act on yourself or hand to your developer.
-        </p>
+        </>}
+        actions={
+          <UrlScanFlow
+            suite="wp"
+            endpoint="/api/wp/scan"
+            streamEndpoint="/api/wp/scan/stream"
+            recommendEndpoint="/api/scan/recommend"
+            brandLabel="WordPress scan"
+          />
+        }
+      />
 
-        <UrlScanFlow
-          suite="wp"
-          endpoint="/api/wp/scan"
-          streamEndpoint="/api/wp/scan/stream"
-          recommendEndpoint="/api/scan/recommend"
-          brandLabel="WordPress scan"
-        />
-      </section>
-
-      <section className="px-6 py-16 max-w-5xl mx-auto border-t border-border">
-        <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">
-          What we look for
-        </h2>
-
+      <Section title="What we look for">
         <div className="grid sm:grid-cols-2 gap-6">
           {PAINKILLERS.map(({ title, pain, what }) => (
-            <div
-              key={title}
-              className="p-6 rounded-2xl bg-background-alt border border-border"
-            >
-              <h3 className="font-bold text-lg mb-2">{title}</h3>
+            <div key={title} className="card p-6">
+              <h3 className="font-display font-bold text-lg mb-2 text-foreground">{title}</h3>
               <p className="text-sm text-danger mb-3">
                 <span className="font-semibold">Why it matters: </span>
                 {pain}
@@ -68,29 +71,20 @@ export default function WordPressLanding() {
             </div>
           ))}
         </div>
-      </section>
+      </Section>
 
-      <section className="px-6 py-16 max-w-5xl mx-auto border-t border-border">
-        <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">
-          Honest pricing
-        </h2>
-        <p className="text-center text-muted mb-12 max-w-2xl mx-auto">
-          Pay per scan, not per month. Most owners run a scan after every
-          plugin update or once a quarter — that&apos;s how the pricing was designed.
-        </p>
-
-        <div className="grid sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
+      <Section
+        alt
+        title="Honest pricing"
+        lede={<>Pay per scan, not per month. Most owners run a scan after every plugin update or once a quarter — that&apos;s how the pricing was designed.</>}
+      >
+        <div className="grid sm:grid-cols-2 gap-6 max-w-3xl">
           {TIERS.map((tier) => (
-            <div
-              key={tier.name}
-              className={`p-6 rounded-2xl border ${
-                tier.highlighted ? "border-accent bg-accent/5" : "border-border bg-background-alt"
-              }`}
-            >
-              <h3 className="font-bold text-lg mb-1">{tier.name}</h3>
-              <p className="text-3xl font-bold mb-1">{tier.price}</p>
+            <div key={tier.name} className={`p-6 ${tier.highlighted ? "card-highlight" : "card"}`}>
+              <h3 className="font-display font-bold text-lg mb-1 text-foreground">{tier.name}</h3>
+              <p className="font-display text-3xl font-bold mb-1 text-foreground">{tier.price}</p>
               <p className="text-xs text-muted mb-4">{tier.cadence}</p>
-              <ul className="text-sm space-y-2 mb-6">
+              <ul className="text-sm space-y-2 mb-6 text-foreground-secondary">
                 {tier.includes.map((line) => (
                   <li key={line} className="flex items-start gap-2">
                     <span className="text-accent mt-0.5">✓</span>
@@ -101,69 +95,41 @@ export default function WordPressLanding() {
             </div>
           ))}
         </div>
-
-        <p className="text-center text-xs text-muted mt-8">
+        <p className="text-xs text-muted mt-8">
           Per-scan payment via Stripe. One-time payment, no subscription.
         </p>
-      </section>
+      </Section>
 
-      <section className="px-6 py-16 max-w-3xl mx-auto border-t border-border">
-        <h2 className="text-3xl sm:text-4xl font-bold mb-6">
-          What we DON&apos;T do
-        </h2>
-        <p className="text-muted mb-6 leading-relaxed">
-          Three things we tell you up front — because nothing kills trust faster
-          than discovering hidden limitations after you&apos;ve paid.
-        </p>
+      <Section
+        narrow
+        title={<>What we DON&apos;T do</>}
+        lede={<>Three things we tell you up front — because nothing kills trust faster than discovering hidden limitations after you&apos;ve paid.</>}
+      >
         <ul className="space-y-4">
-          <li className="flex items-start gap-3">
-            <span className="text-warning text-xl">!</span>
-            <div>
-              <p className="font-semibold">We don&apos;t remove malware.</p>
-              <p className="text-sm text-muted">
-                We tell you what&apos;s exposed, where, and how to fix it. Cleanup is
-                a manual step. If your site is actively compromised, we&apos;ll point
-                you at Sucuri or Wordfence for the cleanup.
-              </p>
-            </div>
-          </li>
-          <li className="flex items-start gap-3">
-            <span className="text-warning text-xl">!</span>
-            <div>
-              <p className="font-semibold">We don&apos;t take backups for you.</p>
-              <p className="text-sm text-muted">
-                We tell you if you don&apos;t have one. UpdraftPlus is free and we&apos;ll
-                walk you through setup if needed.
-              </p>
-            </div>
-          </li>
-          <li className="flex items-start gap-3">
-            <span className="text-warning text-xl">!</span>
-            <div>
-              <p className="font-semibold">We don&apos;t block attackers in real time.</p>
-              <p className="text-sm text-muted">
-                That&apos;s a firewall — Wordfence and Cloudflare are good at it.
-                We&apos;re the audit that tells you whether your firewall is doing
-                its job.
-              </p>
-            </div>
-          </li>
+          {DONTS.map((d) => (
+            <li key={d.title} className="flex items-start gap-3">
+              <span className="text-warning text-xl">!</span>
+              <div>
+                <p className="font-semibold text-foreground">{d.title}</p>
+                <p className="text-sm text-muted">{d.body}</p>
+              </div>
+            </li>
+          ))}
         </ul>
-      </section>
+      </Section>
 
-      <section className="px-6 py-16 max-w-3xl mx-auto border-t border-border text-center">
-        <h2 className="text-3xl font-bold mb-6">Ready when you are.</h2>
-        <Link
-          href="#top"
-          className="inline-block px-8 py-4 rounded-xl bg-accent text-white font-semibold text-lg hover:bg-accent-hover transition-colors"
-        >
-          Scan my WordPress site
-        </Link>
-        <p className="text-xs text-muted mt-6">
-          Built on the <Link href="/" className="text-accent hover:underline">GateTest</Link> engine
-          — the same {TOTAL_MODULES}-module QA gate developers use on their codebases.
-        </p>
-      </section>
+      <Section alt narrow>
+        <div className="text-center">
+          <h2 className="font-display text-3xl font-bold text-foreground mb-6">Ready when you are.</h2>
+          <Link href="#top" className="btn-cta inline-block px-8 py-4 text-lg font-semibold rounded-xl">
+            Scan my WordPress site
+          </Link>
+          <p className="text-xs text-muted mt-6">
+            Built on the <Link href="/" className="text-accent hover:underline">GateTest</Link> engine
+            — the same {TOTAL_MODULES}-module QA gate developers use on their codebases.
+          </p>
+        </div>
+      </Section>
     </main>
   );
 }

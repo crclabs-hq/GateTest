@@ -89,7 +89,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex-1 flex items-center justify-center bg-background py-24">
         <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -98,12 +98,9 @@ export default function Dashboard() {
   // Not logged in — show sign-in
   if (!customer) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-6">
+      <div className="flex-1 flex items-center justify-center bg-background px-6 py-16 sm:py-24">
         <div className="max-w-sm w-full text-center">
-          <div className="w-14 h-14 rounded-2xl bg-accent flex items-center justify-center mx-auto mb-6">
-            <span className="text-white font-bold text-xl font-[var(--font-mono)]">G</span>
-          </div>
-          <h1 className="text-2xl font-bold mb-2">Sign in to GateTest</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-2">Sign in to GateTest</h1>
           <p className="text-muted text-sm mb-8">
             View your scan history, detailed results, and manage your repos.
           </p>
@@ -127,12 +124,12 @@ export default function Dashboard() {
   const scans = data?.scans || [];
 
   return (
-    <div className="min-h-screen bg-background px-6 py-12">
+    <div className="flex-1 bg-background px-6 py-12 sm:py-16">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        {/* Page header (the site header is rendered by the layout) */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold">Dashboard</h1>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
             <p className="text-sm text-muted">
               Signed in as <span className="font-mono font-medium">{customer.login}</span>
             </p>
@@ -222,7 +219,7 @@ export default function Dashboard() {
                     onClick={() =>
                       setExpandedScan(isExpanded ? null : scan.id)
                     }
-                    className="w-full p-5 text-left hover:bg-gray-50 transition-colors cursor-pointer"
+                    className="w-full p-5 text-left hover:bg-[var(--background-alt)] transition-colors cursor-pointer"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-mono text-sm font-medium truncate max-w-[60%]">
@@ -262,7 +259,7 @@ export default function Dashboard() {
 
                   {/* Expanded: module results */}
                   {isExpanded && (
-                    <div className="border-t border-border px-5 py-4 bg-gray-50/50">
+                    <div className="border-t border-border px-5 py-4 bg-[var(--background-alt)]">
                       {scan.summary && (
                         <p className="text-sm text-muted mb-4">
                           {scan.summary}
@@ -282,10 +279,10 @@ export default function Dashboard() {
                                   key={name}
                                   className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs ${
                                     status === "passed"
-                                      ? "border-green-100 bg-white"
+                                      ? "border-green-100 bg-[var(--surface-solid)]"
                                       : status === "failed"
                                         ? "border-red-200 bg-red-50/40"
-                                        : "border-border bg-white"
+                                        : "border-border bg-[var(--surface-solid)]"
                                   }`}
                                 >
                                   <span

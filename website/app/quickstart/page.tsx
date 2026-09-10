@@ -16,6 +16,8 @@
  */
 
 import Link from "next/link";
+import PageHero from "../components/site/PageHero";
+import Section from "../components/site/Section";
 
 export const metadata = {
   title: "GateTest Quickstart — install to first fix PR in 5 minutes",
@@ -25,29 +27,17 @@ export const metadata = {
 
 export default function Quickstart() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      {/* Hero */}
-      <section className="px-6 pt-20 pb-10 max-w-4xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-sm font-medium mb-8">
-          <span className="w-2 h-2 rounded-full bg-accent animate-pulse" aria-hidden />
-          5 minutes from install to first auto-fix PR
-        </div>
-
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
-          Get your CI <span className="hero-accent-text">self-healing</span>
-          <br />
-          in four steps.
-        </h1>
-
-        <p className="text-lg sm:text-xl text-muted max-w-2xl mx-auto mb-10">
-          You install one workflow, add one secret, and the next time your CI
-          fails you get a pull request with the fix already written.
-        </p>
-      </section>
+    <main>
+      <PageHero
+        align="center"
+        eyebrow="5 minutes from install to first auto-fix PR"
+        title={<>Get your CI <span className="text-accent">self-healing</span><br />in four steps.</>}
+        lede="You install one workflow, add one secret, and the next time your CI fails you get a pull request with the fix already written."
+      />
 
       {/* Steps */}
-      <section className="px-6 pb-20 max-w-4xl mx-auto">
-        <div className="space-y-8">
+      <Section>
+        <div className="max-w-4xl mx-auto space-y-8">
           {/* Step 1 — Install */}
           <Step n={1} title="Install the workflow" timeEstimate="~30 seconds">
             <p className="text-sm text-muted mb-4">
@@ -72,9 +62,9 @@ export default function Quickstart() {
               runs the gate &mdash; but no PR opens when something fails.
             </p>
 
-            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 mb-5 text-sm">
-              <p className="font-semibold text-amber-300 mb-2">⚠ This is the step most people skip.</p>
-              <p className="text-amber-100/80">
+            <div className="rounded-lg border border-warning/40 bg-warning/5 p-4 mb-5 text-sm">
+              <p className="font-semibold text-warning mb-2">⚠ This is the step most people skip.</p>
+              <p className="text-foreground-secondary">
                 If you skip it, your CI will still detect bugs but won&apos;t open fix PRs.
                 You&apos;ll see a yellow &ldquo;auto-repair not configured&rdquo; warning on every failing run.
               </p>
@@ -101,7 +91,7 @@ export default function Quickstart() {
                   href="https://console.anthropic.com/settings/keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-accent-light hover:underline"
+                  className="text-accent hover:underline"
                 >
                   console.anthropic.com
                 </a>
@@ -173,134 +163,115 @@ git add -A && git commit -m "test: trigger gate" && git push`}</CodeBlock>
             </p>
           </Step>
         </div>
-      </section>
+      </Section>
 
       {/* Troubleshooting */}
-      <section className="px-6 py-14 border-t border-border/30 bg-surface/30">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-2xl font-bold mb-6 text-center">
-            Nothing happened on a failing run?
-          </h2>
-          <div className="space-y-4">
-            <Trouble q="The workflow ran but no fix PR appeared.">
-              Check the workflow output for a yellow{" "}
-              <em>&ldquo;auto-repair not configured&rdquo;</em> warning. If you
-              see it, Step 2 didn&apos;t land &mdash; the{" "}
-              <code className="text-foreground">ANTHROPIC_API_KEY</code> secret
-              isn&apos;t set on the repo (or org).
-            </Trouble>
-            <Trouble q="The workflow says &ldquo;auto-repair could not generate any fixes.&rdquo;">
-              The fix engine ran but couldn&apos;t produce a verified patch.
-              Common causes: file too large (&gt; 50KB), config-level finding
-              with no file:line to anchor a fix, or the finding wasn&apos;t a
-              straightforward code change (architecture, dependency choice).
-              Check the per-finding{" "}
-              <code className="text-foreground">[skipped: &hellip;]</code>
-              {" "}lines in the workflow log for the reason.
-            </Trouble>
-            <Trouble q="CI passes but I want to see a fix PR anyway.">
-              The gate only opens PRs when something fails. Try Step 3&apos;s
-              &ldquo;add a deliberate bug&rdquo; trick &mdash; cheapest way to
-              see the loop work end-to-end on a real repo.
-            </Trouble>
-            <Trouble q="I&apos;m on GitLab/Jenkins/CircleCI, not GitHub.">
-              Don&apos;t hand-write the pipeline &mdash;{" "}
-              <code className="text-foreground">npx @gatetest/cli --ci-init gitlab</code>{" "}
-              writes a complete{" "}
-              <code className="text-foreground">.gitlab-ci.yml</code>, and{" "}
-              <code className="text-foreground">--ci-init circleci</code> writes{" "}
-              <code className="text-foreground">.circleci/config.yml</code> (
-              <code className="text-foreground">github</code> is also accepted).
-              Both generate a quick gate on merge requests, a full scan on the
-              main branch, and JUnit + SARIF artifacts wired to the native test
-              reporting. On any other CI,{" "}
-              <code className="text-foreground">npx @gatetest/cli --suite full</code>{" "}
-              from your pipeline runs the same 121 modules. Auto-fix PRs are also
-              available from the CLI via{" "}
-              <code className="text-foreground">gatetest fix --apply</code> and{" "}
-              <code className="text-foreground">--auto-pr</code>.
-            </Trouble>
-          </div>
+      <Section alt narrow title="Nothing happened on a failing run?">
+        <div className="space-y-4">
+          <Trouble q="The workflow ran but no fix PR appeared.">
+            Check the workflow output for a yellow{" "}
+            <em>&ldquo;auto-repair not configured&rdquo;</em> warning. If you
+            see it, Step 2 didn&apos;t land &mdash; the{" "}
+            <code className="text-foreground">ANTHROPIC_API_KEY</code> secret
+            isn&apos;t set on the repo (or org).
+          </Trouble>
+          <Trouble q="The workflow says &ldquo;auto-repair could not generate any fixes.&rdquo;">
+            The fix engine ran but couldn&apos;t produce a verified patch.
+            Common causes: file too large (&gt; 50KB), config-level finding
+            with no file:line to anchor a fix, or the finding wasn&apos;t a
+            straightforward code change (architecture, dependency choice).
+            Check the per-finding{" "}
+            <code className="text-foreground">[skipped: &hellip;]</code>
+            {" "}lines in the workflow log for the reason.
+          </Trouble>
+          <Trouble q="CI passes but I want to see a fix PR anyway.">
+            The gate only opens PRs when something fails. Try Step 3&apos;s
+            &ldquo;add a deliberate bug&rdquo; trick &mdash; cheapest way to
+            see the loop work end-to-end on a real repo.
+          </Trouble>
+          <Trouble q="I&apos;m on GitLab/Jenkins/CircleCI, not GitHub.">
+            Don&apos;t hand-write the pipeline &mdash;{" "}
+            <code className="text-foreground">npx @gatetest/cli --ci-init gitlab</code>{" "}
+            writes a complete{" "}
+            <code className="text-foreground">.gitlab-ci.yml</code>, and{" "}
+            <code className="text-foreground">--ci-init circleci</code> writes{" "}
+            <code className="text-foreground">.circleci/config.yml</code> (
+            <code className="text-foreground">github</code> is also accepted).
+            Both generate a quick gate on merge requests, a full scan on the
+            main branch, and JUnit + SARIF artifacts wired to the native test
+            reporting. On any other CI,{" "}
+            <code className="text-foreground">npx @gatetest/cli --suite full</code>{" "}
+            from your pipeline runs the same 121 modules. Auto-fix PRs are also
+            available from the CLI via{" "}
+            <code className="text-foreground">gatetest fix --apply</code> and{" "}
+            <code className="text-foreground">--auto-pr</code>.
+          </Trouble>
         </div>
-      </section>
+      </Section>
 
       {/* Onboarding an existing repo — baseline mode */}
-      <section className="px-6 py-14 border-t border-border/30">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-2xl font-bold mb-3">
-            Turning it on over an existing codebase
-          </h2>
-          <p className="text-muted mb-6 leading-relaxed">
-            Point any scanner at a mature repo and the first run is a backlog you
-            didn&apos;t write. Baseline mode grandfathers everything that exists
-            today, so the gate only ever fails on <strong>new</strong> findings
-            &mdash; you adopt it without stopping to fix years of history first.
-          </p>
-          <pre className="rounded-xl border border-border/40 bg-surface/60 p-4 text-sm overflow-x-auto mb-6">
-            <code className="text-foreground">{`# Snapshot every current finding, then commit the file
+      <Section
+        narrow
+        title="Turning it on over an existing codebase"
+        lede={<>
+          Point any scanner at a mature repo and the first run is a backlog you
+          didn&apos;t write. Baseline mode grandfathers everything that exists
+          today, so the gate only ever fails on <strong>new</strong> findings
+          &mdash; you adopt it without stopping to fix years of history first.
+        </>}
+      >
+        <CodeBlock>{`# Snapshot every current finding, then commit the file
 gatetest --baseline
 git add .gatetest/baseline.json && git commit -m "chore: baseline GateTest"
 
 # From now on the gate blocks only on findings that aren't in it
-gatetest --suite full`}</code>
-          </pre>
-          <ul className="text-muted space-y-2 text-sm leading-relaxed list-disc pl-5">
-            <li>
-              Baselined findings stay <strong>visible</strong> in every report.
-              They are silenced for the gate decision, not hidden from you.
-            </li>
-            <li>
-              The count is tracked per file, so you can&apos;t sneak a new
-              problem in behind an old one &mdash; add a second empty catch to a
-              file that already had one baselined and the gate blocks again.
-            </li>
-            <li>
-              Fix a baselined finding and it&apos;s gone for good. Refresh the
-              snapshot after paying down debt with{" "}
-              <code className="text-foreground">gatetest --baseline</code>, or
-              delete{" "}
-              <code className="text-foreground">.gatetest/baseline.json</code>{" "}
-              to see everything again.
-            </li>
-          </ul>
-        </div>
-      </section>
+gatetest --suite full`}</CodeBlock>
+        <ul className="text-muted space-y-2 text-sm leading-relaxed list-disc pl-5 mt-6">
+          <li>
+            Baselined findings stay <strong>visible</strong> in every report.
+            They are silenced for the gate decision, not hidden from you.
+          </li>
+          <li>
+            The count is tracked per file, so you can&apos;t sneak a new
+            problem in behind an old one &mdash; add a second empty catch to a
+            file that already had one baselined and the gate blocks again.
+          </li>
+          <li>
+            Fix a baselined finding and it&apos;s gone for good. Refresh the
+            snapshot after paying down debt with{" "}
+            <code className="text-foreground">gatetest --baseline</code>, or
+            delete{" "}
+            <code className="text-foreground">.gatetest/baseline.json</code>{" "}
+            to see everything again.
+          </li>
+        </ul>
+      </Section>
 
       {/* Next steps */}
-      <section className="px-6 py-16 max-w-4xl mx-auto text-center">
-        <h2 className="text-2xl font-bold mb-4">You&apos;re live. What&apos;s next?</h2>
-        <p className="text-muted max-w-xl mx-auto mb-8">
-          The free path covers most of what you need. Upgrade tiers if you
-          want deeper analysis, pair-review, and cross-finding attack-chain
-          correlation.
-        </p>
-        <div className="flex flex-wrap justify-center gap-3">
-          <Link
-            href="/#pricing"
-            className="btn-cta px-6 py-3 text-sm font-semibold rounded-xl"
-          >
-            See pricing &rarr;
-          </Link>
-          <Link
-            href="/docs/configuration"
-            className="px-6 py-3 text-sm font-semibold rounded-xl border border-border text-foreground hover:border-accent/50 transition-colors"
-          >
-            Config &amp; suppression
-          </Link>
-          <Link
-            href="/docs/api"
-            className="px-6 py-3 text-sm font-semibold rounded-xl border border-border text-foreground hover:border-accent/50 transition-colors"
-          >
-            CLI reference
-          </Link>
-          <Link
-            href="/how-it-works"
-            className="px-6 py-3 text-sm font-semibold rounded-xl border border-border text-foreground hover:border-accent/50 transition-colors"
-          >
-            How the fix loop works
-          </Link>
+      <Section alt narrow>
+        <div className="text-center">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-4">You&apos;re live. What&apos;s next?</h2>
+          <p className="text-muted max-w-xl mx-auto mb-8">
+            The free path covers most of what you need. Upgrade tiers if you
+            want deeper analysis, pair-review, and cross-finding attack-chain
+            correlation.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link href="/#pricing" className="btn-cta px-6 py-3 text-sm font-semibold rounded-xl">
+              See pricing &rarr;
+            </Link>
+            <Link href="/docs/configuration" className="btn-secondary px-6 py-3 text-sm font-semibold rounded-xl">
+              Config &amp; suppression
+            </Link>
+            <Link href="/docs/api" className="btn-secondary px-6 py-3 text-sm font-semibold rounded-xl">
+              CLI reference
+            </Link>
+            <Link href="/how-it-works" className="btn-secondary px-6 py-3 text-sm font-semibold rounded-xl">
+              How the fix loop works
+            </Link>
+          </div>
         </div>
-      </section>
+      </Section>
     </main>
   );
 }
@@ -321,25 +292,19 @@ function Step({
   highlight?: boolean;
 }) {
   return (
-    <div
-      className={`rounded-xl p-6 sm:p-8 border ${
-        highlight
-          ? "border-accent/40 bg-accent/5"
-          : "border-border bg-surface"
-      }`}
-    >
+    <div className={`p-6 sm:p-8 ${highlight ? "card-highlight" : "card"}`}>
       <div className="flex items-start gap-4 mb-4">
         <div
           className={`w-10 h-10 rounded-lg flex items-center justify-center font-[var(--font-mono)] font-bold shrink-0 ${
             highlight
-              ? "bg-accent/15 border border-accent/30 text-accent-light"
-              : "bg-surface-light border border-border text-foreground"
+              ? "bg-accent/15 border border-accent/30 text-accent"
+              : "section-alt border border-border text-foreground"
           }`}
         >
           {n}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-xl font-semibold mb-1">{title}</h3>
+          <h3 className="font-display text-xl font-semibold mb-1 text-foreground">{title}</h3>
           <p className="text-xs text-muted">{timeEstimate}</p>
         </div>
       </div>
@@ -348,9 +313,10 @@ function Step({
   );
 }
 
+// Commands are what the terminal shows, so they stay a dark panel.
 function CodeBlock({ children }: { children: React.ReactNode }) {
   return (
-    <pre className="rounded-lg bg-black/40 border border-border p-4 mb-2 font-[var(--font-mono)] text-xs sm:text-sm overflow-x-auto text-emerald-300 whitespace-pre-wrap break-all">
+    <pre className="rounded-lg bg-panel text-emerald-300 border border-panel-border p-4 mb-2 font-[var(--font-mono)] text-xs sm:text-sm overflow-x-auto whitespace-pre-wrap break-all">
       {children}
     </pre>
   );
@@ -358,7 +324,7 @@ function CodeBlock({ children }: { children: React.ReactNode }) {
 
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mt-4 text-xs text-muted bg-surface-light/50 border border-border/50 rounded-lg p-3">
+    <p className="mt-4 text-xs text-muted section-alt border border-border rounded-lg p-3">
       {children}
     </p>
   );
@@ -367,7 +333,7 @@ function Note({ children }: { children: React.ReactNode }) {
 function Bullet({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2 text-foreground">
-      <span className="text-accent-light mt-0.5">&#10003;</span>
+      <span className="text-accent mt-0.5">&#10003;</span>
       <span>{children}</span>
     </li>
   );
@@ -375,7 +341,7 @@ function Bullet({ children }: { children: React.ReactNode }) {
 
 function Trouble({ q, children }: { q: string; children: React.ReactNode }) {
   return (
-    <details className="rounded-lg border border-border bg-surface p-4 group">
+    <details className="card p-4 group">
       <summary className="font-semibold text-foreground cursor-pointer group-open:mb-3">
         {q}
       </summary>

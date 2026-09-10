@@ -96,6 +96,29 @@ const DOORS: Door[] = [
     ),
   },
   {
+    id: "wordpress",
+    eyebrow: "For WordPress sites",
+    title: "I run a WordPress site",
+    blurb:
+      "Paste your site's address. GateTest checks the things WordPress owners get burned by — exposed versions and admin paths, XML-RPC, weak headers, slow pages — and tells you what to fix first. No plugin to install.",
+    points: [
+      "Version exposure, XML-RPC, exposed admin and login",
+      "Security headers, mixed content, outdated assets",
+      "Performance and accessibility of the real rendered page",
+    ],
+    cta: { label: "Check my WordPress site", href: "/wp" },
+    secondary: { label: "What the WordPress scan covers", href: "/wp" },
+    noBarrier: "No plugin, no code, no signup to preview",
+    accent: "text-sky-500",
+    glow: "from-sky-500/20",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M6.5 8.5l3 8 2.5-6 2.5 6 3-8M9.5 8.5h-1M15.5 8.5h-1" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
     id: "agent",
     eyebrow: "For AI-assisted teams",
     title: "I use an AI coding agent",
@@ -135,15 +158,15 @@ export default function HomeThreeDoors() {
             id="three-doors-heading"
             className="text-3xl sm:text-4xl font-bold text-foreground mb-4 tracking-tight"
           >
-            One engine. Three ways in.
+            One engine. Four ways in.
           </h2>
           <p className="text-muted text-lg leading-relaxed">
-            The same {TOTAL_MODULES}-module engine backs all three — you just
+            The same {TOTAL_MODULES}-module engine backs all four — you just
             point it at whatever you actually have.
           </p>
         </div>
 
-        <ul className="grid gap-6 md:grid-cols-3 list-none p-0 m-0">
+        <ul className="grid gap-6 md:grid-cols-2 xl:grid-cols-4 list-none p-0 m-0">
           {DOORS.map((door) => (
             <li key={door.id} className="group relative flex">
               {/* Accent wash — decorative only. */}

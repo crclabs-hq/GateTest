@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { siteUrl, badgeUrl as badgeUrlFor } from "@/app/lib/site-url";
 import CopyButton from "@/app/components/CopyButton";
+import PageHero from "../components/site/PageHero";
+import Section from "../components/site/Section";
 
 export const metadata: Metadata = {
   title: "README Badge — GateTest",
@@ -47,6 +49,15 @@ function BadgePreview({ grade, score, color }: { grade: string; score: number; c
   );
 }
 
+// Snippets are what the README renders, so they stay dark panels.
+const SNIPPET = "flex-1 block rounded-xl bg-panel text-panel-foreground border border-panel-border p-3 font-mono text-xs break-all";
+
+function StepNumber({ n }: { n: number }) {
+  return (
+    <span className="w-7 h-7 rounded-full bg-accent/10 text-accent text-xs font-bold flex items-center justify-center">{n}</span>
+  );
+}
+
 export default function BadgePage() {
   // These snippets get pasted into READMEs we can never edit — the domain
   // comes from site-url, never a literal (the Bible: THE DOMAIN).
@@ -58,157 +69,137 @@ export default function BadgePage() {
   const rstEmbed      = `.. image:: ${badgeUrl}\n   :target: ${target}\n   :alt: GateTest`;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
-      <div className="border-b border-white/[0.06]">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-2 text-sm text-white/40">
-          <Link href="/" className="hover:text-white/70 transition-colors">GateTest</Link>
-          <span>/</span>
-          <span className="text-white/70">Badge</span>
-        </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-4 py-16 space-y-16">
-
-        {/* Hero */}
-        <div className="space-y-4">
-          <h1 className="text-4xl font-black tracking-tight">
-            Add a live{" "}
-            <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              health score badge
-            </span>
-            {" "}to your README
-          </h1>
-          <p className="text-lg text-white/50 max-w-xl">
-            One line of Markdown. Your grade updates automatically after every scan.
-            Signals code quality to contributors, users, and hiring managers instantly.
-          </p>
-
-          {/* Live badge preview */}
-          <div className="flex flex-wrap items-center gap-4 pt-2">
+    <main>
+      <PageHero
+        eyebrow="README badge"
+        title={<>Add a live <span className="text-accent">health score badge</span> to your README</>}
+        lede="One line of Markdown. Your grade updates automatically after every scan. Signals code quality to contributors, users, and hiring managers instantly."
+        actions={
+          <Link href="/playground" className="btn-cta px-6 py-3 text-sm font-semibold rounded-xl">
+            Scan your repo for free →
+          </Link>
+        }
+      >
+        {/* Live badge preview */}
+        <div className="card p-6">
+          <p className="text-xs font-mono uppercase tracking-widest text-muted mb-4">Every grade, live</p>
+          <div className="flex flex-wrap items-center gap-4">
             {BADGE_GRADES.map((g) => (
               <BadgePreview key={g.grade} {...g} />
             ))}
           </div>
         </div>
+      </PageHero>
 
-        {/* Quick start */}
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold text-white/80">Quick start</h2>
-
-          <div className="space-y-4">
-            {/* Step 1 */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center">1</span>
-                <h3 className="text-sm font-bold text-white/80">Run your first scan</h3>
-              </div>
-              <p className="text-xs text-white/40 ml-10">
-                Paste your GitHub repo URL in the playground to get a grade. Or buy a full scan from $29.
-              </p>
-              <div className="ml-10">
-                <Link
-                  href="/playground"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all"
-                  style={{ background: "linear-gradient(135deg, #059669, #0891b2)" }}
-                >
-                  Open Playground →
-                </Link>
-              </div>
-            </div>
-
-            {/* Step 2 */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center">2</span>
-                <h3 className="text-sm font-bold text-white/80">Copy the badge snippet</h3>
-              </div>
-              <p className="text-xs text-white/40 ml-10">
-                Replace <code className="text-white/60 font-mono">owner/repo</code> with your GitHub repo path.
-              </p>
-
-              <div className="ml-10 space-y-3">
-                {/* Markdown */}
-                <div className="space-y-1">
-                  <p className="text-xs text-white/30 font-mono uppercase tracking-widest">Markdown (README.md)</p>
-                  <div className="flex items-start gap-2">
-                    <code className="flex-1 block rounded-xl bg-black/40 border border-white/10 p-3 font-mono text-xs text-white/60 break-all">
-                      {`[![GateTest](${badgeUrlFor("/badge/")}`}<span className="text-emerald-400">owner/repo</span>{`.svg)](${target})`}
-                    </code>
-                    <CopyButton text={markdownEmbed} />
-                  </div>
-                </div>
-
-                {/* HTML */}
-                <div className="space-y-1">
-                  <p className="text-xs text-white/30 font-mono uppercase tracking-widest">HTML</p>
-                  <div className="flex items-start gap-2">
-                    <code className="flex-1 block rounded-xl bg-black/40 border border-white/10 p-3 font-mono text-xs text-white/60 break-all">
-                      {`<a href="${target}"><img src="${badgeUrlFor("/badge/")}`}
-                      <span className="text-emerald-400">owner/repo</span>
-                      {`" alt="GateTest"></a>`}
-                    </code>
-                    <CopyButton text={htmlEmbed} />
-                  </div>
-                </div>
-
-                {/* RST */}
-                <div className="space-y-1">
-                  <p className="text-xs text-white/30 font-mono uppercase tracking-widest">reStructuredText</p>
-                  <div className="flex items-start gap-2">
-                    <code className="flex-1 block rounded-xl bg-black/40 border border-white/10 p-3 font-mono text-xs text-white/60 whitespace-pre-wrap break-all">
-                      {`.. image:: ${badgeUrlFor("/badge/")}`}<span className="text-emerald-400">owner/repo</span>{`.svg\n   :target: ${target}\n   :alt: GateTest`}
-                    </code>
-                    <CopyButton text={rstEmbed} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Step 3 */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center">3</span>
-                <h3 className="text-sm font-bold text-white/80">Commit and push</h3>
-              </div>
-              <p className="text-xs text-white/40 ml-10">
-                The badge updates automatically after every GateTest scan. No re-configuration needed.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Badge API reference */}
+      <Section narrow title="Quick start">
         <div className="space-y-4">
-          <h2 className="text-xl font-bold text-white/80">Badge API</h2>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/10">
-                  <th className="text-left px-5 py-3 text-xs text-white/40 font-mono uppercase tracking-widest">Parameter</th>
-                  <th className="text-left px-5 py-3 text-xs text-white/40 font-mono uppercase tracking-widest">Description</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.06]">
-                <tr>
-                  <td className="px-5 py-3 font-mono text-xs text-emerald-400">repo</td>
-                  <td className="px-5 py-3 text-xs text-white/50">GitHub repo in <code className="font-mono">owner/name</code> format (required)</td>
-                </tr>
-                <tr>
-                  <td className="px-5 py-3 font-mono text-xs text-white/40">style</td>
-                  <td className="px-5 py-3 text-xs text-white/50">Badge style — <code className="font-mono">flat</code> (default) or <code className="font-mono">shields</code></td>
-                </tr>
-              </tbody>
-            </table>
+          {/* Step 1 */}
+          <div className="card p-6 space-y-3">
+            <div className="flex items-center gap-3">
+              <StepNumber n={1} />
+              <h3 className="text-sm font-bold text-foreground">Run your first scan</h3>
+            </div>
+            <p className="text-xs text-muted ml-10">
+              Paste your GitHub repo URL in the playground to get a grade. Or buy a full scan from $29.
+            </p>
+            <div className="ml-10">
+              <Link href="/playground" className="btn-cta inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl">
+                Open Playground →
+              </Link>
+            </div>
           </div>
-          <p className="text-xs text-white/30 font-mono">
-            Endpoint: <span className="text-white/50">GET {badgeUrlFor("/badge/owner/repo.svg")}</span>
-          </p>
-          <p className="text-xs text-white/30 font-mono">
-            Cache: <span className="text-white/50">5 minutes (CDN) · Stale-while-revalidate</span>
-          </p>
-        </div>
 
-        {/* Why badge matters */}
+          {/* Step 2 */}
+          <div className="card p-6 space-y-3">
+            <div className="flex items-center gap-3">
+              <StepNumber n={2} />
+              <h3 className="text-sm font-bold text-foreground">Copy the badge snippet</h3>
+            </div>
+            <p className="text-xs text-muted ml-10">
+              Replace <code className="text-foreground font-mono">owner/repo</code> with your GitHub repo path.
+            </p>
+
+            <div className="ml-10 space-y-3">
+              {/* Markdown */}
+              <div className="space-y-1">
+                <p className="text-xs text-muted font-mono uppercase tracking-widest">Markdown (README.md)</p>
+                <div className="flex items-start gap-2">
+                  <code className={SNIPPET}>
+                    {`[![GateTest](${badgeUrlFor("/badge/")}`}<span className="text-emerald-400">owner/repo</span>{`.svg)](${target})`}
+                  </code>
+                  <CopyButton text={markdownEmbed} />
+                </div>
+              </div>
+
+              {/* HTML */}
+              <div className="space-y-1">
+                <p className="text-xs text-muted font-mono uppercase tracking-widest">HTML</p>
+                <div className="flex items-start gap-2">
+                  <code className={SNIPPET}>
+                    {`<a href="${target}"><img src="${badgeUrlFor("/badge/")}`}
+                    <span className="text-emerald-400">owner/repo</span>
+                    {`" alt="GateTest"></a>`}
+                  </code>
+                  <CopyButton text={htmlEmbed} />
+                </div>
+              </div>
+
+              {/* RST */}
+              <div className="space-y-1">
+                <p className="text-xs text-muted font-mono uppercase tracking-widest">reStructuredText</p>
+                <div className="flex items-start gap-2">
+                  <code className={`${SNIPPET} whitespace-pre-wrap`}>
+                    {`.. image:: ${badgeUrlFor("/badge/")}`}<span className="text-emerald-400">owner/repo</span>{`.svg\n   :target: ${target}\n   :alt: GateTest`}
+                  </code>
+                  <CopyButton text={rstEmbed} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 3 */}
+          <div className="card p-6 space-y-3">
+            <div className="flex items-center gap-3">
+              <StepNumber n={3} />
+              <h3 className="text-sm font-bold text-foreground">Commit and push</h3>
+            </div>
+            <p className="text-xs text-muted ml-10">
+              The badge updates automatically after every GateTest scan. No re-configuration needed.
+            </p>
+          </div>
+        </div>
+      </Section>
+
+      <Section alt narrow title="Badge API">
+        <div className="card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left px-5 py-3 text-xs text-muted font-mono uppercase tracking-widest">Parameter</th>
+                <th className="text-left px-5 py-3 text-xs text-muted font-mono uppercase tracking-widest">Description</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              <tr>
+                <td className="px-5 py-3 font-mono text-xs text-accent">repo</td>
+                <td className="px-5 py-3 text-xs text-muted">GitHub repo in <code className="font-mono">owner/name</code> format (required)</td>
+              </tr>
+              <tr>
+                <td className="px-5 py-3 font-mono text-xs text-muted">style</td>
+                <td className="px-5 py-3 text-xs text-muted">Badge style — <code className="font-mono">flat</code> (default) or <code className="font-mono">shields</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="text-xs text-muted font-mono mt-4">
+          Endpoint: <span className="text-foreground">GET {badgeUrlFor("/badge/owner/repo.svg")}</span>
+        </p>
+        <p className="text-xs text-muted font-mono mt-1">
+          Cache: <span className="text-foreground">5 minutes (CDN) · Stale-while-revalidate</span>
+        </p>
+      </Section>
+
+      <Section>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             {
@@ -227,29 +218,22 @@ export default function BadgePage() {
               body: "A declining grade is visible to everyone. Teams with a public badge fix issues faster.",
             },
           ].map((card) => (
-            <div
-              key={card.title}
-              className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 space-y-2"
-            >
+            <div key={card.title} className="card p-5 space-y-2">
               <span className="text-2xl">{card.icon}</span>
-              <h3 className="text-sm font-bold text-white/80">{card.title}</h3>
-              <p className="text-xs text-white/40 leading-relaxed">{card.body}</p>
+              <h3 className="text-sm font-bold text-foreground">{card.title}</h3>
+              <p className="text-xs text-muted leading-relaxed">{card.body}</p>
             </div>
           ))}
         </div>
 
         {/* CTA */}
-        <div className="text-center space-y-4 py-8">
-          <p className="text-white/40 text-sm">Ready to earn your badge?</p>
-          <Link
-            href="/playground"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-bold text-sm text-white"
-            style={{ background: "linear-gradient(135deg, #059669, #0891b2)" }}
-          >
+        <div className="text-center space-y-4 pt-16">
+          <p className="text-muted text-sm">Ready to earn your badge?</p>
+          <Link href="/playground" className="btn-cta inline-flex items-center gap-2 px-8 py-4 text-sm font-semibold rounded-xl">
             Scan your repo for free →
           </Link>
         </div>
-      </div>
-    </div>
+      </Section>
+    </main>
   );
 }

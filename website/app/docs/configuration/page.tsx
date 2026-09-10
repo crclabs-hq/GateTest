@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import PageHero from "../../components/site/PageHero";
+import Section from "../../components/site/Section";
 
 export const metadata: Metadata = {
   title: "Configuration & suppression — GateTest",
@@ -41,26 +43,28 @@ git add .gatetest/baseline.json && git commit -m "chore: baseline GateTest"
 # From now on the gate blocks only on findings that aren't in it
 gatetest --suite full`;
 
+// Config files and terminal output stay dark panels — that is what the user sees.
+const CODE = "rounded-xl bg-panel text-panel-foreground border border-panel-border p-4 text-sm overflow-x-auto";
+const H2 = "font-display text-2xl font-bold text-foreground mb-3";
+
 export default function ConfigurationDocs() {
   return (
-    <div className="min-h-screen grid-bg px-6 py-24">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-10">
-          <p className="text-xs font-mono uppercase tracking-wider text-accent mb-2">
-            Docs · Configuration
-          </p>
-          <h1 className="text-4xl font-bold mb-3">Configuration &amp; suppression</h1>
-          <p className="text-muted leading-relaxed">
-            Every scanner gets something wrong eventually. The question is whether
-            you can tell it so without turning the gate off. Each control below
-            narrows what <em>blocks</em> &mdash; none of them hide a finding from
-            you.
-          </p>
-        </div>
+    <main>
+      <PageHero
+        eyebrow="Docs · Configuration"
+        title={<>Configuration &amp; suppression</>}
+        lede={<>
+          Every scanner gets something wrong eventually. The question is whether
+          you can tell it so without turning the gate off. Each control below
+          narrows what <em>blocks</em> &mdash; none of them hide a finding from
+          you.
+        </>}
+      />
 
+      <Section narrow>
         {/* .gatetestignore */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-3">
+          <h2 className={H2}>
             <code className="font-mono text-xl">.gatetestignore</code>
           </h2>
           <p className="text-muted mb-4">
@@ -68,31 +72,31 @@ export default function ConfigurationDocs() {
             <code className="font-mono text-sm">#</code> comments and blank lines
             are ignored. Module and rule names are matched case-insensitively.
           </p>
-          <pre className="card p-4 text-sm overflow-x-auto mb-4">
+          <pre className={`${CODE} mb-4`}>
             <code className="font-mono">{ignoreExample}</code>
           </pre>
           <div className="overflow-x-auto mb-4">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left border-b border-border/40">
+                <tr className="text-left border-b border-border">
                   <th className="py-2 pr-4 font-semibold">Form</th>
                   <th className="py-2 font-semibold">Suppresses</th>
                 </tr>
               </thead>
               <tbody className="text-muted">
-                <tr className="border-b border-border/20">
+                <tr className="border-b border-border">
                   <td className="py-2 pr-4 font-mono text-xs">module:rule</td>
                   <td className="py-2">one rule in one module</td>
                 </tr>
-                <tr className="border-b border-border/20">
+                <tr className="border-b border-border">
                   <td className="py-2 pr-4 font-mono text-xs">module:* or module</td>
                   <td className="py-2">an entire module</td>
                 </tr>
-                <tr className="border-b border-border/20">
+                <tr className="border-b border-border">
                   <td className="py-2 pr-4 font-mono text-xs">*:rule</td>
                   <td className="py-2">that rule across all modules</td>
                 </tr>
-                <tr className="border-b border-border/20">
+                <tr className="border-b border-border">
                   <td className="py-2 pr-4 font-mono text-xs">module:rule@glob</td>
                   <td className="py-2">that rule, only in matching files</td>
                 </tr>
@@ -130,7 +134,7 @@ export default function ConfigurationDocs() {
 
         {/* --noise */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-3">
+          <h2 className={H2}>
             Find the noise: <code className="font-mono text-xl">gatetest --noise</code>
           </h2>
           <p className="text-muted mb-4">
@@ -138,14 +142,14 @@ export default function ConfigurationDocs() {
             them, learned from this repo&apos;s own scan history, and prints the
             exact ignore line to copy.
           </p>
-          <pre className="card p-4 text-sm overflow-x-auto">
+          <pre className={CODE}>
             <code className="font-mono">{noiseExample}</code>
           </pre>
         </section>
 
         {/* Auto-softening */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-3">Auto-softening</h2>
+          <h2 className={H2}>Auto-softening</h2>
           <p className="text-muted leading-relaxed">
             A module you keep dismissing stops blocking the gate on its own. It
             takes repeated dismissals at a high fire-rate &mdash; never a single
@@ -159,7 +163,7 @@ export default function ConfigurationDocs() {
 
         {/* Baseline */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-3">
+          <h2 className={H2}>
             Onboarding an existing repo: baseline mode
           </h2>
           <p className="text-muted mb-4">
@@ -168,7 +172,7 @@ export default function ConfigurationDocs() {
             exists today, so the gate only ever fails on <strong>new</strong>{" "}
             findings.
           </p>
-          <pre className="card p-4 text-sm overflow-x-auto mb-4">
+          <pre className={`${CODE} mb-4`}>
             <code className="font-mono">{baselineExample}</code>
           </pre>
           <p className="text-muted text-sm leading-relaxed">
@@ -188,7 +192,7 @@ export default function ConfigurationDocs() {
 
         {/* PR gate */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-3">
+          <h2 className={H2}>
             What fails a pull request
           </h2>
           <p className="text-muted mb-4">
@@ -234,7 +238,7 @@ export default function ConfigurationDocs() {
 
         {/* .gatetest.json */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-3">
+          <h2 className={H2}>
             <code className="font-mono text-xl">.gatetest.json</code>
           </h2>
           <p className="text-muted mb-4">
@@ -259,27 +263,27 @@ export default function ConfigurationDocs() {
 
         {/* Choosing */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-3">Which one should I use?</h2>
+          <h2 className={H2}>Which one should I use?</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left border-b border-border/40">
+                <tr className="text-left border-b border-border">
                   <th className="py-2 pr-4 font-semibold">Situation</th>
                   <th className="py-2 font-semibold">Reach for</th>
                 </tr>
               </thead>
               <tbody className="text-muted">
-                <tr className="border-b border-border/20">
+                <tr className="border-b border-border">
                   <td className="py-2 pr-4">This finding is simply wrong here</td>
                   <td className="py-2 font-mono text-xs">.gatetestignore</td>
                 </tr>
-                <tr className="border-b border-border/20">
+                <tr className="border-b border-border">
                   <td className="py-2 pr-4">
                     Turning it on over years of existing code
                   </td>
                   <td className="py-2 font-mono text-xs">gatetest --baseline</td>
                 </tr>
-                <tr className="border-b border-border/20">
+                <tr className="border-b border-border">
                   <td className="py-2 pr-4">
                     A whole module is wrong for our stack
                   </td>
@@ -306,7 +310,7 @@ export default function ConfigurationDocs() {
           </a>{" "}
           and it gets fixed in the engine.
         </div>
-      </div>
-    </div>
+      </Section>
+    </main>
   );
 }

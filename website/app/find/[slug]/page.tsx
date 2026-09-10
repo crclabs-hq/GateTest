@@ -8,6 +8,8 @@ import {
   getRelatedCwes,
   type CweEntry,
 } from "../cwe-catalog";
+import PageHero from "../../components/site/PageHero";
+import Section from "../../components/site/Section";
 
 interface PageParams {
   params: Promise<{ slug: string }>;
@@ -107,154 +109,108 @@ export default async function CwePage({ params }: PageParams) {
   };
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(techArticleJsonLd) }} />
 
-      <nav className="border-b border-white/[0.06] px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm font-mono">G</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              Gate<span className="text-teal-400">Test</span>
-            </span>
-          </Link>
-          <Link href="/find" className="text-sm text-white/50 hover:text-white transition-colors">
-            CWE Top 25 &rarr;
-          </Link>
-        </div>
-      </nav>
-
-      <main className="px-6 py-16 max-w-4xl mx-auto">
-        <nav className="flex items-center gap-2 text-sm text-white/40 mb-10">
-          <Link href="/" className="hover:text-white/70 transition-colors">GateTest</Link>
-          <span>/</span>
-          <Link href="/find" className="hover:text-white/70 transition-colors">Find</Link>
-          <span>/</span>
-          <span className="text-white/60">CWE-{cwe.id}</span>
+      <div className="section-alt relative z-10 -mb-8">
+        <nav aria-label="Breadcrumb" className="mx-auto max-w-7xl px-6 pt-6 flex flex-wrap items-center gap-2 text-sm text-muted">
+          <Link href="/" className="hover:text-foreground transition-colors">GateTest</Link>
+          <span aria-hidden="true">/</span>
+          <Link href="/find" className="hover:text-foreground transition-colors">Find</Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-foreground-secondary">CWE-{cwe.id}</span>
         </nav>
+      </div>
 
-        {/* Hero */}
-        <div className="mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 font-medium mb-6">
-            CWE Top 25 — #{cwe.rank}
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-4">
-            {cwe.name}
-          </h1>
-          <div className="text-sm font-mono text-teal-300/80 mb-6">CWE-{cwe.id}</div>
-          <p className="text-lg text-white/70 leading-relaxed">{cwe.shortDesc}</p>
-        </div>
+      <PageHero
+        eyebrow={<>CWE Top 25 — #{cwe.rank}</>}
+        title={cwe.name}
+        lede={
+          <>
+            <span className="block text-sm font-mono text-accent mb-3">CWE-{cwe.id}</span>
+            {cwe.shortDesc}
+          </>
+        }
+      />
 
+      <Section narrow>
         {/* Coverage status */}
         {covered ? (
-          <section className="mb-12 rounded-xl border border-teal-500/20 p-6" style={{ background: "rgba(20,184,166,0.05)" }}>
-            <h2 className="text-sm uppercase tracking-wider text-teal-400 font-semibold mb-3">GateTest coverage</h2>
-            <p className="text-white/80 leading-relaxed">
+          <div className="mb-12 rounded-xl border border-accent/20 bg-accent/5 p-6">
+            <h2 className="text-sm uppercase tracking-wider text-accent font-semibold mb-3">GateTest coverage</h2>
+            <p className="text-foreground leading-relaxed">
               Caught by:{" "}
               {cwe.modules.map((m, i) => (
                 <span key={m}>
-                  <Link href={`/modules/${moduleToSlug(m)}`} className="text-teal-300 hover:text-teal-200 font-mono">{m}</Link>
+                  <Link href={`/modules/${moduleToSlug(m)}`} className="text-accent hover:text-accent-hover font-mono">{m}</Link>
                   {i < cwe.modules.length - 1 ? ", " : ""}
                 </span>
               ))}
             </p>
-          </section>
+          </div>
         ) : (
-          <section className="mb-12 rounded-xl border border-amber-500/20 p-6" style={{ background: "rgba(245,158,11,0.05)" }}>
-            <h2 className="text-sm uppercase tracking-wider text-amber-300 font-semibold mb-3">GateTest coverage</h2>
-            <p className="text-white/80 leading-relaxed">
-              <strong className="text-amber-200">Not directly covered today.</strong> GateTest focuses on web-stack languages and infrastructure-as-code. For this class of bug, pair GateTest with a C/C++-aware analyzer.
+          <div className="mb-12 rounded-xl border border-warning/25 bg-warning/5 p-6">
+            <h2 className="text-sm uppercase tracking-wider text-warning font-semibold mb-3">GateTest coverage</h2>
+            <p className="text-foreground leading-relaxed">
+              <strong className="text-warning">Not directly covered today.</strong> GateTest focuses on web-stack languages and infrastructure-as-code. For this class of bug, pair GateTest with a C/C++-aware analyzer.
             </p>
-          </section>
+          </div>
         )}
 
         {/* Example */}
-        <section className="mb-12 rounded-xl border border-white/[0.08] p-6" style={{ background: "rgba(255,255,255,0.02)" }}>
-          <h2 className="text-sm uppercase tracking-wider text-white/40 font-semibold mb-3">Example</h2>
-          <pre className="text-sm font-mono text-amber-200/90 whitespace-pre-wrap leading-relaxed">{cwe.example}</pre>
-        </section>
+        <div className="mb-12 rounded-xl bg-panel text-panel-foreground border border-panel-border p-6">
+          <h2 className="text-sm uppercase tracking-wider text-panel-muted font-semibold mb-3">Example</h2>
+          <pre className="text-sm font-mono whitespace-pre-wrap leading-relaxed overflow-x-auto">{cwe.example}</pre>
+        </div>
 
         {/* Remediation */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold text-white mb-4">How to fix it</h2>
-          <p className="text-white/70 leading-relaxed">{cwe.remediation}</p>
-        </section>
+        <div className="mb-12">
+          <h2 className="font-display text-2xl font-bold text-foreground mb-4">How to fix it</h2>
+          <p className="text-foreground-secondary leading-relaxed">{cwe.remediation}</p>
+        </div>
 
         {/* CTA */}
         {covered && (
-          <section className="mb-12 rounded-2xl border border-teal-500/20 p-8 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
-            <h2 className="text-2xl font-bold text-white mb-3">Scan your repo for CWE-{cwe.id}</h2>
-            <p className="text-white/60 mb-6">Free preview of findings. Pay per scan — no subscription. AI auto-fix PR included on the Scan + Fix tier.</p>
+          <div className="rounded-2xl border border-accent/20 bg-accent/5 p-8 text-center">
+            <h2 className="font-display text-2xl font-bold text-foreground mb-3">Scan your repo for CWE-{cwe.id}</h2>
+            <p className="text-foreground-secondary mb-6">Free preview of findings. Pay per scan — no subscription. AI auto-fix PR included on the Scan + Fix tier.</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link
-                href="/#pricing"
-                className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
-                style={{ background: "#2dd4bf", color: "#0a0a12" }}
-              >
+              <Link href="/#pricing" className="btn-cta px-6 py-3 text-sm">
                 Run a scan &mdash; from $29
               </Link>
-              <Link
-                href="/find"
-                className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
-              >
+              <Link href="/find" className="btn-secondary px-6 py-3 text-sm">
                 Browse CWE Top 25
               </Link>
             </div>
-          </section>
+          </div>
         )}
+      </Section>
 
-        {/* FAQ */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold text-white mb-6">Frequently asked questions</h2>
-          <div className="space-y-4">
-            {faqs.map((f) => (
-              <div
-                key={f.q}
-                className="rounded-xl border border-white/[0.08] p-5"
-                style={{ background: "rgba(255,255,255,0.02)" }}
-              >
-                <h3 className="text-white font-semibold mb-2 leading-snug">{f.q}</h3>
-                <p className="text-white/60 text-sm leading-relaxed">{f.a}</p>
-              </div>
+      <Section alt narrow title="Frequently asked questions">
+        <div className="space-y-4">
+          {faqs.map((f) => (
+            <div key={f.q} className="card p-5">
+              <h3 className="text-foreground font-semibold mb-2 leading-snug">{f.q}</h3>
+              <p className="text-foreground-secondary text-sm leading-relaxed">{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {related.length > 0 && (
+        <Section narrow title="Related CWEs">
+          <div className="grid sm:grid-cols-2 gap-3">
+            {related.map((r) => (
+              <Link key={r.slug} href={`/find/${r.slug}`} className="card block p-4">
+                <div className="text-xs font-mono text-accent mb-1">CWE-{r.id} &middot; #{r.rank} in Top 25</div>
+                <div className="text-foreground font-semibold mb-1">{r.name}</div>
+                <div className="text-foreground-secondary text-sm leading-snug">{r.shortDesc.slice(0, 120)}{r.shortDesc.length > 120 ? "…" : ""}</div>
+              </Link>
             ))}
           </div>
-        </section>
-
-        {/* Related CWEs */}
-        {related.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-white mb-6">Related CWEs</h2>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {related.map((r) => (
-                <Link
-                  key={r.slug}
-                  href={`/find/${r.slug}`}
-                  className="block rounded-xl border border-white/[0.08] p-4 hover:border-teal-500/30 transition-colors"
-                  style={{ background: "rgba(255,255,255,0.02)" }}
-                >
-                  <div className="text-xs font-mono text-teal-300/70 mb-1">CWE-{r.id} &middot; #{r.rank} in Top 25</div>
-                  <div className="text-white font-semibold mb-1">{r.name}</div>
-                  <div className="text-white/55 text-sm leading-snug">{r.shortDesc.slice(0, 120)}{r.shortDesc.length > 120 ? "…" : ""}</div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-      </main>
-
-      <footer className="border-t border-white/[0.06] px-6 py-8">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/30">
-          <span>GateTest &copy; 2026</span>
-          <div className="flex gap-6">
-            <Link href="/find" className="hover:text-white/60 transition-colors">CWE index</Link>
-            <Link href="/modules" className="hover:text-white/60 transition-colors">Modules</Link>
-            <Link href="/#pricing" className="hover:text-white/60 transition-colors">Pricing</Link>
-          </div>
-        </div>
-      </footer>
+        </Section>
+      )}
     </main>
   );
 }

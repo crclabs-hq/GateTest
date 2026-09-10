@@ -29,7 +29,7 @@ export default function LiveStats() {
   if (!stats) return null;
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-sm">
+    <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 py-3 px-4 rounded-xl bg-surface-light border border-border text-sm">
       <LiveStat value={fmt(stats.scans_completed)} label="scans completed" />
       {stats.repos_scanned > 0 && (
         <LiveStat value={fmt(stats.repos_scanned)} label="repos scanned" />
@@ -44,10 +44,10 @@ export default function LiveStats() {
 function LiveStat({ value, label }: { value: string; label: string }) {
   return (
     <span className="flex items-baseline gap-1.5">
-      <span className="font-extrabold tabular-nums text-white">
+      <span className="font-extrabold tabular-nums text-foreground">
         <CountUp value={value} duration={1200} />
       </span>
-      <span className="text-teal-300/70">{label}</span>
+      <span className="text-accent">{label}</span>
     </span>
   );
 }

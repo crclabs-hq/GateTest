@@ -52,14 +52,14 @@ export default function McpCheckoutButton({ label }: { label: string }) {
         <button
           type="button"
           disabled
-          className="inline-flex items-center gap-2 bg-gray-400 text-white font-bold px-8 py-4 rounded-xl text-lg cursor-not-allowed opacity-80"
+          className="btn-cta inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold rounded-xl cursor-not-allowed opacity-60"
           title="Sign-ups paused while key delivery is being set up"
         >
           {label} — paused
         </button>
-        <p className="text-sm text-gray-500 max-w-md">
+        <p className="text-sm text-muted max-w-md">
           Hosted MCP sign-ups are paused for a moment while API-key email delivery is finished — we will not take a payment
-          we cannot deliver on. Email <a className="underline" href={`mailto:${SUPPORT_EMAIL}?subject=Notify%20me%20when%20GateTest%20MCP%20opens`}>{SUPPORT_EMAIL}</a>{' '}
+          we cannot deliver on. Email <a className="underline text-accent" href={`mailto:${SUPPORT_EMAIL}?subject=Notify%20me%20when%20GateTest%20MCP%20opens`}>{SUPPORT_EMAIL}</a>{' '}
           and we&apos;ll tell you the moment it opens. The local MCP server is free and works today.
         </p>
       </div>
@@ -70,7 +70,7 @@ export default function McpCheckoutButton({ label }: { label: string }) {
     <button
       onClick={handleClick}
       disabled={emailReady === null}
-      className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-4 rounded-xl text-lg transition-all duration-200 shadow-xl shadow-blue-600/25 cursor-pointer disabled:opacity-70"
+      className="btn-cta inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold rounded-xl cursor-pointer disabled:opacity-70"
     >
       {label}
     </button>

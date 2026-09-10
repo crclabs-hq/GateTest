@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+import PageHero from "../components/site/PageHero";
+import Section from "../components/site/Section";
 import { SITE_URL } from "@/app/lib/site-url";
 
 /**
@@ -18,6 +18,10 @@ import { SITE_URL } from "@/app/lib/site-url";
  *   is in flight (Known Issue #29) — the wording does NOT claim it's live.
  * - HN / Product Hunt badges are gated behind NEXT_PUBLIC_LAUNCH_HN so we
  *   don't claim what hasn't shipped.
+ *
+ * Chrome: the site header and footer come from app/layout.tsx; this page
+ * renders neither. Colours are tokens; the two diagram panels are the only
+ * deliberately dark surfaces (bg-panel).
  */
 
 const CASCADE_RULES = [
@@ -118,32 +122,67 @@ const USE_CASES = [
   },
 ];
 
+const STEPS = [
+  {
+    n: "01",
+    t: "Scans run in parallel",
+    d: "/api/scan/run (source), /api/scan/server (server), /api/web/scan (browser) — fired together.",
+  },
+  {
+    n: "02",
+    t: "Each layer normalised",
+    d: "summariseLayer() collapses module-specific shapes into a common {ok, totalIssues, failedModules, topFindings} struct.",
+  },
+  {
+    n: "03",
+    t: "9-rule cascade",
+    d: "Pure-logic correlator walks the rules top-down; first matching rule wins. No model in this step — fully deterministic.",
+  },
+  {
+    n: "04",
+    t: "Localised verdict",
+    d: "Returns {layer, confidence, headline, rationale, recommendedNext} — one of SOURCE / SERVER / BROWSER / BUILD / MIXED / UNKNOWN.",
+  },
+];
+
+/**
+ * Layer accents. `text` reads on the light page, `panelText` on the dark
+ * diagram panels; the tint and border work on both.
+ */
 const STAGE_ICONS = [
   {
     name: "SOURCE",
     role: "Static analysis of the repo",
     detail: "121 modules — same engine as a repo scan. Looks at the code on disk.",
-    color: "from-blue-500/20 to-blue-500/5",
-    border: "border-blue-400/30",
-    text: "text-blue-300",
+    color: "from-blue-500/15 to-blue-500/5",
+    border: "border-blue-500/30",
+    text: "text-blue-700",
+    panelText: "text-blue-300",
   },
   {
     name: "SERVER",
     role: "Live probe of the origin",
     detail: "Headers, TLS, status codes, CORS, security posture, response times.",
-    color: "from-red-500/20 to-red-500/5",
-    border: "border-red-400/30",
-    text: "text-red-300",
+    color: "from-red-500/15 to-red-500/5",
+    border: "border-red-500/30",
+    text: "text-red-700",
+    panelText: "text-red-300",
   },
   {
     name: "BROWSER",
     role: "Headless render of the URL",
     detail: "Uncaught errors, hydration mismatches, console output, network failures.",
-    color: "from-amber-500/20 to-amber-500/5",
-    border: "border-amber-400/30",
-    text: "text-amber-300",
+    color: "from-amber-500/15 to-amber-500/5",
+    border: "border-amber-500/30",
+    text: "text-amber-700",
+    panelText: "text-amber-300",
   },
 ];
+
+const PANEL = "rounded-2xl border border-panel-border bg-panel text-panel-foreground";
+const VERDICT = "rounded-lg border border-teal-400/30 bg-teal-500/10";
+const EYEBROW =
+  "inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-[var(--surface-solid)] text-[10px] text-muted font-mono uppercase tracking-widest mb-4";
 
 function LiveScanCounter() {
   // Placeholder — reads from /api/scan/stats if it eventually exists.
@@ -151,7 +190,7 @@ function LiveScanCounter() {
   // if the endpoint isn't wired (we never claim a number we cannot prove).
   if (process.env.NEXT_PUBLIC_LIVE_COUNTER !== "1") return null;
   return (
-    <div className="text-xs text-white/40 font-mono">
+    <div className="text-xs text-muted font-mono">
       Live scan counter — wiring in flight
     </div>
   );
@@ -182,365 +221,283 @@ export default function TriagePage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0a12" }}>
+    <div className="bg-background">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <Navbar />
-
-      <main className="pt-24 sm:pt-28">
+      <main>
         {/* === Hero === */}
-        <section className="relative px-6 pb-16 sm:pb-20">
-          <div className="mx-auto max-w-6xl">
-            <div className="grid gap-10 sm:grid-cols-2 sm:gap-12 items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-300 font-medium mb-6">
-                  Cross-layer bug localisation
-                </div>
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-[1.05] mb-6">
-                  <span className="gradient-text">Triage</span>
-                  <br />
-                  <span className="text-white/85 text-3xl sm:text-4xl md:text-5xl">
-                    finds where the bug lives.
-                  </span>
-                </h1>
-                <p className="text-lg text-white/65 leading-relaxed max-w-xl">
-                  Three scans in parallel — source, server, browser — fed to a
-                  9-rule cascade that localises the failure to ONE layer.
-                  Built for the moments when nobody knows whose problem it is.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 mt-8">
-                  <Link
-                    href="/scan"
-                    className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
-                    style={{ background: "#2dd4bf", color: "#0a0a12" }}
-                  >
-                    Run a scan — from $29
-                  </Link>
-                  <a
-                    href="#how-it-works"
-                    className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/80 hover:border-white/30 hover:text-white transition-colors"
-                  >
-                    See it in action
-                  </a>
-                </div>
-                <p className="mt-6 text-xs text-white/40 leading-relaxed">
-                  MIT-licensed CLI · No new dependencies · Same Claude
-                  pipeline as Forensic Scan
-                </p>
-              </div>
-
-              {/* Hero diagram preview — 3 layers feeding one verdict */}
-              <div className="rounded-2xl border border-white/10 p-5 sm:p-7" style={{ background: "rgba(255,255,255,0.02)" }}>
-                <div className="text-[10px] uppercase tracking-widest text-white/40 font-mono mb-4">
-                  Triage verdict
-                </div>
-                <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
-                  {STAGE_ICONS.map((s) => (
-                    <div
-                      key={s.name}
-                      className={`rounded-lg border ${s.border} p-3 bg-gradient-to-b ${s.color}`}
-                    >
-                      <div className={`text-[10px] font-mono font-bold ${s.text}`}>{s.name}</div>
-                      <div className="text-white/40 text-[10px] mt-1.5 leading-snug">
-                        scan ok
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="rounded-lg border border-teal-400/30 bg-teal-500/10 p-4">
-                  <div className="text-[10px] uppercase tracking-widest text-teal-300 font-mono mb-1">
-                    Verdict: SOURCE · high confidence
-                  </div>
-                  <div className="text-white/80 text-sm font-medium leading-snug">
-                    Browser runtime errors trace back to source-level bugs
-                  </div>
-                  <div className="text-white/45 text-xs mt-2 leading-relaxed">
-                    Rule 4 — the runtime failures observed in the browser
-                    correspond to error-handling or async-iteration findings
-                    flagged statically.
-                  </div>
-                </div>
-              </div>
+        <PageHero
+          eyebrow="Cross-layer bug localisation"
+          title={
+            <>
+              <span className="gradient-text">Triage</span>
+              <br />
+              <span className="text-3xl sm:text-4xl lg:text-5xl">
+                finds where the bug lives.
+              </span>
+            </>
+          }
+          lede="Three scans in parallel — source, server, browser — fed to a 9-rule cascade that localises the failure to ONE layer. Built for the moments when nobody knows whose problem it is."
+          actions={
+            <>
+              <Link
+                href="/scan"
+                className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm"
+              >
+                Run a scan — from $29
+              </Link>
+              <a
+                href="#how-it-works"
+                className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm"
+              >
+                See it in action
+              </a>
+              <p className="basis-full mt-3 text-xs text-muted leading-relaxed">
+                MIT-licensed CLI · No new dependencies · Same Claude
+                pipeline as Forensic Scan
+              </p>
+            </>
+          }
+        >
+          {/* Hero diagram preview — 3 layers feeding one verdict, on a
+              deliberately dark panel */}
+          <div className={`${PANEL} p-5 sm:p-7`}>
+            <div className="text-[10px] uppercase tracking-widest text-panel-muted font-mono mb-4">
+              Triage verdict
             </div>
-          </div>
-        </section>
-
-        {/* === What it answers === */}
-        <section className="px-6 py-16 sm:py-20 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
-              Where between the source, server, and browser is the bug?
-            </h2>
-            <p className="text-white/55 max-w-3xl leading-relaxed mb-12">
-              One question, one workflow. Three layers scan in parallel; the
-              correlator collapses the combined signal into a single
-              localised verdict so the right team picks up the right work.
-            </p>
-            <div className="grid sm:grid-cols-3 gap-5">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
               {STAGE_ICONS.map((s) => (
                 <div
                   key={s.name}
-                  className={`rounded-xl border ${s.border} p-6 bg-gradient-to-b ${s.color}`}
+                  className={`rounded-lg border ${s.border} p-3 bg-gradient-to-b ${s.color}`}
                 >
-                  <div className={`text-xs font-mono font-bold ${s.text} mb-2`}>
-                    {s.name}
+                  <div className={`text-[10px] font-mono font-bold ${s.panelText}`}>{s.name}</div>
+                  <div className="text-panel-muted text-[10px] mt-1.5 leading-snug">
+                    scan ok
                   </div>
-                  <div className="text-white font-semibold text-sm mb-2">
-                    {s.role}
-                  </div>
-                  <p className="text-white/55 text-xs leading-relaxed">
-                    {s.detail}
-                  </p>
                 </div>
               ))}
             </div>
+            <div className={`${VERDICT} p-4`}>
+              <div className="text-[10px] uppercase tracking-widest text-teal-300 font-mono mb-1">
+                Verdict: SOURCE · high confidence
+              </div>
+              <div className="text-sm font-medium leading-snug">
+                Browser runtime errors trace back to source-level bugs
+              </div>
+              <div className="text-panel-muted text-xs mt-2 leading-relaxed">
+                Rule 4 — the runtime failures observed in the browser
+                correspond to error-handling or async-iteration findings
+                flagged statically.
+              </div>
+            </div>
           </div>
-        </section>
+        </PageHero>
+
+        {/* === What it answers === */}
+        <Section
+          title="Where between the source, server, and browser is the bug?"
+          lede="One question, one workflow. Three layers scan in parallel; the correlator collapses the combined signal into a single localised verdict so the right team picks up the right work."
+        >
+          <div className="grid sm:grid-cols-3 gap-5">
+            {STAGE_ICONS.map((s) => (
+              <div
+                key={s.name}
+                className={`card border ${s.border} p-6 bg-gradient-to-b ${s.color}`}
+              >
+                <div className={`text-xs font-mono font-bold ${s.text} mb-2`}>
+                  {s.name}
+                </div>
+                <div className="text-foreground font-semibold text-sm mb-2">
+                  {s.role}
+                </div>
+                <p className="text-muted text-xs leading-relaxed">
+                  {s.detail}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Section>
 
         {/* === How it works === */}
-        <section id="how-it-works" className="px-6 py-16 sm:py-20 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-white/60 font-mono uppercase tracking-widest mb-4">
-              How it works
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-12">
-              Four steps. One verdict.
-            </h2>
+        <Section id="how-it-works" alt eyebrow="How it works" title="Four steps. One verdict.">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+            {STEPS.map((step) => (
+              <div key={step.n} className="card p-5">
+                <div className="text-accent font-mono text-xs mb-3">{step.n}</div>
+                <div className="text-foreground font-semibold text-sm mb-2">{step.t}</div>
+                <p className="text-muted text-xs leading-relaxed">{step.d}</p>
+              </div>
+            ))}
+          </div>
 
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-              {[
-                {
-                  n: "01",
-                  t: "Scans run in parallel",
-                  d: "/api/scan/run (source), /api/scan/server (server), /api/web/scan (browser) — fired together.",
-                },
-                {
-                  n: "02",
-                  t: "Each layer normalised",
-                  d: "summariseLayer() collapses module-specific shapes into a common {ok, totalIssues, failedModules, topFindings} struct.",
-                },
-                {
-                  n: "03",
-                  t: "9-rule cascade",
-                  d: "Pure-logic correlator walks the rules top-down; first matching rule wins. No model in this step — fully deterministic.",
-                },
-                {
-                  n: "04",
-                  t: "Localised verdict",
-                  d: "Returns {layer, confidence, headline, rationale, recommendedNext} — one of SOURCE / SERVER / BROWSER / BUILD / MIXED / UNKNOWN.",
-                },
-              ].map((step) => (
-                <div
-                  key={step.n}
-                  className="rounded-xl border border-white/[0.08] p-5"
-                  style={{ background: "rgba(255,255,255,0.03)" }}
-                >
-                  <div className="text-teal-300 font-mono text-xs mb-3">{step.n}</div>
-                  <div className="text-white font-semibold text-sm mb-2">{step.t}</div>
-                  <p className="text-white/50 text-xs leading-relaxed">{step.d}</p>
+          {/* Visual flow */}
+          <div className={`${PANEL} p-6 sm:p-8`}>
+            <div className="grid sm:grid-cols-3 gap-4 mb-6">
+              {STAGE_ICONS.map((s, idx) => (
+                <div key={s.name} className="relative">
+                  <div className={`rounded-lg border ${s.border} p-4 bg-gradient-to-b ${s.color}`}>
+                    <div className={`text-[10px] font-mono font-bold ${s.panelText} mb-2`}>
+                      STAGE {idx + 1} · {s.name}
+                    </div>
+                    <div className="text-panel-muted text-xs">{s.role}</div>
+                  </div>
                 </div>
               ))}
             </div>
-
-            {/* Visual flow */}
-            <div className="rounded-2xl border border-white/[0.08] p-6 sm:p-8" style={{ background: "rgba(255,255,255,0.02)" }}>
-              <div className="grid sm:grid-cols-3 gap-4 mb-6">
-                {STAGE_ICONS.map((s, idx) => (
-                  <div key={s.name} className="relative">
-                    <div className={`rounded-lg border ${s.border} p-4 bg-gradient-to-b ${s.color}`}>
-                      <div className={`text-[10px] font-mono font-bold ${s.text} mb-2`}>
-                        STAGE {idx + 1} · {s.name}
-                      </div>
-                      <div className="text-white/70 text-xs">{s.role}</div>
-                    </div>
-                  </div>
-                ))}
+            <div className="flex justify-center mb-4">
+              <svg width="32" height="32" viewBox="0 0 32 32" className="text-teal-400" aria-hidden="true">
+                <path d="M16 4 L16 24 M10 18 L16 24 L22 18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div className={`${VERDICT} p-5`}>
+              <div className="text-[10px] uppercase tracking-widest text-teal-300 font-mono mb-2">
+                Correlator verdict
               </div>
-              <div className="flex justify-center mb-4">
-                <svg width="32" height="32" viewBox="0 0 32 32" className="text-teal-400" aria-hidden="true">
-                  <path d="M16 4 L16 24 M10 18 L16 24 L22 18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+              <div className="font-semibold mb-1">
+                The bug lives HERE.
               </div>
-              <div className="rounded-lg border border-teal-400/30 bg-teal-500/10 p-5">
-                <div className="text-[10px] uppercase tracking-widest text-teal-300 font-mono mb-2">
-                  Correlator verdict
-                </div>
-                <div className="text-white font-semibold mb-1">
-                  The bug lives HERE.
-                </div>
-                <div className="text-white/55 text-sm leading-relaxed">
-                  Headline · confidence · rationale · recommended next step.
-                </div>
+              <div className="text-panel-muted text-sm leading-relaxed">
+                Headline · confidence · rationale · recommended next step.
               </div>
             </div>
           </div>
-        </section>
+        </Section>
 
         {/* === The 9-rule cascade === */}
-        <section className="px-6 py-16 sm:py-20 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-white/60 font-mono uppercase tracking-widest mb-4">
-              The cascade in plain English
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
-              9 rules. No magic. Read them yourself.
-            </h2>
-            <p className="text-white/55 max-w-3xl leading-relaxed mb-10">
+        <Section
+          eyebrow="The cascade in plain English"
+          title="9 rules. No magic. Read them yourself."
+          lede={
+            <>
               Top-down. First match wins. Each rule maps a specific
               combination of layer signals to a verdict. The full source is
               at{" "}
-              <code className="text-teal-300 text-sm">
+              <code className="text-accent text-sm">
                 website/app/lib/triage/correlator.js
               </code>
               .
-            </p>
-            <ol className="space-y-3">
-              {CASCADE_RULES.map((rule) => (
-                <li
-                  key={rule.n}
-                  className="rounded-xl border border-white/[0.08] p-5"
-                  style={{ background: "rgba(255,255,255,0.03)" }}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="shrink-0 w-8 h-8 rounded-full bg-teal-500/15 border border-teal-400/30 text-teal-300 font-mono text-xs font-bold flex items-center justify-center">
-                      {rule.n}
+            </>
+          }
+        >
+          <ol className="space-y-3">
+            {CASCADE_RULES.map((rule) => (
+              <li key={rule.n} className="card p-5">
+                <div className="flex items-start gap-4">
+                  <div className="shrink-0 w-8 h-8 rounded-full bg-accent/10 border border-accent/30 text-accent font-mono text-xs font-bold flex items-center justify-center">
+                    {rule.n}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-foreground font-semibold text-sm mb-1.5">
+                      {rule.label}
                     </div>
-                    <div className="flex-1">
-                      <div className="text-white font-semibold text-sm mb-1.5">
-                        {rule.label}
-                      </div>
-                      <div className="text-white/55 text-xs leading-relaxed mb-2">
-                        If <span className="text-white/75">{rule.condition}</span>
-                      </div>
-                      <div className="inline-flex items-center gap-1.5 text-[11px] font-mono">
-                        <span className="text-white/40">→</span>
-                        <span className="text-teal-300">{rule.verdict}</span>
-                      </div>
+                    <div className="text-muted text-xs leading-relaxed mb-2">
+                      If <span className="text-foreground-secondary">{rule.condition}</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-mono">
+                      <span className="text-muted">→</span>
+                      <span className="text-accent">{rule.verdict}</span>
                     </div>
                   </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </section>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </Section>
 
         {/* === Honest limitations === */}
-        <section className="px-6 py-16 sm:py-20 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-400/20 text-[10px] text-amber-300 font-mono uppercase tracking-widest mb-4">
+        <Section alt>
+          <div className="max-w-2xl mb-10 sm:mb-14">
+            <div className={`${EYEBROW} border-amber-500/30 text-amber-700`}>
               Honest limitations
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+            <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-foreground [text-wrap:balance]">
               What triage does NOT do.
             </h2>
-            <p className="text-white/55 max-w-3xl leading-relaxed mb-10">
+            <p className="mt-4 text-base sm:text-lg text-foreground-secondary leading-relaxed">
               We do not ship claims we cannot defend. Here is what triage
               cannot tell you, in plain language.
             </p>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {LIMITATIONS.map((l) => (
-                <div
-                  key={l.title}
-                  className="rounded-xl border border-white/[0.08] p-5"
-                  style={{ background: "rgba(255,255,255,0.03)" }}
-                >
-                  <div className="text-white font-semibold text-sm mb-2">
-                    {l.title}
-                  </div>
-                  <p className="text-white/55 text-xs leading-relaxed">{l.body}</p>
-                </div>
-              ))}
-            </div>
           </div>
-        </section>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {LIMITATIONS.map((l) => (
+              <div key={l.title} className="card p-5">
+                <div className="text-foreground font-semibold text-sm mb-2">
+                  {l.title}
+                </div>
+                <p className="text-muted text-xs leading-relaxed">{l.body}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
 
         {/* === When to use it === */}
-        <section className="px-6 py-16 sm:py-20 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-10">
-              When to reach for triage
-            </h2>
-            <div className="grid sm:grid-cols-3 gap-4">
-              {USE_CASES.map((u, i) => (
-                <div
-                  key={u.title}
-                  className="rounded-xl border border-white/[0.08] p-5"
-                  style={{ background: "rgba(255,255,255,0.03)" }}
-                >
-                  <div className="text-teal-300 font-mono text-xs mb-3">
-                    Case {i + 1}
-                  </div>
-                  <div className="text-white font-semibold text-sm mb-3 leading-snug">
-                    {u.title}
-                  </div>
-                  <p className="text-white/55 text-xs leading-relaxed">{u.body}</p>
+        <Section title="When to reach for triage">
+          <div className="grid sm:grid-cols-3 gap-4">
+            {USE_CASES.map((u, i) => (
+              <div key={u.title} className="card p-5">
+                <div className="text-accent font-mono text-xs mb-3">
+                  Case {i + 1}
                 </div>
-              ))}
-            </div>
+                <div className="text-foreground font-semibold text-sm mb-3 leading-snug">
+                  {u.title}
+                </div>
+                <p className="text-muted text-xs leading-relaxed">{u.body}</p>
+              </div>
+            ))}
           </div>
-        </section>
+        </Section>
 
-        {/* === Pricing line === */}
-        <section className="px-6 py-12 border-t border-white/[0.06]">
+        {/* === Pricing line + trust strip + final CTA === */}
+        <Section alt>
           <div className="mx-auto max-w-3xl text-center">
-            <p className="text-white/65 text-sm leading-relaxed">
+            <p className="text-foreground-secondary text-sm leading-relaxed">
               Triage is an admin tool today — available to GateTest
               subscribers via the admin dashboard. Public per-scan checkout
               for Triage is planned for v1.45.
             </p>
           </div>
-        </section>
 
-        {/* === Trust strip === */}
-        <section className="px-6 py-12 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl">
-            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
-              <div className="rounded-lg border border-white/10 px-4 py-2 text-xs text-white/60">
-                Available on GitHub Marketplace soon
-              </div>
-              <a
-                href="https://github.com/crclabs-hq/gatetest"
-                className="rounded-lg border border-white/10 px-4 py-2 text-xs text-white/60 hover:text-white hover:border-white/20 transition-colors"
-              >
-                CLI is MIT-licensed — github.com/crclabs-hq/gatetest
-              </a>
-              {showLaunchBadges ? (
-                <div className="rounded-lg border border-white/10 px-4 py-2 text-xs text-white/60">
-                  Launching on Hacker News
-                </div>
-              ) : null}
-              <LiveScanCounter />
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+            <div className="rounded-lg border border-border bg-[var(--surface-solid)] px-4 py-2 text-xs text-muted">
+              Available on GitHub Marketplace soon
             </div>
+            <a
+              href="https://github.com/crclabs-hq/gatetest"
+              className="rounded-lg border border-border bg-[var(--surface-solid)] px-4 py-2 text-xs text-muted hover:text-foreground hover:border-accent/50 transition-colors"
+            >
+              CLI is MIT-licensed — github.com/crclabs-hq/gatetest
+            </a>
+            {showLaunchBadges ? (
+              <div className="rounded-lg border border-border bg-[var(--surface-solid)] px-4 py-2 text-xs text-muted">
+                Launching on Hacker News
+              </div>
+            ) : null}
+            <LiveScanCounter />
           </div>
-        </section>
 
-        {/* === Final CTA === */}
-        <section className="px-6 py-16 sm:py-20 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-3xl">
-            <div className="rounded-2xl border border-teal-500/20 p-8 sm:p-10 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
+          <div className="mx-auto max-w-3xl mt-14">
+            <div className={`${PANEL} p-8 sm:p-10 text-center`}>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight mb-3">
                 Try it on your own repo.
               </h2>
-              <p className="text-white/60 mb-7 leading-relaxed">
+              <p className="text-panel-muted mb-7 leading-relaxed">
                 $29 Quick scan. No signup needed before checkout. No card
                 stored after the scan completes.
               </p>
               <Link
                 href="/scan"
-                className="inline-flex items-center justify-center px-8 py-3.5 rounded-xl font-semibold"
-                style={{ background: "#2dd4bf", color: "#0a0a12" }}
+                className="inline-flex items-center justify-center px-8 py-3.5 rounded-xl font-semibold bg-accent-light text-panel hover:bg-teal-300 transition-colors"
               >
                 Run a scan
               </Link>
             </div>
           </div>
-        </section>
+        </Section>
       </main>
-
-      <Footer />
     </div>
   );
 }

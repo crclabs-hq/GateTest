@@ -1,6 +1,7 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import ComparisonReviewed from "@/app/components/ComparisonReviewed";
+import PageHero from "../../components/site/PageHero";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 export const metadata: Metadata = {
@@ -86,84 +87,55 @@ export default function DeepSourcePage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0a12" }}>
+    <main>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Nav */}
-      <nav className="border-b border-white/[0.06] px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm font-mono">G</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              Gate<span className="text-teal-400">Test</span>
-            </span>
-          </Link>
-          <Link href="/" className="text-sm text-white/50 hover:text-white transition-colors">
-            &larr; Back to GateTest
-          </Link>
-        </div>
-      </nav>
-
-      <main className="px-6 py-16 max-w-5xl mx-auto">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-white/40 mb-10">
-          <Link href="/" className="hover:text-white/70 transition-colors">GateTest</Link>
-          <span>/</span>
-          <span className="text-white/60">Compare</span>
-          <span>/</span>
-          <span className="text-white/60">DeepSource</span>
-        </nav>
-
-        {/* Hero */}
-        <div className="mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-400 font-medium mb-6">
-            Tool Comparison
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-6">
+      <PageHero
+        eyebrow="Tool Comparison"
+        title={
+          <>
             GateTest vs DeepSource
             <br />
-            <span className="text-teal-400">AI-Native Code Quality in 2026</span>
-          </h1>
-          <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
+            <span className="text-accent">AI-Native Code Quality in 2026</span>
+          </>
+        }
+        lede={
+          <>
             DeepSource is a solid static analysis tool. GateTest is an AI-native quality platform:
             121 modules, generative AI code review using Claude, AI auto-fix PRs that write real code at the Scan + Fix tier ($199) and Forensic Scan ($399),
             and per-scan pricing with no per-seat subscriptions.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 mt-8">
-            <Link
-              href="/playground"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
-              style={{ background: "#2dd4bf", color: "#0a0a12" }}
-            >
+          </>
+        }
+        actions={
+          <>
+            <Link href="/playground" className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm">
               Scan My Repo — From $29
             </Link>
-            <Link
-              href="/modules"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
-            >
+            <Link href="/modules" className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm">
               See All {TOTAL_MODULES} Modules
             </Link>
-          </div>
-        </div>
+          </>
+        }
+      />
+
+      <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
 
         {/* AI advantage callout */}
-        <section className="mb-16 rounded-xl border border-teal-500/20 p-6" style={{ background: "rgba(20,184,166,0.04)" }}>
-          <h2 className="text-lg font-semibold text-teal-300 mb-3">The AI difference</h2>
+        <section className="mb-16 rounded-2xl border border-accent/20 p-6 bg-accent/5">
+          <h2 className="text-lg font-semibold text-accent mb-3">The AI difference</h2>
           <div className="grid sm:grid-cols-2 gap-6">
             <div>
-              <div className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-3">DeepSource approach</div>
-              <p className="text-sm text-white/55 leading-relaxed">
+              <div className="text-muted text-xs font-semibold uppercase tracking-wider mb-3">DeepSource approach</div>
+              <p className="text-sm text-foreground-secondary leading-relaxed">
                 Rules-based static analysis. Detects patterns defined in analyzer rules — useful, but limited to what the rule authors anticipated. Can&rsquo;t reason about intent, context, or emergent bugs from code interaction.
               </p>
             </div>
             <div>
-              <div className="text-teal-400 text-xs font-semibold uppercase tracking-wider mb-3">GateTest AI approach</div>
-              <p className="text-sm text-white/55 leading-relaxed">
+              <div className="text-accent text-xs font-semibold uppercase tracking-wider mb-3">GateTest AI approach</div>
+              <p className="text-sm text-foreground-secondary leading-relaxed">
                 Claude reads your code with full context — the function, its callers, the data it processes — and reasons about what the code <em>does</em>, not just how it looks. Catches logic bugs, off-by-one errors in financial code, and security issues that emerge from how code components interact.
               </p>
             </div>
@@ -172,35 +144,35 @@ export default function DeepSourcePage() {
 
         {/* Comparison table */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-6">Feature Comparison</h2>
-          <div className="rounded-xl border border-white/[0.08] overflow-hidden">
-            <table className="w-full text-sm">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-6">Feature Comparison</h2>
+          <div className="rounded-xl border border-border overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
               <thead>
-                <tr className="border-b border-white/[0.08]" style={{ background: "rgba(255,255,255,0.03)" }}>
-                  <th className="text-left px-5 py-4 text-white/50 font-medium">Feature</th>
-                  <th className="text-center px-5 py-4 text-teal-400 font-semibold">GateTest</th>
-                  <th className="text-center px-5 py-4 text-white/40 font-medium">DeepSource</th>
+                <tr className="border-b border-border bg-surface-light">
+                  <th className="text-left px-5 py-4 text-muted font-medium">Feature</th>
+                  <th className="text-center px-5 py-4 text-accent font-semibold">GateTest</th>
+                  <th className="text-center px-5 py-4 text-muted font-medium">DeepSource</th>
                 </tr>
               </thead>
               <tbody>
                 {comparisonRows.map((row) => (
                   <tr
                     key={row.feature}
-                    className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.02] transition-colors"
+                    className="border-b border-border last:border-0 hover:bg-surface-light transition-colors"
                   >
-                    <td className="px-5 py-3.5 text-white/70">{row.feature}</td>
+                    <td className="px-5 py-3.5 text-foreground-secondary">{row.feature}</td>
                     <td className="px-5 py-3.5 text-center">
                       {row.gatetest ? (
-                        <span className="text-emerald-400 font-bold text-base">&#10003;</span>
+                        <span className="text-success font-bold text-base">&#10003;</span>
                       ) : (
-                        <span className="text-white/20">&#8212;</span>
+                        <span className="text-muted">&#8212;</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-center">
                       {row.competitor ? (
-                        <span className="text-emerald-400/60 font-bold text-base">&#10003;</span>
+                        <span className="text-success/70 font-bold text-base">&#10003;</span>
                       ) : (
-                        <span className="text-red-400/60">&#10007;</span>
+                        <span className="text-danger/70">&#10007;</span>
                       )}
                     </td>
                   </tr>
@@ -212,7 +184,7 @@ export default function DeepSourcePage() {
 
         {/* Key differentiators */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-8">Why teams switch from DeepSource</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8">Why teams switch from DeepSource</h2>
           <div className="grid sm:grid-cols-2 gap-5">
             {[
               {
@@ -234,11 +206,10 @@ export default function DeepSourcePage() {
             ].map((card) => (
               <div
                 key={card.title}
-                className="rounded-xl p-5 border border-white/[0.08]"
-                style={{ background: "rgba(255,255,255,0.03)" }}
+                className="card p-5"
               >
-                <h3 className="text-white font-semibold mb-2">{card.title}</h3>
-                <p className="text-white/55 text-sm leading-relaxed">{card.body}</p>
+                <h3 className="text-foreground font-semibold mb-2">{card.title}</h3>
+                <p className="text-foreground-secondary text-sm leading-relaxed">{card.body}</p>
               </div>
             ))}
           </div>
@@ -246,54 +217,40 @@ export default function DeepSourcePage() {
 
         {/* FAQ */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-8">Frequently asked questions</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8">Frequently asked questions</h2>
           <div className="space-y-4">
             {faqItems.map((item) => (
               <div
                 key={item.q}
-                className="rounded-xl border border-white/[0.08] p-5"
-                style={{ background: "rgba(255,255,255,0.03)" }}
+                className="card p-5"
               >
-                <h3 className="text-white font-semibold mb-3 leading-snug">{item.q}</h3>
-                <p className="text-white/55 text-sm leading-relaxed">{item.a}</p>
+                <h3 className="text-foreground font-semibold mb-3 leading-snug">{item.q}</h3>
+                <p className="text-foreground-secondary text-sm leading-relaxed">{item.a}</p>
               </div>
             ))}
           </div>
         </section>
 
         {/* CTA */}
-        <section className="rounded-2xl border border-teal-500/20 p-10 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
-          <h2 className="text-3xl font-bold text-white mb-4">
+        <section className="rounded-2xl border border-accent/20 bg-accent/5 px-6 py-10 sm:p-12 text-center">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-4">
             Find issues. Fix issues. Ship faster.
           </h2>
-          <p className="text-white/60 mb-8 max-w-xl mx-auto">
+          <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
             121 modules and AI-powered review on every paid tier. AI auto-fix PRs at Scan + Fix ($199) and Forensic Scan ($399). One-time payment per scan.
           </p>
           <Link
             href="/playground"
-            className="inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold"
-            style={{ background: "#2dd4bf", color: "#0a0a12" }}
+            className="btn-cta inline-flex items-center justify-center px-8 py-4"
           >
             Scan My Repo — From $29
           </Link>
-          <p className="text-white/30 text-xs mt-6">
+          <p className="text-muted text-xs mt-6">
             One-time payment per scan via Stripe. No subscription, no auto-renew.
           </p>
         </section>
-              <ComparisonReviewed slug="deepsource" />
-      </main>
-
-      <footer className="border-t border-white/[0.06] px-6 py-8 mt-16">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/30">
-          <span>GateTest &copy; 2026</span>
-          <div className="flex items-center gap-6">
-            <Link href="/compare/sonarqube" className="hover:text-white/60 transition-colors">vs SonarQube</Link>
-            <Link href="/compare/snyk" className="hover:text-white/60 transition-colors">vs Snyk</Link>
-            <Link href="/compare/eslint" className="hover:text-white/60 transition-colors">vs ESLint</Link>
-            <Link href="/compare/github-code-scanning" className="hover:text-white/60 transition-colors">vs GitHub Code Scanning</Link>
-          </div>
-        </div>
-      </footer>
-    </div>
+        <ComparisonReviewed slug="deepsource" />
+      </div>
+    </main>
   );
 }

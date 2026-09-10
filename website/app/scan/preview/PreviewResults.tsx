@@ -32,12 +32,17 @@ interface PreviewResult {
 }
 
 const SEV_TERM = {
-  error:   { bg: "bg-red-950/60",   badge: "bg-red-500/20 text-red-400 border border-red-500/30",   label: "ERR" },
-  warning: { bg: "bg-amber-950/40", badge: "bg-amber-500/20 text-amber-400 border border-amber-500/30", label: "WARN" },
-  info:    { bg: "bg-slate-900/60", badge: "bg-slate-600/30 text-slate-400 border border-slate-600/30", label: "INFO" },
+  error:   { bg: "bg-red-500/5",   badge: "bg-red-500/10 text-red-700 border border-red-500/30",   label: "ERR" },
+  warning: { bg: "bg-amber-500/5", badge: "bg-amber-500/10 text-amber-700 border border-amber-500/30", label: "WARN" },
+  info:    { bg: "",               badge: "section-alt text-muted border border-border", label: "INFO" },
 };
 
 const INSTALL_CMD = "curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integrations/scripts/install.sh | bash";
+
+// Terminal-style summaries and commands stay dark panels.
+const PANEL = "rounded-xl bg-panel text-panel-foreground border border-panel-border overflow-hidden";
+const PANEL_HEAD = "px-5 py-3 border-b border-panel-border bg-panel-alt flex items-center justify-between";
+const CMD_ROW = "rounded-lg bg-panel border border-panel-border px-4 py-3 font-mono text-xs text-emerald-300 flex items-start justify-between gap-3";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -48,7 +53,7 @@ function CopyButton({ text }: { text: string }) {
     });
   }
   return (
-    <button type="button" onClick={copy} className="shrink-0 text-white/30 hover:text-white transition-colors mt-0.5" title="Copy">
+    <button type="button" onClick={copy} className="shrink-0 text-panel-muted hover:text-panel-foreground transition-colors mt-0.5" title="Copy" aria-label="Copy">
       {copied ? (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <polyline points="20 6 9 17 4 12" />
@@ -88,18 +93,18 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
     <div className="space-y-5">
 
       {/* Summary — terminal style */}
-      <div className="rounded-xl bg-[#161b22] border border-white/[0.08] overflow-hidden">
-        <div className="flex items-center gap-1.5 px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
-          <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-          <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
-          <div className="w-3 h-3 rounded-full bg-[#28c840]" />
-          <span className="ml-3 text-xs text-white/30 font-mono">scan complete</span>
+      <div className={PANEL}>
+        <div className="flex items-center gap-1.5 px-4 py-3 border-b border-panel-border bg-panel-alt">
+          <div className="w-3 h-3 rounded-full bg-danger/80" />
+          <div className="w-3 h-3 rounded-full bg-warning/80" />
+          <div className="w-3 h-3 rounded-full bg-success/80" />
+          <span className="ml-3 text-xs text-panel-muted font-mono">scan complete</span>
         </div>
         <div className="p-5">
           <div className="flex items-start justify-between gap-4 mb-5">
-            <div>
-              <p className="font-mono text-sm font-semibold text-white">{result.repo}</p>
-              <p className="text-xs text-white/35 mt-0.5 font-mono">
+            <div className="min-w-0">
+              <p className="font-mono text-sm font-semibold text-panel-foreground truncate">{result.repo}</p>
+              <p className="text-xs text-panel-muted mt-0.5 font-mono">
                 {result.durationMs != null ? `${(result.durationMs / 1000).toFixed(1)}s` : ""} · quick suite · 4 modules
               </p>
             </div>
@@ -107,16 +112,16 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
               <div className={`text-3xl font-bold font-mono ${issueCount === 0 ? "text-emerald-400" : "text-red-400"}`}>
                 {issueCount}
               </div>
-              <div className="text-xs text-white/35">issues found</div>
+              <div className="text-xs text-panel-muted">issues found</div>
             </div>
           </div>
           <div className="space-y-1.5 font-mono text-sm">
             {result.moduleSummary?.map((m) => (
               <div key={m.module} className="flex items-center gap-3">
-                <span className={`shrink-0 ${m.status === "passed" ? "text-emerald-400" : m.status === "failed" ? "text-red-400" : "text-white/30"}`}>
+                <span className={`shrink-0 ${m.status === "passed" ? "text-emerald-400" : m.status === "failed" ? "text-red-400" : "text-panel-muted"}`}>
                   {m.status === "passed" ? "[PASS]" : m.status === "failed" ? "[FAIL]" : "[ -- ]"}
                 </span>
-                <span className={`${m.status === "passed" ? "text-emerald-300/80" : m.status === "failed" ? "text-red-300/80" : "text-white/40"}`}>
+                <span className={`${m.status === "passed" ? "text-emerald-300/80" : m.status === "failed" ? "text-red-300/80" : "text-panel-muted"}`}>
                   {m.module}
                 </span>
                 {m.issues > 0 && (
@@ -130,18 +135,18 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
 
       {/* Findings */}
       {(result.findings?.length ?? 0) > 0 ? (
-        <div className="rounded-xl bg-[#161b22] border border-white/[0.08] overflow-hidden">
-          <div className="px-5 py-3 border-b border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
-            <span className="text-xs font-mono text-white/50">
+        <div className="card overflow-hidden">
+          <div className="px-5 py-3 border-b border-border section-alt flex items-center justify-between">
+            <span className="text-xs font-mono text-muted">
               {result.truncated
                 ? `showing top ${result.findings!.length} of ${result.total} findings`
                 : `${result.findings!.length} finding${result.findings!.length !== 1 ? "s" : ""}`}
             </span>
             {result.truncated && (
-              <span className="text-xs text-amber-400/80 font-mono">{result.total! - result.findings!.length} more hidden</span>
+              <span className="text-xs text-warning font-mono">{result.total! - result.findings!.length} more hidden</span>
             )}
           </div>
-          <div className="divide-y divide-white/[0.04]">
+          <div className="divide-y divide-border">
             {result.findings!.map((f, i) => {
               const cfg = SEV_TERM[f.severity];
               return (
@@ -152,14 +157,14 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="text-xs font-mono text-teal-400">{f.module}</span>
+                        <span className="text-xs font-mono text-accent">{f.module}</span>
                         {f.file && (
-                          <span className="text-xs font-mono text-white/40 truncate">
+                          <span className="text-xs font-mono text-muted truncate">
                             {f.file}{f.line != null ? `:${f.line}` : ""}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-white/80 leading-snug">{f.message}</p>
+                      <p className="text-sm text-foreground leading-snug">{f.message}</p>
                     </div>
                   </div>
                 </div>
@@ -168,9 +173,9 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
           </div>
         </div>
       ) : (
-        <div className="rounded-xl bg-emerald-950/30 border border-emerald-500/20 p-6 text-center">
-          <p className="font-mono text-emerald-400 font-semibold mb-1">[PASS] all 4 modules — no issues found</p>
-          <p className="text-sm text-white/40 mt-2">
+        <div className="rounded-xl bg-success/5 border border-success/20 p-6 text-center">
+          <p className="font-mono text-success font-semibold mb-1">[PASS] all 4 modules — no issues found</p>
+          <p className="text-sm text-muted mt-2">
             Quick suite covers 4 modules. Full scan ($99) runs every applicable module of the 121-module engine — security, supply chain, auth flaws, CI hardening.
           </p>
         </div>
@@ -178,16 +183,16 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
 
       {/* Upsell: truncated */}
       {result.truncated && (
-        <div className="rounded-xl bg-white/[0.03] border border-teal-500/20 p-6">
-          <p className="font-semibold text-white mb-1">
+        <div className="card-highlight p-6">
+          <p className="font-semibold text-foreground mb-1">
             {result.total! - result.findings!.length} more issue{result.total! - result.findings!.length !== 1 ? "s" : ""} not shown
           </p>
-          <p className="text-sm text-white/50 mb-4">{result.nextStep?.message}</p>
+          <p className="text-sm text-muted mb-4">{result.nextStep?.message}</p>
           <div className="flex flex-wrap gap-3">
-            <Link href="/#pricing" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 text-white font-semibold text-sm hover:bg-teal-500 transition-colors">
+            <Link href="/#pricing" className="btn-cta inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl">
               See full results — from $29 →
             </Link>
-            <Link href="/scans" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 text-white/70 font-semibold text-sm hover:bg-white/[0.04] transition-colors">
+            <Link href="/scans" className="btn-secondary inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl">
               Hall of Scans →
             </Link>
           </div>
@@ -196,12 +201,12 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
 
       {/* Upsell: all clear */}
       {!result.truncated && issueCount === 0 && (
-        <div className="rounded-xl bg-white/[0.03] border border-white/10 p-6">
-          <p className="font-semibold text-white mb-1">Quick scan: all clear.</p>
-          <p className="text-sm text-white/50 mb-4">
+        <div className="card p-6">
+          <p className="font-semibold text-foreground mb-1">Quick scan: all clear.</p>
+          <p className="text-sm text-muted mb-4">
             4 modules checked. Full scan ($99) runs every applicable module of the 121-module engine — security, supply chain, auth flaws, CI hardening.
           </p>
-          <Link href="/#pricing" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 text-white font-semibold text-sm hover:bg-teal-500 transition-colors">
+          <Link href="/#pricing" className="btn-cta inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl">
             Run full scan — $99 →
           </Link>
         </div>
@@ -209,34 +214,34 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
 
       {/* Upsell: errors found */}
       {hasErrors && !result.truncated && (
-        <div className="rounded-xl bg-red-950/30 border border-red-500/20 p-6">
-          <p className="font-semibold text-red-400 mb-1">Real issues found — these need fixing.</p>
-          <p className="text-sm text-white/50 mb-4">
+        <div className="rounded-xl bg-danger/5 border border-danger/20 p-6">
+          <p className="font-semibold text-danger mb-1">Real issues found — these need fixing.</p>
+          <p className="text-sm text-muted mb-4">
             Scan + Fix ($199) opens a pull request with fixes written, pair-reviewed, and regression-tested. You review, you merge.
           </p>
-          <Link href="/#pricing" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 text-white font-semibold text-sm hover:bg-red-700 transition-colors">
+          <Link href="/#pricing" className="btn-cta inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl">
             Fix these issues — from $99 →
           </Link>
         </div>
       )}
 
       {/* Add to CI */}
-      <div className="rounded-xl bg-[#161b22] border border-white/[0.08] overflow-hidden">
-        <div className="px-5 py-3 border-b border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
-          <span className="text-xs font-mono text-white/50">add to your CI</span>
-          <span className="text-xs text-teal-400/80 font-mono">~30 seconds</span>
+      <div className="card overflow-hidden">
+        <div className="px-5 py-3 border-b border-border section-alt flex items-center justify-between">
+          <span className="text-xs font-mono text-muted">add to your CI</span>
+          <span className="text-xs text-accent font-mono">~30 seconds</span>
         </div>
         <div className="p-5 space-y-4">
-          <p className="text-sm text-white/60">
+          <p className="text-sm text-foreground-secondary">
             Run this against <em>your</em> repo on every push. One curl command drops the workflow, pre-push hook, and protection marker.
           </p>
-          <div className="rounded-lg bg-black/40 border border-white/[0.06] px-4 py-3 font-mono text-xs text-emerald-300 flex items-start justify-between gap-3">
+          <div className={CMD_ROW}>
             <span className="break-all">{INSTALL_CMD}</span>
             <CopyButton text={INSTALL_CMD} />
           </div>
-          <p className="text-xs text-white/30">
+          <p className="text-xs text-muted">
             Or install the{" "}
-            <Link href="/github/setup" className="text-teal-400 hover:underline">GitHub App</Link>
+            <Link href="/github/setup" className="text-accent hover:underline">GitHub App</Link>
             {" "}for automatic scanning on every push and PR.
           </p>
         </div>
@@ -246,27 +251,27 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
           move 36): a permanent backlink someone else maintains, and the one
           artefact of this scan that keeps working after the tab closes. */}
       {repoSlug && (
-        <div className="rounded-xl bg-[#161b22] border border-white/[0.08] overflow-hidden">
-          <div className="px-5 py-3 border-b border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
-            <span className="text-xs font-mono text-white/50">your badge</span>
-            <span className="text-xs text-teal-400/80 font-mono">updates after every scan</span>
+        <div className="card overflow-hidden">
+          <div className={`${PANEL_HEAD} bg-transparent border-border section-alt`}>
+            <span className="text-xs font-mono text-muted">your badge</span>
+            <span className="text-xs text-accent font-mono">updates after every scan</span>
           </div>
           <div className="p-5 space-y-4">
-            <p className="text-sm text-white/60">
-              Put <span className="font-mono text-white">{repoSlug}</span>&rsquo;s live GateTest grade in its README. It reads
+            <p className="text-sm text-foreground-secondary">
+              Put <span className="font-mono text-foreground">{repoSlug}</span>&rsquo;s live GateTest grade in its README. It reads
               &ldquo;not scanned&rdquo; until a full scan is on record, then shows the grade and issue count.
             </p>
             <div className="flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element -- SVG from our own badge origin */}
               <img src={badgeImage} alt={`GateTest badge for ${repoSlug}`} height={20} />
             </div>
-            <div className="rounded-lg bg-black/40 border border-white/[0.06] px-4 py-3 font-mono text-xs text-emerald-300 flex items-start justify-between gap-3">
+            <div className={CMD_ROW}>
               <span className="break-all">{badgeMarkdown}</span>
               <CopyButton text={badgeMarkdown} />
             </div>
-            <p className="text-xs text-white/30">
+            <p className="text-xs text-muted">
               Markdown shown; HTML and reStructuredText embeds are on the{" "}
-              <Link href="/badge" className="text-teal-400 hover:underline">badge page</Link>.
+              <Link href="/badge" className="text-accent hover:underline">badge page</Link>.
             </p>
           </div>
         </div>
@@ -274,14 +279,14 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
 
       {/* Try another */}
       <div className="pt-2">
-        <p className="text-xs text-white/30 uppercase tracking-wider font-medium mb-3">Try another</p>
+        <p className="text-xs text-muted uppercase tracking-wider font-medium mb-3">Try another</p>
         <div className="flex flex-wrap gap-2">
           {exampleRepos.filter((ex) => !repoUrl.includes(ex.label)).map((ex) => (
             <button
               key={ex.url}
               type="button"
               onClick={() => onTryAnother(ex.url)}
-              className="text-xs font-mono px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 text-white/60 hover:text-white hover:border-teal-500/40 transition-all"
+              className="text-xs font-mono px-3 py-1.5 rounded-lg bg-[var(--surface-solid)] border border-border text-foreground-secondary hover:text-foreground hover:border-accent/50 transition-all"
             >
               {ex.label}
             </button>

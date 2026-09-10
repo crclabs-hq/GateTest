@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+import PageHero from "../components/site/PageHero";
+import Section from "../components/site/Section";
 import { SITE_URL } from "@/app/lib/site-url";
 
 /**
@@ -13,6 +13,10 @@ import { SITE_URL } from "@/app/lib/site-url";
  * - "Reads GitHub APIs" is literally true — see correlator.js / route.
  * - Module count = 91 (CLAUDE.md v1.43.0).
  * - No claims about "tracking N teams" — we have no proof.
+ *
+ * Chrome: the site header and footer come from app/layout.tsx; this page
+ * renders neither. Colours are tokens; the two diagram panels are the only
+ * deliberately dark surfaces (bg-panel).
  */
 
 const CASCADE_RULES = [
@@ -119,45 +123,81 @@ const USE_CASES = [
   },
 ];
 
+const STEPS = [
+  {
+    n: "01",
+    t: "Fetch four signals",
+    d: "Source HEAD, latest GitHub Actions run, latest deployment registration, and a probe of the live URL.",
+  },
+  {
+    n: "02",
+    t: "Normalise each stage",
+    d: "safeStage() reduces each to {ok, sha, shortSha, timestamp, ageMinutes, conclusion, state, details}.",
+  },
+  {
+    n: "03",
+    t: "10-rule cascade",
+    d: "Pure-logic correlator walks the rules top-down; first matching rule wins. Deterministic — no model call.",
+  },
+  {
+    n: "04",
+    t: "Localised verdict",
+    d: "Returns {layer, confidence, headline, rationale, recommendedNext, divergencePoint} plus per-stage status.",
+  },
+];
+
+/**
+ * Stage accents. `text` reads on the light page, `panelText` on the dark
+ * diagram panels; the tint and border work on both.
+ */
 const STAGES = [
   {
     name: "SOURCE",
     role: "git HEAD on the default branch",
     detail: "Read via GitHub API. This is the baseline every other stage compares against.",
-    color: "from-blue-500/20 to-blue-500/5",
-    border: "border-blue-400/30",
-    text: "text-blue-300",
+    color: "from-blue-500/15 to-blue-500/5",
+    border: "border-blue-500/30",
+    text: "text-blue-700",
+    panelText: "text-blue-300",
   },
   {
     name: "CI",
     role: "Latest workflow run",
     detail: "Last GitHub Actions run on default branch — SHA, conclusion, age.",
-    color: "from-purple-500/20 to-purple-500/5",
-    border: "border-purple-400/30",
-    text: "text-purple-300",
+    color: "from-purple-500/15 to-purple-500/5",
+    border: "border-purple-500/30",
+    text: "text-purple-700",
+    panelText: "text-purple-300",
   },
   {
     name: "DEPLOY",
     role: "Latest deployment registration",
     detail: "GitHub Deployments API — Vercel / Netlify / Render / Cloudflare register here.",
-    color: "from-orange-500/20 to-orange-500/5",
-    border: "border-orange-400/30",
-    text: "text-orange-300",
+    color: "from-orange-500/15 to-orange-500/5",
+    border: "border-orange-500/30",
+    text: "text-orange-700",
+    panelText: "text-orange-300",
   },
   {
     name: "LIVE",
     role: "What the live URL is serving",
     detail: "HTTP probe — embedded commit SHA, Cache-Control, Age header, response time.",
-    color: "from-pink-500/20 to-pink-500/5",
-    border: "border-pink-400/30",
-    text: "text-pink-300",
+    color: "from-pink-500/15 to-pink-500/5",
+    border: "border-pink-500/30",
+    text: "text-pink-700",
+    panelText: "text-pink-300",
   },
 ];
+
+const PANEL = "rounded-2xl border border-panel-border bg-panel text-panel-foreground";
+const VERDICT = "rounded-lg border border-teal-400/30 bg-teal-500/10";
+const EYEBROW =
+  "inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-[var(--surface-solid)] text-[10px] text-muted font-mono uppercase tracking-widest mb-4";
 
 function LiveScanCounter() {
   if (process.env.NEXT_PUBLIC_LIVE_COUNTER !== "1") return null;
   return (
-    <div className="text-xs text-white/40 font-mono">
+    <div className="text-xs text-muted font-mono">
       Live scan counter — wiring in flight
     </div>
   );
@@ -188,370 +228,287 @@ export default function PipelineTracePage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0a12" }}>
+    <div className="bg-background">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <Navbar />
-
-      <main className="pt-24 sm:pt-28">
+      <main>
         {/* === Hero === */}
-        <section className="relative px-6 pb-16 sm:pb-20">
-          <div className="mx-auto max-w-6xl">
-            <div className="grid gap-10 sm:grid-cols-2 sm:gap-12 items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-300 font-medium mb-6">
-                  Deploy-chain divergence localisation
-                </div>
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-[1.05] mb-6">
-                  <span className="gradient-text">Pipeline Trace</span>
-                  <br />
-                  <span className="text-white/85 text-3xl sm:text-4xl md:text-5xl">
-                    finds where the deploy is stuck.
-                  </span>
-                </h1>
-                <p className="text-lg text-white/65 leading-relaxed max-w-xl">
-                  Source HEAD, latest CI, latest deploy, live URL — four
-                  probes, one verdict. A 10-rule cascade names the stage
-                  holding your update.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 mt-8">
-                  <Link
-                    href="/scan"
-                    className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
-                    style={{ background: "#2dd4bf", color: "#0a0a12" }}
-                  >
-                    Run a scan — from $29
-                  </Link>
-                  <a
-                    href="#how-it-works"
-                    className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/80 hover:border-white/30 hover:text-white transition-colors"
-                  >
-                    See it in action
-                  </a>
-                </div>
-                <p className="mt-6 text-xs text-white/40 leading-relaxed">
-                  MIT-licensed CLI · No new dependencies · Same Claude
-                  pipeline as Forensic Scan
-                </p>
-              </div>
-
-              {/* Hero diagram preview */}
-              <div className="rounded-2xl border border-white/10 p-5 sm:p-7" style={{ background: "rgba(255,255,255,0.02)" }}>
-                <div className="text-[10px] uppercase tracking-widest text-white/40 font-mono mb-4">
-                  Pipeline trace verdict
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
-                  {STAGES.map((s, i) => (
-                    <div
-                      key={s.name}
-                      className={`rounded-lg border ${s.border} p-3 bg-gradient-to-b ${s.color}`}
-                    >
-                      <div className={`text-[10px] font-mono font-bold ${s.text}`}>
-                        {i + 1}.{s.name}
-                      </div>
-                      <div className="text-white/45 text-[10px] mt-1.5 font-mono">
-                        {i < 2 ? "a3f9c12" : "8c1bea0"}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="rounded-lg border border-teal-400/30 bg-teal-500/10 p-4">
-                  <div className="text-[10px] uppercase tracking-widest text-teal-300 font-mono mb-1">
-                    Verdict: DEPLOY · high confidence
-                  </div>
-                  <div className="text-white/80 text-sm font-medium leading-snug">
-                    Last deploy is behind CI
-                  </div>
-                  <div className="text-white/45 text-xs mt-2 leading-relaxed">
-                    Rule 5 — CI succeeded on a3f9c12 (matches source HEAD),
-                    but the latest deploy is for an older commit 8c1bea0.
-                  </div>
-                </div>
-              </div>
+        <PageHero
+          eyebrow="Deploy-chain divergence localisation"
+          title={
+            <>
+              <span className="gradient-text">Pipeline Trace</span>
+              <br />
+              <span className="text-3xl sm:text-4xl lg:text-5xl">
+                finds where the deploy is stuck.
+              </span>
+            </>
+          }
+          lede="Source HEAD, latest CI, latest deploy, live URL — four probes, one verdict. A 10-rule cascade names the stage holding your update."
+          actions={
+            <>
+              <Link
+                href="/scan"
+                className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm"
+              >
+                Run a scan — from $29
+              </Link>
+              <a
+                href="#how-it-works"
+                className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm"
+              >
+                See it in action
+              </a>
+              <p className="basis-full mt-3 text-xs text-muted leading-relaxed">
+                MIT-licensed CLI · No new dependencies · Same Claude
+                pipeline as Forensic Scan
+              </p>
+            </>
+          }
+        >
+          {/* Hero diagram preview — a deliberately dark panel */}
+          <div className={`${PANEL} p-5 sm:p-7`}>
+            <div className="text-[10px] uppercase tracking-widest text-panel-muted font-mono mb-4">
+              Pipeline trace verdict
             </div>
-          </div>
-        </section>
-
-        {/* === What it answers === */}
-        <section className="px-6 py-16 sm:py-20 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
-              Where between the merged commit and what the user sees is the
-              update stuck?
-            </h2>
-            <p className="text-white/55 max-w-3xl leading-relaxed mb-12">
-              Four stages, in order. Each stage compares against its
-              predecessor. The first divergence is the answer.
-            </p>
-            <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
               {STAGES.map((s, i) => (
                 <div
                   key={s.name}
-                  className={`rounded-xl border ${s.border} p-5 bg-gradient-to-b ${s.color}`}
+                  className={`rounded-lg border ${s.border} p-3 bg-gradient-to-b ${s.color}`}
                 >
-                  <div className={`text-xs font-mono font-bold ${s.text} mb-2`}>
-                    STAGE {i + 1} · {s.name}
+                  <div className={`text-[10px] font-mono font-bold ${s.panelText}`}>
+                    {i + 1}.{s.name}
                   </div>
-                  <div className="text-white font-semibold text-sm mb-2">
-                    {s.role}
+                  <div className="text-panel-muted text-[10px] mt-1.5 font-mono">
+                    {i < 2 ? "a3f9c12" : "8c1bea0"}
                   </div>
-                  <p className="text-white/55 text-xs leading-relaxed">
-                    {s.detail}
-                  </p>
                 </div>
               ))}
             </div>
+            <div className={`${VERDICT} p-4`}>
+              <div className="text-[10px] uppercase tracking-widest text-teal-300 font-mono mb-1">
+                Verdict: DEPLOY · high confidence
+              </div>
+              <div className="text-sm font-medium leading-snug">
+                Last deploy is behind CI
+              </div>
+              <div className="text-panel-muted text-xs mt-2 leading-relaxed">
+                Rule 5 — CI succeeded on a3f9c12 (matches source HEAD),
+                but the latest deploy is for an older commit 8c1bea0.
+              </div>
+            </div>
           </div>
-        </section>
+        </PageHero>
+
+        {/* === What it answers === */}
+        <Section
+          title="Where between the merged commit and what the user sees is the update stuck?"
+          lede="Four stages, in order. Each stage compares against its predecessor. The first divergence is the answer."
+        >
+          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {STAGES.map((s, i) => (
+              <div
+                key={s.name}
+                className={`card border ${s.border} p-5 bg-gradient-to-b ${s.color}`}
+              >
+                <div className={`text-xs font-mono font-bold ${s.text} mb-2`}>
+                  STAGE {i + 1} · {s.name}
+                </div>
+                <div className="text-foreground font-semibold text-sm mb-2">
+                  {s.role}
+                </div>
+                <p className="text-muted text-xs leading-relaxed">
+                  {s.detail}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Section>
 
         {/* === How it works === */}
-        <section id="how-it-works" className="px-6 py-16 sm:py-20 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-white/60 font-mono uppercase tracking-widest mb-4">
-              How it works
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-12">
-              Four probes. One verdict.
-            </h2>
+        <Section id="how-it-works" alt eyebrow="How it works" title="Four probes. One verdict.">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+            {STEPS.map((step) => (
+              <div key={step.n} className="card p-5">
+                <div className="text-accent font-mono text-xs mb-3">{step.n}</div>
+                <div className="text-foreground font-semibold text-sm mb-2">{step.t}</div>
+                <p className="text-muted text-xs leading-relaxed">{step.d}</p>
+              </div>
+            ))}
+          </div>
 
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-              {[
-                {
-                  n: "01",
-                  t: "Fetch four signals",
-                  d: "Source HEAD, latest GitHub Actions run, latest deployment registration, and a probe of the live URL.",
-                },
-                {
-                  n: "02",
-                  t: "Normalise each stage",
-                  d: "safeStage() reduces each to {ok, sha, shortSha, timestamp, ageMinutes, conclusion, state, details}.",
-                },
-                {
-                  n: "03",
-                  t: "10-rule cascade",
-                  d: "Pure-logic correlator walks the rules top-down; first matching rule wins. Deterministic — no model call.",
-                },
-                {
-                  n: "04",
-                  t: "Localised verdict",
-                  d: "Returns {layer, confidence, headline, rationale, recommendedNext, divergencePoint} plus per-stage status.",
-                },
-              ].map((step) => (
-                <div
-                  key={step.n}
-                  className="rounded-xl border border-white/[0.08] p-5"
-                  style={{ background: "rgba(255,255,255,0.03)" }}
-                >
-                  <div className="text-teal-300 font-mono text-xs mb-3">{step.n}</div>
-                  <div className="text-white font-semibold text-sm mb-2">{step.t}</div>
-                  <p className="text-white/50 text-xs leading-relaxed">{step.d}</p>
+          {/* Visual flow — 4 stages horizontal on md+, vertical on mobile */}
+          <div className={`${PANEL} p-6 sm:p-8`}>
+            <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center mb-6">
+              {STAGES.map((s, idx) => (
+                <div key={s.name} className="flex-1 flex md:items-center gap-3">
+                  <div className={`flex-1 rounded-lg border ${s.border} p-4 bg-gradient-to-b ${s.color}`}>
+                    <div className={`text-[10px] font-mono font-bold ${s.panelText} mb-1`}>
+                      STAGE {idx + 1}
+                    </div>
+                    <div className="font-semibold text-sm">{s.name}</div>
+                    <div className="text-panel-muted text-xs mt-1">{s.role}</div>
+                  </div>
+                  {idx < STAGES.length - 1 ? (
+                    <div className="text-panel-muted font-mono text-lg hidden md:block" aria-hidden="true">→</div>
+                  ) : null}
                 </div>
               ))}
             </div>
-
-            {/* Visual flow — 4 stages horizontal on md+, vertical on mobile */}
-            <div className="rounded-2xl border border-white/[0.08] p-6 sm:p-8" style={{ background: "rgba(255,255,255,0.02)" }}>
-              <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center mb-6">
-                {STAGES.map((s, idx) => (
-                  <div key={s.name} className="flex-1 flex md:items-center gap-3">
-                    <div className={`flex-1 rounded-lg border ${s.border} p-4 bg-gradient-to-b ${s.color}`}>
-                      <div className={`text-[10px] font-mono font-bold ${s.text} mb-1`}>
-                        STAGE {idx + 1}
-                      </div>
-                      <div className="text-white font-semibold text-sm">{s.name}</div>
-                      <div className="text-white/45 text-xs mt-1">{s.role}</div>
-                    </div>
-                    {idx < STAGES.length - 1 ? (
-                      <div className="text-white/30 font-mono text-lg hidden md:block">→</div>
-                    ) : null}
-                  </div>
-                ))}
+            <div className="flex justify-center mb-4">
+              <svg width="32" height="32" viewBox="0 0 32 32" className="text-teal-400" aria-hidden="true">
+                <path d="M16 4 L16 24 M10 18 L16 24 L22 18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div className={`${VERDICT} p-5`}>
+              <div className="text-[10px] uppercase tracking-widest text-teal-300 font-mono mb-2">
+                Cascade verdict
               </div>
-              <div className="flex justify-center mb-4">
-                <svg width="32" height="32" viewBox="0 0 32 32" className="text-teal-400" aria-hidden="true">
-                  <path d="M16 4 L16 24 M10 18 L16 24 L22 18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+              <div className="font-semibold mb-1">
+                The divergence point is HERE.
               </div>
-              <div className="rounded-lg border border-teal-400/30 bg-teal-500/10 p-5">
-                <div className="text-[10px] uppercase tracking-widest text-teal-300 font-mono mb-2">
-                  Cascade verdict
-                </div>
-                <div className="text-white font-semibold mb-1">
-                  The divergence point is HERE.
-                </div>
-                <div className="text-white/55 text-sm leading-relaxed">
-                  Stage · confidence · headline · rationale · recommended
-                  next action.
-                </div>
+              <div className="text-panel-muted text-sm leading-relaxed">
+                Stage · confidence · headline · rationale · recommended
+                next action.
               </div>
             </div>
           </div>
-        </section>
+        </Section>
 
         {/* === The 10-rule cascade === */}
-        <section className="px-6 py-16 sm:py-20 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-white/60 font-mono uppercase tracking-widest mb-4">
-              The cascade in plain English
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
-              10 rules. No magic. Read them yourself.
-            </h2>
-            <p className="text-white/55 max-w-3xl leading-relaxed mb-10">
+        <Section
+          eyebrow="The cascade in plain English"
+          title="10 rules. No magic. Read them yourself."
+          lede={
+            <>
               Top-down. First match wins. Each rule maps a combination of
               stage states to one verdict. The full source is at{" "}
-              <code className="text-teal-300 text-sm">
+              <code className="text-accent text-sm">
                 website/app/lib/pipeline-trace/correlator.js
               </code>
               .
-            </p>
-            <ol className="space-y-3">
-              {CASCADE_RULES.map((rule) => (
-                <li
-                  key={rule.n}
-                  className="rounded-xl border border-white/[0.08] p-5"
-                  style={{ background: "rgba(255,255,255,0.03)" }}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="shrink-0 w-8 h-8 rounded-full bg-teal-500/15 border border-teal-400/30 text-teal-300 font-mono text-xs font-bold flex items-center justify-center">
-                      {rule.n}
+            </>
+          }
+        >
+          <ol className="space-y-3">
+            {CASCADE_RULES.map((rule) => (
+              <li key={rule.n} className="card p-5">
+                <div className="flex items-start gap-4">
+                  <div className="shrink-0 w-8 h-8 rounded-full bg-accent/10 border border-accent/30 text-accent font-mono text-xs font-bold flex items-center justify-center">
+                    {rule.n}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-foreground font-semibold text-sm mb-1.5">
+                      {rule.label}
                     </div>
-                    <div className="flex-1">
-                      <div className="text-white font-semibold text-sm mb-1.5">
-                        {rule.label}
-                      </div>
-                      <div className="text-white/55 text-xs leading-relaxed mb-2">
-                        If <span className="text-white/75">{rule.condition}</span>
-                      </div>
-                      <div className="inline-flex items-center gap-1.5 text-[11px] font-mono">
-                        <span className="text-white/40">→</span>
-                        <span className="text-teal-300">{rule.verdict}</span>
-                      </div>
+                    <div className="text-muted text-xs leading-relaxed mb-2">
+                      If <span className="text-foreground-secondary">{rule.condition}</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-mono">
+                      <span className="text-muted">→</span>
+                      <span className="text-accent">{rule.verdict}</span>
                     </div>
                   </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </section>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </Section>
 
         {/* === Honest limitations === */}
-        <section className="px-6 py-16 sm:py-20 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-400/20 text-[10px] text-amber-300 font-mono uppercase tracking-widest mb-4">
+        <Section alt>
+          <div className="max-w-2xl mb-10 sm:mb-14">
+            <div className={`${EYEBROW} border-amber-500/30 text-amber-700`}>
               Honest limitations
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+            <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-foreground [text-wrap:balance]">
               What pipeline trace does NOT do.
             </h2>
-            <p className="text-white/55 max-w-3xl leading-relaxed mb-10">
+            <p className="mt-4 text-base sm:text-lg text-foreground-secondary leading-relaxed">
               We do not ship claims we cannot defend. Here is what pipeline
               trace cannot tell you.
             </p>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {LIMITATIONS.map((l) => (
-                <div
-                  key={l.title}
-                  className="rounded-xl border border-white/[0.08] p-5"
-                  style={{ background: "rgba(255,255,255,0.03)" }}
-                >
-                  <div className="text-white font-semibold text-sm mb-2">
-                    {l.title}
-                  </div>
-                  <p className="text-white/55 text-xs leading-relaxed">{l.body}</p>
-                </div>
-              ))}
-            </div>
           </div>
-        </section>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {LIMITATIONS.map((l) => (
+              <div key={l.title} className="card p-5">
+                <div className="text-foreground font-semibold text-sm mb-2">
+                  {l.title}
+                </div>
+                <p className="text-muted text-xs leading-relaxed">{l.body}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
 
         {/* === When to use it === */}
-        <section className="px-6 py-16 sm:py-20 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-10">
-              When to reach for pipeline trace
-            </h2>
-            <div className="grid sm:grid-cols-3 gap-4">
-              {USE_CASES.map((u, i) => (
-                <div
-                  key={u.title}
-                  className="rounded-xl border border-white/[0.08] p-5"
-                  style={{ background: "rgba(255,255,255,0.03)" }}
-                >
-                  <div className="text-teal-300 font-mono text-xs mb-3">
-                    Case {i + 1}
-                  </div>
-                  <div className="text-white font-semibold text-sm mb-3 leading-snug">
-                    {u.title}
-                  </div>
-                  <p className="text-white/55 text-xs leading-relaxed">{u.body}</p>
+        <Section title="When to reach for pipeline trace">
+          <div className="grid sm:grid-cols-3 gap-4">
+            {USE_CASES.map((u, i) => (
+              <div key={u.title} className="card p-5">
+                <div className="text-accent font-mono text-xs mb-3">
+                  Case {i + 1}
                 </div>
-              ))}
-            </div>
+                <div className="text-foreground font-semibold text-sm mb-3 leading-snug">
+                  {u.title}
+                </div>
+                <p className="text-muted text-xs leading-relaxed">{u.body}</p>
+              </div>
+            ))}
           </div>
-        </section>
+        </Section>
 
-        {/* === Pricing line === */}
-        <section className="px-6 py-12 border-t border-white/[0.06]">
+        {/* === Pricing line + trust strip + final CTA === */}
+        <Section alt>
           <div className="mx-auto max-w-3xl text-center">
-            <p className="text-white/65 text-sm leading-relaxed">
+            <p className="text-foreground-secondary text-sm leading-relaxed">
               Pipeline Trace is an admin tool today — available to GateTest
               subscribers via the admin dashboard. Public per-scan checkout
               for Pipeline Trace is planned for v1.45.
             </p>
           </div>
-        </section>
 
-        {/* === Trust strip === */}
-        <section className="px-6 py-12 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl">
-            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
-              <div className="rounded-lg border border-white/10 px-4 py-2 text-xs text-white/60">
-                Available on GitHub Marketplace soon
-              </div>
-              <a
-                href="https://github.com/crclabs-hq/gatetest"
-                className="rounded-lg border border-white/10 px-4 py-2 text-xs text-white/60 hover:text-white hover:border-white/20 transition-colors"
-              >
-                CLI is MIT-licensed — github.com/crclabs-hq/gatetest
-              </a>
-              {showLaunchBadges ? (
-                <div className="rounded-lg border border-white/10 px-4 py-2 text-xs text-white/60">
-                  Launching on Hacker News
-                </div>
-              ) : null}
-              <LiveScanCounter />
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+            <div className="rounded-lg border border-border bg-[var(--surface-solid)] px-4 py-2 text-xs text-muted">
+              Available on GitHub Marketplace soon
             </div>
+            <a
+              href="https://github.com/crclabs-hq/gatetest"
+              className="rounded-lg border border-border bg-[var(--surface-solid)] px-4 py-2 text-xs text-muted hover:text-foreground hover:border-accent/50 transition-colors"
+            >
+              CLI is MIT-licensed — github.com/crclabs-hq/gatetest
+            </a>
+            {showLaunchBadges ? (
+              <div className="rounded-lg border border-border bg-[var(--surface-solid)] px-4 py-2 text-xs text-muted">
+                Launching on Hacker News
+              </div>
+            ) : null}
+            <LiveScanCounter />
           </div>
-        </section>
 
-        {/* === Final CTA === */}
-        <section className="px-6 py-16 sm:py-20 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-3xl">
-            <div className="rounded-2xl border border-teal-500/20 p-8 sm:p-10 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
+          <div className="mx-auto max-w-3xl mt-14">
+            <div className={`${PANEL} p-8 sm:p-10 text-center`}>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight mb-3">
                 Try it on your own repo.
               </h2>
-              <p className="text-white/60 mb-7 leading-relaxed">
+              <p className="text-panel-muted mb-7 leading-relaxed">
                 $29 Quick scan. No signup needed before checkout. No card
                 stored after the scan completes.
               </p>
               <Link
                 href="/scan"
-                className="inline-flex items-center justify-center px-8 py-3.5 rounded-xl font-semibold"
-                style={{ background: "#2dd4bf", color: "#0a0a12" }}
+                className="inline-flex items-center justify-center px-8 py-3.5 rounded-xl font-semibold bg-accent-light text-panel hover:bg-teal-300 transition-colors"
               >
                 Run a scan
               </Link>
             </div>
           </div>
-        </section>
+        </Section>
       </main>
-
-      <Footer />
     </div>
   );
 }

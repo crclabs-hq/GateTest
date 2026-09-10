@@ -1,6 +1,8 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import ComparisonReviewed from "@/app/components/ComparisonReviewed";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
+import PageHero from "../../components/site/PageHero";
 
 export const metadata: Metadata = {
   title: "GateTest vs Semgrep — 121 modules vs pattern matching in 2026",
@@ -43,7 +45,7 @@ const faqItems = [
   },
   {
     q: "Does GateTest replace Semgrep rules I've already written?",
-    a: "GateTest is complementary if you have custom business-logic rules that are deeply specific to your codebase. For the standard vulnerability classes — SSRF, TLS bypass, PII in logs, N+1 queries, insecure cookies, ReDoS, import cycles — GateTest covers them out of the box with modules that reason about your specific code rather than matching patterns. The practical question is whether you spend time maintaining a rule library or buy 120 maintained checks per scan.",
+    a: `GateTest is complementary if you have custom business-logic rules that are deeply specific to your codebase. For the standard vulnerability classes — SSRF, TLS bypass, PII in logs, N+1 queries, insecure cookies, ReDoS, import cycles — GateTest covers them out of the box with modules that reason about your specific code rather than matching patterns. The practical question is whether you spend time maintaining a rule library or buy ${TOTAL_MODULES} maintained checks per scan.`,
   },
   {
     q: "Does GateTest find injection vulnerabilities like Semgrep?",
@@ -87,76 +89,47 @@ export default function SemgrepPage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0a12" }}>
+    <main>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Nav */}
-      <nav className="border-b border-white/[0.06] px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm font-mono">G</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              Gate<span className="text-teal-400">Test</span>
-            </span>
-          </Link>
-          <Link href="/" className="text-sm text-white/50 hover:text-white transition-colors">
-            &larr; Back to GateTest
-          </Link>
-        </div>
-      </nav>
-
-      <main className="px-6 py-16 max-w-5xl mx-auto">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-white/40 mb-10">
-          <Link href="/" className="hover:text-white/70 transition-colors">GateTest</Link>
-          <span>/</span>
-          <span className="text-white/60">Compare</span>
-          <span>/</span>
-          <span className="text-white/60">Semgrep</span>
-        </nav>
-
-        {/* Hero */}
-        <div className="mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-400 font-medium mb-6">
-            Tool Comparison
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-6">
+      <PageHero
+        eyebrow="Tool Comparison"
+        title={
+          <>
             GateTest vs Semgrep
             <br />
-            <span className="text-teal-400">121 modules vs Writing Rules in 2026</span>
-          </h1>
-          <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
+            <span className="text-accent">121 modules vs Writing Rules in 2026</span>
+          </>
+        }
+        lede={
+          <>
             Semgrep is great at finding code that matches patterns you&rsquo;ve written rules for.
             The gap is the bug nobody wrote a rule for yet — the SSRF in a handler that&rsquo;s shaped
             differently, the race condition in a new ORM, the N+1 query introduced last Tuesday.
             GateTest uses Claude to read intent, not patterns.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 mt-8">
-            <Link
-              href="/playground"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
-              style={{ background: "#2dd4bf", color: "#0a0a12" }}
-            >
+          </>
+        }
+        actions={
+          <>
+            <Link href="/playground" className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm">
               Scan My Repo — From $29
             </Link>
-            <Link
-              href="/#modules"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
-            >
-              See All 121 modules
+            <Link href="/#modules" className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm">
+              See All {TOTAL_MODULES} modules
             </Link>
-          </div>
-        </div>
+          </>
+        }
+      />
+
+      <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
 
         {/* The core gap */}
-        <section className="mb-16 rounded-xl border border-amber-500/20 p-6" style={{ background: "rgba(245,158,11,0.05)" }}>
-          <h2 className="text-lg font-semibold text-amber-300 mb-3">The gap pattern-matching can&rsquo;t close</h2>
-          <p className="text-white/60 text-sm mb-4">
+        <section className="mb-16 rounded-2xl border border-amber-500/20 p-6 bg-amber-500/5">
+          <h2 className="text-lg font-semibold text-warning mb-3">The gap pattern-matching can&rsquo;t close</h2>
+          <p className="text-foreground-secondary text-sm mb-4">
             Semgrep needs a rule to find a bug. These real bug classes ship every week — and no pattern covers them all:
           </p>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -170,9 +143,9 @@ export default function SemgrepPage() {
               "TLS bypass: rejectUnauthorized: false buried in a config helper",
               "PII leak: console.log(user) — 'user' is a generic name Semgrep rules miss",
             ].map((item) => (
-              <div key={item} className="flex items-start gap-2 text-sm text-white/55">
-                <span className="text-red-400/70 shrink-0 mt-0.5">&#10007;</span>
-                <span className="text-xs text-white/50">{item}</span>
+              <div key={item} className="flex items-start gap-2 text-sm text-foreground-secondary">
+                <span className="text-danger/70 shrink-0 mt-0.5">&#10007;</span>
+                <span className="text-xs text-muted">{item}</span>
               </div>
             ))}
           </div>
@@ -180,35 +153,35 @@ export default function SemgrepPage() {
 
         {/* Comparison table */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-6">Feature Comparison</h2>
-          <div className="rounded-xl border border-white/[0.08] overflow-hidden">
-            <table className="w-full text-sm">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-6">Feature Comparison</h2>
+          <div className="rounded-xl border border-border overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
               <thead>
-                <tr className="border-b border-white/[0.08]" style={{ background: "rgba(255,255,255,0.03)" }}>
-                  <th className="text-left px-5 py-4 text-white/50 font-medium">Feature</th>
-                  <th className="text-center px-5 py-4 text-teal-400 font-semibold">GateTest</th>
-                  <th className="text-center px-5 py-4 text-white/40 font-medium">Semgrep</th>
+                <tr className="border-b border-border bg-surface-light">
+                  <th className="text-left px-5 py-4 text-muted font-medium">Feature</th>
+                  <th className="text-center px-5 py-4 text-accent font-semibold">GateTest</th>
+                  <th className="text-center px-5 py-4 text-muted font-medium">Semgrep</th>
                 </tr>
               </thead>
               <tbody>
                 {comparisonRows.map((row) => (
                   <tr
                     key={row.feature}
-                    className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.02] transition-colors"
+                    className="border-b border-border last:border-0 hover:bg-surface-light transition-colors"
                   >
-                    <td className="px-5 py-3.5 text-white/70">{row.feature}</td>
+                    <td className="px-5 py-3.5 text-foreground-secondary">{row.feature}</td>
                     <td className="px-5 py-3.5 text-center">
                       {row.gatetest ? (
-                        <span className="text-emerald-400 font-bold text-base">&#10003;</span>
+                        <span className="text-success font-bold text-base">&#10003;</span>
                       ) : (
-                        <span className="text-white/20">&#8212;</span>
+                        <span className="text-muted">&#8212;</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-center">
                       {row.competitor ? (
-                        <span className="text-emerald-400/60 font-bold text-base">&#10003;</span>
+                        <span className="text-success/70 font-bold text-base">&#10003;</span>
                       ) : (
-                        <span className="text-red-400/60">&#10007;</span>
+                        <span className="text-danger/70">&#10007;</span>
                       )}
                     </td>
                   </tr>
@@ -216,14 +189,14 @@ export default function SemgrepPage() {
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-white/30 mt-3 px-1">
+          <p className="text-xs text-muted mt-3 px-1">
             Semgrep OSS covers pattern-matching SAST. Semgrep Code / Supply Chain / Secrets are separate paid products.
           </p>
         </section>
 
         {/* Key differentiators */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-8">Why GateTest goes further</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8">Why GateTest goes further</h2>
           <div className="grid sm:grid-cols-2 gap-5">
             {[
               {
@@ -231,7 +204,7 @@ export default function SemgrepPage() {
                 body: "Semgrep matches code that looks like a known bad pattern. Claude reads your code and understands what it does — so it finds the SSRF that's shaped differently from any rule, the race condition in a new ORM, the N+1 in a loop structure nobody thought to write a rule for. The gap between 'matches pattern' and 'is actually dangerous' is where most real bugs live.",
               },
               {
-                title: "120 categories vs. one",
+                title: `${TOTAL_MODULES} categories vs. one`,
                 body: "Semgrep is a SAST engine — security and code quality. GateTest covers those plus accessibility (WCAG 2.2), performance, IaC security (Terraform, K8s, Dockerfile, CI pipelines), dependency hygiene, datetime bugs, money-float errors, import cycles, PII in logs, prompt injection, and more. One gate, one config, one bill.",
               },
               {
@@ -245,11 +218,10 @@ export default function SemgrepPage() {
             ].map((card) => (
               <div
                 key={card.title}
-                className="rounded-xl p-5 border border-white/[0.08]"
-                style={{ background: "rgba(255,255,255,0.03)" }}
+                className="card p-5"
               >
-                <h3 className="text-white font-semibold mb-2">{card.title}</h3>
-                <p className="text-white/55 text-sm leading-relaxed">{card.body}</p>
+                <h3 className="text-foreground font-semibold mb-2">{card.title}</h3>
+                <p className="text-foreground-secondary text-sm leading-relaxed">{card.body}</p>
               </div>
             ))}
           </div>
@@ -257,54 +229,41 @@ export default function SemgrepPage() {
 
         {/* FAQ */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-8">Frequently asked questions</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8">Frequently asked questions</h2>
           <div className="space-y-4">
             {faqItems.map((item) => (
               <div
                 key={item.q}
-                className="rounded-xl border border-white/[0.08] p-5"
-                style={{ background: "rgba(255,255,255,0.03)" }}
+                className="card p-5"
               >
-                <h3 className="text-white font-semibold mb-3 leading-snug">{item.q}</h3>
-                <p className="text-white/55 text-sm leading-relaxed">{item.a}</p>
+                <h3 className="text-foreground font-semibold mb-3 leading-snug">{item.q}</h3>
+                <p className="text-foreground-secondary text-sm leading-relaxed">{item.a}</p>
               </div>
             ))}
           </div>
         </section>
 
         {/* CTA */}
-        <section className="rounded-2xl border border-teal-500/20 p-10 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
-          <h2 className="text-3xl font-bold text-white mb-4">
+        <section className="rounded-2xl border border-accent/20 bg-accent/5 px-6 py-10 sm:p-12 text-center">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-4">
             121 checks. No rules to write.
           </h2>
-          <p className="text-white/60 mb-8 max-w-xl mx-auto">
+          <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
             Security, quality, accessibility, performance, IaC, AI safety — in one scan. Claude
             finds what no pattern covers. One-time payment per scan.
           </p>
           <Link
             href="/playground"
-            className="inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold"
-            style={{ background: "#2dd4bf", color: "#0a0a12" }}
+            className="btn-cta inline-flex items-center justify-center px-8 py-4"
           >
             Scan My Repo — From $29
           </Link>
-          <p className="text-white/30 text-xs mt-6">
+          <p className="text-muted text-xs mt-6">
             One-time payment per scan via Stripe. No subscription, no auto-renew.
           </p>
         </section>
-              <ComparisonReviewed slug="semgrep" />
-      </main>
-
-      <footer className="border-t border-white/[0.06] px-6 py-8 mt-16">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/30">
-          <span>GateTest &copy; 2026</span>
-          <div className="flex gap-6">
-            <Link href="/legal/terms" className="hover:text-white/60 transition-colors">Terms</Link>
-            <Link href="/legal/privacy" className="hover:text-white/60 transition-colors">Privacy</Link>
-            <Link href="/legal/refunds" className="hover:text-white/60 transition-colors">Refunds</Link>
-          </div>
-        </div>
-      </footer>
-    </div>
+        <ComparisonReviewed slug="semgrep" />
+      </div>
+    </main>
   );
 }

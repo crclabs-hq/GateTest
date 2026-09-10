@@ -42,9 +42,45 @@
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
   --radius-xl: 1.5rem;
+
+  /* Dark PANELS inside a light page (terminals, code, "what the CI sees").
+     These are deliberate accents and stay dark in both themes. */
+  --panel: #0b1210;
+  --panel-alt: #121a18;
+  --panel-foreground: #e8eeeb;
+  --panel-muted: #8f9e99;
+  --panel-border: rgba(255, 255, 255, 0.08);
+}
+
+/* Dark theme — OPT-IN via data-theme="dark" on <html>. Not yet driven by
+   prefers-color-scheme on purpose: until every page uses tokens (the
+   2026-09-10 site-shell programme), auto-switching would show dark-OS
+   visitors a half-converted site. Flip to a media query once
+   tests/site-shell.test.js reports zero hard-coded colours. */
+:root[data-theme="dark"] {
+  --background: #0b1210;
+  --background-alt: #101816;
+  --foreground: #e8eeeb;
+  --foreground-secondary: #c3cdc8;
+  --surface: rgba(16, 24, 22, 0.85);
+  --surface-solid: #121a18;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --muted: #8f9e99;
+  --accent: #14b8a6;
+  --accent-light: #2dd4bf;
+  --accent-hover: #0d9488;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
 }
 
 @theme inline {
+  --color-panel: var(--panel);
+  --color-panel-alt: var(--panel-alt);
+  --color-panel-foreground: var(--panel-foreground);
+  --color-panel-muted: var(--panel-muted);
+  --color-panel-border: var(--panel-border);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-accent: var(--accent);

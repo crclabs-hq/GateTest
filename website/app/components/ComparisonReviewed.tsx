@@ -15,7 +15,7 @@ export default function ComparisonReviewed({ slug }: { slug: string }) {
   return (
     <section
       aria-label="How current this comparison is"
-      className="max-w-5xl mx-auto px-6 mt-14 text-xs text-white/40 leading-relaxed"
+      className="max-w-5xl mx-auto px-6 mt-14 text-xs text-muted leading-relaxed"
     >
       <p>
         {date ? (
@@ -29,7 +29,7 @@ export default function ComparisonReviewed({ slug }: { slug: string }) {
           <>This comparison is dated at build time.</>
         )}{" "}
         Other tools change; if a claim here is out of date, tell us at{" "}
-        <a href={`mailto:${SUPPORT_EMAIL}`} className="underline hover:text-white/70">
+        <a href={`mailto:${SUPPORT_EMAIL}`} className="underline hover:text-foreground">
           {SUPPORT_EMAIL}
         </a>{" "}
         and we will correct it.

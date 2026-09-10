@@ -5,6 +5,8 @@ import Link from "next/link";
 import { consumeSseStream } from "@/app/components/url-scan-flow-sse";
 import { totalModuleCount } from "@/app/components/howitworks/modules-data";
 import { SITE_URL, badgeUrl } from "@/app/lib/site-url";
+import PageHero from "../components/site/PageHero";
+import Section from "../components/site/Section";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -82,9 +84,9 @@ const GRADE_RING_COLOR: Record<string, string> = {
 };
 
 const SEVERITY_STYLE: Record<Severity, { label: string; text: string; bg: string; border: string; dot: string }> = {
-  critical: { label: "CRITICAL", text: "text-red-400",    bg: "bg-red-500/[0.06]",    border: "border-red-500/25",    dot: "bg-red-500" },
-  warning:  { label: "WARNING",  text: "text-amber-400",  bg: "bg-amber-500/[0.06]",  border: "border-amber-500/25",  dot: "bg-amber-500" },
-  info:     { label: "INFO",     text: "text-sky-400",    bg: "bg-sky-500/[0.06]",    border: "border-sky-500/25",    dot: "bg-sky-500" },
+  critical: { label: "CRITICAL", text: "text-red-700",    bg: "bg-red-500/[0.06]",    border: "border-red-500/25",    dot: "bg-red-500" },
+  warning:  { label: "WARNING",  text: "text-amber-700",  bg: "bg-amber-500/[0.06]",  border: "border-amber-500/25",  dot: "bg-amber-500" },
+  info:     { label: "INFO",     text: "text-sky-700",    bg: "bg-sky-500/[0.06]",    border: "border-sky-500/25",    dot: "bg-sky-500" },
 };
 
 function severityOf(raw: string | undefined): Severity {
@@ -131,7 +133,7 @@ function GradeRing({ grade, score, animating }: { grade: string; score: number; 
     <div className="flex flex-col items-center gap-2">
       <div className="relative w-36 h-36">
         <svg width="144" height="144" viewBox="0 0 144 144" className="rotate-[-90deg]">
-          <circle cx="72" cy="72" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="12" />
+          <circle cx="72" cy="72" r={r} fill="none" stroke="var(--border)" strokeWidth="12" />
           <circle
             cx="72" cy="72" r={r}
             fill="none"
@@ -144,11 +146,11 @@ function GradeRing({ grade, score, animating }: { grade: string; score: number; 
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-5xl font-black" style={{ color, lineHeight: 1 }}>{grade}</span>
-          <span className="text-sm font-semibold text-white/60 mt-1">{score}/100</span>
+          <span className="font-display text-5xl font-black" style={{ color, lineHeight: 1 }}>{grade}</span>
+          <span className="text-sm font-semibold text-foreground-secondary mt-1">{score}/100</span>
         </div>
       </div>
-      <p className="text-xs text-white/50 font-mono uppercase tracking-widest">Health Score</p>
+      <p className="text-xs text-muted font-mono uppercase tracking-widest">Health Score</p>
     </div>
   );
 }
@@ -175,12 +177,12 @@ function ModuleCard({ mod }: { mod: ModuleResult }) {
       }}
     >
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-semibold text-white/90">{MODULE_LABELS[mod.name] || mod.name}</span>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${passed ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+        <span className="text-sm font-semibold text-foreground">{MODULE_LABELS[mod.name] || mod.name}</span>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${passed ? "bg-green-500/15 text-green-700" : "bg-red-500/15 text-red-700"}`}>
           {passed ? "✓ PASS" : `✗ ${mod.issues} issue${mod.issues !== 1 ? "s" : ""}`}
         </span>
       </div>
-      <p className="text-xs text-white/40 font-mono">{(mod.duration / 1000).toFixed(2)}s · {mod.checks} checks</p>
+      <p className="text-xs text-muted font-mono">{(mod.duration / 1000).toFixed(2)}s · {mod.checks} checks</p>
     </div>
   );
 }
@@ -199,14 +201,14 @@ function LockedModuleChip({ mod, delay }: { mod: LockedModule; delay: number }) 
   return (
     <div
       title={`${mod.name} — unlock with a paid scan`}
-      className="rounded-lg border border-white/[0.06] bg-white/[0.015] px-2.5 py-1.5 flex items-center gap-1.5 transition-all duration-300"
+      className="rounded-lg border border-border section-alt px-2.5 py-1.5 flex items-center gap-1.5 transition-all duration-300"
       style={{ opacity: visible ? 1 : 0, transform: visible ? "scale(1)" : "scale(0.9)" }}
     >
-      <svg className="w-3 h-3 text-white/25 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg className="w-3 h-3 text-muted shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <rect x="5" y="11" width="14" height="9" rx="1.5" />
         <path d="M8 11V8a4 4 0 0 1 8 0v3" />
       </svg>
-      <span className="text-[11px] text-white/30 font-mono truncate">{mod.name}</span>
+      <span className="text-[11px] text-muted font-mono truncate">{mod.name}</span>
     </div>
   );
 }
@@ -216,23 +218,20 @@ function ProgressBar({ completed, total }: { completed: number; total: number })
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-xs font-mono">
-        <span className="text-white/50">{completed}/{total} modules</span>
-        <span className="text-white/30">{pct.toFixed(0)}%</span>
+        <span className="text-foreground-secondary">{completed}/{total} modules</span>
+        <span className="text-muted">{pct.toFixed(0)}%</span>
       </div>
-      <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+      <div className="h-1.5 rounded-full bg-border overflow-hidden">
         <div
-          className="h-full rounded-full"
-          style={{
-            width: `${pct}%`,
-            background: "linear-gradient(90deg, #059669, #0891b2)",
-            transition: "width 0.3s ease-out",
-          }}
+          className="h-full rounded-full bg-accent"
+          style={{ width: `${pct}%`, transition: "width 0.3s ease-out" }}
         />
       </div>
     </div>
   );
 }
 
+// The terminal is what the CLI prints, so it stays a dark panel.
 function TerminalWindow({ lines, scanning }: { lines: TerminalLine[]; scanning: boolean }) {
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -245,7 +244,7 @@ function TerminalWindow({ lines, scanning }: { lines: TerminalLine[]; scanning: 
     if (type === "run")   return "text-yellow-400";
     if (type === "done")  return "text-cyan-400";
     if (type === "error") return "text-red-500";
-    return "text-white/60";
+    return "text-panel-muted";
   };
 
   const linePrefix = (type: TerminalLine["type"]) => {
@@ -258,13 +257,13 @@ function TerminalWindow({ lines, scanning }: { lines: TerminalLine[]; scanning: 
   };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden shadow-2xl">
+    <div className="rounded-2xl border border-panel-border bg-panel text-panel-foreground overflow-hidden shadow-lg">
       {/* Terminal title bar */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-white/[0.02]">
-        <span className="w-3 h-3 rounded-full bg-red-500/70" />
-        <span className="w-3 h-3 rounded-full bg-yellow-500/70" />
-        <span className="w-3 h-3 rounded-full bg-green-500/70" />
-        <span className="ml-3 text-xs text-white/30 font-mono">gatetest — quick scan</span>
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-panel-border bg-panel-alt">
+        <span className="w-3 h-3 rounded-full bg-danger/80" />
+        <span className="w-3 h-3 rounded-full bg-warning/80" />
+        <span className="w-3 h-3 rounded-full bg-success/80" />
+        <span className="ml-3 text-xs text-panel-muted font-mono">gatetest — quick scan</span>
         {scanning && (
           <span className="ml-auto flex items-center gap-1.5 text-xs text-yellow-400 font-mono">
             <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
@@ -281,7 +280,7 @@ function TerminalWindow({ lines, scanning }: { lines: TerminalLine[]; scanning: 
           </div>
         ))}
         {scanning && (
-          <div className="flex gap-1 text-white/30">
+          <div className="flex gap-1 text-panel-muted">
             <span>  </span>
             <span className="inline-flex gap-0.5">
               <span className="animate-bounce" style={{ animationDelay: "0ms" }}>.</span>
@@ -421,6 +420,17 @@ export default function PlaygroundPage() {
     runScan(url);
   };
 
+  // The home hero's "Repository" tab hands off here: /playground?repo=<url>
+  // prefills the input and starts the free scan, so the visitor's first click
+  // on the site is already a running scan (2026-09-10).
+  useEffect(() => {
+    const repo = new URLSearchParams(window.location.search).get("repo");
+    if (!repo) return;
+    setUrl(repo);
+    runScan(repo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleShare = useCallback(() => {
     if (!result) return;
     const encoded = encodeShareData(result);
@@ -432,108 +442,83 @@ export default function PlaygroundPage() {
   }, [result]);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
-      {/* ── Nav breadcrumb ── */}
-      <div className="border-b border-white/[0.06]">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center gap-2 text-sm text-white/40">
-          <Link href="/" className="hover:text-white/70 transition-colors">GateTest</Link>
-          <span>/</span>
-          <span className="text-white/70">Playground</span>
-        </div>
-      </div>
-
-      <div className="max-w-5xl mx-auto px-4 py-12 space-y-12">
-
-        {/* ── Hero ── */}
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.04] text-xs text-white/50 font-mono uppercase tracking-widest">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            Live · Free · No account needed
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-black tracking-tight">
-            Scan any{" "}
-            <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              GitHub repo
-            </span>
-          </h1>
-          <p className="text-lg text-white/50 max-w-xl mx-auto">
-            Paste a URL. Watch {QUICK_MODULES.length} battle-tested modules run in real time —
-            and see the full {totalModuleCount()}-module catalogue light up alongside them.
-          </p>
-        </div>
-
-        {/* ── URL Input ── */}
-        <div className="space-y-4">
-          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-            {/* The field has no visible label by design (hero search box), so the
-                accessible name comes from a real associated <label>. A placeholder
-                is not a label — it disappears on first keystroke and several
-                screen readers never announce it. */}
-            <label className="sr-only" htmlFor="playground-repo-url">
-              GitHub repository or website URL to scan
-            </label>
-            <input
-              id="playground-repo-url"
-              type="url"
-              value={url}
-              onChange={(e) => { setUrl(e.target.value); setError(""); }}
-              placeholder="https://github.com/owner/repo"
-              className="flex-1 px-5 py-4 rounded-2xl bg-white/[0.05] border border-white/10 text-white placeholder-white/25 font-mono text-sm focus:outline-none focus:border-emerald-500/60 focus:bg-white/[0.07] transition-all"
-              disabled={scanning}
-            />
-            <button
-              type="submit"
-              disabled={scanning || !url.trim()}
-              className="px-8 py-4 rounded-2xl font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                background: scanning
-                  ? "rgba(34,197,94,0.2)"
-                  : "linear-gradient(135deg, #059669, #0891b2)",
-                color: "#fff",
-              }}
-            >
-              {scanning ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
-                    <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                  Scanning…
-                </span>
-              ) : "Scan Now →"}
-            </button>
-          </form>
-
-          {error && (
-            <p className="text-sm text-red-400 font-mono px-1">{error}</p>
-          )}
-
-          {/* Example repos */}
-          <div className="flex flex-wrap gap-2">
-            <span className="text-xs text-white/30 font-mono pt-1">Try:</span>
-            {EXAMPLE_REPOS.map((repo) => (
-              <button
-                key={repo.url}
-                onClick={() => { setUrl(repo.url); setError(""); }}
+    <main>
+      <PageHero
+        align="center"
+        eyebrow="Live · Free · No account needed"
+        title={<>Scan any <span className="text-accent">GitHub repo</span></>}
+        lede={<>Paste a URL. Watch {QUICK_MODULES.length} battle-tested modules run in real time — and see the full {totalModuleCount()}-module catalogue light up alongside them.</>}
+        actions={
+          <div className="w-full max-w-3xl mx-auto space-y-4 text-left">
+            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
+              {/* The field has no visible label by design (hero search box), so the
+                  accessible name comes from a real associated <label>. A placeholder
+                  is not a label — it disappears on first keystroke and several
+                  screen readers never announce it. */}
+              <label className="sr-only" htmlFor="playground-repo-url">
+                GitHub repository or website URL to scan
+              </label>
+              <input
+                id="playground-repo-url"
+                type="url"
+                value={url}
+                onChange={(e) => { setUrl(e.target.value); setError(""); }}
+                placeholder="https://github.com/owner/repo"
+                className="flex-1 min-w-0 px-5 py-4 rounded-2xl bg-[var(--surface-solid)] border border-border text-foreground placeholder:text-muted font-mono text-sm focus:outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/20 transition-all"
                 disabled={scanning}
-                className="px-3 py-1 rounded-full text-xs font-mono border border-white/10 bg-white/[0.03] text-white/50 hover:text-white/80 hover:border-white/20 transition-all disabled:opacity-40"
+              />
+              <button
+                type="submit"
+                disabled={scanning || !url.trim()}
+                className="btn-cta px-8 py-4 rounded-2xl font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {repo.label}
+                {scanning ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
+                      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                    Scanning…
+                  </span>
+                ) : "Scan Now →"}
               </button>
-            ))}
+            </form>
+
+            {error && (
+              <p className="text-sm text-danger font-mono px-1">{error}</p>
+            )}
+
+            {/* Example repos */}
+            <div className="flex flex-wrap justify-center gap-2">
+              <span className="text-xs text-muted font-mono pt-1">Try:</span>
+              {EXAMPLE_REPOS.map((repo) => (
+                <button
+                  key={repo.url}
+                  onClick={() => { setUrl(repo.url); setError(""); }}
+                  disabled={scanning}
+                  className="px-3 py-1 rounded-full text-xs font-mono border border-border bg-[var(--surface-solid)] text-foreground-secondary hover:text-foreground hover:border-accent/50 transition-all disabled:opacity-40"
+                >
+                  {repo.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        }
+      />
+
+      <Section>
+        <div className="max-w-5xl mx-auto space-y-12">
 
         {/* ── Shared-scan banner ── */}
         {isSharedView && result && (
-          <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/[0.06] px-4 py-3 flex items-center justify-between gap-3">
-            <p className="text-sm text-cyan-300">
+          <div className="rounded-xl border border-accent/25 bg-accent/5 px-4 py-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-accent">
               Viewing a shared scan of <span className="font-mono">{result.repo_url.replace("https://github.com/", "")}</span>
               {result.sharedAt && ` · shared ${Math.max(0, Math.round((Date.now() - result.sharedAt) / 3_600_000))}h ago`}
             </p>
             <button
               onClick={() => { setIsSharedView(false); setResult(null); window.history.replaceState({}, "", "/playground"); }}
-              className="text-xs font-mono text-cyan-300/70 hover:text-cyan-300 shrink-0"
+              className="text-xs font-mono text-accent hover:underline shrink-0"
             >
               Run a new scan →
             </button>
@@ -559,13 +544,13 @@ export default function PlaygroundPage() {
                   <GradeRing grade={result.grade} score={result.healthScore} animating={gradeAnimating} />
 
                   <div className="space-y-3">
-                    <div className="flex items-baseline gap-3">
-                      <h2 className="text-xl font-bold text-white">
+                    <div className="flex items-baseline gap-3 flex-wrap">
+                      <h2 className="font-display text-xl font-bold text-foreground">
                         {result.totalIssues === 0
                           ? "Clean — no issues found"
                           : `${result.totalIssues} issue${result.totalIssues !== 1 ? "s" : ""} found`}
                       </h2>
-                      <span className="text-xs font-mono text-white/30">
+                      <span className="text-xs font-mono text-muted">
                         {(result.duration / 1000).toFixed(1)}s · quick tier
                       </span>
                     </div>
@@ -593,13 +578,13 @@ export default function PlaygroundPage() {
                 {/* Top findings — severity colour-coded, with a Fix This PR CTA per finding */}
                 {result.topFindings.length > 0 && (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-white/50 uppercase tracking-widest font-mono">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <h3 className="text-sm font-bold text-muted uppercase tracking-widest font-mono">
                         Top Findings
                       </h3>
                       <button
                         onClick={handleShare}
-                        className="text-xs font-mono text-white/40 hover:text-white/70 transition-colors flex items-center gap-1.5"
+                        className="text-xs font-mono text-muted hover:text-foreground transition-colors flex items-center gap-1.5"
                       >
                         {shareCopied ? (
                           <>✓ Link copied</>
@@ -629,14 +614,14 @@ export default function PlaygroundPage() {
                                 <span className={`text-[10px] font-bold ${style.text} font-mono uppercase tracking-wider`}>
                                   {style.label}
                                 </span>
-                                <span className="text-xs font-bold text-white/50 font-mono uppercase">{f.module}</span>
+                                <span className="text-xs font-bold text-muted font-mono uppercase">{f.module}</span>
                               </div>
-                              <p className="text-sm text-white/70 break-all">{f.message}</p>
+                              <p className="text-sm text-foreground-secondary break-all">{f.message}</p>
                             </div>
                             {!isSharedView && (
                               <Link
                                 href={`/checkout?tier=scan_fix&repo=${encodeURIComponent(result.repo_url)}&module=${encodeURIComponent(f.module)}`}
-                                className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border border-white/15 text-white/70 hover:border-emerald-500/50 hover:text-emerald-400 transition-all whitespace-nowrap"
+                                className="btn-secondary shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
                                 title="Unlock AI-generated fixes with the Scan + Fix tier"
                               >
                                 Fix This PR →
@@ -650,10 +635,10 @@ export default function PlaygroundPage() {
                 )}
 
                 {/* Upgrade CTA */}
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-4">
+                <div className="card-highlight p-6 space-y-4">
                   <div className="space-y-1">
-                    <p className="text-sm font-bold text-white/70">{result.upgradeNote}</p>
-                    <p className="text-xs text-white/40">
+                    <p className="text-sm font-bold text-foreground">{result.upgradeNote}</p>
+                    <p className="text-xs text-muted">
                       The full scan adds N+1 queries, race conditions, money float bugs, TLS bypasses,
                       secret rotation age, PR size enforcement, and {totalModuleCount() - QUICK_MODULES.length} more battle-tested checks.
                     </p>
@@ -661,36 +646,35 @@ export default function PlaygroundPage() {
                   <div className="flex flex-wrap gap-3">
                     <Link
                       href={`/checkout?tier=full&repo=${encodeURIComponent(result.repo_url)}`}
-                      className="px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
-                      style={{ background: "linear-gradient(135deg, #059669, #0891b2)" }}
+                      className="btn-cta px-5 py-2.5 rounded-xl text-sm font-bold"
                     >
                       Full Scan — $99
                     </Link>
                     <Link
                       href={`/checkout?tier=scan_fix&repo=${encodeURIComponent(result.repo_url)}`}
-                      className="px-5 py-2.5 rounded-xl text-sm font-bold border border-white/20 text-white/80 hover:border-white/40 transition-all"
+                      className="btn-secondary px-5 py-2.5 rounded-xl text-sm font-bold"
                     >
                       Scan + Fix — $199
                     </Link>
                     <Link
                       href={`/checkout?tier=nuclear&repo=${encodeURIComponent(result.repo_url)}`}
-                      className="px-5 py-2.5 rounded-xl text-sm font-bold border border-white/20 text-white/80 hover:border-white/40 transition-all"
+                      className="btn-secondary px-5 py-2.5 rounded-xl text-sm font-bold"
                     >
                       Forensic — $399
                     </Link>
                   </div>
-                  <p className="text-xs text-white/25">
+                  <p className="text-xs text-muted">
                     One-time payment · No subscription · Results in minutes
                   </p>
                 </div>
 
-                {/* Badge embed section */}
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-3">
-                  <h3 className="text-sm font-bold text-white/70">Add a live badge to your README</h3>
-                  <p className="text-xs text-white/40">
+                {/* Badge embed section — the snippet is what the README renders, so it stays a dark panel */}
+                <div className="card p-6 space-y-3">
+                  <h3 className="text-sm font-bold text-foreground">Add a live badge to your README</h3>
+                  <p className="text-xs text-muted">
                     Shows your live GateTest grade — updates after every scan.
                   </p>
-                  <div className="rounded-xl bg-black/40 border border-white/10 p-3 font-mono text-xs text-white/60 overflow-x-auto">
+                  <div className="rounded-xl bg-panel text-panel-foreground border border-panel-border p-3 font-mono text-xs overflow-x-auto">
                     {`[![GateTest](${badgeUrl(`/badge/${
                       result.repo_url.replace("https://github.com/", "")
                     }`)})](${SITE_URL})`}
@@ -722,26 +706,23 @@ export default function PlaygroundPage() {
                 body: "Your code is fetched from GitHub's public API, scanned in memory, and discarded. We store nothing from playground scans.",
               },
             ].map((card) => (
-              <div
-                key={card.title}
-                className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 space-y-2"
-              >
+              <div key={card.title} className="card p-5 space-y-2">
                 <span className="text-2xl">{card.icon}</span>
-                <h3 className="text-sm font-bold text-white/80">{card.title}</h3>
-                <p className="text-xs text-white/40 leading-relaxed">{card.body}</p>
+                <h3 className="text-sm font-bold text-foreground">{card.title}</h3>
+                <p className="text-xs text-muted leading-relaxed">{card.body}</p>
               </div>
             ))}
           </div>
         )}
 
-        {/* ── Footer links ── */}
-        <div className="text-center text-xs text-white/25 font-mono space-x-4">
-          <Link href="/" className="hover:text-white/50 transition-colors">Home</Link>
-          <Link href="/#pricing" className="hover:text-white/50 transition-colors">Pricing</Link>
-          <Link href="/badge" className="hover:text-white/50 transition-colors">README Badge</Link>
-          <Link href="/docs/api" className="hover:text-white/50 transition-colors">API Docs</Link>
+        {/* ── Related links ── */}
+        <div className="text-center text-xs text-muted font-mono space-x-4">
+          <Link href="/#pricing" className="hover:text-foreground transition-colors">Pricing</Link>
+          <Link href="/badge" className="hover:text-foreground transition-colors">README Badge</Link>
+          <Link href="/docs/api" className="hover:text-foreground transition-colors">API Docs</Link>
         </div>
-      </div>
-    </div>
+        </div>
+      </Section>
+    </main>
   );
 }

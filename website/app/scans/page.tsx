@@ -1,5 +1,8 @@
 ﻿import Link from "next/link";
 import type { Metadata } from "next";
+import PageHero from "../components/site/PageHero";
+import Section from "../components/site/Section";
+import StatTiles from "../components/site/StatTiles";
 
 export const metadata: Metadata = {
   title: "Hall of Scans — Real Results from Real Codebases | GateTest",
@@ -32,6 +35,8 @@ interface ScanEntry {
   highlight?: string;
 }
 
+// Dated evidence. Every number, engine label and count below records what
+// was true when the scan ran — never rewritten to the current module count.
 const SCANS: ScanEntry[] = [
   {
     repo: "GateTest — self-scan (this product's own repo)",
@@ -114,94 +119,63 @@ const SCANS: ScanEntry[] = [
 ];
 
 const SEVERITY_CONFIG = {
-  critical: { badge: "bg-red-100 text-red-700 border border-red-200", label: "CRITICAL" },
-  high: { badge: "bg-orange-100 text-orange-700 border border-orange-200", label: "HIGH" },
-  error: { badge: "bg-amber-100 text-amber-700 border border-amber-200", label: "ERROR" },
-  warning: { badge: "bg-yellow-50 text-yellow-700 border border-yellow-200", label: "WARN" },
+  critical: { badge: "bg-danger/10 text-danger border border-danger/20", label: "CRITICAL" },
+  high: { badge: "bg-orange-500/10 text-orange-700 border border-orange-500/20", label: "HIGH" },
+  error: { badge: "bg-warning/10 text-warning border border-warning/20", label: "ERROR" },
+  warning: { badge: "bg-yellow-500/10 text-yellow-700 border border-yellow-500/20", label: "WARN" },
 };
 
 export default function HallOfScans() {
   return (
-    <main className="min-h-screen bg-background">
-      {/* Top nav — back to the main site (page previously had no way out) */}
-      <nav className="sticky top-0 z-20 border-b border-border/50 bg-background/90 backdrop-blur-md px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm font-mono">G</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight">
-              Gate<span className="text-teal-500">Test</span>
-            </span>
-          </Link>
-          <div className="flex items-center gap-5 text-sm">
-            <Link href="/how-it-works" className="text-muted hover:text-foreground transition-colors">
-              How it works
-            </Link>
-            <Link href="/#pricing" className="text-muted hover:text-foreground transition-colors">
-              Pricing
-            </Link>
-            <Link href="/" className="text-muted hover:text-foreground transition-colors">
-              &larr; Back to home
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      <div className="max-w-4xl mx-auto px-6 py-16">
-
-        {/* Header */}
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium mb-6">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            Real scans. Real findings. No demo data.
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-bold mb-4">
-            Hall of Scans
-          </h1>
-          <p className="text-lg text-muted max-w-2xl mx-auto leading-relaxed">
+    <main>
+      <PageHero
+        eyebrow="Real scans. Real findings. No demo data."
+        align="center"
+        title="Hall of Scans"
+        lede={
+          <>
             Every result on this page came from running GateTest against a real
             codebase. No fabricated numbers. No cherry-picked examples — including
             our own false positives, which we publish and then fix. Each card names
             the engine that ran it: the July 2026 scans used today&apos;s 120-module
             engine (88 modules apply to a repo without a live URL); the archive
             entries ran on the 39-module April engine.
-          </p>
-          <p className="mt-4 text-sm text-muted">
+          </>
+        }
+        actions={
+          <p className="text-sm text-muted w-full text-center">
             🔒 Scans run in memory — code is never stored.
             Findings published with platform owner consent.
           </p>
-        </div>
+        }
+      />
 
-        {/* Aggregate stat bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-16">
-          {[
-            // Sums of the per-card numbers below — update together.
-            { label: "Errors found", value: "2,607" },
-            { label: "Warnings surfaced", value: "10,101" },
-            { label: "Repos scanned", value: "4" },
-            { label: "Modules in the engine", value: "120" },
-          ].map((s) => (
-            <div key={s.label} className="card rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-accent mb-1">{s.value}</div>
-              <div className="text-xs text-muted uppercase tracking-wide">{s.label}</div>
-            </div>
-          ))}
+      <Section narrow>
+        {/* Aggregate stat bar — sums of the per-card numbers below, update together. */}
+        <div className="mb-16">
+          <StatTiles
+            items={[
+              { label: "Errors found", value: "2,607" },
+              { label: "Warnings surfaced", value: "10,101" },
+              { label: "Repos scanned", value: "4" },
+              { label: "Modules in the engine", value: "120" },
+            ]}
+          />
         </div>
 
         {/* Scan entries */}
         <div className="space-y-12">
           {SCANS.map((scan) => (
-            <article key={scan.repo} className="card rounded-2xl overflow-hidden">
+            <article key={scan.repo} className="card overflow-hidden">
 
               {/* Repo header */}
-              <div className="px-6 py-5 border-b border-border/50 flex flex-wrap items-start justify-between gap-4">
-                <div>
+              <div className="px-6 py-5 border-b border-border flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <svg className="w-4 h-4 text-muted" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg className="w-4 h-4 text-muted shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
                     </svg>
-                    <span className="font-mono text-sm font-semibold">{scan.repo}</span>
+                    <span className="font-mono text-sm font-semibold text-foreground break-words">{scan.repo}</span>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs text-muted">
                     <span>{scan.tier}</span>
@@ -213,11 +187,11 @@ export default function HallOfScans() {
                 </div>
                 <div className="flex gap-3 shrink-0">
                   <div className="text-center">
-                    <div className="text-xl font-bold text-red-600">{scan.errors.toLocaleString()}</div>
+                    <div className="font-display text-xl font-bold text-danger tabular-nums">{scan.errors.toLocaleString()}</div>
                     <div className="text-[10px] uppercase tracking-wide text-muted">Errors</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-xl font-bold text-amber-600">{scan.warnings.toLocaleString()}</div>
+                    <div className="font-display text-xl font-bold text-warning tabular-nums">{scan.warnings.toLocaleString()}</div>
                     <div className="text-[10px] uppercase tracking-wide text-muted">Warnings</div>
                   </div>
                 </div>
@@ -225,8 +199,8 @@ export default function HallOfScans() {
 
               {/* Highlight quote */}
               {scan.highlight && (
-                <div className="px-6 py-4 bg-surface-dark border-b border-border/50">
-                  <p className="text-sm text-muted italic leading-relaxed">&ldquo;{scan.highlight}&rdquo;</p>
+                <div className="px-6 py-4 bg-surface-light border-b border-border">
+                  <p className="text-sm text-foreground-secondary italic leading-relaxed">&ldquo;{scan.highlight}&rdquo;</p>
                 </div>
               )}
 
@@ -244,7 +218,7 @@ export default function HallOfScans() {
                         <div>
                           <span className="text-xs font-mono text-accent">{f.module}</span>
                           <span className="mx-1.5 text-muted text-xs">—</span>
-                          <span className="text-sm text-muted">{f.description}</span>
+                          <span className="text-sm text-foreground-secondary">{f.description}</span>
                         </div>
                       </div>
                     );
@@ -254,8 +228,8 @@ export default function HallOfScans() {
 
               {/* Attack chains */}
               {scan.chains && scan.chains.length > 0 && (
-                <div className="px-6 py-5 border-t border-border/50 bg-red-50/30">
-                  <h3 className="text-xs uppercase tracking-wider font-semibold text-red-600 mb-3">
+                <div className="px-6 py-5 border-t border-border bg-danger/5">
+                  <h3 className="text-xs uppercase tracking-wider font-semibold text-danger mb-3">
                     Cross-Finding Attack Chains
                   </h3>
                   <div className="space-y-3">
@@ -267,8 +241,8 @@ export default function HallOfScans() {
                             {cfg.label}
                           </span>
                           <div>
-                            <div className="text-sm font-semibold mb-0.5">{c.label}</div>
-                            <div className="text-sm text-muted">{c.description}</div>
+                            <div className="text-sm font-semibold text-foreground mb-0.5">{c.label}</div>
+                            <div className="text-sm text-foreground-secondary">{c.description}</div>
                           </div>
                         </div>
                       );
@@ -279,9 +253,9 @@ export default function HallOfScans() {
 
               {/* No chains — honest note */}
               {scan.chains && scan.chains.length === 0 && (
-                <div className="px-6 py-4 border-t border-border/50 bg-slate-50/50">
+                <div className="px-6 py-4 border-t border-border bg-surface-light">
                   <p className="text-xs text-muted">
-                    <strong>Cross-finding correlation:</strong> 0 chains identified.
+                    <strong className="text-foreground-secondary">Cross-finding correlation:</strong> 0 chains identified.
                     Findings were genuinely independent — the correlator does not pad results.
                   </p>
                 </div>
@@ -291,29 +265,22 @@ export default function HallOfScans() {
         </div>
 
         {/* CTA */}
-        <div className="mt-16 text-center card rounded-2xl px-8 py-10">
-          <h2 className="text-2xl font-bold mb-3">See what&apos;s in your repo</h2>
-          <p className="text-muted mb-6 max-w-xl mx-auto">
+        <div className="mt-16 text-center rounded-2xl border border-accent/20 bg-accent/5 px-6 py-10 sm:p-12">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-3">See what&apos;s in your repo</h2>
+          <p className="text-foreground-secondary mb-6 max-w-xl mx-auto">
             Free preview scan — no card required. Quick suite: syntax, lint, secrets,
             code quality. Runs in under 30 seconds on any public repo.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link
-              href="/scan/preview"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 transition-colors"
-            >
+            <Link href="/scan/preview" className="btn-cta inline-flex items-center gap-2 px-6 py-3">
               Free preview scan &rarr;
             </Link>
-            <Link
-              href="/#pricing"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-border text-foreground font-semibold hover:bg-surface-dark transition-colors"
-            >
+            <Link href="/#pricing" className="btn-secondary inline-flex items-center gap-2 px-6 py-3">
               See full pricing
             </Link>
           </div>
         </div>
-
-      </div>
+      </Section>
     </main>
   );
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+import PageHero from "../components/site/PageHero";
+import Section from "../components/site/Section";
 import { I } from "../preview/_lib/icons";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import { breadcrumbSchema, contentMetadata, jsonLd } from "../lib/seo/schema";
@@ -84,7 +84,7 @@ const CONTACT =
 
 export default function EnterprisePage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -98,108 +98,92 @@ export default function EnterprisePage() {
         }}
       />
 
-      <Navbar />
+      <main>
+        {/* === Hero + the offer === */}
+        <PageHero
+          eyebrow="Built for engineering leadership"
+          title="Unlock AI velocity without surrendering control"
+          lede="Your team is shipping AI-generated code at record speed. GateTest is the gate that keeps that speed honest — a single, policy-driven checkpoint your CTO can stand behind in front of the board."
+        >
+          <div className="card p-6 sm:p-8">
+            <h2 className="font-display text-xl font-bold text-foreground">Enterprise</h2>
+            <p className="mt-1 text-sm text-muted leading-relaxed">
+              Running GateTest across a large organisation? We&apos;ll shape a
+              plan around you: custom scan volume, a raised AI-review budget,
+              priority support, and invoicing on your terms.
+            </p>
 
-      <main className="pt-24 sm:pt-28">
-        {/* === Hero + posture === */}
-        <section className="px-6 pb-16 sm:pb-20">
-          <div className="mx-auto max-w-6xl grid items-start gap-12 lg:grid-cols-2">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                Built for engineering leadership
-              </p>
-              <h1 className="mt-3 font-display text-[clamp(2rem,4vw,3rem)] font-bold tracking-tight text-foreground">
-                Unlock AI velocity without surrendering control
-              </h1>
-              <p className="mt-4 text-lg leading-relaxed text-muted">
-                Your team is shipping AI-generated code at record speed.
-                GateTest is the gate that keeps that speed honest — a single,
-                policy-driven checkpoint your CTO can stand behind in front of
-                the board.
-              </p>
+            <ul className="mt-6 space-y-2.5 text-sm text-foreground-secondary">
+              {COVERS.map((c) => (
+                <li key={c} className="flex items-start gap-2">
+                  <span className="text-accent mt-0.5 flex-shrink-0" aria-hidden>
+                    ✓
+                  </span>
+                  <span>{c}</span>
+                </li>
+              ))}
+            </ul>
 
-              <div className="mt-8 space-y-3">
-                {POSTURE.map((p) => (
-                  <div
-                    key={p.t}
-                    className="flex items-start gap-3 rounded-xl border border-border bg-surface-solid p-4"
-                  >
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border bg-[var(--background-alt)] text-accent">
-                      <p.icon className="h-5 w-5" />
-                    </span>
-                    <div>
-                      <h2 className="text-sm font-semibold text-foreground">
-                        {p.t}
-                      </h2>
-                      <p className="mt-0.5 text-sm text-muted">{p.d}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <a
+              href={CONTACT}
+              className="btn-cta mt-7 w-full inline-flex items-center justify-center px-6 py-3 text-sm"
+            >
+              Talk to us
+            </a>
 
-              <p className="mt-6 text-xs text-muted leading-relaxed">
-                The same gate, and the same{" "}
-                <Link href="/modules" className="text-accent hover:underline">
-                  {TOTAL_MODULES} modules
-                </Link>
-                , that every other tier runs. Read the full security posture on{" "}
-                <Link href="/trust" className="text-accent hover:underline">
-                  Trust &amp; Security
-                </Link>
-                .
-              </p>
-            </div>
-
-            {/* === The offer === */}
-            <div className="rounded-2xl border border-border bg-surface-solid p-6 sm:p-8">
-              <h2 className="text-xl font-bold text-foreground">Enterprise</h2>
-              <p className="mt-1 text-sm text-muted leading-relaxed">
-                Running GateTest across a large organisation? We&apos;ll shape a
-                plan around you: custom scan volume, a raised AI-review budget,
-                priority support, and invoicing on your terms.
-              </p>
-
-              <ul className="mt-6 space-y-2.5 text-sm text-foreground-secondary">
-                {COVERS.map((c) => (
-                  <li key={c} className="flex items-start gap-2">
-                    <span className="text-accent mt-0.5 flex-shrink-0" aria-hidden>
-                      ✓
-                    </span>
-                    <span>{c}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <a
-                href={CONTACT}
-                className="mt-7 w-full inline-flex items-center justify-center px-6 py-3 rounded-xl bg-accent hover:bg-accent-hover text-white font-semibold text-sm transition-colors"
-              >
-                Talk to us
-              </a>
-
-              {/* Honesty: there is no number to publish, and saying so is
-                  better than a "Contact sales" wall that implies there is. */}
-              <p className="mt-4 text-xs text-muted leading-relaxed">
-                There is no fixed Enterprise price and no self-serve Enterprise
-                tier — terms are negotiated per deal. If you want a price you
-                can read without talking to anyone, every other tier is listed
-                on the{" "}
-                <Link href="/pricing" className="text-accent hover:underline">
-                  pricing page
-                </Link>
-                .
-              </p>
-            </div>
+            {/* Honesty: there is no number to publish, and saying so is
+                better than a "Contact sales" wall that implies there is. */}
+            <p className="mt-4 text-xs text-muted leading-relaxed">
+              There is no fixed Enterprise price and no self-serve Enterprise
+              tier — terms are negotiated per deal. If you want a price you
+              can read without talking to anyone, every other tier is listed
+              on the{" "}
+              <Link href="/pricing" className="text-accent hover:underline">
+                pricing page
+              </Link>
+              .
+            </p>
           </div>
-        </section>
+        </PageHero>
+
+        {/* === Posture === */}
+        <Section>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {POSTURE.map((p) => (
+              <div key={p.t} className="card flex items-start gap-3 p-5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border bg-[var(--background-alt)] text-accent">
+                  <p.icon className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">
+                    {p.t}
+                  </h2>
+                  <p className="mt-0.5 text-sm text-muted">{p.d}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-8 text-sm text-muted leading-relaxed">
+            The same gate, and the same{" "}
+            <Link href="/modules" className="text-accent hover:underline">
+              {TOTAL_MODULES} modules
+            </Link>
+            , that every other tier runs. Read the full security posture on{" "}
+            <Link href="/trust" className="text-accent hover:underline">
+              Trust &amp; Security
+            </Link>
+            .
+          </p>
+        </Section>
 
         {/* === Evaluating? === */}
-        <section className="px-6 py-14 border-t border-border">
+        <Section alt>
           <div className="mx-auto max-w-4xl text-center">
-            <h2 className="text-2xl font-bold text-foreground mb-3">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-3">
               Evaluating GateTest for a team?
             </h2>
-            <p className="text-sm text-muted leading-relaxed max-w-2xl mx-auto">
+            <p className="text-base text-foreground-secondary leading-relaxed max-w-2xl mx-auto">
               You do not need a contract to start. The engine is open source and
               runs on your own machine, and every self-serve tier is priced in
               public.
@@ -207,28 +191,26 @@ export default function EnterprisePage() {
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
               <Link
                 href="/pricing"
-                className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-accent hover:bg-accent-hover text-white font-semibold text-sm transition-colors"
+                className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm"
               >
                 See pricing
               </Link>
               <Link
                 href="/trust"
-                className="inline-flex items-center justify-center px-6 py-3 rounded-xl border border-border text-foreground font-semibold text-sm hover:border-accent hover:text-accent transition-colors"
+                className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm"
               >
                 Trust &amp; Security
               </Link>
               <Link
                 href="/compare"
-                className="inline-flex items-center justify-center px-6 py-3 rounded-xl border border-border text-foreground font-semibold text-sm hover:border-accent hover:text-accent transition-colors"
+                className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm"
               >
                 Compare the alternatives
               </Link>
             </div>
           </div>
-        </section>
+        </Section>
       </main>
-
-      <Footer />
     </div>
   );
 }

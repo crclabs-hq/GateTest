@@ -74,12 +74,12 @@ export default function CheckoutSuccess() {
   if (state.kind === "subscription") {
     const isMcp = state.tier === "mcp";
     return (
-      <div className="min-h-screen grid-bg flex items-center justify-center px-6 py-24">
+      <div className="flex-1 bg-background flex items-center justify-center px-6 py-16 sm:py-24">
         <div className="max-w-lg text-center">
           <div className="w-12 h-12 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center mx-auto mb-4">
             <span className="text-accent-light text-xl">&#10003;</span>
           </div>
-          <h1 className="text-2xl font-bold mb-3">{isMcp ? "You're on GateTest MCP." : "Continuous is live for your org."}</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-3">{isMcp ? "You're on GateTest MCP." : "Continuous is live for your org."}</h1>
           {isMcp ? (
             <p className="text-muted mb-6">
               Your <code>gtmcp_</code> API key is being emailed to the address you used at checkout — usually within a minute.
@@ -105,9 +105,9 @@ export default function CheckoutSuccess() {
 
   if (state.kind === "error") {
     return (
-      <div className="min-h-screen grid-bg flex items-center justify-center px-6 py-24">
+      <div className="flex-1 bg-background flex items-center justify-center px-6 py-16 sm:py-24">
         <div className="max-w-lg text-center">
-          <h1 className="text-2xl font-bold mb-3">Payment received — but we lost the thread.</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-3">Payment received — but we lost the thread.</h1>
           <p className="text-muted mb-6">
             {state.message} Your card was charged only once and the scan is still yours. Email{" "}
             <a className="underline" href={`mailto:${SUPPORT_EMAIL}?subject=Checkout%20session%20${encodeURIComponent(state.sessionId || "unknown")}`}>{SUPPORT_EMAIL}</a>{" "}
@@ -120,12 +120,12 @@ export default function CheckoutSuccess() {
   }
 
   return (
-    <div className="min-h-screen grid-bg flex items-center justify-center px-6 py-24">
+    <div className="flex-1 bg-background flex items-center justify-center px-6 py-16 sm:py-24">
       <div className="text-center">
         <div className="w-12 h-12 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center mx-auto mb-4 animate-pulse">
           <span className="text-accent-light text-xl">&#9679;</span>
         </div>
-        <h1 className="text-2xl font-bold mb-2">Starting your scan...</h1>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-2">Starting your scan...</h1>
         <p className="text-muted">Connecting to your repository. This hands off within {HANDOFF_TIMEOUT_MS / 1000} seconds.</p>
       </div>
     </div>

@@ -1,6 +1,8 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import ComparisonReviewed from "@/app/components/ComparisonReviewed";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
+import PageHero from "../../components/site/PageHero";
 
 export const metadata: Metadata = {
   title: "GateTest vs CodeQL — minutes, not 30, in 2026",
@@ -88,77 +90,48 @@ export default function CodeQLPage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0a12" }}>
+    <main>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Nav */}
-      <nav className="border-b border-white/[0.06] px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm font-mono">G</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              Gate<span className="text-teal-400">Test</span>
-            </span>
-          </Link>
-          <Link href="/" className="text-sm text-white/50 hover:text-white transition-colors">
-            &larr; Back to GateTest
-          </Link>
-        </div>
-      </nav>
-
-      <main className="px-6 py-16 max-w-5xl mx-auto">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-white/40 mb-10">
-          <Link href="/" className="hover:text-white/70 transition-colors">GateTest</Link>
-          <span>/</span>
-          <span className="text-white/60">Compare</span>
-          <span>/</span>
-          <span className="text-white/60">CodeQL</span>
-        </nav>
-
-        {/* Hero */}
-        <div className="mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-400 font-medium mb-6">
-            Tool Comparison
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-6">
+      <PageHero
+        eyebrow="Tool Comparison"
+        title={
+          <>
             GateTest vs CodeQL
             <br />
-            <span className="text-teal-400">Minutes of Breadth vs 30 Minutes of Depth in 2026</span>
-          </h1>
-          <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
+            <span className="text-accent">Minutes of Breadth vs 30 Minutes of Depth in 2026</span>
+          </>
+        }
+        lede={
+          <>
             CodeQL is GitHub&rsquo;s deep taint engine — genuinely excellent at tracking data flow
             across function boundaries. The trade-offs are real: 15-30 minute scan times, GitHub
             Advanced Security required for private repos, no auto-fix, and zero coverage of
-            accessibility, performance, IaC, or AI safety. GateTest covers 120 categories in
+            accessibility, performance, IaC, or AI safety. GateTest covers {TOTAL_MODULES} categories in
             minutes and opens a fix PR.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 mt-8">
-            <Link
-              href="/playground"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
-              style={{ background: "#2dd4bf", color: "#0a0a12" }}
-            >
+          </>
+        }
+        actions={
+          <>
+            <Link href="/playground" className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm">
               Scan My Repo — From $29
             </Link>
-            <Link
-              href="/#modules"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
-            >
-              See All 121 modules
+            <Link href="/#modules" className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm">
+              See All {TOTAL_MODULES} modules
             </Link>
-          </div>
-        </div>
+          </>
+        }
+      />
+
+      <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
 
         {/* Honest comparison callout */}
-        <section className="mb-16 rounded-xl border border-blue-500/20 p-6" style={{ background: "rgba(59,130,246,0.05)" }}>
-          <h2 className="text-lg font-semibold text-blue-300 mb-3">Where CodeQL is genuinely stronger</h2>
-          <p className="text-white/60 text-sm mb-4">
+        <section className="mb-16 rounded-2xl border border-blue-500/20 p-6 bg-blue-500/5">
+          <h2 className="text-lg font-semibold text-blue-700 mb-3">Where CodeQL is genuinely stronger</h2>
+          <p className="text-foreground-secondary text-sm mb-4">
             We believe in honesty. CodeQL&rsquo;s taint-analysis engine has real advantages for specific scenarios:
           </p>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -168,21 +141,21 @@ export default function CodeQLPage() {
               "Deep Java/C++ taint flows that cross compilation units",
               "Dataflow precision that exceeds heuristic module detection",
             ].map((item) => (
-              <div key={item} className="flex items-start gap-2 text-sm text-white/55">
-                <span className="text-blue-400/70 shrink-0 mt-0.5">&#10003;</span>
-                <span className="text-xs text-white/50">{item}</span>
+              <div key={item} className="flex items-start gap-2 text-sm text-foreground-secondary">
+                <span className="text-blue-600 shrink-0 mt-0.5">&#10003;</span>
+                <span className="text-xs text-muted">{item}</span>
               </div>
             ))}
           </div>
-          <p className="text-xs text-white/35 mt-4">
+          <p className="text-xs text-muted mt-4">
             For high-assurance security audits where scan time doesn&rsquo;t matter, CodeQL&rsquo;s depth is real. GateTest is the better choice for breadth, speed, auto-fix, and everything outside security.
           </p>
         </section>
 
         {/* What CodeQL can't do */}
-        <section className="mb-16 rounded-xl border border-amber-500/20 p-6" style={{ background: "rgba(245,158,11,0.05)" }}>
-          <h2 className="text-lg font-semibold text-amber-300 mb-3">What CodeQL doesn&rsquo;t cover</h2>
-          <p className="text-white/60 text-sm mb-4">
+        <section className="mb-16 rounded-2xl border border-amber-500/20 p-6 bg-amber-500/5">
+          <h2 className="text-lg font-semibold text-warning mb-3">What CodeQL doesn&rsquo;t cover</h2>
+          <p className="text-foreground-secondary text-sm mb-4">
             CodeQL is a security SAST engine. These entire categories are outside its scope:
           </p>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -196,9 +169,9 @@ export default function CodeQLPage() {
               "AI / prompt injection safety — client-bundled API keys",
               "Auto-fix — no PR generation, no code changes",
             ].map((item) => (
-              <div key={item} className="flex items-start gap-2 text-sm text-white/55">
-                <span className="text-red-400/70 shrink-0 mt-0.5">&#10007;</span>
-                <span className="text-xs text-white/50">{item}</span>
+              <div key={item} className="flex items-start gap-2 text-sm text-foreground-secondary">
+                <span className="text-danger/70 shrink-0 mt-0.5">&#10007;</span>
+                <span className="text-xs text-muted">{item}</span>
               </div>
             ))}
           </div>
@@ -206,35 +179,35 @@ export default function CodeQLPage() {
 
         {/* Comparison table */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-6">Feature Comparison</h2>
-          <div className="rounded-xl border border-white/[0.08] overflow-hidden">
-            <table className="w-full text-sm">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-6">Feature Comparison</h2>
+          <div className="rounded-xl border border-border overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
               <thead>
-                <tr className="border-b border-white/[0.08]" style={{ background: "rgba(255,255,255,0.03)" }}>
-                  <th className="text-left px-5 py-4 text-white/50 font-medium">Feature</th>
-                  <th className="text-center px-5 py-4 text-teal-400 font-semibold">GateTest</th>
-                  <th className="text-center px-5 py-4 text-white/40 font-medium">CodeQL</th>
+                <tr className="border-b border-border bg-surface-light">
+                  <th className="text-left px-5 py-4 text-muted font-medium">Feature</th>
+                  <th className="text-center px-5 py-4 text-accent font-semibold">GateTest</th>
+                  <th className="text-center px-5 py-4 text-muted font-medium">CodeQL</th>
                 </tr>
               </thead>
               <tbody>
                 {comparisonRows.map((row) => (
                   <tr
                     key={row.feature}
-                    className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.02] transition-colors"
+                    className="border-b border-border last:border-0 hover:bg-surface-light transition-colors"
                   >
-                    <td className="px-5 py-3.5 text-white/70">{row.feature}</td>
+                    <td className="px-5 py-3.5 text-foreground-secondary">{row.feature}</td>
                     <td className="px-5 py-3.5 text-center">
                       {row.gatetest ? (
-                        <span className="text-emerald-400 font-bold text-base">&#10003;</span>
+                        <span className="text-success font-bold text-base">&#10003;</span>
                       ) : (
-                        <span className="text-white/20">&#8212;</span>
+                        <span className="text-muted">&#8212;</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-center">
                       {row.competitor ? (
-                        <span className="text-emerald-400/60 font-bold text-base">&#10003;</span>
+                        <span className="text-success/70 font-bold text-base">&#10003;</span>
                       ) : (
-                        <span className="text-red-400/60">&#10007;</span>
+                        <span className="text-danger/70">&#10007;</span>
                       )}
                     </td>
                   </tr>
@@ -242,14 +215,14 @@ export default function CodeQLPage() {
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-white/30 mt-3 px-1">
+          <p className="text-xs text-muted mt-3 px-1">
             CodeQL is free for public repos via GitHub Actions. Private repos require GitHub Advanced Security (per-committer pricing).
           </p>
         </section>
 
         {/* Key differentiators */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-8">Where GateTest wins</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8">Where GateTest wins</h2>
           <div className="grid sm:grid-cols-2 gap-5">
             {[
               {
@@ -265,17 +238,16 @@ export default function CodeQLPage() {
                 body: "CodeQL on private repos requires GitHub Advanced Security, which is priced per committer per month. A 20-person team pays hundreds of dollars monthly before running a single scan. GateTest charges $99 per scan for all 121 modules — no seat licensing, no annual contracts. The price is identical for a solo developer and a 500-person team.",
               },
               {
-                title: "120 categories vs. security-only",
+                title: `${TOTAL_MODULES} categories vs. security-only`,
                 body: "CodeQL is a security engine. The 80% of code quality problems that aren't CVEs — N+1 queries, race conditions, accessibility failures, stale feature flags, PII in logs, import cycles, IaC misconfigurations — are invisible to CodeQL. GateTest runs them all in the same scan.",
               },
             ].map((card) => (
               <div
                 key={card.title}
-                className="rounded-xl p-5 border border-white/[0.08]"
-                style={{ background: "rgba(255,255,255,0.03)" }}
+                className="card p-5"
               >
-                <h3 className="text-white font-semibold mb-2">{card.title}</h3>
-                <p className="text-white/55 text-sm leading-relaxed">{card.body}</p>
+                <h3 className="text-foreground font-semibold mb-2">{card.title}</h3>
+                <p className="text-foreground-secondary text-sm leading-relaxed">{card.body}</p>
               </div>
             ))}
           </div>
@@ -283,54 +255,41 @@ export default function CodeQLPage() {
 
         {/* FAQ */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-8">Frequently asked questions</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8">Frequently asked questions</h2>
           <div className="space-y-4">
             {faqItems.map((item) => (
               <div
                 key={item.q}
-                className="rounded-xl border border-white/[0.08] p-5"
-                style={{ background: "rgba(255,255,255,0.03)" }}
+                className="card p-5"
               >
-                <h3 className="text-white font-semibold mb-3 leading-snug">{item.q}</h3>
-                <p className="text-white/55 text-sm leading-relaxed">{item.a}</p>
+                <h3 className="text-foreground font-semibold mb-3 leading-snug">{item.q}</h3>
+                <p className="text-foreground-secondary text-sm leading-relaxed">{item.a}</p>
               </div>
             ))}
           </div>
         </section>
 
         {/* CTA */}
-        <section className="rounded-2xl border border-teal-500/20 p-10 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
-          <h2 className="text-3xl font-bold text-white mb-4">
+        <section className="rounded-2xl border border-accent/20 bg-accent/5 px-6 py-10 sm:p-12 text-center">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-4">
             121 modules. Minutes, not 30. Fix PR included.
           </h2>
-          <p className="text-white/60 mb-8 max-w-xl mx-auto">
+          <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
             Security, quality, accessibility, IaC, AI safety — in one scan, no CI required, no
             per-seat licensing. Claude opens the fix PR on Scan + Fix and Forensic Scan tiers.
           </p>
           <Link
             href="/playground"
-            className="inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold"
-            style={{ background: "#2dd4bf", color: "#0a0a12" }}
+            className="btn-cta inline-flex items-center justify-center px-8 py-4"
           >
             Scan My Repo — From $29
           </Link>
-          <p className="text-white/30 text-xs mt-6">
+          <p className="text-muted text-xs mt-6">
             One-time payment per scan via Stripe. No subscription, no auto-renew.
           </p>
         </section>
-              <ComparisonReviewed slug="codeql" />
-      </main>
-
-      <footer className="border-t border-white/[0.06] px-6 py-8 mt-16">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/30">
-          <span>GateTest &copy; 2026</span>
-          <div className="flex gap-6">
-            <Link href="/legal/terms" className="hover:text-white/60 transition-colors">Terms</Link>
-            <Link href="/legal/privacy" className="hover:text-white/60 transition-colors">Privacy</Link>
-            <Link href="/legal/refunds" className="hover:text-white/60 transition-colors">Refunds</Link>
-          </div>
-        </div>
-      </footer>
-    </div>
+        <ComparisonReviewed slug="codeql" />
+      </div>
+    </main>
   );
 }

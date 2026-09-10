@@ -78,15 +78,11 @@ export default function CheckoutPage() {
   const tierInfo = tier ? TIERS[tier] : undefined;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-6">
+    <div className="flex-1 flex items-center justify-center bg-background px-6 py-16 sm:py-24">
       <div className="max-w-md w-full text-center">
-        <div className="w-14 h-14 rounded-2xl bg-accent flex items-center justify-center mx-auto mb-6">
-          <span className="text-white font-bold text-xl font-[var(--font-mono)]">G</span>
-        </div>
-
         {tierInfo && (
           <>
-            <h1 className="text-2xl font-bold mb-1">{tierInfo.name}</h1>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-1">{tierInfo.name}</h1>
             <p className="text-lg font-semibold mb-2">
               {formatPrice(tierInfo.priceInCents, tierInfo.recurring)}
             </p>

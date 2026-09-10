@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
+import PageHero from "../../components/site/PageHero";
+import Section from "../../components/site/Section";
 
 export const metadata: Metadata = {
   title: "TypeScript Code Quality & Strict Mode Enforcement — GateTest",
@@ -83,6 +85,38 @@ const tsModules = [
   },
 ];
 
+const caughtExamples = [
+  {
+    code: '// tsconfig.json\n{ "compilerOptions": { "strict": false } }',
+    module: "typescriptStrictness",
+    severity: "error",
+    fix: "Remove strict: false to re-enable all strict type checks",
+  },
+  {
+    code: 'const cost = parseFloat(req.body.amount);\nthis.subtotal = parseFloat(rawAmount);', // money-float-ok — demo description
+    module: "moneyFloat",
+    severity: "error",
+    fix: "Use Decimal or Big for financial calculations — IEEE-754 float loses cents at scale",
+  },
+  {
+    code: 'users.forEach(async (user) => {\n  await sendEmail(user.email);\n});',
+    module: "asyncIteration",
+    severity: "warning",
+    fix: "await Promise.all(users.map(async (user) => sendEmail(user.email)))",
+  },
+  {
+    code: '// @ts-ignore\nconst result = dangerousFunction();',
+    module: "typescriptStrictness",
+    severity: "warning",
+    fix: "Add explanation: // @ts-ignore: dangerousFunction is untyped — fix in #1234",
+  },
+];
+
+const severityTone = (severity: string) =>
+  severity === "error" ? "text-danger bg-danger/10 border-danger/20" : "text-warning bg-warning/10 border-warning/20";
+
+const INLINE_CODE = "text-warning bg-warning/10 px-1 rounded text-xs";
+
 export default function TypeScriptPage() {
   const jsonLd = {
     "@context": "https://schema.org",
@@ -95,211 +129,134 @@ export default function TypeScriptPage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0a12" }}>
+    <main>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Nav */}
-      <nav className="border-b border-white/[0.06] px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm font-mono">G</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              Gate<span className="text-teal-400">Test</span>
-            </span>
-          </Link>
-          <Link href="/" className="text-sm text-white/50 hover:text-white transition-colors">
-            &larr; Back to GateTest
-          </Link>
-        </div>
-      </nav>
-
-      <main className="px-6 py-16 max-w-5xl mx-auto">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-white/40 mb-10">
-          <Link href="/" className="hover:text-white/70 transition-colors">GateTest</Link>
-          <span>/</span>
-          <span className="text-white/60">For</span>
-          <span>/</span>
-          <span className="text-white/60">TypeScript</span>
+      <div className="section-alt relative z-10 -mb-8">
+        <nav aria-label="Breadcrumb" className="mx-auto max-w-7xl px-6 pt-6 flex flex-wrap items-center gap-2 text-sm text-muted">
+          <Link href="/" className="hover:text-foreground transition-colors">GateTest</Link>
+          <span aria-hidden="true">/</span>
+          <Link href="/for" className="hover:text-foreground transition-colors">For</Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-foreground-secondary">TypeScript</span>
         </nav>
+      </div>
 
-        {/* Hero */}
-        <div className="mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-400 font-medium mb-6">
-            Language-specific scanning
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-6">
+      <PageHero
+        eyebrow="Language-specific scanning"
+        title={
+          <>
             TypeScript Code Quality
             <br />
-            <span className="text-teal-400">& Strict Mode Enforcement</span>
-          </h1>
-          <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
+            <span className="text-accent">&amp; Strict Mode Enforcement</span>
+          </>
+        }
+        lede={
+          <>
             TypeScript gives you a type system. GateTest makes sure it stays honest — catching
             tsconfig regressions, @ts-ignore abuse, any-type leaks, circular imports, async
             anti-patterns, and 60+ more failure modes before they reach production.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 mt-8">
-            <Link
-              href="/"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
-              style={{ background: "#2dd4bf", color: "#0a0a12" }}
-            >
+          </>
+        }
+        actions={
+          <>
+            <Link href="/" className="btn-cta px-6 py-3 text-sm">
               Scan My TypeScript Repo — From $29
             </Link>
-            <Link
-              href="/"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
-            >
+            <Link href="/" className="btn-secondary px-6 py-3 text-sm">
               See All {TOTAL_MODULES} Modules
             </Link>
-          </div>
-        </div>
+          </>
+        }
+      />
 
+      <Section title="TypeScript-specific modules">
         {/* The strictness erosion problem */}
-        <section className="mb-16 rounded-xl border border-amber-500/20 p-6" style={{ background: "rgba(245,158,11,0.05)" }}>
+        <div className="mb-12 rounded-xl border border-warning/25 bg-warning/5 p-6">
           {/* fake-fix-ok — demo page showing examples of what GateTest catches */}
-          <h2 className="text-lg font-semibold text-amber-300 mb-3">The strictness erosion problem</h2>
-          <p className="text-white/60 text-sm mb-4 leading-relaxed">
+          <h3 className="font-display text-lg font-semibold text-warning mb-3">The strictness erosion problem</h3>
+          <p className="text-foreground-secondary text-sm mb-4 leading-relaxed">
             TypeScript strict mode exists to catch a whole class of runtime errors at compile time.
-            But it&rsquo;s trivially easy to erode: one PR adds <code className="text-amber-300 bg-amber-500/10 px-1 rounded text-xs">{'// @ts-ignore'}</code> to unblock a merge,
-            another sets <code className="text-amber-300 bg-amber-500/10 px-1 rounded text-xs">skipLibCheck: true</code> to silence a noisy dependency,
-            a third disables <code className="text-amber-300 bg-amber-500/10 px-1 rounded text-xs">strictNullChecks</code> to speed up a deadline.
+            But it&rsquo;s trivially easy to erode: one PR adds <code className={INLINE_CODE}>{'// @ts-ignore'}</code> to unblock a merge,
+            another sets <code className={INLINE_CODE}>skipLibCheck: true</code> to silence a noisy dependency,
+            a third disables <code className={INLINE_CODE}>strictNullChecks</code> to speed up a deadline.
             Six months later, the type system is decorative.
           </p>
-          <p className="text-white/60 text-sm leading-relaxed">
+          <p className="text-foreground-secondary text-sm leading-relaxed">
             GateTest makes strictness erosion impossible to merge silently — every tsconfig regression
             and suppression annotation is a gate failure that blocks the PR.
           </p>
-        </section>
+        </div>
 
-        {/* TS modules */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-8">TypeScript-specific modules</h2>
-          <div className="grid sm:grid-cols-2 gap-5">
-            {tsModules.map((mod) => (
-              <div
-                key={mod.name}
-                className="rounded-xl p-5 border border-white/[0.08]"
-                style={{ background: "rgba(255,255,255,0.03)" }}
-              >
-                <code className="text-teal-400 text-sm font-mono block mb-3">{mod.name}</code>
-                <ul className="space-y-1.5">
-                  {mod.checks.map((check) => (
-                    <li key={check} className="flex items-start gap-2 text-xs text-white/55">
-                      <span className="text-emerald-400/70 shrink-0 mt-0.5">&#10003;</span>
-                      {check}
-                    </li>
-                  ))}
-                </ul>
+        <div className="grid sm:grid-cols-2 gap-5">
+          {tsModules.map((mod) => (
+            <div key={mod.name} className="card p-5">
+              <code className="text-accent text-sm font-mono block mb-3">{mod.name}</code>
+              <ul className="space-y-1.5">
+                {mod.checks.map((check) => (
+                  <li key={check} className="flex items-start gap-2 text-xs text-foreground-secondary">
+                    <span className="text-success shrink-0 mt-0.5" aria-hidden="true">&#10003;</span>
+                    {check}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section alt title="What GateTest catches in TypeScript">
+        <div className="space-y-4">
+          {caughtExamples.map((item) => (
+            <div key={item.code} className="card p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${severityTone(item.severity)}`}>{item.severity}</span>
+                <code className="text-accent text-xs">{item.module}</code>
               </div>
-            ))}
-          </div>
-        </section>
+              <pre className="text-xs font-mono bg-panel text-panel-foreground border border-panel-border rounded-lg p-3 mb-3 overflow-x-auto leading-relaxed">{item.code}</pre>
+              <p className="text-muted text-xs">
+                <span className="text-success">Fix: </span>{item.fix}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Section>
 
-        {/* Code examples of what gets caught */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-8">What GateTest catches in TypeScript</h2>
-          <div className="space-y-4">
-            {[
-              {
-                code: '// tsconfig.json\n{ "compilerOptions": { "strict": false } }',
-                module: "typescriptStrictness",
-                severity: "error",
-                fix: "Remove strict: false to re-enable all strict type checks",
-              },
-              {
-                code: 'const cost = parseFloat(req.body.amount);\nthis.subtotal = parseFloat(rawAmount);', // money-float-ok — demo description
-                module: "moneyFloat",
-                severity: "error",
-                fix: "Use Decimal or Big for financial calculations — IEEE-754 float loses cents at scale",
-              },
-              {
-                code: 'users.forEach(async (user) => {\n  await sendEmail(user.email);\n});',
-                module: "asyncIteration",
-                severity: "warning",
-                fix: "await Promise.all(users.map(async (user) => sendEmail(user.email)))",
-              },
-              {
-                code: '// @ts-ignore\nconst result = dangerousFunction();',
-                module: "typescriptStrictness",
-                severity: "warning",
-                fix: "Add explanation: // @ts-ignore: dangerousFunction is untyped — fix in #1234",
-              },
-            ].map((item) => (
-              <div
-                key={item.code}
-                className="rounded-xl border border-white/[0.08] p-5"
-                style={{ background: "rgba(255,255,255,0.03)" }}
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${
-                    item.severity === "error"
-                      ? "text-red-400 bg-red-500/10 border-red-500/20"
-                      : "text-amber-400 bg-amber-500/10 border-amber-500/20"
-                  }`}>{item.severity}</span>
-                  <code className="text-teal-400/70 text-xs">{item.module}</code>
-                </div>
-                <pre className="text-white/70 text-xs font-mono bg-black/30 rounded-lg p-3 mb-3 overflow-x-auto leading-relaxed">{item.code}</pre>
-                <p className="text-white/40 text-xs">
-                  <span className="text-emerald-400">Fix: </span>{item.fix}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
+      <Section title="Frequently asked questions">
+        <div className="space-y-4">
+          {faqItems.map((item) => (
+            <div key={item.q} className="card p-5">
+              <h3 className="text-foreground font-semibold mb-3 leading-snug">{item.q}</h3>
+              <p className="text-foreground-secondary text-sm leading-relaxed">{item.a}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
 
-        {/* FAQ */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-8">Frequently asked questions</h2>
-          <div className="space-y-4">
-            {faqItems.map((item) => (
-              <div
-                key={item.q}
-                className="rounded-xl border border-white/[0.08] p-5"
-                style={{ background: "rgba(255,255,255,0.03)" }}
-              >
-                <h3 className="text-white font-semibold mb-3 leading-snug">{item.q}</h3>
-                <p className="text-white/55 text-sm leading-relaxed">{item.a}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* CTA */}
-        <section className="rounded-2xl border border-teal-500/20 p-10 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
-          <h2 className="text-3xl font-bold text-white mb-4">
+      <Section alt>
+        <div className="rounded-2xl border border-accent/20 bg-accent/5 p-8 sm:p-10 text-center">
+          <h2 className="font-display text-3xl font-bold text-foreground mb-4">
             Keep TypeScript strict. Ship with confidence.
           </h2>
-          <p className="text-white/60 mb-8 max-w-xl mx-auto">
+          <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
             Gate every PR against strictness regressions, circular imports, async anti-patterns, and 60+ more failure modes. One price per scan, no seats.
           </p>
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold"
-            style={{ background: "#2dd4bf", color: "#0a0a12" }}
-          >
+          <Link href="/" className="btn-cta px-8 py-4">
             Scan My TypeScript Repo — From $29
           </Link>
-          <p className="text-white/30 text-xs mt-6">
+          <p className="text-muted text-xs mt-6">
             One-time charge at checkout. No subscription, no per-seat licensing.
           </p>
-        </section>
-      </main>
-
-      <footer className="border-t border-white/[0.06] px-6 py-8 mt-16">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/30">
-          <span>GateTest &copy; 2026</span>
-          <div className="flex items-center gap-6">
-            <Link href="/for/nextjs" className="hover:text-white/60 transition-colors">Next.js</Link>
-            <Link href="/for/nodejs" className="hover:text-white/60 transition-colors">Node.js</Link>
-          </div>
         </div>
-      </footer>
-    </div>
+        <p className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">
+          <span>Also for:</span>
+          <Link href="/for/nextjs" className="hover:text-accent transition-colors">Next.js</Link>
+          <Link href="/for/nodejs" className="hover:text-accent transition-colors">Node.js</Link>
+        </p>
+      </Section>
+    </main>
   );
 }

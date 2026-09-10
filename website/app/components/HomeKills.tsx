@@ -166,9 +166,10 @@ export default function HomeKills() {
               ["git-secrets / truffleHog", "secrets"],
               ["broken-link-checker", "links"],
             ].map(([from, to]) => (
-              <div key={from + to} className="flex items-center gap-2 py-1.5 border-b border-border/40 last:border-b-0">
-                {/* min-w-0 lets the flex item shrink so `truncate` can act; without it the
-                    longest label forced the whole page 230px wider than a phone (audit 2026-09-10). */}
+              <div key={from + to} className="flex items-center gap-2 py-1.5 border-b border-border/40 last:border-b-0 min-w-0">
+                {/* min-w-0 on BOTH the row (a grid item) and the label (a flex item): a grid
+                    item's min-width is its content width unless told otherwise, so the longest
+                    label forced the whole page 230px wider than a phone (audit 2026-09-10). */}
                 <span className="text-muted truncate min-w-0 flex-1" title={from}>{from}</span>
                 <span className="text-muted/40 shrink-0">&rarr;</span>
                 <code className="font-mono text-accent text-xs shrink-0">{to}</code>

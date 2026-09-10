@@ -8,6 +8,7 @@ import {
   getTotalModuleCount,
   type ResolvedModule,
 } from "../../components/howitworks/module-slugs";
+import PageHero from "../../components/site/PageHero";
 
 interface PageParams {
   params: Promise<{ slug: string }>;
@@ -66,6 +67,8 @@ function buildKeywords(mod: { name: string }): string[] {
     `gatetest ${mod.name}`,
   ];
 }
+
+const COMPARISONS = ["snyk", "sonarqube", "semgrep", "codeql", "deepsource", "eslint", "github-code-scanning"];
 
 export default async function ModulePage({ params }: PageParams) {
   const { slug } = await params;
@@ -144,111 +147,87 @@ export default async function ModulePage({ params }: PageParams) {
     aggregateRating: undefined, // not faked
   };
 
+  const h2 = "font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground";
+
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }} />
 
-      {/* Nav */}
-      <nav className="border-b border-white/[0.06] px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm font-mono">G</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              Gate<span className="text-teal-400">Test</span>
-            </span>
-          </Link>
-          <Link href="/modules" className="text-sm text-white/50 hover:text-white transition-colors">
-            All {totalModules} modules &rarr;
-          </Link>
-        </div>
-      </nav>
-
-      <main className="px-6 py-16 max-w-4xl mx-auto">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-white/40 mb-10">
-          <Link href="/" className="hover:text-white/70 transition-colors">GateTest</Link>
-          <span>/</span>
-          <Link href="/modules" className="hover:text-white/70 transition-colors">Modules</Link>
-          <span>/</span>
-          <Link href={`/modules#${mod.category.id}`} className="hover:text-white/70 transition-colors">{mod.category.title}</Link>
-          <span>/</span>
-          <span className="text-white/60">{pretty}</span>
-        </nav>
-
-        {/* Hero */}
-        <div className="mb-12">
-          <div className="flex flex-wrap items-center gap-2 mb-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-400 font-medium">
-              {mod.category.title} module
-            </div>
-            {comingSoon && (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-400/10 border border-amber-400/30 text-xs text-amber-300 font-medium">
-                Coming soon — {comingSoon.reason}
-              </div>
-            )}
+      <PageHero
+        eyebrow={
+          <>
+            <Link href="/modules" className="hover:text-foreground transition-colors">Modules</Link>
+            <span aria-hidden="true">/</span>
+            <Link href={`/modules#${mod.category.id}`} className="hover:text-foreground transition-colors">{mod.category.title}</Link>
+            {comingSoon && <span className="text-warning">· Coming soon</span>}
+          </>
+        }
+        title={pretty}
+        lede={mod.description}
+        actions={
+          comingSoon ? (
+            <p className="text-sm text-muted leading-relaxed">Not yet included in any purchasable tier. {comingSoon.reason}</p>
+          ) : (
+            <p className="text-sm text-muted leading-relaxed">
+              One of {totalModules} modules in the GateTest scan suite. Catches the issue before it reaches code review, and on paid tiers opens a pull request with the fix already written.
+            </p>
+          )
+        }
+      >
+        {/* Example finding — what CI sees, so it stays a dark panel */}
+        <div className="rounded-2xl bg-panel border border-panel-border overflow-hidden">
+          <div className="border-b border-panel-border px-4 py-2.5 flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-danger/80" aria-hidden="true" />
+            <span className="w-3 h-3 rounded-full bg-warning/80" aria-hidden="true" />
+            <span className="w-3 h-3 rounded-full bg-success/80" aria-hidden="true" />
+            <span className="ml-2 text-xs text-panel-muted font-mono">gatetest --module {mod.name}</span>
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-6">
-            {pretty}
-          </h1>
-          <p className="text-lg text-white/70 leading-relaxed mb-2">
-            {mod.description}
-          </p>
-          <p className="text-sm text-white/45 leading-relaxed">
-            {comingSoon
-              ? `Not yet included in any purchasable tier. ${comingSoon.reason}`
-              : `One of ${totalModules} modules in the GateTest scan suite. Catches the issue before it reaches code review, and on paid tiers opens a pull request with the fix already written.`}
-          </p>
+          <pre className="p-5 text-sm font-mono text-panel-foreground whitespace-pre-wrap leading-relaxed">{mod.example}</pre>
         </div>
+      </PageHero>
 
-        {/* Example finding */}
-        <section className="mb-12 rounded-xl border border-white/[0.08] p-6" style={{ background: "rgba(255,255,255,0.02)" }}>
-          <h2 className="text-sm uppercase tracking-wider text-white/40 font-semibold mb-3">Example finding from the {mod.name} module</h2>
-          <pre className="text-sm font-mono text-amber-200/90 whitespace-pre-wrap leading-relaxed">{mod.example}</pre>
-        </section>
-
+      <div className="mx-auto max-w-4xl px-6 py-16 sm:py-20">
         {/* Category context */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold text-white mb-4">Why we catch it</h2>
-          <p className="text-white/65 leading-relaxed mb-3">{mod.category.blurb}</p>
-          <p className="text-white/65 leading-relaxed">
-            The <span className="text-teal-300 font-medium">{pretty}</span> module sits in this category alongside {related.length} related modules. Together they form one of the layers of a GateTest scan — checks fire in parallel, findings cluster by root cause, and on paid tiers the AI auto-fix loop reads each finding, writes the fix, validates against the scanner, and opens a PR.
+          <h2 className={`${h2} mb-4`}>Why we catch it</h2>
+          <p className="text-foreground-secondary leading-relaxed mb-3">{mod.category.blurb}</p>
+          <p className="text-foreground-secondary leading-relaxed">
+            The <span className="text-accent font-medium">{pretty}</span> module sits in this category alongside {related.length} related modules. Together they form one of the layers of a GateTest scan — checks fire in parallel, findings cluster by root cause, and on paid tiers the AI auto-fix loop reads each finding, writes the fix, validates against the scanner, and opens a PR.
           </p>
         </section>
 
         {/* How GateTest covers this */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold text-white mb-4">How GateTest covers {pretty.toLowerCase()}</h2>
+          <h2 className={`${h2} mb-4`}>How GateTest covers {pretty.toLowerCase()}</h2>
           {comingSoon ? (
-            <ul className="space-y-3 text-white/70 leading-relaxed">
+            <ul className="space-y-3 text-foreground-secondary leading-relaxed">
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 mt-1">&#9679;</span>
-                <span><strong className="text-white">Not yet purchasable.</strong> {comingSoon.reason} It&apos;s registered in the engine today so it&apos;s discoverable, but no tier includes it yet.</span>
+                <span className="text-warning mt-1" aria-hidden="true">&#9679;</span>
+                <span><strong className="text-foreground">Not yet purchasable.</strong> {comingSoon.reason} It&apos;s registered in the engine today so it&apos;s discoverable, but no tier includes it yet.</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 mt-1">&#9679;</span>
-                <span><strong className="text-white">Requires explicit authorization when it ships.</strong> Live probes only ever run against a target you&apos;ve proven you own — a three-layer consent check gates every run.</span>
+                <span className="text-warning mt-1" aria-hidden="true">&#9679;</span>
+                <span><strong className="text-foreground">Requires explicit authorization when it ships.</strong> Live probes only ever run against a target you&apos;ve proven you own — a three-layer consent check gates every run.</span>
               </li>
             </ul>
           ) : (
-            <ul className="space-y-3 text-white/70 leading-relaxed">
+            <ul className="space-y-3 text-foreground-secondary leading-relaxed">
               <li className="flex items-start gap-2">
-                <span className="text-teal-400 mt-1">&#10003;</span>
-                <span><strong className="text-white">Runs in every scan.</strong> Included on the Full ($99), Scan + Fix ($199), and Forensic Scan ($399) tiers. No additional configuration.</span>
+                <span className="text-accent mt-1" aria-hidden="true">&#10003;</span>
+                <span><strong className="text-foreground">Runs in every scan.</strong> Included on the Full ($99), Scan + Fix ($199), and Forensic Scan ($399) tiers. No additional configuration.</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-teal-400 mt-1">&#10003;</span>
-                <span><strong className="text-white">Free CLI.</strong> <code className="text-white/80 text-sm bg-white/5 px-1.5 py-0.5 rounded">npm i -g gatetest && gatetest --module {mod.name}</code> against any local repo. No paywall on the scanning itself.</span>
+                <span className="text-accent mt-1" aria-hidden="true">&#10003;</span>
+                <span><strong className="text-foreground">Free CLI.</strong> <code className="text-foreground text-sm bg-surface-light border border-border px-1.5 py-0.5 rounded">npm i -g gatetest && gatetest --module {mod.name}</code> against any local repo. No paywall on the scanning itself.</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-teal-400 mt-1">&#10003;</span>
-                <span><strong className="text-white">AI auto-fix PR.</strong> Scan + Fix tier opens a pull request with the fix, a regression test, and a pair-review by a second Claude. Forensic Scan tier adds per-finding diagnosis and cross-finding attack-chain correlation.</span>
+                <span className="text-accent mt-1" aria-hidden="true">&#10003;</span>
+                <span><strong className="text-foreground">AI auto-fix PR.</strong> Scan + Fix tier opens a pull request with the fix, a regression test, and a pair-review by a second Claude. Forensic Scan tier adds per-finding diagnosis and cross-finding attack-chain correlation.</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-teal-400 mt-1">&#10003;</span>
-                <span><strong className="text-white">Honest confidence rating.</strong> Findings come with high / medium / low confidence so noisy patterns don&apos;t block the gate. The confidence-calibrator trainer reads customer suppressions and tightens rules over time.</span>
+                <span className="text-accent mt-1" aria-hidden="true">&#10003;</span>
+                <span><strong className="text-foreground">Honest confidence rating.</strong> Findings come with high / medium / low confidence so noisy patterns don&apos;t block the gate. The confidence-calibrator trainer reads customer suppressions and tightens rules over time.</span>
               </li>
             </ul>
           )}
@@ -256,41 +235,30 @@ export default async function ModulePage({ params }: PageParams) {
 
         {/* CTA */}
         {comingSoon ? (
-          <section className="mb-12 rounded-2xl border border-amber-400/20 p-8 text-center" style={{ background: "rgba(251,191,36,0.05)" }}>
-            <h2 className="text-2xl font-bold text-white mb-3">{pretty} is coming soon</h2>
-            <p className="text-white/60 mb-6">{comingSoon.reason} Want early access when it ships?</p>
+          <section className="mb-12 rounded-2xl border border-amber-400/30 bg-amber-500/5 px-6 py-8 text-center">
+            <h2 className={`${h2} mb-3`}>{pretty} is coming soon</h2>
+            <p className="text-foreground-secondary mb-6">{comingSoon.reason} Want early access when it ships?</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a
                 href={`mailto:hello@gatetest.ai?subject=${encodeURIComponent(`Early access: ${pretty}`)}`}
-                className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
-                style={{ background: "#fbbf24", color: "#0a0a12" }}
+                className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm"
               >
                 Request early access
               </a>
-              <Link
-                href="/modules"
-                className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
-              >
+              <Link href="/modules" className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm">
                 See all {totalModules} modules
               </Link>
             </div>
           </section>
         ) : (
-          <section className="mb-12 rounded-2xl border border-teal-500/20 p-8 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
-            <h2 className="text-2xl font-bold text-white mb-3">Scan your repo for {pretty.toLowerCase()}</h2>
-            <p className="text-white/60 mb-6">Free preview of the headline findings. Pay per scan — no subscription.</p>
+          <section className="mb-12 rounded-2xl border border-accent/20 bg-accent/5 px-6 py-8 text-center">
+            <h2 className={`${h2} mb-3`}>Scan your repo for {pretty.toLowerCase()}</h2>
+            <p className="text-foreground-secondary mb-6">Free preview of the headline findings. Pay per scan — no subscription.</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link
-                href="/#pricing"
-                className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
-                style={{ background: "#2dd4bf", color: "#0a0a12" }}
-              >
+              <Link href="/#pricing" className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm">
                 Run a scan &mdash; from $29
               </Link>
-              <Link
-                href="/modules"
-                className="inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
-              >
+              <Link href="/modules" className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm">
                 See all {totalModules} modules
               </Link>
             </div>
@@ -299,16 +267,12 @@ export default async function ModulePage({ params }: PageParams) {
 
         {/* FAQ */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold text-white mb-6">Frequently asked questions</h2>
+          <h2 className={`${h2} mb-6`}>Frequently asked questions</h2>
           <div className="space-y-4">
             {faqs.map((f) => (
-              <div
-                key={f.q}
-                className="rounded-xl border border-white/[0.08] p-5"
-                style={{ background: "rgba(255,255,255,0.02)" }}
-              >
-                <h3 className="text-white font-semibold mb-2 leading-snug">{f.q}</h3>
-                <p className="text-white/60 text-sm leading-relaxed">{f.a}</p>
+              <div key={f.q} className="card p-5">
+                <h3 className="text-foreground font-semibold mb-2 leading-snug">{f.q}</h3>
+                <p className="text-foreground-secondary text-sm leading-relaxed">{f.a}</p>
               </div>
             ))}
           </div>
@@ -317,17 +281,12 @@ export default async function ModulePage({ params }: PageParams) {
         {/* Related modules — internal linking */}
         {related.length > 0 && (
           <section className="mb-12">
-            <h2 className="text-2xl font-bold text-white mb-6">Related modules in {mod.category.title}</h2>
+            <h2 className={`${h2} mb-6`}>Related modules in {mod.category.title}</h2>
             <div className="grid sm:grid-cols-2 gap-3">
               {related.map((r) => (
-                <Link
-                  key={r.slug}
-                  href={`/modules/${r.slug}`}
-                  className="block rounded-xl border border-white/[0.08] p-4 hover:border-teal-500/30 transition-colors"
-                  style={{ background: "rgba(255,255,255,0.02)" }}
-                >
-                  <div className="text-white font-semibold mb-1">{prettify(r.name)}</div>
-                  <div className="text-white/55 text-sm leading-snug">{r.description.slice(0, 120)}{r.description.length > 120 ? "…" : ""}</div>
+                <Link key={r.slug} href={`/modules/${r.slug}`} className="card block p-4">
+                  <div className="text-foreground font-semibold mb-1">{prettify(r.name)}</div>
+                  <div className="text-foreground-secondary text-sm leading-snug">{r.description.slice(0, 120)}{r.description.length > 120 ? "…" : ""}</div>
                 </Link>
               ))}
             </div>
@@ -335,32 +294,21 @@ export default async function ModulePage({ params }: PageParams) {
         )}
 
         {/* Cross-links to comparisons */}
-        <section className="mb-12 rounded-xl border border-white/[0.08] p-6" style={{ background: "rgba(255,255,255,0.02)" }}>
-          <h2 className="text-sm uppercase tracking-wider text-white/40 font-semibold mb-3">Comparing GateTest to another tool?</h2>
+        <section className="rounded-2xl border border-border bg-surface-light p-6">
+          <h2 className="text-sm uppercase tracking-wider text-muted font-semibold mb-3">Comparing GateTest to another tool?</h2>
           <div className="flex flex-wrap gap-2">
-            {["snyk", "sonarqube", "semgrep", "codeql", "deepsource", "eslint", "github-code-scanning"].map((c) => (
+            {COMPARISONS.map((c) => (
               <Link
                 key={c}
                 href={`/compare/${c}`}
-                className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm text-white/70 hover:text-white hover:border-white/20 transition-colors"
+                className="px-3 py-1.5 rounded-full bg-background border border-border text-sm text-foreground-secondary hover:text-foreground hover:border-border-strong transition-colors"
               >
                 vs. {c.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
               </Link>
             ))}
           </div>
         </section>
-      </main>
-
-      <footer className="border-t border-white/[0.06] px-6 py-8">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/30">
-          <span>GateTest &copy; 2026</span>
-          <div className="flex gap-6">
-            <Link href="/modules" className="hover:text-white/60 transition-colors">Modules</Link>
-            <Link href="/#pricing" className="hover:text-white/60 transition-colors">Pricing</Link>
-            <Link href="/legal/terms" className="hover:text-white/60 transition-colors">Terms</Link>
-          </div>
-        </div>
-      </footer>
+      </div>
     </main>
   );
 }

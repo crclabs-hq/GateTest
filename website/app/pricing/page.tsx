@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
 import Pricing from "../components/Pricing";
+import PageHero from "../components/site/PageHero";
+import Section from "../components/site/Section";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import { breadcrumbSchema, contentMetadata, jsonLd } from "../lib/seo/schema";
 
@@ -81,7 +81,7 @@ const NEXT_STEPS: { href: string; title: string; body: string }[] = [
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -91,29 +91,26 @@ export default function PricingPage() {
         }}
       />
 
-      <Navbar />
-
-      <main className="pt-24 sm:pt-28">
-        {/* Page header. The positioning line ("Pay per scan, not per seat")
-            stays inside the Pricing component below, where it already ships —
-            this heading is deliberately a plain page label. */}
-        <section className="px-6 pb-2 max-w-3xl mx-auto text-center">
-          <p className="text-xs uppercase tracking-[0.2em] font-semibold text-accent mb-3">
-            Pricing
-          </p>
-          <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-foreground">
-            GateTest pricing
-          </h1>
-          <p className="mt-5 text-sm sm:text-base text-muted leading-relaxed">
-            Four one-time scan tiers billed per run, two subscriptions, and a
-            contact-based{" "}
-            <Link href="/enterprise" className="text-accent hover:underline">
-              Enterprise
-            </Link>{" "}
-            plan. Everything is charged upfront at checkout — no seats, no
-            minimum commitment, no sales call to see a price.
-          </p>
-        </section>
+      <main>
+        {/* The shared hero sits directly under the sticky site header (no
+            top padding — the header is in-flow). The tier grid below is the
+            same <Pricing /> component the homepage renders at /#pricing. */}
+        <PageHero
+          eyebrow="Pricing"
+          title="GateTest pricing"
+          align="center"
+          lede={
+            <>
+              Four one-time scan tiers billed per run, two subscriptions, and a
+              contact-based{" "}
+              <Link href="/enterprise" className="text-accent hover:underline">
+                Enterprise
+              </Link>{" "}
+              plan. Everything is charged upfront at checkout — no seats, no
+              minimum commitment, no sales call to see a price.
+            </>
+          }
+        />
 
         {/* The one and only pricing surface — the same component the homepage
             renders at /#pricing, so the two can never disagree. */}
@@ -122,8 +119,8 @@ export default function PricingPage() {
         {/* Deep links into the pages a buyer reads before deciding. Also the
             fix for the modules catalogue being reachable only from a homepage
             anchor. */}
-        <section className="px-6 pb-20 pt-4 max-w-5xl mx-auto">
-          <h2 className="text-xl font-bold text-foreground mb-5 text-center">
+        <Section alt>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8 text-center">
             Before you decide
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -131,7 +128,7 @@ export default function PricingPage() {
               <Link
                 key={s.href}
                 href={s.href}
-                className="block rounded-2xl border border-border bg-surface-solid p-5 hover:border-accent/50 hover:shadow-md transition-all"
+                className="card block p-5"
               >
                 <h3 className="font-semibold text-foreground text-sm mb-1.5">
                   {s.title}
@@ -147,10 +144,8 @@ export default function PricingPage() {
             </Link>
             .
           </p>
-        </section>
+        </Section>
       </main>
-
-      <Footer />
     </div>
   );
 }

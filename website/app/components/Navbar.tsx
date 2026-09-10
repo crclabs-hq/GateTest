@@ -1,231 +1,147 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { NAV_GROUPS, NAV_LINKS, NAV_ACTIONS, type NavItem } from "./site-nav";
 
 /**
- * Primary nav — real routes, not homepage anchors.
+ * The site header. Rendered ONCE from the root layout via SiteChrome — pages
+ * must never import it themselves (tests/site-shell.test.js enforces this).
  *
- * These three were `/#modules`, `/#comparison` and `/#pricing`: anchors into
- * the homepage. That made /pricing (the most-linked URL a developer tool has),
- * the /compare hub, and the 121 statically-generated /modules/[slug] pages —
- * the largest organic-search asset in the repo — reachable only by scrolling.
- * The homepage sections and their anchors are untouched and still work.
+ * Sticky and in-flow (not fixed), so no page needs top padding to clear it.
+ * Grouped disclosure menus on desktop; a drawer with 44px targets on phones.
+ * Every colour is a token, so the header renders in either theme.
  */
-const PRIMARY_LINKS = [
-  { label: "Modules", href: "/modules" },
-  { label: "Precision", href: "/precision" },
-  { label: "Compare", href: "/compare" },
-  { label: "Pricing", href: "/pricing" },
-] as const;
+
+const LINK = "text-sm text-muted hover:text-foreground transition-colors";
+
+function ItemLink({ item, onClick, className = "" }: { item: NavItem; onClick?: () => void; className?: string }) {
+  const inner = (
+    <>
+      <span className="block font-medium text-foreground">{item.label}{item.external ? " ↗" : ""}</span>
+      {item.desc && <span className="block text-xs text-muted mt-0.5">{item.desc}</span>}
+    </>
+  );
+  const cls = `block rounded-lg px-3 py-2.5 hover:bg-[var(--background-alt)] transition-colors ${className}`;
+  return item.external ? (
+    <a href={item.href} className={cls} onClick={onClick} rel="noopener noreferrer">{inner}</a>
+  ) : (
+    <Link href={item.href} className={cls} onClick={onClick}>{inner}</Link>
+  );
+}
 
 export default function Navbar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState<string | null>(null); // desktop group label
+  const [drawer, setDrawer] = useState(false);
+  const pathname = usePathname();
+  const rootRef = useRef<HTMLElement>(null);
 
+  // Route change closes everything.
+  useEffect(() => { setOpen(null); setDrawer(false); }, [pathname]);
+
+  // Escape + click-outside close the desktop menus.
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
+    const onClick = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(null);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onClick);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("mousedown", onClick); };
+  }, [open]);
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-      scrolled
-        ? "bg-white/90 backdrop-blur-2xl border-b border-border/60 shadow-[0_1px_0_0_rgba(0,0,0,0.06),inset_0_1px_0_0_rgba(255,255,255,0.6)]"
-        : "bg-[#f7f4ed]/70 backdrop-blur-md border-b border-black/5"
-    }`}>
-      <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-            <span className="text-white font-bold text-sm font-[var(--font-mono)]">G</span>
-          </div>
-          <span className={`text-xl font-bold tracking-tight ${scrolled ? "text-foreground" : "text-gray-900"}`}>
-            Gate<span className="text-teal-400">Test</span>
-          </span>
-          {/* BETA badge — sets the right expectation site-wide. Pre-launch
-              polish + product fit are still in flight. Remove this once
-              we hit GA. */}
-          <span
-            className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-              scrolled
-                ? "bg-amber-100 border-amber-300 text-amber-700"
-                : "bg-amber-100 border-amber-300 text-amber-700"
-            }`}
-            aria-label="Beta — the product is rough and getting polished daily"
-          >
-            Beta
-          </span>
+    <header
+      ref={rootRef}
+      className="sticky top-0 z-50 border-b border-border bg-[color-mix(in_srgb,var(--background)_88%,transparent)] backdrop-blur-xl"
+    >
+      <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between gap-4">
+        <Link href="/" className="flex items-center gap-2.5 shrink-0" aria-label="GateTest home">
+          <span className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-white font-bold text-sm font-mono">G</span>
+          <span className="text-lg font-bold tracking-tight text-foreground">Gate<span className="text-accent-light">Test</span></span>
         </Link>
 
-        <div className="hidden xl:flex items-center gap-6">
-          {PRIMARY_LINKS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`text-sm transition-colors ${
-                scrolled
-                  ? "text-muted hover:text-foreground"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              {item.label}
-            </Link>
+        {/* Desktop */}
+        <nav aria-label="Primary" className="hidden lg:flex items-center gap-1">
+          {NAV_GROUPS.map((g) => {
+            const id = `menu-${g.label.toLowerCase()}`;
+            const isOpen = open === g.label;
+            return (
+              <div key={g.label} className="relative" onMouseEnter={() => setOpen(g.label)} onMouseLeave={() => setOpen((o) => (o === g.label ? null : o))}>
+                <button
+                  type="button"
+                  className={`${LINK} px-3 py-2 rounded-md inline-flex items-center gap-1 ${isOpen ? "text-foreground" : ""}`}
+                  aria-expanded={isOpen}
+                  aria-controls={id}
+                  onClick={() => setOpen(isOpen ? null : g.label)}
+                >
+                  {g.label}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                </button>
+                <div
+                  id={id}
+                  hidden={!isOpen}
+                  className="absolute left-0 top-full pt-2"
+                >
+                  <div className="w-[34rem] grid grid-cols-2 gap-1 p-2 rounded-xl border border-border bg-[var(--surface-solid)] shadow-[var(--shadow-lg)]">
+                    {g.items.map((item) => <ItemLink key={item.href} item={item} />)}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {NAV_LINKS.map((l) => (
+            <Link key={l.href} href={l.href} className={`${LINK} px-3 py-2 rounded-md ${pathname === l.href ? "text-foreground" : ""}`}>{l.label}</Link>
           ))}
-          {/*
-            Website + WordPress were reachable only by scrolling the homepage,
-            despite being the only entry points that need no repo, no git and
-            no developer — the audiences the rest of the nav excludes.
-            (Craig 2026-08-06.)
-          */}
-          <Link
-            href="/web"
-            className={`text-sm whitespace-nowrap transition-colors ${
-              scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            Website
+        </nav>
+
+        <div className="hidden lg:flex items-center gap-2">
+          <Link href={NAV_ACTIONS.signIn.href} className={`${LINK} px-3 py-2`}>{NAV_ACTIONS.signIn.label}</Link>
+          <Link href={NAV_ACTIONS.install.href} className="px-3.5 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:border-accent/50 transition-colors whitespace-nowrap">
+            {NAV_ACTIONS.install.label}
           </Link>
-          <Link
-            href="/wp"
-            className={`text-sm whitespace-nowrap transition-colors ${
-              scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            WordPress
-          </Link>
-          <Link
-            href="/mcp"
-            className={`text-sm whitespace-nowrap transition-colors ${
-              scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            MCP
-          </Link>
-          <Link
-            href="/playground"
-            className={`text-sm whitespace-nowrap font-semibold transition-colors ${
-              scrolled ? "text-emerald-400 hover:text-emerald-300" : "text-emerald-700 hover:text-emerald-800"
-            }`}
-          >
-            Playground
-          </Link>
-          <Link
-            href="/developers"
-            className={`text-sm whitespace-nowrap transition-colors ${
-              scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            Docs
+          <Link href={NAV_ACTIONS.primary.href} className="btn-cta px-4 py-2 text-sm font-semibold rounded-lg whitespace-nowrap">
+            {NAV_ACTIONS.primary.label} →
           </Link>
         </div>
 
-        <div className="hidden xl:flex items-center gap-3">
-          <a
-            href="/dashboard"
-            className={`text-sm whitespace-nowrap transition-colors ${
-              scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            My Scans
-          </a>
-          <a
-            href="/github/setup"
-            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap rounded-lg border transition-colors ${
-              scrolled
-                ? "border-border text-foreground hover:border-accent/50"
-                : "border-black/10 text-gray-700 hover:text-gray-900 hover:border-[#0f766e]/40"
-            }`}
-          >
-            Install GitHub App
-          </a>
-          <Link
-            href="/playground"
-            className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap rounded-lg transition-all ${
-              scrolled
-                ? "btn-cta"
-                : "hero-cta"
-            }`}
-          >
-            Scan Free →
-          </Link>
-        </div>
-
+        {/* Phone / tablet */}
         <button
-          className={`xl:hidden ${scrolled ? "text-muted" : "text-gray-500"} hover:text-gray-900`}
-          onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Toggle menu"
+          type="button"
+          className="lg:hidden inline-flex items-center justify-center w-11 h-11 -mr-2 rounded-lg text-foreground hover:bg-[var(--background-alt)]"
+          aria-label={drawer ? "Close menu" : "Open menu"}
+          aria-expanded={drawer}
+          aria-controls="site-menu"
+          onClick={() => setDrawer(!drawer)}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            {mobileOpen ? (
-              <path d="M18 6L6 18M6 6l12 12" />
-            ) : (
-              <path d="M3 12h18M3 6h18M3 18h18" />
-            )}
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            {drawer ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M3 12h18M3 6h18M3 18h18" />}
           </svg>
         </button>
       </div>
 
-      {mobileOpen && (
-        <div className={`xl:hidden border-t px-6 py-4 space-y-4 ${
-          scrolled
-            ? "border-border bg-white/95 backdrop-blur-xl"
-            : "border-black/5 bg-[#f7f4ed]/95 backdrop-blur-xl"
-        }`}>
-          {PRIMARY_LINKS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"}`}
-              onClick={() => setMobileOpen(false)}
-            >
-              {item.label}
-            </Link>
+      <div id="site-menu" hidden={!drawer} className="lg:hidden border-t border-border bg-[var(--surface-solid)] max-h-[calc(100vh-4rem)] overflow-y-auto">
+        <nav aria-label="Primary (mobile)" className="mx-auto max-w-7xl px-4 py-3">
+          {NAV_GROUPS.map((g) => (
+            <div key={g.label} className="py-2">
+              <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted">{g.label}</p>
+              {g.items.map((item) => <ItemLink key={item.href} item={item} onClick={() => setDrawer(false)} className="py-3" />)}
+            </div>
           ))}
-          <Link
-            href="/web"
-            className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"}`}
-            onClick={() => setMobileOpen(false)}
-          >
-            Website
-          </Link>
-          <Link
-            href="/wp"
-            className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"}`}
-            onClick={() => setMobileOpen(false)}
-          >
-            WordPress
-          </Link>
-          <Link
-            href="/mcp"
-            className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"}`}
-            onClick={() => setMobileOpen(false)}
-          >
-            MCP
-          </Link>
-          <Link
-            href="/developers"
-            className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"}`}
-            onClick={() => setMobileOpen(false)}
-          >
-            Docs
-          </Link>
-          <a
-            href="/dashboard"
-            className={`block text-sm ${scrolled ? "text-muted hover:text-foreground" : "text-gray-600 hover:text-gray-900"}`}
-            onClick={() => setMobileOpen(false)}
-          >
-            My Scans
-          </a>
-          <Link
-            href="/scan/preview"
-            className={`block px-5 py-2.5 text-sm text-center rounded-lg font-semibold ${scrolled ? "btn-cta" : "hero-cta"}`}
-            onClick={() => setMobileOpen(false)}
-          >
-            Free Preview Scan
-          </Link>
-        </div>
-      )}
-    </nav>
+          <div className="py-2 border-t border-border">
+            {NAV_LINKS.map((l) => (
+              <Link key={l.href} href={l.href} className="block px-3 py-3 font-medium text-foreground" onClick={() => setDrawer(false)}>{l.label}</Link>
+            ))}
+            <Link href={NAV_ACTIONS.signIn.href} className="block px-3 py-3 font-medium text-foreground" onClick={() => setDrawer(false)}>{NAV_ACTIONS.signIn.label}</Link>
+          </div>
+          <div className="grid gap-2 p-3">
+            <Link href={NAV_ACTIONS.install.href} className="block text-center px-4 py-3 rounded-lg border border-border font-medium text-foreground" onClick={() => setDrawer(false)}>{NAV_ACTIONS.install.label}</Link>
+            <Link href={NAV_ACTIONS.primary.href} className="btn-cta block text-center px-4 py-3 rounded-lg font-semibold" onClick={() => setDrawer(false)}>{NAV_ACTIONS.primary.label} →</Link>
+          </div>
+        </nav>
+      </div>
+    </header>
   );
 }

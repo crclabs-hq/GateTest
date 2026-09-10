@@ -8,6 +8,8 @@ import {
   getCountryBySlug,
   type Country,
 } from "../countries";
+import PageHero from "../../components/site/PageHero";
+import Section from "../../components/site/Section";
 
 interface PageParams {
   params: Promise<{ country: string }>;
@@ -117,10 +119,12 @@ function getModuleBlurb(name: string): string {
 }
 
 const TAG_COLORS: Record<string, string> = {
-  Security: "text-red-400 bg-red-500/10 border-red-500/20",
-  Quality: "text-teal-400 bg-teal-500/10 border-teal-500/20",
-  Reliability: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+  Security: "text-danger bg-danger/10 border-danger/20",
+  Quality: "text-accent bg-accent/10 border-accent/20",
+  Reliability: "text-warning bg-warning/10 border-warning/20",
 };
+
+const PILL = "px-3 py-1.5 rounded-full text-xs font-mono border";
 
 export default async function CountryPage({ params }: PageParams) {
   const { country } = await params;
@@ -166,7 +170,7 @@ export default async function CountryPage({ params }: PageParams) {
   const showLaunchBadges = process.env.NEXT_PUBLIC_LAUNCH_HN === "1";
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0a12" }}>
+    <main>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }}
@@ -176,298 +180,218 @@ export default async function CountryPage({ params }: PageParams) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
 
-      {/* Nav */}
-      <nav className="border-b border-white/[0.06] px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm font-mono">G</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              Gate<span className="text-teal-400">Test</span>
-            </span>
-          </Link>
-          <Link href="/for" className="text-sm text-white/50 hover:text-white transition-colors">
-            All countries &rarr;
-          </Link>
-        </div>
-      </nav>
-
-      <main className="px-6 py-16 max-w-5xl mx-auto">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-white/40 mb-10">
-          <Link href="/" className="hover:text-white/70 transition-colors">GateTest</Link>
-          <span>/</span>
-          <Link href="/for" className="hover:text-white/70 transition-colors">For</Link>
-          <span>/</span>
-          <Link href="/for" className="hover:text-white/70 transition-colors">Countries</Link>
-          <span>/</span>
-          <span className="text-white/60">{data.name}</span>
+      <div className="section-alt relative z-10 -mb-8">
+        <nav aria-label="Breadcrumb" className="mx-auto max-w-7xl px-6 pt-6 flex flex-wrap items-center gap-2 text-sm text-muted">
+          <Link href="/" className="hover:text-foreground transition-colors">GateTest</Link>
+          <span aria-hidden="true">/</span>
+          <Link href="/for" className="hover:text-foreground transition-colors">For</Link>
+          <span aria-hidden="true">/</span>
+          <Link href="/for" className="hover:text-foreground transition-colors">Countries</Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-foreground-secondary">{data.name}</span>
         </nav>
+      </div>
 
-        {/* Hero */}
-        <section className="mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs text-teal-400 font-medium mb-6">
+      <PageHero
+        eyebrow={
+          <>
             <span className="font-mono">{data.flag}</span>
             <span>Country-specific compliance</span>
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-6">
+          </>
+        }
+        title={
+          <>
             GateTest for <span className="gradient-text">{data.name}</span>
-          </h1>
-          <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
-            {data.whyGateTestFits}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 mt-8">
-            <Link
-              href="/scan"
-              className="btn-primary inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm"
-              style={{ background: "#2dd4bf", color: "#0a0a12" }}
-            >
+          </>
+        }
+        lede={data.whyGateTestFits}
+        actions={
+          <>
+            <Link href="/scan" className="btn-cta px-6 py-3 text-sm">
               Run a scan — from $29
             </Link>
-            <Link
-              href="/modules"
-              className="btn-secondary inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm border border-white/15 text-white/70 hover:border-white/30 hover:text-white transition-colors"
-            >
+            <Link href="/modules" className="btn-secondary px-6 py-3 text-sm">
               See compliance modules
             </Link>
-          </div>
-        </section>
+          </>
+        }
+      />
 
-        {/* Stack */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-3">
-            What devs in {data.name} build with
-          </h2>
-          <p className="text-white/50 text-sm mb-8">
-            Stack and host shapes we see across the {data.name} dev market — GateTest is tuned for all of them.
-          </p>
-          <div className="space-y-6">
-            <div>
-              <div className="text-xs uppercase tracking-wider text-white/40 mb-3">Popular stack</div>
-              <div className="flex flex-wrap gap-2">
-                {data.popularStack.map((s) => (
-                  <span
-                    key={s}
-                    className="px-3 py-1.5 rounded-full text-xs font-mono text-teal-300 border border-teal-500/20"
-                    style={{ background: "rgba(20,184,166,0.05)" }}
-                  >
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wider text-white/40 mb-3">Popular hosts</div>
-              <div className="flex flex-wrap gap-2">
-                {data.popularHosts.map((h) => (
-                  <span
-                    key={h}
-                    className="px-3 py-1.5 rounded-full text-xs font-mono text-white/70 border border-white/15"
-                    style={{ background: "rgba(255,255,255,0.03)" }}
-                  >
-                    {h}
-                  </span>
-                ))}
-              </div>
+      {/* Stack */}
+      <Section
+        title={<>What devs in {data.name} build with</>}
+        lede={<>Stack and host shapes we see across the {data.name} dev market — GateTest is tuned for all of them.</>}
+      >
+        <div className="space-y-6">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted mb-3">Popular stack</div>
+            <div className="flex flex-wrap gap-2">
+              {data.popularStack.map((s) => (
+                <span key={s} className={`${PILL} text-accent border-accent/20 bg-accent/5`}>
+                  {s}
+                </span>
+              ))}
             </div>
           </div>
-        </section>
-
-        {/* Top 3 modules */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-3">
-            The 3 modules most relevant in {data.name}
-          </h2>
-          <p className="text-white/50 text-sm mb-8">
-            Every {data.name} scan runs all {MODULE_COUNT} modules — these three are the highest-signal for {data.primaryRegulation}.
-          </p>
-          <div className="grid sm:grid-cols-3 gap-4">
-            {data.topThreeModules.map((mod) => (
-              <Link
-                key={mod}
-                href={`/modules/${moduleToSlug(mod)}`}
-                className="rounded-xl p-5 border border-white/[0.08] hover:border-teal-500/30 transition-colors"
-                style={{ background: "rgba(255,255,255,0.03)" }}
-              >
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <code className="text-teal-400 text-xs font-mono">{mod}</code>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border shrink-0 ${TAG_COLORS.Security}`}>
-                    Security
-                  </span>
-                </div>
-                <p className="text-white/55 text-xs leading-relaxed">
-                  {getModuleBlurb(mod)}
-                </p>
-              </Link>
-            ))}
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted mb-3">Popular hosts</div>
+            <div className="flex flex-wrap gap-2">
+              {data.popularHosts.map((h) => (
+                <span key={h} className={`${PILL} text-foreground-secondary border-border bg-surface-solid`}>
+                  {h}
+                </span>
+              ))}
+            </div>
           </div>
-        </section>
+        </div>
+      </Section>
 
-        {/* Compliance lens */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-3">
-            {data.primaryRegulation} — what GateTest catches
-          </h2>
-          <p className="text-white/50 text-sm mb-8">
+      {/* Top 3 modules */}
+      <Section
+        alt
+        title={<>The 3 modules most relevant in {data.name}</>}
+        lede={<>Every {data.name} scan runs all {MODULE_COUNT} modules — these three are the highest-signal for {data.primaryRegulation}.</>}
+      >
+        <div className="grid sm:grid-cols-3 gap-4">
+          {data.topThreeModules.map((mod) => (
+            <Link key={mod} href={`/modules/${moduleToSlug(mod)}`} className="card block p-5">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <code className="text-accent text-xs font-mono">{mod}</code>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border shrink-0 ${TAG_COLORS.Security}`}>
+                  Security
+                </span>
+              </div>
+              <p className="text-foreground-secondary text-xs leading-relaxed">
+                {getModuleBlurb(mod)}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </Section>
+
+      {/* Compliance lens */}
+      <Section
+        title={<>{data.primaryRegulation} — what GateTest catches</>}
+        lede={
+          <>
             Each bullet ties a real GateTest module to a specific clause in the {data.name} compliance landscape.{" "}
             {data.regulationInternalSlug ? (
-              <Link
-                href={`/regulation/${data.regulationInternalSlug}`}
-                className="text-teal-400 hover:text-teal-300"
-              >
+              <Link href={`/regulation/${data.regulationInternalSlug}`} className="text-accent hover:text-accent-hover">
                 Deep-dive on the regulation &rarr;
               </Link>
             ) : (
-              <a
-                href={data.regulationLink}
-                rel="noopener noreferrer nofollow"
-                target="_blank"
-                className="text-teal-400 hover:text-teal-300"
-              >
+              <a href={data.regulationLink} rel="noopener noreferrer nofollow" target="_blank" className="text-accent hover:text-accent-hover">
                 Official source &rarr;
               </a>
             )}
-          </p>
-          <div className="space-y-3">
-            {data.complianceBullets.map((b) => (
-              <div
-                key={b.clause}
-                className="rounded-xl border border-white/[0.08] p-5"
-                style={{ background: "rgba(255,255,255,0.03)" }}
-              >
-                <div className="flex items-start gap-3">
-                  <code className="text-teal-300/80 text-xs font-mono shrink-0 mt-0.5">
-                    {b.module}
-                  </code>
-                  <div>
-                    <div className="text-white font-semibold text-sm mb-2 leading-snug">
-                      {b.clause}
-                    </div>
-                    <p className="text-white/55 text-xs leading-relaxed">{b.explanation}</p>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          {data.complianceBullets.map((b) => (
+            <div key={b.clause} className="card p-5">
+              <div className="flex flex-col sm:flex-row items-start gap-3">
+                <code className="text-accent text-xs font-mono shrink-0 mt-0.5">
+                  {b.module}
+                </code>
+                <div>
+                  <div className="text-foreground font-semibold text-sm mb-2 leading-snug">
+                    {b.clause}
                   </div>
+                  <p className="text-foreground-secondary text-xs leading-relaxed">{b.explanation}</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </section>
+            </div>
+          ))}
+        </div>
 
         {/* Honest limitations */}
-        <section className="mb-16 rounded-xl border border-amber-500/20 p-6" style={{ background: "rgba(245,158,11,0.04)" }}>
-          <h2 className="text-sm uppercase tracking-wider text-amber-300 font-semibold mb-3">
+        <div className="mt-12 rounded-xl border border-warning/25 bg-warning/5 p-6">
+          <h3 className="text-sm uppercase tracking-wider text-warning font-semibold mb-3">
             Honest limitations
-          </h2>
-          <p className="text-white/75 leading-relaxed text-sm mb-3">
+          </h3>
+          <p className="text-foreground-secondary leading-relaxed text-sm mb-3">
             GateTest is a code-quality + security scanner — not a SOC 2 / HIPAA / ISO auditor. We catch the technical findings auditors look for, but the audit itself needs a qualified human assessor.
           </p>
-          <ul className="space-y-2 text-white/55 text-sm leading-relaxed">
+          <ul className="space-y-2 text-foreground-secondary text-sm leading-relaxed">
             {data.countryCaveats.map((c) => (
               <li key={c} className="flex gap-2">
-                <span className="text-amber-400/80 shrink-0">&middot;</span>
+                <span className="text-warning shrink-0" aria-hidden="true">&middot;</span>
                 <span>{c}</span>
               </li>
             ))}
           </ul>
-        </section>
+        </div>
+      </Section>
 
-        {/* Use cases */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-3">
-            Who hires GateTest in {data.name}
-          </h2>
-          <div className="space-y-3 mt-6">
-            {data.useCases.map((uc) => (
-              <div
-                key={uc}
-                className="rounded-xl border border-white/[0.08] p-4 flex items-start gap-3"
-                style={{ background: "rgba(255,255,255,0.03)" }}
-              >
-                <span className="text-teal-400 shrink-0 mt-0.5">&rarr;</span>
-                <span className="text-white/70 text-sm leading-relaxed">{uc}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+      {/* Use cases */}
+      <Section alt title={<>Who hires GateTest in {data.name}</>}>
+        <div className="space-y-3">
+          {data.useCases.map((uc) => (
+            <div key={uc} className="card p-4 flex items-start gap-3">
+              <span className="text-accent shrink-0 mt-0.5" aria-hidden="true">&rarr;</span>
+              <span className="text-foreground-secondary text-sm leading-relaxed">{uc}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
 
-        {/* Pricing strip */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-3">Pricing</h2>
-          <p className="text-white/50 text-sm mb-8">
-            Starting at $29 USD — paid via Stripe in your local currency.
-          </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {[
-              { tier: "Quick", price: "$29", modules: "4 modules" },
-              { tier: "Full", price: "$99", modules: `All ${MODULE_COUNT} modules` },
-              { tier: "Scan + Fix", price: "$199", modules: "+ AI auto-fix PR" },
-              { tier: "Forensic", price: "$399", modules: "+ pair review + exec summary" },
-            ].map((p) => (
-              <div
-                key={p.tier}
-                className="rounded-xl border border-white/[0.08] p-5"
-                style={{ background: "rgba(255,255,255,0.03)" }}
-              >
-                <div className="text-xs uppercase tracking-wider text-white/40 mb-2">{p.tier}</div>
-                <div className="text-2xl font-bold text-white mb-1">{p.price}</div>
-                <div className="text-xs text-white/50">{p.modules}</div>
-              </div>
-            ))}
-          </div>
-        </section>
+      {/* Pricing strip */}
+      <Section title="Pricing" lede="Starting at $29 USD — paid via Stripe in your local currency.">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { tier: "Quick", price: "$29", modules: "4 modules" },
+            { tier: "Full", price: "$99", modules: `All ${MODULE_COUNT} modules` },
+            { tier: "Scan + Fix", price: "$199", modules: "+ AI auto-fix PR" },
+            { tier: "Forensic", price: "$399", modules: "+ pair review + exec summary" },
+          ].map((p) => (
+            <div key={p.tier} className="card p-5">
+              <div className="text-xs uppercase tracking-wider text-muted mb-2">{p.tier}</div>
+              <div className="font-display text-2xl font-bold text-foreground mb-1">{p.price}</div>
+              <div className="text-xs text-foreground-secondary">{p.modules}</div>
+            </div>
+          ))}
+        </div>
 
         {/* Trust strip */}
-        <section className="mb-16">
-          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-white/40">
-            <span className="px-3 py-1.5 rounded-full border border-white/15">
-              CLI is MIT-licensed
+        <div className="mt-12 flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-muted">
+          <span className="px-3 py-1.5 rounded-full border border-border">
+            CLI is MIT-licensed
+          </span>
+          <span className="px-3 py-1.5 rounded-full border border-border">
+            Available on GitHub Marketplace soon
+          </span>
+          {showLaunchBadges && (
+            <span className="px-3 py-1.5 rounded-full border border-warning/30 text-warning">
+              As featured on Hacker News &amp; Product Hunt
             </span>
-            <span className="px-3 py-1.5 rounded-full border border-white/15">
-              Available on GitHub Marketplace soon
-            </span>
-            {showLaunchBadges && (
-              <span className="px-3 py-1.5 rounded-full border border-orange-500/20 text-orange-300">
-                As featured on Hacker News &amp; Product Hunt
-              </span>
-            )}
-          </div>
-        </section>
+          )}
+        </div>
 
         {/* CTA footer */}
-        <section className="rounded-2xl border border-teal-500/20 p-10 text-center" style={{ background: "rgba(20,184,166,0.05)" }}>
-          <h2 className="text-3xl font-bold text-white mb-4">
+        <div className="mt-12 rounded-2xl border border-accent/20 bg-accent/5 p-8 sm:p-10 text-center">
+          <h2 className="font-display text-3xl font-bold text-foreground mb-4">
             Try it on your own repo
           </h2>
-          <p className="text-white/60 mb-8 max-w-xl mx-auto">
+          <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
             $29 Quick scan, no signup. One-time charge, no subscription.
           </p>
-          <Link
-            href="/scan"
-            className="btn-primary inline-flex items-center justify-center px-8 py-4 rounded-xl font-semibold"
-            style={{ background: "#2dd4bf", color: "#0a0a12" }}
-          >
+          <Link href="/scan" className="btn-cta px-8 py-4">
             Run a {data.name} scan — $29
           </Link>
-        </section>
-      </main>
-
-      <footer className="border-t border-white/[0.06] px-6 py-8 mt-16">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/30">
-          <span>GateTest &copy; 2026</span>
-          <div className="flex items-center gap-6 flex-wrap justify-center">
-            {COUNTRIES.filter((c) => c.slug !== data.slug)
-              .slice(0, 4)
-              .map((c: Country) => (
-                <Link
-                  key={c.slug}
-                  href={`/for/${c.slug}`}
-                  className="hover:text-white/60 transition-colors"
-                >
-                  {c.name}
-                </Link>
-              ))}
-          </div>
         </div>
-      </footer>
-    </div>
+
+        <p className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">
+          <span>Also for:</span>
+          {COUNTRIES.filter((c) => c.slug !== data.slug)
+            .slice(0, 4)
+            .map((c: Country) => (
+              <Link key={c.slug} href={`/for/${c.slug}`} className="hover:text-accent transition-colors">
+                {c.name}
+              </Link>
+            ))}
+        </p>
+      </Section>
+    </main>
   );
 }
