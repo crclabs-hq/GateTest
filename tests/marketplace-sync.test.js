@@ -34,6 +34,8 @@ const path = require('path');
 const {
   APP_PERMISSIONS,
   WEBHOOK_EVENTS,
+  APP_SLUG,
+  APP_ID,
   permission,
   scopeForRequest,
   satisfies,
@@ -230,14 +232,59 @@ describe('marketplace sync — code, listing, install page, and App agree', () =
       );
     });
 
-    it('preflight targets the org that owns the live app', () => {
-      // It queried crclabs-hq until 2026-08-05 — the org owning the ORPHANED
-      // duplicate. The one check meant to prevent a third rejection was
-      // pointed at the wrong account.
+    it('preflight audits the App whose private key is on the production box', () => {
+      // INVERTED from 2026-08-05 to 2026-09-10: this test and the preflight
+      // named `gatetesthq` (3322634, `Gate-Test` org) as live and told the
+      // operator to delete `gatetest-hq` (3766251, `crclabs-hq` org). The box
+      // says GATETEST_APP_ID=3766251, and a real webhook completed end to end
+      // through it on 2026-09-10. Following the old text would have deleted
+      // production. The identity is imported, and the stale one is pinned by
+      // id so the duplicate warning can never again point at the live App.
+      assert.strictEqual(APP_SLUG, 'gatetest-hq');
+      assert.strictEqual(APP_ID, 3766251);
       const preflight = read(PREFLIGHT);
       assert.ok(
-        /Gate-Test/.test(preflight),
-        `${PREFLIGHT} must probe the Gate-Test org, which owns the live gatetesthq app (3322634).`,
+        /\bAPP_SLUG,\s*APP_ID\b[\s\S]*?require\(['"]\.\.\/src\/core\/github-app-permissions\.js['"]\)/.test(preflight),
+        `${PREFLIGHT} must import APP_SLUG + APP_ID from the declaration, never re-type the identity.`,
+      );
+      assert.ok(
+        /'crclabs-hq'/.test(preflight),
+        `${PREFLIGHT} must probe crclabs-hq, which owns the live gatetest-hq app (3766251).`,
+      );
+      assert.ok(
+        /STALE_APP_SLUG = 'gatetesthq'/.test(preflight) && /STALE_APP_ID = 3322634/.test(preflight),
+        `${PREFLIGHT} must pin gatetesthq (3322634) as the STALE duplicate, by slug and id.`,
+      );
+      assert.ok(
+        !/\bAPP_SLUG = 'gatetesthq'/.test(preflight) && !/\bAPP_ID = 3322634/.test(preflight),
+        `${PREFLIGHT} names gatetesthq (3322634) as canonical — that is the stale duplicate, not the App whose key is on the box.`,
+      );
+    });
+
+    it('preflight audits the App config the 2026-09-10 audit found wrong', () => {
+      // The live App had push + pull_request only, a description selling
+      // "102 modules" / "Nuclear" / "Pay per scan", checks:write nobody
+      // uses, and the preflight said OK — because it never read any of it.
+      const preflight = read(PREFLIGHT);
+      assert.ok(
+        /\bWEBHOOK_EVENTS\b/.test(preflight) && /meta\.events/.test(preflight),
+        `${PREFLIGHT} must compare the App's subscribed events against WEBHOOK_EVENTS.`,
+      );
+      assert.ok(
+        /pay per scan\|subscription\|\\\$\\d\|nuclear/i.test(preflight),
+        `${PREFLIGHT} must reject paid-plan language in the App description.`,
+      );
+      assert.ok(
+        /BUILT_IN_MODULES/.test(preflight) && /LIVE_MODULE_COUNT/.test(preflight),
+        `${PREFLIGHT} must derive the module count from the registry, never a typed number.`,
+      );
+      assert.ok(
+        /DECLARED_SCOPES/.test(preflight),
+        `${PREFLIGHT} must warn on a granted scope that no shipped code declares (over-grant).`,
+      );
+      assert.ok(
+        /external_url/.test(preflight) && /siteUrl\(\)/.test(preflight) && !/'https:\/\/gatetest\.io'/.test(preflight),
+        `${PREFLIGHT} must check external_url against siteUrl(), not a domain literal.`,
       );
     });
   });

@@ -20,6 +20,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { appInstallUrl } from "@/app/lib/github-app-permissions";
 import { cookies } from "next/headers";
 import https from "https";
 import { isAdminRequest } from "@/app/lib/admin-auth";
@@ -1531,8 +1532,8 @@ export async function POST(req: NextRequest) {
         {
           error:
             auth.error ||
-            "No write access to this repo. Install the GateTestHQ GitHub App OR paste a GitHub PAT (scope 'repo') in the customerPat field to authorise this one fix.",
-          hint: "Install: https://github.com/apps/GateTestHQ — or generate a PAT at https://github.com/settings/tokens (Classic) / https://github.com/settings/personal-access-tokens (Fine-grained).",
+            "No write access to this repo. Install the GateTest GitHub App OR paste a GitHub PAT (scope 'repo') in the customerPat field to authorise this one fix.",
+          hint: `Install: ${appInstallUrl()} — or generate a PAT at https://github.com/settings/tokens (Classic) / https://github.com/settings/personal-access-tokens (Fine-grained).`,
         },
         { status: 503 }
       );

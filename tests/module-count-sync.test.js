@@ -76,7 +76,9 @@ const EVIDENCE = [
 ];
 
 const SKIP_DIRS = new Set(['node_modules', '.git', '.next', 'coverage', '.gatetest', 'dist', 'build']);
-const EXT = new Set(['.ts', '.tsx', '.js', '.jsx', '.cjs', '.mjs', '.json', '.md', '.txt']);
+// .yml/.yaml added 2026-09-10 — action.yml (the Marketplace Action's own
+// description) carried a "121-module" claim nothing enforced.
+const EXT = new Set(['.ts', '.tsx', '.js', '.jsx', '.cjs', '.mjs', '.json', '.md', '.txt', '.yml', '.yaml']);
 
 // Three digits, "modules" only — never "checks", which is a different unit.
 // Up to three descriptive words may sit between the number and "modules"

@@ -405,6 +405,57 @@ test('action.yml: the three PR-comment / issue posters still exit 0 and record a
     const after = text.slice(at, at + 600);
     assert.match(after, /&& rc=0 \|\| rc=\$\?/, `${script}: exit code captured`);
     assert.match(after, /::warning::/, `${script}: a crash is annotated`);
-    assert.match(after, /\n\s*exit 0\n/, `${script}: still non-blocking`);
+    assert.match(after, /\n\s*exit 0\r?\n/, `${script}: still non-blocking`); // \r? — worktree is CRLF under core.autocrlf
+  }
+});
+
+// ── Suite sizes are generated, never typed (Bible: SYNC RULE) ───────────────
+// The `suite` input description quotes a module count per suite. Those numbers
+// had drifted to 41/45/88/95 while config.js actually shipped 42/46/88/96 —
+// nobody reads a description when a module is added. The live sizes come from
+// src/core/config.js; this test fails the moment the description disagrees.
+
+const { DEFAULT_CONFIG } = require('../src/core/config');
+const ACTION_SUITES = ['quick', 'standard', 'full', 'nuclear'];
+
+function liveSuiteSizes() {
+  return Object.fromEntries(ACTION_SUITES.map((s) => [s, DEFAULT_CONFIG.suites[s].length]));
+}
+
+/** Parse "quick (42 modules) / standard (46) / full (88) / nuclear (96)" → {quick: 42, ...}. */
+function quotedSuiteSizes(text) {
+  const out = {};
+  for (const s of ACTION_SUITES) {
+    const m = text.match(new RegExp('`?' + s + '`? \\((\\d+)(?: modules)?\\)'));
+    if (m) out[s] = Number(m[1]);
+  }
+  return out;
+}
+
+test('action.yml suite input description quotes the live suite sizes from src/core/config.js', () => {
+  const live = liveSuiteSizes();
+  for (const s of ACTION_SUITES) {
+    assert.ok(live[s] > 0, `config.js must define a non-empty "${s}" suite`);
+  }
+  const quoted = quotedSuiteSizes(parsed.inputs.suite.description);
+  assert.deepStrictEqual(
+    quoted,
+    live,
+    'action.yml `suite` description must quote every Action suite with the size config.js actually ships'
+  );
+});
+
+test('docs/marketplace/install-guide.md quotes the same live suite sizes as action.yml', () => {
+  const guide = fs.readFileSync(path.resolve(__dirname, '..', 'docs', 'marketplace', 'install-guide.md'), 'utf8');
+  const row = guide.split(/\r?\n/).find((l) => /^\|\s*`suite`\s*\|/.test(l));
+  assert.ok(row, 'install-guide.md must document the `suite` input in its Inputs table');
+  assert.deepStrictEqual(quotedSuiteSizes(row), liveSuiteSizes(), 'install-guide.md `suite` row drifted from config.js');
+
+  // The "Suite comparison" table: one row per Action suite, module column == live size.
+  const live = liveSuiteSizes();
+  for (const s of ACTION_SUITES) {
+    const tableRow = guide.split(/\r?\n/).find((l) => new RegExp('^\\|\\s*`' + s + '`\\s*\\|\\s*(\\d+)\\s*\\|').test(l));
+    assert.ok(tableRow, `install-guide.md Suite comparison must have a "${s}" row`);
+    assert.equal(Number(tableRow.match(/^\|\s*`[a-z]+`\s*\|\s*(\d+)\s*\|/)[1]), live[s], `"${s}" row module count`);
   }
 });

@@ -19,6 +19,15 @@
  *     The live app was granted contents/metadata/pull_requests/statuses only.
  *   - The module count in the listing is static, manually-pasted copy, and
  *     this repo has a documented history of that number going stale.
+ *   - This script itself named the WRONG App as live from 2026-08-05 to
+ *     2026-09-10, and told the operator to delete the one whose private key
+ *     is on the production box. Following it would have deleted production.
+ *     The identity is now imported by app_id, never re-typed here.
+ *   - The live App's events, description and homepage were never read at
+ *     all. The audit that found the inversion found all of them wrong —
+ *     push + pull_request only, a description still selling "102 modules" /
+ *     "Nuclear" / "Pay per scan", checks:write granted to code that never
+ *     calls Checks — while this script printed OK.
  *
  * Usage:  node scripts/marketplace-preflight.js [--base https://gatetest.io]
  * Exit 0 = safe to submit. Exit 1 = at least one BLOCKER.
@@ -32,38 +41,61 @@
 const { execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+// The public origin, never a literal (Bible: THE DOMAIN).
+const { siteUrl } = require('../src/core/site-url.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const BASE = (() => {
   const i = process.argv.indexOf('--base');
-  return i > -1 && process.argv[i + 1] ? process.argv[i + 1].replace(/\/$/, '') : 'https://gatetest.io';
+  return i > -1 && process.argv[i + 1] ? process.argv[i + 1].replace(/\/$/, '') : siteUrl();
 })();
 
-const APP_SLUG = 'gatetesthq';
-
-// Where the live app actually lives. This was hardcoded to 'crclabs-hq' until
-// 2026-08-05, which is the org owning the ORPHANED duplicate (`gatetest-hq`,
-// app_id 3766251) — not the live app (`gatetesthq`, app_id 3322634, owned by
-// the `Gate-Test` org). So the one check whose job is to prevent a third
-// rejection was querying the wrong account and reporting SKIP or a false
-// "not installed" blocker every time it ran.
+// The App's identity comes from the same file as its permissions — never
+// re-typed here. This script had it INVERTED from 2026-08-05 to 2026-09-10: it
+// named `gatetesthq` (app_id 3322634, `Gate-Test` org) as live and told the
+// operator to delete `gatetest-hq` (app_id 3766251, `crclabs-hq` org). The
+// production box says otherwise — GATETEST_APP_ID=3766251, that App's private
+// key is the one installed, and a real webhook completed end to end through it
+// on 2026-09-10. Following the old text would have deleted production.
 //
+// So: `gatetest-hq` / 3766251 / `crclabs-hq` is LIVE. `gatetesthq` / 3322634 /
+// `Gate-Test` is the STALE duplicate to retire (make private, uninstall, then
+// delete once nothing installs it). Never the other way round.
+const {
+  APP_PERMISSIONS, WEBHOOK_EVENTS, APP_SLUG, APP_ID, writeScopes,
+} = require('../src/core/github-app-permissions.js');
+const STALE_APP_SLUG = 'gatetesthq';
+const STALE_APP_ID = 3322634;
+
 // The app can be installed on any of Craig's accounts, so probe the known
 // candidates rather than betting on one, and let --org override.
 const ORG_CANDIDATES = (() => {
   const i = process.argv.indexOf('--org');
   if (i > -1 && process.argv[i + 1]) return [process.argv[i + 1]];
-  return ['Gate-Test', 'ccantynz-alt', 'crclabs-hq'];
+  return ['crclabs-hq', 'ccantynz-alt', 'Gate-Test'];
 })();
 
 // Permissions the shipped code actually calls, declared once in
 // src/core/github-app-permissions.js and asserted against the real bridge call
 // sites by tests/marketplace-sync.test.js. Never re-type the list here.
-const { APP_PERMISSIONS, writeScopes } = require('../src/core/github-app-permissions.js');
 const REQUIRED_APP_PERMS = writeScopes();
+// Every scope the code declares at any level. A grant outside this set is an
+// over-grant — `checks:write` sat on the live App for code that posts through
+// the Statuses API and never calls Checks.
+const DECLARED_SCOPES = new Set(APP_PERMISSIONS.map((p) => p.key));
+
+// The live module count, from the registry — the same source
+// tests/module-count-sync.test.js polices the website against. Never typed.
+const { BUILT_IN_MODULES } = require('../src/core/registry.js');
+const LIVE_MODULE_COUNT = Object.keys(BUILT_IN_MODULES).length;
+
+// Paid-plan language in the App's own description. The 2026-05-14 rejection
+// cited exactly this; the live App still said "Pay per scan" and "Nuclear" on
+// 2026-09-10 while this script printed OK.
+const PAID_PLAN_RE = /pay per scan|subscription|\$\d|nuclear/i;
 
 // Strings that must never appear in customer-facing legal copy.
-const LEGAL_URLS = ['/legal/privacy', '/legal/terms', '/legal/refunds', '/legal/acceptable-use'];
+const LEGAL_URLS = ['/legal/privacy', '/legal/terms', '/legal/refunds', '/legal/acceptable-use', '/legal/dpa', '/legal/sub-processors', '/legal/cookies'];
 const FORBIDDEN_LEGAL = [/\bDRAFT\b/i, /requires attorney review/i, /\bTBD\b/, /to be confirmed at launch/i];
 
 // Env vars whose absence breaks a function the listing explicitly promises.
@@ -238,12 +270,13 @@ function checkListingAccuracy() {
   }
 }
 
-function checkAppPermissions() {
-  console.log('\nGitHub App permissions (vs. what the shipped code calls)');
-
-  // Probe each candidate account until one actually lists the app. A 404 on
-  // one org is not evidence of anything — the app only has to be installed
-  // somewhere Craig owns.
+/**
+ * Probe each candidate account until one lists the live App by slug. A 404 on
+ * one org is not evidence of anything — the App only has to be installed
+ * somewhere Craig owns. Everything else whose slug starts with "gatetest" is
+ * collected so the stale duplicate can be named precisely.
+ */
+function findLiveInstallation() {
   let app = null;
   let foundOn = null;
   let reachedAny = false;
@@ -260,6 +293,12 @@ function checkAppPermissions() {
     }
     if (app) break;
   }
+  return { app, foundOn, reachedAny, dupes };
+}
+
+function checkAppPermissions() {
+  console.log('\nGitHub App permissions (vs. what the shipped code calls)');
+  const { app, foundOn, reachedAny, dupes } = findLiveInstallation();
 
   if (!reachedAny) {
     record('SKIP', 'app permissions not checked', 'gh unavailable/unauthenticated — verify manually in the App settings');
@@ -270,7 +309,12 @@ function checkAppPermissions() {
       'the listing claims scans run on every push; with no installation that claim cannot be demonstrated to a reviewer');
     return;
   }
-  record('OK', `${APP_SLUG} found on ${foundOn} (app_id ${app.app_id})`);
+  if (app.app_id !== APP_ID) {
+    record('BLOCKER', `${APP_SLUG} on ${foundOn} is app_id ${app.app_id}, expected ${APP_ID}`,
+      'the slug no longer names the App whose private key is on the production box (GATETEST_APP_ID) — touch neither App until this is understood');
+    return;
+  }
+  record('OK', `${APP_SLUG} found on ${foundOn} (app_id ${app.app_id} — the App whose private key is on the box)`);
   for (const perm of REQUIRED_APP_PERMS) {
     if (app.permissions[perm] === 'write') {
       record('OK', `${perm}:write granted`);
@@ -284,9 +328,107 @@ function checkAppPermissions() {
       record('BLOCKER', `${APP_SLUG} missing ${perm}:write`, why);
     }
   }
-  // An orphaned duplicate app confuses reviewers and can receive stray events.
+  // A scope granted that nothing declares is an over-grant: undisclosed to the
+  // customer, and exactly what a reviewer asks about.
+  for (const [key, level] of Object.entries(app.permissions || {})) {
+    if (!DECLARED_SCOPES.has(key)) {
+      record('WARN', `${APP_SLUG} holds ${key}:${level} that no shipped code needs`,
+        'not declared in src/core/github-app-permissions.js — remove it from the App, or declare it (with the endpoint that forces it) if code now calls it');
+    }
+  }
+  reportDuplicates(dupes);
+}
+
+/**
+ * The stale duplicate. Until 2026-09-10 this warning named the LIVE App as the
+ * one to delete — see the identity note at the top. It now names the stale
+ * one explicitly, and says which App must never be touched.
+ */
+function reportDuplicates(dupes) {
   for (const d of dupes) {
-    record('WARN', `duplicate app installed: ${d.app_slug} (app_id ${d.app_id}) on ${d.org}`, 'looks orphaned — delete before submitting so the reviewer sees one app');
+    const stale = d.app_id === STALE_APP_ID || d.app_slug === STALE_APP_SLUG;
+    record('WARN', `duplicate app installed: ${d.app_slug} (app_id ${d.app_id}) on ${d.org}`,
+      stale
+        ? `this is the STALE one — make it private, uninstall it, then delete it once nothing installs it. ${APP_SLUG} (${APP_ID}) is live; its private key is on the production box. Never delete ${APP_ID}.`
+        : `not ${APP_SLUG} (${APP_ID}), the live App — identify it before a reviewer finds two`);
+  }
+}
+
+/**
+ * App-level config — events, description, homepage — read through the public
+ * `GET /apps/{slug}` endpoint, which needs no installation and no App JWT.
+ *
+ * Added 2026-09-10. The audit that found the identity inversion also found the
+ * live App wrong on every one of these while this script printed OK, because
+ * it never read any of them: events were push + pull_request only (no
+ * workflow_run, no issue_comment — CI-fix and `@gatetest ignore` could never
+ * fire), and the description still sold "102 modules", "Nuclear" and "Pay per
+ * scan" — the copy the 2026-05-14 rejection cited.
+ */
+function checkAppConfig() {
+  console.log('\nGitHub App config (events, description, homepage)');
+  let meta;
+  try {
+    meta = JSON.parse(gh(['api', `apps/${APP_SLUG}`]));
+  } catch {
+    record('SKIP', 'app config not checked', 'gh unavailable/unauthenticated — verify events, description and homepage manually in the App settings');
+    return;
+  }
+  if (meta.id !== APP_ID) {
+    record('BLOCKER', `apps/${APP_SLUG} resolves to app_id ${meta.id}, expected ${APP_ID}`, 'the slug and the key on the production box (GATETEST_APP_ID) disagree');
+    return;
+  }
+  record('OK', `${APP_SLUG} is app_id ${APP_ID} (owner ${meta.owner && meta.owner.login})`);
+  checkAppEvents(meta);
+  checkAppDescription(meta);
+  checkAppHomepage(meta);
+}
+
+/** Subscribed events must equal WEBHOOK_EVENTS — the set the code branches on. */
+function checkAppEvents(meta) {
+  const have = new Set(meta.events || []);
+  const missing = WEBHOOK_EVENTS.filter((e) => !have.has(e));
+  const extra = [...have].filter((e) => !WEBHOOK_EVENTS.includes(e));
+  if (missing.length) {
+    record('BLOCKER', `${APP_SLUG} not subscribed to: ${missing.join(', ')}`,
+      'website/app/lib/github-events.js handles these — an unsubscribed event fails silently, the feature simply never fires');
+  } else {
+    record('OK', `subscribed to every event the code handles (${WEBHOOK_EVENTS.join(', ')})`);
+  }
+  if (extra.length) {
+    record('WARN', `${APP_SLUG} subscribed to events no code handles: ${extra.join(', ')}`,
+      'not in WEBHOOK_EVENTS — drop them, or declare them once a handler exists');
+  }
+}
+
+/** The description is Marketplace copy: no paid-plan language, live module count. */
+function checkAppDescription(meta) {
+  const desc = String(meta.description || '');
+  const paid = desc.match(PAID_PLAN_RE);
+  if (paid) {
+    record('BLOCKER', `${APP_SLUG} description contains paid-plan language ("${paid[0]}")`,
+      'the 2026-05-14 rejection cited exactly this — Free plan only until >=100 installs + verified publisher');
+  } else {
+    record('OK', 'description carries no paid-plan language');
+  }
+  if (new RegExp(`\\b${LIVE_MODULE_COUNT}[- ]modules?\\b`, 'i').test(desc)) {
+    record('OK', `description says ${LIVE_MODULE_COUNT} modules (matches the registry)`);
+  } else {
+    const stale = desc.match(/(\d{2,3})[- ]modules?/i);
+    record('BLOCKER', `${APP_SLUG} description does not say ${LIVE_MODULE_COUNT} modules`,
+      stale ? `it says ${stale[1]} — the registry loads ${LIVE_MODULE_COUNT}` : `it states no module count — the registry loads ${LIVE_MODULE_COUNT}`);
+  }
+}
+
+/** The homepage link is the first thing a reviewer clicks. */
+function checkAppHomepage(meta) {
+  const want = siteUrl();
+  const got = String(meta.external_url || '').replace(/\/$/, '');
+  if (got === want) {
+    record('OK', `external_url is ${want}`);
+  } else {
+    record('BLOCKER', `${APP_SLUG} external_url is ${got || '(unset)'}, expected ${want}`,
+      'a dead or wrong homepage link on an App under review is the likeliest rejection trigger after the legal pages');
   }
 }
 
@@ -342,6 +484,7 @@ function checkCronArmed() {
   await checkInstallUrl();
   checkListingAccuracy();
   checkAppPermissions();
+  checkAppConfig();
   checkCronArmed();
 
   const blockers = results.filter((r) => r.level === 'BLOCKER');

@@ -7,6 +7,8 @@
  * this is static data with no env dependency. A copy here would be a second
  * thing to keep honest, which is the problem this file exists to end.
  *
- * Same shim pattern as `ssrf-guard.js` / `sentry-client.js`.
+ * Same shim pattern as `ssrf-guard.js` / `sentry-client.js`. Carries the App
+ * identity too (`APP_SLUG`, `APP_ID`, `appInstallUrl()`) — never hand-write
+ * `github.com/apps/<slug>` in the site.
  */
 module.exports = require('../../../src/core/github-app-permissions.js');

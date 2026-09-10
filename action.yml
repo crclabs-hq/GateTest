@@ -2,7 +2,7 @@
 # GateTest — Composite GitHub Action
 # ============================================================================
 # Lets any repo run the GateTest gate (121-module engine) with a single
-# `uses: crclabs-hq/GateTest@v1.1.1` line in their workflow.
+# `uses: crclabs-hq/GateTest@v1` line in their workflow.
 #
 # Optional AI auto-repair: when `auto-fix: true` AND the gate blocks AND
 # the workflow exposes ANTHROPIC_API_KEY, the action invokes the AI
@@ -23,7 +23,7 @@ branding:
 
 inputs:
   suite:
-    description: 'Which GateTest suite to run: quick (41 modules) / standard (45) / full (88) / nuclear (95). Unknown values fall back to standard.'
+    description: 'Which GateTest suite to run: quick (42 modules) / standard (46) / full (88) / nuclear (96). Unknown values fall back to standard.'
     required: false
     default: 'quick'
   diff-only:

@@ -32,19 +32,34 @@ One sitting, five fixes. Every feature we have shipped waits behind these.
 
 ### 0.1 The GitHub App (10 min)
 
-Open: `github.com/organizations/Gate-Test/settings/apps/gatetesthq`
+Open: `github.com/organizations/crclabs-hq/settings/apps/gatetest-hq`
+(app **3766251** — the LIVE App; its private key is on the box as
+`GATETEST_APP_ID=3766251`. Until 2026-09-10 this page named `gatetesthq`
+(3322634, `Gate-Test` org) instead and told you to delete 3766251 — that
+would have deleted production.)
 
-1. **Webhook URL** → change to `https://gatetest.io/api/webhook` (it still
-   points at the dead .ai domain — this is why no push has ever arrived).
-2. **Permissions** → Issues: set to **Read and write** (the PR comment
-   fails silently without it).
-3. **Subscribe to events** → tick **Issue comment** (this powers the
-   `@gatetest ignore` suppression feature we shipped).
-4. **Private keys** → Generate a private key. It downloads a `.pem` file.
-5. While you're there: delete the orphaned duplicate app **gatetest-hq**
-   (app 3766251) so a Marketplace reviewer sees one app, not two.
+1. ~~**Webhook URL**~~ — **done 2026-09-10**: a real webhook completed end to
+   end through 3766251, and `external_url` is already `https://gatetest.io`.
+2. **Permissions** → Contents: **Read and write** (it is Read — the auto-fix
+   branch cannot push); Commit statuses: **Read and write** (absent — the
+   pass/fail on each commit cannot post). Issues is already Read and write.
+   Remove **Checks** (write) — nothing we ship calls the Checks API.
+3. **Subscribe to events** → tick **Workflow run** (CI-fix) and **Issue
+   comment** (the `@gatetest ignore` suppression feature). Only push +
+   pull_request are ticked today.
+4. **Description** → still says "102 modules", "Nuclear" and "Pay per scan"
+   — the copy the 2026-05-14 rejection cited. Paste the short description
+   from `integrations/marketplace/listing.md` (Free-only, 121 modules).
+5. ~~**Private keys**~~ — **done 2026-09-10**: the real `.pem` for 3766251 is
+   on the box.
+6. Retire the STALE duplicate **gatetesthq** (app 3322634, `Gate-Test` org):
+   make it private, uninstall it from `crclabs-hq`, then delete it — so a
+   Marketplace reviewer sees one app, not two. **Never delete 3766251.**
 
-### 0.2 Put the key on the box (5 min)
+`node scripts/marketplace-preflight.js` reads all of the above off the live
+App and prints exactly what is still wrong.
+
+### 0.2 ~~Put the key on the box~~ — done 2026-09-10
 
 SSH to the box (`ssh root@jarvis` on the tailnet), then edit
 `/opt/gatetest/website/.env.local`:
@@ -64,8 +79,9 @@ no longer shows the `config/placeholders` failure.
    you 2–3 DNS records. Add those records in **Cloudflare** (the DNS for
    gatetest.io already lives there). Wait for Resend to show "verified".
 2. Create an API key in Resend.
-3. On the box, in the same `.env.local`: set `RESEND_API_KEY`, and
-   `RESEND_FROM=GateTest <watchdog@gatetest.io>`. Restart again.
+3. ~~On the box, in the same `.env.local`: set `RESEND_API_KEY`~~ — **done
+   2026-09-10** (`/api/status` reports it present). Still to set once the
+   domain verifies: `RESEND_FROM=GateTest <watchdog@gatetest.io>`. Restart again.
 4. Confirm `hello@gatetest.ai` forwarding still reaches an inbox you read —
    send yourself a test email. Every feedback affordance we shipped points
    there.
@@ -98,7 +114,7 @@ the first time in GateTest's life.** I can run this via the tailnet — just
 tell me the sitting is done.
 
 Then the first REAL push: install the App on the gatetest repo itself
-(github.com/apps/gatetesthq → Install → choose the repo), push any commit,
+(github.com/apps/gatetest-hq → Install → choose the repo), push any commit,
 and watch a pending status appear on it, then a result, then a PR comment
 on the next PR. When you see that comment appear on your own commit — that
 is the product, working. Take the screenshot; we'll want it later.

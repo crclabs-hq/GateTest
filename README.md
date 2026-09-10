@@ -11,12 +11,10 @@
 [![npm](https://img.shields.io/npm/v/@gatetest/cli.svg)](https://www.npmjs.com/package/@gatetest/cli)
 [![CI](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml/badge.svg)](https://github.com/crclabs-hq/GateTest/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Modules](https://img.shields.io/badge/modules-120-purple.svg)](#what-it-replaces)
+[![Modules](https://img.shields.io/badge/modules-121-purple.svg)](#what-it-replaces)
 [![Tests](https://img.shields.io/badge/tests-6000%2B-brightgreen.svg)](#real-repo-proofs)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](https://nodejs.org/)
-<!-- Marketplace listing — re-enable when the GitHub Marketplace approval lands:
-[![GitHub Marketplace](https://img.shields.io/badge/marketplace-GateTest-2ea44f.svg)](https://github.com/marketplace/gatetest)
--->
+[![GitHub Marketplace](https://img.shields.io/badge/marketplace-GateTest%20Quality%20Gate-2ea44f.svg)](https://github.com/marketplace/actions/gatetest-quality-gate)
 
 ---
 
@@ -44,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: crclabs-hq/GateTest@v1.1.1
+      - uses: crclabs-hq/GateTest@v1
         with:
           suite: full
           auto-fix: ${{ github.event_name == 'pull_request' }}

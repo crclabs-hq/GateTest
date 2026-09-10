@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { APP_PERMISSIONS } from "@/app/lib/github-app-permissions";
+import { APP_PERMISSIONS, APP_SLUG, appInstallUrl } from "@/app/lib/github-app-permissions";
 import { SITE_URL } from "@/app/lib/site-url";
 
 export const metadata: Metadata = {
@@ -90,14 +90,14 @@ export default function GitHubSetup() {
             <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
             <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
             <div className="w-3 h-3 rounded-full bg-[#28c840]" />
-            <span className="ml-3 text-xs text-white/30 font-mono">github.com/apps/GateTestHQ</span>
+            <span className="ml-3 text-xs text-white/30 font-mono">github.com/apps/{APP_SLUG}</span>
           </div>
           <div className="p-8 text-center space-y-4">
             <p className="text-sm text-white/50">
               Select which repos GateTest can access. Public or private. You control the scope — single repo or entire org.
             </p>
             <a
-              href="https://github.com/apps/GateTestHQ"
+              href={appInstallUrl()}
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-teal-600 text-white font-semibold text-sm hover:bg-teal-500 transition-colors"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

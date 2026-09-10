@@ -16,6 +16,7 @@ import {
   SESSION_COOKIE_NAME,
   SESSION_MAX_AGE_SECONDS,
 } from "../../../lib/admin-session";
+import { siteUrl } from "../../../lib/site-url";
 
 const STATE_COOKIE_NAME = "gatetest_admin_oauth_state";
 
@@ -104,8 +105,12 @@ async function fetchGithubLogin(token: string): Promise<string | null> {
   }
 }
 
-function errorRedirect(req: NextRequest, reason: string): NextResponse {
-  const url = new URL("/admin", req.url);
+// Redirects are built from the PUBLIC site URL, never from req.url: behind
+// the box's reverse proxy req.url resolves to the internal bind address and
+// the browser would be sent to a private IP (same bug class as the customer
+// install callback, fixed 2026-09-10).
+function errorRedirect(_req: NextRequest, reason: string): NextResponse {
+  const url = new URL(siteUrl("/admin"));
   url.searchParams.set("error", reason);
   const res = NextResponse.redirect(url);
   res.cookies.delete(STATE_COOKIE_NAME);
@@ -153,7 +158,7 @@ export async function GET(req: NextRequest) {
   }
 
   const session = signSession(login, sessionSecret);
-  const res = NextResponse.redirect(new URL("/admin", req.url));
+  const res = NextResponse.redirect(siteUrl("/admin"));
   res.cookies.set(SESSION_COOKIE_NAME, session, {
     httpOnly: true,
     secure: true,

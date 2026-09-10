@@ -17,15 +17,19 @@ Everything else is repo work under the standing pre-authorization.
 The pipeline is proven from the public edge to the GitHub API call
 (end-to-end test 2026-08-06) and fails exactly at credentials.
 
-- [ ] **[C]** GitHub App webhook URL updated from dead `gatetest.ai` to
-      `https://gatetest.io/api/webhook` (App 3322634 settings). Until this, no
-      customer push has ever reached us (KI #99).
-- [ ] **[C]** Real GitHub App private key on the box — prod key was a
-      placeholder as of 2026-08-12, so all GitHub auth is dead. Paste
-      `GITHUB_APP_ID` + `GITHUB_APP_PRIVATE_KEY` into `website/.env.local`,
-      `systemctl restart gatetest-web` (KI #100 / pre-submit item 0b).
-- [ ] **[C]** `issues:write` added to the live App — the PR comment the listing
-      promises currently fails silently (pre-submit item 2).
+- [x] **[C]** GitHub App webhook URL on the LIVE App — `gatetest-hq`, App
+      **3766251**, `crclabs-hq` org (this line said 3322634 until 2026-09-10;
+      that is the STALE duplicate). Done 2026-09-10: a real webhook completed
+      end to end through 3766251 (KI #99).
+- [x] **[C]** Real GitHub App private key on the box — done 2026-09-10:
+      `GATETEST_APP_ID=3766251` + the real `.pem` in `website/.env.local`,
+      `fire-test-webhook` completed (KI #100 / pre-submit item 0b).
+- [ ] **[C]** Scopes on App 3766251: `contents` → Read & write (it is Read),
+      `statuses` → Read & write (absent); `issues:write` is already granted.
+      Remove the unused `checks:write`. Subscribe `workflow_run` +
+      `issue_comment`. Rewrite the description (still "102 modules" /
+      "Nuclear" / "Pay per scan"). `node scripts/marketplace-preflight.js`
+      lists each of these against the live App (pre-submit item 2).
 - [ ] **[C]** Install the App on a test repo (KI #4), push, and watch the whole
       chain: `journalctl -u gatetest-tick.service -f` →
       `scan_queue` row → scan → commit status → PR comment.
@@ -52,10 +56,10 @@ Support today is `mailto:hello@gatetest.ai` and nothing else, and that address
 is on the OLD domain by deliberate choice (unverified sending fails silently —
 see CLAUDE.md → THE DOMAIN).
 
-- [ ] **[C]** `RESEND_API_KEY` set on the box — absent under any spelling
-      (checked 2026-08-05), so **paid MCP keys have never been delivered**. A
-      customer who pays $29/mo today gets nothing and no error. Worst single
-      support liability on this list.
+- [x] **[C]** `RESEND_API_KEY` set on the box — done 2026-09-10 (`/api/status`
+      reports it present). It was absent under any spelling from 2026-08-05,
+      so **paid MCP keys were never delivered** in that window — the worst
+      single support liability this list carried.
 - [ ] **[C]** Verify `gatetest.io` as a sending domain in Resend, THEN set
       `RESEND_FROM` + `GATETEST_SUPPORT_EMAIL`.
 - [ ] **[C]** Inbound forwarding for `hello@gatetest.ai` confirmed by test email
@@ -114,11 +118,15 @@ Started 2026-08-21 (this session). Check off with commit SHAs.
 - [x] Fabricated `promotedFromCustomers` / `winRate` / `promotedAt` provenance
       stripped from all 8 `src/shipped-rules/*.json`, replaced with
       `"origin": "curated"` (2026-08-21; loader verified, 8/8 still load).
-- [ ] `node scripts/marketplace-preflight.js` green. Run 2026-08-21: DO NOT
-      SUBMIT — 5 blockers, every one Craig-side (§1/§3/§4): App private key is
-      a placeholder, `issues:write` missing, `RESEND_API_KEY` unset, DRAFT
-      markers on both legal pages; plus orphaned duplicate app `gatetest-hq`
-      (3766251) to delete. Nothing further is repo-fixable.
+- [ ] `node scripts/marketplace-preflight.js` green. Run 2026-09-10, now
+      auditing the LIVE App (`gatetest-hq` 3766251 — until tonight it audited
+      the stale `gatetesthq` 3322634 and told you to delete 3766251): DO NOT
+      SUBMIT — 7 blockers, every one Craig-side: DRAFT markers on both legal
+      pages (being rebuilt), `contents:write` + `statuses:write` missing,
+      `workflow_run` + `issue_comment` unsubscribed, description says "102
+      modules" / "Nuclear"; plus warnings for the unused `checks:write` and
+      the STALE duplicate `gatetesthq` (3322634) to retire. Private key and
+      `RESEND_API_KEY` blockers cleared tonight. Nothing further is repo-fixable.
 - [ ] `tests/module-count-sync.test.js` + `tests/marketplace-sync.test.js` green.
 
 ## 6. Open Craig product decisions (not launch-blocking, but decide before scale)

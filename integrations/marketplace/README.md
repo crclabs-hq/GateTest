@@ -5,26 +5,26 @@
 This guide walks Craig through submitting GateTest to the GitHub Marketplace as a **FREE** GitHub App listing.
 Complete every step in order. The listing will be reviewed by GitHub staff (typically 3–7 business days).
 
-> **Canonical copy lives in [`listing.md`](listing.md), not here.** This file is the click-through procedure; `listing.md` is the exact text to paste. The 2026-05-14 submission was rejected for describing PAID functionality on an app below GitHub's ≥100-install threshold — so the listing is **Free-only** (no paid Marketplace plan attached; paid tiers are sold separately on gatetest.io and must never be described as purchasable through this install). Any field below that still reads "paid," "67 modules," or "enter payment details" is stale — defer to `listing.md`.
+> **Canonical copy lives in [`listing.md`](listing.md), not here.** This file is the click-through procedure; `listing.md` is the exact text to paste. The 2026-05-14 submission was rejected for describing PAID functionality on an app below GitHub's ≥100-install threshold — so the listing is **Free-only** (no paid Marketplace plan attached; paid tiers are sold separately on gatetest.io and must never be described as purchasable through this install). Any field below that still reads "paid," quotes a module count other than 121 (the number is generated from the engine registry — see Step 6), or says "enter payment details" is stale — defer to `listing.md`.
 
 ---
 
 ## Prerequisites (confirm before starting)
 
-- [ ] GitHub App **GateTestHQ** is already created under the `ccantynz-alt` organisation account
+- [ ] GitHub App **gatetest-hq** (App ID 3766251) is already created under the `crclabs-hq` organisation account
 - [ ] The app is installed on at least one repository (required to publish)
 - [ ] You are signed in to GitHub as the account that owns the app
-- [ ] A 1544×500 px banner image is ready (PNG or JPEG — see `assets/banner-1544x500.txt`)
-- [ ] A 256×256 px logo/icon is ready (PNG — see `assets/icon-256x256.txt`)
+- [ ] A 1544×500 px banner image is ready (PNG or JPEG — none is committed; compose one from the logo at `website/public/logo-512.png`)
+- [ ] The logo/icon is ready — use `website/public/logo-512.png` (512×512 PNG) or `website/public/icon-400.png` (400×400 PNG); both exceed GitHub's 200×200 minimum
 - [ ] At least 5 screenshots are captured (see `screenshots.md` for what to capture)
-- [ ] Stripe is live (or you are using GitHub's native billing — see Step 7)
+- [ ] No payment plan is attached — the listing is **Free-only**; paid tiers are bought on gatetest.io (see Step 6)
 
 ---
 
 ## Step 1 — Open the GitHub App settings
 
-1. Go to **https://github.com/settings/apps** (or **https://github.com/organizations/ccantynz-alt/settings/apps** if the app is owned by the org).
-2. Click **GateTestHQ**.
+1. Go to **https://github.com/organizations/crclabs-hq/settings/apps** (the app is owned by the `crclabs-hq` org, not a personal account).
+2. Click **gatetest-hq**.
 3. In the left sidebar, click **Marketplace listing**.
    - If you don't see this option, the app must first be installed on at least one repo. Install it on `crclabs-hq/gatetest` via the "Install App" tab.
 
@@ -36,7 +36,7 @@ On the **Marketplace listing** page:
 
 | Field | Value |
 |-------|-------|
-| **Listing name** | GateTest — AI Code Quality |
+| **Listing name** | GateTest |
 | **Short description** | (use the verified copy in `listing.md` → "Short description": 121-module code quality gate for GitHub. Free continuous scanning on every push. Deeper AI-powered scans and auto-fix PRs available on gatetest.io.) |
 | **Categories** | Code quality (primary) · Security (secondary) — per `listing.md` |
 | **Primary language** | (leave blank — GateTest is language-agnostic) |
@@ -49,9 +49,9 @@ Paste the **Full description** from `listing.md` into the long description field
 
 | Asset | Spec | File to use |
 |-------|------|-------------|
-| App logo / icon | 200×200 px minimum, PNG | Create from `assets/icon-256x256.txt` spec |
-| Banner image | 1544×500 px, PNG/JPEG | Create from `assets/banner-1544x500.txt` spec |
-| Screenshots (×5) | 1280×800 px, PNG | See `screenshots.md` |
+| App logo / icon | 200×200 px minimum, PNG | `website/public/logo-512.png` (512×512) or `website/public/icon-400.png` (400×400) |
+| Banner image | 1544×500 px, PNG/JPEG | Not committed — compose from `website/public/logo-512.png` |
+| Screenshots (×5) | 1280×800 px, PNG | See [`screenshots.md`](screenshots.md) |
 
 Upload images in the **Screenshots and video** section. Drag and drop screenshots in the order described in `screenshots.md`. Captions are optional but recommended — use the caption suggestions in that file.
 
@@ -59,24 +59,7 @@ Upload images in the **Screenshots and video** section. Drag and drop screenshot
 
 ## Step 4 — Configure app permissions and webhook events
 
-Confirm these are already set on the GitHub App itself (under **Permissions & events**). If not, update them before submitting the listing.
-
-**Repository permissions:**
-| Permission | Access level |
-|-----------|-------------|
-| Contents | Read |
-| Pull requests | Read & write |
-| Commit statuses | Read & write |
-| Issues | Read & write |
-| Metadata | Read (mandatory, set automatically) |
-
-**Webhook events:**
-- `push`
-- `pull_request`
-
-**Setup URL:** `https://gatetest.io/github/setup`
-**Callback URL:** `https://gatetest.io/api/github/callback`
-**Webhook URL:** `https://gatetest.io/api/webhook`
+Confirm the App's **Permissions & events** and URLs match the generated table under [`listing.md` → "App configuration reference"](listing.md#app-configuration-reference). That table is rendered from `src/core/github-app-permissions.js` (the single source of truth — `tests/marketplace-sync.test.js` fails the suite if any surface drifts from it), so this guide deliberately does not repeat the permission list or the webhook-event list by hand; edit the source file, never a copy.
 
 ---
 
@@ -110,9 +93,11 @@ without re-reading `listing.md`'s header note.
 Payment stays on Stripe via gatetest.io: the **Setup URL**
 (`https://gatetest.io/github/setup`) drives users to the site, where the real
 tiers live — Quick $29 / Full $99 / Scan + Fix $199 / Forensic $399 (one-time)
-plus Continuous $49/mo and MCP $29/mo. Marketplace copy must never quote a
-module count other than **120** (the engine total; the website suite runs 88
-modules — mutation + chaos need the GitHub Action's CI runner).
+plus Continuous $49/mo and MCP $29/mo. Marketplace copy must never hand-type a
+module count: the engine total (**121** today) is generated from the module
+registry and `tests/module-count-sync.test.js` fails any three-digit claim that
+drifts from it. The website's `full` suite runs 88 of those modules —
+mutation + chaos need the GitHub Action's CI runner.
 
 ### Later — GitHub-native billing (only after ≥100 installs)
 
@@ -153,12 +138,12 @@ This agreement covers revenue sharing (GitHub takes 0% as of 2024 for new listin
 
 Once approved:
 
-1. The listing goes live at `https://github.com/marketplace/gatestesthq` (or similar slug).
+1. The listing goes live at `https://github.com/marketplace/gatetest-hq` (or similar slug). The composite Action is already live separately at `https://github.com/marketplace/actions/gatetest-quality-gate`.
 2. GitHub sends you a confirmation email with the live URL.
 3. Update `CLAUDE.md` Known Issue #29 to DONE.
 4. Add the Marketplace badge to `website/app/page.tsx` and `README.md`:
    ```
-   [![GitHub Marketplace](https://img.shields.io/badge/Marketplace-GateTest-blue?logo=github)](https://github.com/marketplace/gatestesthq)
+   [![GitHub Marketplace](https://img.shields.io/badge/Marketplace-GateTest-blue?logo=github)](https://github.com/marketplace/gatetest-hq)
    ```
 5. Announce in any mailing list / social channels.
 

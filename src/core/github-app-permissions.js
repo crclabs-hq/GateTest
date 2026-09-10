@@ -174,10 +174,32 @@ function permissionTableRows() {
   return APP_PERMISSIONS.map((p) => `| **${p.display} permission** | ${p.label} |`);
 }
 
+/**
+ * The App's identity — declared next to its permissions for the same reason.
+ *
+ * Two Apps exist: `gatetest-hq` (3766251, owned by `crclabs-hq`) is LIVE;
+ * `gatetesthq` (3322634, owned by `Gate-Test`) is the stale one. Until
+ * 2026-09-09 the install button, the API docs and two error messages each
+ * hand-wrote the stale App's URL (GitHub slugs are case-insensitive, so the
+ * mixed-case spelling resolved to it too) and sent every customer there.
+ * Import `appInstallUrl()`; `tests/github-app-identity.test.js` fails on a
+ * literal slug anywhere in runtime code — comments included.
+ */
+const APP_SLUG = 'gatetest-hq';
+const APP_ID = 3766251;
+
+/** The App's public GitHub page, where the Install button lives. */
+function appInstallUrl() {
+  return `https://github.com/apps/${APP_SLUG}`;
+}
+
 module.exports = {
   APP_PERMISSIONS,
   WEBHOOK_EVENTS,
   PATH_SCOPES,
+  APP_SLUG,
+  APP_ID,
+  appInstallUrl,
   permission,
   scopeForRequest,
   satisfies,

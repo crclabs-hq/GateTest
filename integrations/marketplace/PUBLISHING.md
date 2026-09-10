@@ -8,7 +8,7 @@
 
 ## 1. npm — public registry
 
-**Why:** lets anyone run `npm install -g gatetest` or `npx gatetest`.
+**Why:** lets anyone run `npm install -g @gatetest/cli` or `npx -p @gatetest/cli gatetest` (the package has several bins, so plain `npx @gatetest/cli` cannot pick one — always use the `-p` form).
 
 ### Path A — automated via GitHub Actions (recommended)
 
@@ -55,8 +55,8 @@ npm publish --access public     # prepublishOnly still runs the gate
 
 **Verify:**
 ```bash
-npm view gatetest version       # should match what you just published
-npx -y gatetest --list          # smoke-test from a clean dir
+npm view @gatetest/cli version              # should match what you just published
+npx -y -p @gatetest/cli gatetest --list     # smoke-test from a clean dir
 ```
 
 **If `npm publish` fails with 403 / E402:**
@@ -76,7 +76,7 @@ npx -y gatetest --list          # smoke-test from a clean dir
 **Every release after npm publish:**
 ```bash
 # 1. Get the SHA256 of the freshly-published tarball
-curl -sL https://registry.npmjs.org/gatetest/-/gatetest-$(npm view gatetest version).tgz \
+curl -sL https://registry.npmjs.org/@gatetest/cli/-/cli-$(npm view @gatetest/cli version).tgz \
   | shasum -a 256
 
 # 2. In the homebrew-gatetest repo, edit Formula/gatetest.rb:
@@ -98,14 +98,14 @@ brew install gatetest
 **Why:** distribution channel. Listed alongside Snyk, CodeQL, etc.
 
 **One-time setup (Craig action, ~2-3 weeks GitHub approval):**
-1. Go to the GitHub App settings for **GateTestHQ**.
+1. Go to the GitHub App settings for **gatetest-hq** (org `crclabs-hq`): https://github.com/organizations/crclabs-hq/settings/apps/gatetest-hq
 2. Click "List on Marketplace."
 3. Upload logo + screenshots from `integrations/marketplace/screenshots.md`.
 4. Use copy from `integrations/marketplace/listing.md`.
-5. Choose free-tier-with-upsell pricing model.
+5. Attach a single **Free** plan only — no paid Marketplace plan. Paid tiers are bought on gatetest.io; the 2026-05-14 submission was rejected for describing paid functionality below GitHub's ≥100-install threshold.
 6. Submit for review.
 
-After approval, the app appears at `github.com/marketplace/gatetest`.
+After approval, the App appears at `github.com/marketplace/gatetest-hq` (or similar slug). The composite Action is already live at https://github.com/marketplace/actions/gatetest-quality-gate.
 
 ---
 
@@ -121,7 +121,7 @@ GateTest is on npm, MCP-aware AI builders can use it via:
   "mcpServers": {
     "gatetest": {
       "command": "npx",
-      "args": ["-y", "gatetest-mcp"]
+      "args": ["-y", "-p", "@gatetest/cli", "gatetest-mcp"]
     }
   }
 }
@@ -143,8 +143,8 @@ step — works the moment the file is on `main`.
 
 | Channel | Install command | Requires |
 | --- | --- | --- |
-| npm | `npm i -g gatetest` / `npx gatetest` | npm publish (Craig) |
-| MCP | `npx gatetest-mcp` | npm publish (Craig) |
+| npm | `npm i -g @gatetest/cli` / `npx -p @gatetest/cli gatetest` | npm publish (Craig) |
+| MCP | `npx -p @gatetest/cli gatetest-mcp` | npm publish (Craig) |
 | Homebrew | `brew install crclabs-hq/gatetest/gatetest` | tap repo + formula bump (Craig) |
 | Drop-in CI | `curl ... | bash` | Already live (no action) |
 | Hosted SaaS | gatetest.io | Already live |

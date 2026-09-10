@@ -3,6 +3,27 @@
 **Written 2026-08-04. Updated 2026-08-06 after deploying, then firing a real
 signed webhook through the production pipeline end-to-end.**
 
+> **Status 2026-09-10 — READ THIS BEFORE ANY LINE BELOW.** Every App
+> identity in this document was **inverted** from 2026-08-04 until tonight.
+> The LIVE App is **`gatetest-hq`, app_id `3766251`, owned by `crclabs-hq`**
+> (Client ID `Iv23lisxbZrS1IJ8c1hk`): its private key is the one on the
+> production box (`GATETEST_APP_ID=3766251`) and a real webhook completed end
+> to end through it tonight. **`gatetesthq` (3322634, `Gate-Test` org) is the
+> STALE duplicate to retire.** The old text told you to delete 3766251 —
+> that would have deleted production. Manage the listing at
+> `github.com/organizations/crclabs-hq/settings/apps/gatetest-hq`.
+>
+> Resolved tonight: **0** (App `external_url` is `https://gatetest.io` on
+> 3766251 and the webhook delivers), **0b** (real private key on the box,
+> `fire-test-webhook` completed), **3** (`RESEND_API_KEY` set). Still open
+> on the live App, all found by `node scripts/marketplace-preflight.js` now
+> that it audits the right App: `Contents` is Read (needs write), `Commit
+> statuses` is absent, `workflow_run` + `issue_comment` are unsubscribed,
+> the description still says "102 modules" / "Nuclear" / "Pay per scan",
+> and `checks:write` is granted to code that never uses it. Plus the two
+> legal DRAFT pages (being rebuilt separately). Rows below are corrected in
+> place; dated evidence is left as written.
+
 Context: the listing was rejected once (2026-05-14) and has been under review
 since 2026-07-25. Craig's constraint — *"I may not get the third opportunity."*
 So this is ordered by **what a reviewer hits first**, not by effort.
@@ -15,12 +36,13 @@ Craig's accounts, in one sitting:
 
 | # | Blocker | Where | Time |
 |---|---|---|---|
-| 0 | **Webhook URL still `gatetest.ai` (dead)** — no push has ever been delivered; `scan_queue` had zero rows in its life until the synthetic test | App 3322634 settings | 2 min |
-| 0b | **No working GitHub credential on the box — every stored token is 401.** Scans can't fetch repos; commit statuses / PR comments can't post. Durable: paste `GITHUB_APP_ID` + `GITHUB_APP_PRIVATE_KEY` (code support already shipped: `github-app.ts`). Quick: fresh PAT as `GITHUB_TOKEN`. Then `systemctl restart gatetest-web` | box `website/.env.local` | 5 min |
+| 0 | ~~**Webhook URL still `gatetest.ai` (dead)**~~ **RESOLVED 2026-09-10** — `external_url` is `https://gatetest.io` on the live App 3766251 and a real webhook completed end to end through it. (Row said "App 3322634" until tonight — the stale one.) | App 3766251 settings | done |
+| 0b | ~~**No working GitHub credential on the box**~~ **RESOLVED 2026-09-10** — the real private key for App 3766251 is in `website/.env.local` (`GATETEST_APP_ID=3766251`); `scripts/ops/fire-test-webhook.js` completed end to end. | box `website/.env.local` | done |
 | 1 | `/legal/terms` + `/legal/privacy` render **"DRAFT … not final legal terms"** | attorney | external |
-| 2 | live app **missing `issues:write`** — the PR comment the listing promises fails silently | App 3322634 settings | 1 min |
-| 2b | live app **must subscribe to the `issue_comment` webhook event** (added 2026-08-25 for suppression-in-place: `@gatetest ignore <rule>` replies) — without it the command silently does nothing | App 3322634 settings | 1 min |
-| 3 | `RESEND_API_KEY` unset — MCP-tier key delivery takes money and never sends | box `website/.env.local` | 2 min |
+| 2 | live App 3766251 has **`contents:read` (needs write — the auto-fix branch cannot push) and no `statuses` scope at all (the pass/fail on each commit cannot post)**. `issues:write` IS granted on 3766251 — the earlier "missing `issues:write`" was measured on the stale App. Also remove the unused **`checks:write`** — nothing we ship calls the Checks API | App 3766251 settings | 2 min |
+| 2b | live App 3766251 is subscribed to **push + pull_request only** — must add **`workflow_run`** (CI-fix never fires without it) and **`issue_comment`** (added 2026-08-25 for suppression-in-place: `@gatetest ignore <rule>` replies) — an unsubscribed event fails silently | App 3766251 settings | 1 min |
+| 2c | live App 3766251 **description still says "102 modules", "Nuclear" and "Pay per scan"** — the exact copy the 2026-05-14 rejection cited. Paste the short description from `integrations/marketplace/listing.md` (Free-only, 121 modules) | App 3766251 settings | 2 min |
+| 3 | ~~`RESEND_API_KEY` unset~~ **RESOLVED 2026-09-10** — present per live `/api/status` | box `website/.env.local` | done |
 | 4 | `CRON_SECRET` **repo secret** unset → the `cron-ticks` workflow is disarmed | repo secrets (optional) | 2 min |
 
 ### What the end-to-end test proved (2026-08-06)
@@ -59,15 +81,17 @@ Note: real webhooks will carry the canonical `crclabs-hq/GateTest` name — the
 `ccantynz-alt/gatetest` alias 301s at the API level (followed automatically
 once a valid token exists).
 
-Plus one warning: the orphaned duplicate app `gatetest-hq` (3766251) is still
-installed on `crclabs-hq`.
+Plus one warning: the STALE duplicate app `gatetesthq` (3322634, `Gate-Test`
+org) is still installed on `crclabs-hq` alongside the live `gatetest-hq`
+(3766251). Retire 3322634 — never 3766251. (This sentence named them the
+other way round until 2026-09-10.)
 
 **#4 is no longer functionally fatal.** The queue is now drained by systemd
 timers on the box itself (`scripts/deploy/systemd/`), so scans run without
 GitHub Actions. Setting the repo secret would add a redundant second driver;
 both ticks are idempotent. Left on the list because the preflight still flags it.
 
-**#3 is NOT the KI #82 typo.** That KI theorised the key was stored as
+**#3 is NOT the KI #82 typo** *(resolved 2026-09-10 — the key is now set)*. That KI theorised the key was stored as
 `RESENDER_API_KEY`. Checked the box directly on 2026-08-05: there is **no
 Resend key under any spelling** in `website/.env.local`. It has to be added.
 
@@ -88,15 +112,16 @@ false. A reviewer would have installed, pushed, and seen nothing at all.
 
 ## 0. Where the listing actually lives
 
-The app is **not** under `crclabs-hq`. There are three GateTest identities:
+The live app IS under `crclabs-hq`. There are three GateTest identities
+(this table had the two Apps swapped from 2026-08-04 to 2026-09-10):
 
 | Identity | What it is | Owns |
 |---|---|---|
-| **`Gate-Test`** | Org, created 2026-04-08, 0 repos | **`gatetesthq`, app_id `3322634`** — the live app, matches all current code |
-| `crclabs-hq` | Org, created 2026-05-18 | the older orphaned `gatetest-hq`, app_id `3766251` |
+| **`crclabs-hq`** | Org, created 2026-05-18 | **`gatetest-hq`, app_id `3766251`, Client ID `Iv23lisxbZrS1IJ8c1hk`** — the LIVE app; its private key is on the production box (`GATETEST_APP_ID=3766251`), real webhook completed end to end 2026-09-10 |
+| `Gate-Test` | Org, created 2026-04-08, 0 repos | the STALE duplicate `gatetesthq`, app_id `3322634` — retire it (make private, uninstall from `crclabs-hq`, delete) |
 | `ccantynz-alt` | Personal account | this repo |
 
-➡️ **Manage the listing at `github.com/organizations/Gate-Test/settings/apps/gatetesthq`.**
+➡️ **Manage the listing at `github.com/organizations/crclabs-hq/settings/apps/gatetest-hq`. Never delete 3766251.**
 
 ---
 
@@ -212,11 +237,16 @@ still **nothing arriving to drain** until the App is repointed.
 Be precise about this: after today's work the pipeline is correct from
 `/api/webhook` onward, and severed before it. Only Craig can reconnect it.
 
-- [ ] Set `external_url` → `https://gatetest.io` on app **3322634**
-- [ ] **Set Webhook URL → `https://gatetest.io/api/webhook`** ← the one that
-      actually breaks the product
-- [ ] Setup URL → `https://gatetest.io/github/setup`
-- [ ] Callback URL → `https://gatetest.io/api/github/callback`
+*(The App to edit is **3766251** / `gatetest-hq` — the LIVE one. The lines
+below said 3322634 until 2026-09-10.)*
+
+- [x] Set `external_url` → `https://gatetest.io` on app **3766251** — verified
+      2026-09-10 (`gh api apps/gatetest-hq` → `https://gatetest.io`)
+- [x] **Set Webhook URL → `https://gatetest.io/api/webhook`** — a real
+      webhook completed end to end through 3766251 on 2026-09-10
+- [ ] Setup URL → `https://gatetest.io/github/setup` (not readable from here
+      — confirm on the settings page)
+- [ ] Callback URL → `https://gatetest.io/api/github/callback` (same)
 - [ ] Then confirm delivery: push to any installed repo and check
       `SELECT count(*) FROM scan_queue;` is non-zero, or watch
       `journalctl -u gatetest-tick.service -f` show a non-idle tick.
@@ -254,8 +284,9 @@ Per live `/api/status`:
 Either set them or hide the buttons. A reviewer clicking a sign-in button and
 getting a 503 is a failed review.
 
-- [ ] `RESEND_API_KEY` unset → the MCP $29/mo flow takes the money and the API
-      key never arrives (the webhook 500s). This is a paying-customer bug
+- [x] ~~`RESEND_API_KEY` unset~~ — **RESOLVED 2026-09-10** (present per live
+      `/api/status`). While unset, the MCP $29/mo flow took the money and the
+      API key never arrived (the webhook 500s) — a paying-customer bug
       independent of the Marketplace.
 
 ---
@@ -266,7 +297,7 @@ A reviewer finding two listings for one product is its own risk.
 
 | | Canonical | Retire / confirm |
 |---|---|---|
-| GitHub App | `gatetesthq` 3322634 (`Gate-Test`) | `gatetest-hq` 3766251 (`crclabs-hq`) — orphaned |
+| GitHub App | `gatetest-hq` 3766251 (`crclabs-hq`) — LIVE, key on the box | `gatetesthq` 3322634 (`Gate-Test`) — stale; retire (this row was inverted until 2026-09-10) |
 | VS Code ext | `editors/vscode`, publisher `gatetest` | `vscode-extension` v1.0.1, publisher `GateTestHQ` |
 
 - [ ] Decide which is canonical for each and retire the other
@@ -288,17 +319,23 @@ endpoint the bridge calls. **The live App still has to be granted them by hand**
 | **Issues** | **Read & write** | `POST .../issues/{n}/comments` — the PR comment the listing promises |
 | Metadata | Read | `GET /repos/{o}/{r}` |
 
-Webhook events: `push`, `pull_request`, `workflow_run` (all three are branched
-on in `website/app/lib/github-events.js`).
+Webhook events: `push`, `pull_request`, `workflow_run`, `issue_comment` (all
+four are branched on in `website/app/lib/github-events.js`; the list is
+`WEBHOOK_EVENTS` in `src/core/github-app-permissions.js`).
 
-- [ ] Set all five scopes + all three events on app **3322634**
+- [ ] Set all five scopes + all four events on app **3766251** (`gatetest-hq`,
+      `crclabs-hq` — the LIVE App; this line said 3322634 until 2026-09-10).
+      Measured 2026-09-10 on 3766251: Contents = Read, Commit statuses absent,
+      events = push + pull_request only, plus an unused `checks:write` to remove.
 - [ ] Note: `Contents` was disclosed to customers as **Read** on both the
       install page and the listing until 2026-08-05. Both now say Read & write,
       matching what GitHub's install prompt actually asks for. Tests mock the
       HTTP layer, so CI cannot catch a missing grant — only the live App can.
 - [ ] Run `node scripts/marketplace-preflight.js` once `gh` is authenticated;
-      it verifies the live grants automatically (it was querying the wrong org
-      until 2026-08-05, so any previous "pass" from it meant nothing).
+      it verifies the live grants, events, description and homepage
+      automatically (it was querying the wrong org until 2026-08-05 and
+      auditing the wrong App until 2026-09-10, so any previous "pass" from
+      it meant nothing).
 
 ---
 

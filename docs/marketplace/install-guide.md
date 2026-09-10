@@ -21,10 +21,9 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-      checks: write
     steps:
       - uses: actions/checkout@v4
-      - uses: crclabs-hq/GateTest@v1.1.1
+      - uses: crclabs-hq/GateTest@v1
 ```
 
 That is the entire install. Push the file, open a PR, the gate runs.
@@ -36,7 +35,7 @@ That is the entire install. Push the file, open a PR, the gate runs.
 When the gate finds something it can fix, let Claude propose the patch:
 
 ```yaml
-- uses: crclabs-hq/GateTest@v1.1.1
+- uses: crclabs-hq/GateTest@v1
   with:
     suite: quick
     auto-fix: true
@@ -52,14 +51,14 @@ When the gate blocks and an Anthropic key is present, the action opens a follow-
 
 | Input | Default | Description |
 | --- | --- | --- |
-| `suite` | `quick` | Which suite to run: `quick` (4 modules), `full` (91), `scan_fix`, `nuclear`. |
+| `suite` | `quick` | Which suite to run: `quick` (42 modules), `standard` (46), `full` (88), `nuclear` (96). Unknown values fall back to `standard`. |
 | `auto-fix` | `false` | When `true` AND the gate blocks AND `ANTHROPIC_API_KEY` is set, run the AI CI-fixer. |
 | `node-version` | `22` | Node.js version to set up on the runner. GateTest requires Node 20+. |
 | `working-directory` | `.` | Repository sub-directory to scan. Useful for monorepos. |
 | `report-format` | `console` | Output format: `console`, `json`, `sarif`, or `junit`. |
 | `fail-on-warning` | `false` | When `true`, warning-severity findings also block the gate. |
-| `mutation` | `false` | When `true`, run mutation testing after the gate. Exercises the customer test runner. See Nuclear-tier deliverables below. |
-| `chaos` | `false` | When `true` AND `chaos-url` is set, run live-browser chaos / runtime checks. Installs Playwright Chromium on the runner. See Nuclear-tier deliverables below. |
+| `mutation` | `false` | When `true`, run mutation testing after the gate. Exercises the customer test runner. See Forensic-tier deliverables below. |
+| `chaos` | `false` | When `true` AND `chaos-url` is set, run live-browser chaos / runtime checks. Installs Playwright Chromium on the runner. See Forensic-tier deliverables below. |
 | `chaos-url` | `''` | Live URL to chaos-test (deployed staging or prod, NOT localhost). Required when `chaos: true`. |
 | `mutation-blocks-merge` | `false` | When `true`, a failing mutation score blocks the merge. Off by default — mutation testing is coaching, not a gate. |
 | `chaos-blocks-merge` | `false` | When `true`, chaos / runtime failures block the merge. Off by default — runtime resilience is graded, not binary. |
@@ -67,7 +66,7 @@ When the gate blocks and an Anthropic key is present, the action opens a follow-
 ### Example: SARIF upload for GitHub Code Scanning
 
 ```yaml
-- uses: crclabs-hq/GateTest@v1.1.1
+- uses: crclabs-hq/GateTest@v1
   id: gatetest
   with:
     suite: full
@@ -83,27 +82,27 @@ When the gate blocks and an Anthropic key is present, the action opens a follow-
 ### Example: monorepo
 
 ```yaml
-- uses: crclabs-hq/GateTest@v1.1.1
+- uses: crclabs-hq/GateTest@v1
   with:
     working-directory: ./apps/api
 ```
 
 ---
 
-## Nuclear-tier deliverables via the Action
+## Forensic-tier deliverables via the Action
 
-Two of the four Nuclear-tier deliverables — mutation testing and chaos / runtime testing — only ship via the GitHub Action, not via the website-only Nuclear flow.
+Two of the four Forensic-tier deliverables (the tier was named Nuclear until 2026-06-02; the engine suite is still `suite: nuclear`) — mutation testing and chaos / runtime testing — only ship via the GitHub Action, not via the website-only Forensic flow.
 
-**Why:** the website's Nuclear pipeline runs on Vercel serverless functions. Mutation testing needs to exercise the customer's own test runner; chaos testing needs to launch a Chromium browser against a live URL. Neither is safe or possible inside a stateless serverless function. Both run cleanly on a GitHub Actions runner, which has the customer test suite already checked out and can install browser binaries on demand.
+**Why:** the website's Forensic pipeline runs on Vercel serverless functions. Mutation testing needs to exercise the customer's own test runner; chaos testing needs to launch a Chromium browser against a live URL. Neither is safe or possible inside a stateless serverless function. Both run cleanly on a GitHub Actions runner, which has the customer test suite already checked out and can install browser binaries on demand.
 
-**Honest disclosure:** if you paid for Nuclear via the website (paste a repo URL, get a scan back), you receive per-finding Claude diagnosis + cross-finding correlation + executive summary, but mutation and chaos are **not** part of that flow. To get the full four-deliverable Nuclear experience, use the Action.
+**Honest disclosure:** if you paid for Forensic via the website (paste a repo URL, get a scan back), you receive per-finding Claude diagnosis + cross-finding correlation + executive summary, but mutation and chaos are **not** part of that flow. To get the full four-deliverable Forensic experience, use the Action.
 
 ### Mutation testing
 
 Mutation testing applies real code mutations (operator swaps, boundary changes, return-value flips) to your source files, then verifies that at least one of your tests fails for each mutation. If all tests still pass after a mutation, your test suite has a coverage gap that line-coverage alone cannot see.
 
 ```yaml
-- uses: crclabs-hq/GateTest@v1.1.1
+- uses: crclabs-hq/GateTest@v1
   with:
     suite: nuclear
     mutation: true
@@ -122,7 +121,7 @@ Requirements:
 Chaos testing drives a real Chromium browser against a deployed URL and injects five resilience scenarios (slow network, API failures, offline mode, missing CSS/JS, server timeouts). It reports whether your site degrades gracefully or shows blank pages and error screens.
 
 ```yaml
-- uses: crclabs-hq/GateTest@v1.1.1
+- uses: crclabs-hq/GateTest@v1
   with:
     suite: nuclear
     chaos: true
@@ -138,7 +137,7 @@ Requirements:
 ### Both at once
 
 ```yaml
-- uses: crclabs-hq/GateTest@v1.1.1
+- uses: crclabs-hq/GateTest@v1
   with:
     suite: nuclear
     mutation: true
@@ -181,12 +180,14 @@ Set them in the `env:` block on the step or job — never commit secrets to the 
 
 ## Suite comparison
 
+These are the engine suites the `suite` input accepts (sizes come from `src/core/config.js` and are asserted by `tests/action-yml.test.js`). Pricing tiers are listed separately below — `scan_fix` and `forensic` are tiers bought on gatetest.io, not suite names.
+
 | Suite | Modules | What runs | Typical use |
 | --- | --- | --- | --- |
-| `quick` | 4 critical modules | Secrets, syntax, dependencies, lint | PR gate on every push |
-| `full` | All 121 modules | Everything the gate ships with | Pre-merge to main, nightly scan |
-| `scan_fix` | 91 + fix loop | Full scan plus iterative Claude fix loop, pair-review, architecture annotator | Customers on the $199 tier |
-| `nuclear` | 91 + correlation + adversarial | Full scan plus per-finding Claude diagnosis, cross-finding correlation, mutation testing, chaos/fuzz, executive summary | Customers on the $399 tier |
+| `quick` | 42 | Fast static checks: secrets, syntax, dependencies, lint, memory | PR gate on every push |
+| `standard` | 46 | `quick` plus deeper code-quality and security modules | Default when an unknown suite is named |
+| `full` | 88 | Everything that can run without a CI runner (mutation is deferred to `nuclear`) | Pre-merge to main, nightly scan |
+| `nuclear` | 96 | `full` plus mutation testing and the CI-only adversarial modules | Forensic-tier deliverables via the Action |
 
 `quick` finishes in under 15 seconds on a typical repo. `full` targets under 60 seconds.
 
@@ -215,7 +216,6 @@ The workflow needs `pull-requests: write` and `contents: read` (and `contents: w
 permissions:
   contents: write
   pull-requests: write
-  checks: write
 ```
 
 **The npm package install fails.**
@@ -227,12 +227,12 @@ The action falls back to cloning the repo at runtime when `@gatetest/cli` is not
 
 | Tier | Price | What ships |
 | --- | --- | --- |
-| Free (OSS) | $0 | Full gate, public repos only |
 | Quick Scan | $29 | 4 critical modules, single scan |
 | Full Scan | $99 | All 121 modules, single scan |
 | Scan + Fix | $199 | 121 modules + iterative Claude fix loop, pair-review of every fix, architecture annotator |
-| Nuclear | $399 | 121 modules + per-finding Claude diagnosis, attack-chain correlation, mutation testing, chaos/fuzz, executive summary |
-| Continuous | $49/month | Unlimited push-triggered scans |
+| Forensic | $399 | 121 modules + per-finding Claude diagnosis, attack-chain correlation, executive summary, CISO report; mutation testing and chaos/fuzz ship via this Action (`mutation: true` / `chaos: true`), not the website-only flow |
+| Continuous | $49/month | Unlimited push-triggered scans across every repo in your org |
+| MCP | $29/month | Hosted remote MCP endpoint + hosted scan history (the local stdio MCP server is free) |
 
 All paid tiers are charged upfront at checkout. Sign up at
 https://gatetest.io/#pricing and manage an existing subscription at

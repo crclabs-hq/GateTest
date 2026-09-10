@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from "next";
 import { SITE_URL } from "@/app/lib/site-url";
+import { appInstallUrl } from "@/app/lib/github-app-permissions";
 import { FULL_SUITE_MODULES } from "@/app/mcp/tools-data";
 
 export const metadata: Metadata = {
@@ -291,7 +292,7 @@ export default function ApiDocs() {
           <p className="text-muted leading-relaxed">
             Install the{" "}
             <a
-              href="https://github.com/apps/gatetesthq"
+              href={appInstallUrl()}
               className="text-accent hover:underline"
             >
               GateTest GitHub App

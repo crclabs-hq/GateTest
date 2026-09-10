@@ -33,15 +33,19 @@
 > kind of static, manually-pasted copy (see `docs/legal/public-copy-redline.md`),
 > which is why it is now a failing test rather than a reminder.
 >
-> **Craig action:** the app is owned by the **`Gate-Test`** org, not `crclabs-hq`
-> — manage it at
-> `github.com/organizations/Gate-Test/settings/apps/gatetesthq` (app_id
-> `3322634`). `crclabs-hq` owns an orphaned duplicate (`gatetest-hq`, app_id
-> `3766251`) that must not be edited. Marketplace tab → replace the existing
-> content with everything below → confirm pricing plan is **Free only** (delete
-> any other draft plan left from the rejected submission) → Submit for review.
-> Run `node scripts/marketplace-preflight.js` first; it exits non-zero on
-> anything a reviewer would see.
+> **Craig action:** the LIVE app is **`gatetest-hq`** (app_id `3766251`,
+> Client ID `Iv23lisxbZrS1IJ8c1hk`), owned by the **`crclabs-hq`** org — its
+> private key is the one on the production box (`GATETEST_APP_ID=3766251`) and
+> a real webhook completed end to end through it on 2026-09-10. Manage it at
+> `github.com/organizations/crclabs-hq/settings/apps/gatetest-hq`. The
+> `Gate-Test` org owns the STALE duplicate (`gatetesthq`, app_id `3322634`):
+> retire that one (make private, uninstall, delete) — never edit it as if it
+> were live. (This note said the opposite from 2026-08-04 to 2026-09-10;
+> following it would have deleted production.) Marketplace tab → replace the
+> existing content with everything below → confirm pricing plan is **Free
+> only** (delete any other draft plan left from the rejected submission) →
+> Submit for review. Run `node scripts/marketplace-preflight.js` first; it
+> exits non-zero on anything a reviewer would see.
 
 ---
 
@@ -205,10 +209,14 @@ resubmitting rather than starting over.
 > silently does nothing.
 >
 > **Still needs a human:** the LIVE App config at
-> `github.com/organizations/Gate-Test/settings/apps/gatetesthq` cannot be read
-> from this repo. Confirm all five scopes and all four events match the table
-> above before submitting. `node scripts/marketplace-preflight.js` checks this
-> automatically when `gh` is authenticated.
+> `github.com/organizations/crclabs-hq/settings/apps/gatetest-hq` (app_id
+> `3766251`) cannot be edited from this repo. Confirm all five scopes and all
+> four events match the table above before submitting.
+> `node scripts/marketplace-preflight.js` reads the live grants, events,
+> description and homepage when `gh` is authenticated — on 2026-09-10 it found
+> `Contents` at Read, `Commit statuses` absent, `workflow_run` +
+> `issue_comment` unsubscribed, an unused `checks:write`, and a description
+> still quoting a long-stale count (102), "Nuclear" and "Pay per scan".
 
 ---
 

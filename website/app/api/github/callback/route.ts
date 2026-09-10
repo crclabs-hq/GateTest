@@ -17,6 +17,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "../../../lib/db";
+// Redirects MUST be built on the public origin, never on `req.url`. Behind
+// the box's reverse proxy `req.url` is the INTERNAL origin, and the live
+// endpoint answered every install with a 307 to a private 10.x address —
+// a dead page for the one customer who just clicked Install.
+import { siteUrl } from "../../../lib/site-url";
 import {
   getOAuthConfig,
   verifyCustomerSession,
@@ -135,15 +140,15 @@ export async function GET(req: NextRequest) {
     // moment they were paying attention delivered no evidence the product
     // works. Best-effort by design; see startFirstScans().
     await startFirstScans(installationId);
-    return NextResponse.redirect(new URL("/github/installed", req.url));
+    return NextResponse.redirect(siteUrl("/github/installed"));
   }
 
   // Handle uninstall or other actions
   if (setupAction === "update" && installationId) {
     await storeInstallation(installationId, setupAction);
-    return NextResponse.redirect(new URL("/github/installed", req.url));
+    return NextResponse.redirect(siteUrl("/github/installed"));
   }
 
   // Default: redirect to setup page
-  return NextResponse.redirect(new URL("/github/setup", req.url));
+  return NextResponse.redirect(siteUrl("/github/setup"));
 }

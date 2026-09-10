@@ -13,6 +13,7 @@
 
 import https from "https";
 import crypto from "crypto";
+import { appInstallUrl } from "./github-app-permissions";
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || process.env.GATETEST_GITHUB_TOKEN || "";
 const GATETEST_APP_ID = process.env.GATETEST_APP_ID || "";
@@ -229,7 +230,7 @@ export async function resolveGithubToken(
       return {
         token: null,
         source: null,
-        error: `GitHub App not installed on ${owner}/${repo} (status ${instRes.status}). Install it at https://github.com/apps/gatetesthq`,
+        error: `GitHub App not installed on ${owner}/${repo} (status ${instRes.status}). Install it at ${appInstallUrl()}`,
       };
     }
     const installationId = (instRes.data as { id?: number }).id;
