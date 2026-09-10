@@ -630,3 +630,9 @@ html {
 }
 
 /* Marquee-free, accessible: the band is static. */
+
+/* Keyboard focus must be visible on every interactive element (a11y; live audit 2026-09-10). */
+:focus-visible {
+  outline: 2px solid var(--accent, #0d9488);
+  outline-offset: 2px;
+}

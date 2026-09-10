@@ -204,7 +204,13 @@ export default function ScanStatus() {
       return;
     }
 
-    if (!params.repo) return;
+    if (!params.repo) {
+      // No session id and no repo: nothing can ever start, so never show a
+      // progress bar (Bible Forbidden #4 — the page must not sit at 5%).
+      setScanResult({ status: "failed", modules: [], totalModules: 0, completedModules: 0, totalIssues: 0, totalFixed: 0, duration: 0, error: "No scan selected. Open a scan from your dashboard or start one from the pricing page." });
+      setScanning(false);
+      return;
+    }
     // The scan is started by <LiveScanTerminal> (mounted below whenever
     // scanning && repo) — exactly ONE POST /api/scan/run. This page used to
     // fire its own POST as well, so two paid runs raced each other and the
@@ -614,7 +620,7 @@ export default function ScanStatus() {
                     {/* Authentication for fix-PR creation. Three paths, in
                         order of preference:
                           1. Signed in via GitHub OAuth — token used automatically
-                          2. GateTestHQ App installed on the repo — falls through
+                          2. GateTest GitHub App installed on the repo — falls through
                           3. One-shot PAT pasted by the customer */}
                     <div className="mt-5 pt-5 border-t border-border/60">
                       {signedInUser ? (

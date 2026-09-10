@@ -30,6 +30,7 @@ const CLI_ENGINE_ROUTES = [
 ];
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   outputFileTracingRoot: repoRoot,
   outputFileTracingIncludes: Object.fromEntries(
     CLI_ENGINE_ROUTES.map((route) => [route, ["../src/**"]])
