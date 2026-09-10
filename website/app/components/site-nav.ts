@@ -26,7 +26,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Solutions",
     items: [
       { label: "GitHub", href: "/github/setup", desc: "Install the App. Every push and PR gets a gate." },
-      { label: "Gluecron", href: "/stack", desc: "Our git host, with the gate built in." },
+      { label: "Gluecron", href: "https://gluecron.com", desc: "Our git host, with the gate built in.", external: true },
       { label: "WordPress", href: "/wp", desc: "Scan a WordPress site. No code, no plugin." },
       { label: "Websites", href: "/web", desc: "Scan any URL for security, a11y and performance." },
       { label: "MCP & AI editors", href: "/mcp", desc: "Claude, Cursor and VS Code run the gate for you." },
