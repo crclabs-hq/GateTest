@@ -55,6 +55,29 @@ if [ "$BEFORE" = "$AFTER" ]; then
 fi
 
 echo "[deploy] $BEFORE -> $AFTER"
+
+# Clear a STALE Next.js build lock. `next build` refuses to start while
+# `next.lock/lock.json` exists ("Another next build process is already
+# running"), and a build that was killed or crashed leaves the lock behind —
+# the 2026-09-10 deploy of 1b1ad5db failed exactly this way, six seconds in,
+# with nothing actually building. The lock records the pid; if that process
+# is gone (or there is no `next build` running at all), the lock is a corpse.
+# A LIVE build keeps its lock and this deploy fails loudly, as it should.
+for lock in website/.next/next.lock/lock.json website/next.lock/lock.json; do
+  [ -f "$lock" ] || continue
+  pid=$(node -e "try{const j=require(process.argv[1]);console.log(j.pid||j.serverInfo?.pid||'')}catch{console.log('')}" "$(pwd)/$lock" 2>/dev/null || true)
+  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    echo "[deploy] ERROR: a next build (pid $pid) is still running — not clearing $lock" >&2
+    exit 1
+  fi
+  if pgrep -f "next build" >/dev/null 2>&1; then
+    echo "[deploy] ERROR: a next build is running without a readable pid in $lock — not clearing it" >&2
+    exit 1
+  fi
+  echo "[deploy] removing stale build lock $lock (pid '${pid:-none}' is not running)"
+  rm -rf "$(dirname "$lock")"
+done
+
 npm install --no-audit --no-fund
 # `npm run build`, NOT `npx next build` — the `prebuild` script stamps the real
 # git SHA into build-info.json, which is what /api/platform-status reports. A
