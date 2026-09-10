@@ -229,11 +229,8 @@ export default function DevelopersPage() {
           </Link>
         </div>
         <div className="text-center mt-12">
-          <p className="text-xs text-muted mb-2">
-            Real scans. Real repos. No cherry-picked data.
-          </p>
-          <Link href="/scans" className="text-sm text-accent hover:underline">
-            Hall of Scans — see what GateTest found in production codebases →
+          <Link href="/precision" className="text-sm text-accent hover:underline">
+            Measured on real repositories — see the precision numbers →
           </Link>
         </div>
       </Section>

@@ -192,8 +192,8 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
             <Link href="/#pricing" className="btn-cta inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl">
               See full results — from $29 →
             </Link>
-            <Link href="/scans" className="btn-secondary inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl">
-              Hall of Scans →
+            <Link href="/playground" className="btn-secondary inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl">
+              Scan another repo →
             </Link>
           </div>
         </div>

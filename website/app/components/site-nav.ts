@@ -19,7 +19,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Precision", href: "/precision", desc: "Measured on real repositories. Bad numbers included." },
       { label: "How it works", href: "/how-it-works", desc: "Scan, fix, verify, open the PR." },
       { label: "Compare", href: "/compare", desc: "SonarQube, Snyk, CodeQL, Semgrep and more." },
-      { label: "Hall of scans", href: "/scans", desc: "Real scans of real open-source repos." },
     ],
   },
   {

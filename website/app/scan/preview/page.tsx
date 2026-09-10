@@ -233,8 +233,8 @@ function PreviewPageContent() {
         {!result && !loading && (
           <div className="text-center">
             <p className="text-xs text-muted">
-              See what GateTest found in real codebases →{" "}
-              <Link href="/scans" className="text-accent hover:underline">Hall of Scans</Link>
+              Measured on real repositories →{" "}
+              <Link href="/precision" className="text-accent hover:underline">see the precision numbers</Link>
             </p>
           </div>
         )}

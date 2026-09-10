@@ -10,8 +10,8 @@ import Link from "next/link";
  * carry the deep-dive.
  *
  * Honesty rule: every claim here is either the product's own published
- * tagline or a verifiable dogfood fact (the Hall of Scans entries, the
- * dual-host scan queue). No invented specs.
+ * tagline or a verifiable dogfood fact (the dual-host scan queue). No
+ * invented specs. The Hall of Scans page was retired 2026-09-10 (Craig).
  */
 
 const PRODUCTS = [
@@ -25,7 +25,7 @@ const PRODUCTS = [
     tagline: "The git host built around Claude.",
     body:
       "Git hosting built for small teams — no tickets, no politics. GateTest is wired into it natively: every push lands on Gluecron's Signal Bus and triggers a scan from the same queue that serves GitHub.",
-    proof: "Dogfooded hard: GateTest's Forensic scan ran against Gluecron's own codebase — full findings published in the Hall of Scans.",
+    proof: "Dogfooded: GateTest gates Gluecron's own codebase on every push.",
     bullets: [
       "Push-to-scan: GateTest gates merges natively",
       "Built by the same team, used every day",
@@ -42,7 +42,7 @@ const PRODUCTS = [
     tagline: "Scheduled jobs that actually run. Cron with receipts.",
     body:
       "AI-native, edge-first, zero ops. The cron and background jobs that power your product — run with receipts, so \"did the job fire?\" is never a mystery again.",
-    proof: "Dogfooded hard: the live demo on this page replays a real Vapron failure that GateTest caught and fixed. Full scan in the Hall of Scans.",
+    proof: "Dogfooded: the live demo on this page replays a real Vapron failure that GateTest caught and fixed.",
     bullets: [
       "Production scheduling without babysitting",
       "GateTest guards its codebase on every push",
@@ -110,10 +110,10 @@ export default function HomeStack() {
                   Visit {p.name} <span aria-hidden>→</span>
                 </a>
                 <Link
-                  href="/scans"
+                  href="/precision"
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border text-foreground font-semibold text-sm hover:bg-[var(--background-alt)] transition-colors"
                 >
-                  See the scan proof
+                  See the measured numbers
                 </Link>
               </div>
             </article>
