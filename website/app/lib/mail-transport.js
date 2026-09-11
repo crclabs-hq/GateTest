@@ -4,8 +4,11 @@
  * billing-portal links). Two providers:
  *
  *   resend  — POST https://api.resend.com/emails        (Bearer RESEND_API_KEY)
- *   vapron  — POST {VAPRON_BASE_URL}/api/platform/email/send
- *                                                     (Bearer VAPRON_API_KEY)
+ *   vapron  — POST https://vapron.ai/api/platform/email/send
+ *             (Bearer VAPRON_API_KEY; VAPRON_API_TOKEN — the dispatch key —
+ *             is accepted as the same credential; VAPRON_MAIL_URL overrides
+ *             the endpoint. VAPRON_BASE_URL is the runtime-scan dispatch base
+ *             and is deliberately NOT used here — it carries a path prefix.)
  *
  * The Vapron platform is where gatetest.io is being consolidated
  * (CLAUDE.md → DEPLOYMENT DOCTRINE, Craig 2026-09-11). The switch is
@@ -22,14 +25,20 @@ const https = require('https');
 const { URL } = require('url');
 
 const DEFAULT_FROM = 'GateTest <watchdog@gatetest.io>';
+const VAPRON_MAIL_URL = 'https://vapron.ai/api/platform/email/send';
 const TIMEOUT_MS = 12_000;
+
+/** The Vapron platform key under either of its two names. */
+function vapronKey(env = process.env) {
+  return env.VAPRON_API_KEY || env.VAPRON_API_TOKEN || '';
+}
 
 /** Which provider a send will use: 'resend' | 'vapron' | 'none'. */
 function mailProvider(env = process.env) {
   const explicit = String(env.MAIL_PROVIDER || '').trim().toLowerCase();
   if (explicit === 'vapron' || explicit === 'resend') return explicit;
   if (env.RESEND_API_KEY) return 'resend';
-  if (env.VAPRON_API_KEY && env.VAPRON_BASE_URL) return 'vapron';
+  if (vapronKey(env)) return 'vapron';
   return 'none';
 }
 
@@ -37,7 +46,7 @@ function mailProvider(env = process.env) {
 function mailConfigured(env = process.env) {
   const p = mailProvider(env);
   if (p === 'resend') return Boolean(env.RESEND_API_KEY);
-  if (p === 'vapron') return Boolean(env.VAPRON_API_KEY && env.VAPRON_BASE_URL);
+  if (p === 'vapron') return Boolean(vapronKey(env));
   return false;
 }
 
@@ -91,10 +100,10 @@ async function deliver(msg, deps = {}) {
   let target; let bearer; let payload;
 
   if (provider === 'vapron') {
-    let base;
-    try { base = new URL(env.VAPRON_BASE_URL); } catch { return { ok: false, error: 'VAPRON_BASE_URL is not a valid URL', provider }; }
-    target = { hostname: base.hostname, port: base.port || 443, path: '/api/platform/email/send' };
-    bearer = env.VAPRON_API_KEY;
+    let u;
+    try { u = new URL(env.VAPRON_MAIL_URL || VAPRON_MAIL_URL); } catch { return { ok: false, error: 'VAPRON_MAIL_URL is not a valid URL', provider }; }
+    target = { hostname: u.hostname, port: u.port || 443, path: u.pathname };
+    bearer = vapronKey(env);
     // The Vapron API documents a single-recipient string; pass an array only
     // when there genuinely is more than one.
     payload = { from, to: recipients.length === 1 ? recipients[0] : recipients, subject: msg.subject, html: msg.html, text: msg.text };
@@ -115,4 +124,4 @@ async function deliver(msg, deps = {}) {
   return { ok: false, error: String(error), provider };
 }
 
-module.exports = { DEFAULT_FROM, mailProvider, mailConfigured, fromAddress, deliver, httpsJson };
+module.exports = { DEFAULT_FROM, VAPRON_MAIL_URL, mailProvider, mailConfigured, fromAddress, deliver, httpsJson };

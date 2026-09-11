@@ -12,7 +12,7 @@ const path = require('path');
 const T = require(path.join(__dirname, '..', 'website', 'app', 'lib', 'mail-transport.js'));
 
 const RESEND = { RESEND_API_KEY: 're_test_secret' };
-const VAPRON = { VAPRON_API_KEY: 'vpk_test_secret', VAPRON_BASE_URL: 'https://vapron.example' };
+const VAPRON = { VAPRON_API_KEY: 'vpk_test_secret' };
 
 function capture(reply = { status: 200, body: JSON.stringify({ id: 'msg_1' }) }) {
   const calls = [];
@@ -26,10 +26,14 @@ describe('mail-transport: provider selection', () => {
   it('MAIL_PROVIDER=vapron selects Vapron explicitly', () => {
     assert.strictEqual(T.mailProvider({ ...RESEND, ...VAPRON, MAIL_PROVIDER: 'vapron' }), 'vapron');
   });
-  it('falls back to Vapron only when Resend is absent and Vapron is complete', () => {
+  it('falls back to Vapron only when Resend is absent and a Vapron key exists', () => {
     assert.strictEqual(T.mailProvider(VAPRON), 'vapron');
-    assert.strictEqual(T.mailProvider({ VAPRON_API_KEY: 'x' }), 'none');
+    assert.strictEqual(T.mailProvider({ VAPRON_BASE_URL: 'https://api.vapron.ai/api/platform' }), 'none');
     assert.strictEqual(T.mailProvider({}), 'none');
+  });
+  it('the dispatch key name (VAPRON_API_TOKEN) is the same credential', () => {
+    assert.strictEqual(T.mailProvider({ VAPRON_API_TOKEN: 'x' }), 'vapron');
+    assert.strictEqual(T.mailConfigured({ MAIL_PROVIDER: 'vapron', VAPRON_API_TOKEN: 'x' }), true);
   });
   it('mailConfigured is false when the selected provider lacks its key', () => {
     assert.strictEqual(T.mailConfigured({ MAIL_PROVIDER: 'vapron', ...RESEND }), false);
@@ -44,15 +48,22 @@ describe('mail-transport: provider selection', () => {
 });
 
 describe('mail-transport: request shaping', () => {
-  it('Vapron: POST {VAPRON_BASE_URL}/api/platform/email/send with the platform key and a single-recipient string', async () => {
+  it('Vapron: POST https://vapron.ai/api/platform/email/send with the platform key and a single-recipient string', async () => {
     const c = capture();
     const r = await T.deliver({ to: 'a@b.c', subject: 'S', html: '<p>h</p>', text: 't' }, { env: { ...VAPRON, MAIL_PROVIDER: 'vapron' }, request: c.request });
     assert.deepStrictEqual({ ok: r.ok, id: r.id, provider: r.provider }, { ok: true, id: 'msg_1', provider: 'vapron' });
-    assert.strictEqual(c.calls[0].target.hostname, 'vapron.example');
+    assert.strictEqual(c.calls[0].target.hostname, 'vapron.ai');
     assert.strictEqual(c.calls[0].target.path, '/api/platform/email/send');
+    assert.strictEqual(T.VAPRON_MAIL_URL, 'https://vapron.ai/api/platform/email/send');
     assert.strictEqual(c.calls[0].bearer, 'vpk_test_secret');
     assert.strictEqual(c.calls[0].payload.to, 'a@b.c');
     assert.match(c.calls[0].payload.from, /@gatetest\.io/);
+  });
+  it('VAPRON_MAIL_URL overrides the endpoint; VAPRON_BASE_URL (dispatch, path-prefixed) never leaks in', async () => {
+    const c = capture();
+    await T.deliver({ to: 'a@b.c', subject: 'S' }, { env: { ...VAPRON, MAIL_PROVIDER: 'vapron', VAPRON_BASE_URL: 'https://api.vapron.ai/api/platform', VAPRON_MAIL_URL: 'https://mail.example/v1/send' }, request: c.request });
+    assert.strictEqual(c.calls[0].target.hostname, 'mail.example');
+    assert.strictEqual(c.calls[0].target.path, '/v1/send');
   });
   it('Resend: POST api.resend.com/emails with the Resend key and a recipient array', async () => {
     const c = capture();

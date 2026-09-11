@@ -11,7 +11,7 @@
  * Environment variables (see mail-transport.js):
  *   MAIL_PROVIDER    — 'resend' | 'vapron' (unset = Resend while configured)
  *   RESEND_API_KEY   — Resend key
- *   VAPRON_API_KEY, VAPRON_BASE_URL — Vapron platform
+ *   VAPRON_API_KEY (or VAPRON_API_TOKEN) — Vapron platform
  *   RESEND_FROM      — override the From address (default: watchdog@gatetest.io)
  */
 

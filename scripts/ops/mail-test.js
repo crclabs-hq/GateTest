@@ -22,7 +22,7 @@ if (!to || !to.includes('@')) {
 const provider = mailProvider();
 console.log(`[mail-test] provider=${provider} configured=${mailConfigured()} from=${fromAddress()} to=${to}`);
 if (!mailConfigured()) {
-  console.error(`[mail-test] provider "${provider}" is not configured — check RESEND_API_KEY or VAPRON_API_KEY + VAPRON_BASE_URL in the env file`);
+  console.error(`[mail-test] provider "${provider}" is not configured — check RESEND_API_KEY or VAPRON_API_KEY (or VAPRON_API_TOKEN) in the env file`);
   process.exit(1);
 }
 
