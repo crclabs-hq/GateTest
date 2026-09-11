@@ -8,7 +8,7 @@
  *
  * Environment variables:
  *   RESEND_API_KEY   — from resend.com (required for email delivery)
- *   RESEND_FROM      — override the From address (default: watchdog@gatetest.ai)
+ *   RESEND_FROM      — override the From address (default: watchdog@gatetest.io)
  */
 
 const https = require('https');
@@ -17,8 +17,8 @@ const { SITE_URL } = require('./site-url');
 const MCP_TOOL_COUNT = require('../data/site-stats.json').mcpTools.count;
 
 /**
- * Sending address. DELIBERATELY still on the legacy domain after the
- * .ai -> .io move of 2026-07-30.
+ * Sending address. Moved to gatetest.io on 2026-09-11 once Craig verified the
+ * domain in Resend (it sat on the legacy .ai domain from the 2026-07-30 move).
  *
  * An ESP will not send for a domain it has not verified — Resend needs the
  * SPF/DKIM records present on whichever domain this names. Flipping this to
@@ -28,7 +28,7 @@ const MCP_TOOL_COUNT = require('../data/site-stats.json').mcpTools.count;
  * To move it: verify gatetest.io in Resend, then set RESEND_FROM. Do not
  * change this default without checking the dashboard first.
  */
-const DEFAULT_FROM = 'GateTest <watchdog@gatetest.ai>';
+const DEFAULT_FROM = 'GateTest <watchdog@gatetest.io>';
 
 // ── HTML email builder ────────────────────────────────────────────────────────
 
