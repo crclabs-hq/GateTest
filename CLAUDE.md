@@ -678,15 +678,19 @@ Precedence: `NEXT_PUBLIC_BASE_URL` → `GATETEST_PUBLIC_BASE_URL` → default.
 literal reappears in a guarded file. Import `siteUrl()` / `badgeUrl()` /
 `botUserAgent()` / `apiBaseUrl()` / `FIXTURE_EMAIL` instead.
 
-**Two things deliberately did NOT move. Do not "fix" either without reading why:**
+**E-mail moved to `gatetest.io` on 2026-09-11 (Craig verified the domain in
+Resend and confirmed MX receiving into real mailboxes).** The mailboxes that
+exist are **`admin@`, `support@`, `billing@`** — there is no `hello@`. The
+site's contact address is `support@gatetest.io` (`SUPPORT_EMAIL` default in
+both `site-url.js` copies; `tests/site-url.test.js` now forbids the `.ai`
+domain and any mailbox that does not exist), and Resend sends from
+`watchdog@gatetest.io` (`DEFAULT_FROM` in `digest-mailer.js`; `RESEND_FROM`
+overrides). `gatetest.ai` is NXDOMAIN, so any address there bounces — never
+reintroduce one.
 
-1. **Every e-mail address is still `@gatetest.ai`** — `hello@`, `watchdog@` (the
-   Resend `From`), the bot commit identities. An ESP will not send for a domain
-   it has not verified, and an unverified sending domain fails **silently**
-   (rejected or spam-foldered) where a wrong URL fails visibly. Verify
-   `gatetest.io` in Resend and set up forwarding, THEN set
-   `GATETEST_SUPPORT_EMAIL` + `RESEND_FROM`.
-2. **Historical records were not rewritten** — `docs/HISTORY.md`, `docs/proofs/`,
+**One thing deliberately did NOT move. Do not "fix" it without reading why:**
+
+1. **Historical records were not rewritten** — `docs/HISTORY.md`, `docs/proofs/`,
    `docs/benchmarks/`, captured scan reports, and dated code comments still say
    `gatetest.ai` because that is what was true when they were written. Editing
    them would falsify evidence, not migrate a domain.
