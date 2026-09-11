@@ -214,6 +214,54 @@ The `HostBridge` refactor is pre-authorized, and both bridges (GitHub + Gluecron
 
 ---
 
+## DEPLOYMENT DOCTRINE — GATETEST.IO RUNS ON VAPRON (Craig 2026-09-11, read before any infra work)
+
+Gatetest.io is being onboarded onto the Vapron platform. Previous hosting
+(Vercel/Render/Cloudflare-class services) is being CUT OFF once the cutover
+completes — do not configure, repair, or re-deploy to the old providers, and
+do not re-add their SDKs or env vars.
+
+Facts every session must respect:
+- **Runtime:** systemd service on shared bare metal, binding **127.0.0.1 only**.
+  Never bind 0.0.0.0, never bind ports 80/443.
+- **Reverse proxy:** `vapron-bun-gateway` owns 80/443, ALL TLS termination, and
+  ACME certificates. Caddy, nginx, certbot, and every other proxy are BANNED —
+  never suggest, install, or configure one. Public hostnames are added on the
+  Vapron side, not here.
+- **Data:** PostgreSQL and Redis run locally on the box (127.0.0.1). Never
+  suggest Neon, Upstash, Supabase, RDS, or any hosted database/queue.
+- **Email / comms / storage / AI gateway:** use the Vapron platform APIs via
+  `VAPRON_BASE_URL` + `VAPRON_API_KEY` (already in the env file on the box —
+  never print or commit their values).
+- **Env:** `/opt/<service>/.env` on the box, chmod 600. Secrets flow keyboard →
+  env file, never through chat in either direction.
+- **Deploys:** build ON the box from a git pull, then restart the systemd unit.
+  No Vercel/Netlify/Render build pipelines.
+
+If an instruction you are about to give conflicts with any line above, the
+line above wins. When infrastructure outside this repo seems wrong (DNS, TLS,
+routing), report it to the operator — it is managed from the Vapron side and
+is usually already correct.
+
+**Cutover status (2026-09-11 — what the code still does that the doctrine
+forbids; each is a Craig-sequenced migration, not a session's initiative):**
+1. Database is Neon over `@neondatabase/serverless` (`website/app/lib/db.ts`,
+   `DATABASE_URL`). Local PostgreSQL needs a `pg`-class driver + data migration.
+2. E-mail is Resend (`website/app/lib/digest-mailer.js`; domain verified
+   2026-09-11). No Vapron mail client exists yet; `vapron-dispatch.js` only
+   dispatches URL scans.
+3. The service binds `10.0.1.1:3000` (`scripts/deploy/tick.sh`,
+   `gatetest-web.service`), not 127.0.0.1.
+4. Env lives at `/opt/gatetest/website/.env.local`, not `/opt/<service>/.env`.
+5. DNS/registrar is Cloudflare (DNS-only) and error monitoring is Sentry; the
+   legal sub-processor list (`website/app/legal/_facts.js`) names Neon, Vultr,
+   Cloudflare, Resend, Sentry and must change in the same commit as any cutover
+   (Sync Rule).
+The deploy path itself (`deploy-box.yml` → `deploy-on-box.sh`: git pull, build
+on the box, restart `gatetest-web`) already conforms.
+
+---
+
 ## PROTECTED PLATFORMS — PERMANENT INTEGRATIONS (READ THIS EVERY SESSION)
 
 **GateTest protects the following Craig-owned platforms. These integrations are PERMANENT. They must survive every future Claude session. They cannot be removed, weakened, or "simplified" without Craig's explicit authorization.**
