@@ -187,15 +187,21 @@ describe('site-url — the domain move', () => {
     assert.strictEqual(web.DEFAULT_SITE_URL, 'https://gatetest.io');
   });
 
-  it('keeps the support address on the legacy domain ON PURPOSE', () => {
-    // Do NOT "fix" this to match the site origin without first verifying
-    // gatetest.io in the Resend dashboard. An unverified sending domain is a
-    // silent failure: mail is rejected or spam-foldered and nobody notices.
-    // A wrong URL is visible; a wrong MX is not.
+  it('support address lives on the live domain, and never on the dead one', () => {
+    // Until 2026-09-11 this asserted the OPPOSITE — the address stayed on the
+    // legacy domain on purpose, because an unverified sending domain fails
+    // silently. Both preconditions were then met and confirmed by Craig:
+    // gatetest.io verified in the Resend dashboard, and gatetest.io MX
+    // receiving into real mailboxes (admin@, support@, billing@). Meanwhile
+    // gatetest.ai has been NXDOMAIN since 2026-07-29, so any address there
+    // bounces. Pin the new truth.
     assert.ok(
-      web.SUPPORT_EMAIL.endsWith('@gatetest.ai'),
-      'support address moved without an accompanying MX/Resend verification step',
+      web.SUPPORT_EMAIL.endsWith('@gatetest.io'),
+      `support address must be on gatetest.io, got ${web.SUPPORT_EMAIL}`,
     );
+    assert.ok(!web.SUPPORT_EMAIL.endsWith('@gatetest.ai'), 'gatetest.ai does not resolve — mail to it bounces');
+    assert.ok(['support', 'admin', 'billing'].includes(web.SUPPORT_EMAIL.split('@')[0]),
+      'only the mailboxes that exist: admin@, support@, billing@');
   });
 
   it('lets one env var move every URL', () => {
