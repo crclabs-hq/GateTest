@@ -191,11 +191,11 @@ describe('sendDigestEmail', () => {
     else process.env.RESEND_API_KEY = origKey;
   });
 
-  test('returns error when RESEND_API_KEY not set', async () => {
+  test('returns error when no mail provider is configured', async () => {
     delete process.env.RESEND_API_KEY;
     const result = await sendDigestEmail({ to: 'user@example.com', digest: FULL_DIGEST });
     assert.equal(result.ok, false);
-    assert.equal(result.error, 'RESEND_API_KEY not set');
+    assert.equal(result.error, 'mail provider not configured');
   });
 
   test('returns error when to is missing', async () => {

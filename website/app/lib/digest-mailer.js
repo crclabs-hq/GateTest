@@ -1,17 +1,21 @@
 'use strict';
 /**
- * Digest mailer — sends weekly developer digest emails via Resend REST API.
+ * Digest mailer — builds the weekly digest, MCP API-key and billing-portal
+ * e-mails and hands them to ./mail-transport, which picks the provider
+ * (Resend today; the Vapron platform API when MAIL_PROVIDER=vapron).
  *
- * Uses Node's built-in `https` module only — zero new npm dependencies.
- * Gracefully no-ops when RESEND_API_KEY is not set; callers should
- * treat { ok: false, error: 'RESEND_API_KEY not set' } as non-fatal.
+ * Zero npm dependencies. Gracefully no-ops when no provider is configured;
+ * callers treat { ok: false, error: 'mail provider not configured' } as
+ * non-fatal.
  *
- * Environment variables:
- *   RESEND_API_KEY   — from resend.com (required for email delivery)
+ * Environment variables (see mail-transport.js):
+ *   MAIL_PROVIDER    — 'resend' | 'vapron' (unset = Resend while configured)
+ *   RESEND_API_KEY   — Resend key
+ *   VAPRON_API_KEY, VAPRON_BASE_URL — Vapron platform
  *   RESEND_FROM      — override the From address (default: watchdog@gatetest.io)
  */
 
-const https = require('https');
+const { deliver, mailConfigured } = require('./mail-transport');
 const { SITE_URL } = require('./site-url');
 // Read from the generated stats, never typed (the MCP server is the source).
 const MCP_TOOL_COUNT = require('../data/site-stats.json').mcpTools.count;
@@ -237,8 +241,7 @@ function buildDigestEmailText(digest) {
  * @returns {Promise<{ ok: boolean, id?: string, error?: string }>}
  */
 async function sendDigestEmail(opts) {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return { ok: false, error: 'RESEND_API_KEY not set' };
+  if (!mailConfigured()) return { ok: false, error: 'mail provider not configured' };
 
   const { to, digest, dashboardUrl, unsubscribeUrl } = opts || {};
   if (!to)     return { ok: false, error: 'to is required' };
@@ -251,40 +254,7 @@ async function sendDigestEmail(opts) {
   const text     = buildDigestEmailText(enriched);
   const from     = process.env.RESEND_FROM || DEFAULT_FROM;
 
-  const body = JSON.stringify({ from, to: [to], subject, html, text });
-
-  return new Promise((resolve) => {
-    const req = https.request({
-      hostname: 'api.resend.com',
-      path:     '/emails',
-      method:   'POST',
-      headers: {
-        Authorization:  `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-      },
-    }, (res) => {
-      const chunks = [];
-      res.on('data', c => chunks.push(c));
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(Buffer.concat(chunks).toString());
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve({ ok: true, id: parsed.id });
-          } else {
-            resolve({ ok: false, error: parsed.message || parsed.name || `HTTP ${res.statusCode}` });
-          }
-        } catch {
-          resolve({ ok: false, error: `HTTP ${res.statusCode}` });
-        }
-      });
-    });
-
-    req.on('error', e => resolve({ ok: false, error: e.message }));
-    req.setTimeout(12_000, () => { req.destroy(); resolve({ ok: false, error: 'timeout' }); });
-    req.write(body);
-    req.end();
-  });
+  return deliver({ from, to, subject, html, text });
 }
 
 /**
@@ -296,8 +266,7 @@ async function sendDigestEmail(opts) {
  * @returns {Promise<{ ok: boolean, id?: string, error?: string }>}
  */
 async function sendApiKeyEmail(opts) {
-  const resendKey = process.env.RESEND_API_KEY;
-  if (!resendKey) return { ok: false, error: 'RESEND_API_KEY not set' };
+  if (!mailConfigured()) return { ok: false, error: 'mail provider not configured' };
 
   const { to, apiKey } = opts || {};
   if (!to)     return { ok: false, error: 'to is required' };
@@ -375,40 +344,7 @@ async function sendApiKeyEmail(opts) {
     '-- GateTest | gatetest.io',
   ].join('\n');
 
-  const body = JSON.stringify({ from, to: [to], subject: 'Your GateTest MCP API Key', html, text });
-
-  return new Promise((resolve) => {
-    const req = https.request({
-      hostname: 'api.resend.com',
-      path:     '/emails',
-      method:   'POST',
-      headers: {
-        Authorization:    `Bearer ${resendKey}`,
-        'Content-Type':   'application/json',
-        'Content-Length': Buffer.byteLength(body),
-      },
-    }, (res) => {
-      const chunks = [];
-      res.on('data', c => chunks.push(c));
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(Buffer.concat(chunks).toString());
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve({ ok: true, id: parsed.id });
-          } else {
-            resolve({ ok: false, error: parsed.message || parsed.name || `HTTP ${res.statusCode}` });
-          }
-        } catch {
-          resolve({ ok: false, error: `HTTP ${res.statusCode}` });
-        }
-      });
-    });
-
-    req.on('error', e => resolve({ ok: false, error: e.message }));
-    req.setTimeout(12_000, () => { req.destroy(); resolve({ ok: false, error: 'timeout' }); });
-    req.write(body);
-    req.end();
-  });
+  return deliver({ from, to, subject: 'Your GateTest MCP API Key', html, text });
 }
 
 /**
@@ -420,8 +356,7 @@ async function sendApiKeyEmail(opts) {
  * @returns {Promise<{ ok: boolean, id?: string, error?: string }>}
  */
 async function sendBillingPortalEmail(opts) {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return { ok: false, error: 'RESEND_API_KEY not set' };
+  if (!mailConfigured()) return { ok: false, error: 'mail provider not configured' };
 
   const { to, links } = opts || {};
   if (!to) return { ok: false, error: 'to is required' };
@@ -480,40 +415,7 @@ async function sendBillingPortalEmail(opts) {
     "Didn't request this? Ignore this email.",
   ].join('\n');
 
-  const body = JSON.stringify({ from, to: [to], subject: 'Manage your GateTest subscription', html, text });
-
-  return new Promise((resolve) => {
-    const req = https.request({
-      hostname: 'api.resend.com',
-      path:     '/emails',
-      method:   'POST',
-      headers: {
-        Authorization:  `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-      },
-    }, (res) => {
-      const chunks = [];
-      res.on('data', c => chunks.push(c));
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(Buffer.concat(chunks).toString());
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve({ ok: true, id: parsed.id });
-          } else {
-            resolve({ ok: false, error: parsed.message || parsed.name || `HTTP ${res.statusCode}` });
-          }
-        } catch {
-          resolve({ ok: false, error: `HTTP ${res.statusCode}` });
-        }
-      });
-    });
-
-    req.on('error', e => resolve({ ok: false, error: e.message }));
-    req.setTimeout(12_000, () => { req.destroy(); resolve({ ok: false, error: 'timeout' }); });
-    req.write(body);
-    req.end();
-  });
+  return deliver({ from, to, subject: 'Manage your GateTest subscription', html, text });
 }
 
 module.exports = {
