@@ -293,7 +293,7 @@ function draftResponse(mention) {
       break;
     default:
       body = `${handle}, thanks for engaging with the thread. If there's specific friction ` +
-        `with GateTest we'd love to hear about it directly — hello@gatetest.ai.`;
+        `with GateTest we'd love to hear about it directly — support@gatetest.io.`;
   }
   return `${banner}\n${body}`;
 }

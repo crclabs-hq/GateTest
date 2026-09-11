@@ -102,7 +102,7 @@ export default function AcceptableUse() {
               disclose it to us responsibly before public disclosure:
             </p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li>Email: <a href="mailto:hello@gatetest.ai" className="text-accent-light hover:underline">hello@gatetest.ai</a> with subject line &quot;Security Disclosure&quot;</li>
+              <li>Email: <a href="mailto:support@gatetest.io" className="text-accent-light hover:underline">support@gatetest.io</a> with subject line &quot;Security Disclosure&quot;</li>
               <li>Include a description of the vulnerability, steps to reproduce, and potential impact</li>
               <li>Give us a reasonable time to investigate and remediate before public disclosure (typically 90 days)</li>
               <li>Do not exploit the vulnerability beyond what is necessary to demonstrate the issue</li>
@@ -197,8 +197,8 @@ export default function AcceptableUse() {
             <p>
               If you become aware of any use of the Service that violates this AUP, please
               report it to:{" "}
-              <a href="mailto:hello@gatetest.ai" className="text-accent-light hover:underline">
-                hello@gatetest.ai
+              <a href="mailto:support@gatetest.io" className="text-accent-light hover:underline">
+                support@gatetest.io
               </a>{" "}
               with subject line &quot;AUP Violation Report&quot;. We investigate all reports and
               will follow up where appropriate, subject to confidentiality constraints.
@@ -220,8 +220,8 @@ export default function AcceptableUse() {
             <h2 className="text-lg font-semibold text-foreground mb-2">12. Contact</h2>
             <p>
               For questions about this policy:{" "}
-              <a href="mailto:hello@gatetest.ai" className="text-accent-light hover:underline">
-                hello@gatetest.ai
+              <a href="mailto:support@gatetest.io" className="text-accent-light hover:underline">
+                support@gatetest.io
               </a>
             </p>
           </section>

@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       resend: Boolean(process.env.RESEND_API_KEY),
     });
     return NextResponse.json(
-      { error: "Billing portal is temporarily unavailable. Email hello@gatetest.ai and we'll sort it out." },
+      { error: "Billing portal is temporarily unavailable. Email support@gatetest.io and we'll sort it out." },
       { status: 503 }
     );
   }

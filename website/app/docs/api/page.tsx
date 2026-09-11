@@ -123,7 +123,7 @@ export default function ApiDocs() {
             the admin console. Only the hash is stored — keep the plaintext safe.
           </p>
           <div className="card p-4 text-xs text-muted">
-            Request a key: email <a className="text-accent hover:underline" href="mailto:hello@gatetest.ai">hello@gatetest.ai</a>
+            Request a key: email <a className="text-accent hover:underline" href="mailto:support@gatetest.io">support@gatetest.io</a>
             {" "}with your platform name and expected scan volume.
           </div>
         </section>
@@ -308,7 +308,7 @@ export default function ApiDocs() {
         </section>
 
         <div className="text-xs text-muted border-t border-border pt-6">
-          Support: <a className="text-accent hover:underline" href="mailto:hello@gatetest.ai">hello@gatetest.ai</a> ·{" "}
+          Support: <a className="text-accent hover:underline" href="mailto:support@gatetest.io">support@gatetest.io</a> ·{" "}
           <a className="text-accent hover:underline" href="/legal/terms">Terms</a> ·{" "}
           <a className="text-accent hover:underline" href="/legal/privacy">Privacy</a>
         </div>

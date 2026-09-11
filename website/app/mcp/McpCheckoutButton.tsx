@@ -15,7 +15,7 @@
 
 import { useEffect, useState } from 'react';
 
-const SUPPORT_EMAIL = 'hello@gatetest.ai';
+const SUPPORT_EMAIL = 'support@gatetest.io';
 
 export default function McpCheckoutButton({ label }: { label: string }) {
   const [emailReady, setEmailReady] = useState<boolean | null>(null);

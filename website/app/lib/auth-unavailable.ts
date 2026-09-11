@@ -51,7 +51,7 @@ export function authUnavailable(providerLabel: string): Response {
      Try another sign-in method, or email us and we&#39;ll sort it out.</p>
   <a class="btn" href="/">Back to GateTest</a>
   <p style="margin:1.25rem 0 0;font-size:.8125rem">
-    <a class="mail" href="mailto:hello@gatetest.ai">hello@gatetest.ai</a>
+    <a class="mail" href="mailto:support@gatetest.io">support@gatetest.io</a>
   </p>
 </div></body></html>`;
 

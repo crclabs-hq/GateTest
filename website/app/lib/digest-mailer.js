@@ -341,7 +341,7 @@ async function sendApiKeyEmail(opts) {
     <p style="color:#71717a;font-size:12px;margin:0 0 16px;">
       Keep this key secret — it grants full access to your MCP subscription.
       To regenerate, cancel and resubscribe or contact
-      <a href="mailto:hello@gatetest.ai" style="color:#22c55e;">hello@gatetest.ai</a>.
+      <a href="mailto:support@gatetest.io" style="color:#22c55e;">support@gatetest.io</a>.
     </p>
 
     <a href="${SITE_URL}/mcp" style="display:inline-block;background:#22c55e;color:#09090b;font-weight:700;font-size:14px;text-decoration:none;padding:12px 24px;border-radius:8px;">
@@ -370,7 +370,7 @@ async function sendApiKeyEmail(opts) {
     `This unlocks all ${MCP_TOOL_COUNT} MCP tools: full 121-module scans, AI fixes,`,
     'live-page screenshots, production errors, test runs, and fix verification.',
     '',
-    'Keep this key secret. To regenerate contact hello@gatetest.ai.',
+    'Keep this key secret. To regenerate contact support@gatetest.io.',
     '',
     '-- GateTest | gatetest.io',
   ].join('\n');
@@ -459,7 +459,7 @@ async function sendBillingPortalEmail(opts) {
     <p style="color:#71717a;font-size:12px;margin:16px 0 0;">
       Didn&rsquo;t request this? You can safely ignore this email — the link only
       works for the subscription tied to this address. Questions:
-      <a href="mailto:hello@gatetest.ai" style="color:#22c55e;">hello@gatetest.ai</a>.
+      <a href="mailto:support@gatetest.io" style="color:#22c55e;">support@gatetest.io</a>.
     </p>
   </td></tr>
   <tr><td style="padding-top:24px;text-align:center;">

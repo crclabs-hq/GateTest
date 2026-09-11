@@ -142,8 +142,8 @@ export function RuntimeUnavailable({ reason }: { reason?: string | null }) {
             the headless-browser pass — live JavaScript errors, hydration mismatches, CSP
             violations — couldn&apos;t start this time, so those checks are <em>not</em>{" "}
             reflected in the score. Re-run the scan in a few minutes, or email{" "}
-            <a href="mailto:hello@gatetest.ai" className="underline font-medium">
-              hello@gatetest.ai
+            <a href="mailto:support@gatetest.io" className="underline font-medium">
+              support@gatetest.io
             </a>{" "}
             if it keeps happening.
           </p>

@@ -52,8 +52,8 @@ export default function Refunds() {
             <p>
               If a scan you paid for fails to start, crashes before any report is delivered, or
               produces no output for reasons attributable to us (see list below), contact{" "}
-              <a href="mailto:hello@gatetest.ai" className="text-accent-light hover:underline">
-                hello@gatetest.ai
+              <a href="mailto:support@gatetest.io" className="text-accent-light hover:underline">
+                support@gatetest.io
               </a>{" "}
               within <strong>seven (7) days</strong> of the scan attempt with your scan ID or
               Stripe receipt. We will, at our sole discretion, either:
@@ -129,8 +129,8 @@ export default function Refunds() {
             <p className="mt-2">
               Billing-error corrections are a legal requirement under standard payment-processor
               and consumer-protection rules and are not exceptions to Section 3 above. Email{" "}
-              <a href="mailto:hello@gatetest.ai" className="text-accent-light hover:underline">
-                hello@gatetest.ai
+              <a href="mailto:support@gatetest.io" className="text-accent-light hover:underline">
+                support@gatetest.io
               </a>{" "}
               with your Stripe receipt and we will refund the disputed amount within 3 business
               days.
@@ -159,7 +159,7 @@ export default function Refunds() {
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li>
                 <strong>Cancel anytime.</strong> You may cancel at any time, through your account
-                settings or by emailing hello@gatetest.ai. We intend to offer a cancellation flow
+                settings or by emailing support@gatetest.io. We intend to offer a cancellation flow
                 at least as easy as the sign-up flow.
               </li>
               <li>
@@ -206,8 +206,8 @@ export default function Refunds() {
             <p>
               <strong>8.1 Contact us first.</strong> If you believe a charge is incorrect, please
               contact{" "}
-              <a href="mailto:hello@gatetest.ai" className="text-accent-light hover:underline">
-                hello@gatetest.ai
+              <a href="mailto:support@gatetest.io" className="text-accent-light hover:underline">
+                support@gatetest.io
               </a>{" "}
               before filing a chargeback with your bank or card issuer. We resolve most billing
               issues within one (1) business day and we can typically issue a credit faster than
@@ -253,8 +253,8 @@ export default function Refunds() {
             <h2 className="text-lg font-semibold text-foreground mb-2">10. Contact</h2>
             <p>
               For billing questions, support requests, or payment disputes:{" "}
-              <a href="mailto:hello@gatetest.ai" className="text-accent-light hover:underline">
-                hello@gatetest.ai
+              <a href="mailto:support@gatetest.io" className="text-accent-light hover:underline">
+                support@gatetest.io
               </a>
             </p>
           </section>

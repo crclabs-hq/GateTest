@@ -157,7 +157,7 @@ function botUserAgent(label = '') {
  * Flip this by setting GATETEST_SUPPORT_EMAIL once mail actually delivers on
  * the new domain. See docs/deploy/DOMAIN-FAILOVER-IO.md.
  */
-const SUPPORT_EMAIL = (process.env.GATETEST_SUPPORT_EMAIL || 'hello@gatetest.ai').trim();
+const SUPPORT_EMAIL = (process.env.GATETEST_SUPPORT_EMAIL || 'support@gatetest.io').trim();
 
 /**
  * The throwaway address our form-filling and API-probe modules type into

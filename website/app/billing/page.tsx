@@ -87,7 +87,7 @@ export default function BillingPage() {
 
         <p className="text-xs text-muted mt-10">
           Trouble managing your plan?{" "}
-          <a href="mailto:hello@gatetest.ai" className="underline">hello@gatetest.ai</a>
+          <a href="mailto:support@gatetest.io" className="underline">support@gatetest.io</a>
           {" · "}
           <Link href="/pricing" className="underline">Pricing</Link>
         </p>

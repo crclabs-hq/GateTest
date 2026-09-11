@@ -65,7 +65,7 @@ test.describe("Landing Page", () => {
 
   test("footer has contact email", async ({ page }) => {
     await expect(
-      page.locator('a[href="mailto:hello@gatetest.ai"]')
+      page.locator('a[href="mailto:support@gatetest.io"]')
     ).toBeVisible();
   });
 });

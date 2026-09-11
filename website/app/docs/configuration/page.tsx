@@ -305,8 +305,8 @@ export default function ConfigurationDocs() {
         <div className="card p-5 text-sm text-muted">
           Still fighting a false positive? That&apos;s a GateTest bug, not your
           problem to work around forever &mdash; tell us which module and rule at{" "}
-          <a className="text-accent hover:underline" href="mailto:hello@gatetest.ai">
-            hello@gatetest.ai
+          <a className="text-accent hover:underline" href="mailto:support@gatetest.io">
+            support@gatetest.io
           </a>{" "}
           and it gets fixed in the engine.
         </div>

@@ -138,7 +138,7 @@ function budgetExhaustionMessage(summary) {
     return (
       `This run used its full ${cap} AI budget on deep analysis before any fixes were ready to ship — ` +
       `that work isn't wasted, but no PR was opened this time. Run the fix again from this page. ` +
-      `If it happens twice in a row, email hello@gatetest.ai and a human will look at your repo personally.`
+      `If it happens twice in a row, email support@gatetest.io and a human will look at your repo personally.`
     );
   }
 

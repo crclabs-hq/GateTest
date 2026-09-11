@@ -17,7 +17,7 @@ import { breadcrumbSchema, contentMetadata, jsonLd } from "../lib/seo/schema";
  *     ever rendered on `/preview` (a `robots: noindex` prototype shell).
  *   - The plan description ("custom scan volume, a raised AI-review budget,
  *     priority support, and invoicing on your terms") and the
- *     `mailto:hello@gatetest.ai?subject=GateTest%20Enterprise` CTA are copied
+ *     `mailto:support@gatetest.io?subject=GateTest%20Enterprise` CTA are copied
  *     verbatim from the Enterprise card in `app/components/Pricing.tsx`.
  *   - "No fixed price, no Stripe tier, negotiated per deal" is CLAUDE.md's
  *     PRICING table (Craig, 2026-07-23).
@@ -80,7 +80,7 @@ const COVERS = [
 ];
 
 const CONTACT =
-  "mailto:hello@gatetest.ai?subject=GateTest%20Enterprise";
+  "mailto:support@gatetest.io?subject=GateTest%20Enterprise";
 
 export default function EnterprisePage() {
   return (

@@ -85,15 +85,15 @@ const FAQS: Faq[] = [
         billing. Continuous and the hosted MCP endpoint are optional monthly
         subscriptions you can cancel anytime. If the scan fails to start or
         crashes mid-way, contact{" "}
-        <a href="mailto:hello@gatetest.ai" className="text-accent hover:underline">
-          hello@gatetest.ai
+        <a href="mailto:support@gatetest.io" className="text-accent hover:underline">
+          support@gatetest.io
         </a>{" "}
         — we re-run it or issue a credit at our discretion. Failed scans
         are marked failed, never silently swallowed.
       </>
     ),
     plain:
-      "None. You pay once via Stripe at checkout, we run the scan, you get the report. Scan tiers are one-time — no auto-renew, no per-seat billing; Continuous and the hosted MCP endpoint are optional monthly subscriptions you can cancel anytime. If a scan fails to start or crashes, contact hello@gatetest.ai and we re-run it or issue a credit.",
+      "None. You pay once via Stripe at checkout, we run the scan, you get the report. Scan tiers are one-time — no auto-renew, no per-seat billing; Continuous and the hosted MCP endpoint are optional monthly subscriptions you can cancel anytime. If a scan fails to start or crashes, contact support@gatetest.io and we re-run it or issue a credit.",
   },
   {
     q: "Is the gate actually strict?",
@@ -182,10 +182,10 @@ export default function HomeFaq() {
         <p className="text-center text-sm text-muted mt-10">
           Still have questions?{" "}
           <a
-            href="mailto:hello@gatetest.ai"
+            href="mailto:support@gatetest.io"
             className="text-accent hover:underline font-medium"
           >
-            hello@gatetest.ai
+            support@gatetest.io
           </a>{" "}
           &middot;{" "}
           <a

@@ -78,7 +78,7 @@ export default function Footer() {
             <ul className="space-y-2">
               <li><Link href="/#features" className="text-sm text-muted hover:text-foreground transition-colors">About</Link></li>
               <li><Link href="/trust" className="text-sm text-muted hover:text-foreground transition-colors">Trust &amp; Security</Link></li>
-              <li><a href="mailto:hello@gatetest.ai" className="text-sm text-muted hover:text-foreground transition-colors">Contact</a></li>
+              <li><a href="mailto:support@gatetest.io" className="text-sm text-muted hover:text-foreground transition-colors">Contact</a></li>
               <li><Link href="/legal/privacy" className="text-sm text-muted hover:text-foreground transition-colors">Privacy Policy</Link></li>
               <li><Link href="/legal/terms" className="text-sm text-muted hover:text-foreground transition-colors">Terms of Service</Link></li>
               <li><Link href="/legal/dpa" className="text-sm text-muted hover:text-foreground transition-colors">Data Processing Addendum</Link></li>

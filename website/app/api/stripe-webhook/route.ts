@@ -258,7 +258,7 @@ export async function POST(req: NextRequest) {
         }
       } else {
         // No email on the session — nothing to retry into existence. Ack, but
-        // loudly: support must deliver this key by hand (hello@gatetest.ai).
+        // loudly: support must deliver this key by hand (support@gatetest.io).
         console.error("[mcp-key-email] session has no customer email — key needs manual delivery", {
           subPrefix: subscriptionId.slice(0, 12) + "...",
         });
