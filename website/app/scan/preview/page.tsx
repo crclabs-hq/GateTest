@@ -27,7 +27,11 @@ const EXAMPLE_REPOS = [
   { label: "crclabs-hq/gatetest", url: "https://github.com/crclabs-hq/gatetest", note: "GateTest itself" },
 ];
 
-const QUICK_MODULES = ["syntax", "lint", "secrets", "codeQuality"];
+// The modules the hosted quick suite runs come from the engine via
+// GET /api/scan/preview (generated over typed — the list must not rot when a
+// module moves suite). These three are only the placeholder shown until that
+// fetch resolves; every one of them is in the engine's quick suite.
+const PLACEHOLDER_QUICK_MODULES = ["syntax", "secrets", "codeQuality"];
 
 const GITHUB_ICON = "M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z";
 
@@ -48,7 +52,21 @@ function PreviewPageContent() {
   const [error, setError] = useState("");
   const [activeModule, setActiveModule] = useState(-1);
   const [doneModules, setDoneModules] = useState<string[]>([]);
+  const [quickModules, setQuickModules] = useState<string[]>(PLACEHOLDER_QUICK_MODULES);
   const autoStarted = useRef(false);
+
+  // Ask the endpoint which modules it runs, so the progress panel and the
+  // copy describe the engine that will actually judge the repo.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/scan/preview")
+      .then((r) => r.json())
+      .then((d: { modulesRun?: string[] }) => {
+        if (!cancelled && Array.isArray(d.modulesRun) && d.modulesRun.length > 0) setQuickModules(d.modulesRun);
+      })
+      .catch(() => { /* placeholder list stays — cosmetic only */ });
+    return () => { cancelled = true; };
+  }, []);
 
   async function runScan(url: string) {
     const trimmed = url.trim();
@@ -59,14 +77,16 @@ function PreviewPageContent() {
     setActiveModule(0);
     setDoneModules([]);
 
+    // Walk the list across roughly the scan's 12 s budget, whatever its length.
     let idx = 0;
+    const stepMs = Math.max(250, Math.floor(10_000 / Math.max(1, quickModules.length)));
     const tick = setInterval(() => {
-      if (idx < QUICK_MODULES.length - 1) {
-        setDoneModules((d) => [...d, QUICK_MODULES[idx]]);
+      if (idx < quickModules.length - 1) {
+        setDoneModules((d) => [...d, quickModules[idx]]);
         idx++;
         setActiveModule(idx);
       }
-    }, 3000);
+    }, stepMs);
 
     try {
       const data = await fetchPreview(trimmed);
@@ -79,7 +99,7 @@ function PreviewPageContent() {
       setError(err instanceof Error ? err.message : "Network error — please try again");
     } finally {
       clearInterval(tick);
-      setDoneModules([...QUICK_MODULES]);
+      setDoneModules([...quickModules]);
       setActiveModule(-1);
       setLoading(false);
     }
@@ -110,7 +130,7 @@ function PreviewPageContent() {
       <PageHero
         eyebrow="Free preview · no card · no signup"
         title={<>Real bugs. Real repos. <span className="text-accent">Right now.</span></>}
-        lede="GateTest runs four modules — syntax, lint, secrets, code quality — against any public GitHub repo and shows you up to 5 real findings. Scanned in memory. Never stored."
+        lede="GateTest runs the Quick tier's modules on the same engine the CLI runs and the precision page measures — against any public GitHub repo — and shows you up to 5 findings, blockers first. Scanned in memory. Never stored."
         actions={
           <div className="w-full max-w-2xl">
             <form onSubmit={handleSubmit}>
@@ -182,7 +202,7 @@ function PreviewPageContent() {
               </span>
             </div>
             <div className="p-5 font-mono text-sm space-y-2">
-              {QUICK_MODULES.map((mod, i) => {
+              {quickModules.map((mod, i) => {
                 const done = doneModules.includes(mod);
                 const active = i === activeModule;
                 return (

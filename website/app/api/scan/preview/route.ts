@@ -24,9 +24,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { runTier, type RepoFile } from "@/app/lib/scan-modules";
+import { type RepoFile } from "@/app/lib/scan-modules";
+import { runEngineForTier, hostedModulesForTier } from "@/app/lib/scan-engine-dispatch";
 import { loadRepoFiles, resolveRepoAuth } from "@/app/lib/gluecron-client";
-import { parseDetail, type PreviewFinding } from "@/app/lib/preview-finding";
+import { parseDetail, fromRankedFinding, type PreviewFinding } from "@/app/lib/preview-finding";
 import { SUPPORT_EMAIL } from "@/app/lib/site-url";
 
 export const runtime = "nodejs";
@@ -128,8 +129,14 @@ export async function POST(req: NextRequest) {
   // One archive read for tree + contents (credentialed → anonymous → per-blob
   // API), capped to the quick-tier sample. Replaces `git/trees` + 60 blob calls.
   const sourceExts = [".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".java", ".rb", ".md", ".json", ".yml", ".yaml"];
+  // Dotfiles the engine judges BY CONTENT — a config-only `.npmrc` is clean,
+  // one carrying `_authToken` is a leaked credential; `.gitignore` decides
+  // whether an `.env` next to it is tracked. Without them in the workspace the
+  // secrets module can only infer from the path, which is the false positive
+  // this route shipped until 2026-09-13.
+  const contentJudgedNames = [".npmrc", ".gitignore", ".nvmrc", ".env", ".env.example", ".env.sample"];
   const isPreviewSource = (f: string) =>
-    sourceExts.some((ext) => f.endsWith(ext)) &&
+    (sourceExts.some((ext) => f.endsWith(ext)) || contentJudgedNames.includes(f.split("/").pop() || "")) &&
     !f.includes("node_modules") &&
     !f.includes(".next") &&
     !f.includes("dist/");
@@ -172,9 +179,14 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // The SAME dispatcher every paid path uses: the real CLI engine on the
+  // `quick` suite, falling back to the in-memory runTier only if the engine
+  // cannot run. The response says which one ran (`engine`), because a pass
+  // from the fallback must never wear the engine's verdict.
   let scanResult;
   try {
-    scanResult = await runTier("quick", {
+    scanResult = await runEngineForTier({
+      tier: "quick",
       owner,
       repo,
       files,
@@ -194,10 +206,19 @@ export async function POST(req: NextRequest) {
   }
 
   const findings: PreviewFinding[] = [];
-  for (const m of scanResult.modules) {
-    if (!m.details || m.details.length === 0) continue;
-    for (const d of m.details) findings.push(parseDetail(d, m.name));
+  if (scanResult.engineUsed === "cli" && Array.isArray(scanResult.findings)) {
+    // Ranked + deduped by the engine, with severity and confidence intact.
+    for (const f of scanResult.findings) {
+      if (f.duplicateOf) continue;
+      findings.push(fromRankedFinding(f));
+    }
+  } else {
+    for (const m of scanResult.modules) {
+      if (!m.details || m.details.length === 0) continue;
+      for (const d of m.details) findings.push(parseDetail(d, m.name));
+    }
   }
+  const blocking = findings.filter((f) => f.severity === "error").length;
 
   // Sort: errors first, then warnings, then info; within each, file then line.
   // The secondary key is what makes the top-5 selection deterministic — module
@@ -217,21 +238,24 @@ export async function POST(req: NextRequest) {
     ok: true,
     repo: `${owner}/${repo}`,
     durationMs: Date.now() - startTime,
+    engine: scanResult.engineUsed,
+    modulesRun: scanResult.modules.filter((m) => m.status !== "skipped").map((m) => m.name),
     moduleSummary: scanResult.modules.map((m) => ({
       module: m.name,
       status: m.status,
       issues: m.issues || 0,
     })),
     findings: top,
-    total: scanResult.totalIssues,
+    total: findings.length,
+    blocking,
     truncated: findings.length > TOP_FINDINGS,
     nextStep: {
       tier: "quick",
       price: "$29",
       message:
         findings.length > TOP_FINDINGS
-          ? `Showing top ${TOP_FINDINGS} of ${scanResult.totalIssues}. Upgrade to Quick ($29) to see them all + tighter scan limits.`
-          : "Upgrade to Full ($99) to scan all 121 modules + auto-fix.",
+          ? `Showing top ${TOP_FINDINGS} of ${findings.length}. Upgrade to Quick ($29) to see them all + tighter scan limits.`
+          : "Upgrade to Full ($99) for the full suite + auto-fix.",
       checkoutHint: `POST /api/checkout { tier, repoUrl } to start checkout`,
     },
     // Launch feedback channel: the first strangers hit exactly this
@@ -244,11 +268,18 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
+  // Generated over typed: the modules the hosted engine runs for the Quick
+  // tier (checkout tier table ∩ engine suite − hosted-unsafe), so the page
+  // and this description cannot drift from the run.
+  const modulesRun = hostedModulesForTier("quick");
   return NextResponse.json({
     description: "Free preview scan endpoint. POST with { repoUrl } to use.",
     rateLimit: `1 per ${PREVIEW_RATE_LIMIT_MS / 1000}s per IP`,
     deadline: `${HARD_DEADLINE_MS / 1000}s hard timeout`,
-    modulesRun: ["syntax", "lint", "secrets", "codeQuality"],
+    engine: "cli",
+    suite: "quick",
+    modulesRun: modulesRun || [],
+    notRun: "lint (loads your ESLint config, which is code — runs in the CLI and the GitHub Action, not on our host)",
     tier: "free",
     upgradePath: ["quick ($29)", "full ($99)", "scan_fix ($199)", "forensic ($399)"],
   });

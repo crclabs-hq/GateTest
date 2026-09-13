@@ -28,10 +28,15 @@ describe('scan-engine-dispatch — the one place engine choice lives', () => {
       'AI_ENGINE_MODULES must equal the set of registry modules whose scan path calls api.anthropic.com — the deterministic every-push tier skips these and must never leak spend when a new AI module lands');
   });
 
-  it('CLI-engine tiers are deterministic + full + scan_fix + nuclear; quick stays in-memory', () => {
-    assert.match(src, /CLI_ENGINE_TIERS[^=]*=\s*new Set\(\["deterministic", "full", "scan_fix", "nuclear"\]\)/);
+  it('CLI-engine tiers are quick + deterministic + full + scan_fix + nuclear; only quick_shadow stays in-memory', () => {
+    // 2026-09-13: the free preview and the $29 Quick Scan moved onto the real
+    // engine. The in-memory runTier had judged expressjs/express's config-only
+    // .npmrc a committed credential (blocking) while the CLI passed the repo
+    // with 0 blocking findings — the first thing a prospect saw contradicted
+    // the /precision page. See tests/preview-engine.test.js for the control pair.
+    assert.match(src, /CLI_ENGINE_TIERS[^=]*=\s*new Set\(\["quick", "deterministic", "full", "scan_fix", "nuclear"\]\)/);
     assert.match(src, /skipModulesForTier[\s\S]*tier === "deterministic" \? \[\.\.\.AI_ENGINE_MODULES\] : \[\]/);
-    assert.match(src, /tier === "nuclear"\) return "nuclear";\s*return "full";/);
+    assert.match(src, /tier === "nuclear"\) return "nuclear";\s*if \(tier === "quick"\) return "quick";\s*return "full";/);
   });
 });
 

@@ -22,7 +22,10 @@ describe('homepage precision + honesty sections', () => {
   });
 
   it('Precision is a primary nav link', () => {
-    const nav = read('website/app/components/Navbar.tsx');
+    // The nav moved out of Navbar.tsx into the one site shell's link table
+    // (site-nav.ts, 2026-09-11); this test kept reading the old file and CI
+    // on main went red for two days without anyone touching precision.
+    const nav = read('website/app/components/site-nav.ts');
     assert.match(nav, /label:\s*"Precision",\s*href:\s*"\/precision"/);
   });
 

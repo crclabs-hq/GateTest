@@ -73,6 +73,7 @@ for _ in $(seq 1 60); do
     age=$(ps -o etimes= -p "$pid" 2>/dev/null | tr -d ' ' || echo 0)
     if [ "${age:-0}" -gt "$BUILD_GRACE_S" ]; then
       echo "[deploy] killing hung next build pid $pid (running ${age}s > ${BUILD_GRACE_S}s)"
+      # gatetest:swallow-ok reason="best-effort kill of a build we have already decided is hung: the pid can exit between pgrep and kill, and a missing process is the outcome we want; the deploy must not abort because the cleanup found nothing to clean"
       kill "$pid" 2>/dev/null || true; sleep 2; kill -9 "$pid" 2>/dev/null || true
       hung=1
     else
