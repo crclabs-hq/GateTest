@@ -85,6 +85,14 @@ jobs:
       - name: npm publish
         if: "!(github.event_name == 'workflow_dispatch' && inputs.dry_run == true)"
         run: |
+          # Idempotent: a re-run (workflow_dispatch after a tag) must not fail
+          # on a version the registry already has.
+          PKG="$(node -p "require('./package.json').name")"
+          VER="$(node -p "require('./package.json').version")"
+          if npm view "$PKG@$VER" version >/dev/null 2>&1; then
+            echo "$PKG@$VER is already on npm — skipping"
+            exit 0
+          fi
           if ! npm publish --access public --provenance 2> /tmp/npm-publish-err; then
             cat /tmp/npm-publish-err
             if grep -qE "ENEEDAUTH|E401|E404|EOTP" /tmp/npm-publish-err; then
@@ -107,6 +115,31 @@ jobs:
               echo "  3. EOTP specifically means npm fell back to TOKEN auth — if an NPM_TOKEN"
               echo "     secret still exists and npm is too old for OIDC, delete the secret or"
               echo "     check the 'Update npm' step above printed npm >= 11.5.1."
+            fi
+            exit 1
+          fi
+
+      # @gatetest/mcp-server ships from the same tag: it is a thin proxy to
+      # @gatetest/cli/bin/gatetest-mcp.mjs and pins the CLI range, so every
+      # CLI release must be followed by the MCP package (Craig, 2026-09-13:
+      # "the mcp should have been included absolutely"). Same OIDC trusted
+      # publishing — the package needs its own Trusted Publisher entry on
+      # npmjs.com (Settings -> Trusted Publisher: crclabs-hq / GateTest /
+      # publish.yml). Idempotent like the CLI step.
+      - name: npm publish @gatetest/mcp-server
+        if: "!(github.event_name == 'workflow_dispatch' && inputs.dry_run == true)"
+        working-directory: packages/mcp-server
+        run: |
+          PKG="$(node -p "require('./package.json').name")"
+          VER="$(node -p "require('./package.json').version")"
+          if npm view "$PKG@$VER" version >/dev/null 2>&1; then
+            echo "$PKG@$VER is already on npm — skipping"
+            exit 0
+          fi
+          if ! npm publish --access public --provenance 2> /tmp/npm-publish-mcp-err; then
+            cat /tmp/npm-publish-mcp-err
+            if grep -qE "ENEEDAUTH|E401|E404|EOTP" /tmp/npm-publish-mcp-err; then
+              echo "::error::npm auth failed for $PKG — add a Trusted Publisher on npmjs.com for $PKG (GitHub Actions, crclabs-hq / GateTest, workflow publish.yml, no environment)."
             fi
             exit 1
           fi

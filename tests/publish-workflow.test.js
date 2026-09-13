@@ -35,6 +35,28 @@ describe('publish.yml runs the suite in the same environment as ci.yml', () => {
     assert.ok(install > -1 && tests > -1 && install < tests, 'website deps must be installed BEFORE the suite runs');
   });
 
+  it('publishes @gatetest/mcp-server from the same run, idempotently, with provenance', () => {
+    // Craig, 2026-09-13: "the mcp should have been included absolutely." The
+    // MCP package is a thin proxy to @gatetest/cli and pins its range, so a
+    // CLI release without it leaves `npx @gatetest/mcp-server` on old code.
+    const m = /- name: npm publish @gatetest\/mcp-server[\s\S]*?working-directory: packages\/mcp-server[\s\S]*?run: \|([\s\S]*?)\n\s*- name:/.exec(publish);
+    assert.ok(m, 'mcp-server publish step missing');
+    assert.match(m[1], /npm view "\$PKG@\$VER" version/, 'must skip a version the registry already has');
+    assert.match(m[1], /npm publish --access public --provenance/);
+    const cli = /- name: npm publish\r?\n[\s\S]*?run: \|([\s\S]*?)\n\s*#/.exec(publish);
+    assert.ok(cli && /npm view "\$PKG@\$VER" version/.test(cli[1]), 'the CLI publish must be idempotent too, so a dispatch re-run can ship only what is missing');
+  });
+
+  it('the MCP package depends on a CLI range that includes the version being released', () => {
+    const cliVersion = JSON.parse(read('package.json')).version;
+    const mcp = JSON.parse(read('packages/mcp-server/package.json'));
+    const range = mcp.dependencies['@gatetest/cli'];
+    const floor = range.replace(/^[\^~]/, '');
+    const cmp = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) { if (x[i] !== y[i]) return x[i] - y[i]; } return 0; };
+    assert.ok(cmp(cliVersion, floor) >= 0, `@gatetest/mcp-server pins ${range} but the CLI is ${cliVersion}`);
+    assert.equal(cliVersion.split('.')[0], floor.split('.')[0], 'same major, or the proxy resolves a different CLI');
+  });
+
   it('the GitHub Release is created only after a successful publish', () => {
     const m = /- name: Create GitHub Release\r?\n\s+if: ([^\r\n]+)/.exec(publish);
     assert.ok(m, 'Create GitHub Release step missing');
