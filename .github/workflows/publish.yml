@@ -45,6 +45,17 @@ jobs:
       - name: Install deps
         run: npm ci
 
+      # The suite is the same one ci.yml runs, and it needs the website
+      # workspace: cross-fix-syntax-gate loads `typescript` (a website
+      # devDependency) and reports "unverified" without it — which failed the
+      # v1.61.0 publish on 2026-09-13 (3 checkTsSyntax tests, root-only
+      # install). Mirror ci.yml's Test + Build job exactly.
+      - name: Install all workspaces
+        run: bash scripts/install-workspaces.sh
+
+      - name: Install website dependencies (tests load typescript and @babel/* via website helpers)
+        run: cd website && npm ci
+
       - name: Verify all 121 modules load
         run: node bin/gatetest.js --list >/dev/null
 
@@ -100,8 +111,11 @@ jobs:
             exit 1
           fi
 
+      # Only after a successful publish: the 2026-09-13 run failed at the test
+      # step, skipped npm publish, and still created a public v1.61.0 release
+      # for a version the registry did not have.
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v') && !cancelled()
+        if: success() && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
