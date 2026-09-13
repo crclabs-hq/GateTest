@@ -24,6 +24,10 @@
 import { NextRequest, NextResponse } from "next/server";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { findPlaceholders, inspectEnvValue } = require("@/app/lib/env-placeholder");
+// Which brand the platform variables are pointed at (Vapron → Tallrig rename
+// in progress, 2026-09): names only, so the readiness card shows a flipped
+// box as flipped. Requested by the platform side.
+const { platformPointing } = require("@/app/lib/platform-config");
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -83,10 +87,12 @@ const OPTIONAL = [
 // (vapron-dispatch.js falls back to CRONTECH_*). A var counts as set when
 // either the canonical name or any alias is set — otherwise this probe would
 // report "missing" for a deployment that actually works.
+// TALLRIG_* is the platform's next name (rename in progress, 2026-09); the
+// dispatch code reads it first, so it must count as "set" here too.
 const ALIASES: Record<string, string[]> = {
-  VAPRON_BASE_URL: ["CRONTECH_BASE_URL"],
-  VAPRON_API_TOKEN: ["CRONTECH_API_TOKEN"],
-  VAPRON_DISPATCH_SECRET: ["CRONTECH_DISPATCH_SECRET"],
+  VAPRON_BASE_URL: ["TALLRIG_BASE_URL", "CRONTECH_BASE_URL"],
+  VAPRON_API_TOKEN: ["TALLRIG_API_TOKEN", "CRONTECH_API_TOKEN"],
+  VAPRON_DISPATCH_SECRET: ["TALLRIG_DISPATCH_SECRET", "CRONTECH_DISPATCH_SECRET"],
 };
 
 // A variable holding documentation filler is NOT set. It is worse than unset:
@@ -194,6 +200,9 @@ export async function GET(req: NextRequest) {
       invalid_placeholders: placeholders,
       missing_optional: optionalMissing,
       stripe: { mode: stripeMode, warning: stripeWarning },
+      // Brand each platform variable resolves from (tallrig / vapron /
+      // crontech), independent of one another — no values.
+      platform: platformPointing(process.env),
       environment: process.env.VERCEL_ENV || process.env.NODE_ENV || "unknown",
       // Present-count so a healthy deploy reads cleanly.
       summary: {

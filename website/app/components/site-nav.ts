@@ -1,3 +1,4 @@
+import { PLATFORM_NAME, PLATFORM_SITE_URL } from "../lib/platform-config";
 /**
  * The site's navigation — ONE definition, consumed by the header, the mobile
  * drawer and the footer. Copy here is customer-facing; keep it short and
@@ -36,8 +37,8 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Ecosystem",
     items: [
       { label: "Gluecron", href: "https://gluecron.com", desc: "Git hosting where every push is gated.", external: true },
-      { label: "Vapron", href: "https://vapron.ai", desc: "The platform that runs what you ship.", external: true },
-      { label: "How the stack fits", href: "/stack", desc: "GateTest gates it. Gluecron hosts it. Vapron runs it." },
+      { label: PLATFORM_NAME, href: PLATFORM_SITE_URL, desc: "The platform that runs what you ship.", external: true },
+      { label: "How the stack fits", href: "/stack", desc: `GateTest gates it. Gluecron hosts it. ${PLATFORM_NAME} runs it.` },
     ],
   },
 ];

@@ -14,6 +14,7 @@
  * below is NOT true of the code any more, fix the fact, not the page.
  */
 const { SUPPORT_EMAIL, siteUrl, siteHost } = require('../lib/site-url');
+const { PLATFORM_NAME, PLATFORM_ENTITY, PLATFORM_SITE_URL } = require('../lib/platform-config');
 
 /** Trading name used in every document. Registered entity + postal address
  *  are supplied by the operator; until then documents identify the trading
@@ -74,7 +75,11 @@ const SUB_PROCESSORS = [
   { name: 'Gluecron', entity: 'Gluecron', purpose: 'Alternative git host', data: 'Push events, repository contents read for scanning, scan results written back. Only when you connect a Gluecron repository.', location: 'New Zealand / United States', scope: 'important', terms: 'https://gluecron.com' },
   { name: 'Sentry', entity: 'Functional Software, Inc.', purpose: 'Error monitoring and session replay', data: 'Error reports with request URL, headers and IP address; sampled browser session replays (10% of sessions, 100% of sessions with an error). Request bodies, source code, prompts, keys and cookies are scrubbed before sending.', location: 'United States', scope: 'core', terms: 'https://sentry.io/legal/dpa/' },
   { name: 'Resend', entity: 'Resend, Inc.', purpose: 'Transactional e-mail', data: 'Recipient e-mail address and message content (receipts, API keys, scan digests).', location: 'United States', scope: 'important', terms: 'https://resend.com/legal/dpa' },
-  { name: 'Vapron', entity: 'Vapron', purpose: 'Live-URL scanning dispatch', data: 'Target URL, scan id and suite for website / WordPress URL scans only. Never repository contents.', location: 'United States', scope: 'important', terms: 'https://vapron.ai' },
+  // Name, legal entity and site come from platform-config.js — the platform is
+  // being renamed (Vapron → Tallrig, entity Tallrig Labs LLC) and the Sync
+  // Rule requires this row to change in the same commit as the copy; reading
+  // one definition makes that automatic.
+  { name: PLATFORM_NAME, entity: PLATFORM_ENTITY, purpose: 'Live-URL scanning dispatch', data: 'Target URL, scan id and suite for website / WordPress URL scans only. Never repository contents.', location: 'United States', scope: 'important', terms: PLATFORM_SITE_URL },
   { name: 'OpenAI', entity: 'OpenAI, L.L.C.', purpose: 'Optional second-opinion consensus on Forensic-tier fixes', data: 'File contents and finding text for the files being fixed. Only when you opt in to consensus on a Forensic scan.', location: 'United States', scope: 'optional', terms: 'https://openai.com/policies/data-processing-addendum' },
   { name: 'Slack', entity: 'Slack Technologies, LLC', purpose: 'Scan notifications to a webhook you supply', data: 'Scan summaries (repository, verdict, counts).', location: 'United States', scope: 'optional', terms: 'https://slack.com/terms-of-service/data-processing' },
 ];

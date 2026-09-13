@@ -1,3 +1,4 @@
+import { PLATFORM_NAME, PLATFORM_HOST, PLATFORM_SITE_URL } from "../lib/platform-config";
 import Link from "next/link";
 
 /**
@@ -33,16 +34,16 @@ const PRODUCTS = [
     ],
   },
   {
-    name: "Vapron",
-    domain: "vapron.ai",
-    href: "https://vapron.ai",
-    badge: "V",
+    name: PLATFORM_NAME,
+    domain: PLATFORM_HOST,
+    href: PLATFORM_SITE_URL,
+    badge: PLATFORM_NAME.charAt(0),
     badgeColor: "bg-amber-500",
     accent: "from-amber-500/15 to-orange-500/5",
     tagline: "Scheduled jobs that actually run. Cron with receipts.",
     body:
       "AI-native, edge-first, zero ops. The cron and background jobs that power your product — run with receipts, so \"did the job fire?\" is never a mystery again.",
-    proof: "Dogfooded: the live demo on this page replays a real Vapron failure that GateTest caught and fixed.",
+    proof: `Dogfooded: the live demo on this page replays a real ${PLATFORM_NAME} failure that GateTest caught and fixed.`,
     bullets: [
       "Production scheduling without babysitting",
       "GateTest guards its codebase on every push",
@@ -60,12 +61,12 @@ export default function HomeStack() {
             The Stack
           </span>
           <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mt-4 mb-3 text-foreground [text-wrap:balance]">
-            GateTest gates it. Gluecron hosts it. Vapron runs it.
+            GateTest gates it. Gluecron hosts it. {PLATFORM_NAME} runs it.
           </h2>
           <p className="text-muted text-base max-w-2xl mx-auto">
             Three independent products from one team, built to work together and
             used on each other every day. Keep GitHub if you like — GateTest runs
-            there too — or move your git to Gluecron and your jobs to Vapron and
+            there too — or move your git to Gluecron and your jobs to {PLATFORM_NAME} and
             get the whole loop from one place.
           </p>
         </div>

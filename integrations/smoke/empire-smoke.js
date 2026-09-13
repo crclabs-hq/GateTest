@@ -78,16 +78,24 @@ const SLOW_MS = 5000;
 
 const CERT_WARN_DAYS = 14;
 
+// Platform hostnames come from website/app/lib/platform-config.js — the
+// platform is being renamed (Vapron → Tallrig) and every host moves; the
+// probes must follow an env change, not an edit here.
+const platform = require('../../website/app/lib/platform-config');
+
 const DEFAULT_URLS = {
-  vapronHome: 'https://vapron.ai/',
-  vapronApiHealth: 'https://api.vapron.ai/api/health',
-  // The rename redirect. Must keep answering 3xx -> vapron.ai.
+  vapronHome: `${platform.PLATFORM_SITE_URL}/`,
+  vapronApiHealth: `${platform.PLATFORM_API_URL}/api/health`,
+  // The rename redirect. Must keep answering 3xx and FINALLY land on the
+  // platform's canonical host (one intermediate hop is tolerated during a
+  // rename window, e.g. crontech.ai -> vapron.ai -> tallrig.com).
   crontechRedirect: 'https://crontech.ai/',
+  redirectHost: platform.platformCanonicalHost(),
   gluecronApex: 'https://gluecron.com/',
   gluecronStatus: 'https://gluecron.com/api/platform-status',
   // Never a literal — the domain lives in exactly one place (Bible: THE DOMAIN).
   gatetestStatus: siteUrl('/api/platform-status'),
-  certHost: 'vapron.ai',
+  certHost: platform.PLATFORM_HOST,
   certPort: 443,
 };
 
@@ -236,30 +244,53 @@ async function probeApiHealth(fetchFn, url) {
  * doc depends on this hop, and nothing else in the estate would notice if it
  * quietly stopped resolving.
  */
+/** Hops followed before the chain is declared not to reach expectedHost. */
+const MAX_REDIRECT_HOPS = 3;
+
 async function probeRedirect(fetchFn, url, expectedHost) {
-  const res = await fetchFn(url, { method: 'GET', redirect: 'manual' });
-  if (!res) {
-    return { status: 'fail', detail: 'no response' };
+  // Follow the chain by hand, one hop at a time, and pass as soon as a hop
+  // lands on expectedHost. During a rename window the legacy host may 301
+  // to the previous name, which then 301s to the new one — the FINAL
+  // destination is what matters, not the first Location header.
+  let current = url;
+  const hops = [];
+  let lastHost = null;
+  for (let i = 0; i < MAX_REDIRECT_HOPS; i += 1) {
+    let res;
+    try {
+      res = await fetchFn(current, { method: 'GET', redirect: 'manual' });
+    } catch (err) { // error-ok — the FIRST hop's failure is the probe's failure (rethrown); a later hop that cannot be reached is reported as "redirects to X, expected Y" with the reason, which is the verdict a rename-window monitor needs
+      if (!lastHost) throw err;
+      return { status: 'fail', detail: `redirects to ${lastHost}, expected ${expectedHost} (${lastHost} unreachable: ${err && err.message ? err.message : err})` };
+    }
+    if (!res) {
+      return { status: 'fail', detail: hops.length ? `no response from ${current} after ${hops.join(', ')}` : 'no response' };
+    }
+    if (res.status < 300 || res.status > 399) {
+      return lastHost
+        ? { status: 'fail', detail: `redirects to ${lastHost}, expected ${expectedHost}` }
+        : { status: 'fail', detail: `expected a 3xx redirect, got ${res.status}` };
+    }
+    const location = res.headers && typeof res.headers.get === 'function'
+      ? res.headers.get('location')
+      : null;
+    if (!location) {
+      return { status: 'fail', detail: `${res.status} with no Location header` };
+    }
+    let next;
+    try {
+      next = new URL(location, current);
+    } catch {
+      return { status: 'fail', detail: `unparseable Location: ${location}` };
+    }
+    hops.push(`${res.status} -> ${next.hostname}`);
+    lastHost = next.hostname;
+    if (next.hostname === expectedHost) {
+      return { status: 'pass', detail: hops.join(', ') };
+    }
+    current = next.href;
   }
-  if (res.status < 300 || res.status > 399) {
-    return { status: 'fail', detail: `expected a 3xx redirect, got ${res.status}` };
-  }
-  const location = res.headers && typeof res.headers.get === 'function'
-    ? res.headers.get('location')
-    : null;
-  if (!location) {
-    return { status: 'fail', detail: `${res.status} with no Location header` };
-  }
-  let host;
-  try {
-    host = new URL(location, url).hostname;
-  } catch {
-    return { status: 'fail', detail: `unparseable Location: ${location}` };
-  }
-  if (host !== expectedHost) {
-    return { status: 'fail', detail: `redirects to ${host}, expected ${expectedHost}` };
-  }
-  return { status: 'pass', detail: `${res.status} -> ${host}` };
+  return { status: 'fail', detail: `redirect chain (${hops.join(', ')}) did not reach ${expectedHost} within ${MAX_REDIRECT_HOPS} hops` };
 }
 
 /**
@@ -424,7 +455,7 @@ async function runEmpireSmoke(opts = {}) {
   const probes = await Promise.all([
     runProbe('vapron-home', () => probeVapronHome(fetchFn, urls.vapronHome), timeoutMs, slowMs),
     runProbe('vapron-api-health', () => probeApiHealth(fetchFn, urls.vapronApiHealth), timeoutMs, slowMs),
-    runProbe('crontech-redirect', () => probeRedirect(fetchFn, urls.crontechRedirect, 'vapron.ai'), timeoutMs, slowMs),
+    runProbe('crontech-redirect', () => probeRedirect(fetchFn, urls.crontechRedirect, urls.redirectHost), timeoutMs, slowMs),
     runProbe('gluecron-apex', () => probeGluecronApex(fetchFn, resolveFn, urls.gluecronApex), timeoutMs, slowMs),
     runProbe('gluecron-status', () => probePlatformStatus(fetchFn, urls.gluecronStatus), timeoutMs, slowMs),
     runProbe('gatetest-status', () => probePlatformStatus(fetchFn, urls.gatetestStatus, { requireCommit: true }), timeoutMs, slowMs),

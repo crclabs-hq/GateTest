@@ -24,13 +24,17 @@
 const https = require('https');
 const { URL } = require('url');
 
+const { platformEnv, platformMailUrl, PLATFORM_DEFAULTS } = require('./platform-config');
+
 const DEFAULT_FROM = 'GateTest <watchdog@gatetest.io>';
-const VAPRON_MAIL_URL = 'https://vapron.ai/api/platform/email/send';
+/** Today's default send endpoint; the live value comes from platformMailUrl(env)
+ *  (TALLRIG_MAIL_URL → VAPRON_MAIL_URL → this). Exported for tests. */
+const VAPRON_MAIL_URL = PLATFORM_DEFAULTS.mailUrl;
 const TIMEOUT_MS = 12_000;
 
-/** The Vapron platform key under either of its two names. */
+/** The platform key under any of its names (TALLRIG_/VAPRON_/CRONTECH_ × API_KEY/API_TOKEN). */
 function vapronKey(env = process.env) {
-  return env.VAPRON_API_KEY || env.VAPRON_API_TOKEN || '';
+  return platformEnv('API_KEY', env) || platformEnv('API_TOKEN', env) || '';
 }
 
 /** Which provider a send will use: 'resend' | 'vapron' | 'none'. */
@@ -101,7 +105,7 @@ async function deliver(msg, deps = {}) {
 
   if (provider === 'vapron') {
     let u;
-    try { u = new URL(env.VAPRON_MAIL_URL || VAPRON_MAIL_URL); } catch { return { ok: false, error: 'VAPRON_MAIL_URL is not a valid URL', provider }; }
+    try { u = new URL(platformMailUrl(env)); } catch { return { ok: false, error: 'VAPRON_MAIL_URL is not a valid URL', provider }; }
     target = { hostname: u.hostname, port: u.port || 443, path: u.pathname };
     bearer = vapronKey(env);
     // The Vapron API documents a single-recipient string; pass an array only

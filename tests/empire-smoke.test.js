@@ -142,6 +142,7 @@ function run(overrides = {}, opts = {}) {
     resolve: opts.resolve || resolveOk,
     tlsConnect: opts.tlsConnect || tlsConnectInDays(90),
     timeoutMs: 1000,
+    ...(opts.urls ? { urls: opts.urls } : {}),
   });
 }
 
@@ -290,6 +291,39 @@ test('the rename redirect is asserted, and a broken one fails', async () => {
   // Redirect gone entirely — serving 200 instead of hopping.
   const gone = await run({ 'https://crontech.ai/': () => status(200) });
   assert.equal(gone.probes.find((p) => p.name === 'crontech-redirect').status, 'fail');
+});
+
+// The platform is being renamed (Vapron → Tallrig, 2026-09). During the
+// window crontech.ai will 301 to the previous name, which 301s to the new
+// one. The probe follows the chain and judges the FINAL destination, read
+// from platform-config (env-driven), tolerating an intermediate hop.
+test('the rename redirect passes on the final destination, through one intermediate hop', async () => {
+  const twoHop = await run({
+    'https://crontech.ai/': () => redirect(301, 'https://old-name.example/'),
+    'https://old-name.example/': () => redirect(301, 'https://vapron.ai/'),
+  });
+  const probe = twoHop.probes.find((p) => p.name === 'crontech-redirect');
+  assert.equal(probe.status, 'pass', probe.detail);
+  assert.match(probe.detail, /old-name\.example.*vapron\.ai/);
+
+  // A chain that never reaches the canonical host fails and names the last host.
+  const stuck = await run({
+    'https://crontech.ai/': () => redirect(301, 'https://old-name.example/'),
+    'https://old-name.example/': () => status(200),
+  });
+  const stuckProbe = stuck.probes.find((p) => p.name === 'crontech-redirect');
+  assert.equal(stuckProbe.status, 'fail');
+  assert.match(stuckProbe.detail, /old-name\.example.*expected vapron\.ai/);
+
+  // The expected host is env-driven: a deployment that has flipped asserts the new host.
+  const flipped = await run(
+    {
+      'https://crontech.ai/': () => redirect(301, 'https://vapron.ai/'),
+      'https://vapron.ai/': () => redirect(301, 'https://new-name.example/'),
+    },
+    { urls: { redirectHost: 'new-name.example' } },
+  );
+  assert.equal(flipped.probes.find((p) => p.name === 'crontech-redirect').status, 'pass');
 });
 
 // ---------------------------------------------------------------------------

@@ -1,3 +1,4 @@
+import { PLATFORM_NAME, PLATFORM_HOST, PLATFORM_SITE_URL } from "../lib/platform-config";
 /**
  * Cross-sell card for the three sibling products in Craig's platform family.
  * Shown on new-user / empty-state surfaces — friendly, short, outbound links
@@ -13,25 +14,25 @@ export default function SiblingProducts() {
         </p>
       </div>
       <h3 className="text-lg font-bold mb-2">
-        GateTest pairs well with Vapron and Gluecron
+        GateTest pairs well with {PLATFORM_NAME} and Gluecron
       </h3>
       <p className="text-sm text-muted mb-5">
-        GateTest keeps your code honest. Vapron runs your scheduled jobs.
+        GateTest keeps your code honest. {PLATFORM_NAME} runs your scheduled jobs.
         Gluecron hosts your git. Three small tools, one loose family — use
         whichever you need.
       </p>
 
       <div className="grid sm:grid-cols-2 gap-3">
         <a
-          href="https://vapron.ai"
+          href={PLATFORM_SITE_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="group rounded-xl border border-border hover:border-accent/50 bg-white p-4 transition-colors"
         >
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-bold text-foreground">Vapron</span>
+            <span className="text-sm font-bold text-foreground">{PLATFORM_NAME}</span>
             <span className="text-xs text-muted group-hover:text-accent transition-colors">
-              vapron.ai &rarr;
+              {PLATFORM_HOST} &rarr;
             </span>
           </div>
           <p className="text-xs text-muted">
