@@ -55,6 +55,60 @@ describe('secrets — a tracked .npmrc is judged by its contents', () => {
     const f = trackedFinding({ '.npmrc': '//registry.npmjs.org/:_authToken=npm_abcdefghijklmnopqrstuvwxyz0123456789\n', 'index.js': '' }, '.npmrc');
     assert.ok(f && f.passed === false, 'must be reported');
     assert.strictEqual(f.severity, 'error');
+    assert.doesNotMatch(f.message, /could not confirm/, 'git answered, so the message carries no caveat');
+  });
+
+  // Three-state git probe (2026-09-13). Under a loaded full-suite run the 5 s
+  // `git ls-files` probe timed out and the _authToken .npmrc above was
+  // reported as CLEAN — a false negative on the highest-severity check the
+  // module has. The probe now distinguishes "git answered: not tracked"
+  // (stay quiet) from "git could not answer" (fail toward detection).
+  describe('when git cannot answer, a credential-carrying file is still reported', () => {
+    const NPMRC = '//registry.npmjs.org/:_authToken=npm_abcdefghijklmnopqrstuvwxyz0123456789\n';
+
+    function withProbe(probeResult) {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-git-probe-'));
+      fs.writeFileSync(path.join(root, '.npmrc'), NPMRC);
+      try {
+        const mod = new SecretsModule();
+        mod._exec = () => ({ stdout: '', stderr: '', signal: null, timedOut: false, spawnError: null, ...probeResult });
+        const r = { checks: [], addCheck(n, p, m) { this.checks.push({ name: n, passed: p, ...(m || {}) }); }, addInfo() {} };
+        mod._checkEnvFiles(root, r);
+        return r.checks.find((c) => c.name === 'secrets:tracked-.npmrc') || null;
+      } finally { fs.rmSync(root, { recursive: true, force: true }); }
+    }
+
+    it('git answered "not tracked" (exit 1): nothing to report — the file is not committed', () => {
+      assert.strictEqual(withProbe({ exitCode: 1 }), null);
+    });
+
+    it('git timed out: reported, and the message says tracking was not confirmed', () => {
+      const f = withProbe({ exitCode: 1, timedOut: true });
+      assert.ok(f && f.passed === false && f.severity === 'error');
+      assert.match(f.message, /git timed out/);
+    });
+
+    it('not a git checkout (exit 128): reported with the exit code in the caveat', () => {
+      const f = withProbe({ exitCode: 128 });
+      assert.ok(f && f.passed === false);
+      assert.match(f.message, /git exit 128/);
+    });
+
+    it('git binary missing (spawn ENOENT, which _exec used to fold into exit 1): reported', () => {
+      const f = withProbe({ exitCode: 1, spawnError: 'ENOENT' });
+      assert.ok(f && f.passed === false);
+      assert.match(f.message, /could not run \(ENOENT\)/);
+    });
+
+    it('_exec reports a spawn failure distinctly from a real exit 1', () => {
+      const BaseModule = require('../src/modules/base-module');
+      const r = new BaseModule()._exec('definitely-not-a-real-binary-gatetest-0913 --version', { timeout: 5000 });
+      assert.notStrictEqual(r.exitCode, 0);
+      // On every platform the shell either reports the command missing (exit
+      // 127 / 1 with a shell error) or the spawn itself fails; either way the
+      // caller must not read it as a verdict.
+      assert.ok(r.exitCode !== 1 || r.spawnError || /not (found|recognized)/i.test(r.stderr), JSON.stringify(r));
+    });
   });
 
   it('a tracked .env holding only placeholders is a warning, not a block', () => {

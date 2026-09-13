@@ -119,6 +119,12 @@ class BaseModule {
         exitCode: err.status || 1,
         signal: err.signal || null,
         timedOut: err.code === 'ETIMEDOUT' || err.signal === 'SIGTERM',
+        // The tool itself could not run (ENOENT: binary missing; EACCES…) —
+        // `exitCode` above is a synthetic 1 in that case, indistinguishable
+        // from a real "answered no" exit 1 without this. A caller that
+        // treats exit 1 as a verdict (git ls-files: "not tracked") must
+        // check it, or a missing git turns into a silent false negative.
+        spawnError: err.status == null && !err.signal && typeof err.code === 'string' ? err.code : null,
       };
     }
   }
