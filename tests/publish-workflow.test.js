@@ -43,7 +43,9 @@ describe('publish.yml runs the suite in the same environment as ci.yml', () => {
     assert.ok(m, 'mcp-server publish step missing');
     assert.match(m[1], /npm view "\$PKG@\$VER" version/, 'must skip a version the registry already has');
     assert.match(m[1], /npm publish --access public --provenance/);
-    const cli = /- name: npm publish\r?\n[\s\S]*?run: \|([\s\S]*?)\n\s*#/.exec(publish);
+    const cli = /- name: npm publish?
+[sS]*?run: |([sS]*?)?
+s*- name:/.exec(publish);
     assert.ok(cli && /npm view "\$PKG@\$VER" version/.test(cli[1]), 'the CLI publish must be idempotent too, so a dispatch re-run can ship only what is missing');
   });
 
