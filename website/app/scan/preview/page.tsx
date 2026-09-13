@@ -64,7 +64,11 @@ function PreviewPageContent() {
       .then((d: { modulesRun?: string[] }) => {
         if (!cancelled && Array.isArray(d.modulesRun) && d.modulesRun.length > 0) setQuickModules(d.modulesRun);
       })
-      .catch(() => { /* placeholder list stays — cosmetic only */ });
+      .catch(() => {
+        // The list is cosmetic (the scan itself does not depend on it): a
+        // failed fetch keeps the placeholder modules on screen, explicitly.
+        if (!cancelled) setQuickModules(PLACEHOLDER_QUICK_MODULES);
+      });
     return () => { cancelled = true; };
   }, []);
 

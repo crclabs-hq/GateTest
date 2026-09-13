@@ -48,7 +48,7 @@ export interface PreviewFinding {
  * The subset of the engine's ranked finding (`src/core/finding-registry.js`,
  * surfaced as `RankedFinding` by scan-engine-dispatch) the preview needs.
  */
-export interface RankedFindingLike {
+interface RankedFindingLike {
   module: string;
   severity: "error" | "warning" | "info";
   confidence?: number;

@@ -125,7 +125,7 @@ export function engineSuiteForTier(tier: string): string {
  * definition, imported): "syntax, lint, secrets, codeQuality" for Quick.
  * `null` for tiers sold as "all-applicable" — the suite decides.
  */
-export function tierModuleAllowList(tier: string): string[] | null {
+function tierModuleAllowList(tier: string): string[] | null {
   const spec = TIERS[tier]?.modules;
   if (!spec || spec.startsWith("all-")) return null;
   return spec.split(",").map((s) => s.trim()).filter(Boolean);
