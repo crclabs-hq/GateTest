@@ -112,8 +112,41 @@ function platformCanonicalHost(env = process.env) {
   return site ? new URL(site).hostname : PLATFORM_DEFAULTS.canonicalHost;
 }
 
+/**
+ * Which brand each platform variable is currently pointed at — names only,
+ * never values — so /api/status can show mid-rename whether the box has
+ * been flipped. `pointed_at` is the verdict for the three dispatch vars:
+ * 'tallrig' | 'vapron' | 'crontech' when all three resolve from the same
+ * prefix, 'mixed' when they do not, 'unset' when none resolves.
+ *
+ * @param {Record<string, string|undefined>} [env]
+ */
+function platformPointing(env = process.env) {
+  const brandOf = (name) => {
+    for (const prefix of ENV_PREFIXES) {
+      const v = env[`${prefix}${name}`];
+      if (typeof v === 'string' && v.trim()) return prefix.slice(0, -1).toLowerCase();
+    }
+    return null;
+  };
+  const dispatch = { BASE_URL: brandOf('BASE_URL'), API_TOKEN: brandOf('API_TOKEN'), DISPATCH_SECRET: brandOf('DISPATCH_SECRET') };
+  const brands = new Set(Object.values(dispatch));
+  let pointedAt;
+  if (brands.size === 1 && !brands.has(null)) [pointedAt] = brands;
+  else if (brands.size === 1) pointedAt = 'unset';
+  else pointedAt = 'mixed';
+  return {
+    name: PLATFORM_NAME,
+    pointed_at: pointedAt,
+    dispatch,
+    mail_url: brandOf('MAIL_URL') || 'default',
+    status_url: brandOf('STATUS_URL') || 'default',
+  };
+}
+
 module.exports = {
   PLATFORM_DEFAULTS,
+  platformPointing,
   ENV_PREFIXES,
   platformEnv,
   platformEnvNames,

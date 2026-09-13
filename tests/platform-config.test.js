@@ -135,6 +135,36 @@ describe('platform-config — every consumer imports it; no guarded file pins a 
   });
 });
 
+describe('platformPointing — /api/status shows which brand the box is pointed at (names only)', () => {
+  it('unset → every dispatch var null, pointed_at unset, urls default', () => {
+    const p = cfg.platformPointing({});
+    assert.deepEqual(p.dispatch, { BASE_URL: null, API_TOKEN: null, DISPATCH_SECRET: null });
+    assert.equal(p.pointed_at, 'unset');
+    assert.equal(p.mail_url, 'default');
+    assert.equal(p.status_url, 'default');
+  });
+  it('all three from VAPRON_ → vapron; all three from TALLRIG_ → tallrig (VAPRON_ still set does not matter)', () => {
+    assert.equal(cfg.platformPointing({ VAPRON_BASE_URL: 'u', VAPRON_API_TOKEN: 't', VAPRON_DISPATCH_SECRET: 's' }).pointed_at, 'vapron');
+    const flipped = cfg.platformPointing({ TALLRIG_BASE_URL: 'u', TALLRIG_API_TOKEN: 't', TALLRIG_DISPATCH_SECRET: 's', VAPRON_BASE_URL: 'u', VAPRON_API_TOKEN: 't', VAPRON_DISPATCH_SECRET: 's' });
+    assert.equal(flipped.pointed_at, 'tallrig');
+    assert.deepEqual(flipped.dispatch, { BASE_URL: 'tallrig', API_TOKEN: 'tallrig', DISPATCH_SECRET: 'tallrig' });
+  });
+  it('a half-flipped box reads mixed, and says which var is behind', () => {
+    const p = cfg.platformPointing({ TALLRIG_BASE_URL: 'u', VAPRON_API_TOKEN: 't', VAPRON_DISPATCH_SECRET: 's', TALLRIG_MAIL_URL: 'm' });
+    assert.equal(p.pointed_at, 'mixed');
+    assert.deepEqual(p.dispatch, { BASE_URL: 'tallrig', API_TOKEN: 'vapron', DISPATCH_SECRET: 'vapron' });
+    assert.equal(p.mail_url, 'tallrig');
+  });
+  it('never returns a value — only brand names', () => {
+    const p = cfg.platformPointing({ TALLRIG_BASE_URL: 'https://api.tallrig.com', TALLRIG_API_TOKEN: 'super-secret-token', TALLRIG_DISPATCH_SECRET: 'hmac-secret' });
+    assert.doesNotMatch(JSON.stringify(p), /super-secret|hmac-secret|api\.tallrig/);
+  });
+  it('/api/status carries it as `platform`', () => {
+    const src = read('website/app/api/status/route.ts');
+    assert.match(src, /platform: platformPointing\(process\.env\)/);
+  });
+});
+
 describe('platform siblings honour the TALLRIG_STATUS_URL override ahead of VAPRON_STATUS_URL', () => {
   const { SIBLING_REGISTRY, resolveSiblingUrl } = require('../website/app/lib/platform-siblings');
   const platform = SIBLING_REGISTRY.find((s) => s.id === cfg.PLATFORM_ID);

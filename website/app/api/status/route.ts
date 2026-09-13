@@ -24,6 +24,10 @@
 import { NextRequest, NextResponse } from "next/server";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { findPlaceholders, inspectEnvValue } = require("@/app/lib/env-placeholder");
+// Which brand the platform variables are pointed at (Vapron → Tallrig rename
+// in progress, 2026-09): names only, so the readiness card shows a flipped
+// box as flipped. Requested by the platform side.
+const { platformPointing } = require("@/app/lib/platform-config");
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -196,6 +200,9 @@ export async function GET(req: NextRequest) {
       invalid_placeholders: placeholders,
       missing_optional: optionalMissing,
       stripe: { mode: stripeMode, warning: stripeWarning },
+      // Brand each platform variable resolves from (tallrig / vapron /
+      // crontech), independent of one another — no values.
+      platform: platformPointing(process.env),
       environment: process.env.VERCEL_ENV || process.env.NODE_ENV || "unknown",
       // Present-count so a healthy deploy reads cleanly.
       summary: {
