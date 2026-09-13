@@ -47,8 +47,10 @@ const DEFAULT_TIMEOUT_MS = 5000;
 const SIGNATURE_HEADER = 'X-GateTest-Signature';
 const TIMESTAMP_HEADER = 'X-GateTest-Timestamp';
 
-function getEnv(name) {
-  return typeof process !== 'undefined' && process.env ? process.env[name] : undefined;
+const { platformEnv: readPlatformEnv } = require('./platform-config');
+
+function platformEnv(name) {
+  return typeof process !== 'undefined' && process.env ? readPlatformEnv(name, process.env) : undefined;
 }
 
 /**
@@ -152,12 +154,13 @@ function buildDispatchPayload({ scanId, targetUrl, suite, callbackUrl, deadlineS
  */
 async function dispatchRuntimeScan(opts) {
   const deps = (opts && opts.deps) || {};
-  // Canonical env vars are VAPRON_*; CRONTECH_* are read as a fallback so the
-  // deployment keeps working until the Vercel env is renamed. Remove the
-  // CRONTECH_* fallbacks once those vars are gone from the environment.
-  const baseUrl = deps.baseUrl || getEnv('VAPRON_BASE_URL') || getEnv('CRONTECH_BASE_URL');
-  const apiToken = deps.apiToken || getEnv('VAPRON_API_TOKEN') || getEnv('CRONTECH_API_TOKEN');
-  const dispatchSecret = deps.dispatchSecret || getEnv('VAPRON_DISPATCH_SECRET') || getEnv('CRONTECH_DISPATCH_SECRET');
+  // Env precedence lives in platform-config.js (one definition): TALLRIG_*
+  // first (the platform's next name — read ahead of the flip so the cutover
+  // is an env change), then VAPRON_*, then the legacy CRONTECH_* names.
+  // Remove the CRONTECH_* fallbacks once those vars are gone from the box.
+  const baseUrl = deps.baseUrl || platformEnv('BASE_URL');
+  const apiToken = deps.apiToken || platformEnv('API_TOKEN');
+  const dispatchSecret = deps.dispatchSecret || platformEnv('DISPATCH_SECRET');
   const fetchFn = deps.fetchFn || (typeof fetch === 'function' ? fetch : null);
   const timeoutMs = typeof deps.timeoutMs === 'number' ? deps.timeoutMs : DEFAULT_TIMEOUT_MS;
 

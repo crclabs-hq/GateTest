@@ -1,5 +1,7 @@
 const path = require('path');
 const { chromium } = require(path.join(__dirname, '../../website/node_modules/playwright'));
+// The platform site comes from ONE definition (rename in progress).
+const { PLATFORM_SITE_URL, PLATFORM_HOST } = require(path.join(__dirname, '../../website/app/lib/platform-config'));
 
 (async () => {
   const browser = await chromium.launch();
@@ -7,9 +9,9 @@ const { chromium } = require(path.join(__dirname, '../../website/node_modules/pl
 
   const issues = { critical: [], warning: [], info: [] };
 
-  console.log('Checking vapron.ai for broken buttons and links...\n');
+  console.log(`Checking ${PLATFORM_HOST} for broken buttons and links...\n`);
 
-  await page.goto('https://vapron.ai', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.goto(PLATFORM_SITE_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
   // ── Links ──────────────────────────────────────────────────────────────────
   const links = await page.$$eval('a', els => els.map(el => ({
@@ -23,7 +25,7 @@ const { chromium } = require(path.join(__dirname, '../../website/node_modules/pl
       issues.critical.push(`LINK missing href: "${link.text}"`);
     } else if (link.href.startsWith('javascript:')) {
       issues.warning.push(`LINK uses javascript: href: "${link.text}"`);
-    } else if (link.href === 'https://vapron.ai/#' || link.href.endsWith('/#')) {
+    } else if (link.href === `${PLATFORM_SITE_URL}/#` || link.href.endsWith('/#')) {
       issues.warning.push(`LINK href is placeholder "#": "${link.text}"`);
     }
   }
@@ -61,8 +63,8 @@ const { chromium } = require(path.join(__dirname, '../../website/node_modules/pl
   // ── Check additional pages ─────────────────────────────────────────────────
   const internalLinks = [...new Set(
     links
-      .filter(l => l.href && (l.href.startsWith('/') || l.href.includes('vapron.ai')))
-      .map(l => l.href.startsWith('/') ? `https://vapron.ai${l.href}` : l.href)
+      .filter(l => l.href && (l.href.startsWith('/') || l.href.includes(PLATFORM_HOST)))
+      .map(l => l.href.startsWith('/') ? `${PLATFORM_SITE_URL}${l.href}` : l.href)
       .filter(l => !l.includes('#'))
       .slice(0, 10)
   )];
@@ -86,7 +88,7 @@ const { chromium } = require(path.join(__dirname, '../../website/node_modules/pl
   await browser.close();
 
   // ── Report ─────────────────────────────────────────────────────────────────
-  console.log('=== VAPRON.AI — BUTTON & LINK AUDIT ===\n');
+  console.log(`=== ${PLATFORM_HOST.toUpperCase()} — BUTTON & LINK AUDIT ===\n`);
 
   if (issues.critical.length) {
     console.log(`CRITICAL (${issues.critical.length}):`);

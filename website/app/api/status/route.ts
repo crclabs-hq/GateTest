@@ -83,10 +83,12 @@ const OPTIONAL = [
 // (vapron-dispatch.js falls back to CRONTECH_*). A var counts as set when
 // either the canonical name or any alias is set — otherwise this probe would
 // report "missing" for a deployment that actually works.
+// TALLRIG_* is the platform's next name (rename in progress, 2026-09); the
+// dispatch code reads it first, so it must count as "set" here too.
 const ALIASES: Record<string, string[]> = {
-  VAPRON_BASE_URL: ["CRONTECH_BASE_URL"],
-  VAPRON_API_TOKEN: ["CRONTECH_API_TOKEN"],
-  VAPRON_DISPATCH_SECRET: ["CRONTECH_DISPATCH_SECRET"],
+  VAPRON_BASE_URL: ["TALLRIG_BASE_URL", "CRONTECH_BASE_URL"],
+  VAPRON_API_TOKEN: ["TALLRIG_API_TOKEN", "CRONTECH_API_TOKEN"],
+  VAPRON_DISPATCH_SECRET: ["TALLRIG_DISPATCH_SECRET", "CRONTECH_DISPATCH_SECRET"],
 };
 
 // A variable holding documentation filler is NOT set. It is worse than unset:

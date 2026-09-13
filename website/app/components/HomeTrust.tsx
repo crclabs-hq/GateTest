@@ -1,3 +1,4 @@
+import { PLATFORM_NAME, PLATFORM_SITE_URL } from "../lib/platform-config";
 /**
  * <HomeTrust> — frameworks scanned + honest customer mention.
  *
@@ -69,12 +70,12 @@ export default function HomeTrust() {
             <p className="text-base text-foreground/90 leading-relaxed">
               GateTest currently protects{" "}
               <a
-                href="https://vapron.ai"
+                href={PLATFORM_SITE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-bold text-accent hover:underline"
               >
-                Vapron.ai
+                {PLATFORM_NAME}
               </a>{" "}
               and{" "}
               <a

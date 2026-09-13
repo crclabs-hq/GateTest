@@ -23,6 +23,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/app/lib/admin-auth";
+import { platformServicePrefix } from "@/app/lib/platform-config";
+
+// systemd unit prefix on the box (`<prefix>-web`, `<prefix>-api`). The
+// platform is being renamed and its units will follow (vapron-* → tallrig-*,
+// with Alias= for a release); PLATFORM_SERVICE_PREFIX flips it here. The
+// vapron-*/crontech-* fallbacks stay in the commands until that release.
+const SVC = platformServicePrefix();
 // ssh2 has native crypto bindings that Turbopack can't statically analyze.
 // We require() it at runtime in the handler. The type is simplified here.
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -67,7 +74,7 @@ const PLAYBOOKS: Playbook[] = [
       { label: "Check nginx status", cmd: "sudo systemctl status nginx --no-pager -l 2>&1 | head -20 || echo 'nginx not found'" },
       { label: "Restart Caddy (auto-renews TLS)", cmd: "sudo systemctl restart caddy 2>&1 || echo 'caddy not installed'" },
       { label: "Restart nginx + certbot renew", cmd: "sudo systemctl restart nginx 2>&1 && (sudo certbot renew --force-renewal 2>&1 | tail -5) || echo 'nginx/certbot not available'" },
-      { label: "Check app services", cmd: "sudo systemctl list-units --type=service --state=running 2>&1 | grep -E 'caddy|nginx|vapron|crontech|node|bun|pm2' | head -10" },
+      { label: "Check app services", cmd: `sudo systemctl list-units --type=service --state=running 2>&1 | grep -E 'caddy|nginx|${SVC}|vapron|crontech|node|bun|pm2' | head -10` },
       { label: "Verify HTTPS", cmd: "curl -sI https://localhost -k 2>&1 | head -5", verify: "curl -sI https://localhost -k 2>&1 | head -3" }, // hardcoded-url-ok
     ],
   },
@@ -130,11 +137,11 @@ EOFH' 2>&1 && sudo nginx -t 2>&1 && sudo systemctl reload nginx 2>&1` },
   {
     match: (i) => i.category === "HTTP" && i.detail.includes("failed"),
     commands: [
-      { label: "Check all services", cmd: "sudo systemctl list-units --type=service --state=running 2>&1 | grep -E 'caddy|nginx|vapron|crontech|node|bun|pm2|docker' | head -15" },
+      { label: "Check all services", cmd: `sudo systemctl list-units --type=service --state=running 2>&1 | grep -E 'caddy|nginx|${SVC}|vapron|crontech|node|bun|pm2|docker' | head -15` },
       { label: "Check app ports", cmd: "sudo ss -tlnp | grep -E ':3000|:3001|:8080|:443|:80' 2>&1" },
       { label: "Check Caddy logs", cmd: "sudo journalctl -u caddy -n 30 --no-pager 2>&1 | tail -20" },
-      { label: "Check vapron service logs", cmd: "sudo journalctl -u vapron-web -n 20 --no-pager 2>&1 || sudo journalctl -u vapron-api -n 20 --no-pager 2>&1 || sudo journalctl -u crontech-web -n 20 --no-pager 2>&1 || sudo journalctl -u crontech-api -n 20 --no-pager 2>&1 || echo 'no vapron services found'" },
-      { label: "Restart all vapron services", cmd: "sudo systemctl restart caddy 2>&1; sudo systemctl restart vapron-web 2>&1 || sudo systemctl restart crontech-web 2>&1 || true; sudo systemctl restart vapron-api 2>&1 || sudo systemctl restart crontech-api 2>&1 || true" },
+      { label: `Check ${SVC} service logs`, cmd: `sudo journalctl -u ${SVC}-web -n 20 --no-pager 2>&1 || sudo journalctl -u ${SVC}-api -n 20 --no-pager 2>&1 || sudo journalctl -u vapron-web -n 20 --no-pager 2>&1 || sudo journalctl -u crontech-web -n 20 --no-pager 2>&1 || echo 'no ${SVC} services found'` },
+      { label: `Restart all ${SVC} services`, cmd: `sudo systemctl restart caddy 2>&1; sudo systemctl restart ${SVC}-web 2>&1 || sudo systemctl restart vapron-web 2>&1 || sudo systemctl restart crontech-web 2>&1 || true; sudo systemctl restart ${SVC}-api 2>&1 || sudo systemctl restart vapron-api 2>&1 || sudo systemctl restart crontech-api 2>&1 || true` },
       { label: "Verify HTTP", cmd: "curl -sI http://localhost:3000 2>&1 | head -3 || curl -sI http://localhost 2>&1 | head -3" }, // hardcoded-url-ok
     ],
   },

@@ -2,6 +2,7 @@
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 import siteStats from "../data/site-stats.json";
+import { PLATFORM_NAME, PLATFORM_SITE_URL } from "../lib/platform-config";
 
 // gatetest.io/stack — "One team, three products" page.
 //
@@ -10,9 +11,9 @@ import siteStats from "../data/site-stats.json";
 // on 2026-05-13.
 
 export const metadata = {
-  title: "One team, three products — GateTest · Gluecron · Vapron",
+  title: `One team, three products — GateTest · Gluecron · ${PLATFORM_NAME}`,
   description:
-    "GateTest audits your code and your site. Gluecron hosts your git. Vapron tells you when something breaks. All built by the same team. Use whichever solves your problem.",
+    `GateTest audits your code and your site. Gluecron hosts your git. ${PLATFORM_NAME} tells you when something breaks. All built by the same team. Use whichever solves your problem.`,
 };
 
 export default function StackPage() {
@@ -26,7 +27,7 @@ export default function StackPage() {
             <br />
             Gluecron hosts it.
             <br />
-            <span className="text-accent">Vapron runs it.</span>
+            <span className="text-accent">{PLATFORM_NAME} runs it.</span>
           </>
         }
         lede={
@@ -118,7 +119,7 @@ export default function StackPage() {
           </p>
           <p>
             So we built three small products that share a philosophy but not a billing surface.
-            Use GateTest without ever signing up for Gluecron. Use Vapron without ever touching
+            Use GateTest without ever signing up for Gluecron. Use {PLATFORM_NAME} without ever touching
             GateTest. Or use all three. The choice stays yours.
           </p>
           <p>
@@ -136,13 +137,13 @@ export default function StackPage() {
             but on a git host that Claude actually understands.
           </li>
           <li className="card p-5">
-            <span className="font-semibold text-foreground">Scheduled jobs on Vapron, audited by GateTest:</span>{" "}
+            <span className="font-semibold text-foreground">Scheduled jobs on {PLATFORM_NAME}, audited by GateTest:</span>{" "}
             the cron / background work that powers your product gets the same QA treatment as your
-            request-path code. GateTest scans the job definition; Vapron runs it at the edge.
+            request-path code. GateTest scans the job definition; {PLATFORM_NAME} runs it at the edge.
           </li>
           <li className="card p-5">
             <span className="font-semibold text-foreground">All three:</span>{" "}
-            code on Gluecron, gated by GateTest at push-time, scheduled jobs running on Vapron.
+            code on Gluecron, gated by GateTest at push-time, scheduled jobs running on {PLATFORM_NAME}.
             End-to-end coverage with three independent tools, three independent bills, three
             independent failure modes.
           </li>
@@ -155,7 +156,7 @@ export default function StackPage() {
 const STEPS = [
   { name: "GateTest gates it", does: `${siteStats.modules.total} modules on every push. Failing scans block the merge; paid tiers open the fix PR.` },
   { name: "Gluecron hosts it", does: "A git host built around Claude — repos, branches, PRs and webhooks the way an agent expects them." },
-  { name: "Vapron runs it", does: "Scheduled jobs and background work at the edge, with zero infrastructure to manage." },
+  { name: `${PLATFORM_NAME} runs it`, does: "Scheduled jobs and background work at the edge, with zero infrastructure to manage." },
 ];
 
 const PRODUCTS = [
@@ -193,19 +194,19 @@ const PRODUCTS = [
     external: true,
   },
   {
-    name: "Vapron",
+    name: PLATFORM_NAME,
     badge: "Ct",
     badgeColor: "bg-amber-500",
     tagline: "AI-native. Edge-first. Zero ops.",
     body:
-      "Scheduled jobs, background tasks, and event-driven work that runs at the edge with zero infrastructure to manage. Designed for the agent era — describe what you want done; Vapron runs it.",
+      `Scheduled jobs, background tasks, and event-driven work that runs at the edge with zero infrastructure to manage. Designed for the agent era — describe what you want done; ${PLATFORM_NAME} runs it.`,
     bullets: [
       "Edge-first runtime — close to your users, close to your data",
       "Zero infra to provision, zero on-call rotation",
       "AI-native by design — Claude understands your jobs",
       "Pay only when work actually runs",
     ],
-    href: "https://vapron.ai",
+    href: PLATFORM_SITE_URL,
     external: true,
   },
 ];

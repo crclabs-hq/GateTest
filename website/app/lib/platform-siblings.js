@@ -41,11 +41,22 @@ const { resolveSiteUrl } = require('./site-url');
  * it is. Re-measure before changing one; do not "tidy" a URL because it looks
  * inconsistent with the others.
  */
+const {
+  PLATFORM_ID,
+  PLATFORM_NAME,
+  PLATFORM_DEFAULTS,
+  platformEnvNames,
+} = require('./platform-config');
+
 const SIBLING_REGISTRY = [
   {
-    id: 'vapron',
-    name: 'Vapron',
+    // Id, name and default URL come from platform-config.js — the platform
+    // is being renamed (Vapron → Tallrig) and the flip must be an env change.
+    id: PLATFORM_ID,
+    name: PLATFORM_NAME,
     envVar: 'VAPRON_STATUS_URL',
+    /** Every env name honoured for the override, most-preferred first. */
+    envVars: platformEnvNames('STATUS_URL'),
     // Measured 2026-09-01, in conversation with the Vapron session:
     //   vapron.ai/api/platform-status                → 404
     //   api.vapron.ai/api/platform-status            → 404
@@ -72,7 +83,7 @@ const SIBLING_REGISTRY = [
     // `overall` so a degraded platform reports degraded instead of hiding
     // behind a 200. Source: apps/api/src/routes/health-status.ts.
     // NOT `/api/health` — that is a bare liveness ping with nothing in it.
-    defaultUrl: 'https://vapron.ai/api/health/status',
+    defaultUrl: PLATFORM_DEFAULTS.statusUrl,
     requiresAuth: false,
   },
   {
@@ -104,8 +115,11 @@ const SELF_STATUS_PATH = '/api/platform-status';
  * staging or self-hosted deployment can repoint without a code change.
  */
 function resolveSiblingUrl(sibling, env = process.env) {
-  const override = env[sibling.envVar];
-  if (override) return override;
+  const names = Array.isArray(sibling.envVars) && sibling.envVars.length ? sibling.envVars : [sibling.envVar];
+  for (const name of names) {
+    const override = env[name];
+    if (override) return override;
+  }
   if (sibling.defaultUrl) return sibling.defaultUrl;
   // Our own entry is derived, never typed — it was a `https://gatetest.ai`
   // literal once, and production served that dead domain here long after the

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PLATFORM_NAME, PLATFORM_SITE_URL } from "../lib/platform-config";
 
 /**
  * StackBar — cross-promotion block surfacing the three Craig-owned
@@ -31,9 +32,9 @@ const STACK_PRODUCTS = [
     badgeColor: "bg-indigo-500",
   },
   {
-    name: "Vapron",
+    name: PLATFORM_NAME,
     tagline: "AI-native. Edge-first. Zero ops.",
-    href: "https://vapron.ai",
+    href: PLATFORM_SITE_URL,
     external: true,
     accent: "from-amber-500/20 to-orange-500/10",
     badge: "Ct",
@@ -44,9 +45,10 @@ const STACK_PRODUCTS = [
 interface Props {
   /**
    * When set, that product gets a subtle "you're here" indicator
-   * instead of being a clickable link.
+   * instead of being a clickable link. "GateTest", "Gluecron", or the
+   * platform's name from platform-config.
    */
-  currentProduct?: "GateTest" | "Gluecron" | "Vapron";
+  currentProduct?: string;
 }
 
 export default function StackBar({ currentProduct = "GateTest" }: Props) {
