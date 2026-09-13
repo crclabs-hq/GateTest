@@ -239,7 +239,10 @@ export async function POST(req: NextRequest) {
     repo: `${owner}/${repo}`,
     durationMs: Date.now() - startTime,
     engine: scanResult.engineUsed,
-    modulesRun: scanResult.modules.filter((m) => m.status !== "skipped").map((m) => m.name),
+    // A module that ran and had nothing to check reports status "skipped" with
+    // no reason; a module the host held back (lint) carries a `skipped` reason.
+    // Only the latter is "not run" — the former RAN, and must be listed.
+    modulesRun: scanResult.modules.filter((m) => !m.skipped).map((m) => m.name),
     moduleSummary: scanResult.modules.map((m) => ({
       module: m.name,
       status: m.status,

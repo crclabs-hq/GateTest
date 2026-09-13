@@ -58,7 +58,9 @@ describe('POST /api/scan/preview dispatches through the one engine chooser', () 
 
   it('the response says which engine ran and what ran — a fallback pass never wears the engine verdict', () => {
     assert.match(route, /engine: scanResult\.engineUsed,/);
-    assert.match(route, /modulesRun: scanResult\.modules\.filter\(\(m\) => m\.status !== "skipped"\)/);
+    // A module that ran with nothing to check is still listed as run; only a
+    // host-skipped module (which carries a `skipped` reason) is "not run".
+    assert.match(route, /modulesRun: scanResult\.modules\.filter\(\(m\) => !m\.skipped\)/);
     assert.match(route, /blocking,/);
   });
 
