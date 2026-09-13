@@ -45,6 +45,43 @@ export interface PreviewFinding {
 }
 
 /**
+ * The subset of the engine's ranked finding (`src/core/finding-registry.js`,
+ * surfaced as `RankedFinding` by scan-engine-dispatch) the preview needs.
+ */
+interface RankedFindingLike {
+  module: string;
+  severity: "error" | "warning" | "info";
+  confidence?: number;
+  blocking?: boolean;
+  file?: string | null;
+  line?: number | null;
+  message: string;
+  duplicateOf?: string | null;
+}
+
+/**
+ * Shape one ranked engine finding for the preview.
+ *
+ * Since 2026-09-13 the preview runs the real CLI engine, whose findings carry
+ * severity AND confidence. The gate blocks only on error-severity findings at
+ * or above the confidence threshold; a low-confidence error is shown but does
+ * not block. The preview keeps that distinction: a soft error is presented as
+ * a warning, so the first five findings a prospect sees are the ones that
+ * would actually block their commit — the same verdict the CLI prints.
+ */
+export function fromRankedFinding(f: RankedFindingLike): PreviewFinding {
+  const severity: PreviewFinding["severity"] =
+    f.severity === "error" ? (f.blocking ? "error" : "warning") : f.severity;
+  return {
+    module: f.module,
+    severity,
+    file: f.file || null,
+    line: typeof f.line === "number" && f.line > 0 ? f.line : null,
+    message: String(f.message || "").trim(),
+  };
+}
+
+/**
  * Modules whose every finding is an error by construction. Verified against
  * the module sources, not assumed:
  *

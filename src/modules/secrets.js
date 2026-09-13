@@ -680,18 +680,31 @@ class SecretsModule extends BaseModule {
       if (fs.existsSync(filePath)) {
         const verdict = this._trackedFileVerdict(filename, filePath);
         if (!verdict) continue;
-        // Check if it's tracked by git
-        const { exitCode } = this._exec(`git ls-files --error-unmatch "${filename}" 2>/dev/null`, {
+        // Is it tracked by git? Three answers, not two:
+        //   exit 0            → tracked: report the verdict.
+        //   exit 1, git ran   → git answered "not tracked": nothing to report.
+        //   anything else     → git could NOT answer (timed out under load,
+        //                       not a checkout: exit 128, binary missing:
+        //                       spawnError) — fail toward detection and say
+        //                       why. Found 2026-09-13: under a loaded test run
+        //                       the 5 s probe timed out and a tracked .npmrc
+        //                       holding an _authToken was reported as clean.
+        const probe = this._exec(`git ls-files --error-unmatch "${filename}" 2>/dev/null`, {
           cwd: projectRoot,
+          timeout: 5000,
         });
-        if (exitCode === 0) {
-          result.addCheck(`secrets:tracked-${filename}`, false, {
-            file: filename,
-            severity: verdict.severity,
-            message: verdict.message,
-            suggestion: `Add "${filename}" to .gitignore and remove from git tracking`,
-          });
-        }
+        const answeredNotTracked = probe.exitCode === 1 && !probe.timedOut && !probe.spawnError;
+        if (answeredNotTracked) continue;
+        const unconfirmed = probe.exitCode !== 0;
+        const why = probe.timedOut ? 'git timed out' : probe.spawnError ? `git could not run (${probe.spawnError})` : `git exit ${probe.exitCode}`;
+        result.addCheck(`secrets:tracked-${filename}`, false, {
+          file: filename,
+          severity: verdict.severity,
+          message: unconfirmed
+            ? `${verdict.message} — git could not confirm whether it is tracked (${why}); reported so a committed credential cannot hide behind a git failure`
+            : verdict.message,
+          suggestion: `Add "${filename}" to .gitignore and remove from git tracking`,
+        });
       }
     }
   }

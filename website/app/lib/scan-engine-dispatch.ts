@@ -12,8 +12,15 @@
  * place for the decision to drift.
  *
  * Tiers → engine:
- *   quick, quick_shadow   → in-memory runTier (free funnel: 4 modules, sub-second;
- *                           quick_shadow is the redacted upsell preview wired
+ *   quick                 → CLI engine, `quick` suite — the free preview and the
+ *                           $29 Quick Scan. Until 2026-09-13 this was the
+ *                           in-memory runTier, which judged expressjs/express's
+ *                           config-only `.npmrc` a committed credential (a
+ *                           blocking error) while the CLI passed the same repo
+ *                           with 0 blocking findings. The first repo a prospect
+ *                           tries must be judged by the engine the /precision
+ *                           page measures, not by a second scanner.
+ *   quick_shadow          → in-memory runTier (the redacted upsell preview wired
  *                           to runTier's MODULES map)
  *   deterministic         → CLI engine, `full` suite, Anthropic-calling modules
  *                           skipped (every-push scans: unlimited, zero AI spend)
@@ -26,6 +33,7 @@
  */
 
 import { runTier, type RepoFile, type ModuleResultEnvelope } from "./scan-modules";
+import { TIERS } from "./checkout-tiers";
 
 /** Registry names of every scan module that spends Anthropic budget. Kept
  *  here (not hand-listed per caller) so the deterministic tier cannot leak
@@ -39,7 +47,7 @@ export const AI_ENGINE_MODULES: readonly string[] = [
   "regressionPredictor",
 ];
 
-export const CLI_ENGINE_TIERS: ReadonlySet<string> = new Set(["deterministic", "full", "scan_fix", "nuclear"]);
+export const CLI_ENGINE_TIERS: ReadonlySet<string> = new Set(["quick", "deterministic", "full", "scan_fix", "nuclear"]);
 
 export interface EngineDispatchInput {
   tier: string;
@@ -108,11 +116,68 @@ export function engineSuiteForTier(tier: string): string {
   // silently falls back to the smaller "standard" suite for unknown names,
   // which once gave a $199 customer a SHALLOWER scan than a $99 one.
   if (tier === "nuclear") return "nuclear";
+  if (tier === "quick") return "quick";
   return "full";
 }
 
+/**
+ * The modules a tier is SOLD as, from the checkout tier table (one
+ * definition, imported): "syntax, lint, secrets, codeQuality" for Quick.
+ * `null` for tiers sold as "all-applicable" — the suite decides.
+ */
+function tierModuleAllowList(tier: string): string[] | null {
+  const spec = TIERS[tier]?.modules;
+  if (!spec || spec.startsWith("all-")) return null;
+  return spec.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+/** The engine's own suite table (src/core/config.js), or null off-engine. */
+function engineSuite(name: string): string[] | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { loadSuites } = require("./module-suites") as { loadSuites: () => Record<string, string[]> | null };
+    const suites = loadSuites();
+    return suites && Array.isArray(suites[name]) ? suites[name] : null;
+  } catch {
+    return null;
+  }
+}
+
 export function skipModulesForTier(tier: string): string[] {
+  if (tier === "quick") {
+    // The engine's quick suite is wider than the four modules the $29 tier
+    // is sold as. What a tier includes is a pricing decision (Boss Rule #3),
+    // so the engine runs exactly the advertised modules: everything else in
+    // the suite is skipped. Widen TIERS.quick.modules and this follows.
+    const allow = tierModuleAllowList("quick");
+    const suite = engineSuite("quick");
+    if (!allow || !suite) return [];
+    const keep = new Set(allow);
+    return suite.filter((m) => !keep.has(m));
+  }
   return tier === "deterministic" ? [...AI_ENGINE_MODULES] : [];
+}
+
+/**
+ * The modules the HOSTED engine will actually run for a tier: the suite,
+ * minus the tier's skip list, minus the modules the host refuses to execute
+ * (cli-engine-runner.js HOSTED_UNSAFE_MODULES). Rendered by the preview
+ * page and GET /api/scan/preview so the copy cannot drift from the run.
+ * `null` when the engine is not on disk.
+ */
+export function hostedModulesForTier(tier: string): string[] | null {
+  const suite = engineSuite(engineSuiteForTier(tier));
+  if (!suite) return null;
+  let unsafe: Set<string>;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { HOSTED_UNSAFE_MODULES } = require("./cli-engine-runner") as { HOSTED_UNSAFE_MODULES: string[] };
+    unsafe = new Set(HOSTED_UNSAFE_MODULES);
+  } catch {
+    unsafe = new Set();
+  }
+  const skip = new Set(skipModulesForTier(tier));
+  return suite.filter((m) => !skip.has(m) && !unsafe.has(m));
 }
 
 export async function runEngineForTier(input: EngineDispatchInput): Promise<EngineDispatchResult> {

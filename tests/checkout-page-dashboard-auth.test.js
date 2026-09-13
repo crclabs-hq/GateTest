@@ -55,8 +55,8 @@ test('scan_fix maps to the full engine suite in the shared dispatcher (no silent
   );
   assert.match(
     src,
-    /export function engineSuiteForTier[\s\S]*?if \(tier === "nuclear"\) return "nuclear";\s*return "full";/,
-    'engineSuiteForTier must map every non-nuclear CLI tier (full, scan_fix, deterministic) to the "full" suite'
+    /export function engineSuiteForTier[\s\S]*?if \(tier === "nuclear"\) return "nuclear";\s*if \(tier === "quick"\) return "quick";\s*return "full";/,
+    'engineSuiteForTier must map every CLI tier other than nuclear and quick (full, scan_fix, deterministic) to the "full" suite'
   );
   assert.match(src, /suite:\s*engineSuiteForTier\(tier\)/, 'runFullEngine must receive the mapped suite, not the raw tier');
 });
