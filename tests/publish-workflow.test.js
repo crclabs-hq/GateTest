@@ -21,6 +21,17 @@ const path = require('node:path');
 
 const read = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
 
+/** The `run: |` block of the named step, up to the next step. */
+function runBlock(yaml, stepName) {
+  const start = yaml.indexOf(`- name: ${stepName}\n`) >= 0
+    ? yaml.indexOf(`- name: ${stepName}\n`)
+    : yaml.indexOf(`- name: ${stepName}\r\n`);
+  if (start < 0) return null;
+  const rest = yaml.slice(start + stepName.length + 8);
+  const next = rest.search(/\r?\n\s*- name: /);
+  return next < 0 ? rest : rest.slice(0, next);
+}
+
 describe('publish.yml runs the suite in the same environment as ci.yml', () => {
   const publish = read('.github/workflows/publish.yml');
   const ci = read('.github/workflows/ci.yml');
@@ -39,14 +50,15 @@ describe('publish.yml runs the suite in the same environment as ci.yml', () => {
     // Craig, 2026-09-13: "the mcp should have been included absolutely." The
     // MCP package is a thin proxy to @gatetest/cli and pins its range, so a
     // CLI release without it leaves `npx @gatetest/mcp-server` on old code.
-    const m = /- name: npm publish @gatetest\/mcp-server[\s\S]*?working-directory: packages\/mcp-server[\s\S]*?run: \|([\s\S]*?)\n\s*- name:/.exec(publish);
-    assert.ok(m, 'mcp-server publish step missing');
-    assert.match(m[1], /npm view "\$PKG@\$VER" version/, 'must skip a version the registry already has');
-    assert.match(m[1], /npm publish --access public --provenance/);
-    const cli = /- name: npm publish?
-[sS]*?run: |([sS]*?)?
-s*- name:/.exec(publish);
-    assert.ok(cli && /npm view "\$PKG@\$VER" version/.test(cli[1]), 'the CLI publish must be idempotent too, so a dispatch re-run can ship only what is missing');
+    const mcp = runBlock(publish, 'npm publish @gatetest/mcp-server');
+    assert.ok(mcp, 'mcp-server publish step missing');
+    assert.match(mcp, /working-directory: packages\/mcp-server/);
+    assert.match(mcp, /npm view "\$PKG@\$VER" version/, 'must skip a version the registry already has');
+    assert.match(mcp, /npm publish --access public --provenance/);
+
+    const cli = runBlock(publish, 'npm publish');
+    assert.ok(cli, 'CLI publish step missing');
+    assert.match(cli, /npm view "\$PKG@\$VER" version/, 'the CLI publish must be idempotent too, so a dispatch re-run can ship only what is missing');
   });
 
   it('the MCP package depends on a CLI range that includes the version being released', () => {
