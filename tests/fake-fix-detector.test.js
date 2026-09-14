@@ -559,3 +559,39 @@ describe('fakeFixDetector — a threshold in a TEST file is fixture data (PR #43
     assert.ok(findFailure(result, 'threshold-lowered'));
   });
 });
+
+// Self-scan of PR #488 (2026-09-14): three "Empty catch block added" findings
+// on tests/error-swallow-in-body-marker.test.js — the fixture STRINGS of the
+// errorSwallow control pair, which necessarily contain `catch {}`. A test
+// file that adds that shape is a fixture or the test's own handling, never a
+// symptom patch on the code being fixed; src/ is where the rule earns its keep.
+describe('FakeFixDetector — catch shapes added under a test tree are fixtures', () => {
+  const hunk = (file) => [
+    `diff --git a/${file} b/${file}`,
+    `--- a/${file}`,
+    `+++ b/${file}`,
+    '@@ -1,3 +1,4 @@',
+    ' const x = 1;',
+    "+  '  try { doIt(); } catch {}',",
+    '+  try { run(); } catch (err) { /* noted */ }',
+    ' module.exports = x;',
+  ].join('\n');
+
+  it('stays quiet under tests/ (fixture strings and test-side handling)', async () => {
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+    await mod.run(result, makeConfig(hunk('tests/error-swallow-in-body-marker.test.js')));
+    assert.ok(!findFailure(result, 'empty-catch'), 'empty-catch must not fire on a test file');
+    assert.ok(!findFailure(result, 'catch-noop'), 'catch-noop must not fire on a test file');
+  });
+
+  it('POSITIVE: the same lines under src/ still fire', async () => {
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+    await mod.run(result, makeConfig(hunk('src/core/thing.js')));
+    assert.ok(findFailure(result, 'empty-catch'), 'empty-catch must fire on product code');
+    assert.ok(findFailure(result, 'catch-noop'), 'catch-noop must fire on product code');
+  });
+});
