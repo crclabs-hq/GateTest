@@ -201,8 +201,13 @@ describe('FlakyTestsModule — nondeterminism', () => {
       '  work();',
       '  const elapsed = Date.now() - start;',
       '  assert.ok(elapsed < 5000, `took ${elapsed}ms`);',
-      '  const daysLeft = (new Date(exp) - Date.now()) / 86400000;',
-      '  assert.ok(daysLeft > 60);',
+      // NOT exempt (2026-09-13): `(new Date(exp) - Date.now()) / 86400000 > 60`
+      // compares DATA to the wall clock inside a window — the same shape as the
+      // 2026-08-18 positive `createdAt > Date.now() - 1000`, only wider. The
+      // rule cannot tell a renewal tripwire from a race by window size, so a
+      // budget is exactly a difference of two time points and nothing else.
+      '  const budget = Date.now() - start;',
+      '  assert.ok(budget >= 0);',
       '  expect(Date.now() - start).toBeLessThan(5000);',
       '});',
       '',
