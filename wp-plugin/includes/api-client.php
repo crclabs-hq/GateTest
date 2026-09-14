@@ -3,8 +3,14 @@
  * Thin HTTP client for the gatetest.io scan API.
  *
  * All scan work runs server-side at gatetest.io. This file just packs the
- * site's URL + api_key into a POST request, parses the JSON response, and
- * returns it. No business logic.
+ * site's URL into a POST request, parses the JSON response, and returns
+ * it. No business logic.
+ *
+ * The free health check needs no authentication — POST /api/wp/scan is the
+ * same public endpoint the gatetest.io/wp page uses. When the user has
+ * pasted an API key it is sent as a Bearer token so a future server-side
+ * entitlement check can honour it; today the server ignores it and
+ * decides the full report from a paid Stripe session, never from a key.
  */
 
 if (!defined('ABSPATH')) {
@@ -14,42 +20,40 @@ if (!defined('ABSPATH')) {
 /**
  * Request a scan from gatetest.io.
  *
- * @param string $api_key The customer's GateTest API key.
+ * @param string $api_key  Optional. The customer's GateTest API key; '' for the free health check.
  * @param string $site_url The site URL to scan (typically home_url()).
- * @param array  $opts Optional. { full_report?: bool, tier?: string }
+ * @param array  $opts     Optional. { full_report?: bool }
  *
- * @return array|WP_Error Decoded JSON response on success, WP_Error on transport / auth failure.
+ * @return array|WP_Error Decoded JSON response on success, WP_Error on transport / API failure.
  */
 function gatetest_hc_request_scan($api_key, $site_url, $opts = []) {
-    if (empty($api_key)) {
-        return new WP_Error(
-            'gatetest_hc_no_api_key',
-            __('GateTest API key is missing.', GATETEST_HC_TEXT_DOMAIN)
-        );
-    }
     if (empty($site_url) || !filter_var($site_url, FILTER_VALIDATE_URL)) {
         return new WP_Error(
             'gatetest_hc_invalid_url',
-            __('Site URL is invalid.', GATETEST_HC_TEXT_DOMAIN)
+            __('Site URL is invalid.', 'gatetest-health-check')
         );
     }
 
     $body = wp_json_encode([
-        'url'         => $site_url,
-        'fullReport'  => !empty($opts['full_report']),
-        'source'      => 'wordpress-plugin',
-        'wpVersion'   => get_bloginfo('version'),
+        'url'           => $site_url,
+        'fullReport'    => !empty($opts['full_report']),
+        'source'        => 'wordpress-plugin',
+        'wpVersion'     => get_bloginfo('version'),
         'pluginVersion' => GATETEST_HC_VERSION,
     ]);
 
+    $headers = [
+        'Content-Type' => 'application/json',
+        'Accept'       => 'application/json',
+        'User-Agent'   => 'gatetest-health-check/' . GATETEST_HC_VERSION . '; WordPress/' . get_bloginfo('version'),
+    ];
+    if (!empty($api_key)) {
+        $headers['Authorization'] = 'Bearer ' . $api_key;
+    }
+
     $response = wp_remote_post(GATETEST_HC_API_BASE . '/api/wp/scan', [
         'timeout'     => 90, // Server-side scan can take 30-60s.
-        'headers'     => [
-            'Content-Type'  => 'application/json',
-            'Accept'        => 'application/json',
-            'Authorization' => 'Bearer ' . $api_key,
-            'User-Agent'    => 'gatetest-health-check/' . GATETEST_HC_VERSION . '; WordPress/' . get_bloginfo('version'),
-        ],
+        'headers'     => $headers,
         'body'        => $body,
         'data_format' => 'body',
     ]);
@@ -62,26 +66,16 @@ function gatetest_hc_request_scan($api_key, $site_url, $opts = []) {
     $body   = wp_remote_retrieve_body($response);
     $json   = json_decode($body, true);
 
-    if ($status === 401 || $status === 403) {
-        return new WP_Error(
-            'gatetest_hc_auth_failed',
-            __('GateTest API rejected the API key. Regenerate it at gatetest.io/account.', GATETEST_HC_TEXT_DOMAIN),
-            ['status' => $status]
-        );
-    }
-
-    if ($status === 402) {
-        return new WP_Error(
-            'gatetest_hc_payment_required',
-            __('You have insufficient credit for this scan. Top up at gatetest.io/account.', GATETEST_HC_TEXT_DOMAIN),
-            ['status' => $status, 'response' => $json]
-        );
-    }
-
+    // /api/wp/scan answers 200, 400 (bad URL), 429 (rate limit) or 500; it
+    // has no auth branch, so one status-aware error covers every failure.
     if ($status >= 400) {
-        $message = is_array($json) && !empty($json['error'])
-            ? $json['error']
-            : __('Scan failed.', GATETEST_HC_TEXT_DOMAIN);
+        $message = is_array($json) && !empty($json['error']) && is_string($json['error'])
+            ? sanitize_text_field($json['error'])
+            : sprintf(
+                /* translators: %d: HTTP status code */
+                __('Scan failed (HTTP %d).', 'gatetest-health-check'),
+                (int) $status
+            );
         return new WP_Error(
             'gatetest_hc_scan_failed',
             $message,
@@ -92,7 +86,7 @@ function gatetest_hc_request_scan($api_key, $site_url, $opts = []) {
     if (!is_array($json)) {
         return new WP_Error(
             'gatetest_hc_bad_response',
-            __('GateTest returned an unparseable response.', GATETEST_HC_TEXT_DOMAIN)
+            __('GateTest returned an unparseable response.', 'gatetest-health-check')
         );
     }
 
