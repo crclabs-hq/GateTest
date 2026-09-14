@@ -104,7 +104,7 @@ describe('CompatibilityModule — the file\'s runtime decides the matrix', () =>
     write('package.json', { name: 'x', engines: { node: '>=18' } });
     write('lib/server.js', 'const a = [3,1].toSorted();\nconst s = AbortSignal.timeout(5);\n');
     const checks = await scan();
-    assert.deepStrictEqual(checks.map((c) => c.name), [`compat:js:Array.toSorted:${path.join('lib', 'server.js')}`]);
+    assert.deepStrictEqual(checks.map((c) => c.name), [`compat:js:Array.toSorted:lib/server.js`]);
     assert.match(checks[0].message, /needs Node 20\+/);
     assert.match(checks[0].message, /">=18" admits Node 18/);
   });
@@ -139,8 +139,8 @@ describe('CompatibilityModule — the file\'s runtime decides the matrix', () =>
     write('bin/tool.js', '#!/usr/bin/env node\nconst c = structuredClone({});\n');
     const names = (await scan()).map((c) => c.name).sort();
     assert.deepStrictEqual(names, [
-      `compat:js:Array.toSorted:${path.join('components', 'List.tsx')}`,
-      `compat:js:structuredClone:${path.join('public', 'app.js')}`,
+      `compat:js:Array.toSorted:components/List.tsx`,
+      `compat:js:structuredClone:public/app.js`,
     ]);
   });
 
@@ -177,7 +177,7 @@ describe('CompatibilityModule — Iterator helpers are iterator calls, not array
     const mod = new CompatibilityModule();
     const result = makeResult();
     await mod.run(result, { projectRoot: tmp });
-    const suffix = path.join(...rel.split('/'));
+    const suffix = rel; // finding ids are /-joined on every OS (src/core/repo-path.js)
     return result.checks.filter((c) => c.name.includes('Iterator helpers') && c.name.endsWith(suffix));
   }
 
@@ -210,7 +210,7 @@ describe('CompatibilityModule — Set methods, top-level await, engines parsing'
     const mod = new CompatibilityModule();
     const result = makeResult();
     await mod.run(result, { projectRoot: tmp });
-    const suffix = path.join(...rel.split('/'));
+    const suffix = rel; // finding ids are /-joined on every OS (src/core/repo-path.js)
     return result.checks.filter((c) => c.name.startsWith('compat:js:') && c.name.endsWith(suffix));
   }
 
@@ -218,14 +218,14 @@ describe('CompatibilityModule — Set methods, top-level await, engines parsing'
     const zod = await scanFile('components/Z.tsx', 'const S = z.union([z.string(), z.number()]);\nexport const Z = S;\n', { name: 'x' });
     assert.deepStrictEqual(zod, []);
     const set = await scanFile('components/S.tsx', 'export const S = new Set([1]).union(new Set([2]));\n', { name: 'x' });
-    assert.deepStrictEqual(set.map((c) => c.name), [`compat:js:Set methods (union/intersection):${path.join('components', 'S.tsx')}`]);
+    assert.deepStrictEqual(set.map((c) => c.name), [`compat:js:Set methods (union/intersection):components/S.tsx`]);
   });
 
   it('top-level await inside a template literal is not a statement; a real one in a CJS .js is; "type": "module" makes it legal', async () => {
     const fixture = await scanFile('tests/gen.test.js', 'const src = `\nawait run();\n`;\nmodule.exports = src;\n', { name: 'x' });
     assert.deepStrictEqual(fixture, []);
     const real = await scanFile('lib/top.js', 'const x = 1;\nawait run(x);\n', { name: 'x' });
-    assert.deepStrictEqual(real.map((c) => c.name), [`compat:js:top-level-await:${path.join('lib', 'top.js')}`]);
+    assert.deepStrictEqual(real.map((c) => c.name), [`compat:js:top-level-await:lib/top.js`]);
     const esm = await scanFile('lib/top2.js', 'const x = 1;\nawait run(x);\n', { name: 'x', type: 'module' });
     assert.deepStrictEqual(esm, []);
   });
