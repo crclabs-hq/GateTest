@@ -5,7 +5,7 @@
  * Description:       Audit your WordPress site for 18+ security, performance, and quality issues. Plain-language report. Powered by the GateTest engine.
  * Version:           0.1.0
  * Requires at least: 6.0
- * Tested up to:      6.7
+ * Tested up to:      7.1
  * Requires PHP:      7.4
  * Author:            GateTest
  * Author URI:        https://gatetest.io
