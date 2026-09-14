@@ -248,13 +248,19 @@ describe('isAccessTokenExpired', () => {
     assert.strictEqual(isAccessTokenExpired(undefined), false);
   });
 
-  it('returns true when expiresAt is in the past', () => {
-    const past = new Date(Date.now() - 1000).toISOString();
+  // Pinned clock: "in the past" / "in the future" are relative to the
+  // Date.now() the code under test reads, so fix that reading.
+  const NOW = new Date('2026-06-01T12:00:00Z');
+
+  it('returns true when expiresAt is in the past', (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: NOW });
+    const past = new Date(NOW.getTime() - 1000).toISOString();
     assert.strictEqual(isAccessTokenExpired(past), true);
   });
 
-  it('returns false when expiresAt is in the future', () => {
-    const future = new Date(Date.now() + 60_000).toISOString();
+  it('returns false when expiresAt is in the future', (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: NOW });
+    const future = new Date(NOW.getTime() + 60_000).toISOString();
     assert.strictEqual(isAccessTokenExpired(future), false);
   });
 

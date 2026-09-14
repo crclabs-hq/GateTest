@@ -209,7 +209,9 @@ describe('AsyncLocalStorage context', () => {
     await runWithTracker(t, async () => {
       await Promise.resolve();
       assert.equal(getCurrentTracker()?.label, 'async-test');
-      await new Promise((r) => setTimeout(r, 1));
+      // A macrotask turn — the point is that the context survives one;
+      // setImmediate is that turn without betting on a timer.
+      await new Promise((r) => setImmediate(r));
       assert.equal(getCurrentTracker()?.label, 'async-test');
     });
   });
