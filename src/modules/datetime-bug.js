@@ -42,16 +42,38 @@
  *
  * Suppressions:
  *   - `// datetime-ok` / `# datetime-ok` on same or preceding line.
- *   - Test / spec / fixture paths downgrade error → warning.
+ *   - Test / spec / fixture paths downgrade warning → info.
  *   - Block-comment / line-comment / Python docstring stripping.
  *
  * Rules:
  *
- *   error:   Python naive `datetime.now()` — no tz argument.
+ *   warning: Python naive `datetime.now()` — no tz argument.
  *            (rule: `datetime-bug:naive-now:<rel>:<line>`)
  *
- *   error:   Python deprecated `datetime.utcnow()`.
+ *   warning: Python deprecated `datetime.utcnow()`.
  *            (rule: `datetime-bug:utcnow-deprecated:<rel>:<line>`)
+ *
+ *            Both are ADVICE, not a gate. Whether a naive datetime is a
+ *            bug depends on what it is later compared with or stored as,
+ *            which a line scan cannot see; the JS month rules below were
+ *            always calibrated as warnings for the same reason. Until
+ *            2026-09-14 these two were errors, and django/django was
+ *            gate-BLOCKED on seven of them at confidence 1.0 — in the
+ *            library that ships `django/utils/timezone.py`. Three more
+ *            shapes drop one step further, to info, with the reason in
+ *            the message:
+ *              - the same line formats the value (`.strftime(`) — a
+ *                wall-clock label for a filename, log line or banner,
+ *                never a datetime that leaves the line
+ *                (django `runserver.py:182`, `migrations/utils.py:24`);
+ *              - the file imports an aware-time toolkit
+ *                (`django.utils.timezone`, `zoneinfo`, `pytz`,
+ *                `dateutil.tz`, `pendulum`, or `timezone`/`tzinfo` from
+ *                `datetime`) — a naive call beside it is a choice
+ *                (django `db/backends/base/schema.py:491` picks
+ *                `timezone.now()` for DateTimeField on the line above);
+ *              - the project ships its own `timezone.py` / `tz.py` —
+ *                the advice is not news to the library that wrote it.
  *
  *   warning: JS `new Date(year, monthLiteral, day)` with month 1..12.
  *            (rule: `datetime-bug:one-based-month:<rel>:<line>`)
@@ -95,6 +117,20 @@ const SUPPRESS_RE = /\bdatetime-ok\b/;
 const PY_NAIVE_NOW_RE = /\b(?:datetime\.)?datetime\.now\s*\(([^)]*)\)/;
 const PY_UTCNOW_RE = /\b(?:datetime\.)?datetime\.utcnow\s*\(\s*\)/;
 
+// The naive value is formatted on the same line — a wall-clock label
+// (filename stamp, log line, server banner). It never leaves the line as a
+// datetime, so there is nothing for a timezone to disagree with.
+const PY_FORMATTED_ON_LINE_RE = /\.(?:strftime|isoformat|ctime)\s*\(/;
+
+// The file has an aware-time toolkit in scope. A naive call written next to
+// `timezone.now()` / `ZoneInfo(...)` is a decision, not an oversight.
+const PY_AWARE_TOOLKIT_IMPORT_RE =
+  /^\s*(?:from\s+(?:django\.utils|zoneinfo|pytz|dateutil(?:\.tz)?|pendulum|datetime)\s+import\s+[^\n]*\b(?:timezone|tz|tzinfo|ZoneInfo|utc|UTC)\b|import\s+(?:pytz|zoneinfo|pendulum|dateutil\.tz)\b|from\s+django\.utils\.timezone\s+import\b)/m;
+
+// The project implements timezone utilities itself (django ships
+// `django/utils/timezone.py`). Matched by basename among the scanned files.
+const PY_TZ_MODULE_RE = /(?:^|[\\/])(?:timezone|tz|tzinfo|tzutil|timezones)\.py$/i;
+
 // JS: `new Date(year, monthLiteral, ...)` with 4-digit year and month 1..12.
 const JS_ONE_BASED_MONTH_RE = /\bnew\s+Date\s*\(\s*(\d{4})\s*,\s*(\d{1,2})\s*(?:,|\))/;
 
@@ -129,6 +165,11 @@ class DatetimeBugModule extends BaseModule {
       fileCount: files.length,
     });
 
+    // Does this project ship its own timezone module? Decided once from the
+    // file list; every Python finding in the project then reads as info.
+    const projectTzModule = files.find((abs) => PY_TZ_MODULE_RE.test(abs));
+    const py = { tzModule: projectTzModule ? repoRelative(projectRoot, projectTzModule) : null };
+
     let issues = 0;
     for (const abs of files) {
       const rel = repoRelative(projectRoot, abs);
@@ -144,7 +185,7 @@ class DatetimeBugModule extends BaseModule {
       if (JS_EXTS.has(ext)) {
         issues += this._scanJs(rel, text, result);
       } else if (PY_EXTS.has(ext)) {
-        issues += this._scanPy(rel, text, result);
+        issues += this._scanPy(rel, text, result, py);
       }
     }
 
@@ -259,9 +300,27 @@ class DatetimeBugModule extends BaseModule {
     return issues;
   }
 
-  _scanPy(rel, text, result) {
+  _scanPy(rel, text, result, ctx = {}) {
     const isTest = this._isTestPath(rel);
-    const errSev = isTest ? 'warning' : 'error';
+    // Advice, not a gate: warning in shipped code, info in a test path.
+    const baseSev = isTest ? 'info' : 'warning';
+    // File- and project-level reasons the advice is already known here.
+    // Each drops the finding to info and is named in the message.
+    const awareToolkit = PY_AWARE_TOOLKIT_IMPORT_RE.test(text);
+    const fileReason = awareToolkit
+      ? 'this file imports an aware-time toolkit, so the naive call beside it reads as a choice'
+      : ctx.tzModule
+        ? `this project ships its own timezone module (${ctx.tzModule})`
+        : null;
+    // Severity and reason for one finding on `codeLine`.
+    const grade = (codeLine) => {
+      if (PY_FORMATTED_ON_LINE_RE.test(codeLine)) {
+        return { severity: 'info', reason: 'the value is formatted on the same line — a wall-clock label, not a datetime that leaves the line' };
+      }
+      if (fileReason) return { severity: 'info', reason: fileReason };
+      return { severity: baseSev, reason: null };
+    };
+    const withReason = (message, reason) => (reason ? `${message} Not blocking: ${reason}.` : message);
     const lines = text.split(/\r?\n/);
     let issues = 0;
     let inDocstring = false;
@@ -307,9 +366,10 @@ class DatetimeBugModule extends BaseModule {
         // which is what django/core/mail/message.py:358 and humanize.py:197
         // write. Only an empty call, or an explicit `None`, is naive.
         if (args === '' || args === 'None') {
+          const { severity, reason } = grade(codeLine);
           result.addCheck(`datetime-bug:naive-now:${rel}:${i + 1}`, false, {
-            severity: errSev,
-            message: `datetime.now() without tz= argument — returns naive datetime. Use datetime.now(timezone.utc) or datetime.now(ZoneInfo("...")).`,
+            severity,
+            message: withReason('datetime.now() without tz= argument — returns naive datetime. Use datetime.now(timezone.utc) or datetime.now(ZoneInfo("...")).', reason),
             file: rel,
             line: i + 1,
           });
@@ -319,9 +379,10 @@ class DatetimeBugModule extends BaseModule {
 
       // Rule 2: datetime.utcnow() — always deprecated
       if (PY_UTCNOW_RE.test(codeLine)) {
+        const { severity, reason } = grade(codeLine);
         result.addCheck(`datetime-bug:utcnow-deprecated:${rel}:${i + 1}`, false, {
-          severity: errSev,
-          message: `datetime.utcnow() is deprecated (Python 3.12+) and returns a naive datetime. Use datetime.now(timezone.utc).`,
+          severity,
+          message: withReason('datetime.utcnow() is deprecated (Python 3.12+) and returns a naive datetime. Use datetime.now(timezone.utc).', reason),
           file: rel,
           line: i + 1,
         });
