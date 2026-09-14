@@ -58,8 +58,13 @@
  *
  * Suppressions:
  *   - `// tls-ok` / `# tls-ok` on same or preceding line.
- *   - Test / spec / fixture paths downgrade error → warning,
- *     warning → info.
+ *   - Test / spec / fixture / benchmark paths downgrade error → warning,
+ *     warning → info. The predicate is the shared `_isTestPath`
+ *     (src/core/test-paths.js); a benchmark that points a client at its
+ *     own local server with `rejectUnauthorized: false` is a harness, not
+ *     a deployment — got's `benchmark/index.ts` was gate-BLOCKED on four
+ *     such lines at confidence 1.0 (2026-09-14). `examples/` is NOT a
+ *     harness (tRPC keeps real workspaces there); a bypass in one blocks.
  *
  * Competitors:
  *   - ESLint has nothing cross-cutting. SonarQube has "TLS cert

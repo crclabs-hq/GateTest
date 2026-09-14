@@ -50,12 +50,12 @@ describe('DatetimeBugModule — Python naive datetime.now()', () => {
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dt-pynow-')); });
   afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
 
-  it('errors on bare datetime.now()', async () => {
+  it('warns on bare datetime.now() — advice, not a gate (was error until 2026-09-14)', async () => {
     write(tmp, 'src/a.py', 'from datetime import datetime\nnow = datetime.now()\n');
     const r = await run(tmp);
     const hit = r.checks.find((c) => c.name && c.name.startsWith('datetime-bug:naive-now:'));
     assert.ok(hit);
-    assert.strictEqual(hit.severity, 'error');
+    assert.strictEqual(hit.severity, 'warning');
   });
 
   it('errors on datetime.datetime.now()', async () => {
@@ -82,12 +82,12 @@ describe('DatetimeBugModule — Python naive datetime.now()', () => {
     assert.strictEqual(hits.length, 0);
   });
 
-  it('downgrades error -> warning in test/ paths', async () => {
+  it('downgrades warning -> info in test/ paths', async () => {
     write(tmp, 'tests/test_a.py', 'from datetime import datetime\nnow = datetime.now()\n');
     const r = await run(tmp);
     const hit = r.checks.find((c) => c.name && c.name.startsWith('datetime-bug:naive-now:'));
     assert.ok(hit);
-    assert.strictEqual(hit.severity, 'warning');
+    assert.strictEqual(hit.severity, 'info');
   });
 });
 
@@ -96,12 +96,12 @@ describe('DatetimeBugModule — Python datetime.utcnow() deprecated', () => {
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dt-utcnow-')); });
   afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
 
-  it('errors on datetime.utcnow()', async () => {
+  it('warns on datetime.utcnow() — advice, not a gate (was error until 2026-09-14)', async () => {
     write(tmp, 'src/a.py', 'from datetime import datetime\nnow = datetime.utcnow()\n');
     const r = await run(tmp);
     const hit = r.checks.find((c) => c.name && c.name.startsWith('datetime-bug:utcnow-deprecated:'));
     assert.ok(hit);
-    assert.strictEqual(hit.severity, 'error');
+    assert.strictEqual(hit.severity, 'warning');
   });
 
   it('errors on datetime.datetime.utcnow()', async () => {

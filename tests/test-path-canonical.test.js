@@ -63,6 +63,12 @@ describe('BaseModule._isTestPath — canonical predicate', () => {
     'src/pkg/conftest.py',
     'scripts/tests.py',
     'django/test/testcases.py', // by its `test/` DIRECTORY, unchanged — see below
+    // A benchmark is a harness, the same kind of code as a test (2026-09-14):
+    // got's `benchmark/index.ts` disables TLS verification against its own
+    // local server and was gate-BLOCKED four times.
+    'benchmark/index.ts',
+    'bench/run.js',
+    'packages/zod/src/v3/benchmarks/string.ts',
   ];
   const NO_MATCH = [
     'src/app.js',
@@ -93,6 +99,17 @@ describe('BaseModule._isTestPath — canonical predicate', () => {
     // files that exist because they RUN tests.
     'django/core/management/commands/test.py',
     'django/contrib/messages/test.py',
+    // The harness words are directory SEGMENTS too — a file or an identifier
+    // carrying them stays application code, and `docs/` is not a harness.
+    'lib/benchmark.js',
+    'src/benchmarking/timer.js',
+    'docs/api.js',
+    // `examples/` is NOT a harness (2026-09-14, tried and reverted the same
+    // day): tRPC keeps its real workspaces under `examples/*`, and
+    // tests/new-modules.test.js pins that trpcContract still reads a router
+    // there. Sample code is a per-module judgement, not a path class.
+    'examples/session/index.js',
+    'examples/big/src/server/router.ts',
   ];
 
   for (const p of MATCH) {

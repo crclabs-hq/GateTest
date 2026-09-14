@@ -46,7 +46,7 @@
       "url": "https://github.com/sindresorhus/got.git",
       "sha": "687eb7dcc100ea3e548ebba227173b886789e670",
       "why": "TypeScript HTTP client with a benchmark/ tree — a known scope trap",
-      "maxBlocking": 12
+      "maxBlocking": 2
     },
     {
       "name": "hono",
@@ -67,7 +67,7 @@
       "url": "https://github.com/django/django.git",
       "sha": "b3f4d83aad7f589f165a6d8b020b7acba4936f35",
       "why": "Python at scale — the ORM builds SQL by string in django/db, which is the one place that is the job; 74 of 76 \"secrets\" were test fixtures before the identifier-keyed rules learned about test paths",
-      "maxBlocking": 59
+      "maxBlocking": 49
     },
     {
       "name": "rails",
@@ -88,7 +88,7 @@
       "url": "https://github.com/gin-gonic/gin.git",
       "sha": "dcaa4296d111981ffb31ac3eba90bb63e1eb5ab9",
       "why": "Go — the ignored-error idiom the go module could not see until 2026-09-04",
-      "maxBlocking": 1
+      "maxBlocking": 0
     },
     {
       "name": "axum",
