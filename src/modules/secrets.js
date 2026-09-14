@@ -132,6 +132,57 @@ const VENDOR_SHAPED_TYPES = new Set([
   'AWS Access Key ID',
 ]);
 
+/**
+ * Where a credential-shaped value is an ILLUSTRATION — a test tree or a
+ * documentation file — the question is no longer "does this look like a
+ * key" (it does; that is what a fixture is for) but "could this one be
+ * live". Fifty-three of this repository's own test files were reported as
+ * "potential secret(s)" on 2026-09-13, every one a fixture the test plants
+ * on purpose (`apiKey: 'test-key'`, `ghp_AAAA…`, AWS's published example
+ * key), and security.js already draws the first half of this line:
+ * identifier-keyed matches (`password = "…"`) key off the NAME, and the
+ * name is exactly what fixtures are full of.
+ *
+ * The second half is what a vendor-shaped value cannot be:
+ *   - a PUBLISHED example. AWS documents `AKIAIOSFODNN7EXAMPLE` /
+ *     `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` as the pair to write in
+ *     docs; they authenticate nothing anywhere.
+ *   - visibly SYNTHETIC. A run of one character (`ghp_AAAA…`), a short unit
+ *     repeated (`ghp_realrealreal…`), or the alphabet / the digits in order
+ *     (`ghp_1234567890abcdef…`) is a value typed to have the right length.
+ *     Random base62 hits none of these: a six-run is (1/62)^5 per position.
+ *   - a PEM header with no key material behind it. `\`-----BEGIN RSA
+ *     PRIVATE KEY-----\n${body}\n…\`` and a header alone in an array of
+ *     lines carry no bits; a real key has 64-character base64 lines whose
+ *     TAIL is random (the openssh / PKCS#8 preambles are constant and DO
+ *     contain runs, so only the last 32 characters of a line are judged).
+ *
+ * Anything that passes those tests in a test tree stays a warning — "a
+ * test file does not make an AWS key fake" (security.js). Outside test
+ * trees and prose nothing here applies: a synthetic key in src/ is a
+ * placeholder someone will replace in place, and stays an error.
+ */
+const PUBLISHED_EXAMPLE_CREDENTIALS = new Set([
+  'AKIAIOSFODNN7EXAMPLE',
+  'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+]);
+const SYNTHETIC_RUN_RE = /(.)\1{5,}|(.{2,4})\2{3,}/;
+const KEY_MATERIAL_RE = /[A-Za-z0-9+/=]{48,}/g;
+const SEQUENTIAL_RUN = 8;
+
+/** Eight or more characters each one code point after (or before) the last. */
+function hasSequentialRun(value, n = SEQUENTIAL_RUN) {
+  let up = 1;
+  let down = 1;
+  for (let i = 1; i < value.length; i += 1) {
+    const d = value.charCodeAt(i) - value.charCodeAt(i - 1);
+    up = d === 1 ? up + 1 : 1;
+    down = d === -1 ? down + 1 : 1;
+    if (up >= n || down >= n) return true;
+  }
+  return false;
+}
+
 class SecretsModule extends BaseModule {
   constructor() {
     super('secrets', 'Secret & Credential Detection');
@@ -161,7 +212,11 @@ class SecretsModule extends BaseModule {
       { regex: /sk-[A-Za-z0-9]{32,}/g, type: 'OpenAI/Stripe Key' },
       { regex: /sk_live_[A-Za-z0-9]{24,}/g, type: 'Stripe Live Key' },
       { regex: /xox[bprs]-[A-Za-z0-9-]{10,}/g, type: 'Slack Token' },
-      { regex: /(?:mongodb|postgres|mysql|redis):\/\/[^'"\s]{10,}/gi, type: 'Database URL' },
+      // A backtick closes a template literal or a Markdown code span the same
+      // way a quote closes a string; without it `mongodb://localhost` in a
+      // sentence of docs/HISTORY.md read as `localhost\`` — a host that no
+      // loopback test could recognise (2026-09-13).
+      { regex: /(?:mongodb|postgres|mysql|redis):\/\/[^'"`\s]{10,}/gi, type: 'Database URL' },
       { regex: /AKIA[A-Z0-9]{16}/g, type: 'AWS Access Key ID' },
       { regex: /(?:sendgrid|mailgun|twilio).{0,20}['"][A-Za-z0-9.]{20,}/gi, type: 'Service API Key' },
     ];
@@ -286,6 +341,31 @@ class SecretsModule extends BaseModule {
     const before = (scanLine.slice(0, m.index).match(/[\w$]*$/) || [''])[0];
     const norm = (s) => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
     return norm(value) === norm(before + q[1]);
+  }
+
+  /**
+   * Could this vendor-shaped match be a LIVE credential? See the
+   * PUBLISHED_EXAMPLE_CREDENTIALS comment for the three things it cannot be.
+   * Only consulted where the value sits in an illustration context (a test
+   * tree, prose); identifier-keyed types never reach it.
+   *
+   * @param {{type: string}} pattern
+   * @param {string} value - the full regex match
+   * @param {string[]} lines - the raw file
+   * @param {number} i - index of the current line
+   * @returns {boolean}
+   */
+  _couldBeLive(pattern, value, lines, i) {
+    if (!VENDOR_SHAPED_TYPES.has(pattern.type)) return false;
+    if (pattern.type === 'Private Key') {
+      // Key material on the header's own line (after the header) or the
+      // next line, whose tail is not a typed run.
+      const after = lines[i].slice(lines[i].indexOf(value) + value.length);
+      const window = `${after}\n${lines[i + 1] || ''}`;
+      return (window.match(KEY_MATERIAL_RE) || []).some((run) => !SYNTHETIC_RUN_RE.test(run.slice(-32)));
+    }
+    if (PUBLISHED_EXAMPLE_CREDENTIALS.has(value)) return false;
+    return !SYNTHETIC_RUN_RE.test(value) && !hasSequentialRun(value);
   }
 
   /**
@@ -608,6 +688,8 @@ class SecretsModule extends BaseModule {
               type: pattern.type,
               line: i + 1,
               preview: line.substring(0, 80).trim() + (line.length > 80 ? '...' : ''),
+              // Decides the tier in a test tree or prose; irrelevant in src/.
+              live: this._couldBeLive(pattern, m ? m[0] : '', lines, i),
             });
           }
         }
@@ -638,17 +720,44 @@ class SecretsModule extends BaseModule {
         // `.yaml`, `.toml`, `.ini` or `.env` is real, and that boundary is
         // the one someone will be tempted to move later.
         const isProse = /\.(?:md|mdx|markdown|txt|rst|adoc)$/i.test(relUnix);
-        const vendorShaped = found.some((f) => VENDOR_SHAPED_TYPES.has(f.type));
+        // A vendor-shaped value that is not a published example, not visibly
+        // synthetic, and (for a PEM) has key material behind it — see
+        // PUBLISHED_EXAMPLE_CREDENTIALS. Everything else in a test tree or
+        // in prose is an illustration: reported at info so it stays on the
+        // record without becoming a Code Scanning alert on every pull
+        // request (the SARIF reporter drops info; 53 test files and two docs
+        // were alerts on 2026-09-13). The tiers, in order:
+        //   src/                       error   (nothing here applies)
+        //   test tree, could be live   warning ("a test file does not make an AWS key fake")
+        //   test tree, fixture         info
+        //   prose, could be live       error at confidence 1 (lifted out of the doc discount)
+        //   prose, illustration        info
+        const live = found.some((f) => f.live);
+        const details = found.map(({ live: _live, ...f }) => f);
+        let severity = 'error';
+        let message = `${found.length} potential secret(s) found`;
+        let suggestion = 'Move secrets to environment variables and add file to .gitignore';
+        if (isTest && !live) {
+          severity = 'info';
+          message = `${found.length} credential-shaped fixture(s) in a test file — on record, not a leak`;
+          suggestion = 'Nothing to change unless one of these is a real credential — then it does not belong in a test either: read it from an env var.';
+        } else if (isTest) {
+          severity = 'warning';
+        } else if (isProse && !live) {
+          severity = 'info';
+          message = `${found.length} credential-shaped example(s) in documentation — on record, not a leak`;
+          suggestion = 'Nothing to change unless one of these is a real credential — then rotate it and replace it with a placeholder such as `<your-api-key>`.';
+        }
 
         result.addCheck(`secrets:${relPath}`, false, {
-          severity: isTest ? 'warning' : 'error',
+          severity,
           file: relPath,
-          message: `${found.length} potential secret(s) found`,
-          details: found,
+          message,
+          details,
           // An explicit confidence wins over the signal-based score, so this
           // lifts a vendor-shaped credential back out of the doc discount.
-          ...(isProse && vendorShaped ? { confidence: 1 } : {}),
-          suggestion: 'Move secrets to environment variables and add file to .gitignore',
+          ...(isProse && live ? { confidence: 1 } : {}),
+          suggestion,
         });
       }
     }

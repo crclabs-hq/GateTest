@@ -97,7 +97,10 @@ describe('mutation — the working tree survives a killed scan', () => {
 
       child.kill('SIGTERM');
       await exited;
-      await sleep(250);
+      // The handler removes the sandbox before the process exits; on Windows
+      // the directory entry can lag the exit by a few ms. Poll for it,
+      // bounded, rather than betting a fixed grace period covers it.
+      for (let i = 0; i < 20 && fs.existsSync(sandbox); i++) await sleep(50);
 
       assert.strictEqual(read(root), ORIGINAL, 'a SIGTERMed scan left a mutant behind in the source file');
       assert.strictEqual(fs.existsSync(sandbox), false, `the sandbox ${sandbox} was not removed on SIGTERM`);

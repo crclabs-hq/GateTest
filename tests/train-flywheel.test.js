@@ -222,7 +222,7 @@ test('aggregate splits recent (7d) from all-time correctly', () => {
 });
 
 test('aggregate returns zero ratios for an empty corpus without throwing', () => {
-  const s = stats.aggregate([], { now: Date.now() });
+  const s = stats.aggregate([], { now: 1_700_000_000_000 });
   assert.equal(s.all.total, 0);
   assert.equal(s.all.claudeRatioPct, 0);
   assert.equal(s.recent7d.claudeRatioPct, 0);

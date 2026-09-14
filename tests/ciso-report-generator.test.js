@@ -433,14 +433,16 @@ describe('generateCisoReport', () => {
     assert.equal(result.counts.Critical, 0);
   });
 
-  it('defaults scanDate to today when not provided', async () => {
+  it('defaults scanDate to today when not provided', async (t) => {
+    // A fixed clock: reading "today" twice — once here, once in the code
+    // under test — crosses midnight sooner or later.
+    t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-05-18T12:00:00Z') });
     const result = await generateCisoReport({
       findings: [],
       hostName: 'x.com',
       askClaude: async () => 'n',
     });
-    const today = new Date().toISOString().slice(0, 10);
-    assert.ok(result.markdown.includes(today));
+    assert.ok(result.markdown.includes('2026-05-18'));
   });
 
   it('includes attack chains in markdown when provided', async () => {
@@ -620,13 +622,13 @@ describe('generateCisoReport — Nuclear wiring', () => {
     assert.match(html, /<\/html>/);
   });
 
-  it('cisoReportPath returns a date-stamped path under gatetest-reports/', () => {
+  it('cisoReportPath returns a date-stamped path under gatetest-reports/', (t) => {
     const p1 = cisoReportPath('2026-05-18');
     assert.equal(p1, 'gatetest-reports/ciso-board-report-2026-05-18.md');
+    // The default is "today" — pinned, so the assertion cannot cross midnight.
+    t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-06-01T12:00:00Z') });
     const p2 = cisoReportPath();
-    // Today's date
-    const today = new Date().toISOString().slice(0, 10);
-    assert.equal(p2, `gatetest-reports/ciso-board-report-${today}.md`);
+    assert.equal(p2, 'gatetest-reports/ciso-board-report-2026-06-01.md');
   });
 
   it('askClaude optional: omitting it still produces a complete report', async () => {

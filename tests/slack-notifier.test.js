@@ -176,15 +176,23 @@ test('verifySlashSignature returns false with no signing secret', () => {
   assert.equal(verifySlashSignature('123', 'body', 'v0=abc', ''), false);
 });
 
-test('verifySlashSignature returns false for stale timestamp (>5 minutes)', () => {
-  const staleTs = String(Math.floor(Date.now() / 1000) - 400); // 400s ago
+// Slack's replay window is measured against the real clock inside
+// verifySlashSignature; the tests pin that clock so "now" and "400s ago"
+// are exact rather than racing the wall clock.
+const SLACK_NOW = new Date('2026-06-01T12:00:00Z');
+const SLACK_NOW_SECS = Math.floor(SLACK_NOW.getTime() / 1000);
+
+test('verifySlashSignature returns false for stale timestamp (>5 minutes)', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: SLACK_NOW });
+  const staleTs = String(SLACK_NOW_SECS - 400); // 400s ago
   assert.equal(verifySlashSignature(staleTs, 'body', 'v0=abc', 'secret'), false);
 });
 
-test('verifySlashSignature returns true for a valid HMAC', () => {
+test('verifySlashSignature returns true for a valid HMAC', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: SLACK_NOW });
   const crypto    = require('crypto');
   const secret    = 'test-signing-secret-123';
-  const timestamp = String(Math.floor(Date.now() / 1000));
+  const timestamp = String(SLACK_NOW_SECS);
   const rawBody   = 'command=%2Fgatetest&text=help';
   const base      = `v0:${timestamp}:${rawBody}`;
   const hmac      = crypto.createHmac('sha256', secret).update(base).digest('hex');
@@ -192,10 +200,11 @@ test('verifySlashSignature returns true for a valid HMAC', () => {
   assert.equal(verifySlashSignature(timestamp, rawBody, sig, secret), true);
 });
 
-test('verifySlashSignature returns false for tampered body', () => {
+test('verifySlashSignature returns false for tampered body', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: SLACK_NOW });
   const crypto    = require('crypto');
   const secret    = 'test-signing-secret-123';
-  const timestamp = String(Math.floor(Date.now() / 1000));
+  const timestamp = String(SLACK_NOW_SECS);
   const rawBody   = 'command=%2Fgatetest&text=help';
   const base      = `v0:${timestamp}:${rawBody}`;
   const hmac      = crypto.createHmac('sha256', secret).update(base).digest('hex');

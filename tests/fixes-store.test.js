@@ -56,7 +56,7 @@ describe('recordFix', () => {
   });
 
   test('passes all fields through to SQL', async () => {
-    const sql = makeFakeSql({ 'INSERT INTO fixes_log': [{ id: 'x', created_at: new Date() }] });
+    const sql = makeFakeSql({ 'INSERT INTO fixes_log': [{ id: 'x', created_at: new Date('2026-01-01T00:00:00Z') }] });
     await recordFix({
       sql,
       repoName: 'a/b',
@@ -73,7 +73,7 @@ describe('recordFix', () => {
   });
 
   test('truncates message to 500 chars', async () => {
-    const sql = makeFakeSql({ 'INSERT INTO fixes_log': [{ id: 'y', created_at: new Date() }] });
+    const sql = makeFakeSql({ 'INSERT INTO fixes_log': [{ id: 'y', created_at: new Date('2026-01-01T00:00:00Z') }] });
     const longMsg = 'x'.repeat(600);
     await recordFix({ sql, repoName: 'a/b', prUrl: 'https://github.com/a/b/pull/3', message: longMsg });
     const insert = sql.calls.find(c => c.query.includes('INSERT'));
@@ -82,7 +82,7 @@ describe('recordFix', () => {
   });
 
   test('coerces negative errorsFixed to 0', async () => {
-    const sql = makeFakeSql({ 'INSERT INTO fixes_log': [{ id: 'z', created_at: new Date() }] });
+    const sql = makeFakeSql({ 'INSERT INTO fixes_log': [{ id: 'z', created_at: new Date('2026-01-01T00:00:00Z') }] });
     await recordFix({ sql, repoName: 'a/b', prUrl: 'https://github.com/a/b/pull/4', errorsFixed: -5 });
     const insert = sql.calls.find(c => c.query.includes('INSERT'));
     assert.equal(insert.values[3], 0);

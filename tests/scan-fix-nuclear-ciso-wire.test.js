@@ -213,9 +213,11 @@ describe('scan-fix Nuclear wiring — report path', () => {
     assert.equal(p, 'gatetest-reports/ciso-board-report-2026-05-18.md');
   });
 
-  it('cisoReportPath with no arg returns todays date', () => {
-    const today = new Date().toISOString().slice(0, 10);
-    assert.equal(cisoReportPath(), `gatetest-reports/ciso-board-report-${today}.md`);
+  it('cisoReportPath with no arg returns todays date', (t) => {
+    // Pinned clock — "today" read here and in the code under test would
+    // otherwise disagree across midnight.
+    t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-06-01T12:00:00Z') });
+    assert.equal(cisoReportPath(), 'gatetest-reports/ciso-board-report-2026-06-01.md');
   });
 });
 
