@@ -12,7 +12,6 @@
  * License:           MIT
  * License URI:       https://opensource.org/licenses/MIT
  * Text Domain:       gatetest-health-check
- * Domain Path:       /languages
  *
  * GateTest Health Check is a thin client for the gatetest.io scan engine.
  * It does NOT do the scanning locally — that runs at gatetest.io. This plugin:
@@ -42,7 +41,6 @@ define('GATETEST_HC_VERSION', '0.1.0');
 define('GATETEST_HC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('GATETEST_HC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('GATETEST_HC_API_BASE', 'https://gatetest.io');
-define('GATETEST_HC_TEXT_DOMAIN', 'gatetest-health-check');
 
 // Load includes.
 require_once GATETEST_HC_PLUGIN_DIR . 'includes/admin-page.php';

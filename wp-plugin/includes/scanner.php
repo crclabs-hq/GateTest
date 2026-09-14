@@ -17,7 +17,7 @@ function gatetest_hc_handle_run_scan() {
     // Capability + nonce check — required for admin AJAX.
     if (!current_user_can('manage_options')) {
         wp_send_json_error([
-            'message' => __('Insufficient permissions.', GATETEST_HC_TEXT_DOMAIN),
+            'message' => __('Insufficient permissions.', 'gatetest-health-check'),
         ], 403);
     }
 
@@ -26,7 +26,7 @@ function gatetest_hc_handle_run_scan() {
     $apiKey = get_option('gatetest_hc_api_key', '');
     if (empty($apiKey)) {
         wp_send_json_error([
-            'message' => __('GateTest API key is not configured.', GATETEST_HC_TEXT_DOMAIN),
+            'message' => __('GateTest API key is not configured.', 'gatetest-health-check'),
         ], 400);
     }
 

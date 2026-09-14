@@ -24,13 +24,13 @@ function gatetest_hc_request_scan($api_key, $site_url, $opts = []) {
     if (empty($api_key)) {
         return new WP_Error(
             'gatetest_hc_no_api_key',
-            __('GateTest API key is missing.', GATETEST_HC_TEXT_DOMAIN)
+            __('GateTest API key is missing.', 'gatetest-health-check')
         );
     }
     if (empty($site_url) || !filter_var($site_url, FILTER_VALIDATE_URL)) {
         return new WP_Error(
             'gatetest_hc_invalid_url',
-            __('Site URL is invalid.', GATETEST_HC_TEXT_DOMAIN)
+            __('Site URL is invalid.', 'gatetest-health-check')
         );
     }
 
@@ -65,7 +65,7 @@ function gatetest_hc_request_scan($api_key, $site_url, $opts = []) {
     if ($status === 401 || $status === 403) {
         return new WP_Error(
             'gatetest_hc_auth_failed',
-            __('GateTest API rejected the API key. Regenerate it at gatetest.io/account.', GATETEST_HC_TEXT_DOMAIN),
+            __('GateTest API rejected the API key. Regenerate it at gatetest.io/account.', 'gatetest-health-check'),
             ['status' => $status]
         );
     }
@@ -73,7 +73,7 @@ function gatetest_hc_request_scan($api_key, $site_url, $opts = []) {
     if ($status === 402) {
         return new WP_Error(
             'gatetest_hc_payment_required',
-            __('You have insufficient credit for this scan. Top up at gatetest.io/account.', GATETEST_HC_TEXT_DOMAIN),
+            __('You have insufficient credit for this scan. Top up at gatetest.io/account.', 'gatetest-health-check'),
             ['status' => $status, 'response' => $json]
         );
     }
@@ -81,7 +81,7 @@ function gatetest_hc_request_scan($api_key, $site_url, $opts = []) {
     if ($status >= 400) {
         $message = is_array($json) && !empty($json['error'])
             ? $json['error']
-            : __('Scan failed.', GATETEST_HC_TEXT_DOMAIN);
+            : __('Scan failed.', 'gatetest-health-check');
         return new WP_Error(
             'gatetest_hc_scan_failed',
             $message,
@@ -92,7 +92,7 @@ function gatetest_hc_request_scan($api_key, $site_url, $opts = []) {
     if (!is_array($json)) {
         return new WP_Error(
             'gatetest_hc_bad_response',
-            __('GateTest returned an unparseable response.', GATETEST_HC_TEXT_DOMAIN)
+            __('GateTest returned an unparseable response.', 'gatetest-health-check')
         );
     }
 

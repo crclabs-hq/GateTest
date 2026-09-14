@@ -14,8 +14,8 @@ if (!defined('ABSPATH')) {
 
 function gatetest_hc_register_admin_menu() {
     add_management_page(
-        __('GateTest Health Check', GATETEST_HC_TEXT_DOMAIN),
-        __('GateTest', GATETEST_HC_TEXT_DOMAIN),
+        __('GateTest Health Check', 'gatetest-health-check'),
+        __('GateTest', 'gatetest-health-check'),
         'manage_options',
         'gatetest-health-check',
         'gatetest_hc_render_admin_page'
@@ -61,7 +61,7 @@ function gatetest_hc_enqueue_assets($hook) {
 
 function gatetest_hc_render_admin_page() {
     if (!current_user_can('manage_options')) {
-        wp_die(__('You do not have permission to access this page.', GATETEST_HC_TEXT_DOMAIN));
+        wp_die(__('You do not have permission to access this page.', 'gatetest-health-check'));
     }
 
     $apiKey       = get_option('gatetest_hc_api_key', '');
@@ -72,25 +72,25 @@ function gatetest_hc_render_admin_page() {
     <div class="wrap gatetest-hc-wrap">
         <h1>
             <span class="gatetest-hc-logo">GateTest</span>
-            <?php esc_html_e('Health Check', GATETEST_HC_TEXT_DOMAIN); ?>
+            <?php esc_html_e('Health Check', 'gatetest-health-check'); ?>
         </h1>
         <p class="gatetest-hc-tagline">
-            <?php esc_html_e('Audit your site for security, performance, and quality issues. 18 modules, plain-language report.', GATETEST_HC_TEXT_DOMAIN); ?>
+            <?php esc_html_e('Audit your site for security, performance, and quality issues. 18 modules, plain-language report.', 'gatetest-health-check'); ?>
         </p>
 
         <div class="gatetest-hc-panels">
             <div class="gatetest-hc-panel gatetest-hc-panel-primary">
-                <h2><?php esc_html_e('Run a scan', GATETEST_HC_TEXT_DOMAIN); ?></h2>
+                <h2><?php esc_html_e('Run a scan', 'gatetest-health-check'); ?></h2>
                 <p>
                     <?php
                     esc_html_e(
                         'GateTest will probe your public URL from gatetest.io and report any issues found. No source code or credentials are sent.',
-                        GATETEST_HC_TEXT_DOMAIN
+                        'gatetest-health-check'
                     );
                     ?>
                 </p>
                 <p class="gatetest-hc-site-info">
-                    <strong><?php esc_html_e('Site URL to scan:', GATETEST_HC_TEXT_DOMAIN); ?></strong>
+                    <strong><?php esc_html_e('Site URL to scan:', 'gatetest-health-check'); ?></strong>
                     <code><?php echo esc_html(home_url()); ?></code>
                 </p>
 
@@ -99,16 +99,16 @@ function gatetest_hc_render_admin_page() {
                         <?php
                         printf(
                             /* translators: %s: gatetest.io signup URL */
-                            esc_html__('You need a GateTest API key. %s to get one (free, takes 60 seconds).', GATETEST_HC_TEXT_DOMAIN),
+                            esc_html__('You need a GateTest API key. %s to get one (free, takes 60 seconds).', 'gatetest-health-check'),
                             '<a href="' . esc_url(GATETEST_HC_API_BASE . '/account?from=wp-plugin') . '" target="_blank" rel="noopener">' .
-                            esc_html__('Sign up at gatetest.io', GATETEST_HC_TEXT_DOMAIN) .
+                            esc_html__('Sign up at gatetest.io', 'gatetest-health-check') .
                             '</a>'
                         );
                         ?>
                     </p>
                 <?php else: ?>
                     <button id="gatetest-hc-run-scan" class="button button-primary button-hero">
-                        <?php esc_html_e('Scan my site now', GATETEST_HC_TEXT_DOMAIN); ?>
+                        <?php esc_html_e('Scan my site now', 'gatetest-health-check'); ?>
                     </button>
                     <div id="gatetest-hc-scan-status" class="gatetest-hc-status"></div>
                 <?php endif; ?>
@@ -116,12 +116,12 @@ function gatetest_hc_render_admin_page() {
 
             <?php if ($lastResult): ?>
                 <div class="gatetest-hc-panel">
-                    <h2><?php esc_html_e('Latest report', GATETEST_HC_TEXT_DOMAIN); ?></h2>
+                    <h2><?php esc_html_e('Latest report', 'gatetest-health-check'); ?></h2>
                     <p class="gatetest-hc-last-scan-time">
                         <?php
                         printf(
                             /* translators: %s: human-readable time */
-                            esc_html__('Last scanned %s', GATETEST_HC_TEXT_DOMAIN),
+                            esc_html__('Last scanned %s', 'gatetest-health-check'),
                             esc_html(human_time_diff($lastScanAt) . ' ago')
                         );
                         ?>
@@ -131,14 +131,14 @@ function gatetest_hc_render_admin_page() {
             <?php endif; ?>
 
             <div class="gatetest-hc-panel">
-                <h2><?php esc_html_e('Settings', GATETEST_HC_TEXT_DOMAIN); ?></h2>
+                <h2><?php esc_html_e('Settings', 'gatetest-health-check'); ?></h2>
                 <form method="post" action="options.php">
                     <?php settings_fields('gatetest_hc_settings'); ?>
                     <table class="form-table">
                         <tr>
                             <th scope="row">
                                 <label for="gatetest_hc_api_key">
-                                    <?php esc_html_e('API Key', GATETEST_HC_TEXT_DOMAIN); ?>
+                                    <?php esc_html_e('API Key', 'gatetest-health-check'); ?>
                                 </label>
                             </th>
                             <td>
@@ -154,7 +154,7 @@ function gatetest_hc_render_admin_page() {
                                     <?php
                                     printf(
                                         /* translators: %s: link to gatetest.io/account */
-                                        esc_html__('Find or generate yours at %s.', GATETEST_HC_TEXT_DOMAIN),
+                                        esc_html__('Find or generate yours at %s.', 'gatetest-health-check'),
                                         '<a href="' . esc_url(GATETEST_HC_API_BASE . '/account?from=wp-plugin') . '" target="_blank" rel="noopener">gatetest.io/account</a>'
                                     );
                                     ?>
@@ -164,7 +164,7 @@ function gatetest_hc_render_admin_page() {
                         <tr>
                             <th scope="row">
                                 <label for="gatetest_hc_consent_url_share">
-                                    <?php esc_html_e('Weekly auto-scan', GATETEST_HC_TEXT_DOMAIN); ?>
+                                    <?php esc_html_e('Weekly auto-scan', 'gatetest-health-check'); ?>
                                 </label>
                             </th>
                             <td>
@@ -176,10 +176,10 @@ function gatetest_hc_render_admin_page() {
                                         value="true"
                                         <?php checked($consentShare); ?>
                                     />
-                                    <?php esc_html_e('Run a scan automatically every Sunday at 3am UTC.', GATETEST_HC_TEXT_DOMAIN); ?>
+                                    <?php esc_html_e('Run a scan automatically every Sunday at 3am UTC.', 'gatetest-health-check'); ?>
                                 </label>
                                 <p class="description">
-                                    <?php esc_html_e('Requires the GateTest Starter plan or higher.', GATETEST_HC_TEXT_DOMAIN); ?>
+                                    <?php esc_html_e('Requires the GateTest Starter plan or higher.', 'gatetest-health-check'); ?>
                                 </p>
                             </td>
                         </tr>
@@ -190,11 +190,11 @@ function gatetest_hc_render_admin_page() {
         </div>
 
         <p class="gatetest-hc-footer">
-            <?php esc_html_e('Powered by the GateTest engine.', GATETEST_HC_TEXT_DOMAIN); ?>
+            <?php esc_html_e('Powered by the GateTest engine.', 'gatetest-health-check'); ?>
             <a href="<?php echo esc_url(GATETEST_HC_API_BASE); ?>" target="_blank" rel="noopener">gatetest.io</a>
             ·
             <a href="<?php echo esc_url(GATETEST_HC_API_BASE . '/legal/privacy'); ?>" target="_blank" rel="noopener">
-                <?php esc_html_e('Privacy policy', GATETEST_HC_TEXT_DOMAIN); ?>
+                <?php esc_html_e('Privacy policy', 'gatetest-health-check'); ?>
             </a>
         </p>
     </div>
