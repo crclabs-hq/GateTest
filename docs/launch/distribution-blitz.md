@@ -12,8 +12,8 @@
 >
 > **Honest facts to keep straight (re-verified 2026-07-19, don't drift):**
 > 121 modules · gatetest.io · free no-signup scan · MIT CLI via
-> `npx -p @gatetest/cli gatetest` (npm published; note the `-p` form is
-> required — plain `npx @gatetest/cli` fails, the package has two bins) ·
+> `npx -p @gatetest/cli gatetest` (npm published; the `-p` form works on every release —
+> bare `npx @gatetest/cli` only from 1.61.1, which added a bin named `cli`) ·
 > pay-per-scan $29 / $99 / $199 / $399 + $49/mo Continuous (LIVE) ·
 > never auto-merges · GitHub Marketplace listing rejected 2026-05-14,
 > resubmitting free-only — don't claim it's live until approved.

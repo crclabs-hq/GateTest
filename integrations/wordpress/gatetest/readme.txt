@@ -128,7 +128,7 @@ Yes — enable **Weekly Auto-Scan** in Settings → GateTest. GateTest will scan
 
 = Does GateTest work with Gluecron or other git hosts? =
 
-GateTest supports GitHub and Gluecron.com. Additional git host support is in development. Contact hello@gatetest.ai for enterprise integrations.
+GateTest supports GitHub and Gluecron.com. Additional git host support is in development. Contact support@gatetest.io for enterprise integrations.
 
 == Screenshots ==
 

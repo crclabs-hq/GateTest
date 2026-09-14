@@ -208,7 +208,7 @@ GateTest/
 | `NEXT_PUBLIC_BASE_URL` | **The one variable that decides the domain** (default `https://gatetest.io`). Every canonical, OG URL, sitemap entry, IndexNow submission, Stripe return, OAuth redirect, badge snippet and bot User-Agent derives from it. Inlined at BUILD time — changing it needs a rebuild, not a restart |
 | `GATETEST_PUBLIC_BASE_URL` | Server-side alias for the above; lower precedence. Set both to the same value |
 | `GATETEST_BADGE_ORIGIN` | Origin for NEWLY generated badge/embed snippets only. Leave unset — tracks the base URL. Cannot migrate badges already pasted into customers' READMEs |
-| `GATETEST_SUPPORT_EMAIL` | Public support mailbox (default `hello@gatetest.ai` — deliberately lags the domain move; verify the domain in Resend and set up forwarding first, or mail fails silently) |
+| `GATETEST_SUPPORT_EMAIL` | Public support mailbox (default `support@gatetest.io` — mail moved to gatetest.io on 2026-09-11 once Resend verified the domain and MX delivered; the mailboxes that exist are `admin@`, `support@`, `billing@` — there is no `hello@`) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing |
 | `GLUECRON_BASE_URL` | Gluecron deployment URL (default https://gluecron.com) |
 | `GLUECRON_API_TOKEN` | Gluecron PAT (scope: `repo`, format `glc_<64hex>`) |

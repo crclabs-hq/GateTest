@@ -40,6 +40,9 @@ on: [push, pull_request]
 jobs:
   gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write   # the PR summary comment, inline suggestions, auto-repair PRs
     steps:
       - uses: actions/checkout@v4
       - uses: crclabs-hq/GateTest@v1
@@ -52,6 +55,8 @@ jobs:
 
 The action is a composite — no Docker pull, no container build. It installs GateTest, runs the gate, and if `auto-fix: true` and `ANTHROPIC_API_KEY` is set, runs the AI repair loop on a blocking gate. See [`action.yml`](action.yml) for every input.
 
+The action authenticates with the workflow's own token by default (`github-token` input, `${{ github.token }}`), so the `permissions:` block above is all it needs: without `pull-requests: write` the summary comment and suggestions are skipped, with a warning in the log. Add `issues: write` if you turn on `track-non-fixable: true`, and `security-events: write` (plus `actions: read`) if you upload the `--sarif` report to the Security tab with `github/codeql-action/upload-sarif` (see [Wire it into CI](#wire-it-into-ci--github-gitlab-or-circleci) below).
+
 **Your first full run passes.** Turning a gate on against an existing codebase would otherwise fail on years of backlog nobody wrote this week, so a full-repo run that finds no `.gatetest/baseline.json` snapshots what is already there and exits green. Commit that file and every run after it fails on **new** findings only — pull requests are judged on the files they change from the very first run. Details under [baseline mode](#onboarding-a-mature-repo--baseline-mode).
 
 ### CLI — local development
@@ -62,7 +67,9 @@ npm install -g @gatetest/cli
 gatetest --suite quick
 
 # Or run against the current directory with no install:
-npx github:crclabs-hq/GateTest --suite quick
+npx -p @gatetest/cli gatetest --suite quick
+# (bare `npx @gatetest/cli --suite quick` works from 1.61.1 — earlier releases
+#  answer "could not determine executable to run"; the -p form works on every version)
 
 # Or clone and run from source:
 git clone https://github.com/crclabs-hq/GateTest
@@ -199,7 +206,8 @@ On any other CI — Jenkins, Buildkite, Bitbucket, Drone — the CLI is the whol
 integration:
 
 ```bash
-npx @gatetest/cli --suite full --junit --sarif
+npx -p @gatetest/cli gatetest --suite full --junit --sarif
+# or, from 1.61.1: npx @gatetest/cli --suite full --junit --sarif
 ```
 
 Onboarding an existing codebase? Pair this with **baseline mode** above so the gate
@@ -232,7 +240,7 @@ not shown)` — and carries it in the signed provenance. No `paths` key, no filt
 Reproduce any failing GitHub Actions run on your laptop in seconds:
 
 ```bash
-gatetest replay https://github.com/owner/repo/actions/runs/12345
+gatetest replay https://github.com/<owner>/<repo>/actions/runs/<run-id>
 ```
 
 This fetches the run, identifies which steps failed, and runs them locally
@@ -385,7 +393,7 @@ One config, one bill, one gate decision. Twelve-plus tools dissolve into single 
 
 ## Tiers and pricing
 
-Scan tiers are one-time payments via Stripe at checkout — no auto-renew. Continuous and MCP are monthly subscriptions; manage or cancel them yourself at [gatetest.io/billing](https://gatetest.io/billing) (enter your checkout email, get a secure Stripe portal link by email — update your card, view invoices, change plan, or cancel). Refunds only at our discretion for scans that failed to start or crashed mid-way without producing a report (contact `hello@gatetest.ai`).
+Scan tiers are one-time payments via Stripe at checkout — no auto-renew. Continuous and MCP are monthly subscriptions; manage or cancel them yourself at [gatetest.io/billing](https://gatetest.io/billing) (enter your checkout email, get a secure Stripe portal link by email — update your card, view invoices, change plan, or cancel). Refunds only at our discretion for scans that failed to start or crashed mid-way without producing a report (contact `support@gatetest.io`).
 
 | Tier              | Price   | What you get                                                                                                                                       |
 | ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |

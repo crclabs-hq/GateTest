@@ -38,6 +38,10 @@ inputs:
     description: 'Node.js version to use (GateTest requires Node 20+).'
     required: false
     default: '22'
+  github-token:
+    description: 'Token for the PR summary comment, inline suggestions, auto-repair PRs and issue tracking. Defaults to the workflow''s own token (github.token), so nothing needs to be passed — grant the job `pull-requests: write` (and `issues: write` for track-non-fixable). A GITHUB_TOKEN in the step''s env: block still wins over the default, for workflows written against earlier releases; pass a PAT here to act as a user instead of the workflow.'
+    required: false
+    default: ''
   working-directory:
     description: 'Directory to scan. Defaults to the repository root.'
     required: false
@@ -109,6 +113,9 @@ outputs:
   warning-count:
     description: 'Number of warning-severity findings from the scan.'
     value: ${{ steps.gate.outputs.warning-count }}
+  blocking-error-count:
+    description: 'Number of error-severity findings confident enough to block the gate (error-count minus the low-confidence "soft" errors). All three counts are read from the JSON report the engine writes, not parsed from console output.'
+    value: ${{ steps.gate.outputs.blocking-error-count }}
   report-path:
     description: 'Filesystem path to the generated report (empty when report-format is "console").'
     value: ${{ steps.gate.outputs.report-path }}
@@ -264,12 +271,32 @@ runs:
         set -e
         echo "$OUTPUT"
 
-        # Parse error / warning counts from the captured output. The runner
-        # emits a summary line like "Errors: N" / "Warnings: N".
-        ERR_COUNT=$(printf '%s\n' "$OUTPUT" | grep -Eio '^[[:space:]]*errors?:[[:space:]]*[0-9]+' | head -1 | grep -Eio '[0-9]+' | head -1)
-        WARN_COUNT=$(printf '%s\n' "$OUTPUT" | grep -Eio '^[[:space:]]*warnings?:[[:space:]]*[0-9]+' | head -1 | grep -Eio '[0-9]+' | head -1)
+        # Read the counts from the JSON report the engine writes on every run
+        # (json is in DEFAULT_CONFIG.reporting.formats whatever report-format
+        # says — --json/--sarif/--junit ADD a format). This used to grep the
+        # console "Errors: N" line, and the reporter coloured the number, so
+        # `errors?:[[:space:]]*[0-9]+` never matched and every run reported
+        # error-count=0 / warning-count=0 (2026-09-14 marketplace audit).
+        LATEST_REPORT=".gatetest/reports/gatetest-report-latest.json"
+        COUNTS=""
+        if [ -f "$LATEST_REPORT" ]; then
+          COUNTS=$(node -e '
+            const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const c = (r.summary && r.summary.checks) || {};
+            const n = (v) => (Number.isInteger(v) && v >= 0 ? v : 0);
+            console.log(n(c.errors) + " " + n(c.warnings) + " " + n(c.blockingErrors));
+          ' "$LATEST_REPORT" 2>/dev/null) && rc=0 || rc=$?
+          if [ "$rc" -ne 0 ]; then echo "::warning::reading $LATEST_REPORT exited $rc — the report is unreadable; counts fall back to 0"; COUNTS=""; fi
+        fi
+        if [ -z "$COUNTS" ]; then
+          echo "::warning title=GateTest counts unavailable::no readable JSON report at $LATEST_REPORT — error-count / warning-count / blocking-error-count fall back to 0; the gate verdict above is unaffected"
+        fi
+        ERR_COUNT=$(echo "$COUNTS" | awk '{print $1}')
+        WARN_COUNT=$(echo "$COUNTS" | awk '{print $2}')
+        BLOCKING_COUNT=$(echo "$COUNTS" | awk '{print $3}')
         ERR_COUNT="${ERR_COUNT:-0}"
         WARN_COUNT="${WARN_COUNT:-0}"
+        BLOCKING_COUNT="${BLOCKING_COUNT:-0}"
 
         if [ "$EXIT_CODE" -eq 0 ]; then
           GATE_STATUS="passed"
@@ -283,6 +310,7 @@ runs:
         echo "gate-status=$GATE_STATUS" >> "$GITHUB_OUTPUT"
         echo "error-count=$ERR_COUNT"   >> "$GITHUB_OUTPUT"
         echo "warning-count=$WARN_COUNT" >> "$GITHUB_OUTPUT"
+        echo "blocking-error-count=$BLOCKING_COUNT" >> "$GITHUB_OUTPUT"
         echo "report-path=$REPORT_PATH" >> "$GITHUB_OUTPUT"
         echo "exit-code=$EXIT_CODE"     >> "$GITHUB_OUTPUT"
 
@@ -350,7 +378,7 @@ runs:
       if: ${{ always() && inputs.summary-comment == 'true' && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ inputs.github-token || env.GITHUB_TOKEN || github.token }}
       run: |
         set -uo pipefail
         cd "${{ inputs.working-directory }}"
@@ -372,7 +400,7 @@ runs:
       shell: bash
       env:
         ANTHROPIC_API_KEY: ${{ env.ANTHROPIC_API_KEY }}
-        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ inputs.github-token || env.GITHUB_TOKEN || github.token }}
         # Memory-as-a-Service opt-in. When share-learnings is on, point the
         # local recipe store at gatetest.io/api/recipes (or the customer's
         # own URL if they supplied one). The remote-store glue
@@ -419,7 +447,7 @@ runs:
       if: ${{ steps.gate.outputs.gate-status == 'blocked' && inputs.auto-fix == 'true' && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ inputs.github-token || env.GITHUB_TOKEN || github.token }}
       run: |
         set -uo pipefail
         if [ -z "${GATETEST_HOME:-}" ]; then
@@ -454,7 +482,7 @@ runs:
       if: ${{ inputs.track-non-fixable == 'true' && (always() || steps.gate.outputs.gate-status == 'blocked') }}
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ inputs.github-token || env.GITHUB_TOKEN || github.token }}
       run: |
         set -uo pipefail
         if [ -z "${GATETEST_HOME:-}" ]; then

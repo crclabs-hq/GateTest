@@ -34,8 +34,9 @@ import { breadcrumbSchema, contentMetadata, jsonLd } from "../lib/seo/schema";
  * from "modules"). Putting an unbacked number on an indexable page is a
  * different act from leaving it on a noindex prototype.
  *
- * The e-mail address stays @gatetest.ai on purpose — see CLAUDE.md THE DOMAIN:
- * the .ai mailbox is the verified sending/receiving domain, .io is not.
+ * The e-mail address is SUPPORT_EMAIL (support@gatetest.io) — see CLAUDE.md
+ * THE DOMAIN: mail moved to gatetest.io on 2026-09-11; gatetest.ai is NXDOMAIN
+ * and any address there bounces.
  */
 
 export const metadata: Metadata = contentMetadata({

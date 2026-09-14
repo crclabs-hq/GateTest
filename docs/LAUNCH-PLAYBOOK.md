@@ -82,7 +82,7 @@ no longer shows the `config/placeholders` failure.
 3. ~~On the box, in the same `.env.local`: set `RESEND_API_KEY`~~ — **done
    2026-09-10** (`/api/status` reports it present). Still to set once the
    domain verifies: `RESEND_FROM=GateTest <watchdog@gatetest.io>`. Restart again.
-4. Confirm `hello@gatetest.ai` forwarding still reaches an inbox you read —
+4. Confirm `support@gatetest.io` forwarding still reaches an inbox you read —
    send yourself a test email. Every feedback affordance we shipped points
    there.
 
