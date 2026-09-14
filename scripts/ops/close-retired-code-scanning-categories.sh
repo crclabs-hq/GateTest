@@ -32,8 +32,10 @@ for round in $(seq 1 80); do
 done
 echo "done: deleted $deleted analyses"
 echo "remaining analyses in retired categories:"
-gh api "repos/$REPO/code-scanning/analyses?per_page=100" --paginate \
-  --jq '.[] | select(.category != "gatetest") | .category' | sort | uniq -c || true
+if ! gh api "repos/$REPO/code-scanning/analyses?per_page=100" --paginate \
+  --jq '.[] | select(.category != "gatetest") | .category' | sort | uniq -c; then
+  echo "  (could not list remaining analyses — re-run the script to check)" >&2
+fi
 echo "open alerts by category now:"
 gh api "repos/$REPO/code-scanning/alerts?state=open&per_page=100" --paginate \
   --jq '.[] | .most_recent_instance.category' | sort | uniq -c
