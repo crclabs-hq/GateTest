@@ -174,6 +174,37 @@ function hasSegment(rel, name) {
   return typeof rel === 'string' && rel.split(/[\\/]+/).includes(name);
 }
 
+/**
+ * Is the import on masked line `lineIdx` GUARDED — a `require()` inside a
+ * `try` block, or a dynamic `import()` with `.catch(` on the same line?
+ * That is the optional-dependency idiom: the author expects the package to
+ * be absent and handles it (`try { ts = require('typescript') } catch {
+ * return 'typescript-unavailable' }`, src/core/direct-repair.js:514; every
+ * Playwright module in src/modules loads the browser the same way). An
+ * undeclared package there is still worth telling the customer — installs
+ * cannot know about it — but it is not a hallucination, and it is not a
+ * missing install: it is a peer the manifest should name as optional.
+ *
+ * Walks up from the import counting braces on the masked lines; the first
+ * unmatched `{` whose line ends in `try` is the guard. Stops at 80 lines.
+ */
+function isGuardedImport(maskedLines, lineIdx) {
+  const own = maskedLines[lineIdx] || '';
+  if (/\btry\s*\{/.test(own) || /\bimport\s*\([^)]*\)\s*\.catch\s*\(/.test(own)) return true;
+  let depth = 0;
+  for (let k = lineIdx - 1; k >= 0 && k >= lineIdx - 80; k -= 1) {
+    const l = maskedLines[k] || '';
+    for (let c = l.length - 1; c >= 0; c -= 1) {
+      if (l[c] === '}') depth += 1;
+      else if (l[c] === '{') {
+        if (depth > 0) { depth -= 1; continue; }
+        if (/\btry\s*$/.test(l.slice(0, c))) return true;
+      }
+    }
+  }
+  return false;
+}
+
 class AiHallucinationDetector extends BaseModule {
   constructor() {
     super('aiHallucination', 'AI Hallucination Detector — fake imports, invented APIs, non-existent methods');
@@ -286,6 +317,7 @@ class AiHallucinationDetector extends BaseModule {
       // Nearest-manifest resolution, so a nested package's own dependencies count.
       const knownDeps = this._depsForDir(path.dirname(file), projectRoot, depsCache, rootDeps);
       let lines = null;
+      let maskedLines = null;
 
       for (const [specifier, { line: lineNo, via, typeOnly }] of specs) {
         if (via !== 'unresolved') continue;
@@ -302,18 +334,27 @@ class AiHallucinationDetector extends BaseModule {
         if (isTypeOnly && knownDeps.has(typesPackage(pkg))) continue;
 
         if (!lines) {
-          try { lines = fs.readFileSync(file, 'utf-8').split(/\r?\n/); } catch { lines = []; }
+          let content = '';
+          try { content = fs.readFileSync(file, 'utf-8'); } catch { content = ''; }
+          lines = content.split(/\r?\n/);
+          maskedLines = this._maskedLines(content, rel);
         }
         const lineText = lines[lineNo - 1] || '';
         if (lineText.includes('// hallucination-ok')) continue;
+        const guarded = isGuardedImport(maskedLines, lineNo - 1);
 
         issueCount++;
         result.addCheck(`ai-hallucination:unknown-pkg:${rel}:${pkg}`, false, {
-          severity: isTypeOnly ? 'info' : 'warning',
-          message: `Import of \`${pkg}\` not found in package.json (checked the nearest manifest and every one up to the project root) — possible AI hallucination or missing install`,
+          severity: isTypeOnly || guarded ? 'info' : 'warning',
+          message: guarded
+            ? `Import of \`${pkg}\` is guarded (loaded inside try/catch) but declared in no package.json up to the project root — an optional dependency installs cannot see; name it under optionalDependencies or peerDependencies (peerDependenciesMeta optional)`
+            : `Import of \`${pkg}\` not found in package.json (checked the nearest manifest and every one up to the project root) — possible AI hallucination or missing install`,
           file: rel,
           line: lineNo,
-          fix: `Run \`npm install ${pkg}\` if the package is real, or remove the import if it was hallucinated.`,
+          guarded,
+          fix: guarded
+            ? `Declare \`${pkg}\` as an optional peer/optionalDependency so installs and SBOMs know about it.`
+            : `Run \`npm install ${pkg}\` if the package is real, or remove the import if it was hallucinated.`,
           autoFix: makeAutoFix(
             file,
             'ai-hallucination:unknown-pkg',
@@ -325,20 +366,27 @@ class AiHallucinationDetector extends BaseModule {
       }
     }
 
-    // 2. Known-hallucinated method patterns
+    // 2. Known-hallucinated method patterns — matched on the MASKED source
+    // (src/core/source-strip.js), so a comment naming `fs.readAllFiles`, a
+    // fixture string in a test, or this module's own pattern table (regex
+    // literals) cannot fire. Self-scan 2026-09-13: 10 of 11 `method`
+    // findings were this file's HALLUCINATED_METHODS and its doc comment,
+    // the 11th a test fixture string — the self-reference class KI #43
+    // recorded for other modules.
     for (const file of files) {
       const rel = path.relative(projectRoot, file);
       if (hasSegment(rel, 'node_modules') || hasSegment(rel, '.next')) continue;
       let content;
       try { content = fs.readFileSync(file, 'utf-8'); } catch { continue; }
       const lines = content.split(/\r?\n/);
+      const masked = this._maskedLines(content, rel).join('\n');
 
       for (const { re, msg } of HALLUCINATED_METHODS) {
         re.lastIndex = 0;
         let m;
         const reGlobal = new RegExp(re.source, (re.flags.includes('g') ? re.flags : re.flags + 'g'));
-        while ((m = reGlobal.exec(content)) !== null) {
-          const lineNo   = content.slice(0, m.index).split(/\r?\n/).length;
+        while ((m = reGlobal.exec(masked)) !== null) {
+          const lineNo   = masked.slice(0, m.index).split('\n').length;
           const lineText = lines[lineNo - 1] || '';
           if (lineText.includes('// hallucination-ok')) continue;
 

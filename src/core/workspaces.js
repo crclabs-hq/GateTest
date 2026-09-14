@@ -185,6 +185,49 @@ function nearestWorkspacePackage(members, rel) {
   return best;
 }
 
+/**
+ * The package.json that OWNS a file — the nearest one walking up from the
+ * file's directory to the project root — parsed, as `{ dir, json }` (`dir`
+ * is `/`-joined and relative to the root, `''` for the root manifest), or
+ * null when no manifest governs it. ENOENT keeps walking up; anything else
+ * (malformed JSON) still OWNS the file, with `json: {}` and an `error`, so a
+ * broken manifest reads as an application rather than as "no package" — the
+ * safe direction for every caller. Pass a Map as `cache` to memoise per
+ * directory across a scan (directories without a manifest are remembered as
+ * null, so a deep tree costs one read per directory, not per file).
+ *
+ * This was code-quality's private `_nearestPackage` (#418: a file in a nested
+ * private app judged as library code of the root package); compatibility
+ * needs the same answer for `engines.node`, so it lives here (Doctrine §4).
+ *
+ * @param {string} projectRoot
+ * @param {string} relFwd repo-relative path, either slash style
+ * @param {Map<string, object|null>} [cache]
+ * @returns {{ dir: string, json: object, error?: string } | null}
+ */
+function nearestManifest(projectRoot, relFwd, cache) {
+  const byDir = cache || new Map();
+  const segs = String(relFwd).replace(/\\/g, '/').split('/');
+  segs.pop();
+  for (let n = segs.length; n >= 0; n -= 1) {
+    const dir = segs.slice(0, n).join('/');
+    if (byDir.has(dir)) {
+      const hit = byDir.get(dir);
+      if (hit) return hit;
+      continue;
+    }
+    let entry = null;
+    try {
+      entry = { dir, json: JSON.parse(fs.readFileSync(path.join(projectRoot, dir, 'package.json'), 'utf-8')) };
+    } catch (err) {
+      entry = err && err.code === 'ENOENT' ? null : { dir, json: {}, error: err.message };
+    }
+    byDir.set(dir, entry);
+    if (entry) return entry;
+  }
+  return null;
+}
+
 /** `name → absolute dir` for every named member (deadCodeIndex's shape). */
 function workspacePackageMap(projectRoot) {
   const map = new Map();
@@ -208,4 +251,5 @@ module.exports = {
   DEP_FIELDS,
   manifestDeclares,
   nearestWorkspacePackage,
+  nearestManifest,
 };
