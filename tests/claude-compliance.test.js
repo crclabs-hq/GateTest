@@ -115,6 +115,90 @@ describe('ClaudeComplianceModule — mock data', () => {
   });
 });
 
+// =============================================================================
+// A detector is not data. Self-scan 2026-09-13: all 18 mock-data findings on
+// this repo were the DETECTORS — this module's own pattern table (regex
+// literals), comments in secrets / security / cookie-security naming
+// "changeme", env-placeholder's Set of recognised placeholders, and website
+// copy describing what cookieSecurity flags. Each shape below is paired with
+// the real placeholder beside it that must still fire.
+// =============================================================================
+describe('ClaudeComplianceModule — mock data: detectors, comparands and prose are not data', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-cc-detector-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('a regex literal or a comment naming the placeholder is a detector (src/modules/claude-compliance.js:76, secrets.js:17)', async () => {
+    write(tmp, 'src/detector.js', [
+      "const WEAK = [{ re: /[\"'`]changeme[\"'`]/i, label: 'weak' }, { re: /\\bJohn\\s+Doe\\b/ }];",
+      "// The password IS a credential word — `password`, `secret`, `changeme`.",
+      "/* John Doe is what assistants scaffold */",
+      'module.exports = WEAK;',
+    ].join('\n'));
+    assert.equal(fail(await run(tmp), 'mock-data').length, 0);
+  });
+
+  it('a placeholder that is COMPARED or listed in a lookup Set is a guard, not shipped data (src/core/env-placeholder.js:31)', async () => {
+    write(tmp, 'src/guard.js', [
+      "const EXACT_PLACEHOLDERS = new Set([",
+      "  'changeme', 'change_me', 'placeholder',",
+      "  'password123',",
+      "]);",
+      "if (value === 'changeme') throw new Error('set a real secret');",
+      "const weak = WEAK.has('password123');",
+      "switch (v) { case 'changeme': break; default: }",
+      'module.exports = { EXACT_PLACEHOLDERS, weak };',
+    ].join('\n'));
+    assert.equal(fail(await run(tmp), 'mock-data').length, 0);
+  });
+
+  it('a sentence ABOUT a placeholder is prose; the quoted placeholder nested in it is not a literal (website/app/for/countries.ts:361)', async () => {
+    write(tmp, 'src/copy.ts', [
+      'export const explanation = "cookieSecurity flags httpOnly: false and weak session secrets (\'changeme\', \'keyboard cat\') the PDPC commonly cites.";',
+      'export const example = "John Doe placeholder in src/users.ts:42 — mock data shipped to prod, caught by the claudeCompliance module";',
+    ].join('\n'));
+    assert.equal(fail(await run(tmp), 'mock-data').length, 0);
+  });
+
+  it('POSITIVE CONTROL: the placeholder assigned as a value still fires — a short string, a whole literal', async () => {
+    write(tmp, 'src/config.ts', [
+      "export const SESSION_SECRET = process.env.SESSION_SECRET || 'changeme';",
+      'export const demoUser = { name: "John Doe", phone: "555-0100" };',
+    ].join('\n'));
+    assert.equal(fail(await run(tmp), 'mock-data').length, 2);
+  });
+});
+
+describe('ClaudeComplianceModule — a directive in a string is not a directive', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-cc-directive-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('13 @ts-ignore and a dozen `: any` inside a template literal of example code count for nothing (website/app/for/typescript/page.tsx)', async () => {
+    const example = Array.from({ length: 13 }, (_, n) => `// @ts-ignore\nconst v${n}: any = load(${n});`).join('\n');
+    write(tmp, 'src/page.tsx', 'export const bad = `\n' + example + '\n`;\nexport const P = () => <pre>{bad}</pre>;\n');
+    const r = await run(tmp);
+    assert.equal(fail(r, 'ts-ignore-density').length, 0);
+    assert.equal(fail(r, 'any-density').length, 0);
+  });
+
+  it('POSITIVE CONTROL: the same directives as real comments still fire', async () => {
+    const real = Array.from({ length: 3 }, (_, n) => `// @ts-ignore\nconst v${n} = load(${n});`).join('\n');
+    write(tmp, 'src/real.ts', real + '\n');
+    assert.equal(fail(await run(tmp), 'ts-ignore-density').length, 1);
+  });
+
+  it('the STUB_PATTERNS table (regex literals) is not a stub; a real stub throw beside it is', async () => {
+    write(tmp, 'src/stubs.js', [
+      "const STUBS = [/throw\\s+new\\s+Error\\s*\\(\\s*[\"'`]\\s*(?:not\\s*implemented|TODO)/i, /\\/\\/\\s*TODO:?\\s*implement\\b/i];",
+      "const msg = 'throw new Error(\"not implemented\") is what we catch';",
+      'function real() { throw new Error("not implemented"); }',
+      'module.exports = { STUBS, msg, real };',
+    ].join('\n'));
+    assert.equal(fail(await run(tmp), 'stub').length, 1);
+  });
+});
+
 describe('ClaudeComplianceModule — not-implemented stubs', () => {
   let tmp;
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-cc-stub-')); });
