@@ -225,29 +225,45 @@ test('summariseSyntaxGate — partial reject', () => {
 // ── TS-family syntax checking (2026-08-18 audit #7 — was pass-through) ─────
 const { checkTsSyntax } = require('../website/app/lib/cross-fix-syntax-gate');
 
+// The three verdict tests need the real parser, which the gate resolves from
+// website/ (`typescript` is a website devDependency; CI runs `cd website &&
+// npm ci` before the suite). Without it they cannot check anything and say
+// so as a skip with the install command, never as a pass. With it, a verdict
+// that comes back `unverified` is failed on the gate's own reason string —
+// 2026-09-13 this failed once in CI as a bare `true !== false`.
+const TS_PATH = (() => {
+  try { return require.resolve('typescript', { paths: [require('path').join(__dirname, '..', 'website', 'app', 'lib')] }); } catch { return null; }
+})();
+const withCompiler = TS_PATH ? {} : { skip: 'typescript is not installed under website/ — run `cd website && npm ci`; the parser verdicts cannot be checked without it' };
+const verified = (r) => assert.equal(r.unverified, undefined, `the compiler resolves at ${TS_PATH} but the gate did not use it: ${r.reason}`);
+
 test('checkTsSyntax — valid TypeScript passes', () => {
   const r = checkTsSyntax('interface A { x: number }\nexport const f = (a: A): number => a.x;\n', 'fix-validation.ts');
   assert.equal(r.ok, true);
 });
 
-test('checkTsSyntax — broken TypeScript is rejected', () => {
+test('checkTsSyntax — broken TypeScript is rejected', withCompiler, () => {
   const r = checkTsSyntax('export const f = (a: { : number) => a.x;\n', 'fix-validation.ts');
+  verified(r);
   assert.equal(r.ok, false);
   assert.match(r.reason, /syntax error/);
 });
 
-test('checkTsSyntax — valid TSX passes, broken TSX rejected', () => {
-  assert.equal(checkTsSyntax('export const C = () => <div className="a">hi</div>;\n', 'fix-validation.tsx').ok, true);
+test('checkTsSyntax — valid TSX passes, broken TSX rejected', withCompiler, () => {
+  const good = checkTsSyntax('export const C = () => <div className="a">hi</div>;\n', 'fix-validation.tsx');
+  verified(good);
+  assert.equal(good.ok, true);
   assert.equal(checkTsSyntax('export const C = () => <div<;\n', 'fix-validation.tsx').ok, false);
 });
 
-test('validateFixesSyntax — a .ts fix that does not parse is rejected, language=ts', () => {
+test('validateFixesSyntax — a .ts fix that does not parse is rejected, language=ts', withCompiler, () => {
   const { accepted, rejected } = validateFixesSyntax({
     fixes: [
       { file: 'src/good.ts', fixed: 'export const a: number = 1;\n', original: '', issues: [] },
       { file: 'src/bad.ts', fixed: 'const x: = ;;;(\n', original: '', issues: [] },
     ],
   });
+  for (const a of accepted) verified({ unverified: a.unverified, reason: a.unverifiedReason });
   assert.equal(accepted.length, 1);
   assert.equal(accepted[0].language, 'ts');
   assert.equal(rejected.length, 1);
