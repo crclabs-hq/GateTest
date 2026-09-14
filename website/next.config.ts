@@ -31,6 +31,11 @@ const CLI_ENGINE_ROUTES = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // `.next/standalone` is what the Dockerfile ships. It is opt-in because
+  // `next start` — how the systemd unit on the box runs the site — refuses
+  // to serve a standalone build; the Dockerfile sets the flag, the box does
+  // not. (Declared in website/.env.example like every other env read.)
+  output: process.env.NEXT_OUTPUT_STANDALONE === "1" ? "standalone" : undefined,
   outputFileTracingRoot: repoRoot,
   outputFileTracingIncludes: Object.fromEntries(
     CLI_ENGINE_ROUTES.map((route) => [route, ["../src/**"]])

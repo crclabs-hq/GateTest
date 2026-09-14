@@ -1,0 +1,38 @@
+# Build context for the Dockerfile. Without this file the context was the
+# whole checkout — 1.92 GB, 948 s just to send it to the daemon (measured
+# 2026-09-14). The image needs website/, src/, bin/, lib/, scripts/ and the
+# package manifests; everything else is noise or a secret.
+
+# Dependencies are installed inside the image from the lockfiles.
+node_modules
+website/node_modules
+website/.next
+
+# History is not needed: the build stamps the commit from the GIT_COMMIT
+# build-arg (scripts/generate-build-info.js reads it before it tries git).
+.git
+.github
+
+# Never bake local secrets or local state into a layer.
+.env
+.env.*
+website/.env
+website/.env.*
+!website/.env.example
+.gatetest
+website/.gatetest
+.dogfood
+*.log
+
+# Tests, corpora, benchmarks and docs are not part of the runtime.
+tests
+website/tests
+website/e2e
+corpus
+reliability-corpus
+benchmarks
+docs
+.claude
+integrations
+playwright-report
+test-results
