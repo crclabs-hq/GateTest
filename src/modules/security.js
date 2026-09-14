@@ -1531,7 +1531,9 @@ class SecurityModule extends BaseModule {
       if (!fs.existsSync(envPath)) continue;
 
       // Check if file is tracked by git
-      const { exitCode } = this._exec(`git ls-files --error-unmatch "${envFile}" 2>/dev/null`, {
+      // No shell redirect: stderr is piped by _exec, and `2>/dev/null` under
+      // cmd.exe is a real file that concurrent probes collide on (secrets.js).
+      const { exitCode } = this._exec(`git ls-files --error-unmatch "${envFile}"`, {
         cwd: projectRoot,
       });
 

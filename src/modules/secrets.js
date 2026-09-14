@@ -799,7 +799,12 @@ class SecretsModule extends BaseModule {
         //                       why. Found 2026-09-13: under a loaded test run
         //                       the 5 s probe timed out and a tracked .npmrc
         //                       holding an _authToken was reported as clean.
-        const probe = this._exec(`git ls-files --error-unmatch "${filename}" 2>/dev/null`, {
+        // No `2>/dev/null`: _exec already pipes stderr, and under cmd.exe the
+        // redirect names a real file (`C:\dev\null` on any box with a C:\dev
+        // folder) that concurrent probes then fight over — "being used by
+        // another process", exit 1, read as "not tracked" (2026-09-14: the
+        // .env / .npmrc controls flaked exactly this way under the full suite).
+        const probe = this._exec(`git ls-files --error-unmatch "${filename}"`, {
           cwd: projectRoot,
           timeout: 5000,
         });
