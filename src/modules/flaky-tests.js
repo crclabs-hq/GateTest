@@ -259,6 +259,46 @@ function timerIsGuard(masked, maskedAll, i, code, idx) {
   return TIMER_ABORT_RE.test(callText(masked, i, idx));
 }
 
+// A term that IS a point in time: a clock read, or an identifier whose
+// assignment reads the clock (`const start = Date.now()`,
+// `const expiry = new Date(Date.now() + day)`).
+const CLOCK_READ_RE = /\b(?:Date\.now\s*\(\s*\)|performance\.now\s*\(\s*\)|new\s+Date\s*\(\s*\))/;
+function isTimePoint(term, maskedAll) {
+  const t = String(term).trim();
+  if (CLOCK_READ_RE.test(t)) return true;
+  const ident = /^([A-Za-z_$][\w$]*)$/.exec(t);
+  if (!ident) return false;
+  const assign = new RegExp(`\\b${ident[1]}\\s*=\\s*([^;\\n]+)`).exec(maskedAll);
+  return Boolean(assign && CLOCK_READ_RE.test(assign[1]));
+}
+
+/**
+ * Is a BOUND assertion on a clock value a budget rather than a race?
+ *
+ * Only when the bounded quantity is a difference of two time points —
+ * `Date.now() - start` with `start` read from the clock, or an `elapsed`
+ * variable assigned that way: it fails when the code regresses, not when
+ * the clock moves. The 2026-08-18 positive controls are the other shape and
+ * must keep firing: `toBeGreaterThan(Date.now() - 1000)` subtracts a
+ * literal (a threshold, not an elapsed time), and
+ * `Date.parse(log.time) - t0` subtracts a clock reading from DATA — a
+ * 50 ms window on how fast a log line was written is exactly the race the
+ * rule exists for. (Self-scan 2026-09-13 first exempted every bound and
+ * silenced both.)
+ */
+function isElapsedBudget(assertionText, clockLine, maskedAll) {
+  const term = '(?:Date\\.now\\s*\\(\\s*\\)|performance\\.now\\s*\\(\\s*\\)|new\\s+Date\\s*\\(\\s*\\)|[A-Za-z_$][\\w$]*)';
+  const diffRe = new RegExp(`(${term})\\s*-\\s*(${term})`, 'g');
+  for (const text of [assertionText, clockLine]) {
+    if (typeof text !== 'string') continue;
+    let m;
+    while ((m = diffRe.exec(text))) {
+      if (isTimePoint(m[1], maskedAll) && isTimePoint(m[2], maskedAll)) return true;
+    }
+  }
+  return false;
+}
+
 /** Does an assertion follow within `n` lines of masked line `i` (a sleep-then-assert)? */
 function assertionFollows(masked, i, n = 4) {
   for (let k = i + 1; k <= i + n && k < masked.length; k += 1) {
@@ -447,7 +487,7 @@ class FlakyTestsModule extends BaseModule {
       // midnight (tests/scan-fix-nuclear-ciso-wire.test.js:217, 2026-09-13).
       if ((/\bDate\.now\s*\(/.test(code) || /\bnew\s+Date\s*\(\s*\)/.test(code)) && !hasFakeTimers) {
         const assertion = assertedValue(code, masked, i, /(?:\bDate\.now\s*\(|\bnew\s+Date\s*\(\s*\))/);
-        if (assertion && !BOUND_ASSERT_RE.test(assertion)) {
+        if (assertion && !(BOUND_ASSERT_RE.test(assertion) && isElapsedBudget(assertion, masked[i], maskedAll))) {
           issues += this._flag(result, `flaky-tests:real-clock:${rel}:${i + 1}`, {
             severity: 'warning',
             file: rel,
