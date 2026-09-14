@@ -154,3 +154,30 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
+
+  # The WordPress plugin zip rides on the same tag. scripts/build-wp-plugin-zip.js
+  # writes dist/gatetest-health-check.zip with the plugin folder at the top
+  # level (what WordPress's uploader needs) and this attaches it to the
+  # release the publish job created, so gatetest.io/wp can link one stable
+  # URL: releases/latest/download/gatetest-health-check.zip. A separate job so
+  # it can never fail the npm publish and can be re-run on its own.
+  wp-plugin-zip:
+    name: Attach WordPress plugin zip to the release
+    needs: publish
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Build gatetest-health-check.zip
+        run: node scripts/build-wp-plugin-zip.js
+
+      - name: Upload the zip to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/gatetest-health-check.zip --clobber
