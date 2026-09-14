@@ -15,7 +15,7 @@ import {
   type ModuleLike,
 } from "@/app/lib/issue-extractor";
 
-export interface FailedFile {
+interface FailedFile {
   file: string;
   issues: string[];
   reason: string;
@@ -33,7 +33,7 @@ export interface FixResult {
   failedFiles?: FailedFile[];
 }
 
-export type FileFixStatus = "pending" | "fixing" | "done" | "timeout" | "failed";
+type FileFixStatus ="pending" | "fixing" | "done" | "timeout" | "failed";
 
 export interface FileProgress {
   file: string;

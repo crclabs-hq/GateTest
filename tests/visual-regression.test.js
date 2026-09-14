@@ -92,7 +92,7 @@ test('module instantiates without errors', () => {
     const m = new VisualRegressionModule();
     assert.ok(m);
   } finally {
-    try { fs.rmSync(tmpdir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try { fs.rmSync(tmpdir, { recursive: true, force: true }); } catch { /* error-ok — temp dir cleanup; a busy handle on Windows cannot fail the assertion */ }
   }
 });
 

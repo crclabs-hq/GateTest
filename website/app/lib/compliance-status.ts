@@ -22,7 +22,7 @@ export interface ControlStatus {
   evidence: string;
 }
 
-export interface ComplianceSnapshot {
+interface ComplianceSnapshot {
   generatedAt: string;
   retention: {
     auditLogYears: number;
@@ -125,7 +125,7 @@ const CONTROLS: ControlStatus[] = [
   },
 ];
 
-export function listControls(): ControlStatus[] {
+function listControls(): ControlStatus[] {
   return CONTROLS.slice();
 }
 

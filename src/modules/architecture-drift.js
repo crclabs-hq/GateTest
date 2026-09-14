@@ -99,7 +99,7 @@ function loadArchitectureDocs(projectRoot) {
     try {
       const content = fs.readFileSync(full, 'utf-8').slice(0, MAX_DOC_SIZE);
       docs.push({ file: candidate, content });
-    } catch { /* skip */ }
+    } catch { /* error-ok — an unreadable doc is left out of the corpus */ }
     if (docs.reduce((s, d) => s + d.content.length, 0) > MAX_DOC_SIZE * 2) break;
   }
 
@@ -116,9 +116,9 @@ function loadArchitectureDocs(projectRoot) {
         try {
           const content = fs.readFileSync(path.join(full, f), 'utf-8').slice(0, 2000);
           docs.push({ file: path.join(adrDir, f), content });
-        } catch { /* skip */ }
+        } catch { /* error-ok — an unreadable ADR is left out of the corpus */ }
       }
-    } catch { /* skip */ }
+    } catch { /* error-ok — unreadable ADR directory — no ADRs to compare against */ }
   }
 
   return docs;

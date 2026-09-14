@@ -7,6 +7,7 @@ const BaseModule = require('./base-module');
 const { JS_SOURCE_EXTS } = require('../core/source-extensions');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const zlib = require('zlib');
 
 class PerformanceModule extends BaseModule {
@@ -107,7 +108,7 @@ class PerformanceModule extends BaseModule {
   _checkRenderBlocking(projectRoot, result) {
     const htmlFiles = this._collectFiles(projectRoot, ['.html']);
     for (const file of htmlFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
 
       // Check for render-blocking scripts in <head>
@@ -135,12 +136,12 @@ class PerformanceModule extends BaseModule {
       // performance. Docs screenshots, README art, test fixtures and design
       // sources are not on the request path (flask/fastapi docs images were
       // blocking errors in the 2026-08-18 audit).
-      const rel = path.relative(projectRoot, file).replace(/\\/g, '/').toLowerCase();
+      const rel = repoRelative(projectRoot, file).toLowerCase();
       if (/(^|\/)(docs?|documentation|screenshots?|assets\/readme|\.github|tests?|__tests__|spec|fixtures?|examples?|design|figma|art|marketing|blog|content)\//.test(rel)) continue;
       const stats = fs.statSync(file);
       if (stats.size > 200 * 1024) { // 200KB
         largeImages.push({
-          file: path.relative(projectRoot, file),
+          file: repoRelative(projectRoot, file),
           size: `${(stats.size / 1024).toFixed(0)}KB`,
         });
       }
@@ -172,7 +173,7 @@ class PerformanceModule extends BaseModule {
   _checkLazyLoading(projectRoot, result) {
     const htmlFiles = this._collectFiles(projectRoot, ['.html', '.jsx', '.tsx']);
     for (const file of htmlFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
 
       // Count images without loading="lazy"
@@ -198,7 +199,7 @@ class PerformanceModule extends BaseModule {
     // and top-level files (/website/app/lib/multi-file-refactor.js).
     const SCANNER_PATH_RE = /(?:^|\/)(?:src\/modules|src\/core|website\/app\/lib\/scan-modules|website\/app\/lib\/multi-file-refactor(?:\.[a-z]+)?|website\/app\/for|tests|integrations\/infra)(?:\/|$)/;
     for (const file of jsFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const normalised = relPath.replace(/\\/g, '/');
       if (SCANNER_PATH_RE.test('/' + normalised)) continue;
       const content = fs.readFileSync(file, 'utf-8');

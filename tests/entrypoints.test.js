@@ -120,3 +120,27 @@ describe('entrypoints — angular.json names files package.json never does (2026
     assert.ok(!has('tsconfig.app.json') && !has('src/styles.css'), 'non-source strings are ignored');
   });
 });
+
+describe('isFrameworkExport — names a framework reads by name from a file it loads by convention (2026-09-13)', () => {
+  const { isFrameworkExport } = require('../src/core/entrypoints');
+  it('POSITIVE CONTROL — Next instrumentation hooks in their own files, route handlers and segment config anywhere', () => {
+    assert.equal(isFrameworkExport('website/instrumentation.ts', 'register'), true);
+    assert.equal(isFrameworkExport('website/instrumentation.ts', 'onRequestError'), true);
+    assert.equal(isFrameworkExport('website/instrumentation-client.ts', 'onRouterTransitionStart'), true);
+    assert.equal(isFrameworkExport('website/proxy.ts', 'proxy'), true);
+    assert.equal(isFrameworkExport('website/middleware.ts', 'config'), true);
+    assert.equal(isFrameworkExport('app/api/x/route.ts', 'GET'), true);
+    assert.equal(isFrameworkExport('src/anything.js', 'metadata'), true);
+  });
+  it('NEGATIVE CONTROL — the same names in an ordinary module are ordinary exports', () => {
+    assert.equal(isFrameworkExport('src/lib/hooks.ts', 'register'), false);
+    assert.equal(isFrameworkExport('src/lib/errors.ts', 'onRequestError'), false);
+    assert.equal(isFrameworkExport('website/instrumentation.ts', 'helper'), false);
+    assert.equal(isFrameworkExport('src/net/proxy-client.ts', 'proxy'), false);
+  });
+  it('proxy.ts (Next 16) is loaded by name like middleware.ts', () => {
+    assert.equal(isEntryPoint(abs('website/proxy.ts'), root), true);
+    assert.equal(isEntryPoint(abs('src/net/proxy.js'), root), true);
+    assert.equal(isEntryPoint(abs('src/net/proxy-client.js'), root), false);
+  });
+});

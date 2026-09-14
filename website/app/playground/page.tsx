@@ -371,7 +371,7 @@ export default function PlaygroundPage() {
       });
       if (!res.ok) {
         let msg = `Scan failed (HTTP ${res.status})`;
-        try { const j = await res.json(); msg = j?.error || msg; } catch { /* ignore */ }
+        try { const j = await res.json(); msg = j?.error || msg; } catch { /* error-ok — error body unreadable — the status alone is reported */ }
         throw new Error(msg);
       }
 

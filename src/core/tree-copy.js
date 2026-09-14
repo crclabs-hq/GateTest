@@ -16,6 +16,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { repoRelative } = require('./repo-path');
 const { WALK_EXCLUDES } = require('./walk-excludes');
 
 const MAX_FILES = 40000;
@@ -44,7 +45,7 @@ function copyTreeForSandbox(projectRoot, opts = {}) {
       const to = path.join(dst, e.name);
       if (e.name === 'node_modules' && e.isDirectory()) {
         fs.symlinkSync(from, to, 'junction');
-        stat.symlinked.push(path.relative(root, from).split(path.sep).join('/'));
+        stat.symlinked.push(repoRelative(root, from));
         continue;
       }
       if (SKIP.has(e.name)) continue;

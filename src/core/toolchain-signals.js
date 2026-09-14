@@ -42,4 +42,4 @@ function nodeDepsMissing(projectRoot) {
   return !fs.existsSync(path.join(projectRoot, 'node_modules'));
 }
 
-module.exports = { MISSING_TOOLCHAIN_RE, looksLikeMissingToolchain, nodeDepsMissing };
+module.exports = { looksLikeMissingToolchain, nodeDepsMissing };

@@ -3,7 +3,7 @@
  * Pure components — safe to import from both server and client components.
  */
 
-export type IconProps = { className?: string };
+type IconProps = { className?: string };
 
 const stroke = {
   fill: "none",

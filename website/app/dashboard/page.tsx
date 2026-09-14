@@ -73,7 +73,7 @@ export default function Dashboard() {
         setData(json);
       }
     } catch {
-      // silent
+      // error-ok — a failed refresh keeps the previous data on screen; this page has no error surface
     }
   }, [customer]);
 

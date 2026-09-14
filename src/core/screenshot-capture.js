@@ -35,7 +35,7 @@ function resolvePlaywright() {
       try {
         const resolved = require.resolve('playwright', { paths: [fromDir] });
         return require(resolved);
-      } catch { /* try next candidate */ }
+      } catch { /* error-ok — playwright not resolvable from this candidate — the next is tried; null makes the caller report it as missing */ }
     }
   }
   return null;
@@ -127,7 +127,7 @@ async function captureUrlScreenshot(opts = {}) {
           }));
           width = dims.w || width;
           height = dims.h || height;
-        } catch { /* dims stay viewport-approximate */ }
+        } catch { /* error-ok — dims stay viewport-approximate */ }
       }
 
       return {

@@ -14,10 +14,12 @@ test('compliance-status: source file exists', () => {
   assert.ok(fs.existsSync(LIB_PATH));
 });
 
-test('compliance-status: exports buildComplianceSnapshot + listControls', () => {
+test('compliance-status: exports buildComplianceSnapshot and defines listControls', () => {
   const src = fs.readFileSync(LIB_PATH, 'utf8');
   assert.match(src, /export\s+async\s+function\s+buildComplianceSnapshot\b/);
-  assert.match(src, /export\s+function\s+listControls\b/);
+  // listControls is module-private (only buildComplianceSnapshot calls it);
+  // the contract is that it exists.
+  assert.match(src, /(?:export\s+)?function\s+listControls\b/);
 });
 
 test('compliance-status: ships SOC2 + HIPAA controls', () => {

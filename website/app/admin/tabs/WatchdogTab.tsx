@@ -38,7 +38,7 @@ export function WatchdogTab() {
         const data = await res.json();
         setWatches(data.watches || []);
       }
-    } catch { /* db not ready */ } finally {
+    } catch { /* error-ok — db not ready — the list stays as it was and loading ends in finally */ } finally {
       setWatchesLoading(false);
     }
   }, []);

@@ -104,7 +104,7 @@
  */
 
 const BaseModule = require('./base-module');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 // The graph builder lives in src/core so structural analysis shares ONE
 // definition of "what depends on what" — see the note at the top of that file.
 // This module reads its `loadGraph` and `runtimeGraph` views; the older
@@ -171,7 +171,7 @@ class ImportCycleModule extends BaseModule {
 
     // Report self-loops
     for (const abs of selfLoops) {
-      const rel = path.relative(projectRoot, abs).replace(/\\/g, '/');
+      const rel = repoRelative(projectRoot, abs);
       const isTest = this._isTestPath(rel);
       result.addCheck(`import-cycle:self-loop:${rel}`, false, {
         severity: isTest ? 'warning' : 'error',
@@ -185,7 +185,7 @@ class ImportCycleModule extends BaseModule {
     // repeat for human readability.
     for (const scc of cycles) {
       const ordered = this._orderCycle(scc, graph, projectRoot);
-      const rels = ordered.map((a) => path.relative(projectRoot, a).replace(/\\/g, '/'));
+      const rels = ordered.map((a) => repoRelative(projectRoot, a));
       const isTest = rels.some((r) => this._isTestPath(r));
       const display = [...rels, rels[0]].join(' -> ');
       const ruleKey = rels.join('|');
@@ -198,7 +198,7 @@ class ImportCycleModule extends BaseModule {
 
     for (const scc of deferredCycles) {
       const ordered = this._orderCycle(scc, built.runtimeGraph, projectRoot);
-      const rels = ordered.map((a) => path.relative(projectRoot, a).replace(/\\/g, '/'));
+      const rels = ordered.map((a) => repoRelative(projectRoot, a));
       const display = [...rels, rels[0]].join(' -> ');
       result.addCheck(`import-cycle:cycle-deferred:${rels.join('|')}`, false, {
         severity: 'warning',
@@ -232,7 +232,7 @@ class ImportCycleModule extends BaseModule {
    * the actual cycle direction using the graph edges.
    */
   _orderCycle(scc, graph, projectRoot) {
-    const rels = scc.map((a) => ({ abs: a, rel: path.relative(projectRoot, a).replace(/\\/g, '/') }));
+    const rels = scc.map((a) => ({ abs: a, rel: repoRelative(projectRoot, a) }));
     rels.sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
     const start = rels[0].abs;
 

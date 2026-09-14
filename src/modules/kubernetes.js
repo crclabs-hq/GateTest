@@ -35,7 +35,7 @@
  */
 
 const fs = require('fs');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 
 // Excludes beyond BaseModule._collectFiles' defaults (KI #104).
@@ -82,7 +82,7 @@ class KubernetesModule extends BaseModule {
   _findManifests(projectRoot) {
     // Shared walk replaced a private readdir sweep so --diff scans shrink the file set (KI #104).
     return this._collectFiles(projectRoot, ['.yaml', '.yml'], EXTRA_EXCLUDES).filter((full) => {
-      const rel = path.relative(projectRoot, full).replace(/\\/g, '/');
+      const rel = repoRelative(projectRoot, full);
       if (SKIPPED_DIRS.some((p) => rel.startsWith(p + '/'))) return false;
       return this._looksLikeManifest(full);
     });
@@ -106,7 +106,7 @@ class KubernetesModule extends BaseModule {
       return 0;
     }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const lines = content.split(/\r?\n/);
     let issues = 0;
 

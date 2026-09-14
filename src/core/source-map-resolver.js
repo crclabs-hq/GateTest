@@ -273,7 +273,7 @@ function resolveStackTrace(text) {
   return frames.map((f) => {
     let file = f.file;
     if (file.startsWith('file://')) {
-      try { file = new URL(file).pathname; } catch { /* keep as-is */ }
+      try { file = new URL(file).pathname; } catch { /* error-ok — keep as-is */ }
     }
     const resolution = resolveStackFrame({ file, line: f.line, column: f.column });
     return { ...f, file, resolution };

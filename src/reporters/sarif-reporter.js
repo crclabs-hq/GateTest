@@ -382,7 +382,7 @@ class SarifReporter {
           return name;
         }
       } catch {
-        // Filesystem hiccup — ignore and try next candidate
+        // error-ok — Filesystem hiccup — ignore and try next candidate
       }
     }
     return '.gatetest-project';

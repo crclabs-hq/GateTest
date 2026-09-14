@@ -239,7 +239,7 @@ async function collectVisualFacts(page, regions) {
     try {
       const fact = await page.evaluate(harvestFactsInPage, region);
       if (fact) facts.push(fact);
-    } catch { /* per-region best-effort — a failed hit-test never blocks */ }
+    } catch { /* error-ok — per-region best-effort — a failed hit-test never blocks */ }
   }
   return facts;
 }

@@ -24,7 +24,7 @@ function makeTmpDir() {
 }
 
 function cleanup(dir) {
-  try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* error-ok — temp dir cleanup; a busy handle on Windows cannot fail the assertion */ }
 }
 
 /**
@@ -1313,7 +1313,7 @@ test('openFixPr: uses findFreeBranchName and rotates title when attempt > 1', as
             on() {},
             write(chunk) { bodyChunks += chunk; },
             end() {
-              try { createdPrPayload = JSON.parse(bodyChunks); } catch { /* ignore */ }
+              try { createdPrPayload = JSON.parse(bodyChunks); } catch { /* error-ok — the fake transport keeps a non-JSON body raw; the assertion below reads it */ }
               setImmediate(() => {
                 const raw = JSON.stringify({ number: 11, html_url: 'http://example/pr/11' });
                 const res = {
@@ -1460,7 +1460,7 @@ test('runFixer routes PR-failed through to fallback issue with real GitHub error
             on() {},
             write(chunk) { bodyChunks += chunk; },
             end() {
-              try { issueBody = JSON.parse(bodyChunks); } catch { /* ignore */ }
+              try { issueBody = JSON.parse(bodyChunks); } catch { /* error-ok — the fake transport keeps a non-JSON body raw; the assertion below reads it */ }
               setImmediate(() => {
                 const raw = JSON.stringify({ number: 99, html_url: 'http://example/issue/99' });
                 const res = {

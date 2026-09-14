@@ -88,7 +88,7 @@
  */
 
 const fs = require('fs');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { HARNESS_DIR_RE } = require('../core/scan-scope');
 const { classifyEmptyCatch, enclosingContext, isTeardownName } = require('../core/guarded-catch');
@@ -218,7 +218,22 @@ class ErrorSwallowModule extends BaseModule {
     const line = lines[lineIdx] || '';
     const prev = lineIdx > 0 ? lines[lineIdx - 1] : '';
     const re = /\b(?:error-ok|gatetest-fire-and-forget)\b/;
-    return re.test(line) || re.test(prev);
+    if (re.test(line) || re.test(prev)) return true;
+    // A multi-line `catch {` whose FIRST body line is the marker comment:
+    //
+    //   } catch {
+    //     // error-ok — partial snapshot is still useful for the dashboard
+    //   }
+    //
+    // is the natural place to write the reason, and the self-scan of
+    // 2026-09-13 found the rule reading only the catch line and the one
+    // above it, so the documented swallow was reported anyway. Only a
+    // line that OPENS the block qualifies, and only its first body line.
+    if (/\bcatch\b[^{]*\{\s*$/.test(line)) {
+      const next = lines[lineIdx + 1] || '';
+      return re.test(next);
+    }
+    return false;
   }
 
   // Returns true when the `.catch(...)` on the current line is part of
@@ -243,7 +258,7 @@ class ErrorSwallowModule extends BaseModule {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return 0; }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const relPosix = rel.replace(/\\/g, '/');
     // A benchmark is the same KIND of code as a test: a harness, not something
     // that ships. `HARNESS_DIR_RE` is the engine's single definition of that

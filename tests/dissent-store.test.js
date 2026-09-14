@@ -49,7 +49,7 @@ test('DISSENT_KINDS exposes the five recognised dissent types', () => {
 test('DISSENT_KINDS is frozen so callers cannot accidentally mutate the contract', () => {
   // In sloppy mode Object.freeze silently ignores writes; in strict mode it throws.
   // Either way the result is the same: the property does not get added.
-  try { DISSENT_KINDS.NEW_KIND = 'oops'; } catch { /* strict mode threw, fine */ }
+  try { DISSENT_KINDS.NEW_KIND = 'oops'; } catch { /* error-ok — strict mode threw, fine */ }
   assert.strictEqual(DISSENT_KINDS.NEW_KIND, undefined);
   assert.ok(Object.isFrozen(DISSENT_KINDS));
 });

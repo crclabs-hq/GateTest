@@ -77,7 +77,7 @@ function hashRepoIdentity(repoRoot) {
       encoding: 'utf8', timeout: 3_000, stdio: ['ignore', 'pipe', 'ignore'],
     }).trim();
     if (remote) identity = remote;
-  } catch { /* fall back to repoRoot */ }
+  } catch { /* error-ok — fall back to repoRoot */ }
   return crypto.createHash('sha256').update(identity).digest('hex').slice(0, 16);
 }
 
@@ -229,7 +229,7 @@ function writeVector(corpusDir, vector) {
     if (fs.existsSync(filePath)) {
       existing = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     }
-  } catch { /* corrupt — overwrite */ }
+  } catch { /* error-ok — corrupt — overwrite */ }
   const merged = existing ? {
     ...existing,
     sampleSize: (existing.sampleSize || 0) + (vector.sampleSize || 1),
@@ -367,7 +367,7 @@ async function main() {
   try {
     fs.mkdirSync(outDir, { recursive: true });
     fs.writeFileSync(path.join(outDir, 'cross-repo-promoter-latest.json'), JSON.stringify(report, null, 2));
-  } catch { /* best-effort */ }
+  } catch { /* error-ok — the latest-report file is a convenience copy; the report is already returned */ }
 }
 
 if (require.main === module) {

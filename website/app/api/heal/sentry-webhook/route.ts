@@ -262,7 +262,7 @@ async function persistHealLog(target: HealTarget, diagnosis: string, patch: stri
         ${confidence}, ${githubUrl}, ${durationMs}
       )
     `;
-  } catch { /* non-blocking */ }
+  } catch { /* error-ok — heal_log is the dashboard's record; the diagnosis and the issue above are already delivered */ }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -304,18 +304,24 @@ export async function POST(req: NextRequest) {
   let patch = "";
   let confidence = "LOW";
   let githubIssueUrl: string | null = null;
+  let healError: string | null = null;
 
   try {
     ({ diagnosis, patch, confidence } = await diagnoseWithClaude(target));
     githubIssueUrl = await createGitHubIssue(target, diagnosis, patch);
     await persistHealLog(target, diagnosis, patch, confidence, githubIssueUrl, Date.now() - t0);
-  } catch {
-    // Non-blocking — signature was verified, Sentry must not retry on our failures
+  } catch (err) {
+    // Still a 200 — the signature was verified and Sentry must not retry on
+    // our failures — but the response used to claim `healed: true` over a
+    // diagnosis that never ran (self-scan 2026-09-13). Say what happened.
+    healError = err instanceof Error ? err.message : String(err);
+    console.error("[heal/sentry-webhook] heal failed (non-blocking):", healError);
   }
 
   return NextResponse.json({
     ok: true,
-    healed: true,
+    healed: healError === null,
+    ...(healError !== null ? { error: healError } : {}),
     file: target.file,
     diagnosis: diagnosis.slice(0, 200),
     confidence,

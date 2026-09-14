@@ -9,6 +9,7 @@ const { JS_SOURCE_EXTS } = require('../core/source-extensions');
 const { innerHtmlAssignmentIsSafe, splitTopLevel } = require('../core/inner-html-safety');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const http = require('http');
 const https = require('https');
 
@@ -563,7 +564,7 @@ class SecurityModule extends BaseModule {
     const posture = { express: false, sessionMw: false, mutatingRoute: false, csrf: false, helmet: false };
 
     for (const file of files) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       // Normalise to forward slashes for cross-platform regex match.
       const normalisedPath = relPath.replace(/\\/g, '/');
       if (SCANNER_PATH_RE.test(normalisedPath)) continue;
@@ -692,7 +693,7 @@ class SecurityModule extends BaseModule {
     let totalFindings = 0;
 
     for (const file of files) {
-      const relPath = path.relative(projectRoot, file).replace(/\\/g, '/');
+      const relPath = repoRelative(projectRoot, file);
       if (SCANNER_PATH_RE.test(relPath)) continue;
 
       let content;
@@ -829,7 +830,7 @@ class SecurityModule extends BaseModule {
     const CREDENTIAL_WEAK_RE = /\b(?:pwd|pin|token|salt)\b/i;
 
     for (const file of files) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       if (SCANNER_PATH_RE.test(relPath.replace(/\\/g, '/'))) continue;
 
       let content;
@@ -902,7 +903,7 @@ class SecurityModule extends BaseModule {
       /__proto__|\bconstructor\b|\bprototype\b|Object\.create\s*\(\s*null\s*\)|hasOwnProperty|new\s+Map\b|\bfreeze\s*\(/;
 
     for (const file of files) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       if (SCANNER_PATH_RE.test(relPath.replace(/\\/g, '/'))) continue;
 
       let content;
@@ -974,7 +975,7 @@ class SecurityModule extends BaseModule {
       /\bbasename\s*\(|startsWith\s*\(|\.includes\s*\(\s*['"`]\.\.['"`]\s*\)|\bindexOf\s*\(\s*['"`]\.\.['"`]\s*\)|allow(?:ed)?[_-]?(?:list|files|paths)/i;
 
     for (const file of files) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       if (SCANNER_PATH_RE.test(relPath.replace(/\\/g, '/'))) continue;
 
       let content;
@@ -1027,7 +1028,7 @@ class SecurityModule extends BaseModule {
             });
           }
         } catch {
-          // Can't check permissions, skip
+          // error-ok — Can't check permissions, skip
         }
       }
     }
@@ -1053,7 +1054,7 @@ class SecurityModule extends BaseModule {
         }
       }
     } catch {
-      // Invalid package.json handled by syntax module
+      // error-ok — Invalid package.json handled by syntax module
     }
   }
 
@@ -1133,7 +1134,7 @@ class SecurityModule extends BaseModule {
     let totalFindings = 0;
 
     for (const file of files) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const isTestFile = typeof this._isTestPath === 'function' && this._isTestPath(relPath);
       const basename = path.basename(file);
 
@@ -1450,7 +1451,7 @@ class SecurityModule extends BaseModule {
         // fixture / example dirs, which commit such files on purpose.
         const FIXTURE_RE = /(^|[\\/])(tests?|__tests__|specs?|fixtures?|testdata|test_apps|examples?|docs|benchmarks|known-bad|reliability-corpus)([\\/]|$)/i;
         const exists = this._collectFiles(projectRoot, ['*']).some(f => {
-          const rel = path.relative(projectRoot, f);
+          const rel = repoRelative(projectRoot, f);
           if (FIXTURE_RE.test(rel)) return false;
           const base = path.basename(f);
           if (/\.(example|sample|template|dist)$/.test(base)) return false;
@@ -1498,7 +1499,7 @@ class SecurityModule extends BaseModule {
           if (copyleftLicenses.some(cl => license.toUpperCase().includes(cl.toUpperCase()))) {
             flagged.push({ name: dep, license });
           }
-        } catch { /* skip */ }
+        } catch { /* error-ok — unreadable dependency package.json — its license is not classified */ }
       }
 
       if (flagged.length > 0) {
@@ -1515,7 +1516,7 @@ class SecurityModule extends BaseModule {
           message: 'No copyleft license conflicts detected in dependencies',
         });
       }
-    } catch { /* skip */ }
+    } catch { /* error-ok — unreadable package.json — the syntax module reports it; no license check */ }
   }
 
   _checkEnvFiles(projectRoot, result) {

@@ -85,6 +85,7 @@ is always toward the author's own repo.
 | Where do the migrations live — and is that directory a migration tree or a framework? | `src/core/migration-dirs.js` |
 | Is this file a shell script? | `src/core/shell-files.js` (extension or shebang; binaries and prose out) |
 | What is this finding's identity? | `src/core/report-provenance.js` `fingerprintFindings` (shared with the determinism gate) |
+| What is the repo-relative form of a path — the one a finding id, its `file`, a `.gatetestignore` line and a baseline fingerprint carry? | `src/core/repo-path.js` (`repoRelative(root, abs)`, `toPosix(p)`) — always `/`-joined. `path.relative()` answers with the OS separator, and until 2026-09-13 every module embedded that raw answer, so the same finding was `a11y:html-lang:src\index.html` on a Windows checkout and `src/index.html` on the Linux CI gating the same commit (KI #109: 114 tests red on Windows only, and a `.gatetest/baseline.json` written on one OS silently not matching on the other). 150 call sites in 86 files now go through it; `finding-registry`, `ignore-file` and `baseline` delegate their private normalisers to `toPosix` |
 | Which OWASP / SOC 2 / CIS control does a module speak to? | `src/core/compliance-mappings.js` (the website and the SARIF reporter import it) |
 | Which `.gatetestignore` line silences it? | `src/core/ignore-file.js` `suggestLine` (verified against the matcher) |
 | The public origin | `src/core/site-url.js` / `website/app/lib/site-url.js` |

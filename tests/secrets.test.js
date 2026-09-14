@@ -165,11 +165,11 @@ describe('SecretsModule — test-tree detection is the canonical predicate', () 
     return check ? check.severity : null;
   }
 
-  it('js_tests/ is a test tree (django) — warning, not error', async () => {
-    assert.strictEqual(await severityOf('js_tests/admin/creds.test.js'), 'warning');
+  it('js_tests/ is a test tree (django) — a fixture, not a leak: info, not error', async () => {
+    assert.strictEqual(await severityOf('js_tests/admin/creds.test.js'), 'info');
   });
-  it('runtime-tests/ is a test tree (hono)', async () => {
-    assert.strictEqual(await severityOf('runtime-tests/node/creds.js'), 'warning');
+  it('runtime-tests/ is a test tree (hono): info, not error', async () => {
+    assert.strictEqual(await severityOf('runtime-tests/node/creds.js'), 'info');
   });
   it('a file that merely contains "test" in its name is application code', async () => {
     assert.strictEqual(await severityOf('src/contest.js'), 'error');

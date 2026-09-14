@@ -14,6 +14,7 @@ const { splitLines, joinLines } = require('../core/text-lines');
 const { JS_SOURCE_EXTS } = require('../core/source-extensions');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const https = require('https');
 // MODEL resolves through engine-models so GATETEST_CHEAP_MODEL reaches
 // this call site — it was a hardcoded literal, invisible to the override (KI #78).
@@ -142,9 +143,9 @@ class AiReviewModule extends BaseModule {
       try {
         const content = fs.readFileSync(file, 'utf-8');
         if (content.length > MAX_FILE_SIZE) continue;
-        const relPath = path.relative(projectRoot, file);
+        const relPath = repoRelative(projectRoot, file);
         fileContents.push({ path: relPath, content });
-      } catch { /* skip unreadable */ }
+      } catch { /* error-ok — an unreadable file is left out of the review sample */ }
     }
 
     if (fileContents.length === 0) {

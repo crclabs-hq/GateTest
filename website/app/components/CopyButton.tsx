@@ -157,7 +157,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
       await navigator.clipboard.writeText(text);
       return true;
     } catch {
-      // fall through to legacy path
+      // error-ok — fall through to legacy path
     }
   }
   // Legacy fallback — required for non-HTTPS contexts and older Safari.

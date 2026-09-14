@@ -762,11 +762,24 @@ async function runAutoPr(summary, projectRoot, args) {
   // Capture original branch so we can return to it if needed
   let originalBranch = 'main';
   try { originalBranch = sh('git rev-parse --abbrev-ref HEAD').trim(); }
-  catch { /* default to main */ }
+  catch { /* error-ok — no git repo or detached HEAD — main is the documented default base */ }
 
   const baseBranch = args.autoPrBase || originalBranch;
   const ts = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
   const fixBranch = args.autoPrBranch || `gatetest/auto-fix-${ts}`;
+  // Return to the original branch and drop the fix branch after a failed
+  // run. A cleanup that itself fails leaves the user checked out on the fix
+  // branch, so it is reported in the error rather than erased (self-scan
+  // 2026-09-13 — two `catch { /* ignore */ }` here).
+  const abandonFixBranch = () => {
+    try {
+      sh(`git checkout ${originalBranch}`);
+      sh(`git branch -D ${fixBranch}`);
+      return '';
+    } catch (cleanupErr) {
+      return ` (cleanup failed: ${cleanupErr.message?.slice(0, 120) || cleanupErr} — you may still be on ${fixBranch})`;
+    }
+  };
 
   // Collect every fixable finding from the summary
   const { extractFileFromCheck } = require('../src/core/parse-finding');
@@ -819,15 +832,13 @@ async function runAutoPr(summary, projectRoot, args) {
       model: fixModel,
     });
   } catch (err) {
-    try { sh(`git checkout ${originalBranch}`); sh(`git branch -D ${fixBranch}`); } catch { /* ignore */ }
-    return { error: `Fix orchestration failed: ${err.message?.slice(0, 200) || err}` };
+    return { error: `Fix orchestration failed: ${err.message?.slice(0, 200) || err}${abandonFixBranch()}` };
   }
 
   const { accepted, testFiles, allFixes, prBody } = orchestration;
 
   if (accepted.length === 0) {
-    try { sh(`git checkout ${originalBranch}`); sh(`git branch -D ${fixBranch}`); } catch { /* ignore */ }
-    return { error: 'No fixes passed the syntax gate — nothing to commit' };
+    return { error: `No fixes passed the syntax gate — nothing to commit${abandonFixBranch()}` };
   }
 
   // Write accepted fixes to disk
@@ -1299,7 +1310,12 @@ async function runWatchMode(gatetest, args) {
   // Initial scan
   await runScan();
 
-  // Watch directories
+  // Watch directories. A watcher that cannot be attached is reported, and a
+  // session that attached none exits: "Watching for changes..." over zero
+  // watchers is the report-success-while-doing-nothing shape (doctrine §1;
+  // self-scan 2026-09-13 found the failure erased by an empty catch).
+  const unwatchable = [];
+  let watching = 0;
   for (const dir of watchDirs) {
     const fullPath = path.join(projectRoot, dir);
     if (!fs.existsSync(fullPath)) continue;
@@ -1317,9 +1333,16 @@ async function runWatchMode(gatetest, args) {
         if (timer) clearTimeout(timer);
         timer = setTimeout(runScan, debounceMs);
       });
-    } catch {
-      // fs.watch may not support recursive on all platforms
+      watching += 1;
+    } catch (watchErr) {
+      // fs.watch may not support recursive on all platforms — say so.
+      unwatchable.push(`${dir} (${watchErr.message})`);
+      console.error(`[GateTest] Cannot watch ${dir}: ${watchErr.message}`);
     }
+  }
+  if (watching === 0) {
+    console.error(`[GateTest] Watch mode attached no watchers${unwatchable.length ? ` — ${unwatchable.join(', ')}` : ''}. Exiting.`);
+    process.exit(1);
   }
 
   // Keep process alive

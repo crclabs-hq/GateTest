@@ -24,6 +24,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative, toPosix } = require('./repo-path');
 
 const BASELINE_DIR = '.gatetest';
 const BASELINE_FILENAME = 'baseline.json';
@@ -50,10 +51,10 @@ function fingerprint(moduleName, checkName, filePath, projectRoot) {
 
   let file = String(filePath || '');
   if (file && projectRoot) {
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     if (rel && !rel.startsWith('..')) file = rel;
   }
-  const normFile = file.replace(/\\/g, '/').toLowerCase();
+  const normFile = toPosix(file).toLowerCase();
 
   return `${String(moduleName || '').toLowerCase()}::${normName}::${normFile}`;
 }

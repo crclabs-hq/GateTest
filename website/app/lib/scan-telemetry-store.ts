@@ -67,7 +67,7 @@ async function ensureSchema(): Promise<void> {
 // (scan-telemetry-sanitize.js), unit-tested directly.
 // ---------------------------------------------------------------------------
 
-export interface SanitizedScanRecord {
+interface SanitizedScanRecord {
   source: string;
   suite: string;
   gateStatus: string;
@@ -79,14 +79,14 @@ export interface SanitizedScanRecord {
   rules: Array<{ id: string; fired: number; silenced: number }>;
 }
 
-export type SanitizeResult =
+type SanitizeResult =
   | { ok: true; record: SanitizedScanRecord }
   | { ok: false; reason: string };
 
 // sanitizeRecord is imported from ./scan-telemetry-sanitize (top of file) —
 // the pure PII-rejection guard, unit-tested at tests/scan-telemetry-store.test.js.
 
-export interface IngestResult {
+interface IngestResult {
   ok: boolean;
   accepted: number;
   rejected: number;

@@ -237,6 +237,82 @@ describe('HardcodedUrlModule — insecure scheme', () => {
     const leaks = r.checks.filter((c) => c.passed === false);
     assert.strictEqual(leaks.length, 0);
   });
+
+  // ── Identifiers, not locations (2026-09-13) ──────────────────────────
+  // Our own scanner reported seven `insecure-scheme` findings on the
+  // website: six were `xmlns="http://www.w3.org/2000/svg"` in badge SVGs
+  // and one was the sentence "use https:// instead of http://." — a host
+  // of `.`. The control pair is the genuine `http://` fetch beside them.
+  // Names carry the relative path, so separators are normalised (KI #109).
+  const leaks = (r) => r.checks.filter((c) => c.passed === false).map((c) => c.name.replace(/\\/g, '/'));
+
+  it('does NOT warn on an XML namespace name — W3C host, or any host in an xmlns attribute', async () => {
+    write(tmp, 'src/badge.ts', [
+      'export function svg(w: number) {',
+      '  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}">`;',
+      '}',
+      'const el = document.createElementNS("http://www.w3.org/2000/svg", "svg");',
+      'const android = `<manifest xmlns:android="http://schemas.android.com/apk/res/android">`;',
+      '',
+    ].join('\n'));
+    write(tmp, 'src/Spinner.tsx', [
+      'export const Spinner = () => (',
+      '  <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" />',
+      ');',
+      '',
+    ].join('\n'));
+    assert.deepStrictEqual(leaks(await run(tmp)), []);
+  });
+
+  it('does NOT read "http://." at the end of a sentence as a host', async () => {
+    // website/app/lib/website-scanner.ts:321, verbatim.
+    write(tmp, 'src/scanner.ts', [
+      'const fix = "Change all src= and href= values to use https:// instead of http://.";',
+      '',
+    ].join('\n'));
+    assert.deepStrictEqual(leaks(await run(tmp)), []);
+  });
+
+  it('DOES warn on a plain http:// fetch beside a namespace declaration', async () => {
+    write(tmp, 'src/mixed.ts', [
+      'const NS = "http://www.w3.org/2000/svg";',
+      'const r = await fetch("http://cdn.partner-widgets.com/v1/embed.js");',
+      '',
+    ].join('\n'));
+    assert.deepStrictEqual(leaks(await run(tmp)), ['hardcoded-url:insecure-scheme:src/mixed.ts:2']);
+  });
+});
+
+describe('HardcodedUrlModule — RFC 2606 documentation TLDs', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-hu-2606-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  const leaks = (r) => r.checks.filter((c) => c.passed === false).map((c) => c.name.replace(/\\/g, '/'));
+
+  it('does NOT warn on *.example / *.invalid — they exist to be written down', async () => {
+    // website/app/modules/[slug]/availability.ts:94 and src/core/doctor.js:255.
+    write(tmp, 'src/usage.ts', [
+      'const cli = `gatetest --crawl https://your-site.example --module ${name}`;',
+      "const hint = 'Set NEXT_PUBLIC_BASE_URL=https://your-domain.example in your deploy env';",
+      'const bad = "https://nowhere.invalid/";',
+      '',
+    ].join('\n'));
+    assert.deepStrictEqual(leaks(await run(tmp)), []);
+  });
+
+  it('DOES still warn on .test, .internal and staging hosts', async () => {
+    write(tmp, 'src/api.ts', [
+      'const A = "https://connect-timeout.test/";',
+      'const B = "https://api.corp.internal/v1";',
+      'const C = "https://staging.example.com/api";',
+      '',
+    ].join('\n'));
+    assert.deepStrictEqual(leaks(await run(tmp)), [
+      'hardcoded-url:internal-tld:src/api.ts:1',
+      'hardcoded-url:internal-tld:src/api.ts:2',
+      'hardcoded-url:internal-tld:src/api.ts:3',
+    ]);
+  });
 });
 
 describe('HardcodedUrlModule — negatives', () => {

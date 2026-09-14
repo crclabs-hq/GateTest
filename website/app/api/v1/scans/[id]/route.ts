@@ -134,8 +134,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       tier: metadata.suite as string | undefined,
       statusCode: 200,
     });
-  } catch {
-    /* non-fatal */
+  } catch (err) { // error-ok: the customer's response must not depend on our accounting, but a lost rate-limit row is logged, not erased
+    console.error(`[api/v1/scans/:id] recordApiCall failed for key ${auth.key.id}:`, err instanceof Error ? err.message : String(err));
   }
 
   return NextResponse.json(response, {

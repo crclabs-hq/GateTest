@@ -2,7 +2,7 @@
 // returned by /api/admin/stats and are consumed by the parent shell (stats
 // bar), ScansTab, and CustomersTab.
 
-export interface ScanRecord {
+interface ScanRecord {
   id: string;
   session_id: string;
   customer_email: string | null;
@@ -16,7 +16,7 @@ export interface ScanRecord {
   completed_at: string | null;
 }
 
-export interface CustomerRecord {
+interface CustomerRecord {
   id: string;
   email: string;
   github_login: string | null;
@@ -26,7 +26,7 @@ export interface CustomerRecord {
   created_at: string;
 }
 
-export interface Stats {
+interface Stats {
   total_scans: number;
   completed_scans: number;
   failed_scans: number;

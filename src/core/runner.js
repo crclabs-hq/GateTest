@@ -7,6 +7,7 @@
 const { EventEmitter } = require('events');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative, toPosix } = require('./repo-path');
 
 // AI Fix Engine — injected after all modules run, before the autoFix pass.
 // Adds autoFix closures to any check that has a file path + fix hint but
@@ -617,7 +618,7 @@ class GateTestRunner extends EventEmitter {
 
     // Inject AI autoFix closures onto checks that lack one (requires API key + file ref)
     if (this.config && this.config.projectRoot && _aiFix) {
-      try { _aiFix.injectAutoFixes(this.results, this.config.projectRoot); } catch { /* non-fatal */ }
+      try { _aiFix.injectAutoFixes(this.results, this.config.projectRoot); } catch { /* error-ok — AI auto-fix injection is an enrichment; the scan result stands without it */ }
     }
 
     // Auto-fix pass: if enabled, run fixable checks
@@ -761,12 +762,15 @@ class GateTestRunner extends EventEmitter {
                     filesChanged: fixResult.filesChanged || [],
                   });
                 } catch {
-                  // Memory recording must never break an otherwise-good fix
+                  // error-ok — memory recording must never break an otherwise-good fix; the fix itself is already applied and recorded on the check
                 }
               }
             }
-          } catch {
-            // Fix failed — leave check as failed
+          } catch (fixErr) {
+            // The check stays failed, and the reason the fix could not be
+            // applied travels with it — a fixer that threw used to be
+            // indistinguishable from one that declined (self-scan 2026-09-13).
+            check.autoFixError = (fixErr && fixErr.message) || String(fixErr);
           }
         }
       }
@@ -807,8 +811,7 @@ class GateTestRunner extends EventEmitter {
   _scopedFileSet() {
     const root = this.config && this.config.projectRoot;
     const rel = (f) => {
-      const p = root && path.isAbsolute(f) ? path.relative(root, f) : f;
-      return p.split(path.sep).join('/');
+      return root && path.isAbsolute(f) ? repoRelative(root, f) : toPosix(f);
     };
     if (this.options.diffOnly && Array.isArray(this.options.changedFiles) && this.options.changedFiles.length > 0) {
       return new Set(this.options.changedFiles.map(rel));
@@ -847,8 +850,7 @@ class GateTestRunner extends EventEmitter {
 
     const root = this.config && this.config.projectRoot;
     const rel = (f) => {
-      const p = root && path.isAbsolute(f) ? path.relative(root, f) : String(f);
-      return p.split(path.sep).join('/').replace(/^\.\//, '');
+      return (root && path.isAbsolute(f) ? repoRelative(root, f) : toPosix(f)).replace(/^\.\//, '');
     };
     // A changed path cited inside free text: bounded so `a.js` does not
     // match `data.js`, and `src/x.js` still matches `src/x.js:16`.
@@ -882,8 +884,7 @@ class GateTestRunner extends EventEmitter {
     if (!this._pathFilter || !result || !Array.isArray(result.checks)) return;
     const root = this.config && this.config.projectRoot;
     const rel = (f) => {
-      const p = root && path.isAbsolute(f) ? path.relative(root, f) : String(f);
-      return p.split(path.sep).join('/').replace(/^\.\//, '');
+      return (root && path.isAbsolute(f) ? repoRelative(root, f) : toPosix(f)).replace(/^\.\//, '');
     };
     const before = result.checks.length;
     result.checks = result.checks.filter((check) => {

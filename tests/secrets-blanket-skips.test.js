@@ -43,19 +43,20 @@ const SecretsModule = require('../src/modules/secrets');
 // Do not "tidy" this back into a single literal — that re-blocks every push.
 const STRIPE_SHAPED = 'sk_' + 'live_';
 
-function scan(mod, body) {
+async function scan(mod, body) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-skips-'));
   try {
     fs.writeFileSync(path.join(tmp, 'probe.js'), body);
     const checks = [];
     const result = { checks, addCheck(n, p, d = {}) { checks.push({ name: n, passed: p, ...d }); } };
-    // run() is async but does no real awaiting for a single small file
-    return mod.run(result, { projectRoot: tmp }).then(() => {
-      const hit = checks.find((c) => c.name.includes('probe.js'));
-      return hit ? hit.details.map((d) => ({ line: d.line, type: d.type })) : [];
-    });
+    await mod.run(result, { projectRoot: tmp });
+    const hit = checks.find((c) => c.name.includes('probe.js'));
+    return hit ? hit.details.map((d) => ({ line: d.line, type: d.type })) : [];
   } finally {
-    setTimeout(() => fs.rmSync(tmp, { recursive: true, force: true }), 50);
+    // Removed after the scan has finished reading it — the previous shape
+    // returned the promise from `try` and deleted the directory on a 50 ms
+    // timer, a race the scan won only because the file was small.
+    fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
   }
 }
 

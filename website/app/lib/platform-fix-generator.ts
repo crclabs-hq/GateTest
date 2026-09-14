@@ -12,14 +12,14 @@
 import type { Platform } from "./platform-detector";
 import type { WebFinding } from "./website-scanner";
 
-export interface PlatformFixFile {
+interface PlatformFixFile {
   filename: string;
   language: string;      // for syntax highlighting
   content: string;
   instructions: string;  // plain-English "where to put this"
 }
 
-export interface PlatformFixResult {
+interface PlatformFixResult {
   platform: Platform;
   files: PlatformFixFile[];
   manualSteps?: string[]; // for platforms where file injection isn't possible

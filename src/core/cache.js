@@ -6,6 +6,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('./repo-path');
 const crypto = require('crypto');
 
 class GateTestCache {
@@ -24,7 +25,7 @@ class GateTestCache {
     try {
       const content = fs.readFileSync(absPath);
       const hash = crypto.createHash('sha256').update(content).digest('hex');
-      const relPath = path.relative(this.projectRoot, absPath);
+      const relPath = repoRelative(this.projectRoot, absPath);
       const cached = this.cache.files[relPath];
       return !cached || cached.hash !== hash;
     } catch {
@@ -41,7 +42,7 @@ class GateTestCache {
       const content = fs.readFileSync(absPath);
       const hash = crypto.createHash('sha256').update(content).digest('hex');
       const stat = fs.statSync(absPath);
-      const relPath = path.relative(this.projectRoot, absPath);
+      const relPath = repoRelative(this.projectRoot, absPath);
 
       this.cache.files[relPath] = {
         hash,
@@ -50,7 +51,7 @@ class GateTestCache {
         lastChecked: Date.now(),
       };
     } catch {
-      // Skip unreadable files
+      // error-ok — an unreadable file gets no cache entry and is re-checked next run
     }
   }
 
@@ -107,7 +108,7 @@ class GateTestCache {
         return JSON.parse(fs.readFileSync(this.cachePath, 'utf-8'));
       }
     } catch {
-      // Corrupt cache — start fresh
+      // error-ok — Corrupt cache — start fresh
     }
     return { version: '1.0', files: {}, lastSaved: null };
   }

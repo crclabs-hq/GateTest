@@ -63,7 +63,7 @@ class Diagnostics {
         if (statusCode >= 200 && statusCode < 400) {
           found.push({ path: p || '/', status: statusCode, ms });
         }
-      } catch { /* path not available */ }
+      } catch { /* error-ok — path not available */ }
     }
 
     result.checks.availability = { found };
@@ -137,7 +137,7 @@ class Diagnostics {
         firstSeenMs: existing.hash === hash ? (existing.firstSeenMs || Date.now()) : Date.now(),
         lastCheckedMs: Date.now(),
       }));
-    } catch { /* non-fatal */ }
+    } catch { /* error-ok — state persistence is best-effort; the diagnostic result is already in `result` */ }
   }
 
   async _checkCacheHeaders(url, result) {
@@ -168,7 +168,7 @@ class Diagnostics {
       if (cfCache === 'EXPIRED') {
         result.issues.push({ severity: 'warning', code: 'cache-expired', message: 'CDN cache expired — content may be stale, flush recommended' });
       }
-    } catch { /* non-fatal */ }
+    } catch { /* error-ok — the cache-header probe is best-effort; its absence is not a finding */ }
   }
 
   _classifyBottleneck(result) {

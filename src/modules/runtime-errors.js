@@ -90,7 +90,7 @@ class RuntimeErrorsModule extends BaseModule {
           const resolved = require.resolve('playwright', { paths: [fromDir] });
           playwright = require(resolved);
           break;
-        } catch { /* try next candidate */ }
+        } catch { /* error-ok — playwright not resolvable from this candidate — the next is tried; null makes the caller report it as missing */ }
       }
       if (!playwright) {
         result.addCheck('runtime-errors:playwright-missing', true, {
@@ -122,7 +122,7 @@ class RuntimeErrorsModule extends BaseModule {
       const captured = await this._captureRuntime(browser, baseUrl, moduleCfg);
       this._reportCaptured(result, captured, baseUrl);
     } finally {
-      try { await browser.close(); } catch { /* swallow close errors */ }
+      try { await browser.close(); } catch { /* error-ok — teardown of a browser we are discarding; the findings are already recorded */ }
     }
   }
 
@@ -210,7 +210,7 @@ class RuntimeErrorsModule extends BaseModule {
       captured.navigationFailure = err && err.message ? String(err.message) : String(err);
     }
 
-    try { await ctx.close(); } catch { /* swallow */ }
+    try { await ctx.close(); } catch { /* error-ok — teardown of a context we are discarding; `captured` is already complete */ }
     return captured;
   }
 

@@ -91,6 +91,7 @@
 const BaseModule = require('./base-module');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -249,7 +250,7 @@ class CrossFileTaintModule extends BaseModule {
     for (const [abs, data] of fileData) {
       totalSourcesFound += data.localTaintedVars.size;
 
-      const rel = path.relative(projectRoot, abs).replace(/\\/g, '/');
+      const rel = repoRelative(projectRoot, abs);
       const isTest = this._isTestPath(rel);
 
       for (const hit of data.sinkHits) {
@@ -302,7 +303,7 @@ class CrossFileTaintModule extends BaseModule {
           for (const binding of taintedImports) {
             if (this._lineReferencesVar(hit.rawLine, binding)) {
               if (!this._hasSanitiser(hit.rawLine, hit.contextLines)) {
-                const importeeRel = path.relative(projectRoot, importee).replace(/\\/g, '/');
+                const importeeRel = repoRelative(projectRoot, importee);
                 let severity = isTest ? 'warning' : 'error';
                 if (hit.sink === 'sql-query' && data.hasParameterisedOrm) {
                   severity = isTest ? 'info' : 'warning';
@@ -352,7 +353,7 @@ class CrossFileTaintModule extends BaseModule {
               if (!argText) continue;
               if (!this._isArgTainted(argText, data.localTaintedVars)) continue;
 
-              const importeeRel = path.relative(projectRoot, importee).replace(/\\/g, '/');
+              const importeeRel = repoRelative(projectRoot, importee);
               let severity = isTest ? 'warning' : 'error';
               if (def.sink === 'sql-query' && importeeData.hasParameterisedOrm) {
                 severity = isTest ? 'info' : 'warning';

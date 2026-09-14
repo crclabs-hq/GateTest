@@ -483,7 +483,7 @@ function createMcpCore({ apiBase = 'https://gatetest.io', fetchImpl = globalThis
             durationMs: now() - startedAt,
             at: new Date(now()).toISOString(),
           });
-        } catch { /* telemetry must never break a tool call */ }
+        } catch { /* error-ok — telemetry must never break a tool call */ }
       }
       return rpcResult(id, result);
     }

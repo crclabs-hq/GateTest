@@ -37,7 +37,7 @@ export function escapeXml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-export interface BadgeSegment {
+interface BadgeSegment {
   text: string;
   bg: string;
   fg?: string;

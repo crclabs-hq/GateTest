@@ -5,43 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PageHero from "../../components/site/PageHero";
 import Section from "../../components/site/Section";
-
-interface WebFinding {
-  severity: "critical" | "warning" | "info" | "pass";
-  category: string;
-  title: string;
-  detail: string;
-  fix?: string;
-}
-
-interface FixFile {
-  filename: string;
-  language: string;
-  content: string;
-  instructions: string;
-}
-
-interface WebScanResult {
-  url: string;
-  finalUrl: string;
-  ok: boolean;
-  responseMs: number;
-  statusCode: number;
-  findings: WebFinding[];
-  summary: {
-    critical: number;
-    warnings: number;
-    passed: number;
-    score: number;
-  };
-  platform?: {
-    name: string;
-    canAutoFix: boolean;
-    fixFiles?: FixFile[];
-    manualSteps?: string[];
-  };
-  error?: string;
-}
+import type { WebFinding, WebScanResult } from "../../lib/website-scanner";
 
 const SEVERITY_CONFIG = {
   critical: {

@@ -82,7 +82,7 @@ function resolvePlaywright() {
       try {
         const resolved = require.resolve('playwright', { paths: [fromDir] });
         return require(resolved);
-      } catch { /* try next candidate */ }
+      } catch { /* error-ok — playwright not resolvable from this candidate — the next is tried; null makes the caller report it as missing */ }
     }
   }
   return null;
@@ -165,7 +165,7 @@ class FormTestingModule extends BaseModule {
       try {
         await browser.close();
       } catch {
-        /* swallow close errors */
+        /* error-ok — teardown of a browser we are discarding; the findings are already recorded */
       }
     }
   }
@@ -408,7 +408,7 @@ class FormTestingModule extends BaseModule {
           await locator.fill(String(inferFieldValue(field)), { timeout: 2000 }).catch(() => {}); // error-ok: best-effort DOM probe; element may be detached mid-test, finding still recorded
         }
       } catch {
-        /* best-effort fill — a field we can't reach isn't fatal to the test */
+        /* error-ok — best-effort fill — a field we can't reach isn't fatal to the test */
       }
     }
   }

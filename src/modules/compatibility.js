@@ -6,8 +6,94 @@
 
 const BaseModule = require('./base-module');
 const { JS_SOURCE_EXTS } = require('../core/source-extensions');
+const { nearestManifest } = require('../core/workspaces');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
+
+/**
+ * Modern JS APIs and the FIRST version of each runtime that has them. Two
+ * columns because a file has one runtime: code that ships to a browser is
+ * judged against the browser matrix (`since`); server and CLI code is judged
+ * against the Node.js floor its package.json declares (`node`, the major
+ * where the API landed — `null` for browser-only APIs, which are simply not
+ * a Node question).
+ *
+ * Until 2026-09-13 every file got the browser matrix: 60 of this repo's own
+ * findings were "may not work in all target browsers" on `src/modules/*.js`,
+ * `bin/*.mjs`, `website/app/lib/*.ts` and `website/app/api/**\/route.ts` —
+ * Node code that never reaches a browser, in a package declaring
+ * `engines.node >=20` where every one of those APIs exists. 39 of the 60
+ * were "Iterator helpers (available since Very new)", and the regex behind
+ * it (`\.map\(.*\)\.filter\(`) matched ordinary ARRAY chaining, which has
+ * worked since ES5; the "Very new" was a placeholder that never got a
+ * version. Both are fixed here; the control pair is
+ * tests/compatibility.test.js.
+ *
+ * Regexes run on the MASKED source (strings, comments and regex bodies
+ * blanked), so a comment saying "we do not use structuredClone" and a
+ * fixture string containing `.toSorted(` cannot fire; the v-flag rule reads
+ * the delimiters and flags the mask leaves in place.
+ */
+const MODERN_APIS = [
+  { api: 'structuredClone', regex: /\bstructuredClone\s*\(/, since: 'Chrome 98', node: 17, root: 'structuredClone' },
+  { api: 'Array.at()', regex: /\.at\s*\(\s*-/, since: 'Chrome 92', node: 17, method: 'at' },
+  { api: 'Object.hasOwn', regex: /Object\.hasOwn\s*\(/, since: 'Chrome 93', node: 17, root: 'Object.hasOwn' },
+  { api: 'AbortSignal.timeout', regex: /AbortSignal\.timeout\s*\(/, since: 'Chrome 103', node: 18, root: 'AbortSignal' },
+  { api: 'navigator.share', regex: /navigator\.share\s*\(/, since: 'Limited support', node: null, root: 'navigator' },
+  { api: 'Array.findLast', regex: /\.findLast\s*\(/, since: 'Chrome 97', node: 18, method: 'findLast' },
+  { api: 'Array.toReversed', regex: /\.toReversed\s*\(/, since: 'Chrome 110', node: 20, method: 'toReversed' },
+  { api: 'Array.toSorted', regex: /\.toSorted\s*\(/, since: 'Chrome 110', node: 20, method: 'toSorted' },
+  { api: 'Array.toSpliced', regex: /\.toSpliced\s*\(/, since: 'Chrome 110', node: 20, method: 'toSpliced' },
+  { api: 'Promise.withResolvers', regex: /Promise\.withResolvers\s*\(/, since: 'Chrome 119', node: 22, root: 'Promise.withResolvers' },
+  // `z.union([...])`, `t.union(`, `_.intersection(`: schema builders and
+  // lodash-style utilities share the method names; Set methods are only
+  // ever called on a Set. The receiver must not be one of those namespaces.
+  { api: 'Set methods (union/intersection)', regex: /(?<!\b(?:z|t|v|_|io|yup|Joi|S|zod|schema|Schema)\s*)\.(?:union|intersection|difference|symmetricDifference|isSubsetOf|isSupersetOf|isDisjointFrom)\s*\(/, since: 'Chrome 122', node: 22, method: 'union' },
+  // Iterator helpers are `Iterator.prototype.map` & co. — chained on an
+  // ITERATOR (`set.values().map(`, `map.entries().filter(`), or
+  // `Iterator.from(`. `Object.entries(obj).map(` is Array.prototype.map on
+  // the array Object.entries returns, and never matches: the iterator form
+  // is the empty-parens call.
+  { api: 'Iterator helpers', regex: /\.(?:values|keys|entries)\(\)\s*\.(?:map|filter|take|drop|flatMap|reduce|toArray|forEach|some|every|find)\s*\(|\bIterator\.from\s*\(/, since: 'Chrome 122', node: 22, root: 'Iterator' },
+  // A regex LITERAL with the v flag: on the masked line the body is blanks
+  // between its delimiters and the flags survive, so `/   /v` is the shape.
+  // (KI #50: the raw-text form matched `/lib/validators` — 202 of 237
+  // findings — because any two-slash path followed by a v-word looked like
+  // one.) `new RegExp('…', 'v')` is a string argument and is read from the
+  // raw line by the flags-string rule below.
+  { api: 'RegExp v flag', regex: /\/ +\/[dgimsuy]*v\b/, since: 'Chrome 112', node: 20, root: 'RegExp' },
+];
+
+/**
+ * The lowest Node major a package.json `engines.node` range admits, or null
+ * when it does not bound the version from below (`*`, `<21`, absent). Each
+ * `||` alternative contributes its own floor; the range's floor is the
+ * lowest of them. `>20` is read as 20 — a floor too low costs a warning,
+ * a floor too high hides one.
+ */
+function minNodeMajor(range) {
+  if (typeof range !== 'string' || !range.trim()) return null;
+  let floor = null;
+  for (const alt of range.split('||')) {
+    let altFloor = null;
+    for (const token of alt.trim().split(/\s+/)) {
+      const m = /^(>=|>|<=|<|\^|~|=)?v?(\d+)(?:\.(?:\d+|x|\*))?(?:\.(?:\d+|x|\*))?/.exec(token);
+      if (!m || m[1] === '<' || m[1] === '<=') continue;
+      const major = Number(m[2]);
+      if (altFloor === null || major < altFloor) altFloor = major;
+    }
+    if (altFloor === null) return null;
+    if (floor === null || altFloor < floor) floor = altFloor;
+  }
+  return floor;
+}
+
+/** The floor to assume when nothing declares one; `compat:node-engine` already asks for the declaration. */
+const ASSUMED_NODE_MAJOR = 20;
+
+const BROWSER_ASSET_DIR_RE = /(^|\/)(?:public|static|assets)\//i;
+const CLIENT_DIRECTIVE_RE = /^\s*(['"])use client\1\s*;?\s*$/;
 
 class CompatibilityModule extends BaseModule {
   constructor() {
@@ -22,16 +108,17 @@ class CompatibilityModule extends BaseModule {
 
     const cssFiles = this._collectFiles(projectRoot, ['.css', '.scss']);
     for (const file of cssFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
       this._checkCssCompat(relPath, content, result);
     }
 
     const jsFiles = this._collectFiles(projectRoot, JS_SOURCE_EXTS);
+    const manifests = new Map();
     for (const file of jsFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
-      this._checkJsCompat(relPath, content, result);
+      this._checkJsCompat(relPath, content, result, projectRoot, manifests);
     }
 
     this._checkResponsiveDesign(projectRoot, cssFiles, result);
@@ -101,7 +188,7 @@ class CompatibilityModule extends BaseModule {
           message: `Node.js engine: ${pkg.engines.node}`,
         });
       }
-    } catch { /* ignore */ }
+    } catch { /* error-ok — unreadable package.json — the syntax module reports it; this check has nothing to read */ }
   }
 
   _checkCssCompat(relPath, content, result) {
@@ -151,42 +238,101 @@ class CompatibilityModule extends BaseModule {
     }
   }
 
-  _checkJsCompat(relPath, content, result) {
-    // Modern JS APIs that may need polyfills
-    const modernApis = [
-      { api: 'structuredClone', regex: /\bstructuredClone\s*\(/g, since: 'Chrome 98' },
-      { api: 'Array.at()', regex: /\.at\s*\(\s*-/g, since: 'Chrome 92' },
-      { api: 'Object.hasOwn', regex: /Object\.hasOwn\s*\(/g, since: 'Chrome 93' },
-      { api: 'AbortSignal.timeout', regex: /AbortSignal\.timeout\s*\(/g, since: 'Chrome 103' },
-      { api: 'navigator.share', regex: /navigator\.share\s*\(/g, since: 'Limited support' },
-      { api: 'Array.findLast', regex: /\.findLast\s*\(/g, since: 'Chrome 97' },
-      { api: 'Array.toReversed', regex: /\.toReversed\s*\(/g, since: 'Chrome 110' },
-      { api: 'Array.toSorted', regex: /\.toSorted\s*\(/g, since: 'Chrome 110' },
-      { api: 'Array.toSpliced', regex: /\.toSpliced\s*\(/g, since: 'Chrome 110' },
-      { api: 'Promise.withResolvers', regex: /Promise\.withResolvers\s*\(/g, since: 'Chrome 119' },
-      { api: 'Set methods (union/intersection)', regex: /\.union\s*\(|\.intersection\s*\(/g, since: 'Chrome 122' },
-      { api: 'Iterator helpers', regex: /\.map\s*\(.*\)\.filter\s*\(/g, since: 'Very new' },
-      // \b after the v is required — without it, ANY two-slash path segment
-      // followed by a word starting with 'v' false-matches (/lib/validators,
-      // /api/version, /components/value, ...). Confirmed on this repo: 202
-      // of 237 compatibility findings were this bug (KI #50).
-      { api: 'RegExp v flag', regex: /\/[^/]+\/[gimsuy]*v\b/g, since: 'Chrome 112' },
-    ];
+  /**
+   * Which runtime executes this file? `'browser'` for code that ships to a
+   * browser — a `.jsx` / `.tsx` component, a Next.js `'use client'` module,
+   * a script under `public/` / `static/` / `assets/`, or any plain source in
+   * a project that configured browserslist WITHOUT declaring a Node engine
+   * (the project's own configuration says its targets are browsers).
+   * Everything else — a shebang script, `route.ts`, `lib/*.ts`, `src/*.js`
+   * in a package with an engines field — is `'node'`.
+   *
+   * @param {string} relFwd repo-relative, forward slashes
+   * @param {string[]} rawLines
+   * @param {string[]} maskedLines
+   * @param {{ browserslist: boolean, engine: string|null }} project
+   * @returns {'browser'|'node'}
+   */
+  _targetFor(relFwd, rawLines, maskedLines, project) {
+    if (/^#!.*\bnode\b/.test(rawLines[0] || '')) return 'node';
+    const ext = path.posix.extname(relFwd).toLowerCase();
+    if (ext === '.jsx' || ext === '.tsx') return 'browser';
+    if (BROWSER_ASSET_DIR_RE.test(relFwd) && (ext === '.js' || ext === '.mjs')) return 'browser';
+    // The directive must be the first statement; comments may precede it.
+    for (let i = 0; i < rawLines.length && i < 40; i += 1) {
+      if (!(maskedLines[i] || '').trim()) continue;
+      return CLIENT_DIRECTIVE_RE.test(rawLines[i]) ? 'browser' : (project.browserslist && !project.engine ? 'browser' : 'node');
+    }
+    return 'node';
+  }
 
-    for (const { api, regex, since } of modernApis) {
-      regex.lastIndex = 0;
-      if (regex.test(content)) {
+  /**
+   * Is the API feature-detected in this file — `typeof AbortSignal !== 'undefined'
+   * && AbortSignal.timeout ? … : …`, `'toSorted' in Array.prototype`? Then the
+   * author already handles its absence and the finding would tell them what
+   * they wrote. (website/app/lib/suppression-command.js:34, self-scan
+   * 2026-09-13.)
+   */
+  static _featureDetected(masked, entry) {
+    if (entry.root && new RegExp(`\\btypeof\\s+${entry.root.replace(/\./g, '\\.')}\\b`).test(masked)) return true;
+    if (entry.method && new RegExp(`\\b${entry.method}\\b[^\\n]{0,40}\\bin\\s+\\w+\\.prototype\\b`).test(masked)) return true;
+    return false;
+  }
+
+  _checkJsCompat(relPath, content, result, projectRoot, manifests) {
+    const relFwd = relPath.replace(/\\/g, '/');
+    const rawLines = content.split(/\r?\n/);
+    const maskedLines = this._maskedLines(content, relFwd);
+    const masked = maskedLines.join('\n');
+
+    // The manifest that OWNS the file decides the Node floor and the module
+    // system; the root decides whether browserslist is configured.
+    const owner = projectRoot ? nearestManifest(projectRoot, relFwd, manifests) : null;
+    const root = projectRoot ? nearestManifest(projectRoot, 'package.json', manifests) : null;
+    const engineRange = (owner && owner.json && owner.json.engines && owner.json.engines.node)
+      || (root && root.json && root.json.engines && root.json.engines.node) || null;
+    const project = {
+      engine: engineRange,
+      browserslist: Boolean(projectRoot && (fs.existsSync(path.join(projectRoot, '.browserslistrc')) || (root && root.json && root.json.browserslist))),
+    };
+    const target = this._targetFor(relFwd, rawLines, maskedLines, project);
+    const declaredFloor = minNodeMajor(engineRange);
+    const nodeFloor = declaredFloor === null ? ASSUMED_NODE_MAJOR : declaredFloor;
+
+    for (const entry of MODERN_APIS) {
+      const { api, regex, since } = entry;
+      if (!regex.test(masked)) continue;
+      if (CompatibilityModule._featureDetected(masked, entry)) continue;
+      if (target === 'node') {
+        // Browser-only APIs are not a Node compatibility question; an API the
+        // declared floor already has is not a question at all.
+        if (entry.node === null || entry.node <= nodeFloor) continue;
+        const floorText = declaredFloor === null
+          ? `engines.node is not declared — assuming Node ${ASSUMED_NODE_MAJOR}`
+          : `package.json engines.node "${engineRange}" admits Node ${declaredFloor}`;
         result.addCheck(`compat:js:${api}:${relPath}`, false, {
           file: relPath,
           severity: 'warning',
-          message: `API "${api}" (available since ${since}) may not work in all target browsers`,
-          suggestion: `Check caniuse.com for "${api}" and add polyfill if needed`,
+          message: `API "${api}" needs Node ${entry.node}+ but ${floorText}`,
+          suggestion: `Raise engines.node to ">=${entry.node}" or avoid "${api}" on the supported floor`,
         });
+        continue;
       }
+      result.addCheck(`compat:js:${api}:${relPath}`, false, {
+        file: relPath,
+        severity: 'warning',
+        message: `API "${api}" (available since ${since}) may not work in all target browsers`,
+        suggestion: `Check caniuse.com for "${api}" and add polyfill if needed`,
+      });
     }
 
-    // Check for top-level await (only in ESM)
-    if (content.match(/^await\s/m) && !relPath.endsWith('.mjs')) {
+    // Top-level await needs an ES module: `.mjs` / `.mts`, or a `.js` / `.ts`
+    // owned by a manifest with `"type": "module"`. Matched on the masked
+    // source so an `await` at column 0 inside a template literal (a test
+    // writing a fixture) is not a statement.
+    const ext = path.posix.extname(relFwd).toLowerCase();
+    const esm = ext === '.mjs' || ext === '.mts' || Boolean(owner && owner.json && owner.json.type === 'module');
+    if (/^await\s/m.test(masked) && !esm) {
       result.addCheck(`compat:js:top-level-await:${relPath}`, false, {
         file: relPath,
         severity: 'warning',
@@ -238,7 +384,7 @@ class CompatibilityModule extends BaseModule {
 
     // Check minimum touch target sizes in CSS
     for (const file of cssFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
 
       // Look for very small fixed dimensions on interactive elements
@@ -280,8 +426,11 @@ class CompatibilityModule extends BaseModule {
           suggestion: 'Consider adding @babel/core or @swc/core for broader browser support',
         });
       }
-    } catch { /* ignore */ }
+    } catch { /* error-ok — unreadable package.json — the syntax module reports it; this check has nothing to read */ }
   }
 }
+
+CompatibilityModule.minNodeMajor = minNodeMajor;
+CompatibilityModule.MODERN_APIS = MODERN_APIS;
 
 module.exports = CompatibilityModule;

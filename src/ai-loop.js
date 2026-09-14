@@ -160,7 +160,7 @@ async function main() {
         try {
           const imgUrl = new URL(imgMatch[1], pageUrl).href;
           imgSrcs.push(imgUrl);
-        } catch { /* invalid URL */ }
+        } catch { /* error-ok — malformed <img src> — nothing to fetch, the link is skipped */ }
       }
 
       // Check a sample of images (limit to avoid being too slow)
@@ -214,7 +214,7 @@ async function main() {
           if (resolved.startsWith(url) && !visited.has(resolved) && !queue.includes(resolved)) {
             queue.push(resolved);
           }
-        } catch { /* invalid URL */ }
+        } catch { /* error-ok — malformed href — nothing to crawl, the link is skipped */ }
       }
 
       // Check a sample of links for broken external links
@@ -241,7 +241,7 @@ async function main() {
             pageIssues++;
           }
         } catch {
-          // Timeout on external link, not critical
+          // error-ok — external link timed out — a slow third party is not a defect in the page under test
         }
       }
 

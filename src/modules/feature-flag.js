@@ -64,6 +64,7 @@
 const BaseModule = require('./base-module');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 const JS_EXTS = new Set([
   '.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts',
@@ -120,7 +121,7 @@ class FeatureFlagModule extends BaseModule {
     const projectRoot = (config && config.projectRoot) || process.cwd();
     // Shared walk replaced a private readdir sweep so --diff scans shrink the file set (KI #104).
     const files = this._collectFiles(projectRoot, SCAN_EXTS).filter(
-      (abs) => !HIDDEN_SEGMENT_RE.test(path.relative(projectRoot, abs).replace(/\\/g, '/')),
+      (abs) => !HIDDEN_SEGMENT_RE.test(repoRelative(projectRoot, abs)),
     );
 
     if (files.length === 0) {
@@ -140,7 +141,7 @@ class FeatureFlagModule extends BaseModule {
     let issues = 0;
 
     for (const abs of files) {
-      const rel = path.relative(projectRoot, abs).replace(/\\/g, '/');
+      const rel = repoRelative(projectRoot, abs);
       if (MINIFIED_RE.test(rel)) continue;
       let text;
       try {

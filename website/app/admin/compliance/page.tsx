@@ -1,14 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-interface ControlStatus {
-  id: string;
-  framework: "SOC2" | "HIPAA" | "BOTH";
-  name: string;
-  status: "in_place" | "manual" | "todo";
-  evidence: string;
-}
+import type { ControlStatus } from "../../lib/compliance-status";
 
 interface Snapshot {
   generatedAt: string;

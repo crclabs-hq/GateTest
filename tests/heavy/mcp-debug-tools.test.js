@@ -53,7 +53,7 @@ describe('handleResolveStackTrace', () => {
   });
 
   after(() => {
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* error-ok — temp dir cleanup; a busy handle on Windows cannot fail the assertion */ }
   });
 
   it('requires stackTrace', async () => {
@@ -99,7 +99,7 @@ describe('handleBlameRegression', () => {
   });
 
   after(() => {
-    try { fs.rmSync(repo, { recursive: true, force: true }); } catch { /* best-effort */ }
+    try { fs.rmSync(repo, { recursive: true, force: true }); } catch { /* error-ok — temp dir cleanup; a busy handle on Windows cannot fail the assertion */ }
   });
 
   it('requires path', async () => {

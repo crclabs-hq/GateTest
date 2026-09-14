@@ -232,7 +232,7 @@ class WpVersionLeakModule extends BaseModule {
       chunks.push(value);
       received += value.byteLength;
     }
-    try { reader.cancel(); } catch { /* ignore */ }
+    try { reader.cancel(); } catch { /* error-ok — the stream may already be closed; the bytes read are kept */ }
     const total = chunks.reduce((s, c) => s + c.byteLength, 0);
     const merged = new Uint8Array(total);
     let off = 0;

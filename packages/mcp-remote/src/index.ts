@@ -36,7 +36,7 @@ async function logToolCall(event: unknown) {
     }
     await appendFile(TELEMETRY_FILE, JSON.stringify(event) + '\n');
   } catch {
-    // telemetry must never break a tool call
+    // error-ok — telemetry must never break a tool call
   }
 }
 

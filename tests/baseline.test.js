@@ -103,6 +103,10 @@ describe('baseline — runner integration', () => {
     return { name: 'fake', description: 'fake', run: async (result) => emit(result) };
   }
 
+  // The summary's start/end stamps: fixed, because nothing asserted here
+  // depends on the wall clock and a real reading is a flake in waiting.
+  const T0 = 1_700_000_000_000;
+
   async function runOnce(root, opts, emit) {
     const runner = new GateTestRunner(makeConfig(root), { silent: true, ...opts });
     runner.register('fake', fakeModule(emit));
@@ -120,12 +124,12 @@ describe('baseline — runner integration', () => {
 
     // 1. Capture run — old baseline (none) irrelevant, snapshot written.
     const capRunner = await runOnce(root, { captureBaseline: true }, emit);
-    const capSummary = capRunner._buildSummary(Date.now() - 5, Date.now());
+    const capSummary = capRunner._buildSummary(T0, T0 + 5);
     assert.strictEqual(capSummary.baseline.captured, 1);
 
     // 2. Normal run — same finding must now be suppressed and not block.
     const runner = await runOnce(root, {}, emit);
-    const summary = runner._buildSummary(Date.now() - 5, Date.now());
+    const summary = runner._buildSummary(T0, T0 + 5);
     assert.strictEqual(summary.gateStatus, 'PASSED');
     assert.strictEqual(summary.checks.baselined, 1);
     assert.strictEqual(summary.baseline.active, true);
@@ -146,7 +150,7 @@ describe('baseline — runner integration', () => {
 
     await runOnce(root, { captureBaseline: true }, oldOnly);
     const runner = await runOnce(root, {}, oldAndNew);
-    const summary = runner._buildSummary(Date.now() - 5, Date.now());
+    const summary = runner._buildSummary(T0, T0 + 5);
     assert.strictEqual(summary.gateStatus, 'BLOCKED');
     assert.strictEqual(summary.checks.baselined, 1);
     const newCheck = runner.results[0].checks.find((c) => c.name === 'fake:new-bug');
@@ -175,11 +179,11 @@ describe('baseline — runner integration', () => {
 
     // Same single secret → suppressed, gate green.
     const same = await runOnce(root, {}, oneSecret);
-    assert.strictEqual(same._buildSummary(Date.now() - 5, Date.now()).gateStatus, 'PASSED');
+    assert.strictEqual(same._buildSummary(T0, T0 + 5).gateStatus, 'PASSED');
 
     // A SECOND secret in the same file → whole check resurfaces, gate blocks.
     const grown = await runOnce(root, {}, twoSecrets);
-    const summary = grown._buildSummary(Date.now() - 5, Date.now());
+    const summary = grown._buildSummary(T0, T0 + 5);
     assert.strictEqual(summary.gateStatus, 'BLOCKED');
     const check = grown.results[0].checks.find((c) => c.name === 'secrets:src/creds.js');
     assert.ok(!check.suppressed, 'count escalation must resurface the aggregated check');
@@ -193,7 +197,7 @@ describe('baseline — runner integration', () => {
     await runOnce(root, { captureBaseline: true }, emit);
     // Re-capture: if the old baseline suppressed the finding, count would be 0.
     const runner2 = await runOnce(root, { captureBaseline: true }, emit);
-    const summary2 = runner2._buildSummary(Date.now() - 5, Date.now());
+    const summary2 = runner2._buildSummary(T0, T0 + 5);
     assert.strictEqual(summary2.baseline.captured, 1);
   });
 });

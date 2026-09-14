@@ -170,14 +170,14 @@ function runInSandbox(opts = {}) {
     const timer = setTimeout(() => {
       killed = true;
       killedReason = 'timeout';
-      try { child.kill('SIGKILL'); } catch { /* swallow */ }
+      try { child.kill('SIGKILL'); } catch { /* error-ok — the child may already have exited; killedReason is recorded either way */ }
     }, timeoutMs);
 
     child.stdout.on('data', (buf) => {
       if (stdout.length + buf.length > MAX_STDOUT_BYTES) {
         killed = true;
         killedReason = 'stdout-overflow';
-        try { child.kill('SIGKILL'); } catch { /* swallow */ }
+        try { child.kill('SIGKILL'); } catch { /* error-ok — the child may already have exited; killedReason is recorded either way */ }
         return;
       }
       stdout = Buffer.concat([stdout, buf]);
@@ -204,7 +204,7 @@ function runInSandbox(opts = {}) {
       const lastLine = lines[lines.length - 1] || '';
       let parsed = null;
       if (lastLine) {
-        try { parsed = JSON.parse(lastLine); } catch { /* not parseable */ }
+        try { parsed = JSON.parse(lastLine); } catch { /* error-ok — last line is not the JSON envelope — parsed stays null and the caller reports the raw output */ }
       }
 
       if (killed) {

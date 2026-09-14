@@ -197,8 +197,6 @@ function main() {
   return 0;
 }
 
-module.exports = { walk, parseArgs, main };
-
 if (require.main === module) {
   try { process.exit(main()); }
   catch (err) { process.stderr.write(`mine-mutations: ${err.stack || err}\n`); process.exit(1); }

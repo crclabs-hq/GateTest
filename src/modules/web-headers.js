@@ -58,6 +58,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 
 // Directory excludes beyond what `BaseModule._collectFiles` already skips
@@ -171,7 +172,7 @@ class WebHeadersModule extends BaseModule {
       content = fs.readFileSync(file, 'utf-8');
     } catch { return 0; }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
 
     // Skip the module's own source — its pattern strings match its own rules.
     const relUnix = rel.replace(/\\/g, '/');

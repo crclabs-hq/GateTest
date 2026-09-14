@@ -820,7 +820,7 @@ async function askClaude(fileContent: string, filePath: string, issues: string[]
             return `${issue}\n\nCONTEXT: The repo ${owner}/${repo} has NO releases. The download link cannot work. FIX: Either remove the download button, link to the repo page (https://github.com/${owner}/${repo}), or create a release first.`;
           }
         }
-      } catch { /* fall through to original issue */ }
+      } catch { /* error-ok — fall through to original issue */ }
     }
     return issue;
   }));
@@ -1796,7 +1796,7 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch {
-        // Non-fatal — fall through to normal Claude path
+        // error-ok — Non-fatal — fall through to normal Claude path
       }
     }
 
@@ -2439,7 +2439,7 @@ export async function POST(req: NextRequest) {
         };
         liveSection = renderLiveBadgeSection({ findings: liveCorrelation.findings });
       } catch {
-        // Non-blocking — PR ships without the live section.
+        // error-ok — Non-blocking — PR ships without the live section.
       }
     }
 
@@ -2515,8 +2515,8 @@ export async function POST(req: NextRequest) {
         : `## ⚠️ GateTest Verification Warning\n\n${remainingIssues.length} file(s) may still have issues:\n${remainingIssues.map((i) => `- ${i}`).join("\n")}\n\nPlease review these files carefully before merging.`;
 
       await postPrComment(owner, repo, prNumber, verifyBody, token);
-    } catch {
-      // Non-critical — PR was created successfully, comment failed
+    } catch (err) { // error-ok: the PR exists; a missing verification comment is logged, never a failed fix
+      console.error("[scan/fix] verification comment failed (non-blocking):", err instanceof Error ? err.message : String(err));
     }
 
     // Phase 2.2 — architecture annotator. Runs only on the $199 tier.

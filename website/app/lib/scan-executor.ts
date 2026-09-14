@@ -39,7 +39,7 @@ const PRIORITY_FILES = new Set([
 ]);
 const prioritizeManifest = (p: string): boolean => PRIORITY_FILES.has(p.split("/").pop() ?? "");
 
-export interface ScanModuleResult {
+interface ScanModuleResult {
   name: string;
   status: "passed" | "failed" | "skipped";
   checks: number;

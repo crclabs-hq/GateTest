@@ -38,7 +38,7 @@
  */
 
 const fs = require('fs');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { findMigrationDirs, isUnderMigrationDir } = require('../core/migration-dirs');
 
@@ -93,7 +93,7 @@ class SqlMigrationsModule extends BaseModule {
       return 0;
     }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     // Strip -- line comments (keep lines for line numbers) and /* */ block
     // comments. Preserve line count.
     const raw = content.split(/\r?\n/);

@@ -273,7 +273,14 @@ class LiveCrawlerModule extends BaseModule {
           suggestion,
         });
       }
-    } catch { /* network error, skip silently */ }
+    } catch (err) {
+      // A probe that could not complete is "not checked", not "present":
+      // say so on the report (doctrine §6) instead of passing by silence.
+      result.addCheck(`${key}:not-checked`, true, {
+        severity: 'info',
+        message: `${urlPath} was not checked — the request failed (${err && err.message ? err.message : err})`,
+      });
+    }
   }
 }
 

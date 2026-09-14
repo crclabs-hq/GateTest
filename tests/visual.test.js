@@ -107,7 +107,7 @@ describe('VisualModule — print styles', () => {
       '@media (prefers-reduced-motion: reduce) { * { animation: none; } }',
     ].join('\n');
     const f = await scan({ 'app/globals.css': css });
-    assert.ok(!ids(f).includes('visual:print-styles:app/globals.css'.replace(/\//g, path.sep)), ids(f).join());
+    assert.ok(!ids(f).includes('visual:print-styles:app/globals.css'), ids(f).join());
     assert.ok(!ids(f).some((i) => i.startsWith('visual:print-styles:')), ids(f).join());
   });
 

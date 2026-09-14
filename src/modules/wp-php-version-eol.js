@@ -131,7 +131,7 @@ class WpPhpVersionEolModule extends BaseModule {
           }
         }
       } catch {
-        // Per-probe failure is OK; just means we can't detect via this path
+        // error-ok — Per-probe failure is OK; just means we can't detect via this path
       }
     }
 
@@ -218,7 +218,7 @@ class WpPhpVersionEolModule extends BaseModule {
       const headersObj = {};
       res.headers.forEach((v, k) => { headersObj[k.toLowerCase()] = v; });
       let body = '';
-      try { body = await res.text(); } catch { /* ignore */ }
+      try { body = await res.text(); } catch { /* error-ok — body read failed — status and headers are still returned */ }
       return {
         status: res.status,
         headers: headersObj,

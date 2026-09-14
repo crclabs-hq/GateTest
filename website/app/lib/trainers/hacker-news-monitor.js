@@ -491,7 +491,7 @@ async function main() {
   try {
     fs.mkdirSync(outDir, { recursive: true });
     fs.writeFileSync(path.join(outDir, 'hacker-news-latest.json'), JSON.stringify(report, null, 2));
-  } catch { /* best-effort */ }
+  } catch { /* error-ok — the latest-report file is a convenience copy; the report is already returned */ }
 }
 
 if (require.main === module) {

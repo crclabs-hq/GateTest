@@ -26,10 +26,13 @@
  *               (rule: `flaky-tests:todo-no-issue:<rel>:<line>`)
  *
  *   2. Nondeterminism
- *      warning: `Math.random()` in a test file — non-seeded, flakes randomly
+ *      warning: `Math.random()` in a test file whose value reaches an
+ *               assertion — non-seeded, flakes randomly (a random suffix
+ *               on a temp filename reaches none and stays quiet)
  *               (rule: `flaky-tests:math-random:<rel>:<line>`)
  *      warning: `Date.now()` / `new Date()` with NO fake-timer setup
- *               anywhere in the file — clock-dependent flake
+ *               anywhere in the file, asserted by VALUE — clock-dependent
+ *               flake (a bound such as `elapsed < 5000` is a budget)
  *               (rule: `flaky-tests:real-clock:<rel>:<line>`)
  *
  *   3. Network hitting real endpoints from tests
@@ -41,12 +44,16 @@
  *
  *   4. Real-time setTimeout/setInterval
  *      warning: `setTimeout(` / `setInterval(` in a test file with NO
- *               fake-timer setup — timing-dependent assertion
+ *               fake-timer setup — timing-dependent assertion. A BOUND
+ *               (a timeout that rejects / kills / fails, or is cleared on
+ *               success) and a SLEEP that no assertion follows are not
+ *               races and stay quiet; a sleep-then-assert fires.
  *               (rule: `flaky-tests:real-timer:<rel>:<line>`)
  *
  *   5. Process-wide state mutation
  *      warning: `process.env.XXX = ...` without a matching restore in
- *               an `afterEach` / `afterAll` later in the file
+ *               an `afterEach` / `afterAll` / `after` / `finally` later
+ *               in the file — by name, by computed key, or wholesale
  *               (rule: `flaky-tests:env-leak:<rel>:<line>`)
  *
  *   6. Self-admission
@@ -70,6 +77,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { stripStringsAndComments } = require('../core/source-strip');
 
@@ -94,6 +102,12 @@ const FAKE_TIMER_HINTS = [
   /\buseFakeTimers\s*\(/,
   /\bMockDate\b/,
   /\btimekeeper\b/i,
+  // node:test's built-in clock — `mock.timers.enable({ apis: ['Date'] })` /
+  // `t.mock.timers.enable(…)`. It is the fake-timer setup this rule's own
+  // suggestion should name for a node:test suite, and until 2026-09-13 it
+  // was not on the list, so a test that had done exactly the right thing
+  // was still reported.
+  /\bmock\.timers\.enable\s*\(/,
 ];
 
 const MOCK_NETWORK_HINTS = [
@@ -151,6 +165,15 @@ const MOCK_NETWORK_HINTS = [
 ];
 
 const SELF_ADMIT_TITLE_RE = /\b(?:flak(?:y|iness)|intermittent|sometimes\s+fails?|randomly\s+fails?|eventually\s+works?)\b/i;
+// A title in which flakiness is the SUBJECT, not a confession: a test of a
+// classifier ("classifies: flaky timer / timeout test", tests/ci-doctor-
+// failure-classifier.test.js:148) or of a verdict ("CI failed but local
+// passed → flaky", tests/replay-plan.test.js:192). A classifying verb before
+// the word, or an arrow leading to it, is the tell; "is sometimes flaky in
+// CI" has neither and still fires.
+// The verb must open the title (at most one word before it — "should
+// classify …"): "uploads the report (flaky on Windows)" reports nothing.
+const FLAKE_IS_SUBJECT_RE = /^\s*(?:[\w-]+\s+)?(?:classif|detect|identif|recogni[sz]|categori[sz]|label|flag|mark|report|treat|diagnos)\w*\b.*\b(?:flak|intermittent|sometimes|randomly|eventually)|(?:→|->|=>)\s*(?:flak|intermittent)/i;
 
 // Every pattern below is matched on the MASKED source — comments gone,
 // string contents blanked, offsets preserved (src/core/source-strip.js, the
@@ -165,6 +188,155 @@ const SELF_ADMIT_TITLE_RE = /\b(?:flak(?:y|iness)|intermittent|sometimes\s+fails
 function callsUrl(code, line, re) {
   const m = re.exec(code);
   return !!m && /^https?:\/\//.test(line.slice(m.index + m[0].length));
+}
+
+// ---------------------------------------------------------------------------
+// A timer is only a flake when the test's VERDICT depends on it. Our own
+// scanner reported 13 `real-timer` findings on this repository (2026-09-13),
+// and opening every one of them found two shapes that are not races at all:
+//
+//   BOUND   `const timer = setTimeout(() => { proc.kill(); reject(new Error(
+//           'timed out')) }, 5000)` … `clearTimeout(timer)` on success
+//           (tests/heavy/mcp-server.test.js:67). The callback runs only when
+//           the test has ALREADY hung; it changes how a failure is reported,
+//           never whether the test passes.
+//   SLEEP   `await new Promise((r) => setTimeout(r, 60))` inside a stub
+//           handed to the code under test to make it slow
+//           (tests/empire-smoke.test.js:212), or a `sleep()` helper used to
+//           poll. A timer never fires EARLY, so "sleep 60ms, assert elapsed
+//           > 30ms" is deterministic. The racy sleep is the one immediately
+//           followed by an assertion about something ELSE — "wait 100ms and
+//           hope it happened" — and that is the shape that still fires.
+//
+// Every rule below runs on the masked source.
+// ---------------------------------------------------------------------------
+
+/** The arguments of a call — from the open paren at `idx` on masked line `i` to its close, at most `maxLines` lines. */
+function callText(masked, i, idx, maxLines = 8) {
+  let depth = 0;
+  let out = '';
+  for (let k = i; k < masked.length && k < i + maxLines; k += 1) {
+    const l = masked[k] || '';
+    for (let c = k === i ? idx : 0; c < l.length; c += 1) {
+      const ch = l[c];
+      if (ch === '(') { depth += 1; if (depth > 1) out += ch; }
+      else if (ch === ')') { depth -= 1; if (depth === 0) return out; out += ch; }
+      else if (depth > 0) out += ch;
+    }
+    out += '\n';
+  }
+  return out;
+}
+
+// The callback of a bound aborts: it rejects, throws, kills the process,
+// fails the test, or records that the wait timed out.
+const TIMER_ABORT_RE = /\b(?:reject|throw|fail|abort|destroy|timedOut|timeout)\b|\.kill\s*\(|\bdone\s*\(\s*(?:new\b|err)/;
+
+// `new Promise((r) => setTimeout(r, ms))` — a sleep, resolver passed straight
+// to the timer (or `() => r()`), nothing else in the callback.
+const SLEEP_WRAPPER_RE = /\bnew\s+Promise\s*\(\s*\(?\s*([A-Za-z_$][\w$]*)\s*\)?\s*=>\s*\{?\s*setTimeout\s*\(\s*(?:\1|\(\s*\)\s*=>\s*\1\s*\(\s*\))\s*,/;
+
+// A line that asserts. `t.assert.strictEqual` / `assert(` / `expect(` /
+// chai `should`.
+const ASSERTION_RE = /\b(?:expect|assert(?:\.\w+)*|should)\s*\(/;
+
+// An assertion that BOUNDS a value rather than naming it: `elapsed < 5000`,
+// `daysLeft > 60`, `.toBeLessThan(`. The `[<>]` must not be an arrow's `>`
+// or half of `<=` already consumed.
+const BOUND_ASSERT_RE = /(?<![=<>!])[<>]=?(?![=>])|\bto(?:Be)?(?:Less|Greater)Than(?:OrEqual)?\b|\bis(?:Below|Above|AtLeast|AtMost)\b|\b(?:lessThan|greaterThan|below|above|within)\b/;
+
+/**
+ * Is the timer opened at `idx` on masked line `i` a guard — a bound the test
+ * only reaches by hanging?
+ */
+function timerIsGuard(masked, maskedAll, i, code, idx) {
+  // (i) the handle is cleared on the success path.
+  const handle = code.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:setTimeout|setInterval)\s*\(/);
+  if (handle && new RegExp(`\\bclear(?:Timeout|Interval)\\s*\\(\\s*${handle[1]}\\b`).test(maskedAll)) return true;
+  // (ii) the timer never holds the loop open.
+  if (/\)\s*\.unref\s*\(/.test(code)) return true;
+  // (iii) the callback aborts.
+  return TIMER_ABORT_RE.test(callText(masked, i, idx));
+}
+
+// A term that IS a point in time: a clock read, or an identifier whose
+// assignment reads the clock (`const start = Date.now()`,
+// `const expiry = new Date(Date.now() + day)`).
+const CLOCK_READ_RE = /\b(?:Date\.now\s*\(\s*\)|performance\.now\s*\(\s*\)|new\s+Date\s*\(\s*\))/;
+function isTimePoint(term, maskedAll) {
+  const t = String(term).trim();
+  if (CLOCK_READ_RE.test(t)) return true;
+  const ident = /^([A-Za-z_$][\w$]*)$/.exec(t);
+  if (!ident) return false;
+  const assign = new RegExp(`\\b${ident[1]}\\s*=\\s*([^;\\n]+)`).exec(maskedAll);
+  return Boolean(assign && CLOCK_READ_RE.test(assign[1]));
+}
+
+/**
+ * Is a BOUND assertion on a clock value a budget rather than a race?
+ *
+ * Only when the bounded quantity is a difference of two time points —
+ * `Date.now() - start` with `start` read from the clock, or an `elapsed`
+ * variable assigned that way: it fails when the code regresses, not when
+ * the clock moves. The 2026-08-18 positive controls are the other shape and
+ * must keep firing: `toBeGreaterThan(Date.now() - 1000)` subtracts a
+ * literal (a threshold, not an elapsed time), and
+ * `Date.parse(log.time) - t0` subtracts a clock reading from DATA — a
+ * 50 ms window on how fast a log line was written is exactly the race the
+ * rule exists for. (Self-scan 2026-09-13 first exempted every bound and
+ * silenced both.)
+ */
+function isElapsedBudget(assertionText, clockLine, maskedAll) {
+  const term = '(?:Date\\.now\\s*\\(\\s*\\)|performance\\.now\\s*\\(\\s*\\)|new\\s+Date\\s*\\(\\s*\\)|[A-Za-z_$][\\w$]*)';
+  const diffRe = new RegExp(`(${term})\\s*-\\s*(${term})`, 'g');
+  for (const text of [assertionText, clockLine]) {
+    if (typeof text !== 'string') continue;
+    let m;
+    while ((m = diffRe.exec(text))) {
+      if (isTimePoint(m[1], maskedAll) && isTimePoint(m[2], maskedAll)) return true;
+    }
+  }
+  return false;
+}
+
+/** Does an assertion follow within `n` lines of masked line `i` (a sleep-then-assert)? */
+function assertionFollows(masked, i, n = 4) {
+  for (let k = i + 1; k <= i + n && k < masked.length; k += 1) {
+    if (ASSERTION_RE.test(masked[k] || '')) return true;
+  }
+  return false;
+}
+
+/**
+ * The helper name a sleep wrapper is bound to — `const sleep = (ms) =>
+ * new Promise(…)` on the same line, or `function settle(ms) {` / `const
+ * wait = async (ms) => {` on the line above a bare `return new Promise`.
+ */
+function sleepHelperName(masked, i) {
+  const same = (masked[i] || '').match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=|\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
+  if (same) return same[1] || same[2];
+  const prev = (masked[i - 1] || '').match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(|\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(/);
+  return prev ? (prev[1] || prev[2]) : null;
+}
+
+/**
+ * Is the value produced by `callRe` on masked line `i` asserted on — inline,
+ * or through the variable it is assigned to? Returns the assertion line's
+ * masked text when it is (so the caller can ask what KIND of assertion), or
+ * null. Shared by the clock and RNG rules: a timestamp in a temp filename
+ * and a random suffix on it are deterministic in every way a test cares
+ * about — only a value the test ASSERTS against can flake.
+ */
+function assertedValue(code, masked, i, callRe) {
+  const inline = new RegExp(`\\b(?:expect|assert(?:\\.\\w+)*|should)\\s*\\(?[^;\\n]*${callRe.source}`);
+  if (inline.test(code)) return code;
+  const assign = code.match(new RegExp(`(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=[^;]*${callRe.source}`));
+  if (!assign) return null;
+  const varRe = new RegExp(`\\b(?:expect|assert(?:\\.\\w+)*|should)\\s*\\(?[^;\\n]*\\b${assign[1]}\\b`);
+  for (let k = i + 1; k < masked.length; k += 1) {
+    if (varRe.test(masked[k] || '')) return masked[k];
+  }
+  return null;
 }
 
 class FlakyTestsModule extends BaseModule {
@@ -208,7 +380,7 @@ class FlakyTestsModule extends BaseModule {
 
   _isTestFile(full, projectRoot) {
     if (!TEST_EXTS.has(path.extname(full).toLowerCase())) return false;
-    return this._isTestPath(path.relative(projectRoot, full));
+    return this._isTestPath(repoRelative(projectRoot, full));
   }
 
   _scanFile(file, projectRoot, result) {
@@ -217,7 +389,7 @@ class FlakyTestsModule extends BaseModule {
       content = fs.readFileSync(file, 'utf-8');
     } catch { return 0; }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const lines = content.split(/\r?\n/);
     const masked = stripStringsAndComments(content).split(/\r?\n/);
     let issues = 0;
@@ -228,6 +400,10 @@ class FlakyTestsModule extends BaseModule {
     // Track env mutations + their potential restores (file-level).
     const envMutations = []; // { line, varName }
     const envRestores = new Set(); // varNames with a restore call afterwards
+    // Sleep helpers declared in this file (`const sleep = (ms) => new
+    // Promise(…)`) — their call sites are judged in the post-pass.
+    const sleepHelpers = new Set();
+    const maskedAll = masked.join('\n');
 
     for (let i = 0; i < lines.length; i += 1) {
       const line = lines[i];      // raw: messages, titles, URL literals
@@ -277,7 +453,12 @@ class FlakyTestsModule extends BaseModule {
         // These are legitimate uses in retry/timing tests, not nondeterministic data.
         const isJitterContext = /Math\.random\s*\(\s*\)\s*[*+]/.test(code)
           || /[*+]\s*Math\.random\s*\(\s*\)/.test(code);
-        if (!isJitterContext) {
+        // Same test as the clock rule below: a random value is only a flake
+        // when it is ASSERTED against. Nine of this repo's own findings were
+        // `Math.random().toString(36)` making a temp filename unique
+        // (tests/fix-telemetry.test.js:17 and eight siblings) — a value no
+        // assertion ever reads (2026-09-13).
+        if (!isJitterContext && assertedValue(code, masked, i, /\bMath\.random\s*\(/)) {
           issues += this._flag(result, `flaky-tests:math-random:${rel}:${i + 1}`, {
             severity: 'warning',
             file: rel,
@@ -296,17 +477,17 @@ class FlakyTestsModule extends BaseModule {
       // the same line, or via a variable that later appears inside one.
       // (2026-08-18 audit residue: the unconditional form was a tautology —
       // "test reads clock, therefore flaky" — and mostly noise.)
+      //
+      // And asserting a BOUND on the clock is not a race either. `const
+      // elapsed = Date.now() - start; assert.ok(elapsed < 5000)` is a
+      // performance budget — it fails when the code regresses, not when
+      // the clock moves — and `daysLeft > 60` on a certificate expiry is
+      // the same shape. What still fires is an assertion that names a
+      // clock value: `assert.equal(path, \`report-${today}.md\`)` crosses
+      // midnight (tests/scan-fix-nuclear-ciso-wire.test.js:217, 2026-09-13).
       if ((/\bDate\.now\s*\(/.test(code) || /\bnew\s+Date\s*\(\s*\)/.test(code)) && !hasFakeTimers) {
-        const assertedInline = /\b(?:expect|assert(?:\.\w+)*|should)\s*\(?[^;\n]*(?:\bDate\.now\s*\(|\bnew\s+Date\s*\(\s*\))/.test(code);
-        let assertedViaVar = false;
-        if (!assertedInline) {
-          const assign = code.match(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=[^;]*(?:\bDate\.now\s*\(|\bnew\s+Date\s*\(\s*\))/);
-          if (assign) {
-            const varRe = new RegExp(`\\b(?:expect|assert(?:\\.\\w+)*|should)\\s*\\(?[^;\\n]*\\b${assign[1]}\\b`);
-            assertedViaVar = masked.some((l, k) => k > i && varRe.test(l));
-          }
-        }
-        if (assertedInline || assertedViaVar) {
+        const assertion = assertedValue(code, masked, i, /(?:\bDate\.now\s*\(|\bnew\s+Date\s*\(\s*\))/);
+        if (assertion && !(BOUND_ASSERT_RE.test(assertion) && isElapsedBudget(assertion, masked[i], maskedAll))) {
           issues += this._flag(result, `flaky-tests:real-clock:${rel}:${i + 1}`, {
             severity: 'warning',
             file: rel,
@@ -351,15 +532,34 @@ class FlakyTestsModule extends BaseModule {
         });
       }
 
-      // 6. Real timers
-      if (/\b(?:setTimeout|setInterval)\s*\(/.test(code) && !hasFakeTimers) {
-        issues += this._flag(result, `flaky-tests:real-timer:${rel}:${i + 1}`, {
-          severity: 'warning',
-          file: rel,
-          line: i + 1,
-          message: `${rel}:${i + 1} uses \`setTimeout\` / \`setInterval\` in a test with no fake-timer setup — every race condition in CI surfaces as a flake`,
-          suggestion: 'Use `jest.useFakeTimers()` / `vi.useFakeTimers()` and advance time explicitly with `jest.advanceTimersByTime(n)`.',
-        });
+      // 6. Real timers — see the BOUND / SLEEP note above `callText`.
+      const timerAt = code.search(/\b(?:setTimeout|setInterval)\s*\(/);
+      if (timerAt !== -1 && !hasFakeTimers) {
+        const openIdx = code.indexOf('(', timerAt);
+        const sleep = SLEEP_WRAPPER_RE.test(code);
+        let racy;
+        if (sleep) {
+          // A sleep is racy where it is awaited and an assertion follows.
+          // A helper definition is judged at its call sites (post-pass);
+          // an inline `await new Promise(…)` is judged here.
+          const helper = sleepHelperName(masked, i);
+          if (helper) { sleepHelpers.add(helper); racy = false; } else racy = /\bawait\b/.test(code) && assertionFollows(masked, i);
+        } else {
+          racy = !timerIsGuard(masked, maskedAll, i, code, openIdx);
+        }
+        if (racy) {
+          issues += this._flag(result, `flaky-tests:real-timer:${rel}:${i + 1}`, {
+            severity: 'warning',
+            file: rel,
+            line: i + 1,
+            message: sleep
+              ? `${rel}:${i + 1} sleeps on a real timer and then asserts — the assertion is a bet that something else finished first, and CI loses that bet`
+              : `${rel}:${i + 1} uses \`setTimeout\` / \`setInterval\` in a test with no fake-timer setup — every race condition in CI surfaces as a flake`,
+            suggestion: sleep
+              ? 'Await the event itself (a promise, an `once(emitter, …)`, a bounded poll in a `for`/`while`) instead of a fixed delay, or use fake timers and advance them explicitly.'
+              : 'Use `jest.useFakeTimers()` / `vi.useFakeTimers()` / node:test `mock.timers.enable()` and advance time explicitly. A timeout that only REJECTS or KILLS on a hang is a bound, not a race — clear it on the success path and this rule recognises it.',
+          });
+        }
       }
 
       // 7. process.env mutations (record for later restore check)
@@ -374,7 +574,7 @@ class FlakyTestsModule extends BaseModule {
 
       // 8. Self-admission — test titles with flaky keywords
       const titleMatch = /\b(?:it|test)\s*\(\s*['"`]/.test(code) ? line.match(/\b(?:it|test)\s*\(\s*(['"`])([^'"`]+?)\1/) : null;
-      if (titleMatch && SELF_ADMIT_TITLE_RE.test(titleMatch[2])) {
+      if (titleMatch && SELF_ADMIT_TITLE_RE.test(titleMatch[2]) && !FLAKE_IS_SUBJECT_RE.test(titleMatch[2])) {
         issues += this._flag(result, `flaky-tests:self-admitted:${rel}:${i + 1}`, {
           severity: 'warning',
           file: rel,
@@ -386,17 +586,44 @@ class FlakyTestsModule extends BaseModule {
       }
     }
 
+    // Post-pass: a sleep helper's call sites. `await sleep(250)` followed
+    // by an assertion is the race; `await sleep(500)` at the top of a poll
+    // loop, or on a `for` / `while` line, is a bounded wait.
+    for (const helper of sleepHelpers) {
+      const callRe = new RegExp(`\\bawait\\s+${helper}\\s*\\(`);
+      for (let i = 0; i < masked.length; i += 1) {
+        const code = masked[i] || '';
+        if (!callRe.test(code) || !assertionFollows(masked, i)) continue;
+        // A poll: the sleep sits on a loop line or in the body a loop
+        // opened within the three lines above.
+        if (masked.slice(Math.max(0, i - 3), i + 1).some((l) => /\b(?:for|while)\s*\(/.test(l || ''))) continue;
+        issues += this._flag(result, `flaky-tests:real-timer:${rel}:${i + 1}`, {
+          severity: 'warning',
+          file: rel,
+          line: i + 1,
+          message: `${rel}:${i + 1} sleeps on a real timer (\`${helper}()\`) and then asserts — the assertion is a bet that something else finished first, and CI loses that bet`,
+          suggestion: 'Await the event itself (a promise, an `once(emitter, …)`, a bounded poll in a `for`/`while`) instead of a fixed delay, or use fake timers and advance them explicitly.',
+        });
+      }
+    }
+
     // Post-pass: flag env mutations whose variable was never restored.
     // `restored` covers two cases: explicit `delete process.env.X` or a
-    // later `process.env.X = originalX` inside an afterEach/afterAll.
-    // We approximate the second case with a lightweight substring
-    // check over the whole file.
+    // later restore inside a teardown — `afterEach` / `afterAll`, node:test's
+    // `after` / `t.after`, or a `finally` block. The restore may name the
+    // variable (`process.env.X = orig`), restore by computed key
+    // (`process.env[k] = saved[k]` over a saved map, tests/pr-size.test.js:45)
+    // or replace the whole object (`process.env = { ...ORIGINAL }`); until
+    // 2026-09-13 only the named form after `afterEach|afterAll` counted, so
+    // a `finally` restore and a saved-map restore were both reported as
+    // leaks. Approximated with a windowed match over the MASKED file, so a
+    // comment saying "after the require" is not a teardown.
     for (const mutation of envMutations) {
       if (envRestores.has(mutation.varName)) continue;
       const restoreRe = new RegExp(
-        `(?:afterEach|afterAll)[\\s\\S]{0,500}process\\.env\\.${mutation.varName}\\s*=`,
+        `\\b(?:afterEach|afterAll|after|finally)\\b[\\s\\S]{0,500}(?:process\\.env\\.${mutation.varName}\\s*=|process\\.env\\s*=[^=]|process\\.env\\[[^\\]]+\\]\\s*=[^=]|delete\\s+process\\.env\\[)`,
       );
-      if (restoreRe.test(content)) continue;
+      if (restoreRe.test(maskedAll)) continue;
       issues += this._flag(result, `flaky-tests:env-leak:${rel}:${mutation.line}:${mutation.varName}`, {
         severity: 'warning',
         file: rel,

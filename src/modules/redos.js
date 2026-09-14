@@ -69,7 +69,7 @@
 
 const BaseModule = require('./base-module');
 const fs = require('fs');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 // Directory excludes beyond what `BaseModule._collectFiles` already skips
 // (node_modules, .git, dist, build, coverage, .next, out, …). The old
@@ -147,7 +147,7 @@ class RedosModule extends BaseModule {
 
     let issues = 0;
     for (const abs of files) {
-      const rel = path.relative(projectRoot, abs).replace(/\\/g, '/');
+      const rel = repoRelative(projectRoot, abs);
       let text;
       try {
         text = fs.readFileSync(abs, 'utf-8');
@@ -173,7 +173,7 @@ class RedosModule extends BaseModule {
     // .venv, .eslintrc.js, …); that is kept here as a path filter so the
     // file set is unchanged.
     return this._collectFiles(root, [...SOURCE_EXTS], EXTRA_EXCLUDES).filter(
-      (f) => !path.relative(root, f).split(path.sep).some((seg) => seg.startsWith('.')),
+      (f) => !repoRelative(root, f).split('/').some((seg) => seg.startsWith('.')),
     );
   }
 

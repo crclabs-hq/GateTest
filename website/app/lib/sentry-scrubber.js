@@ -58,7 +58,7 @@ function utf8ByteLength(str) {
     try {
       return new TextEncoder().encode(str).length;
     } catch (_) {
-      // fall through
+      // error-ok — TextEncoder unavailable or refused — Buffer.byteLength below is the fallback
     }
   }
   if (typeof Buffer !== "undefined" && typeof Buffer.byteLength === "function") {

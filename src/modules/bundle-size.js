@@ -20,6 +20,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule    = require('./base-module');
 
 const KB = 1024;
@@ -53,7 +54,7 @@ function parseNextManifest(nextDir) {
           chunks.push({ name: file, size, route: page });
         }
       }
-    } catch { /* skip */ }
+    } catch { /* error-ok — unreadable manifest entry — the chunk is not measured */ }
   }
 
   // static/chunks directory — scan for large chunks
@@ -68,7 +69,7 @@ function parseNextManifest(nextDir) {
           chunks.push({ name: `static/chunks/${f}`, size, route: null });
         }
       }
-    } catch { /* skip */ }
+    } catch { /* error-ok — unreadable chunks directory — nothing to measure */ }
   }
 
   return chunks;
@@ -97,10 +98,10 @@ function scanDistDir(distDir) {
         const full = path.join(dir, e.name);
         if (e.isDirectory()) { walk(full); continue; }
         if (e.name.endsWith('.js') && !e.name.endsWith('.min.js')) {
-          chunks.push({ name: path.relative(distDir, full), size: fs.statSync(full).size, route: null });
+          chunks.push({ name: repoRelative(distDir, full), size: fs.statSync(full).size, route: null });
         }
       }
-    } catch { /* skip */ }
+    } catch { /* error-ok — unreadable dist entry — the chunk is not measured */ }
   };
   walk(distDir);
   return chunks;
@@ -146,7 +147,7 @@ class BundleSize extends BaseModule {
             }
           }
         }
-      } catch { /* skip */ }
+      } catch { /* error-ok — unreadable manifest — this bundler's chunks are not measured */ }
     }
 
     // Generic dist scan (if no manifest found). Without a bundler manifest

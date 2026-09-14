@@ -138,7 +138,7 @@ export async function GET(req: NextRequest) {
         const voice = await fetchAuthorRecentComments({ author: HN_AUTHOR, limit: 15 });
         voiceExamples = voice.map((v) => ({ text: v.text }));
       } catch {
-        // No voice examples is fine — drafter falls back to style rules
+        // error-ok — No voice examples is fine — drafter falls back to style rules
       }
     }
 

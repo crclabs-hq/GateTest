@@ -52,7 +52,7 @@ function warn(msg) {
   try {
     process.stderr.write(`[shipped-rules] ${msg}\n`);
   } catch {
-    /* swallow */
+    /* error-ok — stderr may be closed; a log line is never worth failing the operation */
   }
 }
 

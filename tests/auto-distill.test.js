@@ -482,7 +482,7 @@ function makeFakeTransport(calls, responses) {
         // Fire close listeners so the consumer can clear its timeout timer.
         setImmediate(() => {
           for (const fn of closeListeners) {
-            try { fn(); } catch { /* ignore */ }
+            try { fn(); } catch { /* error-ok — a close listener that throws is the consumer's bug, not the fake transport's */ }
           }
         });
       });

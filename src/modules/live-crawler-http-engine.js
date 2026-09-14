@@ -154,7 +154,7 @@ async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenSty
     try {
       const resolved = new URL(scriptMatch[1].trim(), url).href;
       scriptUrls.add(resolved);
-    } catch { /* invalid URL */ }
+    } catch { /* error-ok — malformed script src — nothing to fetch */ }
   }
   for (const scriptUrl of scriptUrls) {
     try {
@@ -172,7 +172,7 @@ async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenSty
     try {
       const resolved = new URL(styleMatch[1].trim(), url).href;
       styleUrls.add(resolved);
-    } catch { /* invalid URL */ }
+    } catch { /* error-ok — malformed stylesheet href — nothing to fetch */ }
   }
   for (const styleUrl of styleUrls) {
     try {

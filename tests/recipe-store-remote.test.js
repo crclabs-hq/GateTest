@@ -48,10 +48,10 @@ function fakeTransport({ calls = [], responses = [], simulateTimeout = false, th
         end() { /* deferred fire below */ },
         destroy(err) {
           if (fakeReq._errCb) {
-            try { fakeReq._errCb(err || new Error('destroyed')); } catch { /* ignore */ }
+            try { fakeReq._errCb(err || new Error('destroyed')); } catch { /* error-ok — a listener that throws is the consumer's bug, not the fake request's */ }
           }
           if (fakeReq._closeCb) {
-            try { fakeReq._closeCb(); } catch { /* ignore */ }
+            try { fakeReq._closeCb(); } catch { /* error-ok — a listener that throws is the consumer's bug, not the fake request's */ }
           }
         },
       };

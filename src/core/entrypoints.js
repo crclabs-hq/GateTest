@@ -18,6 +18,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('./repo-path');
 const { compiledToSources } = require('./module-resolution');
 
 // Not `app`: a Next.js app directory holds ordinary components and libs
@@ -79,7 +80,53 @@ const ENTRYPOINT_BASENAMES = new Set([
 // files Next / Vite / test runners load by name.
 const FRAMEWORK_FILE_RE = /\b(page|layout|route|loading|error|not-found|template|default|global-error)\.(tsx?|jsx?)$/;
 const METADATA_FILE_RE = /^(opengraph-image|twitter-image|icon|apple-icon|favicon|robots|sitemap|manifest)(\.[^.]+)?\.(tsx?|jsx?|ts|js)$/;
-const TOOL_FILE_RE = /^(?:[\w.-]+\.config\.(?:[cm]?js|ts)|instrumentation(?:-client)?\.[jt]s|middleware\.[jt]s|next-env\.d\.ts|[\w.-]+\.d\.ts)$/;
+// `proxy.ts` is what Next 16 renamed `middleware.ts` to; both are loaded by name.
+const TOOL_FILE_RE = /^(?:[\w.-]+\.config\.(?:[cm]?js|ts)|instrumentation(?:-client)?\.[jt]s|(?:middleware|proxy)\.[jt]s|next-env\.d\.ts|[\w.-]+\.d\.ts)$/;
+
+// Exports a framework reads BY NAME from a file it loads by convention.
+// Nothing imports them, so "no file imports this export" is their healthy
+// state and deadCode's unused-export rule must stay quiet. Two tables:
+//   FRAMEWORK_EXPORT_NAMES — names any framework file may carry (Next.js /
+//     Remix / Nuxt segment config, route handlers, metadata, image files,
+//     test-runner hooks, the VS Code extension contract);
+//   FRAMEWORK_FILE_EXPORTS — names only ONE file carries. `register` in
+//     `instrumentation.ts` is Next's server-start hook; `register` anywhere
+//     else is an ordinary function and an unused one is dead. Until
+//     2026-09-13 deadCode reported `register` / `onRequestError` /
+//     `onRouterTransitionStart` on this repo's own instrumentation files.
+const FRAMEWORK_EXPORT_NAMES = new Set([
+  'default', 'metadata', 'generateMetadata', 'generateStaticParams',
+  'generateViewport', 'viewport',
+  'loader', 'action', 'GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS',
+  'HEAD', 'middleware', 'config',
+  'dynamic', 'dynamicParams', 'revalidate', 'fetchCache', 'runtime',
+  'preferredRegion', 'maxDuration',
+  'alt', 'size', 'contentType',
+  'ErrorBoundary', 'NotFound',
+  'setUp', 'tearDown', 'setup', 'teardown', 'setup_module', 'teardown_module',
+  // VS Code extension contract — the editor calls these; nothing imports them.
+  'activate', 'deactivate',
+]);
+const FRAMEWORK_FILE_EXPORTS = [
+  // Next.js server instrumentation: register() once per server start,
+  // onRequestError() on every server-side throw.
+  [/^instrumentation\.[jt]s$/, ['register', 'onRequestError']],
+  // Next.js 15.3+ client instrumentation: called on every App Router navigation.
+  [/^instrumentation-client\.[jt]s$/, ['onRouterTransitionStart']],
+  // Next.js middleware / Next 16 proxy: the handler and its `config.matcher`.
+  [/^(?:middleware|proxy)\.[jt]s$/, ['middleware', 'proxy', 'config']],
+];
+
+/**
+ * Is `name`, exported from `file`, consumed by a framework rather than imported?
+ * @param {string} file repo-relative or absolute path
+ * @param {string} name exported binding
+ */
+function isFrameworkExport(file, name) {
+  if (FRAMEWORK_EXPORT_NAMES.has(name)) return true;
+  const base = path.basename(file);
+  return FRAMEWORK_FILE_EXPORTS.some(([re, names]) => re.test(base) && names.includes(name));
+}
 
 /** package.json fields whose string values name files that are run, not imported. */
 const MANIFEST_FILE_FIELDS = ['main', 'module', 'browser', 'bin', 'types', 'typings', 'exports', 'scripts'];
@@ -153,7 +200,7 @@ function angularEntrypoints(dir, out) {
  * @param {Set<string>} [manifestRefs] from manifestEntrypoints()
  */
 function isEntryPoint(file, projectRoot, manifestRefs) {
-  const rel = path.relative(projectRoot, file).split(path.sep).join('/');
+  const rel = repoRelative(projectRoot, file);
   const base = path.basename(file);
   if (ENTRYPOINT_BASENAMES.has(base)) return true;
   if (FRAMEWORK_FILE_RE.test(base) || METADATA_FILE_RE.test(base) || TOOL_FILE_RE.test(base)) return true;
@@ -168,4 +215,4 @@ function isEntryPoint(file, projectRoot, manifestRefs) {
   return false;
 }
 
-module.exports = { isEntryPoint, manifestEntrypoints };
+module.exports = { isEntryPoint, manifestEntrypoints, isFrameworkExport };

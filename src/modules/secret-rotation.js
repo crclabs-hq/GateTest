@@ -44,6 +44,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const { execFileSync } = require('child_process');
 const BaseModule = require('./base-module');
 
@@ -181,7 +182,7 @@ class SecretRotationModule extends BaseModule {
   _findCodeFiles(projectRoot) {
     // Shared walk replaced a private readdir sweep so --diff scans shrink the file set (KI #104).
     return this._collectFiles(projectRoot, ['*'], EXTRA_EXCLUDES).filter((full) => {
-      const rel = path.relative(projectRoot, full).replace(/\\/g, '/');
+      const rel = repoRelative(projectRoot, full);
       if (SKIP_PATH_PARTS.some((p) => rel.includes(p))) return false;
       if (SKIP_EXTENSIONS.has(path.extname(full).toLowerCase())) return false;
       // Skip files > 1 MB — almost certainly generated/minified
@@ -200,7 +201,7 @@ class SecretRotationModule extends BaseModule {
     } catch {
       return [];
     }
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const hits = [];
     for (const { kind, re } of CREDENTIAL_PATTERNS) {
       re.lastIndex = 0;
@@ -235,7 +236,7 @@ class SecretRotationModule extends BaseModule {
           if (!Number.isNaN(secs) && secs > 0) return secs * 1000;
         }
       } catch {
-        // fall through
+        // error-ok — git log unavailable — the next age strategy is tried
       }
     }
     try {

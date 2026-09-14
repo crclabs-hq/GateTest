@@ -50,7 +50,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const body = await req.json().catch(() => ({}));
     repoUrl = typeof body.repo_url === "string" ? body.repo_url : null;
   } catch {
-    // body parse failure is fine — treat as "all repos"
+    // error-ok — body parse failure is fine — treat as "all repos"
   }
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports

@@ -56,7 +56,7 @@ test('VENDORS exposes Sentry, Datadog, Vercel Analytics', () => {
 });
 
 test('VENDORS object is frozen so callers cannot mutate the contract', () => {
-  try { VENDORS.NEW_VENDOR = 'oops'; } catch { /* strict throws, sloppy ignores */ }
+  try { VENDORS.NEW_VENDOR = 'oops'; } catch { /* error-ok — strict throws, sloppy ignores */ }
   assert.strictEqual(VENDORS.NEW_VENDOR, undefined);
   assert.ok(Object.isFrozen(VENDORS));
 });

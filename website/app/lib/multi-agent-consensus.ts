@@ -18,9 +18,9 @@
 
 import { openAiCall, isOpenAiConfigured } from "./openai-client";
 
-export type ConsensusAgreement = "full" | "partial" | "disagree" | "single_agent" | "no_parse";
+type ConsensusAgreement ="full" | "partial" | "disagree" | "single_agent" | "no_parse";
 
-export interface AgentResult {
+interface AgentResult {
   agent: "claude" | "openai";
   ok: boolean;
   fix: string | null;
@@ -40,7 +40,7 @@ export interface ConsensusResult {
   differences: string[];
 }
 
-export interface ConsensusInput {
+interface ConsensusInput {
   systemPrompt: string;
   userPrompt: string;
   maxTokens: number;
@@ -59,7 +59,7 @@ const DEFAULT_OPENAI_MODEL = "gpt-4o";
  * text. Returns null if the text has zero or more than one block (we DO
  * NOT silently pick the first — that's how you mis-attribute agreement).
  */
-export function parseFixBlock(text: string): { fix: string | null; rationale: string | null } {
+function parseFixBlock(text: string): { fix: string | null; rationale: string | null } {
   if (typeof text !== "string") return { fix: null, rationale: null };
   const fences = [...text.matchAll(/```[a-zA-Z0-9_-]*\n([\s\S]*?)```/g)];
   if (fences.length === 0) return { fix: null, rationale: text.trim() || null };
@@ -76,7 +76,7 @@ export function parseFixBlock(text: string): { fix: string | null; rationale: st
  * Token-level diff summary: returns up to 5 lines that differ between
  * the two fix blocks. Used to populate `differences` on partial agreement.
  */
-export function summariseDifferences(a: string, b: string, limit = 5): string[] {
+function summariseDifferences(a: string, b: string, limit = 5): string[] {
   const aLines = a.split("\n");
   const bLines = b.split("\n");
   const max = Math.max(aLines.length, bLines.length);
@@ -100,7 +100,7 @@ function truncate(s: string, n: number): string {
  * Normalise a fix block for equality: trim trailing whitespace from each
  * line, drop empty leading/trailing lines, normalise CRLF.
  */
-export function normaliseFix(fix: string): string {
+function normaliseFix(fix: string): string {
   return fix
     .replace(/\r\n/g, "\n")
     .split("\n")
@@ -109,7 +109,7 @@ export function normaliseFix(fix: string): string {
     .replace(/^\n+|\n+$/g, "");
 }
 
-export function classifyAgreement(
+function classifyAgreement(
   claude: AgentResult,
   openai: AgentResult,
   differences: string[]

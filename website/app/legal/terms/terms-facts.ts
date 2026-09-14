@@ -13,7 +13,7 @@ export { F };
 
 export const HOST = F.siteHost();
 export const SITE = F.siteUrl();
-export const EMAIL = F.SUPPORT_EMAIL;
+const EMAIL = F.SUPPORT_EMAIL;
 
 /** "US$29" / "US$19.50" from a Stripe cent amount. */
 export function usd(cents: number): string {
@@ -31,7 +31,7 @@ export const T = {
 };
 
 /** Look a sub-processor up by name; fail the build if the fact is gone. */
-export function vendor(name: string) {
+function vendor(name: string) {
   const v = F.SUB_PROCESSORS.find((s) => s.name === name);
   if (!v) throw new Error(`legal facts: sub-processor "${name}" is not declared in _facts.js`);
   return v;

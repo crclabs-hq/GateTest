@@ -65,7 +65,7 @@
  */
 
 const fs = require('fs');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 
 const SOURCE_EXTS = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts']);
@@ -159,7 +159,7 @@ class SSRFModule extends BaseModule {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return 0; }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const isTestFile = this._isTestPath(rel);
     const lines = content.split(/\r?\n/);
     const masked = this._maskedLines(content);

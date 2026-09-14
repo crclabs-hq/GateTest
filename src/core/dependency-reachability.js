@@ -25,6 +25,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('./repo-path');
 const { isTestPath } = require('./test-paths');
 const { buildImportGraph, collectSourceFiles } = require('./import-graph');
 
@@ -51,7 +52,7 @@ const NOT_SHIPPED_RE = /(^|\/)(cypress|scripts?|tools?|bench(marks?)?|docs?)\/|\
 function collectImportedPackages(projectRoot) {
   const imported = new Set();
   const production = (abs) => {
-    const rel = path.relative(projectRoot, abs).replace(/\\/g, '/');
+    const rel = repoRelative(projectRoot, abs);
     return !isTestPath(rel) && !NOT_SHIPPED_RE.test(rel);
   };
   const files = collectSourceFiles(projectRoot).filter(production);
@@ -185,4 +186,4 @@ function analyseProject(audit, projectRoot) {
   return { items, counts, imported, manifest };
 }
 
-module.exports = { classifyAdvisories, gateSeverity, analyseProject, collectImportedPackages, extractImports, directRootsOf, readManifest };
+module.exports = { classifyAdvisories, gateSeverity, analyseProject, collectImportedPackages, extractImports };

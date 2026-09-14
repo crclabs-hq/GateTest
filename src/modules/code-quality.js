@@ -7,8 +7,10 @@ const BaseModule = require('./base-module');
 const { splitLines, joinLines } = require('../core/text-lines');
 const { JS_SOURCE_EXTS } = require('../core/source-extensions');
 const { isIllustrationPath, HARNESS_DIR_RE } = require('../core/scan-scope');
+const { nearestManifest } = require('../core/workspaces');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 class CodeQualityModule extends BaseModule {
   constructor() {
@@ -28,7 +30,7 @@ class CodeQualityModule extends BaseModule {
     const funcLengthViolations = [];
 
     for (const file of sourceFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const relFwd = relPath.replace(/\\/g, '/');
 
       // Skip files matching excludePaths patterns
@@ -303,30 +305,11 @@ class CodeQualityModule extends BaseModule {
    * null.
    */
   _nearestPackage(projectRoot, relFwd) {
+    // One definition (src/core/workspaces.js `nearestManifest`): ENOENT keeps
+    // walking up; a malformed manifest still owns the file, reading as an
+    // application (no `main` / `files`), which is the safe direction.
     if (!this._pkgCache || this._pkgCache.root !== projectRoot) this._pkgCache = { root: projectRoot, byDir: new Map() };
-    const segs = relFwd.split('/');
-    segs.pop();
-    for (let n = segs.length; n >= 0; n--) {
-      const dir = segs.slice(0, n).join('/');
-      if (this._pkgCache.byDir.has(dir)) {
-        const hit = this._pkgCache.byDir.get(dir);
-        if (hit) return hit;
-        continue;
-      }
-      let entry = null;
-      try {
-        const json = JSON.parse(fs.readFileSync(path.join(projectRoot, dir, 'package.json'), 'utf-8'));
-        entry = { dir, json };
-      } catch (err) {
-        // ENOENT: no package.json at this level, keep walking up. Anything
-        // else (malformed JSON) still OWNS the file — with no `main` or
-        // `files` it reads as an application, which is the safe direction.
-        entry = err && err.code === 'ENOENT' ? null : { dir, json: {}, error: err.message };
-      }
-      this._pkgCache.byDir.set(dir, entry);
-      if (entry) return entry;
-    }
-    return null;
+    return nearestManifest(projectRoot, relFwd, this._pkgCache.byDir);
   }
 
   /**
@@ -383,7 +366,12 @@ class CodeQualityModule extends BaseModule {
    * What is this file FOR, when that answers the console question by itself?
    *
    *   'cli'    — a command-line entry point: basename `cli.*`, a node shebang,
-   *              or a file that reads `process.argv`. Its output IS console.
+   *              a file that reads `process.argv`, or a module that RUNS at
+   *              load — a top-level `await` or a top-level `process.exit(`.
+   *              A library exports and waits to be called; a file that
+   *              launches a browser at column 0 is a script somebody runs
+   *              (website/capture-baseline.mjs: 30 console.log warnings,
+   *              self-scan 2026-09-13). Its output IS console.
    *   'config' — a build/tool configuration file. Its console.log is the
    *              build talking to the developer running it.
    *   'logger' — a logger implementation. Calling console is its whole job;
@@ -409,8 +397,12 @@ class CodeQualityModule extends BaseModule {
     if (/^#!.*\bnode\b/.test(neutralisedLines[0] || '')) return 'cli';
     if (neutralisedLines.some(l => /\bclass\s+\w*Logger\b/.test(l))) return 'logger';
     if (neutralisedLines.some(l => /\bprocess\.argv\b/.test(l))) return 'cli';
+    if (neutralisedLines.some(l => CodeQualityModule.TOP_LEVEL_RUN_RE.test(l))) return 'cli';
     return null;
   }
+
+  /** A statement at column 0 that only a script has: `await x()`, `const b = await …`, `process.exit(`. */
+  static TOP_LEVEL_RUN_RE = /^(?:await\b|(?:const|let|var)\s+[\w$[\]{}, ]+=\s*await\b|process\.exit\s*\()/;
 
   /**
    * Does this repo publish a package others import? Only then is "no
@@ -647,6 +639,31 @@ class CodeQualityModule extends BaseModule {
     }
   }
 
+  /**
+   * Is the run of `//` lines around `start..start+count-1` documentation
+   * that quotes code, rather than code that was commented out? A block
+   * comment made of prose sentences with a few example lines between them
+   * (src/modules/n-plus-one.js:96-107: "Measured on prisma/prisma …", then
+   * three `for (…) await client.query(…)` lines it is explaining) is the
+   * former: at least as many prose lines as code-shaped lines in the
+   * contiguous run. Commented-out code has no prose around it.
+   */
+  static isProseWithExamples(lines, start, count) {
+    const isComment = (i) => i >= 0 && i < lines.length && lines[i].trim().startsWith('//');
+    let lo = start;
+    while (isComment(lo - 1)) lo -= 1;
+    let hi = start + count - 1;
+    while (isComment(hi + 1)) hi += 1;
+    let prose = 0;
+    for (let i = lo; i <= hi; i += 1) {
+      if (i >= start && i < start + count) continue;
+      const text = lines[i].trim().replace(/^\/\/+\s?/, '');
+      const words = text.split(/\s+/).filter(Boolean).length;
+      if (words >= 4 && !/[;{}]\s*$/.test(text)) prose += 1;
+    }
+    return prose >= count;
+  }
+
   _checkCommentedCode(absPath, relPath, lines, result) {
     let commentBlock = 0;
     let commentStart = -1;
@@ -657,7 +674,7 @@ class CodeQualityModule extends BaseModule {
         if (commentBlock === 0) commentStart = i;
         commentBlock++;
       } else {
-        if (commentBlock >= 3) {
+        if (commentBlock >= 3 && !CodeQualityModule.isProseWithExamples(lines, commentStart, commentBlock)) {
           const start = commentStart;
           const count = commentBlock;
           result.addCheck(`quality:commented-code:${relPath}:${commentStart + 1}`, false, {
@@ -674,11 +691,16 @@ class CodeQualityModule extends BaseModule {
   }
 
   _checkUnusedImports(relPath, content, lines, result) {
-    // Strip block comments and line comments so documentation examples
-    // with import statements don't false-positive as real declarations.
-    const stripped = content
-      .replace(/\/\*[\s\S]*?\*\//g, (m) => ' '.repeat(m.length))  // block comments
-      .replace(/\/\/[^\n]*/g, (m) => ' '.repeat(m.length));        // line comments
+    // Usage is counted on the MASKED source (src/core/source-strip.js):
+    // strings, comments and regex literals blanked, code kept. The naive
+    // `/\/\*[\s\S]*?\*\//` stripper this replaces (2026-09-13) blanked from a
+    // `/*` INSIDE a regex literal to the next `*/` — in any file that
+    // handles comments (src/core/confidence.js, import-graph.js, the
+    // auth-bypass and webhook-payload modules) that swallowed the real
+    // usage and reported an import that is used on the next screen as
+    // unused. A `${name}` inside a template literal is a use too; the
+    // mask blanks templates, so those are counted from the raw text.
+    const stripped = this._maskedLines(content, relPath.replace(/\\/g, '/')).join('\n');
 
     const importRegex = /(?:import\s+(?:{([^}]+)}|(\w+))\s+from|const\s+(?:{([^}]+)}|(\w+))\s*=\s*require\()/g;
     let match;
@@ -700,7 +722,8 @@ class CodeQualityModule extends BaseModule {
       for (const name of names) {
         if (!name || name === '*' || !/^\w+$/.test(name)) continue;
         // Count occurrences in stripped content (subtract the import line itself)
-        const occurrences = stripped.split(new RegExp(`\\b${name}\\b`)).length - 1;
+        let occurrences = stripped.split(new RegExp(`\\b${name}\\b`)).length - 1;
+        if (occurrences <= 1 && new RegExp(`\\$\\{[^}]*\\b${name}\\b[^}]*\\}`).test(content)) occurrences += 1;
         if (occurrences <= 1) {
           // Hygiene, not a defect: an unused import never breaks a build or
           // a user. Warning — `lint` owns the strict form via ESLint.

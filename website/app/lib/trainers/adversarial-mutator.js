@@ -269,8 +269,14 @@ async function run(opts = {}) {
       try {
         mutatedReport = runGate(repoRoot, suite, timeoutMs);
       } finally {
-        // ALWAYS restore the file even if the gate run threw.
-        try { fs.writeFileSync(abs, source, 'utf8'); } catch { /* best-effort */ }
+        // ALWAYS restore the file even if the gate run threw — and if the
+        // restore itself fails the checkout is left mutated, which is the
+        // one outcome this trainer must never hide (self-scan 2026-09-13).
+        try {
+          fs.writeFileSync(abs, source, 'utf8');
+        } catch (restoreErr) {
+          result.errors.push(`${rel}:${candidate.line}: could not restore the original after mutation — ${restoreErr.message}`);
+        }
       }
       if (!mutatedReport) {
         result.errors.push(`${rel}:${candidate.line}: gate run returned no parseable output`);
@@ -337,7 +343,7 @@ async function main() {
   try {
     fs.mkdirSync(outDir, { recursive: true });
     fs.writeFileSync(path.join(outDir, 'adversarial-mutator-latest.json'), JSON.stringify(report, null, 2));
-  } catch { /* best-effort */ }
+  } catch { /* error-ok — the latest-report file is a convenience copy; the report is already returned */ }
   // Also write a machine-readable holes file under tests/auto-generated/
   // so the nightly workflow can include it in the trainer PR.
   try {
@@ -347,7 +353,7 @@ async function main() {
       generatedAt: report.generatedAt,
       coverageHoles: report.coverageHoles,
     }, null, 2));
-  } catch { /* best-effort */ }
+  } catch { /* error-ok — the holes file is a convenience copy for the nightly PR; the report is already returned */ }
 }
 
 if (require.main === module) {

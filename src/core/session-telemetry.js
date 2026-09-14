@@ -216,7 +216,7 @@ function loadSeenShas(filePath) {
   try {
     fs.accessSync(filePath, fs.constants.R_OK);
     exists = true;
-  } catch { /* fall through */ }
+  } catch { /* error-ok — file absent — `exists` stays false and the empty set is returned */ }
   if (!exists) return seen;
   try {
     const text = fs.readFileSync(filePath, 'utf8');
@@ -225,7 +225,7 @@ function loadSeenShas(filePath) {
       try {
         const rec = JSON.parse(line);
         if (rec && typeof rec.commitSha === 'string') seen.add(rec.commitSha);
-      } catch { /* skip malformed line */ }
+      } catch { /* error-ok — skip malformed line */ }
     }
   } catch (err) {
     warnOnce(`could not read existing session-fix log: ${err.message}`);
@@ -323,7 +323,7 @@ async function summariseSessionFixes(opts = {}) {
   try {
     fs.accessSync(filePath, fs.constants.R_OK);
     exists = true;
-  } catch { /* file missing → empty stats */ }
+  } catch { /* error-ok — file missing → empty stats */ }
   if (!exists) return stats;
 
   return await new Promise((resolve) => {

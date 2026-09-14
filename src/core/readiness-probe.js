@@ -86,7 +86,7 @@ async function request(fetchFn, url, { method = 'GET', timeoutMs = DEFAULT_TIMEO
       signal: controller ? controller.signal : undefined,
     });
     let body = '';
-    try { body = await res.text(); } catch { /* body is optional */ }
+    try { body = await res.text(); } catch { /* error-ok — body is optional */ }
     return { ok: true, status: res.status, body };
   } catch (err) {
     const aborted = err && err.name === 'AbortError';

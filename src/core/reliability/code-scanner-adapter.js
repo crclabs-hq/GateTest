@@ -24,6 +24,7 @@
 "use strict";
 
 const path = require("path");
+const { repoRelative } = require('../repo-path');
 const fs = require("fs");
 
 /**
@@ -81,7 +82,7 @@ function reportToFindings(report, projectRoot) {
         // Always forward slashes — these paths land in reports, PR comments,
         // and cross-box baseline diffs, where "src\\x.js" from a Windows
         // scanner would mismatch the same finding from a Linux CI runner.
-        finding.file = path.relative(projectRoot, finding.file).replace(/\\/g, "/");
+        finding.file = repoRelative(projectRoot, finding.file);
       }
       findings.push(finding);
     }
@@ -101,7 +102,7 @@ const DEFAULT_EXEC = {
       let stderr = "";
       child.stdout.on("data", (chunk) => { stdout += chunk; });
       child.stderr.on("data", (chunk) => { stderr += chunk; });
-      const timer = setTimeout(() => { try { child.kill("SIGKILL"); } catch { /* ignore */ } },
+      const timer = setTimeout(() => { try { child.kill("SIGKILL"); } catch { /* error-ok — the child may already have exited when the cap fires */ } },
         (opts.timeoutMs || 120_000));
       child.on("exit", (code, signal) => {
         clearTimeout(timer);

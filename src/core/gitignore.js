@@ -23,6 +23,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('./repo-path');
 
 const { safeReadFile } = require('./safe-fs');
 
@@ -144,8 +145,7 @@ function buildIgnoreMatcher(root) {
   for (const igPath of ignoreFiles) {
     const r = safeReadFile(igPath, { maxBytes: 256 * 1024 });
     if (!r.ok) continue;
-    const baseDir = path.relative(root, path.dirname(igPath))
-      .split(path.sep).join('/');
+    const baseDir = repoRelative(root, path.dirname(igPath));
     const lines = r.content.split('\n');
     for (const line of lines) {
       const c = compilePattern(line, baseDir);

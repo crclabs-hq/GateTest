@@ -38,7 +38,9 @@ const REQUIRED: Array<{ name: string; why: string }> = [
   { name: "DATABASE_URL", why: "no scan results, sessions, customers, or API keys persist" },
   { name: "SESSION_SECRET", why: "customer + admin login (OAuth) fails to encrypt sessions" },
   { name: "STRIPE_SECRET_KEY", why: "checkout / payment cannot be created" },
-  { name: "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", why: "Stripe.js won't load on the checkout page" },
+  // No NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: checkout is Stripe-hosted (a
+  // server-created session + redirect); nothing loads Stripe.js, so nothing
+  // reads the publishable key (envVars, 2026-09-13).
   { name: "NEXT_PUBLIC_BASE_URL", why: "redirect + callback URLs resolve wrong" },
 ];
 

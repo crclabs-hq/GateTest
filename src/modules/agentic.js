@@ -27,6 +27,7 @@
 const BaseModule = require('./base-module');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const https = require('https');
 // MODEL resolves through engine-models so GATETEST_CHEAP_MODEL reaches
 // this call site — it was a hardcoded literal, invisible to the override (KI #78).
@@ -117,7 +118,7 @@ class AgenticModule extends BaseModule {
   _listSourceFiles(projectRoot) {
     const exts = ['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.py', '.go', '.rs', '.rb', '.java', '.php'];
     return this._collectFiles(projectRoot, exts)
-      .map((f) => path.relative(projectRoot, f))
+      .map((f) => repoRelative(projectRoot, f))
       .filter((f) => !f.startsWith('.'));
   }
 

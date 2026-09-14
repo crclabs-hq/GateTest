@@ -13,6 +13,7 @@ const { splitLines, joinLines } = require('../core/text-lines');
 const { JS_SOURCE_EXTS_NO_JSX } = require('../core/source-extensions');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 // Mutation operators extracted to a testable engine module so they can
 // be unit-tested independently of the test-runner orchestration.
 const { MUTATIONS, shouldSkipLine } = require('../core/mutation-engine');
@@ -200,7 +201,7 @@ class MutationModule extends BaseModule {
       if (totalMutants >= maxMutants || budgetExhausted) break;
       if (Date.now() > deadline) { budgetExhausted = true; break; }
 
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const original = fs.readFileSync(file, 'utf-8');
       const lines = splitLines(original);
 

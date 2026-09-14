@@ -8,6 +8,7 @@ const BaseModule = require('./base-module');
 const { stripStringsAndComments } = require('../core/source-strip');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const { WALK_EXCLUDE_SET } = require('../core/walk-excludes');
 const { stripJsonc, isJsoncPath } = require('../core/jsonc');
 
@@ -90,7 +91,7 @@ class SyntaxModule extends BaseModule {
   }
 
   _checkJsSyntax(file, result, projectRoot) {
-    const relPath = path.relative(projectRoot, file);
+    const relPath = repoRelative(projectRoot, file);
     try {
       const content = fs.readFileSync(file, 'utf-8');
       const ext = path.extname(file).toLowerCase();
@@ -168,12 +169,12 @@ class SyntaxModule extends BaseModule {
         if (parent === dir) break;
         dir = parent;
       }
-    } catch { /* ignore */ }
+    } catch { /* error-ok — unreadable ancestor directory — treated as no tsconfig */ }
     return false;
   }
 
   _checkJsxSyntax(file, result, projectRoot) {
-    const relPath = path.relative(projectRoot, file);
+    const relPath = repoRelative(projectRoot, file);
     const content = fs.readFileSync(file, 'utf-8');
 
     // Check for unclosed JSX tags.
@@ -207,7 +208,7 @@ class SyntaxModule extends BaseModule {
   }
 
   _checkJsonSyntax(file, result, projectRoot) {
-    const relPath = path.relative(projectRoot, file);
+    const relPath = repoRelative(projectRoot, file);
     // Declared out here on purpose: the JSONC retry below lives in the
     // `catch`, and a `const` inside the `try` is not in scope there. It
     // used to be, which made the retry throw ReferenceError — swallowed by
@@ -251,7 +252,7 @@ class SyntaxModule extends BaseModule {
   }
 
   _checkYamlSyntax(file, result, projectRoot) {
-    const relPath = path.relative(projectRoot, file);
+    const relPath = repoRelative(projectRoot, file);
     const content = fs.readFileSync(file, 'utf-8');
 
     // Basic YAML validation — check for common errors
@@ -274,7 +275,7 @@ class SyntaxModule extends BaseModule {
   }
 
   _checkTomlSyntax(file, result, projectRoot) {
-    const relPath = path.relative(projectRoot, file);
+    const relPath = repoRelative(projectRoot, file);
     const content = fs.readFileSync(file, 'utf-8');
 
     // Basic TOML validation
@@ -302,7 +303,7 @@ class SyntaxModule extends BaseModule {
   }
 
   _checkCssSyntax(file, result, projectRoot) {
-    const relPath = path.relative(projectRoot, file);
+    const relPath = repoRelative(projectRoot, file);
     const content = fs.readFileSync(file, 'utf-8');
 
     // Check for balanced braces
@@ -330,7 +331,7 @@ class SyntaxModule extends BaseModule {
   }
 
   _checkHtmlSyntax(file, result, projectRoot) {
-    const relPath = path.relative(projectRoot, file);
+    const relPath = repoRelative(projectRoot, file);
     const content = fs.readFileSync(file, 'utf-8');
 
     // Check for doctype
@@ -466,7 +467,7 @@ class SyntaxModule extends BaseModule {
     const maxReports = 10;
 
     for (const file of jsFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const raw = fs.readFileSync(file, 'utf-8');
       const dir = path.dirname(file);
 
@@ -577,7 +578,7 @@ class SyntaxModule extends BaseModule {
       // could only false-positive.
       if (parsedOk.has(file)) continue;
 
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
 
       // Strip strings / template literals / regex / comments FIRST, so a

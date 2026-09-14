@@ -113,7 +113,7 @@ class WpUserEnumerateModule extends BaseModule {
       if (res.status >= 200 && res.status < 300 && typeof res.body === 'string') {
         // Try to parse as JSON
         let users = null;
-        try { users = JSON.parse(res.body); } catch { /* not JSON */ }
+        try { users = JSON.parse(res.body); } catch { /* error-ok — not JSON */ }
         if (Array.isArray(users) && users.length > 0) {
           const slugs = users
             .map((u) => (u && (u.slug || u.name)))
@@ -220,7 +220,7 @@ class WpUserEnumerateModule extends BaseModule {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GateTest-WP-Scanner/1.0)' },
       });
       let body = '';
-      try { body = await res.text(); } catch { /* ignore */ }
+      try { body = await res.text(); } catch { /* error-ok — body read failed — status and headers are still returned */ }
       return {
         status: res.status,
         location: res.headers.get('location') || null,

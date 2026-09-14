@@ -24,7 +24,7 @@ interface AdminConfig {
   allowlist: string[];
 }
 
-export interface AdminConfigStatus {
+interface AdminConfigStatus {
   ok: boolean;
   missing: string[];
   config?: AdminConfig;
@@ -105,7 +105,7 @@ export function signSession(login: string, secret: string): string {
  * Verify a session token and return the payload if valid and not expired.
  * Returns null for any failure (never throws).
  */
-export function verifySession(
+function verifySession(
   token: string | undefined | null,
   secret: string
 ): SessionPayload | null {

@@ -20,6 +20,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule    = require('./base-module');
 const { makeAutoFix } = require('../core/ai-fix-engine');
 
@@ -92,7 +93,7 @@ class DeployScriptValidator extends BaseModule {
     for (const file of allFiles) {
       // Forward slashes always — the Next.js route regex below matched
       // nothing on Windows (backslash paths), leaving the registry blind.
-      const rel = path.relative(projectRoot, file).split(path.sep).join('/');
+      const rel = repoRelative(projectRoot, file);
       // Segment-anchored: `rel.includes('.git')` also matched `.github`,
       // which excluded every `.github/workflows/*.yml` — the exact files
       // isDeployFile() names on its last line. That branch was unreachable.

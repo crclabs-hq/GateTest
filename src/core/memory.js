@@ -294,7 +294,7 @@ class MemoryStore {
         for (const dep of Object.keys(deps)) {
           if (known[dep]) hints.push(known[dep]);
         }
-      } catch { /* ignore */ }
+      } catch { /* error-ok — unreadable package.json — stack hints stay empty; the syntax module reports the file */ }
     }
     if (fs.existsSync(path.join(this.projectRoot, 'pyproject.toml'))) hints.push('python-project');
     if (fs.existsSync(path.join(this.projectRoot, 'go.mod'))) hints.push('go-module');
@@ -352,4 +352,4 @@ class MemoryStore {
   }
 }
 
-module.exports = { MemoryStore, MEMORY_DIR };
+module.exports = { MemoryStore };

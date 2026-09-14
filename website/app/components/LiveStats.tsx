@@ -23,7 +23,7 @@ export default function LiveStats() {
       .then((d: StatsPayload | null) => {
         if (d && d.scans_completed > 0) setStats(d);
       })
-      .catch(() => {/* graceful degradation */});
+      .catch(() => {/* error-ok — graceful degradation — the widget renders nothing without stats */});
   }, []);
 
   if (!stats) return null;

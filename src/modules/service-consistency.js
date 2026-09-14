@@ -16,6 +16,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule    = require('./base-module');
 const { makeAutoFix } = require('../core/ai-fix-engine');
 
@@ -190,7 +191,7 @@ class ServiceConsistency extends BaseModule {
     // KI #104: shared walk replaces the private one. Procfile and Dockerfile
     // carry no extension, so the sweep takes '*' and classifies on basename.
     for (const full of this._collectFiles(projectRoot, ['*'])) {
-      const rel   = path.relative(projectRoot, full);
+      const rel   = repoRelative(projectRoot, full);
       const lower = path.basename(full).toLowerCase();
       let type = null;
 

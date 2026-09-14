@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     try {
       const voice = await fetchAuthorRecentComments({ author: HN_AUTHOR, limit: 15 });
       voiceExamples = voice.map((v) => ({ text: v.text }));
-    } catch { /* ok — fall through to style rules */ }
+    } catch { /* error-ok — ok — fall through to style rules */ }
 
     const hintedText = hint
       ? `${commentText}\n\n[OPERATOR HINT: ${hint}]`

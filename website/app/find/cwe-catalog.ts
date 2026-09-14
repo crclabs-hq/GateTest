@@ -242,7 +242,7 @@ export const CWE_TOP_25: CweEntry[] = [
 /**
  * Build a slug → entry index.
  */
-export function buildCweIndex(): Map<string, CweEntry> {
+function buildCweIndex(): Map<string, CweEntry> {
   const out = new Map<string, CweEntry>();
   for (const e of CWE_TOP_25) out.set(e.slug, e);
   return out;

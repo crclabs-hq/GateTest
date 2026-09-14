@@ -38,7 +38,7 @@ import { TIERS } from "./checkout-tiers";
 /** Registry names of every scan module that spends Anthropic budget. Kept
  *  here (not hand-listed per caller) so the deterministic tier cannot leak
  *  AI spend when a new AI module is added — extend THIS list. */
-export const AI_ENGINE_MODULES: readonly string[] = [
+const AI_ENGINE_MODULES: readonly string[] = [
   "aiReview",
   "agentic",
   "architectureDrift",
@@ -49,7 +49,7 @@ export const AI_ENGINE_MODULES: readonly string[] = [
 
 export const CLI_ENGINE_TIERS: ReadonlySet<string> = new Set(["quick", "deterministic", "full", "scan_fix", "nuclear"]);
 
-export interface EngineDispatchInput {
+interface EngineDispatchInput {
   tier: string;
   owner: string;
   repo: string;
@@ -84,7 +84,7 @@ export interface FindingSummary {
   hiddenLowConfidence: number;
 }
 
-export interface EngineDispatchResult {
+interface EngineDispatchResult {
   modules: ModuleResultEnvelope[];
   totalIssues: number;
   engineUsed: "cli" | "runTier";
@@ -111,7 +111,7 @@ interface CliEngineRunner {
   }>;
 }
 
-export function engineSuiteForTier(tier: string): string {
+function engineSuiteForTier(tier: string): string {
   // "scan_fix" is a pricing tier with no matching engine suite — getSuite()
   // silently falls back to the smaller "standard" suite for unknown names,
   // which once gave a $199 customer a SHALLOWER scan than a $99 one.
@@ -143,7 +143,7 @@ function engineSuite(name: string): string[] | null {
   }
 }
 
-export function skipModulesForTier(tier: string): string[] {
+function skipModulesForTier(tier: string): string[] {
   if (tier === "quick") {
     // The engine's quick suite is wider than the four modules the $29 tier
     // is sold as. What a tier includes is a pricing decision (Boss Rule #3),

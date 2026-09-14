@@ -23,6 +23,9 @@
  *   - constants explicitly named `DEV_URL` / `LOCAL_URL` / `TEST_URL`
  *   - URLs inside block/line comments
  *   - `localhost` inside config schema descriptions / JSDoc
+ *   - XML namespace names (`xmlns="http://www.w3.org/2000/svg"`) — a
+ *     URI that identifies a vocabulary, never fetched
+ *   - RFC 2606 documentation hosts (`example.com`, `*.example`, `*.invalid`)
  *
  * Competitors:
  *   - ESLint doesn't catch it.
@@ -56,6 +59,7 @@
 const fs = require('fs');
 const { literalKindAt } = require('../core/source-strip');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const { isNonUserFacingPage } = require('../core/scan-scope');
 const BaseModule = require('./base-module');
 
@@ -69,16 +73,24 @@ const SOURCE_EXTS = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts
 // Filenames we skip entirely (config examples, docs, local dev infra).
 const SKIP_BASENAME_RE = /^(?:\.env(\..*)?|.*\.example|.*\.md|.*\.mdx|README.*|CHANGELOG.*|MIGRATION.*|playwright\.config\..*|vitest\.config\..*|jest\.config\..*|cypress\.config\..*|webpack\.config\..*|vite\.config\..*|rollup\.config\..*)$/i;
 
-// URL-shaped capture. We match `<scheme>://<host>[:port][/path]`.
-const URL_RE = /\b(https?):\/\/([A-Za-z0-9_.-]+(?::\d+)?)(\/[^\s'"`)]*)?/g;
+// URL-shaped capture. We match `<scheme>://<host>[:port][/path]`. A host
+// label begins with a letter or digit: `http://.` at the end of the sentence
+// "use https:// instead of http://." is prose, not a host
+// (website/app/lib/website-scanner.ts:321, our own scanner, 2026-09-13).
+const URL_RE = /\b(https?):\/\/([A-Za-z0-9][A-Za-z0-9_.-]*(?::\d+)?)(\/[^\s'"`)]*)?/g;
 
 // RFC1918 + link-local + loopback host shapes.
 // 10.x, 172.16-31.x, 192.168.x, 169.254.x, 127.x, 0.0.0.0
 const PRIVATE_IP_RE = /^(?:10\.\d+\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+|169\.254\.\d+\.\d+)(?::\d+)?$/;
 const LOCALHOST_RE = /^(?:localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[::1\]|::1)(?::\d+)?$/i;
 
-// Internal TLDs + common staging subdomain prefixes.
-const INTERNAL_TLD_RE = /\.(?:internal|local|lan|corp|intra|localhost|test|example)(?::\d+)?$/i;
+// Internal TLDs + common staging subdomain prefixes. `.test` stays here: RFC
+// 2606 reserves it, but Valet-style local development uses it for real
+// hosts that will not resolve in production. `.example` and `.invalid` are
+// the other two RFC 2606 names and they exist to be written down —
+// `https://your-site.example` in a CLI usage string is `example.com` with a
+// different spelling, so they join DOC_TLD_RE below instead.
+const INTERNAL_TLD_RE = /\.(?:internal|local|lan|corp|intra|localhost|test)(?::\d+)?$/i;
 const STAGING_HOST_RE = /^(?:staging|stage|dev|test|qa|uat|preprod|pre-prod)\.[A-Za-z0-9_.-]+$/i;
 
 // Variable-name hints that say "this is deliberately dev-only".
@@ -133,6 +145,19 @@ const DOC_ALLOWLIST = new Set([
   'foo.com',
   'bar.com',
 ]);
+// RFC 2606 §2 documentation TLDs (see INTERNAL_TLD_RE for why `.test` is not here).
+const DOC_TLD_RE = /\.(?:example|invalid)$/i;
+
+// A URL that IDENTIFIES rather than LOCATES. XML namespace names are URIs by
+// spec and W3C's are all `http://` by policy — `xmlns="http://www.w3.org/
+// 2000/svg"` is the name of the SVG vocabulary, and no browser, CSP or MITM
+// ever fetches it. Six of this repo's own `insecure-scheme` findings were
+// that attribute in badge SVGs (website/app/lib/badge-svg.ts:74, 2026-09-13).
+// Two tells, either is enough: the W3C host, or the attribute / DOM call
+// that takes a namespace name (`xmlns:xlink=`, `createElementNS(`,
+// `setAttributeNS(`, `namespaceURI`).
+const NAMESPACE_HOSTS = new Set(['www.w3.org']);
+const NAMESPACE_CONTEXT_RE = /\bxmlns(?::[\w-]+)?\s*=\s*["'{]*$|\b(?:createElementNS|setAttributeNS|getAttributeNS|hasAttributeNS|removeAttributeNS)\s*\(\s*["']$|\bnamespaceURI\b[^"']*["']$/;
 
 
 class HardcodedUrlModule extends BaseModule {
@@ -178,7 +203,7 @@ class HardcodedUrlModule extends BaseModule {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return 0; }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     // Illustration directories join test files here rather than being skipped:
     // a `localhost` URL in `examples/server.js` or `sandbox/client.js` is the
     // demo working as intended, not a production defect. Downgraded to info so
@@ -230,7 +255,12 @@ class HardcodedUrlModule extends BaseModule {
         const hostNoPort = host.split(':')[0].toLowerCase();
 
         // Doc-example URLs are fine.
-        if (DOC_ALLOWLIST.has(hostNoPort)) continue;
+        if (DOC_ALLOWLIST.has(hostNoPort) || DOC_TLD_RE.test(hostNoPort)) continue;
+
+        // A namespace name is not a network URL. The attribute context is
+        // read from the RAW line: inside a template literal the whole
+        // `<svg xmlns="…"` is string content and the masked line is blank.
+        if (NAMESPACE_HOSTS.has(hostNoPort) || NAMESPACE_CONTEXT_RE.test(line.slice(Math.max(0, m.index - 40), m.index))) continue;
 
         // URL used inside a string-matching call (`.startsWith(`,
         // `.endsWith(`, `.includes(`, `.indexOf(`, `.match(`, `new RegExp(`,

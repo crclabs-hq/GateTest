@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       githubLogin = data.login || null;
     }
   } catch {
-    // token verification failed — still allow saving, just no login
+    // error-ok — token verification failed — still allow saving, just no login
   }
 
   const result = await addGitHubProfile(label, token, githubLogin, orgs);

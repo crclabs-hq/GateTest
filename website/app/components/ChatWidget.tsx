@@ -65,13 +65,13 @@ export function ChatWidget() {
           setMessages(parsed.filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string"));
         }
       }
-    } catch { /* corrupted history — start fresh */ }
+    } catch { /* error-ok — corrupted history — start fresh */ }
   }, []);
 
   // Persist history whenever it changes.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); } catch { /* quota / private mode */ }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); } catch { /* error-ok — quota / private mode */ }
   }, [messages]);
 
   // Auto-scroll to latest message.
@@ -118,7 +118,7 @@ export function ChatWidget() {
       });
       if (!res.ok || !res.body) {
         let detail = "";
-        try { const j = await res.json(); detail = j?.error || ""; } catch { /* ignore */ }
+        try { const j = await res.json(); detail = j?.error || ""; } catch { /* error-ok — error body unreadable — the status alone is reported */ }
         throw new Error(detail || `Request failed (HTTP ${res.status})`);
       }
 
@@ -138,7 +138,7 @@ export function ChatWidget() {
           } else if (currentEvent === "error" && parsed?.error) {
             setError(String(parsed.error));
           }
-        } catch { /* malformed event */ }
+        } catch { /* error-ok — malformed event */ }
         currentEvent = "message";
         currentData = "";
       };
@@ -182,7 +182,7 @@ export function ChatWidget() {
     setError(null);
     setStreamingReply("");
     setIsThinking(false);
-    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* error-ok — localStorage unavailable — nothing to clear */ }
   }, []);
 
   function onTextareaKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {

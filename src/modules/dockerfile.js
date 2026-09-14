@@ -20,6 +20,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 
 const DOCKERFILE_PATTERN = /^(Dockerfile(\..+)?|.*\.[Dd]ockerfile)$/;
@@ -83,7 +84,7 @@ class DockerfileModule extends BaseModule {
       return 0;
     }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const rawLines = content.split(/\r?\n/);
     let issues = 0;
 

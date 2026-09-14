@@ -46,7 +46,9 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
+const { literalKindAt } = require('../core/source-strip');
 
 const SCAN_EXTS = new Set([
   '.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts', '.py',
@@ -69,7 +71,7 @@ const MOCK_DATA_PATTERNS = [
   { re: /\bjohn@example\.(?:com|org)\b/i, label: 'john@example placeholder email' },
   { re: /\btest@test\.com\b/i, label: 'test@test placeholder email' },
   { re: /\bfoo@bar\.com\b/i, label: 'foo@bar placeholder email' },
-  { re: /\bLorem\s+ipsum\s+dolor\b/i, label: 'Lorem ipsum filler text' },
+  { re: /\bLorem\s+ipsum\s+dolor\b/i, label: 'Lorem ipsum filler text', prose: true },
   { re: /\b555-0\d{3}\b/, label: 'fake "555-" phone number' },
   { re: /\b123\s+Main\s+St(?:reet)?\b/i, label: '"123 Main St" placeholder address' },
   { re: /["'`]password123["'`]/, label: '"password123" placeholder secret' },
@@ -119,6 +121,63 @@ const TS_IGNORE_RE = /@ts-(?:ignore|nocheck|expect-error)\b/g;
 const DENSITY_ANY_THRESHOLD = 5;     // per 100 lines
 const DENSITY_TS_IGNORE_THRESHOLD = 3; // per file
 
+// A quoted placeholder that is COMPARED, not assigned: `=== 'changeme'`,
+// `.has('changeme')`, `case 'changeme':` — a guard against the value, which
+// is the opposite of shipping it.
+const COMPARAND_BEFORE_RE = /(?:===?|!==?|\.(?:includes|has|startsWith|endsWith|indexOf|test)\s*\(|\bcase)\s*$/;
+// The opener of a multi-line list a quoted placeholder sits in: a lookup Set
+// of the values a detector recognises (src/core/env-placeholder.js).
+const LOOKUP_OPENER_RE = /\bnew\s+Set\s*\(/;
+// A string literal longer than this is prose ABOUT a placeholder ("weak
+// session secrets like 'changeme'"), not the placeholder itself.
+const PROSE_LITERAL_LENGTH = 60;
+
+/**
+ * Where a mock-data match sits, judged on the masked twin of the line
+ * (src/core/source-strip.js): 'code' at the opening quote of a whole
+ * string literal, 'string' inside one, 'comment', or 'regex'.
+ *
+ * Self-scan 2026-09-13: every one of the 18 mock-data findings on this
+ * repo was a DETECTOR — this module's own MOCK_DATA_PATTERNS (regex
+ * literals), the secrets / security / cookie-security modules' comments
+ * naming "changeme", env-placeholder's Set of the placeholders it
+ * recognises, and website copy describing what cookieSecurity flags. A
+ * comment or a regex is never data; a string is data only when it IS the
+ * placeholder rather than a sentence mentioning one.
+ */
+function mockDataContext(rawLines, maskedLines, i, col, quoted, prose) {
+  const kind = literalKindAt(rawLines, maskedLines, i, col);
+  if (kind === 'comment' || kind === 'regex') return 'detector';
+  const masked = maskedLines[i] || '';
+  if (quoted) {
+    // The pattern starts at a quote. As a whole literal that quote is a
+    // DELIMITER and survives masking; nested inside a larger string it is
+    // interior and was blanked.
+    if (kind !== 'code') return 'prose';
+    if (COMPARAND_BEFORE_RE.test(masked.slice(0, col))) return 'comparand';
+    if (insideLookupList(maskedLines, i)) return 'comparand';
+    return 'data';
+  }
+  if (kind === 'code') return 'data'; // JSX text: <p>Lorem ipsum dolor</p>
+  if (prose) return 'data'; // Lorem ipsum IS long prose; length says nothing about it
+  // Length of the enclosing literal: walk out to the delimiters the mask kept.
+  let start = col;
+  while (start > 0 && !/["'`]/.test(masked[start - 1])) start -= 1;
+  let end = col;
+  while (end < masked.length && !/["'`]/.test(masked[end])) end += 1;
+  return end - start > PROSE_LITERAL_LENGTH ? 'prose' : 'data';
+}
+
+/** Is line `i` a continuation of a `new Set([` list opened above? */
+function insideLookupList(maskedLines, i) {
+  for (let k = i; k >= 0 && k >= i - 12; k -= 1) {
+    const l = (maskedLines[k] || '').trim();
+    if (LOOKUP_OPENER_RE.test(l)) return true;
+    if (k < i && !/[[(,{=]$/.test(l)) return false; // the statement started here without the opener
+  }
+  return false;
+}
+
 class ClaudeComplianceModule extends BaseModule {
   constructor() {
     super(
@@ -148,7 +207,7 @@ class ClaudeComplianceModule extends BaseModule {
     let issues = 0;
 
     for (const abs of files) {
-      const rel = path.relative(projectRoot, abs).replace(/\\/g, '/');
+      const rel = repoRelative(projectRoot, abs);
       if (MINIFIED_RE.test(rel)) continue;
       let text;
       try {
@@ -162,8 +221,9 @@ class ClaudeComplianceModule extends BaseModule {
       const isMockFile = MOCK_FILE_RE.test(rel);
       const ext = path.extname(abs).toLowerCase();
       const lines = text.split(/\r?\n/);
+      const masked = this._maskedLines(text, rel);
 
-      issues += this._scanFile(rel, lines, result, { isTest, isMockFile, ext });
+      issues += this._scanFile(rel, lines, result, { isTest, isMockFile, ext, masked });
     }
 
     result.addCheck('claude-compliance:summary', true, {
@@ -180,16 +240,24 @@ class ClaudeComplianceModule extends BaseModule {
     let tsIgnoreHits = 0;
     let noiseHits = 0;
     const noiseLines = [];
+    const maskedLines = ctx.masked || this._maskedLines(lines.join('\n'), rel);
+    const kindAt = (i, col) => literalKindAt(lines, maskedLines, i, col);
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const prev = i > 0 ? lines[i - 1] : '';
       if (SUPPRESS_RE.test(line) || SUPPRESS_RE.test(prev)) continue;
+      const maskedLine = maskedLines[i] || '';
 
-      // 1. Mock-data — only in non-test, non-mock source paths.
+      // 1. Mock-data — only in non-test, non-mock source paths, and only
+      // where the match is DATA (see mockDataContext).
       if (!ctx.isTest && !ctx.isMockFile) {
         for (const p of MOCK_DATA_PATTERNS) {
-          if (p.re.test(line)) {
+          const m = p.re.exec(line);
+          if (m) {
+            const quoted = /^["'`]/.test(m[0]);
+            const where = mockDataContext(lines, maskedLines, i, m.index, quoted, p.prose === true);
+            if (where !== 'data') break;
             result.addCheck(`claude-compliance:mock-data:${rel}:${i + 1}`, false, {
               severity: 'warning',
               message: `Mock data left in source — ${p.label}`,
@@ -211,7 +279,13 @@ class ClaudeComplianceModule extends BaseModule {
       // it (2026-08-18 audit). Only a bare stub in a concrete function is a
       // finding (it crashes whoever calls it at runtime).
       for (const p of STUB_PATTERNS) {
-        if (p.re.test(line)) {
+        const sm = p.re.exec(line);
+        if (sm) {
+          // A stub is code or a TODO comment; the same text inside a
+          // string or a regex literal (this module's own STUB_PATTERNS) is
+          // neither.
+          const k = kindAt(i, sm.index);
+          if (k === 'string' || k === 'regex') break;
           if (/NotImplementedError/.test(p.label) && ClaudeComplianceModule._looksAbstract(lines, i, lines.join('\n'))) break;
           result.addCheck(`claude-compliance:stub:${rel}:${i + 1}`, false, {
             severity: ctx.isTest ? 'info' : 'error',
@@ -225,21 +299,31 @@ class ClaudeComplianceModule extends BaseModule {
         }
       }
 
-      // 3. AI WHAT-not-WHY comment noise — track for density.
-      for (const re of NOISE_PATTERNS) {
-        if (re.test(line)) {
-          noiseHits++;
-          if (noiseLines.length < 5) noiseLines.push(i + 1);
-          break;
+      // 3. AI WHAT-not-WHY comment noise — track for density. A comment
+      // is a comment only outside a string: the same line inside a
+      // template literal is content, not a tell.
+      const commentAt = line.search(/\S/);
+      if (commentAt >= 0 && kindAt(i, commentAt) === 'comment') {
+        for (const re of NOISE_PATTERNS) {
+          if (re.test(line)) {
+            noiseHits++;
+            if (noiseLines.length < 5) noiseLines.push(i + 1);
+            break;
+          }
         }
       }
 
-      // 4 + 5. TS density counters.
+      // 4 + 5. TS density counters. `: any` is a type only in CODE, and a
+      // `@ts-ignore` is a directive only in a COMMENT — website/app/for/
+      // typescript/page.tsx shows 13 of them inside a template literal of
+      // example code and was reported as a file that "gave up on types"
+      // (self-scan 2026-09-13).
       if (TS_EXTS.has(ctx.ext)) {
-        const aMatches = line.match(TS_ANY_RE);
+        const aMatches = maskedLine.match(TS_ANY_RE);
         if (aMatches) anyHits += aMatches.length;
-        const iMatches = line.match(TS_IGNORE_RE);
-        if (iMatches) tsIgnoreHits += iMatches.length;
+        for (const im of line.matchAll(TS_IGNORE_RE)) {
+          if (kindAt(i, im.index) === 'comment') tsIgnoreHits += 1;
+        }
       }
     }
 
@@ -292,7 +376,7 @@ class ClaudeComplianceModule extends BaseModule {
     // skipped every dot-entry below the root (`.github/`, `.storybook/`,
     // `.eslintrc.js`); kept as a filter so the file set is unchanged.
     return this._collectFiles(root, [...SCAN_EXTS], ['.terraform']).filter((full) => {
-      const rel = path.relative(root, full);
+      const rel = repoRelative(root, full);
       return !rel.split(/[\\/]/).some((seg) => seg.startsWith('.'));
     });
   }

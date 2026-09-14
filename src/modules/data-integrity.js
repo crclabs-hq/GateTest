@@ -9,6 +9,7 @@ const { scanMigrationDirs, listMigrationFiles } = require('../core/migration-dir
 const { JS_SOURCE_EXTS, JS_SOURCE_EXTS_NO_JSX } = require('../core/source-extensions');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 class DataIntegrityModule extends BaseModule {
   constructor() {
@@ -102,7 +103,7 @@ class DataIntegrityModule extends BaseModule {
 
   /** Destructive operations without safeguards, in one migration file. */
   _checkDestructiveMigration(projectRoot, filePath, result) {
-    const file = path.relative(projectRoot, filePath).replace(/\\/g, '/');
+    const file = repoRelative(projectRoot, filePath);
     let content;
     try {
       content = fs.readFileSync(filePath, 'utf-8').toLowerCase();
@@ -192,7 +193,7 @@ class DataIntegrityModule extends BaseModule {
       const content = fs.readFileSync(file, 'utf-8');
       if (content.includes('mongoose.Schema') || content.includes('new Schema(')) {
         hasMongoose = true;
-        const relPath = path.relative(projectRoot, file);
+        const relPath = repoRelative(projectRoot, file);
 
         // Check for missing validation
         if (!content.includes('required:') && !content.includes('validate:')) {
@@ -247,7 +248,7 @@ class DataIntegrityModule extends BaseModule {
 
     let piiCount = 0;
     for (const file of jsFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       if (this._isTestPath(relPath)) continue;
       // Skip GateTest's own scanner modules — they contain detection patterns
       // (e.g. regex strings matching console.log(password)) that are not PII leaks.
@@ -324,7 +325,7 @@ class DataIntegrityModule extends BaseModule {
     const jsFiles = this._collectFiles(projectRoot, JS_SOURCE_EXTS);
 
     for (const file of jsFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       // `includes('test')` also matched `src/latest/`, `attestation.js`
       // and `testimonials/` — real shipped code, silently skipped.
       // BaseModule._isTestPath() is the canonical segment-anchored form.
@@ -362,7 +363,7 @@ class DataIntegrityModule extends BaseModule {
     const SCANNER_PATH_RE = /(?:^|\/)(?:src\/modules|src\/core|website\/app\/lib\/scan-modules|website\/app\/admin|tests|integrations\/infra|lib)\//;
 
     for (const file of jsFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const normalisedPath = relPath.replace(/\\/g, '/');
       if (normalisedPath.includes('test')) continue;
       if (SCANNER_PATH_RE.test(normalisedPath)) continue;
@@ -436,7 +437,7 @@ class DataIntegrityModule extends BaseModule {
   _checkIdempotency(projectRoot, result, migrationDirs) {
     for (const dir of migrationDirs) {
       for (const filePath of this._migrationStatements(dir.abs)) {
-        const file = path.relative(projectRoot, filePath).replace(/\\/g, '/');
+        const file = repoRelative(projectRoot, filePath);
         try {
           const content = fs.readFileSync(filePath, 'utf-8').toLowerCase();
 

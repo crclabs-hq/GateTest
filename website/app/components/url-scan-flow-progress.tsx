@@ -179,7 +179,7 @@ export function RuntimePending({ pollUrl, onComplete }: { pollUrl: string; onCom
           clearInterval(tick);
         }
       } catch {
-        /* keep polling */
+        /* error-ok — keep polling */
       }
     }, 3000);
     return () => {

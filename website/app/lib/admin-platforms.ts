@@ -36,7 +36,7 @@ async function ensureSchema(): Promise<void> {
   _initDone = true;
 }
 
-export interface AdminPlatform {
+interface AdminPlatform {
   id: number;
   github_org: string;
   display_url: string | null;
@@ -54,7 +54,7 @@ export function parseGitHubOrg(input: string): string | null {
       return parts[0] || null;
     }
   } catch {
-    // not a URL — treat as bare org name if it looks valid
+    // error-ok — not a URL — treat as bare org name if it looks valid
   }
   // Bare org name: letters, digits, hyphens
   if (/^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$/.test(s)) return s;

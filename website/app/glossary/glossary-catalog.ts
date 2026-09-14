@@ -11,7 +11,7 @@
  * sitemap; the drift test asserts the sitemap and all-urls.js stay in lockstep.
  */
 
-export interface GlossaryEntry {
+interface GlossaryEntry {
   /** URL slug (kebab-case). */
   slug: string;
   /** The term as a human reads it. */

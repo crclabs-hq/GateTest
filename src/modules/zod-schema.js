@@ -34,6 +34,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule    = require('./base-module');
 const { makeAutoFix } = require('../core/ai-fix-engine');
 const { listWorkspacePackages, manifestDeclares, nearestWorkspacePackage } = require('../core/workspaces');
@@ -106,7 +107,7 @@ class ZodSchemaPresence extends BaseModule {
     let missing  = 0;
 
     for (const file of files) {
-      const rel = path.relative(projectRoot, file);
+      const rel = repoRelative(projectRoot, file);
 
       // Skip test files, stories, pages (they often don't export reusable components)
       if (

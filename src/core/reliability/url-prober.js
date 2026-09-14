@@ -349,7 +349,7 @@ async function probeUrl({ url, _fetch, timeoutMs = DEFAULT_TIMEOUT_MS, authHeade
       if (authHeaders && typeof authHeaders === "object") {
         try {
           if (new URL(currentUrl).origin === parsed.origin) sameOriginAuth = authHeaders;
-        } catch { /* unparseable hop — no auth */ }
+        } catch { /* error-ok — unparseable hop — no auth */ }
       }
       hopResponse = await fetchImpl(currentUrl, {
         method: "GET",
@@ -411,7 +411,7 @@ async function probeUrl({ url, _fetch, timeoutMs = DEFAULT_TIMEOUT_MS, authHeade
   try {
     const text = await response.text();
     bodySnippet = text.length > MAX_BODY_BYTES ? text.slice(0, MAX_BODY_BYTES) : text;
-  } catch { /* leave empty */ }
+  } catch { /* error-ok — body read failed — the probe still reports status and headers */ }
 
   // HTTPS-only check
   if (parsed.protocol === "http:") {

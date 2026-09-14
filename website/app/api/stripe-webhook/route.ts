@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
         const { setMcpSubscriptionStatus } = require("@/app/lib/mcp-subscription-store");
         await setMcpSubscriptionStatus(getDb(), subId, status);
       } catch {
-        // No matching MCP row is expected and fine — not an error
+        // error-ok — No matching MCP row is expected and fine — not an error
       }
     }
     return NextResponse.json({ received: true });
@@ -406,8 +406,8 @@ export async function POST(req: NextRequest) {
         const sql = getDb();
         await sql`UPDATE scans SET status = 'failed', completed_at = NOW()
           WHERE id = ${scanId}`;
-      } catch {
-        // best-effort
+      } catch (dbErr) { // error-ok: nothing upstream can act on this; the log is what support reads when a scan sits at 'pending'
+        console.error(`[GateTest] Could not mark scan ${scanId} failed — it will stay 'pending' until support intervenes:`, dbErr);
       }
     }
   });

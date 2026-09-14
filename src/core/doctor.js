@@ -269,7 +269,7 @@ async function runDoctor(opts = {}) {
     if (diskCheck.ok) {
       record('info', `disk: ${diskCheck.output.split('\n').slice(-1)[0]}`);
     }
-  } catch { /* not fatal */ }
+  } catch { /* error-ok — `df` is a nicety; the doctor report ships without the disk line */ }
 
   return { lines, summary, projectRoot };
 }
@@ -315,4 +315,4 @@ function renderDoctor(result) {
   return out.join('\n');
 }
 
-module.exports = { runDoctor, renderDoctor, probeAnthropic, inspectGateWorkflow };
+module.exports = { runDoctor, renderDoctor, inspectGateWorkflow };

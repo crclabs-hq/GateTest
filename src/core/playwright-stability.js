@@ -147,7 +147,7 @@ async function installThirdPartyStubs(page) {
         }
         await route.continue();
       } catch {
-        try { await route.continue(); } catch { /* swallow */ }
+        try { await route.continue(); } catch { /* error-ok — the route is already handled or the page is gone; nothing to continue */ }
       }
     });
   } catch {

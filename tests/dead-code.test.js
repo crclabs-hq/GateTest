@@ -904,6 +904,62 @@ describe('DeadCodeModule — orphan-file reads the import graph (KI #96)', () =>
   });
 });
 
+describe('DeadCodeModule — a require whose path is built from __dirname is a real reader (2026-09-13)', () => {
+  // scripts/ops/mail-test.js: `const { deliver, mailProvider, fromAddress } =
+  // require(path.join(__dirname, '..', '..', 'website', 'app', 'lib',
+  // 'mail-transport.js'))` — five exports "unused", the module an orphan.
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dc-computed-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('POSITIVE CONTROL — names destructured from a path.join(__dirname, …) require are used; NEGATIVE — a sibling nothing requires, and a variable segment, are not', async () => {
+    write(tmp, 'lib/util.js', 'function helper() { return 1; }\nmodule.exports = { helper };\n');
+    write(tmp, 'lib/root-util.js', 'function viaRoot() { return 2; }\nmodule.exports = { viaRoot };\n');
+    write(tmp, 'lib/lonely.js', 'function lonely() { return 3; }\nmodule.exports = { lonely };\n');
+    write(tmp, 'lib/dyn.js', 'function dyn() { return 4; }\nmodule.exports = { dyn };\n');
+    write(tmp, 'tools/run.js', [
+      "const path = require('path');",
+      "const ROOT = path.resolve(__dirname, '..');",
+      "const { helper } = require(path.join(__dirname, '..', 'lib', 'util.js'));",
+      "const { viaRoot } = require(path.join(ROOT, 'lib', 'root-util'));",
+      "const name = 'dyn.js';",
+      "const dyn = require(path.join(__dirname, '..', 'lib', name));",
+      'helper(); viaRoot(); dyn();',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const unused = r.checks.filter((c) => c.name.startsWith('dead-code:unused-export:')).map((c) => c.export).sort();
+    const orphans = r.checks.filter((c) => c.name.startsWith('dead-code:orphan-file:')).map((c) => c.file.replace(/\\/g, '/')).sort();
+    assert.deepStrictEqual(unused, ['dyn', 'lonely']);
+    assert.deepStrictEqual(orphans, ['lib/dyn.js', 'lib/lonely.js']);
+  });
+});
+
+describe('DeadCodeModule — exports a framework reads by name from the file it loads (2026-09-13)', () => {
+  // website/instrumentation.ts `register` / `onRequestError` and
+  // instrumentation-client.ts `onRouterTransitionStart` are Next.js hooks;
+  // deadCode reported all three as unused exports on this repo.
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dc-framework-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('POSITIVE CONTROL — instrumentation hooks and proxy.ts are quiet; NEGATIVE — `register` in an ordinary module is dead', async () => {
+    write(tmp, 'instrumentation.ts', [
+      'export async function register() { await import("./sentry.server.config"); }',
+      'export { captureRequestError as onRequestError } from "@sentry/nextjs";',
+      '',
+    ].join('\n'));
+    write(tmp, 'instrumentation-client.ts', 'export const onRouterTransitionStart = () => {};\n');
+    write(tmp, 'proxy.ts', 'export function proxy() { return null; }\nexport const config = { matcher: ["/x"] };\n');
+    write(tmp, 'lib/hooks.ts', 'export function register() { return 1; }\n');
+    write(tmp, 'app/page.tsx', 'export default function Page() { return null; }\n');
+    const r = await run(tmp);
+    const unused = r.checks.filter((c) => c.name.startsWith('dead-code:unused-export:')).map((c) => `${c.file.replace(/\\/g, '/')}:${c.export}`);
+    assert.deepStrictEqual(unused, ['lib/hooks.ts:register']);
+    assert.strictEqual(r.checks.find((c) => c.name.startsWith('dead-code:orphan-file:') && /instrumentation|proxy/.test(c.file)), undefined);
+  });
+});
+
 describe('DeadCodeModule — extractJsExports: one stripper, the masked line decides', () => {
   const { extractJsExports } = require('../src/modules/dead-code-extractor');
 

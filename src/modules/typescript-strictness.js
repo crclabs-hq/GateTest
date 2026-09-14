@@ -76,6 +76,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 
 // Directory excludes beyond what `BaseModule._collectFiles` already skips
@@ -209,7 +210,7 @@ class TypeScriptStrictnessModule extends BaseModule {
       return 0;
     }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const basename = path.basename(file);
     const isTestConfig = /tsconfig\.(?:test|spec|tests)\./i.test(basename)
       || /tsconfig\.test\.json$/i.test(basename)
@@ -297,7 +298,7 @@ class TypeScriptStrictnessModule extends BaseModule {
       return 0;
     }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const isTest = this._isTestPath(rel);
     const isDts = DTS_RE.test(rel);
     const lines = content.split(/\r?\n/);

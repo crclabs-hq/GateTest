@@ -44,7 +44,7 @@ function makeTmpProject(files) {
 }
 
 function cleanup(tmp) {
-  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* ignore */ }
+  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* error-ok — temp dir cleanup; a busy handle on Windows cannot fail the assertion */ }
 }
 
 test('PR #85: NEXT_PUBLIC_* literal inside a JS comment downgrades to soft', async () => {

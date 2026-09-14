@@ -32,7 +32,7 @@
  */
 
 const fs = require('fs');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 
 // Recommendation text comes from the engine's own model policy, so a future
@@ -42,7 +42,7 @@ const BaseModule = require('./base-module');
 let RECOMMENDED_MODEL = 'claude-sonnet-5';
 try {
   ({ CHEAP_MODEL: RECOMMENDED_MODEL } = require('../core/engine-models'));
-} catch { /* keep the literal default */ }
+} catch { /* error-ok — keep the literal default */ }
 
 // Paths that define detection patterns — scanning them would produce FPs
 // because the pattern strings match the very rules they implement.
@@ -232,7 +232,7 @@ class PromptSafetyModule extends BaseModule {
       return 0;
     }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
 
     // Skip detection-pattern source files — scanning the module that
     // defines the patterns produces false positives on the patterns themselves.

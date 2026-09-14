@@ -192,7 +192,7 @@ describe('authorization-gate — audit log', () => {
         consent: freshConsent('https://example.com', VALID_TOKEN),
         auditDir: tmpDir,
       });
-    } catch { /* expected to throw */ }
+    } catch { /* error-ok — the refusal is the point; the audit line written before it is asserted below */ }
     const day = new Date().toISOString().slice(0, 10);
     const log = fs.readFileSync(path.join(tmpDir, `pentest-audit-${day}.jsonl`), 'utf-8');
     const entry = JSON.parse(log.trim());
@@ -212,14 +212,20 @@ describe('authorization-gate — helpers', () => {
     assert.strictEqual(normalizeUrl(''), null);
   });
 
-  it('isFreshConsent accepts a 1h-old timestamp', () => {
-    const t = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    assert.strictEqual(isFreshConsent(t), true);
+  // The consent window is measured against the real clock inside
+  // isFreshConsent; pin it so the fixture ages are exact, not "about".
+  const NOW = new Date('2026-06-01T12:00:00Z');
+
+  it('isFreshConsent accepts a 1h-old timestamp', (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: NOW });
+    const ts = new Date(NOW.getTime() - 60 * 60 * 1000).toISOString();
+    assert.strictEqual(isFreshConsent(ts), true);
   });
 
-  it('isFreshConsent rejects 25h-old', () => {
-    const t = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
-    assert.strictEqual(isFreshConsent(t), false);
+  it('isFreshConsent rejects 25h-old', (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: NOW });
+    const ts = new Date(NOW.getTime() - 25 * 60 * 60 * 1000).toISOString();
+    assert.strictEqual(isFreshConsent(ts), false);
   });
 
   it('isFreshConsent rejects malformed', () => {

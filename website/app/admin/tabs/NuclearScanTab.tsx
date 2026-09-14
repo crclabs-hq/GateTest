@@ -71,7 +71,7 @@ export function NuclearScanTab() {
           }
           // SSH failed (no credentials etc.) — fall through to config snippets
         } catch {
-          // SSH agent not available — fall through
+          // error-ok — SSH agent not available — fall through
         }
       }
 

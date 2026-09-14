@@ -5,7 +5,7 @@
 
 const BaseModule = require('./base-module');
 const fs = require('fs');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const { isNonUserFacingPage, isSpaShell, isImageRenderer } = require('../core/scan-scope');
 
 // Named CSS colors mapped to RGB values
@@ -57,7 +57,7 @@ class AccessibilityModule extends BaseModule {
       // excluded (logos.html is a logo grid for screenshots, not a user page).
       const INTERNAL_PATH_RE = /(?:^|\/)(?:website\/app\/admin\/|website\/app\/dashboard\/|website\/public\/)/;
       for (const file of htmlFiles) {
-        const relPath = path.relative(projectRoot, file);
+        const relPath = repoRelative(projectRoot, file);
         const normalised = relPath.replace(/\\/g, '/');
         if (INTERNAL_PATH_RE.test('/' + normalised)) continue;
         // The list above is OUR paths and excludes nothing on a customer's
@@ -91,7 +91,7 @@ class AccessibilityModule extends BaseModule {
     // Check CSS for contrast and focus styles
     const cssFiles = this._collectFiles(projectRoot, ['.css', '.scss', '.less']);
     for (const file of cssFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
       this._checkCssFocus(relPath, content, result);
       this._checkCssReducedMotion(relPath, content, result);
@@ -426,7 +426,7 @@ class AccessibilityModule extends BaseModule {
     let totalChecked = 0;
 
     for (const file of cssFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
 
       // Extract CSS rule blocks (match selector { declarations })

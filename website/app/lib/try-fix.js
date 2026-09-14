@@ -124,7 +124,7 @@ function recordSafely(telemetryFn, entry, telemetryPath) {
       telemetryFn(entry, telemetryPath ? { path: telemetryPath } : undefined);
     }
   } catch {
-    // swallow — telemetry is a side-channel
+    // error-ok — telemetry is a side-channel; the fix result is already computed
   }
 }
 
@@ -192,7 +192,7 @@ async function runRecipeLayer(issue, opts) {
   if (!patched || patched === issue.content) return null;
 
   // Bump usage counter — promotes low → stable at 3.
-  try { distill.incrementApplicationCount(recipe.id, opts.recipeStorePath); } catch { /* non-fatal */ }
+  try { distill.incrementApplicationCount(recipe.id, opts.recipeStorePath); } catch { /* error-ok — the usage counter is bookkeeping; the patch is already applied */ }
   return { patched, recipeId: recipe.id };
 }
 
@@ -335,7 +335,7 @@ async function runClaudeLayer(issue, opts) {
     try {
       const errBody = await res.json();
       detail = (errBody && errBody.error && errBody.error.message) || '';
-    } catch { /* non-JSON error body — status alone still tells the story */ }
+    } catch { /* error-ok — non-JSON error body — status alone still tells the story */ }
     return {
       apiError: true,
       status: res.status,
@@ -600,7 +600,7 @@ async function tryFix(issue, opts = {}) {
             originalModel: model,
           });
         }
-      } catch { /* non-fatal */ }
+      } catch { /* error-ok — recipe distillation is best-effort; the Claude patch is already returned */ }
     }
     return {
       layer: 'claude',

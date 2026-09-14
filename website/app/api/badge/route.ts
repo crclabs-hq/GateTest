@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { escapeXml } from "../../lib/badge-svg";
 
 const COLORS: Record<string, string> = {
   passing: "#22c55e",
@@ -19,15 +20,6 @@ const COLORS: Record<string, string> = {
   blocked: "#ef4444",
   default: "#10b981",
 };
-
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 function generateBadge(rawLabel: string, rawMessage: string, color: string): string {
   const label = escapeXml(rawLabel.slice(0, 100));

@@ -379,7 +379,7 @@ export async function GET(req: NextRequest) {
           VALUES (${watch.id}, 'anomaly', 'failed',
                   ${JSON.stringify({ reason: "intelligence layer error", error: message })}, NOW())
         `;
-      } catch { /* DB write of the error itself failed — nothing left to do */ }
+      } catch { /* error-ok — DB write of the error itself failed — nothing left to do */ }
     }
 
     // Trigger auto-fix for repos if issues found and auto-fix is enabled.
