@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-13T08:31:48.628Z",
+  "generatedAt": "2026-09-14T09:06:43.909Z",
   "source": "scripts/real-world-precision.js",
   "note": "Measured on every run against pinned commits of repositories we do not control. Ceilings only ratchet down. Do not hand-edit — run the script.",
   "engineVersion": "1.61.0",
-  "engineCommit": "3d54e508",
+  "engineCommit": "8de24692",
   "repos": [
     {
       "name": "express",
@@ -21,7 +21,7 @@
       "why": "Python — proves the non-JS rules are held to the same bar",
       "blocking": 2,
       "ceiling": 2,
-      "softened": 1
+      "softened": 0
     },
     {
       "name": "fastify",
@@ -30,7 +30,7 @@
       "why": "large plugin-oriented server; exercises the auth and route grammars",
       "blocking": 3,
       "ceiling": 3,
-      "softened": 2
+      "softened": 0
     },
     {
       "name": "got",
@@ -39,7 +39,7 @@
       "why": "TypeScript HTTP client with a benchmark/ tree — a known scope trap",
       "blocking": 12,
       "ceiling": 12,
-      "softened": 4
+      "softened": 3
     },
     {
       "name": "hono",
@@ -66,7 +66,7 @@
       "why": "Python at scale — the ORM builds SQL by string in django/db, which is the one place that is the job; 74 of 76 \"secrets\" were test fixtures before the identifier-keyed rules learned about test paths",
       "blocking": 59,
       "ceiling": 59,
-      "softened": 13
+      "softened": 9
     },
     {
       "name": "rails",
@@ -75,7 +75,7 @@
       "why": "Ruby at scale — instance_eval in the routes loader, backtick-quoted words in error messages that a naive shell-interp rule read as commands",
       "blocking": 41,
       "ceiling": 41,
-      "softened": 29
+      "softened": 19
     },
     {
       "name": "spring-petclinic",
@@ -156,7 +156,7 @@
       "why": "pnpm monorepo with members under examples/* and www — first contact 33 blocking: build configs and a CLI told they log to console, an OG-image generator scored as a web page, an Algolia search key as a secret, ternary env fallbacks as hardcoded URLs; what remains is four <img> without alt, a real import cycle, a silent connect in a constructor and `${{ github.event.release.tag_name }}` in a shell; 2026-09-05 importCycle type-only elision: its one import cycle ran through two `import { type X }` edges — elided, never a cycle in emitted JS — ceiling ratchets down",
       "blocking": 7,
       "ceiling": 7,
-      "softened": 38
+      "softened": 34
     },
     {
       "name": "apollo-server",
@@ -313,7 +313,7 @@
       },
       {
         "confidence": 0.4,
-        "precision": 55,
+        "precision": 51,
         "recall": 0,
         "rules": {
           "precision": {
@@ -325,7 +325,6 @@
             "cookie-sec:js-weak-secret": 3,
             "taint:sink:redirect": 3,
             "error-swallow:log-and-eat": 8,
-            "secrets": 4,
             "a11y:contrast-static": 1,
             "data:migration-drop": 2,
             "sql:drop-table": 2,
@@ -342,17 +341,6 @@
             "error-swallow:catch-noop": 2,
             "redos:user-controlled-regex": 1,
             "money-float:arithmetic": 7
-          },
-          "recall": {}
-        }
-      },
-      {
-        "confidence": 0.3,
-        "precision": 13,
-        "recall": 0,
-        "rules": {
-          "precision": {
-            "secrets": 13
           },
           "recall": {}
         }
@@ -384,11 +372,10 @@
       },
       {
         "confidence": 0.12,
-        "precision": 9,
+        "precision": 4,
         "recall": 0,
         "rules": {
           "precision": {
-            "secrets": 5,
             "quality:commented-code": 4
           },
           "recall": {}
@@ -462,9 +449,9 @@
       "above": 1
     },
     "softened": {
-      "precisionTotal": 397,
+      "precisionTotal": 375,
       "precisionBlocking": 207,
-      "precisionSoftened": 190,
+      "precisionSoftened": 168,
       "recallTotal": 53,
       "recallBlocking": 53,
       "recallLost": 0
