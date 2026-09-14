@@ -52,10 +52,36 @@ function gatetest_hc_enqueue_assets($hook) {
         GATETEST_HC_VERSION,
         true
     );
+    // The stored result of the last scan rides along so admin.js can render
+    // it on page load — the report container is always present (see
+    // gatetest_hc_render_admin_page), so a reload shows the same findings
+    // the button did. Every UI string admin.js prints comes from `i18n`.
+    $lastResult = get_transient('gatetest_hc_last_result');
     wp_localize_script('gatetest-hc-admin', 'gatetestHc', [
-        'ajaxUrl' => admin_url('admin-ajax.php'),
-        'nonce'   => wp_create_nonce('gatetest_hc_scan'),
-        'siteUrl' => home_url(),
+        'ajaxUrl'     => admin_url('admin-ajax.php'),
+        'nonce'       => wp_create_nonce('gatetest_hc_scan'),
+        'siteUrl'     => home_url(),
+        'apiBase'     => GATETEST_HC_API_BASE,
+        'checkoutUrl' => GATETEST_HC_API_BASE . '/checkout?tier=wp_health',
+        'lastResult'  => is_array($lastResult) ? $lastResult : null,
+        'i18n'        => [
+            'scanning'         => __('Probing your site… this usually takes 20-60 seconds.', 'gatetest-health-check'),
+            /* translators: %1$s: error message */
+            'failed'           => __('Scan failed: %1$s', 'gatetest-health-check'),
+            'unknownError'     => __('unknown error', 'gatetest-health-check'),
+            'networkError'     => __('Network error.', 'gatetest-health-check'),
+            /* translators: %1$s: number of errors, %2$s: number of warnings */
+            'complete'         => __('Scan complete. Found %1$s error(s), %2$s warning(s).', 'gatetest-health-check'),
+            'justNow'          => __('Last scanned just now', 'gatetest-health-check'),
+            'noScanYet'        => __('No scan yet. Click "Scan my site now" to run the free health check.', 'gatetest-health-check'),
+            'nothingFound'     => __('Nothing major found.', 'gatetest-health-check'),
+            'nothingFoundBody' => __('Your site passed every check in the free health check.', 'gatetest-health-check'),
+            'untitled'         => __('(untitled)', 'gatetest-health-check'),
+            /* translators: %1$s: number of findings not shown in the free health check */
+            'hidden'           => __('%1$s more finding(s) are in the full report', 'gatetest-health-check'),
+            'fullReport'       => __('The full report is a one-time $19 purchase on gatetest.io — every finding, with step-by-step fix instructions.', 'gatetest-health-check'),
+            'getFullReport'    => __('Get the full report ($19, one-time)', 'gatetest-health-check'),
+        ],
     ]);
 }
 
@@ -114,21 +140,22 @@ function gatetest_hc_render_admin_page() {
                 <?php endif; ?>
             </div>
 
-            <?php if ($lastResult): ?>
-                <div class="gatetest-hc-panel">
-                    <h2><?php esc_html_e('Latest report', 'gatetest-health-check'); ?></h2>
-                    <p class="gatetest-hc-last-scan-time">
-                        <?php
+            <?php // Always rendered: admin.js fills it on page load (stored result) and after every scan. ?>
+            <div class="gatetest-hc-panel">
+                <h2><?php esc_html_e('Latest report', 'gatetest-health-check'); ?></h2>
+                <p id="gatetest-hc-last-scan-time" class="gatetest-hc-last-scan-time"<?php echo ($lastResult && $lastScanAt) ? '' : ' hidden'; ?>>
+                    <?php
+                    if ($lastResult && $lastScanAt) {
                         printf(
-                            /* translators: %s: human-readable time */
-                            esc_html__('Last scanned %s', 'gatetest-health-check'),
-                            esc_html(human_time_diff($lastScanAt) . ' ago')
+                            /* translators: %s: human-readable time difference, e.g. "3 hours" */
+                            esc_html__('Last scanned %s ago', 'gatetest-health-check'),
+                            esc_html(human_time_diff($lastScanAt))
                         );
-                        ?>
-                    </p>
-                    <div id="gatetest-hc-report" class="gatetest-hc-report"></div>
-                </div>
-            <?php endif; ?>
+                    }
+                    ?>
+                </p>
+                <div id="gatetest-hc-report" class="gatetest-hc-report"></div>
+            </div>
 
             <div class="gatetest-hc-panel">
                 <h2><?php esc_html_e('Settings', 'gatetest-health-check'); ?></h2>
