@@ -1176,3 +1176,9 @@ class SecretsModule extends BaseModule {
 }
 
 module.exports = SecretsModule;
+// The one list of credentials a vendor PUBLISHED as the example to write in
+// docs. security.js's own AWS rule needs the same answer: this module's
+// pattern table carries `AKIAIOSFODNN7EXAMPLE` on purpose, and security.js
+// reported it as "Potential AWS Access Key" in src/modules/secrets.js:166,
+// which blocked the full suite on this repository (2026-09-14).
+module.exports.PUBLISHED_EXAMPLE_CREDENTIALS = PUBLISHED_EXAMPLE_CREDENTIALS;

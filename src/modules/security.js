@@ -10,6 +10,10 @@ const { innerHtmlAssignmentIsSafe, splitTopLevel } = require('../core/inner-html
 const fs = require('fs');
 const path = require('path');
 const { repoRelative } = require('../core/repo-path');
+const { literalKindAt } = require('../core/source-strip');
+// The published-example list lives with the module that owns the doctrine
+// (secrets.js PUBLISHED_EXAMPLE_CREDENTIALS) — one list, two rules.
+const { PUBLISHED_EXAMPLE_CREDENTIALS } = require('./secrets');
 const http = require('http');
 const https = require('https');
 
@@ -778,6 +782,23 @@ class SecurityModule extends BaseModule {
     ).length;
   }
 
+  /**
+   * Highest confidence among the live (unsuppressed, failing) checks under
+   * `prefix`, or null when none carries a scored confidence — a rollup must
+   * not block harder than the findings it counts. See the secrets rollup.
+   */
+  _maxLiveConfidence(result, prefix) {
+    if (!result || !Array.isArray(result.checks)) return null;
+    let max = null;
+    for (const c of result.checks) {
+      if (!c || c.passed !== false || c.suppressed) continue;
+      if (typeof c.name !== 'string' || !c.name.startsWith(prefix)) continue;
+      if (typeof c.confidence !== 'number') continue;
+      if (max === null || c.confidence > max) max = c.confidence;
+    }
+    return max;
+  }
+
   _reportSqlInjection(result, relPath, lineNo) {
     result.addCheck(`security:sql-injection:${relPath}:${lineNo}`, false, {
       file: relPath,
@@ -1155,6 +1176,10 @@ class SecurityModule extends BaseModule {
         continue;
       }
       const lines = content.split(/\r?\n/);
+      // Regex-literal context for the JS family (the one stripper that knows
+      // a regex from a string): `/AKIA[0-9A-Z]{16}/` in a pattern table is a
+      // description of a key's shape, not a key.
+      const masked = /\.(?:[cm]?js|jsx|tsx?)$/i.test(basename) ? this._maskedLines(content, relPath) : null;
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -1219,6 +1244,16 @@ class SecurityModule extends BaseModule {
             if (credentialIsFullyExpanded(match[0])) continue;
             if (connectionStringIsDevDefault(match[0])) continue;
             if (pattern.identifierKeyed && labelValue(match[0])) continue;
+            // AWS documents `AKIAIOSFODNN7EXAMPLE` as THE key to write in
+            // docs; it authenticates nothing anywhere. secrets.js already
+            // knew that (PUBLISHED_EXAMPLE_CREDENTIALS) — this rule reported
+            // that module's own copy of the list and blocked this repo's
+            // full suite (src/modules/secrets.js:166, 2026-09-14).
+            if (PUBLISHED_EXAMPLE_CREDENTIALS.has(match[0])) continue;
+            // The source of a regex literal describes a shape; it is not a
+            // value. Same column on the raw line — the mask is length-
+            // preserving.
+            if (masked && literalKindAt(lines, masked, i, match.index) === 'regex') continue;
             // `'jwtSecret' in options` — the quoted text is a property NAME
             // being tested for, not a value being assigned (prisma
             // packages/3-extensions/supabase/src/runtime/supabase.ts:183).
@@ -1259,9 +1294,19 @@ class SecurityModule extends BaseModule {
         message: `Scanned ${files.length} files for hardcoded secrets — none found`,
       });
     } else {
+      // A rollup has no file, so the confidence layer scores it at 1.0 —
+      // which let it BLOCK on findings the same layer had already judged
+      // too weak to block (one soft 0.40 finding in src/modules/ took the
+      // full suite red, 2026-09-14). The rollup is a count, not new
+      // evidence: it inherits the confidence of its most confident live
+      // constituent, so it can never block harder than the findings it
+      // summarises. (A bare stub result in unit tests carries no
+      // confidence; then the default stands, as before.)
+      const inherited = this._maxLiveConfidence(result, 'security:secret:');
       result.addCheck('security:secrets-scan', false, {
         message: `Found ${reported} potential secret(s) across scanned files`,
         suggestion: 'Review all findings and move secrets to environment variables or a secrets manager',
+        ...(typeof inherited === 'number' ? { confidence: inherited } : {}),
       });
     }
   }
