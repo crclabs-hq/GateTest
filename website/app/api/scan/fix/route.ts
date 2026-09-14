@@ -24,6 +24,7 @@ import { appInstallUrl } from "@/app/lib/github-app-permissions";
 import { cookies } from "next/headers";
 import https from "https";
 import { isAdminRequest } from "@/app/lib/admin-auth";
+import { SUPPORT_EMAIL } from "@/app/lib/site-url";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const {
   createTrackerForTier,
@@ -2060,7 +2061,7 @@ export async function POST(req: NextRequest) {
   if (hitInvocationLimit) {
     errors.push(
       `⚡ This repo maxed out the AI call limit (${MAX_AI_INVOCATIONS} calls) — ${fixes.length} file(s) were fixed before it kicked in. ` +
-      `For repositories this size, a dedicated scanner instance is the right tool: enterprise@gatetest.ai.`
+      `For repositories this size, a dedicated scanner instance is the right tool: ${SUPPORT_EMAIL}.`
     );
   }
 

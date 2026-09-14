@@ -65,7 +65,7 @@ export default function HomeSelfScan() {
     ? (() => {
         const passed = data?.gateStatus === "PASSED";
         const metricLine =
-          `${data?.modulesPassedCount}/${data?.modulesTotalCount} modules · ` +
+          `${data?.modulesPassedCount}/${data?.modulesTotalCount} modules (quick suite, the CI gate) · ` +
           `${data?.errorCount} blocking errors · measured ${measuredDate}`;
         return {
           variant: (passed ? "passed" : "blocked") as "passed" | "blocked",
@@ -111,8 +111,10 @@ export default function HomeSelfScan() {
           </h2>
           <p className="text-muted text-base max-w-2xl mx-auto">
             GateTest runs against itself on every push to main. If our own gate
-            were red we&apos;d have no business asking you to use it. Below is
-            the live status panel — same shape you&apos;ll see on your repo.
+            were red we&apos;d have no business asking you to use it.{" "}
+            {isLive
+              ? "Below is the live status panel — same shape you'll see on your repo."
+              : `Below is the last measured result, from ${measuredDate} — the same panel you'll see on your repo. It goes live once CI publishes its next self-scan.`}
           </p>
         </div>
 
@@ -151,7 +153,7 @@ export default function HomeSelfScan() {
                   className={`relative inline-flex rounded-full h-1.5 w-1.5 ${dotColor}`}
                 />
               </span>
-              {isLive ? "LIVE" : "MEASURED"}
+              {isLive ? "LIVE" : `MEASURED ${measuredDate}`}
             </span>
           </div>
 
