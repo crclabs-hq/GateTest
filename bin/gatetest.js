@@ -683,7 +683,8 @@ async function main() {
  */
 function printPlainSummary(summary, projectRoot) {
   const { plainSummaryLines, plainSummaryContext } = require('../src/core/plain-summary');
-  for (const line of plainSummaryLines(summary, plainSummaryContext(summary, projectRoot))) {
+  const { colorEnabled } = require('../src/core/color');
+  for (const line of plainSummaryLines(summary, plainSummaryContext(summary, projectRoot), { color: colorEnabled() })) {
     console.log(line);
   }
 }
