@@ -533,6 +533,17 @@ class GateTestRunner extends EventEmitter {
     const startTime = Date.now();
     this.results = [];
 
+    // Is there anything here to check? A tree with no source file passes
+    // every module by default, and the summary must say so rather than
+    // print "You're good" (src/core/scan-scope.js hasSourceFiles). Under
+    // --strict an empty scan is a failed gate: the operator asked for
+    // enforcement, and a gate that enforced nothing did not enforce.
+    try {
+      this._nothingChecked = !require('./scan-scope').hasSourceFiles(this._projectRoot);
+    } catch { // error-ok — the inventory is a disclosure, never a reason to skip the scan
+      this._nothingChecked = false;
+    }
+
     // If diff mode, resolve changed files before running modules
     if (this.options.diffOnly && !this.options.changedFiles) {
       this.options.changedFiles = this._getChangedFiles();
@@ -1058,7 +1069,9 @@ class GateTestRunner extends EventEmitter {
     // GATE DECISION: only CONFIDENT errors block. Failed modules block
     // unconditionally (runtime exceptions, module crashes). Soft errors
     // are visible in the report but don't fail the gate.
-    const gateStatus = (failed.length === 0 && totalBlockingErrors === 0) ? 'PASSED' : 'BLOCKED';
+    const nothingChecked = this._nothingChecked === true;
+    const strictEmpty = nothingChecked && this.options.strict === true;
+    const gateStatus = (failed.length === 0 && totalBlockingErrors === 0 && !strictEmpty) ? 'PASSED' : 'BLOCKED';
 
     // Finding registry: one defect = one finding across modules, ranked by
     // blocking → severity → confidence. Counts above are UNTOUCHED (the gate
@@ -1079,6 +1092,12 @@ class GateTestRunner extends EventEmitter {
 
     return {
       gateStatus,
+      // No source file under the root: every module passed by default.
+      // Reporters print it beside the verdict; the JSON carries it so no
+      // consumer can read an empty scan as a clean one. `strict` turns it
+      // into the verdict itself (see the gate decision above).
+      nothingChecked,
+      projectRoot: this._projectRoot,
       findings,
       findingSummary,
       // Modules this suite deliberately did not run, and where they run
