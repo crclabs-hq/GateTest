@@ -43,7 +43,7 @@ function callTool(name, args, timeoutMs = 180000) {
     const finish = (value) => {
       if (settled) return;
       settled = true;
-      try { child.kill(); } catch { /* already gone */ }
+      try { child.kill(); } catch { /* error-ok — already gone */ }
       resolve(value);
     };
 

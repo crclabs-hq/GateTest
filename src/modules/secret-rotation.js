@@ -235,7 +235,7 @@ class SecretRotationModule extends BaseModule {
           if (!Number.isNaN(secs) && secs > 0) return secs * 1000;
         }
       } catch {
-        // fall through
+        // error-ok — git log unavailable — the next age strategy is tried
       }
     }
     try {

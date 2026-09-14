@@ -275,7 +275,7 @@ function buildPackageExportSurface(entryFile, pkgDir, seen = new Set()) {
       const sub = buildPackageExportSurface(resolved, pkgDir, seen);
       for (const f of sub.reachableFiles) reachableFiles.add(f);
       for (const n of sub.exportedNames) exportedNames.add(n);
-    } catch { /* non-blocking */ }
+    } catch { /* error-ok — a workspace package that fails to resolve keeps the blanket suppression below */ }
   }
 
   return { reachableFiles, exportedNames };
@@ -291,7 +291,7 @@ function populatePackageSurface(pkgDir, pkgName, importedNames, workspacePackage
     const { exportedNames } = buildPackageExportSurface(entryFile, pkgDir);
     for (const n of exportedNames) importedNames.add(n);
     workspacePackagesWithSurface.add(pkgName);
-  } catch { /* non-blocking — blanket suppression fallback stays in effect */ }
+  } catch { /* error-ok — non-blocking — blanket suppression fallback stays in effect */ }
 }
 
 function extractJsImports(content) {

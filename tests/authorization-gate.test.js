@@ -192,7 +192,7 @@ describe('authorization-gate — audit log', () => {
         consent: freshConsent('https://example.com', VALID_TOKEN),
         auditDir: tmpDir,
       });
-    } catch { /* expected to throw */ }
+    } catch { /* error-ok — the refusal is the point; the audit line written before it is asserted below */ }
     const day = new Date().toISOString().slice(0, 10);
     const log = fs.readFileSync(path.join(tmpDir, `pentest-audit-${day}.jsonl`), 'utf-8');
     const entry = JSON.parse(log.trim());

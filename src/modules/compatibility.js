@@ -101,7 +101,7 @@ class CompatibilityModule extends BaseModule {
           message: `Node.js engine: ${pkg.engines.node}`,
         });
       }
-    } catch { /* ignore */ }
+    } catch { /* error-ok — unreadable package.json — the syntax module reports it; this check has nothing to read */ }
   }
 
   _checkCssCompat(relPath, content, result) {
@@ -280,7 +280,7 @@ class CompatibilityModule extends BaseModule {
           suggestion: 'Consider adding @babel/core or @swc/core for broader browser support',
         });
       }
-    } catch { /* ignore */ }
+    } catch { /* error-ok — unreadable package.json — the syntax module reports it; this check has nothing to read */ }
   }
 }
 

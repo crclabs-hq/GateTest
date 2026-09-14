@@ -25,14 +25,11 @@ const os = require('os');
 // the prompts structure. Instead, test the inline render logic by re-
 // implementing the same expectations the real functions must satisfy.
 
-test('PROMPTS must have gatetest-quick-start with a target argument', async () => {
-  // Dynamic ESM import — works in Node test runner
-  const mod = await import('../bin/gatetest-mcp.mjs').catch(() => null);
-  // The test-surface export exists only at the bottom of the file; if
-  // the file is not the process entrypoint the transport won't start.
+test('PROMPTS must have gatetest-quick-start with a target argument', () => {
   // We can't import the full server in a CJS test context without
-  // triggering stdio connect. Verify the prompts definition via a
-  // regex parse of the source instead.
+  // triggering stdio connect (a `.catch(() => null)` on a dynamic import
+  // used to sit here, its result never read). Verify the prompts
+  // definition via a regex parse of the source instead.
   const src = fs.readFileSync(path.join(__dirname, '..', 'bin', 'gatetest-mcp.mjs'), 'utf8');
   assert.ok(src.includes("name: 'gatetest-quick-start'"), 'quick-start prompt must be defined');
   assert.ok(src.includes("name: 'gatetest-scan-and-fix'"), 'scan-and-fix prompt must be defined');
@@ -72,7 +69,7 @@ test('logTelemetry fire-and-forget — never throws (swallows fs errors)', () =>
   const src = fs.readFileSync(path.join(__dirname, '..', 'bin', 'gatetest-mcp.mjs'), 'utf8');
   // The function body must have a catch block that suppresses errors
   assert.ok(
-    src.includes('} catch { /* never block the tool call */'),
+    src.includes('} catch { /* error-ok — never block the tool call */'),
     'logTelemetry must silently swallow fs errors'
   );
 });

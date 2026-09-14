@@ -129,7 +129,7 @@ export default function ScanStatus() {
           setSignedInUser({ login: data.login, email: data.email });
         }
       })
-      .catch(() => { /* not signed in — leave null */ });
+      .catch(() => { /* error-ok — not signed in — leave null */ });
     return () => { cancelled = true; };
   }, []);
   const startTimeRef = useRef(Date.now());

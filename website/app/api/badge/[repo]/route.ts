@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
       score = rows[0].score as number;
     }
   } catch {
-    // DB not available — show "not scanned"
+    // error-ok — DB not available — show "not scanned"
   }
 
   let svg: string;

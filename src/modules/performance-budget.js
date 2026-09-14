@@ -58,7 +58,7 @@ function resolvePlaywright() {
       try {
         const resolved = require.resolve('playwright', { paths: [fromDir] });
         return require(resolved);
-      } catch { /* try next candidate */ }
+      } catch { /* error-ok — playwright not resolvable from this candidate — the next is tried; null makes the caller report it as missing */ }
     }
   }
   return null;
@@ -93,7 +93,7 @@ function installObservers() {
       const last = entries[entries.length - 1];
       if (last) window.__gatetestVitals.lcp = last.renderTime || last.loadTime || 0;
     }).observe({ type: 'largest-contentful-paint', buffered: true });
-  } catch { /* LCP not supported in this browser build */ }
+  } catch { /* error-ok — LCP not supported in this browser build */ }
   try {
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
@@ -103,7 +103,7 @@ function installObservers() {
         }
       }
     }).observe({ type: 'layout-shift', buffered: true });
-  } catch { /* CLS not supported in this browser build */ }
+  } catch { /* error-ok — CLS not supported in this browser build */ }
 }
 
 // Above this many contributing layout-shift entries, the CLS score is more
@@ -169,7 +169,7 @@ class PerformanceBudgetModule extends BaseModule {
       try {
         await browser.close();
       } catch {
-        /* swallow close errors */
+        /* error-ok — teardown of a browser we are discarding; the findings are already recorded */
       }
     }
   }

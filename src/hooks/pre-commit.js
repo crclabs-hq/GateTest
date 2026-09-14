@@ -92,7 +92,7 @@ async function preCommit() {
         }
       }
     } catch {
-      // Binary file or can't read — skip
+      // error-ok — Binary file or can't read — skip
     }
   }
 

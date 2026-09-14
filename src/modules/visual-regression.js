@@ -258,7 +258,7 @@ class VisualRegressionModule extends BaseModule {
       try {
         await browser.close();
       } catch {
-        /* swallow close errors */
+        /* error-ok — teardown of a browser we are discarding; the findings are already recorded */
       }
     }
   }
@@ -396,7 +396,7 @@ class VisualRegressionModule extends BaseModule {
           });
           factsDigest = renderFactsDigest(visualFacts);
         }
-      } catch { /* facts are additive — never block the diff report */ }
+      } catch { /* error-ok — facts are additive — never block the diff report */ }
     }
 
     result.addCheck(checkName, passed, {

@@ -42,7 +42,7 @@ const BaseModule = require('./base-module');
 let RECOMMENDED_MODEL = 'claude-sonnet-5';
 try {
   ({ CHEAP_MODEL: RECOMMENDED_MODEL } = require('../core/engine-models'));
-} catch { /* keep the literal default */ }
+} catch { /* error-ok — keep the literal default */ }
 
 // Paths that define detection patterns — scanning them would produce FPs
 // because the pattern strings match the very rules they implement.

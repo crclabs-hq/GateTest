@@ -82,7 +82,7 @@ function persistSeen(seen: Set<number>) {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(SEEN_KEY, JSON.stringify(Array.from(seen)));
-  } catch { /* quota — ignore */ }
+  } catch { /* error-ok — localStorage quota or private mode — the seen-set lives in memory for this session */ }
 }
 
 function loadStoryId(): string {
@@ -92,7 +92,7 @@ function loadStoryId(): string {
 
 function persistStoryId(value: string) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(STORY_KEY, value); } catch { /* ignore */ }
+  try { window.localStorage.setItem(STORY_KEY, value); } catch { /* error-ok — localStorage quota or private mode — the story id lives in memory for this session */ }
 }
 
 function timeAgo(unix: number | null): string {

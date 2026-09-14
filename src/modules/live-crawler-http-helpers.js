@@ -102,7 +102,7 @@ function extractLinks(html, baseUrl, pageUrl) {
       } else if (href.startsWith('http')) {
         external.push({ href: resolved, source: pageUrl });
       }
-    } catch { /* invalid URL */ }
+    } catch { /* error-ok — malformed href — nothing to crawl */ }
   }
 
   return { internal, external };
@@ -117,7 +117,7 @@ function extractImages(html, baseUrl, pageUrl) {
     try {
       const resolved = new URL(match[1].trim(), pageUrl).href;
       images.push(resolved);
-    } catch { /* invalid URL */ }
+    } catch { /* error-ok — malformed img src — nothing to fetch */ }
   }
 
   return images;

@@ -120,7 +120,7 @@ class DeployContractModule extends BaseModule {
               const placeholder = 'http://localhost'; // hardcoded-url-ok — URL parsing placeholder, never used in network calls
               const full = raw.replace(/\$\{?[A-Z_]+\}?/g, placeholder);
               urlPath = new URL(full.startsWith('http') ? full : `${placeholder}${full}`).pathname;
-            } catch { /* dynamic URL */ }
+            } catch { /* error-ok — a URL built from a variable cannot be parsed — the path stays null, the raw string is still recorded */ }
 
             found.push({ file, url: raw, path: urlPath, line: idx + 1 });
           }

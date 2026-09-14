@@ -102,10 +102,10 @@ export async function POST(req: NextRequest) {
         if (closed) return;
         try {
           controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
-        } catch { /* controller closed mid-write */ }
+        } catch { /* error-ok — controller closed mid-write */ }
       };
       const keepAlive = setInterval(() => {
-        if (!closed) { try { controller.enqueue(encoder.encode(": keepalive\n\n")); } catch { /* ignore */ } }
+        if (!closed) { try { controller.enqueue(encoder.encode(": keepalive\n\n")); } catch { /* error-ok — client gone mid-keepalive; the stream is closed in finally */ } }
       }, 10000);
 
       const totalModules = totalModuleCount();
@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
       } finally {
         clearInterval(keepAlive);
         closed = true;
-        try { controller.close(); } catch { /* already closed */ }
+        try { controller.close(); } catch { /* error-ok — already closed */ }
       }
     },
   });

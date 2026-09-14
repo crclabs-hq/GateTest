@@ -63,7 +63,7 @@ function _buildGroundingHeader(projectRoot) {
       fileContents.push({ path: name, content });
       files.push(name);
     } catch {
-      // File doesn't exist — skip silently.
+      // error-ok — an optional grounding file that does not exist is simply not included
     }
   }
 
@@ -138,6 +138,25 @@ function extractJson(text) {
   const end   = raw.lastIndexOf('}');
   if (start === -1 || end === -1) return null;
   try { return JSON.parse(raw.slice(start, end + 1)); } catch { return null; }
+}
+
+// ─── failed-write recovery ─────────────────────────────────────────────────
+
+/**
+ * Put the original content back after a failed write and return what to
+ * append to the fix description. The backup is deleted ONLY when the restore
+ * succeeded: before 2026-09-13 a restore failure was erased by an empty catch
+ * and the backup unlinked regardless, which left the customer's file
+ * half-written with its only copy gone.
+ */
+function restoreOriginal(filePath, originalContent, backupPath) {
+  try {
+    fs.writeFileSync(filePath, originalContent, 'utf-8');
+  } catch (restoreErr) {
+    return `; restoring the original ALSO failed (${restoreErr.message}) — the original content is preserved at ${backupPath}`;
+  }
+  try { fs.unlinkSync(backupPath); } catch { /* error-ok — the original is back in place; a stale backup file is harmless */ }
+  return '';
 }
 
 // ─── core fix function ─────────────────────────────────────────────────────
@@ -272,11 +291,9 @@ async function aiFix(opts) {
       fs.writeFileSync(backupPath, originalContent, 'utf-8');
       fs.writeFileSync(filePath, fixedContent, 'utf-8');
       fs.readFileSync(filePath, 'utf-8'); // verify write
-      try { fs.unlinkSync(backupPath); } catch { /* non-fatal */ }
+      try { fs.unlinkSync(backupPath); } catch { /* error-ok — the fix is verified on disk; a stale backup file is harmless */ }
     } catch (writeErr) {
-      try { fs.writeFileSync(filePath, originalContent, 'utf-8'); } catch { /* best effort */ }
-      try { fs.unlinkSync(backupPath); } catch { /* non-fatal */ }
-      return { fixed: false, description: `Write failed: ${writeErr.message}`, filesChanged: [] };
+      return { fixed: false, description: `Write failed: ${writeErr.message}${restoreOriginal(filePath, originalContent, backupPath)}`, filesChanged: [] };
     }
 
     return {
@@ -354,12 +371,9 @@ ${originalContent}
     // Verify the write succeeded and is parseable UTF-8
     fs.readFileSync(filePath, 'utf-8');
     // Clean up backup on success
-    try { fs.unlinkSync(backupPath); } catch { /* non-fatal */ }
+    try { fs.unlinkSync(backupPath); } catch { /* error-ok — the fix is verified on disk; a stale backup file is harmless */ }
   } catch (writeErr) {
-    // Restore original on failure
-    try { fs.writeFileSync(filePath, originalContent, 'utf-8'); } catch { /* best effort */ }
-    try { fs.unlinkSync(backupPath); } catch { /* non-fatal */ }
-    return { fixed: false, description: `Write failed: ${writeErr.message}`, filesChanged: [] };
+    return { fixed: false, description: `Write failed: ${writeErr.message}${restoreOriginal(filePath, originalContent, backupPath)}`, filesChanged: [] };
   }
 
   return {

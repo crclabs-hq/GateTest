@@ -52,7 +52,7 @@ function callMcp(method, params = {}, env = process.env, timeoutMs = 60_000) {
         try {
           const parsed = JSON.parse(line);
           if (!settled) { settled = true; clearTimeout(timer); proc.kill(); resolve(parsed); }
-        } catch { /* incomplete line — wait for more */ }
+        } catch { /* error-ok — incomplete line — wait for more */ }
       }
     });
     proc.on('error', (err) => { if (!settled) { settled = true; clearTimeout(timer); reject(err); } });

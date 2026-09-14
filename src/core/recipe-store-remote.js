@@ -45,7 +45,7 @@ function logErr(msg, err) {
   try {
     process.stderr.write(`[recipe-store-remote] ${msg}${detail}\n`);
   } catch {
-    /* never throw out of a log helper */
+    /* error-ok — never throw out of a log helper */
   }
 }
 
@@ -173,7 +173,7 @@ function httpRequest({ url, method, body = null, token = null, timeoutMs = DEFAU
 
     // Timeout — destroy the request and resolve null.
     const timer = setTimeout(() => {
-      try { req.destroy(new Error(`recipe-store request timeout after ${timeoutMs}ms`)); } catch { /* ignore */ }
+      try { req.destroy(new Error(`recipe-store request timeout after ${timeoutMs}ms`)); } catch { /* error-ok — the request may already be destroyed; the timeout is logged and settled on the next lines */ }
       logErr(`timeout on ${method} ${url} after ${timeoutMs}ms`);
       settle(null);
     }, timeoutMs);

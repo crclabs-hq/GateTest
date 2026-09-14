@@ -1027,7 +1027,7 @@ class SecurityModule extends BaseModule {
             });
           }
         } catch {
-          // Can't check permissions, skip
+          // error-ok — Can't check permissions, skip
         }
       }
     }
@@ -1053,7 +1053,7 @@ class SecurityModule extends BaseModule {
         }
       }
     } catch {
-      // Invalid package.json handled by syntax module
+      // error-ok — Invalid package.json handled by syntax module
     }
   }
 
@@ -1498,7 +1498,7 @@ class SecurityModule extends BaseModule {
           if (copyleftLicenses.some(cl => license.toUpperCase().includes(cl.toUpperCase()))) {
             flagged.push({ name: dep, license });
           }
-        } catch { /* skip */ }
+        } catch { /* error-ok — unreadable dependency package.json — its license is not classified */ }
       }
 
       if (flagged.length > 0) {
@@ -1515,7 +1515,7 @@ class SecurityModule extends BaseModule {
           message: 'No copyleft license conflicts detected in dependencies',
         });
       }
-    } catch { /* skip */ }
+    } catch { /* error-ok — unreadable package.json — the syntax module reports it; no license check */ }
   }
 
   _checkEnvFiles(projectRoot, result) {

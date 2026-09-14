@@ -140,7 +140,7 @@ class LintModule extends BaseModule {
     // gitignored alongside the rest of our state, not the project's.
     const eslintBin = this._resolveEslintBin(projectRoot);
     const cacheLocation = path.join(projectRoot, '.gatetest', '.eslintcache');
-    try { fs.mkdirSync(path.dirname(cacheLocation), { recursive: true }); } catch { /* best-effort — eslint still runs without a cache dir */ }
+    try { fs.mkdirSync(path.dirname(cacheLocation), { recursive: true }); } catch { /* error-ok — best-effort — eslint still runs without a cache dir */ }
     const { exitCode, stdout, stderr, timedOut } = this._exec(
       `${eslintBin} . --format json --cache --cache-location "${cacheLocation}"`,
       { cwd: projectRoot, timeout: 180000 }

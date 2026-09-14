@@ -291,7 +291,7 @@ async function runIssueTracker(opts) {
         }
       }
     } catch {
-      // ignore — patches file optional
+      // error-ok — the patches file is optional; no patched-file set means nothing is excluded
     }
   }
 

@@ -181,7 +181,7 @@ function resolveToken(projectRoot) {
         return config.github.token;
       }
     } catch (_) {
-      // Fall through to next resolution strategy.
+      // error-ok — Fall through to next resolution strategy.
     }
   }
 
@@ -229,7 +229,7 @@ function rawRequest(method, urlPath, token, body) {
         try {
           data = JSON.parse(raw);
         } catch (_) {
-          // Response may not be JSON (e.g. 204 No Content).
+          // error-ok — Response may not be JSON (e.g. 204 No Content).
         }
 
         // Update rate limit tracking from every response

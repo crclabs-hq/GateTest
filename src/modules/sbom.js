@@ -169,7 +169,7 @@ class SbomModule extends BaseModule {
               if (name && val.version) exactVersions[name] = val.version;
             }
           }
-        } catch { /* use range from package.json */ }
+        } catch { /* error-ok — use range from package.json */ }
       }
 
       for (const [name, range] of Object.entries(allDeps)) {
@@ -181,7 +181,7 @@ class SbomModule extends BaseModule {
           purl: `pkg:npm/${name.replace('/', '%2F')}@${version}`,
         });
       }
-    } catch { /* file unreadable */ }
+    } catch { /* error-ok — unreadable manifest — its components are not listed */ }
     return components;
   }
 
@@ -207,7 +207,7 @@ class SbomModule extends BaseModule {
           }
         }
       }
-    } catch { /* file unreadable */ }
+    } catch { /* error-ok — unreadable manifest — its components are not listed */ }
     return components;
   }
 
@@ -229,7 +229,7 @@ class SbomModule extends BaseModule {
         seen.add(key);
         components.push({ type: 'golang', name: modPath, version, purl: `pkg:golang/${modPath}@${version}` });
       }
-    } catch { /* file unreadable */ }
+    } catch { /* error-ok — unreadable manifest — its components are not listed */ }
     return components;
   }
 
@@ -245,7 +245,7 @@ class SbomModule extends BaseModule {
           components.push({ type: 'cargo', name: nameM[1], version: verM[1], purl: `pkg:cargo/${nameM[1]}@${verM[1]}` });
         }
       }
-    } catch { /* file unreadable */ }
+    } catch { /* error-ok — unreadable manifest — its components are not listed */ }
     return components;
   }
 
@@ -262,7 +262,7 @@ class SbomModule extends BaseModule {
           if (m) components.push({ type: 'gem', name: m[1], version: m[2], purl: `pkg:gem/${m[1]}@${m[2]}` });
         }
       }
-    } catch { /* file unreadable */ }
+    } catch { /* error-ok — unreadable manifest — its components are not listed */ }
     return components;
   }
 }

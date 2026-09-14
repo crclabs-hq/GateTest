@@ -158,7 +158,7 @@ class DeadCodeModule extends BaseModule {
       }
       try {
         if (new RegExp(`^${regex}$`).test(normRel)) return true;
-      } catch { /* malformed pattern — skip */ }
+      } catch { /* error-ok — malformed pattern — skip */ }
     }
     return false;
   }

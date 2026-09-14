@@ -205,7 +205,7 @@ class DocumentationModule extends BaseModule {
             });
             return;
           }
-        } catch { /* ignore */ }
+        } catch { /* error-ok — unreadable package.json — the syntax module reports it; the LICENSE file check stands */ }
       }
     }
 

@@ -88,7 +88,7 @@ async function sendRepoDigest(opts) {
   try {
     rows = await getRepoHistory(sql, repoUrl, 30);
   } catch {
-    // DB unavailable — proceed with empty trend rather than crashing
+    // error-ok — DB unavailable — proceed with empty trend rather than crashing
   }
 
   const trend = buildTrendFromHistory(rows);

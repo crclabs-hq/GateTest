@@ -101,7 +101,7 @@ const DEFAULT_EXEC = {
       let stderr = "";
       child.stdout.on("data", (chunk) => { stdout += chunk; });
       child.stderr.on("data", (chunk) => { stderr += chunk; });
-      const timer = setTimeout(() => { try { child.kill("SIGKILL"); } catch { /* ignore */ } },
+      const timer = setTimeout(() => { try { child.kill("SIGKILL"); } catch { /* error-ok — the child may already have exited when the cap fires */ } },
         (opts.timeoutMs || 120_000));
       child.on("exit", (code, signal) => {
         clearTimeout(timer);

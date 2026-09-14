@@ -58,7 +58,7 @@ async function findStripeCustomersByEmail(sql, email) {
       seen.add(row.stripe_customer_id);
       customers.push({ customerId: row.stripe_customer_id, source: 'continuous', status: row.status });
     }
-  } catch { /* table absent on a fresh deploy — treat as no matches */ }
+  } catch { /* error-ok — table absent on a fresh deploy — treat as no matches */ }
 
   try {
     await mcp.ensureSchema(sql);
@@ -70,7 +70,7 @@ async function findStripeCustomersByEmail(sql, email) {
       seen.add(row.stripe_customer_id);
       customers.push({ customerId: row.stripe_customer_id, source: 'mcp', status: row.status });
     }
-  } catch { /* table absent — treat as no matches */ }
+  } catch { /* error-ok — table absent — treat as no matches */ }
 
   return customers;
 }

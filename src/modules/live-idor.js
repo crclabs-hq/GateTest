@@ -81,7 +81,7 @@ class LiveIdorModule extends BaseModule {
       // Determine baseline ID — either explicitly supplied or from URL
       let baseId = paramValue;
       if (!baseId && paramLocation === 'query') {
-        try { baseId = new URL(url).searchParams.get(paramName); } catch { /* skip */ }
+        try { baseId = new URL(url).searchParams.get(paramName); } catch { /* error-ok — the URL does not parse — baseId stays null and the probe is skipped below */ }
       }
       // Also accept path-form: /api/users/N
       if (!baseId && paramLocation === 'path') {

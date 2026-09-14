@@ -50,7 +50,7 @@ export function LiveScanFeed() {
       try {
         const data = JSON.parse(e.data) as ScanEvent;
         setEvents((prev) => [...prev, data].slice(-50));
-      } catch { /* ignore malformed SSE payloads */ }
+      } catch { /* error-ok — ignore malformed SSE payloads */ }
     });
 
     es.addEventListener("error", (e: MessageEvent) => {
@@ -58,7 +58,7 @@ export function LiveScanFeed() {
         const data = JSON.parse(e.data) as { message?: string };
         // Named "error" event is a server-sent informational error, not a connection drop
         console.error("[LiveScanFeed] server error:", data.message);
-      } catch { /* ignore */ }
+      } catch { /* error-ok — malformed server error payload — nothing to log */ }
     });
 
     es.addEventListener("close", () => {

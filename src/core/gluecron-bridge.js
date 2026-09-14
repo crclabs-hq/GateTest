@@ -178,7 +178,7 @@ function rawRequest(method, baseUrl, urlPath, token, body) {
         try {
           data = JSON.parse(raw);
         } catch (_) {
-          // Response may not be JSON (e.g. 204 No Content).
+          // error-ok — Response may not be JSON (e.g. 204 No Content).
         }
 
         updateRateLimit(res.headers);

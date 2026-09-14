@@ -196,7 +196,7 @@ export async function GET(req: NextRequest) {
       }
     }
   } catch {
-    // DB not available — fall through to Stripe metadata
+    // error-ok — DB not available — fall through to Stripe metadata
   }
 
   // ──────────────────────────────────────────────────

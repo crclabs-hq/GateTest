@@ -160,7 +160,7 @@ class EnvIntegrityModule extends BaseModule {
             results.push(path.join(sub, se.name));
           }
         }
-      } catch { /* skip */ }
+      } catch { /* error-ok — unreadable subdirectory — its .env files are not scanned */ }
     }
 
     return results;

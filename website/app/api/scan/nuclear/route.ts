@@ -225,7 +225,7 @@ export async function POST(req: NextRequest) {
   try {
     const mx = await resolveMx(hostname);
     findings.push({ category: "DNS", severity: "info", title: "MX records", detail: `${mx.length} mail servers configured` });
-  } catch { /* not an email domain */ }
+  } catch { /* error-ok — not an email domain */ }
 
   try {
     const txt = await resolveTxt(hostname);
@@ -236,7 +236,7 @@ export async function POST(req: NextRequest) {
       title: "SPF record",
       detail: flat.includes("v=spf1") ? "SPF configured" : "No SPF record — email spoofing risk",
     });
-  } catch { /* no txt */ }
+  } catch { /* error-ok — no TXT records — the SPF finding is simply absent */ }
 
   try {
     await resolveTxt(`_dmarc.${hostname}`);

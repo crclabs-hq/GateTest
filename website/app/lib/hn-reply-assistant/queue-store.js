@@ -105,7 +105,7 @@ function listDrafts({ queueDir, stateFilter, _fs = fs }) {
       const rec = JSON.parse(_fs.readFileSync(path.join(dir, e), "utf8"));
       if (stateFilter && rec.state !== stateFilter) continue;
       out.push(rec);
-    } catch { /* skip malformed */ }
+    } catch { /* error-ok — skip malformed */ }
   }
   // Oldest-first by drafted timestamp
   out.sort((a, b) => new Date(a.draftedAt) - new Date(b.draftedAt));

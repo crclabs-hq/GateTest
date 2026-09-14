@@ -253,7 +253,7 @@ function tryFlywheel({ files, repoRoot, flywheel, logExcerpt }) {
 
 function recordTelemetry(flywheel, entry) {
   try { flywheel.telemetry.recordFixAttempt({ ...entry, issueRuleKey: 'ci-failure', module: 'ai-ci-fixer' }); }
-  catch { /* telemetry is best-effort */ }
+  catch { /* error-ok — telemetry is best-effort; the fix result is already returned */ }
 }
 
 /**

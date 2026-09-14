@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
         headers: sseHeaders(),
       });
     }
-  } catch { /* limiter unavailable — proceed */ }
+  } catch { /* error-ok — rate limiter unavailable — the support widget proceeds unthrottled rather than failing closed */ }
 
   const systemPrompt = sp.buildSystemPrompt();
   const upstreamBody = JSON.stringify({
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
 
   if (!upstream.ok || !upstream.body) {
     let detail = "";
-    try { detail = (await upstream.text()).slice(0, 200); } catch { /* ignore */ }
+    try { detail = (await upstream.text()).slice(0, 200); } catch { /* error-ok — error body unreadable — the status alone is reported to the user */ }
     return new Response(makeLocalStream(`The chat agent is having a hiccup (status ${upstream.status}). Try again in a few seconds — these are usually transient. ${detail}`.trim()), {
       status: 200,
       headers: sseHeaders(),
@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
         if (closed) return;
         try {
           controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
-        } catch { /* stream closed */ }
+        } catch { /* error-ok — stream closed */ }
       };
       try {
         while (true) {
@@ -185,14 +185,14 @@ export async function POST(req: NextRequest) {
               } else if (evt.type === "message_stop") {
                 send("done", {});
               }
-            } catch { /* ignore malformed event */ }
+            } catch { /* error-ok — ignore malformed event */ }
           }
         }
       } catch (err) {
         send("error", { error: err instanceof Error ? err.message : "Stream interrupted" });
       } finally {
         closed = true;
-        try { controller.close(); } catch { /* already closed */ }
+        try { controller.close(); } catch { /* error-ok — already closed */ }
       }
     },
   });

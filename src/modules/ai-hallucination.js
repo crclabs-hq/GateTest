@@ -244,7 +244,7 @@ class AiHallucinationDetector extends BaseModule {
         for (const key of Object.keys(pkg.devDependencies || {})) rootDeps.add(key);
         for (const key of Object.keys(pkg.peerDependencies || {})) rootDeps.add(key);
         for (const key of Object.keys(pkg.optionalDependencies || {})) rootDeps.add(key);
-      } catch { /* skip */ }
+      } catch { /* error-ok — unreadable package.json — the syntax module reports it; no declared deps to compare against */ }
     }
 
     // Also scan workspaces / monorepo packages

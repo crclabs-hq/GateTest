@@ -144,7 +144,7 @@ class AiReviewModule extends BaseModule {
         if (content.length > MAX_FILE_SIZE) continue;
         const relPath = path.relative(projectRoot, file);
         fileContents.push({ path: relPath, content });
-      } catch { /* skip unreadable */ }
+      } catch { /* error-ok — an unreadable file is left out of the review sample */ }
     }
 
     if (fileContents.length === 0) {

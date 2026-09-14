@@ -39,7 +39,7 @@ function readEntries(filePath) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     try { entries.push(JSON.parse(trimmed)); }
-    catch { /* skip malformed lines — telemetry is best-effort */ }
+    catch { /* error-ok — skip malformed lines — telemetry is best-effort */ }
   }
   return entries;
 }

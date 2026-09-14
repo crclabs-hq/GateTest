@@ -126,7 +126,7 @@ function resolvePlaywright() {
       try {
         const resolved = require.resolve('playwright', { paths: [fromDir] });
         return require(resolved);
-      } catch { /* try next candidate */ }
+      } catch { /* error-ok — playwright not resolvable from this candidate — the next is tried; null makes the caller report it as missing */ }
     }
   }
   return null;
@@ -185,7 +185,7 @@ class InteractiveElementsModule extends BaseModule {
       try {
         await browser.close();
       } catch {
-        /* swallow close errors */
+        /* error-ok — teardown of a browser we are discarding; the findings are already recorded */
       }
     }
   }
@@ -353,7 +353,7 @@ class InteractiveElementsModule extends BaseModule {
       const headRes = await checkUrl(url, timeout);
       if (headRes.status < 400) return headRes.status;
     } catch {
-      /* HEAD failed outright — fall through to a GET verification */
+      /* error-ok — HEAD failed outright — fall through to a GET verification */
     }
     const getRes = await fetchPage(url, timeout);
     return getRes.status;
@@ -415,7 +415,7 @@ class InteractiveElementsModule extends BaseModule {
     try {
       await locator.click({ timeout: 5000 });
     } catch {
-      /* click failures are observed via page state, not thrown */
+      /* error-ok — click failures are observed via page state, not thrown */
     }
     await page.waitForTimeout(600);
 
@@ -543,7 +543,7 @@ class InteractiveElementsModule extends BaseModule {
           break;
         }
       } catch {
-        /* selector not present or not clickable — try the next one */
+        /* error-ok — selector not present or not clickable — try the next one */
       }
     }
     await page.waitForTimeout(200);

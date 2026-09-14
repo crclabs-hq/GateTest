@@ -28,7 +28,7 @@ export async function consumeSseStream(
   };
   while (true) {
     if (signal.aborted) {
-      try { await reader.cancel(); } catch { /* ignore */ }
+      try { await reader.cancel(); } catch { /* error-ok — the reader may already be released; the abort is honoured either way */ }
       return;
     }
     const { done, value } = await reader.read();

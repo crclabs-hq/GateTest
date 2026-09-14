@@ -57,7 +57,7 @@ describe('gatetest trace — CLI behaviour', () => {
   });
 
   after(() => {
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* error-ok — temp dir cleanup; a busy handle on Windows cannot fail the assertion */ }
   });
 
   it('--help prints usage and exits 0', async () => {

@@ -180,7 +180,7 @@ async function defaultAnthropicCall({ systemPrompt, userPrompt }) {
 
   if (!res.ok) {
     let errBody = "";
-    try { errBody = await res.text(); } catch { /* ignore */ }
+    try { errBody = await res.text(); } catch { /* error-ok — error body unreadable — the status alone is thrown */ }
     throw new Error(`Anthropic API ${res.status}: ${errBody.slice(0, 200)}`);
   }
 

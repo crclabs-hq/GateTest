@@ -106,7 +106,7 @@ async function autoRegisterMcpServer() {
       }
     }
   } catch {
-    // VS Code version doesn't support this — silently skip
+    // error-ok — older VS Code without the Copilot MCP setting — registration is skipped and the extension still works
   }
 }
 

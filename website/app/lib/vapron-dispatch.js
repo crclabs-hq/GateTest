@@ -199,7 +199,7 @@ async function dispatchRuntimeScan(opts) {
 
     if (!resp.ok) {
       let detail = '';
-      try { detail = (await resp.text()).slice(0, 300); } catch { /* ignore */ }
+      try { detail = (await resp.text()).slice(0, 300); } catch { /* error-ok — error body unreadable — the status alone is reported */ }
       return { ok: false, status: resp.status, reason: `Vapron rejected dispatch: ${resp.status} ${detail}` };
     }
 

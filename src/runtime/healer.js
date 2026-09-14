@@ -84,7 +84,7 @@ class Healer {
           report.automated.push({ action: 'restart', success: true, message: `Restart hook triggered for ${url}` });
           return;
         }
-      } catch { /* fall through to manual */ }
+      } catch { /* error-ok — fall through to manual */ }
     }
 
     // Try deploy hook (redeploy as recovery)
@@ -95,7 +95,7 @@ class Healer {
           report.automated.push({ action: 'redeploy', success: true, message: `Redeploy hook triggered for ${url}` });
           return;
         }
-      } catch { /* fall through to manual */ }
+      } catch { /* error-ok — fall through to manual */ }
     }
 
     report.escalate.push({

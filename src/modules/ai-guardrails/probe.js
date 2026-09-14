@@ -99,7 +99,7 @@ async function readResponseTextCapped(response) {
       total += value.length;
       chunks.push(value);
       if (total >= MAX_RESPONSE_BYTES) {
-        try { await reader.cancel(); } catch { /* probe-cleanup-ok */ }
+        try { await reader.cancel(); } catch { /* error-ok — the stream may already be closed; the cap is reached and the chunks read are kept */ }
         break;
       }
     }

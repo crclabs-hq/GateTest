@@ -65,7 +65,7 @@ async function readJsonl(filePath) {
   try {
     fs.accessSync(filePath, fs.constants.R_OK);
     exists = true;
-  } catch { /* missing → empty */ }
+  } catch { /* error-ok — missing → empty */ }
   if (!exists) return records;
 
   return await new Promise((resolve) => {
@@ -83,7 +83,7 @@ async function readJsonl(filePath) {
       try {
         const rec = JSON.parse(line);
         if (rec && typeof rec === 'object') records.push(rec);
-      } catch { /* skip malformed */ }
+      } catch { /* error-ok — skip malformed */ }
     });
     rl.on('error', (err) => {
       warnOnce(`stream error on ${filePath}: ${err.message}`);
@@ -434,7 +434,7 @@ async function main() {
   try {
     fs.mkdirSync(outDir, { recursive: true });
     fs.writeFileSync(path.join(outDir, 'pattern-miner-latest.json'), JSON.stringify(report, null, 2));
-  } catch { /* best-effort */ }
+  } catch { /* error-ok — the latest-report file is a convenience copy; the report is already returned */ }
 }
 
 if (require.main === module) {

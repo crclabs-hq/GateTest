@@ -237,7 +237,7 @@ async function upgradeDep({ depName, fromVersion, toVersion, sourceFiles, readFi
         affectedFiles.push({ filePath, content });
       }
     } catch {
-      // Unreadable file — skip silently
+      // error-ok — Unreadable file — skip silently
     }
   }
 
