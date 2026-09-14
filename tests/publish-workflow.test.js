@@ -76,4 +76,36 @@ describe('publish.yml runs the suite in the same environment as ci.yml', () => {
     assert.ok(m, 'Create GitHub Release step missing');
     assert.match(m[1], /^success\(\)/, 'the release must be gated on success(), not merely !cancelled()');
   });
+
+  // `uses: crclabs-hq/GateTest@v1` is what the Marketplace listing, the README
+  // and every customer workflow say, and the tag did not exist (2026-09-14
+  // audit). The workflow moves it on every stable release.
+  it('advances the moving major tag after a successful publish, for stable releases only', () => {
+    const block = runBlock(publish, 'Advance the moving major tag');
+    assert.ok(block, 'Advance the moving major tag step missing');
+    const cond = /if: ([^\r\n]+)/.exec(block);
+    assert.ok(cond, 'the tag step must be conditional');
+    assert.match(cond[1], /^success\(\)/, 'must not move v1 to a release npm never got');
+    assert.match(cond[1], /startsWith\(github\.ref, 'refs\/tags\/v'\)/, 'tag pushes only');
+    assert.match(cond[1], /!contains\(github\.ref_name, '-'\)/, 'a pre-release must not move the major tag');
+    assert.match(block, /MAJOR="\$\{GITHUB_REF_NAME%%\.\*\}"/, 'the major is derived from the release tag');
+    assert.match(block, /git tag -f "\$MAJOR" "\$GITHUB_SHA"/, 'force-moves the tag to the release commit');
+    assert.match(block, /git push -f origin "refs\/tags\/\$MAJOR"/, 'force-pushes the moved tag');
+
+    const order = ['- name: npm publish\n', '- name: npm publish @gatetest/mcp-server', '- name: Advance the moving major tag']
+      .map((s) => publish.replace(/\r\n/g, '\n').indexOf(s));
+    assert.ok(order.every((i) => i > -1) && order[0] < order[1] && order[1] < order[2],
+      'the tag moves only after BOTH npm publishes');
+  });
+
+  it('is triggered by release tags only, so the moved major tag does not re-run the publish', () => {
+    const trigger = /on:\r?\n\s+push:\r?\n\s+tags:\r?\n((?:\s+(?:#[^\r\n]*|- '[^']+')\r?\n)+)/.exec(publish);
+    assert.ok(trigger, 'tag trigger missing');
+    const globs = [...trigger[1].matchAll(/- '([^']+)'/g)].map((m) => m[1]);
+    assert.ok(globs.length > 0, 'no tag globs');
+    for (const g of globs) {
+      assert.notEqual(g, 'v*', "'v*' also matches the moving v1 tag and would fail the version check on every release");
+      assert.match(g, /^v\[0-9\]\+\.\[0-9\]\+\.\[0-9\]\+/, `${g} must require a full semver tag`);
+    }
+  });
 });
