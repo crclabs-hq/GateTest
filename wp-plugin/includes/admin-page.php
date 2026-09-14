@@ -28,11 +28,22 @@ function gatetest_hc_register_settings() {
         'sanitize_callback' => 'sanitize_text_field',
         'default'           => '',
     ]);
+    // An unchecked checkbox submits nothing, which options.php stores as ''.
+    // Normalise to the two values the scheduler understands so "off" is
+    // never a third state that neither branch handles.
     register_setting('gatetest_hc_settings', 'gatetest_hc_consent_url_share', [
         'type'              => 'string',
-        'sanitize_callback' => 'sanitize_text_field',
+        'sanitize_callback' => 'gatetest_hc_sanitize_weekly_toggle',
         'default'           => 'false',
     ]);
+}
+
+/**
+ * @param mixed $value Raw option value from the settings form.
+ * @return string 'true' or 'false'.
+ */
+function gatetest_hc_sanitize_weekly_toggle($value) {
+    return ($value === 'true' || $value === true || $value === '1' || $value === 1) ? 'true' : 'false';
 }
 
 function gatetest_hc_enqueue_assets($hook) {
@@ -87,8 +98,12 @@ function gatetest_hc_enqueue_assets($hook) {
 
 function gatetest_hc_render_admin_page() {
     if (!current_user_can('manage_options')) {
-        wp_die(__('You do not have permission to access this page.', 'gatetest-health-check'));
+        wp_die(esc_html__('You do not have permission to access this page.', 'gatetest-health-check'));
     }
+
+    // Cheap reconciliation: the cron entry follows the saved setting even if
+    // the option hooks were skipped (e.g. a value saved unchanged).
+    gatetest_hc_sync_weekly_schedule();
 
     $apiKey       = get_option('gatetest_hc_api_key', '');
     $lastScanAt   = (int) get_option('gatetest_hc_last_scan_at', 0);
@@ -120,24 +135,20 @@ function gatetest_hc_render_admin_page() {
                     <code><?php echo esc_html(home_url()); ?></code>
                 </p>
 
-                <?php if (empty($apiKey)): ?>
-                    <p class="gatetest-hc-warning">
-                        <?php
-                        printf(
-                            /* translators: %s: gatetest.io signup URL */
-                            esc_html__('You need a GateTest API key. %s to get one (free, takes 60 seconds).', 'gatetest-health-check'),
-                            '<a href="' . esc_url(GATETEST_HC_API_BASE . '/account?from=wp-plugin') . '" target="_blank" rel="noopener">' .
-                            esc_html__('Sign up at gatetest.io', 'gatetest-health-check') .
-                            '</a>'
-                        );
-                        ?>
-                    </p>
-                <?php else: ?>
-                    <button id="gatetest-hc-run-scan" class="button button-primary button-hero">
-                        <?php esc_html_e('Scan my site now', 'gatetest-health-check'); ?>
-                    </button>
-                    <div id="gatetest-hc-scan-status" class="gatetest-hc-status"></div>
-                <?php endif; ?>
+                <?php // The free health check needs no account and no key — the button is always available. ?>
+                <button id="gatetest-hc-run-scan" class="button button-primary button-hero">
+                    <?php esc_html_e('Scan my site now', 'gatetest-health-check'); ?>
+                </button>
+                <div id="gatetest-hc-scan-status" class="gatetest-hc-status"></div>
+                <p class="description">
+                    <?php
+                    printf(
+                        /* translators: %s: link to the GateTest WordPress page */
+                        esc_html__('Free, no account needed. The full report ($19, one-time) is available at %s.', 'gatetest-health-check'),
+                        '<a href="' . esc_url(GATETEST_HC_API_BASE . '/wp') . '" target="_blank" rel="noopener">gatetest.io/wp</a>'
+                    );
+                    ?>
+                </p>
             </div>
 
             <?php // Always rendered: admin.js fills it on page load (stored result) and after every scan. ?>
@@ -180,9 +191,9 @@ function gatetest_hc_render_admin_page() {
                                 <p class="description">
                                     <?php
                                     printf(
-                                        /* translators: %s: link to gatetest.io/account */
-                                        esc_html__('Find or generate yours at %s.', 'gatetest-health-check'),
-                                        '<a href="' . esc_url(GATETEST_HC_API_BASE . '/account?from=wp-plugin') . '" target="_blank" rel="noopener">gatetest.io/account</a>'
+                                        /* translators: %s: link to the GateTest WordPress page */
+                                        esc_html__('Optional — the free health check runs without one. Reserved for the paid full report on gatetest.io; see %s.', 'gatetest-health-check'),
+                                        '<a href="' . esc_url(GATETEST_HC_API_BASE . '/wp') . '" target="_blank" rel="noopener">gatetest.io/wp</a>'
                                     );
                                     ?>
                                 </p>
@@ -203,10 +214,10 @@ function gatetest_hc_render_admin_page() {
                                         value="true"
                                         <?php checked($consentShare); ?>
                                     />
-                                    <?php esc_html_e('Run a scan automatically every Sunday at 3am UTC.', 'gatetest-health-check'); ?>
+                                    <?php esc_html_e('Run the free health check automatically every Sunday at 3am UTC and keep the latest result on this page.', 'gatetest-health-check'); ?>
                                 </label>
                                 <p class="description">
-                                    <?php esc_html_e('Requires the GateTest Starter plan or higher.', 'gatetest-health-check'); ?>
+                                    <?php esc_html_e('Uses WP-Cron, so it fires on the first site visit after the scheduled time. Off by default; untick to stop.', 'gatetest-health-check'); ?>
                                 </p>
                             </td>
                         </tr>

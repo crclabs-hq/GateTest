@@ -5,9 +5,9 @@
  * Runs when the user clicks "Delete" on the plugin in the WordPress admin.
  * Cleans up all plugin-created options + transients + scheduled events.
  *
- * NOTE: scans are tracked on gatetest.io's side (linked to the customer's
- * API key); uninstalling the plugin does NOT delete the customer's account
- * or scan history. Customer manages that at gatetest.io/account.
+ * NOTE: nothing is stored on gatetest.io for the free health check;
+ * a paid full report is tied to its Stripe checkout on gatetest.io, so
+ * uninstalling the plugin does not affect it.
  */
 
 if (!defined('WP_UNINSTALL_PLUGIN')) {
@@ -16,7 +16,6 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
 
 delete_option('gatetest_hc_api_key');
 delete_option('gatetest_hc_last_scan_at');
-delete_option('gatetest_hc_last_scan_id');
 delete_option('gatetest_hc_consent_url_share');
 
 delete_transient('gatetest_hc_last_result');

@@ -60,7 +60,7 @@ The free preview shows the top 3 most urgent findings. To see the full report, o
 
 1. Upload the `gatetest-health-check` plugin to the `/wp-content/plugins/` directory, or install through the WordPress plugin directory.
 2. Activate the plugin through the **Plugins** menu in WordPress.
-3. Go to **Tools → GateTest** to configure your API key and run your first scan.
+3. Go to **Tools → GateTest** and click "Scan my site now".
 
 == Frequently Asked Questions ==
 
@@ -70,7 +70,7 @@ No. The scan runs on gatetest.io's servers — not yours. Your site experiences 
 
 = What data is sent to gatetest.io? =
 
-Your site's public URL, your WordPress version, and your GateTest API key. No source code, no database content, no credentials, no plugin list, no theme data. The scan probes your site from the outside.
+Your site's public URL, your WordPress version and the plugin version. No source code, no database content, no credentials, no plugin list, no theme data. The scan probes your site from the outside.
 
 = Is the free preview enough? =
 

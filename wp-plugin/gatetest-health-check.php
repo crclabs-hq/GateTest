@@ -50,15 +50,12 @@ require_once GATETEST_HC_PLUGIN_DIR . 'includes/api-client.php';
 /**
  * Plugin activation — runs once on install.
  *
- * Creates the default options. No DB tables yet — scan results live in
- * a single transient + options entry per scan; if the customer wants
- * historical comparison they upgrade to the paid Continuous tier
- * where results live in our cloud.
+ * Creates the default options. No DB tables — the latest scan result lives
+ * in a single transient (7 days) plus a timestamp option.
  */
 function gatetest_hc_activate() {
     add_option('gatetest_hc_last_scan_at', 0);
-    add_option('gatetest_hc_last_scan_id', '');
-    add_option('gatetest_hc_api_key', ''); // Set by the user via Settings page.
+    add_option('gatetest_hc_api_key', ''); // Optional; set by the user via Settings.
     add_option('gatetest_hc_consent_url_share', 'false');
 }
 register_activation_hook(__FILE__, 'gatetest_hc_activate');
@@ -85,7 +82,7 @@ add_action('admin_enqueue_scripts', 'gatetest_hc_enqueue_assets');
 add_action('wp_ajax_gatetest_hc_run_scan', 'gatetest_hc_handle_run_scan');
 
 /**
- * Weekly scheduled scan — only runs for users on the Continuous tier
- * (validated server-side by the API; this just fires the request).
+ * Weekly scheduled health check — the same free scan as the button, opted
+ * in via Settings and delivered through WP-Cron.
  */
 add_action('gatetest_hc_weekly_scan', 'gatetest_hc_run_scheduled_scan');
