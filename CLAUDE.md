@@ -594,7 +594,7 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.61.0 — **121 modules** (spineHealth added 2026-07-30), **hybrid AI layer** (Craig 2026-07-07;
+GateTest v1.61.1 — **121 modules** (spineHealth added 2026-07-30), **hybrid AI layer** (Craig 2026-07-07;
 Sonnet 5 upgrade + user-selectable model + BYOK Craig 2026-07-10):
 **Fable 5** (`claude-fable-5`) on the paid fix tiers (Scan+Fix, Forensic),
 **Sonnet 5** (`claude-sonnet-5`) on free/cheap/high-volume paths, **Opus
