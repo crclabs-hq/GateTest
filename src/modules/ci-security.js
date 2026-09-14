@@ -50,6 +50,12 @@
  *     integration"` and the GitHub Security tab never sees the SARIF.
  *     Crontech's stale-installed GateTest workflow hit this 2026-05-25;
  *     OUR OWN ci.yml had the same bug. Static catch prevents recurrence.
+ *     WARNING, not error (2026-09-14): GitHub's own upload-sarif docs
+ *     require `actions: read` only for PRIVATE repositories — on a
+ *     public one `security-events: write` is enough and the upload
+ *     succeeds. The file cannot say which kind of repo it runs in, so
+ *     a blocking verdict was a guess: gin-gonic/gin (public) was
+ *     gate-BLOCKED on its trivy-scan.yml, which works as written.
  *
  * TODO(gluecron): when Gluecron ships a CI model, mirror these heuristics
  * to Gluecron pipeline YAML (same attack surface, different filename).
@@ -368,17 +374,20 @@ class CiSecurityModule extends BaseModule {
     }
 
     // codeql-action/upload-sarif without actions:read = SARIF never
-    // reaches the Security tab. Different failure mode from workflow_run
-    // (this one fails loudly with a red step) but same root cause and
-    // same one-line fix. Error-severity because the customer's Security
-    // tab being empty is a HARD product failure — they paid for the
-    // scan, the SARIF was generated, GitHub silently dropped it.
+    // reaches the Security tab — on a PRIVATE repository. GitHub's
+    // upload-sarif docs require `actions: read` only there; on a public
+    // repository `security-events: write` is enough and the upload
+    // succeeds. The workflow file cannot say which kind of repository it
+    // runs in, so the verdict is a warning that names the condition: it
+    // was an error until 2026-09-14, when gin-gonic/gin (public, 80k
+    // stars) was gate-BLOCKED on a trivy-scan.yml that works as written.
+    // Same root cause and one-line fix as the workflow_run case above.
     if (hasCodeqlSarifUpload && !hasActionsScopeGranted && !hasReadAllOrWriteAll) {
       issues += this._flag(result, `ci-security:codeql-sarif-missing-actions-read:${rel}`, {
-        severity: 'error',
+        severity: 'warning',
         file: rel,
-        message: `${rel} uses \`github/codeql-action/upload-sarif\` but \`permissions:\` does not grant \`actions: read\` — SARIF upload will fail with "Resource not accessible by integration" and the GitHub Security tab will not see the results`,
-        suggestion: 'Add `actions: read` to the job\'s `permissions:` block (alongside `security-events: write` and `contents: read`). The upload-sarif action calls the workflow-runs API to attach results to the right run — without the scope, every customer scan ends with a red CI step and an empty Security tab.',
+        message: `${rel} uses \`github/codeql-action/upload-sarif\` but \`permissions:\` does not grant \`actions: read\` — on a PRIVATE repository the upload fails with "Resource not accessible by integration" and the GitHub Security tab never sees the results; a public repository does not need the scope`,
+        suggestion: 'If this repository is private, add `actions: read` to the job\'s `permissions:` block (alongside `security-events: write` and `contents: read`) — upload-sarif calls the workflow-runs API to attach results to the right run. On a public repository nothing is needed; adding the scope anyway is harmless and makes the workflow portable.',
       });
     }
 
