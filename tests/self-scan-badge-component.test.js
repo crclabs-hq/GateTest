@@ -222,7 +222,7 @@ describe('HomeSelfScan.tsx — file-level invariants', () => {
 
   it('labels a committed fallback result as MEASURED, never as live', () => {
     assert.match(tsx, /self-scan-fallback\.json/);
-    assert.match(tsx, /"MEASURED"/);
+    assert.match(tsx, /MEASURED \$\{measuredDate\}/);
     assert.match(tsx, /"LIVE"/);
   });
 });
