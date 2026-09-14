@@ -281,5 +281,3 @@ if (require.main === module) {
     process.exit(0); // tooling step, never block CI
   });
 }
-
-module.exports = { main, parseArgs, loadCorpus };

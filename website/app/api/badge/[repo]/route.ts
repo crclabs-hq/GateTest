@@ -14,30 +14,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "../../../lib/db";
+import { scoreToGrade } from "../../../lib/badge-svg";
 
 export const dynamic = "force-dynamic";
-
-interface GradeInfo {
-  letter: string;
-  color: string;
-  bgColor: string;
-}
-
-function scoreToGrade(score: number): GradeInfo {
-  if (score >= 95) return { letter: "A+", color: "#fff", bgColor: "#059669" };
-  if (score >= 90) return { letter: "A", color: "#fff", bgColor: "#059669" };
-  if (score >= 85) return { letter: "A-", color: "#fff", bgColor: "#10b981" };
-  if (score >= 80) return { letter: "B+", color: "#fff", bgColor: "#0d9488" };
-  if (score >= 75) return { letter: "B", color: "#fff", bgColor: "#0891b2" };
-  if (score >= 70) return { letter: "B-", color: "#fff", bgColor: "#2563eb" };
-  if (score >= 65) return { letter: "C+", color: "#fff", bgColor: "#7c3aed" };
-  if (score >= 60) return { letter: "C", color: "#fff", bgColor: "#9333ea" };
-  if (score >= 55) return { letter: "C-", color: "#fff", bgColor: "#c026d3" };
-  if (score >= 50) return { letter: "D+", color: "#fff", bgColor: "#d97706" };
-  if (score >= 40) return { letter: "D", color: "#fff", bgColor: "#ea580c" };
-  if (score >= 30) return { letter: "D-", color: "#fff", bgColor: "#dc2626" };
-  return { letter: "F", color: "#fff", bgColor: "#991b1b" };
-}
 
 function renderBadge(label: string, value: string, valueColor: string, valueBg: string): string {
   const labelWidth = label.length * 6.8 + 12;

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { type Finding, type ScanResult, type Severity } from "./url-scan-flow-types";
 import { SITE_URL } from "@/app/lib/site-url";
 
-export function formatFindingsForClaude(result: ScanResult): string {
+function formatFindingsForClaude(result: ScanResult): string {
   const lines: string[] = [];
   lines.push(`# GateTest scan report — paste-ready for Claude Code`);
   lines.push("");

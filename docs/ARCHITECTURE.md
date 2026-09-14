@@ -204,8 +204,7 @@ GateTest/
 
 | Variable | Purpose |
 |----------|---------|
-| `STRIPE_SECRET_KEY` | Stripe API (sk_live_... or sk_test_...) |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe client key |
+| `STRIPE_SECRET_KEY` | Stripe API (sk_live_... or sk_test_...). No publishable key is read anywhere — checkout is Stripe-hosted (server-created session + redirect), so there is no Stripe.js on the client |
 | `NEXT_PUBLIC_BASE_URL` | **The one variable that decides the domain** (default `https://gatetest.io`). Every canonical, OG URL, sitemap entry, IndexNow submission, Stripe return, OAuth redirect, badge snippet and bot User-Agent derives from it. Inlined at BUILD time — changing it needs a rebuild, not a restart |
 | `GATETEST_PUBLIC_BASE_URL` | Server-side alias for the above; lower precedence. Set both to the same value |
 | `GATETEST_BADGE_ORIGIN` | Origin for NEWLY generated badge/embed snippets only. Leave unset — tracks the base URL. Cannot migrate badges already pasted into customers' READMEs |
@@ -239,7 +238,6 @@ GateTest/
 | `OPENAI_API_KEY` | Second-agent GPT-4o cross-check for Multi-Agent Consensus (Forensic-tier opt-in, `website/app/lib/openai-client.ts` + `multi-agent-consensus.ts`, Craig-authorized 2026-06-02). Built and tested but **not yet wired into `/api/scan/fix/route.ts`** — see Known Issue in docs/ROADMAP.md added 2026-07-20. |
 | `GATETEST_ADMIN_USERNAMES` | Comma-separated allowlist of admin usernames for `/admin` (pairs with `GATETEST_ADMIN_PASSWORD`). |
 | `GLUECRON_API_URL` / `GLUECRON_TOKEN` | Fallback aliases for `GLUECRON_BASE_URL` / `GLUECRON_API_TOKEN` above — read by `integrations/gluecron/client.ts` (the `HostBridge` abstraction), NOT by `website/app/lib/gluecron-client.ts` (a different, similarly-named file the website route uses directly). Both files exist; don't assume one covers the other when auditing this connection — confirmed 2026-07-20 after an initial audit pass wrongly flagged these as dead by checking only the website-side file. |
-| `NEXT_PUBLIC_APP_VERSION` | Client-visible app version string. |
 
 ---
 

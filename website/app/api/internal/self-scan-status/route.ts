@@ -6,7 +6,7 @@
  *
  * The CI self-scan job in `.github/workflows/ci.yml` POSTs here after
  * running `node bin/gatetest.js --suite quick --json`. The badge
- * component at `website/app/components/SelfScanBadge.tsx` GETs.
+ * component at `website/app/components/HomeSelfScan.tsx` GETs.
  *
  * See `website/app/lib/self-scan-status.js` for the wire contract,
  * payload validation, and the in-memory storage strategy note.
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   return NextResponse.json(result.body, { status: result.status });
 }
 
-// auth-public — the badge feed. components/SelfScanBadge.tsx, HomeSelfScan.tsx and
+// auth-public — the badge feed. components/HomeSelfScan.tsx and
 // /trust poll it from unauthenticated visitors. The WRITE side (POST above) is
 // HMAC-signed; only the read is open, and it publishes our own pass/fail counts.
 export async function GET(): Promise<NextResponse> {

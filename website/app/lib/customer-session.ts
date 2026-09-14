@@ -30,7 +30,7 @@ interface OAuthConfig {
   sessionSecret: string;
 }
 
-export interface OAuthConfigStatus {
+interface OAuthConfigStatus {
   ok: boolean;
   missing: string[];
   config?: OAuthConfig;
@@ -217,14 +217,14 @@ export function generateState(): string {
 
 // ── GitLab OAuth ──────────────────────────────────────────────────────────────
 
-export interface GitLabOAuthConfig {
+interface GitLabOAuthConfig {
   clientId: string;
   clientSecret: string;
   redirectUri: string;
   sessionSecret: string;
 }
 
-export interface GitLabOAuthConfigStatus {
+interface GitLabOAuthConfigStatus {
   ok: boolean;
   missing: string[];
   config?: GitLabOAuthConfig;
@@ -251,14 +251,14 @@ export function getGitLabOAuthConfig(): GitLabOAuthConfigStatus {
 
 // ── Google OAuth ──────────────────────────────────────────────────────────────
 
-export interface GoogleOAuthConfig {
+interface GoogleOAuthConfig {
   clientId: string;
   clientSecret: string;
   redirectUri: string;
   sessionSecret: string;
 }
 
-export interface GoogleOAuthConfigStatus {
+interface GoogleOAuthConfigStatus {
   ok: boolean;
   missing: string[];
   config?: GoogleOAuthConfig;

@@ -36,7 +36,7 @@ async function ensureSchema(): Promise<void> {
   _initDone = true;
 }
 
-export interface AdminPlatform {
+interface AdminPlatform {
   id: number;
   github_org: string;
   display_url: string | null;

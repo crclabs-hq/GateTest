@@ -310,4 +310,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { renderMarkdown, parseArgs };
+module.exports = { parseArgs };

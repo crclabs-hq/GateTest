@@ -36,7 +36,7 @@ const { resolveFullReportAccess: resolveCore, defaultFetchStripeSession } = requ
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 
-export interface FullReportRequestBody {
+interface FullReportRequestBody {
   fullReport?: boolean;
   /** Stripe Checkout Session ID returned to the client after a successful checkout. */
   sessionId?: string;

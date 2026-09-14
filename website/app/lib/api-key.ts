@@ -14,7 +14,7 @@ import crypto from "crypto";
 import type { NextRequest } from "next/server";
 import { getDb } from "./db";
 
-export interface ApiKeyRecord {
+interface ApiKeyRecord {
   id: string;
   key_hash: string;
   key_prefix: string;
@@ -51,11 +51,11 @@ export function generateApiKey(): { plaintext: string; hash: string; prefix: str
   return { plaintext, hash, prefix };
 }
 
-export function hashKey(plaintext: string): string {
+function hashKey(plaintext: string): string {
   return crypto.createHash("sha256").update(plaintext).digest("hex");
 }
 
-export function extractBearer(req: NextRequest): string | null {
+function extractBearer(req: NextRequest): string | null {
   const auth = req.headers.get("authorization") || "";
   if (auth.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
   const xkey = req.headers.get("x-api-key");
@@ -63,12 +63,12 @@ export function extractBearer(req: NextRequest): string | null {
   return null;
 }
 
-export interface AuthSuccess {
+interface AuthSuccess {
   ok: true;
   key: ApiKeyRecord;
 }
 
-export interface AuthFailure {
+interface AuthFailure {
   ok: false;
   status: number;
   error: string;

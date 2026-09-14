@@ -116,4 +116,4 @@ function gateAiReview(issues, fileContents) {
   return { accepted, rejected };
 }
 
-module.exports = { verifyAiFinding, gateAiReview, normalizeSnippet };
+module.exports = { verifyAiFinding, gateAiReview };

@@ -41,7 +41,9 @@ const src = fs.readFileSync(ROUTE, 'utf8');
  * would prove nothing — it would test the copy.
  */
 function loadComputeScore() {
-  const start = src.indexOf('export function computeScore');
+  // Route-private (a Next route file exports only handlers + segment config);
+  // the function itself is what is evaluated, not its export status.
+  const start = src.indexOf('function computeScore');
   assert.ok(start !== -1, 'computeScore not found — was it renamed?');
 
   // Strip the TypeScript parameter annotation FIRST. Balancing braces before
@@ -49,7 +51,6 @@ function loadComputeScore() {
   // ends at the type's closing brace and yields only a signature fragment.
   const stripped = src
     .slice(start)
-    .replace('export function computeScore', 'function computeScore')
     .replace(/\(scan:\s*\{[\s\S]*?\}\s*\)\s*:\s*number/, '(scan)');
 
   const open = stripped.indexOf('{');

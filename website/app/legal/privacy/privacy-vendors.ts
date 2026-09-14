@@ -8,7 +8,7 @@ type SubProcessor = (typeof F.SUB_PROCESSORS)[number];
  * a company that is no longer one. If the list drifts the build fails here,
  * loudly, instead of the page quietly going stale.
  */
-export function vendor(name: string): SubProcessor {
+function vendor(name: string): SubProcessor {
   const v = F.SUB_PROCESSORS.find((s) => s.name === name);
   if (!v) throw new Error(`legal: "${name}" is not in SUB_PROCESSORS — update _facts.js or the document that cites it`);
   return v;

@@ -128,4 +128,4 @@ async function deliver(msg, deps = {}) {
   return { ok: false, error: String(error), provider };
 }
 
-module.exports = { DEFAULT_FROM, VAPRON_MAIL_URL, mailProvider, mailConfigured, fromAddress, deliver, httpsJson };
+module.exports = { DEFAULT_FROM, VAPRON_MAIL_URL, mailProvider, mailConfigured, fromAddress, deliver };

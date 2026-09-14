@@ -29,8 +29,6 @@ test('customer-memory: exports the expected surface', () => {
     'listKeys',
     'deleteValue',
     'tierAllowed',
-    'MEMORY_TIERS',
-    'MAX_VALUE_BYTES',
   ]) {
     assert.match(src, new RegExp(`export\\s+(?:const|function|async\\s+function)\\s+${name}\\b`),
       `missing export: ${name}`);

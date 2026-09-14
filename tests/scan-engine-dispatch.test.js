@@ -21,7 +21,7 @@ describe('scan-engine-dispatch — the one place engine choice lives', () => {
   const src = read('website/app/lib/scan-engine-dispatch.ts');
 
   it('AI_ENGINE_MODULES lists exactly the scan modules that call Anthropic (derived from src/)', () => {
-    const m = /export const AI_ENGINE_MODULES[^=]*=\s*\[([\s\S]*?)\];/.exec(src);
+    const m = /(?:export\s+)?const AI_ENGINE_MODULES[^=]*=\s*\[([\s\S]*?)\];/.exec(src);
     assert.ok(m, 'AI_ENGINE_MODULES array missing');
     const listed = [...m[1].matchAll(/["']([A-Za-z0-9_]+)["']/g)].map((x) => x[1]).sort();
     assert.deepStrictEqual(listed, AI_MODULE_NAMES,

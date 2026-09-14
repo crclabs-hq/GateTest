@@ -18,7 +18,10 @@ test('multi-agent-consensus: source files exist', () => {
   assert.ok(fs.existsSync(OPENAI_PATH));
 });
 
-test('multi-agent-consensus: exports the expected public surface', () => {
+test('multi-agent-consensus: defines the expected surface', () => {
+  // runConsensus + renderConsensusReport are the imported API; the four
+  // helpers are module-private (no other file imports them) but must exist —
+  // the behaviour tests below extract and exercise them by name.
   const src = fs.readFileSync(LIB_PATH, 'utf8');
   for (const name of [
     'runConsensus',
@@ -28,7 +31,7 @@ test('multi-agent-consensus: exports the expected public surface', () => {
     'classifyAgreement',
     'renderConsensusReport',
   ]) {
-    assert.match(src, new RegExp(`export\\s+(?:async\\s+)?function\\s+${name}\\b`), `missing export: ${name}`);
+    assert.match(src, new RegExp(`(?:export\\s+)?(?:async\\s+)?function\\s+${name}\\b`), `missing function: ${name}`);
   }
 });
 

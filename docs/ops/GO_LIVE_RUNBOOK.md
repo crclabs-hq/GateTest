@@ -71,7 +71,7 @@ take effect.
 | # | Name | Where to get it | Example / format |
 |---|------|-----------------|------------------|
 | 1 | `STRIPE_SECRET_KEY` | [stripe.com/dashboard/apikeys](https://dashboard.stripe.com/apikeys) — use **test** key for now | `sk_test_51...` |
-| 2 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Same dashboard, publishable key | `pk_test_51...` |
+| 2 | *(no publishable key)* | Checkout is Stripe-hosted — the server creates the session and redirects; nothing loads Stripe.js, so `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is not read | — |
 | 3 | `NEXT_PUBLIC_BASE_URL` | You set this | `https://gatetest.io` |
 | 4 | `STRIPE_WEBHOOK_SECRET` | Filled in after **Step 6** — leave blank for now or use a placeholder | `whsec_...` |
 | 5 | `GATETEST_APP_ID` | From GitHub App settings after **Step 5** | `123456` (6-ish digit integer) |
@@ -253,8 +253,8 @@ payment is green in Stripe.
 ## When you're ready for real money
 
 1. Swap Stripe keys in Vercel env vars:
-   - `STRIPE_SECRET_KEY` → your `sk_live_...` key.
-   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` → `pk_live_...`.
+   - `STRIPE_SECRET_KEY` → your `sk_live_...` key (the only Stripe key the
+     site reads — checkout is Stripe-hosted, no publishable key).
    - Update the Stripe webhook signing secret too — the live-mode endpoint has
      a different `whsec_` than test-mode. Re-do Step 6 in **live mode** and
      update `STRIPE_WEBHOOK_SECRET`.

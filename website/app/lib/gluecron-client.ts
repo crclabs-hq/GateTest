@@ -47,7 +47,7 @@ function getGithubToken(): string {
   return process.env.GITHUB_TOKEN || process.env.GATETEST_GITHUB_TOKEN || "";
 }
 
-export function isGitHubToken(token: string): boolean {
+function isGitHubToken(token: string): boolean {
   if (!token) return false;
   const ghToken = getGithubToken();
   return (
@@ -59,83 +59,7 @@ export function isGitHubToken(token: string): boolean {
   );
 }
 
-/**
- * GitHub REST API wrapper — mirrors gluecronApi signature.
- * Used as a fallback when the resolved token is a GitHub PAT.
- */
-export async function githubRestApi(
-  method: string,
-  path: string,
-  token: string,
-  body?: Record<string, unknown>
-): Promise<GluecronApiResponse> {
-  const payload = body ? JSON.stringify(body) : undefined;
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-    "User-Agent": "GateTest/1.2.0",
-    Accept: "application/vnd.github.v3+json",
-  };
-  if (payload) {
-    headers["Content-Type"] = "application/json";
-  }
-  const res = await fetch(`https://api.github.com${path}`, {
-    method,
-    headers,
-    body: payload,
-  });
-  let data: Record<string, unknown>;
-  try {
-    data = await res.json() as Record<string, unknown>;
-  } catch {
-    data = {};
-  }
-  return { status: res.status, data };
-}
-
-/**
- * Get the default branch name of a repo.
- */
-export async function getDefaultBranch(
-  owner: string,
-  repo: string,
-  token: string
-): Promise<string> {
-  if (isGitHubToken(token) && token) {
-    const res = await githubRestApi("GET", `/repos/${owner}/${repo}`, token);
-    if (res.status === 200) {
-      return (res.data.default_branch as string) || "main";
-    }
-  }
-  const res = await gluecronApi("GET", `/api/v2/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`);
-  if (res.status === 200) {
-    return (res.data.defaultBranch as string) || (res.data.default_branch as string) || "main";
-  }
-  return "main";
-}
-
-/**
- * Get the SHA at the tip of a branch.
- */
-export async function getBranchSha(
-  owner: string,
-  repo: string,
-  branch: string,
-  token: string
-): Promise<string | null> {
-  if (isGitHubToken(token) && token) {
-    const res = await githubRestApi("GET", `/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`, token);
-    if (res.status === 200) {
-      return ((res.data as { object?: { sha?: string } }).object?.sha) || null;
-    }
-  }
-  const res = await gluecronApi("GET", `/api/v2/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/tree/${encodeURIComponent(branch)}?recursive=0`);
-  if (res.status === 200) {
-    return (res.data.sha as string) || null;
-  }
-  return null;
-}
-
-export interface GluecronApiResponse {
+interface GluecronApiResponse {
   status: number;
   data: Record<string, unknown>;
 }
@@ -212,9 +136,9 @@ export async function gluecronApi(
 // access. Returns a shape compatible with TokenResolution so call sites
 // can swap with minimal diffs.
 
-export type GluecronAuthSource = "gluecron" | "github-pat" | "none";
+type GluecronAuthSource ="gluecron" | "github-pat" | "none";
 
-export interface GluecronTokenResolution {
+interface GluecronTokenResolution {
   token: string | null;
   source: GluecronAuthSource;
   error?: string;
@@ -282,7 +206,7 @@ interface GluecronTreeResponse {
  * actual auth comes from GLUECRON_API_TOKEN — a future refactor may
  * thread token-per-call through, today it's env-global.
  */
-export interface FetchTreeResult {
+interface FetchTreeResult {
   paths: string[];
   truncated: boolean;
   warning: string | null;
@@ -336,7 +260,7 @@ function publicSnapshot(owner: string, repo: string, ref: string): Promise<Snaps
  * customer's repo; sending them to check their URL wastes their time and hides
  * an outage from us.
  */
-export function describeGithubTreeFailure(status: number): string {
+function describeGithubTreeFailure(status: number): string {
   if (status === 401)
     return "GateTest's git-host credential was rejected (401 Bad credentials) — this is our configuration, not your repository";
   if (status === 403)
@@ -374,7 +298,7 @@ function treeUnreadable(
  * rate limit — if even the fallback can't finish, the honest partial
  * result and warning are what's returned, never silent completeness.
  */
-export async function fetchTreeWithMetadata(
+async function fetchTreeWithMetadata(
   owner: string,
   repo: string,
   ref: string,
@@ -583,7 +507,7 @@ export async function fetchBlob(
 // default. Order: credentialed archive (private repos too) → anonymous
 // archive (public repos, dead credential) → tree + capped blob reads.
 
-export interface RepoFilesResult {
+interface RepoFilesResult {
   /** every path in the tree (including binaries and files not loaded) */
   paths: string[];
   /** text files actually loaded, after `filter`, up to `maxFiles` */
@@ -593,7 +517,7 @@ export interface RepoFilesResult {
   warning: string | null;
 }
 
-export interface LoadRepoFilesOptions {
+interface LoadRepoFilesOptions {
   /** cap on loaded text files (default 4000 — the engine, not the wire, is the limit now) */
   maxFiles?: number;
   /** cap on per-blob API reads when the archive path is unavailable (default 200) */
@@ -609,7 +533,7 @@ export interface LoadRepoFilesOptions {
 const DEFAULT_EXCLUDED_SEGMENTS = ["node_modules/", ".next/", "dist/", "vendor/", ".git/"];
 const DEFAULT_EXCLUDED_FILES = /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb|Cargo\.lock|poetry\.lock|composer\.lock|Gemfile\.lock|go\.sum)$|\.min\.(js|css)$|\.map$/;
 
-export function defaultRepoFileFilter(p: string): boolean {
+function defaultRepoFileFilter(p: string): boolean {
   if (DEFAULT_EXCLUDED_SEGMENTS.some((seg) => p === seg.slice(0, -1) || p.startsWith(seg) || p.includes(`/${seg}`))) return false;
   if (DEFAULT_EXCLUDED_FILES.test(p)) return false;
   return true;
@@ -845,7 +769,7 @@ export async function fetchFileSha(
   return payload.sha || "";
 }
 
-export type CommitState = "pending" | "success" | "failure" | "error";
+type CommitState ="pending" | "success" | "failure" | "error";
 
 /**
  * Post a commit status.

@@ -66,6 +66,9 @@ function normaliseOrigin(raw) {
  */
 function platformEnv(name, env = process.env) {
   for (const prefix of ENV_PREFIXES) {
+    // The key is built here, so no static reader can see it — the marker
+    // tells envVars every declared TALLRIG_/VAPRON_/CRONTECH_ key is read.
+    // env: TALLRIG_* VAPRON_* CRONTECH_*
     const v = env[`${prefix}${name}`];
     if (typeof v === 'string' && v.trim()) return v;
   }

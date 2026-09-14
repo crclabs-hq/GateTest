@@ -9,7 +9,7 @@
  * Source of truth for the /use-cases URL set.
  */
 
-export interface UseCaseEntry {
+interface UseCaseEntry {
   slug: string;
   title: string;
   /** The query intent, shown as the hero subtitle. */

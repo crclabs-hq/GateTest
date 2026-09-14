@@ -33,14 +33,38 @@
  *
  *   Phase 2 — Harvest referenced env keys from source:
  *     - JS/TS: `process.env.<KEY>` / `process.env["<KEY>"]`
+ *     - JS/TS: `const { KEY } = process.env`
+ *     - JS/TS: `env.<KEY>` / `env["<KEY>"]` in a file that shows where `env`
+ *       comes from — `env = process.env` (an alias or a parameter default)
+ *       or `env` as a parameter the caller injects. Dependency-injected
+ *       config is how testable code reads the environment; before
+ *       2026-09-13 every such read was invisible and the keys it consumed
+ *       were reported as dead configuration (11 on this repo).
  *     - Python: `os.environ["FOO"]` / `os.environ.get("FOO")` /
  *       `os.getenv("FOO")`
  *     - Go: `os.Getenv("FOO")` / `os.LookupEnv("FOO")`
  *     - Next.js: `process.env.NEXT_PUBLIC_*` (client-exposed)
+ *     - ONE marker for the reads no regex can see — a key built at runtime
+ *       (`env[`${prefix}${name}`]`) or looked up through a helper
+ *       (`envOr('KEY', d)`): a comment beside the read naming the keys, or
+ *       a prefix with a trailing `*` when the code reads a whole family —
+ *       the comment opener followed directly by `env:`, e.g.
+ *
+ *           env: TALLRIG_* VAPRON_* PLATFORM_CANONICAL_HOST   (after `//`)
+ *           env: SELF_SCAN_STATUS_URL                          (after `#`)
+ *
+ *       An exact key in a marker is a read (and is missing-from-example
+ *       when undeclared); a `PREFIX_*` only says "every declared key with
+ *       this prefix is consumed here".
  *
  *   Phase 3 — Cross-reference and flag:
  *     - Referenced in code, NOT declared anywhere → error
- *     - Declared in `.env.example`, NOT referenced in code → warning
+ *     - Declared in a `.env*` file, NOT referenced in code → warning. Only
+ *       the env FILES are the contract here: a key that exists only in a
+ *       workflow `env:` block, a `secrets.X`, or a compose `${X}` is read
+ *       by that workflow's own `run:` steps or by compose itself, which
+ *       this module does not read — calling it "dead" was a guess (18 on
+ *       this repo before 2026-09-13, every one consumed by the shell).
  *     - `NEXT_PUBLIC_*` referenced server-side only → info
  *
  * Rules:
@@ -49,8 +73,9 @@
  *            every declared env source (deploy will boot a broken app).
  *            (rule: `env-vars:missing-from-example:<KEY>`)
  *
- *   warning: `X=...` declared in `.env.example` but nothing reads it
- *            anywhere in source.
+ *   warning: `X=...` declared in `.env.example` (or any `.env*` file) but
+ *            nothing reads it anywhere in source. The finding points at the
+ *            declaring file and line.
  *            (rule: `env-vars:unused-in-code:<KEY>`)
  *
  *   info:    `NEXT_PUBLIC_*` key — recorded for visibility (these
@@ -126,6 +151,9 @@ const RUNTIME_ENV_ALLOWLIST = new Set([
   // Node tooling
   'NPM_CONFIG_LOGLEVEL', 'NPM_TOKEN', 'NODE_OPTIONS',
   'NODE_PATH', 'NODE_TLS_REJECT_UNAUTHORIZED',
+  // Set by `node --test` in the processes it runs; a script reads it to
+  // know it is under the test runner. Never app-controlled.
+  'NODE_TEST_CONTEXT',
 ]);
 
 // Runtime-allowlist by PREFIX — covers ecosystems where the runtime
@@ -167,6 +195,28 @@ const ENV_KEY_RE = /^[A-Z][A-Z0-9_]{1,}$/;
 const NODE_ENV_REF_RE = /\bprocess\.env\.([A-Z][A-Z0-9_]+)\b|\bprocess\.env\[\s*['"`]/g;
 const NODE_ENV_BRACKET_KEY_RE = /^([A-Z][A-Z0-9_]+)['"`]\s*\]/;
 
+// `env.KEY` / `env['KEY']` through a binding named `env` — counted only when
+// the file shows where `env` comes from (ENV_ALIAS_RE on the masked source):
+// `env = process.env` as an alias or a parameter default, `opts.env ||
+// process.env`, or `env` as a parameter (`(env)`, `(a, env = …)`,
+// `({ env, sql })`) the caller injects. `import.meta.env.X` and `cfg.env.X`
+// are excluded by the lookbehind. Recorded as guarded: the binding may carry
+// an injected default, so an absent value is not proven to break boot.
+const ENV_ALIAS_RE = /\benv\s*=\s*(?:[^;\n]*?\|\|\s*)?process\.env\b(?![.[\w$])|(?:\(|,)\s*env\s*(?:[,=)])|\{[^{}]*\benv\b[^{}]*\}\s*\)/;
+const ALIAS_ENV_REF_RE = /(?<![\w$.])env\.([A-Z][A-Z0-9_]+)\b|(?<![\w$.])env\[\s*['"`]/g;
+
+// `const { A, B = 'x', C: renamed } = process.env` — every key named on the
+// left is read; one with a default is a guarded read.
+const DESTRUCTURE_ENV_RE = /\{([^{}]*)\}\s*=\s*process\.env\b(?![.[\w$])/g;
+
+// The one marker for reads no regex can see (a key built at runtime, a
+// helper lookup): a comment whose opener (`//` or `#`) is followed directly
+// by `env:` and the keys — `KEY, OTHER_KEY, PREFIX_*` — read on the RAW
+// line, a comment being the point. Tokens are UPPER_SNAKE keys or a prefix
+// ending in `*`; the list ends at the first token that is neither. (This
+// file's own comments spell the marker without its opener for that reason.)
+const ENV_MARKER_RE = /(?:\/\/|#)\s*env:\s*([A-Z][A-Z0-9_]*\*?(?:\s*[,\s]\s*[A-Z][A-Z0-9_]*\*?)*)/;
+
 // `env: {` opening a child's environment object, and a `KEY:` / `KEY,`
 // member inside it — both on the masked line, so a key inside a string is
 // not a member. Matched from the start of a member (after `{`, `,` or the
@@ -206,8 +256,8 @@ class EnvVarsModule extends BaseModule {
   async run(result, config) {
     const projectRoot = config.projectRoot;
 
-    const declared = this._harvestDeclared(projectRoot);
-    const referenced = this._harvestReferenced(projectRoot);
+    const { declared, contract } = this._harvestDeclared(projectRoot);
+    const { referenced, prefixes } = this._harvestReferenced(projectRoot);
 
     if (declared.size === 0 && referenced.size === 0) {
       result.addCheck('env-vars:no-env', true, {
@@ -256,15 +306,21 @@ class EnvVarsModule extends BaseModule {
       });
     }
 
-    // Unused-in-code: declared in .env.example, not referenced.
-    for (const key of declared) {
+    // Unused-in-code: declared in a `.env*` file (the contract), not
+    // referenced — by a read, by a marker naming it, or by a marker prefix
+    // (`TALLRIG_*`) it falls under. Keys declared only by CI / compose are
+    // not the contract (header, Phase 3). The finding points at the line.
+    for (const [key, at] of contract) {
       if (isRuntimeAllowed(key)) continue;
       if (referenced.has(key)) continue;
+      if (prefixes.some((p) => key.startsWith(p))) continue;
       issues += this._flag(result, `env-vars:unused-in-code:${key}`, {
         severity: 'warning',
         key,
-        message: `\`${key}\` is declared in \`.env.example\` but nothing in the codebase reads it — dead configuration`,
-        suggestion: `Either delete \`${key}\` from \`.env.example\`, or add the \`process.env.${key}\` reference that was planned.`,
+        file: at.file,
+        line: at.line,
+        message: `\`${key}\` is declared in \`${at.file}\` but nothing in the codebase reads it — dead configuration`,
+        suggestion: `Delete \`${key}\` from \`${at.file}\`, add the \`process.env.${key}\` read that was planned, or — when the key is read through a name built at runtime — put \`// env: ${key}\` beside that read.`,
       });
     }
 
@@ -288,15 +344,23 @@ class EnvVarsModule extends BaseModule {
     });
   }
 
+  /**
+   * @returns {{ declared: Set<string>, contract: Map<string, {file: string, line: number}> }}
+   *   `declared` — every key any source declares (env files, CI, compose,
+   *   vercel.json), the set missing-from-example is judged against;
+   *   `contract` — the keys the `.env*` files declare, with the first
+   *   declaring file and line, the set unused-in-code is judged against.
+   */
   _harvestDeclared(projectRoot) {
     const declared = new Set();
+    const contract = new Map();
     // Shared walk from BaseModule (KI #104) — '*' because the declaring
     // files (.env*, vercel.json, compose files, CI workflows) share no
     // extension; the basename routing below is unchanged.
     for (const full of this._collectFiles(projectRoot, ['*'], EXTRA_EXCLUDES)) {
       const name = path.basename(full);
       if (ENV_BASENAME_RE.test(name)) {
-        this._harvestEnvFile(full, declared);
+        this._harvestEnvFile(full, declared, contract, path.relative(projectRoot, full).split(path.sep).join('/'));
       } else if (
         name === 'vercel.json' ||
         name === 'netlify.toml' ||
@@ -310,31 +374,38 @@ class EnvVarsModule extends BaseModule {
         this._harvestWorkflowFile(full, declared);
       }
     }
-    return declared;
+    return { declared, contract };
   }
 
-  _harvestEnvFile(file, out) {
+  _harvestEnvFile(file, out, contract, rel) {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return; }
-    for (const rawLine of content.split(/\r?\n/)) {
-      const line = rawLine.trim();
+    const lines = content.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = lines[i].trim();
       if (!line || line.startsWith('#')) continue;
       // Remove optional `export `
       const body = line.replace(/^export\s+/, '');
       const eq = body.indexOf('=');
       if (eq <= 0) continue;
       const key = body.slice(0, eq).trim();
-      if (ENV_KEY_RE.test(key)) out.add(key);
+      if (!ENV_KEY_RE.test(key)) continue;
+      out.add(key);
+      if (contract && !contract.has(key)) contract.set(key, { file: rel, line: i + 1 });
     }
   }
 
   _harvestConfigFile(file, out) {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return; }
-    // Match ${VAR} interpolations (docker-compose, netlify.toml).
+    // Match ${VAR} interpolations (docker-compose, netlify.toml) — on the
+    // non-comment lines. A `${VAR:-default}` quoted in a `#` comment is prose
+    // (this repo's compose file explains its own expansions that way, and
+    // `VAR` was "declared" for it until 2026-09-13).
+    const code = content.split(/\r?\n/).filter((ln) => !/^\s*#/.test(ln)).join('\n');
     const interp = /\$\{([A-Z][A-Z0-9_]+)(?::-[^}]*)?\}/g;
     let m;
-    while ((m = interp.exec(content)) !== null) out.add(m[1]);
+    while ((m = interp.exec(code)) !== null) out.add(m[1]);
     // vercel.json has `"env": { "KEY": "@..." }`.
     if (file.endsWith('vercel.json')) {
       try {
@@ -385,20 +456,26 @@ class EnvVarsModule extends BaseModule {
     while ((m = secretsRe.exec(content)) !== null) out.add(m[1]);
   }
 
+  /**
+   * @returns {{ referenced: Map<string, object[]>, prefixes: string[] }}
+   *   `referenced` — key → every read of it; `prefixes` — the `PREFIX_*`
+   *   families a marker says are consumed whole.
+   */
   _harvestReferenced(projectRoot) {
     const referenced = new Map(); // key → [{file, line}]
+    const prefixes = new Set();
     // Shared walk from BaseModule (KI #104); test-path and dev-config
     // skips are unchanged.
     for (const full of this._collectFiles(projectRoot, [...CODE_EXTS], EXTRA_EXCLUDES)) {
       const rel = repoRelative(projectRoot, full);
       if (this._isTestPath(rel)) continue;
       if (DEV_CONFIG_BASENAME_RE.test(path.basename(full))) continue;
-      this._scanReferences(full, projectRoot, referenced);
+      this._scanReferences(full, projectRoot, referenced, prefixes);
     }
-    return referenced;
+    return { referenced, prefixes: [...prefixes] };
   }
 
-  _scanReferences(file, projectRoot, referenced) {
+  _scanReferences(file, projectRoot, referenced, prefixes = new Set()) {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return; }
     const rel = repoRelative(projectRoot, file);
@@ -406,11 +483,17 @@ class EnvVarsModule extends BaseModule {
     const isJs = ['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts'].includes(ext);
     const lang = isJs ? 'js' : ext === '.go' ? 'go' : ext === '.py' ? 'py' : null;
     if (!lang) return;
+    const record = (key, ref) => {
+      if (!referenced.has(key)) referenced.set(key, []);
+      referenced.get(key).push(ref);
+    };
 
     const lines = content.split(/\r?\n/);
     // JS/TS: the one stripper decides what is a comment or a string. Go and
     // Python keep the line-state trackers below — the stripper is JS-only.
     const masked = isJs ? this._maskedLines(content) : null;
+    // Does this file read the environment through a binding named `env`?
+    const aliasOk = isJs && ENV_ALIAS_RE.test(masked.join('\n'));
     const state = { inBlockComment: false, inPyDoc: false };
     // Brace depth inside an `env: {` object handed to a child process
     // (`spawn(cmd, args, { env: { ...process.env, KEY: value } })`). A key
@@ -423,10 +506,29 @@ class EnvVarsModule extends BaseModule {
 
     for (let i = 0; i < lines.length; i += 1) {
       const raw = lines[i];
+      // The marker is a comment, so it is read before the line is judged
+      // as code: an exact key is a (guarded) read, a `PREFIX_*` a family.
+      const marker = ENV_MARKER_RE.exec(raw);
+      if (marker) {
+        for (const tok of marker[1].split(/[\s,]+/)) {
+          if (tok.endsWith('*')) { if (tok.length > 1) prefixes.add(tok.slice(0, -1)); }
+          else if (ENV_KEY_RE.test(tok)) record(tok, { file: rel, line: i + 1, guarded: true, lang, form: 'marker' });
+        }
+      }
       const code = isJs ? (masked[i] || '') : this._codeOfLine(raw, lang, state);
       if (code === null || !code.trim()) continue;
 
       if (isJs) {
+        // `const { A, B = 'x' } = process.env` — on the masked line the keys
+        // are identifiers and survive; a default after `=` makes it guarded.
+        DESTRUCTURE_ENV_RE.lastIndex = 0;
+        let dm;
+        while ((dm = DESTRUCTURE_ENV_RE.exec(code)) !== null) {
+          for (const part of dm[1].split(',')) {
+            const km = /^\s*([A-Z][A-Z0-9_]+)\s*(?::\s*[\w$]+\s*)?(=)?/.exec(part);
+            if (km && ENV_KEY_RE.test(km[1])) record(km[1], { file: rel, line: i + 1, guarded: Boolean(km[2]), lang });
+          }
+        }
         let from = 0;
         if (envDepth === 0) {
           const open = CHILD_ENV_BLOCK_RE.exec(code);
@@ -448,13 +550,13 @@ class EnvVarsModule extends BaseModule {
         }
       }
 
-      for (const { key, end } of this._envRefsOn(code, raw, lang)) {
+      for (const { key, end, alias } of this._envRefsOn(code, raw, lang, aliasOk)) {
         // A read WITH a fallback (`|| default`, `?? default`, `.get(K, d)`,
         // `getenv(K, d)`, `?.`) cannot break boot when the key is absent —
         // that is exactly what the fallback is for. Record it as guarded.
-        const guarded = isGuardedRead(raw, end);
-        if (!referenced.has(key)) referenced.set(key, []);
-        referenced.get(key).push({ file: rel, line: i + 1, guarded, lang });
+        // So is a read through an `env` binding (see ENV_ALIAS_RE).
+        const guarded = alias || isGuardedRead(raw, end);
+        record(key, { file: rel, line: i + 1, guarded, lang });
       }
     }
   }
@@ -486,24 +588,29 @@ class EnvVarsModule extends BaseModule {
     return raw;
   }
 
-  // Every env read on one line: `{ key, end }`, `end` being the raw offset
-  // just past the reference (where a fallback operator would begin).
-  _envRefsOn(code, raw, lang) {
-    const re = lang === 'js' ? NODE_ENV_REF_RE : lang === 'go' ? GO_ENV_REF_RE : PY_ENV_REF_RE;
+  // Every env read on one line: `{ key, end, alias }`, `end` being the raw
+  // offset just past the reference (where a fallback operator would begin),
+  // `alias` true for a read through an `env` binding (JS, when `aliasOk`).
+  _envRefsOn(code, raw, lang, aliasOk = false) {
+    const res = lang === 'js' ? [NODE_ENV_REF_RE] : lang === 'go' ? [GO_ENV_REF_RE] : [PY_ENV_REF_RE];
+    if (lang === 'js' && aliasOk) res.push(ALIAS_ENV_REF_RE);
     const refs = [];
-    re.lastIndex = 0;
-    let m;
-    while ((m = re.exec(code)) !== null) {
-      let key = m[1];
-      let end = m.index + m[0].length;
-      if (lang === 'js' && !key) {
-        const km = NODE_ENV_BRACKET_KEY_RE.exec(raw.slice(end));
-        if (!km) continue;
-        key = km[1];
-        end += km[0].length;
+    for (const re of res) {
+      const alias = re === ALIAS_ENV_REF_RE;
+      re.lastIndex = 0;
+      let m;
+      while ((m = re.exec(code)) !== null) {
+        let key = m[1];
+        let end = m.index + m[0].length;
+        if (lang === 'js' && !key) {
+          const km = NODE_ENV_BRACKET_KEY_RE.exec(raw.slice(end));
+          if (!km) continue;
+          key = km[1];
+          end += km[0].length;
+        }
+        if (!key || !ENV_KEY_RE.test(key)) continue;
+        refs.push({ key, end, alias });
       }
-      if (!key || !ENV_KEY_RE.test(key)) continue;
-      refs.push({ key, end });
     }
     return refs;
   }

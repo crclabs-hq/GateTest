@@ -25,7 +25,7 @@ export const SITE = {
 } as const;
 
 /** Absolute URL for a site-relative path. */
-export function absUrl(path: string): string {
+function absUrl(path: string): string {
   if (path.startsWith("http")) return path;
   return `${SITE.baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
 }
@@ -34,7 +34,7 @@ export function absUrl(path: string): string {
 // JSON-LD schema builders
 // ─────────────────────────────────────────────────────────────────────────
 
-export interface FaqItem {
+interface FaqItem {
   q: string;
   a: string;
 }
@@ -52,7 +52,7 @@ export function faqSchema(items: FaqItem[]) {
   };
 }
 
-export interface Crumb {
+interface Crumb {
   name: string;
   /** Site-relative path, e.g. "/glossary". Omit for the current (last) crumb. */
   path?: string;

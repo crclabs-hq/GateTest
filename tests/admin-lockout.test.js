@@ -106,10 +106,6 @@ describe('admin-lockout — policy defaults', () => {
   it('LOCKOUT_MS is 30 minutes', () => {
     assert.match(SRC, /LOCKOUT_MS = 30 \* 60 \* 1000\b/);
   });
-
-  it('AUDIT_RETENTION_DAYS is 90', () => {
-    assert.match(SRC, /AUDIT_RETENTION_DAYS = 90\b/);
-  });
 });
 
 // ---------------------------------------------------------------------------

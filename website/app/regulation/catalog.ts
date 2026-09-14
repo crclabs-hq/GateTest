@@ -22,7 +22,7 @@
  *   - ISO/IEC 27001:2022 — published 2022-10-25
  */
 
-export interface Regulation {
+interface Regulation {
   /** URL slug — lowercase, kebab. */
   slug: string;
   /** Short display name. */

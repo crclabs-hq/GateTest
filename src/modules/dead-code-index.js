@@ -50,7 +50,7 @@ function buildDeadCodeIndex(files, projectRoot) {
 
     const imp = lang === 'py'
       ? extractPyImports(content)
-      : extractJsImports(content);
+      : extractJsImports(content, file, projectRoot);
     const { names, paths } = imp;
     const namespacePaths = imp.namespacePaths || new Set();
 

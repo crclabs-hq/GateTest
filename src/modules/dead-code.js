@@ -7,7 +7,7 @@ const path = require('path');
 const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { buildDeadCodeIndex } = require('./dead-code-index');
-const { isEntryPoint, manifestEntrypoints } = require('../core/entrypoints');
+const { isEntryPoint, manifestEntrypoints, isFrameworkExport } = require('../core/entrypoints');
 const { buildImportGraph, reverseGraph, JS_EXTS } = require('../core/import-graph');
 const { pythonImporters } = require('../core/python-imports');
 const { parseExportsWithAcorn } = require('./dead-code-extractor');
@@ -29,20 +29,10 @@ const ALL_EXTS_MAIN = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.p
 // canonical-definition guard could not see, and the copy had drifted
 // (`test.py` counted as a test; pytest never collects it, and django's
 // `manage.py test` command lives in one).
-
-const FRAMEWORK_RESERVED = new Set([
-  'default', 'metadata', 'generateMetadata', 'generateStaticParams',
-  'generateViewport', 'viewport',
-  'loader', 'action', 'GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS',
-  'HEAD', 'middleware', 'config',
-  'dynamic', 'dynamicParams', 'revalidate', 'fetchCache', 'runtime',
-  'preferredRegion', 'maxDuration',
-  'alt', 'size', 'contentType',
-  'ErrorBoundary', 'NotFound',
-  'setUp', 'tearDown', 'setup', 'teardown', 'setup_module', 'teardown_module',
-  // VS Code extension contract — the editor calls these; nothing imports them.
-  'activate', 'deactivate',
-]);
+//
+// Which exports a framework consumes by name (route handlers, segment config,
+// Next's instrumentation hooks) has one definition too —
+// src/core/entrypoints.js `isFrameworkExport`, beside the files it loads.
 
 class DeadCodeModule extends BaseModule {
   constructor() {
@@ -181,7 +171,7 @@ class DeadCodeModule extends BaseModule {
       if (this._matchesIgnorePattern(info.rel, ignorePatterns)) continue;
 
       for (const exp of info.exports) {
-        if (FRAMEWORK_RESERVED.has(exp.name)) continue;
+        if (isFrameworkExport(info.rel, exp.name)) continue;
         if (exp.isDefault) continue;
         if (index.importedNames.has(exp.name)) continue;
 

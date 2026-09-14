@@ -324,4 +324,65 @@ function tsEquivalents(base) {
   return JS_TO_TS[ext].map((e) => stem + e);
 }
 
-module.exports = { tsEquivalents, resolvePackageEntry, resolvePackageSubpath, compiledToSources, resolveAlias, stripJsoncLite, elisionMode };
+/**
+ * A require or dynamic import whose specifier is BUILT rather than written:
+ *
+ *   require(path.join(__dirname, '..', 'lib', 'x.js'))
+ *   require(path.resolve(ROOT, 'src', 'core', 'y'))   // const ROOT = path.resolve(__dirname, '..')
+ *   import(path.join(process.cwd(), 'scripts', 'z.js'))
+ *
+ * Every segment is a string literal and the base is something the file can
+ * name on its own — `__dirname`, `process.cwd()` (the project root under a
+ * scan), or a const the same file derives from `__dirname` — so the target
+ * is knowable without running the code. Each such call is rewritten to the
+ * literal `require('./relative')` every reader already understands, padded
+ * with the newlines the original spanned so line numbers survive. Anything
+ * else (a variable segment, a base the file does not define) is left exactly
+ * as written: a path we cannot resolve is not an edge, and guessing one
+ * would invent a dependency.
+ *
+ * Both readers of "what does this file import" run their text through here
+ * first — src/core/import-graph.js (edges, orphan files) and the dead-code
+ * extractor (names). Measured 2026-09-13 on this repo: the ops script that
+ * consumes mail-transport's `mailProvider` / `fromAddress`, the precision
+ * script that consumes confidence-calibration, and two test files all
+ * require through `path.join(__dirname, …)`; deadCode reported the exports
+ * unused and the module shipped-but-unreachable.
+ */
+const COMPUTED_SPEC_RE = /\b(require|import)\s*\(\s*path\.(?:join|resolve)\s*\(\s*(__dirname|process\.cwd\(\)|[A-Za-z_$][\w$]*)((?:\s*,\s*(?:'[^'\\\n]*'|"[^"\\\n]*"))+)\s*\)\s*\)/g;
+const DIRNAME_CONST_RE = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*path\.(?:join|resolve)\s*\(\s*__dirname((?:\s*,\s*(?:'[^'\\\n]*'|"[^"\\\n]*"))*)\s*\)/g;
+const SEGMENT_RE = /'([^'\\\n]*)'|"([^"\\\n]*)"/g;
+
+function literalSegments(list) {
+  const out = [];
+  SEGMENT_RE.lastIndex = 0;
+  let m = SEGMENT_RE.exec(list);
+  while (m !== null) { out.push(m[1] !== undefined ? m[1] : m[2]); m = SEGMENT_RE.exec(list); }
+  return out;
+}
+
+/**
+ * @param {string} text source of `fromFile`
+ * @param {string} fromFile absolute path
+ * @param {string} [projectRoot] what `process.cwd()` denotes under a scan
+ * @returns {string} the same text, computed specifiers replaced by literals
+ */
+function inlineComputedRequires(text, fromFile, projectRoot) {
+  if (!text.includes('path.')) return text;
+  const dir = path.dirname(path.resolve(fromFile));
+  const bases = new Map([['__dirname', dir]]);
+  if (projectRoot) bases.set('process.cwd()', path.resolve(projectRoot));
+  DIRNAME_CONST_RE.lastIndex = 0;
+  let b = DIRNAME_CONST_RE.exec(text);
+  while (b !== null) { bases.set(b[1], path.resolve(dir, ...literalSegments(b[2]))); b = DIRNAME_CONST_RE.exec(text); }
+  return text.replace(COMPUTED_SPEC_RE, (whole, kw, base, segs) => {
+    const root = bases.get(base);
+    if (!root) return whole;
+    let rel = path.relative(dir, path.resolve(root, ...literalSegments(segs))).split(path.sep).join('/');
+    if (!/^\.\.?(?:\/|$)/.test(rel)) rel = `./${rel}`;
+    const newlines = whole.match(/\n/g);
+    return `${kw}('${rel}')${newlines ? newlines.join('') : ''}`;
+  });
+}
+
+module.exports = { tsEquivalents, resolvePackageEntry, resolvePackageSubpath, compiledToSources, resolveAlias, stripJsoncLite, elisionMode, inlineComputedRequires };

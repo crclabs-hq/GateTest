@@ -352,4 +352,4 @@ class MemoryStore {
   }
 }
 
-module.exports = { MemoryStore, MEMORY_DIR };
+module.exports = { MemoryStore };

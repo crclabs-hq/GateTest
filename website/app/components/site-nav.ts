@@ -7,7 +7,7 @@ import { PLATFORM_NAME, PLATFORM_SITE_URL } from "../lib/platform-config";
 import siteStats from "../data/site-stats.json";
 
 export type NavItem = { label: string; href: string; desc?: string; external?: boolean };
-export type NavGroup = { label: string; items: NavItem[] };
+type NavGroup ={ label: string; items: NavItem[] };
 
 const modules = siteStats.modules.total;
 

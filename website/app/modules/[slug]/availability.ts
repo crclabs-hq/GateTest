@@ -12,7 +12,7 @@ import { TIERS } from "@/app/lib/checkout-tiers";
 import { suitesForModule } from "@/app/lib/module-suites";
 import { HOSTED_UNSAFE_MODULES } from "@/app/legal/_facts";
 
-export type Availability = {
+type Availability = {
   kind: "quick" | "full" | "forensic" | "action" | "live" | "none" | "unknown";
   /** Answers "which tiers include this module?" */
   tiers: string;
