@@ -6,6 +6,7 @@
   "main": "src/index.js",
   "bin": {
     "gatetest": "bin/gatetest.js",
+    "cli": "bin/gatetest.js",
     "gatetest-mcp": "bin/gatetest-mcp.mjs",
     "gatetest-reliability": "bin/gatetest-reliability.js"
   },
@@ -42,8 +43,8 @@
     "gatetest:links": "node bin/gatetest.js --module links",
     "gatetest:scan": "node bin/gatetest.js --mode scan",
     "gatetest:report": "node bin/gatetest.js --report",
-    "sync-lib": "node -e \"const fs=require('fs');['pr-composer','nuclear-diagnoser','prompt-injection-guard'].forEach(f=>{fs.copyFileSync('website/app/lib/'+f+'.js','lib/'+f+'.js');console.log('synced '+f)})\"",
-    "prepublishOnly": "npm run sync-lib",
+    "sync-lib": "node scripts/sync-lib.js",
+    "prepublishOnly": "node scripts/sync-lib.js --check",
     "precommit": "node src/hooks/pre-commit.js",
     "prepush": "node src/hooks/pre-push.js"
   },
