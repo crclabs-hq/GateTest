@@ -29,6 +29,25 @@ const CLI_ENGINE_ROUTES = [
   "/api/scan/run/route",
 ];
 
+// The one public origin (CLAUDE.md THE DOMAIN: never a domain literal in
+// runtime code). `www.` is not a second site: the proxy in front of the box
+// forwards both hosts to this process, so the redirect has to live here.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { DEFAULT_SITE_URL } = require("./app/lib/site-url.js") as { DEFAULT_SITE_URL: string };
+const siteOrigin = new URL(process.env.NEXT_PUBLIC_BASE_URL || DEFAULT_SITE_URL);
+
+// URLs people guess that never existed here. Each target was checked live
+// (200) on 2026-09-14 before the redirect was written; /support and /contact
+// land on the FAQ's "Still have questions? support@…" line because there is
+// no dedicated support page — a redirect to a 404 is worse than the 404.
+const GUESSED_URLS: Array<{ source: string; destination: string; permanent: boolean }> = [
+  { source: "/support", destination: "/#faq", permanent: false },
+  { source: "/contact", destination: "/#faq", permanent: false },
+  { source: "/terms", destination: "/legal/terms", permanent: true },
+  { source: "/privacy", destination: "/legal/privacy", permanent: true },
+  { source: "/login", destination: "/dashboard", permanent: false },
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   // `.next/standalone` is what the Dockerfile ships. It is opt-in because
@@ -44,6 +63,18 @@ const nextConfig: NextConfig = {
     root: repoRoot,
   },
   serverExternalPackages: ["ssh2"],
+  async redirects() {
+    return [
+      {
+        // www → apex, 301, path and query preserved.
+        source: "/:path*",
+        has: [{ type: "host", value: `www.${siteOrigin.host}` }],
+        destination: `${siteOrigin.origin}/:path*`,
+        permanent: true,
+      },
+      ...GUESSED_URLS,
+    ];
+  },
   async headers() {
     return [
       {
