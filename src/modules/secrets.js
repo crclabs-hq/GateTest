@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { repoRelative } = require('../core/repo-path');
 const { WALK_EXCLUDES } = require('../core/walk-excludes');
+const { literalKindAt } = require('../core/source-strip');
 
 /**
  * Values that ANNOUNCE they are not credentials.
@@ -169,6 +170,95 @@ const PUBLISHED_EXAMPLE_CREDENTIALS = new Set([
 const SYNTHETIC_RUN_RE = /(.)\1{5,}|(.{2,4})\2{3,}/;
 const KEY_MATERIAL_RE = /[A-Za-z0-9+/=]{48,}/g;
 const SEQUENTIAL_RUN = 8;
+
+/**
+ * The identifier-keyed patterns: matched on the NAME (`token = "…"`), any
+ * 8+ character value. Everything below applies to these three only — a
+ * vendor-shaped value is a credential whatever it is assigned to.
+ */
+const IDENTIFIER_KEYED_TYPES = new Set(['API Key', 'Password/Secret', 'Token']);
+
+/**
+ * A value that NAMES something is not a credential (corpus, 2026-09-14):
+ *
+ *   django/django  docs/_ext/djangodocs.py:290
+ *       token = "make.bat"                       ← a filename
+ *   django/django  django/contrib/auth/views.py:262
+ *       reset_url_token = "set-password"         ← a URL slug
+ *   django/django  django/contrib/auth/views.py:246
+ *       INTERNAL_RESET_SESSION_TOKEN = "_password_reset_token"  ← a session key
+ *
+ * Three files, three blocking "secrets" at confidence 1.0, none of them a
+ * value that authenticates anything. security.js already draws the slug
+ * line (LABEL_RE: "nobody's secret is the word password"); this module did
+ * not, so the same line blocked under `secrets:` after `security:` had
+ * learned to let it through.
+ *
+ * Two shapes, both narrow:
+ *   - a FILENAME: one path-safe token ending in a known source, config,
+ *     script, document or key-file extension. `make.bat`, `server.key`,
+ *     `settings.local.json`. Not a path with slashes, not a sentence.
+ *   - a LABEL: two to four lowercase words joined by `-` or `_`, no digits,
+ *     one of which is a credential word. `set-password`,
+ *     `_password_reset_token`, `old-password`. A slug that does NOT name a
+ *     credential (`layova-admin`) is still a weak password and still fires;
+ *     so does the bare word (`password: 'password'` — a weak default, pinned
+ *     by tests/secrets-corpus6-precision.test.js).
+ *
+ * Neither shape can suppress a value that LOOKS random. `isCredentialShaped`
+ * is the guard: 16+ characters, ≥ 3.5 bits/char of Shannon entropy and a
+ * letter/digit mix is what a generated key measures, and no filename or
+ * slug rule may quiet one. (Entropy alone cannot tell `set-password` from
+ * `hunter2!x` at these lengths — the shape rules carry the decision, the
+ * entropy guard bounds them.)
+ */
+const FILENAME_VALUE_RE = /^[A-Za-z0-9_][A-Za-z0-9_.-]*\.(?:bat|cmd|sh|bash|zsh|ps1|exe|py|pyc|js|mjs|cjs|ts|tsx|jsx|json|ya?ml|toml|ini|cfg|conf|txt|md|rst|html?|css|scss|xml|csv|tsv|log|env|lock|pem|key|crt|cer|p12|pfx|jks|db|sqlite3?|so|dll|jar|zip|tar|gz|png|jpe?g|gif|svg|ico|woff2?|ttf)$/i;
+const LABEL_VALUE_RE = /^[_-]?[a-z]+(?:[_-][a-z]+){1,3}[_-]?$/;
+const LABEL_CREDENTIAL_WORD_RE = /(?:^|[_-])(?:password|passwd|secret|token|key|credential|auth)(?:[_-]|$)/;
+const CREDENTIAL_SHAPE_MIN_LENGTH = 16;
+const CREDENTIAL_SHAPE_MIN_ENTROPY = 3.5;
+
+/** Shannon entropy of `value` in bits per character. */
+function shannonEntropy(value) {
+  if (!value) return 0;
+  const counts = new Map();
+  for (const ch of value) counts.set(ch, (counts.get(ch) || 0) + 1);
+  let h = 0;
+  for (const n of counts.values()) {
+    const p = n / value.length;
+    h -= p * Math.log2(p);
+  }
+  return h;
+}
+
+/** Long, high-entropy, mixed letters and digits/base64 — what a generated key measures. */
+function isCredentialShaped(value) {
+  return value.length >= CREDENTIAL_SHAPE_MIN_LENGTH
+    && shannonEntropy(value) >= CREDENTIAL_SHAPE_MIN_ENTROPY
+    && /[A-Za-z]/.test(value)
+    && /[0-9+/=]/.test(value);
+}
+
+/**
+ * A doctest line is documentation whatever file it sits in:
+ *
+ *   django/django  django/template/base.py:746
+ *       >>> token = 'variable|default:"Default value"|date:"Y-m-d"'
+ *
+ * That line is inside a docstring, which the mask below also catches — but
+ * `>>>` in a .rst or a README is the same thing, and the prompt is the
+ * cheaper, more direct test.
+ */
+const DOCTEST_LINE_RE = /^\s*(?:>>>|\.\.\.)\s/;
+
+/**
+ * Files the source stripper parses well enough to answer "is this line
+ * inside a block comment / docstring / regex literal". Everything else
+ * (config formats, shell, prose) keeps the line-start comment test only —
+ * the line-level fallback stripper cannot see a block that spans lines,
+ * and guessing would fail toward silence.
+ */
+const DOC_CONTEXT_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx', '.py', '.go', '.rs', '.java']);
 
 /** Eight or more characters each one code point after (or before) the last. */
 function hasSequentialRun(value, n = SEQUENTIAL_RUN) {
@@ -341,6 +431,73 @@ class SecretsModule extends BaseModule {
     const before = (scanLine.slice(0, m.index).match(/[\w$]*$/) || [''])[0];
     const norm = (s) => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
     return norm(value) === norm(before + q[1]);
+  }
+
+  /**
+   * True when an identifier-keyed match's value NAMES something — a filename
+   * or a credential-word slug — rather than holding a credential. See
+   * FILENAME_VALUE_RE / LABEL_VALUE_RE for the measured shapes and the
+   * entropy guard that bounds them.
+   *
+   * @param {string} match - the full regex match, identifier through value
+   * @returns {boolean}
+   */
+  _isLabelValue(match) {
+    const q = match.match(/['"]([^'"]*)$/);
+    if (!q) return false;
+    const value = q[1];
+    if (isCredentialShaped(value)) return false;
+    if (FILENAME_VALUE_RE.test(value)) return true;
+    return LABEL_VALUE_RE.test(value) && LABEL_CREDENTIAL_WORD_RE.test(value);
+  }
+
+  /**
+   * Is line `i` documentation — inside a block comment, or (Python) inside a
+   * multi-line string, which is a docstring in every case that matters?
+   *
+   *   sindresorhus/got  source/core/options.ts:260
+   *       secret: 'passphrase'
+   *
+   * sits in a fenced example inside a `/** … *\/` TSDoc block whose inner
+   * lines carry no `*` prefix, so the line-start comment test above could
+   * not see it: blocked at confidence 1.0. The mask (src/core/source-strip.js,
+   * one definition of where a comment begins and ends) can.
+   *
+   * Judged at the line's FIRST non-space character, the way the confidence
+   * layer judges a comment (confidence.js isInsideBlockComment): a trailing
+   * comment after real code leaves that code real. In JS a multi-line
+   * TEMPLATE literal is not skipped — an `.env` body inlined in a backtick
+   * string is a committed credential — only Python's triple-quoted strings
+   * are, because the docstring is where django keeps its doctests.
+   *
+   * @param {string[]} lines - raw lines
+   * @param {string[]} masked - the same lines masked by _maskedLines
+   * @param {number} i
+   * @param {boolean} python
+   * @returns {boolean}
+   */
+  _inDocContext(lines, masked, i, python) {
+    const raw = lines[i] || '';
+    const first = raw.search(/\S/);
+    if (first === -1) return false;
+    const kind = literalKindAt(lines, masked, i, first);
+    return kind === 'comment' || (python && kind === 'string');
+  }
+
+  /**
+   * Is the match at raw column `col` the SOURCE of a regex literal?
+   * `/AKIA[0-9A-Z]{16}/` in a pattern table is a description of a key, not
+   * a key; the same text in quotes is a value and stays reported.
+   *
+   * @param {string[]} lines
+   * @param {string[]} masked
+   * @param {number} i
+   * @param {number} col - column on the raw line; -1 when unknown
+   * @returns {boolean}
+   */
+  _inRegexLiteral(lines, masked, i, col) {
+    if (col < 0) return false;
+    return literalKindAt(lines, masked, i, col) === 'regex';
   }
 
   /**
@@ -582,6 +739,11 @@ class SecretsModule extends BaseModule {
       const content = fs.readFileSync(file, 'utf-8');
       const lines = content.split(/\r?\n/);
       const found = [];
+      // Block-comment / docstring / regex-literal context, from the shared
+      // stripper — only for the languages it parses (DOC_CONTEXT_EXTENSIONS).
+      const ext = path.extname(file).toLowerCase();
+      const masked = DOC_CONTEXT_EXTENSIONS.has(ext) ? this._maskedLines(content, relUnix) : null;
+      const python = ext === '.py';
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -683,6 +845,24 @@ class SecretsModule extends BaseModule {
               if (this._isSelfReferentialValue(scanLine, m)) continue;
               // Stripe `pk_live_…`, an Algolia DocSearch key in its block.
               if (this._isPublicByDesign(lines, i, m[0])) continue;
+              if (IDENTIFIER_KEYED_TYPES.has(pattern.type)) {
+                // A name-keyed match is only as good as its value and its
+                // context. `token = "make.bat"`, `reset_url_token =
+                // "set-password"`, a `>>>` doctest, a `secret: 'passphrase'`
+                // inside a TSDoc example — none is a credential. Vendor-shaped
+                // matches never reach here: an AKIA key in a comment is still
+                // a key.
+                if (this._isLabelValue(m[0])) continue;
+                if (DOCTEST_LINE_RE.test(line)) continue;
+                if (masked && this._inDocContext(lines, masked, i, python)) continue;
+              } else if (masked) {
+                // `/AKIA[0-9A-Z]{16}/` — the source of a regex literal is a
+                // description of a key's shape, not a key. `scanLine` may
+                // have been rewritten (comparison operands, env reads), so
+                // the column is re-found on the raw line; unknown → not a
+                // regex, reported (fail toward detection).
+                if (this._inRegexLiteral(lines, masked, i, line.indexOf(m[0]))) continue;
+              }
             }
             found.push({
               type: pattern.type,
