@@ -478,6 +478,9 @@ async function main() {
     // workflow on them. Strict mode (default OFF) reverses this and
     // blocks on confident errors. See `runner.js` for the mechanism.
     reportOnly: args.reportOnly === true && args.strict !== true,
+    // --strict also makes an EMPTY scan (no source files under the root) a
+    // failed gate — see runner.js `nothingChecked`.
+    strict: args.strict === true,
     ...(args.baseline ? { captureBaseline: true } : {}),
     ...(incrementalSince ? { incrementalSince } : {}),
     ...(typeof args.confidenceThreshold === 'number'

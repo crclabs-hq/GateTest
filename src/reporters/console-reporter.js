@@ -218,6 +218,17 @@ class ConsoleReporter {
     }
 
     console.log('');
+    // Never let an empty scan read as a clean one: no source file under the
+    // root means every module passed by default, and this is said beside
+    // the verdict, not buried in a module line (src/core/scan-scope.js).
+    if (summary.nothingChecked) {
+      const where = summary.projectRoot || 'the project root';
+      console.log(`  ${COLORS.bold}${COLORS.yellow}⚠ No source files found under ${where} — nothing was checked.${COLORS.reset}`);
+      console.log(`  ${COLORS.yellow}${summary.gateStatus === 'PASSED'
+        ? 'Every module passed by default, not by inspection. Check --project, or pass --strict to fail an empty scan.'
+        : 'The gate is BLOCKED because --strict was set: an empty scan enforces nothing.'}${COLORS.reset}`);
+      console.log('');
+    }
     if (summary.diffOnly) {
       console.log(`${COLORS.dim}  Mode: diff-only (${(summary.changedFiles || []).length} changed files)${COLORS.reset}`);
     }

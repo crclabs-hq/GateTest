@@ -134,11 +134,59 @@ function isImageRenderer(content) {
   return IMAGE_RENDERER_RE.test(String(content || ''));
 }
 
+/**
+ * Does the project contain ANY source file for the gate to check?
+ *
+ * Reproduced 2026-09-14: a directory holding only a package.json printed
+ * `GATE: PASSED … ✓ You're good` — 42 modules, each walked the tree, each
+ * found nothing to look at, each passed. A gate that passes an empty room
+ * is indistinguishable from one that checked it, and the summary said
+ * nothing about the difference.
+ *
+ * "Source" is code, markup or styles — the things the modules exist to
+ * read. Manifests, lockfiles, licences and docs alone are not a codebase:
+ * a repo of only README.md gets the warning, because none of the code
+ * rules ran on anything. Walks the same excludes every module walks
+ * (WALK_EXCLUDES) and stops at the first hit, so on a real repository this
+ * costs one readdir.
+ *
+ * @param {string} projectRoot
+ * @returns {boolean}
+ */
+const SOURCE_FILE_EXT_RE = /\.(?:[cm]?jsx?|tsx?|mts|cts|vue|svelte|astro|py|pyi|rb|go|rs|java|kt|kts|scala|cs|fs|php|swift|m|mm|c|cc|cpp|cxx|h|hh|hpp|dart|ex|exs|erl|hs|lua|pl|pm|r|sh|bash|zsh|ps1|sql|html?|css|scss|sass|less)$/i;
+
+function hasSourceFiles(projectRoot) {
+  const fs = require('fs');
+  const path = require('path');
+  const { WALK_EXCLUDE_SET } = require('./walk-excludes');
+  const walk = (dir, depth) => {
+    if (depth > 12) return false;
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return false; // unreadable: nothing here can be checked
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        if (WALK_EXCLUDE_SET.has(entry.name)) continue;
+        if (walk(path.join(dir, entry.name), depth + 1)) return true;
+      } else if (entry.isFile() && SOURCE_FILE_EXT_RE.test(entry.name)) {
+        return true;
+      }
+    }
+    return false;
+  };
+  return walk(projectRoot, 0);
+}
+
 module.exports = {
   isIllustrationPath,
   isNonUserFacingPage,
   isSpaShell,
   isImageRenderer,
+  hasSourceFiles,
   ILLUSTRATION_DIR_RE,
   HARNESS_DIR_RE,
+  SOURCE_FILE_EXT_RE,
 };
