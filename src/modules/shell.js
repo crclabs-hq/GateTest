@@ -158,10 +158,22 @@ class ShellModule extends BaseModule {
         });
       }
 
-      // 2. rm -rf with unquoted variable / path expansion
-      const rmMatch = trimmed.match(/\brm\s+-[rRfF]+[a-zA-Z]*\s+([^\s#;&|]+)/);
-      if (rmMatch) {
-        const target = rmMatch[1];
+      // 2. rm -rf with unquoted variable / path expansion.
+      //
+      // RECURSIVE is the whole hazard. The flag cluster must carry `r` / `R`
+      // (or `--recursive`): an empty `$VAR` turns `rm -rf $VAR` into
+      // `rm -rf` of the current tree (or, with a trailing `/`, of `/`), but
+      // `rm -f $VAR` with an empty variable is `rm -f` — "missing operand",
+      // a no-op that `-f` even silences. The old `-[rRfF]+` accepted a bare
+      // `-f`, and the message then reported it as `rm -rf`: django's
+      // `scripts/backport.sh:33` (`rm -f ${TMPFILE}` after `mktemp`) was a
+      // gate-blocking "wipes the filesystem root" (2026-09-14). Flags are
+      // matched as a run of clusters so `rm -r -f $X` and `rm -f -r $X` both
+      // read the same, and the target is the first non-flag word.
+      const rmMatch = trimmed.match(/\brm\s+((?:--?[a-zA-Z-]+\s+)+)([^\s#;&|-][^\s#;&|]*)/);
+      const rmRecursive = rmMatch && /(?:^|\s)-[a-zA-Z]*[rR]|(?:^|\s)--recursive\b/.test(rmMatch[1]);
+      if (rmRecursive) {
+        const target = rmMatch[2];
         // Bare `$VAR` or `${VAR}` without quotes, or literal `/` / `/*`.
         const unquotedVar = /^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?/.test(target);
         const rootish = /^\/(?:\*)?$/.test(target) || /^\/[^/]+\/\*?$/.test(target) && target.split('/').length <= 3;
