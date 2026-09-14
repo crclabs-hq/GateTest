@@ -169,12 +169,44 @@ Read outputs in later steps with `${{ steps.<id>.outputs.<name> }}`.
 | Variable | Required when | Purpose |
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | `auto-fix: true` | Claude API key used by the AI CI-fixer. |
-| `GITHUB_TOKEN` | Auto-fix opens a PR | The default `${{ secrets.GITHUB_TOKEN }}` is enough. |
+| `GITHUB_TOKEN` | Never — set only to override | The action defaults to the workflow's own token (`github-token` input, `${{ github.token }}`); a `GITHUB_TOKEN` in the step's `env:` block, or a PAT passed as `github-token`, takes precedence. What matters is the job's `permissions:` block — see below. |
 | `GATETEST_RECIPE_STORE_URL` | Optional | Custom recipe-store endpoint for the flywheel layer. |
 | `MAX_FIX_ATTEMPTS` | Optional | Cap on auto-fix retries (default 3). |
 | `CLAUDE_MODEL` | Optional | Override the Claude model used by the fixer. |
 
 Set them in the `env:` block on the step or job — never commit secrets to the repo (Bible Forbidden #6).
+
+---
+
+## Permissions
+
+The action runs with the workflow's own token. Grant the job only what the features you use need — every feature that lacks a permission skips with a `::warning` in the log rather than failing the gate, so a missing line is silent unless you read the log.
+
+| Permission | Needed for |
+| --- | --- |
+| `contents: read` | Always — checking out and scanning the repo. |
+| `pull-requests: write` | The PR summary comment (`summary-comment`, on by default), inline `suggestion` blocks and the auto-repair PR (`auto-fix: true`). |
+| `issues: write` | `track-non-fixable: true` — filing findings the fixer cannot patch as issues. |
+| `security-events: write` | Uploading `report-format: sarif` output to the Security tab with `github/codeql-action/upload-sarif` (add `actions: read` too, which that action needs to attach results to the run). |
+
+The minimum for the Quickstart above:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+```
+
+With SARIF upload and issue tracking:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  security-events: write
+  actions: read
+```
 
 ---
 

@@ -74,7 +74,7 @@ function composeSystemPrompt({ voiceExamples = [], productContext = {} } = {}) {
     `- Tagline: ${pc.tagline}`,
     `- ${pc.moduleCount} modules, one config, one bill`,
     `- Tiers: ${pc.tiers.map((t) => `${t.name} ${t.price} (${t.modules})`).join(" / ")}`,
-    "- Free CLI (MIT), not yet on npm: npx github:crclabs-hq/GateTest --suite quick",
+    "- Free CLI (MIT) on npm: npx -p @gatetest/cli gatetest --suite quick",
     "",
     "Honest limitations (raise these proactively when relevant — don't hide them):",
     ...pc.honestLimitations.map((l) => `- ${l}`),

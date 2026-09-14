@@ -26,7 +26,7 @@
 | AI model | **Claude Sonnet 5** (Fable 5 on Scan+Fix/Forensic) | Per CLAUDE.md `## VERSION`, current as of v1.59.0. Don't hardcode a model name in the post body itself — it's gone stale twice already; say "Claude" and let CLAUDE.md carry the specific model. |
 | Pricing | **$29 / $99 / $199 / $399 one-time + $49/mo Continuous + $29/mo MCP** | No per-fix billing. No "Starter" tier. No monthly fix credit. |
 | $399 tier name | **Forensic** | Renamed from "Nuclear" 2026-06-02. |
-| npm package | **Published** ✅ | `npm view @gatetest/cli version` → live (currently 1.58.1). Note the package has two bins (gatetest, gatetest-mcp), so plain `npx @gatetest/cli` fails with "could not determine executable to run" — verified 2026-07-19. Use `npx -p @gatetest/cli gatetest --suite quick ./` in the post instead. |
+| npm package | **Published** ✅ | `npm view @gatetest/cli version` → live (currently 1.58.1). Plain `npx @gatetest/cli` failed with "could not determine executable to run" up to 1.61.0 (three bins, none named after the package — verified 2026-07-19 and 2026-09-14); 1.61.1 adds a `cli` bin. Use `npx -p @gatetest/cli gatetest --suite quick ./` in the post — it works on every release. |
 | GitHub Marketplace | **Rejected 2026-05-14, resubmitting free-only** ⭐ | Do not claim "on the Marketplace" until it's actually approved — check `github.com/organizations/crclabs-hq/settings/apps/gatetest-hq` for current status before posting. Install the Action by ref or `npx -p @gatetest/cli gatetest` until then. |
 | gatetest.io live + scan works ⭐ | verify in incognito before posting | |
 | Stripe test checkout works ⭐ | verify with 4242 4242 4242 4242 before posting | |
@@ -135,7 +135,7 @@ Marketplace listing isn't up yet — use npx or the Action in the meantime.
 > that want every push gated.
 
 **"What if my scan crashes after I've paid?"**
-> Email hello@gatetest.ai within 7 days — we re-run at no cost or credit
+> Email support@gatetest.io within 7 days — we re-run at no cost or credit
 > you. Cash refunds are discretionary, not automatic. We moved off
 > hold-then-capture because it invited "pay, read the report, dispute"
 > chargeback abuse; per-scan upfront with support exceptions is what most
