@@ -106,7 +106,7 @@ export function getPrivateKey(): string {
       const decoded = Buffer.from(key, "base64").toString("utf-8");
       if (decoded.includes("BEGIN")) key = decoded;
     } catch {
-      // fall through
+      // error-ok — not base64 — the key is used as given and validated below
     }
   }
 
@@ -153,7 +153,7 @@ export function getPrivateKey(): string {
         crypto.createPrivateKey({ key: recovered, format: "pem" });
         return recovered;
       } catch {
-        // fall through to original error
+        // error-ok — fall through to original error
       }
     }
 

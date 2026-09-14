@@ -56,7 +56,7 @@ class PatternCache {
     try {
       const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
       for (const [k, v] of Object.entries(raw)) this.store.set(k, v);
-    } catch { /* first run */ }
+    } catch { /* error-ok — no pattern cache yet — the first run starts empty */ }
   }
 
   _persist() {
@@ -68,7 +68,7 @@ class PatternCache {
         path.join(this.cacheDir, 'pattern-cache.json'),
         JSON.stringify(obj, null, 2)
       );
-    } catch { /* non-fatal */ }
+    } catch { /* error-ok — cache persistence is an optimisation; a repair never fails on it */ }
   }
 
   size() { return this.store.size; }
@@ -330,7 +330,7 @@ class DirectRepair {
             report.cacheHits++;
             continue;
           }
-        } catch { /* cache miss on application — fall through */ }
+        } catch { /* error-ok — a cached pattern that no longer applies falls through to the Claude path below */ }
       }
 
       // 3. Fall back to Claude (only for novel patterns)
@@ -574,7 +574,7 @@ class DirectRepair {
   _cleanup(workspace) {
     try {
       fs.rmSync(workspace, { recursive: true, force: true });
-    } catch { /* non-fatal */ }
+    } catch { /* error-ok — the workspace is a temp dir; a leftover cannot change the repair result */ }
   }
 }
 

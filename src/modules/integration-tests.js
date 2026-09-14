@@ -197,7 +197,7 @@ class IntegrationTestsModule extends BaseModule {
         }
         return true;
       }
-    } catch { /* ignore */ }
+    } catch { /* error-ok — unreadable package.json — the syntax module reports it; this check has nothing to read */ }
 
     return false;
   }

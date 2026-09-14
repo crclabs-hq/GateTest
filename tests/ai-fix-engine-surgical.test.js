@@ -85,7 +85,7 @@ test('aiFix surgical: clean replacement patches only the target window', async (
       assert.equal(writtenLines[i], `line${i + 1}`, `Line ${i + 1} should be unchanged`);
     }
   } finally {
-    try { fs.unlinkSync(filePath); } catch { /* cleanup */ }
+    try { fs.unlinkSync(filePath); } catch { /* error-ok — temp file cleanup; a leftover cannot fail the assertion */ }
   }
 });
 
@@ -128,7 +128,7 @@ test('aiFix surgical: empty replacement block is rejected', async () => {
     const written = fs.readFileSync(filePath, 'utf-8');
     assert.equal(written, original);
   } finally {
-    try { fs.unlinkSync(filePath); } catch { /* cleanup */ }
+    try { fs.unlinkSync(filePath); } catch { /* error-ok — temp file cleanup; a leftover cannot fail the assertion */ }
   }
 });
 
@@ -166,7 +166,7 @@ test('aiFix whole-file: small targeted replacement accepted by mutation guard', 
     const written = fs.readFileSync(filePath, 'utf-8');
     assert.equal(written, correctedContent);
   } finally {
-    try { fs.unlinkSync(filePath); } catch { /* cleanup */ }
+    try { fs.unlinkSync(filePath); } catch { /* error-ok — temp file cleanup; a leftover cannot fail the assertion */ }
   }
 });
 
@@ -209,7 +209,7 @@ test('aiFix whole-file: large rewrite rejected by mutation guard', async () => {
     const written = fs.readFileSync(filePath, 'utf-8');
     assert.equal(written, original);
   } finally {
-    try { fs.unlinkSync(filePath); } catch { /* cleanup */ }
+    try { fs.unlinkSync(filePath); } catch { /* error-ok — temp file cleanup; a leftover cannot fail the assertion */ }
   }
 });
 
@@ -240,7 +240,7 @@ test('aiFix: no API key returns fixed=false with fixSuggestion as description', 
   } finally {
     if (savedEnvKey === undefined) delete process.env.ANTHROPIC_API_KEY;
     else process.env.ANTHROPIC_API_KEY = savedEnvKey;
-    try { fs.unlinkSync(filePath); } catch { /* cleanup */ }
+    try { fs.unlinkSync(filePath); } catch { /* error-ok — temp file cleanup; a leftover cannot fail the assertion */ }
   }
 });
 
@@ -273,7 +273,7 @@ test('aiFix surgical: opts.details (stack trace) is compiled into the prompt Cla
     assert.match(capturedPrompt, /## Diagnostic Bundle \(captured at detection time\)/);
     assert.match(capturedPrompt, /renderList \(app\.js:25:10\)/);
   } finally {
-    try { fs.unlinkSync(filePath); } catch { /* cleanup */ }
+    try { fs.unlinkSync(filePath); } catch { /* error-ok — temp file cleanup; a leftover cannot fail the assertion */ }
   }
 });
 
@@ -302,7 +302,7 @@ test('aiFix whole-file: opts.details (grouped network failure object) is compile
     assert.match(capturedMessage, /## Diagnostic Bundle \(captured at detection time\)/);
     assert.match(capturedMessage, /cdn\.example\.com\/font\.woff2/);
   } finally {
-    try { fs.unlinkSync(filePath); } catch { /* cleanup */ }
+    try { fs.unlinkSync(filePath); } catch { /* error-ok — temp file cleanup; a leftover cannot fail the assertion */ }
   }
 });
 
@@ -329,7 +329,7 @@ test('aiFix: no details passed → no Diagnostic Bundle header (no fabrication)'
     assert.ok(capturedPrompt);
     assert.doesNotMatch(capturedPrompt, /Diagnostic Bundle/);
   } finally {
-    try { fs.unlinkSync(filePath); } catch { /* cleanup */ }
+    try { fs.unlinkSync(filePath); } catch { /* error-ok — temp file cleanup; a leftover cannot fail the assertion */ }
   }
 });
 
@@ -357,6 +357,6 @@ test('aiFix: file larger than 120KB returns fixed=false with "too large"', async
     );
     assert.deepEqual(result.filesChanged, []);
   } finally {
-    try { fs.unlinkSync(filePath); } catch { /* cleanup */ }
+    try { fs.unlinkSync(filePath); } catch { /* error-ok — temp file cleanup; a leftover cannot fail the assertion */ }
   }
 });

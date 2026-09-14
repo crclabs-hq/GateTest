@@ -228,8 +228,8 @@ export async function POST(req: NextRequest) {
       statusCode: 201,
       idempotencyKey: body.idempotencyKey,
     });
-  } catch {
-    // Non-fatal — accounting failure should not break the customer's response
+  } catch (err) { // error-ok: the customer's 201 must not depend on our accounting, but a lost rate-limit row is logged, not erased
+    console.error(`[api/v1/scans] recordApiCall failed for key ${auth.key.id}:`, err instanceof Error ? err.message : String(err));
   }
 
   return NextResponse.json(

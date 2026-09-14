@@ -222,7 +222,7 @@ class WpAdminProtectionModule extends BaseModule {
           });
         }
       } catch {
-        // ignore — POST probe is best-effort
+        // error-ok — the POST probe is best-effort; the GET evidence above stands
       }
     }
 
@@ -278,7 +278,7 @@ class WpAdminProtectionModule extends BaseModule {
       const headersObj = {};
       res.headers.forEach((v, k) => { headersObj[k.toLowerCase()] = v; });
       let body = '';
-      try { body = await res.text(); } catch { /* ignore */ }
+      try { body = await res.text(); } catch { /* error-ok — body read failed — status and headers are still returned */ }
       return {
         status: res.status,
         headers: headersObj,

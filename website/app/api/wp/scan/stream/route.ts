@@ -168,11 +168,11 @@ export async function POST(req: NextRequest) {
           controller.enqueue(
             encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
           );
-        } catch { /* controller closed mid-write */ }
+        } catch { /* error-ok — controller closed mid-write */ }
       };
       const keepAliveTimer = setInterval(() => {
         if (closed) return;
-        try { controller.enqueue(encoder.encode(": keepalive\n\n")); } catch { /* ignore */ }
+        try { controller.enqueue(encoder.encode(": keepalive\n\n")); } catch { /* error-ok — client gone mid-keepalive; the stream is closed in finally */ }
       }, 10000);
 
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -299,10 +299,10 @@ export async function POST(req: NextRequest) {
         send("error", { error: err instanceof Error ? err.message : "Unexpected scan failure" });
       } finally {
         process.exitCode = previousExitCode;
-        try { fs.rmSync(workspace, { recursive: true, force: true }); } catch { /* ignore */ }
+        try { fs.rmSync(workspace, { recursive: true, force: true }); } catch { /* error-ok — temp workspace cleanup; a leftover dir cannot change the scan result */ }
         clearInterval(keepAliveTimer);
         closed = true;
-        try { controller.close(); } catch { /* already closed */ }
+        try { controller.close(); } catch { /* error-ok — already closed */ }
       }
     },
   });

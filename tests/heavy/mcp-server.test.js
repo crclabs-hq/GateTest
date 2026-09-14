@@ -22,7 +22,7 @@ const path = require('path');
 // with the SDK fully installed. That silent skip hid stale assertions for
 // months (e.g. "exactly 9 tools" while the server shipped 13).
 let hasSDK = false;
-try { require.resolve('@modelcontextprotocol/sdk/server/index.js'); hasSDK = true; } catch { /* not installed */ }
+try { require.resolve('@modelcontextprotocol/sdk/server/index.js'); hasSDK = true; } catch { /* error-ok — SDK not installed — the suite is skipped, and says so */ }
 const describeOrSkip = hasSDK ? describe : describe.skip;
 
 // Gated tools (run_module, verify_fix, …) require a valid $29/mo GATETEST_API_KEY.
@@ -86,7 +86,7 @@ function callMcp(method, params = {}, timeoutMs = 60000, envOverride = null) {
             resolve(parsed);
           }
         } catch {
-          // incomplete line — wait for more
+          // error-ok — incomplete line — wait for more
         }
       }
     });

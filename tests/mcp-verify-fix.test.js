@@ -39,7 +39,7 @@ function makeTmpProject(files) {
 }
 
 function rmTmp(dir) {
-  try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* error-ok — temp dir cleanup; a busy handle on Windows cannot fail the assertion */ }
 }
 
 function textOf(response) {

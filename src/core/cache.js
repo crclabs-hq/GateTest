@@ -51,7 +51,7 @@ class GateTestCache {
         lastChecked: Date.now(),
       };
     } catch {
-      // Skip unreadable files
+      // error-ok — an unreadable file gets no cache entry and is re-checked next run
     }
   }
 
@@ -108,7 +108,7 @@ class GateTestCache {
         return JSON.parse(fs.readFileSync(this.cachePath, 'utf-8'));
       }
     } catch {
-      // Corrupt cache — start fresh
+      // error-ok — Corrupt cache — start fresh
     }
     return { version: '1.0', files: {}, lastSaved: null };
   }

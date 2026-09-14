@@ -201,7 +201,7 @@ function logTelemetry(entry) {
   try {
     fsSync.mkdirSync(nodePath.dirname(MCP_TELEMETRY_PATH), { recursive: true });
     fsSync.appendFileSync(MCP_TELEMETRY_PATH, JSON.stringify(entry) + '\n');
-  } catch { /* never block the tool call */ }
+  } catch { /* error-ok — never block the tool call */ }
 }
 
 // ---------------------------------------------------------------------------
@@ -1837,7 +1837,7 @@ async function handleGetVisualDiff(args) {
               : `Changed regions (from diff, full-page coordinates):\n\`\`\`json\n${JSON.stringify(regions, null, 2)}\n\`\`\`\n` +
                 'Selector + computed-style mapping for these regions is attached to the scan finding (`visualFacts`) when the visualRegression module runs with a live URL.',
         });
-      } catch { /* facts are additive — image already in the response */ }
+      } catch { /* error-ok — facts are additive — image already in the response */ }
     }
 
     return response;

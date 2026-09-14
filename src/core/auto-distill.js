@@ -345,10 +345,10 @@ function distillClaudeFix({ issue, originalContent, patchedContent, recipeStoreP
           env: sourceEnv,
         });
         if (p && typeof p.catch === 'function') {
-          p.catch(() => { /* best-effort */ });
+          p.catch(() => { /* error-ok — remote push is fire-and-forget; the local write above is the authoritative success signal */ });
         }
       }
-    } catch { /* best-effort */ }
+    } catch { /* error-ok — the remote store is optional; the local recipe is already saved and returned */ }
 
     return { written: true, recipe };
   } catch (err) {

@@ -55,13 +55,13 @@ function loadFlywheel() {
     require.resolve('@babel/generator', { paths: [fromDir] });
     layers.available.ast = true;
   } catch {
-    // AST layer unavailable in this environment — Babel not installed.
+    // error-ok — Babel not installed — layers.available.ast stays false and the summary says so
   }
   try {
     layers.rule = require('../website/app/lib/rule-based-fixer');
     layers.available.rule = true;
   } catch {
-    // Rule layer unavailable.
+    // error-ok — rule-based fixer not loadable — layers.available.rule stays false and the summary says so
   }
   return layers;
 }
@@ -302,7 +302,7 @@ async function main() {
           module:       'flywheel-training',
           durationMs:   r.durationMs,
         });
-      } catch { /* telemetry is best-effort */ }
+      } catch { /* error-ok — telemetry is best-effort; the training result is already recorded */ }
     }
   }
 

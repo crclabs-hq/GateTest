@@ -115,7 +115,7 @@ describe('end-to-end: external .map file + inline data URI', () => {
   });
 
   after(() => {
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* error-ok — temp dir cleanup; a busy handle on Windows cannot fail the assertion */ }
   });
 
   // Generated line 0, column 9 (0-based) maps to original.js line 1, column 2 (0-based).
@@ -222,7 +222,7 @@ describe('resolveStackTrace end-to-end', () => {
   });
 
   after(() => {
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* error-ok — temp dir cleanup; a busy handle on Windows cannot fail the assertion */ }
   });
 
   it('resolves the frames it can and reports the rest as unresolved', () => {

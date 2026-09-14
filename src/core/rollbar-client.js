@@ -103,7 +103,7 @@ async function fetchTopErrors(opts = {}) {
           sourceLocation = extractSourceLocation(instances[0]?.data?.body);
         }
       }
-    } catch { /* item stays listed without a location */ }
+    } catch { /* error-ok — item stays listed without a location */ }
 
     out.push({
       id: String(item.id),

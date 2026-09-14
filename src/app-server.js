@@ -49,7 +49,7 @@ process.on('unhandledRejection', (reason) => {
   // Do NOT exit. Per-request handlers are the first line of defence;
   // this is the safety net. Log loudly so the deploy log captures it.
 });
-process.on('uncaughtException', (err) => {
+process.on('uncaughtException', (err) => { // error-ok — deliberate log-and-stay-up: exiting would drop every in-flight webhook delivery (see the posture above)
   console.error('[GateTest] CRITICAL uncaught exception:', err);
   // Same posture — log, don't exit. A crash here would drop all
   // in-flight webhook deliveries from GitHub.
@@ -389,7 +389,7 @@ const server = http.createServer(async (req, res) => {
     // above, but handling it here is the cleaner first line of defence.
     req.on('error', (err) => {
       console.error('[GateTest] Webhook request stream error (client disconnected?):', err.message);
-      try { if (!res.headersSent) { res.writeHead(400); res.end('Request error'); } } catch { /* socket-ok */ }
+      try { if (!res.headersSent) { res.writeHead(400); res.end('Request error'); } } catch { /* error-ok — the client socket is already gone; there is nobody to answer */ }
     });
     req.on('data', (c) => chunks.push(c));
     req.on('end', async () => {
@@ -489,7 +489,7 @@ if (!APP_ID) {
 // truncated or garbage HTTP preamble logs an uncaught socket error.
 server.on('clientError', (err, socket) => {
   console.error('[GateTest] HTTP client error:', err.message);
-  try { socket.destroy(); } catch { /* socket-ok */ }
+  try { socket.destroy(); } catch { /* error-ok — the socket may already be destroyed by the parser error */ }
 });
 
 server.listen(PORT, () => {

@@ -109,7 +109,7 @@ class Monitor {
           await this.alerts.info(`${target.label} — auto-heal applied`, msgs, { url: target.url });
           console.log(`[GateTest Monitor] Auto-healed: ${msgs}`); // code-quality-ok — CLI terminal output
         }
-      } catch { /* heal failures must not crash the monitor */ }
+      } catch { /* error-ok — heal failures must not crash the monitor */ }
     }
 
     this._saveState();
@@ -148,7 +148,7 @@ class Monitor {
     try {
       fs.mkdirSync(path.dirname(this.stateFile), { recursive: true });
       fs.writeFileSync(this.stateFile, JSON.stringify({ saved: Date.now(), state: this.state }, null, 2));
-    } catch { /* non-fatal */ }
+    } catch { /* error-ok — state persistence is best-effort; the in-memory state is still current */ }
   }
 
   _loadState() {
@@ -159,7 +159,7 @@ class Monitor {
           if (this.state[url]) this.state[url] = { ...this.state[url], ...st };
         }
       }
-    } catch { /* start fresh on parse error */ }
+    } catch { /* error-ok — start fresh on parse error */ }
   }
 }
 

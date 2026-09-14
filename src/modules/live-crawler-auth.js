@@ -51,7 +51,7 @@ function resolveAuth(crawlConfig, baseUrl) {
   const storageStateMissing = Boolean(storageState && !fs.existsSync(storageState));
 
   let origin = null;
-  try { origin = new URL(baseUrl).origin; } catch { /* unset — auth disabled */ }
+  try { origin = new URL(baseUrl).origin; } catch { /* error-ok — unset — auth disabled */ }
 
   const enabled = Boolean(origin) && (
     Object.keys(headers).length > 0 || Boolean(cookie) ||

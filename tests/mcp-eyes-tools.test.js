@@ -58,7 +58,7 @@ describe('get_visual_diff — synthetic baseline tree', () => {
   });
 
   after(() => {
-    try { fs.rmSync(projectRoot, { recursive: true, force: true }); } catch { /* best-effort */ }
+    try { fs.rmSync(projectRoot, { recursive: true, force: true }); } catch { /* error-ok — temp dir cleanup; a busy handle on Windows cannot fail the assertion */ }
   });
 
   it('requires path and route', async () => {
@@ -111,7 +111,7 @@ describe('get_visual_diff — synthetic baseline tree', () => {
       assert.match(textOf(res), /No visual baselines found/);
       assert.match(textOf(res), /visualRegression/);
     } finally {
-      try { fs.rmSync(emptyRoot, { recursive: true, force: true }); } catch { /* best-effort */ }
+      try { fs.rmSync(emptyRoot, { recursive: true, force: true }); } catch { /* error-ok — temp dir cleanup; a busy handle on Windows cannot fail the assertion */ }
     }
   });
 

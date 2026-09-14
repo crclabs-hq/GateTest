@@ -94,7 +94,7 @@ export function KeysTab() {
       });
       loadKeys();
     } catch {
-      /* ignore — loadKeys will reflect reality */
+      /* error-ok — ignore — loadKeys will reflect reality */
     }
   }
 

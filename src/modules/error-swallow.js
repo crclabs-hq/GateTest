@@ -218,7 +218,22 @@ class ErrorSwallowModule extends BaseModule {
     const line = lines[lineIdx] || '';
     const prev = lineIdx > 0 ? lines[lineIdx - 1] : '';
     const re = /\b(?:error-ok|gatetest-fire-and-forget)\b/;
-    return re.test(line) || re.test(prev);
+    if (re.test(line) || re.test(prev)) return true;
+    // A multi-line `catch {` whose FIRST body line is the marker comment:
+    //
+    //   } catch {
+    //     // error-ok — partial snapshot is still useful for the dashboard
+    //   }
+    //
+    // is the natural place to write the reason, and the self-scan of
+    // 2026-09-13 found the rule reading only the catch line and the one
+    // above it, so the documented swallow was reported anyway. Only a
+    // line that OPENS the block qualifies, and only its first body line.
+    if (/\bcatch\b[^{]*\{\s*$/.test(line)) {
+      const next = lines[lineIdx + 1] || '';
+      return re.test(next);
+    }
+    return false;
   }
 
   // Returns true when the `.catch(...)` on the current line is part of

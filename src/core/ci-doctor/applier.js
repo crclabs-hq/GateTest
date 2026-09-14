@@ -82,7 +82,7 @@ const DEFAULT_EXEC = {
       // Soft cap: nothing should run > 5 min in the applier. Real-world
       // recipes (lockfile regen / eslint --fix) finish in seconds.
       const timer = setTimeout(() => {
-        try { child.kill("SIGKILL"); } catch { /* ignored */ }
+        try { child.kill("SIGKILL"); } catch { /* error-ok — the child may already have exited when the cap fires */ }
       }, 5 * 60 * 1000);
       child.on("exit", () => clearTimeout(timer));
     });

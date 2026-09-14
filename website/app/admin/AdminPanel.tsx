@@ -98,7 +98,7 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
         siblingNames: unhealthy.map((s) => s.name),
       }));
     } catch {
-      /* leave the previous signal rather than inventing a clean one */
+      /* error-ok — leave the previous signal rather than inventing a clean one */
     }
   }, []);
 

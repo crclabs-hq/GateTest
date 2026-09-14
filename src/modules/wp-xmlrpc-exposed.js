@@ -204,7 +204,7 @@ class WpXmlrpcExposedModule extends BaseModule {
         redirect: 'manual',
       });
       let body = '';
-      try { body = await res.text(); } catch { /* ignore */ }
+      try { body = await res.text(); } catch { /* error-ok — body read failed — status and headers are still returned */ }
       return { status: res.status, body: body.slice(0, 32 * 1024) };
     } finally {
       clearTimeout(timer);

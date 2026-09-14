@@ -169,7 +169,7 @@ class SyntaxModule extends BaseModule {
         if (parent === dir) break;
         dir = parent;
       }
-    } catch { /* ignore */ }
+    } catch { /* error-ok — unreadable ancestor directory — treated as no tsconfig */ }
     return false;
   }
 

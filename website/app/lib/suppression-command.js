@@ -171,7 +171,7 @@ async function applySuppression({ owner, repo, prNumber, rule, actor, token, fet
         body: `🤫 Suppressed \`${rule}\` — appended to \`.gatetestignore\` on \`${branch}\`. It stops appearing from the next scan; delete the line to restore it. Suppressions also tune GateTest's precision for everyone.`,
       }),
     });
-  } catch { /* ack is cosmetic — the file change is the outcome */ }
+  } catch { /* error-ok — ack is cosmetic — the file change is the outcome */ }
 
   return { ok: true, branch };
 }

@@ -428,7 +428,7 @@ export async function POST(req: NextRequest) {
       .then((r) => r.findings)
       .catch(() => []);
   } catch {
-    // url-prober unavailable — continue with static-only scan
+    // error-ok — url-prober unavailable — continue with static-only scan
   }
 
   let summary: { results?: Array<{ module?: string; name?: string; checks?: Array<{ name: string; severity?: string; passed: boolean; message?: string }>; errors?: number; warnings?: number; info?: number; duration?: number; skipped?: string }>; gateStatus?: string; totalErrors?: number; totalWarnings?: number };
@@ -453,7 +453,7 @@ export async function POST(req: NextRequest) {
     summary = (await gt.init().runSuite("web")) as typeof summary;
   } catch (err) {
     process.exitCode = previousExitCode;
-    try { fs.rmSync(workspace, { recursive: true, force: true }); } catch { /* ignore */ }
+    try { fs.rmSync(workspace, { recursive: true, force: true }); } catch { /* error-ok — temp workspace cleanup; a leftover dir cannot change the scan result */ }
     const msg = err instanceof Error ? err.message : "Unexpected scan failure";
     return NextResponse.json(
       { error: `Scan failed: ${msg}. Please try again or contact support.` },
@@ -461,7 +461,7 @@ export async function POST(req: NextRequest) {
     );
   } finally {
     process.exitCode = previousExitCode;
-    try { fs.rmSync(workspace, { recursive: true, force: true }); } catch { /* ignore */ }
+    try { fs.rmSync(workspace, { recursive: true, force: true }); } catch { /* error-ok — temp workspace cleanup; a leftover dir cannot change the scan result */ }
   }
 
   // Await the concurrent live probe and fold its findings in with the static ones.

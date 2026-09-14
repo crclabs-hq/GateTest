@@ -102,7 +102,7 @@ function resolveToken(args, env = process.env, runner = spawnSync) {
       const tok = String(r.stdout).trim();
       if (tok) return tok;
     }
-  } catch { /* gh not installed — fine */ }
+  } catch { /* error-ok — gh not installed or not logged in — the caller gets null and resolves a token another way */ }
   return null;
 }
 

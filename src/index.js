@@ -172,7 +172,7 @@ class GateTest {
     if (typeof this.options.onProgress === 'function') {
       const hook = this.options.onProgress;
       const safe = (event, payload) => {
-        try { hook(event, payload); } catch { /* never crash scan */ }
+        try { hook(event, payload); } catch { /* error-ok — a throwing progress hook is the caller's bug and must never crash the scan */ }
       };
       runner.on('suite:start', (p) => safe('suite:start', p));
       runner.on('suite:end', (p) => safe('suite:end', p));

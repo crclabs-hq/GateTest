@@ -343,7 +343,7 @@ class EnvVarsModule extends BaseModule {
         for (const k of Object.keys(env)) {
           if (ENV_KEY_RE.test(k)) out.add(k);
         }
-      } catch { /* ignore */ }
+      } catch { /* error-ok — unreadable vercel.json — its env keys are not collected */ }
     }
     // docker-compose environment: KEY: value lines (cheap YAML peek).
     // Only consume lines that look like `  KEY: value` inside an

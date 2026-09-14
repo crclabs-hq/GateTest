@@ -229,7 +229,7 @@ function getChangedFiles(projectRoot, base) {
       }).toString().trim();
       if (out) return out.split('\n').filter(Boolean);
     } catch {
-      // Strategy failed — try next
+      // error-ok — Strategy failed — try next
     }
   }
 

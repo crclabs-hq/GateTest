@@ -98,7 +98,7 @@ async function main() {
   while (Date.now() < deadline) {
     await sleep(10_000);
     let queue = {};
-    try { queue = (await getJson(`${BASE}/api/status`)).queue || {}; } catch { /* transient */ }
+    try { queue = (await getJson(`${BASE}/api/status`)).queue || {}; } catch { /* error-ok — transient status-endpoint failure — the loop retries in 10s and prints the last known queue */ }
 
     let ghStates = [];
     try {
@@ -106,7 +106,7 @@ async function main() {
       ghStates = statuses
         .filter((s) => /gatetest/i.test(s.context || ''))
         .map((s) => `${s.state} (“${String(s.description || '').slice(0, 60)}”)`);
-    } catch { /* rate limit or none yet */ }
+    } catch { /* error-ok — rate limit or no status yet — the loop retries and prints "(none yet)" */ }
 
     const line = `queue=${JSON.stringify(queue)} · commit-status=${ghStates[0] || '(none yet)'}`;
     if (line !== lastStatusLine) { log(line); lastStatusLine = line; }

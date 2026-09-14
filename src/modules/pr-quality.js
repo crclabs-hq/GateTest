@@ -217,7 +217,7 @@ class PrQualityModule extends BaseModule {
       try {
         execSync(`git rev-parse --verify ${candidate}`, { cwd: root, stdio: 'pipe' });
         return candidate;
-      } catch { /* try next */ }
+      } catch { /* error-ok — ref does not exist — the next candidate is tried; null means no base */ }
     }
     return null;
   }

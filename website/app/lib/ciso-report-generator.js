@@ -529,7 +529,7 @@ async function generateCisoReport({ findings = [], chains = [], hostName = 'Unkn
       const raw = await askClaude(prompt);
       narrative = raw ? raw.trim() : null;
     } catch {
-      // narrative failure is non-blocking — report ships without it
+      // error-ok — narrative failure is non-blocking — report ships without it
     }
   }
 

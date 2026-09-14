@@ -84,7 +84,7 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
           setRecommendation(data as Recommendation);
         }
       } catch {
-        /* abort or network error — silent */
+        /* error-ok — abort or network error — silent */
       }
     }, 600);
     return () => clearTimeout(timer);
@@ -136,7 +136,7 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
       try {
         const j = await res.json();
         errMsg = j?.error || errMsg;
-      } catch { /* ignore */ }
+      } catch { /* error-ok — error body unreadable — the status alone is reported */ }
       throw new Error(errMsg);
     }
 

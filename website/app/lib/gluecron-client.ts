@@ -246,7 +246,7 @@ export async function resolveRepoAuth(
         return { token: glcToken, source: "gluecron" };
       }
     } catch {
-      // Gluecron unreachable — fall through to GitHub
+      // error-ok — Gluecron unreachable — fall through to GitHub
     }
   }
 
@@ -539,7 +539,7 @@ export async function fetchBlob(
           return Buffer.from(ghData.content, "base64").toString("utf-8");
         }
       }
-    } catch { /* fall through to gluecron */ }
+    } catch { /* error-ok — GitHub attempt failed — the Gluecron path below is next */ }
   }
 
   // Gluecron is PAT-only (resolveRepoAuth never selects it without a token),
@@ -562,7 +562,7 @@ export async function fetchBlob(
         }
       }
     } catch {
-      /* fall through to the public snapshot */
+      /* error-ok — fall through to the public snapshot */
     }
   }
   // Every credentialed path failed — serve the blob from the anonymous public
@@ -708,7 +708,7 @@ export async function loadRepoFiles(
         const content = await fetchBlob(owner, repo, p, ref || "HEAD", token);
         if (content) fileContents.push({ path: p, content });
       } catch {
-        /* a single unreadable blob is not fatal */
+        /* error-ok — a single unreadable blob is not fatal */
       }
     }
   });
@@ -752,7 +752,7 @@ export async function resolveBaseBranchSha(
           }
         }
       }
-    } catch { /* fall through to gluecron */ }
+    } catch { /* error-ok — GitHub attempt failed — the Gluecron path below is next */ }
   }
 
   // Try Gluecron
@@ -777,7 +777,7 @@ export async function resolveBaseBranchSha(
       null;
 
     if (sha) return { sha, defaultBranch, source: "gluecron" };
-  } catch { /* fall through */ }
+  } catch { /* error-ok — Gluecron unreachable — the unauthenticated GitHub attempt below is next */ }
 
   // Last-ditch GitHub attempt even without a recognised token shape — many
   // public repos can be read unauthenticated, and in that case we still
@@ -800,7 +800,7 @@ export async function resolveBaseBranchSha(
         }
       }
     }
-  } catch { /* fall through */ }
+  } catch { /* error-ok — no base SHA from any host — the caller receives source: none */ }
 
   return { sha: null, defaultBranch: branch || "main", source: "none" };
 }
@@ -829,7 +829,7 @@ export async function fetchFileSha(
       // 404 = file doesn't exist yet — caller treats empty sha as "create"
 
       if (ghRes.status === 404) return "";
-    } catch { /* fall through to gluecron */ }
+    } catch { /* error-ok — GitHub attempt failed — the Gluecron path below is next */ }
   }
 
   const qs = ref ? `?ref=${encodeURIComponent(ref)}&encoding=base64` : `?encoding=base64`;
@@ -900,7 +900,7 @@ export async function postPrComment(
       );
       const data = await ghRes.json().catch(() => ({}));
       return { status: ghRes.status, data: data as Record<string, unknown> };
-    } catch { /* fall through to gluecron */ }
+    } catch { /* error-ok — GitHub attempt failed — the Gluecron path below is next */ }
 
   }
   return gluecronApi(
@@ -934,7 +934,7 @@ export async function createBranch(
       });
       const data = await ghRes.json().catch(() => ({}));
       return { status: ghRes.status, data: data as Record<string, unknown> };
-    } catch { /* fall through to gluecron */ }
+    } catch { /* error-ok — GitHub attempt failed — the Gluecron path below is next */ }
 
   }
   return gluecronApi(
@@ -982,7 +982,7 @@ export async function upsertFile(
       );
       const data = await ghRes.json().catch(() => ({}));
       return { status: ghRes.status, data: data as Record<string, unknown> };
-    } catch { /* fall through to gluecron */ }
+    } catch { /* error-ok — GitHub attempt failed — the Gluecron path below is next */ }
 
   }
 
@@ -1035,7 +1035,7 @@ export async function openPullRequest(
       });
       const data = await ghRes.json().catch(() => ({}));
       return { status: ghRes.status, data: data as Record<string, unknown> };
-    } catch { /* fall through to gluecron */ }
+    } catch { /* error-ok — GitHub attempt failed — the Gluecron path below is next */ }
 
   }
   return gluecronApi(

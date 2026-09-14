@@ -309,7 +309,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     process.exitCode = previousExitCode;
     // Best-effort cleanup
-    try { fs.rmSync(workspace, { recursive: true, force: true }); } catch { /* ignore */ }
+    try { fs.rmSync(workspace, { recursive: true, force: true }); } catch { /* error-ok — temp workspace cleanup; a leftover dir cannot change the scan result */ }
     const msg = err instanceof Error ? err.message : "Unexpected scan failure";
     return NextResponse.json(
       { error: `Scan failed: ${msg}. Please try again or contact support.` },
@@ -317,7 +317,7 @@ export async function POST(req: NextRequest) {
     );
   } finally {
     process.exitCode = previousExitCode;
-    try { fs.rmSync(workspace, { recursive: true, force: true }); } catch { /* ignore */ }
+    try { fs.rmSync(workspace, { recursive: true, force: true }); } catch { /* error-ok — temp workspace cleanup; a leftover dir cannot change the scan result */ }
   }
 
   // Flatten findings, translate to plain-language

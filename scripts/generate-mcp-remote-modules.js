@@ -33,7 +33,7 @@ function build() {
       const inst = new Mod();
       if (inst && typeof inst.description === 'string' && inst.description) description = inst.description;
     } catch {
-      /* a module whose constructor needs config still gets listed by name */
+      /* error-ok — a module whose constructor needs config still gets listed by name */
     }
     modules.push({ name, description });
   }
@@ -53,7 +53,7 @@ if (require.main === module) {
     const parsed = JSON.parse(fs.readFileSync(OUT, 'utf8'));
     delete parsed.generatedAt;
     current = stable(parsed);
-  } catch { /* missing or unreadable — will be (re)written */ }
+  } catch { /* error-ok — missing or unreadable — will be (re)written */ }
   const wanted = stable(next);
   if (check) {
     if (current !== wanted) {

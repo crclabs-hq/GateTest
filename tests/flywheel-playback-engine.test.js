@@ -28,7 +28,7 @@ function makeTmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'gt-flywheel-test-'));
 }
 function cleanup(dir) {
-  try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* error-ok — temp dir cleanup; a busy handle on Windows cannot fail the assertion */ }
 }
 
 // ── module shape ──────────────────────────────────────────────────────────────

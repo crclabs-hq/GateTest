@@ -96,7 +96,7 @@ class E2eModule extends BaseModule {
             command: pkg.scripts['test:e2e'] ? 'npm run test:e2e 2>&1' : 'npm run e2e 2>&1',
           };
         }
-      } catch { /* ignore */ }
+      } catch { /* error-ok — unreadable package.json — the syntax module reports it; this check has nothing to read */ }
     }
 
     return null;

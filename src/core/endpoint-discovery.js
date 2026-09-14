@@ -216,7 +216,7 @@ function discoverFromHtml(html, pageUrl) {
           source: 'html-link',
         });
       });
-    } catch { /* skip malformed url */ }
+    } catch { /* error-ok — skip malformed url */ }
   }
 
   return out;

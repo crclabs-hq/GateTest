@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
             if (ts > since) since = ts;
             ctrl.enqueue(sse("scan", { ...row, created_at: ts.toISOString() }));
           }
-        } catch { /* ignore transient DB errors during polling */ }
+        } catch { /* error-ok — ignore transient DB errors during polling */ }
       }, 3_000);
 
       // 3. Heartbeat every 20 seconds to keep the connection alive through proxies
@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
         try {
           ctrl.enqueue(sse("close", { reason: "timeout" }));
           ctrl.close();
-        } catch { /* stream may already be gone */ }
+        } catch { /* error-ok — stream may already be gone */ }
       }, 55_000);
     },
 

@@ -183,7 +183,7 @@ class ApiHealthModule extends BaseModule {
         lists.push(discoverFromHtml(home.body, baseUrl));
       }
     } catch {
-      /* homepage fetch failure just means we fall back to common-paths only */
+      /* error-ok — homepage fetch failure just means we fall back to common-paths only */
     }
 
     return mergeDiscoveries(...lists);

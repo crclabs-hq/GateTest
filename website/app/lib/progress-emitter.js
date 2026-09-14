@@ -86,7 +86,7 @@ function createEmitter({ enabled }) {
         }
         writer.close();
       } catch {
-        // already closed
+        // error-ok — already closed
       } finally {
         closed = true;
       }

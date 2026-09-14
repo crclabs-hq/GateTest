@@ -44,7 +44,7 @@ class AlertRouter {
     try {
       fs.mkdirSync(path.dirname(this.logFile), { recursive: true });
       fs.appendFileSync(this.logFile, JSON.stringify(entry) + '\n');
-    } catch { /* log errors must never crash the monitor */ }
+    } catch { /* error-ok — log errors must never crash the monitor */ }
   }
 
   async _webhook(entry) {
@@ -67,7 +67,7 @@ class AlertRouter {
         req.write(payload);
         req.end();
       });
-    } catch { /* webhook failures must never crash the monitor */ }
+    } catch { /* error-ok — webhook failures must never crash the monitor */ }
   }
 
   _color(level) {

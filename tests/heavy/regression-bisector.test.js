@@ -58,7 +58,7 @@ describe('regression-bisector', () => {
   });
 
   after(() => {
-    try { fs.rmSync(repo, { recursive: true, force: true }); } catch { /* best-effort */ }
+    try { fs.rmSync(repo, { recursive: true, force: true }); } catch { /* error-ok — temp dir cleanup; a busy handle on Windows cannot fail the assertion */ }
   });
 
   it('isGitRepo detects a real repo and rejects a non-repo dir', () => {

@@ -342,8 +342,8 @@ class SpineHealthModule extends BaseModule {
       if (memory.spine.history.length > 50) {
         memory.spine.history = memory.spine.history.slice(-50);
       }
-      mem.save(projectRoot, memory);
-    } catch { /* best-effort */ } // error-ok
+      mem.save(projectRoot, memory); // error-ok — persistent-memory.save is synchronous (writeFileSync) and never throws; the name only looks async
+    } catch { /* error-ok — history is best-effort; a scan never fails on its own bookkeeping */ }
   }
 }
 

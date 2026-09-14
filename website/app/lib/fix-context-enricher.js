@@ -326,7 +326,7 @@ async function enrichFixContext({ filePath, fileContents, allFiles, fetchFile })
     const uniqueDeps = [...new Set(resolved)].slice(0, MAX_DEPS);
     dependencies = uniqueDeps;
   } catch {
-    // best-effort: leave as []
+    // error-ok — enrichment is best-effort; the fixer works from the file alone
   }
 
   // ---- 2. Consumers (files that import this file) ----
@@ -357,11 +357,11 @@ async function enrichFixContext({ filePath, fileContents, allFiles, fetchFile })
           found++;
         }
       } catch {
-        // skip this candidate
+        // error-ok — an unreadable candidate is not a consumer we can prove
       }
     }
   } catch {
-    // best-effort: leave as []
+    // error-ok — enrichment is best-effort; the fixer works from the file alone
   }
 
   // ---- 3. Stack hints from package.json ----
@@ -376,7 +376,7 @@ async function enrichFixContext({ filePath, fileContents, allFiles, fetchFile })
       }
     }
   } catch {
-    // best-effort: leave as []
+    // error-ok — enrichment is best-effort; the fixer works from the file alone
   }
 
   // ---- 4. Summary ----

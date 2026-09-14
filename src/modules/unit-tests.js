@@ -141,7 +141,7 @@ class UnitTestsModule extends BaseModule {
         if (pkg.scripts?.test && pkg.scripts.test !== 'echo "Error: no test specified" && exit 1') {
           return { name: 'npm test', command: 'npm test 2>&1' };
         }
-      } catch { /* invalid package.json */ }
+      } catch { /* error-ok — unreadable package.json — the syntax module reports it; this check has nothing to read */ }
     }
 
     // Check for common test configs — Node first, then the other toolchains
