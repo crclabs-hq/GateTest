@@ -32,7 +32,10 @@
  * a parent that still prints nothing is killed outright, as "did not finish".
  *
  * Usage: node scripts/run-tests.js [--timeout ms] [--file-timeout ms]
- *          [--concurrency n] [--out path] <files…>
+ *          [--concurrency n] [--out path] <files or globs…>
+ * Globs are expanded here: cmd.exe hands `tests/*.test.js` to node as a
+ * literal, and Node's own `--test` then ran all 486 files as ONE file of
+ * this runner (`# files 1`) — every per-file verdict gone on Windows.
  */
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
@@ -42,8 +45,33 @@ const path = require('path');
 const SUMMARY_RE = /^# (tests|suites|pass|fail|cancelled|skipped|todo) (\d+)$/;
 const END_RE = /^# duration_ms /;
 const RESULT_RE = /^\s*(not )?ok \d+ - (.*)$/;
+const GLOB_RE = /[*?]/;
 const WIN = process.platform === 'win32';
 const SUMMARY_GRACE_MS = 5000;
+
+/**
+ * A literal path is kept as it is. A pattern with `*` / `?` in its last
+ * segment is matched over that directory here — no dependency, no
+ * ExperimentalWarning — and anything richer (`**`, a wildcard directory)
+ * goes to fs.globSync where Node has it (22+). A pattern matching nothing is
+ * an error: a glob that silently expands to no files is a green empty run.
+ */
+function expandGlob(arg) {
+  if (!GLOB_RE.test(arg) || fs.existsSync(arg)) return [arg];
+  const dir = path.dirname(arg);
+  const base = path.basename(arg);
+  let matches;
+  if (!GLOB_RE.test(dir) && !base.includes('**')) {
+    const re = new RegExp(`^${base.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/\\\\]*').replace(/\?/g, '[^/\\\\]')}$`);
+    matches = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => re.test(f)).map((f) => path.join(dir, f)) : [];
+  } else if (typeof fs.globSync === 'function') {
+    matches = fs.globSync(arg);
+  } else {
+    throw new Error(`cannot expand ${arg}: wildcards outside the last path segment need fs.globSync (Node 22+), this is ${process.version}`);
+  }
+  if (!matches.length) throw new Error(`${arg} matched no files`);
+  return matches.map((m) => m.split(path.sep).join('/')).sort();
+}
 
 function parseArgs(argv) {
   const opts = { timeout: 60000, fileTimeout: 15 * 60 * 1000, concurrency: Math.max(1, Math.min(4, os.cpus().length)), out: null, files: [] };
@@ -53,7 +81,7 @@ function parseArgs(argv) {
     else if (a === '--file-timeout') opts.fileTimeout = Number(argv[++i]);
     else if (a === '--concurrency') opts.concurrency = Number(argv[++i]);
     else if (a === '--out') opts.out = argv[++i];
-    else opts.files.push(a);
+    else opts.files.push(...expandGlob(a));
   }
   if (!opts.files.length) opts.files = fs.readdirSync('tests').filter((f) => f.endsWith('.test.js')).map((f) => path.join('tests', f));
   return opts;
@@ -230,4 +258,4 @@ async function main() {
   }
 }
 
-main();
+main().catch((err) => { process.stderr.write(`run-tests: ${err.message}\n`); process.exitCode = 2; });
