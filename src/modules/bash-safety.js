@@ -10,6 +10,7 @@ const { stripShellLiterals } = require('../core/source-strip');
 const { collectShellScripts } = require('../core/shell-files');
 const fs   = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 const SWALLOW_OK = /gatetest:swallow-ok/;
 /** `[ -d x ]`, `[[ ! -f x ]]`, `test -s x`, `if ! [ -e x ]`, `$?` — a decision on the artefact. */
@@ -161,12 +162,12 @@ class BashSafetyModule extends BaseModule {
 
     // Shell scripts
     for (const file of scripts) {
-      this._scanFile(file, path.relative(root, file), result, 'shell');
+      this._scanFile(file, repoRelative(root, file), result, 'shell');
     }
 
     // CI YAML — extract run: blocks
     for (const file of yaml) {
-      this._scanFile(file, path.relative(root, file), result, 'yaml');
+      this._scanFile(file, repoRelative(root, file), result, 'yaml');
     }
 
     // package.json scripts

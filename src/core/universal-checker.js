@@ -19,6 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('./repo-path');
 
 /**
  * Skip these files & directories entirely.
@@ -386,7 +387,7 @@ function runLanguageChecks(lang, projectRoot, result, options = {}) {
           if (reason) { severity = 'warning'; downgradeNote = ` — ${reason}`; }
         }
 
-        const relPath = path.relative(projectRoot, file);
+        const relPath = repoRelative(projectRoot, file);
         const passed = severity === 'info';
         result.addCheck(`${lang}:${p.name}:${relPath}:${i + 1}`, passed, {
           severity,

@@ -24,6 +24,7 @@ const { execSync } = require('child_process');
 const https  = require('https');
 const fs     = require('fs');
 const path   = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 // MODEL resolves through engine-models so GATETEST_CHEAP_MODEL reaches
 // this call site — it was a hardcoded literal, invisible to the override (KI #78).
@@ -132,7 +133,7 @@ function findTestsForFiles(files, projectRoot) {
         break;
       }
       if (fs.existsSync(c)) {
-        testFiles.push(path.relative(projectRoot, c));
+        testFiles.push(repoRelative(projectRoot, c));
         break;
       }
     }

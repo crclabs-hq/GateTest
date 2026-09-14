@@ -29,7 +29,7 @@
 
 const fs   = require('fs');
 const { stripStringsAndComments } = require('../core/source-strip');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule    = require('./base-module');
 const { makeAutoFix } = require('../core/ai-fix-engine');
 const { isIllustrationPath } = require('../core/scan-scope');
@@ -394,7 +394,7 @@ class AuthBypassDetector extends BaseModule {
 
     for (const file of files) {
       // Forward slashes always — findings must not differ by host OS.
-      const rel = path.relative(projectRoot, file).split(path.sep).join('/');
+      const rel = repoRelative(projectRoot, file);
       if (isPublicFile(rel)) continue;
 
       let content;

@@ -29,6 +29,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('./repo-path');
 
 /** Extensions that are shell by declaration. */
 const SHELL_EXTENSIONS = Object.freeze(['.sh', '.bash', '.zsh', '.ksh']);
@@ -105,7 +106,7 @@ function collectShellScripts(module, projectRoot, alsoExts = []) {
   const scripts = [];
   const others = [];
   for (const file of module._collectFiles(projectRoot, ['*'])) {
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     if (isShellScript(file, rel)) scripts.push(file);
     else if (also.length && also.includes(path.extname(file).toLowerCase())) others.push(file);
   }

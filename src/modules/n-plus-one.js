@@ -60,7 +60,7 @@
  */
 
 const fs = require('fs');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { HARNESS_DIR_RE } = require('../core/scan-scope');
 
@@ -179,7 +179,7 @@ class NPlusOneModule extends BaseModule {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return 0; }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const lines = content.split(/\r?\n/);
     const masked = this._maskedLines(content);
     let issues = 0;

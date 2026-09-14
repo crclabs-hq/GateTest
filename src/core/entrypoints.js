@@ -18,6 +18,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('./repo-path');
 const { compiledToSources } = require('./module-resolution');
 
 // Not `app`: a Next.js app directory holds ordinary components and libs
@@ -153,7 +154,7 @@ function angularEntrypoints(dir, out) {
  * @param {Set<string>} [manifestRefs] from manifestEntrypoints()
  */
 function isEntryPoint(file, projectRoot, manifestRefs) {
-  const rel = path.relative(projectRoot, file).split(path.sep).join('/');
+  const rel = repoRelative(projectRoot, file);
   const base = path.basename(file);
   if (ENTRYPOINT_BASENAMES.has(base)) return true;
   if (FRAMEWORK_FILE_RE.test(base) || METADATA_FILE_RE.test(base) || TOOL_FILE_RE.test(base)) return true;

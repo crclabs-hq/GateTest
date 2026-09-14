@@ -24,6 +24,7 @@
 "use strict";
 
 const path = require("path");
+const { repoRelative } = require('../repo-path');
 const fs = require("fs");
 
 /**
@@ -81,7 +82,7 @@ function reportToFindings(report, projectRoot) {
         // Always forward slashes — these paths land in reports, PR comments,
         // and cross-box baseline diffs, where "src\\x.js" from a Windows
         // scanner would mismatch the same finding from a Linux CI runner.
-        finding.file = path.relative(projectRoot, finding.file).replace(/\\/g, "/");
+        finding.file = repoRelative(projectRoot, finding.file);
       }
       findings.push(finding);
     }

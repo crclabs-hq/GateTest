@@ -27,6 +27,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule    = require('./base-module');
 const { makeAutoFix } = require('../core/ai-fix-engine');
 const { listWorkspacePackages } = require('../core/workspaces');
@@ -79,7 +80,7 @@ class MonorepoConstraints extends BaseModule {
     // Longest rel first, so a nested member (packages/a/b) wins over packages/a.
     const byRelDesc = [...members].sort((a, b) => b.rel.length - a.rel.length);
     const memberOf = (absPath) => {
-      const rel = path.relative(projectRoot, absPath).split(path.sep).join('/');
+      const rel = repoRelative(projectRoot, absPath);
       return byRelDesc.find((m) => rel === m.rel || rel.startsWith(m.rel + '/')) || null;
     };
 
@@ -95,7 +96,7 @@ class MonorepoConstraints extends BaseModule {
         let content;
         try { content = fs.readFileSync(file, 'utf-8'); } catch { continue; } // error-ok — unreadable file has no imports
 
-        const rel = path.relative(projectRoot, file);
+        const rel = repoRelative(projectRoot, file);
         const isTest = this._isTestPath(rel);
         const lines = content.split(/\r?\n/);
 

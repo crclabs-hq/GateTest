@@ -11,12 +11,13 @@ const os = require('node:os');
 const path = require('node:path');
 
 const { resolvePythonImport, pythonEdges, pythonImporters } = require('../src/core/python-imports');
+const { repoRelative } = require('../src/core/repo-path');
 
 let root;
 const abs = (rel) => path.join(root, rel);
 const write = (rel, body = '') => { fs.mkdirSync(path.dirname(abs(rel)), { recursive: true }); fs.writeFileSync(abs(rel), body); };
 let fileSet;
-const edges = (rel, content) => pythonEdges(abs(rel), content, root, fileSet).map((e) => [path.relative(root, e.to), e.kind]);
+const edges = (rel, content) => pythonEdges(abs(rel), content, root, fileSet).map((e) => [repoRelative(root, e.to), e.kind]);
 
 before(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-pyimports-'));

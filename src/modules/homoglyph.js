@@ -68,6 +68,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { stripStringsAndComments, stripPythonStringsAndComments, stripLineLiterals } = require('../core/source-strip');
 const JS_FAMILY = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.mts', '.cts']);
@@ -215,7 +216,7 @@ class HomoglyphModule extends BaseModule {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return 0; }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const relFwd = rel.replace(/\\/g, '/');
     const isLocale = LOCALE_PATH_RE.test(relFwd) || LOCALE_EXT_RE.test(relFwd);
     const isDoc = DOC_EXT_RE.test(relFwd);

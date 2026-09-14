@@ -46,6 +46,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 
 const SCAN_EXTS = new Set([
@@ -148,7 +149,7 @@ class ClaudeComplianceModule extends BaseModule {
     let issues = 0;
 
     for (const abs of files) {
-      const rel = path.relative(projectRoot, abs).replace(/\\/g, '/');
+      const rel = repoRelative(projectRoot, abs);
       if (MINIFIED_RE.test(rel)) continue;
       let text;
       try {
@@ -292,7 +293,7 @@ class ClaudeComplianceModule extends BaseModule {
     // skipped every dot-entry below the root (`.github/`, `.storybook/`,
     // `.eslintrc.js`); kept as a filter so the file set is unchanged.
     return this._collectFiles(root, [...SCAN_EXTS], ['.terraform']).filter((full) => {
-      const rel = path.relative(root, full);
+      const rel = repoRelative(root, full);
       return !rel.split(/[\\/]/).some((seg) => seg.startsWith('.'));
     });
   }

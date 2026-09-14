@@ -6,6 +6,7 @@
 // class exposes it to every module as `_isTestPath` and `TEST_PATH_RE`.
 const { TEST_PATH_RE, isTestPath } = require('../core/test-paths');
 const { maskSource } = require('../core/source-strip');
+const { repoRelative } = require('../core/repo-path');
 
 class BaseModule {
   constructor(name, description) {
@@ -72,7 +73,7 @@ class BaseModule {
     // decided for every module that walks (src/core/scan-paths.js).
     if (this._scanPathFilter) {
       const { pathInScope } = require('../core/scan-paths');
-      const inScope = (f) => pathInScope(this._scanPathFilter, path.relative(projectRoot, f).split(path.sep).join('/'));
+      const inScope = (f) => pathInScope(this._scanPathFilter, repoRelative(projectRoot, f));
       for (let i = files.length - 1; i >= 0; i--) if (!inScope(files[i])) files.splice(i, 1);
     }
 

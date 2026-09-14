@@ -64,6 +64,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 
 // Directory excludes beyond what `BaseModule._collectFiles` already skips
@@ -389,7 +390,7 @@ class EnvVarsModule extends BaseModule {
     // Shared walk from BaseModule (KI #104); test-path and dev-config
     // skips are unchanged.
     for (const full of this._collectFiles(projectRoot, [...CODE_EXTS], EXTRA_EXCLUDES)) {
-      const rel = path.relative(projectRoot, full);
+      const rel = repoRelative(projectRoot, full);
       if (this._isTestPath(rel)) continue;
       if (DEV_CONFIG_BASENAME_RE.test(path.basename(full))) continue;
       this._scanReferences(full, projectRoot, referenced);
@@ -400,7 +401,7 @@ class EnvVarsModule extends BaseModule {
   _scanReferences(file, projectRoot, referenced) {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return; }
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const ext = path.extname(file).toLowerCase();
     const isJs = ['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts'].includes(ext);
     const lang = isJs ? 'js' : ext === '.go' ? 'go' : ext === '.py' ? 'py' : null;

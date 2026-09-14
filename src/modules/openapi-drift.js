@@ -65,6 +65,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 
 // One definition (src/core/walk-excludes.js); `.terraform` — the extra this
@@ -193,7 +194,7 @@ class OpenApiDriftModule extends BaseModule {
   _harvestSpec(file, projectRoot, specPaths) {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return; }
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
 
     if (file.toLowerCase().endsWith('.json')) {
       let parsed;
@@ -274,7 +275,7 @@ class OpenApiDriftModule extends BaseModule {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return; }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     if (this._isTestPath(rel)) return;
 
     const lines = content.split(/\r?\n/);
@@ -349,7 +350,7 @@ class OpenApiDriftModule extends BaseModule {
         } else if (entry.isFile() && /^route\.(?:ts|tsx|js|jsx|mts|cts|mjs|cjs)$/i.test(entry.name)) {
           let content;
           try { content = fs.readFileSync(full, 'utf-8'); } catch { continue; }
-          const rel = path.relative(projectRoot, full);
+          const rel = repoRelative(projectRoot, full);
           const pathStr = '/' + urlParts.join('/');
           const normalized = pathStr === '/' ? '/' : pathStr.replace(/\/+$/, '');
           for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']) {

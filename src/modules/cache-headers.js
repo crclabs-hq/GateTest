@@ -8,6 +8,7 @@
 const BaseModule = require('./base-module');
 const fs   = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 // File-based API routes: Next.js App Router `app/api/**/route.*`, Pages
 // Router `pages/api/**`, SvelteKit `+server.*`, a root `api/` functions
@@ -42,7 +43,7 @@ class CacheHeadersModule extends BaseModule {
     if (!file) return;
 
     const content = fs.readFileSync(file, 'utf8');
-    const rel = path.relative(root, file);
+    const rel = repoRelative(root, file);
 
     // Check headers() function exists
     if (!content.includes('headers')) {
@@ -129,7 +130,7 @@ class CacheHeadersModule extends BaseModule {
     if (!file) return;
 
     const content = fs.readFileSync(file, 'utf8');
-    const rel = path.relative(root, file);
+    const rel = repoRelative(root, file);
 
     if (!content.match(/expires|cache-control/i)) {
       result.addCheck('nginx-no-cache', false, {
@@ -175,7 +176,7 @@ class CacheHeadersModule extends BaseModule {
 
   _checkApiRoutes(root, result) {
     const routeFiles = this._collectFiles(root, ['.js', '.ts', '.jsx', '.tsx'])
-      .map((f) => ({ f, rel: path.relative(root, f).replace(/\\/g, '/') }))
+      .map((f) => ({ f, rel: repoRelative(root, f) }))
       .filter(({ rel }) => APP_ROUTE_RE.test(rel) && !this._isTestPath(rel))
       .map(({ f }) => f);
     let uncachedCount = 0;

@@ -6,6 +6,7 @@
 const BaseModule = require('./base-module');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const { isNonUserFacingPage } = require('../core/scan-scope');
 
 class VisualModule extends BaseModule {
@@ -22,7 +23,7 @@ class VisualModule extends BaseModule {
     const htmlFiles = this._collectFiles(projectRoot, ['.html', '.jsx', '.tsx', '.vue', '.svelte']);
 
     for (const file of cssFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
 
       this._checkLayoutShifts(relPath, content, result);
@@ -36,7 +37,7 @@ class VisualModule extends BaseModule {
     const INTERNAL_PATH_RE = /(?:^|\/)(?:website\/public\/)/;
 
     for (const file of htmlFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const normalised = relPath.replace(/\\/g, '/');
       if (INTERNAL_PATH_RE.test('/' + normalised)) continue;
       // Library examples/ and sandbox/ are documentation on any repo.
@@ -226,7 +227,7 @@ class VisualModule extends BaseModule {
     // observation about token hygiene, never a gate failure.
     const allVars = new Map();
     for (const file of cssFiles) {
-      const rel = path.relative(projectRoot, file).replace(/\\/g, '/').toLowerCase();
+      const rel = repoRelative(projectRoot, file).toLowerCase();
       if (/\.min\.(css|scss|less)$|(^|\/)(vendor|vendors|lib|libs|dist|build|static\/css|bootstrap|tailwind|node_modules)\//.test(rel)) continue;
       const content = fs.readFileSync(file, 'utf-8');
       if (/--(bs|mdc|mat|mui|chakra|tw|ant|el|p|v)-[\w-]+\s*:/.test(content) && !/^\s*:root\s*\{/m.test(content)) continue;

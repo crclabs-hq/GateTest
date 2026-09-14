@@ -88,7 +88,7 @@
  */
 
 const fs = require('fs');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { HARNESS_DIR_RE } = require('../core/scan-scope');
 const { classifyEmptyCatch, enclosingContext, isTeardownName } = require('../core/guarded-catch');
@@ -243,7 +243,7 @@ class ErrorSwallowModule extends BaseModule {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return 0; }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const relPosix = rel.replace(/\\/g, '/');
     // A benchmark is the same KIND of code as a test: a harness, not something
     // that ships. `HARNESS_DIR_RE` is the engine's single definition of that

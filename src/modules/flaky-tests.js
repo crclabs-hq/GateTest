@@ -70,6 +70,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { stripStringsAndComments } = require('../core/source-strip');
 
@@ -208,7 +209,7 @@ class FlakyTestsModule extends BaseModule {
 
   _isTestFile(full, projectRoot) {
     if (!TEST_EXTS.has(path.extname(full).toLowerCase())) return false;
-    return this._isTestPath(path.relative(projectRoot, full));
+    return this._isTestPath(repoRelative(projectRoot, full));
   }
 
   _scanFile(file, projectRoot, result) {
@@ -217,7 +218,7 @@ class FlakyTestsModule extends BaseModule {
       content = fs.readFileSync(file, 'utf-8');
     } catch { return 0; }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const lines = content.split(/\r?\n/);
     const masked = stripStringsAndComments(content).split(/\r?\n/);
     let issues = 0;

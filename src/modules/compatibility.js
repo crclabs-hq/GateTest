@@ -8,6 +8,7 @@ const BaseModule = require('./base-module');
 const { JS_SOURCE_EXTS } = require('../core/source-extensions');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 class CompatibilityModule extends BaseModule {
   constructor() {
@@ -22,14 +23,14 @@ class CompatibilityModule extends BaseModule {
 
     const cssFiles = this._collectFiles(projectRoot, ['.css', '.scss']);
     for (const file of cssFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
       this._checkCssCompat(relPath, content, result);
     }
 
     const jsFiles = this._collectFiles(projectRoot, JS_SOURCE_EXTS);
     for (const file of jsFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
       this._checkJsCompat(relPath, content, result);
     }
@@ -238,7 +239,7 @@ class CompatibilityModule extends BaseModule {
 
     // Check minimum touch target sizes in CSS
     for (const file of cssFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
 
       // Look for very small fixed dimensions on interactive elements

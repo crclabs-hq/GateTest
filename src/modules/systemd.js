@@ -12,6 +12,7 @@
 const BaseModule = require('./base-module');
 const fs   = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 // Binaries that are typically pre-installed system-wide
 const SYSTEM_BINARIES = new Set([
@@ -46,7 +47,7 @@ class SystemdModule extends BaseModule {
     }
 
     for (const file of serviceFiles) {
-      this._validateUnit(file, path.relative(root, file), root, result);
+      this._validateUnit(file, repoRelative(root, file), root, result);
     }
   }
 

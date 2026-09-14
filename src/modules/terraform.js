@@ -29,6 +29,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 
 // Excludes beyond BaseModule._collectFiles' defaults (KI #104).
@@ -108,7 +109,7 @@ class TerraformModule extends BaseModule {
       return 0;
     }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const lines = content.split(/\r?\n/);
     let issues = 0;
 

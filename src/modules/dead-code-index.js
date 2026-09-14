@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const { workspacePackageMap } = require('../core/workspaces');
 const {
   PY_EXTS,
@@ -45,7 +46,7 @@ function buildDeadCodeIndex(files, projectRoot) {
       ? extractPyExports(content)
       : extractJsExports(content);
 
-    perFile.set(file, { exports, lang, rel: path.relative(projectRoot, file) });
+    perFile.set(file, { exports, lang, rel: repoRelative(projectRoot, file) });
 
     const imp = lang === 'py'
       ? extractPyImports(content)

@@ -44,6 +44,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('./repo-path');
 const { workspacePackageMap } = require('./workspaces');
 const { resolveAlias, resolvePackageEntry, resolvePackageSubpath, tsEquivalents, elisionMode } = require('./module-resolution');
 const { readImports } = require('./ts-tokens');
@@ -545,7 +546,7 @@ function buildImportGraph(opts = {}) {
     runtimeEdgeCount += runtime.size;
   }
 
-  const rel = (abs) => path.relative(projectRoot, abs).split(path.sep).join('/');
+  const rel = (abs) => repoRelative(projectRoot, abs);
 
   return { files, fileSet, staticGraph, runtimeGraph, loadGraph, fullGraph, edges, staticEdgeCount, runtimeEdgeCount, unchecked, elision, externals, skipped, rel };
 }

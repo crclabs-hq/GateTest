@@ -22,6 +22,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { toPosix } = require('./repo-path');
 
 const IGNORE_FILENAME = '.gatetestignore';
 
@@ -45,7 +46,7 @@ function _globToRegExp(glob) {
 }
 
 function _normPath(p) {
-  return typeof p === 'string' ? p.replace(/\\/g, '/') : '';
+  return typeof p === 'string' ? toPosix(p) : '';
 }
 
 // Module/rule tokens appear in two spellings: the registry name is camelCase

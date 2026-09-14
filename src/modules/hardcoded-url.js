@@ -56,6 +56,7 @@
 const fs = require('fs');
 const { literalKindAt } = require('../core/source-strip');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const { isNonUserFacingPage } = require('../core/scan-scope');
 const BaseModule = require('./base-module');
 
@@ -178,7 +179,7 @@ class HardcodedUrlModule extends BaseModule {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return 0; }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     // Illustration directories join test files here rather than being skipped:
     // a `localhost` URL in `examples/server.js` or `sandbox/client.js` is the
     // demo working as intended, not a production defect. Downgraded to info so

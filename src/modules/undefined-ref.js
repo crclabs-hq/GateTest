@@ -41,6 +41,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { stripStringsAndComments, splitTopLevel } = require('../core/source-strip');
 
@@ -242,7 +243,7 @@ class UndefinedRefModule extends BaseModule {
     // Forward slashes always — rel lands in check IDs, report files, and PR
     // comments, where "src\\x.ts" from a Windows scan would mismatch the
     // same finding produced by a Linux CI runner.
-    const rel = path.relative(projectRoot, file).replace(/\\/g, '/');
+    const rel = repoRelative(projectRoot, file);
     const isTestPath = /\b(?:tests?|spec|specs|__tests__|e2e|fixtures?|stories)\b/i.test(rel);
 
     // Strip comments / string literals for USE-detection (Pass 2 only).

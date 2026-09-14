@@ -11,6 +11,7 @@
 const BaseModule = require('./base-module');
 const fs   = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const { isExcludedDir } = require('../core/walk-excludes');
 
 const SMART_QUOTE_RE   = /[‘’“”«»‹›`]/;
@@ -35,7 +36,7 @@ class EnvIntegrityModule extends BaseModule {
 
     let totalIssues = 0;
     for (const file of envFiles) {
-      const count = this._lintFile(file, path.relative(root, file), result);
+      const count = this._lintFile(file, repoRelative(root, file), result);
       totalIssues += count;
     }
 

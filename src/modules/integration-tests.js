@@ -10,6 +10,7 @@ const { ROUTE_OBJECTS, ROUTE_VERBS } = require('../core/route-grammar');
 const { looksLikeMissingToolchain, nodeDepsMissing } = require('../core/toolchain-signals');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 // One grammar for "this line registers a route" (src/core/route-grammar.js),
 // with captures for the verb and the path. Until 2026-09-05 this module
@@ -127,7 +128,7 @@ class IntegrationTestsModule extends BaseModule {
     // and a test dir was the only way to be "found" (2026-09-05). Walk real
     // extensions and ask the one test-path definition instead.
     const allTestFiles = this._collectFiles(projectRoot, JS_SOURCE_EXTS)
-      .filter((f) => this._isTestPath(path.relative(projectRoot, f)));
+      .filter((f) => this._isTestPath(repoRelative(projectRoot, f)));
     const byName = allTestFiles.filter((f) => {
       const base = path.basename(f).toLowerCase();
       return base.includes('integration') || base.includes('.int.') ||
@@ -206,7 +207,7 @@ class IntegrationTestsModule extends BaseModule {
     const jsFiles = this._collectFiles(projectRoot, JS_SOURCE_EXTS);
 
     for (const file of jsFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       // `includes('test')` also matched `src/latest/`, `attestation.js`
       // and `testimonials/` — real shipped code, silently skipped.
       // BaseModule._isTestPath() is the canonical segment-anchored form.
@@ -278,7 +279,7 @@ class IntegrationTestsModule extends BaseModule {
     const jsFiles = this._collectFiles(projectRoot, JS_SOURCE_EXTS_NO_JSX);
 
     for (const file of jsFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       // `includes('test')` also matched `src/latest/`, `attestation.js`
       // and `testimonials/` — real shipped code, silently skipped.
       // BaseModule._isTestPath() is the canonical segment-anchored form.
