@@ -23,7 +23,7 @@ import { neon } from "@neondatabase/serverless";
 import { badgeUrl } from "@/app/lib/site-url";
 import { hashRepoUrl } from "@/app/lib/scan-history-store";
 
-export function computeScore(scan: {
+function computeScore(scan: {
   issues: number;
   modulesPassed: number;
   totalModules: number;

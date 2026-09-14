@@ -8,7 +8,7 @@
  * Source of truth for the /blog URL set.
  */
 
-export interface BlogSection {
+interface BlogSection {
   /** Optional H2 heading for the section. */
   heading?: string;
   /** Paragraphs of prose. */
@@ -19,7 +19,7 @@ export interface BlogSection {
   bullets?: string[];
 }
 
-export interface BlogPost {
+interface BlogPost {
   slug: string;
   title: string;
   /** Meta description + hero standfirst. */

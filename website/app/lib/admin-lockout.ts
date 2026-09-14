@@ -41,10 +41,9 @@ import { getDb } from "./db";
 // Tunables (Bible: pre-authorized to change without Boss Rule)
 // ---------------------------------------------------------------------------
 
-export const MAX_FAILURES_BEFORE_LOCKOUT = 5;
-export const WINDOW_MS = 15 * 60 * 1000;        // 15-minute rolling window
+const MAX_FAILURES_BEFORE_LOCKOUT = 5;
+const WINDOW_MS = 15 * 60 * 1000;        // 15-minute rolling window
 export const LOCKOUT_MS = 30 * 60 * 1000;       // 30-minute cooldown
-export const AUDIT_RETENTION_DAYS = 90;
 
 // ---------------------------------------------------------------------------
 // Schema init — idempotent. Called on the first lockout check per cold
@@ -100,7 +99,7 @@ export function clientIp(headers: Headers): string {
 // Public API
 // ---------------------------------------------------------------------------
 
-export interface LockoutState {
+interface LockoutState {
   locked: boolean;
   lockedUntil: Date | null;
   failedCount: number;
@@ -246,7 +245,7 @@ export async function recordLockedRejection(ip: string, userAgent: string | null
 /**
  * For /admin dashboard — recent audit log entries.
  */
-export interface AuditEntry {
+interface AuditEntry {
   ts: Date;
   ip: string | null;
   result: string;

@@ -119,4 +119,4 @@ function isJsoncPath(relPath) {
   return JSONC_FILE_RE.test(String(relPath).replace(/\\/g, '/'));
 }
 
-module.exports = { stripJsonc, isJsoncPath, JSONC_FILE_RE };
+module.exports = { stripJsonc, isJsoncPath };

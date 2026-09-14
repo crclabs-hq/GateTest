@@ -62,8 +62,7 @@ missing. The site returns `503` until every REQUIRED var is set.
 | `DATABASE_URL` | Neon Postgres — scans, customers, subscriptions, waitlist |
 | `ANTHROPIC_API_KEY` | AI fix / diagnosis / chat (supplied-key path) |
 | `SESSION_SECRET` | customer + admin session encryption |
-| `STRIPE_SECRET_KEY` | checkout / payments (use `sk_live_` in production) |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe.js on the checkout page |
+| `STRIPE_SECRET_KEY` | checkout / payments (use `sk_live_` in production; no publishable key — checkout is Stripe-hosted, nothing loads Stripe.js) |
 | `NEXT_PUBLIC_BASE_URL` | `https://gatetest.io` — redirect + callback URLs |
 
 **Important (features silently degrade without them):**

@@ -16,7 +16,8 @@
  *
  * Environment variables:
  *   STRIPE_SECRET_KEY — Stripe secret key (sk_live_... or sk_test_...)
- *   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY — For client-side (pk_live_... or pk_test_...)
+ *   (No publishable key: the session is created here and the customer is
+ *   redirected to Stripe-hosted Checkout — no Stripe.js on the client.)
  */
 
 import { NextRequest, NextResponse } from "next/server";

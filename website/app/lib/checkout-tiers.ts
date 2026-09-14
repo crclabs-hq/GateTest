@@ -14,7 +14,7 @@
  * authoritative definition either way.
  */
 
-export interface ScanTier {
+interface ScanTier {
   name: string;
   priceInCents: number;
   modules: string;

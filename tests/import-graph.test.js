@@ -567,3 +567,44 @@ describe('import-graph — Docusaurus `@site/*` resolves to the site root by con
     assert.deepStrictEqual(edgesFrom('other/docs/intro.mdx'), []);
   });
 });
+
+describe('import-graph — a specifier built from __dirname / process.cwd() / a const derived from them is an edge (2026-09-13)', () => {
+  // scripts/ops/mail-test.js and scripts/real-world-precision.js in this
+  // repo require through `path.join(__dirname, …)` / `path.join(ROOT, …)`;
+  // their targets were reported shipped-but-unreachable.
+  let D;
+  let g;
+  before(() => {
+    D = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-import-graph-computed-'));
+    writeTree(D, {
+      'lib/util.js': 'module.exports = { helper: () => 1 };\n',
+      'lib/other.js': 'module.exports = { other: () => 2 };\n',
+      'lib/third.js': 'module.exports = { third: () => 3 };\n',
+      'lib/dyn.js': 'module.exports = { dyn: () => 4 };\n',
+      'tools/run.js': [
+        "const path = require('path');",
+        "const ROOT = path.resolve(__dirname, '..');",
+        "const { helper } = require(path.join(__dirname, '..', 'lib', 'util.js'));",
+        'const { other } = require(path.resolve(',
+        "  ROOT, 'lib', 'other'",
+        '));',
+        "const third = require(path.join(process.cwd(), 'lib/third.js'));",
+        // NEGATIVE CONTROL — a variable segment cannot be resolved and must not be guessed.
+        "const name = 'dyn.js';",
+        "const dyn = require(path.join(__dirname, '..', 'lib', name));",
+        'module.exports = { helper, other, third, dyn };',
+        '',
+      ].join('\n'),
+    });
+    g = buildImportGraph({ projectRoot: D });
+  });
+  after(() => fs.rmSync(D, { recursive: true, force: true }));
+
+  it('POSITIVE CONTROL — __dirname, a const from __dirname, and process.cwd() bases resolve, on the statement\'s own line', () => {
+    const edges = g.edges.filter((e) => g.rel(e.from) === 'tools/run.js').map((e) => `${g.rel(e.to)}:${e.kind}:${e.line}`).sort();
+    assert.deepStrictEqual(edges, ['lib/other.js:static:4', 'lib/third.js:static:7', 'lib/util.js:static:3']);
+  });
+  it('NEGATIVE CONTROL — a variable segment is no edge', () => {
+    assert.ok(!g.edges.some((e) => g.rel(e.to) === 'lib/dyn.js'), 'lib/dyn.js must stay unreferenced');
+  });
+});

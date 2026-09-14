@@ -513,4 +513,4 @@ async function runTests(projectRoot, opts = {}) {
   };
 }
 
-module.exports = { runTests, detectRunner };
+module.exports = { runTests };

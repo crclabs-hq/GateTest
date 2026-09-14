@@ -156,4 +156,4 @@ function countBlocking(scanResult) {
   };
 }
 
-module.exports = { computeGateVerdict, ENFORCING_MODES };
+module.exports = { computeGateVerdict };

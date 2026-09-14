@@ -31,15 +31,15 @@ const CLIENT_PATH = path.join(__dirname, '..', 'website', 'app', 'lib', 'gluecro
 describe('fetchTreeWithMetadata — source-text contract', () => {
   const src = fs.readFileSync(CLIENT_PATH, 'utf8');
 
-  it('exports FetchTreeResult interface with paths/truncated/warning fields', () => {
-    assert.match(src, /export\s+interface\s+FetchTreeResult/);
+  it('declares FetchTreeResult interface with paths/truncated/warning fields', () => {
+    assert.match(src, /(?:export\s+)?interface\s+FetchTreeResult/);
     assert.match(src, /paths:\s*string\[\]/);
     assert.match(src, /truncated:\s*boolean/);
     assert.match(src, /warning:\s*string\s*\|\s*null/);
   });
 
-  it('exports fetchTreeWithMetadata returning Promise<FetchTreeResult>', () => {
-    assert.match(src, /export\s+async\s+function\s+fetchTreeWithMetadata/);
+  it('declares fetchTreeWithMetadata returning Promise<FetchTreeResult>', () => {
+    assert.match(src, /(?:export\s+)?async\s+function\s+fetchTreeWithMetadata/);
     assert.match(src, /Promise<FetchTreeResult>/);
   });
 
@@ -88,7 +88,7 @@ describe('fetchTreeWithMetadata — source-text contract', () => {
   it('records WHY the GitHub tree read failed instead of skipping past it', () => {
     assert.match(src, /githubFailure/);
     assert.match(src, /if\s*\(!ghRes\.ok\)/);
-    assert.match(src, /export\s+function\s+describeGithubTreeFailure/);
+    assert.match(src, /(?:export\s+)?function\s+describeGithubTreeFailure/);
   });
 
   it('names our own credential as the cause of a 401 — never the customer repo', () => {

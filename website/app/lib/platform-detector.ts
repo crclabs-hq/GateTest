@@ -27,7 +27,7 @@ export type Platform =
   | "joomla"
   | "unknown";
 
-export interface PlatformInfo {
+interface PlatformInfo {
   platform: Platform;
   label: string;
   confidence: "high" | "medium" | "low";

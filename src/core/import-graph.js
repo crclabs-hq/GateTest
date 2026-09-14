@@ -45,7 +45,7 @@
 const fs = require('fs');
 const path = require('path');
 const { workspacePackageMap } = require('./workspaces');
-const { resolveAlias, resolvePackageEntry, resolvePackageSubpath, tsEquivalents, elisionMode } = require('./module-resolution');
+const { resolveAlias, resolvePackageEntry, resolvePackageSubpath, tsEquivalents, elisionMode, inlineComputedRequires } = require('./module-resolution');
 const { readImports } = require('./ts-tokens');
 const { stripStringsAndComments } = require('./source-strip');
 const { classifyUses, statementUses } = require('./import-elision');
@@ -345,6 +345,11 @@ function edgesForFileUncached(absPath, fileSet, ctx, full = true) {
     return out; // error-ok
   }
   if (text.length > MAX_FILE_BYTES) { out.skipped = 'size'; return out; }
+  // A specifier built from `__dirname` / `process.cwd()` / a const derived
+  // from them becomes the literal it denotes (one definition:
+  // module-resolution.js `inlineComputedRequires`); newline count is kept,
+  // so every line number below is still the file's own.
+  text = inlineComputedRequires(text, absPath, ctx.projectRoot);
 
   const lines = text.split(/\r?\n/);
   const dir = path.dirname(absPath);

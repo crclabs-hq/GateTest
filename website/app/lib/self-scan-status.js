@@ -312,7 +312,8 @@ function _resetForTests() {
 }
 
 /**
- * Pure derivation: turn a SelfScanStatusData (or null / fetch error)
+ * Pure derivation: turn the JSON the GET endpoint returns — the stored
+ * status object (`{ ok, blocking, warnings, ... }`) or null / fetch error —
  * into the three semantic UI states the badge renders. Lives here so
  * the badge component's rendering logic is unit-testable.
  *

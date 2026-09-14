@@ -185,4 +185,4 @@ function analyseProject(audit, projectRoot) {
   return { items, counts, imported, manifest };
 }
 
-module.exports = { classifyAdvisories, gateSeverity, analyseProject, collectImportedPackages, extractImports, directRootsOf, readManifest };
+module.exports = { classifyAdvisories, gateSeverity, analyseProject, collectImportedPackages, extractImports };

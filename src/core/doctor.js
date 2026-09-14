@@ -315,4 +315,4 @@ function renderDoctor(result) {
   return out.join('\n');
 }
 
-module.exports = { runDoctor, renderDoctor, probeAnthropic, inspectGateWorkflow };
+module.exports = { runDoctor, renderDoctor, inspectGateWorkflow };

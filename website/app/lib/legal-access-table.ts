@@ -10,7 +10,7 @@ import type { LegalBlock } from "../components/legal/LegalDocument";
 import { APP_PERMISSIONS, WEBHOOK_EVENTS, APP_SLUG, appInstallUrl } from "./github-app-permissions";
 
 /** Scopes requested at sign-in. Ground truth: `app/api/auth/github/route.ts`. */
-export const GITHUB_OAUTH_SCOPES = ["read:user", "user:email"];
+const GITHUB_OAUTH_SCOPES =["read:user", "user:email"];
 
 /** The App's permission table, one row per declared scope, with the
  *  customer-facing reason GitHub shows next to it. */

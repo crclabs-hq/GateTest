@@ -286,7 +286,7 @@ describe('EnvVarsModule — a key set in a child process env block is a use of t
     assert.deepStrictEqual(unused, ['LATE_KEY', 'NEVER_KEY', 'OTHER_KEY', 'PLAIN_KEY']);
   });
 
-  it('a key only SET for a child is not missing from .env.example; a key READ beside it is', async () => {
+  it('a key only SET for a child is not missing from .env.example; a key READ beside it is (2026-09-05)', async () => {
     write(tmp, 'src/a.js', [
       'const worker = process.env.WORKER_PATH;',
       'spawn(process.execPath, [worker], { env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } });',
@@ -298,5 +298,116 @@ describe('EnvVarsModule — a key set in a child process env block is a use of t
       .filter((c) => c.passed === false && c.name.startsWith('env-vars:missing-from-example:'))
       .map((c) => c.name.replace('env-vars:missing-from-example:', ''));
     assert.deepStrictEqual(missing, ['WORKER_PATH']);
+  });
+});
+
+// 2026-09-13: the self-scan reported 36 `.env.example` keys as dead
+// configuration. 11 were read through an injected `env` (platform-config.js
+// `platformServicePrefix(env = process.env)`, report-provenance.js `const env
+// = opts.env || process.env`, events-push.js `processPushEvent({ env, … })`),
+// 7 through a key built at runtime (`env[`${prefix}${name}`]`), 18 were
+// declared only by a workflow `env:` block or a compose `${X}` and consumed by
+// that workflow's own shell, and one (`VAR`) came from a compose COMMENT.
+describe('EnvVarsModule — reads through an injected `env` binding (2026-09-13)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ev-alias-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const unusedOf = (r) => r.checks.filter((c) => c.passed === false && c.name.startsWith('env-vars:unused-in-code:')).map((c) => c.key).sort();
+  const missingOf = (r) => r.checks.filter((c) => c.passed === false && c.name.startsWith('env-vars:missing-from-example:'));
+
+  it('POSITIVE CONTROL — a parameter default, an `opts.env ||` alias and a destructured parameter each make `env.KEY` a read; NEGATIVE — a member of some other object is not', async () => {
+    write(tmp, 'src/a.js', 'function cfg(env = process.env) { return { a: env.ALIAS_KEY, b: env["ALIAS_BRACKET"] }; }\nmodule.exports = { cfg };\n');
+    write(tmp, 'src/b.js', 'function sign(opts = {}) {\n  const env = opts.env || process.env;\n  return env.ALIAS_OR_KEY;\n}\nmodule.exports = { sign };\n');
+    write(tmp, 'src/c.js', 'async function push({ rawBody, env, sql }) {\n  const secret = env.INJECTED_KEY;\n  return secret;\n}\nmodule.exports = { push };\n');
+    // NEGATIVE CONTROL — `cfg.PLAIN_KEY` is a property of an ordinary object;
+    // `settings.env.NESTED_KEY` is not the `env` binding either.
+    write(tmp, 'src/d.js', 'const cfg = { PLAIN_KEY: 1 };\nconst settings = { env: {} };\nconst x = cfg.PLAIN_KEY + settings.env.NESTED_KEY;\nmodule.exports = { x };\n');
+    write(tmp, '.env.example', 'ALIAS_KEY=\nALIAS_BRACKET=\nALIAS_OR_KEY=\nINJECTED_KEY=\nPLAIN_KEY=\nNESTED_KEY=\n');
+    const r = await run(tmp);
+    assert.deepStrictEqual(unusedOf(r), ['NESTED_KEY', 'PLAIN_KEY']);
+  });
+
+  it('an undeclared alias read is missing-from-example at WARNING — the binding may carry an injected default', async () => {
+    write(tmp, 'src/a.js', 'function cfg(env = process.env) { return env.UNDECLARED_ALIAS; }\nmodule.exports = { cfg };\n');
+    write(tmp, '.env.example', 'OTHER=\n');
+    const r = await run(tmp);
+    const hit = missingOf(r).find((c) => c.key === 'UNDECLARED_ALIAS');
+    assert.ok(hit, 'the alias read is a read');
+    assert.strictEqual(hit.severity, 'warning');
+  });
+
+  it('`const { A, B = "x" } = process.env` reads A and B; B is guarded, A is not', async () => {
+    write(tmp, 'src/a.js', 'const { DESTRUCT_A, DESTRUCT_B = "x", DESTRUCT_C: renamed } = process.env;\nmodule.exports = { DESTRUCT_A, DESTRUCT_B, renamed };\n');
+    write(tmp, '.env.example', 'DESTRUCT_C=\n');
+    const r = await run(tmp);
+    assert.deepStrictEqual(unusedOf(r), []);
+    const bySev = Object.fromEntries(missingOf(r).map((c) => [c.key, c.severity]));
+    assert.deepStrictEqual(bySev, { DESTRUCT_A: 'error', DESTRUCT_B: 'warning' });
+  });
+});
+
+describe('EnvVarsModule — the `env:` marker names the reads no regex can see (2026-09-13)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ev-marker-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const unusedOf = (r) => r.checks.filter((c) => c.passed === false && c.name.startsWith('env-vars:unused-in-code:')).map((c) => c.key).sort();
+
+  it('POSITIVE CONTROL — a `PREFIX_*` consumes every declared key under it and an exact key is a read; NEGATIVE — a key the marker does not name is still dead', async () => {
+    // website/app/lib/platform-config.js: `env[`${prefix}${name}`]` over TALLRIG_/VAPRON_/CRONTECH_.
+    write(tmp, 'src/platform.js', [
+      'function platformEnv(name, env = process.env) {',
+      "  for (const prefix of ['TALL_', 'VAP_']) {",
+      '    // env: TALL_* VAP_* EXACT_ONE',
+      '    const v = env[`${prefix}${name}`];',
+      '    if (v) return v;',
+      '  }',
+      '}',
+      'module.exports = { platformEnv };',
+      '',
+    ].join('\n'));
+    write(tmp, 'tools/publish.py', 'import os\n# env: PY_MARKED\nurl = os.environ.get(name, "x")\n');
+    write(tmp, '.env.example', 'TALL_BASE=\nTALL_TOKEN=\nVAP_BASE=\nEXACT_ONE=\nPY_MARKED=\nNOT_MARKED=\n');
+    const r = await run(tmp);
+    assert.deepStrictEqual(unusedOf(r), ['NOT_MARKED']);
+  });
+
+  it('an exact key in a marker that no env file declares is missing-from-example (a warning: the marker documents a read, not a boot risk)', async () => {
+    write(tmp, 'src/a.js', "// env: MARKED_ONLY\nconst v = lookup('MARKED_ONLY');\nmodule.exports = { v };\n");
+    write(tmp, '.env.example', 'OTHER=\n');
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name === 'env-vars:missing-from-example:MARKED_ONLY');
+    assert.ok(hit);
+    assert.strictEqual(hit.severity, 'warning');
+  });
+});
+
+describe('EnvVarsModule — only the .env* files are the contract unused-in-code judges (2026-09-13)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ev-contract-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('POSITIVE CONTROL — an .env.example key nothing reads is dead, and the finding points at its line; NEGATIVE — a key only a workflow env block or a compose `${X}` declares is not', async () => {
+    write(tmp, 'src/a.js', 'const k = process.env.USED_KEY;\nmodule.exports = { k };\n');
+    write(tmp, '.env.example', '# contract\nUSED_KEY=\nDEAD_KEY=\n');
+    // .github/workflows/deploy-box.yml on this repo: BOX_SSH_HOST is set in
+    // `env:` and read by the step's own shell — never by application code.
+    write(tmp, '.github/workflows/deploy.yml', 'on: push\njobs:\n  d:\n    runs-on: ubuntu-latest\n    env:\n      CI_ONLY_KEY: ${{ secrets.CI_ONLY_KEY }}\n    steps:\n      - run: ssh "$CI_ONLY_KEY"\n');
+    write(tmp, 'docker-compose.yml', 'services:\n  db:\n    environment:\n      POSTGRES_USER: ${COMPOSE_ONLY_KEY:-x}\n');
+    const r = await run(tmp);
+    const unused = r.checks.filter((c) => c.passed === false && c.name.startsWith('env-vars:unused-in-code:'));
+    assert.deepStrictEqual(unused.map((c) => c.key), ['DEAD_KEY']);
+    assert.strictEqual(unused[0].file, '.env.example');
+    assert.strictEqual(unused[0].line, 3);
+  });
+
+  it('a `${X}` quoted in a compose COMMENT declares nothing (`VAR` on this repo); one on a real line does', async () => {
+    write(tmp, 'src/a.js', 'const a = process.env.COMMENTED;\nconst b = process.env.REAL_INTERP;\nmodule.exports = { a, b };\n');
+    write(tmp, '.env.example', 'OTHER=\n');
+    write(tmp, 'docker-compose.yml', '# Same ${COMMENTED:-default} expansions the app uses.\nservices:\n  app:\n    environment:\n      DATABASE_URL: postgres://${REAL_INTERP:-x}@db/app\n');
+    const r = await run(tmp);
+    const missing = r.checks.filter((c) => c.passed === false && c.name.startsWith('env-vars:missing-from-example:')).map((c) => c.key);
+    assert.deepStrictEqual(missing, ['COMMENTED']);
   });
 });

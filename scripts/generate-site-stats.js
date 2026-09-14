@@ -275,7 +275,7 @@ function main() {
   return 0;
 }
 
-module.exports = { parseTapSummary, roundDownTo, formatPlus, buildSiteStats, OUT_PATH };
+module.exports = { parseTapSummary, roundDownTo, formatPlus, buildSiteStats };
 
 if (require.main === module) {
   try {

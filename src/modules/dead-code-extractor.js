@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { resolvePackageEntry, resolveAlias, stripJsoncLite, tsEquivalents } = require('../core/module-resolution');
+const { resolvePackageEntry, resolveAlias, stripJsoncLite, tsEquivalents, inlineComputedRequires } = require('../core/module-resolution');
 const { logicalLines } = require('../core/python-imports');
 const { stripStringsAndComments } = require('../core/source-strip');
 
@@ -294,7 +294,15 @@ function populatePackageSurface(pkgDir, pkgName, importedNames, workspacePackage
   } catch { /* non-blocking — blanket suppression fallback stays in effect */ }
 }
 
-function extractJsImports(content) {
+/**
+ * @param {string} content
+ * @param {string} [fromFile] absolute path — lets `require(path.join(__dirname, …))`
+ *   resolve (module-resolution.js `inlineComputedRequires`); without it only
+ *   literal specifiers are read.
+ * @param {string} [projectRoot]
+ */
+function extractJsImports(content, fromFile, projectRoot) {
+  if (fromFile) content = inlineComputedRequires(content, fromFile, projectRoot);
   const names = new Set();
   const paths = new Set();
   // Paths imported as a WHOLE module (namespace / default / bare require, or a
