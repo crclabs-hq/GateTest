@@ -79,6 +79,7 @@
 const BaseModule = require('./base-module');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 const JS_EXTS = new Set([
   '.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts',
@@ -158,7 +159,7 @@ class TlsSecurityModule extends BaseModule {
     let issues = 0;
 
     for (const abs of files) {
-      const rel = path.relative(projectRoot, abs).replace(/\\/g, '/');
+      const rel = repoRelative(projectRoot, abs);
       let text;
       try {
         text = fs.readFileSync(abs, 'utf-8');
@@ -189,7 +190,7 @@ class TlsSecurityModule extends BaseModule {
   // set is unchanged; `.terraform` is the one exclude not in the defaults.
   _collect(root) {
     return this._collectFiles(root, [...JS_EXTS, ...PY_EXTS], ['.terraform'])
-      .filter((abs) => !path.relative(root, abs).split(path.sep).some((s) => s.startsWith('.')));
+      .filter((abs) => !repoRelative(root, abs).split('/').some((s) => s.startsWith('.')));
   }
 
   _scanJs(rel, text, result) {

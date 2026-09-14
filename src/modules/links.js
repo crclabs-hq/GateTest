@@ -6,6 +6,7 @@
 const BaseModule = require('./base-module');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 // One definition, imported (doctrine §4): src/core/scan-scope.js answers
 // "is this JSX a web page or a picture?" for every module that reads JSX.
 const { isImageRenderer, isNonUserFacingPage } = require('../core/scan-scope');
@@ -71,7 +72,7 @@ class LinksModule extends BaseModule {
     // ellipsis-shaped placeholder links — not customer-facing routes.
     const INTERNAL_DOCS_RE = /(?:^|\/)(?:docs\/legal\/|docs\/proofs\/|docs\/marketplace\/|\.claude\/)/;
     for (const file of allFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       if (INTERNAL_DOCS_RE.test('/' + relPath.replace(/\\/g, '/'))) continue;
       const ext = path.extname(file);
       // A test/benchmark harness page is not a page a user visits: lodash's
@@ -209,8 +210,8 @@ class LinksModule extends BaseModule {
     for (const file of allFiles) {
       const content = fs.readFileSync(file, 'utf-8');
       if (/href\s*=\s*["']javascript:(?!void|;)/i.test(content)) {
-        result.addCheck(`links:javascript-href:${path.relative(projectRoot, file)}`, false, {
-          file: path.relative(projectRoot, file),
+        result.addCheck(`links:javascript-href:${repoRelative(projectRoot, file)}`, false, {
+          file: repoRelative(projectRoot, file),
           message: 'javascript: protocol in href — security risk',
           suggestion: 'Replace javascript: links with proper event handlers',
         });

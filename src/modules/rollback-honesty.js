@@ -9,6 +9,7 @@
 const BaseModule = require('./base-module');
 const fs   = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 // Patterns that indicate a rollback branch
 const ROLLBACK_MARKERS  = /rollback|revert|restore|fallback|previous|prev_sha|PREV_SHA|prev_version/i;
@@ -36,7 +37,7 @@ class RollbackHonestyModule extends BaseModule {
     let foundRollback = false;
 
     for (const file of deployFiles) {
-      const rel = path.relative(root, file);
+      const rel = repoRelative(root, file);
       const found = this._analyzeScript(file, rel, result);
       if (found) foundRollback = true;
     }

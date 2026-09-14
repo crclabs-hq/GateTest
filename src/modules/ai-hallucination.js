@@ -27,6 +27,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const { workspacePackageNames } = require('../core/workspaces');
 const { buildImportGraph } = require('../core/import-graph');
 const BaseModule    = require('./base-module');
@@ -277,7 +278,7 @@ class AiHallucinationDetector extends BaseModule {
     const graph = buildImportGraph({ projectRoot });
     const notRead = [];
     for (const file of files) {
-      const rel = path.relative(projectRoot, file);
+      const rel = repoRelative(projectRoot, file);
       if (hasSegment(rel, 'node_modules') || hasSegment(rel, '.next')) continue;
       const specs = graph.externals.get(file);
       if (!specs || graph.skipped.has(file)) { notRead.push(rel); continue; }
@@ -327,7 +328,7 @@ class AiHallucinationDetector extends BaseModule {
 
     // 2. Known-hallucinated method patterns
     for (const file of files) {
-      const rel = path.relative(projectRoot, file);
+      const rel = repoRelative(projectRoot, file);
       if (hasSegment(rel, 'node_modules') || hasSegment(rel, '.next')) continue;
       let content;
       try { content = fs.readFileSync(file, 'utf-8'); } catch { continue; }

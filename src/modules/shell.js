@@ -28,6 +28,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { collectShellScripts, isVendoredWrapper } = require('../core/shell-files');
 
@@ -92,7 +93,7 @@ class ShellModule extends BaseModule {
       return 0;
     }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const lines = content.split(/\r?\n/);
     let issues = 0;
     // A vendored build-tool wrapper (src/core/shell-files.js isVendoredWrapper)

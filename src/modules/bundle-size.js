@@ -20,6 +20,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule    = require('./base-module');
 
 const KB = 1024;
@@ -97,7 +98,7 @@ function scanDistDir(distDir) {
         const full = path.join(dir, e.name);
         if (e.isDirectory()) { walk(full); continue; }
         if (e.name.endsWith('.js') && !e.name.endsWith('.min.js')) {
-          chunks.push({ name: path.relative(distDir, full), size: fs.statSync(full).size, route: null });
+          chunks.push({ name: repoRelative(distDir, full), size: fs.statSync(full).size, route: null });
         }
       }
     } catch { /* skip */ }

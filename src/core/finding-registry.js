@@ -24,6 +24,7 @@
 
 const { BLOCK_THRESHOLD, isBlockingFinding } = require('./confidence');
 const { suggestLine } = require('./ignore-file');
+const { toPosix } = require('./repo-path');
 
 const SEVERITY_RANK = { error: 0, warning: 1, info: 2 };
 
@@ -80,7 +81,7 @@ function ruleKeyOf(name, file) {
 }
 
 function normPath(p) {
-  return p ? String(p).replace(/\\/g, '/') : null;
+  return p ? toPosix(p) : null;
 }
 
 /**

@@ -20,6 +20,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('./repo-path');
 
 // 1MB default — covers 99% of source files; bundles / minified output that
 // blow past this are exactly what we want to skip anyway.
@@ -237,7 +238,7 @@ function walkFiles(root, opts = {}) {
         break;
       }
       const full = path.join(dir, entry.name);
-      const rel = path.relative(root, full).split(path.sep).join('/');
+      const rel = repoRelative(root, full);
 
       if (entry.isDirectory()) {
         if (skipDirs.has(entry.name)) continue;
@@ -293,7 +294,7 @@ function readTextFiles(root, opts = {}) {
     if (r.ok) {
       out.push({
         path: file,
-        relativePath: path.relative(root, file).split(path.sep).join('/'),
+        relativePath: repoRelative(root, file),
         content: r.content,
         encoding: r.encoding,
       });

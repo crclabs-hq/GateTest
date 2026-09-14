@@ -16,6 +16,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('./repo-path');
 
 const CONVENTIONAL_DIRS = ['apps', 'packages', 'libs', 'services'];
 const { WALK_EXCLUDE_SET: SKIP_DIRS } = require('./walk-excludes');
@@ -139,7 +140,7 @@ function listWorkspacePackages(projectRoot) {
 
   const members = [];
   for (const dir of dirs) {
-    const rel = path.relative(projectRoot, dir).split(path.sep).join('/');
+    const rel = repoRelative(projectRoot, dir);
     if (!rel || rel.startsWith('..')) continue;
     if (negatives.some((re) => re.test(rel) || re.test(path.basename(rel)))) continue;
     const manifest = path.join(dir, 'package.json');

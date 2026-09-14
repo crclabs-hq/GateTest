@@ -73,6 +73,7 @@
 const BaseModule = require('./base-module');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 const SOURCE_EXTS = new Set([
   '.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts',
@@ -153,7 +154,7 @@ class CronExpressionModule extends BaseModule {
     let issues = 0;
 
     for (const abs of files) {
-      const rel = path.relative(projectRoot, abs).replace(/\\/g, '/');
+      const rel = repoRelative(projectRoot, abs);
       let text;
       try {
         text = fs.readFileSync(abs, 'utf-8');
@@ -193,7 +194,7 @@ class CronExpressionModule extends BaseModule {
   // exclude not in the defaults.
   _collect(root) {
     return this._collectFiles(root, [...SOURCE_EXTS, ...YAML_EXTS, ...JSON_EXTS], ['.terraform'])
-      .filter((abs) => !path.relative(root, abs).split(path.sep)
+      .filter((abs) => !repoRelative(root, abs).split('/')
         .some((s) => s.startsWith('.') && s !== '.github'));
   }
 

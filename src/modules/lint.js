@@ -7,6 +7,7 @@ const BaseModule = require('./base-module');
 const { splitLines, detectEol } = require('../core/text-lines');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 class LintModule extends BaseModule {
   constructor() {
@@ -243,7 +244,7 @@ class LintModule extends BaseModule {
   }
 
   _lintMarkdown(file, projectRoot, result) {
-    const relPath = path.relative(projectRoot, file);
+    const relPath = repoRelative(projectRoot, file);
     const content = fs.readFileSync(file, 'utf-8');
     const issues = [];
 

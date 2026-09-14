@@ -6,6 +6,7 @@
 const BaseModule = require('./base-module');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const { WALK_EXCLUDES } = require('../core/walk-excludes');
 
 /**
@@ -467,7 +468,7 @@ class SecretsModule extends BaseModule {
     const vouched = new Set();
 
     for (const file of files) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
 
       // Skip test fixtures, example and mock files — by SEGMENT and by
       // basename token, not substring (doctrine §5): `includes('mock')`
@@ -810,7 +811,7 @@ class SecretsModule extends BaseModule {
           if (SKIP.has(entry.name)) continue;
           if (walk(path.join(dir, entry.name), depth + 1)) return true;
         } else if (matches(entry.name) && !/\.(example|sample|template|dist)$/.test(entry.name)) {
-          const rel = path.relative(projectRoot, path.join(dir, entry.name)).replace(/\\/g, '/');
+          const rel = repoRelative(projectRoot, path.join(dir, entry.name));
           if (vouched.has(rel)) continue;
           return true;
         }

@@ -9,6 +9,7 @@ const { hasRouteHandler } = require('../core/route-grammar');
 const { JS_SOURCE_EXTS, JS_SOURCE_EXTS_NO_JSX } = require('../core/source-extensions');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 class DocumentationModule extends BaseModule {
   constructor() {
@@ -265,7 +266,7 @@ class DocumentationModule extends BaseModule {
     let documentedFunctions = 0;
 
     for (const file of jsFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       // Skip test files and generated files
       if (this._isTestPath(relPath) || relPath.includes('.min.')) continue;
 
@@ -303,7 +304,7 @@ class DocumentationModule extends BaseModule {
     let brokenCount = 0;
 
     for (const file of mdFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
       const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
       let match;

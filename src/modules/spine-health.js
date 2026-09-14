@@ -43,6 +43,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { buildImportGraph } = require('../core/import-graph');
 const { computeSpineMetrics, MIN_NODES_FOR_ANALYSIS } = require('../core/spine-metrics');
@@ -142,7 +143,7 @@ class SpineHealthModule extends BaseModule {
   _testTargets(files, projectRoot) {
     const targets = new Set();
     for (const abs of files) {
-      const rel = path.relative(projectRoot, abs).split(path.sep).join('/');
+      const rel = repoRelative(projectRoot, abs);
       if (!this._isTestPath(rel)) continue;
       const base = path.basename(abs).replace(/\.(test|spec)\.[cm]?[jt]sx?$/i, '');
       if (base) targets.add(base);

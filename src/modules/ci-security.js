@@ -57,6 +57,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 
 // Pinned short SHA or full SHA — 7-40 hex chars.
@@ -171,7 +172,7 @@ class CiSecurityModule extends BaseModule {
       return 0;
     }
 
-    const rel = path.relative(projectRoot, file).replace(/\\/g, '/');
+    const rel = repoRelative(projectRoot, file);
     const lines = content.split(/\r?\n/);
     let issues = 0;
 

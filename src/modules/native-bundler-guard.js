@@ -19,6 +19,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule    = require('./base-module');
 const { makeAutoFix } = require('../core/ai-fix-engine');
 
@@ -166,7 +167,7 @@ class NativeBundlerGuard extends BaseModule {
     // Also scan source for require('*.node')
     const jsFiles = this._collectFiles(projectRoot, ['.js', '.ts', '.mjs', '.cjs']);
     for (const file of jsFiles) {
-      const rel = path.relative(projectRoot, file);
+      const rel = repoRelative(projectRoot, file);
       if (hasSegment(rel, 'node_modules')) continue;
       let content;
       try { content = fs.readFileSync(file, 'utf-8'); } catch { continue; }

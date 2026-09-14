@@ -33,6 +33,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const https = require('https');
 const BaseModule = require('./base-module');
 const { compareScreenshots, buildSideBySideComposite } = require('../core/visual-diff-engine');
@@ -330,7 +331,7 @@ class VisualRegressionModule extends BaseModule {
     const slug = slugifyRoute(route);
     const viewportDir = path.join(baselineDir, platform, viewport.name);
     const baselinePath = path.join(viewportDir, `${slug}.png`);
-    const relBaselinePath = path.relative(process.cwd(), baselinePath);
+    const relBaselinePath = repoRelative(process.cwd(), baselinePath);
 
     let currentBuffer;
     try {

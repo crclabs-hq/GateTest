@@ -32,7 +32,7 @@
  */
 
 const fs = require('fs');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 
 // Recommendation text comes from the engine's own model policy, so a future
@@ -232,7 +232,7 @@ class PromptSafetyModule extends BaseModule {
       return 0;
     }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
 
     // Skip detection-pattern source files — scanning the module that
     // defines the patterns produces false positives on the patterns themselves.

@@ -6,6 +6,7 @@
 const BaseModule = require('./base-module');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const { isNonUserFacingPage, isSpaShell } = require('../core/scan-scope');
 
 class SeoModule extends BaseModule {
@@ -34,7 +35,7 @@ class SeoModule extends BaseModule {
     let fragmentsSkipped = 0;
     let pagesChecked = 0;
     for (const file of htmlFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const normalised = relPath.replace(/\\/g, '/');
       if (INTERNAL_PATH_RE.test('/' + normalised)) continue;
       // Library examples/ and sandbox/ are documentation on any repo.

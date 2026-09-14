@@ -9,6 +9,7 @@ const { JS_SOURCE_EXTS } = require('../core/source-extensions');
 const { isIllustrationPath, HARNESS_DIR_RE } = require('../core/scan-scope');
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 class CodeQualityModule extends BaseModule {
   constructor() {
@@ -28,7 +29,7 @@ class CodeQualityModule extends BaseModule {
     const funcLengthViolations = [];
 
     for (const file of sourceFiles) {
-      const relPath = path.relative(projectRoot, file);
+      const relPath = repoRelative(projectRoot, file);
       const relFwd = relPath.replace(/\\/g, '/');
 
       // Skip files matching excludePaths patterns

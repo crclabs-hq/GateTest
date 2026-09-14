@@ -65,7 +65,7 @@
  */
 
 const fs = require('fs');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 
 // Directory excludes beyond what `BaseModule._collectFiles` already skips
@@ -158,7 +158,7 @@ class RetryHygieneModule extends BaseModule {
     let content;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { return 0; }
 
-    const rel = path.relative(projectRoot, file);
+    const rel = repoRelative(projectRoot, file);
     const lines = content.split(/\r?\n/);
     const masked = this._maskedLines(content);
     let issues = 0;

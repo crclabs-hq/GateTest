@@ -4,6 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { buildDeadCodeIndex } = require('./dead-code-index');
 const { isEntryPoint, manifestEntrypoints } = require('../core/entrypoints');
@@ -237,7 +238,7 @@ class DeadCodeModule extends BaseModule {
 
       const ext = path.extname(file).toLowerCase();
       const lang = ext === '.py' ? 'py' : 'js';
-      const rel = path.relative(projectRoot, file);
+      const rel = repoRelative(projectRoot, file);
       if (this._matchesIgnorePattern(rel, ignorePatterns)) continue;
       const lines = content.split(/\r?\n/);
 

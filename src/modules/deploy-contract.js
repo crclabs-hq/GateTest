@@ -7,7 +7,7 @@
 
 const BaseModule = require('./base-module');
 const fs   = require('fs');
-const path = require('path');
+const { repoRelative } = require('../core/repo-path');
 
 const CURL_PATTERN  = /curl\s+(?:-[a-zA-Z0-9]+\s+)*['"]?(https?:\/\/[^\s'"]+|localhost[^\s'"#]*|127\.[0-9.]+[^\s'"#]*|\$\{?[A-Z_]+\}?[^\s'"#]*)['"]?/g;
 const WGET_PATTERN  = /wget\s+(?:-[a-zA-Z0-9]+\s+)*['"]?(https?:\/\/[^\s'"]+|localhost[^\s'"#]*|\$\{?[A-Z_]+\}?[^\s'"#]*)['"]?/g;
@@ -53,14 +53,14 @@ class DeployContractModule extends BaseModule {
 
     for (const { file, path: urlPath, line } of healthUrls) {
       if (!urlPath) {
-        result.addCheck('deploy-health-url-unresolvable', true, { severity: 'info', fix: `Dynamic URL in ${path.relative(root, file)} — cannot statically resolve` });
+        result.addCheck('deploy-health-url-unresolvable', true, { severity: 'info', fix: `Dynamic URL in ${repoRelative(root, file)} — cannot statically resolve` });
         continue;
       }
 
       const matched = routes.some(r => this._pathMatches(urlPath, r));
 
       if (!matched) {
-        const rel = path.relative(root, file);
+        const rel = repoRelative(root, file);
         const knownRoutes = routes.slice(0, 10).join(', ');
         const basePrefixes = basePaths.length > 0 ? ` (detected base paths: ${basePaths.join(', ')})` : '';
         result.addCheck(`deploy-contract:${urlPath}`, false, {
@@ -83,7 +83,7 @@ class DeployContractModule extends BaseModule {
         if (routeWithoutBase) {
           result.addCheck(`deploy-contract:basepath:${urlPath}`, false, {
             severity: 'error',
-            fix: `${path.relative(root, file)}:${line || '?'} — deploy curls "${urlPath}" but the route is mounted under basePath "${base}", making the actual URL "${base}${routeWithoutBase}". Missing base-path prefix.`,
+            fix: `${repoRelative(root, file)}:${line || '?'} — deploy curls "${urlPath}" but the route is mounted under basePath "${base}", making the actual URL "${base}${routeWithoutBase}". Missing base-path prefix.`,
             file,
           });
         }
