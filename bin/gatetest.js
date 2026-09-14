@@ -22,7 +22,27 @@ const { GateTest } = require('../src/index');
 // runs main() at import time and exports nothing, so anything defined here
 // is unreachable from a test. See the module header for the silent
 // unknown-flag bug that survived because of exactly that.
-const { parseArgs, describeArgProblems } = require('../src/core/cli-args');
+const {
+  parseArgs,
+  describeArgProblems,
+  argProblemsAreFatal,
+  projectPathProblem,
+  USAGE_EXIT_CODE,
+} = require('../src/core/cli-args');
+
+/**
+ * `--project <path>` must name an existing directory, or the run is a usage
+ * error — never a green scan of a directory this process created to have
+ * somewhere to write the report (reproduced 2026-09-14). Shared by the scan
+ * flow and `gatetest fix`, which resolve the root separately.
+ */
+function requireProjectDir(projectRoot) {
+  const problem = projectPathProblem(projectRoot);
+  if (!problem) return;
+  console.error(`[GateTest] Error: ${problem}`);
+  console.error('[GateTest] Nothing was scanned. Check the --project path (it is resolved against the current directory).');
+  process.exit(USAGE_EXIT_CODE);
+}
 
 const HELP = `
   GateTest - Advanced QA Gate System
@@ -302,6 +322,7 @@ async function main() {
       const pidx = rawArgs.indexOf('--project');
       return pidx !== -1 ? rawArgs[pidx + 1] : process.cwd();
     })();
+    requireProjectDir(projectRoot);
     const code = await runFixApply(rawArgs.slice(1), projectRoot);
     process.exit(code || 0);
   }
@@ -309,11 +330,18 @@ async function main() {
   const effectiveArgv = first === 'scan' ? rawArgs.slice(1) : rawArgs;
   const args = parseArgs(effectiveArgv);
   // Anything the parser could not use is reported before the scan starts.
-  // Advisory, never fatal — a stray argument from a wrapper script must not
-  // cost someone their scan (Forbidden #25). But it must not be SILENT
-  // either: an ignored `--report-only` blocks a build nobody meant to gate,
-  // and an ignored `--strict` is a green that cannot turn red.
-  for (const line of describeArgProblems(args)) console.error(line);
+  // Advisory on a developer's machine — a stray argument from a wrapper
+  // script must not cost someone their scan (Forbidden #25). But it must not
+  // be SILENT either: an ignored `--report-only` blocks a build nobody meant
+  // to gate, and an ignored `--strict` is a green that cannot turn red.
+  // Under --strict or in CI it is a usage error (exit 2): there, a scan that
+  // ran on a command line it only partly understood is not a pass. See
+  // argProblemsAreFatal in src/core/cli-args.js.
+  // (`--help` / `--version` still answer: the operator is asking what the
+  // flags are, which is the one time a wrong one should not end the run.)
+  const fatalArgs = argProblemsAreFatal(args) && !args.help && !args.version;
+  for (const line of describeArgProblems(args, { fatal: fatalArgs })) console.error(line);
+  if (fatalArgs) process.exit(USAGE_EXIT_CODE);
   // --offline: one switch, recorded everywhere (src/core/offline.js). The
   // AI-backed paths need api.anthropic.com, so they are refused out loud
   // rather than run against a network that is not there.
@@ -341,6 +369,10 @@ async function main() {
   }
 
   const projectRoot = args.project || process.cwd();
+  // A --project that does not exist is a usage error, not an empty repo.
+  // Checked before anything below can create it: GateTestConfig, the
+  // reporters and `--init` all mkdir under the root on demand.
+  requireProjectDir(projectRoot);
 
   if (args.init) {
     initProject(projectRoot);
