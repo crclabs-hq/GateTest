@@ -386,7 +386,7 @@ class AiHallucinationDetector extends BaseModule {
         let m;
         const reGlobal = new RegExp(re.source, (re.flags.includes('g') ? re.flags : re.flags + 'g'));
         while ((m = reGlobal.exec(masked)) !== null) {
-          const lineNo   = masked.slice(0, m.index).split('\n').length;
+          const lineNo   = masked.slice(0, m.index).split(/\r?\n/).length;
           const lineText = lines[lineNo - 1] || '';
           if (lineText.includes('// hallucination-ok')) continue;
 
