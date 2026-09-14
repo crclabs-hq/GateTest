@@ -8,13 +8,13 @@ Stable tag: 0.1.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
-Audit your WordPress site for security, performance, accessibility, SEO and quality issues. 18 modules, plain-language report. Powered by gatetest.io.
+Free WordPress health check from inside wp-admin: security, performance, accessibility and SEO issues in a plain-language report. Powered by gatetest.io.
 
 == Description ==
 
-**GateTest Health Check** runs a comprehensive 18-module audit against your WordPress site and returns a plain-language report.
+**GateTest Health Check** runs the gatetest.io WordPress audit against your site from the **Tools → GateTest** page and shows the result in plain language. No account, no API key, no charge.
 
-You probably already use Wordfence for the firewall, Yoast for SEO, WP Rocket for performance, and Sucuri for cleanup. GateTest does NOT replace them — it's the **audit layer that tells you what's actually wrong across all of those concerns in one scan, every week**.
+You probably already use Wordfence for the firewall, Yoast for SEO, WP Rocket for performance, and Sucuri for cleanup. GateTest does NOT replace them — it's the **audit layer that tells you what's actually wrong across all of those concerns in one scan**.
 
 = What it checks =
 
@@ -40,21 +40,21 @@ You probably already use Wordfence for the firewall, Yoast for SEO, WP Rocket fo
 * Remove malware (Sucuri's lane)
 * Block attackers in real time (Wordfence / Cloudflare's lane)
 * Take backups (UpdraftPlus is free; we tell you if you don't have it)
+* Change anything on your site — it reads, it never writes
 
 We are the **audit** layer. We tell you exactly what's wrong, where, and how to fix it. The other tools handle the active defence; we make sure they're configured correctly and nothing slipped through.
 
 = How it works =
 
-1. Get a free API key at [gatetest.io/account](https://gatetest.io/account)
-2. Paste the key into the GateTest tab under **Tools** in WordPress
-3. Click "Scan my site now"
-4. Read the report
+1. Go to **Tools → GateTest** in your WordPress admin
+2. Click "Scan my site now" — no account, no API key
+3. Read the report on the same page
 
-The scan runs on gatetest.io's infrastructure — your site is probed over HTTP from outside, same way an attacker would see it. No source code is sent to us; only your site's URL and WordPress version.
+The scan runs on gatetest.io's infrastructure — your site is probed over HTTP from outside, same way an attacker would see it. No source code is sent to us; only your site's URL, WordPress version and plugin version.
 
 = Pricing =
 
-The free preview shows the top 3 most urgent findings. To see the full report, opt into auto-fix, or enable weekly scheduled scans, you'll need a paid GateTest plan starting at $29/month. Full pricing: [gatetest.io/pricing](https://gatetest.io/pricing).
+The health check in this plugin is free and shows the three most urgent findings. If there are more, the plugin tells you how many and links to the **full report — a one-time $19 purchase on gatetest.io** (no subscription): every finding, with step-by-step fix instructions. The full report is delivered on gatetest.io, not inside WordPress. See [gatetest.io/wp](https://gatetest.io/wp).
 
 == Installation ==
 
@@ -66,15 +66,19 @@ The free preview shows the top 3 most urgent findings. To see the full report, o
 
 = Does this plugin slow down my site? =
 
-No. The scan runs on gatetest.io's servers — not yours. Your site experiences the same network traffic as a regular visitor making a few HTTP requests. There are no background processes, no continuous monitoring loops, and the plugin file weighs less than 50KB.
+No. The scan runs on gatetest.io's servers — not yours. Your site experiences the same network traffic as a regular visitor making a few HTTP requests. The plugin runs nothing in the background unless you tick the optional weekly scan, which uses WP-Cron to request one free health check a week. The plugin file weighs less than 50KB.
 
 = What data is sent to gatetest.io? =
 
 Your site's public URL, your WordPress version and the plugin version. No source code, no database content, no credentials, no plugin list, no theme data. The scan probes your site from the outside.
 
-= Is the free preview enough? =
+= Do I need an account or an API key? =
 
-For most sites, the free preview surfaces the top 3 most urgent findings. That's enough to know whether you need to dig deeper. If everything looks clean in the free preview, you probably don't need to pay for the full report.
+No. The free health check runs without either. The API Key field in Settings is optional and reserved for the paid full report.
+
+= Is the free health check enough? =
+
+For most sites, it surfaces the top 3 most urgent findings. That's enough to know whether you need to dig deeper. If everything looks clean, you probably don't need the full report.
 
 = How does this compare to Wordfence? =
 
@@ -83,8 +87,7 @@ Wordfence is a firewall — it blocks attacks in real time. GateTest is an audit
 == Changelog ==
 
 = 0.1.0 =
-* Initial release. Scaffold for the GateTest Health Check companion plugin.
-* Includes admin page under Tools → GateTest, API client, scheduled weekly scan, basic report rendering.
+* Initial release: free health check under Tools → GateTest, plain-language findings on the same page, optional weekly re-check via WP-Cron.
 
 == Privacy ==
 

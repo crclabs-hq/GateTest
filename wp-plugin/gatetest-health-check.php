@@ -17,7 +17,7 @@
  * It does NOT do the scanning locally — that runs at gatetest.io. This plugin:
  *
  *   1. Adds an admin menu page under Tools → GateTest
- *   2. Captures the site's identifying info (URL, WP version, theme, plugins)
+ *   2. Captures the site's URL, WordPress version and plugin version
  *   3. Sends a scan request to https://gatetest.io/api/wp/scan
  *   4. Renders the plain-language report inside the admin UI
  *
@@ -25,11 +25,13 @@
  * infrastructure — same way a customer running a manual scan on the website
  * would experience it. Plugin acts as the convenient launcher + result viewer.
  *
- * Privacy: site URL + WP version are sent. No content, no credentials, no
+ * The health check is free and needs no account. The paid full report
+ * ($19, one-time) is bought and delivered on gatetest.io/wp; the plugin
+ * only links to it.
+ *
+ * Privacy: site URL, WP version and plugin version are sent. No content, no credentials, no
  * database data. See https://gatetest.io/legal/privacy for the full data
  * handling contract.
- *
- * Pre-authorisation: Craig 2026-05-13 — WordPress side product Boss Rule D.
  */
 
 // Block direct access — required for WP.org directory compliance.
