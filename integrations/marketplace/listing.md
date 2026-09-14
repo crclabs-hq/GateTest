@@ -147,7 +147,7 @@ https://gatetest.io/legal/terms
 
 ## Support URL
 ```
-mailto:hello@gatetest.ai
+mailto:support@gatetest.io
 ```
 
 ---
@@ -225,6 +225,6 @@ resubmitting rather than starting over.
 - GitHub reviews Marketplace listings manually; typical turnaround 1–3 weeks.
 - They check: the app works as described, legal pages are live, install flow
   works end-to-end. All three are already true today (verified 2026-07-19).
-- **Before resubmitting:** confirm `hello@gatetest.ai` forwarding actually
+- **Before resubmitting:** confirm `support@gatetest.io` forwarding actually
   works (the 2026-05-14 rejection sat unread for over two months because of
   this) — GitHub's only way to reach you about this listing is email.

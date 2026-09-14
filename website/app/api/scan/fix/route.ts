@@ -2060,7 +2060,7 @@ export async function POST(req: NextRequest) {
   if (hitInvocationLimit) {
     errors.push(
       `⚡ This repo maxed out the AI call limit (${MAX_AI_INVOCATIONS} calls) — ${fixes.length} file(s) were fixed before it kicked in. ` +
-      `For repositories this size, a dedicated scanner instance is the right tool: enterprise@gatetest.ai.`
+      `For repositories this size, a dedicated scanner instance is the right tool: support@gatetest.io.`
     );
   }
 

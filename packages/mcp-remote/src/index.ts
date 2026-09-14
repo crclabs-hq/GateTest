@@ -5,8 +5,9 @@
  * in core.js (transport-agnostic, tested by the repo's node --test suite);
  * this file only does HTTP: CORS, session header, JSON-RPC envelope I/O.
  *
- * Runs on the Jarvis server (66.42.121.161) behind mcp.gatetest.io — see
- * ../README.md for deployment. Start: `bun run src/index.ts`.
+ * The hosted endpoint is https://gatetest.io/api/mcp (website/app/api/mcp/
+ * route.ts, the same core). This wrapper is the optional self-hosted deploy —
+ * see ../README.md. Start: `bun run src/index.ts`.
  */
 
 import { Hono } from 'hono';

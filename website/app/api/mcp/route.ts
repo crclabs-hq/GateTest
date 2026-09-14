@@ -1,5 +1,5 @@
 /**
- * Remote MCP endpoint — POST /api/mcp  (the hosted mcp.gatetest.io transport).
+ * Remote MCP endpoint — POST /api/mcp  (the hosted transport — this IS the public endpoint).
  *
  * Runs the transport-agnostic MCP core (website/app/lib/mcp-remote-core.cjs) as
  * a Next.js route on Vercel, IN this repo, deployed with gatetest.io. This is

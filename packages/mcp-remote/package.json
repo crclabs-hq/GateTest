@@ -2,7 +2,7 @@
   "name": "@gatetest/mcp-remote",
   "version": "1.0.0",
   "private": true,
-  "description": "GateTest hosted MCP endpoint (mcp.gatetest.io) — MCP Streamable HTTP transport on Bun + Hono. Gives claude.ai web, mobile, and no-terminal users GateTest tools with zero install.",
+  "description": "Self-hosted wrapper for the GateTest remote MCP endpoint (the hosted one is https://gatetest.io/api/mcp) — MCP Streamable HTTP transport on Bun + Hono over the same mcp-remote-core. Gives claude.ai web, mobile, and no-terminal users GateTest tools with zero install.",
   "type": "module",
   "scripts": {
     "start": "bun run src/index.ts",

@@ -1,35 +1,43 @@
-# GateTest Remote MCP — `mcp.gatetest.io`
+# GateTest Remote MCP — `https://gatetest.io/api/mcp`
 
 The hosted MCP endpoint that gives **every** Claude user GateTest tools with zero
 install — claude.ai web app, Claude mobile, Claude Desktop, Cursor, Windsurf,
 corporate locked-down machines. The local stdio server (`npx @gatetest/mcp-server`)
 only reaches users who can run npm; this reaches everyone else.
 
-## Where it runs — and why it must stay there
+**The live endpoint is `POST https://gatetest.io/api/mcp`** — the Next.js route
+`website/app/api/mcp/route.ts`, deployed with the site. It is what the MCP
+registry lists (`server.json`, `ai.gatetest.www/gatetest`, transport
+`streamable-http`). `mcp.gatetest.io` was the planned hostname for a dedicated
+box; the record was never kept and the name is NXDOMAIN (2026-09-14) — do not
+point anything at it.
 
-**Host: the Jarvis server, `66.42.121.161` (Vultr).** Jarvis orchestrates on this
-box — GateTest's MCP endpoint is co-located there BY DESIGN so Jarvis can control
-GateTest directly. **Do not move it to a different server.** (Craig, 2026-07-07.)
+## What this package is
 
-Not Vercel — Vercel is a competitor (see the Bible / docs/ROADMAP.md).
-
-## Architecture
+An optional **self-hosted** wrapper around the same core, for running the
+endpoint on a box of your own instead of with the site: Bun + Hono, one HTTP
+route, nothing else. It is not what serves `gatetest.io/api/mcp`.
 
 ```
-Claude client ──HTTPS──▶ mcp.gatetest.io (Caddy TLS on the box)
+Claude client ──HTTPS──▶ gatetest.io/api/mcp   (Next.js route, deployed with the site)
                               │
-                        Bun + Hono  (this package, port 8787)
-                              │
-                    src/core.cjs  (JSON-RPC dispatch, key gate)
+             website/app/lib/mcp-remote-core.cjs   (JSON-RPC dispatch, key gate)
                               │
                  gatetest.io product APIs (scan/guidance/fix/validate)
+
+self-hosted alternative:
+Claude client ──HTTPS──▶ your reverse proxy ──▶ Bun + Hono (this package, port 8787)
+                                                        │
+                                          the same mcp-remote-core.cjs
 ```
 
-- `src/core.cjs` — transport-agnostic MCP core, plain CommonJS, tested by the
-  repo suite (`tests/mcp-remote.test.js`). All 8 tools proxy gatetest.io APIs.
+- `website/app/lib/mcp-remote-core.cjs` — transport-agnostic MCP core, plain
+  CommonJS, tested by the repo suite (`tests/mcp-remote.test.js`). All 8 tools
+  proxy gatetest.io APIs. One copy, used by both transports.
 - `src/index.ts` — thin Hono wrapper: CORS, `Mcp-Session-Id`, JSON-RPC envelope I/O.
-- `src/modules-list.json` — generated from the real engine
-  (`node bin/gatetest.js --list`). Regenerate when the module count changes.
+- `website/app/lib/mcp-remote-modules.json` — generated from the real engine by
+  `scripts/generate-mcp-remote-modules.js` (`tests/mcp-remote-modules-sync.test.js`
+  fails the suite when it drifts).
 
 ## Tools
 
@@ -52,47 +60,48 @@ Local-only forever (need the user's filesystem/processes — install
 Key gate: `Authorization: Bearer gtmcp_xxx` (or `X-GateTest-Key`), validated
 against `https://gatetest.io/api/mcp/validate`, cached 1 hour in-process.
 
-## Deploy (on the box)
+## Connect a client to the hosted endpoint
 
-```bash
-# one-time
-git clone https://github.com/crclabs-hq/gatetest.git /opt/gatetest
-cd /opt/gatetest/packages/mcp-remote && bun install
-
-# run under systemd
-cat >/etc/systemd/system/gatetest-mcp.service <<'EOF'
-[Unit]
-Description=GateTest remote MCP endpoint
-After=network.target
-
-[Service]
-WorkingDirectory=/opt/gatetest/packages/mcp-remote
-ExecStart=/usr/local/bin/bun run src/index.ts
-Restart=always
-Environment=PORT=8787
-
-[Install]
-WantedBy=multi-user.target
-EOF
-systemctl enable --now gatetest-mcp
-```
-
-Caddy (terminates TLS for `mcp.gatetest.io`, auto-provisions Let's Encrypt):
-
-```
-mcp.gatetest.io {
-    reverse_proxy localhost:8787
+```json
+{
+  "mcpServers": {
+    "gatetest": {
+      "url": "https://gatetest.io/api/mcp",
+      "headers": { "Authorization": "Bearer gtmcp_..." }
+    }
+  }
 }
 ```
 
-DNS (Cloudflare): `A  mcp  66.42.121.161  DNS-only` — flip to proxied +
-"Full (strict)" SSL after the origin cert works.
+The `Authorization` header is optional — the free tools work without it.
+
+## Self-host (optional)
+
+```bash
+git clone https://github.com/crclabs-hq/gatetest.git /opt/gatetest
+cd /opt/gatetest/packages/mcp-remote && bun install
+PORT=8787 GATETEST_API_BASE_URL=https://gatetest.io bun run src/index.ts
+```
+
+Run it under your process supervisor (a systemd unit with
+`WorkingDirectory=/opt/gatetest/packages/mcp-remote` and
+`ExecStart=/usr/local/bin/bun run src/index.ts` is enough), bound to
+`127.0.0.1`, and let the platform's reverse proxy terminate TLS for whatever
+hostname you give it. `GATETEST_MCP_TELEMETRY` (default
+`/var/log/gatetest/mcp-telemetry.jsonl`) is the flywheel event log; set it to a
+writable path.
 
 ## Verify
 
 ```bash
-curl -s https://mcp.gatetest.io/healthz
-curl -s -X POST https://mcp.gatetest.io/mcp \
+# the hosted endpoint
+curl -s -X POST https://gatetest.io/api/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+# a self-hosted instance
+curl -s http://127.0.0.1:8787/healthz
+curl -s -X POST http://127.0.0.1:8787/mcp \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```

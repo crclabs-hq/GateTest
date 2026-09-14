@@ -106,7 +106,7 @@ function seedGitRepo(workspaceRoot) {
   // will just return their "no git" info-level fallback.
   try {
     execSync('git init -q -b main', { cwd: workspaceRoot, stdio: 'pipe' });
-    execSync('git config user.email "scan@gatetest.ai"', { cwd: workspaceRoot, stdio: 'pipe' });
+    execSync('git config user.email "scan@gatetest.io"', { cwd: workspaceRoot, stdio: 'pipe' });
     execSync('git config user.name "GateTest Scanner"', { cwd: workspaceRoot, stdio: 'pipe' });
     execSync('git config commit.gpgsign false', { cwd: workspaceRoot, stdio: 'pipe' });
     // Initial seed commit so HEAD~1 exists. Empty allowed.

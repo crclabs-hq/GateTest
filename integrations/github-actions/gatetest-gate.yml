@@ -256,7 +256,7 @@ jobs:
           #   4. Opens a pull request via the gh CLI
           #
           # Configure git identity so the auto-commit has a sensible author.
-          git config user.email "auto-repair@gatetest.ai"
+          git config user.email "auto-repair@gatetest.io"
           git config user.name "GateTest Auto-Repair"
 
           # Capture all output so we can post it as a GitHub Actions

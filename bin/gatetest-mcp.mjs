@@ -375,7 +375,7 @@ const TOOLS = [
   {
     name: 'check_health',
     description:
-      'Verify GateTest is operational. Returns version, module count (120), ' +
+      'Verify GateTest is operational. Returns version, module count, ' +
       'and a list of all loaded module names.',
     inputSchema: {
       type: 'object',
