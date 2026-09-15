@@ -2506,22 +2506,63 @@ const isMain = (() => {
 })();
 
 /**
+ * True when the process entrypoint is @gatetest/mcp-server's proxy bin
+ * (`bin/server.mjs` inside a package named @gatetest/mcp-server).
+ *
+ * @gatetest/mcp-server 1.1.3 — the version on npm, whose `^1.56.3` range
+ * resolves to every CLI released since — is nothing but
+ * `await import('@gatetest/cli/bin/gatetest-mcp.mjs')`. It never calls
+ * startServer (that export did not exist yet), and under it isMain is false
+ * because argv[1] is server.mjs, so the import registered every handler and
+ * the process exited 0 with an empty stdout: `initialize` was never
+ * answered. When that proxy is the entrypoint, being imported IS the request
+ * to serve, so the import starts the transport itself. No env var or flag
+ * is needed on the user's side — `npx -y @gatetest/mcp-server@1.1.3` works
+ * as soon as this CLI is the one the proxy resolves.
+ *
+ * Scope is deliberately narrow: only that one package's bin. A test that
+ * `await import()`s this file (argv[1] is the test file or the runner) still
+ * gets the handlers without a transport, and `node -e` / REPL imports are
+ * unaffected. GATETEST_MCP_AUTOSTART=1 is the explicit switch for any other
+ * wrapper.
+ */
+const startedByProxyBin = (() => {
+  if (process.env.GATETEST_MCP_AUTOSTART === '1') return true;
+  if (!process.argv[1]) return false;
+  try {
+    const entry = realpathSync(process.argv[1]);
+    if (nodePath.basename(entry) !== 'server.mjs') return false;
+    const pkgPath = nodePath.join(nodePath.dirname(entry), '..', 'package.json');
+    const pkg = JSON.parse(fsSync.readFileSync(pkgPath, 'utf8'));
+    return pkg && pkg.name === '@gatetest/mcp-server';
+  } catch {
+    return false;
+  }
+})();
+
+/**
  * Attach the stdio transport and serve until stdin closes.
  *
  * Exported so a wrapper bin can start the server after `await import()`.
- * @gatetest/mcp-server's bin/server.mjs is exactly that wrapper, and under
- * it argv[1] is the wrapper, so the isMain guard below is false: an import
- * that only registers handlers then exits 0 with an empty stdout, which
- * every MCP client experiences as a hang on `initialize`. The wrapper
- * calls this instead. Direct execution (`gatetest-mcp`, `node
+ * @gatetest/mcp-server's bin/server.mjs (1.2.0+) is exactly that wrapper,
+ * and under it argv[1] is the wrapper, so the isMain guard above is false.
+ * The wrapper calls this instead. Direct execution (`gatetest-mcp`, `node
  * bin/gatetest-mcp.mjs`) is unchanged.
+ *
+ * Idempotent: the proxy-bin auto-start above and an explicit startServer()
+ * from the 1.2.0 wrapper both happen in the same process, and one server
+ * must own exactly one stdio transport (a second connect would throw, or
+ * put two readers on stdin). The second caller awaits the first start.
  */
-export async function startServer() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+let startPromise = null;
+export function startServer() {
+  if (!startPromise) {
+    startPromise = server.connect(new StdioServerTransport());
+  }
+  return startPromise;
 }
 
-if (isMain) {
+if (isMain || startedByProxyBin) {
   await startServer();
 }
 

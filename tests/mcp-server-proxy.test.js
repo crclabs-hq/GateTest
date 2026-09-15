@@ -53,7 +53,17 @@ describe('bin/gatetest-mcp.mjs — the start function the proxy relies on', () =
 
   it('keeps the isMain guard so `gatetest-mcp` run directly still starts itself', () => {
     const src = read(path.join(ROOT, 'bin', 'gatetest-mcp.mjs'));
-    assert.match(src, /if \(isMain\) \{\s*await startServer\(\);\s*\}/);
+    // isMain OR the published-1.1.3-proxy case (startedByProxyBin): that proxy
+    // only imports this file, so the import has to start the transport when
+    // @gatetest/mcp-server/bin/server.mjs is the entrypoint. Either way the
+    // start goes through the one idempotent startServer().
+    assert.match(src, /if \(isMain \|\| startedByProxyBin\) \{\s*await startServer\(\);\s*\}/);
+    assert.match(src, /pkg\.name === '@gatetest\/mcp-server'/, 'the auto-start must be scoped to the @gatetest/mcp-server package');
+  });
+
+  it('startServer is idempotent — the proxy-bin auto-start and the 1.2.0 wrapper call land in one process', () => {
+    const src = read(path.join(ROOT, 'bin', 'gatetest-mcp.mjs'));
+    assert.match(src, /if \(!startPromise\) \{\s*startPromise = server\.connect\(new StdioServerTransport\(\)\);\s*\}\s*return startPromise;/);
   });
 });
 

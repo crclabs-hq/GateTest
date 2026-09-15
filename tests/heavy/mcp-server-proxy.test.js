@@ -32,7 +32,30 @@ let tmp = null;
 let cliDir = null;   // extracted @gatetest/cli tarball
 let proxyDir = null; // extracted @gatetest/mcp-server tarball
 let fakeDir = null;  // proxy bin over a cli that predates startServer
+let legacyProxyDir = null; // the 1.1.3 proxy bin (import only) over the packed cli
+let strangerDir = null;    // an import-only server.mjs that is NOT @gatetest/mcp-server
 let linked = false;
+let legacyLinked = false;
+
+// bin/server.mjs of @gatetest/mcp-server 1.1.3 as published (npm pack
+// @gatetest/mcp-server@1.1.3, comments dropped): resolve the cli bin, import
+// it, nothing else. Its dependency range (@gatetest/cli ^1.56.3) resolves to
+// every cli released since, so this is what `npx -y @gatetest/mcp-server`
+// runs until a newer proxy is on npm — and the cli has to start itself
+// under it (bin/gatetest-mcp.mjs, startedByProxyBin).
+const PROXY_1_1_3_BIN = `#!/usr/bin/env node
+const serverUrl = import.meta.resolve('@gatetest/cli/bin/gatetest-mcp.mjs');
+await import(serverUrl);
+`;
+
+/** A package dir with `bin/server.mjs` = the 1.1.3 proxy body and the packed cli linked under node_modules. */
+function makeImportOnlyHost(dir, pkgName) {
+  fs.mkdirSync(path.join(dir, 'bin'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: pkgName, version: '1.1.3', type: 'module', bin: { 'gatetest-mcp-server': 'bin/server.mjs' } }));
+  fs.writeFileSync(path.join(dir, 'bin', 'server.mjs'), PROXY_1_1_3_BIN);
+  fs.mkdirSync(path.join(dir, 'node_modules', '@gatetest'), { recursive: true });
+  fs.symlinkSync(cliDir, path.join(dir, 'node_modules', '@gatetest', 'cli'), 'junction');
+}
 
 /** `npm pack <spec>` into a fresh dir under `dest`, extract the one tarball into `<dir>/<name>/package`. */
 function packAndExtract(spec, dest, name) {
@@ -130,6 +153,19 @@ before(() => {
   fs.writeFileSync(path.join(fakeCli, 'bin', 'gatetest-mcp.mjs'), LEGACY_CLI_BIN);
   fs.writeFileSync(path.join(fakeDir, 'package.json'), JSON.stringify({ name: 'fake-host', type: 'module' }));
   fs.copyFileSync(path.join(proxyDir, 'bin', 'server.mjs'), path.join(fakeDir, 'bin', 'server.mjs'));
+
+  // The published 1.1.3 proxy over the packed cli, and the same import-only
+  // bin under a package that is not @gatetest/mcp-server (the auto-start must
+  // not fire for that one).
+  legacyProxyDir = path.join(tmp, 'legacy-1.1.3');
+  strangerDir = path.join(tmp, 'stranger');
+  try {
+    makeImportOnlyHost(legacyProxyDir, '@gatetest/mcp-server');
+    makeImportOnlyHost(strangerDir, 'some-other-wrapper');
+    legacyLinked = true;
+  } catch {
+    legacyLinked = false;
+  }
 });
 
 after(() => {
@@ -174,6 +210,49 @@ describe('published @gatetest/mcp-server over a published @gatetest/cli', () => 
     const reply = r.lines.find((l) => l.id === 3);
     assert.ok(reply && reply.error, `expected an error reply: ${JSON.stringify(reply)}`);
     assert.equal(reply.error.code, -32601);
+  });
+});
+
+describe('the PUBLISHED 1.1.3 proxy (import only, no startServer call) over this cli', () => {
+  it('the layout was linked', () => {
+    assert.ok(legacyLinked, 'could not build the 1.1.3 layout — a silent pass here would be a false all-clear');
+  });
+
+  it('answers initialize: the cli starts itself when @gatetest/mcp-server/bin/server.mjs is the entrypoint', async () => {
+    const r = await runProxy(path.join(legacyProxyDir, 'bin', 'server.mjs'), [INIT, { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }]);
+    assert.deepEqual(r.nonJson, [], `non-JSON on stdout:\n${r.nonJson.join('\n')}`);
+    const init = r.lines.find((l) => l.id === 1);
+    assert.ok(init && init.result, `no reply to initialize under the 1.1.3 proxy (exit ${r.code}, stdout ${r.lines.length} lines)\nstderr:\n${r.stderr}`);
+    assert.equal(init.result.serverInfo.name, 'gatetest');
+    const list = r.lines.find((l) => l.id === 2);
+    assert.ok(list && list.result && list.result.tools.length >= 20, `tools/list did not answer through the 1.1.3 proxy: ${JSON.stringify(list)}`);
+    assert.equal(r.code, 0, `expected a clean exit on EOF, got ${r.code} (signal ${r.signal})\nstderr:\n${r.stderr}`);
+  });
+
+  it('does NOT start under an import-only bin from any other package (the auto-start is scoped to @gatetest/mcp-server)', async () => {
+    const r = await runProxy(path.join(strangerDir, 'bin', 'server.mjs'), [INIT]);
+    assert.equal(r.lines.length, 0, `a stranger wrapper got MCP replies — the auto-start fired outside @gatetest/mcp-server:\n${JSON.stringify(r.lines)}`);
+    assert.equal(r.code, 0);
+  });
+
+  it('starts under any wrapper when GATETEST_MCP_AUTOSTART=1 is set', async () => {
+    const r = await new Promise((resolve, reject) => {
+      const proc = spawn(process.execPath, [path.join(strangerDir, 'bin', 'server.mjs')], {
+        stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, GATETEST_MCP_AUTOSTART: '1' },
+      });
+      let stdout = '';
+      let stderr = '';
+      const timer = setTimeout(() => { proc.kill(); reject(new Error(`did not exit\nstderr:\n${stderr}`)); }, 30_000);
+      proc.stdout.on('data', (c) => { stdout += c; });
+      proc.stderr.on('data', (c) => { stderr += c; });
+      proc.on('error', (err) => { clearTimeout(timer); reject(err); });
+      proc.on('exit', (code) => { clearTimeout(timer); resolve({ code, stdout, stderr }); });
+      proc.stdin.write(`${JSON.stringify(INIT)}\n`);
+      proc.stdin.end();
+    });
+    const reply = r.stdout.split(/\r?\n/).filter((x) => x.trim()).map((l) => JSON.parse(l)).find((l) => l.id === 1);
+    assert.ok(reply && reply.result, `GATETEST_MCP_AUTOSTART=1 did not start the server (exit ${r.code})\nstderr:\n${r.stderr}`);
+    assert.equal(reply.result.serverInfo.name, 'gatetest');
   });
 });
 
