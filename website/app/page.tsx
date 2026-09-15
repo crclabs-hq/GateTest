@@ -21,8 +21,8 @@
  *  11. Pricing — 4 tiers + Continuous subscription card
  *  12. PentestComingSoon — Live Security Scan waitlist (email capture)
  *  13. HomeFaq — HN-skeptic FAQ
- *  14. HomeStack — full-weight Gluecron + Vapron stack marketing
- *  15. HomeTrust — frameworks scanned + Vapron/Gluecron
+ *  14. HomeStack — full-weight Gluecron + Tallrig stack marketing
+ *  15. HomeTrust — frameworks scanned + Tallrig/Gluecron
  *  16. Footer
  *
  * Sections retained from the previous homepage are intentionally dropped:
@@ -71,7 +71,7 @@ export default function Home() {
         <HomeThreeDoors />
         {/* The stack sits high on purpose (Craig 2026-09-10): the site's job is
             to lead GitHub, website and WordPress visitors toward Gluecron and
-            Vapron, not to mention them after the FAQ. */}
+            Tallrig, not to mention them after the FAQ. */}
         <HomeStack />
         <BeforeAfterDemo />
         <HomeHonest />

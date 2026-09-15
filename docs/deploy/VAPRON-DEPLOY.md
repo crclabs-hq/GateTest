@@ -1,11 +1,18 @@
-# Deploying gatetest.io to Vapron
+# Deploying gatetest.io to Tallrig (file named for the platform's previous name, Vapron)
+
+> **Renamed 2026-09-14 — the platform is Tallrig (tallrig.com), formerly Vapron.**
+> Craig: "vapron is no longer, we've had a name change to Tallrig.com". This file
+> keeps its pre-rename filename so every link to it still resolves. Read
+> `VAPRON_*` below as `TALLRIG_*` — the canonical env names are `TALLRIG_*`, the
+> `VAPRON_*` (and older `CRONTECH_*`) names are still read as aliases, and the
+> exact box-side flip is in `docs/ops/tallrig-cutover.md`.
 
 > **Why this exists:** the live site spent days serving a stale build —
 > "118 modules", "Sonnet 4.6", "18 tools" — while `main` was already correct.
 > This runbook + the `/api/platform-status` commit stamp make that impossible
 > to miss. Follow it top to bottom for every deploy.
 
-Deploy target as of 2026-07-14: **Vapron** (Craig's platform).
+Deploy target: **Tallrig** (Craig's platform — named Vapron when this was written on 2026-07-14, renamed 2026-09-14).
 
 > ### ⚠️ Resolved 2026-08-05 — this page's "retired path" line was wrong
 >
@@ -44,14 +51,14 @@ npm run build      # runs prebuild (git-SHA stamp) → next build
 ```
 
 The build must run inside the git checkout (so `git rev-parse HEAD` works). If
-Vapron builds from a tarball with no `.git`, set `GIT_COMMIT=$(git rev-parse HEAD)`
+Tallrig builds from a tarball with no `.git`, set `GIT_COMMIT=$(git rev-parse HEAD)`
 in the build env instead.
 
-Serve with `npm run start` (or Vapron's Node process manager) on the app port.
+Serve with `npm run start` (or Tallrig's Node process manager) on the app port.
 
 ---
 
-## 2. Environment variables (set ALL of these on Vapron)
+## 2. Environment variables (set ALL of these on Tallrig)
 
 Hit `GET /api/status` after deploy — it lists exactly which of these are
 missing. The site returns `503` until every REQUIRED var is set.
@@ -72,9 +79,9 @@ missing. The site returns `503` until every REQUIRED var is set.
 | `RESEND_API_KEY` | **MCP $29/mo API-key emails** — subscriber pays, key never arrives if unset (webhook now 500s until set) |
 | `CRON_SECRET` | authorizes the cron endpoints below |
 | `GATETEST_ADMIN_PASSWORD` | admin console password login (unset → "Admin access is not configured") |
-| `VAPRON_BASE_URL` | GateTest → Vapron runtime-scan dispatch (`vapron-dispatch.js` → `POST {base}/api/jobs/web-runtime-scan`); without all three VAPRON vars, /web and /wp scans ship static probes only ("runtime checks unavailable") |
-| `VAPRON_API_TOKEN` | bearer auth on the dispatch call |
-| `VAPRON_DISPATCH_SECRET` | HMAC signing of outbound jobs + verification of Vapron's result callbacks (`CRONTECH_*` legacy aliases still honored) |
+| `TALLRIG_BASE_URL` (alias `VAPRON_BASE_URL`) | GateTest → Tallrig runtime-scan dispatch (`vapron-dispatch.js` → `POST {base}/api/jobs/web-runtime-scan`); without all three TALLRIG vars, /web and /wp scans ship static probes only ("runtime checks unavailable") |
+| `TALLRIG_API_TOKEN` (alias `VAPRON_API_TOKEN`) | bearer auth on the dispatch call |
+| `TALLRIG_DISPATCH_SECRET` (alias `VAPRON_DISPATCH_SECRET`) | HMAC signing of outbound jobs + verification of Tallrig's result callbacks (`VAPRON_*` / `CRONTECH_*` aliases still honored) |
 
 ---
 
@@ -104,7 +111,7 @@ now lists each missing OAuth var by name.
 ## 3. Cron scheduler (CRITICAL — Known Issue #41)
 
 `website/vercel.json` defines two crons that **only run on Vercel**. Off-Vercel,
-nothing calls them and queued push-scans silently stall forever. Vapron must
+nothing calls them and queued push-scans silently stall forever. Tallrig must
 schedule authenticated HTTP hits:
 
 | Endpoint | Frequency | Header |
@@ -119,7 +126,7 @@ GitHub Actions stopgap POST. `/api/watches/tick` was GET-only until
 off-Vercel while the scheduler still reported success. `tests/cron-endpoint-methods.test.js`
 now pins both methods on every path declared as a cron in `website/vercel.json`.
 
-Any scheduler works (Vapron's own cron, a systemd timer, or a GitHub Actions
+Any scheduler works (Tallrig's own cron, a systemd timer, or a GitHub Actions
 `schedule:` as a stopgap). Without this, the Continuous ($49/mo) tier does nothing.
 
 ---

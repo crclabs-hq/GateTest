@@ -392,7 +392,7 @@ export async function POST(req: NextRequest) {
   const startTime = Date.now();
   const previousExitCode = process.exitCode;
   // Stable per-scan id used to link the static probe results with the
-  // runtime payload that Vapron will POST back to us.
+  // runtime payload that the platform worker (Tallrig) will POST back to us.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const cryptoMod = require("crypto") as typeof import("crypto");
   const scanId = `scn_${cryptoMod.randomBytes(9).toString("hex")}`;
@@ -518,11 +518,11 @@ export async function POST(req: NextRequest) {
     highSignal: c.isHighSignal,
   }));
 
-  // Dispatch the headless-browser runtime scan to Vapron (worker tier).
+  // Dispatch the headless-browser runtime scan to the platform (Tallrig worker tier).
   // Static probes already ran inline on this serverless function. The
   // runtime checks (live JS errors, hydration mismatches, CSP violations,
   // network failures) need a long-running container with Chromium —
-  // that's Vapron's job. Best effort: if dispatch fails we still ship
+  // that is the platform worker's job. Best effort: if dispatch fails we still ship
   // the static-probe results below.
   let runtimeStatus: "queued" | "unavailable" = "unavailable";
   let runtimeJobId: string | null = null;
@@ -548,7 +548,7 @@ export async function POST(req: NextRequest) {
         callbackUrl: `${callbackBase.replace(/\/$/, "")}/api/web/scan/runtime-callback`,
         deadlineSec: 60,
         // Authed scans: forward the session so the headless-browser worker
-        // reaches the same pages the crawl did. Vapron scopes it same-origin
+        // reaches the same pages the crawl did. The platform scopes it same-origin
         // (its own live-crawler-auth). Rides the HMAC-signed body.
         ...(sanitizedAuth ? { auth: sanitizedAuth } : {}),
       });

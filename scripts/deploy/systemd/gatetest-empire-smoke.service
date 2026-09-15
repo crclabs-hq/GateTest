@@ -1,5 +1,5 @@
 [Unit]
-Description=GateTest cross-product smoke probe (Vapron / Gluecron / GateTest)
+Description=GateTest cross-product smoke probe (Tallrig / Gluecron / GateTest)
 After=network-online.target
 Wants=network-online.target
 

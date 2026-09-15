@@ -76,7 +76,7 @@ const SUB_PROCESSORS = [
   { name: 'Sentry', entity: 'Functional Software, Inc.', purpose: 'Error monitoring and session replay', data: 'Error reports with request URL, headers and IP address; sampled browser session replays (10% of sessions, 100% of sessions with an error). Request bodies, source code, prompts, keys and cookies are scrubbed before sending.', location: 'United States', scope: 'core', terms: 'https://sentry.io/legal/dpa/' },
   { name: 'Resend', entity: 'Resend, Inc.', purpose: 'Transactional e-mail', data: 'Recipient e-mail address and message content (receipts, API keys, scan digests).', location: 'United States', scope: 'important', terms: 'https://resend.com/legal/dpa' },
   // Name, legal entity and site come from platform-config.js — the platform is
-  // being renamed (Vapron → Tallrig, entity Tallrig Labs LLC) and the Sync
+  // renamed (Vapron → Tallrig, entity Tallrig Labs LLC, 2026-09-14) and the Sync
   // Rule requires this row to change in the same commit as the copy; reading
   // one definition makes that automatic.
   { name: PLATFORM_NAME, entity: PLATFORM_ENTITY, purpose: 'Live-URL scanning dispatch', data: 'Target URL, scan id and suite for website / WordPress URL scans only. Never repository contents.', location: 'United States', scope: 'important', terms: PLATFORM_SITE_URL },

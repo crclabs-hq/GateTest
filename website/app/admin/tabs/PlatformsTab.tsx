@@ -134,7 +134,7 @@ export function PlatformsTab() {
           registered org, it automatically uses strict mode — findings show as ✅ or ❌ in the
           PR checks tab, with no &ldquo;advisory mode&rdquo; label. Works for all repos under that org.
           You can also set <code className="bg-blue-100 px-1 rounded">GATETEST_ADMIN_ORGS</code> in
-          Vapron → Platform secrets (then <em>Apply to live app</em>) for a code-level fallback.
+          Tallrig → Platform secrets (then <em>Apply to live app</em>) for a code-level fallback.
         </p>
       </div>
     </div>
