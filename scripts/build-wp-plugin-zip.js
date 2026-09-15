@@ -190,7 +190,7 @@ function buildPluginZip({ pluginDir = PLUGIN_DIR, outFile = DEFAULT_OUT, slug = 
   return { outFile, entries };
 }
 
-module.exports = { buildPluginZip, collectPluginFiles, listZipEntries, PLUGIN_DIR, PLUGIN_SLUG, DEFAULT_OUT };
+module.exports = { buildPluginZip, collectPluginFiles, listZipEntries, PLUGIN_DIR, PLUGIN_SLUG };
 
 if (require.main === module) {
   const args = process.argv.slice(2);

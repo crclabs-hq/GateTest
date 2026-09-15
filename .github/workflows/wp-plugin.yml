@@ -69,7 +69,7 @@ jobs:
         run: node --test tests/wp-plugin-package.test.js
 
       - name: Build the zip the release job ships
-        run: node scripts/build-wp-plugin-zip.js
+        run: SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" node scripts/build-wp-plugin-zip.js
 
       - uses: actions/upload-artifact@v4
         with:
