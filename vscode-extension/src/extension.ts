@@ -79,7 +79,8 @@ let activeWorker: Worker | null = null;
 
 export function activate(context: vscode.ExtensionContext) {
   extensionDir = context.extensionPath;
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // Plain CommonJS on purpose: the bridge is shared with the repo's node:test
+  // suite, which loads it without compiling the extension.
   bridge = require(path.join(extensionDir, 'engine', 'engine-bridge.js')) as EngineBridge;
 
   diagnosticCollection = vscode.languages.createDiagnosticCollection('gatetest');

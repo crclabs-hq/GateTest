@@ -48,10 +48,7 @@ function pruneModuleResult(r) {
 
 async function main() {
   const { entry, root, suite, changedFiles, skipModules } = workerData || {};
-  if (!entry || !root) throw new Error('engine-worker: entry and root are required');
-
-  // eslint-disable-next-line global-require
-  const { GateTest } = require(entry);
+  if (!entry || !root) throw new Error('engine-worker: entry and root are required');  const { GateTest } = require(entry);
 
   // The engine sets process.exitCode = 1 when the gate is BLOCKED — meant
   // for a terminal. In a worker it would only colour this thread's exit, but
