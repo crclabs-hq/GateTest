@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# deploy-on-box.sh — run ON the production box (66.42.121.161) to bring the
+# deploy-on-box.sh — run ON the production box (the host in BOX_SSH_HOST) to bring the
 # live site up to date with origin/main. Idempotent; safe to re-run.
 #
 # Called two ways:

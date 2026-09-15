@@ -3,7 +3,7 @@
 # below (Settings → Secrets and variables → Actions):
 #
 #   BOX_SSH_KEY   — private key with access to the deploy user on the box
-#   BOX_SSH_HOST  — user@host, e.g. deploy@66.42.121.161
+#   BOX_SSH_HOST  — user@host, e.g. deploy@<box-ip>
 #
 # "We have Tailscale, so why do we need these?" (Craig, 2026-08-04 — this
 # keeps getting re-asked because Tailscale was documented NOWHERE in this repo
@@ -16,11 +16,9 @@
 #     join the tailnet itself via tailscale/github-action + TS_OAUTH_CLIENT_ID
 #     / TS_OAUTH_SECRET.
 #
-# Verified 2026-08-04: port 22 on 66.42.121.161 is open to the public internet
-# (banner SSH-2.0-OpenSSH_8.9p1), so BOX_SSH_* works today with no Tailscale
-# involvement. If public 22 is ever closed in favour of tailnet-only — which
-# would be the better security posture given Tailscale already exists — this
-# workflow breaks until the runner is joined to the tailnet.
+# The runner reaches the box over SSH using BOX_SSH_HOST/BOX_SSH_KEY. If SSH
+# access is ever moved to tailnet-only, this workflow breaks until the runner
+# is joined to the tailnet.
 #
 # The box side just needs scripts/deploy/deploy-on-box.sh in the checkout
 # (ships with the repo). Activation = Craig's call (Boss Rule: production

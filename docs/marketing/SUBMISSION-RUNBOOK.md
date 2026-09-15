@@ -1,7 +1,7 @@
 # Submission-Day Runbook — fire the moment gatetest.io is back
 
 **Created 2026-07-08.** The listing blitz was prepared while production was down
-(DNS pointed at 66.42.121.161 instead of Vercel — Traefik default cert, "no
+(DNS pointed at <box-ip> instead of Vercel — Traefik default cert, "no
 available server"). Several directories health-check the remote URL at
 submission time, and every human reviewer clicks the homepage — so NOTHING
 below is submitted until the domain is restored.
