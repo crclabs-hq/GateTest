@@ -16,6 +16,21 @@
  * goes back to blocking express, so a raise should arrive with the same
  * scrutiny as any other regression.
  *
+ * TWO WRITERS, ONE RULE (2026-09-15). This script writes two files that
+ * tests/precision-page-sync.test.js holds equal: reliability-corpus/
+ * real-world.json (the ceilings) and website/app/data/precision.json (the
+ * public table). Two writers race on them — the nightly bot's rolling PR
+ * (flywheel/site-stats, .github/workflows/dogfood-nightly.yml) and any
+ * branch that runs --ratchet. Regenerate on the MERGED tree; never merge a
+ * stats PR over a branch that ratcheted after the PR was cut. On 2026-09-14
+ * the bot's PR #491 (engine 1.61.0: got 12, django 59) was cut in the
+ * morning, the integration branch ratcheted got -> 0 and django -> 46 that
+ * evening, and the "update branch" merge (20531fdd) kept the bot's
+ * precision.json beside the ratcheted manifest — main went red at 118331dc.
+ * A rolling PR that is behind a ratchet on main is stale: close it and let
+ * the next nightly re-cut it, or re-run this script on main. Never resolve
+ * that conflict by hand — the numbers come from a scan, not a merge tool.
+ *
  * Usage:
  *   node scripts/real-world-precision.js                  # all repos
  *   node scripts/real-world-precision.js --repo express   # one repo
