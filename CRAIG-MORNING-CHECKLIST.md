@@ -21,7 +21,7 @@ Cloudflare account but still points at the retired Vercel project.
       Registrar is Cloudflare, registered 2026-04-08, expires 2027-04-08. If the
       registrant is not you, stop and redeem `.ai` instead.
 - [ ] Cloudflare → `gatetest.io` zone → point `@`, `www`, `mcp` at
-      `66.42.121.161`, **grey cloud (DNS only)**. Not orange — Traefik does
+      `<box-ip>`, **grey cloud (DNS only)**. Not orange — Traefik does
       Let's Encrypt on the box and the proxy breaks the HTTP-01 challenge.
 - [ ] Delete/overwrite the existing Vercel records, and disconnect `gatetest.io`
       from the Vercel project so two deployments aren't racing.

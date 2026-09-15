@@ -7,7 +7,7 @@
  * wrapper (index.ts) handles HTTP + SSE; this file handles everything else,
  * in plain CommonJS so the repo's `node --test` suite exercises it directly.
  *
- * Deployment target: the Jarvis server (66.42.121.161) — co-located with
+ * Deployment target: the Jarvis server (<box-ip>) — co-located with
  * Jarvis's orchestration BY DESIGN so Jarvis can control GateTest. Do not
  * move to a different box. See docs/ROADMAP.md → REMOTE MCP.
  */

@@ -95,7 +95,7 @@ const SIBLING_REGISTRY = [
     id: 'gluecron',
     name: 'Gluecron',
     envVar: 'GLUECRON_STATUS_URL',
-    // Resolves to 66.42.121.161 — the same host GateTest production runs on.
+    // Resolves to <box-ip> — the same host GateTest production runs on.
     // NOTE: there is a second Gluecron instance (gluecron.vapron.ai) that the
     // Vapron box treats as canonical. It is NOT publicly resolvable (NXDOMAIN
     // from off-tailnet, 2026-09-01), so it cannot be used here until it has a
