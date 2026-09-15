@@ -55,6 +55,7 @@ const SCOPE_DIRS = [
   'website/app',            // pages, components, layout metadata, OG images, robots, sitemap
   'src/reporters',          // console upsell footers etc.
   'vscode-extension/src',
+  'vscode-extension/engine', // the in-process engine bridge + worker shipped in the vsix
   'wp-plugin',
   'integrations/github-actions',
   'docs/marketplace',

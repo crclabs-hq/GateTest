@@ -1,17 +1,40 @@
 {
   "name": "gatetest",
   "displayName": "GateTest — AI Code Quality Gate",
-  "description": "121-module AI-powered code scanner. Finds security holes, money-float bugs, import cycles, PII leaks, attack chains, and more. Auto-fixes with a PR. Per-scan pricing, charged at checkout.",
-  "version": "1.0.1",
+  "description": "AI code quality gate that runs inside your editor. 121 modules find security holes, money-float bugs, import cycles, PII leaks, attack chains and more, and show them as inline diagnostics. Auto-fixes with a PR. Per-scan pricing, charged at checkout.",
+  "version": "1.1.0",
   "publisher": "GateTestHQ",
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Linters", "Other", "Testing"],
-  "keywords": ["security", "code quality", "AI", "mcp", "scan", "fix", "sonarqube", "snyk"],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Other",
+    "Testing"
+  ],
+  "keywords": [
+    "security",
+    "code quality",
+    "AI",
+    "mcp",
+    "scan",
+    "fix",
+    "sonarqube",
+    "snyk"
+  ],
   "icon": "images/icon.png",
-  "galleryBanner": { "color": "#0a0a0a", "theme": "dark" },
-  "repository": { "type": "git", "url": "https://github.com/crclabs-hq/gatetest" },
+  "galleryBanner": {
+    "color": "#0a0a0a",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/crclabs-hq/gatetest"
+  },
   "homepage": "https://gatetest.io",
-  "bugs": { "url": "https://github.com/crclabs-hq/gatetest/issues" },
+  "bugs": {
+    "url": "https://github.com/crclabs-hq/gatetest/issues"
+  },
   "license": "MIT",
   "activationEvents": [
     "onStartupFinished"
@@ -26,13 +49,18 @@
       },
       {
         "command": "gatetest.scanFull",
-        "title": "GateTest: Scan Workspace (Full — 90 modules)",
+        "title": "GateTest: Scan Workspace (Full)",
         "icon": "$(verified)"
       },
       {
         "command": "gatetest.scanFile",
         "title": "GateTest: Scan This File",
         "icon": "$(search)"
+      },
+      {
+        "command": "gatetest.cancelScan",
+        "title": "GateTest: Cancel Running Scan",
+        "icon": "$(stop-circle)"
       },
       {
         "command": "gatetest.fixIssues",
@@ -68,13 +96,30 @@
         }
       ],
       "commandPalette": [
-        { "command": "gatetest.scanWorkspace" },
-        { "command": "gatetest.scanFull" },
-        { "command": "gatetest.scanFile" },
-        { "command": "gatetest.fixIssues" },
-        { "command": "gatetest.showPanel" },
-        { "command": "gatetest.setupMcp" },
-        { "command": "gatetest.openDashboard" }
+        {
+          "command": "gatetest.scanWorkspace"
+        },
+        {
+          "command": "gatetest.scanFull"
+        },
+        {
+          "command": "gatetest.scanFile"
+        },
+        {
+          "command": "gatetest.cancelScan"
+        },
+        {
+          "command": "gatetest.fixIssues"
+        },
+        {
+          "command": "gatetest.showPanel"
+        },
+        {
+          "command": "gatetest.setupMcp"
+        },
+        {
+          "command": "gatetest.openDashboard"
+        }
       ]
     },
     "configuration": {
@@ -83,8 +128,12 @@
         "gatetest.suite": {
           "type": "string",
           "default": "quick",
-          "enum": ["quick", "full", "nuclear"],
-          "description": "Default scan suite. quick=4 modules, full=121 modules, forensic=121+mutation+chaos (mutation and chaos run via CI, not the editor)."
+          "enum": [
+            "quick",
+            "full",
+            "nuclear"
+          ],
+          "description": "Default scan suite. quick = the fast editor subset, full = every module that can run in an editor (mutation and chaos run in CI, never in the editor)."
         },
         "gatetest.autoScanOnSave": {
           "type": "boolean",
@@ -96,15 +145,15 @@
           "default": true,
           "description": "Show GateTest findings as inline diagnostics in the editor."
         },
-        "gatetest.gatePath": {
-          "type": "string",
-          "default": "gatetest",
-          "description": "Path to gatetest binary. Defaults to 'gatetest' (assumes it's in PATH)."
-        },
         "gatetest.apiBaseUrl": {
           "type": "string",
           "default": "https://gatetest.io",
           "description": "GateTest API base URL (leave as default unless self-hosting)."
+        },
+        "gatetest.enginePath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path to the GateTest engine: a GateTest checkout or an installed @gatetest/cli package. Leave empty to use the workspace's own @gatetest/cli if present, else the copy bundled with the extension."
         }
       }
     },
@@ -146,12 +195,16 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
-    "publish": "vsce publish"
+    "publish": "vsce publish",
+    "test": "node --test test/*.test.js"
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0",
     "@vscode/vsce": "^2.0.0"
+  },
+  "dependencies": {
+    "@gatetest/cli": "^1.61.0"
   }
 }
