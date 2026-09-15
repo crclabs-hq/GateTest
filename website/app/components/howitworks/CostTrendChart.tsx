@@ -42,7 +42,7 @@ export default function CostTrendChart() {
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         role="img"
-        aria-label="Illustrative design goal, not measured data: percentage of fixes served by Claude. Starts near 100 percent on early scans, drops below 30 percent after roughly 50 scans, trends toward 5 percent after 100-plus scans as promoted recipes accumulate."
+        aria-label="Illustrative design goal, not measured data: percentage of fixes served by the AI layer. Starts near 100 percent on early scans, drops below 30 percent after roughly 50 scans, trends toward 5 percent after 100-plus scans as promoted recipes accumulate."
         className="w-full h-auto min-w-[480px]"
       >
         <defs>
@@ -132,12 +132,12 @@ export default function CostTrendChart() {
           fontSize="11"
           fill="var(--muted)"
         >
-          % fixes served by Claude
+          % fixes served by AI
         </text>
       </svg>
       <p className="text-xs text-muted italic mt-2 px-2">
         Illustrative — actual ratio depends on codebase shape and recipe-hit rate. The architectural goal is that
-        repeat patterns stop reaching Claude entirely.
+        repeat patterns stop reaching the AI layer entirely.
       </p>
     </div>
   );

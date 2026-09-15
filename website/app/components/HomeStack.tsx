@@ -23,7 +23,7 @@ const PRODUCTS = [
     badge: "Gc",
     badgeColor: "bg-indigo-500",
     accent: "from-indigo-500/15 to-blue-500/5",
-    tagline: "The git host built around Claude.",
+    tagline: "The git host built for AI agents.",
     body:
       "Git hosting built for small teams — no tickets, no politics. GateTest is wired into it natively: every push lands on Gluecron's Signal Bus and triggers a scan from the same queue that serves GitHub.",
     proof: "Dogfooded: GateTest gates Gluecron's own codebase on every push.",

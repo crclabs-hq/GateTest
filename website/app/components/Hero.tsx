@@ -69,8 +69,8 @@ export default function Hero() {
               already written, tested, and pair-reviewed by a second AI.
             </p>
             <p className="text-base text-gray-500 mb-8 fade-up">
-              Pay per scan &mdash; no seat licences, no minimum. Built on{" "}
-              <span className="font-semibold text-gray-700">Claude</span> &mdash; Fable 5 on the fix tiers, Sonnet 5 everywhere else.
+              Pay per scan &mdash; no seat licences, no minimum. AI-powered fixes &mdash;{" "}
+              <span className="font-semibold text-gray-700">deeper analysis on the fix tiers</span>, the deterministic engine everywhere else.
             </p>
 
             {/* One action, three audiences: repository, website, WordPress. */}

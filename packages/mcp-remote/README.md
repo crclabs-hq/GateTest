@@ -1,7 +1,7 @@
 # GateTest Remote MCP — `https://gatetest.io/api/mcp`
 
-The hosted MCP endpoint that gives **every** Claude user GateTest tools with zero
-install — claude.ai web app, Claude mobile, Claude Desktop, Cursor, Windsurf,
+The hosted MCP endpoint that gives **every** MCP client GateTest tools with zero
+install — claude.ai web and mobile, Claude Desktop, Cursor, Windsurf,
 corporate locked-down machines. The local stdio server (`npx @gatetest/mcp-server`)
 only reaches users who can run npm; this reaches everyone else.
 
@@ -19,14 +19,14 @@ endpoint on a box of your own instead of with the site: Bun + Hono, one HTTP
 route, nothing else. It is not what serves `gatetest.io/api/mcp`.
 
 ```
-Claude client ──HTTPS──▶ gatetest.io/api/mcp   (Next.js route, deployed with the site)
+MCP client    ──HTTPS──▶ gatetest.io/api/mcp   (Next.js route, deployed with the site)
                               │
              website/app/lib/mcp-remote-core.cjs   (JSON-RPC dispatch, key gate)
                               │
                  gatetest.io product APIs (scan/guidance/fix/validate)
 
 self-hosted alternative:
-Claude client ──HTTPS──▶ your reverse proxy ──▶ Bun + Hono (this package, port 8787)
+MCP client    ──HTTPS──▶ your reverse proxy ──▶ Bun + Hono (this package, port 8787)
                                                         │
                                           the same mcp-remote-core.cjs
 ```

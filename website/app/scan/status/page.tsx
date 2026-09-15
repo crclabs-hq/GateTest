@@ -556,7 +556,7 @@ export default function ScanStatus() {
                     Fix all {scanResult?.totalIssues} issue{(scanResult?.totalIssues || 0) !== 1 ? "s" : ""} automatically
                   </p>
                   <p className="text-sm text-muted">
-                    Claude reads each finding, writes the patch, re-validates it, adds a regression test, and opens a pull request. Included in your tier.
+                    The fix engine reads each finding, writes the patch, re-validates it, adds a regression test, and opens a pull request. Included in your tier.
                   </p>
                 </div>
                 <button
@@ -610,7 +610,7 @@ export default function ScanStatus() {
               <div className="p-5 rounded-xl border border-border bg-[var(--surface-solid)]">
                 <h2 className="font-bold text-foreground mb-2">Or let GateTest fix it for you</h2>
                 <p className="text-sm text-muted mb-4">
-                  Skip the copy-paste — Claude reads each finding, generates the fix, re-validates against the scanner, writes a regression test, and opens a pull request on your repo. Included with your {params.tier === "nuclear" ? "Forensic Scan" : "Scan + Fix"} tier.
+                  Skip the copy-paste — the fix engine reads each finding, generates the fix, re-validates against the scanner, writes a regression test, and opens a pull request on your repo. Included with your {params.tier === "nuclear" ? "Forensic Scan" : "Scan + Fix"} tier.
                 </p>
 
                 {!fixResult && !fixing && (
@@ -723,7 +723,7 @@ export default function ScanStatus() {
                   <div className="flex items-center gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
                     <span className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
                     <div>
-                      <p className="text-sm font-semibold text-amber-800">Claude is reading your code and generating fixes…</p>
+                      <p className="text-sm font-semibold text-amber-800">The fix engine is reading your code and generating fixes…</p>
                       <p className="text-xs text-amber-700 mt-0.5">Typically 30&ndash;90 seconds. Each fix is re-scanned before commit.</p>
 
                     </div>
@@ -839,7 +839,7 @@ export default function ScanStatus() {
                     {scanResult?.totalIssues === 1 ? "Want this fixed automatically?" : `Want these ${scanResult?.totalIssues} issues fixed automatically?`}
                   </h2>
                   <p className="text-sm text-muted mb-5">
-                    Your <span className="font-semibold">{params.tier === "quick" ? "Quick" : "Full"}</span> scan found them. Upgrade tiers and Claude reads each finding, writes the fix, generates a regression test, then opens a pull request on your repo.
+                    Your <span className="font-semibold">{params.tier === "quick" ? "Quick" : "Full"}</span> scan found them. Upgrade tiers and the fix engine reads each finding, writes the fix, generates a regression test, then opens a pull request on your repo.
                   </p>
                   <div className={`grid grid-cols-1 ${params.tier === "quick" ? "md:grid-cols-3" : "md:grid-cols-2"} gap-4`}>
                     {params.tier === "quick" && (
@@ -868,7 +868,7 @@ export default function ScanStatus() {
                         {upgradingToFix ? "Redirecting to checkout…" : "Scan + Fix — $199"}
                       </p>
                       <p className="text-xs text-muted leading-relaxed">
-                        Everything in Full <span className="font-semibold text-foreground">plus</span> Claude opens a PR with up to {scanResult?.totalIssues} fixes, regression tests, and pair-review. The auto-fix loop.
+                        Everything in Full <span className="font-semibold text-foreground">plus</span> the fix engine opens a PR with up to {scanResult?.totalIssues} fixes, regression tests, and pair-review. The auto-fix loop.
                       </p>
                     </button>
                     <button
@@ -879,7 +879,7 @@ export default function ScanStatus() {
                     >
                       <p className="text-xs uppercase tracking-wider text-muted/70 font-semibold mb-1">For CTOs</p>
                       <p className="font-bold text-foreground mb-1 text-base">Forensic Scan &mdash; $399</p>
-                      <p className="text-xs text-muted leading-relaxed">Scan + Fix + per-finding Claude diagnosis + attack-chain correlation + board-ready CISO executive summary.</p>
+                      <p className="text-xs text-muted leading-relaxed">Scan + Fix + per-finding AI diagnosis + attack-chain correlation + board-ready CISO executive summary.</p>
                     </button>
                   </div>
                   <p className="mt-5 text-xs text-muted text-center">

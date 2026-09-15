@@ -1,12 +1,12 @@
 {
   "name": "gatetest",
   "displayName": "GateTest — AI Code Quality Gate",
-  "description": "121-module AI code scanner powered by Claude. Finds security holes, money-float bugs, import cycles, PII leaks, attack chains, and more. Auto-fixes with a PR. Per-scan pricing, charged at checkout.",
+  "description": "121-module AI-powered code scanner. Finds security holes, money-float bugs, import cycles, PII leaks, attack chains, and more. Auto-fixes with a PR. Per-scan pricing, charged at checkout.",
   "version": "1.0.1",
   "publisher": "GateTestHQ",
   "engines": { "vscode": "^1.85.0" },
   "categories": ["Linters", "Other", "Testing"],
-  "keywords": ["security", "code quality", "AI", "claude", "scan", "fix", "sonarqube", "snyk"],
+  "keywords": ["security", "code quality", "AI", "mcp", "scan", "fix", "sonarqube", "snyk"],
   "icon": "images/icon.png",
   "galleryBanner": { "color": "#0a0a0a", "theme": "dark" },
   "repository": { "type": "git", "url": "https://github.com/crclabs-hq/gatetest" },
@@ -36,7 +36,7 @@
       },
       {
         "command": "gatetest.fixIssues",
-        "title": "GateTest: Fix Issues with Claude",
+        "title": "GateTest: Fix Issues with AI",
         "icon": "$(sparkle)"
       },
       {

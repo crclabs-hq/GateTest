@@ -32,7 +32,7 @@ That is the entire install. Push the file, open a PR, the gate runs.
 
 ## With AI auto-repair
 
-When the gate finds something it can fix, let Claude propose the patch:
+When the gate finds something it can fix, let the AI CI-fixer propose the patch:
 
 ```yaml
 - uses: crclabs-hq/GateTest@v1
@@ -43,7 +43,7 @@ When the gate finds something it can fix, let Claude propose the patch:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-When the gate blocks and an Anthropic key is present, the action opens a follow-up PR with the proposed fix. The original failing PR is never modified — auto-repair runs as an additive workflow.
+When the gate blocks and an `ANTHROPIC_API_KEY` is present, the action opens a follow-up PR with the proposed fix. The original failing PR is never modified — auto-repair runs as an additive workflow.
 
 ---
 
@@ -95,7 +95,7 @@ Two of the four Forensic-tier deliverables (the tier was named Nuclear until 202
 
 **Why:** the website's Forensic pipeline runs on Vercel serverless functions. Mutation testing needs to exercise the customer's own test runner; chaos testing needs to launch a Chromium browser against a live URL. Neither is safe or possible inside a stateless serverless function. Both run cleanly on a GitHub Actions runner, which has the customer test suite already checked out and can install browser binaries on demand.
 
-**Honest disclosure:** if you paid for Forensic via the website (paste a repo URL, get a scan back), you receive per-finding Claude diagnosis + cross-finding correlation + executive summary, but mutation and chaos are **not** part of that flow. To get the full four-deliverable Forensic experience, use the Action.
+**Honest disclosure:** if you paid for Forensic via the website (paste a repo URL, get a scan back), you receive per-finding AI diagnosis + cross-finding correlation + executive summary, but mutation and chaos are **not** part of that flow. To get the full four-deliverable Forensic experience, use the Action.
 
 ### Mutation testing
 
@@ -168,11 +168,11 @@ Read outputs in later steps with `${{ steps.<id>.outputs.<name> }}`.
 
 | Variable | Required when | Purpose |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | `auto-fix: true` | Claude API key used by the AI CI-fixer. |
+| `ANTHROPIC_API_KEY` | `auto-fix: true` | AI provider API key used by the AI CI-fixer. |
 | `GITHUB_TOKEN` | Never — set only to override | The action defaults to the workflow's own token (`github-token` input, `${{ github.token }}`); a `GITHUB_TOKEN` in the step's `env:` block, or a PAT passed as `github-token`, takes precedence. What matters is the job's `permissions:` block — see below. |
 | `GATETEST_RECIPE_STORE_URL` | Optional | Custom recipe-store endpoint for the flywheel layer. |
 | `MAX_FIX_ATTEMPTS` | Optional | Cap on auto-fix retries (default 3). |
-| `CLAUDE_MODEL` | Optional | Override the Claude model used by the fixer. |
+| `CLAUDE_MODEL` | Optional | Override the model used by the fixer. |
 
 Set them in the `env:` block on the step or job — never commit secrets to the repo (Bible Forbidden #6).
 
@@ -261,8 +261,8 @@ The action falls back to cloning the repo at runtime when `@gatetest/cli` is not
 | --- | --- | --- |
 | Quick Scan | $29 | 4 critical modules, single scan |
 | Full Scan | $99 | All 121 modules, single scan |
-| Scan + Fix | $199 | 121 modules + iterative Claude fix loop, pair-review of every fix, architecture annotator |
-| Forensic | $399 | 121 modules + per-finding Claude diagnosis, attack-chain correlation, executive summary, CISO report; mutation testing and chaos/fuzz ship via this Action (`mutation: true` / `chaos: true`), not the website-only flow |
+| Scan + Fix | $199 | 121 modules + iterative AI fix loop, pair-review of every fix, architecture annotator |
+| Forensic | $399 | 121 modules + per-finding AI diagnosis, attack-chain correlation, executive summary, CISO report; mutation testing and chaos/fuzz ship via this Action (`mutation: true` / `chaos: true`), not the website-only flow |
 | Continuous | $49/month | Unlimited push-triggered scans across every repo in your org |
 | MCP | $29/month | Hosted remote MCP endpoint + hosted scan history (the local stdio MCP server is free) |
 

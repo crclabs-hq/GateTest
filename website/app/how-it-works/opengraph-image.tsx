@@ -94,7 +94,7 @@ export default async function Image() {
           }}
         >
           <span>121 modules — deterministic first.</span>
-          <span style={{ color: "#2dd4bf" }}>One Claude pass when it&apos;s worth it.</span>
+          <span style={{ color: "#2dd4bf" }}>One AI pass when it&apos;s worth it.</span>
           <span>Zero hype.</span>
         </div>
 
@@ -112,7 +112,7 @@ export default async function Image() {
             Recipe
           </span>
           <span style={{ padding: "6px 14px", border: "1px solid rgba(45,212,191,0.4)", borderRadius: 999, color: "#2dd4bf" }}>
-            Claude
+            AI fix
           </span>
           <span style={{ padding: "6px 14px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 999 }}>
             Syntax gate

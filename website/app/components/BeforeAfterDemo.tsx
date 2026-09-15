@@ -68,10 +68,10 @@ export default function BeforeAfterDemo() {
                 <ul className="text-sm space-y-2.5 mb-3">
                   <Step state="done">Re-runs the gate to isolate the failing module</Step>
                   <Step state="done">Reads the project conventions (README, AGENTS.md)</Step>
-                  <Step state="done">Generates the fix with Claude (Fable 5 on the fix tiers)</Step>
+                  <Step state="done">Generates the fix with the AI fix engine (deeper analysis on the fix tiers)</Step>
                   <Step state="done">Validates the fix re-passes the gate</Step>
                   <Step state="done">Writes a regression test for the bug</Step>
-                  <Step state="working">Pair-reviews the fix with a second Claude</Step>
+                  <Step state="working">Pair-reviews the fix with a second AI reviewer</Step>
                 </ul>
                 <p className="text-xs text-muted">
                   Typically well under a minute per fix. Fixes ship at Scan + Fix ($199) and above.

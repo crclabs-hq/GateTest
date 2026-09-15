@@ -91,7 +91,11 @@ describe('CLI fix --model', () => {
     const r = runCli(['fix', '--help'], cleanEnv());
     assert.strictEqual(r.code, 0);
     assert.match(r.stdout, /--model <name>/);
-    assert.match(r.stdout, /claude-fable-5/);
+    // The help lists the aliases only — public copy names no model (2026-09-14).
+    // Full ids are still accepted; "a full model id from your provider" says so.
+    for (const alias of ['sonnet', 'opus', 'opus-4-8', 'fable']) assert.match(r.stdout, new RegExp('^\\s+' + alias + '\\b', 'm'), alias);
+    assert.match(r.stdout, /full model id from your provider/);
+    assert.doesNotMatch(r.stdout, /claude-/);
     assert.match(r.stdout, /bring-your-own-key/i);
   });
 });

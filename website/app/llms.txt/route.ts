@@ -59,7 +59,7 @@ function buildLlmsTxt(): string {
   lines.push(`- What it is: a unified code-quality and application-security gate (SAST + SCA + a DAST slice) with ${moduleCount} modules`);
   lines.push("- Languages: JavaScript, TypeScript, Python, Go, Java, Ruby, PHP, plus infrastructure-as-code (Docker, Terraform, Kubernetes, CI workflows)");
   lines.push("- Output formats: Console, JSON, HTML, SARIF (for GitHub code scanning), JUnit");
-  lines.push("- AI fix loop: each finding is fixed by Claude, validated through a syntax + re-scan gate, and shipped with a generated regression test in a reviewable pull request");
+  lines.push("- AI fix loop: each finding is fixed by the AI fix engine, validated through a syntax + re-scan gate, and shipped with a generated regression test in a reviewable pull request");
   lines.push("- Pricing: Quick Scan $29, Full Scan $99, Scan + Fix $199, Forensic $399 (one-time, per scan) · Continuous $49/mo · MCP $29/mo");
   lines.push("- Replaces or complements: SonarQube, Snyk, ESLint, GitHub code scanning, DeepSource, Semgrep, CodeQL");
   lines.push("");

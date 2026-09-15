@@ -234,9 +234,9 @@ async function runScan(suite: string, targetFile?: string) {
     if (!parsed.passed) {
       void vscode.window.showWarningMessage(
         `GateTest found ${parsed.issues.filter(i => i.severity === 'error').length} errors. Check the Problems panel.`,
-        'Fix with Claude'
+        'Fix with AI'
       ).then(choice => {
-        if (choice === 'Fix with Claude') void openFixDashboard();
+        if (choice === 'Fix with AI') void openFixDashboard();
       });
     } else {
       void vscode.window.showInformationMessage('GateTest: All checks passed ✓');

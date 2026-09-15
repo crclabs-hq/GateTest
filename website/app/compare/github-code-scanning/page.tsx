@@ -53,7 +53,7 @@ const faqItems = [
   },
   {
     q: "Can GateTest auto-fix the issues it finds?",
-    a: "Yes. The Scan + Fix tier ($199) creates a pull request with code changes that fix the issues found. GitHub Code Scanning shows you security alerts and leaves fixing to you. GateTest writes the fix. The Forensic Scan tier ($399) adds Claude-driven per-finding diagnosis, cross-finding attack-chain correlation, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass also ship via the GitHub Action (mutation: true / chaos: true) — runs wherever your CI runs.",
+    a: "Yes. The Scan + Fix tier ($199) creates a pull request with code changes that fix the issues found. GitHub Code Scanning shows you security alerts and leaves fixing to you. GateTest writes the fix. The Forensic Scan tier ($399) adds AI-driven per-finding diagnosis, cross-finding attack-chain correlation, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass also ship via the GitHub Action (mutation: true / chaos: true) — runs wherever your CI runs.",
   },
 ];
 
@@ -202,7 +202,7 @@ export default function GitHubCodeScanningPage() {
               },
               {
                 title: "AI code review CodeQL can't do",
-                body: "CodeQL works from a database of query patterns. GateTest sends your code to Claude for semantic reasoning — understanding what the code intends, identifying logic bugs, spotting off-by-one errors in financial calculations, flagging race conditions in auth flows. Pattern databases can't catch logic errors. AI can.",
+                body: "CodeQL works from a database of query patterns. GateTest's AI review applies semantic reasoning to your code — understanding what the code intends, identifying logic bugs, spotting off-by-one errors in financial calculations, flagging race conditions in auth flows. Pattern databases can't catch logic errors. AI can.",
               },
               {
                 title: "Auto-fix, not just alerts",

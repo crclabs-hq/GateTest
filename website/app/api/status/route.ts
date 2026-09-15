@@ -125,9 +125,13 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const missing = REQUIRED.filter((v) => !isSet(v.name));
-  const importantMissing = IMPORTANT.filter((v) => !isSet(v.name));
-  const optionalMissing = OPTIONAL.filter((n) => !isSet(n));
+  // The route is public. Vendor-named variables are reported under a neutral
+  // label so the response never says which AI provider the engine uses; the
+  // entry (and its `why`) stays so the readiness probe still fails on it.
+  const publicName = (name: string) => (/ANTHROPIC|OPENAI|CLAUDE/i.test(name) ? "AI_PROVIDER_API_KEY" : name);
+  const missing = REQUIRED.filter((v) => !isSet(v.name)).map((v) => ({ name: publicName(v.name), why: v.why }));
+  const importantMissing = IMPORTANT.filter((v) => !isSet(v.name)).map((v) => ({ name: publicName(v.name), why: v.why }));
+  const optionalMissing = OPTIONAL.filter((n) => !isSet(n)).map(publicName);
 
   // PRESENT-BUT-FAKE. `isSet` only asks "length > 0", which is how
   // GATETEST_PRIVATE_KEY sat in production holding the literal documentation

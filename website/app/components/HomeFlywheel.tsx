@@ -57,7 +57,7 @@ const LAYERS: Layer[] = [
   },
   {
     step: "04",
-    name: "Claude",
+    name: "AI fix",
     cost: "~$0.03",
     share: "novel cases",
     blurb: "Only the genuinely novel cases reach the LLM.",
@@ -80,8 +80,8 @@ export default function HomeFlywheel() {
           <p className="text-muted text-lg max-w-3xl mx-auto">
             Every competitor either ships pattern matchers (cheap, brittle)
             or ships LLM-only fixes (slow, expensive, hallucinates). We
-            stack three deterministic layers in front of Claude, and every
-            recipe a Claude fix produces makes the cheap layers catch more
+            stack three deterministic layers in front of the AI layer, and every
+            recipe an AI fix produces makes the cheap layers catch more
             next time. Margin improves as the cache grows. Quality compounds. And every
             fix is <span className="text-foreground font-semibold">re-scanned to prove it worked</span> —
             we don&apos;t tell you it&apos;s fixed, we show you the green.
@@ -168,7 +168,7 @@ export default function HomeFlywheel() {
               <p className="text-sm text-muted leading-relaxed">
                 When CI breaks, the agent reads the failing log, walks back to
                 the failing line, applies the right layer (AST &rarr; rule
-                &rarr; recipe &rarr; Claude), runs the gate again, opens a PR.
+                &rarr; recipe &rarr; AI), runs the gate again, opens a PR.
                 You review the diff and merge. The build was red for fifteen
                 minutes; you didn&apos;t have to look at it. The recipe layer
                 remembers, so the next time the same failure happens — your

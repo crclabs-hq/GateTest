@@ -141,7 +141,7 @@ export default function RootLayout({
                   price: "399.00",
                   priceCurrency: "USD",
                   description:
-                    "Deep scan with per-finding Claude diagnosis, cross-finding attack-chain correlation, auto-fix PR, pair-review, and an executive summary report",
+                    "Deep scan with per-finding AI diagnosis, cross-finding attack-chain correlation, auto-fix PR, pair-review, and an executive summary report",
                 },
               ],
             }),

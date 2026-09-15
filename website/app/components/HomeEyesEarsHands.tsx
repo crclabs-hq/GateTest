@@ -88,7 +88,7 @@ export default function HomeEyesEarsHands() {
             MCP tools for AI agents
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold mt-4 mb-4 text-foreground">
-            Give Claude{" "}
+            Give your AI agent{" "}
             <span className="text-emerald-400">eyes</span>,{" "}
             <span className="text-amber-400">ears</span>{" "}
             &amp;{" "}
