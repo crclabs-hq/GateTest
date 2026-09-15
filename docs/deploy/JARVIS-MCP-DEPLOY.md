@@ -7,7 +7,7 @@
 > and `mcp.gatetest.io` → 66.42.121.161 is an active, in-use DNS record, not a
 > leftover. Treat the steps below as the real, current deploy path for this
 > service, not a fallback. See `JARVIS-WEB-DEPLOY.md` for the companion website
-> deploy and the two-box topology (this box = frontend/MCP, Vapron box 158 =
+> deploy and the two-box topology (this box = frontend/MCP, Tallrig box 158 (named Vapron until 2026-09-14) =
 > backend services only).
 >
 > Original 2026-07-07 note, kept for history: "Superseded — Craig chose to host

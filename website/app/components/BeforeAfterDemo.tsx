@@ -50,7 +50,7 @@ export default function BeforeAfterDemo() {
     line=65::ReferenceError`}
                 </pre>
                 <p className="text-xs text-muted mt-3">
-                  A real Vapron failure from 2026-05-24. The api crashed at
+                  A real failure on our platform (Tallrig — named Vapron at the time) from 2026-05-24. The api crashed at
                   module load. Rollback also failed.
                 </p>
               </>

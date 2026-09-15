@@ -24,8 +24,8 @@
 import { NextRequest, NextResponse } from "next/server";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { findPlaceholders, inspectEnvValue } = require("@/app/lib/env-placeholder");
-// Which brand the platform variables are pointed at (Vapron → Tallrig rename
-// in progress, 2026-09): names only, so the readiness card shows a flipped
+// Which brand the platform variables are pointed at (Vapron → Tallrig rename,
+// Craig 2026-09-14): names only, so the readiness card shows a flipped
 // box as flipped. Requested by the platform side.
 const { platformPointing } = require("@/app/lib/platform-config");
 
@@ -54,9 +54,9 @@ const IMPORTANT: Array<{ name: string; why: string }> = [
   { name: "GATETEST_ADMIN_PASSWORD", why: "admin console password login disabled ('Admin access is not configured')" },
   { name: "CRON_SECRET", why: "background cron jobs (watch tick, scan worker) exit early in prod" },
   { name: "RESEND_API_KEY", why: "MCP $29/mo API-key emails can't send — subscriber pays, key never arrives (webhook 500s until set)" },
-  { name: "VAPRON_BASE_URL", why: "runtime-scan dispatch to the Vapron worker tier disabled — /web and /wp scans ship static probes only" },
-  { name: "VAPRON_API_TOKEN", why: "pairs with VAPRON_BASE_URL — Vapron rejects unauthenticated dispatch" },
-  { name: "VAPRON_DISPATCH_SECRET", why: "pairs with VAPRON_BASE_URL — signs outbound jobs and verifies Vapron's result callbacks (CRONTECH_DISPATCH_SECRET is the legacy alias)" },
+  { name: "TALLRIG_BASE_URL", why: "runtime-scan dispatch to the Tallrig worker tier disabled — /web and /wp scans ship static probes only (VAPRON_BASE_URL is the pre-rename alias)" },
+  { name: "TALLRIG_API_TOKEN", why: "pairs with TALLRIG_BASE_URL — Tallrig rejects unauthenticated dispatch (VAPRON_API_TOKEN is the pre-rename alias)" },
+  { name: "TALLRIG_DISPATCH_SECRET", why: "pairs with TALLRIG_BASE_URL — signs outbound jobs and verifies Tallrig's result callbacks (VAPRON_DISPATCH_SECRET is the pre-rename alias, CRONTECH_DISPATCH_SECRET the legacy one)" },
   { name: "GATETEST_RECIPE_STORE_TOKEN", why: "fix-recipe WRITES (PUT /api/recipes) are refused with 503 until set — the flywheel cannot learn from CLI fixes; must equal the token CLI users set as GATETEST_RECIPE_STORE_TOKEN" },
   // ── Gluecron: the PREFERRED git host (Craig 2026-08-29 — customers may use
   // GitHub, but we steer them to Gluecron). These were classified "purely
@@ -85,16 +85,17 @@ const OPTIONAL = [
   "GATETEST_FIX_MODEL", "CONTINUOUS_AI_BUDGET_USD",
 ];
 
-// Legacy env names still honored by the code that reads the canonical var
-// (vapron-dispatch.js falls back to CRONTECH_*). A var counts as set when
-// either the canonical name or any alias is set — otherwise this probe would
-// report "missing" for a deployment that actually works.
-// TALLRIG_* is the platform's next name (rename in progress, 2026-09); the
-// dispatch code reads it first, so it must count as "set" here too.
+// Older env names still honored by the code that reads the canonical var
+// (vapron-dispatch.js reads TALLRIG_* → VAPRON_* → CRONTECH_* through
+// platform-config). A var counts as set when either the canonical name or
+// any alias is set — otherwise this probe would report "missing" for a
+// deployment that actually works. TALLRIG_* is canonical since the rename
+// (Craig 2026-09-14); VAPRON_* is the pre-rename name a not-yet-flipped box
+// still carries, CRONTECH_* the one before that.
 const ALIASES: Record<string, string[]> = {
-  VAPRON_BASE_URL: ["TALLRIG_BASE_URL", "CRONTECH_BASE_URL"],
-  VAPRON_API_TOKEN: ["TALLRIG_API_TOKEN", "CRONTECH_API_TOKEN"],
-  VAPRON_DISPATCH_SECRET: ["TALLRIG_DISPATCH_SECRET", "CRONTECH_DISPATCH_SECRET"],
+  TALLRIG_BASE_URL: ["VAPRON_BASE_URL", "CRONTECH_BASE_URL"],
+  TALLRIG_API_TOKEN: ["VAPRON_API_TOKEN", "CRONTECH_API_TOKEN"],
+  TALLRIG_DISPATCH_SECRET: ["VAPRON_DISPATCH_SECRET", "CRONTECH_DISPATCH_SECRET"],
 };
 
 // A variable holding documentation filler is NOT set. It is worse than unset:

@@ -1,14 +1,25 @@
 /**
  * Empire Smoke Scanner
  *
- * Fast cross-product smoke probes over Craig's three live deployments:
- *   - vapron.ai homepage            (200 + body keyword)
- *   - api.vapron.ai /api/health     (status:"ok")
- *   - crontech.ai -> vapron.ai      (the rename redirect still stands)
+ * Fast cross-product smoke probes over Craig's three live deployments
+ * (platform hosts from website/app/lib/platform-config.js — Tallrig today):
+ *   - tallrig.com homepage          (200 + body says the platform's name)
+ *   - api.tallrig.com /api/health   (status:"ok")
+ *   - crontech.ai -> tallrig.com    (the rename redirect still stands)
  *   - gluecron.com apex             (soft-skip on NXDOMAIN)
  *   - gluecron.com platform-status  (healthy:true)
  *   - gatetest platform-status      (healthy:true AND a real commit)
- *   - vapron.ai:443 TLS expiry      (warn <14d)
+ *   - tallrig.com:443 TLS expiry    (warn <14d)
+ *
+ * RENAMED AGAIN 2026-09-14: Vapron became Tallrig ("vapron is no longer" —
+ * Craig). Measured 2026-09-15 before flipping the config defaults:
+ *
+ *     https://tallrig.com/               -> 200, body says "Tallrig" (and
+ *                                           NOT "vapron" — the old keyword
+ *                                           would have failed a healthy site)
+ *     https://api.tallrig.com/api/health -> 200 {"status":"ok"}
+ *     https://crontech.ai/               -> 301 to https://tallrig.com/
+ *     https://vapron.ai/                 -> 200, same box, Tallrig-branded
  *
  * TARGETS CORRECTED 2026-08-29. Crontech was renamed Vapron on 2026-06-12 and
  * this file was never updated, so three of its five probes could not have
@@ -78,14 +89,17 @@ const SLOW_MS = 5000;
 
 const CERT_WARN_DAYS = 14;
 
-// Platform hostnames come from website/app/lib/platform-config.js — the
-// platform is being renamed (Vapron → Tallrig) and every host moves; the
-// probes must follow an env change, not an edit here.
+// Platform hostnames and the brand keyword come from
+// website/app/lib/platform-config.js — the platform has been renamed twice
+// (Crontech → Vapron → Tallrig); the probes follow an env change, not an
+// edit here.
 const platform = require('../../website/app/lib/platform-config');
 
 const DEFAULT_URLS = {
-  vapronHome: `${platform.PLATFORM_SITE_URL}/`,
-  vapronApiHealth: `${platform.PLATFORM_API_URL}/api/health`,
+  platformHome: `${platform.PLATFORM_SITE_URL}/`,
+  platformApiHealth: `${platform.PLATFORM_API_URL}/api/health`,
+  /** The word a healthy platform homepage must contain (its product name). */
+  platformKeyword: platform.PLATFORM_NAME,
   // The rename redirect. Must keep answering 3xx and FINALLY land on the
   // platform's canonical host (one intermediate hop is tolerated during a
   // rename window, e.g. crontech.ai -> vapron.ai -> tallrig.com).
@@ -166,12 +180,16 @@ async function runProbe(name, fn, timeoutMs, slowMs = SLOW_MS) {
 }
 
 /**
- * Probe: the Vapron homepage. Expect 200, HTTP/2, body mentioning Vapron.
+ * Probe: the platform homepage. Expect 200, HTTP/2, body mentioning the
+ * platform's product name (PLATFORM_NAME — "Tallrig" today).
  *
  * The keyword is the point: a 200 from a parked page, a stray Caddy default,
- * or a misrouted vhost all look identical to a status-code-only check.
+ * or a misrouted vhost all look identical to a status-code-only check. And
+ * the keyword must be the CURRENT name: tallrig.com's body has zero
+ * occurrences of "vapron" (measured 2026-09-15), so the old literal would
+ * have failed a healthy site exactly as "Crontech" did in 2026-08.
  */
-async function probeVapronHome(fetchFn, url) {
+async function probePlatformHome(fetchFn, url, keyword = platform.PLATFORM_NAME) {
   const res = await fetchFn(url, { method: 'GET', redirect: 'follow' });
   if (!res || res.status !== 200) {
     return { status: 'fail', detail: `expected 200, got ${res && res.status}` };
@@ -187,8 +205,9 @@ async function probeVapronHome(fetchFn, url) {
     warnings.push(`http version ${httpVersion} (expected h2/h3)`);
   }
 
-  if (!body || !/vapron/i.test(body)) {
-    return { status: 'fail', detail: 'body missing "Vapron" keyword' };
+  const keywordRe = new RegExp(String(keyword).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  if (!body || !keywordRe.test(body)) {
+    return { status: 'fail', detail: `body missing "${keyword}" keyword` };
   }
 
   if (warnings.length > 0) {
@@ -240,7 +259,7 @@ async function probeApiHealth(fetchFn, url) {
 /**
  * Probe: a permanent redirect still points where it should.
  *
- * Guards the Crontech -> Vapron rename. Every pre-rename link, bookmark and
+ * Guards the crontech.ai -> platform rename (crontech.ai -> tallrig.com today). Every pre-rename link, bookmark and
  * doc depends on this hop, and nothing else in the estate would notice if it
  * quietly stopped resolving.
  */
@@ -453,13 +472,13 @@ async function runEmpireSmoke(opts = {}) {
   const timestamp = new Date().toISOString();
 
   const probes = await Promise.all([
-    runProbe('vapron-home', () => probeVapronHome(fetchFn, urls.vapronHome), timeoutMs, slowMs),
-    runProbe('vapron-api-health', () => probeApiHealth(fetchFn, urls.vapronApiHealth), timeoutMs, slowMs),
+    runProbe('platform-home', () => probePlatformHome(fetchFn, urls.platformHome, urls.platformKeyword), timeoutMs, slowMs),
+    runProbe('platform-api-health', () => probeApiHealth(fetchFn, urls.platformApiHealth), timeoutMs, slowMs),
     runProbe('crontech-redirect', () => probeRedirect(fetchFn, urls.crontechRedirect, urls.redirectHost), timeoutMs, slowMs),
     runProbe('gluecron-apex', () => probeGluecronApex(fetchFn, resolveFn, urls.gluecronApex), timeoutMs, slowMs),
     runProbe('gluecron-status', () => probePlatformStatus(fetchFn, urls.gluecronStatus), timeoutMs, slowMs),
     runProbe('gatetest-status', () => probePlatformStatus(fetchFn, urls.gatetestStatus, { requireCommit: true }), timeoutMs, slowMs),
-    runProbe('cert-vapron', () => probeCert(tlsConnectFn, urls.certHost, urls.certPort), timeoutMs, slowMs),
+    runProbe('cert-platform', () => probeCert(tlsConnectFn, urls.certHost, urls.certPort), timeoutMs, slowMs),
   ]);
 
 
@@ -511,7 +530,7 @@ module.exports = {
   DEFAULT_URLS,
   rollup,
   renderMarkdown,
-  probeVapronHome,
+  probePlatformHome,
   probeApiHealth,
   probeRedirect,
   probeGluecronApex,

@@ -51,16 +51,21 @@ const {
 const SIBLING_REGISTRY = [
   {
     // Id, name and default URL come from platform-config.js — the platform
-    // is being renamed (Vapron → Tallrig) and the flip must be an env change.
+    // was renamed (Vapron → Tallrig, 2026-09-14; defaults flipped 2026-09-15
+    // after measuring tallrig.com/api/health/status → 200) and any further
+    // move is an env change.
     id: PLATFORM_ID,
     name: PLATFORM_NAME,
-    envVar: 'VAPRON_STATUS_URL',
+    envVar: 'TALLRIG_STATUS_URL',
     /** Every env name honoured for the override, most-preferred first. */
     envVars: platformEnvNames('STATUS_URL'),
     // Measured 2026-09-01, in conversation with the Vapron session:
     //   vapron.ai/api/platform-status                → 404
     //   api.vapron.ai/api/platform-status            → 404
     //   vapron.ai/api/health/status                  → 200, public, real body
+    // Re-measured 2026-09-15 on the renamed host:
+    //   tallrig.com/api/health/status                → 200, public, `overall`
+    //   api.tallrig.com/api/health/status            → 200 (same document)
     //
     // `/api/platform-status` has NEVER existed in Vapron — zero grep hits
     // across their apps/packages/services. Both of our old URLs were built on

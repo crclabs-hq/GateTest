@@ -228,7 +228,7 @@ export function NuclearScanTab() {
                   <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 mb-3">
                     <p className="text-sm text-amber-800 font-medium">SSH credentials not found</p>
                     <p className="text-xs text-amber-700 mt-1">
-                      Set these in Vapron &rarr; Platform secrets, <strong>Apply to live app</strong>, then restart <code className="font-mono">gatetest-web</code> — env vars only take effect after a restart.
+                      Set these in Tallrig &rarr; Platform secrets, <strong>Apply to live app</strong>, then restart <code className="font-mono">gatetest-web</code> — env vars only take effect after a restart.
                     </p>
                   </div>
                   <ul className="text-xs font-mono bg-gray-50 border border-gray-200 rounded p-3 space-y-1.5 text-gray-700">

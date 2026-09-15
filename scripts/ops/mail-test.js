@@ -5,7 +5,7 @@
  *
  *   set -a; . /opt/gatetest/website/.env.local; set +a
  *   node scripts/ops/mail-test.js support@gatetest.io            # current provider
- *   MAIL_PROVIDER=vapron node scripts/ops/mail-test.js support@gatetest.io
+ *   MAIL_PROVIDER=tallrig node scripts/ops/mail-test.js support@gatetest.io
  *
  * Exit 0 and a message id = the provider accepted it; then check the inbox.
  * This is the exact path the MCP API-key and billing-portal e-mails take.
@@ -22,7 +22,7 @@ if (!to || !to.includes('@')) {
 const provider = mailProvider();
 console.log(`[mail-test] provider=${provider} configured=${mailConfigured()} from=${fromAddress()} to=${to}`);
 if (!mailConfigured()) {
-  console.error(`[mail-test] provider "${provider}" is not configured — check RESEND_API_KEY or VAPRON_API_KEY (or VAPRON_API_TOKEN) in the env file`);
+  console.error(`[mail-test] provider "${provider}" is not configured — check RESEND_API_KEY or TALLRIG_API_KEY (or TALLRIG_API_TOKEN; the VAPRON_* names still work) in the env file`);
   process.exit(1);
 }
 

@@ -3,21 +3,30 @@
 /**
  * The platform GateTest runs on and dispatches to — ONE definition.
  *
- * The platform is being renamed Vapron → Tallrig and every hostname moves
- * (announced by the Vapron session on Craig's instruction, 2026-09-13):
- * product/API → tallrig.com / api.tallrig.com, ops/staging → tallrig.io,
- * mail/infra → tallrig.net, the product name → "Tallrig", the entity →
- * "Tallrig Labs LLC". Nothing has moved yet; each target is announced when it
- * answers, and vapron.* stays live for a transition window with a sunset
- * date Craig sets.
+ * The platform was renamed Vapron → Tallrig ("vapron is no longer, we've had
+ * a name change to Tallrig.com" — Craig, 2026-09-14). Measured 2026-09-15:
+ *   https://tallrig.com/                       → 200, body "Tallrig",
+ *                                                 footer "Tallrig Labs LLC"
+ *   https://api.tallrig.com/api/health         → 200 {"status":"ok"}
+ *   https://tallrig.com/api/health/status      → 200, public, `overall`
+ *   https://tallrig.com/api/platform/email/send → 401 (key-gated, exists)
+ *   https://crontech.ai/                       → 301 https://tallrig.com/
+ *   https://vapron.ai/                         → 200, same box, same
+ *                                                 Tallrig-branded page
+ *                                                 (transition window)
+ *   https://tallrig.net                        → TLS not served yet
+ * So the defaults below are Tallrig's; vapron.* still answers but is the
+ * OLD name and nothing here should point at it. The env precedence keeps
+ * VAPRON_* and CRONTECH_* readable so a box that has not renamed its variables
+ * keeps working (see docs/ops/tallrig-cutover.md for the flip).
  *
- * So: every hostname and the product name is read HERE, defaulting to
- * today's Vapron values, and the flip is an env change on the box — no
- * literal anywhere else, no rebuild-to-rename (doctrine §4: one definition,
- * imported). Same shape as site-url.js for gatetest.io.
+ * Every hostname and the product name is read HERE and the override is an
+ * env change on the box — no literal anywhere else, no rebuild-to-rename
+ * (doctrine §4: one definition, imported). Same shape as site-url.js for
+ * gatetest.io.
  *
  * Env precedence (the order the platform's own SDK uses):
- *   TALLRIG_<NAME> → VAPRON_<NAME> → CRONTECH_<NAME> (legacy) → default
+ *   TALLRIG_<NAME> → VAPRON_<NAME> (deprecated) → CRONTECH_<NAME> (legacy) → default
  *
  * Client-visible values (`NEXT_PUBLIC_*`) are read as static member
  * expressions so Next.js inlines them into client bundles at build time —
@@ -28,22 +37,28 @@
  * and by TS routes alike.
  */
 
-/** Today's values. Change these ONLY when the platform announces the sunset. */
+/** Today's values (Tallrig, measured live 2026-09-15 — see the header). */
 const PLATFORM_DEFAULTS = Object.freeze({
-  id: 'vapron',
-  name: 'Vapron',
-  entity: 'Vapron',
-  siteUrl: 'https://vapron.ai',
-  apiUrl: 'https://api.vapron.ai',
-  mailUrl: 'https://vapron.ai/api/platform/email/send',
-  statusUrl: 'https://vapron.ai/api/health/status',
-  /** systemd unit prefix on the box: <prefix>-web, <prefix>-api, <prefix>-bun-gateway */
-  servicePrefix: 'vapron',
-  /** Where the legacy crontech.ai redirect must finally land. */
-  canonicalHost: 'vapron.ai',
+  id: 'tallrig',
+  name: 'Tallrig',
+  entity: 'Tallrig Labs LLC',
+  siteUrl: 'https://tallrig.com',
+  apiUrl: 'https://api.tallrig.com',
+  mailUrl: 'https://tallrig.com/api/platform/email/send',
+  statusUrl: 'https://tallrig.com/api/health/status',
+  /**
+   * systemd unit prefix on the box: <prefix>-web, <prefix>-api,
+   * <prefix>-bun-gateway. The units' rename is the platform's release, not
+   * ours; heal/ssh still falls back to vapron-* and crontech-* unit names, and
+   * PLATFORM_SERVICE_PREFIX=vapron restores the old prefix if the box has
+   * not renamed them yet.
+   */
+  servicePrefix: 'tallrig',
+  /** Where the legacy crontech.ai redirect must finally land (301 → tallrig.com, measured). */
+  canonicalHost: 'tallrig.com',
 });
 
-/** Env-var prefixes in precedence order. */
+/** Env-var prefixes in precedence order. VAPRON_ is the pre-rename name, CRONTECH_ the one before that. */
 const ENV_PREFIXES = Object.freeze(['TALLRIG_', 'VAPRON_', 'CRONTECH_']);
 
 function normaliseOrigin(raw) {
@@ -75,7 +90,7 @@ function platformEnv(name, env = process.env) {
   return undefined;
 }
 
-/** All aliases for a canonical VAPRON_<name>, most-preferred first. */
+/** All aliases for a canonical TALLRIG_<name>, most-preferred first. */
 function platformEnvNames(name) {
   return ENV_PREFIXES.map((p) => `${p}${name}`);
 }
@@ -86,7 +101,7 @@ const PLATFORM_NAME = (process.env.NEXT_PUBLIC_PLATFORM_NAME || PLATFORM_DEFAULT
 const PLATFORM_ENTITY = (process.env.NEXT_PUBLIC_PLATFORM_ENTITY || PLATFORM_DEFAULTS.entity).trim();
 const PLATFORM_SITE_URL = normaliseOrigin(process.env.NEXT_PUBLIC_PLATFORM_URL) || PLATFORM_DEFAULTS.siteUrl;
 const PLATFORM_API_URL = normaliseOrigin(process.env.NEXT_PUBLIC_PLATFORM_API_URL) || PLATFORM_DEFAULTS.apiUrl;
-/** Bare host of the site, for copy like "vapron.ai →" and cert probes. */
+/** Bare host of the site, for copy like "tallrig.com →" and cert probes. */
 const PLATFORM_HOST = new URL(PLATFORM_SITE_URL).hostname;
 
 // ── Server-side, resolved per call so a deploy can repoint without a rebuild ─

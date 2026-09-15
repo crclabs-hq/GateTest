@@ -1,6 +1,7 @@
 name: Empire Smoke (cross-product)
 
-# Cross-product uptime probe over Craig's three live deployments: Vapron,
+# Cross-product uptime probe over Craig's three live deployments: Tallrig (the
+# platform — named Vapron until 2026-09-14, Crontech before that),
 # Gluecron and GateTest.
 #
 # WHY THIS FILE EXISTS
@@ -21,8 +22,8 @@ name: Empire Smoke (cross-product)
 # WHAT IT COVERS THAT readiness-probe.yml DOES NOT
 # ------------------------------------------------
 # readiness-probe.yml asks "is GateTest production ready?" every 30 minutes.
-# This asks "is the estate up?" — Vapron and Gluecron are not covered by
-# anything else, and the crontech.ai -> vapron.ai redirect is load-bearing
+# This asks "is the estate up?" — Tallrig and Gluecron are not covered by
+# anything else, and the crontech.ai -> tallrig.com redirect is load-bearing
 # for every pre-rename link while being invisible to every other check.
 #
 # Needs no secrets: every probe is a GET, a DNS lookup or a TLS handshake
