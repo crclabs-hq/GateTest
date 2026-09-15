@@ -1,0 +1,89 @@
+# Publish the VS Code extension to the Visual Studio Marketplace.
+#
+# Manual only (workflow_dispatch). The Marketplace token never leaves GitHub:
+# it is the repo secret VSCE_PAT (an Azure DevOps PAT with the Marketplace
+# "Manage" scope for the publisher named in vscode-extension/package.json),
+# read by vsce from the environment. Nobody types it into a terminal or a chat.
+#
+# dry_run=true builds and packages, uploads the .vsix as a run artifact, and
+# stops before publishing — the way to prove the package is sound before the
+# publisher exists. Publishing is idempotent per version: re-running with an
+# already-published version fails on the Marketplace side with a clear
+# "version already exists", which is the right outcome (bump the version).
+name: Publish VS Code extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build + package + upload the .vsix only; do not publish"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-vscode
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: ${{ inputs.dry_run && 'Package (dry run)' || 'Package + publish' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: vscode-extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: vscode-extension/package-lock.json
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Compile
+        run: npm run compile
+
+      - name: Bridge tests (the in-process engine contract, from the repo root)
+        working-directory: .
+        run: node --test tests/vscode-extension-engine-bridge.test.js
+
+      - name: Package
+        id: pkg
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          publisher="$(node -p "require('./package.json').publisher")"
+          npx vsce package --out "gatetest-${version}.vsix"
+          ls -la "gatetest-${version}.vsix"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "publisher=${publisher}" >> "$GITHUB_OUTPUT"
+          echo "vsix=vscode-extension/gatetest-${version}.vsix" >> "$GITHUB_OUTPUT"
+
+      - name: Upload .vsix
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatetest-${{ steps.pkg.outputs.version }}.vsix
+          path: ${{ steps.pkg.outputs.vsix }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish to the Marketplace
+        if: ${{ !inputs.dry_run }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VSCE_PAT}" ]; then
+            echo "::error::VSCE_PAT repo secret is not set — create an Azure DevOps PAT with the Marketplace 'Manage' scope for publisher '${{ steps.pkg.outputs.publisher }}' and add it under Settings → Secrets → Actions."
+            exit 1
+          fi
+          npx vsce verify-pat "${{ steps.pkg.outputs.publisher }}"
+          npx vsce publish --packagePath "gatetest-${{ steps.pkg.outputs.version }}.vsix"
+          echo "Published ${{ steps.pkg.outputs.publisher }}.gatetest@${{ steps.pkg.outputs.version }} — https://marketplace.visualstudio.com/items?itemName=${{ steps.pkg.outputs.publisher }}.gatetest"
