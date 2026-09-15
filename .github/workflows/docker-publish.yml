@@ -1,0 +1,127 @@
+name: Docker image publish
+
+# Builds the Dockerfile (the gatetest.io website + sandbox worker image with
+# the scan engine inside — docs/ops/docker.md) and pushes it to GHCR:
+#
+#   ghcr.io/crclabs-hq/gatetest:1.61.1   ┐ every release tag (v1.61.1)
+#   ghcr.io/crclabs-hq/gatetest:1.61     │ semver aliases, stable only
+#   ghcr.io/crclabs-hq/gatetest:1        │
+#   ghcr.io/crclabs-hq/gatetest:latest   ┘ stable tags only (no -rc.N)
+#   ghcr.io/crclabs-hq/gatetest:main     ┐ every push to main that touches
+#   ghcr.io/crclabs-hq/gatetest:sha-<7>  ┘ the image's inputs
+#
+# Until 2026-09-15 no image was published anywhere: docker-build.yml (still
+# the PR / weekly guard) builds with push: false. docker-build.yml keeps
+# proving the image builds and answers /api/health on pull requests; this
+# workflow is the one that ships it.
+#
+# Auth is the workflow's own GITHUB_TOKEN (packages: write) — no secret to
+# rotate. The first push creates the package under the crclabs-hq org; it
+# is private until an org owner sets its visibility to public on
+# github.com/orgs/crclabs-hq/packages (a one-time, owner-only step — the
+# README's `docker run` needs it).
+
+on:
+  push:
+    branches: [main]
+    # Release tags only, the same patterns publish.yml uses. The moving
+    # major tag (v1) also matches 'v*' but is pushed with the workflow token
+    # (no trigger) and is not semver anyway; the `1` alias below covers it.
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+    # Only what goes into the image. GitHub does not evaluate `paths` for
+    # tag pushes, so every release tag builds regardless of this list.
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - package.json
+      - package-lock.json
+      - CLAUDE.md
+      - website/**
+      - src/**
+      - bin/**
+      - lib/**
+      - scripts/**
+      - .github/workflows/docker-publish.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: false   # a release push must never be cancelled by the next one
+
+env:
+  IMAGE: ghcr.io/crclabs-hq/gatetest
+
+jobs:
+  publish:
+    name: docker build + push to GHCR
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          # semver: 1.61.1 / 1.61 / 1 from v1.61.1; a pre-release (v1.62.0-rc.1)
+          # gets only its full version. ref,event=branch: `main`. sha: `sha-<7>`
+          # on main only — a release is addressed by its version.
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+            type=ref,event=branch
+            type=sha,prefix=sha-,enable=${{ github.ref == 'refs/heads/main' }}
+          labels: |
+            org.opencontainers.image.title=GateTest
+            org.opencontainers.image.description=GateTest — the gatetest.io site and sandbox worker with the 121-module scan engine bundled in. Self-hosting: docs/ops/docker.md.
+            org.opencontainers.image.source=https://github.com/crclabs-hq/GateTest
+            org.opencontainers.image.url=https://gatetest.io
+            org.opencontainers.image.documentation=https://github.com/crclabs-hq/GateTest/blob/main/docs/ops/docker.md
+            org.opencontainers.image.vendor=GateTest
+            org.opencontainers.image.licenses=MIT
+
+      - name: docker build + push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: published tags
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          {
+            echo "### Pushed to GHCR"
+            echo ""
+            echo '```'
+            echo "$TAGS"
+            echo '```'
+            echo ""
+            echo "Pull: \`docker pull $IMAGE:$VERSION\`"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
