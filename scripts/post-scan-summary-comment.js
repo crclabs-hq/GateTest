@@ -209,9 +209,14 @@ async function main() {
   return 0;
 }
 
-main().catch((err) => {
-  log('crashed (non-fatal):', err && err.message ? err.message : err);
-  process.exit(0);
-});
+// Run only when invoked directly. action.yml's grade step requires this file
+// for computeGrade; an import must not post a comment or print a log line
+// (the log line became the `grade` output — 2026-09-14 dogfood run).
+if (require.main === module) {
+  main().catch((err) => {
+    log('crashed (non-fatal):', err && err.message ? err.message : err);
+    process.exit(0);
+  });
+}
 
 module.exports = { computeGrade, topFindings, renderBody };

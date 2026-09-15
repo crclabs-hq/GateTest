@@ -357,7 +357,7 @@ runs:
           const report = JSON.parse(fs.readFileSync(path, 'utf-8'));
           const g = computeGrade(report);
           console.log(g.grade + ' ' + g.score);
-        " "$SCRIPT" 2>/dev/null || echo "")
+        " "$SCRIPT" 2>/dev/null | tail -n 1 || echo "")
         GRADE=$(echo "$RESULT" | awk '{print $1}')
         SCORE=$(echo "$RESULT" | awk '{print $2}')
         echo "grade=$GRADE" >> "$GITHUB_OUTPUT"
