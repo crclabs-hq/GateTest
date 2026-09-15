@@ -99,7 +99,7 @@ export default function HomeEyesEarsHands() {
             can&apos;t see, guesses at errors it can&apos;t read, and claims
             &ldquo;fixed&rdquo; without proof. GateTest closes all three over one
             connection: {TOOL_COUNT} tools driven by the full 121-module engine,
-            in Claude Code, Cursor, Windsurf, and any MCP agent.
+            in Cursor, Windsurf, and any MCP agent.
           </p>
         </div>
 
@@ -154,18 +154,18 @@ export default function HomeEyesEarsHands() {
         <div className="rounded-2xl border border-border bg-surface-solid p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
           <div className="flex-1">
             <h3 className="text-lg font-bold text-foreground mb-1">
-              Add to Claude Code in 30 seconds
+              Add to your MCP client in 30 seconds
             </h3>
             <p className="text-sm text-muted">
-              Works with any MCP-compatible AI — Claude Code, Cursor, Windsurf,
-              Continue, Cline. No account, no webhook, no infra. The engine
+              Works with any MCP-compatible AI — Cursor, Windsurf, Continue,
+              Cline, and CLI agents. No account, no webhook, no infra. The engine
               runs in-process on your local filesystem.
             </p>
           </div>
           <div className="flex-shrink-0 w-full sm:w-auto min-w-0 max-w-full">
             <pre className="rounded-xl bg-background border border-border text-xs font-mono text-foreground/90 px-5 py-3 overflow-x-auto">
               <span className="text-muted select-none">$ </span>
-              claude mcp add gatetest -- npx -y @gatetest/mcp-server
+              npx -y @gatetest/mcp-server
             </pre>
           </div>
         </div>

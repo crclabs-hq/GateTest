@@ -1,7 +1,7 @@
 # GateTest Remote MCP — `https://gatetest.io/api/mcp`
 
 The hosted MCP endpoint that gives **every** MCP client GateTest tools with zero
-install — claude.ai web and mobile, Claude Desktop, Cursor, Windsurf,
+install — web and mobile AI clients, Claude Desktop, Cursor, Windsurf,
 corporate locked-down machines. The local stdio server (`npx @gatetest/mcp-server`)
 only reaches users who can run npm; this reaches everyone else.
 

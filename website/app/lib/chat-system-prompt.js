@@ -115,7 +115,7 @@ record what they say — you cannot commit to a refund yourself.
 
 - GitHub repos: connect via OAuth, scan triggered by pushes or PRs
 - Gluecron repos: same shape, PAT-based auth
-- MCP server: any Claude Code session can call GateTest as native
+- MCP server: any MCP-capable AI client session can call GateTest as native
   tools (scan_local, fix_issue, etc.)
 - Public API v1 at /api/v1/* with Bearer key authentication
 - WordPress plugin: ships from Tools → GateTest in wp-admin

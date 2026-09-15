@@ -122,7 +122,7 @@ const DOORS: Door[] = [
     id: "agent",
     eyebrow: "For AI-assisted teams",
     title: "I use an AI coding agent",
-    blurb: `The full ${TOTAL_MODULES}-module scanner runs inside Claude Code, Cursor, or any MCP client — so your agent can find the bug, fix it, and prove the fix worked without leaving the editor.`,
+    blurb: `The full ${TOTAL_MODULES}-module scanner runs inside Cursor, Windsurf, or any MCP client — so your agent can find the bug, fix it, and prove the fix worked without leaving the editor.`,
     points: [
       "Runs on your machine, on your own API keys",
       `${TOOL_COUNT} tools: scan, explain, fix, run tests, verify`,
