@@ -391,7 +391,7 @@ async function askClaudeForDiagnosis(prompt: string): Promise<string> {
       });
     });
     req.on("error", reject);
-    req.setTimeout(60_000, () => { req.destroy(); reject(new Error("Anthropic request timed out")); });
+    req.setTimeout(60_000, () => { req.destroy(); reject(new Error("AI provider request timed out")); });
     req.write(body);
     req.end();
   });
@@ -408,13 +408,13 @@ async function askClaudeForDiagnosis(prompt: string): Promise<string> {
       }
       // Non-200 with non-retryable status — bail
       if (res.status !== 429 && res.status < 500) {
-        throw new Error(`Anthropic API ${res.status}: ${JSON.stringify(res.data).slice(0, 200)}`);
+        throw new Error(`AI provider error ${res.status}: ${JSON.stringify(res.data).slice(0, 200)}`);
       }
     } catch (err) {
       if (attempt === 3) throw err;
     }
   }
-  throw new Error("Anthropic API unreachable after retries");
+  throw new Error("AI provider unreachable after retries");
 }
 
 export async function POST(req: NextRequest) {

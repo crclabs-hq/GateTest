@@ -65,7 +65,7 @@ async function askClaudeBounded(prompt: string): Promise<string> {
       }),
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(`Anthropic API ${res.status}`);
+    if (!res.ok) throw new Error(`AI provider error ${res.status}`);
     const data = await res.json() as { content?: Array<{ type: string; text: string }> };
     return data.content?.[0]?.text || "";
   } finally {
