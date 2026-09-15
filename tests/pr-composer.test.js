@@ -37,7 +37,7 @@ test('renderAttemptHistoryTable — single file with one attempt', () => {
     },
   });
   assert.match(out, /Per-file fix history/);
-  assert.match(out, /\| File \| Attempts \| Outcomes \| Claude time \| Final \|/);
+  assert.match(out, /\| File \| Attempts \| Outcomes \| AI time \| Final \|/);
   assert.match(out, /✅ `src\/foo\.js`/);
   assert.match(out, /250ms/);
   assert.match(out, /1× success/);

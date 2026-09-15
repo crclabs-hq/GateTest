@@ -142,14 +142,14 @@ test('diagnoseFinding — happy path', async () => {
   assert.equal(r.finding, okFinding);
 });
 
-test('diagnoseFinding — Claude API error captured', async () => {
+test('diagnoseFinding — AI provider error captured', async () => {
   const r = await diagnoseFinding({
     finding: okFinding,
     hostname: 'x',
     askClaudeForDiagnosis: async () => { throw new Error('ECONNRESET'); },
   });
   assert.equal(r.ok, false);
-  assert.match(r.reason, /Claude API error: ECONNRESET/);
+  assert.match(r.reason, /AI provider error: ECONNRESET/);
 });
 
 test('diagnoseFinding — malformed finding', async () => {
@@ -277,10 +277,10 @@ test('renderDiagnosis — happy markdown', () => {
 });
 
 test('renderDiagnosis — failure renders friendly placeholder', () => {
-  const md = renderDiagnosis({ finding: okFinding, ok: false, reason: 'Claude API error' });
+  const md = renderDiagnosis({ finding: okFinding, ok: false, reason: 'AI provider error' });
   assert.match(md, /Missing HSTS header/);
   assert.match(md, /Diagnosis not generated/);
-  assert.match(md, /Claude API error/);
+  assert.match(md, /AI provider error/);
 });
 
 test('renderDiagnosis — null result handled', () => {

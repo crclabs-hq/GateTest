@@ -56,7 +56,7 @@ function buildReviewPrompt({ filePath, originalContent, fixedContent, issues, te
     : 'REGRESSION TEST: none was generated for this fix.';
 
   return `${ANTI_INJECTION_PREAMBLE}
-You are the pair-review agent for GateTest. A first Claude agent already produced this fix in response to scanner findings. Your job is to read the diff and the regression test (if any) and write a critique.
+You are the pair-review agent for GateTest. A first AI agent already produced this fix in response to scanner findings. Your job is to read the diff and the regression test (if any) and write a critique.
 
 DO NOT propose a different fix. DO NOT rewrite the code. Your output is a critique only — the customer reads it on their PR before merging.
 
@@ -210,7 +210,7 @@ async function reviewSingleFix(opts) {
     raw = await askClaudeForReview(prompt);
   } catch (err) {
     const message = err && err.message ? err.message : String(err);
-    return { file: fix.file, ok: false, scores: null, critique: null, reason: `Claude API error: ${message}` };
+    return { file: fix.file, ok: false, scores: null, critique: null, reason: `AI provider error: ${message}` };
   }
 
   const leakScan = scanOutputForLeaks(raw);
@@ -313,7 +313,7 @@ function renderReviewComment(reviews, averages) {
   }
   lines.push('---');
   lines.push('');
-  lines.push(`<sub>A second Claude agent reviewed each fix on a fixed rubric. This is part of the GateTest <a href="${SITE_URL}">$199 Scan + Fix</a> tier — pair review is included with every fix PR.</sub>`);
+  lines.push(`<sub>A second, independent AI reviewer scored each fix on a fixed rubric. This is part of the GateTest <a href="${SITE_URL}">$199 Scan + Fix</a> tier — pair review is included with every fix PR.</sub>`);
   return lines.join('\n');
 }
 

@@ -194,13 +194,13 @@ test('correlateFindings — SKIP from Claude → ok with empty chains', async ()
   assert.match(r.summary, /findings appear independent/);
 });
 
-test('correlateFindings — Claude API error captured', async () => {
+test('correlateFindings — AI provider error captured', async () => {
   const r = await correlateFindings({
     findings: findingsSet,
     askClaudeForCorrelation: async () => { throw new Error('ECONNRESET'); },
   });
   assert.equal(r.ok, false);
-  assert.match(r.reason, /Claude API error/);
+  assert.match(r.reason, /AI provider error/);
 });
 
 test('correlateFindings — caps at maxFindings, records overflow', async () => {
@@ -271,10 +271,10 @@ test('renderCorrelationReport — zero chains gets the "good outcome" treatment'
 });
 
 test('renderCorrelationReport — failed result gets friendly placeholder', () => {
-  const out = renderCorrelationReport({ ok: false, chains: [], summary: 'bad', reason: 'Claude API error' });
+  const out = renderCorrelationReport({ ok: false, chains: [], summary: 'bad', reason: 'AI provider error' });
   assert.match(out, /Cross-Finding Correlation/);
   assert.match(out, /not generated/);
-  assert.match(out, /Claude API error/);
+  assert.match(out, /AI provider error/);
 });
 
 test('renderCorrelationReport — null result handled', () => {

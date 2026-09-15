@@ -211,7 +211,7 @@ async function diagnoseFinding(opts) {
     raw = await askClaudeForDiagnosis(prompt);
   } catch (err) {
     const message = err && err.message ? err.message : String(err);
-    return { finding, ok: false, diagnosis: null, reason: `Claude API error: ${message}` };
+    return { finding, ok: false, diagnosis: null, reason: `AI provider error: ${message}` };
   }
 
   const leakScan = scanOutputForLeaks(raw);
@@ -321,7 +321,7 @@ function renderDiagnosesReport(diagnoses, summary) {
   const lines = [];
   lines.push('## GateTest Forensic Diagnosis Report');
   lines.push('');
-  lines.push(`Each finding below was diagnosed individually by Claude — explanation, root cause, recommendation, platform notes. No category-matched templates.`);
+  lines.push(`Each finding below was diagnosed individually by the AI — explanation, root cause, recommendation, platform notes. No category-matched templates.`);
   if (summary) {
     lines.push('');
     lines.push(`*${summary}*`);

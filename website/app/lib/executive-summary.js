@@ -182,7 +182,7 @@ async function composeExecutiveSummary(opts) {
     return {
       ok: false,
       sections: null,
-      reason: `Claude API error: ${message}`,
+      reason: `AI provider error: ${message}`,
     };
   }
 
