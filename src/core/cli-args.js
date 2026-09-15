@@ -91,7 +91,14 @@ const FLAG_SPEC = [
   { flags: ['--compliance'], key: 'compliance', type: 'boolean' },
   { flags: ['--feedback'], key: 'feedback', type: 'boolean' },
   { flags: ['--monitor-heal'], key: 'monitorHeal', type: 'boolean' },
+  // `--json` is `--format json` spelled the way most CLIs spell it. Same key,
+  // so the bin has ONE thing to test (`args.format === 'json'`).
+  { flags: ['--json'], key: 'format', type: 'boolean', constant: 'json' },
 
+  // Machine-readable stdout for editors and scripts (see src/core/json-output.js).
+  // `values` closes the door on `--format yaml` running a normal scan and
+  // printing human text into a pipe that expected JSON.
+  { flags: ['--format'], key: 'format', type: 'value', values: ['json', 'text'] },
   { flags: ['--auto-pr-base'], key: 'autoPrBase', type: 'value' },
   { flags: ['--auto-pr-branch'], key: 'autoPrBranch', type: 'value' },
   { flags: ['--model'], key: 'model', type: 'value' },
@@ -111,6 +118,10 @@ const FLAG_SPEC = [
 
   { flags: ['--skip-module'], key: 'skipModules', type: 'append' },
   { flags: ['--crawl-header'], key: 'crawlHeaders', type: 'append' },
+  // Restrict the scan to named files. Repeatable AND comma-separated
+  // (`--file a.js --file b.js` == `--file a.js,b.js`); `split` does the
+  // comma part here so every consumer sees one flat list.
+  { flags: ['--file', '--files'], key: 'files', type: 'append', split: ',' },
 
   { flags: ['--crawl-max'], key: 'crawlMax', type: 'int' },
   { flags: ['--monitor-interval'], key: 'monitorInterval', type: 'int' },
@@ -213,7 +224,9 @@ function parseArgs(argv) {
         invalidValues.push({ arg: token, value: inlineValue, reason: 'takes no value' });
         continue;
       }
-      args[spec.key] = true;
+      // `constant` lets a boolean token stand for a value flag's setting
+      // (`--json` → format: 'json') without a second key to keep in sync.
+      args[spec.key] = spec.constant !== undefined ? spec.constant : true;
       for (const extra of spec.also || []) args[extra] = true;
       continue;
     }
@@ -239,9 +252,20 @@ function parseArgs(argv) {
     }
 
     if (spec.type === 'value') {
+      // A closed set of values (`--format json|text`): anything else is an
+      // invalid value, reported like a bad number — never a silent default.
+      if (Array.isArray(spec.values) && !spec.values.includes(value)) {
+        invalidValues.push({ arg: token, value, reason: `expects one of: ${spec.values.join(', ')}` });
+        continue;
+      }
       args[spec.key] = value;
     } else if (spec.type === 'append') {
-      (args[spec.key] = args[spec.key] || []).push(value);
+      const parts = spec.split ? value.split(spec.split).map((s) => s.trim()).filter(Boolean) : [value];
+      if (parts.length === 0) {
+        invalidValues.push({ arg: token, value, reason: 'expects a path' });
+        continue;
+      }
+      (args[spec.key] = args[spec.key] || []).push(...parts);
     } else if (spec.type === 'int') {
       const n = parseInt(value, 10);
       if (Number.isNaN(n)) invalidValues.push({ arg: token, value, reason: 'expects a number' });
@@ -375,12 +399,61 @@ function projectPathProblem(projectPath, fsImpl = require('fs')) {
   return null;
 }
 
+/**
+ * Resolve `--file` values against the project root.
+ *
+ * Returns the repo-relative, '/'-joined paths the runner's changed-file
+ * narrowing understands (the same wire `--diff` uses — runner.js
+ * `diffOnly` + `changedFiles`), plus a problem line for every argument that
+ * cannot be scanned: a path outside the root, a directory, a file that does
+ * not exist. The caller decides whether the problems are fatal; an EMPTY
+ * resolved list must be (a green scan of no files is the
+ * report-success-while-doing-nothing shape, see projectPathProblem).
+ *
+ * @param {string[]} files       raw --file values (already comma-split)
+ * @param {string} projectRoot   project root (resolved against cwd)
+ * @param {object} [fsImpl]      injectable for tests
+ * @returns {{ files: string[], problems: string[] }}
+ */
+function resolveFileFilter(files, projectRoot, fsImpl = require('fs')) {
+  const path = require('path');
+  const { repoRelative } = require('./repo-path');
+  const root = path.resolve(projectRoot);
+  const out = [];
+  const seen = new Set();
+  const problems = [];
+  for (const raw of files || []) {
+    const abs = path.resolve(root, raw);
+    const rel = repoRelative(root, abs);
+    if (rel === '' || rel === '.' || rel.startsWith('../') || path.isAbsolute(rel)) {
+      problems.push(`--file ${raw}: outside the project root (${root}) — ignored`);
+      continue;
+    }
+    let stat;
+    try {
+      stat = fsImpl.statSync(abs);
+    } catch {
+      problems.push(`--file ${raw}: no such file — ignored`);
+      continue;
+    }
+    if (!stat.isFile()) {
+      problems.push(`--file ${raw}: not a file (pass files, not directories) — ignored`);
+      continue;
+    }
+    if (seen.has(rel)) continue;
+    seen.add(rel);
+    out.push(rel);
+  }
+  return { files: out, problems };
+}
+
 module.exports = {
   parseArgs,
   describeArgProblems,
   hasArgProblems,
   argProblemsAreFatal,
   projectPathProblem,
+  resolveFileFilter,
   suggestFlag,
   KNOWN_FLAGS,
   FLAG_SPEC,
