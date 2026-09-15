@@ -175,13 +175,13 @@ test('composeExecutiveSummary — no findings + no chains skipped', async () => 
   assert.match(r.reason, /nothing to summarise/);
 });
 
-test('composeExecutiveSummary — Claude API error captured', async () => {
+test('composeExecutiveSummary — AI provider error captured', async () => {
   const r = await composeExecutiveSummary({
     topFindings: sampleFindings,
     askClaudeForSummary: async () => { throw new Error('ECONNRESET'); },
   });
   assert.equal(r.ok, false);
-  assert.match(r.reason, /Claude API error/);
+  assert.match(r.reason, /AI provider error/);
 });
 
 test('composeExecutiveSummary — invalid Claude response captured', async () => {
@@ -235,10 +235,10 @@ test('renderExecutiveSummary — successful render with all sections', () => {
 });
 
 test('renderExecutiveSummary — failure renders friendly placeholder', () => {
-  const out = renderExecutiveSummary({ ok: false, reason: 'Claude API error', sections: null });
+  const out = renderExecutiveSummary({ ok: false, reason: 'AI provider error', sections: null });
   assert.match(out, /^# Executive Summary/m);
   assert.match(out, /not generated/);
-  assert.match(out, /Claude API error/);
+  assert.match(out, /AI provider error/);
 });
 
 test('renderExecutiveSummary — null result handled', () => {

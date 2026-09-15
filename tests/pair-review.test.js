@@ -152,13 +152,13 @@ test('reviewSingleFix — happy path', async () => {
   assert.match(result.critique, /null check/);
 });
 
-test('reviewSingleFix — Claude API error captured', async () => {
+test('reviewSingleFix — AI provider error captured', async () => {
   const result = await reviewSingleFix({
     fix: okFix,
     askClaudeForReview: async () => { throw new Error('ECONNRESET'); },
   });
   assert.equal(result.ok, false);
-  assert.match(result.reason, /Claude API error: ECONNRESET/);
+  assert.match(result.reason, /AI provider error: ECONNRESET/);
 });
 
 test('reviewSingleFix — CREATE_FILE (no original) skipped', async () => {

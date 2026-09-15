@@ -316,7 +316,7 @@ async function annotateArchitecture(opts) {
       body: null,
       summary,
       sampleFiles: sample.map((s) => ({ path: s.path, bytes: s.originalBytes })),
-      reason: `Claude API error: ${message}`,
+      reason: `AI provider error: ${message}`,
     };
   }
 
