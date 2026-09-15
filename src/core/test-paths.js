@@ -35,7 +35,21 @@ const TEST_PATH_RE =
   // `manage.py test` command, and `django/contrib/messages/test.py` is a
   // public assertion mixin. Matching it would silence checks on files that
   // exist precisely because they run tests, not because they are tests.
-  /(?:^|\/)(?:tests?|specs?|__tests__|__mocks__|e2e|fixtures?|stories|storybook|reliability-corpus|testdata|test[-_]?resources|[a-z0-9]+[-_](?:tests?|specs?))(?:\/|$)|\.(?:test|spec|stories|fixture|e2e)\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts|py|rb|go|java|rs|php)$|(?:^|\/)(?:test_[^/]*|[^/]*_test|tests|conftest)\.py$/i;
+  //
+  // `benchmarks?|bench` — a benchmark is the same KIND of code as a test: a
+  // harness that measures the library and never ships (the engine already
+  // said so twice — `HARNESS_DIR_RE` in scan-scope.js and `NOT_SHIPPED_RE`
+  // in dependency-reachability.js — but this predicate, the one the
+  // severity ladders read, did not). sindresorhus/got's `benchmark/index.ts`
+  // sets `rejectUnauthorized: false` against its own local server four
+  // times and was gate-BLOCKED on all four at confidence 1.0 (2026-09-14).
+  //
+  // `examples/` is deliberately NOT here, and neither is `docs/`. tRPC keeps
+  // its real workspaces under `examples/*` — `tests/new-modules.test.js`
+  // pins that trpcContract still reads a router there — and KI #77 recorded
+  // why folding docs/ in would silence every module under it. Sample code
+  // is a per-module judgement (claude-compliance makes it), not a harness.
+  /(?:^|\/)(?:tests?|specs?|__tests__|__mocks__|e2e|fixtures?|stories|storybook|reliability-corpus|testdata|test[-_]?resources|benchmarks?|bench|[a-z0-9]+[-_](?:tests?|specs?))(?:\/|$)|\.(?:test|spec|stories|fixture|e2e)\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts|py|rb|go|java|rs|php)$|(?:^|\/)(?:test_[^/]*|[^/]*_test|tests|conftest)\.py$/i;
 
 /**
  * Is this project-relative path test / fixture code? Normalises Windows

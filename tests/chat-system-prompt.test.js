@@ -31,7 +31,7 @@ test('buildSystemPrompt — includes pricing tiers', () => {
 test('buildSystemPrompt — includes the agent rules', () => {
   const p = buildSystemPrompt();
   assert.ok(/NEVER INVENT facts/.test(p) || /never invent/i.test(p));
-  assert.ok(/AI agent/i.test(p));
+  assert.ok(/AI (?:agent|assistant)/i.test(p));
 });
 
 test('buildSystemPrompt — does NOT route customers to email (Craig: no email channel)', () => {

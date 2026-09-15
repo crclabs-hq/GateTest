@@ -290,7 +290,7 @@ function renderScanAndFixPrompt(path) {
     'diagnosis with root cause and recommended action.',
     '',
     '**Step 3:** For findings you want to fix, call `fix_issue` — it reads the file,',
-    'sends the relevant slice to Claude, and writes the fix in place.',
+    'sends the relevant slice to the AI fix engine, and writes the fix in place.',
     '',
     '**Step 4:** After fixing, call `verify_fix` on the changed files to confirm',
     'the specific modules that flagged them now pass.',
@@ -375,7 +375,7 @@ const TOOLS = [
   {
     name: 'check_health',
     description:
-      'Verify GateTest is operational. Returns version, module count (120), ' +
+      'Verify GateTest is operational. Returns version, module count, ' +
       'and a list of all loaded module names.',
     inputSchema: {
       type: 'object',
@@ -386,11 +386,11 @@ const TOOLS = [
     name: 'fix_issue',
     description:
       'AI-generated fix for a single finding. Call this after scan_local or run_module identifies a specific error. ' +
-      'Reads the file, sends the relevant slice + the finding to Claude, and writes the fix in place. ' +
+      'Reads the file, sends the relevant slice + the finding to the AI fix engine, and writes the fix in place. ' +
       'Then call verify_fix to confirm it worked — never assume a fix is correct without verifying. ' +
       'When `line` is supplied the fix runs in surgical mode (±20-line window); ' +
       'otherwise whole-file mode with a mutation guard. Requires ANTHROPIC_API_KEY — ' +
-      'YOUR OWN Anthropic key (bring-your-own-key): the spend is yours, not GateTest\'s.',
+      'YOUR OWN AI provider key (bring-your-own-key): the spend is yours, not GateTest\'s.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -414,9 +414,9 @@ const TOOLS = [
           type: 'string',
           enum: MODEL_ENUM,
           description:
-            'Claude model for the fix (default sonnet = claude-sonnet-5). ' +
-            'fable (claude-fable-5) is the most capable at ~3.3x Sonnet cost; ' +
-            'opus (claude-opus-4-8) sits between. Spend rides your own ANTHROPIC_API_KEY.',
+            'Analysis depth for the fix: sonnet (default — fastest, cheapest), ' +
+            'fable (the most capable, ~3.3x the default cost), opus (sits between). ' +
+            'Spend rides your own ANTHROPIC_API_KEY.',
         },
       },
       required: ['file', 'issue'],
@@ -451,9 +451,9 @@ const TOOLS = [
   {
     name: 'explain_finding',
     description:
-      'Nuclear-tier Claude diagnosis of a single finding. Returns explanation, ' +
+      'Nuclear-tier AI diagnosis of a single finding. Returns explanation, ' +
       'root cause, recommendation, and platform notes. Requires ANTHROPIC_API_KEY — ' +
-      'YOUR OWN Anthropic key (bring-your-own-key): the spend is yours, not GateTest\'s.',
+      'YOUR OWN AI provider key (bring-your-own-key): the spend is yours, not GateTest\'s.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -473,9 +473,9 @@ const TOOLS = [
           type: 'string',
           enum: MODEL_ENUM,
           description:
-            'Claude model for the diagnosis (default sonnet = claude-sonnet-5). ' +
-            'fable (claude-fable-5) is the most capable at ~3.3x Sonnet cost; ' +
-            'opus (claude-opus-4-8) sits between. Spend rides your own ANTHROPIC_API_KEY.',
+            'Analysis depth for the diagnosis: sonnet (default — fastest, cheapest), ' +
+            'fable (the most capable, ~3.3x the default cost), opus (sits between). ' +
+            'Spend rides your own ANTHROPIC_API_KEY.',
         },
       },
       required: ['finding'],
@@ -1048,7 +1048,7 @@ async function handleCheckHealth() {
           `## GateTest MCP — v${PKG_VERSION} ✅ Operational\n\n` +
           `- Modules loaded: ${moduleNames.length}\n` +
           `- Transport: stdio\n` +
-          `- Anthropic API key: ${hasAnthropic ? '✅ present (fix_issue, explain_finding available — BYOK, your key funds the calls)' : '⚠️ missing (fix_issue, explain_finding will return an error)'}\n` +
+          `- AI provider key (ANTHROPIC_API_KEY): ${hasAnthropic ? '✅ present (fix_issue, explain_finding available — BYOK, your key funds the calls)' : '⚠️ missing (fix_issue, explain_finding will return an error)'}\n` +
           `- Default AI model: ${resolveRequestedModel(null).errorResult ? `⚠️ invalid GATETEST_FIX_MODEL (${process.env.GATETEST_FIX_MODEL})` : resolveRequestedModel(null).model} (override per-call via the \`model\` arg: sonnet | opus | fable)\n\n` +
           `## Agent Workflow\n\n` +
           `**Before fixing anything — hear what prod says is broken:**\n` +
@@ -1115,7 +1115,7 @@ async function callClaude(prompt, { maxTokens = 4096, model = CHEAP_MODEL } = {}
     let data;
     try { data = JSON.parse(text); } catch { data = { raw: text }; }
     if (res.status !== 200) {
-      throw new Error(`Anthropic API error ${res.status}: ${JSON.stringify(data).slice(0, 200)}`);
+      throw new Error(`AI provider API error ${res.status}: ${JSON.stringify(data).slice(0, 200)}`);
     }
     return data?.content?.[0]?.text || '';
   } finally {
@@ -1137,7 +1137,7 @@ async function handleFixIssue(args) {
         type: 'text',
         text:
           'fix_issue requires ANTHROPIC_API_KEY in the environment. Set it and retry — ' +
-          'this tool calls Claude directly to generate the fix.',
+          'this tool calls the AI provider directly to generate the fix.',
       }],
       isError: true,
     };
@@ -1206,7 +1206,7 @@ async function handleExplainFinding(args) {
         type: 'text',
         text:
           'explain_finding requires ANTHROPIC_API_KEY in the environment. Set it and retry — ' +
-          'this tool calls Claude directly for Nuclear-tier diagnosis.',
+          'this tool calls the AI provider directly for Nuclear-tier diagnosis.',
       }],
       isError: true,
     };

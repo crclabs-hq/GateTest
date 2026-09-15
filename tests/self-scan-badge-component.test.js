@@ -19,6 +19,12 @@
 // Visual styling (Tailwind class names, dot colors, hover states) is a
 // pure mechanical mapping of `state.variant` → class strings in the TSX
 // component. The variants themselves are exhaustive and tested here.
+//
+// The component is website/app/components/HomeSelfScan.tsx — a server
+// component that reads the in-memory store through the same helper. The
+// client-side SelfScanBadge.tsx it replaced (60 s polling, fetch no-store)
+// was deleted as dead code in 9f9a89c1 (2026-09-13); the file-level
+// invariants below follow the component that actually renders.
 // ============================================================================
 
 'use strict';
@@ -177,27 +183,31 @@ describe('deriveBadgeState — awaiting', () => {
   });
 });
 
-describe('SelfScanBadge.tsx — file-level invariants', () => {
-  const tsx = fs.readFileSync(
-    path.resolve(__dirname, '..', 'website', 'app', 'components', 'SelfScanBadge.tsx'),
-    'utf-8',
-  );
+describe('HomeSelfScan.tsx — file-level invariants', () => {
+  const COMPONENTS = path.resolve(__dirname, '..', 'website', 'app', 'components');
+  const tsx = fs.readFileSync(path.join(COMPONENTS, 'HomeSelfScan.tsx'), 'utf-8');
 
-  it('declares "use client" — required for useEffect / useState', () => {
-    assert.match(tsx, /^"use client";/m);
+  it('is the badge the home page renders (SelfScanBadge.tsx is gone, not merely unreferenced)', () => {
+    const page = fs.readFileSync(path.resolve(__dirname, '..', 'website', 'app', 'page.tsx'), 'utf-8');
+    assert.match(page, /import HomeSelfScan from "\.\/components\/HomeSelfScan"/);
+    assert.match(page, /<HomeSelfScan \/>/);
+    assert.ok(!fs.existsSync(path.join(COMPONENTS, 'SelfScanBadge.tsx')), 'two badges would be two definitions of the same status');
   });
 
-  it('sets role="status" + aria-live="polite" on the badge root', () => {
+  it('is a server component — reads the store directly, no client polling or fetch', () => {
+    assert.doesNotMatch(tsx, /^"use client";/m);
+    assert.doesNotMatch(tsx, /useEffect|useState|fetch\(/);
+    assert.match(tsx, /getLatestStatus\(/);
+  });
+
+  it('sets role="status" + aria-live="polite" + aria-label on the badge root', () => {
     assert.match(tsx, /role="status"/);
     assert.match(tsx, /aria-live="polite"/);
+    assert.match(tsx, /aria-label=\{badge\.ariaLabel\}/);
   });
 
-  it('points the workflow link at the GitHub Actions page by default', () => {
+  it('points the workflow link at the GitHub Actions page', () => {
     assert.match(tsx, /github\.com\/crclabs-hq\/gatetest\/actions/i);
-  });
-
-  it('uses cache: "no-store" so the badge never serves stale data', () => {
-    assert.match(tsx, /cache:\s*"no-store"/);
   });
 
   it('imports the shared deriveBadgeState helper', () => {
@@ -205,16 +215,14 @@ describe('SelfScanBadge.tsx — file-level invariants', () => {
     assert.match(tsx, /deriveBadgeState/);
   });
 
-  it('default poll interval is 60_000 ms', () => {
-    assert.match(tsx, /DEFAULT_POLL_MS\s*=\s*60_000/);
-  });
-
   it('opens the workflow link in a new tab with rel="noopener noreferrer"', () => {
     assert.match(tsx, /target="_blank"/);
     assert.match(tsx, /rel="noopener noreferrer"/);
   });
 
-  it('exposes data-variant for E2E tests / debugging', () => {
-    assert.match(tsx, /data-variant=/);
+  it('labels a committed fallback result as MEASURED, never as live', () => {
+    assert.match(tsx, /self-scan-fallback\.json/);
+    assert.match(tsx, /MEASURED \$\{measuredDate\}/);
+    assert.match(tsx, /"LIVE"/);
   });
 });

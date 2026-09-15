@@ -45,7 +45,16 @@
  *            the following code then tests. In a parsing library
  *            `try { ... } catch {}` is usually "that shape did not
  *            parse, fall through" — see `src/core/guarded-catch.js`
- *            for the discriminator and its control pairs.
+ *            for the discriminator and its control pairs. Since
+ *            2026-09-14 also warning when the attempt is DOCUMENTED
+ *            (a comment above the try, on its first line, or after
+ *            the catch), OPT-IN (under `if (opts.ignoreErrors)`),
+ *            NESTED (inside a try whose own catch is empty — that
+ *            outer catch is the finding), an OBSERVER (the whole body
+ *            of an anonymous async function that only awaits), or a
+ *            RESULT-RETURN (the try returns on success, a `return`
+ *            follows the catch). Measured on sindresorhus/got: six
+ *            deliberate `catch {}` in `source/core/` were blocking.
  *            (rule: `error-swallow:empty-catch:<rel>:<line>`)
  *   warning: catch block that contains ONLY comments — a comment
  *            documents intent, it doesn't handle the error. Still a
@@ -296,8 +305,10 @@ class ErrorSwallowModule extends BaseModule {
           // fallthrough alternative, or a target the next statement tests, is
           // a handled branch rather than a swallow. Only worth asking about a
           // bare empty catch that would otherwise block.
+          // `lines` (raw) goes along for the DOCUMENTED judgement: the mask
+          // has blanked every comment, and a comment is exactly what it reads.
           const guard = (isBareEmpty && !isHarness)
-            ? classifyEmptyCatch(masked, i, catchOnLine.index)
+            ? classifyEmptyCatch(masked, i, catchOnLine.index, lines)
             : { guarded: false };
           issues += this._flag(
             result,
@@ -593,6 +604,7 @@ class ErrorSwallowModule extends BaseModule {
       };
     }
     if (guard && guard.guarded) {
+      const docWhere = { before: 'right above the try', inside: 'on the first line of the try', after: 'after the catch' }[guard.where];
       const why = {
         fallthrough: 'the try block exits on success, so the code after the catch IS the failure path',
         'checked-target': `the try block only sets \`${guard.target}\`, which the code after the catch then tests`,
@@ -600,6 +612,11 @@ class ErrorSwallowModule extends BaseModule {
         cleanup: guard.context === 'finally'
           ? 'the catch is inside a `finally` block, where a thrown cleanup error would replace the primary result'
           : `the catch is inside \`${guard.context}()\`, a teardown — the resource is being discarded`,
+        documented: `a comment ${docWhere} (line ${guard.commentLine}) explains the attempt — the same standing as a comment-only catch`,
+        'opt-in': `the catch sits under \`if (${guard.flag})\` — silence the caller switched on by name`,
+        nested: `the catch is inside a try whose own catch (line ${guard.outerLine}) is empty — the failure is erased one level up regardless, and that outer catch is the finding`,
+        observer: 'the try/catch is the whole body of an anonymous async function that only awaits — a rejection observer marking the promise handled, the same standing as `.catch(noop)` on a promise held elsewhere',
+        'result-return': 'the try block returns on its success paths and the code after the catch returns its own value — the caller receives the outcome',
       }[guard.shape];
       return {
         severity: 'warning',

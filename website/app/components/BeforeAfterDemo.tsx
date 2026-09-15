@@ -50,7 +50,7 @@ export default function BeforeAfterDemo() {
     line=65::ReferenceError`}
                 </pre>
                 <p className="text-xs text-muted mt-3">
-                  A real Vapron failure from 2026-05-24. The api crashed at
+                  A real failure on our platform (Tallrig — named Vapron at the time) from 2026-05-24. The api crashed at
                   module load. Rollback also failed.
                 </p>
               </>
@@ -68,10 +68,10 @@ export default function BeforeAfterDemo() {
                 <ul className="text-sm space-y-2.5 mb-3">
                   <Step state="done">Re-runs the gate to isolate the failing module</Step>
                   <Step state="done">Reads the project conventions (README, AGENTS.md)</Step>
-                  <Step state="done">Generates the fix with Claude (Fable 5 on the fix tiers)</Step>
+                  <Step state="done">Generates the fix with the AI fix engine (deeper analysis on the fix tiers)</Step>
                   <Step state="done">Validates the fix re-passes the gate</Step>
                   <Step state="done">Writes a regression test for the bug</Step>
-                  <Step state="working">Pair-reviews the fix with a second Claude</Step>
+                  <Step state="working">Pair-reviews the fix with a second AI reviewer</Step>
                 </ul>
                 <p className="text-xs text-muted">
                   Typically well under a minute per fix. Fixes ship at Scan + Fix ($199) and above.

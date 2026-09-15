@@ -162,7 +162,7 @@ export const MODULE_CATEGORIES: ModuleCategory[] = [
     title: "AI & advanced",
     blurb: "Where deterministic scanning stops and reasoning starts. Used sparingly, not by default.",
     modules: [
-      { name: "aiReview", description: "Claude reads your code and finds real bugs — not patterns, actual understanding.", example: "Token refresh races with logout — second auth call uses dead token" },
+      { name: "aiReview", description: "AI reads your code and finds real bugs — not patterns, actual understanding.", example: "Token refresh races with logout — second auth call uses dead token" },
       { name: "agentic", description: "Memory-driven AI investigation — picks hypotheses from past scans, walks the code.", example: "Recurring null-deref in user.profile — root cause traced to login flow" },
       { name: "memory", description: "Codebase memory — compounding intelligence across scans (issue history + fix patterns).", example: "This file had 14 prior findings — focus areas: auth, session" },
       { name: "aiHallucination", description: "Fake imports, invented APIs, non-existent methods.", example: "An import named { useFoo } from a library that has no such export" },

@@ -194,6 +194,6 @@ fi
 
 ## Getting an API Key
 
-API keys are currently issued manually. Email hello@gatetest.ai with your use case, or use your Nuclear tier admin password as a key during development.
+API keys are currently issued manually. Email support@gatetest.io with your use case, or use your Nuclear tier admin password as a key during development.
 
 Format: `gt_<32+ hex characters>`

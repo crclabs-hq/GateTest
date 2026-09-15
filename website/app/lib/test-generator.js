@@ -206,7 +206,7 @@ async function generateTestForFix(opts) {
     response = await askClaudeForTest(prompt);
   } catch (err) {
     const message = err && err.message ? err.message : String(err);
-    return { ok: false, test: null, reason: `Claude API error: ${message}` };
+    return { ok: false, test: null, reason: `AI provider error: ${message}` };
   }
 
   // Strip markdown fences if Claude added them despite instructions
@@ -216,17 +216,17 @@ async function generateTestForFix(opts) {
     .trim();
 
   if (!content) {
-    return { ok: false, test: null, reason: 'empty Claude response' };
+    return { ok: false, test: null, reason: 'empty AI response' };
   }
 
   if (content === 'SKIP' || /^SKIP\b/.test(content)) {
-    return { ok: false, test: null, reason: 'Claude declined (purely cosmetic fix or untestable in isolation)' };
+    return { ok: false, test: null, reason: 'the AI declined (purely cosmetic fix or untestable in isolation)' };
   }
 
   // Refusal markers — same shape as the main fix loop's validateFix.
   const firstLine = content.split('\n', 1)[0] || '';
   if (/^I (cannot|can't|won't)\b|^I'm unable to\b|^As an AI\b/.test(firstLine)) {
-    return { ok: false, test: null, reason: 'Claude refused' };
+    return { ok: false, test: null, reason: 'the AI refused' };
   }
 
   // Sanity: a useful test must reference the source file or one of

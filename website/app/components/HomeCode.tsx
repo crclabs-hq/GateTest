@@ -12,6 +12,7 @@
  */
 
 import CopyButton from "./CopyButton";
+import siteStats from "../data/site-stats.json";
 
 const INSTALL_CMD = "npx -p @gatetest/cli gatetest --suite quick";
 
@@ -31,10 +32,12 @@ jobs:
         # NOTE: do NOT add continue-on-error: true here
         # The whole point of a gate is that it gates.`;
 
-const CLI_BLOCK = `# scan a single repo locally
+// Suite sizes come from site-stats.json (generated from the engine, never
+// typed) so this block cannot say "88" after the suite changes.
+const CLI_BLOCK = `# scan a single repo locally — quick suite (${siteStats.suites.quick} of ${siteStats.modules.total} modules), the CI gate
 $ npx -p @gatetest/cli gatetest --suite quick
 
-# full suite (88 modules), blocking gate
+# full suite (${siteStats.suites.full} of ${siteStats.modules.total} modules), blocking gate
 $ npx -p @gatetest/cli gatetest --suite full
 
 # crawl and test a live website

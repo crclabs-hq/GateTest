@@ -33,15 +33,25 @@ describe('scripts/run-tests.js — every file must report its summary', () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-runner-'));
     passing = write('t/pass.test.js', "const { test } = require('node:test'); const assert = require('node:assert');\ntest('one', () => assert.ok(true));\ntest('two', () => assert.ok(true));\n");
     failing = write('t/fail.test.js', "const { test } = require('node:test'); const assert = require('node:assert');\ntest('good', () => assert.ok(true));\ntest('bad', () => assert.strictEqual(1, 2));\n");
-    // A leaked interval keeps the child's event loop alive: Node then cancels
-    // the file itself after --test-timeout and prints the summary; the runner
-    // ends the child after that summary instead of waiting on the leak.
+    // A leaked interval keeps the child's event loop alive. Node <=22 then
+    // cancels the file itself after --test-timeout and prints the summary,
+    // and the runner ends the child after it. Node 24 bounds only the tests
+    // INSIDE the file (measured 2026-09-14: no summary, ever), so the file
+    // runs into the runner's file timeout — where the runner ends the TEST
+    // process and reads the summary the parent then prints, green test
+    // included. The assertions below are the contract both paths meet.
     leaking = write('t/leak.test.js', "const { test } = require('node:test'); const assert = require('node:assert');\nsetInterval(() => {}, 1000);\ntest('leaky but green', () => assert.ok(true));\n");
-    // A file whose `node --test` parent never reaches its summary within the
-    // runner's file timeout: the runner kills it and reports it as NOT
-    // finished — the shape --test-force-exit produced silently, from the
-    // other side (it exited the parent early, and counted what it had).
+    // A file still running at the runner's file timeout (a test that never
+    // ends, with --test-timeout too long to catch it). The runner ends the
+    // TEST process and reads the summary its parent then prints — the file
+    // failed, the tests before it counted — or, if the parent prints nothing
+    // either, reports the file as NOT finished. Both are the failure that
+    // --test-force-exit produced silently from the other side (it exited the
+    // parent early and counted what it had, exit 0).
     exiting = write('t/hang.test.js', "const { test } = require('node:test');\ntest('first', () => {});\ntest('slow', async () => { await new Promise((r) => setTimeout(r, 30000)); });\n");
+    // Node reports the file ITSELF as its one passing test (`ok 1 - <path>`),
+    // and the TAP reporter escapes the path's backslashes on Windows — the
+    // runner has to unescape before it can tell that entry from a real test.
     empty = write('t/empty.test.js', "'use strict';\nmodule.exports = 1;\n");
   });
   after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -62,22 +72,30 @@ describe('scripts/run-tests.js — every file must report its summary', () => {
     assert.match(out, /SUITE: FAILED — 1 of 2 file\(s\)/);
   });
 
-  it('a file that leaks a timer is reported as cancelled — a failure with the leak named — and the runner does not hang on it', () => {
-    const { code, out } = run([leaking]);
+  it('a file that leaks a timer is a failure with the leak named, its green test still counted, and the runner does not hang on it', () => {
+    // --test-timeout 5 s is where Node <=22 cancels the file; the 8 s file
+    // timeout is where the runner steps in on Node 24. Either way the
+    // leaked interval (alive for ever) is not waited on.
+    const { code, out } = run([leaking], ['--file-timeout', '8000']);
     assert.strictEqual(code, 1, out);
     assert.strictEqual(line(out, 'pass'), 1, 'the green test inside it is still counted');
-    assert.strictEqual(line(out, 'cancelled'), 1);
+    assert.strictEqual(line(out, 'fail') + line(out, 'cancelled'), 1, 'the file itself is the one failure');
     assert.strictEqual(line(out, 'files that did not finish'), 0, 'its summary was read');
     assert.match(out, /leaked timer, socket or child/);
     assert.ok(seconds(out) < 15, `must not wait for the leaked interval (${seconds(out)} s)`);
   });
 
-  it('NEGATIVE CONTROL — a file whose runner never reaches its summary within the file timeout is a failure, not a silent partial count', () => {
+  it('NEGATIVE CONTROL — a file still running at the file timeout is a failure, not a silent partial count', () => {
     const { code, out } = run([passing, exiting], ['--timeout', '60000', '--file-timeout', '3000']);
     assert.strictEqual(code, 1, out);
-    assert.strictEqual(line(out, 'files that did not finish'), 1);
-    assert.match(out, /hang\.test\.js: did not finish within the file timeout/);
-    assert.ok(seconds(out) < 20, `killed at the file timeout (${seconds(out)} s)`);
+    assert.match(out, /hang\.test\.js: (did not finish within the file timeout|.*still running at the file timeout)/);
+    assert.doesNotMatch(out, /SUITE: PASSED/);
+    // Whichever way it was reported, the file is either uncounted and said
+    // so, or counted with itself as the failure — never a green partial.
+    const unfinished = line(out, 'files that did not finish');
+    assert.ok(unfinished === 1 || line(out, 'fail') + line(out, 'cancelled') >= 1, out);
+    assert.strictEqual(line(out, 'pass') <= 3, true, 'the test that never ended is not a pass');
+    assert.ok(seconds(out) < 20, `ended at the file timeout (${seconds(out)} s)`);
   });
 
   it('a file that reports zero tests is a failure', () => {

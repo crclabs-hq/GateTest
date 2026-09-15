@@ -99,7 +99,7 @@ The corpus, the ceilings and the runner: `reliability-corpus/real-world.json`,
 |---|---|---|---|
 | 47 | Open-source the real-world corpus | **Craig** | — |
 | 48 | Finish the MCP registry submission | **Craig** | KI #35: `mcp-publisher login github` is a device-flow login in Craig's own browser, then `validate` → `publish ./server.json`; runbook `docs/marketing/SUBMISSION-RUNBOOK.md` §1b. No code action remains |
-| 49 | Pick one editor extension and ship it | **Craig** | KI #68: two trees. Recommendation on file — keep `vscode-extension/` (TypeScript, 7 commands, diagnostics, status bar, sidebar, MCP auto-setup for Claude / Cursor / Windsurf / Cline, compiles, packaging icon fixed) and delete `editors/vscode/` (a four-module MVP on the programmatic API, `@gatetest/cli` pinned to an unpublished version). Publishing needs a Marketplace publisher token — Boss Rule #9 |
+| 49 | Pick one editor extension and ship it | **Craig** | KI #68: two trees until 2026-09-14 — `editors/vscode/` is deleted; `vscode-extension/` (TypeScript, 7 commands, diagnostics, status bar, sidebar, MCP auto-setup for Claude / Cursor / Windsurf / Cline, compiles, packaging icon fixed) is the one tree. Publishing needs a Marketplace publisher token — Boss Rule #9 |
 | 50 | Make fix recipes the network effect | **Craig** | the store exists (`src/core/recipe-store-remote.js`, writes gated by `GATETEST_RECIPE_STORE_TOKEN`); what is missing is the policy KI #74f names — how a recipe earns promotion across customers (recommendation on file: count independent re-derivations). Cross-customer sharing of fix patterns is user data — Boss Rule #9 |
 
 ## Next, in order

@@ -110,8 +110,12 @@ describe('security/secrets — expansions in the credential position', () => {
   });
 
   it('POSITIVE CONTROL: a real credential sharing a line with an expansion still fires', async () => {
+    // Not `AKIAIOSFODNN7EXAMPLE`: that is the key AWS PUBLISHES as the one to
+    // write in docs, and since 2026-09-14 the rule knows it authenticates
+    // nothing (secrets.js PUBLISHED_EXAMPLE_CREDENTIALS). A stand-in for "a
+    // real credential" has to be one the rule cannot recognise as fake.
     const found = await secretsIn('config.yml',
-      'url: postgresql://${dbUser}:${dbPass}@${dbHost}/app  # aws AKIAIOSFODNN7EXAMPLE\n');
+      'url: postgresql://${dbUser}:${dbPass}@${dbHost}/app  # aws AKIAQ7X2P9M4K8R3T6V1\n');
     // The AWS key is a comment on a YAML line, which the comment guard does
     // not cover (the line does not START with `#`), so it must still surface.
     assert.deepStrictEqual(found, [1]);

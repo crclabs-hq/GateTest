@@ -1,18 +1,20 @@
 'use strict';
 
 /**
- * Vapron dispatch — POSTs a runtime-scan job from GateTest to Vapron.
+ * Platform dispatch — POSTs a runtime-scan job from GateTest to the platform
+ * worker tier (Tallrig; the file keeps its pre-rename name so nothing that
+ * requires it moves — the platform was Crontech, then Vapron, now Tallrig).
  *
  * Why this exists:
  *   The /api/web/scan endpoint runs on Vercel-style serverless infra
  *   where Chromium binaries can't reliably launch. The runtime-errors
- *   module needs a real long-running container with Playwright. Vapron
- *   is the worker tier — purpose-built for this kind of work.
+ *   module needs a real long-running container with Playwright. The
+ *   platform (Tallrig) is the worker tier — purpose-built for this kind of work.
  *
- * Contract (Vapron side must implement):
- *   POST {VAPRON_BASE_URL}/api/jobs/web-runtime-scan
+ * Contract (platform side must implement):
+ *   POST {TALLRIG_BASE_URL}/api/jobs/web-runtime-scan
  *     headers:
- *       Authorization: Bearer {VAPRON_API_TOKEN}
+ *       Authorization: Bearer {TALLRIG_API_TOKEN}
  *       X-GateTest-Signature: hex(hmac-sha256(secret, body))
  *       X-GateTest-Timestamp: unix-seconds
  *     body (JSON):
@@ -27,14 +29,14 @@
  *       201 { jobId: "vapron-job-xyz", queuedAt: "..." }
  *       4xx { error: "..." }
  *
- * Vapron eventually POSTs results back to callbackUrl. See
+ * The platform eventually POSTs results back to callbackUrl. See
  * runtime-callback/route.ts for the inbound shape.
  *
  * Failure policy:
  *   - Dispatcher errors are NEVER customer-facing. We log + record the
  *     failure on the scan-queue row and the static-probe results still
  *     ship in the response. Runtime layer is "best effort augmentation."
- *   - If Vapron is down, the customer sees a graceful "runtime checks
+ *   - If the platform is down, the customer sees a graceful "runtime checks
  *     unavailable right now" note alongside their static-probe report.
  *
  * Pure module. No I/O at import time. All env reads happen inside the
@@ -47,7 +49,7 @@ const DEFAULT_TIMEOUT_MS = 5000;
 const SIGNATURE_HEADER = 'X-GateTest-Signature';
 const TIMESTAMP_HEADER = 'X-GateTest-Timestamp';
 
-const { platformEnv: readPlatformEnv } = require('./platform-config');
+const { platformEnv: readPlatformEnv, PLATFORM_NAME } = require('./platform-config');
 
 function platformEnv(name) {
   return typeof process !== 'undefined' && process.env ? readPlatformEnv(name, process.env) : undefined;
@@ -55,7 +57,7 @@ function platformEnv(name) {
 
 /**
  * Hex-encoded HMAC-SHA256 of the raw body using the dispatch secret.
- * Vapron verifies this on receipt; if absent or invalid, Vapron
+ * The platform verifies this on receipt; if absent or invalid, it
  * must reject the job (fail-closed, Bible Forbidden #15).
  *
  * @param {string} body - the raw JSON string we POST
@@ -69,7 +71,7 @@ function signBody(body, secret) {
 }
 
 /**
- * Verify an inbound signature from Vapron using constant-time compare.
+ * Verify an inbound signature from the platform using constant-time compare.
  * Returns true only when both digests are present + equal length + match.
  *
  * @param {string} body
@@ -100,7 +102,7 @@ function verifySignature(body, providedSignature, secret) {
  * @param {string} opts.callbackUrl
  * @param {number} [opts.deadlineSec]
  * @param {{headers?:Object, cookie?:string}} [opts.auth] - session auth for
- *   an authenticated runtime scan. Vapron applies it same-origin only
+ *   an authenticated runtime scan. The platform applies it same-origin only
  *   (browser context.route + addCookies) exactly like the local engine's
  *   live-crawler-auth. Carried inside the HMAC-signed body — never a query
  *   param, never logged. Omitted entirely when absent so unauthenticated
@@ -131,7 +133,7 @@ function buildDispatchPayload({ scanId, targetUrl, suite, callbackUrl, deadlineS
 }
 
 /**
- * Dispatch a runtime-scan job to Vapron.
+ * Dispatch a runtime-scan job to the platform (Tallrig).
  *
  * Never throws. Always returns a shape with `ok: boolean` and either
  * `jobId` (success) or `reason` (failure). The route handler that
@@ -156,7 +158,7 @@ async function dispatchRuntimeScan(opts) {
   const deps = (opts && opts.deps) || {};
   // Env precedence lives in platform-config.js (one definition): TALLRIG_*
   // first (the platform's next name — read ahead of the flip so the cutover
-  // is an env change), then VAPRON_*, then the legacy CRONTECH_* names.
+  // is an env change), then the pre-rename VAPRON_*, then the legacy CRONTECH_* names.
   // Remove the CRONTECH_* fallbacks once those vars are gone from the box.
   const baseUrl = deps.baseUrl || platformEnv('BASE_URL');
   const apiToken = deps.apiToken || platformEnv('API_TOKEN');
@@ -164,9 +166,9 @@ async function dispatchRuntimeScan(opts) {
   const fetchFn = deps.fetchFn || (typeof fetch === 'function' ? fetch : null);
   const timeoutMs = typeof deps.timeoutMs === 'number' ? deps.timeoutMs : DEFAULT_TIMEOUT_MS;
 
-  if (!baseUrl) return { ok: false, reason: 'VAPRON_BASE_URL not configured' };
-  if (!apiToken) return { ok: false, reason: 'VAPRON_API_TOKEN not configured' };
-  if (!dispatchSecret) return { ok: false, reason: 'VAPRON_DISPATCH_SECRET not configured' };
+  if (!baseUrl) return { ok: false, reason: 'TALLRIG_BASE_URL not configured' };
+  if (!apiToken) return { ok: false, reason: 'TALLRIG_API_TOKEN not configured' };
+  if (!dispatchSecret) return { ok: false, reason: 'TALLRIG_DISPATCH_SECRET not configured' };
   if (!fetchFn) return { ok: false, reason: 'fetch unavailable in this runtime' };
 
   let payload;
@@ -200,17 +202,17 @@ async function dispatchRuntimeScan(opts) {
     if (!resp.ok) {
       let detail = '';
       try { detail = (await resp.text()).slice(0, 300); } catch { /* error-ok — error body unreadable — the status alone is reported */ }
-      return { ok: false, status: resp.status, reason: `Vapron rejected dispatch: ${resp.status} ${detail}` };
+      return { ok: false, status: resp.status, reason: `${PLATFORM_NAME} rejected dispatch: ${resp.status} ${detail}` };
     }
 
     let data;
     try {
       data = await resp.json();
     } catch {
-      return { ok: false, status: resp.status, reason: 'Vapron returned non-JSON response' };
+      return { ok: false, status: resp.status, reason: `${PLATFORM_NAME} returned non-JSON response` };
     }
     if (!data || typeof data.jobId !== 'string') {
-      return { ok: false, status: resp.status, reason: 'Vapron response missing jobId' };
+      return { ok: false, status: resp.status, reason: `${PLATFORM_NAME} response missing jobId` };
     }
     return { ok: true, jobId: data.jobId, queuedAt: data.queuedAt || new Date().toISOString() };
   } catch (err) {

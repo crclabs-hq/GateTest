@@ -128,6 +128,16 @@ export default function WordPressLanding() {
             Built on the <Link href="/" className="text-accent hover:underline">GateTest</Link> engine
             — the same {TOTAL_MODULES}-module QA gate developers use on their codebases.
           </p>
+          <p className="text-sm text-muted mt-4">
+            Prefer to run it from wp-admin?{" "}
+            <a
+              href="https://github.com/crclabs-hq/GateTest/releases/latest/download/gatetest-health-check.zip"
+              className="text-accent hover:underline"
+            >
+              Download the free plugin (.zip)
+            </a>{" "}
+            and upload it under Plugins → Add New → Upload Plugin. Same scan, same report, no account.
+          </p>
         </div>
       </Section>
     </main>

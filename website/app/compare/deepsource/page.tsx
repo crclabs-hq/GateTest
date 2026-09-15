@@ -33,7 +33,7 @@ export const metadata: Metadata = {
 const faqItems = [
   {
     q: "What does GateTest do that DeepSource doesn't?",
-    a: "GateTest's key advantages over DeepSource: AI-powered code review using Claude (DeepSource uses static analysis, not generative AI), AI auto-fix PRs at the Scan + Fix tier ($199) and Forensic Scan ($399) that write actual code changes (DeepSource shows issues, not fixes), pay-per-scan pricing (DeepSource is subscription per-seat), coverage of performance/visual regression/chaos testing/mutation testing (DeepSource is code quality and security only; chaos and mutation ship via the GitHub Action, which has a CI runner and headless browser to drive them), and prompt/LLM safety scanning for AI apps.",
+    a: "GateTest's key advantages over DeepSource: AI-powered code review that reasons about your code (DeepSource uses static analysis, not generative AI), AI auto-fix PRs at the Scan + Fix tier ($199) and Forensic Scan ($399) that write actual code changes (DeepSource shows issues, not fixes), pay-per-scan pricing (DeepSource is subscription per-seat), coverage of performance/visual regression/chaos testing/mutation testing (DeepSource is code quality and security only; chaos and mutation ship via the GitHub Action, which has a CI runner and headless browser to drive them), and prompt/LLM safety scanning for AI apps.",
   },
   {
     q: "DeepSource has a free tier. Does GateTest?",
@@ -41,7 +41,7 @@ const faqItems = [
   },
   {
     q: "Does GateTest's AI fix code like DeepSource's Autofix?",
-    a: "GateTest's Scan + Fix tier ($199) goes further than DeepSource Autofix. DeepSource Autofix generates fixes for a specific subset of analysis issues. GateTest uses Claude to read your entire codebase context and write fixes for any issue it finds — security misconfigurations, logic bugs, N+1 queries, accessibility violations — and opens a pull request with complete, reviewable code. The Forensic Scan tier ($399) adds attack-chain correlation across findings, a board-ready CISO report, and an executive summary report you can hand to a CTO. Mutation testing on your existing tests also ships via the GitHub Action with mutation: true — runs wherever your CI runs.",
+    a: "GateTest's Scan + Fix tier ($199) goes further than DeepSource Autofix. DeepSource Autofix generates fixes for a specific subset of analysis issues. GateTest's fix engine reads your entire codebase context and write fixes for any issue it finds — security misconfigurations, logic bugs, N+1 queries, accessibility violations — and opens a pull request with complete, reviewable code. The Forensic Scan tier ($399) adds attack-chain correlation across findings, a board-ready CISO report, and an executive summary report you can hand to a CTO. Mutation testing on your existing tests also ships via the GitHub Action with mutation: true — runs wherever your CI runs.",
   },
   {
     q: "How do scan speeds compare?",
@@ -105,7 +105,7 @@ export default function DeepSourcePage() {
         lede={
           <>
             DeepSource is a solid static analysis tool. GateTest is an AI-native quality platform:
-            121 modules, generative AI code review using Claude, AI auto-fix PRs that write real code at the Scan + Fix tier ($199) and Forensic Scan ($399),
+            121 modules, generative AI code review, AI auto-fix PRs that write real code at the Scan + Fix tier ($199) and Forensic Scan ($399),
             and per-scan pricing with no per-seat subscriptions.
           </>
         }
@@ -136,7 +136,7 @@ export default function DeepSourcePage() {
             <div>
               <div className="text-accent text-xs font-semibold uppercase tracking-wider mb-3">GateTest AI approach</div>
               <p className="text-sm text-foreground-secondary leading-relaxed">
-                Claude reads your code with full context — the function, its callers, the data it processes — and reasons about what the code <em>does</em>, not just how it looks. Catches logic bugs, off-by-one errors in financial code, and security issues that emerge from how code components interact.
+                The AI review reads your code with full context — the function, its callers, the data it processes — and reasons about what the code <em>does</em>, not just how it looks. Catches logic bugs, off-by-one errors in financial code, and security issues that emerge from how code components interact.
               </p>
             </div>
           </div>

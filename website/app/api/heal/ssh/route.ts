@@ -26,7 +26,7 @@ import { isAdminRequest } from "@/app/lib/admin-auth";
 import { platformServicePrefix } from "@/app/lib/platform-config";
 
 // systemd unit prefix on the box (`<prefix>-web`, `<prefix>-api`). The
-// platform is being renamed and its units will follow (vapron-* → tallrig-*,
+// platform was renamed Tallrig (2026-09-14) and its units will follow (vapron-* → tallrig-*,
 // with Alias= for a release); PLATFORM_SERVICE_PREFIX flips it here. The
 // vapron-*/crontech-* fallbacks stay in the commands until that release.
 const SVC = platformServicePrefix();

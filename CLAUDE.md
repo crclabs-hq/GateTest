@@ -214,9 +214,19 @@ The `HostBridge` refactor is pre-authorized, and both bridges (GitHub + Gluecron
 
 ---
 
-## DEPLOYMENT DOCTRINE — GATETEST.IO RUNS ON VAPRON (Craig 2026-09-11, read before any infra work)
+## DEPLOYMENT DOCTRINE — GATETEST.IO RUNS ON TALLRIG (Craig 2026-09-11, read before any infra work)
 
-Gatetest.io is being onboarded onto the Vapron platform. Previous hosting
+**The platform is Tallrig — tallrig.com / api.tallrig.com, entity Tallrig Labs
+LLC. It was named Vapron until 2026-09-14** (Craig: "vapron is no longer, we've
+had a name change to Tallrig.com"; before that it was Crontech, renamed
+2026-06-12). Every hostname and the product name is read from ONE place,
+`website/app/lib/platform-config.js`, whose defaults are the Tallrig values
+(measured live 2026-09-15). The `VAPRON_*` env names and the `vapron-*`
+identifiers that remain in code are compatibility aliases for a box that has
+not renamed its variables yet — never write a new one. Box-side flip:
+`docs/ops/tallrig-cutover.md`.
+
+Gatetest.io is being onboarded onto the Tallrig platform. Previous hosting
 (Vercel/Render/Cloudflare-class services) is being CUT OFF once the cutover
 completes — do not configure, repair, or re-deploy to the old providers, and
 do not re-add their SDKs or env vars.
@@ -224,15 +234,17 @@ do not re-add their SDKs or env vars.
 Facts every session must respect:
 - **Runtime:** systemd service on shared bare metal, binding **127.0.0.1 only**.
   Never bind 0.0.0.0, never bind ports 80/443.
-- **Reverse proxy:** `vapron-bun-gateway` owns 80/443, ALL TLS termination, and
+- **Reverse proxy:** the platform's bun gateway (`tallrig-bun-gateway`; the
+  unit was `vapron-bun-gateway` before the rename and may still carry that
+  name until the platform's own release) owns 80/443, ALL TLS termination, and
   ACME certificates. Caddy, nginx, certbot, and every other proxy are BANNED —
   never suggest, install, or configure one. Public hostnames are added on the
-  Vapron side, not here.
+  Tallrig side, not here.
 - **Data:** PostgreSQL and Redis run locally on the box (127.0.0.1). Never
   suggest Neon, Upstash, Supabase, RDS, or any hosted database/queue.
-- **Email / comms / storage / AI gateway:** use the Vapron platform APIs via
-  `VAPRON_BASE_URL` + `VAPRON_API_KEY` (already in the env file on the box —
-  never print or commit their values).
+- **Email / comms / storage / AI gateway:** use the Tallrig platform APIs via
+  `TALLRIG_BASE_URL` + `TALLRIG_API_KEY` (the `VAPRON_*` names still in the env
+  file on the box are read as aliases — never print or commit their values).
 - **Env:** `/opt/<service>/.env` on the box, chmod 600. Secrets flow keyboard →
   env file, never through chat in either direction.
 - **Deploys:** build ON the box from a git pull, then restart the systemd unit.
@@ -240,16 +252,19 @@ Facts every session must respect:
 
 If an instruction you are about to give conflicts with any line above, the
 line above wins. When infrastructure outside this repo seems wrong (DNS, TLS,
-routing), report it to the operator — it is managed from the Vapron side and
+routing), report it to the operator — it is managed from the Tallrig side and
 is usually already correct.
 
 **Cutover status (2026-09-11 — what the code still does that the doctrine
 forbids; each is a Craig-sequenced migration, not a session's initiative):**
 1. Database is Neon over `@neondatabase/serverless` (`website/app/lib/db.ts`,
    `DATABASE_URL`). Local PostgreSQL needs a `pg`-class driver + data migration.
-2. E-mail is Resend (`website/app/lib/digest-mailer.js`; domain verified
-   2026-09-11). No Vapron mail client exists yet; `vapron-dispatch.js` only
-   dispatches URL scans.
+2. E-mail is Resend by default (`website/app/lib/digest-mailer.js`; domain
+   verified 2026-09-11). The Tallrig platform transport exists
+   (`website/app/lib/mail-transport.js`, `MAIL_PROVIDER=tallrig`; `vapron` is
+   a deprecated alias) and is flipped by Craig after
+   `node scripts/ops/mail-test.js` proves it on the box. `vapron-dispatch.js`
+   (pre-rename filename) only dispatches URL scans.
 3. The service binds `10.0.1.1:3000` (`scripts/deploy/tick.sh`,
    `gatetest-web.service`), not 127.0.0.1.
 4. Env lives at `/opt/gatetest/website/.env.local`, not `/opt/<service>/.env`.
@@ -268,7 +283,7 @@ on the box, restart `gatetest-web`) already conforms.
 
 | Platform     | Repository                                         | Status     |
 | ------------ | -------------------------------------------------- | ---------- |
-| Vapron (formerly Crontech.ai — renamed per Craig 2026-06-12) | https://github.com/ccantynz-alt/Vapron | **INTEGRATED — bespoke** (verified live 2026-07-20) |
+| Tallrig (tallrig.com — formerly Vapron, renamed per Craig 2026-09-14; formerly Crontech.ai, renamed 2026-06-12) | https://github.com/ccantynz-alt/Vapron (repository name not yet confirmed renamed) | **INTEGRATED — bespoke** (verified live 2026-07-20, as Vapron) |
 | Gluecron.com | https://github.com/ccantynz-alt/Gluecron.com       | **INTEGRATED — bespoke** (verified live 2026-07-20) |
 
 **Verified 2026-07-20 (prior "INTEGRATING" status and the `Gate-Test/Crontech` repo URL above were both stale):**
@@ -279,7 +294,7 @@ on the box, restart `gatetest-web`) already conforms.
 
 ### How the integration works
 
-GateTest remains a **standalone subscription product** on gatetest.io. Protected platforms consume the same engine — either by cloning this repo at CI time via the generic `integrations/` template (Vapron does this, with its own SHA-pinning hardening layered on top), or via a bespoke integration that calls GateTest a different way (Gluecron's API webhook). Either is a valid protection mechanism; what matters is that the platform is actually gated, not that every platform uses an identical file. Ship a fix here → every protected platform that consumes the generic template picks it up on the next CI run; bespoke integrations (like Gluecron's webhook) need their own update if the API contract changes.
+GateTest remains a **standalone subscription product** on gatetest.io. Protected platforms consume the same engine — either by cloning this repo at CI time via the generic `integrations/` template (Tallrig does this, with its own SHA-pinning hardening layered on top), or via a bespoke integration that calls GateTest a different way (Gluecron's API webhook). Either is a valid protection mechanism; what matters is that the platform is actually gated, not that every platform uses an identical file. Ship a fix here → every protected platform that consumes the generic template picks it up on the next CI run; bespoke integrations (like Gluecron's webhook) need their own update if the API contract changes.
 
 ### What lives in THIS repo (`crclabs-hq/gatetest`)
 
@@ -416,11 +431,11 @@ Build the most advanced, most aggressive, most beautiful QA testing platform eve
 
 ### 12. Deployment
 
-- [ ] Production runs on **Vapron** (Craig 2026-07-14, re-confirmed 2026-07-23 — "zero old services"); deploy per `docs/deploy/VAPRON-DEPLOY.md`
+- [ ] Production runs on **Tallrig** (named Vapron until 2026-09-14; Craig 2026-07-14, re-confirmed 2026-07-23 — "zero old services"); deploy per `docs/deploy/VAPRON-DEPLOY.md` (file keeps its pre-rename name)
 - [ ] Built with `npm run build` in `website/` (prebuild stamps the git SHA — `/api/platform-status` must show the deployed commit, never "unknown")
-- [ ] All required environment variables set on Vapron (`/api/status` lists what's missing)
-- [ ] Cron scheduler hitting `/api/scan/worker/tick` (~2 min) + `/api/watches/tick` (~5 min) with `Authorization: Bearer $CRON_SECRET` — nothing fires them off-Vercel otherwise (KI #41)
-- [ ] DNS pointing to Vapron; Vercel project retired/disconnected (no second deployment processing the shared queue with stale code)
+- [ ] All required environment variables set on Tallrig (`/api/status` lists what's missing, and `platform.pointed_at` must read `tallrig` — see `docs/ops/tallrig-cutover.md`)
+- [ ] Cron scheduler hitting `/api/scan/worker/tick` (~2 min) + `/api/watches/tick` (~5 min) with `Authorization: Bearer $CRON_SECRET` — nothing else fires them (KI #41)
+- [ ] DNS pointing to Tallrig; Vercel project retired/disconnected (no second deployment processing the shared queue with stale code)
 
 ### 13. Pre-Launch
 
@@ -428,7 +443,7 @@ Build the most advanced, most aggressive, most beautiful QA testing platform eve
 - [ ] GitHub App installed and posting commit statuses
 - [ ] Legal pages accessible from footer
 - [ ] Stripe webhook endpoint configured
-- [ ] Email forwarding set up for hello@gatetest.ai
+- [ ] Mailboxes live on gatetest.io: `support@` (site contact), `admin@`, `billing@` — there is no `hello@`, and the old `.ai` domain is NXDOMAIN (verified 2026-09-11)
 
 ---
 
@@ -532,9 +547,9 @@ When something breaks:
 | Forensic (renamed from Nuclear, Craig 2026-06-02) | $399 | Everything on the website-only scan: full deep scan, per-finding Claude diagnosis, cross-finding correlation, auto-fix PR, pair-review, executive summary, board-ready CISO report. Mutation testing + chaos / fuzz pass are NOT part of the website-only flow — they ship via the GitHub Action (`mutation: true` / `chaos: true`) because they need a CI runner to execute the customer's test suite and a headless browser. |
 | Continuous | $49/mo | **ORG-FLAT (Craig-authorized 2026-07-23): one subscription covers every repo under the same owner/org** — no per-seat, no per-repo; `findActiveByRepo` matches by host/owner prefix, exact-repo match preferred; the AI allowance is shared org-wide. Scan every push — **LIVE** (Craig green-light 2026-06-12). Stripe subscription checkout (mode=subscription, inline recurring price_data — no dashboard product needed). Unlimited deterministic scans (near-zero marginal cost); AI reviews metered by `continuous_ai_ledger` monthly allowance (default $10/mo, env `CONTINUOUS_AI_BUDGET_USD`). Fix PRs NOT included — per-scan upsell. Store: `website/app/lib/continuous-subscription-store.js` (19 tests). Lifecycle synced via `customer.subscription.updated/deleted` webhooks. |
 | MCP | $29/mo | **REPOSITIONED (Craig-authorized 2026-07-23, closes KI #39): the LOCAL stdio MCP server is now 100% free — `GATED_TOOLS` in `bin/gatetest-mcp.mjs` is empty; every tool runs on the user's own machine/keys (principle: free where it runs on your machine, paid where it runs on ours).** The $29/mo tier now sells the HOSTED remote MCP endpoint (claude.ai web/mobile, locked-down machines; `mcp-remote-core.cjs` keeps its gate) + hosted scan history, behind `GATETEST_API_KEY` (`gtmcp_` prefix, 70 chars), delivered by email after Stripe checkout — **LIVE** (Craig-authorized 2026-07-04). Free without a key: `check_health`, `list_modules`, `get_badge`, `scan_url`, `scan_repo`, `scan_local` (quick suite). `scan_repo` was fixed onto this list 2026-07-20 — it was already documented as free in the tool's own description/quick-start prompt, but `GATED_TOOLS` in `bin/gatetest-mcp.mjs` charged for it anyway; the code now matches. Store: `website/app/lib/mcp-subscription-store.js`. |
-| Enterprise | Contact | **Contact-based (Craig 2026-07-23)** — no fixed price, no Stripe tier; negotiated per deal (custom scan volume, raised AI-review budget, priority support, invoicing). Pricing-page card links mailto:hello@gatetest.ai. |
+| Enterprise | Contact | **Contact-based (Craig 2026-07-23)** — no fixed price, no Stripe tier; negotiated per deal (custom scan volume, raised AI-review budget, priority support, invoicing). Pricing-page card links mailto:support@gatetest.io (`website/app/components/Pricing.tsx`). |
 
-**Honesty note (Bible Forbidden #1 / Boss Rule #8):** the website-only Nuclear path cannot run mutation testing or chaos / fuzz pass — those two modules need the customer's CI environment (Vercel serverless cannot safely run a customer's test suite, and Chromium typically cannot launch inside the function). Both modules are first-class in the engine and run cleanly via the GitHub Action where `mutation.js` and `chaos.js` have a real runner. Marketing copy must reflect this on every public surface; future sessions DO NOT regress this wording back to "every Nuclear scan includes mutation + chaos."
+**Honesty note (Bible Forbidden #1 / Boss Rule #8):** the website-only Nuclear path cannot run mutation testing or chaos / fuzz pass — those two modules need the customer's CI environment (the hosted scan runs inside a web request on the Tallrig box and cannot safely run a customer's test suite or hold a headless browser for it). Both modules are first-class in the engine and run cleanly via the GitHub Action where `mutation.js` and `chaos.js` have a real runner. Marketing copy must reflect this on every public surface; future sessions DO NOT regress this wording back to "every Nuclear scan includes mutation + chaos."
 
 ---
 
@@ -594,7 +609,7 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.61.0 — **121 modules** (spineHealth added 2026-07-30), **hybrid AI layer** (Craig 2026-07-07;
+GateTest v1.61.1 — **unreleased: npm serves `@gatetest/cli@1.61.0` (tagged v1.61.0 2026-09-13); the `v1` Action tag sits on main `e101d517`** — **121 modules** (spineHealth added 2026-07-30), **hybrid AI layer** (Craig 2026-07-07;
 Sonnet 5 upgrade + user-selectable model + BYOK Craig 2026-07-10):
 **Fable 5** (`claude-fable-5`) on the paid fix tiers (Scan+Fix, Forensic),
 **Sonnet 5** (`claude-sonnet-5`) on free/cheap/high-volume paths, **Opus
@@ -614,9 +629,10 @@ machine, their spend); the website fix route accepts optional
 BYOK lifts the USD cap, keeps the tier token cap as runaway protection.
 **Six tiers live** — Quick $29 / Full $99 / Scan+Fix $199 / Forensic $399
 (one-time) + Continuous $49/mo + **MCP $29/mo** (Craig-authorized 2026-07-04).
-The MCP tier gates premium Eyes/Ears/Hands tools behind a `GATETEST_API_KEY`
-delivered by email after Stripe checkout; BYOK does NOT bypass that gate
-(open question for Craig — until he rules, the gate stays). MCP + CLI fix
+The MCP tier sells the HOSTED remote endpoint behind a `GATETEST_API_KEY`
+delivered by email after Stripe checkout; the LOCAL stdio server is free —
+`GATED_TOOLS` in `bin/gatetest-mcp.mjs` is empty (Craig 2026-07-23, KI #39),
+so there is no local gate for BYOK to bypass. MCP + CLI fix
 paths default to Sonnet (flat-rate / no per-scan payment — Fable isn't funded
 there, but BYOK users may pick it since the spend is theirs).
 MCP server: `bin/gatetest-mcp.mjs`, 24 tools (run_tests / stream_logs / query_db / http_request restored to tools/list 2026-07-11 — they had handlers but were never registered).
@@ -693,7 +709,7 @@ number.
 were on 120 modules; rewriting the label falsifies evidence instead of updating
 a claim.
 
-### v1.61.2 (2026-09-05) — current truth
+### 2026-09-05 — current truth (in v1.61.1, unreleased)
 
 - **The gate enforces for customers.** `integrations/github-actions/gatetest-gate.yml` and `action.yml` block on PRs (`--diff` / `--pr` scope) and on full runs against `.gatetest/baseline.json`; `--report-only` is forbidden on the gate by `tests/integrations.test.js`. Before 2026-09-04 every customer ran advisory.
 - **Precision is measured on twenty third-party repositories — all eight advertised languages and four monorepos** (`reliability-corpus/real-world.json`; ceilings after the 2026-09-05 passes: express 0, flask 2, fastify 3, got 14, hono 23, zod 5, django 60, rails 41, spring-petclinic 8, gin 2, axum 5, laravel 4, CleanArchitecture 11, ktor 7, vapor 0, nest 9, trpc 7, apollo-server 0, prisma 13; NodeGoat floor 40, measured 57 — hono / trpc / prisma ratcheted down when importCycle learned type-only elision: every cycle it had blocked on was deferred or type-only). The monorepos were first-contact 39 / 33 / 4 / 90 — every drop was a scanner defect with the line that exposed it, and every ceiling drop since is diffed engine-against-engine on a fresh clone before it is accepted. CI job "real repos must not be blocked"; rendered at `/precision` from `website/app/data/precision.json`, regenerated nightly.
@@ -704,6 +720,19 @@ a claim.
 - **KI #106 closed (2026-09-05):** no module decides "nothing to check" from a framework marker its rules do not need — 15 of 15 fixed, three new one-definition homes (`src/core/workspaces.js`, `migration-dirs.js`, `shell-files.js`), corpus 20/20 at ceilings. **Open, measured:** KI #105 — stale Code Scanning categories need an API delete; KI #107 — prSize on the Dogfood job's depth-1 checkout.
 
 The narratives for 2026-09-04/05 (how each number was reached, which fixes regressed and were caught) live in `docs/HISTORY.md` under "VERSION CHANGELOGS".
+
+### 2026-09-14 — launch-readiness merge (PR #499, main `e101d517`)
+
+One integration merge carried six verified fix branches and two follow-ups. Measured against `origin/main` and the live site on 2026-09-15:
+
+- **Publish surface (#495):** `@gatetest/cli` gains a `cli` bin so bare `npx @gatetest/cli` resolves; the composite Action's counts, `permissions:` block and stale strings fixed; **the `v1` tag exists** (`uses: crclabs-hq/GateTest@v1` → `e101d517`). `package.json` is **1.61.1 and not published** — `npm view @gatetest/cli version` is still **1.61.0** (release 2026-09-13), so the bare-npx form is not real until 1.61.1 ships. The Marketplace listing (`github.com/marketplace/actions/gatetest-quality-gate`) is 404 — not listed yet.
+- **Vendor-neutral public copy (#503):** every customer-facing surface describes the AI layer by capability; `tests/public-copy-vendor-neutral.test.js` guards it with a justified allowlist (MCP client names, BYOK env vars, identifiers). This file is internal and NOT in that scope — it still names models on purpose (`tests/heavy/marketing-claim-verification.test.js` pins them here).
+- **Tallrig rename (#504):** `platform-config.js` defaults to Tallrig, `MAIL_PROVIDER=tallrig`, the callback reads the dispatch secret through platform-config. Live `/api/status` says `platform.name: "Tallrig"`, `pointed_at: "mixed"` — the box still dispatches through the `VAPRON_*` aliases until Craig runs `docs/ops/tallrig-cutover.md`.
+- **Engine + rules (#496, #497):** bad input stops passing green; the secrets rule stops blocking clean repos; seven false positives closed against django, got and gin with the third-party line as the fixture.
+- **Tests (#498):** `npm test` green and deterministic on main — Windows globbing, Node 24 leak reporting, three flaky files, one dead fixture. **KI #109 (Windows path identity) closed** with it.
+- **WordPress plugin (#492), Docker + website (#494):** findings render, no key needed, honest $19 offer, zip + CI; the image builds again; the dead `.ai` address and the guessed-URL 404s are gone.
+- **Docs truth pass (the PR after #499):** `editors/vscode/` deleted (KI #68, extension-tree half), README commands re-verified against `--help` and npm, no dead `hello@` address left in current-state text. **Still open:** KI #105 (stale Code Scanning categories need an API delete — NOT closed by this merge), #107 (admin softening), #110 (cve-feed).
+- **Live:** `gatetest.io/api/platform-status` → `version 1.61.1`, `commit e101d517`, `healthy: true`.
 
 ### THE DOMAIN — gatetest.io (moved 2026-07-30)
 

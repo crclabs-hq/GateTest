@@ -12,7 +12,7 @@ function formatFindingsForClaude(result: ScanResult): string {
   lines.push(`**Health Score:** ${result.healthScore.score} / 100 (Grade ${result.healthScore.grade})`);
   lines.push(`**Summary:** ${result.healthScore.summary}`);
   lines.push("");
-  lines.push(`## Task for Claude`);
+  lines.push(`## Task for the agent`);
   lines.push(`Investigate the codebase that powers \`${result.targetUrl}\` and fix the issues below. Where the source of an issue isn't obvious, search for the relevant file. Group fixes by root cause where possible — many of these findings collapse to a single configuration change.`);
   lines.push("");
 
@@ -79,11 +79,11 @@ export function CopyForClaudeButton({ result }: { result: ScanResult }) {
     <div className="rounded-2xl border border-accent/20 bg-accent/5 p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
       <div className="flex-1">
         <p className="font-semibold text-foreground leading-tight">
-          Hand this report to Claude
+          Hand this report to your AI agent
         </p>
         <p className="text-sm text-muted mt-1 leading-relaxed">
-          Copy the findings as a structured prompt ready to paste into any Claude Code or chat session.
-          Claude will know the URL, the issues, the severity, and what to fix.
+          Copy the findings as a structured prompt ready to paste into Claude Code, Cursor, or any chat session.
+          The agent will know the URL, the issues, the severity, and what to fix.
         </p>
       </div>
       <button
@@ -112,7 +112,7 @@ export function CopyForClaudeButton({ result }: { result: ScanResult }) {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1m-6-13h6a2 2 0 012 2v6a2 2 0 01-2 2h-6a2 2 0 01-2-2V7a2 2 0 012-2z" />
             </svg>
-            Copy findings for Claude
+            Copy findings for your agent
           </>
         )}
       </button>

@@ -4,7 +4,7 @@ import { PLATFORM_NAME, PLATFORM_SITE_URL } from "../lib/platform-config";
  *
  * Two parts:
  *   1. A row of frameworks we scan, text-only (no logo CDN, no asset bloat).
- *   2. "Used internally by Vapron.ai and Gluecron.com" — both real,
+ *   2. "Used internally by Tallrig.com and Gluecron.com" — both real,
  *      listed in CLAUDE.md PROTECTED PLATFORMS section.
  *
  * No fabricated customer logos. No fake testimonials. The audience can

@@ -76,7 +76,7 @@ export default async function CwePage({ params }: PageParams) {
     covered
       ? {
           q: `Does GateTest detect ${cwe.name.toLowerCase()}?`,
-          a: `Yes — GateTest's ${cwe.modules.join(", ")} module${cwe.modules.length === 1 ? "" : "s"} catch this class. Findings appear in the standard scan output with file and line numbers. On Scan + Fix and Forensic Scan tiers, Claude opens a pull request with the fix.`,
+          a: `Yes — GateTest's ${cwe.modules.join(", ")} module${cwe.modules.length === 1 ? "" : "s"} catch this class. Findings appear in the standard scan output with file and line numbers. On Scan + Fix and Forensic Scan tiers, the fix engine opens a pull request with the fix.`,
         }
       : {
           q: `Does GateTest detect CWE-${cwe.id}?`,

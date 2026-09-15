@@ -14,15 +14,15 @@
 [![Modules](https://img.shields.io/badge/modules-121-purple.svg)](#what-it-replaces)
 [![Tests](https://img.shields.io/badge/tests-6000%2B-brightgreen.svg)](#real-repo-proofs)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](https://nodejs.org/)
-[![GitHub Marketplace](https://img.shields.io/badge/marketplace-GateTest%20Quality%20Gate-2ea44f.svg)](https://github.com/marketplace/actions/gatetest-quality-gate)
+[![GitHub Action](https://img.shields.io/badge/action-crclabs--hq%2FGateTest%40v1-2ea44f.svg)](action.yml)
 
 ---
 
 ## The 30-second pitch
 
-**GateTest is a single CLI plus a composite GitHub Action that runs 121 static-analysis modules against any codebase, then uses Claude to repair the findings it can.** It replaces SonarQube, Snyk, ESLint, Cypress, Lighthouse, axe, pa11y, and twenty-plus other tools with one config, one gate decision, and one report.
+**GateTest is a single CLI plus a composite GitHub Action that runs 121 static-analysis modules against any codebase, then uses an AI fix engine to repair the findings it can.** It replaces SonarQube, Snyk, ESLint, Cypress, Lighthouse, axe, pa11y, and twenty-plus other tools with one config, one gate decision, and one report.
 
-**It is different because the cost trends to zero.** Deterministic AST and rule-based layers run first — these are free and ship the fix in milliseconds. Claude only runs on patterns nothing else has seen. Every Claude win is distilled into a reusable recipe, so the next time the same pattern appears anywhere in the network it is handled for free. The longer you run GateTest, the less of it is paid work.
+**It is different because the cost trends to zero.** Deterministic AST and rule-based layers run first — these are free and ship the fix in milliseconds. The AI layer only runs on patterns nothing else has seen. Every AI win is distilled into a reusable recipe, so the next time the same pattern appears anywhere in the network it is handled for free. The longer you run GateTest, the less of it is paid work.
 
 **What you get depends on the tier.** A pull request with the fixes, regression tests pinned to each fix, an architecture-shape critique, a cross-finding attack-chain analysis, and a CTO-readable executive summary — in whichever combination the tier you bought includes. One-time payment per scan via Stripe at checkout. No subscription, no auto-renew.
 
@@ -40,6 +40,9 @@ on: [push, pull_request]
 jobs:
   gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write   # the PR summary comment, inline suggestions, auto-repair PRs
     steps:
       - uses: actions/checkout@v4
       - uses: crclabs-hq/GateTest@v1
@@ -52,6 +55,8 @@ jobs:
 
 The action is a composite — no Docker pull, no container build. It installs GateTest, runs the gate, and if `auto-fix: true` and `ANTHROPIC_API_KEY` is set, runs the AI repair loop on a blocking gate. See [`action.yml`](action.yml) for every input.
 
+The action authenticates with the workflow's own token by default (`github-token` input, `${{ github.token }}`), so the `permissions:` block above is all it needs: without `pull-requests: write` the summary comment and suggestions are skipped, with a warning in the log. Add `issues: write` if you turn on `track-non-fixable: true`, and `security-events: write` (plus `actions: read`) if you upload the `--sarif` report to the Security tab with `github/codeql-action/upload-sarif` (see [Wire it into CI](#wire-it-into-ci--github-gitlab-or-circleci) below).
+
 **Your first full run passes.** Turning a gate on against an existing codebase would otherwise fail on years of backlog nobody wrote this week, so a full-repo run that finds no `.gatetest/baseline.json` snapshots what is already there and exits green. Commit that file and every run after it fails on **new** findings only — pull requests are judged on the files they change from the very first run. Details under [baseline mode](#onboarding-a-mature-repo--baseline-mode).
 
 ### CLI — local development
@@ -62,11 +67,14 @@ npm install -g @gatetest/cli
 gatetest --suite quick
 
 # Or run against the current directory with no install:
-npx github:crclabs-hq/GateTest --suite quick
+npx -p @gatetest/cli gatetest --suite quick
+# (bare `npx @gatetest/cli --suite quick` needs the `cli` bin, which ships in
+#  1.61.1 — the release on npm today, 1.61.0, answers "could not determine
+#  executable to run"; the -p form works on every version)
 
 # Or clone and run from source:
 git clone https://github.com/crclabs-hq/GateTest
-cd gatetest && npm install
+cd GateTest && npm install
 node bin/gatetest.js --suite quick
 ```
 
@@ -154,7 +162,7 @@ gatetest --crawl https://app.example.com --crawl-storage-state state.json
 
 Session material is only ever sent to the target's own origin — never to third-party links, assets, or cross-origin redirects. Without a session, a crawl that hits a login wall tells you exactly which flag to add rather than silently skipping the protected pages. The hosted scanner at [gatetest.io](https://gatetest.io) accepts the same session auth.
 
-### Claude Code / MCP — give Claude eyes, ears & hands
+### Claude Code / MCP — give your agent eyes, ears & hands
 
 Connect GateTest directly to Claude Code (or any MCP-compatible AI) in one command:
 
@@ -164,7 +172,7 @@ claude mcp add gatetest -- npx -y @gatetest/mcp-server
 
 24 tools across five families:
 
-| Family | Tools | What it gives Claude |
+| Family | Tools | What it gives the agent |
 |--------|-------|----------------------|
 | **Engine** | `scan_local`, `run_module`, `fix_issue`, `verify_fix`, … | Scan + fix local code |
 | **👁 Eyes** | `capture_screenshot`, `get_visual_diff` | See the rendered page as a real image |
@@ -199,7 +207,8 @@ On any other CI — Jenkins, Buildkite, Bitbucket, Drone — the CLI is the whol
 integration:
 
 ```bash
-npx @gatetest/cli --suite full --junit --sarif
+npx -p @gatetest/cli gatetest --suite full --junit --sarif
+# (bare `npx @gatetest/cli …` works once 1.61.1 is on npm; -p works on every version)
 ```
 
 Onboarding an existing codebase? Pair this with **baseline mode** above so the gate
@@ -232,7 +241,7 @@ not shown)` — and carries it in the signed provenance. No `paths` key, no filt
 Reproduce any failing GitHub Actions run on your laptop in seconds:
 
 ```bash
-gatetest replay https://github.com/owner/repo/actions/runs/12345
+gatetest replay https://github.com/<owner>/<repo>/actions/runs/<run-id>
 ```
 
 This fetches the run, identifies which steps failed, and runs them locally
@@ -310,7 +319,7 @@ gatetest blame src/app.js --line 42
 ```
 
 Both subcommands share the exact same engine as the MCP `resolve_stack_trace`
-and `blame_regression` tools — run them by hand or let Claude call them
+and `blame_regression` tools — run them by hand or let your agent call them
 mid-fix-loop; the answer is identical either way. Run `gatetest trace --help`
 or `gatetest blame --help` for the full option list.
 
@@ -339,7 +348,7 @@ or `gatetest blame --help` for the full option list.
                              │
                              ▼
                 ┌──────────────────────────┐
-                │ Claude — paid, one shot  │
+                │ AI fix — paid, one shot  │
                 │ Result distilled into a  │
                 │ recipe for next time     │
                 └────────────┬─────────────┘
@@ -351,7 +360,7 @@ or `gatetest blame --help` for the full option list.
                 └──────────────────────────┘
 ```
 
-**First time we see a pattern: Claude. Every time after: free.** The longer you run GateTest, the cheaper it gets.
+**First time we see a pattern: the AI layer. Every time after: free.** The longer you run GateTest, the cheaper it gets.
 
 ---
 
@@ -385,15 +394,15 @@ One config, one bill, one gate decision. Twelve-plus tools dissolve into single 
 
 ## Tiers and pricing
 
-Scan tiers are one-time payments via Stripe at checkout — no auto-renew. Continuous and MCP are monthly subscriptions; manage or cancel them yourself at [gatetest.io/billing](https://gatetest.io/billing) (enter your checkout email, get a secure Stripe portal link by email — update your card, view invoices, change plan, or cancel). Refunds only at our discretion for scans that failed to start or crashed mid-way without producing a report (contact `hello@gatetest.ai`).
+Scan tiers are one-time payments via Stripe at checkout — no auto-renew. Continuous and MCP are monthly subscriptions; manage or cancel them yourself at [gatetest.io/billing](https://gatetest.io/billing) (enter your checkout email, get a secure Stripe portal link by email — update your card, view invoices, change plan, or cancel). Refunds only at our discretion for scans that failed to start or crashed mid-way without producing a report (contact `support@gatetest.io`).
 
 | Tier              | Price   | What you get                                                                                                                                       |
 | ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Quick Scan**    | $29     | 4 modules — syntax, linting, secrets, code quality. Fastest path to a first signal. Scan-only — no auto-fix.                                       |
 | **Full Scan**     | $99     | The full engine suite (88 modules; mutation + chaos run via the GitHub Action or a nightly instead — they need a CI runner to execute your test suite, and mutation re-runs it once per mutant). Every scan prints what it deferred and where that work runs. SARIF + JUnit reports via the CLI / GitHub Action. Scan-only — auto-fix ships at the Scan + Fix tier. |
-| **Scan + Fix**    | $199    | Everything in Full, plus a second-Claude pair-review critique on every fix and an architecture-shape design-observations report.                   |
-| **Forensic Scan** | $399    | Everything in Scan + Fix, plus real Claude diagnosis on every finding, cross-finding attack-chain correlation, board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (`mutation: true` / `chaos: true`) — they need a CI runner to execute your test suite and a headless browser, so they ship with the Action rather than the website-only scan. |
-| **Continuous**    | $49/mo  | Scan every push via the GitHub App. Unlimited deterministic push scans plus a monthly Claude AI-review allowance. Fix PRs are a per-scan upsell.    |
+| **Scan + Fix**    | $199    | Everything in Full, plus a second-AI pair-review critique on every fix and an architecture-shape design-observations report.                   |
+| **Forensic Scan** | $399    | Everything in Scan + Fix, plus real AI diagnosis on every finding, cross-finding attack-chain correlation, board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (`mutation: true` / `chaos: true`) — they need a CI runner to execute your test suite and a headless browser, so they ship with the Action rather than the website-only scan. |
+| **Continuous**    | $49/mo  | Scan every push via the GitHub App. Unlimited deterministic push scans plus a monthly AI-review allowance. Fix PRs are a per-scan upsell.    |
 | **MCP**           | $29/mo  | The **hosted** remote MCP endpoint — use GateTest from claude.ai web/mobile or locked-down machines, plus hosted scan history (`gtmcp_` key delivered by email after checkout). The **local** MCP server (`npx @gatetest/mcp-server`) is 100% free — every tool runs on your machine with your keys. |
 
 Live prices and Stripe checkout at [gatetest.io](https://gatetest.io).
@@ -404,8 +413,8 @@ Live prices and Stripe checkout at [gatetest.io](https://gatetest.io).
 
 GateTest is not magic. The things it does not yet do, said out loud:
 
-- **Headless-browser modules (`liveCrawler`, `runtimeErrors`, `explorer`, `chaos`) degrade gracefully on Vercel serverless.** Chromium cannot launch inside the function. The modules emit an info-level skip and the rest of the scan continues — full power requires the CLI, a worker, or local dev.
-- **Hosted website scans read up to 50 source files per scan** (prioritised by relevance). Most small-to-mid repos fit; a large monorepo gets a representative slice. The CLI and GitHub Action scan everything with no cap.
+- **Headless-browser modules (`liveCrawler`, `runtimeErrors`, `explorer`, `chaos`) do not run inside the hosted web request.** The hosted URL scan runs its static probes inline and hands the headless runtime pass to the platform worker tier, best effort — if that dispatch fails the report says so and the rest of the scan continues. Full power requires the CLI, the GitHub Action, or local dev.
+- **Hosted repo scans are capped.** The free Quick tier reads a 60-file sample (manifests first, so monorepo discovery still works); the engine tiers (Full, Scan + Fix, Forensic) read the whole repo up to 4,000 files, bounded by the engine's time budget. The CLI and GitHub Action scan everything with no cap.
 
 The full Known Issues table (with severity and status) lives in [CLAUDE.md](CLAUDE.md) — that file is the project's source of truth.
 
@@ -415,9 +424,9 @@ The full Known Issues table (with severity and status) lives in [CLAUDE.md](CLAU
 
 **Static engine.** 121 modules, every one extending `BaseModule`. Each module is a self-contained scanner that emits checks at three severity levels (error blocks the gate, warning reports, info is informational). The runner is `EventEmitter`-based, supports parallel execution, diff-mode (`--diff` scans only git-changed files), watch mode, and five output formats (Console, JSON, HTML, SARIF for the GitHub Security tab, JUnit XML for any CI). The gate has four small runtime dependencies (`acorn`, `pngjs`, `pixelmatch`, and the MCP SDK) — `node bin/gatetest.js --list` runs anywhere Node 20+ runs.
 
-**Website and payments.** [gatetest.io](https://gatetest.io) is Next.js 16 with the App Router, Tailwind 4, and Stripe in per-scan upfront-charge mode. One-time payment per scan at checkout — no subscription, no auto-renew, no hold-then-capture flow. All scan state is persisted in Stripe metadata so the serverless functions stay stateless across requests — there is no shared in-memory state and no webhook is required for the critical user flow. The scan executes inside the function response and reports back directly.
+**Website and payments.** [gatetest.io](https://gatetest.io) is Next.js 16 with the App Router, Tailwind 4, and Stripe in per-scan upfront-charge mode. One-time payment per scan at checkout — no subscription, no auto-renew, no hold-then-capture flow. All scan state is persisted in Stripe metadata so the request handlers stay stateless across requests — there is no shared in-memory state and no webhook is required for the critical user flow. The scan executes inside the request and reports back directly.
 
-**AI layer.** Claude (Anthropic). On the GitHub Action the customer brings their own `ANTHROPIC_API_KEY` and pays Anthropic directly. On the website the key is managed and the cost is folded into the tier price. Every Claude success is distilled into a recipe by the flywheel orchestrator (see [`lib/`](lib/) and the AI CI-fixer at [`scripts/ai-ci-fixer.js`](scripts/ai-ci-fixer.js)) so subsequent runs on the same pattern are deterministic and free.
+**AI layer.** On the GitHub Action the customer brings their own `ANTHROPIC_API_KEY` and pays the provider directly. On the website the key is managed and the cost is folded into the tier price. Every AI success is distilled into a recipe by the flywheel orchestrator (see [`lib/`](lib/) and the AI CI-fixer at [`scripts/ai-ci-fixer.js`](scripts/ai-ci-fixer.js)) so subsequent runs on the same pattern are deterministic and free.
 
 The codebase ships under MIT, the gate runs locally with no external calls, and every architectural decision is documented inline in [CLAUDE.md](CLAUDE.md).
 
@@ -427,7 +436,7 @@ The codebase ships under MIT, the gate runs locally with no external calls, and 
 
 GateTest is dogfooded against itself on every push, and the team runs the full Forensic pipeline against external production codebases before shipping changes that touch the deeper tiers. The reports below are reproducible artifacts in this repo:
 
-- **AI CI-fixer end-to-end run** — full orchestrator path exercised (log → parse → Claude → patch → gate → commit → push → PR): [docs/proofs/ai-ci-fixer-real-run.md](docs/proofs/ai-ci-fixer-real-run.md)
+- **AI CI-fixer end-to-end run** — full orchestrator path exercised (log → parse → AI → patch → gate → commit → push → PR): [docs/proofs/ai-ci-fixer-real-run.md](docs/proofs/ai-ci-fixer-real-run.md)
 - **GateTest scanning itself** — quick-suite self-scan, 30 of 39 modules pass, 37 errors found and triaged: [docs/proofs/phase-1-self-scan.md](docs/proofs/phase-1-self-scan.md)
 - **Iterative fix loop on the live repo** — one-attempt fix on `src/runtime/alerts.js`, 8.5 seconds wall time, syntax gate green: [docs/proofs/phase-1-self-fix-real.md](docs/proofs/phase-1-self-fix-real.md)
 - **Forensic scan of Crontech.ai** — Bun + Turbo TypeScript monorepo, 754 errors found, 23 of 39 modules pass, two critical attack chains including a supply-chain CI takeover: [docs/proofs/phase-2-3-crontech-real-customer-grade.md](docs/proofs/phase-2-3-crontech-real-customer-grade.md)
@@ -441,7 +450,7 @@ GateTest is dogfooded against itself on every push, and the team runs the full F
 
 ```bash
 git clone https://github.com/crclabs-hq/GateTest
-cd gatetest
+cd GateTest
 npm install
 (cd website && npm install)
 node --test tests/*.test.js

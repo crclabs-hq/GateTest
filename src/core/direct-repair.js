@@ -349,7 +349,7 @@ class DirectRepair {
             }
           }
         } catch (err) {
-          report.skipped.push({ finding, reason: `claude-error: ${err.message}` });
+          report.skipped.push({ finding, reason: `ai-provider-error: ${err.message}` });
           continue;
         }
       }

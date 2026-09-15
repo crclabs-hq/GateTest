@@ -81,19 +81,19 @@ That installs three things:
 ## Turn ON auto-fix (one secret, every repo, forever)
 
 The gate **finds** issues out of the box. To also **fix** them automatically,
-set ONE Anthropic API key as a GitHub organization secret and every repo in
+set ONE AI provider API key (`ANTHROPIC_API_KEY`) as a GitHub organization secret and every repo in
 your org starts opening surgical-fix PRs the moment a scan fails:
 
 1. Go to `https://github.com/organizations/<your-org>/settings/secrets/actions`
 2. Click **New organization secret**
 3. Name: `ANTHROPIC_API_KEY`
-4. Value: your Anthropic API key (`sk-ant-…`)
+4. Value: your API key (`sk-ant-…`)
 5. Repository access: **All repositories** (or **Selected**)
 6. Save
 
 That's it. The next failed gate run on any repo in your org will:
 - Run `gatetest --suite quick --auto-pr` — calls the AI fix engine for every
-  finding with a file path, applies the Claude-generated fixes, commits them,
+  finding with a file path, applies the AI-generated fixes, commits them,
   and opens a PR via the `gh` CLI (one CLI call, no extra workflow steps)
 - Open a `gatetest/auto-repair-<run-id>` branch with the fixes
 - Generate a PR body that lists every finding, marked ✅ (fixed) or
@@ -118,7 +118,7 @@ gatetest --suite quick --auto-pr               # gate runs, AI fixes what
                                                # it can, opens a PR
 ```
 
-Cap: at most 50 fixes per `--auto-pr` invocation, bounded to keep Anthropic
+Cap: at most 50 fixes per `--auto-pr` invocation, bounded to keep API
 spend predictable. Re-run after merging the auto-fix PR to handle any
 remaining findings.
 
@@ -151,7 +151,7 @@ it up on the next CI run. Compounding moat, not drift.
 3. **NEVER** delete `.husky/pre-push` from a protected repo.
 4. **NEVER** delete `.gatetest.json` from a protected repo — it is the marker.
 5. **NEVER** add `continue-on-error: true` to the gate step.
-6. **NEVER** let a future Claude session "simplify" these files away.
+6. **NEVER** let a future AI coding session "simplify" these files away.
 
 Any change that weakens protection requires Craig's explicit authorization.
 See the Bible → **THE FORBIDDEN LIST**.

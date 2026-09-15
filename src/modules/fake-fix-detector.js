@@ -747,7 +747,7 @@ class FakeFixDetectorModule extends BaseModule {
           line: hunk.lineNumber,
           severity: 'info',
           title: 'AI verification skipped (cost cap reached)',
-          explanation: `This diff hunk was not sent to Claude because the per-scan AI spend ceiling of $${ledger.ceiling.toFixed(2)} was reached. Pattern engine results still apply.`,
+          explanation: `This diff hunk was not sent to the AI provider because the per-scan AI spend ceiling of $${ledger.ceiling.toFixed(2)} was reached. Pattern engine results still apply.`,
           suggestion: 'Rerun with a higher tier if you need AI verification on every hunk.',
         });
         continue;
@@ -831,7 +831,7 @@ Be ruthless. We are building a product that kills fake fixes.`;
             line: hunk.lineNumber,
             severity: 'info',
             title: 'AI verification skipped (cost cap reached)',
-            explanation: `This diff hunk was not sent to Claude because the per-scan AI spend ceiling of $${ledger.ceiling.toFixed(2)} would be exceeded.`,
+            explanation: `This diff hunk was not sent to the AI provider because the per-scan AI spend ceiling of $${ledger.ceiling.toFixed(2)} would be exceeded.`,
             suggestion: 'Rerun with a higher tier if you need AI verification on every hunk.',
           });
           continue;
@@ -853,7 +853,7 @@ Be ruthless. We are building a product that kills fake fixes.`;
           file: hunk.file,
           line: hunk.lineNumber,
           severity: 'warning',
-          title: 'Claude call failed for this hunk',
+          title: 'AI provider call failed for this hunk',
           explanation: err.message,
           suggestion: 'Pattern engine results still apply.',
         });
@@ -900,7 +900,7 @@ Be ruthless. We are building a product that kills fake fixes.`;
         line: 0,
         severity: 'info',
         title: `${unverifiedCount} hunk(s) marked unverified — AI cost cap reached`,
-        explanation: `Cost ledger: $${ledger.spent.toFixed(4)} / $${ledger.ceiling.toFixed(2)} spent across ${ledger.calls} Claude call(s).`,
+        explanation: `Cost ledger: $${ledger.spent.toFixed(4)} / $${ledger.ceiling.toFixed(2)} spent across ${ledger.calls} AI provider call(s).`,
         snippet: '',
         informational: true,
       });

@@ -2,7 +2,7 @@
 # GATETEST AI CI-FIXER — STANDALONE INTEGRATION TEMPLATE
 # ============================================================================
 # Drop-in workflow that watches the target repo's "CI" workflow and, when it
-# fails, asks Claude to repair the breakage and opens a fix PR.
+# fails, asks the AI CI-fixer to repair the breakage and opens a fix PR.
 
 name: AI CI Fixer
 
@@ -83,5 +83,4 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           WORKFLOW_RUN_ID:   ${{ github.event.workflow_run.id }}
           MAX_FIX_ATTEMPTS:  '3'
-          CLAUDE_MODEL:      'claude-sonnet-5'
         run: node "$GATETEST_HOME/scripts/ai-ci-fixer.js"

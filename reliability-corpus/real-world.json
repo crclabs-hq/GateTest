@@ -46,28 +46,28 @@
       "url": "https://github.com/sindresorhus/got.git",
       "sha": "687eb7dcc100ea3e548ebba227173b886789e670",
       "why": "TypeScript HTTP client with a benchmark/ tree — a known scope trap",
-      "maxBlocking": 12
+      "maxBlocking": 0
     },
     {
       "name": "hono",
       "url": "https://github.com/honojs/hono.git",
       "sha": "eebdf7be39abf0a872671835ccce0c4f03ea497a",
       "why": "every crossFileTaint finding here was false: c.req.query() read as SQL, RegExp.exec() as command exec; 2026-09-05 importCycle type-only elision: the four import cycles it blocked on read every binding inside function bodies — deferred, now a warning — ceiling ratchets down",
-      "maxBlocking": 20
+      "maxBlocking": 17
     },
     {
       "name": "zod",
       "url": "https://github.com/colinhacks/zod.git",
       "sha": "7a00236683c79000dbab0d92f6faf0b7fba39f59",
       "why": "monorepo with a docs site and benchmarks; was the worst case at 50, of which 33 were errorSwallow — 23 in benchmark harnesses, 7 the parsing library's coerce-then-check idiom (2026-09-04)",
-      "maxBlocking": 5
+      "maxBlocking": 3
     },
     {
       "name": "django",
       "url": "https://github.com/django/django.git",
       "sha": "b3f4d83aad7f589f165a6d8b020b7acba4936f35",
       "why": "Python at scale — the ORM builds SQL by string in django/db, which is the one place that is the job; 74 of 76 \"secrets\" were test fixtures before the identifier-keyed rules learned about test paths",
-      "maxBlocking": 59
+      "maxBlocking": 46
     },
     {
       "name": "rails",
@@ -88,7 +88,7 @@
       "url": "https://github.com/gin-gonic/gin.git",
       "sha": "dcaa4296d111981ffb31ac3eba90bb63e1eb5ab9",
       "why": "Go — the ignored-error idiom the go module could not see until 2026-09-04",
-      "maxBlocking": 1
+      "maxBlocking": 0
     },
     {
       "name": "axum",
@@ -151,7 +151,7 @@
       "url": "https://github.com/prisma/prisma.git",
       "sha": "dd846dcc8f0653099d1a10c457b1603d96bfafc7",
       "why": "pnpm monorepo, packages/** nesting, a SQL toolkit that builds SQL by design — first contact 90 blocking: `${STORAGE_TABLE}` constants as injection, seeding loops in test/ as N+1, teardown catches as swallows, tsconfig/ and turbo.json as invalid JSON, `base.sha` as shell injection, an un-runnable test:integration as failing tests; what remains is DDL with a computed database name, three import cycles, telemetry catches and a dev-tool page without a description; 2026-09-05 importCycle type-only elision: the three import cycles it blocked on read their bindings in parameter defaults and method bodies — deferred, now a warning — ceiling ratchets down",
-      "maxBlocking": 13
+      "maxBlocking": 12
     },
     {
       "name": "NodeGoat",

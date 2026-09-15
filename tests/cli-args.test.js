@@ -28,14 +28,19 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const {
   parseArgs,
   describeArgProblems,
+  hasArgProblems,
+  argProblemsAreFatal,
+  projectPathProblem,
   suggestFlag,
   KNOWN_FLAGS,
   FLAG_SPEC,
+  USAGE_EXIT_CODE,
 } = require('../src/core/cli-args');
 
 // ---------------------------------------------------------------------------
@@ -230,4 +235,107 @@ test('every spec declares a key and a known type', () => {
     assert.ok(types.has(spec.type), `bad type "${spec.type}" on ${spec.flags.join(',')}`);
     assert.ok(Array.isArray(spec.flags) && spec.flags.length > 0);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Unknown flags: advisory on a laptop, fatal under --strict and in CI.
+//
+// Reproduced 2026-09-14: `gatetest --bogus-flag --suite quick` printed one
+// warning line and then GATE: PASSED, exit 0. In a workflow log nobody reads
+// that line; a green check whose command line was partly ignored is not a
+// pass.
+// ---------------------------------------------------------------------------
+
+test('argProblemsAreFatal: advisory by default — no strict, no CI', () => {
+  const args = parseArgs(['--bogus-flag']);
+  assert.equal(argProblemsAreFatal(args, {}), false);
+  assert.equal(argProblemsAreFatal(args, { CI: '' }), false);
+  assert.equal(argProblemsAreFatal(args, { CI: 'false' }), false);
+  assert.equal(argProblemsAreFatal(args, { CI: '0' }), false);
+});
+
+test('argProblemsAreFatal: --strict makes an unknown flag a usage error', () => {
+  assert.equal(argProblemsAreFatal(parseArgs(['--bogus-flag', '--strict']), {}), true);
+});
+
+test('argProblemsAreFatal: CI makes an unknown flag a usage error', () => {
+  assert.equal(argProblemsAreFatal(parseArgs(['--bogus-flag']), { CI: 'true' }), true);
+  assert.equal(argProblemsAreFatal(parseArgs(['--bogus-flag']), { CI: '1' }), true);
+});
+
+test('argProblemsAreFatal: a missing or invalid value is the same mistake as an unknown flag', () => {
+  assert.equal(argProblemsAreFatal(parseArgs(['--suite', '--strict']), {}), true, '--suite with no value');
+  assert.equal(argProblemsAreFatal(parseArgs(['--crawl-max', 'lots', '--strict']), {}), true, 'non-numeric --crawl-max');
+});
+
+test('argProblemsAreFatal: a clean command line is never fatal, strict or not', () => {
+  assert.equal(argProblemsAreFatal(parseArgs(['--suite', 'quick', '--strict']), { CI: 'true' }), false);
+  assert.equal(hasArgProblems(parseArgs(['--suite', 'quick'])), false);
+});
+
+test('describeArgProblems: the fatal wording does not claim the scan ran', () => {
+  const args = parseArgs(['--bogus-flag']);
+  const advisory = describeArgProblems(args).join('\n');
+  assert.match(advisory, /Warning: unknown option "--bogus-flag" — ignored/);
+  assert.doesNotMatch(advisory, /Usage error/);
+
+  const fatal = describeArgProblems(args, { fatal: true }).join('\n');
+  assert.match(fatal, /Error: unknown option "--bogus-flag" — refused/);
+  assert.match(fatal, /Usage error: .*exit 2.*Nothing was scanned/);
+  assert.doesNotMatch(fatal, /ignored/);
+});
+
+test('bin/gatetest.js consults argProblemsAreFatal and exits with the usage code', () => {
+  const bin = fs.readFileSync(path.join(__dirname, '..', 'bin', 'gatetest.js'), 'utf8');
+  assert.match(bin, /argProblemsAreFatal\(args\)/, 'the bin must ask the shared predicate');
+  assert.match(bin, /process\.exit\(USAGE_EXIT_CODE\)/, 'a fatal arg problem must exit with the usage code');
+  assert.equal(USAGE_EXIT_CODE, 2);
+});
+
+// ---------------------------------------------------------------------------
+// --project must name an existing directory.
+//
+// Reproduced 2026-09-14: `gatetest --project ./does-not-exist --suite quick`
+// printed GATE: PASSED, exit 0, and CREATED the directory so it had somewhere
+// to write the report of nothing.
+// ---------------------------------------------------------------------------
+
+test('projectPathProblem: an existing directory is fine', () => {
+  assert.equal(projectPathProblem(__dirname), null);
+  assert.equal(projectPathProblem(path.relative(process.cwd(), __dirname) || '.'), null);
+});
+
+test('projectPathProblem: a path that does not exist is named, resolved, and never created', () => {
+  const missing = path.join(os.tmpdir(), `gt-no-such-project-${process.pid}-${Date.now()}`);
+  const problem = projectPathProblem(missing);
+  assert.match(problem, /does not exist/);
+  assert.ok(problem.includes(path.resolve(missing)), 'the resolved path is in the message');
+  assert.equal(fs.existsSync(missing), false, 'checking must not create the directory');
+});
+
+test('projectPathProblem: a file is not a project', () => {
+  assert.match(projectPathProblem(__filename), /not a directory/);
+});
+
+test('projectPathProblem: an empty or missing value is a usage error, not cwd', () => {
+  assert.match(projectPathProblem(''), /needs a path/);
+  assert.match(projectPathProblem(undefined), /needs a path/);
+});
+
+test('projectPathProblem: an unreadable path is reported, not guessed', () => {
+  const fakeFs = { statSync() { const e = new Error('EACCES: permission denied'); e.code = 'EACCES'; throw e; } };
+  assert.match(projectPathProblem('/somewhere', fakeFs), /cannot be read/);
+});
+
+test('bin/gatetest.js checks --project before anything can create it (scan flow and gatetest fix)', () => {
+  const bin = fs.readFileSync(path.join(__dirname, '..', 'bin', 'gatetest.js'), 'utf8');
+  const uses = bin.match(/requireProjectDir\(projectRoot\)/g) || [];
+  assert.ok(uses.length >= 2, `expected the scan flow AND \`gatetest fix\` to check the path, found ${uses.length}`);
+  // The check must come before GateTestConfig / init / the reporters — the
+  // first thing after the root is resolved.
+  const resolved = bin.indexOf('const projectRoot = args.project || process.cwd();');
+  const checked = bin.indexOf('requireProjectDir(projectRoot);', resolved);
+  const constructed = bin.indexOf('new GateTest(projectRoot', resolved);
+  assert.ok(resolved > -1 && checked > resolved && checked < constructed,
+    'requireProjectDir must run between resolving the root and constructing GateTest');
 });

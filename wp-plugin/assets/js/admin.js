@@ -1,96 +1,39 @@
 /**
  * GateTest Health Check — admin page JS.
  * Handles the "Scan my site now" button + report rendering.
+ *
+ * Every user-visible string comes from window.gatetestHc.i18n (set by
+ * wp_localize_script in includes/admin-page.php) so it is translatable.
+ * The stored result of the last scan arrives the same way
+ * (window.gatetestHc.lastResult) and is rendered on page load — the
+ * report container is always present, so a first scan and a reload both
+ * show findings.
  */
 (function ($) {
     'use strict';
 
     $(function () {
+        var config = window.gatetestHc || {};
+        var i18n = config.i18n || {};
         var $btn = $('#gatetest-hc-run-scan');
         var $status = $('#gatetest-hc-scan-status');
         var $report = $('#gatetest-hc-report');
+        var $lastScanTime = $('#gatetest-hc-last-scan-time');
 
-        if (!$btn.length) {
+        if (!$report.length) {
             return;
         }
 
-        $btn.on('click', function (e) {
-            e.preventDefault();
-            $btn.prop('disabled', true);
-            $status.attr('class', 'gatetest-hc-status is-scanning').text(
-                'Probing your site… this usually takes 20-60 seconds.'
-            );
-            $report.empty();
+        function t(key, fallback) {
+            return typeof i18n[key] === 'string' ? i18n[key] : fallback;
+        }
 
-            $.post(window.gatetestHc.ajaxUrl, {
-                action: 'gatetest_hc_run_scan',
-                nonce: window.gatetestHc.nonce
-            })
-                .done(function (response) {
-                    $btn.prop('disabled', false);
-                    if (!response || !response.success) {
-                        $status.attr('class', 'gatetest-hc-status is-error').text(
-                            'Scan failed: ' + (response && response.data && response.data.message
-                                ? response.data.message
-                                : 'unknown error')
-                        );
-                        return;
-                    }
-                    renderReport(response.data);
-                })
-                .fail(function (xhr) {
-                    $btn.prop('disabled', false);
-                    var message = 'Network error.';
-                    if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
-                        message = xhr.responseJSON.data.message;
-                    }
-                    $status.attr('class', 'gatetest-hc-status is-error').text('Scan failed: ' + message);
-                });
-        });
-
-        function renderReport(data) {
-            var findings = (data && Array.isArray(data.findings)) ? data.findings : [];
-            var summary = {
-                errors: data.errorCount || 0,
-                warnings: data.warningCount || 0,
-                info: data.infoCount || 0,
-                total: data.totalFindings || findings.length
-            };
-
-            $status
-                .attr('class', 'gatetest-hc-status is-success')
-                .text(
-                    'Scan complete. Found ' + summary.errors + ' error(s), ' +
-                    summary.warnings + ' warning(s).'
-                );
-
-            if (findings.length === 0) {
-                $report.html(
-                    '<p><strong>Nothing major found.</strong> ' +
-                    'Your site passed every check in the free-preview tier. ' +
-                    'Upgrade to see the full report.</p>'
-                );
-                return;
-            }
-
-            var html = '';
-            findings.forEach(function (f) {
-                var severityClass = 'severity-' + (f.severity || 'info');
-                html += '<div class="gatetest-hc-finding ' + severityClass + '">';
-                html += '<div class="gatetest-hc-finding-title">' + escapeHtml(f.title || '(untitled)') + '</div>';
-                html += '<div class="gatetest-hc-finding-body">' + escapeHtml(f.body || '') + '</div>';
-                html += '</div>';
+        // sprintf-lite: replaces %1$s, %2$s … with the given arguments.
+        function format(template, args) {
+            return String(template).replace(/%(\d+)\$s/g, function (_, n) {
+                var v = args[Number(n) - 1];
+                return v == null ? '' : String(v);
             });
-
-            if (data.preview && data.paywall && data.paywall.remainingCount > 0) {
-                html += '<div class="gatetest-hc-paywall">';
-                html += '<h3>' + data.paywall.remainingCount + ' more finding(s) hidden in the free preview</h3>';
-                html += '<p>Upgrade to GateTest Starter ($29/mo) to see them all + get auto-fix.</p>';
-                html += '<p><a href="https://gatetest.io/pricing?from=wp-plugin" target="_blank" rel="noopener" class="button button-primary">See pricing</a></p>';
-                html += '</div>';
-            }
-
-            $report.html(html);
         }
 
         function escapeHtml(s) {
@@ -104,5 +47,105 @@
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
         }
+
+        function setStatus(state, text) {
+            $status.attr('class', 'gatetest-hc-status ' + state).text(text);
+        }
+
+        function checkoutUrl(data) {
+            var base = typeof config.apiBase === 'string' ? config.apiBase.replace(/\/$/, '') : '';
+            var cta = data && data.paywall && typeof data.paywall.ctaUrl === 'string' ? data.paywall.ctaUrl : '';
+            if (cta.charAt(0) === '/' && base) {
+                return base + cta;
+            }
+            if (/^https:\/\//.test(cta)) {
+                return cta;
+            }
+            return config.checkoutUrl || '';
+        }
+
+        function renderReport(data, announce) {
+            var findings = (data && Array.isArray(data.findings)) ? data.findings : [];
+            var summary = {
+                errors: (data && data.errorCount) || 0,
+                warnings: (data && data.warningCount) || 0,
+                total: (data && data.totalFindings) || findings.length
+            };
+
+            if (announce) {
+                setStatus('is-success', format(t('complete', 'Scan complete. Found %1$s error(s), %2$s warning(s).'), [summary.errors, summary.warnings]));
+            }
+
+            if (findings.length === 0) {
+                $report.html('<p><strong>' + escapeHtml(t('nothingFound', 'Nothing major found.')) + '</strong> ' +
+                    escapeHtml(t('nothingFoundBody', 'Your site passed every check in the free health check.')) + '</p>');
+                return;
+            }
+
+            var html = '';
+            findings.forEach(function (f) {
+                var severity = String(f.severity || 'info').replace(/[^a-z]/g, '') || 'info';
+                html += '<div class="gatetest-hc-finding severity-' + severity + '">';
+                html += '<div class="gatetest-hc-finding-title">' + escapeHtml(f.title || t('untitled', '(untitled)')) + '</div>';
+                html += '<div class="gatetest-hc-finding-body">' + escapeHtml(f.body || '') + '</div>';
+                html += '</div>';
+            });
+
+            if (data.preview && data.paywall && data.paywall.remainingCount > 0) {
+                var url = checkoutUrl(data);
+                html += '<div class="gatetest-hc-paywall">';
+                html += '<h3>' + escapeHtml(format(t('hidden', '%1$s more finding(s) are in the full report'), [data.paywall.remainingCount])) + '</h3>';
+                html += '<p>' + escapeHtml(t('fullReport', 'The full report is a one-time $19 purchase on gatetest.io — every finding, with step-by-step fix instructions.')) + '</p>';
+                if (url) {
+                    html += '<p><a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" class="button button-primary">' +
+                        escapeHtml(t('getFullReport', 'Get the full report ($19, one-time)')) + '</a></p>';
+                }
+                html += '</div>';
+            }
+
+            $report.html(html);
+        }
+
+        // Page load: show whatever the last scan (button or weekly) stored.
+        if (config.lastResult && typeof config.lastResult === 'object') {
+            renderReport(config.lastResult, false);
+        } else {
+            $report.html('<p class="gatetest-hc-empty">' + escapeHtml(t('noScanYet', 'No scan yet. Click "Scan my site now" to run the free health check.')) + '</p>');
+        }
+
+        if (!$btn.length) {
+            return;
+        }
+
+        $btn.on('click', function (e) {
+            e.preventDefault();
+            $btn.prop('disabled', true);
+            setStatus('is-scanning', t('scanning', 'Probing your site… this usually takes 20-60 seconds.'));
+
+            $.post(config.ajaxUrl, {
+                action: 'gatetest_hc_run_scan',
+                nonce: config.nonce
+            })
+                .done(function (response) {
+                    $btn.prop('disabled', false);
+                    if (!response || !response.success) {
+                        var message = response && response.data && response.data.message
+                            ? response.data.message
+                            : t('unknownError', 'unknown error');
+                        setStatus('is-error', format(t('failed', 'Scan failed: %1$s'), [message]));
+                        return;
+                    }
+                    $lastScanTime.text(t('justNow', 'Last scanned just now')).show();
+                    renderReport(response.data, true);
+                })
+                .fail(function (xhr) {
+                    $btn.prop('disabled', false);
+                    var message = t('networkError', 'Network error.');
+                    if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                        message = xhr.responseJSON.data.message;
+                    }
+                    setStatus('is-error', format(t('failed', 'Scan failed: %1$s'), [message]));
+                });
+        });
     });
 })(jQuery);

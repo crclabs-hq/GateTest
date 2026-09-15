@@ -195,7 +195,7 @@ async function correlateFindings(opts) {
       ok: false,
       chains: [],
       summary: `cross-finding correlation: failed (${message})`,
-      reason: `Claude API error: ${message}`,
+      reason: `AI provider error: ${message}`,
     };
   }
 
@@ -259,7 +259,7 @@ function renderCorrelationReport(result) {
     lines.push('');
     lines.push('This is the *good* outcome. It means your security posture has no compounding weaknesses.');
   } else {
-    lines.push(`Claude analysed ${result.chains.length === 1 ? 'this chain' : `these ${result.chains.length} chains`} across the full finding set. Each chain combines individually-survivable findings into something materially worse than the sum of its parts.`);
+    lines.push(`The AI analysed ${result.chains.length === 1 ? 'this chain' : `these ${result.chains.length} chains`} across the full finding set. Each chain combines individually-survivable findings into something materially worse than the sum of its parts.`);
     lines.push('');
     for (const chain of result.chains) {
       lines.push(`### ${SEVERITY_BADGE[chain.severity] || chain.severity} — ${chain.title}`);

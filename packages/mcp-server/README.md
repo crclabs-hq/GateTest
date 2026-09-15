@@ -1,8 +1,8 @@
 # @gatetest/mcp-server
 
-**Give Claude eyes, ears, and hands** — the three capabilities missing from every AI coding agent.
+**Give your AI agent eyes, ears, and hands** — the three capabilities missing from every AI coding agent.
 
-- **Eyes** — `capture_screenshot` returns a real image of the rendered page. Claude sees nav, layout, broken CTAs, tiny fonts. Works with `localhost`.
+- **Eyes** — `capture_screenshot` returns a real image of the rendered page. The agent sees nav, layout, broken CTAs, tiny fonts. Works with `localhost`.
 - **Ears** — `get_production_errors` pulls file:line from Sentry/Datadog/Rollbar. `run_live_checks` hears JS errors, CSP violations, API timeouts on any live URL.
 - **Hands** — `verify_fix` re-runs the gate on exactly the files you edited and returns a hard ✅/❌. No more "I think that fixed it."
 - **Root Cause** — `resolve_stack_trace` turns a minified bundle location into the original file:line via source maps. `blame_regression` finds which git commit introduced a specific line — read-only, never checks out or mutates the working tree.
@@ -49,7 +49,7 @@ Works with Claude Code, Cursor, Windsurf, Continue, Cline, and any MCP-compatibl
 |------|-------------|
 | `fix_issue` | After `scan_local` identifies a specific error — AI writes the fix in place |
 | `compose_pr` | Render a PR body for a batch of fixes |
-| `explain_finding` | Forensic-tier Claude diagnosis: explanation, root cause, recommendation |
+| `explain_finding` | Forensic-tier AI diagnosis: explanation, root cause, recommendation |
 
 ### Hosted API (scans via gatetest.io, no local filesystem access needed)
 
@@ -64,7 +64,7 @@ Works with Claude Code, Cursor, Windsurf, Continue, Cline, and any MCP-compatibl
 
 | Tool | When to use |
 |------|-------------|
-| `capture_screenshot` | After every UI change — returns a real JPEG/PNG image Claude can see |
+| `capture_screenshot` | After every UI change — returns a real JPEG/PNG image the agent can see |
 | `get_visual_diff` | After a visual regression scan — baseline vs current vs diff composite |
 
 ### 👂 EARS — hear what's breaking
@@ -88,7 +88,7 @@ Works with Claude Code, Cursor, Windsurf, Continue, Cline, and any MCP-compatibl
 | `blame_regression` | Find which git commit introduced a specific file:line (or rank candidates across several hits) — read-only |
 
 Both are also CLI subcommands (`gatetest trace`, `gatetest blame`) backed by
-the exact same engine — use them by hand or let Claude call them mid-fix-loop.
+the exact same engine — use them by hand or let your agent call them mid-fix-loop.
 
 ## Agent workflow
 
@@ -108,7 +108,7 @@ run_live_checks { url: "http://localhost:3000" }
 
 ## Example prompts
 
-Once installed, ask Claude:
+Once installed, ask your agent:
 
 - *"What are the top errors real users are hitting right now?"* → `get_production_errors`
 - *"Show me what the pricing page looks like on mobile"* → `capture_screenshot { url: "...", width: 390 }`

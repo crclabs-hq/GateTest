@@ -71,7 +71,7 @@ export default function AdminLogin({
             <p className="text-sm text-muted">
               Admin access is not configured. Set{" "}
               <code className="font-mono text-xs">GATETEST_ADMIN_PASSWORD</code> or configure
-              GitHub OAuth environment variables in Vapron &rarr; Platform secrets.
+              GitHub OAuth environment variables in Tallrig &rarr; Platform secrets.
             </p>
           </div>
         )}

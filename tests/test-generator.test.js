@@ -223,13 +223,13 @@ test('generateTestForFix — empty response rejected', async () => {
   assert.match(result.reason, /empty/);
 });
 
-test('generateTestForFix — Claude API error captured, not thrown', async () => {
+test('generateTestForFix — AI provider error captured, not thrown', async () => {
   const result = await generateTestForFix({
     fix: okFix,
     askClaudeForTest: async () => { throw new Error('ECONNRESET'); },
   });
   assert.equal(result.ok, false);
-  assert.match(result.reason, /Claude API error: ECONNRESET/);
+  assert.match(result.reason, /AI provider error: ECONNRESET/);
 });
 
 test('generateTestForFix — non-testable file (config) skipped', async () => {
@@ -322,7 +322,7 @@ test('generateTestsForFixes — Claude failure on one fix does not abort batch',
   });
   assert.equal(result.tests.length, 2);
   assert.equal(result.skipped.length, 1);
-  assert.match(result.skipped[0].reason, /Claude API error/);
+  assert.match(result.skipped[0].reason, /AI provider error/);
 });
 
 test('generateTestsForFixes — input validation', async () => {

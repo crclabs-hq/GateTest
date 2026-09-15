@@ -46,18 +46,18 @@
       "url": "https://github.com/honojs/hono.git",
       "sha": "eebdf7be39abf0a872671835ccce0c4f03ea497a",
       "why": "every crossFileTaint finding here was false: c.req.query() read as SQL, RegExp.exec() as command exec; 2026-09-05 importCycle type-only elision: the four import cycles it blocked on read every binding inside function bodies — deferred, now a warning — ceiling ratchets down",
-      "blocking": 20,
-      "ceiling": 20,
-      "softened": 55
+      "blocking": 17,
+      "ceiling": 17,
+      "softened": 57
     },
     {
       "name": "zod",
       "url": "https://github.com/colinhacks/zod.git",
       "sha": "7a00236683c79000dbab0d92f6faf0b7fba39f59",
       "why": "monorepo with a docs site and benchmarks; was the worst case at 50, of which 33 were errorSwallow — 23 in benchmark harnesses, 7 the parsing library's coerce-then-check idiom (2026-09-04)",
-      "blocking": 5,
-      "ceiling": 5,
-      "softened": 10
+      "blocking": 3,
+      "ceiling": 3,
+      "softened": 12
     },
     {
       "name": "django",
@@ -91,8 +91,8 @@
       "url": "https://github.com/gin-gonic/gin.git",
       "sha": "dcaa4296d111981ffb31ac3eba90bb63e1eb5ab9",
       "why": "Go — the ignored-error idiom the go module could not see until 2026-09-04",
-      "blocking": 1,
-      "ceiling": 1,
+      "blocking": 0,
+      "ceiling": 0,
       "softened": 0
     },
     {
@@ -172,8 +172,8 @@
       "url": "https://github.com/prisma/prisma.git",
       "sha": "dd846dcc8f0653099d1a10c457b1603d96bfafc7",
       "why": "pnpm monorepo, packages/** nesting, a SQL toolkit that builds SQL by design — first contact 90 blocking: `${STORAGE_TABLE}` constants as injection, seeding loops in test/ as N+1, teardown catches as swallows, tsconfig/ and turbo.json as invalid JSON, `base.sha` as shell injection, an un-runnable test:integration as failing tests; what remains is DDL with a computed database name, three import cycles, telemetry catches and a dev-tool page without a description; 2026-09-05 importCycle type-only elision: the three import cycles it blocked on read their bindings in parameter defaults and method bodies — deferred, now a warning — ceiling ratchets down",
-      "blocking": 13,
-      "ceiling": 13,
+      "blocking": 12,
+      "ceiling": 12,
       "softened": 18
     },
     {
@@ -191,7 +191,7 @@
     "bands": [
       {
         "confidence": 1,
-        "precision": 207,
+        "precision": 175,
         "recall": 53,
         "rules": {
           "precision": {
@@ -199,24 +199,15 @@
             "python:exec": 4,
             "error-swallow:catch-noop": 4,
             "auth-bypass": 1,
-            "secrets": 7,
-            "security:secrets-scan": 3,
-            "error-swallow:empty-catch": 15,
-            "tls-security:js-reject-unauthorized": 3,
-            "tls-security:js-strict-ssl": 1,
             "quality:console.log/debug/info found": 7,
             "quality:innerHTML assignment detected — use textContent or sanitize": 4,
             "perf:event-cleanup": 13,
             "security:innerHTML assignment": 3,
+            "error-swallow:empty-catch": 7,
             "n-plus-one:query-in-loop": 2,
             "race-condition:fs-toctou": 1,
             "hardcoded-url:localhost": 4,
-            "bash-safety:pipe-true": 3,
-            "bash-safety:devnull-swallow": 1,
-            "quality:eval() usage detected": 5,
-            "security:eval()": 5,
             "error-swallow:log-and-eat": 13,
-            "syntax": 1,
             "visual:viewport": 5,
             "a11y:input-label": 10,
             "a11y:html-lang": 4,
@@ -224,22 +215,24 @@
             "perf:render-blocking": 1,
             "perf:lazy-loading": 1,
             "security:secret": 2,
+            "security:secrets-scan": 2,
             "links:dead-links": 2,
             "links:javascript-href": 2,
             "ci-security:branch-pin": 6,
-            "shell:unsafe-rm": 2,
-            "datetime-bug:naive-now": 7,
-            "cookie-sec:py-cookie-httponly-false": 1,
             "python:sql-concat": 11,
+            "secrets": 3,
+            "quality:eval() usage detected": 4,
+            "security:eval()": 4,
             "dockerfile:curl-pipe-sh": 1,
             "ruby:system-interp": 2,
             "ruby:eval": 5,
             "a11y:img-alt": 6,
             "a11y:contrast-static": 2,
             "k8s:image-tag": 1,
-            "ci-security:codeql-sarif-missing-actions-read": 1,
             "rust:unimplemented": 1,
+            "shell:unsafe-rm": 1,
             "php:eval": 2,
+            "bash-safety:pipe-true": 2,
             "secrets:gitignore-.env": 1,
             "kotlin:todo-call": 6,
             "security:npm-audit:ws": 1,
@@ -290,16 +283,19 @@
       },
       {
         "confidence": 0.6,
-        "precision": 87,
+        "precision": 92,
         "recall": 0,
         "rules": {
           "precision": {
-            "quality:eval() usage detected": 9,
+            "security:secrets-scan": 1,
+            "quality:eval() usage detected": 10,
             "a11y:html-lang": 5,
             "a11y:img-alt": 11,
             "a11y:input-label": 37,
             "perf:lazy-loading": 2,
-            "security:eval()": 3,
+            "security:eval()": 4,
+            "bash-safety:pipe-true": 1,
+            "bash-safety:devnull-swallow": 1,
             "syntax": 1,
             "quality:innerHTML assignment detected — use textContent or sanitize": 2,
             "perf:render-blocking": 2,
@@ -385,61 +381,61 @@
     "sweep": [
       {
         "threshold": 0.5,
-        "precisionBlocking": 294,
+        "precisionBlocking": 267,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.6,
-        "precisionBlocking": 294,
+        "precisionBlocking": 267,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.65,
-        "precisionBlocking": 207,
+        "precisionBlocking": 175,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.7,
-        "precisionBlocking": 207,
+        "precisionBlocking": 175,
         "recallBlocking": 53,
         "shipped": true
       },
       {
         "threshold": 0.75,
-        "precisionBlocking": 207,
+        "precisionBlocking": 175,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.8,
-        "precisionBlocking": 207,
+        "precisionBlocking": 175,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.85,
-        "precisionBlocking": 207,
+        "precisionBlocking": 175,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.9,
-        "precisionBlocking": 207,
+        "precisionBlocking": 175,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.95,
-        "precisionBlocking": 207,
+        "precisionBlocking": 175,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 1,
-        "precisionBlocking": 207,
+        "precisionBlocking": 175,
         "recallBlocking": 53,
         "shipped": false
       }

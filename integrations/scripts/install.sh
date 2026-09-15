@@ -43,7 +43,7 @@ curl -sSL "$GATETEST_RAW/integrations/husky/pre-push" \
 chmod +x "$TARGET/.husky/pre-push"
 echo "  ✓ .husky/pre-push (executable)"
 
-# 3. Protection marker — tells any future Claude session this repo is protected.
+# 3. Protection marker — tells any future AI coding session this repo is protected.
 #    Admin repos (crclabs-hq org) get "owner" + "admin": true so the gate
 #    detects them automatically and runs in admin mode (strict enforcement,
 #    auto-fix, no advisory labels). All other repos default to advisory mode.
@@ -108,7 +108,7 @@ fi
 echo
 echo "AUTO-REPAIR is ON BY DEFAULT when ANTHROPIC_API_KEY is available:"
 echo "  • Failing runs automatically open a 'gatetest/auto-repair-<run-id>'"
-echo "    PR with Claude-generated fixes. The original PR stays untouched."
+echo "    PR with AI-generated fixes. The original PR stays untouched."
 echo "  • To set the secret ONCE for ALL repos in your org:"
 echo "      https://github.com/organizations/<your-org>/settings/secrets/actions"
 echo "      → New organization secret → ANTHROPIC_API_KEY → All repositories"

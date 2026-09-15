@@ -62,6 +62,20 @@ function plainSummaryLines(summary, ctx = {}, { color = true } = {}) {
     lines.push(`  ${c.dim}${baselined} pre-existing finding(s) baselined — not blocking. Refresh: gatetest --baseline${c.off}`);
   }
 
+  // An empty scan is not a clean one. No source file under the root means
+  // every module passed by default; say that INSTEAD of "You're good", and
+  // under --strict (the gate is BLOCKED with zero findings) say why.
+  if (summary.nothingChecked) {
+    const where = summary.projectRoot || 'the project root';
+    lines.push(`  ${c.y}${c.bold}⚠ Nothing was checked.${c.off} No source files found under ${where}.`);
+    if (summary.gateStatus === 'PASSED') {
+      lines.push(`  ${c.dim}The gate passed by default, not by inspection. Check the --project path; pass --strict to make an empty scan fail.${c.off}`, '');
+    } else {
+      lines.push(`  ${c.r}${c.bold}✗ Blocked under --strict:${c.off} an empty scan enforces nothing. Check the --project path.`, '');
+    }
+    return lines;
+  }
+
   if (summary.gateStatus === 'PASSED') {
     lines.push(`  ${c.g}${c.bold}✓ You're good.${c.off} Nothing${baselined > 0 ? ' NEW' : ''} is blocking this commit.`);
     if (soft || warnings) {

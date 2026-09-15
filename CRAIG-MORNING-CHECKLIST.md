@@ -98,7 +98,7 @@ your Resend state, so I left it in a known condition and gated it behind env var
 - [ ] GitHub Marketplace listing: the copy in
       `integrations/marketplace/listing.md` is updated; paste the new URLs in.
 
-## 7. Vapron dashboard env vars
+## 7. Tallrig dashboard env vars (the platform was renamed from Vapron 2026-09-14)
 
 Now belt-and-braces rather than load-bearing — the code already defaults to
 `.io` — but set them, because they're what a rollback would flip.
@@ -109,7 +109,8 @@ Now belt-and-braces rather than load-bearing — the code already defaults to
 - [ ] Leave `GATETEST_BADGE_ORIGIN` unset — it tracks the base URL on purpose.
 - [ ] Still outstanding from before: rename `RESENDER_API_KEY` →
       `RESEND_API_KEY`, add `CRON_SECRET`, `GITHUB_WEBHOOK_SECRET`,
-      `VAPRON_BASE_URL`, `VAPRON_API_TOKEN`, `VAPRON_DISPATCH_SECRET`.
+      `TALLRIG_BASE_URL`, `TALLRIG_API_TOKEN`, `TALLRIG_DISPATCH_SECRET`
+      (the `VAPRON_*` names are still read as aliases — see `docs/ops/tallrig-cutover.md`).
 
 ---
 
@@ -173,15 +174,15 @@ I did not re-check these; they may already be done.
 
 - [ ] Wire the live trust badge: `GATETEST_INTERNAL_TOKEN` secret +
       `SELF_SCAN_STATUS_URL` variable on the repo, same token in the server env.
-- [ ] Rotate the `vpk_live_...` Vapron key that was pasted into a chat
+- [ ] Rotate the `vpk_live_...` platform key (Tallrig, then Vapron) that was pasted into a chat
       (it's in transcripts and shell history).
-- [ ] Vapron: add + DNS-verify a sending domain, or no tenant can send email.
+- [ ] Tallrig: add + DNS-verify a sending domain, or no tenant can send email.
 - [ ] Pricing wording ruling: the page says Quick/Full are "free via the
       open-source CLI" directly above $29/$99 cards. Both are true (free =
       local CLI, paid = hosted scan + report) but the page never says so.
       Also: the support-chat prompt lists a "$19 WordPress Health Check" tier
       that is not one of the Bible's six — confirm real or remove.
-- [ ] Optional: flip the Vapron CI gate from advisory to hard (Bible Forbidden
+- [ ] Optional: flip the Tallrig repo's CI gate from advisory to hard (Bible Forbidden
       #24 wants CI gates blocking; advisory was your 2026-05-08 call).
 
 ---

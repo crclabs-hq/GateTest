@@ -2,7 +2,7 @@
  * Signal Bus E1 — cron-driven worker tick.
  *
  * Triggered by:
- *   1. Vapron scheduler (crontab / systemd timer, see docs/deploy/VAPRON-DEPLOY.md)
+ *   1. Platform (Tallrig) scheduler (crontab / systemd timer, see docs/deploy/VAPRON-DEPLOY.md)
  *   2. Inline kick from /api/events/push and /api/webhook after enqueue
  *   3. Admin-auth'd manual trigger (for debugging)
  *

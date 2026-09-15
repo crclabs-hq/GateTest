@@ -293,13 +293,13 @@ test('annotateArchitecture — too few source files → returns ok=false with re
   assert.match(result.reason, /codebase too small/);
 });
 
-test('annotateArchitecture — Claude API error captured', async () => {
+test('annotateArchitecture — AI provider error captured', async () => {
   const result = await annotateArchitecture({
     fileContents: sufficientWorkspace,
     askClaudeForArchitecture: async () => { throw new Error('ECONNRESET'); },
   });
   assert.equal(result.ok, false);
-  assert.match(result.reason, /Claude API error: ECONNRESET/);
+  assert.match(result.reason, /AI provider error: ECONNRESET/);
   assert.ok(result.summary);
   assert.ok(result.sampleFiles); // sample built before Claude call
 });
@@ -354,14 +354,14 @@ test('renderArchitectureComment — failure renders friendly placeholder', () =>
   const result = {
     ok: false,
     body: null,
-    reason: 'Claude API error',
+    reason: 'AI provider error',
     summary: { sourceFiles: 5 },
     sampleFiles: null,
   };
   const comment = renderArchitectureComment(result);
   assert.match(comment, /Architecture Observations/);
   assert.match(comment, /not generated/);
-  assert.match(comment, /Claude API error/);
+  assert.match(comment, /AI provider error/);
 });
 
 test('renderArchitectureComment — null result handled', () => {

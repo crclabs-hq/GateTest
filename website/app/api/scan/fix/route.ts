@@ -24,6 +24,7 @@ import { appInstallUrl } from "@/app/lib/github-app-permissions";
 import { cookies } from "next/headers";
 import https from "https";
 import { isAdminRequest } from "@/app/lib/admin-auth";
+import { SUPPORT_EMAIL } from "@/app/lib/site-url";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const {
   createTrackerForTier,
@@ -776,8 +777,8 @@ async function anthropicCallWithRetry(body: string, maxAttempts = 6): Promise<{ 
 
   if (lastResponse) return lastResponse;
   throw lastError instanceof Error
-    ? new Error(`Anthropic API unreachable after ${maxAttempts} attempts: ${lastError.message}`)
-    : new Error(`Anthropic API unreachable after ${maxAttempts} attempts`);
+    ? new Error(`AI provider unreachable after ${maxAttempts} attempts: ${lastError.message}`)
+    : new Error(`AI provider unreachable after ${maxAttempts} attempts`);
 }
 
 // The AI-layer model for this request. Set on the per-request tracker (ALS) from
@@ -872,7 +873,7 @@ CRITICAL RULES — violations will cause re-scan failure:
     return fixedCode;
   }
   const errSnippet = JSON.stringify(res.data).slice(0, 200);
-  throw new Error(`Claude API error ${res.status}: ${errSnippet}`);
+  throw new Error(`AI provider error ${res.status}: ${errSnippet}`);
 }
 
 /**
@@ -934,7 +935,7 @@ CRITICAL RULES — violations will cause re-scan failure:
     });
     const res = await anthropicCallWithRetry(body);
     if (res.status !== 200) {
-      return { ok: false, text: "", tokensIn: 0, tokensOut: 0, error: `Claude API error ${res.status}` };
+      return { ok: false, text: "", tokensIn: 0, tokensOut: 0, error: `AI provider error ${res.status}` };
     }
     const content = res.data.content as Array<{ type: string; text: string }>;
     const usage = res.data.usage as { input_tokens?: number; output_tokens?: number } | undefined;
@@ -975,7 +976,7 @@ function validateFix(original: string, fixed: string): { ok: boolean; reason?: s
   const refusalMarkers = ["I cannot", "I can't", "I'm unable to", "I won't", "As an AI"];
   const firstLine = fixed.split("\n", 1)[0] || "";
   if (refusalMarkers.some((m) => firstLine.startsWith(m))) {
-    return { ok: false, reason: "Claude refused" };
+    return { ok: false, reason: "model refused" };
   }
   return { ok: true };
 }
@@ -1064,7 +1065,7 @@ async function askClaudeForTest(prompt: string): Promise<string> {
   const res = await anthropicCallWithRetry(body);
   if (res.status !== 200) {
     const errSnippet = JSON.stringify(res.data).slice(0, 200);
-    throw new Error(`Claude API error ${res.status}: ${errSnippet}`);
+    throw new Error(`AI provider error ${res.status}: ${errSnippet}`);
   }
   const content = res.data.content as Array<{ type: string; text: string }>;
   return content?.[0]?.text || "";
@@ -1098,7 +1099,7 @@ Rules:
 
   if (res.status !== 200) {
     const errSnippet = JSON.stringify(res.data).slice(0, 200);
-    throw new Error(`Claude API error ${res.status}: ${errSnippet}`);
+    throw new Error(`AI provider error ${res.status}: ${errSnippet}`);
   }
 
   const content = res.data.content as Array<{ type: string; text: string }>;
@@ -1272,7 +1273,7 @@ export async function POST(req: NextRequest) {
     : null;
   if (byokKey && !/^sk-ant-/.test(byokKey)) {
     return NextResponse.json(
-      { error: "anthropicApiKey must be an Anthropic API key (sk-ant-...)" },
+      { error: "anthropicApiKey must be a valid provider API key (sk-ant-...)" },
       { status: 400 },
     );
   }
@@ -1777,11 +1778,11 @@ export async function POST(req: NextRequest) {
                   startedAt: Date.now(),
                   durationMs: 0,
                   outcome: "success",
-                  validationReason: "cve-version-bump (no Claude)",
+                  validationReason: "cve-version-bump (no AI call)",
                   qualityIssues: [],
                   claudeError: null,
                 }],
-                summary: `CVE: ${appliedPatches.map((p) => p.cveId).join(", ")} — version bumped without Claude`,
+                summary: `CVE: ${appliedPatches.map((p) => p.cveId).join(", ")} — version bumped without an AI call`,
                 success: true,
               };
               return;
@@ -1927,7 +1928,7 @@ export async function POST(req: NextRequest) {
         if (!surgicalOk) {
           const allClaudeErrors = surgicalAttempts.length > 0 && surgicalAttempts.every((a) => a.outcome === "claude-error");
           if (allClaudeErrors) {
-            throw new Error(surgicalAttempts[surgicalAttempts.length - 1].claudeError || "Claude API error");
+            throw new Error(surgicalAttempts[surgicalAttempts.length - 1].claudeError || "AI provider error");
           }
           errors.push(`Skipped ${filePath} (surgical, ${surgicalAttempts.length} attempts): ${surgicalFinalReason}`);
           return;
@@ -1981,7 +1982,7 @@ export async function POST(req: NextRequest) {
       if (!loopResult.success) {
         const allClaudeErrors = loopResult.attempts.length > 0 && loopResult.attempts.every((a) => a.outcome === "claude-error");
         if (allClaudeErrors) {
-          throw new Error(loopResult.attempts[loopResult.attempts.length - 1].claudeError || "Claude API error");
+          throw new Error(loopResult.attempts[loopResult.attempts.length - 1].claudeError || "AI provider error");
         }
         errors.push(`Skipped ${filePath} (${loopResult.attempts.length} attempt${loopResult.attempts.length > 1 ? "s" : ""}): ${loopResult.finalReason}`);
         return;
@@ -2029,7 +2030,7 @@ export async function POST(req: NextRequest) {
         failedFiles.push({ file: filePath, issues: fileIssueTexts, reason: "api-unavailable" });
         const msg = isAbortErr
           ? `${filePath}: request timed out (file may be too large) — queued for retry`
-          : `${filePath}: Anthropic API temporarily unavailable — queued for retry`;
+          : `${filePath}: AI provider temporarily unavailable — queued for retry`;
         errors.push(msg);
       } else {
         errors.push(`Failed to fix ${filePath}: ${raw}`);
@@ -2060,7 +2061,7 @@ export async function POST(req: NextRequest) {
   if (hitInvocationLimit) {
     errors.push(
       `⚡ This repo maxed out the AI call limit (${MAX_AI_INVOCATIONS} calls) — ${fixes.length} file(s) were fixed before it kicked in. ` +
-      `For repositories this size, a dedicated scanner instance is the right tool: enterprise@gatetest.ai.`
+      `For repositories this size, a dedicated scanner instance is the right tool: ${SUPPORT_EMAIL}.`
     );
   }
 
@@ -2069,7 +2070,7 @@ export async function POST(req: NextRequest) {
   // everything else that reached the loop is the 'claude' layer. Records
   // ruleKey/module-free aggregates only (privacy contract in fix-telemetry).
   for (const [filePath, history] of Object.entries(attemptHistoryByFile)) {
-    const deterministic = history.summary.includes("without Claude");
+    const deterministic = history.summary.includes("without an AI call");
     recordFixAttempt({
       layer: deterministic ? "rule" : "claude",
       success: history.success,
@@ -2084,9 +2085,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       status: apiDegraded ? "api_unavailable" : "no_fixes",
       message: apiDegraded
-        ? `Anthropic API is temporarily degraded — every file failed with a network/TLS error. All ${failedFiles.length} files are queued for retry. Click "Retry Failed" in 1-2 minutes; if the problem persists, Anthropic is likely having an incident (check status.anthropic.com).`
+        ? `The AI provider is temporarily degraded — every file failed with a network/TLS error. All ${failedFiles.length} files are queued for retry. Click "Retry Failed" in 1-2 minutes; if the problem persists, the provider is likely having an incident.`
         : skippedForBudget > 0
-        ? `All ${skippedForBudget} files skipped — function time budget exhausted before Claude could finish. Try again — the second run will typically complete since results cache and retries kick in faster.`
+        ? `All ${skippedForBudget} files skipped — function time budget exhausted before the fix engine could finish. Try again — the second run will typically complete since results cache and retries kick in faster.`
         : "No fixes could be generated",
       errors,
       skippedForBudget,
@@ -2118,7 +2119,7 @@ export async function POST(req: NextRequest) {
   if (fixes.length === 0) {
     return NextResponse.json({
       status: "no_fixes",
-      message: `Every fix failed the syntax gate — Claude returned content that doesn't parse. ${syntaxGateSummary}`,
+      message: `Every fix failed the syntax gate — the fix engine returned content that doesn't parse. ${syntaxGateSummary}`,
       errors,
       skippedForBudget,
       failedFiles,

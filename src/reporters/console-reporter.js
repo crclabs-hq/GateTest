@@ -2,21 +2,9 @@
  * Console Reporter - Rich terminal output for GateTest results.
  */
 
-const COLORS = {
-  reset: '\x1b[0m',
-  bold: '\x1b[1m',
-  dim: '\x1b[2m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  magenta: '\x1b[35m',
-  cyan: '\x1b[36m',
-  white: '\x1b[37m',
-  bgRed: '\x1b[41m',
-  bgGreen: '\x1b[42m',
-  bgYellow: '\x1b[43m',
-};
+// Empty strings when stdout is not a TTY or NO_COLOR is set (src/core/color.js)
+// — a CI log must read "Errors:   3", not "Errors:   \x1b[31m3\x1b[0m".
+const COLORS = require('../core/color').palette();
 
 const { triageFindings, countFoldedDuplicates } = require('../core/finding-triage');
 const { suggestLine } = require('../core/ignore-file');
@@ -218,6 +206,17 @@ class ConsoleReporter {
     }
 
     console.log('');
+    // Never let an empty scan read as a clean one: no source file under the
+    // root means every module passed by default, and this is said beside
+    // the verdict, not buried in a module line (src/core/scan-scope.js).
+    if (summary.nothingChecked) {
+      const where = summary.projectRoot || 'the project root';
+      console.log(`  ${COLORS.bold}${COLORS.yellow}⚠ No source files found under ${where} — nothing was checked.${COLORS.reset}`);
+      console.log(`  ${COLORS.yellow}${summary.gateStatus === 'PASSED'
+        ? 'Every module passed by default, not by inspection. Check --project, or pass --strict to fail an empty scan.'
+        : 'The gate is BLOCKED because --strict was set: an empty scan enforces nothing.'}${COLORS.reset}`);
+      console.log('');
+    }
     if (summary.diffOnly) {
       console.log(`${COLORS.dim}  Mode: diff-only (${(summary.changedFiles || []).length} changed files)${COLORS.reset}`);
     }
@@ -328,11 +327,11 @@ class ConsoleReporter {
       `${COLORS.dim}     This scan ran the deterministic engine for free. To have them FIXED —${COLORS.reset}`,
     );
     console.log(
-      `${COLORS.dim}     Claude opens a PR, re-scans each fix, and proves it worked:${COLORS.reset}`,
+      `${COLORS.dim}     The fix engine opens a PR, re-scans each fix, and proves it worked:${COLORS.reset}`,
     );
     console.log(`     ${COLORS.cyan}${COLORS.bold}→ ${siteUrl()}${COLORS.reset}  ${COLORS.dim}(Scan + Fix, one verified PR)${COLORS.reset}`);
     console.log(
-      `${COLORS.dim}     Already have an Anthropic key? Fix locally: ${COLORS.reset}${COLORS.cyan}gatetest fix${COLORS.reset}`,
+      `${COLORS.dim}     Already have an ANTHROPIC_API_KEY? Fix locally: ${COLORS.reset}${COLORS.cyan}gatetest fix${COLORS.reset}`,
     );
     console.log(`${COLORS.bold}${COLORS.magenta}  ────────────────────────────────────────${COLORS.reset}`);
   }

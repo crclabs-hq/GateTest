@@ -24,7 +24,7 @@ const STACK_PRODUCTS = [
   },
   {
     name: "Gluecron",
-    tagline: "The git host built around Claude.",
+    tagline: "The git host built for AI agents.",
     href: "https://gluecron.com",
     external: true,
     accent: "from-indigo-500/20 to-blue-500/10",

@@ -255,7 +255,7 @@ export function WatchdogTab() {
             </button>
           </div>
           <p className="text-xs text-gray-400 mt-3">
-            In production a scheduler on Vapron must hit <code className="font-mono text-emerald-700">/api/watches/tick</code> (GET or POST) every ~5 min with{" "}
+            In production a scheduler on Tallrig must hit <code className="font-mono text-emerald-700">/api/watches/tick</code> (GET or POST) every ~5 min with{" "}
             <code className="font-mono text-emerald-700">Authorization: Bearer $CRON_SECRET</code>. This is <strong>not</strong> automatic —
             we left Vercel Cron behind, and if nothing is scheduled, watches never run at all.
           </p>

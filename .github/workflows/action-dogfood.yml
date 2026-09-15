@@ -1,0 +1,59 @@
+# The composite action, run the way a customer runs it — `uses: ./` is
+# `uses: crclabs-hq/GateTest@v1` with the checkout standing in for the tag.
+# ci.yml's self-scan job calls bin/gatetest.js directly, so a broken
+# action.yml (a step that never runs, an output that reads 0, a token that
+# never arrives) reached the Marketplace without a red build (2026-09-14
+# audit: error-count and warning-count were 0 on every run for months).
+name: Action dogfood
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write   # the summary comment — the default github.token path the README documents
+
+jobs:
+  uses-self:
+    name: uses ./ (quick suite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the action against this repo
+        id: gate
+        uses: ./
+        with:
+          suite: quick
+
+      # The outputs are the product surface downstream steps build on; a
+      # count that silently reads 0 is worse than no count.
+      - name: Outputs are real numbers read from the JSON report
+        if: always()
+        env:
+          GATE_STATUS: ${{ steps.gate.outputs.gate-status }}
+          ERROR_COUNT: ${{ steps.gate.outputs.error-count }}
+          WARNING_COUNT: ${{ steps.gate.outputs.warning-count }}
+          BLOCKING_COUNT: ${{ steps.gate.outputs.blocking-error-count }}
+          GRADE: ${{ steps.gate.outputs.grade }}
+        run: |
+          set -euo pipefail
+          echo "gate-status=$GATE_STATUS error-count=$ERROR_COUNT warning-count=$WARNING_COUNT blocking-error-count=$BLOCKING_COUNT grade=$GRADE"
+          case "$GATE_STATUS" in passed|blocked) ;; *) echo "::error::gate-status is '$GATE_STATUS'"; exit 1;; esac
+          for v in "$ERROR_COUNT" "$WARNING_COUNT" "$BLOCKING_COUNT"; do
+            if ! printf '%s' "$v" | grep -Eq '^[0-9]+$'; then echo "::error::count output is not a number: '$v'"; exit 1; fi
+          done
+          REPORT=.gatetest/reports/gatetest-report-latest.json
+          test -f "$REPORT" || { echo "::error::$REPORT missing — the engine did not write its JSON report"; exit 1; }
+          node -e '
+            const c = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).summary.checks;
+            const want = { errors: Number(process.env.ERROR_COUNT), warnings: Number(process.env.WARNING_COUNT), blockingErrors: Number(process.env.BLOCKING_COUNT) };
+            for (const k of Object.keys(want)) {
+              if (c[k] !== want[k]) { console.error(`::error::output ${k}=${want[k]} but the JSON report says ${c[k]}`); process.exit(1); }
+            }
+            console.log("outputs match the JSON report:", JSON.stringify(want));
+          ' "$REPORT"
+          if [ -z "$GRADE" ]; then echo "::error::grade output is empty — the grade step could not read the report"; exit 1; fi

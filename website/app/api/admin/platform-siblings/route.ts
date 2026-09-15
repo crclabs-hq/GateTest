@@ -4,7 +4,7 @@
  * GET /api/admin/platform-siblings
  *
  * Fetches the public /api/platform-status endpoint on each of the three
- * sibling products (Vapron, Gluecron, GateTest) and returns a unified
+ * sibling products (the platform — Tallrig today —, Gluecron, GateTest) and returns a unified
  * health report. Server-side fetch with a 3s per-product timeout, graceful
  * degradation (unreachable products become status: "unreachable" rather
  * than failing the whole response), and an in-memory 30s cache so this
@@ -38,7 +38,9 @@ export const maxDuration = 10;
 const TIMEOUT_MS = 3000;
 const CACHE_TTL_MS = 30_000;
 
-type SiblingId = "vapron" | "gluecron" | "gatetest";
+// The platform id is env-driven (PLATFORM_ID, "tallrig" today — was "vapron"),
+// so the type is the registry's string id, not a literal union.
+type SiblingId = string;
 
 interface SiblingResult {
   id: SiblingId;
@@ -48,7 +50,7 @@ interface SiblingResult {
   // is key-gated answers 401 to our anonymous poll. Reporting that as DOWN is
   // claiming an observation we never made — the product is very likely fine,
   // we just aren't allowed to look. A panel that cries DOWN at a healthy
-  // Vapron on every refresh is a panel Craig learns to ignore.
+  // platform on every refresh is a panel Craig learns to ignore.
   status: "up" | "down" | "unreachable" | "needs_key";
   healthy: boolean;
   latency_ms: number | null;
