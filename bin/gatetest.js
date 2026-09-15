@@ -110,7 +110,7 @@ const HELP = `
                        been auto-softened. Silence noise via .gatetestignore.
     --list             List all available test modules
     --init             Initialize GateTest in the current project
-    --init-claude-md   Generate CLAUDE.md for this project, install the Claude
+    --init-claude-md   Generate CLAUDE.md for this project, install the Claude Code
                        hooks (.claude/settings.json) and write gatetest-scan.js
     --health           Check the GitHub API connection (reachability, latency,
                        rate-limit budget) without running a scan
@@ -124,12 +124,13 @@ const HELP = `
                        BUT here is a PR to merge."
     --auto-pr-base <ref>    Base branch for the auto-PR (default: current branch)
     --auto-pr-branch <name> Override the auto-generated branch name
-    --model <name>     Claude model for AI fixes (fix --apply and --auto-pr):
-                       sonnet (default) | opus | fable — or full model ids.
-                       Env fallback: GATETEST_FIX_MODEL. Runs on YOUR OWN
-                       ANTHROPIC_API_KEY (bring-your-own-key): calls go straight
-                       from your machine to api.anthropic.com, you control the
-                       spend. Fable 5 is ~3.3x Sonnet cost per token.
+    --model <name>     AI model for fixes (fix --apply and --auto-pr):
+                       sonnet (default) | opus | fable — or a full model id
+                       from your provider. Env fallback: GATETEST_FIX_MODEL.
+                       Runs on YOUR OWN ANTHROPIC_API_KEY (bring-your-own-key):
+                       calls go straight from your machine to the provider, you
+                       control the spend. fable is the most capable at ~3.3x
+                       the default's cost per token.
     --since <ref>      Incremental scan: only check files changed since <ref>
                        (branch, tag, or commit SHA). Skips full-graph modules
                        (importCycle, deadCode, crossFileTaint, openapiDrift).
@@ -191,7 +192,7 @@ const HELP = `
                        workflow file version, etc.) and reports what's missing
                        with copy-paste fix commands. Run this any time you
                        suspect something isn't working.
-    --doctor-quick     Same but skips the live Anthropic API ping (offline mode)
+    --doctor-quick     Same but skips the live AI provider API ping (offline mode)
     --version, -v      Show version
 
     --server <url>     Scan a live server: SSL, headers, DNS, performance
@@ -315,7 +316,7 @@ async function main() {
   }
   if (first === 'fix') {
     if (require('../src/core/offline').isOffline()) {
-      console.error('[GateTest] offline mode: `gatetest fix` needs the Anthropic API. Unset GATETEST_OFFLINE to use it.');
+      console.error('[GateTest] offline mode: `gatetest fix` needs the AI provider API. Unset GATETEST_OFFLINE to use it.');
       process.exit(2);
     }
     const projectRoot = (() => {
@@ -348,7 +349,7 @@ async function main() {
   const { isOffline, enableOffline } = require('../src/core/offline');
   if (args.offline) enableOffline();
   if (isOffline() && (args.fix || args.autoPr)) {
-    console.error('[GateTest] offline mode: --fix / --auto-pr need the Anthropic API and are not run. The scan continues without them.');
+    console.error('[GateTest] offline mode: --fix / --auto-pr need the AI provider API and are not run. The scan continues without them.');
     args.fix = false;
     args.autoPr = false;
   }
@@ -968,15 +969,16 @@ async function runFixApply(argv, rootDir) {
     --suite <name>        Suite to scan (default: standard)
     --project <path>      Project root (default: cwd)
     --dry-run             Show what would be fixed without writing any files
-    --model <name>        Claude model for the fix engine. One of:
+    --model <name>        AI model for the fix engine. One of:
 ${Object.entries(ALLOWED_FIX_MODELS)
-    .map(([id, m]) => `                            ${m.aliases[0].padEnd(6)} (${id})${id === CHEAP_MODEL ? ' [default]' : ''}`)
+    .map(([id, m]) => `                            ${m.aliases[0]}${id === CHEAP_MODEL ? ' [default]' : ''}`)
     .join('\n')}
+                          — or a full model id from your provider.
                           Env fallback: GATETEST_FIX_MODEL.
 
   REQUIRES
-    ANTHROPIC_API_KEY — YOUR OWN Anthropic key (bring-your-own-key). Fix calls
-    go straight from this machine to api.anthropic.com — you control the spend,
+    ANTHROPIC_API_KEY — YOUR OWN AI provider key (bring-your-own-key). Fix calls
+    go straight from this machine to the provider — you control the spend,
     and nothing is proxied through GateTest servers.
 `);
     return 0;
@@ -1011,7 +1013,7 @@ ${Object.entries(ALLOWED_FIX_MODELS)
   if (!apiKey) {
     console.error('\n  [GateTest fix] ANTHROPIC_API_KEY is not set.\n');
     console.error('  Bring your own key: https://console.anthropic.com/ → API keys, then');
-    console.error('  export ANTHROPIC_API_KEY=sk-ant-... (you pay Anthropic directly).\n');
+    console.error('  export ANTHROPIC_API_KEY=sk-ant-... (you pay the provider directly).\n');
     return 1;
   }
 

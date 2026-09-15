@@ -327,11 +327,11 @@ class ConsoleReporter {
       `${COLORS.dim}     This scan ran the deterministic engine for free. To have them FIXED —${COLORS.reset}`,
     );
     console.log(
-      `${COLORS.dim}     Claude opens a PR, re-scans each fix, and proves it worked:${COLORS.reset}`,
+      `${COLORS.dim}     The fix engine opens a PR, re-scans each fix, and proves it worked:${COLORS.reset}`,
     );
     console.log(`     ${COLORS.cyan}${COLORS.bold}→ ${siteUrl()}${COLORS.reset}  ${COLORS.dim}(Scan + Fix, one verified PR)${COLORS.reset}`);
     console.log(
-      `${COLORS.dim}     Already have an Anthropic key? Fix locally: ${COLORS.reset}${COLORS.cyan}gatetest fix${COLORS.reset}`,
+      `${COLORS.dim}     Already have an ANTHROPIC_API_KEY? Fix locally: ${COLORS.reset}${COLORS.cyan}gatetest fix${COLORS.reset}`,
     );
     console.log(`${COLORS.bold}${COLORS.magenta}  ────────────────────────────────────────${COLORS.reset}`);
   }
