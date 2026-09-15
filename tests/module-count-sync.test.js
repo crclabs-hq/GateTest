@@ -52,7 +52,6 @@ const SURFACES = [
   'website/app/',
   'website/public/',
   'packages/',
-  'editors/',
   'integrations/',
   'lib/',
   'server.json',

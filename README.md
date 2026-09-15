@@ -14,7 +14,7 @@
 [![Modules](https://img.shields.io/badge/modules-121-purple.svg)](#what-it-replaces)
 [![Tests](https://img.shields.io/badge/tests-6000%2B-brightgreen.svg)](#real-repo-proofs)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](https://nodejs.org/)
-[![GitHub Marketplace](https://img.shields.io/badge/marketplace-GateTest%20Quality%20Gate-2ea44f.svg)](https://github.com/marketplace/actions/gatetest-quality-gate)
+[![GitHub Action](https://img.shields.io/badge/action-crclabs--hq%2FGateTest%40v1-2ea44f.svg)](action.yml)
 
 ---
 
@@ -68,12 +68,13 @@ gatetest --suite quick
 
 # Or run against the current directory with no install:
 npx -p @gatetest/cli gatetest --suite quick
-# (bare `npx @gatetest/cli --suite quick` works from 1.61.1 — earlier releases
-#  answer "could not determine executable to run"; the -p form works on every version)
+# (bare `npx @gatetest/cli --suite quick` needs the `cli` bin, which ships in
+#  1.61.1 — the release on npm today, 1.61.0, answers "could not determine
+#  executable to run"; the -p form works on every version)
 
 # Or clone and run from source:
 git clone https://github.com/crclabs-hq/GateTest
-cd gatetest && npm install
+cd GateTest && npm install
 node bin/gatetest.js --suite quick
 ```
 
@@ -207,7 +208,7 @@ integration:
 
 ```bash
 npx -p @gatetest/cli gatetest --suite full --junit --sarif
-# or, from 1.61.1: npx @gatetest/cli --suite full --junit --sarif
+# (bare `npx @gatetest/cli …` works once 1.61.1 is on npm; -p works on every version)
 ```
 
 Onboarding an existing codebase? Pair this with **baseline mode** above so the gate
@@ -412,8 +413,8 @@ Live prices and Stripe checkout at [gatetest.io](https://gatetest.io).
 
 GateTest is not magic. The things it does not yet do, said out loud:
 
-- **Headless-browser modules (`liveCrawler`, `runtimeErrors`, `explorer`, `chaos`) degrade gracefully on Vercel serverless.** Chromium cannot launch inside the function. The modules emit an info-level skip and the rest of the scan continues — full power requires the CLI, a worker, or local dev.
-- **Hosted website scans read up to 50 source files per scan** (prioritised by relevance). Most small-to-mid repos fit; a large monorepo gets a representative slice. The CLI and GitHub Action scan everything with no cap.
+- **Headless-browser modules (`liveCrawler`, `runtimeErrors`, `explorer`, `chaos`) do not run inside the hosted web request.** The hosted URL scan runs its static probes inline and hands the headless runtime pass to the platform worker tier, best effort — if that dispatch fails the report says so and the rest of the scan continues. Full power requires the CLI, the GitHub Action, or local dev.
+- **Hosted repo scans are capped.** The free Quick tier reads a 60-file sample (manifests first, so monorepo discovery still works); the engine tiers (Full, Scan + Fix, Forensic) read the whole repo up to 4,000 files, bounded by the engine's time budget. The CLI and GitHub Action scan everything with no cap.
 
 The full Known Issues table (with severity and status) lives in [CLAUDE.md](CLAUDE.md) — that file is the project's source of truth.
 
@@ -423,7 +424,7 @@ The full Known Issues table (with severity and status) lives in [CLAUDE.md](CLAU
 
 **Static engine.** 121 modules, every one extending `BaseModule`. Each module is a self-contained scanner that emits checks at three severity levels (error blocks the gate, warning reports, info is informational). The runner is `EventEmitter`-based, supports parallel execution, diff-mode (`--diff` scans only git-changed files), watch mode, and five output formats (Console, JSON, HTML, SARIF for the GitHub Security tab, JUnit XML for any CI). The gate has four small runtime dependencies (`acorn`, `pngjs`, `pixelmatch`, and the MCP SDK) — `node bin/gatetest.js --list` runs anywhere Node 20+ runs.
 
-**Website and payments.** [gatetest.io](https://gatetest.io) is Next.js 16 with the App Router, Tailwind 4, and Stripe in per-scan upfront-charge mode. One-time payment per scan at checkout — no subscription, no auto-renew, no hold-then-capture flow. All scan state is persisted in Stripe metadata so the serverless functions stay stateless across requests — there is no shared in-memory state and no webhook is required for the critical user flow. The scan executes inside the function response and reports back directly.
+**Website and payments.** [gatetest.io](https://gatetest.io) is Next.js 16 with the App Router, Tailwind 4, and Stripe in per-scan upfront-charge mode. One-time payment per scan at checkout — no subscription, no auto-renew, no hold-then-capture flow. All scan state is persisted in Stripe metadata so the request handlers stay stateless across requests — there is no shared in-memory state and no webhook is required for the critical user flow. The scan executes inside the request and reports back directly.
 
 **AI layer.** On the GitHub Action the customer brings their own `ANTHROPIC_API_KEY` and pays the provider directly. On the website the key is managed and the cost is folded into the tier price. Every AI success is distilled into a recipe by the flywheel orchestrator (see [`lib/`](lib/) and the AI CI-fixer at [`scripts/ai-ci-fixer.js`](scripts/ai-ci-fixer.js)) so subsequent runs on the same pattern are deterministic and free.
 
@@ -449,7 +450,7 @@ GateTest is dogfooded against itself on every push, and the team runs the full F
 
 ```bash
 git clone https://github.com/crclabs-hq/GateTest
-cd gatetest
+cd GateTest
 npm install
 (cd website && npm install)
 node --test tests/*.test.js

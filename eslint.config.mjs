@@ -97,7 +97,6 @@ export default [
       'corpus/**',
       'demo/**',
       'docs/**',
-      'editors/**',
       'packages/**',
       'scripts/**',
       'tests/**',
