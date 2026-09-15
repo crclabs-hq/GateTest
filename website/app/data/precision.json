@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-14T20:57:07.659Z",
+  "generatedAt": "2026-09-14T09:06:43.909Z",
   "source": "scripts/real-world-precision.js",
   "note": "Measured on every run against pinned commits of repositories we do not control. Ceilings only ratchet down. Do not hand-edit — run the script.",
-  "engineVersion": "1.61.1",
-  "engineCommit": "c5c69a5f",
+  "engineVersion": "1.61.0",
+  "engineCommit": "8de24692",
   "repos": [
     {
       "name": "express",
@@ -37,9 +37,9 @@
       "url": "https://github.com/sindresorhus/got.git",
       "sha": "687eb7dcc100ea3e548ebba227173b886789e670",
       "why": "TypeScript HTTP client with a benchmark/ tree — a known scope trap",
-      "blocking": 0,
-      "ceiling": 0,
-      "softened": 4
+      "blocking": 12,
+      "ceiling": 12,
+      "softened": 3
     },
     {
       "name": "hono",
@@ -64,8 +64,8 @@
       "url": "https://github.com/django/django.git",
       "sha": "b3f4d83aad7f589f165a6d8b020b7acba4936f35",
       "why": "Python at scale — the ORM builds SQL by string in django/db, which is the one place that is the job; 74 of 76 \"secrets\" were test fixtures before the identifier-keyed rules learned about test paths",
-      "blocking": 46,
-      "ceiling": 46,
+      "blocking": 59,
+      "ceiling": 59,
       "softened": 9
     },
     {
@@ -445,9 +445,9 @@
       "above": 1
     },
     "softened": {
-      "precisionTotal": 348,
-      "precisionBlocking": 175,
-      "precisionSoftened": 173,
+      "precisionTotal": 375,
+      "precisionBlocking": 207,
+      "precisionSoftened": 168,
       "recallTotal": 53,
       "recallBlocking": 53,
       "recallLost": 0
