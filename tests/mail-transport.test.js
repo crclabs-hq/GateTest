@@ -52,9 +52,9 @@ describe('mail-transport: request shaping', () => {
     const c = capture();
     const r = await T.deliver({ to: 'a@b.c', subject: 'S', html: '<p>h</p>', text: 't' }, { env: { ...VAPRON, MAIL_PROVIDER: 'vapron' }, request: c.request });
     assert.deepStrictEqual({ ok: r.ok, id: r.id, provider: r.provider }, { ok: true, id: 'msg_1', provider: 'vapron' });
-    assert.strictEqual(c.calls[0].target.hostname, 'vapron.ai');
+    assert.strictEqual(c.calls[0].target.hostname, 'tallrig.com');
     assert.strictEqual(c.calls[0].target.path, '/api/platform/email/send');
-    assert.strictEqual(T.VAPRON_MAIL_URL, 'https://vapron.ai/api/platform/email/send');
+    assert.strictEqual(T.VAPRON_MAIL_URL, 'https://tallrig.com/api/platform/email/send');
     assert.strictEqual(c.calls[0].bearer, 'vpk_test_secret');
     assert.strictEqual(c.calls[0].payload.to, 'a@b.c');
     assert.match(c.calls[0].payload.from, /@gatetest\.io/);

@@ -119,12 +119,12 @@ function healthyFetch(overrides = {}) {
   return makeFetch(
     Object.assign(
       {
-        'https://vapron.ai/api/health': () =>
+        'https://tallrig.com/api/health': () =>
           okJson({ status: 'ok', checks: [{ name: 'database', ok: true }] }),
-        'https://api.vapron.ai/api/health': () =>
+        'https://api.tallrig.com/api/health': () =>
           okJson({ status: 'ok', checks: [{ name: 'database', ok: true }] }),
-        'https://vapron.ai/': () => okText('<html>Welcome to Vapron</html>'),
-        'https://crontech.ai/': () => redirect(301, 'https://vapron.ai/'),
+        'https://tallrig.com/': () => okText('<html>Welcome to Tallrig</html>'),
+        'https://crontech.ai/': () => redirect(301, 'https://tallrig.com/'),
         'https://gluecron.com/api/platform-status': () =>
           okJson({ product: 'gluecron', healthy: true, commit: 'unknown' }),
         'https://gluecron.com/': () => okText('<html>Gluecron</html>'),
@@ -158,9 +158,9 @@ test('all probes pass -> green', async () => {
 });
 
 test('a dead host -> red', async () => {
-  const report = await run({ 'https://api.vapron.ai/api/health': () => status(503) });
+  const report = await run({ 'https://api.tallrig.com/api/health': () => status(503) });
   assert.equal(report.status, 'red');
-  const probe = report.probes.find((p) => p.name === 'vapron-api-health');
+  const probe = report.probes.find((p) => p.name === 'platform-api-health');
   assert.equal(probe.status, 'fail');
 });
 
@@ -176,13 +176,13 @@ test('cert expiring inside the warning window -> warn -> yellow', async () => {
   assert.equal(report.status, 'yellow');
   // The exact day count is floor()'d against elapsed ms, so 7 can render as
   // 6 — pin the behaviour (a warning inside the window), not the rounding.
-  assert.match(report.probes.find((p) => p.name === 'cert-vapron').detail, /expires in \d+d/);
+  assert.match(report.probes.find((p) => p.name === 'cert-platform').detail, /expires in \d+d/);
 });
 
 test('an already-expired cert fails rather than warns', async () => {
   const report = await run({}, { tlsConnect: tlsConnectInDays(-3) });
   assert.equal(report.status, 'red');
-  assert.match(report.probes.find((p) => p.name === 'cert-vapron').detail, /expired/);
+  assert.match(report.probes.find((p) => p.name === 'cert-platform').detail, /expired/);
 });
 
 test('markdown report shape includes table header and all probes', async () => {
@@ -220,9 +220,9 @@ test('a successful but slow probe warns instead of passing', async () => {
     slowMs: 30, // everything is "slow" at this budget
   });
   assert.equal(report.status, 'yellow');
-  // cert-vapron goes through the TLS mock, not fetch, so it is not delayed
+  // cert-platform goes through the TLS mock, not fetch, so it is not delayed
   // and legitimately still passes — every fetch-backed probe must warn.
-  const fetchBacked = report.probes.filter((p) => p.name !== 'cert-vapron');
+  const fetchBacked = report.probes.filter((p) => p.name !== 'cert-platform');
   assert.ok(
     fetchBacked.every((p) => p.status === 'warn'),
     JSON.stringify(report.probes.map((p) => [p.name, p.status]))
@@ -233,14 +233,14 @@ test('a successful but slow probe warns instead of passing', async () => {
 test('slow does not mask a real failure', async () => {
   // A failing probe stays red no matter how the latency budget is set.
   const report = await runEmpireSmoke({
-    fetch: healthyFetch({ 'https://api.vapron.ai/api/health': () => status(500) }),
+    fetch: healthyFetch({ 'https://api.tallrig.com/api/health': () => status(500) }),
     resolve: resolveOk,
     tlsConnect: tlsConnectInDays(90),
     timeoutMs: 2000,
     slowMs: 1,
   });
   assert.equal(report.status, 'red');
-  assert.equal(report.probes.find((p) => p.name === 'vapron-api-health').status, 'fail');
+  assert.equal(report.probes.find((p) => p.name === 'platform-api-health').status, 'fail');
 });
 
 test('the hard timeout is well above the slow budget', () => {
@@ -262,7 +262,7 @@ test('no probe still targets a crontech host except the redirect guard', () => {
   assert.deepEqual(
     targets.map(([k]) => k),
     ['crontechRedirect'],
-    'crontech.ai was renamed to vapron.ai on 2026-06-12; the only legitimate ' +
+    'crontech.ai was renamed to vapron.ai on 2026-06-12 and to tallrig.com on 2026-09-14; the only legitimate ' +
       'remaining reference is the probe asserting the redirect still works'
   );
 });
@@ -270,12 +270,20 @@ test('no probe still targets a crontech host except the redirect guard', () => {
 test('the homepage keyword matches the CURRENT brand, not the old one', async () => {
   // The exact stale-target failure: a healthy site whose body says "Vapron"
   // was failed for not saying "Crontech".
-  const report = await run({ 'https://vapron.ai/': () => okText('<html>Welcome to Vapron</html>') });
-  assert.equal(report.probes.find((p) => p.name === 'vapron-home').status, 'pass');
+  const report = await run({ 'https://tallrig.com/': () => okText('<html>Welcome to Tallrig</html>') });
+  assert.equal(report.probes.find((p) => p.name === 'platform-home').status, 'pass');
 
   // Negative control: a parked page or misrouted vhost is still caught.
-  const parked = await run({ 'https://vapron.ai/': () => okText('<html>Default Web Page</html>') });
-  assert.equal(parked.probes.find((p) => p.name === 'vapron-home').status, 'fail');
+  const parked = await run({ 'https://tallrig.com/': () => okText('<html>Default Web Page</html>') });
+  assert.equal(parked.probes.find((p) => p.name === 'platform-home').status, 'fail');
+
+  // And the PREVIOUS brand is not the current one: tallrig.com's body has no
+  // "vapron" in it (measured 2026-09-15), so a page that only says the old
+  // name is a misrouted vhost, not a healthy platform.
+  const oldBrand = await run({ 'https://tallrig.com/': () => okText('<html>Welcome to Vapron</html>') });
+  const oldProbe = oldBrand.probes.find((p) => p.name === 'platform-home');
+  assert.equal(oldProbe.status, 'fail');
+  assert.match(oldProbe.detail, /missing "Tallrig"/);
 });
 
 test('the rename redirect is asserted, and a broken one fails', async () => {
@@ -286,25 +294,25 @@ test('the rename redirect is asserted, and a broken one fails', async () => {
   const wrong = await run({ 'https://crontech.ai/': () => redirect(301, 'https://example.com/') });
   const probe = wrong.probes.find((p) => p.name === 'crontech-redirect');
   assert.equal(probe.status, 'fail');
-  assert.match(probe.detail, /expected vapron\.ai/);
+  assert.match(probe.detail, /expected tallrig.com/);
 
   // Redirect gone entirely — serving 200 instead of hopping.
   const gone = await run({ 'https://crontech.ai/': () => status(200) });
   assert.equal(gone.probes.find((p) => p.name === 'crontech-redirect').status, 'fail');
 });
 
-// The platform is being renamed (Vapron → Tallrig, 2026-09). During the
+// The platform was renamed (Vapron → Tallrig, 2026-09-14). During a
 // window crontech.ai will 301 to the previous name, which 301s to the new
 // one. The probe follows the chain and judges the FINAL destination, read
 // from platform-config (env-driven), tolerating an intermediate hop.
 test('the rename redirect passes on the final destination, through one intermediate hop', async () => {
   const twoHop = await run({
     'https://crontech.ai/': () => redirect(301, 'https://old-name.example/'),
-    'https://old-name.example/': () => redirect(301, 'https://vapron.ai/'),
+    'https://old-name.example/': () => redirect(301, 'https://tallrig.com/'),
   });
   const probe = twoHop.probes.find((p) => p.name === 'crontech-redirect');
   assert.equal(probe.status, 'pass', probe.detail);
-  assert.match(probe.detail, /old-name\.example.*vapron\.ai/);
+  assert.match(probe.detail, /old-name.example.*tallrig.com/);
 
   // A chain that never reaches the canonical host fails and names the last host.
   const stuck = await run({
@@ -313,13 +321,13 @@ test('the rename redirect passes on the final destination, through one intermedi
   });
   const stuckProbe = stuck.probes.find((p) => p.name === 'crontech-redirect');
   assert.equal(stuckProbe.status, 'fail');
-  assert.match(stuckProbe.detail, /old-name\.example.*expected vapron\.ai/);
+  assert.match(stuckProbe.detail, /old-name\.example.*expected tallrig.com/);
 
   // The expected host is env-driven: a deployment that has flipped asserts the new host.
   const flipped = await run(
     {
-      'https://crontech.ai/': () => redirect(301, 'https://vapron.ai/'),
-      'https://vapron.ai/': () => redirect(301, 'https://new-name.example/'),
+      'https://crontech.ai/': () => redirect(301, 'https://tallrig.com/'),
+      'https://tallrig.com/': () => redirect(301, 'https://new-name.example/'),
     },
     { urls: { redirectHost: 'new-name.example' } },
   );
@@ -395,7 +403,7 @@ test('probeRedirect rejects a 3xx with no Location header', async () => {
   const res = await probeRedirect(
     makeFetch({ 'https://x/': () => ({ status: 301, headers: { get: () => null } }) }),
     'https://x/',
-    'vapron.ai'
+    'tallrig.com'
   );
   assert.equal(res.status, 'fail');
   assert.match(res.detail, /no Location/);

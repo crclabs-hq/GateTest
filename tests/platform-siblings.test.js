@@ -39,7 +39,7 @@ const GUARDED = [
 describe('platform-siblings — registry', () => {
   it('covers all three products', () => {
     const ids = SIBLING_REGISTRY.map((s) => s.id).sort();
-    assert.deepStrictEqual(ids, ['gatetest', 'gluecron', 'vapron']);
+    assert.deepStrictEqual(ids, ['gatetest', 'gluecron', 'tallrig']);
   });
 
   it('every entry carries the env var that repoints it', () => {
@@ -50,9 +50,9 @@ describe('platform-siblings — registry', () => {
   });
 
   it('an env var overrides the default', () => {
-    const vapron = SIBLING_REGISTRY.find((s) => s.id === 'vapron');
+    const platform = SIBLING_REGISTRY.find((s) => s.id === 'tallrig');
     assert.strictEqual(
-      resolveSiblingUrl(vapron, { VAPRON_STATUS_URL: 'https://staging.example/s' }),
+      resolveSiblingUrl(platform, { VAPRON_STATUS_URL: 'https://staging.example/s' }), // the pre-rename name still repoints it
       'https://staging.example/s',
     );
   });
@@ -70,29 +70,29 @@ describe('platform-siblings — the dead URLs cannot return', () => {
   // this registry has historically carried were built on that path: the
   // marketing-host one (404) and the api-host one (401, which was mistaken for
   // proof of life). Neither hostname is the issue — the path is.
-  it('does not point Vapron at the path Vapron never shipped', () => {
-    const url = siblingUrlMap({}).vapron;
+  it('does not point the platform at the path it never shipped', () => {
+    const url = siblingUrlMap({}).tallrig;
     assert.ok(
       !/platform-status/.test(url),
-      `Vapron URL uses /platform-status, a path that does not exist in Vapron: ${url}`,
+      `platform URL uses /platform-status, a path that does not exist there: ${url}`,
     );
   });
 
-  it('points Vapron at its real public status document', () => {
-    // Measured 2026-09-01: 200, unauthenticated, body carries overall+services.
+  it('points the platform (Tallrig) at its real public status document', () => {
+    // Measured 2026-09-01 on vapron.ai and 2026-09-15 on tallrig.com: 200, unauthenticated, body carries overall+services.
     // Not /api/health — that is a bare liveness ping.
     assert.strictEqual(
-      siblingUrlMap({}).vapron,
-      'https://vapron.ai/api/health/status',
+      siblingUrlMap({}).tallrig,
+      'https://tallrig.com/api/health/status',
     );
   });
 
-  it('does not mark Vapron key-gated — its status contract is public', () => {
+  it('does not mark the platform key-gated — its status contract is public', () => {
     // If this ever flips back to true, something has re-pointed the entry at
     // the /api/platform/ tree, where a 401 is returned for every path
     // including invented ones and therefore proves nothing.
-    const vapron = SIBLING_REGISTRY.find((s) => s.id === 'vapron');
-    assert.strictEqual(vapron.requiresAuth, false);
+    const platform = SIBLING_REGISTRY.find((s) => s.id === 'tallrig');
+    assert.strictEqual(platform.requiresAuth, false);
   });
 });
 

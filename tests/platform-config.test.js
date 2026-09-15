@@ -45,28 +45,28 @@ describe('platform-config — env precedence (TALLRIG_ → VAPRON_ → CRONTECH_
 
 describe('platform-config — defaults are exactly today\'s Vapron values (this PR changes nothing visible)', () => {
   it('server-side URLs', () => {
-    assert.equal(cfg.platformMailUrl({}), 'https://vapron.ai/api/platform/email/send');
-    assert.equal(cfg.platformStatusUrl({}), 'https://vapron.ai/api/health/status');
-    assert.equal(cfg.platformServicePrefix({}), 'vapron');
-    assert.equal(cfg.platformCanonicalHost({}), 'vapron.ai');
+    assert.equal(cfg.platformMailUrl({}), 'https://tallrig.com/api/platform/email/send');
+    assert.equal(cfg.platformStatusUrl({}), 'https://tallrig.com/api/health/status');
+    assert.equal(cfg.platformServicePrefix({}), 'tallrig');
+    assert.equal(cfg.platformCanonicalHost({}), 'tallrig.com');
   });
   it('server-side overrides, in order', () => {
     assert.equal(cfg.platformMailUrl({ TALLRIG_MAIL_URL: 'https://api.tallrig.com/api/platform/email/send', VAPRON_MAIL_URL: 'https://vapron.ai/x' }), 'https://api.tallrig.com/api/platform/email/send');
     assert.equal(cfg.platformStatusUrl({ VAPRON_STATUS_URL: 'https://staging.example/s' }), 'https://staging.example/s');
-    assert.equal(cfg.platformServicePrefix({ PLATFORM_SERVICE_PREFIX: 'tallrig' }), 'tallrig');
-    assert.equal(cfg.platformServicePrefix({ PLATFORM_SERVICE_PREFIX: 'rm -rf /' }), 'vapron', 'an unsafe prefix never reaches a shell command');
-    assert.equal(cfg.platformCanonicalHost({ PLATFORM_CANONICAL_HOST: 'tallrig.com' }), 'tallrig.com');
-    assert.equal(cfg.platformCanonicalHost({ NEXT_PUBLIC_PLATFORM_URL: 'https://tallrig.com' }), 'tallrig.com', 'derived from the site URL when not set explicitly');
+    assert.equal(cfg.platformServicePrefix({ PLATFORM_SERVICE_PREFIX: 'vapron' }), 'vapron', 'a box whose units are not yet renamed can keep the old prefix');
+    assert.equal(cfg.platformServicePrefix({ PLATFORM_SERVICE_PREFIX: 'rm -rf /' }), 'tallrig', 'an unsafe prefix never reaches a shell command');
+    assert.equal(cfg.platformCanonicalHost({ PLATFORM_CANONICAL_HOST: 'next-name.example' }), 'next-name.example');
+    assert.equal(cfg.platformCanonicalHost({ NEXT_PUBLIC_PLATFORM_URL: 'https://next-name.example' }), 'next-name.example', 'derived from the site URL when not set explicitly');
   });
   it('client-visible values (read from process.env at load — unset in this test run)', () => {
-    if (!process.env.NEXT_PUBLIC_PLATFORM_NAME) assert.equal(cfg.PLATFORM_NAME, 'Vapron');
+    if (!process.env.NEXT_PUBLIC_PLATFORM_NAME) assert.equal(cfg.PLATFORM_NAME, 'Tallrig');
     if (!process.env.NEXT_PUBLIC_PLATFORM_URL) {
-      assert.equal(cfg.PLATFORM_SITE_URL, 'https://vapron.ai');
-      assert.equal(cfg.PLATFORM_HOST, 'vapron.ai');
+      assert.equal(cfg.PLATFORM_SITE_URL, 'https://tallrig.com');
+      assert.equal(cfg.PLATFORM_HOST, 'tallrig.com');
     }
-    if (!process.env.NEXT_PUBLIC_PLATFORM_API_URL) assert.equal(cfg.PLATFORM_API_URL, 'https://api.vapron.ai');
-    if (!process.env.NEXT_PUBLIC_PLATFORM_ENTITY) assert.equal(cfg.PLATFORM_ENTITY, 'Vapron');
-    if (!process.env.NEXT_PUBLIC_PLATFORM_ID) assert.equal(cfg.PLATFORM_ID, 'vapron');
+    if (!process.env.NEXT_PUBLIC_PLATFORM_API_URL) assert.equal(cfg.PLATFORM_API_URL, 'https://api.tallrig.com');
+    if (!process.env.NEXT_PUBLIC_PLATFORM_ENTITY) assert.equal(cfg.PLATFORM_ENTITY, 'Tallrig Labs LLC');
+    if (!process.env.NEXT_PUBLIC_PLATFORM_ID) assert.equal(cfg.PLATFORM_ID, 'tallrig');
   });
   it('the defaults table is frozen — the sunset is an explicit edit, never a drift', () => {
     assert.ok(Object.isFrozen(cfg.PLATFORM_DEFAULTS));
@@ -175,6 +175,6 @@ describe('platform siblings honour the TALLRIG_STATUS_URL override ahead of VAPR
   it('precedence', () => {
     assert.equal(resolveSiblingUrl(platform, { TALLRIG_STATUS_URL: 'https://api.tallrig.com/api/health/status', VAPRON_STATUS_URL: 'https://vapron.ai/api/health/status' }), 'https://api.tallrig.com/api/health/status');
     assert.equal(resolveSiblingUrl(platform, { VAPRON_STATUS_URL: 'https://staging.example/s' }), 'https://staging.example/s');
-    assert.equal(resolveSiblingUrl(platform, {}), 'https://vapron.ai/api/health/status');
+    assert.equal(resolveSiblingUrl(platform, {}), 'https://tallrig.com/api/health/status');
   });
 });

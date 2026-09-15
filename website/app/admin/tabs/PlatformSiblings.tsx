@@ -3,18 +3,19 @@
 /**
  * Platform Siblings health widget — shown inside the admin command center.
  *
- * Renders three cards (Vapron, Gluecron, GateTest) each surfacing up/down,
+ * Renders three cards (the platform — Tallrig today —, Gluecron, GateTest) each surfacing up/down,
  * latency, and last-updated. Fetched from /api/admin/platform-siblings which
  * aggregates the public /api/platform-status endpoint on each sibling with
  * a 3s timeout and 30s server-side cache.
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { PLATFORM_ID, PLATFORM_NAME } from "../../lib/platform-config";
 
 type SiblingStatus = "up" | "down" | "unreachable" | "needs_key";
 
 interface SiblingResult {
-  id: "vapron" | "gluecron" | "gatetest";
+  id: string; // PLATFORM_ID ("tallrig" today) | "gluecron" | "gatetest"
   name: string;
   url: string;
   status: SiblingStatus;
@@ -123,7 +124,7 @@ export default function PlatformSiblings() {
         <div>
           <h3 className="text-sm font-bold text-white">Platform Family</h3>
           <p className="text-xs text-white/40">
-            Live health across Vapron, Gluecron, and GateTest.
+            Live health across {PLATFORM_NAME}, Gluecron, and GateTest.
             {report?.cached && <span className="ml-1">(cached)</span>}
           </p>
         </div>
@@ -144,7 +145,7 @@ export default function PlatformSiblings() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {(report?.siblings ?? [
-          { id: "vapron" as const, name: "Vapron" },
+          { id: PLATFORM_ID, name: PLATFORM_NAME },
           { id: "gluecron" as const, name: "Gluecron" },
           { id: "gatetest" as const, name: "GateTest" },
         ]).map((s) => {
