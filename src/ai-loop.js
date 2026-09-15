@@ -326,7 +326,7 @@ function generateReport(results) {
 
   lines.push(`## RESULT: ${totalIssues} ISSUES TO FIX`);
   lines.push('');
-  lines.push('**INSTRUCTIONS FOR CLAUDE:** Read each issue below. Fix them one by one.');
+  lines.push('**INSTRUCTIONS FOR THE AI ASSISTANT:** Read each issue below. Fix them one by one.');
   lines.push('After fixing, run this scan again to verify: `node src/ai-loop.js ' + results.url + '`');
   lines.push('Do NOT tell the user "it\'s fixed" until this scan returns ALL CLEAR.');
   lines.push('');

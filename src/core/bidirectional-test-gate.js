@@ -64,7 +64,7 @@ function _callClaude(apiKey, system, user) {
         } catch (e) { reject(e); }
       });
     });
-    req.setTimeout(CLAUDE_TIMEOUT, () => { req.destroy(); reject(new Error('Claude timeout')); });
+    req.setTimeout(CLAUDE_TIMEOUT, () => { req.destroy(); reject(new Error('AI provider timeout')); });
     req.on('error', reject);
     req.write(body);
     req.end();

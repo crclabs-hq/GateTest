@@ -53,19 +53,19 @@ const FIX_TIERS = new Set(['scan_fix', 'nuclear', 'forensic']);
  */
 const ALLOWED_FIX_MODELS = Object.freeze({
   'claude-sonnet-5': {
-    label: 'Sonnet 5 (default — fast, cheapest)',
+    label: 'default — fastest, cheapest',
     aliases: Object.freeze(['sonnet', 'sonnet-5']),
   },
   'claude-opus-5': {
-    label: 'Opus 5 (deeper reasoning, half Fable cost)',
+    label: 'deeper reasoning, about half the cost of the top tier',
     aliases: Object.freeze(['opus', 'opus-5']),
   },
   'claude-opus-4-8': {
-    label: 'Opus 4.8 (previous-generation Opus)',
+    label: 'previous-generation deep-reasoning tier',
     aliases: Object.freeze(['opus-4-8', 'opus-4.8']),
   },
   'claude-fable-5': {
-    label: 'Fable 5 (most capable, ~3.3x Sonnet cost)',
+    label: 'most capable, ~3.3x the default cost',
     aliases: Object.freeze(['fable', 'fable-5']),
   },
 });

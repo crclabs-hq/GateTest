@@ -74,7 +74,7 @@ function _callClaude(apiKey, system, user, model = CHEAP_MODEL) {
         } catch (e) { reject(e); }
       });
     });
-    req.setTimeout(TIMEOUT_MS, () => { req.destroy(); reject(new Error('Claude timeout')); });
+    req.setTimeout(TIMEOUT_MS, () => { req.destroy(); reject(new Error('AI provider timeout')); });
     req.on('error', reject);
     req.write(body);
     req.end();
@@ -274,7 +274,7 @@ async function runFixOrchestration(opts) {
       // behavior (audit #7) must stay pinned by a test.
       const callClaude = opts._callClaude || _callClaude;
       try   { responseText = await callClaude(apiKey, systemPrompt, userPrompt, model); }
-      catch (e) { return { fixed: false, reason: `claude-error: ${e.message}` }; }
+      catch (e) { return { fixed: false, reason: `ai-provider-error: ${e.message}` }; }
 
       const hypotheses = _parseHypotheses(responseText);
       if (hypotheses.length === 0) {
