@@ -28,6 +28,16 @@
 //
 // Anything else — "powered by Claude", "Sonnet 5 everywhere else", "Fable on
 // the fix tiers", "Anthropic Claude" — fails with file:line.
+//
+// Engine output (2026-09-14, follow-up to the public-copy sweep): the strings
+// the engine itself writes for a customer — finding text in the JSON/HTML
+// reports, MCP tool results, the fix-PR and CI-fixer PR bodies, the forensic /
+// correlation / executive-summary markdown, the `--model` labels printed on a
+// bad choice — are in scope too. "Claude API error", "Claude call failed for
+// this hunk" and "Powered by Claude" all reached customers through those.
+// The renderers live in website/app/lib and are mirrored into lib/ by
+// scripts/sync-lib.js and hand-copied into packages/mcp-server/, so every copy
+// is listed.
 // =============================================================================
 
 const { describe, it } = require('node:test');
@@ -65,6 +75,29 @@ const SCOPE_FILES = [
   'bin/gatetest.js',
   'bin/gatetest-mcp.mjs',
   'website/app/lib/chat-system-prompt.js', // the chat widget's self-description reaches the customer
+  // Engine output — what the engine writes for a customer (see the header).
+  'src/ai-loop.js',                         // printed scan report for an AI assistant
+  'src/core/engine-models.js',              // `--model` labels printed on a bad choice
+  'src/core/cli-fix-orchestrator.js',       // per-file fix failure reasons
+  'src/core/direct-repair.js',              // skip reasons in the repair report
+  'src/core/bidirectional-test-gate.js',    // timeout error text
+  'src/modules/fake-fix-detector.js',       // finding titles/explanations in the reports
+  'lib/ai-ci-fixer-core.js',                // CI-fixer PR / issue bodies
+  'lib/ai-ci-fixer-claude.js',              // CI-fixer error text (lastError in the issue body) and stderr log lines
+  'lib/ai-ci-fixer-diagnose.js',
+  'lib/nuclear-diagnoser.js',               // synced from website/app/lib — explain_finding text, forensic markdown
+  'lib/pr-composer.js',                     // synced from website/app/lib — compose_pr / fix PR body
+  'packages/mcp-server/nuclear-diagnoser.js', // hand copies of the two above
+  'packages/mcp-server/pr-composer.js',
+  'packages/mcp-server/bin/server.mjs',
+  'website/app/lib/engine-models.js',       // twin of src/core/engine-models.js
+  'website/app/lib/nuclear-diagnoser.js',
+  'website/app/lib/pr-composer.js',
+  'website/app/lib/cross-finding-correlator.js', // correlation markdown
+  'website/app/lib/executive-summary.js',   // executive-summary markdown
+  'website/app/lib/architecture-annotator.js', // architecture PR comment
+  'website/app/lib/pair-review.js',         // pair-review PR footer
+  'website/app/lib/test-generator.js',      // regression-test skip reasons rendered into the PR
 ];
 // Excluded from SCOPE_DIRS walks, with the reason.
 const EXCLUDE = [
@@ -98,7 +131,16 @@ const GLOBAL_ALLOW = [
   // crawler user-agents (robots.ts)
   'ClaudeBot', 'Claude-Web', 'anthropic-ai',
   // file names / module ids / code paths
-  'CLAUDE.md', 'claude-md', 'claudeCompliance', 'anthropic-config', 'anthropic-version', 'claude-code',
+  'CLAUDE.md', 'claude-md', 'claudeCompliance', 'claude-compliance', 'anthropic-config', 'anthropic-version', 'claude-code',
+  'ai-ci-fixer-claude', // lib/ai-ci-fixer-claude.js — the transport module's file name
+];
+// The `--model` VALUES — exact ids and their aliases — are the API contract a
+// user passes on the CLI / MCP `model` arg. Quoted, so only the literal value
+// tokens are admitted; the labels beside them are prose and are pinned neutral
+// by the "engine output" tests below.
+const MODEL_VALUE_TOKENS = [
+  "'claude-sonnet-5'", "'claude-opus-5'", "'claude-opus-4-8'", "'claude-fable-5'", "'claude-mythos-5'", "'claude-haiku-4-5'",
+  "'sonnet'", "'sonnet-5'", "'opus'", "'opus-5'", "'opus-4-8'", "'opus-4.8'", "'fable'", "'fable-5'",
 ];
 const FILE_ALLOW = {
   // `--model` alias values are CLI flag values, not prose. The descriptions
@@ -107,19 +149,30 @@ const FILE_ALLOW = {
   'bin/gatetest-mcp.mjs': ['sonnet | opus | fable', 'sonnet (default — fastest, cheapest)', 'fable (the most capable', 'opus (sits between)'],
   // Config keys / values for the MCP client auto-configuration — the IDE ids.
   'vscode-extension/src/extension.ts': ["'claude'", 'claude:'],
+  // The model allow-list tables: ids + aliases are values, not prose.
+  'src/core/engine-models.js': MODEL_VALUE_TOKENS,
+  'website/app/lib/engine-models.js': MODEL_VALUE_TOKENS,
+  'src/modules/fake-fix-detector.js': MODEL_VALUE_TOKENS,
+  // `'claude'` is the fix-telemetry layer id (src/core/fix-telemetry.js
+  // VALID_LAYERS) / the direct-repair strategy id — an enum value stored in
+  // telemetry JSON, never rendered as prose.
+  'src/core/cli-fix-orchestrator.js': ["'claude'"],
+  'src/core/direct-repair.js': ["'claude'"],
 };
 
 // Comments in source files are not rendered. Strip them so a `// see CLAUDE.md`
 // or a historical note does not fail the guard; prose in strings/JSX stays.
 // Only comment shapes that START a line (or follow a statement) are stripped —
 // a `/*` or `//` inside a string or a URL is left alone so a glob or a link in
-// prose cannot swallow the text after it.
+// prose cannot swallow the text after it. A `/* … */` that follows a statement
+// character (`} catch { /* error-ok — … */ }`) is treated like the `//` case.
 function stripComments(rel, src) {
   if (/\.(tsx?|jsx?|mjs|cjs|php)$/.test(rel)) {
     return src
       .replace(/^[ \t]*\{?\/\*[\s\S]*?\*\/\}?/gm, (m) => m.replace(/[^\n]/g, ' '))
       .replace(/^[ \t]*\/\/[^\n]*/gm, '')
-      .replace(/([;{}(,])[ \t]*\/\/[^\n]*/g, (_, pre) => pre);
+      .replace(/([;{}(,])[ \t]*\/\/[^\n]*/g, (_, pre) => pre)
+      .replace(/([;{}(,])[ \t]*\/\*[\s\S]*?\*\//g, (_, pre) => pre);
   }
   return src;
 }
@@ -178,7 +231,10 @@ describe('public copy is vendor-neutral', () => {
       'website/app/mcp/page.tsx', 'website/app/how-it-works/page.tsx', 'website/app/llms.txt/route.ts',
       'website/app/robots.ts', 'README.md', 'action.yml', 'packages/mcp-server/README.md',
       'integrations/github-actions/gatetest-gate.yml', 'wp-plugin/readme.txt', 'vscode-extension/package.json',
-      'src/reporters/console-reporter.js', 'bin/gatetest.js']) {
+      'src/reporters/console-reporter.js', 'bin/gatetest.js',
+      // engine output
+      'src/modules/fake-fix-detector.js', 'lib/ai-ci-fixer-core.js', 'lib/nuclear-diagnoser.js', 'lib/pr-composer.js',
+      'packages/mcp-server/nuclear-diagnoser.js', 'website/app/lib/executive-summary.js']) {
       assert.ok(files.includes(must), `${must} must be in scope`);
     }
   });
@@ -260,5 +316,35 @@ describe('customer-facing API messages are vendor-neutral', () => {
     assert.ok(src.includes('const optionalMissing = OPTIONAL.filter((n) => !isSet(n)).map(publicName);'));
     // The entry itself survives (readiness probe + marketplace preflight still fail on it) — only the name is neutral.
     assert.match(src, /missing_required: missing\.map\(\(v\) => \(\{ name: v\.name, why: v\.why \}\)\)/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Engine output. The model tables admit their ids as values (FILE_ALLOW), so
+// the labels printed beside them — `gatetest fix --model bogus` lists every
+// row as "alias  id  label" — are pinned here instead of by the source walk.
+// ---------------------------------------------------------------------------
+describe('engine output is vendor-neutral', () => {
+  it('the `--model` labels are capability language in both engine-models twins', () => {
+    for (const rel of ['src/core/engine-models.js', 'website/app/lib/engine-models.js']) {
+      const { ALLOWED_FIX_MODELS } = require(path.join(ROOT, rel));
+      const labels = Object.values(ALLOWED_FIX_MODELS).map((m) => m.label);
+      assert.ok(labels.length >= 3, `anti-vacuity: ${rel} should list several models`);
+      const bad = labels.filter((l) => FORBIDDEN.test(l));
+      assert.deepStrictEqual(bad, [], `${rel}: labels must describe capability, not name a model`);
+    }
+  });
+
+  it('the failure prefix every renderer writes on an AI call failure is "AI provider error"', () => {
+    const renderers = [
+      'website/app/lib/nuclear-diagnoser.js', 'lib/nuclear-diagnoser.js', 'packages/mcp-server/nuclear-diagnoser.js',
+      'website/app/lib/cross-finding-correlator.js', 'website/app/lib/executive-summary.js',
+      'website/app/lib/architecture-annotator.js', 'website/app/lib/pair-review.js', 'website/app/lib/test-generator.js',
+    ];
+    for (const rel of renderers) {
+      const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+      assert.match(src, /reason: `AI provider error: \$\{message\}`/, `${rel} must keep the neutral failure prefix`);
+      assert.doesNotMatch(src, /Claude API error/, `${rel} must not reintroduce the vendor-named prefix`);
+    }
   });
 });
