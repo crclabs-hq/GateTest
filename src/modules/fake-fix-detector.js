@@ -209,6 +209,11 @@ const PATTERN_RULES = [
   // --- Error swallowing ---
   {
     id: 'empty-catch',
+    // A test file that adds `catch {}` is a fixture of the shape under test
+    // or the test's own error handling — never a symptom patch on the code
+    // being fixed (self-scan of PR #488, 2026-09-14: three findings on the
+    // error-swallow control pair's fixture strings). src/ still fires.
+    notInTests: true,
     direction: 'added',
     // Exclude lines that carry a `// error-ok` suppressor documenting why
     // the empty catch is intentional (e.g. cleanup in finally, fallback value).
@@ -219,6 +224,11 @@ const PATTERN_RULES = [
   },
   {
     id: 'catch-noop',
+    // A test file that adds `catch {}` is a fixture of the shape under test
+    // or the test's own error handling — never a symptom patch on the code
+    // being fixed (self-scan of PR #488, 2026-09-14: three findings on the
+    // error-swallow control pair's fixture strings). src/ still fires.
+    notInTests: true,
     direction: 'added',
     pattern: /^\+.*catch\s*\([^)]*\)\s*\{\s*\/\*.*\*\/\s*\}/,
     severity: 'error',
