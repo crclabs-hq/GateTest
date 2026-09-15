@@ -175,7 +175,7 @@ jobs:
           node-version: '22'
 
       - name: Build gatetest-health-check.zip
-        run: node scripts/build-wp-plugin-zip.js
+        run: SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" node scripts/build-wp-plugin-zip.js
 
       - name: Upload the zip to the GitHub Release
         env:
