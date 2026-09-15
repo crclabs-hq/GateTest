@@ -45,7 +45,7 @@ const faqItems = [
   },
   {
     q: "Can CodeQL auto-fix vulnerabilities?",
-    a: "CodeQL has no auto-fix capability as of 2026. GitHub Copilot Autofix can suggest patches for CodeQL alerts in GitHub Advanced Security, but these are limited to CodeQL-flagged issues and require manual review. GateTest's Scan + Fix tier ($199) uses Claude to write working code fixes for every issue it finds — not suggestions, but an actual pull request with the guard added, the query restructured, or the config corrected. On the Forensic Scan tier ($399), Claude also reasons about each finding individually and identifies cross-finding attack chains.",
+    a: "CodeQL has no auto-fix capability as of 2026. GitHub Copilot Autofix can suggest patches for CodeQL alerts in GitHub Advanced Security, but these are limited to CodeQL-flagged issues and require manual review. GateTest's Scan + Fix tier ($199) uses its AI fix engine to write working code fixes for every issue it finds — not suggestions, but an actual pull request with the guard added, the query restructured, or the config corrected. On the Forensic Scan tier ($399), the analysis engine also reasons about each finding individually and identifies cross-finding attack chains.",
   },
   {
     q: "How long does a CodeQL scan take vs GateTest?",
@@ -231,7 +231,7 @@ export default function CodeQLPage() {
               },
               {
                 title: "Auto-fix PR — CodeQL can't do this",
-                body: "CodeQL shows you what's wrong. GateTest fixes it. The Scan + Fix tier ($199) uses Claude to write working code changes and open a pull request — not just a suggestion, but a commit with the guard added and a regression test written. The Forensic Scan tier ($399) adds per-finding Claude diagnosis and cross-finding attack-chain correlation.",
+                body: "CodeQL shows you what's wrong. GateTest fixes it. The Scan + Fix tier ($199) uses the AI fix engine to write working code changes and open a pull request — not just a suggestion, but a commit with the guard added and a regression test written. The Forensic Scan tier ($399) adds per-finding AI diagnosis and cross-finding attack-chain correlation.",
               },
               {
                 title: "No Advanced Security licence required",
@@ -276,7 +276,7 @@ export default function CodeQLPage() {
           </h2>
           <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
             Security, quality, accessibility, IaC, AI safety — in one scan, no CI required, no
-            per-seat licensing. Claude opens the fix PR on Scan + Fix and Forensic Scan tiers.
+            per-seat licensing. The fix engine opens the fix PR on Scan + Fix and Forensic Scan tiers.
           </p>
           <Link
             href="/playground"

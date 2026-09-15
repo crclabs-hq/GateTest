@@ -3,7 +3,7 @@
 export const metadata: Metadata = {
   title: "How GateTest works — Architecture, modules, flywheel, tiers",
   description:
-    "121 modules — deterministic first. One Claude pass when it's worth it. Zero hype. The full technical architecture behind GateTest — the static engine, the fix flywheel, the 4-tier deliverable, and the honest limits.",
+    "121 modules — deterministic first. One AI pass when it's worth it. Zero hype. The full technical architecture behind GateTest — the static engine, the fix flywheel, the 4-tier deliverable, and the honest limits.",
   keywords: [
     "GateTest architecture",
     "how GateTest works",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "How GateTest works — Architecture, modules, flywheel, tiers",
     description:
-      "121 modules — deterministic first. One Claude pass when it's worth it. The full technical architecture behind GateTest.",
+      "121 modules — deterministic first. One AI pass when it's worth it. The full technical architecture behind GateTest.",
     url: "/how-it-works",
     siteName: "GateTest",
     type: "article",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "How GateTest works",
     description:
-      "The full technical architecture: static engine first, Claude last, zero hype.",
+      "The full technical architecture: static engine first, AI last, zero hype.",
   },
 };
 

@@ -62,7 +62,7 @@ const CATCHES = [
 
 const TERMINAL_LINES = [
   { t: "cmd",  text: "$ gatetest scan --suite quick --diff" },
-  { t: "info", text: `  GateTest v${siteStats.version} — ${siteStats.modules.total} modules, Claude Sonnet 5` },
+  { t: "info", text: `  GateTest v${siteStats.version} — ${siteStats.modules.total} modules loaded` },
   { t: "info", text: "  Scanning 14 changed files vs main..." },
   { t: "pass", text: "  [PASS] syntax" },
   { t: "pass", text: "  [PASS] lint" },
@@ -204,7 +204,7 @@ export default function DevelopersPage() {
               {[
                 { label: "Workflow added", desc: ".github/workflows/gatetest-gate.yml — runs quick scan on every PR" },
                 { label: "Pre-push hook", desc: ".husky/pre-push — advisory output before you push, CI is the gate" },
-                { label: "Protection marker", desc: ".gatetest.json — tells Claude sessions this repo is protected" },
+                { label: "Protection marker", desc: ".gatetest.json — tells AI coding agents this repo is protected" },
               ].map((item) => (
                 <div key={item.label} className="rounded-lg section-alt border border-border p-3">
                   <div className="font-semibold text-foreground mb-1">{item.label}</div>

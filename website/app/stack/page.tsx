@@ -134,7 +134,7 @@ export default function StackPage() {
           <li className="card p-5">
             <span className="font-semibold text-foreground">Code on Gluecron, audited by GateTest:</span>{" "}
             push triggers a scan; failing scans block the merge. Same gate story as a GitHub repo,
-            but on a git host that Claude actually understands.
+            but on a git host that AI agents actually understand.
           </li>
           <li className="card p-5">
             <span className="font-semibold text-foreground">Scheduled jobs on {PLATFORM_NAME}, audited by GateTest:</span>{" "}
@@ -155,7 +155,7 @@ export default function StackPage() {
 
 const STEPS = [
   { name: "GateTest gates it", does: `${siteStats.modules.total} modules on every push. Failing scans block the merge; paid tiers open the fix PR.` },
-  { name: "Gluecron hosts it", does: "A git host built around Claude — repos, branches, PRs and webhooks the way an agent expects them." },
+  { name: "Gluecron hosts it", does: "A git host built for AI agents — repos, branches, PRs and webhooks the way an agent expects them." },
   { name: `${PLATFORM_NAME} runs it`, does: "Scheduled jobs and background work at the edge, with zero infrastructure to manage." },
 ];
 
@@ -181,11 +181,11 @@ const PRODUCTS = [
     name: "Gluecron",
     badge: "Gc",
     badgeColor: "bg-indigo-500",
-    tagline: "The git host built around Claude.",
+    tagline: "The git host built for AI agents.",
     body:
-      "A git host designed from day one for the era when most of the code is being written by AI agents. Programmatic webhook API, agent-friendly auth, Claude-aware tooling. GateTest scans Gluecron repos first-class through its Signal Bus.",
+      "A git host designed from day one for the era when most of the code is being written by AI agents. Programmatic webhook API, agent-friendly auth, agent-aware tooling. GateTest scans Gluecron repos first-class through its Signal Bus.",
     bullets: [
-      "Repos, branches, PRs — done the way Claude expects them",
+      "Repos, branches, PRs — done the way an agent expects them",
       "Programmatic webhook registration via REST (no clicking through UIs)",
       "PAT auth that just works for agents",
       "No code-AI-training opt-in question because there's no opt-in",
@@ -203,7 +203,7 @@ const PRODUCTS = [
     bullets: [
       "Edge-first runtime — close to your users, close to your data",
       "Zero infra to provision, zero on-call rotation",
-      "AI-native by design — Claude understands your jobs",
+      "AI-native by design — agents understand your jobs",
       "Pay only when work actually runs",
     ],
     href: PLATFORM_SITE_URL,

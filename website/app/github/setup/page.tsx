@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 const AFTER_INSTALL = [
   { t: "info", text: "  GateTest detected push to feature/billing-overhaul" },
-  { t: "info", text: "  Running free deterministic gate — full suite, Claude-powered modules skipped..." },
+  { t: "info", text: "  Running free deterministic gate — full suite, AI-powered modules skipped..." },
   { t: "fail", text: "  [FAIL] secrets      — 1 issue" },
   { t: "sep",  text: "" },
   { t: "err",  text: "  ERR  secrets › src/billing/invoice.ts:94" },
@@ -71,7 +71,7 @@ export default function GitHubSetup() {
       <PageHero
         eyebrow="GitHub App · free deterministic gate · private repos supported"
         title={<>GateTest on GitHub — <span className="text-accent">install once, forget about config.</span></>}
-        lede={<>Free the moment you install: every push and PR runs the full deterministic engine — secrets, security, CI hardening, supply chain, code quality and more; only the Claude-powered modules are skipped — with results posted as commit statuses and PR comments. Want AI code review on every push? Subscribe to Continuous. Want an auto-fix PR? Run a Scan + Fix or Forensic scan at <a href={SITE_URL} className="text-accent hover:underline">gatetest.io</a>.</>}
+        lede={<>Free the moment you install: every push and PR runs the full deterministic engine — secrets, security, CI hardening, supply chain, code quality and more; only the AI-powered modules are skipped — with results posted as commit statuses and PR comments. Want AI code review on every push? Subscribe to Continuous. Want an auto-fix PR? Run a Scan + Fix or Forensic scan at <a href={SITE_URL} className="text-accent hover:underline">gatetest.io</a>.</>}
         actions={<InstallButton />}
       >
         {/* What happens after install — what the CI sees, so it stays a dark panel */}

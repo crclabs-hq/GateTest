@@ -86,7 +86,7 @@ export default function Quickstart() {
                 <strong>Name:</strong> <code className="text-foreground">ANTHROPIC_API_KEY</code>
               </li>
               <li>
-                <strong>Value:</strong> your Anthropic API key. Get one at{" "}
+                <strong>Value:</strong> your AI provider API key. Get one at{" "}
                 <a
                   href="https://console.anthropic.com/settings/keys"
                   target="_blank"
@@ -102,7 +102,7 @@ export default function Quickstart() {
 
             <Note>
               We never see or store your key &mdash; it goes from GitHub Secrets
-              directly to Anthropic at fix-time. You&apos;re billed by Anthropic
+              directly to the AI provider at fix-time. You&apos;re billed by the provider
               for the API usage, not by us.
             </Note>
           </Step>
@@ -153,7 +153,7 @@ git add -A && git commit -m "test: trigger gate" && git push`}</CodeBlock>
               </Bullet>
               <Bullet>
                 On Scan + Fix and Forensic Scan tiers: a pair-review comment from a
-                second Claude scoring the fix on 4 axes.
+                second AI reviewer scoring the fix on 4 axes.
               </Bullet>
             </ul>
 

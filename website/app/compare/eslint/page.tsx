@@ -45,7 +45,7 @@ const faqItems = [
   },
   {
     q: "Can GateTest auto-fix issues like ESLint --fix?",
-    a: "ESLint --fix handles formatting and simple pattern replacements. GateTest's AI auto-fix (Scan + Fix, $199) handles actual bug fixes — adding validation guards, restructuring dangerous code patterns, fixing security misconfigurations — and opens a pull request with the changes for your review. The Forensic Scan tier ($399) goes deeper: Claude-driven per-finding diagnosis, attack-chain correlation, a board-ready CISO report, and an executive summary. Mutation testing on your existing tests also ships via the GitHub Action with mutation: true — runs wherever your CI runs.",
+    a: "ESLint --fix handles formatting and simple pattern replacements. GateTest's AI auto-fix (Scan + Fix, $199) handles actual bug fixes — adding validation guards, restructuring dangerous code patterns, fixing security misconfigurations — and opens a pull request with the changes for your review. The Forensic Scan tier ($399) goes deeper: AI-driven per-finding diagnosis, attack-chain correlation, a board-ready CISO report, and an executive summary. Mutation testing on your existing tests also ships via the GitHub Action with mutation: true — runs wherever your CI runs.",
   },
   {
     q: "What does GateTest catch that ESLint misses?",
@@ -210,7 +210,7 @@ export default function EsLintPage() {
               },
               {
                 title: "AI code review with real reasoning",
-                body: "GateTest sends your code to Claude with full context — the function, its callers, its data flow. The AI identifies real bugs: off-by-one errors in financial calculations, missing error handling in async chains, logic inversions in conditional branches. ESLint has no rule for any of this.",
+                body: "GateTest's AI review reads your code with full context — the function, its callers, its data flow. The AI identifies real bugs: off-by-one errors in financial calculations, missing error handling in async chains, logic inversions in conditional branches. ESLint has no rule for any of this.",
               },
               {
                 title: "Security that ESLint plugins miss",

@@ -109,10 +109,10 @@ export default async function ModulePage({ params }: PageParams) {
         {
           q: `Does GateTest fix ${pretty} issues automatically?`,
           a: repoFix
-            ? `Yes — on the Scan + Fix tier ($199) and Forensic Scan tier ($399), Claude reads the finding, writes the fix, validates against the scanner, writes a regression test, and opens a pull request for your review.`
+            ? `Yes — on the Scan + Fix tier ($199) and Forensic Scan tier ($399), the fix engine reads the finding, writes the fix, validates against the scanner, writes a regression test, and opens a pull request for your review.`
             : avail.kind === "live"
               ? `Live-URL findings ship with plain-English fix instructions and, where the platform allows it, a generated config file. Auto-fix pull requests are written for repository findings on the Scan + Fix ($199) and Forensic ($399) tiers.`
-              : `On the GitHub Action, with your own Anthropic key, \`--auto-pr\` opens the fix PR from the same fix engine. The hosted Scan + Fix ($199) and Forensic ($399) tiers auto-fix the repository findings they run.`,
+              : `On the GitHub Action, with your own ANTHROPIC_API_KEY, \`--auto-pr\` opens the fix PR from the same fix engine. The hosted Scan + Fix ($199) and Forensic ($399) tiers auto-fix the repository findings they run.`,
         },
         {
           q: `Which tiers include the ${pretty} module?`,
@@ -233,10 +233,10 @@ export default async function ModulePage({ params }: PageParams) {
               <li className="flex items-start gap-2">
                 <span className="text-accent mt-1" aria-hidden="true">&#10003;</span>
                 <span><strong className="text-foreground">AI auto-fix PR.</strong> {repoFix
-                  ? "Scan + Fix tier opens a pull request with the fix, a regression test, and a pair-review by a second Claude. Forensic Scan tier adds per-finding diagnosis and cross-finding attack-chain correlation."
+                  ? "Scan + Fix tier opens a pull request with the fix, a regression test, and a pair-review by a second AI reviewer. Forensic Scan tier adds per-finding diagnosis and cross-finding attack-chain correlation."
                   : avail.kind === "live"
                     ? "Live-URL findings come with plain-English fix instructions. Auto-fix pull requests are for repository findings on the Scan + Fix and Forensic tiers."
-                    : "On the GitHub Action, with your own Anthropic key, --auto-pr opens the fix PR from the same fix engine that powers Scan + Fix and Forensic."}</span>
+                    : "On the GitHub Action, with your own ANTHROPIC_API_KEY, --auto-pr opens the fix PR from the same fix engine that powers Scan + Fix and Forensic."}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-accent mt-1" aria-hidden="true">&#10003;</span>

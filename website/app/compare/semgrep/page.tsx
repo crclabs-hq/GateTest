@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs Semgrep — 121 modules vs pattern matching in 2026",
     description:
-      `Semgrep is excellent at finding patterns you wrote rules for. GateTest uses Claude to find what nobody wrote a rule for — plus ${TOTAL_MODULES - 1} other checks — and opens a fix PR.`,
+      `Semgrep is excellent at finding patterns you wrote rules for. GateTest uses AI reasoning to find what nobody wrote a rule for — plus ${TOTAL_MODULES - 1} other checks — and opens a fix PR.`,
     url: "/compare/semgrep",
     siteName: "GateTest",
     type: "website",
@@ -33,11 +33,11 @@ export const metadata: Metadata = {
 const faqItems = [
   {
     q: "How does GateTest differ from Semgrep?",
-    a: "Semgrep is a pattern-matching engine: it finds code that matches rules written in YAML. It's fast and configurable, and the community has written thousands of rules. The gap is anything nobody wrote a rule for. GateTest uses Claude to read your actual code and reason about what it does — it finds SSRF in an API handler it has never seen before, because Claude understands intent, not just structure. GateTest also runs 121 checks across categories Semgrep doesn't cover: accessibility, performance, N+1 queries, datetime bugs, money-float errors, import cycles, and infra (Dockerfile, K8s, Terraform, CI pipelines).",
+    a: "Semgrep is a pattern-matching engine: it finds code that matches rules written in YAML. It's fast and configurable, and the community has written thousands of rules. The gap is anything nobody wrote a rule for. GateTest's AI review reads your actual code and reasons about what it does — it finds SSRF in an API handler it has never seen before, because it understands intent, not just structure. GateTest also runs 121 checks across categories Semgrep doesn't cover: accessibility, performance, N+1 queries, datetime bugs, money-float errors, import cycles, and infra (Dockerfile, K8s, Terraform, CI pipelines).",
   },
   {
     q: "Does Semgrep have auto-fix?",
-    a: "Semgrep can apply fix: patterns defined in rules — automated text substitutions paired with the matched pattern. These work for simple, predictable transformations (rename this function call, add this import). They don't work for complex contextual fixes that require understanding the surrounding code. GateTest's Scan + Fix tier ($199) uses Claude to write the actual fix logic — adds the validation guard, restructures the N+1 loop, fixes the datetime call with the correct timezone — and opens a pull request for your review. The fix is code Claude wrote, not a text substitution.",
+    a: "Semgrep can apply fix: patterns defined in rules — automated text substitutions paired with the matched pattern. These work for simple, predictable transformations (rename this function call, add this import). They don't work for complex contextual fixes that require understanding the surrounding code. GateTest's Scan + Fix tier ($199) uses the AI fix engine to write the actual fix logic — adds the validation guard, restructures the N+1 loop, fixes the datetime call with the correct timezone — and opens a pull request for your review. The fix is code the engine wrote, not a text substitution.",
   },
   {
     q: "What does Semgrep's free tier include vs. paid?",
@@ -49,11 +49,11 @@ const faqItems = [
   },
   {
     q: "Does GateTest find injection vulnerabilities like Semgrep?",
-    a: "Yes. GateTest's SSRF module traces user-controlled input (req.body, req.query, req.params, event.body) through to HTTP client calls (fetch, axios, got, http.request, undici) and flags unvalidated paths. The taint flow is semantic, not pattern-matched — it understands variable aliasing and function returns, not just surface-level string proximity. The same reasoning applies to command injection surfaces. On the Forensic Scan tier ($399), Claude-driven cross-finding correlation can identify chains: 'missing input validation here combines with this overly-permissive IAM role to form a realistic SSRF → privilege-escalation path.'",
+    a: "Yes. GateTest's SSRF module traces user-controlled input (req.body, req.query, req.params, event.body) through to HTTP client calls (fetch, axios, got, http.request, undici) and flags unvalidated paths. The taint flow is semantic, not pattern-matched — it understands variable aliasing and function returns, not just surface-level string proximity. The same reasoning applies to command injection surfaces. On the Forensic Scan tier ($399), AI-driven cross-finding correlation can identify chains: 'missing input validation here combines with this overly-permissive IAM role to form a realistic SSRF → privilege-escalation path.'",
   },
   {
     q: "How does GateTest handle false positives?",
-    a: "Pattern matchers like Semgrep tend to generate false positives when code matches a pattern structurally but is safe in context. GateTest modules are built with explicit suppression paths: test files downgrade severity, known-safe patterns (e.g. SSRF modules suppress on validateUrl/allowedHosts.includes guards, money-float suppresses when a decimal library is imported). Claude-driven findings on the Forensic Scan tier include reasoning, so you can see why a finding was flagged — not just a rule ID. The confidence-calibrator trainer tracks customer suppressions and flags rules with high dismissal rates as candidates for severity downgrades.",
+    a: "Pattern matchers like Semgrep tend to generate false positives when code matches a pattern structurally but is safe in context. GateTest modules are built with explicit suppression paths: test files downgrade severity, known-safe patterns (e.g. SSRF modules suppress on validateUrl/allowedHosts.includes guards, money-float suppresses when a decimal library is imported). AI-driven findings on the Forensic Scan tier include reasoning, so you can see why a finding was flagged — not just a rule ID. The confidence-calibrator trainer tracks customer suppressions and flags rules with high dismissal rates as candidates for severity downgrades.",
   },
 ];
 
@@ -109,7 +109,7 @@ export default function SemgrepPage() {
             Semgrep is great at finding code that matches patterns you&rsquo;ve written rules for.
             The gap is the bug nobody wrote a rule for yet — the SSRF in a handler that&rsquo;s shaped
             differently, the race condition in a new ORM, the N+1 query introduced last Tuesday.
-            GateTest uses Claude to read intent, not patterns.
+            GateTest uses AI to read intent, not patterns.
           </>
         }
         actions={
@@ -201,7 +201,7 @@ export default function SemgrepPage() {
             {[
               {
                 title: "Reasoning vs. pattern matching",
-                body: "Semgrep matches code that looks like a known bad pattern. Claude reads your code and understands what it does — so it finds the SSRF that's shaped differently from any rule, the race condition in a new ORM, the N+1 in a loop structure nobody thought to write a rule for. The gap between 'matches pattern' and 'is actually dangerous' is where most real bugs live.",
+                body: "Semgrep matches code that looks like a known bad pattern. GateTest's AI review reads your code and understands what it does — so it finds the SSRF that's shaped differently from any rule, the race condition in a new ORM, the N+1 in a loop structure nobody thought to write a rule for. The gap between 'matches pattern' and 'is actually dangerous' is where most real bugs live.",
               },
               {
                 title: `${TOTAL_MODULES} categories vs. one`,
@@ -209,11 +209,11 @@ export default function SemgrepPage() {
               },
               {
                 title: "Auto-fix PRs — not text substitutions",
-                body: "Semgrep's fix: patterns are text substitutions. GateTest's Scan + Fix tier ($199) uses Claude to write the actual fix logic — adds the SSRF validation guard, restructures the N+1 query into a batched lookup, fixes the datetime call with the correct timezone — then opens a pull request for your review. It's an engineer writing a fix, not a sed replacement.",
+                body: "Semgrep's fix: patterns are text substitutions. GateTest's Scan + Fix tier ($199) uses the AI fix engine to write the actual fix logic — adds the SSRF validation guard, restructures the N+1 query into a batched lookup, fixes the datetime call with the correct timezone — then opens a pull request for your review. It's an engineer writing a fix, not a sed replacement.",
               },
               {
                 title: "No rules to maintain",
-                body: "Semgrep's value scales with your rule library. You either write custom rules (takes time) or use community rules (may be stale). GateTest's 121 modules are maintained for you — and Claude-driven reasoning improves with every scan through the recipe-distillation flywheel. Per-scan pricing means no maintenance overhead.",
+                body: "Semgrep's value scales with your rule library. You either write custom rules (takes time) or use community rules (may be stale). GateTest's 121 modules are maintained for you — and AI-driven reasoning improves with every scan through the recipe-distillation flywheel. Per-scan pricing means no maintenance overhead.",
               },
             ].map((card) => (
               <div
@@ -249,7 +249,7 @@ export default function SemgrepPage() {
             121 checks. No rules to write.
           </h2>
           <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
-            Security, quality, accessibility, performance, IaC, AI safety — in one scan. Claude
+            Security, quality, accessibility, performance, IaC, AI safety — in one scan. AI review
             finds what no pattern covers. One-time payment per scan.
           </p>
           <Link

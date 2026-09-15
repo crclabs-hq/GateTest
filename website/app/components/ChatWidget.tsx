@@ -4,7 +4,7 @@
  * <ChatWidget />
  *
  * Floating bottom-right chat button that expands into a full chat
- * window. Powered by /api/chat, which calls Claude scoped to GateTest
+ * window. Powered by /api/chat, which calls the AI provider scoped to GateTest
  * product knowledge. No phone, no human handoff — this is the entire
  * support channel.
  *

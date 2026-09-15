@@ -45,11 +45,11 @@ const faqItems = [
   },
   {
     q: "Does GateTest include AI-app safety scanning?",
-    a: "Yes. GateTest's promptSafety module catches: browser-bundled API keys (NEXT_PUBLIC_* / VITE_* with AI keys), OpenAI/Anthropic calls without max_tokens limits (cost DoS vector), user-input interpolation in prompt templates without delimiters (injection surface), and deprecated AI models (claude-v1, text-davinci-*). Snyk does not advertise a dedicated AI / LLM safety SKU at time of writing.",
+    a: "Yes. GateTest's promptSafety module catches: browser-bundled API keys (NEXT_PUBLIC_* / VITE_* with AI keys), LLM API calls without max_tokens limits (cost DoS vector), user-input interpolation in prompt templates without delimiters (injection surface), and deprecated AI model ids. Snyk does not advertise a dedicated AI / LLM safety SKU at time of writing.",
   },
   {
     q: "Can GateTest fix vulnerabilities automatically?",
-    a: "Yes. The Scan + Fix tier ($199) uses AI to create pull requests with working code changes that address the issues found. Snyk can suggest fix PRs for dependency upgrades in its paid tiers; GateTest auto-fixes source code vulnerabilities — SSRF guards, TLS config fixes, cookie security flags, and more. The Forensic Scan tier ($399) adds Claude-driven diagnosis on every finding, cross-finding attack-chain correlation, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass also ship via the GitHub Action (mutation: true / chaos: true) — runs wherever your CI runs.",
+    a: "Yes. The Scan + Fix tier ($199) uses AI to create pull requests with working code changes that address the issues found. Snyk can suggest fix PRs for dependency upgrades in its paid tiers; GateTest auto-fixes source code vulnerabilities — SSRF guards, TLS config fixes, cookie security flags, and more. The Forensic Scan tier ($399) adds AI-driven diagnosis on every finding, cross-finding attack-chain correlation, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass also ship via the GitHub Action (mutation: true / chaos: true) — runs wherever your CI runs.",
   },
   {
     q: "Does GateTest work with private repos?",
@@ -68,7 +68,7 @@ const comparisonRows = [
   { feature: "Container image scanning (OS packages / CVEs)", gatetest: false, competitor: true },
   { feature: "Dockerfile / Compose hardening rules", gatetest: true, competitor: true },
   { feature: "IaC scanning (Terraform / K8s)", gatetest: true, competitor: true },
-  { feature: "AI code review for logic bugs (Claude-based)", gatetest: true, competitor: false },
+  { feature: "AI code review for logic bugs", gatetest: true, competitor: false },
   { feature: "Auto-fix PRs for non-dependency code bugs", gatetest: true, competitor: false },
   { feature: "Prompt injection / AI-app safety scanning", gatetest: true, competitor: false },
   { feature: "N+1 query detection", gatetest: true, competitor: false },
