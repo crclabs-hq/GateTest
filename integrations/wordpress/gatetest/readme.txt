@@ -71,7 +71,7 @@ Teams duct-tape 10+ tools together — ESLint for style, SonarQube for quality, 
 
 = Auto-fix =
 
-On the Full scan tier, GateTest uses Claude AI to read your code and automatically create a pull request fixing the issues found. You review the diff and merge — no manual debugging required.
+On the Full scan tier, GateTest uses its AI fix engine to read your code and automatically create a pull request fixing the issues found. You review the diff and merge — no manual debugging required.
 
 = Pricing =
 
@@ -120,7 +120,7 @@ GateTest reads your repository via the GitHub API — your code is fetched from 
 
 = What is the auto-fix feature? =
 
-On Full scans, GateTest uses Claude AI to read the files with issues and generate precise fixes. These fixes are submitted as a pull request to your GitHub repository. You review the changes, approve if they look correct, and merge. The AI does not push directly to your main branch.
+On Full scans, GateTest uses its AI fix engine to read the files with issues and generate precise fixes. These fixes are submitted as a pull request to your GitHub repository. You review the changes, approve if they look correct, and merge. The AI does not push directly to your main branch.
 
 = Can I run scans automatically? =
 
