@@ -83,7 +83,7 @@ export default function CheckoutSuccess() {
           {isMcp ? (
             <p className="text-muted mb-6">
               Your <code>gtmcp_</code> API key is being emailed to the address you used at checkout — usually within a minute.
-              Paste it as <code>GATETEST_API_KEY</code> and the hosted tools light up in claude.ai. No email in five minutes?
+              Paste it as <code>GATETEST_API_KEY</code> and the hosted tools light up in your AI client. No email in five minutes?
               Write to <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with your receipt and we&apos;ll resend it.
             </p>
           ) : (

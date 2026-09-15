@@ -46,14 +46,14 @@ export const TIERS: Record<string, ScanTier> = {
     priceInCents: 19900,
     modules: "all-applicable+pair-review+architecture",
     description:
-      "Everything in Full Scan, plus a second-Claude pair-review critique on every fix (correctness/completeness/readability/test-coverage rubric) and a separate architecture-annotator report on codebase-shape design observations. Same PR, deeper deliverable.",
+      "Everything in Full Scan, plus a second-agent pair-review critique on every fix (correctness/completeness/readability/test-coverage rubric) and a separate architecture-annotator report on codebase-shape design observations. Same PR, deeper deliverable.",
   },
   nuclear: {
     name: "Forensic Scan",
     priceInCents: 39900,
     modules: "all-applicable+forensic-stack",
     description:
-      "Everything in Scan + Fix, PLUS: real Claude diagnosis on every finding (no templated snippets), cross-finding attack-chain correlation (textbook session-forgery / supply-chain vectors no per-finding scanner can see), board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary report. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (mutation: true / chaos: true) — they need a CI runner so they ship wherever your CI runs.",
+      "Everything in Scan + Fix, PLUS: real AI diagnosis on every finding (no templated snippets), cross-finding attack-chain correlation (textbook session-forgery / supply-chain vectors no per-finding scanner can see), board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary report. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (mutation: true / chaos: true) — they need a CI runner so they ship wherever your CI runs.",
   },
   // URL-scan full-report tiers — the /web and /wp scanners' paywall unlock.
   // Prices match what those pages have advertised since launch ($29 / $19);
@@ -87,18 +87,18 @@ export const TIERS: Record<string, ScanTier> = {
     priceInCents: 4900,
     modules: "subscription-continuous",
     description:
-      "Scan every push across EVERY repo in your org — one flat $49/mo, no per-seat, no per-repo (org-flat since 2026-07-23). Unlimited deterministic push scans, plus a monthly Claude AI-review allowance shared across the org that escalates pushes to the deeper full-suite scan while budget remains. Fix PRs are a per-scan upsell. Cancel anytime.",
+      "Scan every push across EVERY repo in your org — one flat $49/mo, no per-seat, no per-repo (org-flat since 2026-07-23). Unlimited deterministic push scans, plus a monthly AI-review allowance shared across the org that escalates pushes to the deeper full-suite scan while budget remains. Fix PRs are a per-scan upsell. Cancel anytime.",
     recurring: true,
   },
   // MCP subscription — $29/mo. Key-based (no repo URL). Unlocks premium
-  // Eyes/Ears/Hands tools in the Claude MCP integration. Key delivered by
+  // Eyes/Ears/Hands tools in the hosted MCP integration. Key delivered by
   // email immediately after checkout. Craig-authorized 2026-07-04.
   mcp: {
     name: "GateTest MCP",
     priceInCents: 2900,
     modules: "subscription-mcp",
     description:
-      "Hosted MCP access — use GateTest from claude.ai web, mobile, and locked-down machines with no local install, plus hosted scan history. The LOCAL MCP server is free with every tool ungated (2026-07-23) — this tier is for when you can't run npx. API key delivered by email instantly. Cancel anytime.",
+      "Hosted MCP access — use GateTest from web and mobile AI clients and locked-down machines with no local install, plus hosted scan history. The LOCAL MCP server is free with every tool ungated (2026-07-23) — this tier is for when you can't run npx. API key delivered by email instantly. Cancel anytime.",
     recurring: true,
   },
 };

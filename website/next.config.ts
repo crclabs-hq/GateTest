@@ -46,6 +46,11 @@ const GUESSED_URLS: Array<{ source: string; destination: string; permanent: bool
   { source: "/terms", destination: "/legal/terms", permanent: true },
   { source: "/privacy", destination: "/legal/privacy", permanent: true },
   { source: "/login", destination: "/dashboard", permanent: false },
+  // /account never existed; the weekly-digest email's unsubscribe link
+  // (website/app/lib/weekly-digest.js) points at /account/notifications and
+  // already-sent mails carry it. Subscriptions are managed on /billing.
+  { source: "/account", destination: "/dashboard", permanent: false },
+  { source: "/account/notifications", destination: "/billing", permanent: false },
 ];
 
 const nextConfig: NextConfig = {
