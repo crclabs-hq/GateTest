@@ -24,7 +24,7 @@ export const ALL_TOOLS = [
   { name: "scan_local (standard/full/smart)", paid: false, desc: `${STANDARD_SUITE_MODULES}-module standard, ${FULL_SUITE_MODULES}-module full, or diff-aware smart scan` },
   { name: "run_module", paid: false, desc: "Run one specific module against a path" },
   { name: "fix_issue", paid: false, desc: "AI-driven auto-fix for a specific finding" },
-  { name: "explain_finding", paid: false, desc: "Forensic-tier Claude diagnosis per finding" },
+  { name: "explain_finding", paid: false, desc: "Forensic-tier AI diagnosis per finding" },
   { name: "compose_pr", paid: false, desc: "Render a PR body for a set of fixes" },
   { name: "capture_screenshot", paid: false, desc: "👁 Eyes — screenshot any live URL or localhost so the AI sees the rendered page" },
   { name: "get_visual_diff", paid: false, desc: "👁 Eyes — baseline vs current visual diff to catch UI regressions" },

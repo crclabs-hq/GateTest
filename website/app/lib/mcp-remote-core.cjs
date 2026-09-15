@@ -2,7 +2,7 @@
  * GateTest Remote MCP — transport-agnostic JSON-RPC core.
  *
  * Implements the MCP protocol surface (initialize / tools / prompts) for the
- * hosted endpoint at mcp.gatetest.io. Every tool proxies the gatetest.io
+ * hosted endpoint at gatetest.io/api/mcp. Every tool proxies the gatetest.io
  * product APIs — no local filesystem, no engine-in-process. The Hono/Bun
  * wrapper (index.ts) handles HTTP + SSE; this file handles everything else,
  * in plain CommonJS so the repo's `node --test` suite exercises it directly.

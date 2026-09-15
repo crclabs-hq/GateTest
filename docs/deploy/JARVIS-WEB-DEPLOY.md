@@ -2,7 +2,7 @@
 
 Deployed by Jarvis session 50, 2026-07-08. Companion to `JARVIS-MCP-DEPLOY.md` (mcp.gatetest.io).
 Implements the two-box-estate-model (Craig, 2026-07-08): box 161 hosts and serves the web pages;
-box 158 (Vapron, 149.28.119.158) provides backend services (email/SMS/storage/AI) over HTTPS only.
+box 158 (Tallrig — named Vapron until 2026-09-14; 149.28.119.158) provides backend services (email/SMS/storage/AI) over HTTPS only.
 Never SSH between boxes. DNS follows hosting: `gatetest.io` A → 66.42.121.161, never → 158.
 
 ## Topology
@@ -18,7 +18,7 @@ Cloudflare DNS (gatetest.io, www → A 66.42.121.161, DNS-only)
 - **Front-door decision (deliberate, per onboarding brief):** written doctrine mentioned a
   bun-gateway owning 80/443, but Traefik (`coolify-proxy`) is what actually listens and already
   serves gluecron.com and mcp.gatetest.io. Traefik serves gatetest.io. Revisit only as part of a
-  planned front-door migration (Vapron/other) — swing the route, don't run two owners of :80/:443.
+  planned front-door migration (Tallrig/other) — swing the route, don't run two owners of :80/:443.
 - **Bind address:** the app binds `10.0.1.1:3000` only (`-H 10.0.1.1`). Literal 127.0.0.1-only is
   impossible here — Traefik runs in a container and cannot reach host loopback. 10.0.1.1 is not
   publicly routable and UFW default-denies anyway (verified: `curl 66.42.121.161:3000` fails).
@@ -47,15 +47,15 @@ systemctl restart gatetest-web
 curl -s -o /dev/null -w '%{http_code}' https://gatetest.io/   # expect 200
 ```
 
-## Vapron backend wiring (strict — old providers being cancelled)
+## Tallrig backend wiring (strict — old providers being cancelled)
 
-- `VAPRON_BASE_URL=https://api.vapron.ai/api/platform` (set in `.env.local`).
-- `VAPRON_API_KEY` / `VAPRON_API_TOKEN`: the issued vpk_ key was never saved on this box.
-  **Craig: Vapron dashboard → Connected Apps → gatetest → Rotate key**, then set BOTH vars to the
-  new value (the website's client, `app/lib/vapron-dispatch.js`, sends `VAPRON_API_TOKEN` as
+- `TALLRIG_BASE_URL=https://api.tallrig.com/api/platform` (set in `.env.local`; the pre-rename `VAPRON_BASE_URL=https://api.vapron.ai/api/platform` is still read as an alias — see `docs/ops/tallrig-cutover.md`).
+- `TALLRIG_API_KEY` / `TALLRIG_API_TOKEN` (aliases `VAPRON_*`): the issued vpk_ key was never saved on this box.
+  **Craig: Tallrig dashboard → Connected Apps → gatetest → Rotate key**, then set BOTH vars to the
+  new value (the website's client, `app/lib/vapron-dispatch.js`, sends the token (`TALLRIG_API_TOKEN`, or `VAPRON_API_TOKEN`) as
   Bearer) and `systemctl restart gatetest-web`.
-- `VAPRON_DISPATCH_SECRET`: HMAC shared secret for dispatch signatures + inbound
-  `/api/web/scan/runtime-callback` verification — obtain from the Vapron side.
+- `TALLRIG_DISPATCH_SECRET` (alias `VAPRON_DISPATCH_SECRET`): HMAC shared secret for dispatch signatures + inbound
+  `/api/web/scan/runtime-callback` verification — obtain from the Tallrig side.
 - Do NOT add SendGrid, Twilio, S3/AWS, OpenAI-direct, or Vercel/Render/Cloudflare SDKs/env vars.
 
 ## Still pending (site serves without them; features degrade gracefully)
@@ -64,7 +64,7 @@ curl -s -o /dev/null -w '%{http_code}' https://gatetest.io/   # expect 200
 `ANTHROPIC_API_KEY`, `STRIPE_*`, `CRON_SECRET`, `RESEND_*`, Sentry DSNs — copy real values from
 the old Vercel project env into `.env.local`, then restart. Full reference: `.env.example`.
 Note: Vercel cron jobs (`/api/watches/tick`, `/api/scan/worker/tick`) no longer fire after leaving
-Vercel — schedule replacements (systemd timers or Vapron) when those features are needed.
+Vercel — schedule replacements (systemd timers or Tallrig) when those features are needed.
 
 ## Verify (Rule 2 artifacts, all green 2026-07-08)
 

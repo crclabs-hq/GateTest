@@ -343,7 +343,7 @@ four are branched on in `website/app/lib/github-events.js`; the list is
 
 - [ ] Confirm the uploaded logo/screenshots aren't stale from the rejected
       2026-05-14 submission (old module counts, "Nuclear" tier name)
-- [ ] Confirm `hello@gatetest.ai` forwarding works — the last rejection notice
+- [ ] Confirm `support@gatetest.io` forwarding works — the last rejection notice
       reportedly sat unread ~2 months
 - [ ] Re-read `integrations/marketplace/listing.md`: the 2026-05-14 rejection
       was for describing **paid** functionality without ≥100 installs. The

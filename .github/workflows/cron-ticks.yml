@@ -1,8 +1,8 @@
 name: Cron Ticks (off-Vercel stopgap)
 
-# KI #41: production runs on Vapron (Craig 2026-07-14, re-confirmed
+# KI #41: production runs on Tallrig — named Vapron until 2026-09-14 (Craig 2026-07-14, re-confirmed
 # 2026-07-23) and nothing off-Vercel fires the two cron endpoints, so queued
-# push-scans stall and watches never run. The REAL fix is Vapron's own
+# push-scans stall and watches never run. The REAL fix is the platform's own
 # scheduler (see docs/deploy/VAPRON-DEPLOY.md §3 — crontab / systemd timer
 # every 2 and 5 minutes). This workflow is the sanctioned stopgap so the
 # Continuous ($49/mo) tier works the moment the CRON_SECRET repo secret is
@@ -18,7 +18,7 @@ name: Cron Ticks (off-Vercel stopgap)
 #   the moment the secret is set on BOTH sides (see the error message below).
 # - GitHub schedule granularity is ~5 min and often delayed — good enough as
 #   a stopgap, NOT a replacement for the box cron. Delete this file once
-#   Vapron's scheduler is confirmed firing.
+#   the platform's scheduler is confirmed firing.
 
 on:
   schedule:
@@ -37,7 +37,7 @@ jobs:
           BASE_URL: https://gatetest.io
         run: |
           if [ -z "$CRON_SECRET" ]; then
-            echo "::error::CRON_SECRET repo secret is NOT SET — the production scan queue is not being drained. Pushes are enqueued by /api/webhook and never executed, so NO commit status or PR comment is ever posted. Fix: set the SAME value in both places — (1) gh secret set CRON_SECRET --repo crclabs-hq/gatetest, and (2) CRON_SECRET in the Vapron production environment. They must match or the tick 401s."
+            echo "::error::CRON_SECRET repo secret is NOT SET — the production scan queue is not being drained. Pushes are enqueued by /api/webhook and never executed, so NO commit status or PR comment is ever posted. Fix: set the SAME value in both places — (1) gh secret set CRON_SECRET --repo crclabs-hq/gatetest, and (2) CRON_SECRET in the Tallrig production environment. They must match or the tick 401s."
             exit 1
           fi
           for path in /api/scan/worker/tick /api/watches/tick; do

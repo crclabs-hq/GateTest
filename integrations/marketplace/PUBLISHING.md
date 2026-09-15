@@ -8,7 +8,7 @@
 
 ## 1. npm — public registry
 
-**Why:** lets anyone run `npm install -g @gatetest/cli` or `npx -p @gatetest/cli gatetest` (the package has several bins, so plain `npx @gatetest/cli` cannot pick one — always use the `-p` form).
+**Why:** lets anyone run `npm install -g @gatetest/cli` or `npx -p @gatetest/cli gatetest` (npx runs the bin named after the unscoped package — `cli`, added in 1.61.1; on earlier releases only the `-p` form works, so docs show `-p`).
 
 ### Path A — automated via GitHub Actions (recommended)
 

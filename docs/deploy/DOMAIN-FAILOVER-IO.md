@@ -185,7 +185,7 @@ of these is a separate login, all are Boss Rule #4/#6/#7, and the ones marked
 | **WordPress.org** | New plugin release (readme + `GATETEST_API_BASE` already updated in-repo) | Installed plugins keep calling the old API host |
 | **VS Code Marketplace / Open VSX** | Republish so `homepage` updates | Cosmetic only |
 | **Homebrew tap** | `integrations/homebrew/gatetest.rb` homepage (updated in-repo) | Cosmetic only |
-| **Vapron dashboard** | `NEXT_PUBLIC_BASE_URL` + `GATETEST_PUBLIC_BASE_URL` = `https://gatetest.io` | Falls back to the code default, which is already `.io` — so harmless, but set it |
+| **Tallrig dashboard** (the platform — was Vapron) | `NEXT_PUBLIC_BASE_URL` + `GATETEST_PUBLIC_BASE_URL` = `https://gatetest.io` | Falls back to the code default, which is already `.io` — so harmless, but set it |
 
 ### The ones that bite hardest
 

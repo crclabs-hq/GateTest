@@ -4,15 +4,22 @@
  * billing-portal links). Two providers:
  *
  *   resend  — POST https://api.resend.com/emails        (Bearer RESEND_API_KEY)
- *   vapron  — POST https://vapron.ai/api/platform/email/send
- *             (Bearer VAPRON_API_KEY; VAPRON_API_TOKEN — the dispatch key —
- *             is accepted as the same credential; VAPRON_MAIL_URL overrides
- *             the endpoint. VAPRON_BASE_URL is the runtime-scan dispatch base
- *             and is deliberately NOT used here — it carries a path prefix.)
+ *   tallrig — POST https://tallrig.com/api/platform/email/send
+ *             (the default from platform-config.js; TALLRIG_MAIL_URL →
+ *             VAPRON_MAIL_URL overrides it. Bearer TALLRIG_API_KEY, or
+ *             TALLRIG_API_TOKEN — the dispatch key — as the same credential,
+ *             under any of the TALLRIG_/VAPRON_/CRONTECH_ prefixes.
+ *             TALLRIG_BASE_URL is the runtime-scan dispatch base and is
+ *             deliberately NOT used here — it carries a path prefix.)
  *
- * The Vapron platform is where gatetest.io is being consolidated
+ * `MAIL_PROVIDER=vapron` is the platform's previous name (renamed Tallrig
+ * 2026-09-14) and is accepted as a deprecated alias of `tallrig`: it
+ * selects the same transport, reports provider 'tallrig', and logs one
+ * warning per process so the env file gets updated.
+ *
+ * The Tallrig platform is where gatetest.io is being consolidated
  * (CLAUDE.md → DEPLOYMENT DOCTRINE, Craig 2026-09-11). The switch is
- * deliberate, not automatic: MAIL_PROVIDER=vapron selects it; with the
+ * deliberate, not automatic: MAIL_PROVIDER=tallrig selects it; with the
  * variable unset the live path stays Resend while it is configured, so a
  * half-finished cutover can never leave the $29/mo MCP key e-mail dark.
  * Prove a provider with `node scripts/ops/mail-test.js <to>` on the box
@@ -29,20 +36,32 @@ const { platformEnv, platformMailUrl, PLATFORM_DEFAULTS } = require('./platform-
 const DEFAULT_FROM = 'GateTest <watchdog@gatetest.io>';
 /** Today's default send endpoint; the live value comes from platformMailUrl(env)
  *  (TALLRIG_MAIL_URL → VAPRON_MAIL_URL → this). Exported for tests. */
-const VAPRON_MAIL_URL = PLATFORM_DEFAULTS.mailUrl;
+const PLATFORM_MAIL_URL = PLATFORM_DEFAULTS.mailUrl;
 const TIMEOUT_MS = 12_000;
 
+/** The platform provider's canonical name, and the pre-rename alias still accepted. */
+const PLATFORM_PROVIDER = 'tallrig';
+const DEPRECATED_PROVIDER_ALIASES = Object.freeze({ vapron: PLATFORM_PROVIDER });
+
 /** The platform key under any of its names (TALLRIG_/VAPRON_/CRONTECH_ × API_KEY/API_TOKEN). */
-function vapronKey(env = process.env) {
+function platformKey(env = process.env) {
   return platformEnv('API_KEY', env) || platformEnv('API_TOKEN', env) || '';
 }
 
-/** Which provider a send will use: 'resend' | 'vapron' | 'none'. */
+let warnedAlias = false;
+/** Which provider a send will use: 'resend' | 'tallrig' | 'none'. */
 function mailProvider(env = process.env) {
   const explicit = String(env.MAIL_PROVIDER || '').trim().toLowerCase();
-  if (explicit === 'vapron' || explicit === 'resend') return explicit;
+  if (explicit === PLATFORM_PROVIDER || explicit === 'resend') return explicit;
+  if (Object.prototype.hasOwnProperty.call(DEPRECATED_PROVIDER_ALIASES, explicit)) {
+    if (!warnedAlias) {
+      warnedAlias = true;
+      console.warn(`[mail-transport] MAIL_PROVIDER=${explicit} is the platform's old name — set MAIL_PROVIDER=${PLATFORM_PROVIDER} (same transport; the alias will be removed)`);
+    }
+    return DEPRECATED_PROVIDER_ALIASES[explicit];
+  }
   if (env.RESEND_API_KEY) return 'resend';
-  if (vapronKey(env)) return 'vapron';
+  if (platformKey(env)) return PLATFORM_PROVIDER;
   return 'none';
 }
 
@@ -50,7 +69,7 @@ function mailProvider(env = process.env) {
 function mailConfigured(env = process.env) {
   const p = mailProvider(env);
   if (p === 'resend') return Boolean(env.RESEND_API_KEY);
-  if (p === 'vapron') return Boolean(vapronKey(env));
+  if (p === PLATFORM_PROVIDER) return Boolean(platformKey(env));
   return false;
 }
 
@@ -103,12 +122,12 @@ async function deliver(msg, deps = {}) {
   const from = msg.from || fromAddress(env);
   let target; let bearer; let payload;
 
-  if (provider === 'vapron') {
+  if (provider === PLATFORM_PROVIDER) {
     let u;
-    try { u = new URL(platformMailUrl(env)); } catch { return { ok: false, error: 'VAPRON_MAIL_URL is not a valid URL', provider }; }
+    try { u = new URL(platformMailUrl(env)); } catch { return { ok: false, error: 'TALLRIG_MAIL_URL is not a valid URL', provider }; }
     target = { hostname: u.hostname, port: u.port || 443, path: u.pathname };
-    bearer = vapronKey(env);
-    // The Vapron API documents a single-recipient string; pass an array only
+    bearer = platformKey(env);
+    // The platform API documents a single-recipient string; pass an array only
     // when there genuinely is more than one.
     payload = { from, to: recipients.length === 1 ? recipients[0] : recipients, subject: msg.subject, html: msg.html, text: msg.text };
   } else {
@@ -128,4 +147,14 @@ async function deliver(msg, deps = {}) {
   return { ok: false, error: String(error), provider };
 }
 
-module.exports = { DEFAULT_FROM, VAPRON_MAIL_URL, mailProvider, mailConfigured, fromAddress, deliver };
+module.exports = {
+  DEFAULT_FROM,
+  PLATFORM_MAIL_URL,
+  PLATFORM_PROVIDER,
+  /** @deprecated pre-rename export name — same value as PLATFORM_MAIL_URL. */
+  VAPRON_MAIL_URL: PLATFORM_MAIL_URL,
+  mailProvider,
+  mailConfigured,
+  fromAddress,
+  deliver,
+};

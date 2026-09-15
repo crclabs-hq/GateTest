@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: `GateTest MCP — The ${TOTAL_MODULES}-Module Engine in Your Editor`,
     description:
-      `Give Claude eyes, ears & hands: all ${TOOL_COUNT} tools — live-page screenshots (eyes), Sentry/Datadog/Rollbar errors (ears), pass/fail fix verification (hands) — free on your machine. $29/mo for the hosted endpoint (claude.ai web/mobile) + hosted history.`,
+      `Give your AI agent eyes, ears & hands: all ${TOOL_COUNT} tools — live-page screenshots (eyes), Sentry/Datadog/Rollbar errors (ears), pass/fail fix verification (hands) — free on your machine. $29/mo for the hosted endpoint (claude.ai web/mobile) + hosted history.`,
     url: "/mcp",
   },
 };
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: "What's free?",
-    a: "The entire local server. Every tool — full-suite scans, screenshots, production errors, run_tests, fix_issue — runs 100% free on your own machine via npx @gatetest/mcp-server (AI tools use your own Anthropic key). The $29/mo key unlocks the HOSTED endpoint: use GateTest from claude.ai web/mobile or locked-down machines where you can't run npm, plus hosted scan history. On the hosted endpoint, check_health, list_modules, get_badge, scan_url, and scan_repo work with no key at all.",
+    a: "The entire local server. Every tool — full-suite scans, screenshots, production errors, run_tests, fix_issue — runs 100% free on your own machine via npx @gatetest/mcp-server (AI tools use your own ANTHROPIC_API_KEY). The $29/mo key unlocks the HOSTED endpoint: use GateTest from claude.ai web/mobile or locked-down machines where you can't run npm, plus hosted scan history. On the hosted endpoint, check_health, list_modules, get_badge, scan_url, and scan_repo work with no key at all.",
   },
   {
     q: "How do I get my API key?",
@@ -40,8 +40,8 @@ const FAQ = [
     a: "Yes. GateTest MCP follows the MCP spec — any client that supports stdio transport works. Set GATETEST_API_KEY in the environment for that server.",
   },
   {
-    q: "Which AI model runs my fixes — and who pays for it?",
-    a: "You choose, and you pay Anthropic directly (bring-your-own-key). AI fixes run on YOUR ANTHROPIC_API_KEY — calls go straight from your machine to Anthropic, never through our servers, and you control the spend. Pick the model per call: sonnet (Claude Sonnet 5, default — fast and cheapest), opus (Opus 5 — deeper reasoning at half Fable cost), opus-4-8 (Opus 4.8 — previous generation), or fable (Fable 5 — the most capable model Anthropic ships, ~3.3x Sonnet cost). On the hosted endpoint, fix_issue and explain_finding run on our key and are covered by the subscription. No other QA tool lets you do this.",
+    q: "Who pays for the AI fixes — and can I choose the analysis depth?",
+    a: "You do, and you pay your AI provider directly (bring-your-own-key). AI fixes run on YOUR ANTHROPIC_API_KEY — calls go straight from your machine to the provider, never through our servers, and you control the spend. Pick the analysis depth per call with the `model` argument: the default is the fastest and cheapest; the deeper options cost more per token and are listed in the tool description. On the hosted endpoint, fix_issue and explain_finding run on our key and are covered by the subscription. No other QA tool lets you do this.",
   },
 ];
 
@@ -81,22 +81,22 @@ const VALUE_PROPS = [
     icon: "👁", label: "Eyes", cls: EYES, title: "See the rendered page",
     items: [
       ["capture_screenshot", "see what the rendered page actually looks like. Works on localhost, staging, and production."],
-      ["get_visual_diff", "baseline vs current comparison so Claude spots regressions before you do."],
+      ["get_visual_diff", "baseline vs current comparison so your agent spots regressions before you do."],
     ],
   },
   {
     icon: "👂", label: "Ears", cls: EARS, title: "Hear what's breaking",
     items: [
-      ["get_production_errors", "pull your top Sentry, Datadog, or Rollbar errors with file:line attribution so Claude fixes what prod says is broken, first."],
+      ["get_production_errors", "pull your top Sentry, Datadog, or Rollbar errors with file:line attribution so your agent fixes what prod says is broken, first."],
       ["run_live_checks", "runtime error sweep, console warnings, and API health against any URL."],
     ],
   },
   {
     icon: "🤝", label: "Hands", cls: HANDS, title: "Prove the fix worked",
     items: [
-      ["verify_fix", "re-run the relevant modules on changed files. Pass/fail verdict so Claude knows the fix actually worked."],
+      ["verify_fix", "re-run the relevant modules on changed files. Pass/fail verdict so your agent knows the fix actually worked."],
       ["run_tests", "auto-detect and run Jest, Vitest, pytest, cargo test, or go test. Structured pass/fail per test."],
-      ["stream_logs", "tail a running process or log file live for up to 60s while Claude is debugging."],
+      ["stream_logs", "tail a running process or log file live for up to 60s while your agent is debugging."],
       ["query_db", "read-only SQL and NoSQL queries (Postgres, MySQL, SQLite, MongoDB, Redis) without leaving the session."],
       ["http_request", "call any API with auth headers, inspect responses, follow redirects. Closes the loop: scan → fix → test → verify → done."],
     ],
@@ -108,7 +108,7 @@ export default function McpPage() {
     <main>
       <PageHero
         eyebrow="MCP Integration"
-        title={<>Give Claude <span className={EYES}>eyes</span>, <span className={EARS}>ears</span> &amp; <span className={HANDS}>hands</span></>}
+        title={<>Give your agent <span className={EYES}>eyes</span>, <span className={EARS}>ears</span> &amp; <span className={HANDS}>hands</span></>}
         lede={<>
           The full <span className="text-foreground font-semibold">{TOTAL_MODULES}-module scanner</span> inside your AI
           assistant — plus {TOOL_COUNT} tools that let it{" "}
@@ -153,7 +153,7 @@ export default function McpPage() {
       <Section
         id="install"
         title="Install anywhere — 30 seconds, any environment"
-        lede="No terminal? No npm? No problem. The hosted endpoint reaches every Claude user."
+        lede="No terminal? No npm? No problem. The hosted endpoint works from claude.ai on web and mobile."
       >
         <div className="grid md:grid-cols-2 gap-4">
           <div className="card p-5">

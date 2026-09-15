@@ -2,16 +2,17 @@
 /**
  * Digest mailer — builds the weekly digest, MCP API-key and billing-portal
  * e-mails and hands them to ./mail-transport, which picks the provider
- * (Resend today; the Vapron platform API when MAIL_PROVIDER=vapron).
+ * (Resend today; the Tallrig platform API when MAIL_PROVIDER=tallrig —
+ * `vapron` is the deprecated pre-rename alias).
  *
  * Zero npm dependencies. Gracefully no-ops when no provider is configured;
  * callers treat { ok: false, error: 'mail provider not configured' } as
  * non-fatal.
  *
  * Environment variables (see mail-transport.js):
- *   MAIL_PROVIDER    — 'resend' | 'vapron' (unset = Resend while configured)
+ *   MAIL_PROVIDER    — 'resend' | 'tallrig' (unset = Resend while configured)
  *   RESEND_API_KEY   — Resend key
- *   VAPRON_API_KEY (or VAPRON_API_TOKEN) — Vapron platform
+ *   TALLRIG_API_KEY (or TALLRIG_API_TOKEN; VAPRON_* and CRONTECH_* still read) — Tallrig platform
  *   RESEND_FROM      — override the From address (default: watchdog@gatetest.io)
  */
 

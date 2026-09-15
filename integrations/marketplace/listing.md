@@ -7,7 +7,7 @@
 > models (GitHub App vs. GitHub Action), and conflicting pricing strategies
 > (Marketplace-billed plans vs. free-only). None of them matched what was
 > actually submitted and rejected on 2026-05-14 (which described "90 modules"
-> and "Claude Opus 4.7" — text that doesn't appear in any tracked doc). All
+> and a specific model name — text that doesn't appear in any tracked doc). All
 > three have been deleted; this file replaces them.
 >
 > **Rejection root cause (confirmed):** GitHub requires an app to already have
@@ -67,7 +67,7 @@ free, forever, no card required. It checks syntax, lint rules, and hardcoded
 secrets on every single push automatically once installed.
 
 For teams that want the full 121-module pass — security, reliability,
-infrastructure, accessibility, performance, and Claude-powered code review
+infrastructure, accessibility, performance, and AI-powered code review
 with automatic fix pull requests — deeper scans are available as a separate
 purchase on [gatetest.io](https://gatetest.io). This app install is not where
 that payment happens; it's free the moment you add it to a repo.
@@ -84,7 +84,7 @@ that payment happens; it's free the moment you add it to a repo.
 - Infrastructure: Dockerfile, Kubernetes, Terraform/IaC, CI-workflow hardening
 - AI-generated-code specific checks: fake-fix detection, prompt-injection
   surfaces, money-as-float bugs
-- Claude-powered code review that reasons about the change, not just pattern
+- AI-powered code review that reasons about the change, not just pattern
   matches
 - Auto-fix pull requests on the paid fix tiers — review the diff, merge
 
@@ -147,7 +147,7 @@ https://gatetest.io/legal/terms
 
 ## Support URL
 ```
-mailto:hello@gatetest.ai
+mailto:support@gatetest.io
 ```
 
 ---
@@ -225,6 +225,6 @@ resubmitting rather than starting over.
 - GitHub reviews Marketplace listings manually; typical turnaround 1–3 weeks.
 - They check: the app works as described, legal pages are live, install flow
   works end-to-end. All three are already true today (verified 2026-07-19).
-- **Before resubmitting:** confirm `hello@gatetest.ai` forwarding actually
+- **Before resubmitting:** confirm `support@gatetest.io` forwarding actually
   works (the 2026-05-14 rejection sat unread for over two months because of
   this) — GitHub's only way to reach you about this listing is email.

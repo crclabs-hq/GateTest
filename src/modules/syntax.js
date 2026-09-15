@@ -96,6 +96,23 @@ class SyntaxModule extends BaseModule {
       const content = fs.readFileSync(file, 'utf-8');
       const ext = path.extname(file).toLowerCase();
 
+      // A server-side TEMPLATE that renders to JavaScript is not JavaScript
+      // yet. django's `django/views/templates/i18n_catalog.js` opens with
+      // `{% autoescape off %}` and is rendered by the JavaScriptCatalog view;
+      // the parser read the `%` and the scan of django/django was gate-BLOCKED
+      // on "Unexpected token '%'" at confidence 1.0 (2026-09-14). Recorded as
+      // a passing info check — the file is on the report, classified — and
+      // returned as "parsed" so the dangling-pattern heuristics, which would
+      // trip on the same tags, leave it alone.
+      if (SyntaxModule.isTemplateSource(relPath, content)) {
+        result.addCheck(`syntax:${relPath}`, true, {
+          severity: 'info',
+          file: relPath,
+          message: `${relPath} is a Django/Jinja template that renders to JavaScript — not parsed as JavaScript`,
+        });
+        return true;
+      }
+
       // .mjs files are always ESM. .js files in a "type":"module" package are ESM.
       // .js files that contain top-level import/export are also ESM.
       // vm.Script rejects ESM syntax — use `node --check` for these.
@@ -144,6 +161,33 @@ class SyntaxModule extends BaseModule {
       result.addCheck(`syntax:${relPath}`, true);
       return false;
     }
+  }
+
+  /**
+   * Is this `.js` file a Django / Jinja / Twig / Nunjucks TEMPLATE rather
+   * than JavaScript? Two signals:
+   *
+   *   - a `{% tag %}` occupying a line of its own. `{% ... %}` is never
+   *     valid JavaScript, so one whole line of it settles the question on
+   *     content alone (django's `i18n_catalog.js` opens with
+   *     `{% autoescape off %}`);
+   *   - a `templates/` (`template/`) directory segment — the convention
+   *     every one of those engines loads from — AND a `{{` / `{%` somewhere
+   *     in the content. Path alone is not enough: a JS project can keep real
+   *     modules under `src/templates/`, and those still deserve a parse.
+   *
+   * `{{ x }}` alone is deliberately not a signal: `{{ b(); }}` is a legal
+   * block inside a block.
+   *
+   * @param {string} relPath — repo-relative path, either separator
+   * @param {string} content
+   * @returns {boolean}
+   */
+  static isTemplateSource(relPath, content) {
+    const text = String(content || '');
+    if (/^[ \t]*\{%-?\s*[a-zA-Z_]+[^\n]*%\}[ \t]*\r?$/m.test(text)) return true;
+    const posix = String(relPath || '').replace(/\\/g, '/');
+    return /(?:^|\/)templates?\//i.test(posix) && /\{[{%]/.test(text);
   }
 
   // Detect whether a .js file is an ES module so we use node --check instead

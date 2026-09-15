@@ -22,7 +22,27 @@ const { GateTest } = require('../src/index');
 // runs main() at import time and exports nothing, so anything defined here
 // is unreachable from a test. See the module header for the silent
 // unknown-flag bug that survived because of exactly that.
-const { parseArgs, describeArgProblems } = require('../src/core/cli-args');
+const {
+  parseArgs,
+  describeArgProblems,
+  argProblemsAreFatal,
+  projectPathProblem,
+  USAGE_EXIT_CODE,
+} = require('../src/core/cli-args');
+
+/**
+ * `--project <path>` must name an existing directory, or the run is a usage
+ * error — never a green scan of a directory this process created to have
+ * somewhere to write the report (reproduced 2026-09-14). Shared by the scan
+ * flow and `gatetest fix`, which resolve the root separately.
+ */
+function requireProjectDir(projectRoot) {
+  const problem = projectPathProblem(projectRoot);
+  if (!problem) return;
+  console.error(`[GateTest] Error: ${problem}`);
+  console.error('[GateTest] Nothing was scanned. Check the --project path (it is resolved against the current directory).');
+  process.exit(USAGE_EXIT_CODE);
+}
 
 const HELP = `
   GateTest - Advanced QA Gate System
@@ -90,7 +110,7 @@ const HELP = `
                        been auto-softened. Silence noise via .gatetestignore.
     --list             List all available test modules
     --init             Initialize GateTest in the current project
-    --init-claude-md   Generate CLAUDE.md for this project, install the Claude
+    --init-claude-md   Generate CLAUDE.md for this project, install the Claude Code
                        hooks (.claude/settings.json) and write gatetest-scan.js
     --health           Check the GitHub API connection (reachability, latency,
                        rate-limit budget) without running a scan
@@ -104,12 +124,13 @@ const HELP = `
                        BUT here is a PR to merge."
     --auto-pr-base <ref>    Base branch for the auto-PR (default: current branch)
     --auto-pr-branch <name> Override the auto-generated branch name
-    --model <name>     Claude model for AI fixes (fix --apply and --auto-pr):
-                       sonnet (default) | opus | fable — or full model ids.
-                       Env fallback: GATETEST_FIX_MODEL. Runs on YOUR OWN
-                       ANTHROPIC_API_KEY (bring-your-own-key): calls go straight
-                       from your machine to api.anthropic.com, you control the
-                       spend. Fable 5 is ~3.3x Sonnet cost per token.
+    --model <name>     AI model for fixes (fix --apply and --auto-pr):
+                       sonnet (default) | opus | fable — or a full model id
+                       from your provider. Env fallback: GATETEST_FIX_MODEL.
+                       Runs on YOUR OWN ANTHROPIC_API_KEY (bring-your-own-key):
+                       calls go straight from your machine to the provider, you
+                       control the spend. fable is the most capable at ~3.3x
+                       the default's cost per token.
     --since <ref>      Incremental scan: only check files changed since <ref>
                        (branch, tag, or commit SHA). Skips full-graph modules
                        (importCycle, deadCode, crossFileTaint, openapiDrift).
@@ -171,7 +192,7 @@ const HELP = `
                        workflow file version, etc.) and reports what's missing
                        with copy-paste fix commands. Run this any time you
                        suspect something isn't working.
-    --doctor-quick     Same but skips the live Anthropic API ping (offline mode)
+    --doctor-quick     Same but skips the live AI provider API ping (offline mode)
     --version, -v      Show version
 
     --server <url>     Scan a live server: SSL, headers, DNS, performance
@@ -295,13 +316,14 @@ async function main() {
   }
   if (first === 'fix') {
     if (require('../src/core/offline').isOffline()) {
-      console.error('[GateTest] offline mode: `gatetest fix` needs the Anthropic API. Unset GATETEST_OFFLINE to use it.');
+      console.error('[GateTest] offline mode: `gatetest fix` needs the AI provider API. Unset GATETEST_OFFLINE to use it.');
       process.exit(2);
     }
     const projectRoot = (() => {
       const pidx = rawArgs.indexOf('--project');
       return pidx !== -1 ? rawArgs[pidx + 1] : process.cwd();
     })();
+    requireProjectDir(projectRoot);
     const code = await runFixApply(rawArgs.slice(1), projectRoot);
     process.exit(code || 0);
   }
@@ -309,18 +331,25 @@ async function main() {
   const effectiveArgv = first === 'scan' ? rawArgs.slice(1) : rawArgs;
   const args = parseArgs(effectiveArgv);
   // Anything the parser could not use is reported before the scan starts.
-  // Advisory, never fatal — a stray argument from a wrapper script must not
-  // cost someone their scan (Forbidden #25). But it must not be SILENT
-  // either: an ignored `--report-only` blocks a build nobody meant to gate,
-  // and an ignored `--strict` is a green that cannot turn red.
-  for (const line of describeArgProblems(args)) console.error(line);
+  // Advisory on a developer's machine — a stray argument from a wrapper
+  // script must not cost someone their scan (Forbidden #25). But it must not
+  // be SILENT either: an ignored `--report-only` blocks a build nobody meant
+  // to gate, and an ignored `--strict` is a green that cannot turn red.
+  // Under --strict or in CI it is a usage error (exit 2): there, a scan that
+  // ran on a command line it only partly understood is not a pass. See
+  // argProblemsAreFatal in src/core/cli-args.js.
+  // (`--help` / `--version` still answer: the operator is asking what the
+  // flags are, which is the one time a wrong one should not end the run.)
+  const fatalArgs = argProblemsAreFatal(args) && !args.help && !args.version;
+  for (const line of describeArgProblems(args, { fatal: fatalArgs })) console.error(line);
+  if (fatalArgs) process.exit(USAGE_EXIT_CODE);
   // --offline: one switch, recorded everywhere (src/core/offline.js). The
   // AI-backed paths need api.anthropic.com, so they are refused out loud
   // rather than run against a network that is not there.
   const { isOffline, enableOffline } = require('../src/core/offline');
   if (args.offline) enableOffline();
   if (isOffline() && (args.fix || args.autoPr)) {
-    console.error('[GateTest] offline mode: --fix / --auto-pr need the Anthropic API and are not run. The scan continues without them.');
+    console.error('[GateTest] offline mode: --fix / --auto-pr need the AI provider API and are not run. The scan continues without them.');
     args.fix = false;
     args.autoPr = false;
   }
@@ -341,6 +370,10 @@ async function main() {
   }
 
   const projectRoot = args.project || process.cwd();
+  // A --project that does not exist is a usage error, not an empty repo.
+  // Checked before anything below can create it: GateTestConfig, the
+  // reporters and `--init` all mkdir under the root on demand.
+  requireProjectDir(projectRoot);
 
   if (args.init) {
     initProject(projectRoot);
@@ -446,6 +479,9 @@ async function main() {
     // workflow on them. Strict mode (default OFF) reverses this and
     // blocks on confident errors. See `runner.js` for the mechanism.
     reportOnly: args.reportOnly === true && args.strict !== true,
+    // --strict also makes an EMPTY scan (no source files under the root) a
+    // failed gate — see runner.js `nothingChecked`.
+    strict: args.strict === true,
     ...(args.baseline ? { captureBaseline: true } : {}),
     ...(incrementalSince ? { incrementalSince } : {}),
     ...(typeof args.confidenceThreshold === 'number'
@@ -683,7 +719,8 @@ async function main() {
  */
 function printPlainSummary(summary, projectRoot) {
   const { plainSummaryLines, plainSummaryContext } = require('../src/core/plain-summary');
-  for (const line of plainSummaryLines(summary, plainSummaryContext(summary, projectRoot))) {
+  const { colorEnabled } = require('../src/core/color');
+  for (const line of plainSummaryLines(summary, plainSummaryContext(summary, projectRoot), { color: colorEnabled() })) {
     console.log(line);
   }
 }
@@ -932,15 +969,16 @@ async function runFixApply(argv, rootDir) {
     --suite <name>        Suite to scan (default: standard)
     --project <path>      Project root (default: cwd)
     --dry-run             Show what would be fixed without writing any files
-    --model <name>        Claude model for the fix engine. One of:
+    --model <name>        AI model for the fix engine. One of:
 ${Object.entries(ALLOWED_FIX_MODELS)
-    .map(([id, m]) => `                            ${m.aliases[0].padEnd(6)} (${id})${id === CHEAP_MODEL ? ' [default]' : ''}`)
+    .map(([id, m]) => `                            ${m.aliases[0]}${id === CHEAP_MODEL ? ' [default]' : ''}`)
     .join('\n')}
+                          — or a full model id from your provider.
                           Env fallback: GATETEST_FIX_MODEL.
 
   REQUIRES
-    ANTHROPIC_API_KEY — YOUR OWN Anthropic key (bring-your-own-key). Fix calls
-    go straight from this machine to api.anthropic.com — you control the spend,
+    ANTHROPIC_API_KEY — YOUR OWN AI provider key (bring-your-own-key). Fix calls
+    go straight from this machine to the provider — you control the spend,
     and nothing is proxied through GateTest servers.
 `);
     return 0;
@@ -975,7 +1013,7 @@ ${Object.entries(ALLOWED_FIX_MODELS)
   if (!apiKey) {
     console.error('\n  [GateTest fix] ANTHROPIC_API_KEY is not set.\n');
     console.error('  Bring your own key: https://console.anthropic.com/ → API keys, then');
-    console.error('  export ANTHROPIC_API_KEY=sk-ant-... (you pay Anthropic directly).\n');
+    console.error('  export ANTHROPIC_API_KEY=sk-ant-... (you pay the provider directly).\n');
     return 1;
   }
 

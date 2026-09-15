@@ -154,10 +154,26 @@ describe('IntegrationTestsModule — an environment failure is not a failing sui
 describe('IntegrationTestsModule — a timeout is not a verdict', () => {
   let tmp;
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-integ-to-')); });
-  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  // The module's timeout ends `npm run …` (cmd.exe / sh), not the script npm
+  // started: that grandchild keeps running with tmp as its cwd, and on
+  // Windows a directory that is some process's cwd cannot be removed — EPERM
+  // in this hook, deterministic whenever npm managed to start the script
+  // within the 1.5 s (2026-09-14; it passed under load only because npm had
+  // not). The script is kept short and the removal polled past its end —
+  // rmSync's own maxRetries returns this EPERM at once (measured), so the
+  // wait is explicit: 250 ms steps, 10 s ceiling, the last error thrown.
+  afterEach(() => {
+    const deadline = Date.now() + 10000;
+    for (;;) {
+      try { fs.rmSync(tmp, { recursive: true, force: true }); return; } catch (err) {
+        if (Date.now() > deadline) throw err;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
+      }
+    }
+  });
   const w = (rel, c) => { const f = path.join(tmp, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, typeof c === 'string' ? c : JSON.stringify(c)); };
   it('a script that does not finish in time is "not executed", reported as info', async () => {
-    w('package.json', { name: 'svc', scripts: { 'test:integration': 'node -e "setTimeout(() => {}, 20000)"' }, devDependencies: { vitest: '^1' } });
+    w('package.json', { name: 'svc', scripts: { 'test:integration': 'node -e "setTimeout(() => {}, 4000)"' }, devDependencies: { vitest: '^1' } });
     fs.mkdirSync(path.join(tmp, 'node_modules'), { recursive: true });
     w('src/app.js', "app.post('/users', (req, res) => res.json(req.body));\n");
     w('tests/integration/users.test.js', "test('POST /users', () => {});\n");

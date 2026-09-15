@@ -52,7 +52,7 @@ const DATA_FLOW = [
   { label: "Runtime",  value: "Node on our own managed host. Every request handler is stateless — no in-memory persistence between requests." },
   { label: "Database", value: "Postgres on Neon. Holds scan_queue, audit log, fix-recipe store, customer sessions." },
   { label: "Payments", value: "Stripe upfront-charge. Scan tiers are one-time payments at checkout — no auto-renew. Continuous ($49/mo) and MCP ($29/mo) are monthly subscriptions, cancel anytime." },
-  { label: "AI layer", value: "Anthropic Claude — Fable 5 on the paid fix tiers (Scan + Fix, Forensic), Sonnet 5 on the free and high-volume paths. Our key for managed scans; your key for the self-healing CI bot in your repo." },
+  { label: "AI layer", value: "AI-powered fix and review engine — deeper analysis on the paid fix tiers (Scan + Fix, Forensic), a lighter pass on the free and high-volume paths. Our key for managed scans; your key for the self-healing CI bot in your repo." },
   { label: "Git host",  value: "Dual-host: GitHub App webhook and Gluecron Signal Bus. HostBridge abstraction means new hosts plug in without rewiring." },
   { label: "Browser",   value: "Playwright (open-source, Microsoft) — used internally for chaos, explorer, and runtime-error modules. Not a paid competitor; an implementation detail." },
 ];
@@ -60,7 +60,7 @@ const DATA_FLOW = [
 const HEAL_STEPS = [
   { n: "1", t: "CI fails", d: "Workflow_run trigger fires on conclusion: failure." },
   { n: "2", t: "Logs in", d: "Heal step downloads the failing job's logs and the diff." },
-  { n: "3", t: "Fix engine", d: "Recipe replay first, then Claude's three hypotheses race through syntax and test gates." },
+  { n: "3", t: "Fix engine", d: "Recipe replay first, then the AI engine's three hypotheses race through syntax and test gates." },
   { n: "4", t: "Fix PR", d: "Patch lands on a follow-up branch, PR opens against your default." },
 ];
 
@@ -91,7 +91,7 @@ export default function HowItWorksPage() {
       <PageHero
         eyebrow="Architecture, end to end"
         title="How GateTest works"
-        lede={<>{TOTAL_MODULES} deterministic modules. One Claude pass when it&apos;s worth it. Zero hype.</>}
+        lede={<>{TOTAL_MODULES} deterministic modules. One AI pass when it&apos;s worth it. Zero hype.</>}
         actions={
           <>
             <Link href="/web" className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm">
@@ -107,7 +107,7 @@ export default function HowItWorksPage() {
           Most QA scanners are either purely pattern-matched (cheap, noisy) or purely LLM-driven (expensive,
           unpredictable). GateTest is neither. The default scan is a static engine with no AI in the loop —
           predictable, reproducible, no surprise API spend. AI is reserved for fix generation, and even there
-          a proven recipe replays first — Claude is only called for a shape it has not solved before.
+          a proven recipe replays first — the AI layer is only called for a shape it has not solved before.
         </p>
       </PageHero>
 
@@ -178,9 +178,9 @@ export default function HowItWorksPage() {
         title="The fix flywheel"
         lede={
           <>
-            When the gate produces a finding that you&apos;ve paid to have fixed, the pipeline is Claude
+            When the gate produces a finding that you&apos;ve paid to have fixed, the pipeline is an AI fix engine
             working under hard gates. The engine checks the recipe store first — a promoted recipe replays
-            for free. Otherwise Claude proposes a minimal, surgical diff (on the CI path, three competing
+            for free. Otherwise the engine proposes a minimal, surgical diff (on the CI path, three competing
             hypotheses in a single call). Every candidate patch must parse, and the fixed file is re-scanned:
             the original finding must be gone and nothing new raised. A no-op patch is rejected, and per-tier
             budget caps mean a fix can never cost more than you paid for it.
@@ -192,11 +192,11 @@ export default function HowItWorksPage() {
         <div className="card mt-10 p-4 sm:p-6">
           <h3 className="text-base font-semibold text-foreground mb-2">Cost trend as recipes accumulate</h3>
           <p className="text-sm text-foreground-secondary mb-4 max-w-2xl leading-relaxed">
-            When Claude solves something and the diff is small and templatey, the
+            When the AI layer solves something and the diff is small and templatey, the
             <code className={`mx-1 ${CODE}`}>auto-distill</code>
-            step can record a recipe in your local store. A recipe replays — with Claude never called — once
+            step can record a recipe in your local store. A recipe replays — with no AI call at all — once
             it has been confirmed enough times to be promoted to stable; an unproven patch never auto-applies.
-            The chart below is the design goal: repeat shapes stop reaching Claude, so the paid-model share
+            The chart below is the design goal: repeat shapes stop reaching the AI layer, so the paid share
             falls as promoted recipes accumulate.
           </p>
           <CostTrendChart />
@@ -233,10 +233,10 @@ export default function HowItWorksPage() {
         lede={
           <>
             Beyond the managed scan, GateTest ships a GitHub Actions workflow that runs in <em>your</em> CI with
-            <em> your</em> Anthropic key. When CI breaks, the workflow pipes the failing log through the same
-            fix engine — promoted recipes replay first, then Claude proposes three competing patches that must
+            <em> your</em> own API key. When CI breaks, the workflow pipes the failing log through the same
+            fix engine — promoted recipes replay first, then the engine proposes three competing patches that must
             survive the syntax and test gates — applies the fix, and opens a follow-up PR. Same engine, same
-            recipe store, your bill on Anthropic rather than ours.
+            recipe store, your bill with the AI provider rather than ours.
           </>
         }
       >

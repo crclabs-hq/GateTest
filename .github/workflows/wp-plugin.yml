@@ -1,0 +1,78 @@
+name: WordPress plugin
+
+# The wp-plugin/ tree is PHP, which nothing else in ci.yml parses. This
+# lints every plugin file at the PHP floor the header declares (7.4) and
+# on a current runtime, then pins the package facts wp.org checks (readme
+# Stable tag == header Version, Tested up to present, five tags, literal
+# text domain) and that the zip unpacks to one plugin folder. Path-filtered
+# so it costs nothing on the rest of the repo.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'wp-plugin/**'
+      - 'scripts/build-wp-plugin-zip.js'
+      - 'tests/wp-plugin-package.test.js'
+      - '.github/workflows/wp-plugin.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'wp-plugin/**'
+      - 'scripts/build-wp-plugin-zip.js'
+      - 'tests/wp-plugin-package.test.js'
+      - '.github/workflows/wp-plugin.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  php-lint:
+    name: php -l (${{ matrix.php }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+
+      - name: Lint every plugin file
+        run: |
+          set -euo pipefail
+          status=0
+          while IFS= read -r -d '' f; do
+            php -l "$f" || status=1
+          done < <(find wp-plugin -type f -name '*.php' -print0)
+          exit $status
+
+  package:
+    name: readme sanity + zip layout
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # No npm install: the test and the zip builder use node built-ins only.
+      - name: Package pins
+        run: node --test tests/wp-plugin-package.test.js
+
+      - name: Build the zip the release job ships
+        run: SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" node scripts/build-wp-plugin-zip.js
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gatetest-health-check-zip
+          path: dist/gatetest-health-check.zip
+          retention-days: 7

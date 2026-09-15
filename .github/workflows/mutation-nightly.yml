@@ -85,7 +85,7 @@ jobs:
         run: |
           # gatetest:swallow-ok reason="the mutation module exits non-zero when the score is below threshold; this reporting job must still write its summary and artifacts, and the $? below is captured, not discarded"
           set +e
-          GATETEST_NO_TELEMETRY=1 node bin/gatetest.js --module mutation --json \
+          GATETEST_NO_TELEMETRY=1 node bin/gatetest.js --module mutation \
             > mutation-run.json 2> mutation-run.log
           echo "exit=$?" >> "$GITHUB_OUTPUT"
           tail -40 mutation-run.log || true

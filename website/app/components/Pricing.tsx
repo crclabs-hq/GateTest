@@ -67,10 +67,10 @@ export const pricingScans = [
     name: "Forensic Scan",
     price: "$399",
     period: "per run",
-    description: "Everything in Scan+Fix plus Claude-driven per-finding diagnosis, attack-chain correlation, and executive summary.",
+    description: "Everything in Scan+Fix plus AI-driven per-finding diagnosis, attack-chain correlation, and executive summary.",
     features: [
       "Everything in Scan + Fix",
-      "Per-Finding Claude Diagnosis",
+      "Per-Finding AI Diagnosis",
       "Cross-Finding Correlation (attack chains)",
       "Executive Summary (CTO-ready)",
       "Board-Ready CISO Report",
@@ -274,7 +274,7 @@ export default function Pricing() {
         <TierCard
           {...mcpPlan}
           period={mcpPlan.frequency}
-          badge="Claude Integration"
+          badge="MCP Integration"
           needsRepo={false}
         />
         <TierCard

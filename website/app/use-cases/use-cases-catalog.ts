@@ -119,13 +119,13 @@ export const USE_CASES: UseCaseEntry[] = [
     title: "Auto-fix vulnerabilities with an AI pull request",
     intent: "Not just find vulnerabilities — fix them automatically",
     shortDef:
-      "On the Scan + Fix tier, GateTest doesn't stop at finding issues — Claude writes the fix, validates it through a syntax and re-scan gate, generates a regression test, and opens a pull request you review and merge.",
+      "On the Scan + Fix tier, GateTest doesn't stop at finding issues — the fix engine writes the fix, validates it through a syntax and re-scan gate, generates a regression test, and opens a pull request you review and merge.",
     problem: [
       "Finding a vulnerability is half the job. The finding still has to be triaged, understood, fixed, tested, and shipped — and that backlog is where most scanner output goes to die. A list of 200 findings nobody has time to action protects nothing.",
       "Closing the loop means turning the finding into a reviewable fix automatically, so the human cost is a code review rather than an investigation.",
     ],
     solution: [
-      "GateTest's iterative fix loop sends each finding to Claude with full project context, applies the fix, then re-scans that specific finding in isolation. If it didn't resolve, it retries with the failure context, up to a configurable limit.",
+      "GateTest's iterative fix loop sends each finding to the AI fix engine with full project context, applies the fix, then re-scans that specific finding in isolation. If it didn't resolve, it retries with the failure context, up to a configurable limit.",
       "Every fix passes a syntax gate and a cross-file scanner re-validation so a fix can't introduce a new problem, and a regression test is generated demonstrating the original bug. The result is a single pull request with the fixes, the tests, and a before/after scan comparison.",
     ],
     steps: [

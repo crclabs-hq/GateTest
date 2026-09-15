@@ -12,17 +12,16 @@
  *       by scrolling)
  *   3. HomeKills  — what we replace (flip tiles) + head-to-head capability matrix
  *   4. HomeModuleBreakdown — "what the 121 modules actually check" (#modules)
- *   5. HomeFlywheel — 4-layer fix flow (AST -> Rule -> Recipe -> Claude) + prove-it
- *   6. HomeModelChoice — BYOK vs supplied metered; Sonnet 5 / Opus 4.8 / Fable 5
- *   7. HomeEyesEarsHands — MCP tools: eyes/ears/hands hook + plain explanations
- *   8. HomeSelfScan — "GREEN" trust badge with module list
- *   9. HomeCode — install snippets (npx, GitHub Action, CLI cheat-sheet)
- *  10. HomeProof — ROI vs the fragmented stack, real-scan proof, staying-power
- *  11. Pricing — 4 tiers + Continuous subscription card
- *  12. PentestComingSoon — Live Security Scan waitlist (email capture)
- *  13. HomeFaq — HN-skeptic FAQ
- *  14. HomeStack — full-weight Gluecron + Vapron stack marketing
- *  15. HomeTrust — frameworks scanned + Vapron/Gluecron
+ *   5. HomeFlywheel — 4-layer fix flow (AST -> Rule -> Recipe -> AI) + prove-it
+ *   6. HomeEyesEarsHands — MCP tools: eyes/ears/hands hook + plain explanations
+ *   7. HomeSelfScan — "GREEN" trust badge with module list
+ *   8. HomeCode — install snippets (npx, GitHub Action, CLI cheat-sheet)
+ *   9. HomeProof — ROI vs the fragmented stack, real-scan proof, staying-power
+ *  10. Pricing — 4 tiers + Continuous subscription card
+ *  11. PentestComingSoon — Live Security Scan waitlist (email capture)
+ *  12. HomeFaq — HN-skeptic FAQ
+ *  13. HomeStack — full-weight Gluecron + Tallrig stack marketing
+ *  15. HomeTrust — frameworks scanned + Tallrig/Gluecron
  *  16. Footer
  *
  * Sections retained from the previous homepage are intentionally dropped:
@@ -45,7 +44,6 @@ import BeforeAfterDemo from "./components/BeforeAfterDemo";
 import HomeKills from "./components/HomeKills";
 import HomeModuleBreakdown from "./components/HomeModuleBreakdown";
 import HomeFlywheel from "./components/HomeFlywheel";
-import HomeModelChoice from "./components/HomeModelChoice";
 import HomeEyesEarsHands from "./components/HomeEyesEarsHands";
 import HomeSelfScan from "./components/HomeSelfScan";
 import HomeCode from "./components/HomeCode";
@@ -71,14 +69,13 @@ export default function Home() {
         <HomeThreeDoors />
         {/* The stack sits high on purpose (Craig 2026-09-10): the site's job is
             to lead GitHub, website and WordPress visitors toward Gluecron and
-            Vapron, not to mention them after the FAQ. */}
+            Tallrig, not to mention them after the FAQ. */}
         <HomeStack />
         <BeforeAfterDemo />
         <HomeHonest />
         <HomeKills />
         <HomeModuleBreakdown />
         <HomeFlywheel />
-        <HomeModelChoice />
         <HomeEyesEarsHands />
         <HomeSelfScan />
         <HomeCode />

@@ -173,3 +173,8 @@
 .gatetest-hc-footer a:hover {
     text-decoration: underline;
 }
+
+.gatetest-hc-empty {
+    color: #6b7280;
+    margin: 0;
+}

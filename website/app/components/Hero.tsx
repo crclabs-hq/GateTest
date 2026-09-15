@@ -69,8 +69,8 @@ export default function Hero() {
               already written, tested, and pair-reviewed by a second AI.
             </p>
             <p className="text-base text-gray-500 mb-8 fade-up">
-              Pay per scan &mdash; no seat licences, no minimum. Built on{" "}
-              <span className="font-semibold text-gray-700">Claude</span> &mdash; Fable 5 on the fix tiers, Sonnet 5 everywhere else.
+              Pay per scan &mdash; no seat licences, no minimum. AI-powered fixes &mdash;{" "}
+              <span className="font-semibold text-gray-700">deeper analysis on the fix tiers</span>, the deterministic engine everywhere else.
             </p>
 
             {/* One action, three audiences: repository, website, WordPress. */}
@@ -141,7 +141,7 @@ export default function Hero() {
                   : <><CountUp value={String(siteStats.modules.total)} duration={1400} /></>}
               </div>
               <div className="text-[11px] text-gray-500 leading-tight">
-                {siteStats.modules.greenSource === "measured" ? <>modules green<br />on our own repo</> : <>modules loaded<br />every commit</>}
+                {siteStats.modules.greenSource === "measured" ? <>modules green · nightly<br />full suite on our own repo</> : <>modules loaded<br />every commit</>}
               </div>
             </div>
           </div>
@@ -177,9 +177,9 @@ export default function Hero() {
       <div className="stats-band relative z-10">
         <div className="mx-auto max-w-7xl px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-y-7 gap-x-6">
           <BandStat num={siteStats.tests.displayPassing} label="tests passing, every commit" />
-          <BandStat num={String(siteStats.modules.total)} label="modules in one gate" />
+          <BandStat num={String(siteStats.modules.total)} label="modules in the engine" />
           {siteStats.modules.greenSource === "measured"
-            ? <BandStat num={siteStats.modules.displayGreen} label="green on our own repo" />
+            ? <BandStat num={siteStats.modules.displayGreen} label="green on our own repo · nightly full suite" />
             : <BandStat num="1" label="gate · one decision per push" />}
           <BandStat num="$29+" label="per scan · no seat licences" />
         </div>

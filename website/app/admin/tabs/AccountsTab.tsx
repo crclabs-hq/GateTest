@@ -116,7 +116,7 @@ export function AccountsTab() {
         ) : ghProfiles.length === 0 ? (
           <div className="p-8 text-center text-gray-400">
             No GitHub accounts connected yet. Add one above, or set{" "}
-            <code className="bg-gray-100 px-1 rounded">GATETEST_GITHUB_TOKEN</code> in Vapron → Platform secrets as a fallback.
+            <code className="bg-gray-100 px-1 rounded">GATETEST_GITHUB_TOKEN</code> in Tallrig → Platform secrets as a fallback.
           </div>
         ) : (
           <table className="w-full text-sm">

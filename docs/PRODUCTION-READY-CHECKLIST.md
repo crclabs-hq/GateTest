@@ -52,7 +52,7 @@ The pipeline is proven from the public edge to the GitHub API call
 
 ## 3. Customer support — the unbuilt layer
 
-Support today is `mailto:hello@gatetest.ai` and nothing else, and that address
+Support today is `mailto:support@gatetest.io` and nothing else, and that address
 is on the OLD domain by deliberate choice (unverified sending fails silently —
 see CLAUDE.md → THE DOMAIN).
 
@@ -62,7 +62,7 @@ see CLAUDE.md → THE DOMAIN).
       single support liability this list carried.
 - [ ] **[C]** Verify `gatetest.io` as a sending domain in Resend, THEN set
       `RESEND_FROM` + `GATETEST_SUPPORT_EMAIL`.
-- [ ] **[C]** Inbound forwarding for `hello@gatetest.ai` confirmed by test email
+- [ ] **[C]** Inbound forwarding for `support@gatetest.io` confirmed by test email
       landing in a read inbox. Decide whether `hello@gatetest.io` also exists
       and forwards.
 - [ ] Transactional email coverage audit — which of these exist vs silently

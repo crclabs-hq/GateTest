@@ -113,7 +113,7 @@ const faqItems = [
   },
   {
     q: "Does GateTest scan Next.js Server Actions?",
-    a: "Server Actions are TypeScript/JavaScript source files — all GateTest source-code modules apply: security patterns, N+1 query detection, SSRF checks, error-swallow detection, and AI code review. The agentic module investigates the most suspicious patterns in your action handlers with full context from Claude.",
+    a: "Server Actions are TypeScript/JavaScript source files — all GateTest source-code modules apply: security patterns, N+1 query detection, SSRF checks, error-swallow detection, and AI code review. The agentic module investigates the most suspicious patterns in your action handlers with full AI context.",
   },
   {
     q: "How does GateTest handle Vercel deployment checks?",

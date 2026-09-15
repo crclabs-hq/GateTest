@@ -100,11 +100,11 @@ describe('offline — end to end on a fixture with the network dead', () => {
       const bin = path.join(__dirname, '..', 'bin', 'gatetest.js');
       const env = { ...process.env, ANTHROPIC_API_KEY: 'not-a-real-key' };
       const scan = spawnSync(process.execPath, [bin, '--suite', 'quick', '--offline', '--fix', '--project', root], { env, encoding: 'utf8', timeout: 120000 });
-      assert.match(scan.stderr, /offline mode: --fix \/ --auto-pr need the Anthropic API and are not run/);
+      assert.match(scan.stderr, /offline mode: --fix \/ --auto-pr need the AI provider API and are not run/);
       assert.match(scan.stdout.replace(/\x1b\[[0-9;]*m/g, ''), /GATE: (PASSED|BLOCKED)/, 'the scan itself still ran');
       const fix = spawnSync(process.execPath, [bin, 'fix', '--project', root], { env: { ...env, GATETEST_OFFLINE: '1' }, encoding: 'utf8', timeout: 60000 });
       assert.equal(fix.status, 2);
-      assert.match(fix.stderr, /offline mode: `gatetest fix` needs the Anthropic API/);
+      assert.match(fix.stderr, /offline mode: `gatetest fix` needs the AI provider API/);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

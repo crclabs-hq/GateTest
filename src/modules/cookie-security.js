@@ -46,14 +46,29 @@
  *            `CSRF_COOKIE_SECURE = False`.
  *            (rule: `cookie-sec:py-cookie-secure-false:<rel>:<line>`)
  *
- *   error:   Python `SESSION_COOKIE_HTTPONLY = False` /
- *            `CSRF_COOKIE_HTTPONLY = False` / `httponly=False` kwarg.
+ *   error:   Python `SESSION_COOKIE_HTTPONLY = False` / `httponly=False`
+ *            kwarg.
+ *            (rule: `cookie-sec:py-cookie-httponly-false:<rel>:<line>`)
+ *
+ *   warning: Python `CSRF_COOKIE_HTTPONLY = False`. Django's documented
+ *            default IS False, and its docs say why: the CSRF token is
+ *            not a session credential, JS on the page legitimately reads
+ *            it for AJAX, and HttpOnly on it "doesn't offer any practical
+ *            protection" (the token is in the DOM anyway). Worth a look
+ *            when someone wrote it out explicitly; not a gate.
  *            (rule: `cookie-sec:py-cookie-httponly-false:<rel>:<line>`)
  *
  * Suppressions:
  *   - `// cookie-ok` / `# cookie-ok` on same or preceding line.
  *   - Test / spec / fixture paths downgrade error → warning,
  *     warning → info.
+ *   - A FRAMEWORK DEFAULTS file (`global_settings.py`,
+ *     `default_settings.py`, `defaults.py`, `settings_defaults.py`)
+ *     downgrades every Python cookie rule to info. That file DEFINES the
+ *     setting; an application misconfigures it in its own `settings.py`.
+ *     django/django's `django/conf/global_settings.py:581`
+ *     (`CSRF_COOKIE_HTTPONLY = False`, the framework's own default) was
+ *     gate-BLOCKING at confidence 1.0 on 2026-09-14.
  *
  * Competitors:
  *   - OWASP ZAP catches insecure cookies at runtime — requires a
@@ -115,6 +130,19 @@ const PY_COOKIE_HTTPONLY_FALSE_RE =
   /^\s*(SESSION_COOKIE_HTTPONLY|CSRF_COOKIE_HTTPONLY)\s*=\s*False\b/;
 // FastAPI / Starlette set_cookie kwarg: `httponly=False`.
 const PY_HTTPONLY_KWARG_FALSE_RE = /[,(]\s*httponly\s*=\s*False\b/;
+
+// The file that DEFINES a framework's settings defaults, by basename. Django
+// ships `django/conf/global_settings.py`; the other spellings are the
+// conventions Flask extensions, Pyramid and Wagtail use. A default written
+// here is the framework's documented starting point — an application changes
+// it in its own `settings.py`, which is where a misconfiguration would live.
+const PY_FRAMEWORK_DEFAULTS_RE = /(?:^|\/)(?:global_settings|default_settings|settings_defaults|defaults)\.py$/i;
+
+// Django documents CSRF_COOKIE_HTTPONLY = False as the default and explains
+// that HttpOnly on the CSRF cookie "doesn't offer any practical protection":
+// the token is not a session credential, page JS reads it for AJAX, and it is
+// in the DOM regardless. Written out explicitly it is worth a look, not a gate.
+const PY_CSRF_HTTPONLY_SETTING = 'CSRF_COOKIE_HTTPONLY';
 
 class CookieSecurityModule extends BaseModule {
   constructor() {
@@ -271,8 +299,14 @@ class CookieSecurityModule extends BaseModule {
 
   _scanPy(rel, text, result) {
     const isTest = this._isTestPath(rel);
-    const errSev = isTest ? 'warning' : 'error';
-    const warnSev = isTest ? 'info' : 'warning';
+    // A framework's defaults file defines the setting rather than deploying
+    // it — every rule drops to info there, and the message says so.
+    const isDefaults = PY_FRAMEWORK_DEFAULTS_RE.test(String(rel).replace(/\\/g, '/'));
+    const errSev = isDefaults ? 'info' : isTest ? 'warning' : 'error';
+    const warnSev = isDefaults || isTest ? 'info' : 'warning';
+    const defaultsNote = isDefaults
+      ? ' This is a framework defaults file — it defines the setting; the application overrides it in its own settings.'
+      : '';
     const lines = text.split(/\r?\n/);
     let issues = 0;
     let inDocstring = false;
@@ -308,7 +342,7 @@ class CookieSecurityModule extends BaseModule {
       if (m1) {
         result.addCheck(`cookie-sec:py-cookie-secure-false:${rel}:${i + 1}`, false, {
           severity: warnSev,
-          message: `\`${m1[1]} = False\` — cookie will ride over plain HTTP. Network attacker can read it.`,
+          message: `\`${m1[1]} = False\` — cookie will ride over plain HTTP. Network attacker can read it.${defaultsNote}`,
           file: rel,
           line: i + 1,
           setting: m1[1],
@@ -317,9 +351,12 @@ class CookieSecurityModule extends BaseModule {
       }
       const m2 = PY_COOKIE_HTTPONLY_FALSE_RE.exec(codeLine);
       if (m2) {
+        const isCsrf = m2[1] === PY_CSRF_HTTPONLY_SETTING;
         result.addCheck(`cookie-sec:py-cookie-httponly-false:${rel}:${i + 1}`, false, {
-          severity: errSev,
-          message: `\`${m2[1]} = False\` — cookie readable from JS. XSS becomes session takeover.`,
+          severity: isCsrf ? warnSev : errSev,
+          message: isCsrf
+            ? `\`${m2[1]} = False\` — Django's documented default; HttpOnly on the CSRF cookie adds no practical protection (the token is in the DOM and page JS reads it for AJAX). Confirm it was meant, not a gate.${defaultsNote}`
+            : `\`${m2[1]} = False\` — cookie readable from JS. XSS becomes session takeover.${defaultsNote}`,
           file: rel,
           line: i + 1,
           setting: m2[1],
@@ -329,7 +366,7 @@ class CookieSecurityModule extends BaseModule {
       if (PY_HTTPONLY_KWARG_FALSE_RE.test(codeLine)) {
         result.addCheck(`cookie-sec:py-fastapi-httponly-false:${rel}:${i + 1}`, false, {
           severity: errSev,
-          message: '`httponly=False` on a Response.set_cookie / Starlette cookie — readable from JS.',
+          message: `\`httponly=False\` on a Response.set_cookie / Starlette cookie — readable from JS.${defaultsNote}`,
           file: rel,
           line: i + 1,
         });

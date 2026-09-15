@@ -446,7 +446,7 @@ describe('CiSecurityModule — codeql-action/upload-sarif missing actions: read'
   const findingName = (workflow) =>
     `ci-security:codeql-sarif-missing-actions-read:.github/workflows/${workflow}`;
 
-  it('ERRORS when upload-sarif is used without actions: read', async () => {
+  it('WARNS when upload-sarif is used without actions: read — private repos need the scope, public ones do not, and the file cannot say which (was error until 2026-09-14)', async () => {
     writeWorkflow(tmp, 'gate.yml', `name: gate
 on: push
 jobs:
@@ -466,9 +466,10 @@ jobs:
     const r = await run(tmp);
     const f = r.checks.find((c) => c.name === findingName('gate.yml'));
     assert.ok(f, 'must flag missing actions: read when upload-sarif present');
-    assert.strictEqual(f.severity, 'error',
-      'severity must be ERROR — silent SARIF drop is a hard product failure');
+    assert.strictEqual(f.severity, 'warning',
+      'severity must be WARNING — the scope is required on private repositories only, and a workflow file cannot say which kind it runs in');
     assert.match(f.message, /Resource not accessible by integration/);
+    assert.match(f.message, /PRIVATE repository/);
   });
 
   it('passes when actions: read is explicitly granted alongside security-events: write', async () => {

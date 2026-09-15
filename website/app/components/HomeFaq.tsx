@@ -25,7 +25,7 @@ const FAQS: Faq[] = [
     a: (
       <>
         No. The deterministic engine ships first — AST, regex, file
-        walkers across 121 modules, no LLM in the loop. Claude only
+        walkers across 121 modules, no LLM in the loop. The AI layer only
         enters when the deterministic layers can&apos;t resolve a finding
         The 4-layer{" "}
         <a href="#flywheel" className="text-accent hover:underline">
@@ -35,7 +35,7 @@ const FAQS: Faq[] = [
       </>
     ),
     plain:
-      "No. The deterministic engine ships first — AST, regex, file walkers across 121 modules, no LLM in the loop. Claude only enters when the deterministic layers can't resolve a finding. The 4-layer flywheel architecture is the moat.",
+      "No. The deterministic engine ships first — AST, regex, file walkers across 121 modules, no LLM in the loop. The AI layer only enters when the deterministic layers can't resolve a finding. The 4-layer flywheel architecture is the moat.",
   },
   {
     q: "Is my code stored anywhere?",
@@ -46,7 +46,7 @@ const FAQS: Faq[] = [
         response returns; what we keep is the findings (message, file path,
         line number) so your report exists. With the GitHub Action or the CLI
         the repo stays in your own environment. AI fix and diagnosis send the
-        files being fixed to Anthropic under its standard 30-day retention —
+        files being fixed to our AI provider (named in the privacy policy) under its standard 30-day retention —
         never for training.{" "}
         <Link href="/legal/privacy" className="text-accent hover:underline">
           Privacy policy.
@@ -54,7 +54,7 @@ const FAQS: Faq[] = [
       </>
     ),
     plain:
-      "Your source is not. Hosted scans fetch your files over the git host API, scan them in memory, and discard the source when the response returns; the findings (message, file path, line number) are kept so your report exists. With the GitHub Action or the CLI the repo stays in your own environment. AI fix and diagnosis send the files being fixed to Anthropic under its standard 30-day retention, never for training.",
+      "Your source is not. Hosted scans fetch your files over the git host API, scan them in memory, and discard the source when the response returns; the findings (message, file path, line number) are kept so your report exists. With the GitHub Action or the CLI the repo stays in your own environment. AI fix and diagnosis send the files being fixed to our AI provider (named in the privacy policy) under its standard 30-day retention, never for training.",
   },
   {
     q: "Why not just ESLint + Snyk + the other 10 tools?",
@@ -120,17 +120,17 @@ const FAQS: Faq[] = [
     a: (
       <>
         The fix-flow is layered for exactly that reason: AST &rarr; rule
-        recipe &rarr; cached pattern &rarr; Claude. Each layer&apos;s output
+        recipe &rarr; cached pattern &rarr; AI. Each layer&apos;s output
         passes a syntax gate and a scanner re-validation gate before the PR
-        opens. Claude never auto-merges — it opens a PR you review. At the
-        $199+ tiers a second Claude pair-reviews every fix on a 4-axis
+        opens. The fix engine never auto-merges — it opens a PR you review. At the
+        $199+ tiers a second AI reviewer pair-reviews every fix on a 4-axis
         rubric (correctness, completeness, readability, test coverage).
         Real outputs are documented in{" "}
         <code className="font-mono text-accent text-xs">docs/proofs/</code>.
       </>
     ),
     plain:
-      "The fix-flow is layered: AST, then rule recipe, then cached pattern, then Claude. Every fix passes a syntax gate and a scanner re-validation gate before the PR opens. Claude never auto-merges — it opens a PR you review. At $199+ tiers a second Claude pair-reviews every fix on a 4-axis rubric.",
+      "The fix-flow is layered: AST, then rule recipe, then cached pattern, then AI. Every fix passes a syntax gate and a scanner re-validation gate before the PR opens. The fix engine never auto-merges — it opens a PR you review. At $199+ tiers a second AI reviewer pair-reviews every fix on a 4-axis rubric.",
   },
 ];
 

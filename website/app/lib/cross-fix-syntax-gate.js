@@ -75,13 +75,25 @@ function checkJsSyntax(source) {
  */
 let _ts = null;
 let _tsTried = false;
+let _tsError = null;
 function loadTypescript() {
   if (_tsTried) return _ts;
-  _tsTried = true;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
     _ts = require('typescript');
-  } catch { _ts = null; }
+    _tsTried = true;
+  } catch (err) {
+    // Only "there is no compiler" is the settled, degraded state. Anything
+    // else — a transient EMFILE under a loaded test run, a half-written
+    // install — used to be swallowed AND cached, so one bad moment turned
+    // every later TS fix into an unverified pass with nothing to say why
+    // (Linux CI 2026-09-13: three checkTsSyntax tests failed once with
+    // `true !== false` and no cause). Now it is retried on the next call and
+    // its message travels in the reason.
+    _ts = null;
+    _tsError = err;
+    _tsTried = Boolean(err && err.code === 'MODULE_NOT_FOUND' && /'typescript'/.test(String(err.message)));
+  }
   return _ts;
 }
 
@@ -98,7 +110,8 @@ function checkTsSyntax(source, fileName) {
     // website, and a production install that omits dev deps would land
     // exactly here — on the PAID fix path, silently reporting "all clean"
     // over fixes nothing had parsed.
-    return { ok: true, unverified: true, reason: 'typescript unavailable — fix not syntax-checked' };
+    const why = _tsError && _tsError.message ? ` (${String(_tsError.message).split('\n')[0]})` : '';
+    return { ok: true, unverified: true, reason: `typescript unavailable — fix not syntax-checked${why}` };
   }
   try {
     // createSourceFile + parseDiagnostics, not transpileModule: the

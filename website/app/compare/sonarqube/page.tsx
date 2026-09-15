@@ -53,13 +53,13 @@ const faqItems = [
   },
   {
     q: "Can GateTest fix the issues it finds, like a PR suggestion?",
-    a: "GateTest goes further than suggestions. The AI-powered auto-fix mode (Scan + Fix, $199) creates an actual pull request with working code changes. SonarQube shows you the issue; GateTest writes the fix. The Forensic Scan tier ($399) adds Claude-driven diagnosis per finding, attack-chain correlation across findings, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing also ships via the GitHub Action with mutation: true — runs wherever your CI runs.",
+    a: "GateTest goes further than suggestions. The AI-powered auto-fix mode (Scan + Fix, $199) creates an actual pull request with working code changes. SonarQube shows you the issue; GateTest writes the fix. The Forensic Scan tier ($399) adds AI-driven diagnosis per finding, attack-chain correlation across findings, a board-ready CISO report, and a CTO-readable executive summary. Mutation testing also ships via the GitHub Action with mutation: true — runs wherever your CI runs.",
   },
 ];
 
 const comparisonRows = [
   { feature: `${TOTAL_MODULES} scanning modules`, gatetest: true, competitor: false },
-  { feature: "AI code review (Claude)", gatetest: true, competitor: false },
+  { feature: "AI code review", gatetest: true, competitor: false },
   { feature: "Auto-fix pull requests", gatetest: true, competitor: false },
   { feature: "Pay per scan (not per seat)", gatetest: true, competitor: false },
   { feature: "Zero server setup", gatetest: true, competitor: false },
@@ -170,7 +170,7 @@ export default function SonarQubePage() {
             {[
               {
                 title: "AI-native, not AI-bolted-on",
-                body: "SonarQube added AI features to a 2006 rule engine. GateTest is built AI-first — Claude reads your actual code, understands context, and finds bugs that pattern matching misses. Real bugs, not rule violations.",
+                body: "SonarQube added AI features to a 2006 rule engine. GateTest is built AI-first — the review engine reads your actual code, understands context, and finds bugs that pattern matching misses. Real bugs, not rule violations.",
               },
               {
                 title: "Auto-fix PRs, not just reports",

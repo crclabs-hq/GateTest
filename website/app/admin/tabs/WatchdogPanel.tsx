@@ -226,7 +226,7 @@ export function WatchdogPanel() {
         <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
           <strong>Could not load repos:</strong> {error}
           {error.includes("token") && (
-            <p className="mt-2 text-xs text-red-700/70">Set <code className="font-mono">GATETEST_GITHUB_TOKEN</code> or <code className="font-mono">GITHUB_TOKEN</code> in Vapron → Platform secrets.</p>
+            <p className="mt-2 text-xs text-red-700/70">Set <code className="font-mono">GATETEST_GITHUB_TOKEN</code> or <code className="font-mono">GITHUB_TOKEN</code> in Tallrig → Platform secrets.</p>
           )}
         </div>
       )}

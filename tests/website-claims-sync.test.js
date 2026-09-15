@@ -7,6 +7,11 @@
 // Opus 5 missing from the model picker, "120 Modules" hiding from the
 // module-count guard behind a case-sensitive prefilter. Each class gets a
 // guard here. The rule is the Bible's: never type a number, read it.
+//
+// 2026-09-14: the model-name guard (HomeModelChoice picker + MCP FAQ alias
+// descriptions) was retired. Public copy no longer names the AI vendor or its
+// models — tests/public-copy-vendor-neutral.test.js asserts exactly that. The
+// alias → model mapping is still pinned by tests/engine-models.test.js.
 // =============================================================================
 
 const { describe, it } = require('node:test');
@@ -18,7 +23,6 @@ const ROOT = path.resolve(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const siteStats = require('../website/app/data/site-stats.json');
 const { DEFAULT_CONFIG } = require('../src/core/config');
-const { ALLOWED_FIX_MODELS } = require('../src/core/engine-models');
 
 const SKIP_DIRS = new Set(['node_modules', '.next', 'data', 'scans']);
 function walk(dir, out = []) {
@@ -80,31 +84,6 @@ describe('website copy — no hand-typed suite sizes or tool counts', () => {
   it('anti-vacuity: the suite-size regex finds the derived template in tools-data', () => {
     assert.ok(suiteSizes.length >= 4);
     assert.match(read('website/app/mcp/tools-data.ts'), /\$\{QUICK_SUITE_MODULES\}-module quick/);
-  });
-});
-
-describe('website copy — model names match the engine allow-list', () => {
-  const display = { 'claude-sonnet-5': 'Sonnet 5', 'claude-opus-5': 'Opus 5', 'claude-opus-4-8': 'Opus 4.8', 'claude-fable-5': 'Fable 5' };
-  it('every allowed model id has a display name in this test (keep in sync when the allow-list changes)', () => {
-    assert.deepStrictEqual(Object.keys(display).sort(), Object.keys(ALLOWED_FIX_MODELS).sort());
-  });
-  it('the home model picker lists every allowed model by id', () => {
-    const src = read('website/app/components/HomeModelChoice.tsx');
-    for (const id of Object.keys(ALLOWED_FIX_MODELS)) {
-      assert.ok(src.includes(`id: "${id}"`), `HomeModelChoice.tsx does not list ${id}`);
-      assert.ok(src.includes(`name: "${display[id]}"`), `HomeModelChoice.tsx names ${id} something other than "${display[id]}"`);
-    }
-  });
-  it('the MCP FAQ describes each alias with the model it actually resolves to', () => {
-    const src = read('website/app/mcp/page.tsx');
-    const faq = src.split('\n').find((l) => /Which AI model runs my fixes/.test(l) ? false : /\bsonnet \(/.test(l));
-    assert.ok(faq, 'the model FAQ answer must be present');
-    for (const [id, meta] of Object.entries(ALLOWED_FIX_MODELS)) {
-      const alias = meta.aliases[0];
-      const m = faq.match(new RegExp(`\\b${alias.replace(/[.-]/g, '\\$&')} \\(([^)—]+)`));
-      assert.ok(m, `FAQ does not describe the "${alias}" alias`);
-      assert.ok(m[1].includes(display[id]), `alias "${alias}" is described as "${m[1].trim()}" but resolves to ${display[id]}`);
-    }
   });
 });
 

@@ -1,0 +1,92 @@
+name: Docker image builds
+
+# The Dockerfile rotted unnoticed: on 2026-09-14 `docker build .` at main's
+# tip failed after 19 minutes (the website's prebuild scripts were not in
+# the image, the build context was 1.92 GB, and `.next/standalone` was never
+# emitted). Nothing ran it. This job runs it — no push, no registry, no
+# secrets — on every change to the files that go into the image, and once a
+# week so a base-image or lockfile change cannot break it silently between
+# PRs. A red X here means `docker compose up` does not work at that commit.
+
+on:
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - docker-compose.yml
+      - package.json
+      - package-lock.json
+      - website/**
+      - src/**
+      - bin/**
+      - lib/**
+      - scripts/**
+      - .github/workflows/docker-build.yml
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - docker-compose.yml
+      - .github/workflows/docker-build.yml
+  schedule:
+    - cron: '30 4 * * 1'   # Monday 04:30 UTC, after the nightly jobs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: docker build (no push)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # The compose file must parse with only the documented defaults — an
+      # operator's first `docker compose up` has no .env.local yet.
+      - name: docker compose config
+        run: |
+          touch .env.local
+          docker compose config --quiet
+
+      - name: docker build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: gatetest:ci
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # The image must start and answer the same healthcheck compose uses.
+      # No database and no env are attached, so /api/health is the only
+      # route asked — it is a constant-body liveness ping by design.
+      - name: image starts and answers /api/health
+        run: |
+          docker run -d --name gatetest-ci -p 3000:3000 gatetest:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/api/health; then echo; echo "healthy after ${i}s"; exit 0; fi
+            sleep 1
+          done
+          echo "::error::the image did not answer /api/health within 30s"
+          docker logs gatetest-ci
+          exit 1
+
+      - name: image size
+        if: always()
+        run: docker image ls gatetest:ci --format '{{.Repository}}:{{.Tag}} {{.Size}}' | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: stop container
+        if: always()
+        run: docker rm -f gatetest-ci

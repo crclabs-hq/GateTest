@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 const NEXT_STEPS = [
   "Push code to any connected repo",
-  "GateTest scans automatically (full deterministic engine — Claude-powered modules skipped)",
+  "GateTest scans automatically (full deterministic engine — AI-powered modules skipped)",
   "A commit status appears on your commit (advisory mode by default — set mode: strict in .gatetest.json to block)",
   "Open a PR — detailed scan report posted as a comment",
 ];

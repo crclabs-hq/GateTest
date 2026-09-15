@@ -33,11 +33,11 @@ const EXPECTED: Array<{ id: string; label: string }> = [
 /** Actionable suggestions for known failure patterns. */
 const SUGGESTIONS: Record<string, Record<string, string>> = {
   env: {
-    fail: "Set the missing environment variables in Vapron → Platform secrets, then Apply to live app and restart gatetest-web. Required: STRIPE_SECRET_KEY, NEXT_PUBLIC_BASE_URL, DATABASE_URL, SESSION_SECRET.",
+    fail: "Set the missing environment variables in Tallrig → Platform secrets, then Apply to live app and restart gatetest-web. Required: STRIPE_SECRET_KEY, NEXT_PUBLIC_BASE_URL, DATABASE_URL, SESSION_SECRET.",
     warn: "Optional variables improve functionality. Set GLUECRON_BASE_URL + GLUECRON_API_TOKEN for git host access. Set ANTHROPIC_API_KEY for AI review.",
   },
   db: {
-    fail: "Check DATABASE_URL in Vapron → Platform secrets. If the database exists but tables are missing, visit /api/db/init to create them.",
+    fail: "Check DATABASE_URL in Tallrig → Platform secrets. If the database exists but tables are missing, visit /api/db/init to create them.",
     warn: "Database connected but some tables missing. POST to /api/db/init to create the required tables (scans, customers, api_keys, api_calls, installations, scan_queue).",
   },
   github: {
@@ -45,11 +45,11 @@ const SUGGESTIONS: Record<string, Record<string, string>> = {
     warn: "Git host not configured. Set GLUECRON_BASE_URL + GLUECRON_API_TOKEN for Gluecron, or GATETEST_APP_ID + GATETEST_PRIVATE_KEY for GitHub.",
   },
   stripe: {
-    fail: "Stripe API rejected the key. Check STRIPE_SECRET_KEY in Vapron → Platform secrets. Test keys start with sk_test_, live keys with sk_live_. Currently pre-launch: use sk_test_ until ready.",
+    fail: "Stripe API rejected the key. Check STRIPE_SECRET_KEY in Tallrig → Platform secrets. Test keys start with sk_test_, live keys with sk_live_. Currently pre-launch: use sk_test_ until ready.",
     warn: "Stripe not configured. Set STRIPE_SECRET_KEY to enable paid scans.",
   },
   anthropic: {
-    fail: "Claude API rejected the request. Check ANTHROPIC_API_KEY in Vapron → Platform secrets. Get one at console.anthropic.com.",
+    fail: "Claude API rejected the request. Check ANTHROPIC_API_KEY in Tallrig → Platform secrets. Get one at console.anthropic.com.",
     warn: "Anthropic not configured. AI code review will skip gracefully but won't find real bugs. Set ANTHROPIC_API_KEY when ready.",
   },
   modules: {

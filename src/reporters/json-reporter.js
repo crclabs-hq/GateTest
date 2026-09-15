@@ -44,6 +44,10 @@ class JsonReporter {
         duration: summary.duration,
         modules: summary.modules,
         checks: summary.checks,
+        // True when no source file was found under the root: every module
+        // passed by default. A consumer reading `gateStatus: PASSED` must be
+        // able to tell an inspected repo from an empty directory.
+        nothingChecked: summary.nothingChecked === true,
       },
       results: summary.results,
       failures: summary.failedModules,

@@ -251,12 +251,12 @@ jobs:
         run: |
           # --auto-pr does the whole flow in one step:
           #   1. Re-runs the scan to collect every actionable finding
-          #   2. Calls the AI fix engine per finding (Claude-driven)
+          #   2. Calls the AI fix engine per finding
           #   3. Creates a new branch, commits the fixes
           #   4. Opens a pull request via the gh CLI
           #
           # Configure git identity so the auto-commit has a sensible author.
-          git config user.email "auto-repair@gatetest.ai"
+          git config user.email "auto-repair@gatetest.io"
           git config user.name "GateTest Auto-Repair"
 
           # Capture all output so we can post it as a GitHub Actions
@@ -304,12 +304,12 @@ jobs:
           echo "   1. Go to: https://github.com/organizations/<your-org>/settings/secrets/actions"
           echo "   2. Click 'New organization secret'"
           echo "   3. Name:  ANTHROPIC_API_KEY"
-          echo "      Value: <your Anthropic API key>"
+          echo "      Value: <your AI provider API key>"
           echo "   4. Repository access: 'All repositories' (or 'Selected')"
           echo "   5. Save."
           echo ""
           echo " Every future failing run in those repos will then ALSO open"
-          echo " an auto-repair PR with Claude-generated fixes. No per-repo"
+          echo " an auto-repair PR with AI-generated fixes. No per-repo"
           echo " setup needed."
           echo "============================================================"
           # Annotation surfaces in the GitHub UI directly on the PR — not
