@@ -298,7 +298,7 @@ A reviewer finding two listings for one product is its own risk.
 | | Canonical | Retire / confirm |
 |---|---|---|
 | GitHub App | `gatetest-hq` 3766251 (`crclabs-hq`) — LIVE, key on the box | `gatetesthq` 3322634 (`Gate-Test`) — stale; retire (this row was inverted until 2026-09-10) |
-| VS Code ext | `editors/vscode`, publisher `gatetest` | `vscode-extension` v1.0.1, publisher `GateTestHQ` |
+| VS Code ext | `vscode-extension` v1.0.1, publisher `GateTestHQ` — the only tree since 2026-09-14 | `editors/vscode` (July MVP, publisher `gatetest`) — deleted 2026-09-14; nothing to retire |
 
 - [ ] Decide which is canonical for each and retire the other
 
