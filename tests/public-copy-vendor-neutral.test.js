@@ -90,7 +90,7 @@ const FORBIDDEN = /\b(claude|anthropic|fable|sonnet|opus|haiku|openai|gpt-?\d)\b
 // ---------------------------------------------------------------------------
 const GLOBAL_ALLOW = [
   // MCP clients the user installs the server into
-  'Claude Code', 'Claude Desktop', 'claude.ai', 'claude mcp add', 'Claude client',
+  'Claude Code', 'Claude Desktop', 'claude.ai', 'claude mcp add',
   "'Claude Code'", '.claude.json', '.claude/', 'claude_desktop_config',
   // env var names / key acquisition on BYOK paths
   'ANTHROPIC_API_KEY', 'NEXT_PUBLIC_ANTHROPIC_API_KEY', 'NEXT_PUBLIC_ANTHROPIC_KEY',
