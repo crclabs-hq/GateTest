@@ -1,13 +1,13 @@
 /**
- * Vapron → GateTest runtime callback.
+ * Platform (Tallrig) → GateTest runtime callback.
  *
- * Vapron POSTs here after a headless-browser runtime scan finishes
+ * The platform worker POSTs here after a headless-browser runtime scan finishes
  * (success OR failure). We verify the HMAC signature (fail-closed,
  * Forbidden #15), parse the runtime payload, and persist it on the
  * scan_queue row keyed by the scan id. The next scan/status poll will
  * surface the merged static + runtime results to the customer.
  *
- * Inbound contract (Vapron side):
+ * Inbound contract (platform side):
  *   POST /api/web/scan/runtime-callback
  *   headers:
  *     X-GateTest-Signature: hex(hmac-sha256(secret, body))
@@ -26,7 +26,7 @@
  *     }
  *
  * Fail-closed semantics:
- *   - Missing VAPRON_DISPATCH_SECRET → 503 (we won't process callbacks
+ *   - Missing TALLRIG_DISPATCH_SECRET (or its VAPRON_/CRONTECH_ alias) → 503 (we won't process callbacks
  *     when we can't verify them).
  *   - Missing/invalid signature → 401.
  *   - Replay protection: reject timestamps older than 5 minutes.
@@ -59,13 +59,20 @@ interface RuntimeCallbackBody {
 
 export async function POST(req: NextRequest) {
   // 1. Read RAW body — JSON.parse after, because the HMAC must be over
-  //    the exact bytes Vapron signed.
+  //    the exact bytes the platform signed.
   const raw = await req.text();
 
   // 2. Resolve the dispatch secret. Fail-closed when absent.
-  //    Canonical is VAPRON_DISPATCH_SECRET; CRONTECH_DISPATCH_SECRET is a
-  //    fallback until the Vercel env var is renamed.
-  const secret = process.env.VAPRON_DISPATCH_SECRET ?? process.env.CRONTECH_DISPATCH_SECRET;
+  //    Read through platform-config so the precedence is the ONE definition
+  //    the outbound dispatch uses: TALLRIG_DISPATCH_SECRET → VAPRON_ → CRONTECH_.
+  //    Before 2026-09-15 this route read VAPRON_/CRONTECH_ directly, so a box
+  //    flipped to TALLRIG_* alone would have dispatched jobs it could never
+  //    verify the results of (every callback 503).
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { platformEnv } = require("@/app/lib/platform-config") as {
+    platformEnv: (name: string) => string | undefined;
+  };
+  const secret = platformEnv("DISPATCH_SECRET");
   if (!secret) {
     return NextResponse.json(
       { error: "Callback verification not configured" },
@@ -121,7 +128,7 @@ export async function POST(req: NextRequest) {
   try {
     sql = getDb();
   } catch {
-    // DB not configured locally — still ack so Vapron doesn't retry.
+    // DB not configured locally — still ack so the platform does not retry.
     // Log so the operator can see the dropped payload.
     console.warn(`[runtime-callback] DB unavailable; dropped runtime payload for scan ${body.scanId}`);
     return NextResponse.json({ received: true, persisted: false }, { status: 200 });
@@ -161,14 +168,14 @@ export async function POST(req: NextRequest) {
     console.warn(
       `[runtime-callback] Failed to persist runtime payload for scan ${body.scanId}: ${err instanceof Error ? err.message : String(err)}`
     );
-    // Still 200 so Vapron doesn't retry — we logged the dropped data.
+    // Still 200 so the platform does not retry — we logged the dropped data.
     return NextResponse.json({ received: true, persisted: false }, { status: 200 });
   }
 }
 
 export async function GET() {
   return NextResponse.json(
-    { hint: "POST runtime scan results here from Vapron with X-GateTest-Signature header." },
+    { hint: "POST runtime scan results here from the Tallrig worker with the X-GateTest-Signature header." },
     { status: 405 }
   );
 }

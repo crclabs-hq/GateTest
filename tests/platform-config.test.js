@@ -114,11 +114,14 @@ describe('platform-config — every consumer imports it; no guarded file pins a 
     assert.doesNotMatch(src, /getEnv\('VAPRON_/, 'no direct VAPRON_ read remains');
   });
 
-  it('/api/status counts TALLRIG_* as "set" for each dispatch variable', () => {
+  it('/api/status lists TALLRIG_* as canonical and counts VAPRON_*/CRONTECH_* as "set" for each dispatch variable', () => {
     const src = read('website/app/api/status/route.ts');
-    assert.match(src, /VAPRON_BASE_URL: \["TALLRIG_BASE_URL", "CRONTECH_BASE_URL"\]/);
-    assert.match(src, /VAPRON_API_TOKEN: \["TALLRIG_API_TOKEN", "CRONTECH_API_TOKEN"\]/);
-    assert.match(src, /VAPRON_DISPATCH_SECRET: \["TALLRIG_DISPATCH_SECRET", "CRONTECH_DISPATCH_SECRET"\]/);
+    assert.match(src, /TALLRIG_BASE_URL: \["VAPRON_BASE_URL", "CRONTECH_BASE_URL"\]/);
+    assert.match(src, /TALLRIG_API_TOKEN: \["VAPRON_API_TOKEN", "CRONTECH_API_TOKEN"\]/);
+    assert.match(src, /TALLRIG_DISPATCH_SECRET: \["VAPRON_DISPATCH_SECRET", "CRONTECH_DISPATCH_SECRET"\]/);
+    // The canonical names are what /api/status lists as missing_important.
+    assert.match(src, /name: "TALLRIG_BASE_URL"/);
+    assert.doesNotMatch(src, /name: "VAPRON_(?:BASE_URL|API_TOKEN|DISPATCH_SECRET)"/, 'the old name is an alias, not the headline');
   });
 
   it('the legal sub-processor row reads name, entity and site from the config (Sync Rule: same commit as the copy)', () => {

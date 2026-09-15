@@ -147,7 +147,7 @@ test('dispatchRuntimeScan — returns reason when env vars missing', async () =>
     deps: {},
   });
   assert.equal(r.ok, false);
-  assert.ok(/VAPRON_BASE_URL/.test(r.reason));
+  assert.ok(/TALLRIG_BASE_URL/.test(r.reason), r.reason);
 });
 
 test('dispatchRuntimeScan — happy path with injected fetch', async () => {
