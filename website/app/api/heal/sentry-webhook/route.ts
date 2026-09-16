@@ -28,6 +28,16 @@ const { CHEAP_MODEL } = require("@/app/lib/engine-models") as { CHEAP_MODEL: str
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { apiUrl: anthropicApiUrl, apiVersion: anthropicVersion } = require("@/app/lib/anthropic-config") as { apiUrl: (r?: string) => string; apiVersion: () => string };
 
+// Usage Doctrine Meter 3 (CLAUDE.md, Craig 2026-09-16) — this webhook fires
+// automatically on every production error, on OUR Anthropic key, with no
+// per-caller rate limit (Sentry is the caller). One daily ceiling shared by
+// every automatic caller; see website/app/lib/server-spend-guard.js.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { checkServerSpend, recordServerSpend } = require("@/app/lib/server-spend-guard") as {
+  checkServerSpend: (opts: { sql?: unknown; now?: Date }) => Promise<{ allowed: boolean; spentMicros: number; ceilingMicros: number | null; reason: string }>;
+  recordServerSpend: (opts: { sql?: unknown; route: string; model: string; inputTokens: number; outputTokens: number; now?: Date; isCustomerKey?: boolean }) => Promise<{ recorded: boolean; reason?: string }>;
+};
+
 const SENTRY_WEBHOOK_SECRET = process.env.SENTRY_WEBHOOK_SECRET_HEAL || "";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
 const GITHUB_TOKEN = process.env.GATETEST_GITHUB_TOKEN || process.env.GITHUB_TOKEN || "";
@@ -115,7 +125,7 @@ function extractHealTarget(payload: Record<string, unknown>): HealTarget | null 
 // Claude diagnosis via raw fetch
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function diagnoseWithClaude(target: HealTarget): Promise<{ diagnosis: string; patch: string; confidence: string }> {
+async function diagnoseWithClaude(target: HealTarget): Promise<{ diagnosis: string; patch: string; confidence: string; inputTokens: number; outputTokens: number }> {
   const frameContext = target.frames
     .map(f => `  ${f.filename || "?"}:${f.lineno || "?"}  in ${f.function || "?"}`)
     .join("\n");
@@ -161,9 +171,9 @@ CONFIDENCE: <LOW|MEDIUM|HIGH>`;
       signal: controller.signal,
     });
 
-    if (!res.ok) return { diagnosis: "Diagnosis unavailable", patch: "", confidence: "LOW" };
+    if (!res.ok) return { diagnosis: "Diagnosis unavailable", patch: "", confidence: "LOW", inputTokens: 0, outputTokens: 0 };
 
-    const json = await res.json() as { content?: { type: string; text: string }[] };
+    const json = await res.json() as { content?: { type: string; text: string }[]; usage?: { input_tokens?: number; output_tokens?: number } };
     const text = (json.content || []).filter(b => b.type === "text").map(b => b.text).join("");
 
     const diagMatch = text.match(/DIAGNOSIS:\s*([\s\S]*?)(?=PATCH:|CONFIDENCE:|$)/i);
@@ -175,6 +185,8 @@ CONFIDENCE: <LOW|MEDIUM|HIGH>`;
       diagnosis: diagMatch?.[1]?.trim() || text.slice(0, 400),
       patch: patchMatch?.[1]?.trim() || "",
       confidence: confMatch?.[1]?.toUpperCase() || "LOW",
+      inputTokens: json.usage?.input_tokens || 0,
+      outputTokens: json.usage?.output_tokens || 0,
     };
   } finally {
     clearTimeout(timer);
@@ -299,6 +311,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, skipped: true, reason: "ANTHROPIC_API_KEY not set" });
   }
 
+  const spendCheck = await checkServerSpend({});
+  if (!spendCheck.allowed) {
+    console.warn(`[heal/sentry-webhook] skipped — server spend guard: ${spendCheck.reason}`);
+    return NextResponse.json({ ok: true, skipped: true, reason: spendCheck.reason });
+  }
+
   const t0 = Date.now();
   let diagnosis = "";
   let patch = "";
@@ -307,7 +325,14 @@ export async function POST(req: NextRequest) {
   let healError: string | null = null;
 
   try {
-    ({ diagnosis, patch, confidence } = await diagnoseWithClaude(target));
+    const diag = await diagnoseWithClaude(target);
+    ({ diagnosis, patch, confidence } = diag);
+    await recordServerSpend({
+      route: "/api/heal/sentry-webhook",
+      model: CHEAP_MODEL,
+      inputTokens: diag.inputTokens,
+      outputTokens: diag.outputTokens,
+    });
     githubIssueUrl = await createGitHubIssue(target, diagnosis, patch);
     await persistHealLog(target, diagnosis, patch, confidence, githubIssueUrl, Date.now() - t0);
   } catch (err) {

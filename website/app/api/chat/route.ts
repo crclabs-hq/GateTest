@@ -39,6 +39,15 @@ const _chatLimiter = _createChatLimiter(_CHAT_PRESETS.chat || { windowMs: 60_000
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { apiUrl: anthropicApiUrl, apiVersion: anthropicVersion } = require("@/app/lib/anthropic-config") as { apiUrl: (r?: string) => string; apiVersion: () => string };
 
+// Usage Doctrine Meter 3 (CLAUDE.md, Craig 2026-09-16) — chat runs on OUR
+// Anthropic key with no per-request payment. One daily ceiling shared by
+// every automatic caller; see website/app/lib/server-spend-guard.js.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { checkServerSpend, recordServerSpend } = require("@/app/lib/server-spend-guard") as {
+  checkServerSpend: (opts: { sql?: unknown; now?: Date }) => Promise<{ allowed: boolean; spentMicros: number; ceilingMicros: number | null; reason: string }>;
+  recordServerSpend: (opts: { sql?: unknown; route: string; model: string; inputTokens: number; outputTokens: number; now?: Date; isCustomerKey?: boolean }) => Promise<{ recorded: boolean; reason?: string }>;
+};
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -112,6 +121,14 @@ export async function POST(req: NextRequest) {
     }
   } catch { /* error-ok — rate limiter unavailable — the support widget proceeds unthrottled rather than failing closed */ }
 
+  const spendCheck = await checkServerSpend({});
+  if (!spendCheck.allowed) {
+    return NextResponse.json(
+      { error: "AI assistance is paused for today: daily budget reached", reason: spendCheck.reason },
+      { status: 503 }
+    );
+  }
+
   const systemPrompt = sp.buildSystemPrompt();
   const upstreamBody = JSON.stringify({
     model: sp.CHAT_MODEL,
@@ -160,6 +177,8 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       let buffer = "";
       let closed = false;
+      let usageIn = 0;
+      let usageOut = 0;
       const send = (event: string, data: unknown) => {
         if (closed) return;
         try {
@@ -182,12 +201,26 @@ export async function POST(req: NextRequest) {
               const evt = JSON.parse(payload);
               if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
                 send("token", { text: String(evt.delta.text || "") });
+              } else if (evt.type === "message_start") {
+                usageIn = evt.message?.usage?.input_tokens || usageIn;
+                usageOut = evt.message?.usage?.output_tokens || usageOut;
+              } else if (evt.type === "message_delta") {
+                usageOut = evt.usage?.output_tokens || usageOut;
               } else if (evt.type === "message_stop") {
                 send("done", {});
               }
             } catch { /* error-ok — ignore malformed event */ }
           }
         }
+        // Record AFTER the stream completes — usage numbers only arrive
+        // once Anthropic has sent the full message_start/message_delta pair.
+        // Best-effort; never blocks or fails the response already sent.
+        await recordServerSpend({
+          route: "/api/chat",
+          model: sp.CHAT_MODEL,
+          inputTokens: usageIn,
+          outputTokens: usageOut,
+        });
       } catch (err) {
         send("error", { error: err instanceof Error ? err.message : "Stream interrupted" });
       } finally {

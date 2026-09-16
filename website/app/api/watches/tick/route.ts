@@ -21,6 +21,15 @@ const { CHEAP_MODEL } = require("@/app/lib/engine-models") as { CHEAP_MODEL: str
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { apiUrl: anthropicApiUrl, apiVersion: anthropicVersion } = require("@/app/lib/anthropic-config") as { apiUrl: (r?: string) => string; apiVersion: () => string };
 
+// Usage Doctrine Meter 3 (CLAUDE.md, Craig 2026-09-16) — this tick fires
+// automatically on a schedule, on OUR Anthropic key. One daily ceiling
+// shared by every automatic caller; see website/app/lib/server-spend-guard.js.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { checkServerSpend, recordServerSpend } = require("@/app/lib/server-spend-guard") as {
+  checkServerSpend: (opts: { sql?: unknown; now?: Date }) => Promise<{ allowed: boolean; spentMicros: number; ceilingMicros: number | null; reason: string }>;
+  recordServerSpend: (opts: { sql?: unknown; route: string; model: string; inputTokens: number; outputTokens: number; now?: Date; isCustomerKey?: boolean }) => Promise<{ recorded: boolean; reason?: string }>;
+};
+
 // Watchdog intelligence — anomaly detection + Claude diagnosis (pure JS, DI).
 const { detectAnomalies, diagnoseWatchEvent } = require("@/app/lib/watchdog-intelligence") as {
   detectAnomalies: (opts: {
@@ -45,7 +54,7 @@ const MAX_DIAGNOSES_PER_TICK = 2;
 // Single-attempt, 15s-bounded Claude call. The watchdog must never let a
 // slow Anthropic response starve the scan loop — a missed diagnosis is
 // recoverable on the next tick, a blown function budget is not.
-async function askClaudeBounded(prompt: string): Promise<string> {
+async function askClaudeBounded(prompt: string, onUsage?: (u: { inputTokens: number; outputTokens: number }) => void): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY || "";
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set");
   const controller = new AbortController();
@@ -66,7 +75,8 @@ async function askClaudeBounded(prompt: string): Promise<string> {
       signal: controller.signal,
     });
     if (!res.ok) throw new Error(`AI provider error ${res.status}`);
-    const data = await res.json() as { content?: Array<{ type: string; text: string }> };
+    const data = await res.json() as { content?: Array<{ type: string; text: string }>; usage?: { input_tokens?: number; output_tokens?: number } };
+    if (onUsage) onUsage({ inputTokens: data.usage?.input_tokens || 0, outputTokens: data.usage?.output_tokens || 0 });
     return data.content?.[0]?.text || "";
   } finally {
     clearTimeout(timer);
@@ -356,20 +366,40 @@ export async function GET(req: NextRequest) {
 
       const critical = anomalies.some((a) => a.severity === "critical");
       if (critical && diagnosesUsed < MAX_DIAGNOSES_PER_TICK && process.env.ANTHROPIC_API_KEY) {
-        diagnosesUsed++;
-        const diag = await diagnoseWatchEvent({
-          watch: { target: watch.target, target_type: watch.target_type },
-          scanResult: result,
-          anomalies,
-          recentHistory,
-          askClaude: askClaudeBounded,
-        });
-        await sql`
-          INSERT INTO heal_history (watch_id, action, status, details, completed_at)
-          VALUES (${watch.id}, 'diagnosis', ${diag.ok ? "success" : "failed"},
-                  ${JSON.stringify({ target: watch.target, diagnosis: diag.diagnosis, reason: diag.reason })}, NOW())
-        `;
-        diagnosed = diag.ok;
+        const spendCheck = await checkServerSpend({ sql });
+        if (!spendCheck.allowed) {
+          console.warn(`[watches/tick] diagnosis skipped — server spend guard: ${spendCheck.reason}`);
+          await sql`
+            INSERT INTO heal_history (watch_id, action, status, details, completed_at)
+            VALUES (${watch.id}, 'diagnosis', 'skipped',
+                    ${JSON.stringify({ target: watch.target, reason: spendCheck.reason })}, NOW())
+          `;
+        } else {
+          diagnosesUsed++;
+          let diagUsage: { inputTokens: number; outputTokens: number } = { inputTokens: 0, outputTokens: 0 };
+          const diag = await diagnoseWatchEvent({
+            watch: { target: watch.target, target_type: watch.target_type },
+            scanResult: result,
+            anomalies,
+            recentHistory,
+            askClaude: (prompt: string) => askClaudeBounded(prompt, (u) => { diagUsage = u; }),
+          });
+          if (diag.ok) {
+            await recordServerSpend({
+              sql,
+              route: "/api/watches/tick",
+              model: CHEAP_MODEL,
+              inputTokens: diagUsage.inputTokens,
+              outputTokens: diagUsage.outputTokens,
+            });
+          }
+          await sql`
+            INSERT INTO heal_history (watch_id, action, status, details, completed_at)
+            VALUES (${watch.id}, 'diagnosis', ${diag.ok ? "success" : "failed"},
+                    ${JSON.stringify({ target: watch.target, diagnosis: diag.diagnosis, reason: diag.reason })}, NOW())
+          `;
+          diagnosed = diag.ok;
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
