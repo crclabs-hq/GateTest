@@ -1,8 +1,8 @@
 {
   "name": "gatetest",
   "displayName": "GateTest — Code Quality Gate",
-  "description": "Code quality gate that runs inside your editor. 121 analysis modules check security, dependencies, data handling, import structure and more, and report findings as inline diagnostics. Optional AI fix that opens a pull request. Per-scan pricing, charged at checkout.",
-  "version": "1.1.0",
+  "description": "The code quality gate in your Problems panel. 121 analysis modules read the whole repository and put every finding on the line that caused it, ranked by what matters, each with the fix. Runs on your machine, free, no account. One click sends it to the hosted fix engine for a verified pull request. Per-scan pricing, charged at checkout.",
+  "version": "1.1.2",
   "publisher": "GateTestHQ",
   "engines": {
     "vscode": "^1.85.0"

@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     sql = getDb();
   } catch {
     return NextResponse.json(
-      { scanId, runtime: { status: "unavailable", reason: "DB not configured" } },
+      { scanId, runtime: { status: "unavailable", reason: "not-configured", checked: false } },
       { status: 200 }
     );
   }
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 
     if (rows.length === 0) {
       return NextResponse.json(
-        { scanId, runtime: { status: "queued", reason: "Not yet started" } },
+        { scanId, runtime: { status: "queued", reason: null, checked: false } },
         { status: 200 }
       );
     }
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     const row = rows[0];
     if (!row.runtime_status) {
       return NextResponse.json(
-        { scanId, runtime: { status: "queued" } },
+        { scanId, runtime: { status: "queued", reason: null, checked: false } },
         { status: 200 }
       );
     }
@@ -63,19 +63,25 @@ export async function GET(req: NextRequest) {
         scanId,
         runtime: {
           status: row.runtime_status,
+          // A signed callback landed — the runtime pass really ran (completed or failed).
+          checked: true,
           completedAt: row.runtime_completed_at,
           payload: row.runtime_payload,
         },
       },
       { status: 200 }
     );
-  } catch (err) {
+  } catch {
+    // error-ok — the DB error is the operator's problem; the customer only needs the third state.
     return NextResponse.json(
       {
         scanId,
         runtime: {
           status: "unavailable",
-          reason: err instanceof Error ? err.message : "Unknown DB error",
+          // The job's state could not be read — reason code only, the DB error
+          // text stays server-side. Pollers keep waiting and report callback-timeout.
+          reason: "status-unavailable",
+          checked: false,
         },
       },
       { status: 200 }
