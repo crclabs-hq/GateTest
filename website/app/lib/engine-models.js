@@ -110,6 +110,24 @@ function needsRefusalFallback(model) {
   return model === 'claude-fable-5' || model === 'claude-mythos-5';
 }
 
+// Editor-facing depth tiers (vscode-extension `gatetest.fixDepth`). The
+// extension exposes "standard | deep" instead of model ids so no vendor or
+// model name reaches a Marketplace visitor; the mapping lives HERE, beside the
+// allow-list, so the ids keep one home. `deep` is the engine's fix-tier model
+// (GATETEST_FIX_MODEL overrides it, exactly as for the paid fix tiers).
+const FIX_DEPTHS = Object.freeze({
+  standard: Object.freeze({ model: CHEAP_MODEL, label: "the engine's default model for fixes" }),
+  deep: Object.freeze({ model: FIX_MODEL, label: 'the most capable (slower, roughly 3x the cost per token)' }),
+});
+
+function modelForDepth(depth) {
+  const key = typeof depth === 'string' && depth.trim() ? depth.trim().toLowerCase() : 'standard';
+  if (!FIX_DEPTHS[key]) {
+    return { ok: false, error: `Unknown fix depth ${JSON.stringify(depth)}. Allowed: ${Object.keys(FIX_DEPTHS).join(', ')}.` };
+  }
+  return { ok: true, depth: key, model: FIX_DEPTHS[key].model };
+}
+
 module.exports = {
   FIX_MODEL,
   CHEAP_MODEL,
@@ -119,5 +137,7 @@ module.exports = {
   allowedModelIds,
   resolveModelChoice,
   modelForTier,
+  FIX_DEPTHS,
+  modelForDepth,
   needsRefusalFallback,
 };

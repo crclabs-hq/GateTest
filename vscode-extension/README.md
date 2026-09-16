@@ -21,6 +21,8 @@ GateTest is the engine behind gatetest.io, running entirely inside your editor. 
 | **GateTest: Scan This File** | Scopes the scan to the file you have open. |
 | **GateTest: Cancel Running Scan** | Stops the engine immediately. |
 | **GateTest: Fix Issues with AI** | Opens the hosted fix engine for the current repository. |
+| **GateTest: Fix This Finding (your own key)** | Runs the engine's fix orchestrator inside the editor on your own AI provider key: cost shown before and after, the change previewed as a diff, applied only when you click Apply, then re-scanned. See [Fix locally with your own key](#fix-locally-with-your-own-key). |
+| **GateTest: Set AI Provider Key (for local fixes)** | Stores or clears that key in VS Code's secret storage. |
 | **GateTest: Add MCP Server to this Workspace** | Writes the `@gatetest/mcp-server` entry into `.vscode/mcp.json`, so your AI agent gets the scanner, the test runner and the fix verifier as tools. |
 | **GateTest: Configure MCP Server for AI Tools** | The same entry for other AI coding tools' config files. On request only; nothing is written at start-up. |
 
@@ -47,6 +49,26 @@ Scans run on your machine. Nothing leaves it unless you choose the hosted fix en
 | `gatetest.showInlineHints` | `true` | Show findings as diagnostics. |
 | `gatetest.enginePath` | empty | Override where the engine is loaded from. |
 | `gatetest.apiBaseUrl` | `https://gatetest.io` | Hosted API, only for self-hosting. |
+| `gatetest.fixDepth` | `standard` | `standard` = the engine's default model for fixes; `deep` = the most capable (slower, roughly 3x the cost per token). |
+| `gatetest.fixMaxUsd` | `2` | Stop a local fix once its estimated spend passes this many US dollars (0 = no cap). |
+
+## Fix locally with your own key
+
+`GateTest: Fix This Finding (your own key)` runs the same fix path as `gatetest fix`, inside the editor, on a key you bring. Nothing is proxied through GateTest servers; you pay your AI provider directly.
+
+1. Run **Set AI Provider Key** once. The key goes into VS Code's secret storage (`context.secrets`) — never into `settings.json`, never into the workspace. It is the same key the CLI reads from `ANTHROPIC_API_KEY`; get it from your provider's console. Enter an empty value to clear it.
+2. Put the cursor on a GateTest diagnostic (or pick one from the list) and run the command.
+3. **Before anything is sent**, the extension shows the estimate: dollars per attempt and the worst case over the engine's retry budget, from the engine's own price table and the request shape the orchestrator actually sends, at the price per million tokens of the depth you chose. Confirm or cancel.
+4. The engine generates and ranks its repair hypotheses against a temporary copy of the file. Your file is not touched.
+5. The proposal opens as a diff. **Apply** writes it and re-scans the file; **Discard** throws it away. The result is reported as *verified* (the finding is gone), *still present*, or *not checked* (the module did not run in the re-scan) — never "fixed" without the re-scan.
+6. **After the run**, the actual token counts and cost are printed in the GateTest output channel and in the notification, whether or not the fix succeeded.
+
+Honest limits:
+
+- The estimate counts the file body only; prompt scaffolding and the issue text are not included, so treat it as a floor per attempt.
+- `gatetest.fixMaxUsd` is enforced between provider calls, so a run can end one in-flight call over the cap. The output channel says when that happened.
+- If the resolved engine is older than the price table (bundled `@gatetest/cli` 1.61.0 and earlier), the command says **estimate unavailable**, still counts tokens from the provider's response, and cannot enforce the cap — it asks before running instead of showing a guessed figure. `deep` also needs an engine that defines the depth table; older engines run `standard` only.
+- The editor preview does not run your test suite; the re-scan after Apply is the verification.
 
 ## Also available
 

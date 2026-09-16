@@ -33,6 +33,7 @@ const { endpoint: anthropicEndpoint, apiPath: anthropicApiPath, apiVersion: anth
 const TIMEOUT_MS      = 90_000;
 const TEST_TIMEOUT_MS = 15_000;
 const MAX_ATTEMPTS    = 3;
+const MAX_OUTPUT_TOKENS = 8192;
 
 const H = [
   '=== GATETEST_HYPOTHESIS_ALPHA ===',
@@ -41,13 +42,24 @@ const H = [
 ];
 const H_NAMES = ['Alpha', 'Beta', 'Gamma'];
 
+// The request shape a cost estimate has to assume: one call sends the whole
+// file and asks for H.length complete copies back under MAX_OUTPUT_TOKENS,
+// retried up to MAX_ATTEMPTS times. Exported so budget-tracker.estimateFixCost
+// (and the editor extension that shows the number) read it from here instead
+// of re-typing 3 / 8192 / 3.
+const FIX_CALL_SHAPE = Object.freeze({
+  hypotheses: H.length,
+  maxOutputTokens: MAX_OUTPUT_TOKENS,
+  maxAttempts: MAX_ATTEMPTS,
+});
+
 // ── Claude call ───────────────────────────────────────────────────────────────
 
 function _callClaude(apiKey, system, user, model = CHEAP_MODEL) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       model,
-      max_tokens: 8192,
+      max_tokens: MAX_OUTPUT_TOKENS,
       system,
       messages: [{ role: 'user', content: user }],
     });
@@ -447,4 +459,4 @@ async function runFixBatch(findings, projectRoot, apiKey, opts = {}) {
   return { accepted, testFiles: [], allFixes: accepted, prBody, failed };
 }
 
-module.exports = { runFixOrchestration, runFixBatch };
+module.exports = { runFixOrchestration, runFixBatch, FIX_CALL_SHAPE };
