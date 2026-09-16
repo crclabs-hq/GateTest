@@ -336,11 +336,15 @@ jobs:
           echo "TODO/FIXME occurrences in src/ and website/app/: $COUNT"
 
   gatetest-full:
-    name: GateTest Full Scan (Push to main)
+    name: GateTest Full Scan
     runs-on: ubuntu-latest
     needs: test
     timeout-minutes: 15
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Runs on pull requests too (2026-09-16). It was push-to-main only, and
+    # not required, so main sat red for a day on three rule false positives
+    # that no PR had ever been asked to pass. Same suite, same skips; the
+    # SARIF upload below stays gated to main so it remains main's baseline.
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     permissions:
       security-events: write
       contents: read
@@ -381,8 +385,9 @@ jobs:
 
       - name: Upload SARIF to GitHub Security
         # Same category as the PR job above — this upload is main's
-        # baseline for every PR's "new alerts" comparison.
-        if: always()
+        # baseline for every PR's "new alerts" comparison; PR runs of
+        # this job must not overwrite it.
+        if: always() && github.event_name == 'push'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: .gatetest/reports/
