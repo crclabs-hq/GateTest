@@ -33,10 +33,22 @@ import http from "http";
 import { URL } from "url";
 
 const DEFAULT_BASE_URL = "https://gluecron.com";
+const GITHUB_API_TIMEOUT_MS = 60000;
 
 function getBaseUrl(): string {
   const raw = process.env.GLUECRON_BASE_URL || DEFAULT_BASE_URL;
   return raw.replace(/\/+$/, "");
+}
+
+/**
+ * Fetch with timeout using AbortController. Throws on timeout.
+ */
+function fetchWithTimeout(url: string, options?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), GITHUB_API_TIMEOUT_MS);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timeoutId)
+  );
 }
 
 function getToken(): string {
@@ -320,7 +332,7 @@ async function fetchTreeWithMetadata(
 
   if (isGitHub && token) {
     try {
-      const ghRes = await fetch(
+      const ghRes = await fetchWithTimeout(
         `https://api.github.com/repos/${owner}/${repo}/git/trees/${ref}?recursive=1`,
         {
           headers: {
@@ -453,7 +465,7 @@ export async function fetchBlob(
   const isGitHub = !getToken() || token.startsWith("ghp_") || token.startsWith("gho_") || token === (process.env.GITHUB_TOKEN || "") || token === (process.env.GATETEST_GITHUB_TOKEN || "");
   if (isGitHub && token) {
     try {
-      const ghRes = await fetch(
+      const ghRes = await fetchWithTimeout(
         `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${ref}`,
         { headers: { Authorization: `Bearer ${token}`, "User-Agent": "GateTest", Accept: "application/vnd.github.v3+json" } }
       );
@@ -659,13 +671,13 @@ export async function resolveBaseBranchSha(
   // GitHub-first if the token is a GitHub credential
   if (isGitHubToken(token)) {
     try {
-      const ghRepo = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+      const ghRepo = await fetchWithTimeout(`https://api.github.com/repos/${owner}/${repo}`, {
         headers: { Authorization: `Bearer ${token}`, "User-Agent": "GateTest", Accept: "application/vnd.github.v3+json" },
       });
       if (ghRepo.ok) {
         const repoData = await ghRepo.json() as { default_branch?: string };
         const defaultBranch = branch || repoData.default_branch || "main";
-        const ghRef = await fetch(
+        const ghRef = await fetchWithTimeout(
           `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(defaultBranch)}`,
           { headers: { Authorization: `Bearer ${token}`, "User-Agent": "GateTest", Accept: "application/vnd.github.v3+json" } }
         );
@@ -709,11 +721,11 @@ export async function resolveBaseBranchSha(
   try {
     const headers: Record<string, string> = { "User-Agent": "GateTest", Accept: "application/vnd.github.v3+json" };
     if (token) headers.Authorization = `Bearer ${token}`;
-    const ghRepo = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+    const ghRepo = await fetchWithTimeout(`https://api.github.com/repos/${owner}/${repo}`, { headers });
     if (ghRepo.ok) {
       const repoData = await ghRepo.json() as { default_branch?: string };
       const defaultBranch = branch || repoData.default_branch || "main";
-      const ghRef = await fetch(
+      const ghRef = await fetchWithTimeout(
         `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(defaultBranch)}`,
         { headers }
       );
@@ -742,7 +754,7 @@ export async function fetchFileSha(
 ): Promise<string> {
   if (isGitHubToken(token)) {
     try {
-      const ghRes = await fetch(
+      const ghRes = await fetchWithTimeout(
         `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(ref)}`,
         { headers: { Authorization: `Bearer ${token}`, "User-Agent": "GateTest", Accept: "application/vnd.github.v3+json" } }
       );
@@ -809,7 +821,7 @@ export async function postPrComment(
 ): Promise<GluecronApiResponse> {
   if (isGitHubToken(token)) {
     try {
-      const ghRes = await fetch(
+      const ghRes = await fetchWithTimeout(
         `https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments`,
         {
           method: "POST",
@@ -846,7 +858,7 @@ export async function createBranch(
 ): Promise<GluecronApiResponse> {
   if (isGitHubToken(token)) {
     try {
-      const ghRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs`, {
+      const ghRes = await fetchWithTimeout(`https://api.github.com/repos/${owner}/${repo}/git/refs`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -891,7 +903,7 @@ export async function upsertFile(
     try {
       const body: Record<string, unknown> = { message, content: contentBase64, branch };
       if (existingSha) body.sha = existingSha;
-      const ghRes = await fetch(
+      const ghRes = await fetchWithTimeout(
         `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
         {
           method: "PUT",
@@ -947,7 +959,7 @@ export async function openPullRequest(
 ): Promise<GluecronApiResponse> {
   if (isGitHubToken(token)) {
     try {
-      const ghRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
+      const ghRes = await fetchWithTimeout(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
