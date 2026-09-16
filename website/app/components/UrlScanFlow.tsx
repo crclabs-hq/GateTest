@@ -8,7 +8,7 @@
  *   - url-scan-flow-types.ts     — shared types + constants
  *   - url-scan-flow-cards.tsx    — HealthScore, Stat, Finding, Recommendation, Paywall
  *   - url-scan-flow-progress.tsx — LiveModule, Progress, RuntimePending tickers
- *   - url-scan-flow-export.tsx   — Copy-for-Claude prompt formatter + button
+ *   - url-scan-flow-export.tsx   — Copy-for-agent prompt formatter + button
  *   - url-scan-flow-sse.ts       — text/event-stream parser
  *
  * Design rules:
@@ -34,7 +34,7 @@ import type {
 } from "./url-scan-flow-types";
 import { HealthScoreCard, StatCard, FindingRow, RecommendationCard, PaywallCard } from "./url-scan-flow-cards";
 import { LiveModuleTicker, ProgressTicker, RuntimePending, RuntimeUnavailable } from "./url-scan-flow-progress";
-import { CopyForClaudeButton } from "./url-scan-flow-export";
+import { CopyForAgentButton } from "./url-scan-flow-export";
 import { consumeSseStream } from "./url-scan-flow-sse";
 
 export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint, placeholderUrl = "https://yoursite.com", brandLabel, initialUrl = "" }: UrlScanFlowProps) {
@@ -382,7 +382,7 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
               </div>
 
               <div className="mt-6">
-                <CopyForClaudeButton result={result} />
+                <CopyForAgentButton result={result} />
               </div>
             </div>
           ) : (

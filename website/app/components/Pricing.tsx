@@ -103,9 +103,9 @@ export const mcpPlan = {
   name: "MCP Integration",
   price: "$29",
   frequency: "per month",
-  description: "The hosted GateTest MCP endpoint: use GateTest from claude.ai on web and mobile — no terminal, no npm, nothing installed. The full local MCP server stays 100% free on your own machine.",
+  description: "The hosted GateTest MCP endpoint: use GateTest from your AI client on web and mobile — no terminal, no npm, nothing installed. The full local MCP server stays 100% free on your own machine.",
   features: [
-    "Works in claude.ai web + mobile (and locked-down machines)",
+    "Works from web + mobile AI clients (and locked-down machines)",
     "Hosted scans — runs on our infrastructure, not yours",
     "AI fix + diagnose, hosted (fix_issue, explain_finding)",
     "Hosted scan history (get_report)",
