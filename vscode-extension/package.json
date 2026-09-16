@@ -46,7 +46,11 @@
       },
       {
         "command": "gatetest.setupMcp",
-        "title": "GateTest: Configure MCP Server for this IDE"
+        "title": "GateTest: Configure MCP Server for AI Tools (on request)"
+      },
+      {
+        "command": "gatetest.addWorkspaceMcp",
+        "title": "GateTest: Add MCP Server to this Workspace (.vscode/mcp.json)"
       },
       {
         "command": "gatetest.openDashboard",
@@ -74,6 +78,7 @@
         { "command": "gatetest.fixIssues" },
         { "command": "gatetest.showPanel" },
         { "command": "gatetest.setupMcp" },
+        { "command": "gatetest.addWorkspaceMcp" },
         { "command": "gatetest.openDashboard" }
       ]
     },
@@ -84,7 +89,7 @@
           "type": "string",
           "default": "quick",
           "enum": ["quick", "full", "nuclear"],
-          "description": "Default scan suite. quick=4 modules, full=121 modules, forensic=121+mutation+chaos (mutation and chaos run via CI, not the editor)."
+          "description": "Default scan suite. quick = the fast pre-commit set, full = the whole engine, nuclear = full plus mutation and chaos testing (those two run in CI, not the editor)."
         },
         "gatetest.autoScanOnSave": {
           "type": "boolean",
@@ -99,7 +104,7 @@
         "gatetest.gatePath": {
           "type": "string",
           "default": "gatetest",
-          "description": "Path to gatetest binary. Defaults to 'gatetest' (assumes it's in PATH)."
+          "description": "Path to the GateTest CLI: the gatetest shim, or bin/gatetest.js inside @gatetest/cli (run under the editor's own Node). Leave as gatetest to auto-detect: the workspace's node_modules/@gatetest/cli first, then gatetest on PATH."
         },
         "gatetest.apiBaseUrl": {
           "type": "string",

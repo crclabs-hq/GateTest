@@ -9,27 +9,33 @@ import Section from "../components/site/Section";
 export const metadata: Metadata = {
   title: "GateTest MCP — Free Local Server, $29/mo Hosted Endpoint",
   description:
-    "The full 121-module GateTest engine inside Claude Code, Cursor, and any MCP-compatible AI — 100% free on your own machine. $29/mo adds the hosted endpoint for claude.ai web/mobile plus hosted scan history.",
+    "The full 121-module GateTest engine inside Cursor, Windsurf, and any MCP-compatible AI client — 100% free on your own machine. $29/mo adds the hosted endpoint for web/mobile AI clients plus hosted scan history.",
   openGraph: {
     title: `GateTest MCP — The ${TOTAL_MODULES}-Module Engine in Your Editor`,
     description:
-      `Give your AI agent eyes, ears & hands: all ${TOOL_COUNT} tools — live-page screenshots (eyes), Sentry/Datadog/Rollbar errors (ears), pass/fail fix verification (hands) — free on your machine. $29/mo for the hosted endpoint (claude.ai web/mobile) + hosted history.`,
+      `Give your AI agent eyes, ears & hands: all ${TOOL_COUNT} tools — live-page screenshots (eyes), Sentry/Datadog/Rollbar errors (ears), pass/fail fix verification (hands) — free on your machine. $29/mo for the hosted endpoint (web/mobile AI clients) + hosted history.`,
     url: "/mcp",
   },
 };
 
+// The local install is the standard MCP `mcpServers` config block — every
+// stdio-capable client (CLI agents, Cursor, Windsurf, Cline, Zed, desktop
+// apps) accepts this shape, so no client is named (public copy never names
+// an AI vendor — tests/public-copy-vendor-neutral.test.js).
+const LOCAL_SERVER_CONFIG = `{ "mcpServers": { "gatetest": { "command": "npx", "args": ["-y", "@gatetest/mcp-server"] } } }`;
+
 const FAQ = [
   {
     q: "What's free?",
-    a: "The entire local server. Every tool — full-suite scans, screenshots, production errors, run_tests, fix_issue — runs 100% free on your own machine via npx @gatetest/mcp-server (AI tools use your own ANTHROPIC_API_KEY). The $29/mo key unlocks the HOSTED endpoint: use GateTest from claude.ai web/mobile or locked-down machines where you can't run npm, plus hosted scan history. On the hosted endpoint, check_health, list_modules, get_badge, scan_url, and scan_repo work with no key at all.",
+    a: "The entire local server. Every tool — full-suite scans, screenshots, production errors, run_tests, fix_issue — runs 100% free on your own machine via npx @gatetest/mcp-server (AI tools use your own ANTHROPIC_API_KEY). The $29/mo key unlocks the HOSTED endpoint: use GateTest from your AI client on web/mobile or locked-down machines where you can't run npm, plus hosted scan history. On the hosted endpoint, check_health, list_modules, get_badge, scan_url, and scan_repo work with no key at all.",
   },
   {
     q: "How do I get my API key?",
     a: "Subscribe below. Your key (format: gtmcp_xxx) is emailed to you within seconds of checkout completing.",
   },
   {
-    q: "How do I add it to Claude Code?",
-    a: `Free local server (every tool): claude mcp add gatetest -- npx -y @gatetest/mcp-server\nHosted endpoint (claude.ai web/mobile): add ${SITE_URL}/api/mcp as a custom connector, with Authorization: Bearer gtmcp_xxx for the paid tools.`,
+    q: "How do I add it to my MCP client?",
+    a: `Free local server (every tool): add the server to your MCP client's config as ${LOCAL_SERVER_CONFIG}\nHosted endpoint (web/mobile AI clients): add ${SITE_URL}/api/mcp as a custom connector / remote MCP server, with Authorization: Bearer gtmcp_xxx for the paid tools.`,
   },
   {
     q: "Does the key expire?",
@@ -54,18 +60,18 @@ const CODE = "rounded-lg bg-panel text-emerald-300 border border-panel-border p-
 
 const INSTALL_PATHS = [
   {
-    title: "claude.ai web & mobile",
+    title: "Web & mobile AI clients",
     tag: "zero install",
     tagClass: EARS,
-    hint: "Settings → Connectors → Add custom connector",
+    hint: "Your AI client's settings → connectors / remote MCP servers → add this URL",
     code: `URL: ${SITE_URL}/api/mcp`,
   },
   {
-    title: "Claude Code CLI",
+    title: "Local install (CLI agents & editors)",
     tag: `full ${TOOL_COUNT} tools`,
     tagClass: EYES,
-    hint: "Local install — unlocks scan_local, run_tests, query_db, stream_logs",
-    code: "claude mcp add gatetest -- npx -y @gatetest/mcp-server",
+    hint: "Add to your MCP client's config — unlocks scan_local, run_tests, query_db, stream_logs",
+    code: LOCAL_SERVER_CONFIG,
   },
   {
     title: "Cursor / Windsurf / Cline / Zed",
@@ -115,8 +121,8 @@ export default function McpPage() {
           <span className={EYES}>see</span> the rendered page,{" "}
           <span className={EARS}>hear</span> what&apos;s breaking in production, and{" "}
           <span className={HANDS}>prove</span> each fix worked.{" "}
-          <span className="text-foreground font-semibold">100% free on your own machine</span> — Claude Code,
-          Cursor, Windsurf, any MCP agent.
+          <span className="text-foreground font-semibold">100% free on your own machine</span> — Cursor,
+          Windsurf, any MCP agent.
         </>}
         actions={
           <>
@@ -131,14 +137,17 @@ export default function McpPage() {
             <p className="text-emerald-400 text-xs font-mono uppercase tracking-wider">Free · every tool · your machine, your keys</p>
           </div>
           <pre className="p-5 text-emerald-300 text-sm font-mono overflow-x-auto whitespace-pre-wrap break-all">
-{`claude mcp add gatetest -- npx -y @gatetest/mcp-server`}
+{`npx -y @gatetest/mcp-server
+
+# or, in your MCP client's config:
+${LOCAL_SERVER_CONFIG}`}
           </pre>
         </div>
 
         {/* Paid: the hosted endpoint */}
         <div className="card mt-6 p-5">
           <p className="text-muted text-sm">
-            Can&apos;t run npm — or want GateTest inside <span className="text-foreground font-semibold">claude.ai on web and mobile</span>?
+            Can&apos;t run npm — or want GateTest inside <span className="text-foreground font-semibold">your AI client on web and mobile</span>?
             The hosted endpoint runs the scans on our infrastructure and keeps your scan history.
           </p>
           <div className="flex items-baseline gap-2 mt-4">
@@ -153,7 +162,7 @@ export default function McpPage() {
       <Section
         id="install"
         title="Install anywhere — 30 seconds, any environment"
-        lede="No terminal? No npm? No problem. The hosted endpoint works from claude.ai on web and mobile."
+        lede="No terminal? No npm? No problem. The hosted endpoint works from your AI client on web and mobile."
       >
         <div className="grid md:grid-cols-2 gap-4">
           <div className="card p-5">
@@ -162,8 +171,8 @@ export default function McpPage() {
             <pre className={CODE}>{INSTALL_PATHS[0].code}</pre>
           </div>
           <div className="card p-5">
-            <h3 className="font-semibold text-foreground mb-1">Claude Desktop App <span className={`${EARS} text-xs font-normal ml-1`}>one-click</span></h3>
-            <p className="text-muted text-xs mb-3">Download the extension, double-click it — done</p>
+            <h3 className="font-semibold text-foreground mb-1">Desktop AI apps <span className={`${EARS} text-xs font-normal ml-1`}>one-click</span></h3>
+            <p className="text-muted text-xs mb-3">Desktop apps that take .mcpb bundles: download it, double-click it — done</p>
             <a
               href="https://github.com/crclabs-hq/GateTest/releases/download/v1.1.3/gatetest.mcpb"
               className="btn-secondary inline-block text-sm font-semibold rounded-lg px-4 py-2 mb-3"
@@ -171,7 +180,7 @@ export default function McpPage() {
               ⬇ Download gatetest.mcpb
             </a>
             <p className="text-muted text-xs">
-              Or paste into Settings → Developer → Edit Config:{" "}
+              Or paste into the app&apos;s MCP config:{" "}
               <span className="font-mono text-foreground-secondary break-all">{`{ "mcpServers": { "gatetest": { "url": "${SITE_URL}/api/mcp" } } }`}</span>
             </p>
           </div>
@@ -271,7 +280,7 @@ export default function McpPage() {
           <h2 className="font-display text-3xl font-bold text-foreground mb-4">Ready?</h2>
           <p className="text-muted mb-8">
             Free on your machine: <span className="font-mono text-accent text-sm">npx -y @gatetest/mcp-server</span>.
-            Want it in claude.ai web/mobile? Subscribe and your key arrives in seconds.
+            Want it in your AI client on web/mobile? Subscribe and your key arrives in seconds.
           </p>
           <McpCheckoutButton label="Get the hosted endpoint — $29/mo →" />
           <p className="text-muted text-xs mt-3">Cancel anytime · API key emailed instantly · Local server free forever</p>

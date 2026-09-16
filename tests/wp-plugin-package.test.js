@@ -72,6 +72,17 @@ describe('wp-plugin copy describes the offer that exists', () => {
     assert.ok(all.includes('/checkout?tier=wp_health'), 'the paywall link must be the wp_health checkout');
   });
 
+  it("the module count the admin page quotes is the engine's wp suite (minus the internal memory module)", () => {
+    // src/core/config.js suites.wp is what /api/wp/scan runs (runSuite("wp")).
+    // `memory` is the internal always-on module every suite carries and no
+    // public count includes (Quick is sold as "4 modules" with it present).
+    const { suites } = require('../src/core/config').DEFAULT_CONFIG;
+    const publicCount = suites.wp.filter((m) => m !== 'memory').length;
+    const quoted = /(\d+) modules, plain-language report/.exec(read('includes/admin-page.php'));
+    assert.ok(quoted, 'admin-page.php must quote the module count');
+    assert.equal(Number(quoted[1]), publicCount, `admin-page.php says ${quoted[1]} modules; the wp suite has ${publicCount} (said 18 while the suite had 29, 2026-09-15)`);
+  });
+
   it('every translation call uses the literal text domain, and no internal note is in the public header', () => {
     assert.ok(!all.includes('GATETEST_HC_TEXT_DOMAIN'), 'Plugin Check fails NonSingularStringLiteralDomain on a constant text domain');
     const i18nCalls = all.match(/\b(?:__|_e|esc_html__|esc_html_e|esc_attr__|esc_attr_e)\(\s*'[^']*(?:\\'[^']*)*'\s*,\s*([^)]+?)\)/g) || [];

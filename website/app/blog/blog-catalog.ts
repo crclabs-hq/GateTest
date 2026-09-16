@@ -49,7 +49,7 @@ export const BLOG_POSTS: BlogPost[] = [
     sections: [
       {
         paragraphs: [
-          "A year ago, the bottleneck in shipping software was writing it. Today, for a growing share of teams, the bottleneck is reviewing what an AI agent wrote. Claude Code, Cursor, Copilot, and their peers produce plausible, well-structured, frequently-correct code at a rate no human author matches. The leverage is enormous and it's not going away.",
+          "A year ago, the bottleneck in shipping software was writing it. Today, for a growing share of teams, the bottleneck is reviewing what an AI agent wrote. Cursor, Copilot, CLI coding agents, and their peers produce plausible, well-structured, frequently-correct code at a rate no human author matches. The leverage is enormous and it's not going away.",
           "But the shape of the risk changed with it. When a human writes a function, the bug distribution reflects human error: the off-by-one, the forgotten null check, the copy-paste that didn't get fully updated. When a model writes a function, you still get those — plus a new class of failure that comes from the model being confidently, fluently wrong.",
         ],
       },

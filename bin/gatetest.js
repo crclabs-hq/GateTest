@@ -27,8 +27,10 @@ const {
   describeArgProblems,
   argProblemsAreFatal,
   projectPathProblem,
+  resolveFileFilter,
   USAGE_EXIT_CODE,
 } = require('../src/core/cli-args');
+const { buildJsonOutput, scanExitCode } = require('../src/core/json-output');
 
 /**
  * `--project <path>` must name an existing directory, or the run is a usage
@@ -155,6 +157,42 @@ const HELP = `
                        backlog on day one. Re-run to refresh; delete the
                        file to see everything again. Respects --suite.
     --watch            Watch for file changes and re-scan continuously
+    --format <json|text>
+                       Output format for a scan (--suite / --module runs).
+                       "json" prints ONE JSON document on stdout and nothing
+                       else there — progress, warnings and notices go to
+                       stderr — so an editor or script can JSON.parse it.
+                       The exit code is unchanged: 0 gate passed, 1 gate
+                       blocked, 2 usage error. Shape:
+                         { version, generatedAt, suite, module, project,
+                           files, passed, gateStatus, exitCode, summary,
+                           counts: { errors, warnings, notes, blocking,
+                                     total, duplicatesCollapsed },
+                           modules, checks, duration, deferred,
+                           failedModules, report,
+                           issues: [ { id, module, ruleId,
+                                       severity: error|warning|info,
+                                       message, file (repo-relative, '/'),
+                                       line, column (1-based; null when
+                                       unknown), blocking, confidence,
+                                       fixable, suggestion, ignoreLine } ] }
+                       Cross-module duplicates are folded into one issue,
+                       as the console does; the folded count is reported.
+                       Default: text.
+    --json             Same as --format json.
+    --file <path>      Scan only the named file(s). Repeatable, or one
+                       comma-separated list; relative paths are taken from
+                       --project (absolute paths work). Same narrowing as
+                       --diff: modules that walk the tree see only these
+                       files and findings anchored in other files are
+                       dropped. Modules that read a fixed file
+                       (package.json, the lockfile, CI config) still run,
+                       so repo-level findings — which carry no file — can
+                       still appear. A path outside the project, a
+                       directory or a missing file is reported on stderr;
+                       when nothing scannable remains the run is a usage
+                       error (exit 2), never a green scan of nothing.
+                       Alias: --files.
     --sarif            Output results in SARIF format (for GitHub Security)
     --junit            Output results in JUnit XML format (for CI)
     --offline          Air-gapped mode: nothing leaves this machine. No
@@ -462,11 +500,37 @@ async function main() {
             : 'origin/main'))
       : undefined);
 
+  // --file: narrow the scan to named files. Same wire as --diff (runner.js
+  // `diffOnly` + `changedFiles`): BaseModule._collectFiles intersects with
+  // the set, and the runner drops findings anchored elsewhere at the seam
+  // every module passes through. Resolved before anything runs so a list
+  // that names nothing scannable is a usage error, not a green empty scan.
+  let fileFilter = null;
+  if (Array.isArray(args.files) && args.files.length > 0) {
+    const resolved = resolveFileFilter(args.files, projectRoot);
+    for (const problem of resolved.problems) console.error(`[GateTest] Warning: ${problem}`);
+    if (resolved.files.length === 0) {
+      console.error('[GateTest] Error: --file named nothing under the project root that can be scanned. Nothing was scanned.');
+      process.exit(USAGE_EXIT_CODE);
+    }
+    fileFilter = resolved.files;
+  }
+
+  // --format json: stdout belongs to the one JSON document. The console
+  // reporter is not attached (`silent`), and everything else that would
+  // reach stdout during the run — a module's console.log, a reporter's
+  // notice, the telemetry notice — is routed to stderr until the document
+  // is written. Only the scan flow honours it; --list, --report, --crawl
+  // and friends keep their own output.
+  const jsonMode = args.format === 'json';
+
   const gatetest = new GateTest(projectRoot, {
     parallel: args.parallel || false,
     stopOnFirstFailure: args['stop-first'] || false,
     autoFix: args.fix || false,
-    diffOnly: args.diff || false,
+    diffOnly: args.diff || fileFilter !== null,
+    ...(fileFilter ? { changedFiles: fileFilter } : {}),
+    silent: jsonMode,
     sarif: args.sarif || false,
     // --all restores the full per-module finding dump. Default output is a
     // ranked shortlist: 813 streamed warnings reads as noise and the
@@ -645,6 +709,33 @@ async function main() {
   }
 
   // Run tests
+  const realStdoutWrite = process.stdout.write;
+  if (jsonMode) {
+    process.stdout.write = function redirectedToStderr(chunk, encoding, cb) {
+      return process.stderr.write(chunk, encoding, cb);
+    };
+  }
+  // The one way a scan ends. Human mode exits with the code; JSON mode
+  // writes the document (with that same code inside it) and then exits with
+  // it — computed once, so the two can never disagree.
+  const finish = (summary, exitCode) => {
+    if (!jsonMode) process.exit(exitCode);
+    const reportDir = path.resolve(projectRoot, gatetest.config.get('reporting.outputDir') || '.gatetest/reports');
+    const latest = path.join(reportDir, 'gatetest-report-latest.json');
+    const doc = buildJsonOutput(summary, {
+      projectRoot,
+      suite: args.module ? null : (args.suite || 'standard'),
+      module: args.module || null,
+      files: fileFilter,
+      exitCode,
+      reportPath: fs.existsSync(latest) ? latest : null,
+    });
+    process.stdout.write = realStdoutWrite;
+    // Exit from the write callback, not after it: a pipe write is
+    // asynchronous on Windows and process.exit() would cut the document off.
+    process.stdout.write(`${JSON.stringify(doc)}\n`, () => process.exit(exitCode));
+  };
+
   let summary;
   if (args.module) {
     summary = await gatetest.runModule(args.module);
@@ -660,14 +751,14 @@ async function main() {
     const b = summary.baseline || {};
     if (b.error) {
       console.error(`\n  \x1b[31m[GateTest] Baseline capture failed: ${b.error}\x1b[0m\n`);
-      process.exit(1);
+      return finish(summary, scanExitCode(summary, { baseline: true }));
     }
     console.log(`\n  \x1b[32m[GateTest] Baseline captured: ${b.captured} pre-existing finding(s) grandfathered.\x1b[0m`);
     console.log(`  File: ${b.path}`);
     console.log('  Commit this file. From now on the gate only fails on NEW findings.');
     console.log('  Refresh after paying down debt: gatetest --baseline');
     console.log('  See everything again: delete .gatetest/baseline.json\n');
-    process.exit(0);
+    return finish(summary, scanExitCode(summary, { baseline: true }));
   }
 
   // Flywheel: record this scan's anonymized finding signal (module names +
@@ -706,11 +797,11 @@ async function main() {
   // Plain-English recap + the single next command — the approachability layer
   // for entry-level users. Suppressed for machine-readable output modes and
   // when the developer opted into automation (--auto-pr / --sarif / --junit).
-  if (!args.sarif && !args.junit && !args.githubAnnotations && !args.reportOnly) {
+  if (!jsonMode && !args.sarif && !args.junit && !args.githubAnnotations && !args.reportOnly) {
     printPlainSummary(summary, projectRoot);
   }
 
-  process.exit(summary.gateStatus === 'PASSED' ? 0 : 1);
+  return finish(summary, scanExitCode(summary));
 }
 
 /**

@@ -429,7 +429,7 @@ Scan tiers are one-time payments via Stripe at checkout — no auto-renew. Conti
 | **Scan + Fix**    | $199    | Everything in Full, plus a second-AI pair-review critique on every fix and an architecture-shape design-observations report.                   |
 | **Forensic Scan** | $399    | Everything in Scan + Fix, plus real AI diagnosis on every finding, cross-finding attack-chain correlation, board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (`mutation: true` / `chaos: true`) — they need a CI runner to execute your test suite and a headless browser, so they ship with the Action rather than the website-only scan. |
 | **Continuous**    | $49/mo  | Scan every push via the GitHub App. Unlimited deterministic push scans plus a monthly AI-review allowance. Fix PRs are a per-scan upsell.    |
-| **MCP**           | $29/mo  | The **hosted** remote MCP endpoint — use GateTest from claude.ai web/mobile or locked-down machines, plus hosted scan history (`gtmcp_` key delivered by email after checkout). The **local** MCP server (`npx @gatetest/mcp-server`) is 100% free — every tool runs on your machine with your keys. |
+| **MCP**           | $29/mo  | The **hosted** remote MCP endpoint — use GateTest from web/mobile AI clients or locked-down machines, plus hosted scan history (`gtmcp_` key delivered by email after checkout). The **local** MCP server (`npx @gatetest/mcp-server`) is 100% free — every tool runs on your machine with your keys. |
 
 Live prices and Stripe checkout at [gatetest.io](https://gatetest.io).
 
