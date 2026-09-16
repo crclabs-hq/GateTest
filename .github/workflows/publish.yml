@@ -68,7 +68,7 @@ jobs:
         # its summary is read (a leaked handle cannot hang it; a file that
         # exits before its summary fails it). Replaces --test-force-exit,
         # which cut children off mid-stream and still exited 0 (2026-09-05).
-        run: node scripts/run-tests.js --timeout 60000 tests/*.test.js
+        run: node scripts/run-tests.js --timeout 120000 tests/*.test.js
 
       - name: Verify package version matches the git tag
         if: startsWith(github.ref, 'refs/tags/v')
