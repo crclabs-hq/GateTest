@@ -35,6 +35,7 @@ export default function Footer() {
               <li><Link href="/enterprise" className="text-sm text-muted hover:text-foreground transition-colors">Enterprise</Link></li>
               <li><Link href="/precision" className="text-sm text-muted hover:text-foreground transition-colors">Precision benchmark</Link></li>
               <li><Link href="/changelog" className="text-sm text-muted hover:text-foreground transition-colors">Changelog</Link></li>
+              <li><Link href="/status" className="text-sm text-muted hover:text-foreground transition-colors">Status</Link></li>
               <li><Link href="/noise" className="text-sm text-muted hover:text-foreground transition-colors">Rule noise</Link></li>
               <li><Link href="/web" className="text-sm text-muted hover:text-foreground transition-colors">Website Scanner</Link></li>
               <li><Link href="/wp" className="text-sm text-muted hover:text-foreground transition-colors">WordPress Scanner</Link></li>
