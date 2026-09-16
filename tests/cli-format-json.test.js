@@ -131,7 +131,13 @@ describe('resolveFileFilter', () => {
   after(() => { fs.rmSync(dir, { recursive: true, force: true }); });
 
   it('returns repo-relative, /-joined, de-duplicated paths for relative and absolute inputs', () => {
-    const r = resolveFileFilter(['src/a.js', path.join(dir, 'src', 'b.js'), 'src\\a.js', './src/a.js'], dir);
+    // A backslash-joined path is a Windows editor handing over its fsPath. On
+    // POSIX a backslash is an ordinary filename character, so src\a.js there
+    // is a different, non-existent file and correctly reported as such — feed
+    // the Windows form only where it means what the editor meant.
+    const inputs = ['src/a.js', path.join(dir, 'src', 'b.js'), './src/a.js'];
+    if (process.platform === 'win32') inputs.splice(2, 0, 'src\\a.js');
+    const r = resolveFileFilter(inputs, dir);
     assert.deepEqual(r, { files: ['src/a.js', 'src/b.js'], problems: [] });
   });
 
