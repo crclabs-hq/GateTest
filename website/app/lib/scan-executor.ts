@@ -49,6 +49,9 @@ interface ScanModuleResult {
   skipped?: string;
   /** Real USD cost incurred running this module (e.g. aiReview's Claude spend). Omitted/0 for free modules. */
   costUsd?: number;
+  /** Token counts behind costUsd, when the provider reported them (usage meter). */
+  tokensIn?: number;
+  tokensOut?: number;
 }
 
 export interface ScanResult {
@@ -464,6 +467,41 @@ export async function runScanJob(params: {
   // a support touchpoint, not an automatic refund trigger. The
   // metadata update above records scan outcome for support-side
   // dispute defence.
+
+  // Usage ledger — the customer's own meter (surface 'web': a paid checkout
+  // scan). Identity is the checkout e-mail; the payment intent is the
+  // fallback so the row is never lost. Best-effort by contract: the helper
+  // never throws and a failure is one warning.
+  if (result.status === "complete" && !result.error) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const ledger = require("./usage-ledger") as {
+        recordUsageIfConfigured: (event: Record<string, unknown>) => Promise<number | null>;
+        resolveAccountKey: (ids: Record<string, unknown>) => string | null;
+        aiTotalsFromModules: (modules: unknown) => { aiCalls: number; tokensIn: number; tokensOut: number; usd: number };
+        countBlockingFindings: (scanResult: unknown) => number;
+      };
+      const ai = ledger.aiTotalsFromModules(result.modules);
+      await ledger.recordUsageIfConfigured({
+        accountKey: ledger.resolveAccountKey({ email: customerEmail, fallback: `payment:${paymentIntentId}` }),
+        surface: "web",
+        repo: repoUrl,
+        suite: tier,
+        tier,
+        scanId: scanId || jobId,
+        modulesRun: result.modules.length,
+        findingsTotal: result.totalIssues,
+        findingsBlocking: ledger.countBlockingFindings(result),
+        aiCalls: ai.aiCalls,
+        tokensIn: ai.tokensIn,
+        tokensOut: ai.tokensOut,
+        usdEstimated: ai.usd,
+        keyOwner: "gatetest",
+      });
+    } catch (ledgerErr) { // error-ok — the ledger is observability; the scan result above is already final
+      console.warn("[GateTest] usage ledger write failed (scan-executor, continuing):", ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr));
+    }
+  }
 
   return { skipped: false, result };
 }

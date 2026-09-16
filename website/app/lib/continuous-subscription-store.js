@@ -171,6 +171,10 @@ async function setSubscriptionStatus(sql, stripeSubscriptionId, status) {
  * the owner covers the push. The AI allowance stays per-subscription, so an
  * org's repos share one monthly AI budget — that's the intended economics
  * (deterministic scans are near-free; AI spend is the metered part).
+ *
+ * Returns customer_email too (2026-09-16) — the usage ledger keys the
+ * customer's meter on it (usage-ledger.js), so a push scan lands in the
+ * same view as their web scans and fixes.
  */
 async function findActiveByRepo(sql, repoUrl) {
   if (!sql || typeof sql !== 'function') throw new Error('sql is required');
@@ -182,12 +186,12 @@ async function findActiveByRepo(sql, repoUrl) {
   // than 3 segments (no repo part) falls back to exact-match-only.
   const ownerPrefix = segments.length >= 3 ? `${segments[0]}/${segments[1]}/%` : null;
   const rows = ownerPrefix
-    ? await sql`SELECT stripe_subscription_id, stripe_customer_id, repo_url, status, current_period_end
+    ? await sql`SELECT stripe_subscription_id, stripe_customer_id, repo_url, status, current_period_end, customer_email
         FROM continuous_subscriptions
         WHERE (repo_url = ${normalized} OR repo_url LIKE ${ownerPrefix}) AND status = 'active'
         ORDER BY (repo_url = ${normalized}) DESC, updated_at DESC
         LIMIT 1`
-    : await sql`SELECT stripe_subscription_id, stripe_customer_id, repo_url, status, current_period_end
+    : await sql`SELECT stripe_subscription_id, stripe_customer_id, repo_url, status, current_period_end, customer_email
         FROM continuous_subscriptions
         WHERE repo_url = ${normalized} AND status = 'active'
         ORDER BY updated_at DESC

@@ -537,6 +537,14 @@ const { buildBudgetSummary, renderBudgetSummaryMarkdown } = require("@/app/lib/b
   }) => BudgetSummary;
   renderBudgetSummaryMarkdown: (summary: BudgetSummary) => string;
 };
+// Usage ledger — the customer's own meter. recordUsageIfConfigured never
+// throws (a failure is one warning), so a ledger outage cannot fail a fix.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { recordUsageIfConfigured, resolveAccountKey, modelTierFor } = require("@/app/lib/usage-ledger") as {
+  recordUsageIfConfigured: (event: Record<string, unknown>) => Promise<number | null>;
+  resolveAccountKey: (ids: Record<string, unknown>) => string | null;
+  modelTierFor: (modelId: string | null | undefined) => string | null;
+};
 
 // Default attempt ceiling — set higher than the old hardcoded "1+1 retry"
 // so the loop has room to learn from its own mistakes. Configurable via
@@ -600,7 +608,10 @@ function stripeApi(
  */
 async function verifyFixPayment(
   sessionId: string | undefined,
-): Promise<{ ok: true; paidTier: string | undefined } | { ok: false; response: ReturnType<typeof NextResponse.json> }> {
+): Promise<
+  | { ok: true; paidTier: string | undefined; customerEmail: string | null; stripeCustomerId: string | null }
+  | { ok: false; response: ReturnType<typeof NextResponse.json> }
+> {
   if (!sessionId) {
     return {
       ok: false,
@@ -619,6 +630,12 @@ async function verifyFixPayment(
   try {
     const existing = (await stripeApi("GET", `/v1/checkout/sessions/${sessionId}`)) as {
       payment_intent?: string;
+      // Customer identity for the usage ledger (usage-ledger.js) — the
+      // e-mail is hashed before it is stored; nothing else from the
+      // session is kept.
+      customer?: string | null;
+      customer_email?: string | null;
+      customer_details?: { email?: string | null } | null;
     };
     if (!existing.payment_intent) {
       return {
@@ -636,7 +653,12 @@ async function verifyFixPayment(
         response: NextResponse.json({ error: "Payment not completed" }, { status: 402 }),
       };
     }
-    return { ok: true, paidTier: pi.metadata?.tier };
+    return {
+      ok: true,
+      paidTier: pi.metadata?.tier,
+      customerEmail: existing.customer_details?.email || existing.customer_email || null,
+      stripeCustomerId: typeof existing.customer === "string" ? existing.customer : null,
+    };
   } catch (err) { // error-ok — logged below; caller rejects the request rather than allowing it through
     console.error("[GateTest] scan/fix payment verification failed:", err);
     return {
@@ -1232,12 +1254,19 @@ export async function POST(req: NextRequest) {
   // Payment verification — no free tier on this route. Admin requests skip
   // Stripe entirely (never touch billing). Runs before any other work so an
   // unpaid request never reaches clustering, budget tracking, or AI calls.
+  // Usage-ledger identity (usage-ledger.js): the checkout e-mail is the
+  // canonical key; the OAuth session e-mail (captured below) refines it;
+  // the checkout session id is the fallback so the row is never lost.
+  let ledgerEmail: string | null = null;
+  let ledgerStripeCustomerId: string | null = null;
   const isAdmin = isAdminRequest(req);
   if (!isAdmin) {
     const paymentCheck = await verifyFixPayment(input.sessionId);
     if (!paymentCheck.ok) {
       return paymentCheck.response;
     }
+    ledgerEmail = paymentCheck.customerEmail;
+    ledgerStripeCustomerId = paymentCheck.stripeCustomerId;
     if (paymentCheck.paidTier && paymentCheck.paidTier !== input.tier) {
       console.warn(
         `[GateTest] scan/fix tier mismatch on session ${(input.sessionId || "").slice(0, 12)}... — requested ${input.tier || "<none>"}, paid ${paymentCheck.paidTier}. Using paid tier.`
@@ -1445,6 +1474,11 @@ export async function POST(req: NextRequest) {
       const sessionCookie = cookieStore.get(CUSTOMER_COOKIE_NAME);
       if (sessionCookie && sessionCookie.value) {
         const payload = verifyCustomerSession(sessionCookie.value, oauthStatus.config.sessionSecret);
+        // A signed-in customer's e-mail is the strongest identity for the
+        // usage ledger — it is the same one their dashboard session carries.
+        if (payload && typeof payload.e === "string" && payload.e && !ledgerEmail) {
+          ledgerEmail = payload.e;
+        }
         if (payload && typeof payload.a === "string" && payload.a) {
           // Probe — does the session's OAuth token actually grant access
           // to THIS repo? OAuth tokens are user-scoped so the user might
@@ -2058,6 +2092,39 @@ export async function POST(req: NextRequest) {
   if (budgetSummary.capReached && budgetSummary.retry.message) {
     errors.push(budgetSummary.retry.message);
   }
+
+  // Usage ledger — this fix run in the customer's own meter (surface
+  // 'hosted-fix'): the tracker's real token counts and price-table USD,
+  // flagged BYOK when their key paid. Recorded here, before the response
+  // branches, so every outcome (no_fixes, fixes_committed, pr_created) is
+  // metered once. Best-effort by contract — never the fix's critical path.
+  try {
+    const trackerSnap = _budgetTracker.snapshot();
+    await recordUsageIfConfigured({
+      accountKey: resolveAccountKey({
+        email: ledgerEmail,
+        stripeCustomerId: ledgerStripeCustomerId,
+        checkoutSessionId: input.sessionId,
+        fallback: isAdmin ? "admin" : null,
+      }),
+      surface: "hosted-fix",
+      repo: `${owner}/${repo}`,
+      suite: tierForCap,
+      tier: tierForCap,
+      modulesRun: new Set(rawIssues.map((i) => i.module).filter(Boolean)).size,
+      findingsTotal: clusterResult.totalIssuesIn,
+      findingsBlocking: issues.length,
+      aiCalls: trackerSnap.callCount,
+      tokensIn: trackerSnap.inputTokens,
+      tokensOut: trackerSnap.outputTokens,
+      usdEstimated: trackerSnap.estimatedUsd,
+      keyOwner: trackerSnap.byok ? "byok" : "gatetest",
+      modelTier: modelTierFor((_budgetTracker as Record<string, unknown>).fixModel as string),
+    });
+  } catch (ledgerErr) { // error-ok — the ledger is observability; the fix result is already computed
+    console.warn("[GateTest] usage ledger write failed (scan/fix, continuing):", ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr));
+  }
+
   if (hitInvocationLimit) {
     errors.push(
       `⚡ This repo maxed out the AI call limit (${MAX_AI_INVOCATIONS} calls) — ${fixes.length} file(s) were fixed before it kicked in. ` +
@@ -2723,6 +2790,31 @@ export async function POST(req: NextRequest) {
         resourceId: typeof snap === "object" && snap && "label" in snap ? String((snap as { label?: string }).label || "scan-fix") : "scan-fix",
         metadata: snap as Record<string, unknown>,
       });
+      // Usage ledger — the spend happened even though nothing shipped; the
+      // customer's meter must say so. Best-effort, never rethrows.
+      try {
+        const s = snap as { callCount?: number; inputTokens?: number; outputTokens?: number; estimatedUsd?: number; byok?: boolean };
+        await recordUsageIfConfigured({
+          accountKey: resolveAccountKey({
+            email: ledgerEmail,
+            stripeCustomerId: ledgerStripeCustomerId,
+            checkoutSessionId: input.sessionId,
+            fallback: isAdmin ? "admin" : null,
+          }),
+          surface: "hosted-fix",
+          repo: `${owner}/${repo}`,
+          suite: tierForCap,
+          tier: tierForCap,
+          aiCalls: s.callCount,
+          tokensIn: s.inputTokens,
+          tokensOut: s.outputTokens,
+          usdEstimated: s.estimatedUsd,
+          keyOwner: s.byok ? "byok" : "gatetest",
+          modelTier: modelTierFor((_budgetTracker as Record<string, unknown>).fixModel as string),
+        });
+      } catch (ledgerErr) { // error-ok — observability only; the 402 below is the customer's answer
+        console.warn("[GateTest] usage ledger write failed (scan/fix 402, continuing):", ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr));
+      }
       // Friendly nothing-shipped copy (Inclusive tone spec) — fixes[] and
       // capResult are out of scope in this outer guard, so the summary is
       // built from the tracker snapshot alone (filesFixed 0 → 402 wording).

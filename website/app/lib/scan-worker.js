@@ -104,6 +104,11 @@ function isAuthorisedTick({ cronHeader, isAdmin, env }) {
  *                                                          'full' (AI-inclusive) tier instead of 'deterministic', and any
  *                                                          AI spend incurred is recorded against that month's ledger.
  *                                                          Omitted entirely → identical to pre-KI-34 behaviour.
+ * @param {Object}   [args.usageStore]                     usage-ledger module (or test double). When provided, every
+ *                                                          completed scan is appended to the customer's usage ledger
+ *                                                          (surface 'push'; ai_calls 0 for deterministic scans).
+ *                                                          Best-effort — a ledger failure is one warning, never a
+ *                                                          failed tick. Omitted → no ledger write.
  * @param {string}   [args.tier]                          defaults to 'deterministic' — the FULL engine with the
  *                                                          Anthropic-calling modules skipped. Until 2026-08-18 this
  *                                                          defaulted to 'quick' (4 in-memory modules on ≤50 files),
@@ -115,6 +120,7 @@ async function runWorkerTick({
   runScan,
   sendCallback,
   continuousStore,
+  usageStore,
   tier = 'deterministic',
 }) {
   if (!sql || typeof sql !== 'function') {
@@ -246,6 +252,44 @@ async function runWorkerTick({
         '[scan-worker] markDone failed:',
         err && err.message ? err.message : err
       );
+    }
+
+    // Usage ledger — what the customer just did, in their own meter.
+    // Identity: the Continuous subscriber's e-mail (the key every surface
+    // shares), else their Stripe customer, else the repo's org. Best-effort:
+    // the ledger is observability, never the scan's critical path.
+    if (usageStore && typeof usageStore.recordUsage === 'function') {
+      try {
+        const ai = usageStore.aiTotalsFromModules(scanResult.modules);
+        const org = repository && repository.includes('/')
+          ? `${hostDomain}/${repository.split('/')[0]}`
+          : null;
+        await usageStore.recordUsage(sql, {
+          accountKey: usageStore.resolveAccountKey({
+            email: continuousSubscription && continuousSubscription.customer_email,
+            stripeCustomerId: continuousSubscription && continuousSubscription.stripe_customer_id,
+            org,
+          }),
+          surface: 'push',
+          repo: repository,
+          suite: scanTier,
+          tier: continuousSubscription ? 'continuous' : null,
+          scanId: job.event_id || null,
+          modulesRun: Array.isArray(scanResult.modules) ? scanResult.modules.length : 0,
+          findingsTotal: scanResult.totalIssues,
+          findingsBlocking: usageStore.countBlockingFindings(scanResult),
+          aiCalls: ai.aiCalls,
+          tokensIn: ai.tokensIn,
+          tokensOut: ai.tokensOut,
+          usdEstimated: ai.usd,
+          keyOwner: 'gatetest',
+        });
+      } catch (err) { // error-ok — the ledger must never fail the tick; one warning, scan already done
+        console.warn(
+          '[scan-worker] usage ledger write failed (continuing):',
+          err && err.message ? err.message : err
+        );
+      }
     }
 
     // Fire callback with the real result, retried through transient
