@@ -1,0 +1,137 @@
+{
+  "updated": "2026-09-16",
+  "items": [
+    {
+      "id": "npm-trusted-publisher-mcp",
+      "title": "Trust GitHub Actions to publish @gatetest/mcp-server on npm",
+      "since": "2026-09-13",
+      "unblocks": "`git tag v1.61.1` → CLI 1.61.1 (bare npx fix, lib/site-url), MCP 1.2.0 (proxy crash fix), Docker image on ghcr, WordPress zip on the release. publish.yml fails at the MCP step until this exists.",
+      "step": "npmjs.com → sign in → package @gatetest/mcp-server → Settings → Publishing access / Trusted Publisher → add GitHub Actions: organization or user `crclabs-hq`, repository `GateTest`, workflow filename `publish.yml`, environment blank → Save.",
+      "where": "https://www.npmjs.com/package/@gatetest/mcp-server/access",
+      "priority": 1,
+      "done": false
+    },
+    {
+      "id": "tag-v1-61-1",
+      "title": "Tag and push v1.61.1",
+      "since": "2026-09-16",
+      "unblocks": "publish.yml: CLI 1.61.1 on npm, MCP 1.2.0, Docker image on ghcr.io, WordPress zip attached to the GitHub release. Everything downstream of a release (wordpress-org-submit) waits on this.",
+      "step": "On a clean main: `git checkout main && git pull && git tag v1.61.1 && git push origin v1.61.1`. Do it AFTER npm-trusted-publisher-mcp or the MCP publish step fails and the tag is burned.",
+      "where": "Local clone of crclabs-hq/GateTest, on main",
+      "priority": 1,
+      "done": false,
+      "after": ["npm-trusted-publisher-mcp"]
+    },
+    {
+      "id": "openvsx-namespace",
+      "title": "Create the GateTestHQ namespace on Open VSX and store OVSX_PAT",
+      "since": "2026-09-16",
+      "unblocks": "Cursor / Windsurf / VSCodium installs of the extension — the Open VSX leg of publish-vscode.yml.",
+      "step": "open-vsx.org → sign in with GitHub → accept the Publisher Agreement once → Namespaces → create `GateTestHQ` → Access Tokens → Generate New Token → GitHub: crclabs-hq/GateTest → Settings → Secrets and variables → Actions → New repository secret `OVSX_PAT` = the token.",
+      "where": "https://open-vsx.org/ and https://github.com/crclabs-hq/GateTest/settings/secrets/actions",
+      "priority": 1,
+      "done": false
+    },
+    {
+      "id": "vsce-pat-secret",
+      "title": "Store the VS Code Marketplace PAT as repo secret VSCE_PAT",
+      "since": "2026-09-16",
+      "unblocks": "publish-vscode.yml publishes to the VS Code Marketplace without a manual .vsix upload.",
+      "step": "dev.azure.com → User settings → Personal access tokens → New Token: Organization = All accessible organizations, Scopes = Marketplace → Manage → Create → GitHub: crclabs-hq/GateTest → Settings → Secrets and variables → Actions → New repository secret `VSCE_PAT` = the token.",
+      "where": "https://dev.azure.com/ and https://github.com/crclabs-hq/GateTest/settings/secrets/actions",
+      "priority": 2,
+      "done": false
+    },
+    {
+      "id": "box-secrets",
+      "title": "Set the missing production secrets on box 161 and restart gatetest-web",
+      "since": "2026-09-13",
+      "unblocks": "Readiness Probe green (readiness-probe.yml); the homepage badge stops returning 503; Tallrig dispatch, recipe store and Gluecron bridge come alive.",
+      "step": "ssh to box 161 → append to /opt/gatetest/website/.env.local: GATETEST_INTERNAL_TOKEN (also set the SAME value as the repo secret GATETEST_INTERNAL_TOKEN — the homepage badge 503s without it), GOOGLE_CLIENT_SECRET, TALLRIG_API_TOKEN (mint a platform API key in the Tallrig dashboard), TALLRIG_DISPATCH_SECRET (shared HMAC — also set it in Tallrig's project store), GATETEST_RECIPE_STORE_TOKEN, GLUECRON_BASE_URL, GLUECRON_API_TOKEN → `sudo systemctl restart gatetest-web` → `curl https://gatetest.io/api/status` shows nothing missing.",
+      "where": "box 161 over SSH: /opt/gatetest/website/.env.local; Tallrig dashboard for the API key; GitHub repo secrets for GATETEST_INTERNAL_TOKEN",
+      "priority": 1,
+      "done": false
+    },
+    {
+      "id": "cron-secret-repo",
+      "title": "Copy the box's CRON_SECRET into the repo secret CRON_SECRET",
+      "since": "2026-09-13",
+      "unblocks": "Cron Ticks workflow (cron-ticks.yml) can call /api/watches/tick and drain the scan queue.",
+      "step": "Read CRON_SECRET from /opt/gatetest/website/.env.local on box 161 over SSH and paste it into GitHub → crclabs-hq/GateTest → Settings → Secrets and variables → Actions → CRON_SECRET. Move it over SSH only — never through chat.",
+      "where": "box 161 over SSH and https://github.com/crclabs-hq/GateTest/settings/secrets/actions",
+      "priority": 2,
+      "done": false
+    },
+    {
+      "id": "anthropic-key-rotate",
+      "title": "Rotate the AI fixer API key — the current one returns 401",
+      "since": "2026-09-13",
+      "unblocks": "AI CI-fixer (ai-ci-fixer.yml) and the hosted fix tiers. Every run since 2026-09-13 has opened a failure issue (#477, #489, #493, #500, #501, #502, #513).",
+      "step": "Create a new key in the AI vendor console → GitHub: crclabs-hq/GateTest → Settings → Secrets and variables → Actions → update ANTHROPIC_API_KEY → box 161 /opt/gatetest/website/.env.local ANTHROPIC_API_KEY → `sudo systemctl restart gatetest-web` → revoke the old key → re-run the latest ai-ci-fixer run to prove it.",
+      "where": "AI vendor console (API keys), https://github.com/crclabs-hq/GateTest/settings/secrets/actions, box 161 over SSH",
+      "priority": 1,
+      "done": false
+    },
+    {
+      "id": "box-uncommitted-changes",
+      "title": "Commit or discard the uncommitted changes in /opt/gatetest on box 161",
+      "since": "2026-09-16",
+      "unblocks": "Deploy to production box (deploy-box.yml → deploy-on-box.sh) stops refusing to pull over a dirty tree.",
+      "step": "ssh to box 161 → `cd /opt/gatetest && git status` → if the changes matter, commit them on a branch and push it; if not, `git checkout -- . && git clean -fd` (review the list first — .env.local is untracked and must stay) → re-run deploy-box.yml.",
+      "where": "box 161 over SSH: /opt/gatetest",
+      "priority": 1,
+      "done": false
+    },
+    {
+      "id": "github-app-public",
+      "title": "Fix App 3766251's permissions and events, make it public, list it in the Marketplace",
+      "since": "2026-05-14",
+      "unblocks": "GitHub Marketplace App page — the install path the listing, the install page and marketplace-sync.test.js all describe. Rejected once on 2026-05-14; scripts/marketplace-preflight.js exists so the second submission is not.",
+      "step": "Run `node scripts/marketplace-preflight.js` → App settings (App 3766251) → Permissions: contents write, statuses write, drop checks write → Subscribe to events: workflow_run + issue_comment → description from integrations/marketplace/listing.md → Save → Advanced → Make public → Marketplace → List in Marketplace → submit for review.",
+      "where": "https://github.com/settings/apps (App 3766251) then https://github.com/marketplace/new",
+      "priority": 2,
+      "done": false
+    },
+    {
+      "id": "mcp-registry-rename",
+      "title": "Re-publish the MCP registry entry under io.gatetest/gatetest",
+      "since": "2026-09-16",
+      "unblocks": "An official MCP registry entry that matches the shipped server and the .io domain. The current `ai.gatetest.www/gatetest` entry is stale: 111 modules, names an AI vendor, lives on the dead .ai namespace.",
+      "step": "`mcp-publisher login dns --domain gatetest.io` prints a TXT record → add it at the gatetest.io apex in Cloudflare DNS (Boss Rule #4) → finish the login → `mcp-publisher publish` with server.json named `io.gatetest/gatetest` → deprecate `ai.gatetest.www/gatetest`.",
+      "where": "Cloudflare DNS for gatetest.io and the `mcp-publisher` CLI on a machine with the repo checked out",
+      "priority": 2,
+      "done": false
+    },
+    {
+      "id": "wordpress-org-submit",
+      "title": "Submit the WordPress plugin to wordpress.org",
+      "since": "2026-09-16",
+      "unblocks": "GateTest in the wordpress.org plugin directory — installs from the WP admin instead of a zip download.",
+      "step": "After the v1.61.1 release exists: download the WordPress zip from the GitHub release → wordpress.org/plugins/developers/add → upload the zip → submit for review.",
+      "where": "https://wordpress.org/plugins/developers/add/",
+      "priority": 3,
+      "done": false,
+      "after": ["tag-v1-61-1"]
+    },
+    {
+      "id": "dmarc-dkim",
+      "title": "Remove the stale Resend DKIM record and add DMARC p=reject on gatetest.io",
+      "since": "2026-09-15",
+      "unblocks": "Mail from gatetest.io cannot be spoofed with the leaked-key signature after the 2026-09-15 Resend abuse incident; receivers reject anything not signed by the re-keyed domain.",
+      "step": "After the Resend key rotation: Cloudflare DNS → delete the stale `resend._domainkey` DKIM record until the domain is re-keyed in Resend → add TXT `_dmarc.gatetest.io` = `v=DMARC1; p=reject; rua=mailto:<a monitored mailbox>` → verify with `dig TXT _dmarc.gatetest.io`. DNS is Boss Rule #4.",
+      "where": "Cloudflare DNS for gatetest.io",
+      "priority": 2,
+      "done": false
+    },
+    {
+      "id": "branch-protection-no-red-merges",
+      "title": "Require every status check on main so a red PR cannot merge",
+      "since": "2026-09-16",
+      "unblocks": "No red merge can land on main; the GateTest Full Scan becomes a required check; PRs touching the same files stop auto-merging past each other.",
+      "step": "Settings → Branches → main protection rule → Require status checks to pass before merging: tick every check that runs on PRs, and add 'GateTest Full Scan' once it runs on PRs → Require branches to be up to date before merging: on → disable 'Update branch' auto-merge for PRs touching the same files → Save.",
+      "where": "https://github.com/crclabs-hq/GateTest/settings/branches",
+      "priority": 1,
+      "done": false
+    }
+  ]
+}

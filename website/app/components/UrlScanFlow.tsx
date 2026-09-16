@@ -258,11 +258,20 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
     setResult({
       ...result,
       findings: [...result.findings, ...newFindings],
-      runtime: { ...result.runtime!, status: "completed", payload },
+      runtime: { ...result.runtime!, status: "completed", checked: true, payload },
     });
   }
 
-  // Hide runtime block entirely when unavailable — don't leak infra gaps.
+  // Queued but no signed callback within the deadline + grace: the runtime
+  // pass did not run. Say so (callback-timeout) instead of spinning forever.
+  function markRuntimeTimedOut() {
+    setResult((prev) =>
+      prev && prev.runtime?.status === "queued"
+        ? { ...prev, runtime: { ...prev.runtime, status: "unavailable", reason: "callback-timeout", checked: false, pollUrl: null } }
+        : prev
+    );
+  }
+
   const showRuntime = result?.runtime?.status === "queued" || result?.runtime?.status === "completed";
 
   return (
@@ -354,11 +363,17 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
           </div>
 
           {showRuntime && result.runtime?.status === "queued" && result.runtime.pollUrl && (
-            <RuntimePending pollUrl={result.runtime.pollUrl} onComplete={applyRuntimePayload} />
+            <RuntimePending
+              pollUrl={result.runtime.pollUrl}
+              timeoutSec={result.runtime.timeoutSec}
+              onComplete={applyRuntimePayload}
+              onTimeout={markRuntimeTimedOut}
+            />
           )}
 
-          {/* The advertised browser pass didn't start. Say so — a report that
-              silently omits a whole layer reads as a clean bill of health. */}
+          {/* The advertised browser pass did not run (not configured, refused,
+              or never called back). Say so — a report that silently omits a
+              whole layer reads as a clean bill of health. */}
           {result.runtime?.status === "unavailable" && (
             <RuntimeUnavailable reason={result.runtime.reason} />
           )}

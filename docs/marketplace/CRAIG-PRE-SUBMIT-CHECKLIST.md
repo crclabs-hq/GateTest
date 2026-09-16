@@ -294,7 +294,7 @@ A reviewer finding two listings for one product is its own risk.
 | | Canonical | Retire / confirm |
 |---|---|---|
 | GitHub App | `gatetest-hq` 3766251 (`crclabs-hq`) — LIVE, key on the box | `gatetesthq` 3322634 (`Gate-Test`) — stale; retire (this row was inverted until 2026-09-10) |
-| VS Code ext | `vscode-extension` v1.1.0 (in-process engine, 2026-09-15), publisher `GateTestHQ` — the only tree since 2026-09-14; `cd vscode-extension && npm ci && npm run compile && npx vsce package` then `vsce publish` with the GateTestHQ PAT | `editors/vscode` (July MVP, publisher `gatetest`) — deleted 2026-09-14; nothing to retire |
+| VS Code ext | **PUBLISHED 2026-09-16** — `GateTestHQ.gatetest` 1.1.0, https://marketplace.visualstudio.com/items?itemName=GateTestHQ.gatetest (publisher `GateTestHQ` under ccantynz@gmail.com; manual upload at marketplace.visualstudio.com/manage — the first upload was refused as "suspicious content" until the metadata lost "security holes / PII leaks / attack chains" and the competitor keywords, #523). Next version: `cd vscode-extension && npm ci && npm run compile && npx vsce package`, then upload the .vsix on the manage page or run `.github/workflows/publish-vscode.yml` once `VSCE_PAT` exists | `editors/vscode` (July MVP, publisher `gatetest`) — deleted 2026-09-14; nothing to retire |
 
 - [ ] Decide which is canonical for each and retire the other
 

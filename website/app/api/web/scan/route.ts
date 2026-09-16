@@ -518,52 +518,38 @@ export async function POST(req: NextRequest) {
     highSignal: c.isHighSignal,
   }));
 
-  // Dispatch the headless-browser runtime scan to the platform (Tallrig worker tier).
-  // Static probes already ran inline on this serverless function. The
-  // runtime checks (live JS errors, hydration mismatches, CSP violations,
-  // network failures) need a long-running container with Chromium —
-  // that is the platform worker's job. Best effort: if dispatch fails we still ship
-  // the static-probe results below.
-  let runtimeStatus: "queued" | "unavailable" = "unavailable";
-  let runtimeJobId: string | null = null;
-  let runtimeReason: string | null = null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { dispatchRuntimeScan } = require("@/app/lib/vapron-dispatch") as {
-      dispatchRuntimeScan: (opts: {
-        scanId: string;
-        targetUrl: string;
-        suite: string;
-        callbackUrl: string;
-        deadlineSec?: number;
-        auth?: { headers?: Record<string, string>; cookie?: string };
-      }) => Promise<{ ok: true; jobId: string; queuedAt: string } | { ok: false; reason: string; status?: number }>;
-    };
-    const callbackBase = process.env.GATETEST_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_BASE_URL || "";
-    if (callbackBase) {
-      const result = await dispatchRuntimeScan({
-        scanId,
-        targetUrl,
-        suite: "web",
-        callbackUrl: `${callbackBase.replace(/\/$/, "")}/api/web/scan/runtime-callback`,
-        deadlineSec: 60,
-        // Authed scans: forward the session so the headless-browser worker
-        // reaches the same pages the crawl did. The platform scopes it same-origin
-        // (its own live-crawler-auth). Rides the HMAC-signed body.
-        ...(sanitizedAuth ? { auth: sanitizedAuth } : {}),
-      });
-      if (result.ok) {
-        runtimeStatus = "queued";
-        runtimeJobId = result.jobId;
-      } else {
-        runtimeReason = result.reason;
-      }
-    } else {
-      runtimeReason = "GATETEST_PUBLIC_BASE_URL not configured";
-    }
-  } catch (err) {
-    runtimeReason = err instanceof Error ? err.message : String(err);
-  }
+  // The headless-browser runtime pass (live JS errors, hydration mismatches,
+  // CSP violations, network failures) needs a long-running container with
+  // Chromium — the platform worker's job. web-runtime-gate.js is the ONE
+  // decision (shared with the stream routes): it dispatches only when token +
+  // secret + base URL are all present, otherwise it says so with a reason code
+  // and nothing leaves the box (KI #111 — fail closed, and say what did not run).
+  // Static-probe results ship below either way.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { gateRuntimeScan } = require("@/app/lib/web-runtime-gate") as {
+    gateRuntimeScan: (args: {
+      scanId: string;
+      targetUrl: string;
+      suite: "web" | "wp";
+      auth?: { headers?: Record<string, string>; cookie?: string };
+    }) => Promise<{
+      status: "queued" | "unavailable";
+      reason: string | null;
+      checked: false;
+      jobId: string | null;
+      pollUrl: string | null;
+      timeoutSec?: number;
+    }>;
+  };
+  const runtimeGate = await gateRuntimeScan({
+    scanId,
+    targetUrl,
+    suite: "web",
+    // Authed scans: forward the session so the headless-browser worker
+    // reaches the same pages the crawl did. The platform scopes it same-origin
+    // (its own live-crawler-auth). Rides the HMAC-signed body.
+    ...(sanitizedAuth ? { auth: sanitizedAuth } : {}),
+  });
 
   return NextResponse.json({
     scanId,
@@ -586,14 +572,13 @@ export async function POST(req: NextRequest) {
     // by the crawl, the live probe, AND (in the HMAC-signed dispatch body)
     // the runtime browser worker — so authenticated coverage is end-to-end.
     authenticatedScan: Boolean(sanitizedAuth),
+    // { status, reason, checked, jobId, pollUrl, timeoutSec } — see web-runtime-gate.js.
+    // The session-forwarded note is only true when a job was actually queued.
     runtime: {
-      status: runtimeStatus,
-      jobId: runtimeJobId,
-      reason: runtimeReason,
-      note: sanitizedAuth
+      ...runtimeGate,
+      note: sanitizedAuth && runtimeGate.status === "queued"
         ? "Your session was forwarded to the runtime browser worker — authenticated coverage applies to the crawl, live probe, and runtime checks."
         : null,
-      pollUrl: runtimeStatus === "queued" ? `/api/web/scan/runtime-status?scanId=${scanId}` : null,
     },
     paywall: isPreview
       ? {
