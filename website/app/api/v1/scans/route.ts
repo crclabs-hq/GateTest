@@ -31,6 +31,7 @@
  *   403 — key revoked OR tier doesn't include this suite
  *   429 — rate limit exceeded
  *   400 — invalid request body
+ *   503 — the scan record could not be written (nothing was queued; retry)
  *
  * Sandbox keys (prefix `gt_test_`) return canned results without spending
  * Anthropic credit. Use them for integration development.
@@ -38,6 +39,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateApiKey, checkRateLimit, recordApiCall } from "@/app/lib/api-key";
+import { getDb } from "@/app/lib/db";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
@@ -170,36 +172,45 @@ export async function POST(req: NextRequest) {
   const scanId = shortId("scn");
   const createdAt = new Date().toISOString();
 
-  // For Phase 1 we enqueue into the existing scan_queue table — the worker
-  // picks it up and runs the scan. Future Phase 2 work: stream results back
-  // via webhook to body.callbackUrl when scan completes.
+  // The record lives in the shared scan_queue table, host='api', attributed
+  // to the caller's key via triggered_by — that is what GET /api/v1/scans/:id
+  // matches ownership on. Until KI #113 (2026-09-16) this call did not match
+  // the store's contract at all (no `sql`, `owner`/`repo` instead of
+  // `repository`, no `sha`): enqueueScan threw on every request, the catch
+  // below logged it and the route still answered 201 "queued" for a scan
+  // that had never been recorded — so every later GET was a 404.
   //
-  // The scan_queue table was created in earlier sessions for the GitHub /
-  // Gluecron event-driven scans; we reuse it here for API-initiated scans
-  // tagged with host='api'.
+  // The queue worker does not execute host='api' rows (it has no repository
+  // to fetch); it marks them terminal and the GET reports that honestly.
+  // Running URL scans from the queue is Phase 2 work — the record and its
+  // attribution are what ship here.
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { enqueueScan } = require("@/app/lib/scan-queue-store") as {
+    const { enqueueScan, ensureScanQueueTable } = require("@/app/lib/scan-queue-store") as {
+      ensureScanQueueTable: (sql: unknown) => Promise<void>;
       enqueueScan: (opts: {
         eventId: string;
-        host: string;
-        owner: string;
-        repo: string;
-        ref?: string;
-        sha?: string;
+        repository: string;
+        sha: string;
+        host: "api" | "github" | "gluecron";
         triggeredBy: string;
         metadata?: Record<string, unknown>;
-      }) => Promise<{ id: number } | null>;
+        sql: unknown;
+      }) => Promise<{ duplicate: boolean; id: number | null }>;
     };
-    // Parse the URL into pseudo-owner/repo for the scan_queue schema — the
-    // worker treats `host='api'` rows differently and uses the metadata.url
-    // field directly.
+    const sql = getDb();
+    await ensureScanQueueTable(sql);
+    // The schema is repository-shaped; a URL scan has no owner/repo or
+    // commit. Store the hostname/path as the pseudo-repository and a stable
+    // digest of the URL where the commit sha goes, so the row is well-formed
+    // and two scans of the same URL are recognisably the same target. The
+    // real target lives in metadata.url.
     const parsedUrl = new URL(body.url);
     await enqueueScan({
       eventId: scanId,
+      repository: `${parsedUrl.hostname}/${parsedUrl.pathname.slice(1) || "_root_"}`,
+      sha: crypto.createHash("sha1").update(body.url).digest("hex"),
       host: "api",
-      owner: parsedUrl.hostname,
-      repo: parsedUrl.pathname.slice(1) || "_root_",
       triggeredBy: `api_key:${auth.key.id}`,
       metadata: {
         url: body.url,
@@ -208,15 +219,18 @@ export async function POST(req: NextRequest) {
         apiKeyName: auth.key.name,
         scanId,
       },
+      sql,
     });
   } catch (err) {
-    // Log but don't fail — scan_queue may not exist yet on early deployments.
-    console.warn(
-      `[api/v1/scans] enqueue failed: ${err instanceof Error ? err.message : String(err)}`
+    // A scan that was not recorded is not "queued" — say so instead of
+    // returning a 201 the caller can never poll (Doctrine #1).
+    console.error(
+      `[api/v1/scans] enqueue failed for key ${auth.key.id}: ${err instanceof Error ? err.message : String(err)}`
     );
-    // Fall through and still return 201 — the scan_queue is the WORKER pickup
-    // signal; if it fails, the caller can still poll the scan ID. Worker will
-    // need a different trigger (later: cron pickup) when enqueue fails.
+    return NextResponse.json(
+      { error: "Scan could not be queued — try again shortly", code: "QUEUE_UNAVAILABLE" },
+      { status: 503, headers: { "Retry-After": "30", "Cache-Control": "no-store" } }
+    );
   }
 
   // 7. Record the API call (rate-limit accounting + audit trail)

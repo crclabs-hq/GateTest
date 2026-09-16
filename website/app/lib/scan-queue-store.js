@@ -24,6 +24,49 @@ const MAX_ATTEMPTS = 5;
 const RETRY_BACKOFF_SECONDS = [30, 120, 300, 900, 1800]; // 30s, 2m, 5m, 15m, 30m
 
 /**
+ * Where a queue row came from — the ONE definition (Doctrine #4).
+ *
+ *   gluecron — Signal Bus push event (/api/events/push). The default when a
+ *              caller passes no host, because that was the queue's only
+ *              producer when the column was added.
+ *   github   — GitHub App webhook (/api/webhook) or install onboarding.
+ *   api      — public REST API (/api/v1/scans), attributed by API key.
+ *
+ * Until KI #113 (2026-09-16) `enqueueScan` coerced EVERY value that was not
+ * 'github' to 'gluecron' — an API-initiated row was stored as a Gluecron
+ * push, the worker then posted its verdict to Gluecron's callback for a
+ * repository that was never there, and `triggeredBy` was dropped on the
+ * floor so /api/v1/scans/:id could never match a row to the key that made
+ * it. An UNKNOWN host is now rejected, never relabelled: mislabelling a row
+ * as a trusted producer is inventing trust.
+ *
+ * REPO_HOSTS is the subset the worker can fetch source from and post a
+ * verdict back to. Rows from any other host are recorded and readable, but
+ * the worker must not treat them as a repository push.
+ */
+const KNOWN_HOSTS = Object.freeze(['gluecron', 'github', 'api']);
+const REPO_HOSTS = Object.freeze(['gluecron', 'github']);
+const DEFAULT_HOST = 'gluecron';
+const TRIGGERED_BY_MAX_LEN = 200;
+
+/**
+ * Validate a caller-supplied host against KNOWN_HOSTS.
+ *   undefined / null / ''  → DEFAULT_HOST (documented default, see above)
+ *   a known host           → itself
+ *   anything else          → throws — never silently trusted (Forbidden #16)
+ *
+ * @param {unknown} host
+ * @returns {'gluecron'|'github'|'api'}
+ */
+function normalizeHost(host) {
+  if (host === undefined || host === null || host === '') return DEFAULT_HOST;
+  if (typeof host === 'string' && KNOWN_HOSTS.includes(host)) return host;
+  throw new Error(
+    `enqueueScan: unknown host ${JSON.stringify(host)} — allowed: ${KNOWN_HOSTS.join(', ')}`
+  );
+}
+
+/**
  * Ensure the `scan_queue` table exists. Idempotent. Mirrors the schema in
  * /api/db/init/route.ts — keep in sync.
  *
@@ -45,12 +88,20 @@ async function ensureScanQueueTable(sql) {
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     started_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
-    next_run_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    next_run_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    triggered_by TEXT,
+    metadata JSONB
   )`;
   await sql`ALTER TABLE scan_queue ADD COLUMN IF NOT EXISTS host TEXT NOT NULL DEFAULT 'gluecron'`;
   // base_sha: the commit this push/PR is compared against, so findings can
   // say whether they sit in code THIS change touched (2026-08-18).
   await sql`ALTER TABLE scan_queue ADD COLUMN IF NOT EXISTS base_sha TEXT`;
+  // triggered_by / metadata (KI #113, 2026-09-16): who asked for the scan
+  // ("api_key:<id>", "webhook:<delivery>", …) and the producer's own payload
+  // (URL, suite, callback for API scans). NULL = unattributed row from before
+  // the columns existed, or a producer that passes nothing.
+  await sql`ALTER TABLE scan_queue ADD COLUMN IF NOT EXISTS triggered_by TEXT`;
+  await sql`ALTER TABLE scan_queue ADD COLUMN IF NOT EXISTS metadata JSONB`;
   await sql`CREATE INDEX IF NOT EXISTS idx_scan_queue_ready
     ON scan_queue (status, next_run_at)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_scan_queue_repo_sha
@@ -74,7 +125,11 @@ async function ensureScanQueueTable(sql) {
  * @param {string|null} [opts.ref]
  * @param {number|null} [opts.pullRequestNumber]
  * @param {string|null} [opts.baseSha]      commit the change is compared against (push.before / PR base)
- * @param {'github'|'gluecron'} [opts.host]  source host; default 'gluecron'
+ * @param {'github'|'gluecron'|'api'} [opts.host]  source host (KNOWN_HOSTS); omitted → DEFAULT_HOST
+ *                                          ('gluecron'); an unknown value THROWS
+ * @param {string|null} [opts.triggeredBy]  who asked — e.g. "api_key:<id>"; stored verbatim
+ *                                          (≤ 200 chars); omitted → null (unattributed)
+ * @param {object|null} [opts.metadata]     producer payload, stored as JSONB; omitted → null
  * @param {Function} opts.sql
  * @returns {Promise<{duplicate: boolean, id: number|null}>}
  */
@@ -85,7 +140,9 @@ async function enqueueScan({
   ref = null,
   pullRequestNumber = null,
   baseSha = null,
-  host = 'gluecron',
+  host = DEFAULT_HOST,
+  triggeredBy = null,
+  metadata = null,
   sql,
 }) {
   if (!sql || typeof sql !== 'function') {
@@ -100,14 +157,33 @@ async function enqueueScan({
       ? null
       : Number(pullRequestNumber);
 
-  const safeHost = host === 'github' ? 'github' : 'gluecron';
+  const safeHost = normalizeHost(host);
   const safeBase = typeof baseSha === 'string' && /^[0-9a-f]{40}$/i.test(baseSha) ? baseSha : null;
+
+  let safeTriggeredBy = null;
+  if (triggeredBy !== null && triggeredBy !== undefined) {
+    if (typeof triggeredBy !== 'string' || !triggeredBy.trim()) {
+      throw new Error('enqueueScan: triggeredBy must be a non-empty string when supplied');
+    }
+    if (triggeredBy.length > TRIGGERED_BY_MAX_LEN) {
+      throw new Error(`enqueueScan: triggeredBy exceeds ${TRIGGERED_BY_MAX_LEN} chars`);
+    }
+    safeTriggeredBy = triggeredBy;
+  }
+
+  let metadataJson = null;
+  if (metadata !== null && metadata !== undefined) {
+    if (typeof metadata !== 'object' || Array.isArray(metadata)) {
+      throw new Error('enqueueScan: metadata must be a plain object when supplied');
+    }
+    metadataJson = JSON.stringify(metadata);
+  }
 
   const rows = await sql`
     INSERT INTO scan_queue
-      (event_id, repository, sha, ref, pull_request_number, host, base_sha, status, attempts, next_run_at)
+      (event_id, repository, sha, ref, pull_request_number, host, base_sha, status, attempts, next_run_at, triggered_by, metadata)
     VALUES
-      (${eventId}, ${repository}, ${sha}, ${ref}, ${prNum}, ${safeHost}, ${safeBase}, 'queued', 0, NOW())
+      (${eventId}, ${repository}, ${sha}, ${ref}, ${prNum}, ${safeHost}, ${safeBase}, 'queued', 0, NOW(), ${safeTriggeredBy}, ${metadataJson}::jsonb)
     ON CONFLICT (event_id) DO NOTHING
     RETURNING id
   `;
@@ -152,9 +228,42 @@ async function claimNextJob(sql) {
     FROM next
     WHERE q.id = next.id
     RETURNING q.id, q.event_id, q.repository, q.sha, q.ref,
-              q.pull_request_number, q.host, q.attempts, q.base_sha
+              q.pull_request_number, q.host, q.attempts, q.base_sha,
+              q.triggered_by, q.metadata
   `;
 
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  return rows[0];
+}
+
+/**
+ * Read one queue row by its idempotency key — the record /api/v1/scans/:id
+ * returns. Carries the attribution columns (host, triggered_by, metadata)
+ * alongside status and result so the caller can both check ownership and
+ * report progress. Null when no row has that eventId.
+ *
+ * @param {string} eventId
+ * @param {Function} sql
+ * @returns {Promise<null | {id:number, event_id:string, repository:string, sha:string, ref:string|null,
+ *   pull_request_number:number|null, host:string, triggered_by:string|null, metadata:object|null,
+ *   status:string, attempts:number, last_error:string|null, result_json:object|null,
+ *   created_at:string, started_at:string|null, completed_at:string|null}>}
+ */
+async function getScanByEventId(eventId, sql) {
+  if (!sql || typeof sql !== 'function') {
+    throw new Error('getScanByEventId: sql tagged-template is required');
+  }
+  if (!eventId || typeof eventId !== 'string') {
+    throw new Error('getScanByEventId: eventId is required');
+  }
+  const rows = await sql`
+    SELECT id, event_id, repository, sha, ref, pull_request_number, host,
+           triggered_by, metadata, status, attempts, last_error, result_json,
+           created_at, started_at, completed_at
+    FROM scan_queue
+    WHERE event_id = ${eventId}
+    LIMIT 1
+  `;
   if (!Array.isArray(rows) || rows.length === 0) return null;
   return rows[0];
 }
@@ -336,6 +445,7 @@ module.exports = {
   ensureScanQueueTable,
   enqueueScan,
   claimNextJob,
+  getScanByEventId,
   markDone,
   markFailed,
   deadLetter,
@@ -343,6 +453,10 @@ module.exports = {
   getQueueStats,
   reclaimStuck,
   isTerminalScanError,
+  normalizeHost,
+  KNOWN_HOSTS,
+  REPO_HOSTS,
+  DEFAULT_HOST,
   MAX_ATTEMPTS,
   RETRY_BACKOFF_SECONDS,
 };

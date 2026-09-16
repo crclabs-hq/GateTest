@@ -22,7 +22,7 @@
  */
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { MAX_ATTEMPTS, isTerminalScanError } = require('./scan-queue-store');
+const { MAX_ATTEMPTS, isTerminalScanError, REPO_HOSTS, DEFAULT_HOST } = require('./scan-queue-store');
 const { timingSafeEqual } = require('crypto');
 
 /**
@@ -157,6 +157,37 @@ async function runWorkerTick({
   }
 
   const repository = job.repository;
+
+  // Only rows from a REPOSITORY host can be fetched and called back. A row
+  // from any other producer (host='api' — a URL scan attributed to an API
+  // key, KI #113) has no repo to clone and no host to post a verdict to; the
+  // pre-fix path would have built https://gluecron.com/<hostname>/<path>,
+  // burned five ticks failing to fetch it, then posted a dead-letter to
+  // Gluecron for a repository that never existed there. Record the honest
+  // terminal state instead and let /api/v1/scans/:id report it (Doctrine #1).
+  const jobHost = job.host || DEFAULT_HOST;
+  if (!REPO_HOSTS.includes(jobHost)) {
+    const errMsg = `[terminal] host '${jobHost}' rows are not executed by the queue worker: no repository source to fetch and no host callback to post to`;
+    try {
+      await queueStore.markFailed(job.id, errMsg, false, sql);
+    } catch (err) {
+      console.error(
+        '[scan-worker] markFailed (non-repo host) failed:',
+        err && err.message ? err.message : err
+      );
+    }
+    return {
+      ok: false,
+      jobId: job.id,
+      attempts: job.attempts,
+      willRetry: false,
+      terminal: true,
+      reclaimed,
+      host: jobHost,
+      error: errMsg,
+    };
+  }
+
   // The URL carries the HOST. scan-executor only needs owner/repo from it,
   // but findActiveByRepo keys Continuous subscriptions on host/owner — so a
   // Gluecron job labelled github.com looked up the wrong host's subscription
