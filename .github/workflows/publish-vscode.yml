@@ -10,9 +10,12 @@
 #
 # dry_run=true builds and packages, uploads the .vsix as a run artifact, and
 # stops before publishing — the way to prove the package is sound before the
-# publisher exists. Publishing is idempotent per version: re-running with an
-# already-published version fails on the Marketplace side with a clear
-# "version already exists", which is the right outcome (bump the version).
+# publisher exists. Publishing is idempotent per version: each publish step
+# first asks its registry whether this version is already there and, if so,
+# prints "already on ..." and exits 0, so a re-run after a partial failure
+# (one registry published, the other not) finishes the job instead of failing
+# on "version already exists". Each step reports published / already-published /
+# skipped, and the last step fails the run only if no registry has the package.
 name: Publish VS Code extension
 
 on:
@@ -77,19 +80,58 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      # .vscodeignore whitelists node_modules down to the engine and its three
+      # runtime dependencies (3,580 files → ~340). A whitelist fails quietly — a
+      # forgotten dependency is a module the registry skips with a warning — so
+      # this opens the .vsix just built, loads every declared engine module from
+      # it and runs a quick scan through engine-worker.js. Runs after the upload
+      # so the artifact is there to inspect when it fails, and before any publish.
+      - name: Smoke the packaged .vsix (every engine module loads; a scan completes)
+        env:
+          GATETEST_VSIX: gatetest-${{ steps.pkg.outputs.version }}.vsix
+        run: node --test test/packaged-vsix.test.js
+
       - name: Publish to the Marketplace
+        id: marketplace
         if: ${{ !inputs.dry_run }}
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          PUBLISHER: ${{ steps.pkg.outputs.publisher }}
+          VERSION: ${{ steps.pkg.outputs.version }}
         run: |
           set -euo pipefail
           if [ -z "${VSCE_PAT}" ]; then
-            echo "::warning::VSCE_PAT repo secret is not set — skipped the VS Code Marketplace. Create an Azure DevOps PAT (Marketplace: Manage) for publisher '${{ steps.pkg.outputs.publisher }}' and add it under Settings → Secrets → Actions, then re-run."
+            echo "::warning::VSCE_PAT repo secret is not set — skipped the VS Code Marketplace. Create an Azure DevOps PAT (Marketplace: Manage) for publisher '${PUBLISHER}' and add it under Settings → Secrets → Actions, then re-run."
+            echo "result=skipped" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          npx vsce verify-pat "${{ steps.pkg.outputs.publisher }}"
-          npx vsce publish --packagePath "gatetest-${{ steps.pkg.outputs.version }}.vsix"
-          echo "Published ${{ steps.pkg.outputs.publisher }}.gatetest@${{ steps.pkg.outputs.version }} — https://marketplace.visualstudio.com/items?itemName=${{ steps.pkg.outputs.publisher }}.gatetest"
+          # Already published? The public gallery query lists the versions the
+          # Marketplace has (filterType 7 = extension name, flags 1 = include
+          # versions). A check that cannot be answered — network, an unexpected
+          # shape — yields an empty list and falls through to publishing, which
+          # still fails loudly on a duplicate; nothing is ever skipped on a guess.
+          listed="$(curl -sS --max-time 30 -X POST 'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery' \
+              -H 'Content-Type: application/json' -H 'Accept: application/json;api-version=3.0-preview.1' \
+              -d "{\"filters\":[{\"criteria\":[{\"filterType\":7,\"value\":\"${PUBLISHER}.gatetest\"}]}],\"flags\":1}" \
+            | node -e '
+              let s = "";
+              process.stdin.on("data", (d) => { s += d; }).on("end", () => {
+                try {
+                  const ext = JSON.parse(s).results[0].extensions[0];
+                  process.stdout.write((ext.versions || []).map((v) => v.version).join(" "));
+                } catch { process.stdout.write(""); }
+              });' || true)"
+          echo "Marketplace has versions: ${listed:-<none / unknown>}"
+          case " ${listed} " in
+            *" ${VERSION} "*)
+              echo "${PUBLISHER}.gatetest@${VERSION} is already on the VS Code Marketplace — nothing to publish"
+              echo "result=already-published" >> "$GITHUB_OUTPUT"
+              exit 0 ;;
+          esac
+          npx vsce verify-pat "${PUBLISHER}"
+          npx vsce publish --packagePath "gatetest-${VERSION}.vsix"
+          echo "result=published" >> "$GITHUB_OUTPUT"
+          echo "Published ${PUBLISHER}.gatetest@${VERSION} — https://marketplace.visualstudio.com/items?itemName=${PUBLISHER}.gatetest"
 
       # Open VSX is the registry Cursor, Windsurf, VSCodium and Gitpod read —
       # they do NOT read Microsoft's Marketplace. Same .vsix, second registry.
@@ -97,13 +139,17 @@ jobs:
       # namespace `GateTestHQ` → Access Tokens) so a missing token never fails
       # the Marketplace publish that just succeeded.
       - name: Publish to Open VSX (Cursor / Windsurf / VSCodium)
+        id: ovsx
         if: ${{ !inputs.dry_run }}
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
+          PUBLISHER: ${{ steps.pkg.outputs.publisher }}
+          VERSION: ${{ steps.pkg.outputs.version }}
         run: |
           set -euo pipefail
           if [ -z "${OVSX_PAT}" ]; then
             echo "::warning::OVSX_PAT repo secret is not set — skipped Open VSX. Create the '${{ steps.pkg.outputs.publisher }}' namespace at open-vsx.org, mint an access token, add it as OVSX_PAT, and re-run this workflow."
+            echo "result=skipped" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # The namespace must exist before verify-pat/publish. "already exists" is the only
@@ -116,19 +162,37 @@ jobs:
             fi
           fi
           npx ovsx verify-pat "${{ steps.pkg.outputs.publisher }}" -p "${OVSX_PAT}"
-          npx ovsx publish "gatetest-${{ steps.pkg.outputs.version }}.vsix" -p "${OVSX_PAT}"
-          echo "Published to Open VSX — https://open-vsx.org/extension/${{ steps.pkg.outputs.publisher }}/gatetest"
+          # Already published? Open VSX answers 200 for a version it has and 404
+          # otherwise. Any other answer (network, 5xx) falls through to publishing,
+          # which still fails loudly on a duplicate — nothing is skipped on a guess.
+          url="https://open-vsx.org/api/${PUBLISHER}/gatetest/${VERSION}"
+          code="$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' "${url}" || true)"
+          if [ "${code:-000}" = "200" ]; then
+            echo "${PUBLISHER}.gatetest@${VERSION} is already on Open VSX — nothing to publish (${url})"
+            echo "result=already-published" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Open VSX answered ${code} for ${url} — publishing"
+          npx ovsx publish "gatetest-${VERSION}.vsix" -p "${OVSX_PAT}"
+          echo "result=published" >> "$GITHUB_OUTPUT"
+          echo "Published to Open VSX — https://open-vsx.org/extension/${PUBLISHER}/gatetest"
 
-      # Either registry alone is a successful run (each is one secret); a run that
-      # published to NEITHER is a failure, never a green nothing (Doctrine #1).
+      # Either registry alone is a successful run (each is one secret); a run
+      # after which NEITHER registry has the package is a failure, never a green
+      # nothing (Doctrine #1). Each publish step reports what it did — published,
+      # already-published, or skipped (no secret) — and this reads those reports
+      # rather than guessing from which secrets exist.
       - name: At least one registry received the package
         if: ${{ !inputs.dry_run }}
         env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+          MARKETPLACE: ${{ steps.marketplace.outputs.result }}
+          OVSX: ${{ steps.ovsx.outputs.result }}
+          VERSION: ${{ steps.pkg.outputs.version }}
         run: |
-          if [ -z "${VSCE_PAT}" ] && [ -z "${OVSX_PAT}" ]; then
-            echo "::error::Neither VSCE_PAT nor OVSX_PAT is set — nothing was published."
-            exit 1
-          fi
-          echo "Published to: ${VSCE_PAT:+VS Code Marketplace }${OVSX_PAT:+Open VSX}"
+          echo "VS Code Marketplace: ${MARKETPLACE:-did not report}"
+          echo "Open VSX:            ${OVSX:-did not report}"
+          case "${MARKETPLACE} ${OVSX}" in
+            *published*) exit 0 ;;
+          esac
+          echo "::error::No registry has gatetest@${VERSION} after this run (Marketplace: ${MARKETPLACE:-did not report}, Open VSX: ${OVSX:-did not report}). Add VSCE_PAT and/or OVSX_PAT under Settings → Secrets → Actions and re-run."
+          exit 1
