@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { siteUrl, badgeUrl as badgeUrlFor } from "@/app/lib/site-url";
+import { ScanFeedback } from "@/app/components/ScanFeedback";
+import { FindingWrong } from "@/app/components/FindingWrong";
 
 interface ModuleSummary {
   module: string;
@@ -163,6 +165,7 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
                             {f.file}{f.line != null ? `:${f.line}` : ""}
                           </span>
                         )}
+                        <FindingWrong rule={f.module} file={f.file} tier="quick" className="ml-auto" />
                       </div>
                       <p className="text-sm text-foreground leading-snug">{f.message}</p>
                     </div>
@@ -180,6 +183,9 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
           </p>
         </div>
       )}
+
+      {/* One question, once per repo — a bad answer reaches us before a review site. */}
+      <ScanFeedback surface="preview" tier="quick" contextKey={result.repo || repoUrl} />
 
       {/* Upsell: truncated */}
       {result.truncated && (
