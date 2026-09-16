@@ -117,57 +117,96 @@ export function ProgressTicker({ suite, elapsedSec }: { suite: "web" | "wp"; ela
 }
 
 /**
- * Shown when the runtime (headless-browser) pass could NOT be queued.
+ * Plain-English rendering of the reason codes web-runtime-gate.js emits.
+ * The code is the only thing the server sends — no variable names, hostnames
+ * or upstream error bodies reach the browser. An unknown code still gets a
+ * truthful sentence rather than nothing.
+ */
+export function describeRuntimeReason(reason?: string | null): string {
+  if (reason === "not-configured") return "the live-browser worker is not switched on for this deployment yet";
+  if (reason === "callback-timeout") return "the live-browser worker did not report back within the time limit";
+  if (reason === "dispatch-failed:timeout") return "the live-browser worker did not answer in time";
+  if (reason === "dispatch-failed:network") return "the live-browser worker could not be reached";
+  if (reason && reason.startsWith("dispatch-failed:")) {
+    return `the live-browser worker refused the job (HTTP ${reason.slice("dispatch-failed:".length)})`;
+  }
+  return "it could not be started this time";
+}
+
+/**
+ * Shown when the runtime (headless-browser) pass did NOT run — not queued,
+ * refused, or queued but never reported back.
  *
- * Why this exists: /web sells "we open your site in a real browser." When
- * the worker tier is unreachable the API honestly returns
- * `runtime.status: "unavailable"` — but nothing rendered it, so the report
- * looked complete while a whole advertised layer had silently not run.
- * Static-probe findings are still real; the customer just needs to know
- * what is missing from them.
+ * Why this exists: /web sells "we open your site in a real browser." A report
+ * that silently omits a whole advertised layer reads as a clean bill of
+ * health (Doctrine #1). Static-probe findings are still real; the customer
+ * needs one plain sentence saying what did and did not run (Doctrine #6).
  */
 export function RuntimeUnavailable({ reason }: { reason?: string | null }) {
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 ring-1 ring-amber-100">
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 ring-1 ring-amber-100" role="status">
       <div className="flex items-start gap-3">
         <span className="shrink-0 mt-0.5 w-5 h-5 rounded-full bg-amber-500/15 flex items-center justify-center">
           <span className="w-2 h-2 rounded-full bg-amber-500" aria-hidden />
         </span>
         <div className="flex-1">
           <p className="font-semibold text-amber-900 leading-tight">
-            Live browser check didn&apos;t run
+            Runtime checks (real-browser errors, headers under load) were not run: {describeRuntimeReason(reason)}. Static checks ran.
           </p>
           <p className="text-sm text-amber-900/80 mt-1">
-            Everything below is from our static and network probes, and it&apos;s all real. But
-            the headless-browser pass — live JavaScript errors, hydration mismatches, CSP
-            violations — couldn&apos;t start this time, so those checks are <em>not</em>{" "}
-            reflected in the score. Re-run the scan in a few minutes, or email{" "}
+            Everything below comes from the static and network checks, and it&apos;s all real — but
+            live JavaScript errors, hydration mismatches and CSP violations are <em>not</em>{" "}
+            reflected in the score. Re-run the scan later, or email{" "}
             <a href="mailto:support@gatetest.io" className="underline font-medium">
               support@gatetest.io
             </a>{" "}
             if it keeps happening.
           </p>
-          {reason ? (
-            <p className="text-xs text-amber-900/60 mt-2 font-mono break-words">{reason}</p>
-          ) : null}
         </div>
       </div>
     </div>
   );
 }
 
-export function RuntimePending({ pollUrl, onComplete }: { pollUrl: string; onComplete: (rt: RuntimeBlock["payload"]) => void }) {
+/** Fallback when the server did not say how long to wait: 60s deadline + 30s grace (web-runtime-gate.js). */
+const DEFAULT_RUNTIME_TIMEOUT_SEC = 90;
+
+export function RuntimePending({
+  pollUrl,
+  timeoutSec,
+  onComplete,
+  onTimeout,
+}: {
+  pollUrl: string;
+  timeoutSec?: number;
+  onComplete: (rt: RuntimeBlock["payload"]) => void;
+  onTimeout: () => void;
+}) {
   const [elapsed, setElapsed] = useState(0);
   const onCompleteRef = useRef(onComplete);
+  const onTimeoutRef = useRef(onTimeout);
   useEffect(() => {
     onCompleteRef.current = onComplete;
-  }, [onComplete]);
+    onTimeoutRef.current = onTimeout;
+  }, [onComplete, onTimeout]);
 
   useEffect(() => {
     let cancelled = false;
     const start = Date.now();
+    const limitMs = (timeoutSec && timeoutSec > 0 ? timeoutSec : DEFAULT_RUNTIME_TIMEOUT_SEC) * 1000;
     const tick = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 500);
+    const stop = () => {
+      clearInterval(poll);
+      clearInterval(tick);
+    };
     const poll = setInterval(async () => {
+      // A queued job that never calls back must not spin forever — report
+      // callback-timeout so the customer knows the runtime pass did not run.
+      if (Date.now() - start > limitMs) {
+        stop();
+        if (!cancelled) onTimeoutRef.current();
+        return;
+      }
       try {
         const r = await fetch(pollUrl, { cache: "no-store" });
         if (!r.ok) return;
@@ -175,8 +214,7 @@ export function RuntimePending({ pollUrl, onComplete }: { pollUrl: string; onCom
         if (cancelled) return;
         if (data?.runtime?.status === "completed" || data?.runtime?.status === "failed") {
           onCompleteRef.current(data.runtime.payload);
-          clearInterval(poll);
-          clearInterval(tick);
+          stop();
         }
       } catch {
         /* error-ok — keep polling */
@@ -184,10 +222,9 @@ export function RuntimePending({ pollUrl, onComplete }: { pollUrl: string; onCom
     }, 3000);
     return () => {
       cancelled = true;
-      clearInterval(poll);
-      clearInterval(tick);
+      stop();
     };
-  }, [pollUrl]);
+  }, [pollUrl, timeoutSec]);
 
   return (
     <div className="rounded-2xl border border-border bg-blue-50 p-5 ring-1 ring-blue-100">

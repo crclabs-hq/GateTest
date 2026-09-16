@@ -19,8 +19,17 @@ export interface HealthScore {
 export interface RuntimeBlock {
   status: "queued" | "completed" | "failed" | "unavailable";
   jobId?: string | null;
+  /**
+   * Reason code from web-runtime-gate.js when status is "unavailable":
+   * "not-configured" | "dispatch-failed:<http status|network|timeout>" |
+   * "callback-timeout". Mapped to plain English in RuntimeUnavailable.
+   */
   reason?: string | null;
+  /** True only once a signed runtime callback has landed. Queued is a promise, not a result. */
+  checked?: boolean;
   pollUrl?: string | null;
+  /** Seconds after which a queued job with no callback is reported as callback-timeout. */
+  timeoutSec?: number;
   payload?: {
     status?: string;
     durationMs?: number;
