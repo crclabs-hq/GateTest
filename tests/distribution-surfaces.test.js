@@ -57,12 +57,11 @@ describe('distribution surfaces: every listed channel points somewhere real', ()
     assert.ok(HREFS.includes('VSCODE_MARKETPLACE_URL') || SRC.includes('href: VSCODE_MARKETPLACE_URL'));
   });
 
-  it('the VS Code identity is read from the extension manifest, not typed', () => {
-    assert.match(SRC, /import vscodeManifest from "\.\.\/\.\.\/\.\.\/vscode-extension\/package\.json"/);
-    assert.match(SRC, /\$\{vscodeManifest\.publisher\}\.\$\{vscodeManifest\.name\}/);
-    assert.ok(!/itemName=GateTestHQ\.gatetest/.test(SRC), 'no literal extension id');
-    // And the manifest itself is what the Marketplace shows today.
-    assert.strictEqual(`${manifest.publisher}.${manifest.name}`, 'GateTestHQ.gatetest');
+  it('the VS Code identity constant equals the extension manifest (pinned by test — the website builds standalone)', () => {
+    const m = SRC.match(/export const VSCODE_EXTENSION_ID = "([^"]+)";/);
+    assert.ok(m, 'VSCODE_EXTENSION_ID is a string constant');
+    assert.strictEqual(m[1], `${manifest.publisher}.${manifest.name}`, 'drifted from vscode-extension/package.json');
+    assert.ok(!/from "\.\.\/\.\.\/\.\.\/vscode-extension/.test(SRC), 'no cross-tree import — the Docker image build cannot resolve it');
   });
 
   it('the CLI snippet uses the form that resolves on the published package', () => {

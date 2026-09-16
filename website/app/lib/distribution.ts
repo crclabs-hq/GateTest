@@ -23,10 +23,11 @@
 // Marketplace publisher name in THIS file only — it spells the same word as
 // the stale GitHub App slug and is unrelated to it.
 
-import vscodeManifest from "../../../vscode-extension/package.json";
-
-/** `<publisher>.<name>` — the Marketplace's unique identifier for the extension. */
-export const VSCODE_EXTENSION_ID = `${vscodeManifest.publisher}.${vscodeManifest.name}`;
+// The Marketplace identifier is `<publisher>.<name>` from vscode-extension/package.json.
+// A literal here, not an import: the website builds standalone (Docker image,
+// box deploy) where ../../../vscode-extension is outside the build context.
+// tests/distribution-surfaces.test.js fails the suite if this drifts from the manifest.
+export const VSCODE_EXTENSION_ID = "GateTestHQ.gatetest";
 export const VSCODE_MARKETPLACE_URL = `https://marketplace.visualstudio.com/items?itemName=${VSCODE_EXTENSION_ID}`;
 /** Opens the extension inside a running VS Code. */
 export const VSCODE_DEEP_LINK = `vscode:extension/${VSCODE_EXTENSION_ID}`;
