@@ -25,7 +25,7 @@ const CAPABILITIES = [
     tool: "capture_screenshot",
     code: `// See the rendered page — works with localhost too
 capture_screenshot({
-  url: "http://localhost:3000/pricing",
+  url: "https://preview.your-site.example/pricing",
   width: 390  // mobile viewport
 })
 // → returns an actual image the AI can see`,
@@ -48,7 +48,7 @@ get_production_errors({ source: "all" })
 // → TypeError: cart is undefined | src/checkout.ts:44 | 412 occurrences
 
 // Or check your local dev server right now
-run_live_checks({ url: "http://localhost:3000" })
+run_live_checks({ url: "https://preview.your-site.example" })
 // → apiHealth: 2 broken, runtimeErrors: CSP violation on /dashboard`,
     when: "before deciding what to fix",
   },

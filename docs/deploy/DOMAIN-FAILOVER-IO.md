@@ -25,7 +25,7 @@ domain we still control at the server that is already working.
 |---|---|
 | `dig gatetest.ai` | NXDOMAIN (registry delegation pulled) |
 | RDAP `gatetest.ai` | `["client transfer prohibited","redemption period"]`, changed 2026-07-29T08:14:34Z |
-| `curl --resolve gatetest.ai:443:66.42.121.161` | **HTTP 200**, correct `<title>`, `/api/platform-status` healthy on commit `56ce9f1` |
+| `curl --resolve gatetest.ai:443:<box-ip>` | **HTTP 200**, correct `<title>`, `/api/platform-status` healthy on commit `56ce9f1` |
 | `dig gatetest.io` | resolves to `216.150.16.65` — Vercel, serving `DEPLOYMENT_NOT_FOUND` |
 | RDAP `gatetest.io` | registrar **Cloudflare, Inc**, registered 2026-04-08, expires 2027-04-08, status healthy |
 | `gatetest.io` nameservers | `aitana.ns.cloudflare.com`, `major.ns.cloudflare.com` — Cloudflare-managed, so an A-record edit is all that's needed |
@@ -42,9 +42,9 @@ In the `gatetest.io` zone, replace the Vercel records:
 
 | Type | Name | Value | Proxy |
 |---|---|---|---|
-| A | `@` | `66.42.121.161` | DNS only (grey cloud) |
-| A | `www` | `66.42.121.161` | DNS only |
-| A | `mcp` | `66.42.121.161` | DNS only |
+| A | `@` | `<box-ip>` | DNS only (grey cloud) |
+| A | `www` | `<box-ip>` | DNS only |
+| A | `mcp` | `<box-ip>` | DNS only |
 
 **Grey cloud, not orange.** Traefik on the box terminates TLS via Let's Encrypt;
 Cloudflare's proxy in front of it will fail the HTTP-01 challenge and you will get
@@ -171,7 +171,7 @@ of these is a separate login, all are Boss Rule #4/#6/#7, and the ones marked
 
 | Where | What to change | If skipped |
 |---|---|---|
-| **Cloudflare** (`gatetest.io` zone) | Step 1 — A records off Vercel onto `66.42.121.161`, grey cloud | Site unreachable |
+| **Cloudflare** (`gatetest.io` zone) | Step 1 — A records off Vercel onto `<box-ip>`, grey cloud | Site unreachable |
 | **Vercel** | Disconnect `gatetest.io` from the retired project | Two answers race; stale deploy may still serve |
 | **GitHub App** settings | Homepage, Setup URL `/github/setup`, Callback URL `/api/github/callback`, Webhook URL `/api/webhook` | **Breaks silently** — push/PR events post to a dead host, no commit statuses |
 | **Stripe** → Developers → Webhooks | Endpoint URL → `https://gatetest.io/api/stripe-webhook` | **Breaks silently** — customer pays, scan never starts |

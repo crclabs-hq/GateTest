@@ -22,7 +22,7 @@ Deploy target: **Tallrig** (Craig's platform — named Vapron when this was writ
 > Marketplace pre-submit checklist recorded the contradiction as something only
 > Craig could settle.
 >
-> **DNS settles it.** `gatetest.io` resolves to **66.42.121.161** — the box
+> **DNS settles it.** `gatetest.io` resolves to **<box-ip>** — the box
 > `deploy-on-box.sh` is written for and the host `deploy-box.yml` SSHes into.
 > That box is serving production right now (`/api/platform-status` answered
 > from it on 2026-08-05).

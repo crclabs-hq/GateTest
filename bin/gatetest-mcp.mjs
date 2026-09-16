@@ -2505,9 +2505,24 @@ const isMain = (() => {
   }
 })();
 
-if (isMain) {
+/**
+ * Attach the stdio transport and serve until stdin closes.
+ *
+ * Exported so a wrapper bin can start the server after `await import()`.
+ * @gatetest/mcp-server's bin/server.mjs is exactly that wrapper, and under
+ * it argv[1] is the wrapper, so the isMain guard below is false: an import
+ * that only registers handlers then exits 0 with an empty stdout, which
+ * every MCP client experiences as a hang on `initialize`. The wrapper
+ * calls this instead. Direct execution (`gatetest-mcp`, `node
+ * bin/gatetest-mcp.mjs`) is unchanged.
+ */
+export async function startServer() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+}
+
+if (isMain) {
+  await startServer();
 }
 
 // Test-only surface — NOT part of the MCP protocol. See tests/mcp-verify-fix.test.js

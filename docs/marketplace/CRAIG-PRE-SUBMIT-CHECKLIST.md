@@ -181,16 +181,12 @@ Yes, for CI. Tailscale solves **reachability**, not **CI identity**:
 | Craig, from his own machine | **No** — he's on the tailnet, just SSH in and run the script |
 | GitHub Actions | **Yes** — the runner is an ephemeral Azure VM with no tailnet membership |
 
-Verified 2026-08-04: **port 22 on `66.42.121.161` is open to the public
-internet** (`SSH-2.0-OpenSSH_8.9p1`), so `BOX_SSH_*` works today with no
-Tailscale involvement at all.
+The runner reaches the box over SSH using `BOX_SSH_HOST`/`BOX_SSH_KEY`.
 
-The better long-term posture, since Tailscale already exists, is to **close
-public 22** and have CI join the tailnet instead
-(`tailscale/github-action` + `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET`). That's
-a deliberate infra change, not something to do mid-review — but leaving SSH
-open to the whole internet on the box that serves production is worth a
-decision either way.
+The alternative, since Tailscale already exists, is to have CI join the
+tailnet instead (`tailscale/github-action` + `TS_OAUTH_CLIENT_ID` /
+`TS_OAUTH_SECRET`). That's a deliberate infra change, not something to do
+mid-review.
 
 ### ✅ Contradiction resolved 2026-08-05 — no longer a Craig decision
 
@@ -200,7 +196,7 @@ production was Vapron or the box, because `docs/deploy/VAPRON-DEPLOY.md` said
 exactly that script.
 
 **DNS answers it without needing Craig:** `gatetest.io` resolves to
-**66.42.121.161** — the box that script targets — and `/api/platform-status`
+**<box-ip>** — the box that script targets — and `/api/platform-status`
 answered from it on 2026-08-05. Production is the box; `deploy-box.yml`
 automates the correct path. The runbook line was the stale half and has been
 corrected.

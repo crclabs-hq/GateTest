@@ -4,7 +4,7 @@
 > plan was superseded by an in-repo Vercel route and that this box didn't need
 > the deployment. That's out of date — `gatetest-mcp.service` **is** live on
 > this box (confirmed via `systemctl status`, 2026-07-16 incident investigation)
-> and `mcp.gatetest.io` → 66.42.121.161 is an active, in-use DNS record, not a
+> and `mcp.gatetest.io` → <box-ip> is an active, in-use DNS record, not a
 > leftover. Treat the steps below as the real, current deploy path for this
 > service, not a fallback. See `JARVIS-WEB-DEPLOY.md` for the companion website
 > deploy and the two-box topology (this box = frontend/MCP, Tallrig box 158 (named Vapron until 2026-09-14) =
@@ -19,14 +19,14 @@
 > exist today — worth Craig's call on whether to keep both or consolidate.
 
 **From:** GateTest engineering session (Claude Code, 2026-07-07, Craig-authorized)
-**To:** Jarvis (66.42.121.161) — only if a dedicated box is chosen
+**To:** Jarvis (<box-ip>) — only if a dedicated box is chosen
 **Task:** Deploy the GateTest hosted MCP endpoint on this box, behind `mcp.gatetest.io`.
 
 ## Context
 
 GateTest is shipping a hosted MCP endpoint so claude.ai web/mobile users can use
 GateTest tools with zero install. DNS is already live: `mcp.gatetest.io` → A record
-→ `66.42.121.161` (this box), DNS-only/grey-cloud. The code is in the GateTest repo
+→ `<box-ip>` (this box), DNS-only/grey-cloud. The code is in the GateTest repo
 at `packages/mcp-remote/` — a Bun + Hono service, no Playwright, no heavy deps
 (single dependency: hono). It is deliberately co-located on this box so Jarvis can
 control GateTest directly.
