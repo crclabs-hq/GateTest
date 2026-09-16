@@ -218,6 +218,54 @@ describe('runWorkerTick — idle', () => {
   });
 });
 
+// ── KI #113: rows from a non-repository host are recorded, not "scanned" ────
+// An /api/v1/scans row (host='api') has no repo to fetch and no host to post
+// a verdict to. Before the fix the store relabelled it 'gluecron', so the
+// worker built https://gluecron.com/<hostname>/<path>, failed to fetch it for
+// MAX_ATTEMPTS ticks, then dead-lettered to Gluecron's callback for a repo
+// that never existed there. Control pair: an 'api' job is marked terminal
+// with no scan and no callback; a 'github' job with the same shape scans.
+
+describe('runWorkerTick — non-repository host rows (KI #113)', () => {
+  it("host='api': marks the row terminal, runs NO scan, sends NO callback", async () => {
+    const qs = makeQueueStore({ nextJob: makeJob({ host: 'api', triggered_by: 'api_key:k1', metadata: { url: 'https://example.com' } }) });
+    let scanCalls = 0;
+    let callbackCalls = 0;
+    const result = await runWorkerTick({
+      sql: SQL,
+      queueStore: qs,
+      runScan: async () => { scanCalls++; return makeScanResult(); },
+      sendCallback: async () => { callbackCalls++; return { sent: true }; },
+    });
+    assert.strictEqual(scanCalls, 0, 'nothing to fetch — runScan must not be called');
+    assert.strictEqual(callbackCalls, 0, 'no host to notify — the callback must not fire');
+    assert.strictEqual(qs.calls.markDone.length, 0);
+    assert.strictEqual(qs.calls.markFailed.length, 1);
+    assert.strictEqual(qs.calls.markFailed[0].id, 42);
+    assert.strictEqual(qs.calls.markFailed[0].willRetry, false, 'terminal: retrying cannot conjure a repository');
+    assert.match(qs.calls.markFailed[0].err, /\[terminal\] host 'api' rows are not executed/);
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.terminal, true);
+    assert.strictEqual(result.willRetry, false);
+    assert.strictEqual(result.host, 'api');
+  });
+
+  it("host='github' with the identical shape IS scanned (the control)", async () => {
+    const qs = makeQueueStore({ nextJob: makeJob({ host: 'github', triggered_by: 'webhook:d1' }) });
+    let scanCalls = 0;
+    const result = await runWorkerTick({
+      sql: SQL,
+      queueStore: qs,
+      runScan: async () => { scanCalls++; return makeScanResult(); },
+      sendCallback: async () => ({ sent: true }),
+    });
+    assert.strictEqual(scanCalls, 1);
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(qs.calls.markFailed.length, 0);
+    assert.strictEqual(qs.calls.markDone.length, 1);
+  });
+});
+
 describe('runWorkerTick — job success', () => {
   it('calls markDone and fires the callback on successful scan', async () => {
     const qs = makeQueueStore({ nextJob: makeJob() });

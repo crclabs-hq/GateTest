@@ -135,6 +135,9 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/dashboard/usage" className="text-sm text-muted hover:text-foreground">
+              Usage
+            </Link>
             <Link href="/#pricing" className="btn-primary px-5 py-2.5 text-sm">
               New Scan
             </Link>

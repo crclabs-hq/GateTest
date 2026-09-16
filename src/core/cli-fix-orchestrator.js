@@ -210,6 +210,10 @@ function _rank({ syntaxOk, testOk }) {
  * @param {number}   [opts.maxAttempts]  — max retry rounds (default 3)
  * @param {string}   [opts.apiKey]       — Anthropic key (falls back to env)
  * @param {string}   [opts.model]        — Claude model id (default CHEAP_MODEL)
+ * @param {boolean}  [opts.dryRun]       — compute the winning hypothesis but write
+ *                                          NOTHING to disk: no winner, no test
+ *                                          swap-in, no temp files, no flywheel
+ *                                          event. The result carries `code`.
  * @returns {Promise<object>}
  */
 async function runFixOrchestration(opts) {
@@ -220,6 +224,7 @@ async function runFixOrchestration(opts) {
     context     = '',
     maxAttempts = MAX_ATTEMPTS,
     model       = CHEAP_MODEL,
+    dryRun      = false,
   } = opts;
   // Honor an explicitly-passed apiKey even when empty (caller forcing the
   // no-key early-exit); only fall back to the env var when omitted entirely.
@@ -233,7 +238,9 @@ async function runFixOrchestration(opts) {
 
   const ext      = path.extname(filePath);
   const testFile = _findTestFile(filePath, projectRoot);
-  const tmpDir   = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-hyp-'));
+  // Dry run creates no scratch directory either — "never writes to disk"
+  // means the temp dir too, not just the project tree.
+  const tmpDir   = dryRun ? null : fs.mkdtempSync(path.join(os.tmpdir(), 'gt-hyp-'));
   let priorError = '';
   const t0 = Date.now();
 
@@ -247,15 +254,17 @@ async function runFixOrchestration(opts) {
     recipePath: opts.recipePath || null,
   });
   if (playback.hit && playback.code) {
-    fs.writeFileSync(filePath, playback.code, 'utf-8');
-    recordFixEvent({
-      ruleKey:    issues[0] || '',
-      layer:      playback.layer,
-      success:    true,
-      durationMs: Date.now() - t0,
-      fileExt:    ext,
-      eventsPath: opts.eventsPath || undefined,
-    });
+    if (!dryRun) {
+      fs.writeFileSync(filePath, playback.code, 'utf-8');
+      recordFixEvent({
+        ruleKey:    issues[0] || '',
+        layer:      playback.layer,
+        success:    true,
+        durationMs: Date.now() - t0,
+        fileExt:    ext,
+        eventsPath: opts.eventsPath || undefined,
+      });
+    }
     return {
       fixed:      true,
       rank:       1,
@@ -266,6 +275,9 @@ async function runFixOrchestration(opts) {
       testGate:   null,
       playback:   true,
       recipeId:   playback.recipeId || null,
+      code:       playback.code,
+      original:   content,
+      dryRun,
     };
   }
 
@@ -294,10 +306,13 @@ async function runFixOrchestration(opts) {
         continue;
       }
 
-      // Write each hypothesis to an isolated temp file
-      for (const h of hypotheses) {
-        h.tempPath = path.join(tmpDir, `hypothesis-${h.index}${ext}`);
-        fs.writeFileSync(h.tempPath, h.code, 'utf-8');
+      // Write each hypothesis to an isolated temp file (skipped on a dry
+      // run — a dry run touches no disk, scratch or otherwise).
+      if (!dryRun) {
+        for (const h of hypotheses) {
+          h.tempPath = path.join(tmpDir, `hypothesis-${h.index}${ext}`);
+          fs.writeFileSync(h.tempPath, h.code, 'utf-8');
+        }
       }
 
       // Syntax gate first — cheap and safe to do in one pass.
@@ -311,7 +326,17 @@ async function runFixOrchestration(opts) {
       // restore the original in a finally so a crash can't leave a
       // half-applied hypothesis in the working tree. Serial by necessity:
       // the candidates share the source path.
-      if (testFile) {
+      //
+      // A DRY RUN cannot swap candidates in — that is a write to the
+      // working tree (KI #112: `fix --dry-run` modified files before it
+      // printed the plan). Tests are therefore NOT run under dry run; the
+      // result says so (`testsNotChecked`) rather than reporting a pass it
+      // never measured (Doctrine #1).
+      if (testFile && dryRun) {
+        for (const h of withSyntax) {
+          h.testResult = { passed: h.syntaxResult.passed, output: '', notChecked: true };
+        }
+      } else if (testFile) {
         try {
           for (const h of withSyntax) {
             if (!h.syntaxResult.passed) { h.testResult = { passed: false, output: '' }; continue; }
@@ -339,6 +364,26 @@ async function runFixOrchestration(opts) {
       // Rank ASC (1 = best), lineDelta ASC as tiebreaker
       evaluated.sort((a, b) => a.rank - b.rank || a.lineDelta - b.lineDelta);
       const winner = evaluated[0];
+
+      if (winner.rank <= 2 && dryRun) {
+        // Plan only: hand the caller the winning code and the original so
+        // it can print a diff. Nothing has been written — not the winner,
+        // not a flywheel event, not a recipe.
+        return {
+          fixed:      true,
+          rank:       winner.rank,
+          hypothesis: H_NAMES[winner.index],
+          attempt,
+          lineDelta:  winner.lineDelta,
+          testsPassed: null,
+          testsNotChecked: Boolean(testFile),
+          testGate:   null,
+          code:       winner.code,
+          original:   content,
+          dryRun:     true,
+          advisory:   testFile ? 'tests not run under --dry-run (running them would write the candidate to disk)' : null,
+        };
+      }
 
       if (winner.rank <= 2) {
         fs.writeFileSync(filePath, winner.code, 'utf-8');
@@ -395,6 +440,9 @@ async function runFixOrchestration(opts) {
           lineDelta:  winner.lineDelta,
           testsPassed: winner.testOk,
           testGate,
+          code:       winner.code,
+          original:   content,
+          dryRun:     false,
           advisory:   winner.rank === 2 ? 'Some tests remain amber — review before merging' : null,
         };
       }
@@ -403,7 +451,9 @@ async function runFixOrchestration(opts) {
       priorError = winner.syntaxError || winner.testOutput || 'all hypotheses failed syntax';
     }
   } finally {
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best-effort */ } // error-ok
+    if (tmpDir) {
+      try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best-effort */ } // error-ok
+    }
   }
 
   return { fixed: false, reason: `all ${maxAttempts} attempt(s) exhausted`, lastError: priorError };
@@ -419,11 +469,14 @@ async function runFixOrchestration(opts) {
  * @param {object[]} findings
  * @param {string}   projectRoot
  * @param {string}   apiKey
- * @param {{maxAttempts?: number, fileCap?: number, model?: string}} [opts]
- * @returns {Promise<{accepted: object[], testFiles: object[], allFixes: object[], prBody: string, failed: object[]}>}
+ * @param {{maxAttempts?: number, fileCap?: number, model?: string, dryRun?: boolean}} [opts]
+ *   `dryRun: true` computes every fix without writing a byte — each accepted
+ *   entry carries `fixed` (the would-be content) and `original` so the caller
+ *   can print the plan. `_callClaude` is the test seam, passed straight through.
+ * @returns {Promise<{accepted: object[], testFiles: object[], allFixes: object[], prBody: string, failed: object[], dryRun: boolean}>}
  */
 async function runFixBatch(findings, projectRoot, apiKey, opts = {}) {
-  const { maxAttempts = MAX_ATTEMPTS, fileCap = 50, model = CHEAP_MODEL } = opts;
+  const { maxAttempts = MAX_ATTEMPTS, fileCap = 50, model = CHEAP_MODEL, dryRun = false } = opts;
   const byFile = new Map();
   for (const f of findings || []) {
     if (!f || !f.file) continue;
@@ -443,11 +496,15 @@ async function runFixBatch(findings, projectRoot, apiKey, opts = {}) {
       apiKey,
       maxAttempts,
       model,
+      dryRun,
+      ...(opts._callClaude ? { _callClaude: opts._callClaude } : {}),
     });
     if (result.fixed) {
-      // runFixOrchestration wrote the winning hypothesis to disk — read it
-      // back so callers get the exact accepted content.
-      accepted.push({ file, fixed: fs.readFileSync(filePath, 'utf-8'), issues: byFile.get(file), result });
+      // Apply mode: runFixOrchestration wrote the winning hypothesis to
+      // disk — read it back so callers get the exact accepted content.
+      // Dry run: nothing was written, so the content comes from the result.
+      const fixed = dryRun ? result.code : fs.readFileSync(filePath, 'utf-8');
+      accepted.push({ file, fixed, original: result.original, issues: byFile.get(file), result });
     } else {
       failed.push({ file, reason: result.reason || 'unknown', issues: byFile.get(file) });
     }
@@ -456,7 +513,83 @@ async function runFixBatch(findings, projectRoot, apiKey, opts = {}) {
   const { composePrBody } = require('../../lib/pr-composer.js');
   const prBody = composePrBody({ fixes: accepted.map(({ file, issues }) => ({ file, issues })) });
   // The orchestrator verifies existing tests; it does not generate new ones.
-  return { accepted, testFiles: [], allFixes: accepted, prBody, failed };
+  return { accepted, testFiles: [], allFixes: accepted, prBody, failed, dryRun };
 }
 
-module.exports = { runFixOrchestration, runFixBatch, FIX_CALL_SHAPE };
+// ── Dry-run plan ─────────────────────────────────────────────────────────────
+
+/**
+ * Minimal line diff: `-` for lines only in `before`, `+` for lines only in
+ * `after`, unchanged lines omitted. Common prefix/suffix are stripped first;
+ * the remaining middle is aligned with an LCS when it is small enough to be
+ * worth it and shown as a whole-block replacement otherwise. It is a plan
+ * for a human to read, not a patch for a tool to apply.
+ */
+function _lineDiff(before, after) {
+  const a = String(before ?? '').split(/\r?\n/);
+  const b = String(after ?? '').split(/\r?\n/);
+  let start = 0;
+  while (start < a.length && start < b.length && a[start] === b[start]) start++;
+  let endA = a.length, endB = b.length;
+  while (endA > start && endB > start && a[endA - 1] === b[endB - 1]) { endA--; endB--; }
+  const midA = a.slice(start, endA);
+  const midB = b.slice(start, endB);
+  const out = [];
+  if (midA.length * midB.length <= 250_000) {
+    // LCS table over the changed middle only.
+    const n = midA.length, m = midB.length;
+    const dp = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) {
+      for (let j = m - 1; j >= 0; j--) {
+        dp[i][j] = midA[i] === midB[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+    let i = 0, j = 0;
+    while (i < n && j < m) {
+      if (midA[i] === midB[j]) { i++; j++; }
+      else if (dp[i + 1][j] >= dp[i][j + 1]) out.push(`-${midA[i++]}`);
+      else out.push(`+${midB[j++]}`);
+    }
+    while (i < n) out.push(`-${midA[i++]}`);
+    while (j < m) out.push(`+${midB[j++]}`);
+  } else {
+    for (const l of midA) out.push(`-${l}`);
+    for (const l of midB) out.push(`+${l}`);
+  }
+  const removed = out.filter((l) => l[0] === '-').length;
+  const added = out.length - removed;
+  return { lines: out, added, removed, firstLine: start + 1 };
+}
+
+/**
+ * Render the plan `gatetest fix --dry-run` prints: one block per accepted
+ * file with the issues it addresses, the line counts, and the diff. Pure —
+ * reads nothing, writes nothing; takes the `accepted` array from runFixBatch.
+ *
+ * @param {{file: string, fixed: string, original?: string, issues?: string[], result?: object}[]} accepted
+ * @param {{maxDiffLines?: number}} [opts]
+ * @returns {string}
+ */
+function formatDryRunPlan(accepted, opts = {}) {
+  const maxDiffLines = opts.maxDiffLines ?? 200;
+  const blocks = [];
+  let notChecked = 0;
+  for (const fix of accepted || []) {
+    const diff = _lineDiff(fix.original ?? '', fix.fixed ?? '');
+    const header = `--- ${fix.file}  (+${diff.added} -${diff.removed}, from line ${diff.firstLine}` +
+      `${fix.result?.hypothesis ? `, hypothesis ${fix.result.hypothesis}` : ''})`;
+    const issueLines = (fix.issues || []).map((s) => `    issue: ${s}`);
+    const shown = diff.lines.slice(0, maxDiffLines).map((l) => `    ${l}`);
+    if (diff.lines.length > maxDiffLines) shown.push(`    … ${diff.lines.length - maxDiffLines} more diff line(s)`);
+    if (fix.result?.testsNotChecked) notChecked++;
+    blocks.push([header, ...issueLines, ...shown].join('\n'));
+  }
+  const count = (accepted || []).length;
+  const tail = [`${count} file(s) would change. Nothing was written.`];
+  if (notChecked > 0) {
+    tail.push(`Tests NOT run for ${notChecked} file(s): running them would write the candidate to disk. Re-run without --dry-run to apply and verify.`);
+  }
+  return [...blocks, '', ...tail].join('\n');
+}
+
+module.exports = { runFixOrchestration, runFixBatch, formatDryRunPlan, FIX_CALL_SHAPE };

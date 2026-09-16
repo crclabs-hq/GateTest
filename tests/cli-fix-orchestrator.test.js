@@ -305,3 +305,125 @@ describe('hypothesis swap-in test runs (audit #7)', () => {
     }
   });
 });
+
+// ── --dry-run never writes (KI #112) ──────────────────────────────────────────
+// `gatetest fix --apply --dry-run` consulted the flag only AFTER runFixBatch
+// had returned — and runFixBatch wrote every winning hypothesis to disk (and
+// swapped candidates in for test runs) on the way. The plan it then printed
+// described changes that had already happened. Control pair: the same
+// fixture, same fake model, with and without dryRun. With: bytes AND mtime of
+// every project file are unchanged and the plan names the change. Without:
+// the file is modified.
+
+describe('runFixBatch dryRun — the control pair (KI #112)', () => {
+  const { formatDryRunPlan } = require('../src/core/cli-fix-orchestrator');
+  const DELIMS = [
+    '=== GATETEST_HYPOTHESIS_ALPHA ===',
+    '=== GATETEST_HYPOTHESIS_BETA ===',
+    '=== GATETEST_HYPOTHESIS_GAMMA ===',
+  ];
+  const ORIGINAL = 'module.exports = function add(a, b) { return a - b; };\n';
+  const CORRECT  = 'module.exports = function add(a, b) { return a + b; };';
+  const WRONG    = 'module.exports = function add(a, b) { return a * b; };';
+  const BROKEN   = 'module.exports = function add(a, b { return a + b; };';
+  // Alpha is the correct one so the dry run (which cannot run tests) and the
+  // apply run (which can) both land on the same winner.
+  const fakeClaude = async () => [DELIMS[0], CORRECT, DELIMS[1], WRONG, DELIMS[2], BROKEN].join('\n');
+  const FINDINGS = [{ file: 'adder.js', message: 'add() returns the wrong value', moduleName: 'logic', checkName: 'arith' }];
+  // A fixed past mtime: any write — even one that restores identical bytes —
+  // moves it to "now", so mtime is the proof that no write happened.
+  const PAST = new Date('2001-02-03T04:05:06Z');
+
+  function makeProject() {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dryrun-'));
+    const srcPath = path.join(tmp, 'adder.js');
+    fs.writeFileSync(srcPath, ORIGINAL);
+    fs.mkdirSync(path.join(tmp, 'tests'));
+    const testPath = path.join(tmp, 'tests', 'adder.test.js');
+    fs.writeFileSync(testPath, [
+      "const { test } = require('node:test');",
+      "const assert = require('node:assert');",
+      "const add = require('../adder.js');",
+      "test('adds', () => { assert.strictEqual(add(2, 3), 5); });",
+      '',
+    ].join('\n'));
+    for (const p of [srcPath, testPath]) fs.utimesSync(p, PAST, PAST);
+    return { tmp, srcPath, testPath };
+  }
+
+  function snapshot(dir) {
+    const out = new Map();
+    const walk = (d) => {
+      for (const ent of fs.readdirSync(d, { withFileTypes: true })) {
+        const p = path.join(d, ent.name);
+        if (ent.isDirectory()) walk(p);
+        else out.set(path.relative(dir, p), { bytes: fs.readFileSync(p), mtimeMs: fs.statSync(p).mtimeMs });
+      }
+    };
+    walk(dir);
+    return out;
+  }
+
+  test('with dryRun: every project file is byte-identical and untouched, and the plan names the change', async () => {
+    const { tmp, srcPath } = makeProject();
+    try {
+      const before = snapshot(tmp);
+      const result = await runFixBatch(FINDINGS, tmp, 'test-key', { maxAttempts: 1, dryRun: true, _callClaude: fakeClaude });
+
+      assert.equal(result.dryRun, true);
+      assert.equal(result.accepted.length, 1, `expected one accepted fix, got failed=${JSON.stringify(result.failed)}`);
+      assert.match(result.accepted[0].fixed, /a \+ b/, 'the plan carries the would-be content');
+      assert.equal(result.accepted[0].original, ORIGINAL);
+      assert.equal(result.accepted[0].result.testsNotChecked, true, 'a dry run must say the tests were not run');
+
+      const after = snapshot(tmp);
+      assert.deepEqual([...after.keys()].sort(), [...before.keys()].sort(), 'no file created or removed');
+      for (const [rel, b] of before) {
+        assert.ok(b.bytes.equals(after.get(rel).bytes), `${rel}: bytes changed under --dry-run`);
+        assert.equal(after.get(rel).mtimeMs, b.mtimeMs, `${rel}: mtime moved — something wrote it under --dry-run`);
+      }
+      assert.equal(fs.readFileSync(srcPath, 'utf-8'), ORIGINAL);
+
+      const plan = formatDryRunPlan(result.accepted);
+      assert.match(plan, /adder\.js/);
+      assert.match(plan, /^\s*-.*a - b/m, 'plan shows the removed line');
+      assert.match(plan, /^\s*\+.*a \+ b/m, 'plan shows the added line');
+      assert.match(plan, /Nothing was written/);
+      assert.match(plan, /Tests NOT run/);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('without dryRun: the same fixture IS modified (the control)', async () => {
+    const { tmp, srcPath } = makeProject();
+    try {
+      const result = await runFixBatch(FINDINGS, tmp, 'test-key', { maxAttempts: 1, _callClaude: fakeClaude });
+      assert.equal(result.dryRun, false);
+      assert.equal(result.accepted.length, 1);
+      const onDisk = fs.readFileSync(srcPath, 'utf-8');
+      assert.match(onDisk, /a \+ b/, 'apply mode writes the winner');
+      assert.notEqual(onDisk, ORIGINAL);
+      assert.ok(fs.statSync(srcPath).mtimeMs > PAST.getTime(), 'apply mode moves the mtime — the dry-run assertion above is not vacuous');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('formatDryRunPlan renders counts, issues and the diff without touching disk', () => {
+    const plan = formatDryRunPlan([{
+      file: 'src/x.js',
+      original: 'a\nb\nc\n',
+      fixed: 'a\nB\nc\nd\n',
+      issues: ['lint:unused — b is unused'],
+      result: { hypothesis: 'Alpha' },
+    }]);
+    assert.match(plan, /--- src\/x\.js\s+\(\+2 -1, from line 2, hypothesis Alpha\)/);
+    assert.match(plan, /issue: lint:unused — b is unused/);
+    assert.match(plan, /^\s*-b$/m);
+    assert.match(plan, /^\s*\+B$/m);
+    assert.match(plan, /^\s*\+d$/m);
+    assert.match(plan, /1 file\(s\) would change\. Nothing was written\./);
+    assert.doesNotMatch(plan, /Tests NOT run/, 'no testsNotChecked flag → no not-run warning');
+  });
+});

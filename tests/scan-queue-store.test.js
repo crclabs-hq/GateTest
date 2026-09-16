@@ -27,6 +27,11 @@ const {
   deadLetter,
   getQueueDepth,
   reclaimStuck,
+  getScanByEventId,
+  normalizeHost,
+  KNOWN_HOSTS,
+  REPO_HOSTS,
+  DEFAULT_HOST,
   MAX_ATTEMPTS,
 } = require(path.resolve(
   __dirname,
@@ -96,6 +101,8 @@ describe('enqueueScan', () => {
       7,
       'gluecron',
       null, // base_sha — not supplied by this caller
+      null, // triggered_by — documented default: unattributed
+      null, // metadata — documented default: none
     ]);
   });
 
@@ -127,6 +134,8 @@ describe('enqueueScan', () => {
       null,
       'gluecron',
       null,
+      null,
+      null,
     ]);
   });
 
@@ -141,6 +150,111 @@ describe('enqueueScan', () => {
     });
     const values = sql.calls[0].values;
     assert.strictEqual(values[5], 'github', `expected host='github', got ${values[5]}`);
+  });
+
+  // ── KI #113 control pair: host + triggeredBy + metadata persist ───────────
+  // Before the fix, `host: 'api'` was relabelled 'gluecron' and triggeredBy /
+  // metadata were not parameters at all — /api/v1/scans passed them and they
+  // vanished, so no row could be matched back to the API key that made it.
+
+  it('persists host, triggeredBy and metadata exactly as supplied (the positive control)', async () => {
+    const sql = makeFakeSql([[{ id: 9 }]]);
+    const metadata = { url: 'https://example.com/app', suite: 'web', callbackUrl: null, scanId: 'scn_1' };
+    const result = await enqueueScan({
+      eventId: 'scn_1',
+      repository: 'example.com/app',
+      sha: 'd'.repeat(40),
+      host: 'api',
+      triggeredBy: 'api_key:key_42',
+      metadata,
+      sql,
+    });
+    assert.strictEqual(result.duplicate, false);
+    const call = sql.calls[0];
+    assert.match(call.text, /INSERT INTO\s+scan_queue\s*\([^)]*\btriggered_by\b[^)]*\bmetadata\b/i,
+      'the INSERT column list must name triggered_by and metadata');
+    assert.strictEqual(call.values[5], 'api', 'host must be stored as supplied, not relabelled');
+    assert.strictEqual(call.values[7], 'api_key:key_42', 'triggered_by must be stored verbatim');
+    assert.deepStrictEqual(JSON.parse(call.values[8]), metadata, 'metadata must round-trip as JSON');
+  });
+
+  it('stores the documented defaults when host / triggeredBy / metadata are omitted (the negative control)', async () => {
+    const sql = makeFakeSql([[{ id: 10 }]]);
+    await enqueueScan({
+      eventId: 'evt-default',
+      repository: 'alice/webapp',
+      sha: 'e'.repeat(40),
+      sql,
+    });
+    const values = sql.calls[0].values;
+    assert.strictEqual(values[5], DEFAULT_HOST, 'host defaults to the documented DEFAULT_HOST');
+    assert.strictEqual(values[5], 'gluecron');
+    assert.strictEqual(values[7], null, 'triggered_by defaults to null (unattributed)');
+    assert.strictEqual(values[8], null, 'metadata defaults to null');
+  });
+
+  it('REJECTS an unknown host instead of relabelling it as a trusted producer', async () => {
+    const sql = makeFakeSql([[{ id: 11 }]]);
+    await assert.rejects(
+      () => enqueueScan({ eventId: 'e', repository: 'a/b', sha: 'f'.repeat(40), host: 'bitbucket', sql }),
+      /unknown host "bitbucket".*allowed: gluecron, github, api/,
+    );
+    assert.strictEqual(sql.calls.length, 0, 'nothing may be INSERTed for an unknown host');
+  });
+
+  it('rejects a malformed triggeredBy / metadata rather than storing garbage', async () => {
+    const sql = makeFakeSql();
+    const base = { eventId: 'e', repository: 'a/b', sha: 'f'.repeat(40), sql };
+    await assert.rejects(() => enqueueScan({ ...base, triggeredBy: '' }), /triggeredBy must be a non-empty string/);
+    await assert.rejects(() => enqueueScan({ ...base, triggeredBy: 42 }), /triggeredBy must be a non-empty string/);
+    await assert.rejects(() => enqueueScan({ ...base, triggeredBy: 'x'.repeat(201) }), /exceeds 200 chars/);
+    await assert.rejects(() => enqueueScan({ ...base, metadata: ['not', 'an', 'object'] }), /metadata must be a plain object/);
+    assert.strictEqual(sql.calls.length, 0);
+  });
+
+  it('normalizeHost is the one definition: known hosts pass, empty → default, unknown throws', () => {
+    for (const h of KNOWN_HOSTS) assert.strictEqual(normalizeHost(h), h);
+    assert.strictEqual(normalizeHost(undefined), DEFAULT_HOST);
+    assert.strictEqual(normalizeHost(null), DEFAULT_HOST);
+    assert.strictEqual(normalizeHost(''), DEFAULT_HOST);
+    assert.throws(() => normalizeHost('GitHub'), /unknown host/, 'case matters — no fuzzy trust');
+    assert.throws(() => normalizeHost({}), /unknown host/);
+    assert.ok(REPO_HOSTS.every((h) => KNOWN_HOSTS.includes(h)), 'every repo host is a known host');
+    assert.ok(!REPO_HOSTS.includes('api'), 'api rows have no repository to fetch');
+  });
+});
+
+describe('getScanByEventId', () => {
+  it('SELECTs the attribution columns by event_id and returns the row', async () => {
+    const row = {
+      id: 3, event_id: 'scn_abc', repository: 'example.com/_root_', sha: 'a'.repeat(40), ref: null,
+      pull_request_number: null, host: 'api', triggered_by: 'api_key:key_42',
+      metadata: { url: 'https://example.com', suite: 'web' }, status: 'queued', attempts: 0,
+      last_error: null, result_json: null, created_at: '2026-09-16T00:00:00Z', started_at: null, completed_at: null,
+    };
+    const sql = makeFakeSql([[row]]);
+    const got = await getScanByEventId('scn_abc', sql);
+    assert.deepStrictEqual(got, row);
+    const call = sql.calls[0];
+    assert.match(call.text, /SELECT[\s\S]*\bhost\b[\s\S]*\btriggered_by\b[\s\S]*\bmetadata\b[\s\S]*FROM scan_queue/i);
+    assert.match(call.text, /WHERE event_id = \?/);
+    assert.deepStrictEqual(call.values, ['scn_abc']);
+  });
+
+  it('returns null when no row matches, and throws on a missing sql / eventId', async () => {
+    const sql = makeFakeSql([[]]);
+    assert.strictEqual(await getScanByEventId('scn_missing', sql), null);
+    await assert.rejects(() => getScanByEventId('scn_x'), /sql tagged-template is required/);
+    await assert.rejects(() => getScanByEventId('', sql), /eventId is required/);
+  });
+});
+
+describe('claimNextJob — attribution travels with the claimed row', () => {
+  it('RETURNING includes triggered_by and metadata so the worker sees who asked', async () => {
+    const sql = makeFakeSql([[{ id: 1, host: 'api', triggered_by: 'api_key:k', metadata: { url: 'https://x' } }]]);
+    const job = await claimNextJob(sql);
+    assert.match(sql.calls[0].text, /RETURNING[\s\S]*q\.triggered_by[\s\S]*q\.metadata/);
+    assert.strictEqual(job.triggered_by, 'api_key:k');
   });
 
   it('throws when eventId / repository / sha / sql are missing', async () => {
