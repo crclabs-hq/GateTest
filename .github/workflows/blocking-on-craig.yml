@@ -1,0 +1,156 @@
+name: Blocking on Craig
+
+# The ONE always-current list of things only the owner can do — account
+# settings, secrets, tokens, DNS. Audits kept listing them; nothing made them
+# impossible to ignore, so they sat for days.
+#
+# Source of truth: docs/ops/blocking-on-craig.json. This workflow validates
+# it, renders it with scripts/ops/blocking-on-craig.js (age in days is
+# computed from `since`, so the numbers climb on their own), then:
+#   * creates-or-updates ONE open issue labelled `craig-only`, titled
+#     "Blocking on Craig — N items, oldest X days", and pins it — so it sits
+#     at the top of the Issues tab every morning until the list is empty
+#   * closes that issue when nothing is left
+#   * commits the rendered docs/ops/BLOCKING-ON-CRAIG.md back to main
+#     ([skip ci]) so the repo carries the same view
+#
+# GITHUB_TOKEN only. Every shell line is `set -euo pipefail`; nothing is
+# swallowed with `|| true` — a step that cannot do its job is visible.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/ops/blocking-on-craig.json
+      - scripts/ops/blocking-on-craig.js
+      - .github/workflows/blocking-on-craig.yml
+  schedule:
+    # 07:00 UTC daily — before the working day starts.
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # commit the rendered markdown back to main
+  issues: write     # create/update/pin/close the one issue, create the label
+
+concurrency:
+  group: blocking-on-craig
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate the queue
+        run: node scripts/ops/blocking-on-craig.js --check
+
+      - name: Render markdown and summary
+        id: render
+        run: |
+          set -euo pipefail
+          node scripts/ops/blocking-on-craig.js --markdown > docs/ops/BLOCKING-ON-CRAIG.md
+          node scripts/ops/blocking-on-craig.js --json > "$RUNNER_TEMP/blocking.json"
+          COUNT=$(jq -r '.summary.count' "$RUNNER_TEMP/blocking.json")
+          OLDEST=$(jq -r '.summary.oldestDays' "$RUNNER_TEMP/blocking.json")
+          TITLE=$(jq -r '.summary.issueTitle' "$RUNNER_TEMP/blocking.json")
+          LINE=$(jq -r '.summary.line' "$RUNNER_TEMP/blocking.json")
+          {
+            echo "count=$COUNT"
+            echo "oldest=$OLDEST"
+            echo "title=$TITLE"
+            echo "line=$LINE"
+          } >> "$GITHUB_OUTPUT"
+          echo "$LINE"
+
+      - name: Create, update, pin or close the one issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COUNT: ${{ steps.render.outputs.count }}
+          TITLE: ${{ steps.render.outputs.title }}
+        run: |
+          set -euo pipefail
+          MARKER='<!-- blocking-on-craig:managed -->'
+
+          # --force updates the colour/description if the label already exists.
+          gh label create craig-only --repo "$REPO" --force --color B60205 \
+            --description "Only the owner can do this: account settings, secrets, tokens, DNS"
+
+          # The managed issue is the open craig-only issue carrying the marker.
+          # Listing by label avoids the search index lag that duplicates issues.
+          EXISTING=$(gh issue list --repo "$REPO" --label craig-only --state open --limit 50 \
+            --json number,body \
+            --jq '[.[] | select(.body | contains("blocking-on-craig:managed"))] | .[0].number // empty')
+
+          if [ "$COUNT" -eq 0 ]; then
+            if [ -n "$EXISTING" ]; then
+              gh issue close "$EXISTING" --repo "$REPO" \
+                --comment "Nothing is blocking on Craig as of $(date -u +%F). Closed by the Blocking on Craig workflow ($RUN_URL); it reopens a fresh issue when the JSON gains an item."
+              echo "closed #$EXISTING — queue is empty"
+            else
+              echo "queue is empty and no issue is open — nothing to do"
+            fi
+            exit 0
+          fi
+
+          {
+            echo "$MARKER"
+            echo
+            cat docs/ops/BLOCKING-ON-CRAIG.md
+            echo
+            echo '---'
+            echo "_Rendered by [the Blocking on Craig workflow]($RUN_URL). Edit \`docs/ops/blocking-on-craig.json\`, not this issue — it is overwritten daily at 07:00 UTC._"
+          } > "$RUNNER_TEMP/body.md"
+
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --repo "$REPO" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md"
+            NUMBER=$EXISTING
+            echo "updated #$NUMBER: $TITLE"
+          else
+            URL=$(gh issue create --repo "$REPO" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md" --label craig-only)
+            NUMBER=${URL##*/}
+            echo "created #$NUMBER: $TITLE"
+          fi
+
+          PINNED=$(gh issue view "$NUMBER" --repo "$REPO" --json isPinned --jq '.isPinned')
+          if [ "$PINNED" != "true" ]; then
+            # GitHub allows three pinned issues per repo. Pinning is what makes
+            # this list impossible to ignore, so a refusal is a warning on the
+            # run, not a silent skip.
+            if gh issue pin "$NUMBER" --repo "$REPO"; then
+              echo "pinned #$NUMBER"
+            else
+              echo "::warning::could not pin #$NUMBER — the repo already has three pinned issues; unpin one so the Craig-only queue stays visible"
+            fi
+          fi
+
+      - name: Commit the rendered markdown back to main
+        if: github.ref == 'refs/heads/main'
+        env:
+          LINE: ${{ steps.render.outputs.line }}
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain -- docs/ops/BLOCKING-ON-CRAIG.md)" ]; then
+            echo "docs/ops/BLOCKING-ON-CRAIG.md unchanged — nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/ops/BLOCKING-ON-CRAIG.md
+          git commit -m "docs(ops): render Blocking on Craig — $LINE [skip ci]"
+          # The push is the only step branch protection can refuse. The pinned
+          # issue above is already current, so a refusal is a warning, not a
+          # red run that trains everyone to ignore this workflow.
+          if git push origin HEAD:refs/heads/main; then
+            echo "pushed the render to main"
+          else
+            echo "::warning::push to main refused (branch protection?) — the pinned issue is current; docs/ops/BLOCKING-ON-CRAIG.md is stale until a human commits it"
+          fi
