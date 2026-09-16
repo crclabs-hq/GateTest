@@ -1,7 +1,7 @@
 {
   "name": "gatetest",
-  "displayName": "GateTest — AI Code Quality Gate",
-  "description": "AI code quality gate that runs inside your editor. 121 modules find security holes, money-float bugs, import cycles, PII leaks, attack chains and more, and show them as inline diagnostics. Auto-fixes with a PR. Per-scan pricing, charged at checkout.",
+  "displayName": "GateTest — Code Quality Gate",
+  "description": "Code quality gate that runs inside your editor. 121 analysis modules check security, dependencies, data handling, import structure and more, and report findings as inline diagnostics. Optional AI fix that opens a pull request. Per-scan pricing, charged at checkout.",
   "version": "1.1.0",
   "publisher": "GateTestHQ",
   "engines": {
@@ -13,14 +13,13 @@
     "Testing"
   ],
   "keywords": [
-    "security",
     "code quality",
+    "quality gate",
+    "linter",
+    "static analysis",
+    "security",
     "AI",
-    "mcp",
-    "scan",
-    "fix",
-    "sonarqube",
-    "snyk"
+    "mcp"
   ],
   "icon": "images/icon.png",
   "galleryBanner": {
@@ -29,11 +28,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/crclabs-hq/gatetest"
+    "url": "https://github.com/crclabs-hq/GateTest"
   },
   "homepage": "https://gatetest.io",
   "bugs": {
-    "url": "https://github.com/crclabs-hq/gatetest/issues"
+    "url": "https://github.com/crclabs-hq/GateTest/issues"
   },
   "license": "MIT",
   "activationEvents": [
