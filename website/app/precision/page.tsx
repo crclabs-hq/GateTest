@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { contentMetadata, breadcrumbSchema, jsonLd } from "../lib/seo/schema";
 import precision from "../data/precision.json";
+import headToHead from "../data/head-to-head.json";
 import siteStats from "../data/site-stats.json";
+import { buildTable } from "../lib/head-to-head";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 
@@ -53,6 +55,24 @@ const precisionRows = rows.filter((r) => typeof r.ceiling === "number");
 const recallRows = rows.filter((r) => typeof r.floor === "number");
 const commitUrl = (r: Row) => `${r.url.replace(/\.git$/, "")}/commit/${r.sha}`;
 const generated = new Date(precision.generatedAt);
+
+// The head-to-head table: GateTest, Semgrep and ESLint (eslint-plugin-security)
+// on the same pinned clones, written by scripts/head-to-head.js and rendered
+// through the same module that validated it. A cell for a tool that was not
+// run, timed out, or is not measured yet carries that text — never a blank.
+// tests/head-to-head.test.js proves it on a fixture with every kind of null.
+const h2h = buildTable(headToHead);
+const h2hGenerated = new Date(headToHead.generatedAt);
+const h2hMeasured = headToHead.repos.length;
+const h2hCorpus = headToHead.corpusSize;
+const cellClass: Record<string, string> = {
+  clean: "text-success",
+  measured: "text-foreground",
+  failed: "text-warning",
+  unavailable: "text-muted italic",
+  "not-measured": "text-muted italic",
+  "not-run": "text-muted italic",
+};
 
 const label = "text-xs font-mono uppercase tracking-[0.13em] text-accent mb-4";
 const headRow = "border-b border-border bg-surface-light text-left text-muted";
@@ -154,6 +174,69 @@ export default function PrecisionPage() {
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section className="mt-12">
+          <h2 className={label}>Head to head — the same commits, other scanners</h2>
+          <p className="text-foreground-secondary max-w-[66ch] leading-relaxed mb-4">
+            The same pinned clones, handed to Semgrep (its default <code className="font-mono">auto</code>{" "}
+            ruleset) and, where the repository is JavaScript or TypeScript, to ESLint with
+            eslint-plugin-security&rsquo;s recommended rules. The counts are not comparable one-to-one:
+            GateTest&rsquo;s <em>blocking</em> is a gate verdict &mdash; error-severity findings at or above the
+            confidence threshold, across code quality, security, infrastructure and documentation &mdash; while
+            Semgrep&rsquo;s <em>error</em> is the label a rule author chose, and eslint-plugin-security reports
+            fourteen security rules. Read each column as what that tool says about that commit and how long it took
+            to say it. Each tool is time-boxed at {Math.round(headToHead.toolTimeoutSeconds / 60)} minutes per
+            repository. SonarQube and CodeQL have not been run yet; their columns say so and why, and no number
+            appears there until one is measured. {h2hMeasured} of {h2hCorpus} corpus repositories measured on{" "}
+            {h2hGenerated.toISOString().slice(0, 10)} with GateTest <code className="font-mono">--suite {headToHead.suite}</code>.
+          </p>
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="w-full min-w-[960px] text-sm">
+              <thead>
+                <tr className={headRow}>
+                  <th className="px-4 py-3 font-medium">Repository</th>
+                  <th className="px-4 py-3 font-medium">Language</th>
+                  {h2h.columns.map((c) => (
+                    <th key={c.key} className="px-4 py-3 font-medium">
+                      {c.label}
+                      {c.version ? <span className="ml-2 font-mono text-[11px] text-muted">v{c.version}</span> : null}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {h2h.rows.map((r) => (
+                  <tr key={r.name} className={bodyRow}>
+                    <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
+                      {r.name}{" "}
+                      <a
+                        href={`${r.url.replace(/\.git$/, "")}/commit/${r.sha}`}
+                        className="ml-1 font-mono text-[11px] text-muted hover:text-accent transition-colors"
+                        rel="noopener"
+                      >
+                        {r.sha.slice(0, 8)}
+                      </a>
+                    </td>
+                    <td className="px-4 py-3 text-foreground-secondary whitespace-nowrap">{r.language}</td>
+                    {r.cells.map((cell, i) => (
+                      <td key={h2h.columns[i].key} className={`px-4 py-3 align-top ${cellClass[cell.kind] ?? "text-foreground"}`}>
+                        <span className="font-mono tabular-nums">{cell.text}</span>
+                        {cell.detail ? <span className="ml-2 text-[11px] text-muted">{cell.detail}</span> : null}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-4 text-sm text-muted max-w-[66ch] leading-relaxed">
+            Generated {h2hGenerated.toISOString().slice(0, 10)} by{" "}
+            <code className="font-mono">{headToHead.source}</code> on engine v{headToHead.engineVersion}. Every tool
+            saw the same bytes; a run that hit the time box is written as timed out with the seconds it used, and a
+            tool the runner could not install is written as unavailable. The script and the manifest are in the
+            repository, so anyone can re-run the table.
+          </p>
         </section>
 
         <section className="mt-12">

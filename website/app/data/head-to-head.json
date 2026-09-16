@@ -1,0 +1,889 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-16T06:51:02.129Z",
+  "source": "scripts/head-to-head.js",
+  "note": "Measured on pinned commits of repositories we do not control, every tool on the same clone. Counts are not comparable one-to-one across tools; each column is what that tool reports and how long it took. A tool that was not run says so. Do not hand-edit — run the script.",
+  "engineVersion": "1.61.1",
+  "engineCommit": "b444057a",
+  "suite": "full",
+  "corpusSize": 20,
+  "toolTimeoutSeconds": 600,
+  "runner": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "v24.18.0"
+  },
+  "tools": {
+    "gatetest": {
+      "version": "1.61.1",
+      "command": "gatetest scan --suite full --project <clone>"
+    },
+    "semgrep": {
+      "version": "1.177.0",
+      "config": "auto",
+      "command": "semgrep --config auto --json --quiet --output <file> ."
+    },
+    "eslintSecurity": {
+      "version": "9.39.5",
+      "pluginVersion": "4.0.1",
+      "parserVersion": "8.70.0",
+      "installSeconds": 38.4,
+      "command": "eslint --config <security-only flat config> --format json ."
+    },
+    "sonarqube": {
+      "status": "not measured",
+      "reason": "needs a running SonarQube server and a scanner token; no server is provisioned for the corpus yet, and no number is written until one measures it"
+    },
+    "codeql": {
+      "status": "not measured",
+      "reason": "needs the CodeQL CLI and a per-language database build (a compile step for Java, C#, Kotlin, Swift, Go, Rust) for each repository; not automated on this runner yet"
+    }
+  },
+  "repos": [
+    {
+      "name": "express",
+      "url": "https://github.com/expressjs/express.git",
+      "sha": "023767fe9872e029271df1418f73401bff20ff40",
+      "language": "JavaScript",
+      "fileCounts": {
+        "JavaScript": 141
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:08:57.853Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 0,
+        "total": 132,
+        "errors": 13,
+        "softErrors": 13,
+        "warnings": 74,
+        "info": 45,
+        "modules": 88,
+        "exit": 0,
+        "seconds": 120.8
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 0,
+        "warning": 42,
+        "info": 1,
+        "other": 2,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 1,
+        "filesScanned": 101,
+        "exit": 0,
+        "seconds": 27
+      },
+      "eslintSecurity": {
+        "status": "ok",
+        "error": 0,
+        "warning": 75,
+        "fatal": 0,
+        "files": 142,
+        "exit": 0,
+        "seconds": 22.3
+      }
+    },
+    {
+      "name": "django",
+      "url": "https://github.com/django/django.git",
+      "sha": "b3f4d83aad7f589f165a6d8b020b7acba4936f35",
+      "language": "Python",
+      "fileCounts": {
+        "Python": 2930,
+        "JavaScript": 45
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:12:10.101Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 46,
+        "total": 989,
+        "errors": 55,
+        "softErrors": 9,
+        "warnings": 686,
+        "info": 248,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 225.1
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 77,
+        "warning": 522,
+        "info": 94,
+        "other": 0,
+        "otherSeverities": [],
+        "scanErrors": 62,
+        "filesScanned": 4391,
+        "exit": 0,
+        "seconds": 166.1
+      },
+      "eslintSecurity": null
+    },
+    {
+      "name": "rails",
+      "url": "https://github.com/rails/rails.git",
+      "sha": "1ec64ce82451c52d7407fa665ea5f95291430c23",
+      "language": "Ruby",
+      "fileCounts": {
+        "Ruby": 3458,
+        "JavaScript": 61
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:18:51.412Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 41,
+        "total": 454,
+        "errors": 60,
+        "softErrors": 19,
+        "warnings": 314,
+        "info": 80,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 104.9
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 45,
+        "warning": 196,
+        "info": 0,
+        "other": 0,
+        "otherSeverities": [],
+        "scanErrors": 15,
+        "filesScanned": 2151,
+        "exit": 0,
+        "seconds": 95.8
+      },
+      "eslintSecurity": null
+    },
+    {
+      "name": "flask",
+      "url": "https://github.com/pallets/flask.git",
+      "sha": "d318b683471101618febed18996405ad26462110",
+      "language": "Python",
+      "fileCounts": {
+        "Python": 83
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:22:16.237Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 2,
+        "total": 50,
+        "errors": 2,
+        "softErrors": 0,
+        "warnings": 46,
+        "info": 2,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 14.2
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 0,
+        "warning": 15,
+        "info": 0,
+        "other": 1,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 5,
+        "filesScanned": 162,
+        "exit": 0,
+        "seconds": 25.7
+      },
+      "eslintSecurity": null
+    },
+    {
+      "name": "fastify",
+      "url": "https://github.com/fastify/fastify.git",
+      "sha": "15ebc8e2fe6932d3e91afa84709523804f8a2537",
+      "language": "JavaScript",
+      "fileCounts": {
+        "JavaScript": 262,
+        "TypeScript": 34
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:22:58.161Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 3,
+        "total": 328,
+        "errors": 3,
+        "softErrors": 0,
+        "warnings": 144,
+        "info": 181,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 46.9
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 4,
+        "warning": 2,
+        "info": 0,
+        "other": 0,
+        "otherSeverities": [],
+        "scanErrors": 4,
+        "filesScanned": 158,
+        "exit": 0,
+        "seconds": 14.3
+      },
+      "eslintSecurity": {
+        "status": "ok",
+        "error": 0,
+        "warning": 886,
+        "fatal": 0,
+        "files": 297,
+        "exit": 0,
+        "seconds": 22.9
+      }
+    },
+    {
+      "name": "zod",
+      "url": "https://github.com/colinhacks/zod.git",
+      "sha": "7a00236683c79000dbab0d92f6faf0b7fba39f59",
+      "language": "TypeScript",
+      "fileCounts": {
+        "JavaScript": 7,
+        "TypeScript": 505
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:24:25.339Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 3,
+        "total": 1417,
+        "errors": 15,
+        "softErrors": 12,
+        "warnings": 920,
+        "info": 482,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 53.3
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 1,
+        "warning": 70,
+        "info": 4,
+        "other": 4,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 11,
+        "filesScanned": 471,
+        "exit": 0,
+        "seconds": 74.8
+      },
+      "eslintSecurity": {
+        "status": "ok",
+        "error": 8,
+        "warning": 526,
+        "fatal": 0,
+        "files": 513,
+        "exit": 1,
+        "seconds": 15.1
+      }
+    },
+    {
+      "name": "gin",
+      "url": "https://github.com/gin-gonic/gin.git",
+      "sha": "dcaa4296d111981ffb31ac3eba90bb63e1eb5ab9",
+      "language": "Go",
+      "fileCounts": {
+        "Go": 99
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:26:51.338Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 0,
+        "total": 81,
+        "errors": 0,
+        "softErrors": 0,
+        "warnings": 62,
+        "info": 19,
+        "modules": 88,
+        "exit": 0,
+        "seconds": 21.6
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 1,
+        "warning": 37,
+        "info": 0,
+        "other": 2,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 0,
+        "filesScanned": 90,
+        "exit": 0,
+        "seconds": 23.8
+      },
+      "eslintSecurity": null
+    },
+    {
+      "name": "laravel",
+      "url": "https://github.com/laravel/framework.git",
+      "sha": "cdbd17f7e3257e8ae4207d3c3bef6058452d5f72",
+      "language": "PHP",
+      "fileCounts": {
+        "PHP": 3073,
+        "JavaScript": 3
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:27:48.651Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 4,
+        "total": 72,
+        "errors": 4,
+        "softErrors": 0,
+        "warnings": 48,
+        "info": 20,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 64.2
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 5,
+        "warning": 97,
+        "info": 0,
+        "other": 1,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 4,
+        "filesScanned": 2057,
+        "exit": 0,
+        "seconds": 100
+      },
+      "eslintSecurity": null
+    },
+    {
+      "name": "got",
+      "url": "https://github.com/sindresorhus/got.git",
+      "sha": "687eb7dcc100ea3e548ebba227173b886789e670",
+      "language": "TypeScript",
+      "fileCounts": {
+        "TypeScript": 79,
+        "JavaScript": 6
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:30:38.902Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 0,
+        "total": 412,
+        "errors": 4,
+        "softErrors": 4,
+        "warnings": 244,
+        "info": 164,
+        "modules": 88,
+        "exit": 0,
+        "seconds": 65.5
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 0,
+        "warning": 5,
+        "info": 1,
+        "other": 1,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 1,
+        "filesScanned": 70,
+        "exit": 0,
+        "seconds": 31.2
+      },
+      "eslintSecurity": {
+        "status": "ok",
+        "error": 125,
+        "warning": 100,
+        "fatal": 0,
+        "files": 86,
+        "exit": 1,
+        "seconds": 7.7
+      }
+    },
+    {
+      "name": "hono",
+      "url": "https://github.com/honojs/hono.git",
+      "sha": "eebdf7be39abf0a872671835ccce0c4f03ea497a",
+      "language": "TypeScript",
+      "fileCounts": {
+        "TypeScript": 382,
+        "JavaScript": 3
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:32:27.272Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 17,
+        "total": 1702,
+        "errors": 74,
+        "softErrors": 57,
+        "warnings": 535,
+        "info": 1093,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 84.8
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 65,
+        "warning": 11,
+        "info": 1,
+        "other": 0,
+        "otherSeverities": [],
+        "scanErrors": 9,
+        "filesScanned": 477,
+        "exit": 0,
+        "seconds": 54
+      },
+      "eslintSecurity": {
+        "status": "ok",
+        "error": 186,
+        "warning": 488,
+        "fatal": 0,
+        "files": 386,
+        "exit": 1,
+        "seconds": 8.1
+      }
+    },
+    {
+      "name": "spring-petclinic",
+      "url": "https://github.com/spring-projects/spring-petclinic.git",
+      "sha": "818c4136ea971c21674525f9053de0d9c7ad8cfe",
+      "language": "Java",
+      "fileCounts": {
+        "Java": 50
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:34:56.259Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 8,
+        "total": 62,
+        "errors": 8,
+        "softErrors": 0,
+        "warnings": 38,
+        "info": 16,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 6.3
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 1,
+        "warning": 13,
+        "info": 2,
+        "other": 0,
+        "otherSeverities": [],
+        "scanErrors": 2,
+        "filesScanned": 102,
+        "exit": 0,
+        "seconds": 11.2
+      },
+      "eslintSecurity": null
+    },
+    {
+      "name": "axum",
+      "url": "https://github.com/tokio-rs/axum.git",
+      "sha": "8b30afbfeee457146d29c9c9db47f0ae621a22a8",
+      "language": "Rust",
+      "fileCounts": {
+        "Rust": 300,
+        "JavaScript": 5
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:35:15.429Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 5,
+        "total": 436,
+        "errors": 9,
+        "softErrors": 4,
+        "warnings": 393,
+        "info": 34,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 9.2
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 9,
+        "warning": 37,
+        "info": 0,
+        "other": 1,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 2,
+        "filesScanned": 325,
+        "exit": 0,
+        "seconds": 14.5
+      },
+      "eslintSecurity": null
+    },
+    {
+      "name": "cleanarchitecture",
+      "url": "https://github.com/jasontaylordev/CleanArchitecture.git",
+      "sha": "3a06afb9258c1f5a9d8e7103bd1479246fa4166a",
+      "language": "C#",
+      "fileCounts": {
+        "C#": 110,
+        "JavaScript": 18,
+        "TypeScript": 25
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:35:41.065Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 11,
+        "total": 88,
+        "errors": 11,
+        "softErrors": 0,
+        "warnings": 59,
+        "info": 18,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 9.8
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 0,
+        "warning": 16,
+        "info": 0,
+        "other": 3,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 2,
+        "filesScanned": 207,
+        "exit": 0,
+        "seconds": 11.8
+      },
+      "eslintSecurity": null
+    },
+    {
+      "name": "ktor",
+      "url": "https://github.com/ktorio/ktor.git",
+      "sha": "f92fad04353817c7eacf8599c8d69d517ba4882c",
+      "language": "Kotlin",
+      "fileCounts": {
+        "Kotlin": 2572,
+        "JavaScript": 3,
+        "Rust": 8,
+        "Java": 1
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:36:15.828Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 7,
+        "total": 429,
+        "errors": 7,
+        "softErrors": 0,
+        "warnings": 402,
+        "info": 20,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 57.6
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 0,
+        "warning": 19,
+        "info": 3,
+        "other": 4,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 9,
+        "filesScanned": 2346,
+        "exit": 0,
+        "seconds": 65.6
+      },
+      "eslintSecurity": null
+    },
+    {
+      "name": "vapor",
+      "url": "https://github.com/vapor/vapor.git",
+      "sha": "630763c5e0de50b2ac8c7e9a20d6c3ec5709a4c8",
+      "language": "Swift",
+      "fileCounts": {
+        "Swift": 250
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:38:22.874Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 0,
+        "total": 44,
+        "errors": 0,
+        "softErrors": 0,
+        "warnings": 31,
+        "info": 13,
+        "modules": 88,
+        "exit": 0,
+        "seconds": 7.1
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 5,
+        "warning": 8,
+        "info": 0,
+        "other": 2,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 0,
+        "filesScanned": 283,
+        "exit": 0,
+        "seconds": 14.1
+      },
+      "eslintSecurity": null
+    },
+    {
+      "name": "nest",
+      "url": "https://github.com/nestjs/nest.git",
+      "sha": "39fbddae51281ca56bf2fed9123d98e61509066c",
+      "language": "TypeScript",
+      "fileCounts": {
+        "JavaScript": 10,
+        "TypeScript": 1904
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:38:47.598Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 9,
+        "total": 928,
+        "errors": 10,
+        "softErrors": 1,
+        "warnings": 728,
+        "info": 190,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 89.7
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 6,
+        "warning": 43,
+        "info": 0,
+        "other": 1,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 0,
+        "filesScanned": 2005,
+        "exit": 0,
+        "seconds": 53.6
+      },
+      "eslintSecurity": {
+        "status": "ok",
+        "error": 17,
+        "warning": 382,
+        "fatal": 0,
+        "files": 1915,
+        "exit": 1,
+        "seconds": 7.5
+      }
+    },
+    {
+      "name": "trpc",
+      "url": "https://github.com/trpc/trpc.git",
+      "sha": "66d054454a3339dd8421da9dcf0648f92816f704",
+      "language": "TypeScript",
+      "fileCounts": {
+        "JavaScript": 21,
+        "TypeScript": 958
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:41:22.277Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 7,
+        "total": 1032,
+        "errors": 41,
+        "softErrors": 34,
+        "warnings": 715,
+        "info": 276,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 57.9
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 3,
+        "warning": 68,
+        "info": 8,
+        "other": 10,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 39,
+        "filesScanned": 1178,
+        "exit": 0,
+        "seconds": 36.9
+      },
+      "eslintSecurity": {
+        "status": "ok",
+        "error": 102,
+        "warning": 511,
+        "fatal": 0,
+        "files": 986,
+        "exit": 1,
+        "seconds": 5.3
+      }
+    },
+    {
+      "name": "apollo-server",
+      "url": "https://github.com/apollographql/apollo-server.git",
+      "sha": "53ac3c13fcf36dd22fb0dbb757a270ae58e89227",
+      "language": "TypeScript",
+      "fileCounts": {
+        "JavaScript": 13,
+        "TypeScript": 113
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:43:04.633Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 0,
+        "total": 1997,
+        "errors": 2,
+        "softErrors": 2,
+        "warnings": 1970,
+        "info": 25,
+        "modules": 88,
+        "exit": 0,
+        "seconds": 23.2
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 1,
+        "warning": 5,
+        "info": 0,
+        "other": 1,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 3,
+        "filesScanned": 296,
+        "exit": 0,
+        "seconds": 29.5
+      },
+      "eslintSecurity": {
+        "status": "ok",
+        "error": 0,
+        "warning": 626,
+        "fatal": 0,
+        "files": 127,
+        "exit": 0,
+        "seconds": 4
+      }
+    },
+    {
+      "name": "prisma",
+      "url": "https://github.com/prisma/prisma.git",
+      "sha": "dd846dcc8f0653099d1a10c457b1603d96bfafc7",
+      "language": "TypeScript",
+      "fileCounts": {
+        "JavaScript": 94,
+        "TypeScript": 4460
+      },
+      "role": "precision",
+      "measuredAt": "2026-09-16T06:44:10.797Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 12,
+        "total": 1169,
+        "errors": 30,
+        "softErrors": 18,
+        "warnings": 670,
+        "info": 469,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 221.2
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 10,
+        "warning": 13,
+        "info": 0,
+        "other": 1,
+        "otherSeverities": [
+          "MEDIUM"
+        ],
+        "scanErrors": 17,
+        "filesScanned": 3935,
+        "exit": 0,
+        "seconds": 126.8
+      },
+      "eslintSecurity": {
+        "status": "ok",
+        "error": 1,
+        "warning": 3389,
+        "fatal": 0,
+        "files": 4557,
+        "exit": 1,
+        "seconds": 32.5
+      }
+    },
+    {
+      "name": "NodeGoat",
+      "url": "https://github.com/OWASP/NodeGoat.git",
+      "sha": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+      "language": "JavaScript",
+      "fileCounts": {
+        "JavaScript": 44
+      },
+      "role": "recall",
+      "measuredAt": "2026-09-16T06:50:35.670Z",
+      "gatetest": {
+        "status": "ok",
+        "blocking": 53,
+        "total": 297,
+        "errors": 53,
+        "softErrors": 0,
+        "warnings": 191,
+        "info": 53,
+        "modules": 88,
+        "exit": 1,
+        "seconds": 14.6
+      },
+      "semgrep": {
+        "status": "ok",
+        "error": 7,
+        "warning": 27,
+        "info": 1,
+        "other": 0,
+        "otherSeverities": [],
+        "scanErrors": 10,
+        "filesScanned": 72,
+        "exit": 0,
+        "seconds": 9.2
+      },
+      "eslintSecurity": {
+        "status": "ok",
+        "error": 0,
+        "warning": 9,
+        "fatal": 0,
+        "files": 45,
+        "exit": 0,
+        "seconds": 1.6
+      }
+    }
+  ]
+}

@@ -1,0 +1,147 @@
+name: Head to head — corpus vs other scanners
+
+# Measures GateTest, Semgrep and ESLint (eslint-plugin-security) on the same
+# pinned third-party commits the precision gate uses
+# (reliability-corpus/real-world.json) and regenerates
+# website/app/data/head-to-head.json, which /precision renders. Weekly rather
+# than nightly: three tools over twenty repositories is an hour or more of
+# runner time, and the table is a published comparison, not a gate.
+#
+# Nothing here fakes a number. Semgrep comes from pip on ubuntu (the Windows
+# laptop that cut the first table needed the per-user Scripts dir on PATH;
+# here it is a plain install). SonarQube and CodeQL are NOT run — the script
+# writes them as "not measured" with the reason — and this workflow never
+# touches reliability-corpus/real-world.json: the ceilings belong to
+# dogfood-nightly.yml's --ratchet run and to nothing else.
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'    # Monday 05:00 UTC, after the weekend's nightlies
+  workflow_dispatch:
+    inputs:
+      repos:
+        description: 'Limit to the first N repositories in priority order (blank = all twenty)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write          # rolling PR branch push
+  pull-requests: write
+
+jobs:
+  measure:
+    name: Measure the corpus against Semgrep and ESLint
+    runs-on: ubuntu-latest
+    # Worst case is every tool hitting its ten-minute box on every repo; the
+    # realistic run is well under two hours. The box is per tool, per repo,
+    # so a single slow scanner cannot eat the whole job.
+    timeout-minutes: 330
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Semgrep
+        # The OSS engine from PyPI. `--config auto` pulls the registry
+        # ruleset for the languages it detects; no login is needed.
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade semgrep
+          semgrep --version
+
+      - name: Install all workspaces
+        # Same script ci.yml and dogfood-nightly.yml use — a root-only
+        # `npm ci` leaves modules that need a real npm package out of the
+        # engine and under-counts GateTest's own column.
+        run: bash scripts/install-workspaces.sh
+
+      - name: Verify all modules load
+        run: node bin/gatetest.js --list | wc -l
+
+      - name: Measure
+        # The script installs its throwaway ESLint toolchain in the temp dir,
+        # never in this repository (tests/head-to-head.test.js pins that).
+        # A repository that could not be cloned exits non-zero AFTER the
+        # file is written for the ones that were — the red is visible here
+        # and the PR step ships only what was measured.
+        run: |
+          set -o pipefail
+          mkdir -p .h2h
+          LIMIT="${{ github.event.inputs.repos }}"
+          GATETEST_NO_TELEMETRY=1 node scripts/head-to-head.js \
+            ${LIMIT:+--repos "$LIMIT"} \
+            --out website/app/data/head-to-head.json 2>&1 | tee .h2h/run.log && rc=0 || rc=$?
+          echo "# exit $rc" >> .h2h/run.log
+          cp website/app/data/head-to-head.json .h2h/head-to-head.json
+          exit "$rc"
+
+      - name: Validate the file the page will render
+        if: always()
+        run: node --test tests/head-to-head.test.js
+
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: head-to-head-${{ github.run_id }}
+          path: .h2h/
+          retention-days: 60
+
+      - name: Open / update the head-to-head PR if the numbers changed
+        # One rolling branch, one PR, reset onto main each run — the same
+        # shape as dogfood-nightly.yml's flywheel/site-stats and for the
+        # same reason: the file is fully regenerated every run, so the
+        # newest is always a complete superset and there is nothing to
+        # accumulate. Only head-to-head.json rides this PR; the corpus
+        # ceilings and precision.json belong to the nightly.
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          GENERATED="website/app/data/head-to-head.json"
+          if git diff --quiet -- $GENERATED; then
+            echo "head-to-head.json unchanged — nothing to ship"
+            exit 0
+          fi
+          BRANCH="flywheel/head-to-head"
+          git config user.name  "gatetest-dogfood[bot]"
+          git config user.email "gatetest-dogfood@users.noreply.github.com"
+
+          mkdir -p "$RUNNER_TEMP/generated"
+          cp "$GENERATED" "$RUNNER_TEMP/generated/head-to-head.json"
+          git fetch origin main
+          git checkout -B "$BRANCH" origin/main
+          cp "$RUNNER_TEMP/generated/head-to-head.json" "$GENERATED"
+
+          git add $GENERATED
+          if git diff --cached --quiet; then
+            echo "already current on main — nothing to ship"
+            exit 0
+          fi
+          git -c commit.gpgsign=false commit -m "chore(precision): refresh the head-to-head table $(date -u +%Y-%m-%d)"
+          git push -u origin "$BRANCH" --force
+
+          PR_BODY=$(printf 'Weekly head-to-head run refreshed `website/app/data/head-to-head.json` — GateTest, Semgrep and ESLint (eslint-plugin-security) on the same pinned corpus commits, rendered at /precision.\n\nEvery number is this run'"'"'s own measurement (`scripts/head-to-head.js`). A tool that timed out, failed or could not be installed is written as such; SonarQube and CodeQL are written as not measured, with the reason. Nothing in this PR touches the corpus ceilings.\n\nThis is a ROLLING PR — it is reset onto `main` every run, so it always shows the current table against current `main`.')
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "Refresh the head-to-head table — $(date -u +%Y-%m-%d)" \
+            --body "$PR_BODY" \
+          || gh pr edit "$BRANCH" \
+               --title "Refresh the head-to-head table — $(date -u +%Y-%m-%d)" \
+               --body "$PR_BODY"
+
+          gh pr ready "$BRANCH" || echo "gh pr ready: already ready, or unavailable ($?)"
+          gh pr merge "$BRANCH" --auto --squash || echo "auto-merge unavailable — PR left open for review"
