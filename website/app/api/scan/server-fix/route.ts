@@ -27,6 +27,16 @@ const { CHEAP_MODEL } = require("@/app/lib/engine-models") as { CHEAP_MODEL: str
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { endpoint: anthropicEndpoint, apiPath: anthropicApiPath, apiVersion: anthropicVersion } = require("@/app/lib/anthropic-config") as { endpoint: () => { hostname: string; port: number }; apiPath: (r?: string) => string; apiVersion: () => string };
 
+// Usage Doctrine Meter 3 (CLAUDE.md, Craig 2026-09-16) — the Forensic branch
+// below runs on OUR Anthropic key with no per-request payment (Quick/Full
+// use free templates and never call Claude). One daily ceiling shared by
+// every automatic caller; see website/app/lib/server-spend-guard.js.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { checkServerSpend, recordServerSpend } = require("@/app/lib/server-spend-guard") as {
+  checkServerSpend: (opts: { sql?: unknown; now?: Date }) => Promise<{ allowed: boolean; spentMicros: number; ceilingMicros: number | null; reason: string }>;
+  recordServerSpend: (opts: { sql?: unknown; route: string; model: string; inputTokens: number; outputTokens: number; now?: Date; isCustomerKey?: boolean }) => Promise<{ recorded: boolean; reason?: string }>;
+};
+
 // Phase 3.5 — executive summary composer. Synthesises diagnoses +
 // chains + scan stats into a single CTO-readable report.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -362,7 +372,7 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]`,
  * /api/scan/fix's anthropicCallWithRetry (jittered exp backoff,
  * 6 attempts) without duplicating the full helper.
  */
-async function askClaudeForDiagnosis(prompt: string): Promise<string> {
+async function askClaudeForDiagnosis(prompt: string, onUsage?: (u: { inputTokens: number; outputTokens: number }) => void): Promise<string> {
   if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not set");
   const body = JSON.stringify({
     model: CHEAP_MODEL,
@@ -403,6 +413,8 @@ async function askClaudeForDiagnosis(prompt: string): Promise<string> {
     try {
       const res = await doCall();
       if (res.status === 200) {
+        const usage = res.data.usage as { input_tokens?: number; output_tokens?: number } | undefined;
+        if (onUsage) onUsage({ inputTokens: usage?.input_tokens || 0, outputTokens: usage?.output_tokens || 0 });
         const content = res.data.content as Array<{ type: string; text: string }>;
         return content?.[0]?.text || "";
       }
@@ -450,6 +462,31 @@ export async function POST(req: NextRequest) {
   // free with those tiers and their snippets are useful starting
   // points for non-Nuclear customers.
   if (forensicAllowed && ANTHROPIC_API_KEY) {
+    const spendCheck = await checkServerSpend({});
+    if (!spendCheck.allowed) {
+      return NextResponse.json(
+        { error: "AI assistance is paused for today: daily budget reached", reason: spendCheck.reason },
+        { status: 503 }
+      );
+    }
+
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+    const askClaudeMetered = (prompt: string) => askClaudeForDiagnosis(prompt, (u) => {
+      totalInputTokens += u.inputTokens;
+      totalOutputTokens += u.outputTokens;
+    });
+    const recordForensicSpend = async () => {
+      if (totalInputTokens > 0 || totalOutputTokens > 0) {
+        await recordServerSpend({
+          route: "/api/scan/server-fix",
+          model: CHEAP_MODEL,
+          inputTokens: totalInputTokens,
+          outputTokens: totalOutputTokens,
+        });
+      }
+    };
+
     const findings: Array<{ detail: string; module: string; severity: string }> = [];
     for (const mod of modules) {
       if (mod.status === "passed") continue;
@@ -475,12 +512,12 @@ export async function POST(req: NextRequest) {
           findings,
           hostname,
           scanContext: body.scanContext,
-          askClaudeForDiagnosis,
+          askClaudeForDiagnosis: askClaudeMetered,
         }),
         correlateFindings({
           findings,
           hostname,
-          askClaudeForCorrelation: askClaudeForDiagnosis, // same Claude wrapper, different prompt
+          askClaudeForCorrelation: askClaudeMetered, // same Claude wrapper, different prompt
         }),
       ]);
       // Executive summary depends on diagnoses + chains, so it runs
@@ -493,12 +530,13 @@ export async function POST(req: NextRequest) {
           topFindings: findings.slice(0, 10),
           chains: corrResult.chains,
           hostname,
-          askClaudeForSummary: askClaudeForDiagnosis,
+          askClaudeForSummary: askClaudeMetered,
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : "executive summary failed";
         execResult = { ok: false, sections: null, reason: message };
       }
+      await recordForensicSpend();
       const execMarkdown = renderExecutiveSummary(execResult, { hostname });
       return NextResponse.json({
         hostname,
@@ -519,6 +557,10 @@ export async function POST(req: NextRequest) {
           + renderCorrelationReport(corrResult),
       });
     } catch (err) {
+      // Some Claude calls may have already succeeded (Promise.all rejects on
+      // the first failure but earlier calls still cost real money) — record
+      // whatever was actually spent even on this failure path.
+      await recordForensicSpend();
       const message = err instanceof Error ? err.message : "diagnosis failed";
       return NextResponse.json({
         error: `Nuclear diagnosis failed: ${message}`,

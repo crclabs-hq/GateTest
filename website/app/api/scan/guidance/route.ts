@@ -27,6 +27,15 @@ const { CHEAP_MODEL } = require("@/app/lib/engine-models") as { CHEAP_MODEL: str
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { endpoint: anthropicEndpoint, apiPath: anthropicApiPath, apiVersion: anthropicVersion } = require("@/app/lib/anthropic-config") as { endpoint: () => { hostname: string; port: number }; apiPath: (r?: string) => string; apiVersion: () => string };
 
+// Usage Doctrine Meter 3 (CLAUDE.md, Craig 2026-09-16) — guidance runs on OUR
+// Anthropic key with no per-request payment. One daily ceiling shared by
+// every automatic caller; see website/app/lib/server-spend-guard.js.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { checkServerSpend, recordServerSpend } = require("@/app/lib/server-spend-guard") as {
+  checkServerSpend: (opts: { sql?: unknown; now?: Date }) => Promise<{ allowed: boolean; spentMicros: number; ceilingMicros: number | null; reason: string }>;
+  recordServerSpend: (opts: { sql?: unknown; route: string; model: string; inputTokens: number; outputTokens: number; now?: Date; isCustomerKey?: boolean }) => Promise<{ recorded: boolean; reason?: string }>;
+};
+
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
 
 interface IssueInput {
@@ -174,7 +183,7 @@ const PATTERNS: Array<{
   },
 ];
 
-async function askClaudeGuidance(issue: IssueInput): Promise<Guidance> {
+async function askClaudeGuidance(issue: IssueInput, onUsage?: (u: { inputTokens: number; outputTokens: number }) => void): Promise<Guidance> {
   if (!ANTHROPIC_API_KEY) {
     return {
       module: issue.module,
@@ -225,6 +234,9 @@ Rules:
     }, body);
 
     if (res.status !== 200) throw new Error(`API ${res.status}`);
+
+    const usage = res.data.usage as { input_tokens?: number; output_tokens?: number } | undefined;
+    if (onUsage) onUsage({ inputTokens: usage?.input_tokens || 0, outputTokens: usage?.output_tokens || 0 });
 
     const content = res.data.content as Array<{ type: string; text: string }>;
     const text = content?.[0]?.text || "";
@@ -293,10 +305,39 @@ export async function POST(req: NextRequest) {
     if (!matched) unmatched.push(issue);
   }
 
-  // Second pass: Claude for the rest (parallel, capped)
-  const claudeResults = await Promise.allSettled(
-    unmatched.slice(0, 20).map(askClaudeGuidance) // cap at 20 to control cost
-  );
+  // Second pass: Claude for the rest (parallel, capped). Gated by the daily
+  // server-key spend ceiling (Usage Doctrine Meter 3) — only when there's
+  // actually an AI call to make; the pattern-matched issues above are free.
+  let claudeResults: PromiseSettledResult<Guidance>[] = [];
+  if (unmatched.length > 0) {
+    const spendCheck = await checkServerSpend({});
+    if (!spendCheck.allowed) {
+      return NextResponse.json(
+        { error: "AI assistance is paused for today: daily budget reached", reason: spendCheck.reason },
+        { status: 503 }
+      );
+    }
+
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+    const onUsage = (u: { inputTokens: number; outputTokens: number }) => {
+      totalInputTokens += u.inputTokens;
+      totalOutputTokens += u.outputTokens;
+    };
+
+    claudeResults = await Promise.allSettled(
+      unmatched.slice(0, 20).map((issue) => askClaudeGuidance(issue, onUsage)) // cap at 20 to control cost
+    );
+
+    if (totalInputTokens > 0 || totalOutputTokens > 0) {
+      await recordServerSpend({
+        route: "/api/scan/guidance",
+        model: CHEAP_MODEL,
+        inputTokens: totalInputTokens,
+        outputTokens: totalOutputTokens,
+      });
+    }
+  }
 
   for (const r of claudeResults) {
     if (r.status === "fulfilled") guidance.push(r.value);
