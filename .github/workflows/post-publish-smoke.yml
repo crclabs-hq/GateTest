@@ -1,0 +1,147 @@
+# Post-publish smoke — install every PUBLISHED GateTest artifact the way a
+# stranger would, and open an issue when one is broken.
+#
+# Why (2026-09-15): the npm CLI 1.61.0 could not be run with bare
+# `npx @gatetest/cli` (no bin named after the package) and the published
+# `@gatetest/mcp-server` 1.1.3 crashed on start (`Cannot find module
+# './site-url'` from the cli it depends on). CI was green throughout: every
+# test ran from a checkout or a locally packed tarball, and nothing ever
+# installed from the registry. This job does only that.
+#
+# What it checks (scripts/ops/smoke-published.js, scripts/ops/README.md):
+#   npm   @gatetest/cli@latest      npm install, `npx -p … gatetest --version`,
+#                                   bare `npx @gatetest/cli --version`, a
+#                                   `--suite quick` run on a fixture project
+#   npm   @gatetest/mcp-server      `npx -y …@latest`, JSON-RPC `initialize`
+#   VS Code Marketplace             GateTestHQ.gatetest flags validated+public
+#   GitHub Action Marketplace       the listing page answers 200
+#   ghcr.io/crclabs-hq/gatetest     :latest manifest pullable anonymously
+#
+# Three-state: PASS / FAIL / KNOWN GAP. A channel that ships with 1.61.1
+# (bare npx, the ghcr image) is a KNOWN GAP while npm still serves an older
+# cli, and becomes a FAIL by itself once 1.61.1 is published. Only FAIL rows
+# fail the job. No secrets: everything here is what an anonymous user can do,
+# which is the point — a monitor that needs credentials tends not to get set up.
+name: Post-publish smoke
+
+on:
+  schedule:
+    # Every 6 hours, off the hour so it does not queue behind the other crons.
+    - cron: '23 */6 * * *'
+  workflow_run:
+    workflows: ["Publish to npm", "Publish VS Code extension"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write   # open / update the "Published artifact is broken" issue
+  actions: read   # workflow_run-triggered jobs 403 on run lookups without it (ciSecurity)
+
+concurrency:
+  group: post-publish-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Install every published artifact fresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Wait for registry propagation
+        # A publish that finished seconds ago is not always what `@latest`
+        # resolves to yet. Only after a publish run; the schedule needs none.
+        if: github.event_name == 'workflow_run'
+        run: sleep 90
+
+      - name: Smoke every published artifact
+        id: smoke
+        run: |
+          # Exit codes: 0 = every channel PASS or KNOWN GAP, 1 = at least one
+          # FAIL, 2 = the smoke itself could not run. 1 is decided at the end
+          # of the job, after the JSON is uploaded and the issue is filed —
+          # 2 is surfaced right here, because a dead smoke uploading nothing
+          # is how a broken artifact passes for a healthy one.
+          rc=0
+          node scripts/ops/smoke-published.js --json > smoke-published.json || rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          if [ "$rc" -gt 1 ]; then
+            echo "smoke could not run (exit $rc) — see stderr above" >&2
+            exit "$rc"
+          fi
+          node -e '
+            const lib = require("./scripts/ops/smoke-published-lib");
+            const r = require("./smoke-published.json");
+            const table = lib.renderTable(r.rows);
+            console.log(table);
+            const s = r.summary;
+            const line = `${r.exitCode ? "SMOKE: FAILED" : "SMOKE: PASSED"}  ${s.pass} pass, ${s.fail} fail, ${s.knownGap} known gap, ${s.notChecked} not checked  (@gatetest/cli@${r.publishedCliVersion || "?"} on npm)`;
+            console.log(line);
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Post-publish smoke\n\n${line}\n\n\`\`\`\n${table}\n\`\`\`\n`);
+          '
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-published-${{ github.run_id }}
+          path: smoke-published.json
+          retention-days: 30
+
+      - name: Open or update the "Published artifact is broken" issue
+        if: steps.smoke.outputs.rc == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE_PREFIX: 'Published artifact is broken:'
+        run: |
+          set -euo pipefail
+          # One issue, ever: find an OPEN issue whose title starts with the
+          # prefix and refresh it; otherwise create it. The title carries the
+          # failing channel ids so the sidebar says what is broken.
+          node -e '
+            const fs = require("fs");
+            const lib = require("./scripts/ops/smoke-published-lib");
+            const r = require("./smoke-published.json");
+            const fails = r.rows.filter((x) => x.result === lib.RESULT.FAIL);
+            fs.writeFileSync("issue-title.txt", `${process.env.TITLE_PREFIX} ${fails.map((x) => x.id).join(", ")}`);
+            fs.writeFileSync("issue-body.md", [
+              `The post-publish smoke installed every published GateTest artifact fresh and **${fails.length} channel(s) FAILED**.`,
+              "",
+              `- Run: ${process.env.RUN_URL}`,
+              `- \`npm view @gatetest/cli version\`: ${r.publishedCliVersion || "?"}`,
+              `- Generated: ${r.generatedAt} (${r.node}, ${r.platform})`,
+              "",
+              "```",
+              lib.renderTable(r.rows),
+              "```",
+              "",
+              "### Failing channels",
+              ...fails.map((x) => `- **${x.id}** — ${x.detail}`),
+              "",
+              "_Opened and refreshed by `.github/workflows/post-publish-smoke.yml` on every failing run. Close it once a run passes; a new failure reopens a fresh one._",
+            ].join("\n"));
+          '
+          TITLE=$(cat issue-title.txt)
+          EXISTING=$(gh issue list --state open --limit 50 --search "\"$TITLE_PREFIX\" in:title" --json number,title \
+            --jq '[.[] | select(.title | startswith($ENV.TITLE_PREFIX))] | sort_by(.number) | .[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --title "$TITLE" --body-file issue-body.md
+            gh issue comment "$EXISTING" --body "Still failing — refreshed from $RUN_URL"
+            echo "updated issue #$EXISTING: $TITLE"
+          else
+            gh issue create --title "$TITLE" --body-file issue-body.md
+            echo "opened issue: $TITLE"
+          fi
+
+      - name: Fail the job if a published artifact is broken
+        if: steps.smoke.outputs.rc == '1'
+        run: |
+          echo "a published artifact is broken — see the table above and the issue" >&2
+          exit 1
