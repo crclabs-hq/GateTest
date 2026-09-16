@@ -274,6 +274,32 @@ API ping from `--doctor`. The console prints the mode, the summary carries
 the perimeter can be verified outside it with `gatetest verify-report` and the key.
 There is no licence server and no account; nothing expires.
 
+### Docker
+
+Every release tag and every push to `main` publishes an image to GitHub Container
+Registry: `ghcr.io/crclabs-hq/gatetest` (`1.61.1`, `1.61`, `1`, `latest` for
+releases; `main` and `sha-<short>` for main). It is the gatetest.io website plus
+the sandbox worker, with the scan engine bundled in at `/app` — the image
+`docker compose up` runs, not a CLI wrapper. Its default command serves the site
+on port 3000:
+
+```bash
+# Self-host the site + API (needs the env from docs/ops/docker.md; /api/health answers without it):
+docker run --rm -p 3000:3000 --env-file .env.local ghcr.io/crclabs-hq/gatetest
+
+# Run the bundled CLI against a repo on the host, no npm install:
+docker run --rm -v "$PWD":/repo -w /repo ghcr.io/crclabs-hq/gatetest node /app/bin/gatetest.js --suite quick
+
+# Pin a release instead of the moving tags:
+docker pull ghcr.io/crclabs-hq/gatetest:1.61.1
+```
+
+The container runs as an unprivileged user, so the mounted repo must be readable
+by it (it writes the report to `.gatetest/` in the mount). For day-to-day use the
+npm package is smaller and faster: `npx -p @gatetest/cli gatetest --suite quick`.
+Build it yourself with `docker compose up --build`; everything the image reads is
+listed in [`docs/ops/docker.md`](docs/ops/docker.md).
+
 ### Verify a scan report
 
 Every JSON report (`.gatetest/reports/gatetest-report-latest.json`) carries a

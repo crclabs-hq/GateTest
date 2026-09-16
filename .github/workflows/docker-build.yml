@@ -7,6 +7,10 @@ name: Docker image builds
 # secrets — on every change to the files that go into the image, and once a
 # week so a base-image or lockfile change cannot break it silently between
 # PRs. A red X here means `docker compose up` does not work at that commit.
+#
+# Pushes to main and release tags are docker-publish.yml's job: it builds the
+# same Dockerfile and pushes it to ghcr.io/crclabs-hq/gatetest. This one
+# never pushes.
 
 on:
   pull_request:
@@ -21,13 +25,6 @@ on:
       - bin/**
       - lib/**
       - scripts/**
-      - .github/workflows/docker-build.yml
-  push:
-    branches: [main]
-    paths:
-      - Dockerfile
-      - .dockerignore
-      - docker-compose.yml
       - .github/workflows/docker-build.yml
   schedule:
     - cron: '30 4 * * 1'   # Monday 04:30 UTC, after the nightly jobs
