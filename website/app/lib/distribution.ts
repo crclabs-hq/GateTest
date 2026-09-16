@@ -6,13 +6,14 @@
 //
 // Verified 2026-09-16:
 //   VS Code Marketplace   item page 200, gallery flags "validated, public"
+//   Open VSX              open-vsx.org/api/GateTestHQ/gatetest 200 at 1.1.3 — the registry
+//                         Cursor, Windsurf, VSCodium, Gitpod and Eclipse Theia read
 //   npm @gatetest/cli     1.61.0 (bare `npx @gatetest/cli` resolves only from 1.61.1 — use -p)
 //   GitHub Action         github.com/marketplace/actions/gatetest-quality-gate 200
 //   npm @gatetest/mcp-server 1.1.3 — linked via /mcp, which owns the install copy
 //   gatetest.io/web, /wp  200
 //
 // NOT listed yet (each has a Craig-only step; see docs/marketplace/DISTRIBUTION-CHANNELS.md):
-//   Open VSX (Cursor / Windsurf / VSCodium)  namespace not created
 //   GitHub App Marketplace page              App still private
 //   Docker image on ghcr.io                  publishes on the v1.61.1 tag
 //   WordPress.org plugin directory           not submitted
@@ -29,6 +30,11 @@
 // tests/distribution-surfaces.test.js fails the suite if this drifts from the manifest.
 const VSCODE_EXTENSION_ID = "GateTestHQ.gatetest";
 export const VSCODE_MARKETPLACE_URL = `https://marketplace.visualstudio.com/items?itemName=${VSCODE_EXTENSION_ID}`;
+// Open VSX addresses the same extension as `<publisher>/<name>` — derived from
+// the one identity above, never typed a second time. publish-vscode.yml pushes
+// the same .vsix to both registries on the same run.
+const [VSCODE_PUBLISHER, VSCODE_EXTENSION_NAME] = VSCODE_EXTENSION_ID.split(".");
+const OPEN_VSX_URL = `https://open-vsx.org/extension/${VSCODE_PUBLISHER}/${VSCODE_EXTENSION_NAME}`;
 
 const GITHUB_ACTION_MARKETPLACE_URL = "https://github.com/marketplace/actions/gatetest-quality-gate";
 const NPM_CLI_URL = "https://www.npmjs.com/package/@gatetest/cli";
@@ -56,6 +62,15 @@ export const SURFACES: Surface[] = [
     pitch: "The whole engine in your Problems panel. Every finding lands on the line that caused it, before you commit.",
     snippet: null,
     cta: { label: "Install from the Marketplace", href: VSCODE_MARKETPLACE_URL, external: true },
+    free: "Free. No account. Nothing leaves your machine.",
+  },
+  {
+    id: "openvsx",
+    where: "In Cursor, Windsurf or VSCodium",
+    title: "Open VSX extension",
+    pitch: "The same extension for every editor that reads the Open VSX registry. Search GateTest in Extensions, or install it from the listing.",
+    snippet: null,
+    cta: { label: "Install from Open VSX", href: OPEN_VSX_URL, external: true },
     free: "Free. No account. Nothing leaves your machine.",
   },
   {

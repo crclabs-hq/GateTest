@@ -29,16 +29,38 @@ for (const m of SRC.matchAll(/href:\s*(?:"([^"]+)"|([A-Z_]+))/g)) HREFS.push(m[1
 
 const EXTERNAL_HOSTS = new Set([
   'marketplace.visualstudio.com',
+  'open-vsx.org',
   'www.npmjs.com',
   'github.com',
 ]);
 
 describe('distribution surfaces: every listed channel points somewhere real', () => {
-  it('lists at least the six channels that were live on 2026-09-16', () => {
+  it('lists at least the seven channels that were live on 2026-09-16', () => {
     const ids = [...SRC.matchAll(/id:\s*"([a-z]+)"/g)].map((m) => m[1]);
-    for (const id of ['vscode', 'cli', 'action', 'mcp', 'web', 'wordpress']) {
+    for (const id of ['vscode', 'openvsx', 'cli', 'action', 'mcp', 'web', 'wordpress']) {
       assert.ok(ids.includes(id), `surface "${id}" is missing`);
     }
+  });
+
+  it('the Open VSX URL is derived from the one VS Code identity, on the Open VSX host', () => {
+    // open-vsx.org addresses the extension as <publisher>/<name>; the site must
+    // build that from VSCODE_EXTENSION_ID, never type the path a second time.
+    assert.match(SRC, /^const \[VSCODE_PUBLISHER, VSCODE_EXTENSION_NAME\] = VSCODE_EXTENSION_ID\.split\("\."\);/m);
+    const m = SRC.match(/^const OPEN_VSX_URL = `([^`]+)`;/m);
+    assert.ok(m, 'OPEN_VSX_URL is a module-private template constant');
+    const resolved = m[1]
+      .replace('${VSCODE_PUBLISHER}', manifest.publisher)
+      .replace('${VSCODE_EXTENSION_NAME}', manifest.name);
+    assert.strictEqual(resolved, `https://open-vsx.org/extension/${manifest.publisher}/${manifest.name}`);
+    assert.ok(SRC.includes('href: OPEN_VSX_URL'), 'the openvsx surface links through the constant');
+    const typedPaths = SRC.match(/open-vsx\.org\/extension\/[A-Za-z]/g) || [];
+    assert.deepStrictEqual(typedPaths, [], 'a typed open-vsx.org/extension/<publisher> path');
+  });
+
+  it('the homepage heading counts SURFACES instead of typing the number', () => {
+    const cmp = fs.readFileSync(path.join(ROOT, 'website', 'app', 'components', 'HomeEverywhere.tsx'), 'utf8');
+    assert.match(cmp, /SURFACES\.length/);
+    assert.ok(!/\b(Six|Seven|Eight|Nine) places\b/.test(cmp), 'a typed count of places in the heading');
   });
 
   it('internal hrefs are routes that exist under website/app', () => {
