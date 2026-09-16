@@ -2,7 +2,7 @@
   "name": "gatetest",
   "displayName": "GateTest — Code Quality Gate",
   "description": "The code quality gate in your Problems panel. 121 analysis modules read the whole repository and put every finding on the line that caused it, ranked by what matters, each with the fix. Runs on your machine, free, no account. One click sends it to the hosted fix engine for a verified pull request. Per-scan pricing, charged at checkout.",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "publisher": "GateTestHQ",
   "engines": {
     "vscode": "^1.85.0"
@@ -67,6 +67,16 @@
         "icon": "$(sparkle)"
       },
       {
+        "command": "gatetest.fixFindingLocal",
+        "title": "GateTest: Fix This Finding (your own key)",
+        "icon": "$(wand)"
+      },
+      {
+        "command": "gatetest.setProviderKey",
+        "title": "GateTest: Set AI Provider Key (for local fixes)",
+        "icon": "$(key)"
+      },
+      {
         "command": "gatetest.showPanel",
         "title": "GateTest: Show Issues Panel",
         "icon": "$(list-unordered)"
@@ -115,6 +125,12 @@
           "command": "gatetest.fixIssues"
         },
         {
+          "command": "gatetest.fixFindingLocal"
+        },
+        {
+          "command": "gatetest.setProviderKey"
+        },
+        {
           "command": "gatetest.showPanel"
         },
         {
@@ -125,6 +141,13 @@
         },
         {
           "command": "gatetest.openDashboard"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "gatetest.fixFindingLocal",
+          "group": "gatetest",
+          "when": "resourceLangId =~ /typescript|javascript|python|go|rust/"
         }
       ]
     },
@@ -160,6 +183,21 @@
           "type": "string",
           "default": "",
           "description": "Optional path to the GateTest engine: a GateTest checkout or an installed @gatetest/cli package. Leave empty to use the workspace's own @gatetest/cli if present, else the copy bundled with the extension."
+        },
+        "gatetest.fixDepth": {
+          "type": "string",
+          "default": "standard",
+          "enum": [
+            "standard",
+            "deep"
+          ],
+          "description": "standard = the engine's default model for fixes; deep = the most capable (slower, roughly 3x the cost per token). Used by \"Fix This Finding (your own key)\"; runs on your own AI provider key and you pay your provider directly."
+        },
+        "gatetest.fixMaxUsd": {
+          "type": "number",
+          "default": 2,
+          "minimum": 0,
+          "description": "Stop a local fix once its estimated spend passes this many US dollars (0 = no cap). Enforced between provider calls from the engine's price table, so the worst case is one in-flight call over the cap. If the resolved engine has no price table the cap cannot be enforced and the command says so before running."
         }
       }
     },
