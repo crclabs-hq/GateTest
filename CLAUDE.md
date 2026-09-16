@@ -153,6 +153,30 @@ how to brief an agent — lives in `docs/DOCTRINE.md`. The principles:
 
 ---
 
+## USAGE DOCTRINE — THREE METERS (Craig 2026-09-16, READ THIS EVERY SESSION)
+
+Craig hit the plan's usage limit mid-launch on 16 Sep 2026. Three meters spend Claude on this project and each is capped by a rule below. **Lower usage outranks "never idle": a green, quiet session is the correct end state.**
+
+### Meter 1 — how we build (Claude Code sessions and their agents)
+
+1. **The orchestrator plans, delegates, verifies. It does not read the codebase.** Bulk reading, call-site hunts and log triage go to the `scout` agent (cheapest model, read-only). Implementation goes to `builder` (mid-tier model). Merge proof goes to `reviewer` (mid-tier, read-only). The definitions live in `.claude/agents/`; use them by name and never override their `model` upward.
+2. **At most two agents at once** unless Craig says otherwise in the current session. Five parallel agents on the top model is how the 16 Sep limit was hit.
+3. **A brief is a contract**: the exact files it may touch (disjoint from every other running agent), the tests to run, the control to show, the report shape. A brief that says "audit everything" is refused and split.
+4. **No polling.** Waiting on CI, a build or a registry is one background command with a long sleep, never a loop of turns. One completion notification per wait.
+5. **Ask the tree, not the model.** Before spawning anything: `gh pr list`, `git fetch`, `git diff --stat origin/main`. Half of tonight's re-work was fixing what a concurrent PR had already changed.
+6. **Say what was checked, then stop.** The report is the deliverable. No re-verifying a green result, no summarising the summary.
+
+### Meter 2 — the API key in the Anthropic console (CI and ops automation)
+
+7. **The AI CI Fixer runs for the default branch only, once per 30 minutes, two attempts.** On 16 Sep one red merge fired it eleven times on one commit and 21 times in a day, and it opened 30 "couldn't repair" issues it could never fix because the cause was doctrine, not code. The gate in `.github/workflows/ai-ci-fixer.yml` enforces this; a PR branch that is red is its author's job.
+8. **A red merge is the most expensive event in this repo.** It fires the fixer, the deploy, the smoke and a human session. Branch protection requiring `GateTest Full Scan` is on Craig's queue for this reason.
+
+### Meter 3 — the platform (gatetest.io calling the API with our key)
+
+9. **Every server-key call site is metered and capped.** Per-request budgets already exist in `/api/scan/fix`; the automatic callers (`/api/heal/sentry-webhook`, `/api/watches/tick`, chat) sit under one daily ceiling read from `GATETEST_DAILY_API_BUDGET_USD`, enforced from the usage ledger, and say **not checked** when the ceiling is reached rather than silently spending. BYOK requests (customer key) are never counted against it.
+10. **Cheapest model that passes the control pair.** `CHEAP_MODEL` is the default everywhere; the deep tier is chosen by the customer, never by us on our key.
+
+---
 ## ALWAYS-ON MODE — NEVER IDLE (READ THIS EVERY SESSION)
 
 **Idle Claude = lost revenue. Craig's directive:** *"if you're coding and you see something that's broken you fix it, if you think you have an advanced feature that needs adding just add it. We can't have you sitting idle — that's loss of revenue, downtime, loss of coding time."*
@@ -190,8 +214,8 @@ This rule does NOT override **THE BOSS RULE**. The Boss Rule's 9 items still req
 
 ### The operational floor
 
-- **No "nothing to do" ending.** If the sweep is green and Craig's current ask is satisfied, pick the next HIGH-priority Known Issue that falls under pre-authorization and start it. Only stop when everything pre-authorized is clear.
-- **No "I'll note that for later."** You either do it now (pre-auth) or escalate to Craig now (Boss Rule). There is no third option.
+- **A green sweep is a valid ending (Usage Doctrine, 2026-09-16).** If the sweep is green and Craig's current ask is satisfied, stop and report. Picking up the next Known Issue unasked happens only when Craig has said "go autonomous" in the current session.
+- **No "I'll note that for later" for broken state.** A failing test, build or gate you caused is fixed now; anything else is written to `docs/ROADMAP.md` Known Issues or escalated to Craig (Boss Rule).
 - **Commit as you go.** A broken-then-fixed state must be captured in a commit, not left in the working tree.
 
 ---
