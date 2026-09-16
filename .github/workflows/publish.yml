@@ -31,21 +31,6 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
-      # Auth model (2026-07-25, Craig + npm's token changes): OIDC trusted
-      # publishing — npmjs.com > @gatetest/cli > Settings > Trusted Publisher
-      # is configured with (GitHub Actions, crclabs-hq / GateTest,
-      # publish.yml, no environment). No NPM_TOKEN secret, no expiry, no
-      # OTP. The 2026-07-24 token attempts died on EOTP because the
-      # account's 2FA mode demands a one-time code from ANY token auth;
-      # OIDC sidesteps tokens entirely.
-      #
-      # Node 22 bundles npm 10.x, which predates trusted publishing —
-      # npm >= 11.5.1 is required for the OIDC exchange.
-      - name: Update npm for OIDC trusted publishing
-        run: |
-          npm install -g npm@latest
-          echo "npm $(npm --version)"
-
       - name: Install deps
         run: npm ci
 
@@ -81,6 +66,26 @@ jobs:
             exit 1
           fi
           echo "Tag matches package.json version ✓"
+
+      # Moved below the test suite (2026-09-16): with npm@latest installed
+      # first, tests/tarball-requires.test.js (`npm pack --dry-run`) hung past
+      # its budget on two release runs while passing in 6 s under Node 22's
+      # bundled npm — the same npm every CI run uses. Tests run on that npm;
+      # the upgrade happens only where OIDC needs it: the publish steps.
+      # Auth model (2026-07-25, Craig + npm's token changes): OIDC trusted
+      # publishing — npmjs.com > @gatetest/cli > Settings > Trusted Publisher
+      # is configured with (GitHub Actions, crclabs-hq / GateTest,
+      # publish.yml, no environment). No NPM_TOKEN secret, no expiry, no
+      # OTP. The 2026-07-24 token attempts died on EOTP because the
+      # account's 2FA mode demands a one-time code from ANY token auth;
+      # OIDC sidesteps tokens entirely.
+      #
+      # Node 22 bundles npm 10.x, which predates trusted publishing —
+      # npm >= 11.5.1 is required for the OIDC exchange.
+      - name: Update npm for OIDC trusted publishing
+        run: |
+          npm install -g npm@latest
+          echo "npm $(npm --version)"
 
       - name: npm publish (dry-run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
