@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { siteUrl, badgeUrl as badgeUrlFor } from "@/app/lib/site-url";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { ScanFeedback } from "@/app/components/ScanFeedback";
+import { FindingWrong } from "@/app/components/FindingWrong";
 
 interface ModuleSummary {
   module: string;

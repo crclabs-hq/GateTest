@@ -218,18 +218,20 @@ function countBlockingFindings(scanResult) {
 function aiTotalsFromModules(modules) {
   const out = { aiCalls: 0, tokensIn: 0, tokensOut: 0, usd: 0 };
   if (!Array.isArray(modules)) return out;
+  let micros = 0;
   for (const m of modules) {
     if (!m || typeof m !== 'object') continue;
-    const usd = nonNegNumber(m.costUsd);
+    const costMicros = toMicros(m.costUsd);
     const tin = nonNegInt(m.tokensIn);
     const tout = nonNegInt(m.tokensOut);
-    if (usd > 0 || tin > 0 || tout > 0) {
+    if (costMicros > 0 || tin > 0 || tout > 0) {
       out.aiCalls += nonNegInt(m.aiCalls) || 1;
       out.tokensIn += tin;
       out.tokensOut += tout;
-      out.usd += usd;
+      micros += costMicros;
     }
   }
+  out.usd = fromMicros(micros);
   return out;
 }
 
@@ -427,6 +429,17 @@ function round6(n) {
   return Number((Number(n) || 0).toFixed(6));
 }
 
+// Money is summed as INTEGER micro-dollars (1 USD = 1,000,000) and converted
+// once at the edge — never accumulated as a float (the moneyFloat rule; the
+// same rule GateTest enforces on customers, so it must hold here).
+function toMicros(n) {
+  return Math.round(nonNegNumber(n) * 1e6);
+}
+
+function fromMicros(m) {
+  return round6((Number(m) || 0) / 1e6);
+}
+
 /**
  * Pure aggregation. Accepts raw usage_events rows OR partially grouped rows
  * (a row may carry `events` = how many events it stands for; default 1).
@@ -440,6 +453,9 @@ function aggregateUsageRows(rows, window) {
   const totals = emptyTotals();
   const bySurface = {};
   const byDay = new Map();
+  const acc = { total: 0, paid: 0, byok: 0 };
+  const surfaceMicros = new Map();
+  const dayMicros = new Map();
 
   const list = Array.isArray(rows) ? rows : [];
   for (const r of list) {
@@ -449,7 +465,7 @@ function aggregateUsageRows(rows, window) {
     const byok = r.key_owner === 'byok';
     const tin = nonNegInt(r.tokens_in);
     const tout = nonNegInt(r.tokens_out);
-    const usd = nonNegNumber(r.usd_estimated);
+    const micros = toMicros(r.usd_estimated);
     const ai = nonNegInt(r.ai_calls);
     const mods = nonNegInt(r.modules_run);
     const ft = nonNegInt(r.findings_total);
@@ -463,8 +479,8 @@ function aggregateUsageRows(rows, window) {
     totals.aiCalls += ai;
     totals.tokensIn += tin;
     totals.tokensOut += tout;
-    totals.usdEstimated += usd;
-    if (byok) { totals.usdByok += usd; totals.byokEvents += events; } else { totals.usdGatetestPaid += usd; }
+    acc.total += micros;
+    if (byok) { acc.byok += micros; totals.byokEvents += events; } else { acc.paid += micros; }
 
     const s = bySurface[surface] || (bySurface[surface] = {
       events: 0, modulesRun: 0, findingsTotal: 0, findingsBlocking: 0, aiCalls: 0,
@@ -477,8 +493,10 @@ function aggregateUsageRows(rows, window) {
     s.aiCalls += ai;
     s.tokensIn += tin;
     s.tokensOut += tout;
-    s.usdEstimated += usd;
-    if (byok) { s.usdByok += usd; s.byokEvents += events; }
+    const sm = surfaceMicros.get(surface) || { total: 0, byok: 0 };
+    sm.total += micros;
+    if (byok) { sm.byok += micros; s.byokEvents += events; }
+    surfaceMicros.set(surface, sm);
 
     let day = typeof r.day === 'string' ? r.day.slice(0, 10) : null;
     if (!day && r.occurred_at) {
@@ -491,20 +509,22 @@ function aggregateUsageRows(rows, window) {
       d.aiCalls += ai;
       d.tokensIn += tin;
       d.tokensOut += tout;
-      d.usdEstimated += usd;
+      dayMicros.set(day, (dayMicros.get(day) || 0) + micros);
       d.findingsTotal += ft;
       byDay.set(day, d);
     }
   }
 
   totals.tokensTotal = totals.tokensIn + totals.tokensOut;
-  totals.usdEstimated = round6(totals.usdEstimated);
-  totals.usdGatetestPaid = round6(totals.usdGatetestPaid);
-  totals.usdByok = round6(totals.usdByok);
-  for (const s of Object.values(bySurface)) {
-    s.usdEstimated = round6(s.usdEstimated);
-    s.usdByok = round6(s.usdByok);
+  totals.usdEstimated = fromMicros(acc.total);
+  totals.usdGatetestPaid = fromMicros(acc.paid);
+  totals.usdByok = fromMicros(acc.byok);
+  for (const [name, s] of Object.entries(bySurface)) {
+    const sm = surfaceMicros.get(name) || { total: 0, byok: 0 };
+    s.usdEstimated = fromMicros(sm.total);
+    s.usdByok = fromMicros(sm.byok);
   }
+  for (const [day, d] of byDay) d.usdEstimated = fromMicros(dayMicros.get(day) || 0);
 
   // Gap-fill the series across the window so a chart never hides a quiet day.
   const series = [];
@@ -515,12 +535,12 @@ function aggregateUsageRows(rows, window) {
       const key = dayKey(new Date(t));
       const d = byDay.get(key);
       series.push(d
-        ? { ...d, usdEstimated: round6(d.usdEstimated) }
+        ? { ...d }
         : { day: key, events: 0, aiCalls: 0, tokensIn: 0, tokensOut: 0, usdEstimated: 0, findingsTotal: 0 });
     }
   } else {
     for (const d of [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : 1))) {
-      series.push({ ...d, usdEstimated: round6(d.usdEstimated) });
+      series.push({ ...d });
     }
   }
 
