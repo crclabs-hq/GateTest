@@ -3,12 +3,12 @@
 Deployed by Jarvis session 50, 2026-07-08. Companion to `JARVIS-MCP-DEPLOY.md` (mcp.gatetest.io).
 Implements the two-box-estate-model (Craig, 2026-07-08): box 161 hosts and serves the web pages;
 box 158 (Tallrig — named Vapron until 2026-09-14; 149.28.119.158) provides backend services (email/SMS/storage/AI) over HTTPS only.
-Never SSH between boxes. DNS follows hosting: `gatetest.io` A → 66.42.121.161, never → 158.
+Never SSH between boxes. DNS follows hosting: `gatetest.io` A → <box-ip>, never → 158.
 
 ## Topology
 
 ```
-Cloudflare DNS (gatetest.io, www → A 66.42.121.161, DNS-only)
+Cloudflare DNS (gatetest.io, www → A <box-ip>, DNS-only)
   → coolify-proxy (Traefik v3.6 container, owns :80/:443 on this box)
       file-provider route: /data/coolify/proxy/dynamic/gatetest-web.yaml
   → http://10.0.1.1:3000  (host gateway IP on the `coolify` docker network)
@@ -21,7 +21,7 @@ Cloudflare DNS (gatetest.io, www → A 66.42.121.161, DNS-only)
   planned front-door migration (Tallrig/other) — swing the route, don't run two owners of :80/:443.
 - **Bind address:** the app binds `10.0.1.1:3000` only (`-H 10.0.1.1`). Literal 127.0.0.1-only is
   impossible here — Traefik runs in a container and cannot reach host loopback. 10.0.1.1 is not
-  publicly routable and UFW default-denies anyway (verified: `curl 66.42.121.161:3000` fails).
+  publicly routable and UFW default-denies anyway (verified: `curl <box-ip>:3000` fails).
 - **Firewall:** `ufw allow from 10.0.1.0/24 to any port 3000 proto tcp` (comment
   `gatetest-web: traefik->host service`) — same pattern as the MCP rule for :8787. Without it,
   Traefik → host times out and the site 504s.
@@ -72,7 +72,7 @@ Vercel — schedule replacements (systemd timers or Tallrig) when those features
 https://gatetest.io/        → 200, LE cert (issuer C=US O=Let's Encrypt)
 https://www.gatetest.io/    → 200
 http://gatetest.io/         → 301 → https
-curl 66.42.121.161:3000     → unreachable (bind + ufw)
+curl <box-ip>:3000     → unreachable (bind + ufw)
 co-tenants: https://gluecron.com 200 · mcp.gatetest.io app answering (404 on /, 405 on GET /mcp — normal for POST-only MCP endpoint)
 systemctl is-active gatetest-web → active, survives restart
 ```
@@ -85,7 +85,7 @@ commits — nobody had run the deploy procedure above since the initial 2026-07-
 Next.js response cached for a year), `/api/status`, `/api/mcp`, `/icon.png` all 404.
 
 Also found: the live DNS zone had a **second** `A gatetest.io → 149.28.119.158` record (and one
-for `www`) alongside the correct `66.42.121.161` one — direct violation of this doc's own "DNS
+for `www`) alongside the correct `<box-ip>` one — direct violation of this doc's own "DNS
 follows hosting... never → 158" rule above. Port 443 on 158 isn't listening at all (it's a
 backend-only box per the two-box model), so any client whose DNS resolver picked that IP in the
 round-robin would just hang. **Craig still needs to remove those two 158 A records** — not done

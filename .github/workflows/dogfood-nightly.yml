@@ -234,6 +234,20 @@ jobs:
         # is fully regenerated every run, so the newest is always a complete
         # superset — there is nothing to accumulate and resetting loses
         # nothing. Craig reviews one always-current PR instead of a backlog.
+        #
+        # THE RACE (2026-09-15). "Reset onto main" happens when this job
+        # runs, not when the PR merges. If main ratchets the corpus after the
+        # nightly push (an integration branch ran --ratchet), this PR is
+        # stale: its precision.json still carries the pre-ratchet counts next
+        # to main's lowered real-world.json, and "Update branch" asks a human
+        # to resolve that conflict. On 2026-09-14 that resolution kept the
+        # bot's side (#491 via 20531fdd) and main went red on
+        # tests/precision-page-sync.test.js at 118331dc. Rule: never merge
+        # this PR over a branch that ratcheted after it was cut — close it and
+        # let tonight's run re-cut it on the merged tree. The required
+        # `Test + Build` check is the guard: a stale PR goes red the moment it
+        # is brought up to date with main, whichever side a conflict is
+        # resolved to.
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
