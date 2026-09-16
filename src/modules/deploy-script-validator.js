@@ -34,7 +34,11 @@ const HEALTH_URL_RE_BARE   = /(?:curl|wget)\s+https?:\/\/[^\s/'"]{1,80}(\/[a-z/_
 
 // k8s probe path — `path:` ONLY (never `mountPath:` / `subPath:` — a secret
 // volume mount is not a health URL; 2026-08-18 audit on spring-petclinic).
-const K8S_PROBE_RE  = /(?<![A-Za-z])(?:path|httpGet\.path)\s*:\s*['"]?(\/[a-z/_\-0-9]{1,60})['"]?/gi;
+// The lookbehind refuses ANY identifier character, not just letters:
+// `body_path: /tmp/release-notes-header.md` (softprops/action-gh-release) is a
+// file, not a probe — `_path` slipped through when only [A-Za-z] was refused
+// (self-scan 2026-09-16).
+const K8S_PROBE_RE  = /(?<![A-Za-z0-9_\-.])(?:path|httpGet\.path)\s*:\s*['"]?(\/[a-z/_\-0-9]{1,60})['"]?/gi;
 
 // Health endpoints a FRAMEWORK registers without any route in the repo:
 // Spring Boot Actuator, ASP.NET health checks, k8s conventions.

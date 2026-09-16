@@ -9,8 +9,10 @@ const BaseModule = require('./base-module');
 const fs   = require('fs');
 const { repoRelative } = require('../core/repo-path');
 
-const CURL_PATTERN  = /curl\s+(?:-[a-zA-Z0-9]+\s+)*['"]?(https?:\/\/[^\s'"]+|localhost[^\s'"#]*|127\.[0-9.]+[^\s'"#]*|\$\{?[A-Z_]+\}?[^\s'"#]*)['"]?/g;
-const WGET_PATTERN  = /wget\s+(?:-[a-zA-Z0-9]+\s+)*['"]?(https?:\/\/[^\s'"]+|localhost[^\s'"#]*|\$\{?[A-Z_]+\}?[^\s'"#]*)['"]?/g;
+// `;` `)` `|` `&` end the URL: `if curl -fsS http://host/api/health; then` is a
+// health check of /api/health, not of "/api/health;" (self-scan 2026-09-16).
+const CURL_PATTERN  = /curl\s+(?:-[a-zA-Z0-9]+\s+)*['"]?(https?:\/\/[^\s'";)|&]+|localhost[^\s'"#;)|&]*|127\.[0-9.]+[^\s'"#;)|&]*|\$\{?[A-Z_]+\}?[^\s'"#;)|&]*)['"]?/g;
+const WGET_PATTERN  = /wget\s+(?:-[a-zA-Z0-9]+\s+)*['"]?(https?:\/\/[^\s'";)|&]+|localhost[^\s'"#;)|&]*|\$\{?[A-Z_]+\}?[^\s'"#;)|&]*)['"]?/g;
 const HEALTH_WORDS  = /health|ping|ready|alive|status|liveness|readiness/i;
 
 // Route detection
@@ -73,11 +75,17 @@ class DeployContractModule extends BaseModule {
       }
     }
 
-    // Check for base-path mismatch specifically
+    // Check for base-path mismatch specifically: the deploy curls a route as
+    // it is declared, but the app mounts it under a prefix. A route that is
+    // declared WITH the prefix already (Next.js `app/api/health/route.ts` →
+    // `/api/health`) is not "missing" it — before 2026-09-16 every such route
+    // was flagged against itself whenever any base path existed in the repo.
     for (const { path: urlPath, file, line } of healthUrls.filter(u => u.path)) {
       for (const base of basePaths) {
+        const prefix = base.replace(/\/$/, '');
         const routeWithoutBase = rawRoutes.find(r => {
-          const withBase = base.replace(/\/$/, '') + r;
+          if (r === prefix || r.startsWith(prefix + '/')) return false;
+          const withBase = prefix + r;
           return this._pathMatches(urlPath, r) && !this._pathMatches(urlPath, withBase);
         });
         if (routeWithoutBase) {
@@ -137,6 +145,13 @@ class DeployContractModule extends BaseModule {
     for (const file of files) {
       let content;
       try { content = fs.readFileSync(file, 'utf8'); } catch { continue; }
+      // A base path is code, not prose: `// Matches: app.basePath('/api')` in
+      // a comment (this module's own header, self-scan 2026-09-16) mounted the
+      // whole repo under /api. Strip block and line comments first; the
+      // `://` guard keeps URLs inside strings intact.
+      content = content
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
 
       for (const pattern of [HONO_BASE, EXPRESS_USE, FASTIFY_PRE]) {
         pattern.lastIndex = 0;
