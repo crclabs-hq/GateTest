@@ -59,6 +59,15 @@ The action authenticates with the workflow's own token by default (`github-token
 
 **Your first full run passes.** Turning a gate on against an existing codebase would otherwise fail on years of backlog nobody wrote this week, so a full-repo run that finds no `.gatetest/baseline.json` snapshots what is already there and exits green. Commit that file and every run after it fails on **new** findings only — pull requests are judged on the files they change from the very first run. Details under [baseline mode](#onboarding-a-mature-repo--baseline-mode).
 
+### Editor — VS Code, Cursor, Windsurf, VSCodium
+
+The whole engine in your Problems panel, before you commit. Every finding lands on the line that caused it, with the fix. Free, no account, and nothing leaves your machine.
+
+- **VS Code:** search **GateTest** in the Extensions view, or install from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=GateTestHQ.gatetest).
+- **Cursor, Windsurf, VSCodium, Gitpod, Eclipse Theia:** search **GateTest** in the Extensions view, or install from [Open VSX](https://open-vsx.org/extension/GateTestHQ/gatetest) — the registry those editors read. Same build, published on the same run.
+
+Source and the full command reference: [`vscode-extension/`](vscode-extension/).
+
 ### CLI — local development
 
 ```bash
