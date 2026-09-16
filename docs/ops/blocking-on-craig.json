@@ -19,7 +19,7 @@
       "step": "On a clean main: `git checkout main && git pull && git tag v1.61.1 && git push origin v1.61.1`. Do it AFTER npm-trusted-publisher-mcp or the MCP publish step fails and the tag is burned.",
       "where": "Local clone of crclabs-hq/GateTest, on main",
       "priority": 1,
-      "done": false,
+      "done": true,
       "after": [
         "npm-trusted-publisher-mcp"
       ]
@@ -32,7 +32,7 @@
       "step": "open-vsx.org → sign in with GitHub → accept the Publisher Agreement once → Namespaces → create `GateTestHQ` → Access Tokens → Generate New Token → GitHub: crclabs-hq/GateTest → Settings → Secrets and variables → Actions → New repository secret `OVSX_PAT` = the token.",
       "where": "https://open-vsx.org/ and https://github.com/crclabs-hq/GateTest/settings/secrets/actions",
       "priority": 1,
-      "done": false
+      "done": true
     },
     {
       "id": "vsce-pat-secret",
@@ -42,7 +42,7 @@
       "step": "dev.azure.com → User settings → Personal access tokens → New Token: Organization = All accessible organizations, Scopes = Marketplace → Manage → Create → GitHub: crclabs-hq/GateTest → Settings → Secrets and variables → Actions → New repository secret `VSCE_PAT` = the token.",
       "where": "https://dev.azure.com/ and https://github.com/crclabs-hq/GateTest/settings/secrets/actions",
       "priority": 2,
-      "done": false
+      "done": true
     },
     {
       "id": "box-secrets",
