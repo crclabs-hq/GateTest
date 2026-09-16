@@ -1,6 +1,44 @@
+# What ships in the .vsix.
+#
+# vsce starts from every file of every production dependency and drops what
+# matches a line here; a `!` line keeps a file even when another line drops it.
+#
+# The extension host is one compiled file (out/extension.js). The engine runs
+# in a worker thread from node_modules/@gatetest/cli and is loaded file by
+# file at runtime (src/core/registry.js requires each module by path), so it
+# ships as files, never bundled.
+#
+# @gatetest/cli declares four dependencies; the scan path needs three:
+#   acorn      — AST parsing (dead-code-extractor, direct-repair)
+#   pixelmatch — visual-diff-engine
+#   pngjs      — visual-diff-engine, and pixelmatch's own dependency
+# The fourth, @modelcontextprotocol/sdk, is imported only by
+# bin/gatetest-mcp.mjs, the MCP server, which the extension never runs from
+# here (its "Configure MCP Server" command writes an `npx` command line). That
+# one package pulls ~3,000 files (zod, hono, express, ajv, jose, ...) into the
+# vsix, so node_modules is a whitelist: the engine and its three runtime
+# dependencies, nothing else.
+#
+# test/packaged-vsix.test.js opens the built .vsix and proves that every
+# engine module still loads from this layout and that a scan completes.
 .vscode/**
 src/**
 test/**
 tsconfig.json
+*.vsix
 **/*.map
-node_modules/@gatetest/cli/README.md
+
+node_modules/**
+!node_modules/@gatetest/cli/package.json
+!node_modules/@gatetest/cli/LICENSE
+!node_modules/@gatetest/cli/src/**
+!node_modules/@gatetest/cli/lib/**
+!node_modules/acorn/package.json
+!node_modules/acorn/LICENSE
+!node_modules/acorn/dist/acorn.js
+!node_modules/pixelmatch/package.json
+!node_modules/pixelmatch/LICENSE
+!node_modules/pixelmatch/index.js
+!node_modules/pngjs/package.json
+!node_modules/pngjs/LICENSE
+!node_modules/pngjs/lib/*.js
