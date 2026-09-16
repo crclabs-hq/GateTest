@@ -122,16 +122,11 @@
           "command": "gatetest.setupMcp"
         },
         {
+          "command": "gatetest.addWorkspaceMcp"
+        },
+        {
           "command": "gatetest.openDashboard"
         }
-        { "command": "gatetest.scanWorkspace" },
-        { "command": "gatetest.scanFull" },
-        { "command": "gatetest.scanFile" },
-        { "command": "gatetest.fixIssues" },
-        { "command": "gatetest.showPanel" },
-        { "command": "gatetest.setupMcp" },
-        { "command": "gatetest.addWorkspaceMcp" },
-        { "command": "gatetest.openDashboard" }
       ]
     },
     "configuration": {
@@ -145,9 +140,7 @@
             "full",
             "nuclear"
           ],
-          "description": "Default scan suite. quick = the fast editor subset, full = every module that can run in an editor (mutation and chaos run in CI, never in the editor)."
-          "enum": ["quick", "full", "nuclear"],
-          "description": "Default scan suite. quick = the fast pre-commit set, full = the whole engine, nuclear = full plus mutation and chaos testing (those two run in CI, not the editor)."
+          "description": "Default scan suite. quick = the fast pre-commit set, full = the whole engine that can run in an editor (mutation and chaos testing run in CI, never in the editor)."
         },
         "gatetest.autoScanOnSave": {
           "type": "boolean",
@@ -158,11 +151,6 @@
           "type": "boolean",
           "default": true,
           "description": "Show GateTest findings as inline diagnostics in the editor."
-        },
-        "gatetest.gatePath": {
-          "type": "string",
-          "default": "gatetest",
-          "description": "Path to the GateTest CLI: the gatetest shim, or bin/gatetest.js inside @gatetest/cli (run under the editor's own Node). Leave as gatetest to auto-detect: the workspace's node_modules/@gatetest/cli first, then gatetest on PATH."
         },
         "gatetest.apiBaseUrl": {
           "type": "string",

@@ -131,7 +131,13 @@ describe('resolveFileFilter', () => {
   after(() => { fs.rmSync(dir, { recursive: true, force: true }); });
 
   it('returns repo-relative, /-joined, de-duplicated paths for relative and absolute inputs', () => {
-    const r = resolveFileFilter(['src/a.js', path.join(dir, 'src', 'b.js'), 'src\\a.js', './src/a.js'], dir);
+    // A backslash-joined path is a Windows editor handing over its fsPath. On
+    // POSIX a backslash is an ordinary filename character, so src\a.js there
+    // is a different, non-existent file and correctly reported as such — feed
+    // the Windows form only where it means what the editor meant.
+    const inputs = ['src/a.js', path.join(dir, 'src', 'b.js'), './src/a.js'];
+    if (process.platform === 'win32') inputs.splice(2, 0, 'src\\a.js');
+    const r = resolveFileFilter(inputs, dir);
     assert.deepEqual(r, { files: ['src/a.js', 'src/b.js'], problems: [] });
   });
 
@@ -340,36 +346,31 @@ describe('gatetest --file (spawned)', () => {
 });
 
 // ─── the other end of the contract ───────────────────────────────────────────
+//
+// The VS Code extension no longer spawns this CLI: since 2026-09-15 it loads
+// @gatetest/cli as a library inside a worker thread (vscode-extension/engine/),
+// so --format json and --file are for OTHER editors and scripts. The extension
+// contract — in-process engine, no child process, no settings written at
+// activation — is pinned by tests/vscode-extension-engine-bridge.test.js and
+// exercised against the real engine in tests/heavy/vscode-extension-engine-worker.test.js.
+// What still belongs here: the extension must not have crept back onto the
+// spawn path without also re-adopting the JSON contract above.
 
-describe('the VS Code extension consumes the shape the CLI ships', () => {
+describe('the VS Code extension does not spawn this CLI', () => {
   const src = fs.readFileSync(path.join(ROOT, 'vscode-extension', 'src', 'extension.ts'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'vscode-extension', 'package.json'), 'utf8'));
 
-  it('spawns the flags this CLI accepts', () => {
-    assert.match(src, /'--format',\s*'json'/);
-    assert.match(src, /'--file'/);
-    assert.match(src, /'--project'/);
-  });
-
-  it('reads the fields the document carries, with 1-based lines and columns', () => {
-    for (const field of ['issues', 'passed', 'summary', 'exitCode', 'counts', 'ruleId', 'column']) {
-      assert.ok(src.includes(field), `extension never reads "${field}"`);
-    }
-    assert.match(src, /issue\.line\s*(\?\?|\|\|)\s*1\)\s*-\s*1/, 'line converted from 1-based to VS Code 0-based');
-    assert.match(src, /issue\.column\s*(\?\?|\|\|)\s*1\)\s*-\s*1/, 'column converted from 1-based to VS Code 0-based');
-  });
-
-  it('never spawns a bare .js, never launches a .cmd shim without a shell, and names the real package', () => {
-    assert.match(src, /process\.execPath/, 'scripts run under the extension host node');
-    assert.match(src, /ELECTRON_RUN_AS_NODE/, 'the host is Electron; without this it opens a window');
-    assert.match(src, /shell:\s*(true|launch\.shell)/, '.cmd shims need a shell on Windows');
-    assert.ok(src.includes('npm install -g @gatetest/cli'), 'install hint names the published package');
-    assert.ok(!src.includes('npm install -g gatetest'), 'the unscoped name is not the package');
+  it('runs the engine in-process and never spawns gatetest', () => {
+    assert.match(src, /worker_threads/);
+    assert.ok(!/child_process/.test(src), 'no child_process import');
+    assert.ok(!/'--format'/.test(src), 'no --format flag — the JSON document is for other editors');
+    assert.ok(pkg.dependencies && pkg.dependencies['@gatetest/cli'], 'the engine is a bundled dependency');
   });
 
   it('does not write settings at activation — MCP registration is a command', () => {
     const activateBody = src.slice(src.indexOf('export function activate'), src.indexOf('export function deactivate'));
-    assert.doesNotMatch(activateBody, /config\.update|writeIdeMcpConfig|writeWorkspaceMcp|ConfigurationTarget\.Global/);
-    assert.ok(pkg.contributes.commands.some((c) => /Mcp/i.test(c.command)), 'an MCP command is contributed instead');
+    assert.doesNotMatch(activateBody, /config\.update\(|writeIdeMcpConfig\(|addWorkspaceMcp\(\)|ConfigurationTarget\.Global/);
+    assert.ok(pkg.contributes.commands.some((c) => c.command === 'gatetest.addWorkspaceMcp'), 'the workspace MCP command is contributed');
+    assert.ok(pkg.contributes.commands.some((c) => c.command === 'gatetest.setupMcp'), 'the AI-tools picker is contributed');
   });
 });
