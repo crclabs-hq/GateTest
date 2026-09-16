@@ -1,4 +1,5 @@
 import { PLATFORM_NAME, PLATFORM_SITE_URL } from "../lib/platform-config";
+import { VSCODE_MARKETPLACE_URL } from "../lib/distribution";
 /**
  * The site's navigation — ONE definition, consumed by the header, the mobile
  * drawer and the footer. Copy here is customer-facing; keep it short and
@@ -29,7 +30,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Gluecron", href: "https://gluecron.com", desc: "Our git host, with the gate built in.", external: true },
       { label: "WordPress", href: "/wp", desc: "Scan a WordPress site. No code, no plugin." },
       { label: "Websites", href: "/web", desc: "Scan any URL for security, a11y and performance." },
-      { label: "MCP & AI editors", href: "/mcp", desc: "Cursor, VS Code and any MCP client run the gate for you." },
+      { label: "VS Code extension", href: VSCODE_MARKETPLACE_URL, desc: "The whole engine in your Problems panel. Free.", external: true },
       { label: "CLI & GitHub Action", href: "/developers", desc: "Open source. Runs in your own CI." },
     ],
   },
