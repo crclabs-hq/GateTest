@@ -129,10 +129,12 @@ the thing it describes, produce it and import it, and let a test fail when
 the import and the copy disagree.
 
 **Method.** `scripts/generate-site-stats.js`, `scripts/real-world-precision.js
---write-json`, `scripts/generate-build-info.js` — extend these rather than
-adding a literal. `tests/module-count-sync.test.js`,
-`tests/precision-page-sync.test.js`, `tests/comparison-reviewed.test.js` and
-`tests/site-url.test.js` are the tripwires.
+--write-json`, `scripts/head-to-head.js`, `scripts/generate-build-info.js` —
+extend these rather than adding a literal. `tests/module-count-sync.test.js`,
+`tests/precision-page-sync.test.js`, `tests/head-to-head.test.js`,
+`tests/comparison-reviewed.test.js` and `tests/site-url.test.js` are the
+tripwires. A competitor's number is held to the same rule: the head-to-head
+table writes "not measured" and the reason for any tool nobody ran.
 
 ## 8. Verify in the environment that decides, after the last edit
 
