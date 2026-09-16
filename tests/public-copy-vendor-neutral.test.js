@@ -65,6 +65,7 @@ const SCOPE_DIRS = [
   'website/public',         // static files served as-is (manifest, security.txt, logos.html)
   'src/reporters',          // console upsell footers etc.
   'vscode-extension/src',
+  'vscode-extension/engine', // the in-process engine bridge + worker shipped in the vsix
   'wp-plugin',
   'integrations/github-actions',
   'docs/marketplace',
