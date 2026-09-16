@@ -8,12 +8,20 @@
 // language only ("the fix engine", "AI-powered", "deeper analysis on the
 // fix tiers").
 //
+// Rule (2026-09-15, owner): the WEBSITE never names an AI vendor at all — not
+// the vendor, not a model, not the vendor's chat product or its MCP clients.
+// The site says "AI" / "your AI client" / "your MCP client". /pricing had
+// "use GateTest from claude.ai on web and mobile" and the old guard admitted
+// it as a client-install mention; the website scope is now strict.
+//
 // What IS allowed, and why (every entry is deliberate — add to the list only
 // with a reason):
-//   - MCP *client* names in install instructions. A user with Claude Desktop
-//     or Claude Code needs to know the server installs there, the same way
-//     Cursor and Windsurf are named. ("Claude Code", "Claude Desktop",
-//     "claude.ai", `claude mcp add …`, the `.claude` config paths.)
+//   - MCP *client* names in install instructions on the NON-website surfaces
+//     (npm READMEs, the CLI help, the extension). A user with that client
+//     needs to know the server installs there, the same way Cursor and
+//     Windsurf are named. ("Claude Code", "Claude Desktop", `claude mcp add …`,
+//     the `.claude` config paths.) Never on website/** — the site uses the
+//     generic `mcpServers` config block and "your AI client".
 //   - Env var names and key-acquisition URLs on the bring-your-own-key paths
 //     (`ANTHROPIC_API_KEY`, console.anthropic.com). The CLI/Action/local MCP
 //     server run on the customer's own key; the copy must say where to get
@@ -27,7 +35,8 @@
 //     That is a disclosure obligation, so those files are out of this guard.
 //
 // Anything else — "powered by Claude", "Sonnet 5 everywhere else", "Fable on
-// the fix tiers", "Anthropic Claude" — fails with file:line.
+// the fix tiers", "Anthropic Claude", "claude.ai web and mobile" — fails with
+// file:line.
 //
 // Engine output (2026-09-14, follow-up to the public-copy sweep): the strings
 // the engine itself writes for a customer — finding text in the JSON/HTML
@@ -53,6 +62,7 @@ const ROOT = path.resolve(__dirname, '..');
 // ---------------------------------------------------------------------------
 const SCOPE_DIRS = [
   'website/app',            // pages, components, layout metadata, OG images, robots, sitemap
+  'website/public',         // static files served as-is (manifest, security.txt, logos.html)
   'src/reporters',          // console upsell footers etc.
   'vscode-extension/src',
   'vscode-extension/engine', // the in-process engine bridge + worker shipped in the vsix
@@ -71,11 +81,12 @@ const SCOPE_FILES = [
   'integrations/README.md',
   'integrations/scripts/install.sh',
   'integrations/marketplace/listing.md',
-  'integrations/wordpress/gatetest/readme.txt',
   'vscode-extension/package.json',
   'bin/gatetest.js',
   'bin/gatetest-mcp.mjs',
   'website/app/lib/chat-system-prompt.js', // the chat widget's self-description reaches the customer
+  'website/app/lib/checkout-tiers.ts',     // tier descriptions render on /checkout and on the Stripe receipt
+  'website/app/lib/mcp-remote-core.cjs',   // hosted MCP tool descriptions + server instructions, shown by every MCP client
   // Engine output — what the engine writes for a customer (see the header).
   'src/ai-loop.js',                         // printed scan report for an AI assistant
   'src/core/engine-models.js',              // `--model` labels printed on a bad choice
@@ -102,7 +113,7 @@ const SCOPE_FILES = [
 ];
 // Excluded from SCOPE_DIRS walks, with the reason.
 const EXCLUDE = [
-  /^website\/app\/lib\//,            // internal libs; chat-system-prompt.js is added back explicitly above
+  /^website\/app\/lib\//,            // internal libs; the customer-facing ones are added back explicitly above
   /^website\/app\/api\//,            // route internals (identifiers, upstream calls); customer-facing messages are covered by the tests below
   /^website\/app\/admin\//,          // admin-only UI behind auth
   /^website\/app\/legal\//,          // sub-processor disclosures must name vendors
@@ -110,7 +121,10 @@ const EXCLUDE = [
   /^website\/app\/data\/changelog\.json$/, // commit titles — history, out of scope
   /\.(png|jpg|jpeg|ico|svg|woff2?|lock)$/,
 ];
-const SCAN_EXT = /\.(tsx?|jsx?|mjs|cjs|md|txt|json|yml|yaml|sh|php)$/;
+const SCAN_EXT = /\.(tsx?|jsx?|mjs|cjs|md|txt|json|yml|yaml|sh|php|html|xml)$/;
+
+// The website is the strict surface: no client names, no chat-product names.
+const WEBSITE = /^website\//;
 
 // ---------------------------------------------------------------------------
 // Forbidden — vendor and model names. `gpt-4`-style ids and OpenAI included so
@@ -120,12 +134,10 @@ const FORBIDDEN = /\b(claude|anthropic|fable|sonnet|opus|haiku|openai|gpt-?\d)\b
 
 // ---------------------------------------------------------------------------
 // Allowlist — exact substrings removed before the forbidden regex runs.
-// Global entries apply everywhere; per-file entries only in that file.
+// Global entries apply everywhere; client-name entries only OFF the website;
+// per-file entries only in that file.
 // ---------------------------------------------------------------------------
 const GLOBAL_ALLOW = [
-  // MCP clients the user installs the server into
-  'Claude Code', 'Claude Desktop', 'claude.ai', 'claude mcp add',
-  "'Claude Code'", '.claude.json', '.claude/', 'claude_desktop_config',
   // env var names / key acquisition on BYOK paths
   'ANTHROPIC_API_KEY', 'NEXT_PUBLIC_ANTHROPIC_API_KEY', 'NEXT_PUBLIC_ANTHROPIC_KEY',
   'ANTHROPIC_KEY_PRESENT', 'CLAUDE_MODEL', 'console.anthropic.com', 'api.anthropic.com', 'sk-ant-',
@@ -134,6 +146,15 @@ const GLOBAL_ALLOW = [
   // file names / module ids / code paths
   'CLAUDE.md', 'claude-md', 'claudeCompliance', 'claude-compliance', 'anthropic-config', 'anthropic-version', 'claude-code',
   'ai-ci-fixer-claude', // lib/ai-ci-fixer-claude.js — the transport module's file name
+];
+// MCP clients the user installs the server into — admitted on the npm /
+// Marketplace / CLI surfaces only. The website never names them (2026-09-15);
+// it shows the generic `mcpServers` config block and says "your AI client".
+// `claude.ai` is in NO list: it is the vendor's chat product, not a client the
+// user installs anything into, and it is what /pricing leaked.
+const CLIENT_NAME_ALLOW = [
+  'Claude Code', 'Claude Desktop', 'claude mcp add',
+  "'Claude Code'", '.claude.json', '.claude/', 'claude_desktop_config',
 ];
 // The `--model` VALUES — exact ids and their aliases — are the API contract a
 // user passes on the CLI / MCP `model` arg. Quoted, so only the literal value
@@ -160,6 +181,10 @@ const FILE_ALLOW = {
   'src/core/cli-fix-orchestrator.js': ["'claude'"],
   'src/core/direct-repair.js': ["'claude'"],
 };
+
+function allowFor(rel) {
+  return [...GLOBAL_ALLOW, ...(WEBSITE.test(rel) ? [] : CLIENT_NAME_ALLOW), ...(FILE_ALLOW[rel] || [])];
+}
 
 // Comments in source files are not rendered. Strip them so a `// see CLAUDE.md`
 // or a historical note does not fail the guard; prose in strings/JSX stays.
@@ -210,11 +235,14 @@ function scopeFiles() {
   return [...files].sort();
 }
 
+// The guard applied to one string as if it lived at `rel`.
+function neutralise(rel, src) {
+  for (const a of allowFor(rel)) src = src.split(a).join(' ');
+  return stripIdentifiers(src);
+}
+
 function offendersIn(rel) {
-  let src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
-  src = stripComments(rel, src);
-  for (const a of [...GLOBAL_ALLOW, ...(FILE_ALLOW[rel] || [])]) src = src.split(a).join(' ');
-  src = stripIdentifiers(src);
+  const src = neutralise(rel, stripComments(rel, fs.readFileSync(path.join(ROOT, rel), 'utf8')));
   const out = [];
   src.split('\n').forEach((line, i) => {
     const m = line.match(FORBIDDEN);
@@ -233,6 +261,10 @@ describe('public copy is vendor-neutral', () => {
       'website/app/robots.ts', 'README.md', 'action.yml', 'packages/mcp-server/README.md',
       'integrations/github-actions/gatetest-gate.yml', 'wp-plugin/readme.txt', 'vscode-extension/package.json',
       'src/reporters/console-reporter.js', 'bin/gatetest.js',
+      // the website's pricing / checkout copy — where "claude.ai" leaked (2026-09-15)
+      'website/app/components/Pricing.tsx', 'website/app/pricing/page.tsx', 'website/app/lib/checkout-tiers.ts',
+      'website/app/checkout/success/page.tsx', 'website/app/components/HomeEyesEarsHands.tsx',
+      'website/app/components/site-nav.ts', 'website/app/lib/mcp-remote-core.cjs', 'website/public/manifest.json',
       // engine output
       'src/modules/fake-fix-detector.js', 'lib/ai-ci-fixer-core.js', 'lib/nuclear-diagnoser.js', 'lib/pr-composer.js',
       'packages/mcp-server/nuclear-diagnoser.js', 'website/app/lib/executive-summary.js']) {
@@ -256,38 +288,68 @@ describe('public copy is vendor-neutral', () => {
       'Opus 4.8 sits between',
       'consensus pass with OpenAI',
       'gpt-5 second opinion',
+      // the vendor's chat product is not a client-install mention, anywhere
+      'use GateTest from claude.ai web/mobile or locked-down machines',
     ];
-    for (const c of cases) {
-      let s = c;
-      for (const a of GLOBAL_ALLOW) s = s.split(a).join(' ');
-      s = stripIdentifiers(s);
-      assert.match(s, FORBIDDEN, `matcher must flag: ${c}`);
+    for (const rel of ['README.md', 'website/app/components/Pricing.tsx']) {
+      for (const c of cases) assert.match(neutralise(rel, c), FORBIDDEN, `matcher must flag in ${rel}: ${c}`);
     }
   });
 
-  it('NEGATIVE CONTROL: the allowlist admits client-install mentions, env vars, and identifiers, not prose', () => {
-    const ok = [
+  it('POSITIVE CONTROL (website): the copy that leaked on 2026-09-15 fails on every website path', () => {
+    const cases = [
+      'use GateTest from claude.ai on web and mobile — no terminal, no npm, nothing installed.',
+      'Works in claude.ai web + mobile (and locked-down machines)',
+      'the hosted tools light up in claude.ai.',
+      'Add to Claude Code in 30 seconds',
+      'in Claude Code, Cursor, Windsurf, and any MCP agent.',
+      'Claude Desktop App',
       'claude mcp add gatetest -- npx -y @gatetest/mcp-server',
-      'Works with Claude Code, Cursor, Windsurf, Continue, and Cline.',
+      'paste-ready for Claude Code',
+    ];
+    for (const rel of ['website/app/components/Pricing.tsx', 'website/app/mcp/page.tsx', 'website/app/lib/checkout-tiers.ts', 'website/public/logos.html']) {
+      for (const c of cases) assert.match(neutralise(rel, c), FORBIDDEN, `website copy must flag in ${rel}: ${c}`);
+    }
+  });
+
+  it('NEGATIVE CONTROL: the allowlist admits env vars, crawlers and identifiers everywhere, and client-install mentions off the website only', () => {
+    const everywhere = [
       'Requires ANTHROPIC_API_KEY. Get one at console.anthropic.com',
       'const r = await askClaude(prompt); anthropicApiUrl(); claudeError',
       'user-agent: ClaudeBot',
       'the claudeCompliance module',
       '// see CLAUDE.md',
-      'use it from claude.ai web and mobile or the Claude Desktop app',
+      // what the website says instead of naming a client
+      'use GateTest from your AI client on web and mobile',
+      'Works from web + mobile AI clients (and locked-down machines)',
+      '{ "mcpServers": { "gatetest": { "command": "npx", "args": ["-y", "@gatetest/mcp-server"] } } }',
+      'Works with any MCP-compatible AI — Cursor, Windsurf, Continue, Cline, and CLI agents.',
     ];
-    for (const c of ok) {
-      let s = c;
-      for (const a of GLOBAL_ALLOW) s = s.split(a).join(' ');
-      s = stripIdentifiers(s);
-      assert.ok(!FORBIDDEN.test(s), `allowlist must admit: ${c} → ${s}`);
+    const offWebsiteOnly = [
+      'claude mcp add gatetest -- npx -y @gatetest/mcp-server',
+      'Works with Claude Code, Cursor, Windsurf, Continue, and Cline.',
+      'Claude Desktop → Settings → Developer → Edit Config (claude_desktop_config.json)',
+    ];
+    for (const c of everywhere) {
+      for (const rel of ['README.md', 'website/app/mcp/page.tsx']) {
+        assert.ok(!FORBIDDEN.test(neutralise(rel, c)), `allowlist must admit in ${rel}: ${c} → ${neutralise(rel, c)}`);
+      }
+    }
+    for (const c of offWebsiteOnly) {
+      assert.ok(!FORBIDDEN.test(neutralise('packages/mcp-server/README.md', c)), `client-install mention must be admitted off the website: ${c}`);
+      assert.match(neutralise('website/app/mcp/page.tsx', c), FORBIDDEN, `client-install mention must be flagged on the website: ${c}`);
     }
   });
 
-  it('the allowlist is not hiding prose (every global entry is a client name, env var, URL, crawler, or identifier)', () => {
-    for (const a of GLOBAL_ALLOW) {
+  it('the allowlist is not hiding prose (every entry is a client name, env var, URL, crawler, or identifier)', () => {
+    for (const a of [...GLOBAL_ALLOW, ...CLIENT_NAME_ALLOW]) {
       assert.ok(!/\b(powered|built on|uses|model|fable|sonnet|opus)\b/i.test(a), `allowlist entry reads like prose: ${a}`);
     }
+  });
+
+  it("the vendor's chat product is in no allowlist (it is not a client the user installs into)", () => {
+    const all = [...GLOBAL_ALLOW, ...CLIENT_NAME_ALLOW, ...Object.values(FILE_ALLOW).flat()];
+    assert.deepStrictEqual(all.filter((a) => /claude\.ai/i.test(a)), []);
   });
 });
 

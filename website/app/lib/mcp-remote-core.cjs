@@ -158,7 +158,7 @@ const TOOLS = [
     name: 'fix_issue',
     description:
       'AI-generated fix delivered as a real GitHub pull request — no local install needed. ' +
-      'GateTest reads the file via the GitHub API, runs the iterative Claude fix loop with syntax + ' +
+      'GateTest reads the file via the GitHub API, runs the iterative AI fix loop with syntax + ' +
       'scanner gates, and opens a PR on the repo. Supply a GitHub token with repo scope via ' +
       'githubToken (used for this call only, never stored). ' +
       'Requires a GateTest MCP subscription key ($29/mo at gatetest.io/mcp).',
@@ -414,7 +414,7 @@ function createMcpCore({ apiBase = 'https://gatetest.io', fetchImpl = globalThis
         capabilities: { tools: {}, prompts: {} },
         serverInfo: SERVER_INFO,
         instructions:
-          'GateTest gives Claude eyes, ears, and hands: a 121-module engine to scan any ' +
+          'GateTest gives your AI eyes, ears, and hands: a 121-module engine to scan any ' +
           'codebase or live site, screenshots so it can SEE the rendered page, production ' +
           'errors so it can HEAR what is breaking, and a pass/fail re-scan that PROVES its fixes. ' +
           'Free with no key: scan_url (any live website) and scan_repo (any public GitHub repo) — ' +

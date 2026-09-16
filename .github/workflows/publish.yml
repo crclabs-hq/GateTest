@@ -130,23 +130,73 @@ jobs:
       # publishing — the package needs its own Trusted Publisher entry on
       # npmjs.com (Settings -> Trusted Publisher: crclabs-hq / GateTest /
       # publish.yml). Idempotent like the CLI step.
+      #
+      # NON-FATAL for exactly one failure class: the auth family
+      # (E404/ENEEDAUTH/E401/EOTP), which on this package means "no Trusted
+      # Publisher entry yet" — an npmjs.com setting only the package owner
+      # can add, not something a re-run fixes. Until 2026-09-15 that class
+      # `exit 1`-ed here after the CLI was already on npm, which skipped the
+      # release, the v1 tag move and the WordPress zip: a tagged version with
+      # no GitHub Release and a Marketplace action pointing at nothing. Now
+      # the step warns loudly, records mcp_published=false, and the release
+      # goes out saying the MCP package is missing. The CLI on npm is still
+      # what `npx -y @gatetest/mcp-server` (1.1.3) resolves and runs, and
+      # the CLI starts itself under that proxy (bin/gatetest-mcp.mjs). Every
+      # other failure (test, network, tarball, EPUBLISHCONFLICT, ...) is
+      # still fatal.
       - name: npm publish @gatetest/mcp-server
+        id: mcp_publish
         if: "!(github.event_name == 'workflow_dispatch' && inputs.dry_run == true)"
         working-directory: packages/mcp-server
         run: |
           PKG="$(node -p "require('./package.json').name")"
           VER="$(node -p "require('./package.json').version")"
+          echo "mcp_version=$VER" >> "$GITHUB_OUTPUT"
           if npm view "$PKG@$VER" version >/dev/null 2>&1; then
             echo "$PKG@$VER is already on npm — skipping"
+            echo "mcp_published=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if ! npm publish --access public --provenance 2> /tmp/npm-publish-mcp-err; then
-            cat /tmp/npm-publish-mcp-err
-            if grep -qE "ENEEDAUTH|E401|E404|EOTP" /tmp/npm-publish-mcp-err; then
-              echo "::error::npm auth failed for $PKG — add a Trusted Publisher on npmjs.com for $PKG (GitHub Actions, crclabs-hq / GateTest, workflow publish.yml, no environment)."
-            fi
-            exit 1
+          if npm publish --access public --provenance 2> /tmp/npm-publish-mcp-err; then
+            echo "mcp_published=true" >> "$GITHUB_OUTPUT"
+            echo "$PKG@$VER published"
+            exit 0
           fi
+          cat /tmp/npm-publish-mcp-err
+          echo "mcp_published=false" >> "$GITHUB_OUTPUT"
+          if grep -qE "ENEEDAUTH|E401|E404|EOTP" /tmp/npm-publish-mcp-err; then
+            echo ""
+            echo "::warning title=$PKG@$VER NOT published — no npm Trusted Publisher::$PKG has no Trusted Publisher on npmjs.com, so OIDC publishing was refused. The CLI IS published; the release continues WITHOUT the MCP package. Owner fix on npmjs.com: package $PKG -> Settings -> Trusted Publisher -> GitHub Actions, Organization/user crclabs-hq, Repository GateTest, Workflow filename publish.yml, Environment name blank. Then re-run this workflow (workflow_dispatch on tag $GITHUB_REF_NAME) — the CLI step is idempotent and only the MCP package will publish."
+            echo ""
+            echo "  ==================================================================="
+            echo "  $PKG@$VER was NOT published. Release continues without it."
+            echo "  ==================================================================="
+            echo ""
+            echo "  Fix (npmjs.com, logged in as the package owner — nobody else can):"
+            echo ""
+            echo "    Package page -> $PKG -> Settings -> Trusted Publisher:"
+            echo "      Publisher:          GitHub Actions"
+            echo "      Organization/user:  crclabs-hq"
+            echo "      Repository:         GateTest"
+            echo "      Workflow filename:  publish.yml"
+            echo "      Environment name:   (leave blank)"
+            echo ""
+            echo "    The org/repo must be GitHub's CANONICAL name (crclabs-hq/GateTest —"
+            echo "    ccantynz-alt/gatetest is an alias and will not match)."
+            echo ""
+            echo "  Then: Actions -> Publish to npm -> Run workflow on tag $GITHUB_REF_NAME."
+            echo "  The CLI step sees its version on npm and skips; only $PKG publishes."
+            {
+              echo "## :warning: $PKG@$VER was NOT published"
+              echo ""
+              echo "npm refused the OIDC publish (no Trusted Publisher for \`$PKG\`). The CLI is on npm and the release went out without the MCP package."
+              echo ""
+              echo "**Owner fix (npmjs.com):** \`$PKG\` -> Settings -> Trusted Publisher -> GitHub Actions / \`crclabs-hq\` / \`GateTest\` / \`publish.yml\` / environment blank. Then re-run this workflow on tag \`$GITHUB_REF_NAME\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "::error::npm publish of $PKG@$VER failed for a reason other than missing auth — see the output above. This is fatal."
+          exit 1
 
       # The Marketplace listing, the README and every customer workflow say
       # `uses: crclabs-hq/GateTest@v1`, and no v1 tag ever existed — the
@@ -171,10 +221,38 @@ jobs:
       # Only after a successful publish: the 2026-09-13 run failed at the test
       # step, skipped npm publish, and still created a public v1.61.0 release
       # for a version the registry did not have.
+      # The release body leads with what actually reached npm. GitHub prepends
+      # `body` to the generated notes, so a release cut while the MCP package
+      # was refused says so at the top instead of looking complete.
+      - name: Compose release notes header
+        id: notes
+        if: success() && startsWith(github.ref, 'refs/tags/v')
+        env:
+          MCP_PUBLISHED: ${{ steps.mcp_publish.outputs.mcp_published }}
+          MCP_VERSION: ${{ steps.mcp_publish.outputs.mcp_version }}
+        run: |
+          CLI_VER="$(node -p "require('./package.json').version")"
+          {
+            echo "**npm:** [\`@gatetest/cli@$CLI_VER\`](https://www.npmjs.com/package/@gatetest/cli/v/$CLI_VER)"
+            if [ "$MCP_PUBLISHED" = "true" ]; then
+              echo "**npm:** [\`@gatetest/mcp-server@$MCP_VERSION\`](https://www.npmjs.com/package/@gatetest/mcp-server/v/$MCP_VERSION)"
+            elif [ "$MCP_PUBLISHED" = "false" ]; then
+              echo ""
+              echo "> :warning: **\`@gatetest/mcp-server@$MCP_VERSION\` was NOT published with this release** — npm refused the OIDC publish because the package has no Trusted Publisher configured. \`npx -y @gatetest/mcp-server\` keeps resolving the previous proxy release, which runs the \`@gatetest/cli\` above. The package owner adds the Trusted Publisher on npmjs.com and re-runs the publish workflow on this tag."
+            fi
+            echo ""
+            echo "**WordPress plugin:** \`gatetest-health-check.zip\` is attached below once the plugin job finishes."
+            echo ""
+            echo "---"
+            echo ""
+          } > /tmp/release-notes-header.md
+          cat /tmp/release-notes-header.md
+
       - name: Create GitHub Release
         if: success() && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          body_path: /tmp/release-notes-header.md
           generate_release_notes: true
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}

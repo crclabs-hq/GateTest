@@ -29,7 +29,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Gluecron", href: "https://gluecron.com", desc: "Our git host, with the gate built in.", external: true },
       { label: "WordPress", href: "/wp", desc: "Scan a WordPress site. No code, no plugin." },
       { label: "Websites", href: "/web", desc: "Scan any URL for security, a11y and performance." },
-      { label: "MCP & AI editors", href: "/mcp", desc: "Claude Code, Cursor and VS Code run the gate for you." },
+      { label: "MCP & AI editors", href: "/mcp", desc: "Cursor, VS Code and any MCP client run the gate for you." },
       { label: "CLI & GitHub Action", href: "/developers", desc: "Open source. Runs in your own CI." },
     ],
   },

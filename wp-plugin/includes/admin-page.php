@@ -116,7 +116,7 @@ function gatetest_hc_render_admin_page() {
             <?php esc_html_e('Health Check', 'gatetest-health-check'); ?>
         </h1>
         <p class="gatetest-hc-tagline">
-            <?php esc_html_e('Audit your site for security, performance, and quality issues. 18 modules, plain-language report.', 'gatetest-health-check'); ?>
+            <?php esc_html_e('Audit your site for security, performance, and quality issues. 29 modules, plain-language report.', 'gatetest-health-check'); ?>
         </p>
 
         <div class="gatetest-hc-panels">

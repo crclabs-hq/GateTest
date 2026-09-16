@@ -4,9 +4,9 @@ import { useState } from "react";
 import { type Finding, type ScanResult, type Severity } from "./url-scan-flow-types";
 import { SITE_URL } from "@/app/lib/site-url";
 
-function formatFindingsForClaude(result: ScanResult): string {
+function formatFindingsForAgent(result: ScanResult): string {
   const lines: string[] = [];
-  lines.push(`# GateTest scan report — paste-ready for Claude Code`);
+  lines.push(`# GateTest scan report — paste-ready for your AI coding agent`);
   lines.push("");
   lines.push(`**Site scanned:** ${result.targetUrl}`);
   lines.push(`**Health Score:** ${result.healthScore.score} / 100 (Grade ${result.healthScore.grade})`);
@@ -47,12 +47,12 @@ function formatFindingsForClaude(result: ScanResult): string {
   return lines.join("\n");
 }
 
-export function CopyForClaudeButton({ result }: { result: ScanResult }) {
+export function CopyForAgentButton({ result }: { result: ScanResult }) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState(false);
 
   async function copy() {
-    const text = formatFindingsForClaude(result);
+    const text = formatFindingsForAgent(result);
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text);
@@ -82,7 +82,7 @@ export function CopyForClaudeButton({ result }: { result: ScanResult }) {
           Hand this report to your AI agent
         </p>
         <p className="text-sm text-muted mt-1 leading-relaxed">
-          Copy the findings as a structured prompt ready to paste into Claude Code, Cursor, or any chat session.
+          Copy the findings as a structured prompt ready to paste into Cursor, a CLI agent, or any chat session.
           The agent will know the URL, the issues, the severity, and what to fix.
         </p>
       </div>
