@@ -311,4 +311,6 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { removeTmp, ratchetManifest };
+// `clone` is shared with scripts/head-to-head.js so the comparison table is
+// measured on the same bytes as the gate — one clone routine, imported.
+module.exports = { clone, removeTmp, ratchetManifest, MANIFEST };
