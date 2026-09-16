@@ -20,7 +20,9 @@
       "where": "Local clone of crclabs-hq/GateTest, on main",
       "priority": 1,
       "done": false,
-      "after": ["npm-trusted-publisher-mcp"]
+      "after": [
+        "npm-trusted-publisher-mcp"
+      ]
     },
     {
       "id": "openvsx-namespace",
@@ -111,7 +113,9 @@
       "where": "https://wordpress.org/plugins/developers/add/",
       "priority": 3,
       "done": false,
-      "after": ["tag-v1-61-1"]
+      "after": [
+        "tag-v1-61-1"
+      ]
     },
     {
       "id": "dmarc-dkim",
@@ -131,6 +135,16 @@
       "step": "Settings → Branches → main protection rule → Require status checks to pass before merging: tick every check that runs on PRs, and add 'GateTest Full Scan' once it runs on PRs → Require branches to be up to date before merging: on → disable 'Update branch' auto-merge for PRs touching the same files → Save.",
       "where": "https://github.com/crclabs-hq/GateTest/settings/branches",
       "priority": 1,
+      "done": false
+    },
+    {
+      "id": "ghcr-package-public",
+      "title": "Make the ghcr.io/crclabs-hq/gatetest container package public",
+      "since": "2026-09-16",
+      "unblocks": "docker pull ghcr.io/crclabs-hq/gatetest works anonymously; the post-publish smoke stops reporting the image as missing; the Docker channel can go on the homepage",
+      "step": "github.com/orgs/crclabs-hq/packages → gatetest (container) → Package settings → Danger Zone → Change visibility → Public. The image itself was pushed by docker-publish.yml on the v1.61.1 tag (registry answers 403 = exists but private).",
+      "where": "https://github.com/orgs/crclabs-hq/packages/container/gatetest/settings",
+      "priority": 2,
       "done": false
     }
   ]
