@@ -23,6 +23,12 @@ const ICONS: Record<string, React.ReactNode> = {
       <path d="M16 3v18M7 13.5L16 6M7 10.5L16 18" strokeLinejoin="round" />
     </svg>
   ),
+  openvsx: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" strokeLinejoin="round" />
+      <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" strokeLinejoin="round" />
+    </svg>
+  ),
   cli: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
       <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -55,7 +61,16 @@ const ICONS: Record<string, React.ReactNode> = {
   ),
 };
 
+// The heading counts the list it renders (Doctrine §7) — the typed number it
+// replaced went stale the day Open VSX went live.
+const COUNT_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+const placesWord = (n: number): string => {
+  const word = COUNT_WORDS[n] ?? String(n);
+  return word.charAt(0).toUpperCase() + word.slice(1);
+};
+
 export default function HomeEverywhere() {
+  const places = placesWord(SURFACES.length);
   return (
     <section
       id="everywhere"
@@ -71,7 +86,7 @@ export default function HomeEverywhere() {
             id="everywhere-heading"
             className="text-3xl sm:text-4xl font-bold text-foreground mb-4 tracking-tight"
           >
-            One engine. Six places to run it.
+            One engine. {places} places to run it.
           </h2>
           <p className="text-muted text-lg leading-relaxed">
             Editor, terminal, CI, AI agent, browser. The same {TOTAL_MODULES}-module

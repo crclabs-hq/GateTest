@@ -75,10 +75,13 @@ jobs:
         # A repository that could not be cloned exits non-zero AFTER the
         # file is written for the ones that were — the red is visible here
         # and the PR step ships only what was measured.
+        env:
+          # Passed through env, never interpolated into the script: a
+          # workflow_dispatch input is untrusted event data.
+          LIMIT: ${{ github.event.inputs.repos }}
         run: |
           set -o pipefail
           mkdir -p .h2h
-          LIMIT="${{ github.event.inputs.repos }}"
           GATETEST_NO_TELEMETRY=1 node scripts/head-to-head.js \
             ${LIMIT:+--repos "$LIMIT"} \
             --out website/app/data/head-to-head.json 2>&1 | tee .h2h/run.log && rc=0 || rc=$?

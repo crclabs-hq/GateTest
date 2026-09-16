@@ -4,6 +4,13 @@
 
 GateTest is the engine behind gatetest.io, running entirely inside your editor. No account, no upload, no binary to install. Open a folder, run a scan, and the Problems panel fills with what a senior reviewer would have caught, ranked by what matters, each with the fix.
 
+## Install
+
+- **VS Code:** search **GateTest** in the Extensions view, or install from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=GateTestHQ.gatetest).
+- **Cursor, Windsurf, VSCodium, Gitpod, Eclipse Theia:** search **GateTest** in the Extensions view, or install from [Open VSX](https://open-vsx.org/extension/GateTestHQ/gatetest) — the registry those editors read.
+
+It is the same build on both registries, published on the same run. Free, no account, and nothing leaves your machine.
+
 ## Why teams switch
 
 - **Depth other linters do not reach.** Money handled as floating point. Import cycles that only bite in production. Secrets that a regex would miss. Retry loops that swallow the error. Race conditions in async code. N+1 queries. Redirects and requests that trust user input. Cookie and TLS configuration. Dependency risk that is actually reachable from your code, not just present in a lockfile.
