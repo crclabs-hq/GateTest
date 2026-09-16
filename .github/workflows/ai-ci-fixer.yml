@@ -30,6 +30,9 @@ jobs:
     env:
       ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
       GATETEST_AI_CI_FIXER: ${{ vars.GATETEST_AI_CI_FIXER || '' }}
+      GH_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
+      HEAD_BRANCH:          ${{ github.event.workflow_run.head_branch }}
+      DEFAULT_BRANCH:       ${{ github.event.repository.default_branch }}
     steps:
       - name: Check ANTHROPIC_API_KEY presence + opt-out flag
         id: gate
@@ -41,6 +44,25 @@ jobs:
           fi
           if [ "${GATETEST_AI_CI_FIXER}" = "0" ]; then
             echo "AI CI-fixer disabled (GATETEST_AI_CI_FIXER=0 — explicitly opted out)"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Usage Doctrine #7 (2026-09-16): a red PR branch is its author's job —
+          # the fixer only repairs the default branch.
+          if [ "${HEAD_BRANCH}" != "${DEFAULT_BRANCH}" ]; then
+            echo "AI CI-fixer skipped — ${HEAD_BRANCH} is not the default branch (${DEFAULT_BRANCH})"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # …and at most once per 30 minutes: several red runs from one cause
+          # (16 Sep: eleven fixer runs on one commit) are one fix, not eleven.
+          since="$(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%SZ)"
+          recent="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ai-ci-fixer.yml/runs?status=success&created=>${since}&per_page=20" \
+            --jq "[.workflow_runs[] | select(.id != ${GITHUB_RUN_ID})] | length")" || recent="unknown"
+          if [ "${recent}" = "unknown" ]; then
+            echo "::warning::could not read recent fixer runs — cooldown not checked, proceeding"
+          elif [ "${recent}" -gt 0 ]; then
+            echo "AI CI-fixer skipped — ${recent} fixer run(s) already completed since ${since} (30-minute cooldown)"
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -72,6 +94,6 @@ jobs:
           GITHUB_TOKEN:      ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           WORKFLOW_RUN_ID:   ${{ github.event.workflow_run.id }}
-          MAX_FIX_ATTEMPTS:  '3'
+          MAX_FIX_ATTEMPTS:  '2'
           CLAUDE_MODEL:      'claude-sonnet-5'
         run: node scripts/ai-ci-fixer.js
