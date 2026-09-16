@@ -128,6 +128,7 @@ GateTest/
 | File | What it controls | Read before... |
 |------|-----------------|---------------|
 | `MARKETING.md` | All marketing copy, pricing | Any website change |
+| `website/app/lib/usage-ledger.js` | The customer usage meter's ledger (`usage_events`), its identity rule (hashed customer e-mail), the best-effort writer every hosted path calls, and the `GET /api/v1/usage` logic — see USAGE LEDGER below | Adding a surface, a writer, or a column to what a customer sees about their own usage |
 | `src/index.js` | All public exports, reporter wiring | Adding exports |
 | `src/core/runner.js` | Severity, auto-fix, diff-mode, gate | Changing how checks work |
 | `src/core/config.js` | Thresholds, suite definitions | Changing what modules run |
@@ -264,3 +265,27 @@ fails the suite if any path bypasses the dispatcher.
 worker/Stripe/v1 paths ran the 23-module in-memory re-implementation on a
 50-file sample at HEAD, and even `/api/scan/run` read 50 files with 12
 extensions — a $399 Forensic scan of a 2,000-file repo analysed ~2.5% of it.
+
+---
+
+## USAGE LEDGER (2026-09-16 — the customer's usage meter; the Fifty, move 51)
+
+Until 2026-09-16 a customer could see nothing about their own usage: no ledger,
+no dashboard view, no CLI command. The foundation is one append-only table and
+one read API; the dashboard page, `gatetest usage`, the editor status bar and
+ceiling alerts are the follow-ups (move 51 in `docs/THE-FIFTY.md`).
+
+| Piece | File | Rule |
+|---|---|---|
+| Store | `website/app/lib/usage-ledger.js` | Table `usage_events` — `id, occurred_at, account_key, surface, repo, suite, modules_run, findings_total, findings_blocking, ai_calls, tokens_in, tokens_out, usd_estimated, key_owner, model_tier, scan_id, tier`. Schema is created idempotently on first use (`CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS` + `ADD COLUMN IF NOT EXISTS`), the same pattern as `continuous-subscription-store.js`; the caller injects the `sql` tagged template (`getDb()` in routes, a recorder in tests). No new env var — it rides `DATABASE_URL`. |
+| Identity | `accountKeyForEmail` / `resolveAccountKey` / `accountKeysForApiKey` | **`account_key` is `em:<sha256(salt\|lower(email))>`** — the customer's e-mail is the one identity every surface shares (`api_keys.customer_email`, `mcp_subscriptions.customer_email`, `continuous_subscriptions.customer_email`, the OAuth session `payload.e`, the Stripe checkout `customer_details.email`), so keying on it gives one view across web, hosted fix, push and REST; hashing keeps PII out of the table. When no e-mail is known the row is still written under a namespaced fallback (`stripe:<cus>`, `apikey:<id>`, `checkout:<cs>`, `org:<host>/<owner>`). The read side queries every key the caller owns and nothing else. |
+| Writers | `/api/scan/fix/route.ts` (surface `hosted-fix`, tracker tokens + price-table USD, `key_owner` from the BYOK flag, written once after `budgetSummary` and once on the 402 budget-exceeded path) · `/api/scan/run/route.ts` and `scan-executor.ts` `runScanJob` (surface `web`; `ai_calls` 0 for deterministic scans, the AI module's `costUsd`/`tokensIn`/`tokensOut` when it ran) · `scan-worker.js` via the injected `usageStore` (surface `push`, Continuous subscriber e-mail → Stripe customer → repo org) | **Best-effort by contract.** `recordUsageIfConfigured` never throws: no `DATABASE_URL` → no-op; any failure → one `console.warn`, the customer's scan/fix result is untouched. Rows carry `owner/name` only (`redactRepo`), never a URL, token or key. BYOK rows keep the same tokens and estimated USD as GateTest-paid rows, flagged `key_owner='byok'`. `model_tier` is `standard` / `deep`, never a model id. |
+| Read API | `GET /api/v1/usage` (`website/app/api/v1/usage/route.ts`) | Authenticated exactly like `POST /api/v1/scans` (`authenticateApiKey`; 401 missing/invalid, 403 revoked). Query `from` / `to` (ISO; default last 30 days, max 366). Returns `{ summary, series, bySurface, recent, nextCursor }` — totals incl. `usdGatetestPaid` / `usdByok`, a gap-filled per-UTC-day series, per-surface breakdown, newest-first events. The framework-free logic is `handleUsageRequest`; `summarizeUsage` / `listUsage` (keyset pagination on `id`) are the primitives. |
+| Tests | `tests/usage-ledger.test.js` | recorder-backed: row written, aggregation (tokens / USD / per surface / per day, BYOK flagged), pagination, the writer swallowing a ledger error, 401 with no DB touched, and source contracts pinning the route wiring. |
+
+Surfaces: `web`, `action`, `mcp`, `cli`, `vscode`, `hosted-fix` (Craig's six) plus
+`push` (webhook scans drained by the worker) and `api` (`POST /api/v1/scans`) so
+hosted work the customer did is never hidden from their meter. The local
+surfaces (`action`, `mcp`, `cli`, `vscode`) have no writer yet — they run on the
+customer's machine and will report through the existing telemetry upload when
+the follow-ups land.

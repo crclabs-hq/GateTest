@@ -324,6 +324,12 @@ async function _postImpl(req: NextRequest): Promise<ReturnType<typeof NextRespon
   // `tier` was stamped at checkout creation and cannot be tampered with.
   // If the URL claims a different tier than the customer paid for, we
   // log the attempt and silently honour the paid tier.
+  //
+  // Usage-ledger identity (usage-ledger.js): the checkout e-mail is the
+  // canonical key (hashed before storage); the checkout session id is the
+  // fallback so the row is never lost.
+  let ledgerEmail: string | null = null;
+  let ledgerStripeCustomerId: string | null = null;
   if (!isAdmin) {
     if (!sessionId) {
       return NextResponse.json(
@@ -340,10 +346,18 @@ async function _postImpl(req: NextRequest): Promise<ReturnType<typeof NextRespon
       const existing = (await stripeApi(
         "GET",
         `/v1/checkout/sessions/${sessionId}`
-      )) as { payment_intent?: string };
+      )) as {
+        payment_intent?: string;
+        // Customer identity for the usage ledger — hashed before storage.
+        customer?: string | null;
+        customer_email?: string | null;
+        customer_details?: { email?: string | null } | null;
+      };
       if (!existing.payment_intent) {
         return NextResponse.json({ error: "Invalid or incomplete checkout session" }, { status: 402 });
       }
+      ledgerEmail = existing.customer_details?.email || existing.customer_email || null;
+      ledgerStripeCustomerId = typeof existing.customer === "string" ? existing.customer : null;
 
       const pi = (await stripeApi(
         "GET",
@@ -430,6 +444,46 @@ async function _postImpl(req: NextRequest): Promise<ReturnType<typeof NextRespon
       error: result.error ? String(result.error).slice(0, 200) : null,
     },
   });
+
+  // Usage ledger — this scan in the customer's own meter (surface 'web').
+  // Deterministic tiers carry ai_calls 0; the AI module's cost/tokens ride
+  // on its module result when it ran. Best-effort by contract: the helper
+  // never throws and a failure is one warning, never a failed scan.
+  if (!result.error) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const ledger = require("@/app/lib/usage-ledger") as {
+        recordUsageIfConfigured: (event: Record<string, unknown>) => Promise<number | null>;
+        resolveAccountKey: (ids: Record<string, unknown>) => string | null;
+        aiTotalsFromModules: (modules: unknown) => { aiCalls: number; tokensIn: number; tokensOut: number; usd: number };
+        countBlockingFindings: (scanResult: unknown) => number;
+      };
+      const ai = ledger.aiTotalsFromModules(result.modules);
+      await ledger.recordUsageIfConfigured({
+        accountKey: ledger.resolveAccountKey({
+          email: ledgerEmail,
+          stripeCustomerId: ledgerStripeCustomerId,
+          checkoutSessionId: sessionId,
+          fallback: isAdmin ? "admin" : null,
+        }),
+        surface: "web",
+        repo: `${owner}/${repo}`,
+        suite: tier || "quick",
+        tier: tier || "quick",
+        scanId: sessionId || null,
+        modulesRun: result.modules?.length || 0,
+        findingsTotal: result.totalIssues,
+        findingsBlocking: ledger.countBlockingFindings(result),
+        aiCalls: ai.aiCalls,
+        tokensIn: ai.tokensIn,
+        tokensOut: ai.tokensOut,
+        usdEstimated: ai.usd,
+        keyOwner: "gatetest",
+      });
+    } catch (ledgerErr) { // error-ok — the ledger is observability; the scan result is already final
+      console.warn("[GateTest] usage ledger write failed (scan/run, continuing):", ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr));
+    }
+  }
 
   // If we have a session ID AND this is NOT an admin request, update Stripe
   // and capture payment. Admins never touch billing.

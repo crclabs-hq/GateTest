@@ -18,6 +18,9 @@ export interface ModuleOutput {
   skipped?: string;
   /** Real USD cost incurred by this module's own API calls (e.g. aiReview's Claude spend). Omit/0 for free modules. */
   costUsd?: number;
+  /** Token counts behind costUsd, when the provider reported them — feeds the customer's usage meter. */
+  tokensIn?: number;
+  tokensOut?: number;
 }
 
 export interface ModuleContext {

@@ -161,16 +161,20 @@ export const aiReview: ModuleRunner = async (ctx: ModuleContext): Promise<Module
 
   let textOut: string;
   let costUsd = 0;
+  let tokensIn = 0;
+  let tokensOut = 0;
   try {
     const parsed = JSON.parse(result.body);
     const usage = parsed?.usage;
     if (usage && typeof usage.input_tokens === "number" && typeof usage.output_tokens === "number") {
       const rate = priceFor(MODEL);
-      costUsd = (usage.input_tokens / 1_000_000) * rate.input + (usage.output_tokens / 1_000_000) * rate.output;
+      tokensIn = usage.input_tokens;
+      tokensOut = usage.output_tokens;
+      costUsd = (tokensIn / 1_000_000) * rate.input + (tokensOut / 1_000_000) * rate.output;
     }
     const content = parsed?.content;
     if (!Array.isArray(content) || content.length === 0 || typeof content[0]?.text !== "string") {
-      return { checks: 1, issues: 1, details: ["AI review response parse failed"], costUsd };
+      return { checks: 1, issues: 1, details: ["AI review response parse failed"], costUsd, tokensIn, tokensOut };
     }
     textOut = content[0].text;
   } catch {
@@ -179,11 +183,11 @@ export const aiReview: ModuleRunner = async (ctx: ModuleContext): Promise<Module
 
   const findings = extractJsonArray(textOut);
   if (!findings) {
-    return { checks: 1, issues: 1, details: ["AI review response parse failed"], costUsd };
+    return { checks: 1, issues: 1, details: ["AI review response parse failed"], costUsd, tokensIn, tokensOut };
   }
 
   const details = findings.map(
     (f) => `${f.file}: [${f.severity}] ${f.issue}${typeof f.line === "number" ? ` (line ${f.line})` : ""}`,
   );
-  return { checks: files.length, issues: findings.length, details, costUsd };
+  return { checks: files.length, issues: findings.length, details, costUsd, tokensIn, tokensOut };
 };

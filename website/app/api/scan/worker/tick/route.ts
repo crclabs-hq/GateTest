@@ -39,6 +39,8 @@ const scanWorker = require("@/app/lib/scan-worker");
 const queueStore = require("@/app/lib/scan-queue-store");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const continuousStore = require("@/app/lib/continuous-subscription-store");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const usageStore = require("@/app/lib/usage-ledger");
 
 interface CallbackArgs {
   repository: string;
@@ -170,6 +172,7 @@ export async function POST(req: NextRequest) {
       runScan,
       sendCallback: (args: CallbackArgs) => dispatchCallback(args),
       continuousStore,
+      usageStore,
     });
 
     return NextResponse.json(result, { status: 200 });
