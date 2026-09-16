@@ -18,8 +18,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
-const vd = require('../scripts/ops/verify-deploy');
-const { compare, formatAge, fetchPlatformStatus, verify, parseArgs, withinGrace, render, EXIT } = vd;
+const vd = require('../src/core/verify-deploy');
+const { parseArgs } = require('../scripts/ops/verify-deploy');
+const { compare, formatAge, fetchPlatformStatus, withinGrace, render, EXIT } = vd;
+
+// The CLI hands verify() its parsed options plus deps; tests do the same.
+const verify = (deps) => vd.verify(parseArgs(deps.argv), deps);
 
 const DEPLOYED = '3884051c4cd3f83fef9242901f248dbc245e219f';
 const EXPECTED = 'b444057a08ee6fe83099fd4d55345de836aecf2f';
@@ -327,10 +331,13 @@ test('parseArgs: rejects unknown flags and bad numbers; --json/--out parsed', ()
 // The site URL is imported, never a literal
 // ---------------------------------------------------------------------------
 
-test('verify-deploy.js reads the site origin from src/core/site-url.js and writes no gatetest literal', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'scripts', 'ops', 'verify-deploy.js'), 'utf8');
-  assert.match(src, /require\('\.\.\/\.\.\/src\/core\/site-url'\)/);
-  assert.doesNotMatch(src, /gatetest\.(io|ai)/, 'no origin literal in the script');
+test('verify-deploy reads the site origin from src/core/site-url.js and writes no gatetest literal', () => {
+  const coreSrc = fs.readFileSync(path.join(ROOT, 'src', 'core', 'verify-deploy.js'), 'utf8');
+  const cliSrc = fs.readFileSync(path.join(ROOT, 'scripts', 'ops', 'verify-deploy.js'), 'utf8');
+  assert.match(coreSrc, /require\('\.\/site-url'\)/);
+  assert.match(cliSrc, /require\('\.\.\/\.\.\/src\/core\/verify-deploy'\)/, 'the CLI is a thin wrapper over the core');
+  assert.doesNotMatch(coreSrc, /gatetest\.(io|ai)/, 'no origin literal in the core');
+  assert.doesNotMatch(cliSrc, /gatetest\.(io|ai)/, 'no origin literal in the CLI');
 });
 
 // ---------------------------------------------------------------------------
