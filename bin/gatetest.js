@@ -85,6 +85,13 @@ const HELP = `
                                      tree. Same engine as the MCP
                                      blame_regression tool. See
                                      'gatetest blame --help'.
+    gatetest usage [options]         Your usage meter: scans, fixes,
+                                     findings, AI tokens and estimated cost
+                                     across every surface, BYOK and metered
+                                     runs listed separately. Reads
+                                     GATETEST_API_KEY (a gt_live_ REST key);
+                                     --json for the raw report. See
+                                     'gatetest usage --help'.
 
   OPTIONS
     --suite <name>     Run a test suite: quick, standard, full (default: standard)
@@ -302,7 +309,7 @@ async function main() {
   //                            every existing invocation keeps working.
   const rawArgs = process.argv.slice(2);
   const first = rawArgs[0];
-  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan', 'train', 'fix', 'trace', 'blame', 'verify-report']);
+  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan', 'train', 'fix', 'trace', 'blame', 'verify-report', 'usage']);
   if (first === 'verify-report') {
     // gatetest verify-report <report.json> [--key <key>]
     // Checks the HMAC signature over the provenance block and that the
@@ -350,6 +357,13 @@ async function main() {
   if (first === 'blame') {
     const blame = require('./gatetest-blame');
     const code = await blame.main(rawArgs.slice(1));
+    process.exit(code || 0);
+  }
+  if (first === 'usage') {
+    // gatetest usage — the customer usage meter (GET /api/v1/usage) rendered
+    // as a table or --json. Reads GATETEST_API_KEY; no key → one line, exit 2.
+    const usage = require('./gatetest-usage');
+    const code = await usage.main(rawArgs.slice(1));
     process.exit(code || 0);
   }
   if (first === 'fix') {
