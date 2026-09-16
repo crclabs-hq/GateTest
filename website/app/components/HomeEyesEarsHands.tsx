@@ -9,6 +9,7 @@
  */
 
 import { TOOL_COUNT } from "../mcp/tools-data";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 const CAPABILITIES = [
   {
@@ -98,7 +99,7 @@ export default function HomeEyesEarsHands() {
             The three things every AI coding agent is missing — it writes UI it
             can&apos;t see, guesses at errors it can&apos;t read, and claims
             &ldquo;fixed&rdquo; without proof. GateTest closes all three over one
-            connection: {TOOL_COUNT} tools driven by the full 121-module engine,
+            connection: {TOOL_COUNT} tools driven by the full {TOTAL_MODULES}-module engine,
             in Cursor, Windsurf, and any MCP agent.
           </p>
         </div>

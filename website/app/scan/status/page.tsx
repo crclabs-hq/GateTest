@@ -8,6 +8,7 @@ import LiveScanTerminal from "@/app/components/LiveScanTerminal";
 import { SUPPORT_EMAIL } from "@/app/lib/site-url";
 import REGISTRY_MODULES from "@/app/lib/mcp-remote-modules.json";
 import { extractIssuesFromModules, type UnparseableIssue } from "@/app/lib/issue-extractor";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 interface ModuleResult {
   name: string;
@@ -859,7 +860,7 @@ export default function ScanStatus() {
                       >
                         <p className="text-xs uppercase tracking-wider text-muted/70 font-semibold mb-1">Step 1</p>
                         <p className="font-bold text-foreground mb-1 text-base">Full Scan &mdash; $99</p>
-                        <p className="text-xs text-muted leading-relaxed">Every applicable module of the 121-module engine instead of 4. Same scan-only delivery, full coverage. You see every issue, then decide what to fix.</p>
+                        <p className="text-xs text-muted leading-relaxed">Every applicable module of the {TOTAL_MODULES}-module engine instead of 4. Same scan-only delivery, full coverage. You see every issue, then decide what to fix.</p>
                       </button>
                     )}
                     <button
@@ -901,8 +902,8 @@ export default function ScanStatus() {
               <div className="p-5 rounded-xl border border-border bg-[var(--surface-solid)]text-center">
                 <p className="text-sm text-muted mb-4">
                   {params.tier === "quick"
-                    ? "Passed the Quick Scan. Want to go deeper with the full 121-module engine?"
-                    : "Clean across every applicable module of the 121-module engine."}
+                    ? `Passed the Quick Scan. Want to go deeper with the full ${TOTAL_MODULES}-module engine?`
+                    : `Clean across every applicable module of the ${TOTAL_MODULES}-module engine.`}
 
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">

@@ -17,8 +17,9 @@ import { SITE_URL, SUPPORT_EMAIL } from "@/app/lib/site-url";
  * - Triage is an operator-console tool (admin cookie), not a self-serve
  *   purchase — the $29 Offer in the JSON-LD is the Quick scan.
  * - Claims here must be defensible against the source files.
- * - "Available on GitHub Marketplace soon" is allowed because the listing
- *   is in flight (Known Issue #29) — the wording does NOT claim it's live.
+ * - The Marketplace pill links the GitHub Action listing, which went live in
+ *   September 2026 (github.com/marketplace/actions/gatetest-quality-gate).
+ *   It said "soon" while the listing was in flight (Known Issue #29).
  * - HN / Product Hunt badges are gated behind NEXT_PUBLIC_LAUNCH_HN so we
  *   don't claim what hasn't shipped.
  *
@@ -469,9 +470,12 @@ export default function TriagePage() {
           </div>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4 sm:gap-6">
-            <div className="rounded-lg border border-border bg-[var(--surface-solid)] px-4 py-2 text-xs text-muted">
-              Available on GitHub Marketplace soon
-            </div>
+            <a
+              href="https://github.com/marketplace/actions/gatetest-quality-gate"
+              className="rounded-lg border border-border bg-[var(--surface-solid)] px-4 py-2 text-xs text-muted hover:text-foreground hover:border-accent/50 transition-colors"
+            >
+              GitHub Action on the GitHub Marketplace
+            </a>
             <a
               href="https://github.com/crclabs-hq/gatetest"
               className="rounded-lg border border-border bg-[var(--surface-solid)] px-4 py-2 text-xs text-muted hover:text-foreground hover:border-accent/50 transition-colors"

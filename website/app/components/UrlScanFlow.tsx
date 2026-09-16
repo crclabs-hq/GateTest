@@ -426,7 +426,7 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
               <Link href="/" className="text-accent hover:underline font-medium">
                 GateTest
               </Link>{" "}
-              engine — 90+ static checks plus live browser runtime capture.
+              engine — 90+ live checks; the real-browser runtime pass is rolling out and is reported separately when it runs.
             </p>
           </div>
         </div>

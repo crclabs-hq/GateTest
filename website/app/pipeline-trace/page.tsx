@@ -479,9 +479,12 @@ export default function PipelineTracePage() {
           </div>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4 sm:gap-6">
-            <div className="rounded-lg border border-border bg-[var(--surface-solid)] px-4 py-2 text-xs text-muted">
-              Available on GitHub Marketplace soon
-            </div>
+            <a
+              href="https://github.com/marketplace/actions/gatetest-quality-gate"
+              className="rounded-lg border border-border bg-[var(--surface-solid)] px-4 py-2 text-xs text-muted hover:text-foreground hover:border-accent/50 transition-colors"
+            >
+              GitHub Action on the GitHub Marketplace
+            </a>
             <a
               href="https://github.com/crclabs-hq/gatetest"
               className="rounded-lg border border-border bg-[var(--surface-solid)] px-4 py-2 text-xs text-muted hover:text-foreground hover:border-accent/50 transition-colors"

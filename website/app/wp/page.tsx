@@ -129,14 +129,8 @@ export default function WordPressLanding() {
             — the same {TOTAL_MODULES}-module QA gate developers use on their codebases.
           </p>
           <p className="text-sm text-muted mt-4">
-            Prefer to run it from wp-admin?{" "}
-            <a
-              href="https://github.com/crclabs-hq/GateTest/releases/latest/download/gatetest-health-check.zip"
-              className="text-accent hover:underline"
-            >
-              Download the free plugin (.zip)
-            </a>{" "}
-            and upload it under Plugins → Add New → Upload Plugin. Same scan, same report, no account.
+            Prefer to run it from wp-admin? A free plugin is in the works — it is not downloadable yet.
+            Until it ships, this page runs the same scan against your public URL: no account, nothing to install.
           </p>
         </div>
       </Section>
@@ -176,9 +170,9 @@ const PAINKILLERS = [
     what: "Missing alt text, contrast ratios, keyboard navigability, heading hierarchy, ARIA landmarks.",
   },
   {
-    title: "Performance / Core Web Vitals",
+    title: "Performance / page weight",
     pain: "Google ranks slow sites lower. A page that loads in 5 seconds instead of 2 measurably loses traffic and ad revenue.",
-    what: "Largest Contentful Paint, Cumulative Layout Shift, Time to First Byte, render-blocking assets.",
+    what: "Render-blocking scripts in <head>, oversized and non-lazy images, legacy image formats, and heavy script/CSS bundles — read from your live HTML.",
   },
   {
     title: "Broken links + dead images",

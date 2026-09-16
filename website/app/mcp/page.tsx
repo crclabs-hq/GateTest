@@ -9,7 +9,7 @@ import Section from "../components/site/Section";
 export const metadata: Metadata = {
   title: "GateTest MCP — Free Local Server, $29/mo Hosted Endpoint",
   description:
-    "The full 121-module GateTest engine inside Cursor, Windsurf, and any MCP-compatible AI client — 100% free on your own machine. $29/mo adds the hosted endpoint for web/mobile AI clients plus hosted scan history.",
+    `The full ${TOTAL_MODULES}-module GateTest engine inside Cursor, Windsurf, and any MCP-compatible AI client — 100% free on your own machine. $29/mo adds the hosted endpoint for web/mobile AI clients plus hosted scan history.`,
   openGraph: {
     title: `GateTest MCP — The ${TOTAL_MODULES}-Module Engine in Your Editor`,
     description:

@@ -118,7 +118,9 @@ record what they say — you cannot commit to a refund yourself.
 - MCP server: any MCP-capable AI client session can call GateTest as native
   tools (scan_local, fix_issue, etc.)
 - Public API v1 at /api/v1/* with Bearer key authentication
-- WordPress plugin: ships from Tools → GateTest in wp-admin
+- WordPress: hosted scan at /wp (paste the site URL). A wp-admin plugin
+  is in the works but is NOT downloadable yet — never tell a customer to
+  download or install one.
 
 ## Common troubleshooting
 

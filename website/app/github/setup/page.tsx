@@ -104,6 +104,20 @@ export default function GitHubSetup() {
             </p>
             <InstallButton />
             <p className="text-xs text-muted">No credit card for the GitHub App install. Scans typically finish in under a minute.</p>
+            {/* Honesty (Forbidden #1): the App is not public yet. GitHub only
+                lets the owning org install a private App, so a customer who
+                clicks through today cannot complete the install. Say so, and
+                point at the path that works now. */}
+            <div className="rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-left text-xs text-foreground-secondary leading-relaxed">
+              <strong className="text-warning">Private beta.</strong> The GitHub App is not yet listed publicly, so the
+              install button currently completes only for our own organisation. Everyone else gets the same push / PR gate
+              today from the{" "}
+              <a href="https://github.com/marketplace/actions/gatetest-quality-gate" className="text-accent hover:underline">
+                GateTest Quality Gate Action on the GitHub Marketplace
+              </a>{" "}
+              or the <Link href="/developers" className="text-accent hover:underline">one-line CI installer</Link>. Want the App
+              the day it opens? Email <a href="mailto:support@gatetest.io" className="text-accent hover:underline">support@gatetest.io</a>.
+            </div>
           </div>
         </div>
 

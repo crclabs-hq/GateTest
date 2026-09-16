@@ -1,4 +1,5 @@
 ﻿import { ImageResponse } from "next/og";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 // Rendered on the Node runtime: production is a Node server (the box), where
 // `runtime = "edge"` made this route 502 and every social share lost its image.
@@ -94,7 +95,7 @@ export default async function Image() {
             lineHeight: 1.5,
           }}
         >
-          121 modules scan your entire codebase. Security, supply chain, auth flaws, CI hardening, and AI code review. Pay per scan via Stripe.
+          {`${TOTAL_MODULES} modules scan your entire codebase. Security, supply chain, auth flaws, CI hardening, and AI code review. Pay per scan via Stripe.`}
         </div>
 
         {/* Bottom bar */}

@@ -77,9 +77,9 @@ const DOORS: Door[] = [
     eyebrow: "For site owners",
     title: "I have a website",
     blurb:
-      "Paste a URL. GateTest loads the real page in a real browser and reports what is actually broken for your visitors — no repository, no git, no install.",
+      "Paste a URL. GateTest probes the live site — security headers, TLS, cookies, accessibility, SEO, broken links — and reports what is actually broken for your visitors — no repository, no git, no install.",
     points: [
-      "Live JavaScript errors and hydration mismatches",
+      "Real-browser JavaScript and hydration checks — rolling out, reported separately when they run",
       "Missing security headers, mixed content, CSP violations",
       "WordPress: version exposure, XML-RPC, exposed admin",
     ],
@@ -104,7 +104,7 @@ const DOORS: Door[] = [
     points: [
       "Version exposure, XML-RPC, exposed admin and login",
       "Security headers, mixed content, outdated assets",
-      "Performance and accessibility of the real rendered page",
+      "Performance and accessibility problems visible in the live HTML",
     ],
     cta: { label: "Check my WordPress site", href: "/wp" },
     secondary: { label: "What the WordPress scan covers", href: "/wp" },

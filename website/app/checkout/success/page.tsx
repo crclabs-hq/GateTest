@@ -88,8 +88,8 @@ export default function CheckoutSuccess() {
             </p>
           ) : (
             <p className="text-muted mb-6">
-              Every push to any repository under your org is now scanned — unlimited deterministic scans, with AI review escalating pushes to the full suite while your monthly allowance lasts. If the GateTest GitHub App is
-              not installed yet, install it once and pushes start flowing; results post as commit statuses and PR comments.
+              Every push to any repository under your org is now covered — unlimited deterministic scans, with AI review escalating pushes to the full suite while your monthly allowance lasts. Pushes reach us through the GateTest GitHub App; results post as commit statuses and PR comments.
+              The App is in private beta, so if the install button does not complete for your organisation yet, email <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with your receipt and we will connect your org by hand.
             </p>
           )}
           <div className="flex flex-wrap gap-3 justify-center">
