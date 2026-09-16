@@ -27,16 +27,14 @@
 // A literal here, not an import: the website builds standalone (Docker image,
 // box deploy) where ../../../vscode-extension is outside the build context.
 // tests/distribution-surfaces.test.js fails the suite if this drifts from the manifest.
-export const VSCODE_EXTENSION_ID = "GateTestHQ.gatetest";
+const VSCODE_EXTENSION_ID = "GateTestHQ.gatetest";
 export const VSCODE_MARKETPLACE_URL = `https://marketplace.visualstudio.com/items?itemName=${VSCODE_EXTENSION_ID}`;
-/** Opens the extension inside a running VS Code. */
-export const VSCODE_DEEP_LINK = `vscode:extension/${VSCODE_EXTENSION_ID}`;
 
-export const GITHUB_ACTION_MARKETPLACE_URL = "https://github.com/marketplace/actions/gatetest-quality-gate";
-export const NPM_CLI_URL = "https://www.npmjs.com/package/@gatetest/cli";
-export const NPM_MCP_URL = "https://www.npmjs.com/package/@gatetest/mcp-server";
+const GITHUB_ACTION_MARKETPLACE_URL = "https://github.com/marketplace/actions/gatetest-quality-gate";
+const NPM_CLI_URL = "https://www.npmjs.com/package/@gatetest/cli";
+const NPM_MCP_URL = "https://www.npmjs.com/package/@gatetest/mcp-server";
 
-export type Surface = {
+type Surface = {
   id: string;
   /** Where the visitor is when this is the right door. */
   where: string;
