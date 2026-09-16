@@ -33,6 +33,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateApiKey, recordApiCall } from "@/app/lib/api-key";
+import { getDb } from "@/app/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,18 +58,25 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     );
   }
 
-  // Look up scan in the scan_queue table. The triggeredBy field carries
-  // "api_key:<id>" so we can confirm ownership.
+  // Look up the row in scan_queue. `triggered_by` carries "api_key:<id>"
+  // (written by POST /api/v1/scans via enqueueScan) so ownership is checked
+  // on the stored record, not on anything the caller sends. Until KI #113
+  // this imported a `getScanByEventId` the store did not export and called
+  // it without `sql`, so every lookup threw and every scan was a 404.
   let row: Record<string, unknown> | null = null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getScanByEventId } = require("@/app/lib/scan-queue-store") as {
-      getScanByEventId: (eventId: string) => Promise<Record<string, unknown> | null>;
+      getScanByEventId: (eventId: string, sql: unknown) => Promise<Record<string, unknown> | null>;
     };
-    row = await getScanByEventId(id);
+    row = await getScanByEventId(id, getDb());
   } catch (err) {
-    console.warn(
+    console.error(
       `[api/v1/scans/:id] lookup failed: ${err instanceof Error ? err.message : String(err)}`
+    );
+    return NextResponse.json(
+      { error: "Scan lookup unavailable — try again shortly", code: "LOOKUP_UNAVAILABLE" },
+      { status: 503, headers: { "Retry-After": "30", "Cache-Control": "no-store" } }
     );
   }
 
@@ -89,22 +97,27 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     );
   }
 
-  // Map internal status to public API status
+  // Map the queue's status lifecycle (queued → running → done | failed →
+  // dead; see scan-queue-store.js) to the public API's four states. `failed`
+  // in the queue means "will retry", so it is still "running" to the caller;
+  // `dead` is the terminal failure.
   const internalStatus = String(row.status || "queued").toLowerCase();
   const statusMap: Record<string, string> = {
     pending: "queued",
     queued: "queued",
     running: "running",
     in_progress: "running",
+    failed: "running",
+    done: "completed",
     completed: "completed",
     succeeded: "completed",
-    failed: "failed",
+    dead: "failed",
     error: "failed",
   };
   const publicStatus = statusMap[internalStatus] || "queued";
 
   const metadata = (row.metadata || {}) as Record<string, unknown>;
-  const result = (row.result || {}) as Record<string, unknown>;
+  const result = (row.result_json || row.result || {}) as Record<string, unknown>;
 
   const response: Record<string, unknown> = {
     id,
@@ -113,17 +126,21 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     suite: metadata.suite || "web",
     callbackUrl: metadata.callbackUrl || null,
     createdAt: row.created_at,
+    // Attribution as stored (KI #113) — the caller can see which producer
+    // and which key the record belongs to.
+    host: row.host || null,
+    triggeredBy,
   };
 
   if (publicStatus === "completed") {
-    response.completedAt = row.updated_at || row.completed_at;
+    response.completedAt = row.completed_at || row.updated_at;
     response.summary = result.summary || null;
     response.findings = Array.isArray(result.findings) ? result.findings : [];
     if (typeof result.healthScore === "number") {
       response.healthScore = result.healthScore;
     }
   } else if (publicStatus === "failed") {
-    response.error = result.error || row.error_message || "Scan failed";
+    response.error = result.error || row.last_error || row.error_message || "Scan failed";
   }
 
   // Record the API call for rate-limit accounting

@@ -1029,7 +1029,7 @@ async function runAutoPr(summary, projectRoot, args) {
  */
 async function runFixApply(argv, rootDir) {
   const { GateTest } = require('../src/index');
-  const { runFixBatch } = require('../src/core/cli-fix-orchestrator');
+  const { runFixBatch, formatDryRunPlan } = require('../src/core/cli-fix-orchestrator');
   const { extractFileFromCheck } = require('../src/core/parse-finding');
   const { resolveModelChoice, CHEAP_MODEL, ALLOWED_FIX_MODELS } = require('../src/core/engine-models');
 
@@ -1059,7 +1059,8 @@ async function runFixApply(argv, rootDir) {
     --apply               Required guard flag (prevents accidental invocation)
     --suite <name>        Suite to scan (default: standard)
     --project <path>      Project root (default: cwd)
-    --dry-run             Show what would be fixed without writing any files
+    --dry-run             Print the plan (per-file diff) and write NOTHING —
+                          no fixes, no temp files, no test swap-in
     --model <name>        AI model for the fix engine. One of:
 ${Object.entries(ALLOWED_FIX_MODELS)
     .map(([id, m]) => `                            ${m.aliases[0]}${id === CHEAP_MODEL ? ' [default]' : ''}`)
@@ -1148,9 +1149,15 @@ ${Object.entries(ALLOWED_FIX_MODELS)
 
   console.log(`  \x1b[36m[GateTest fix]\x1b[0m ${fixable.length} finding(s). Running AI fix engine...\n`);
 
+  // --dry-run is decided HERE, before the orchestrator runs: until KI #112
+  // the flag was only consulted after runFixBatch had already written every
+  // winning hypothesis (and swapped candidates in for test runs), so the
+  // "would apply" plan described changes that were already on disk.
   let orchestration;
   try {
-    orchestration = await runFixBatch(fixable, rootDir, apiKey, { maxAttempts: 3, fileCap: 50, model: fixModel });
+    orchestration = await runFixBatch(fixable, rootDir, apiKey, {
+      maxAttempts: 3, fileCap: 50, model: fixModel, dryRun: Boolean(localArgs.dryRun),
+    });
   } catch (err) {
     console.error(`\n  \x1b[31m[GateTest fix]\x1b[0m Fix engine error: ${err.message?.slice(0, 300) || err}\n`);
     return 1;
@@ -1165,7 +1172,7 @@ ${Object.entries(ALLOWED_FIX_MODELS)
 
   if (localArgs.dryRun) {
     console.log(`\n  \x1b[36m[GateTest fix --dry-run]\x1b[0m Would apply ${accepted.length} fix(es):\n`);
-    for (const fix of accepted) console.log(`    \x1b[32m✓\x1b[0m ${fix.file}`);
+    console.log(formatDryRunPlan(accepted));
     if (testFiles.length > 0) console.log(`\n  Would write ${testFiles.length} regression test(s).`);
     console.log('');
     return 0;
