@@ -103,9 +103,13 @@ describe('github-app-identity — no hand-written App URLs in runtime code', () 
     // The declaration is the one place allowed to name both Apps — that is
     // how a reader learns which is which. Everywhere else, the name is drift.
     const DECLARATION = 'src/core/github-app-permissions.js';
+    // The VS Code Marketplace publisher is also spelled GateTestHQ. It is a
+    // different product on a different site, and lib/distribution.ts is its
+    // one definition — every other file imports the URL from there.
+    const VSCODE_DISTRIBUTION = 'website/app/lib/distribution.ts';
     const offenders = [];
     for (const rel of FILES) {
-      if (rel === DECLARATION) continue;
+      if (rel === DECLARATION || rel === VSCODE_DISTRIBUTION) continue;
       read(rel).split('\n').forEach((line, i) => {
         if (/GateTestHQ|gatetesthq|\b3322634\b/.test(line)) offenders.push(`${rel}:${i + 1}: ${line.trim()}`);
       });

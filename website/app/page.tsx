@@ -52,6 +52,7 @@ import Pricing from "./components/Pricing";
 import PentestComingSoon from "./components/PentestComingSoon";
 import HomeFaq from "./components/HomeFaq";
 import HomeStack from "./components/HomeStack";
+import HomeEverywhere from "./components/HomeEverywhere";
 import HomeTrust from "./components/HomeTrust";
 
 // The homepage owns its own canonical. It used to live on the ROOT layout
@@ -71,6 +72,7 @@ export default function Home() {
             to lead GitHub, website and WordPress visitors toward Gluecron and
             Tallrig, not to mention them after the FAQ. */}
         <HomeStack />
+        <HomeEverywhere />
         <BeforeAfterDemo />
         <HomeHonest />
         <HomeKills />
