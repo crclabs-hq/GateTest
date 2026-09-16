@@ -7,7 +7,8 @@ Runs the GateTest code quality engine inside your editor and shows every finding
 - **Scan This File** — scopes the scan to the file you have open.
 - **Cancel Running Scan** — stops the engine immediately.
 - **Fix Issues with AI** — opens the hosted fix engine, which opens a verified PR.
-- **Configure MCP Server for this IDE** — writes the `@gatetest/mcp-server` entry into your AI coding tool's config.
+- **Add MCP Server to this Workspace** — writes the `@gatetest/mcp-server` entry into `.vscode/mcp.json`.
+- **Configure MCP Server for AI Tools** — the same entry for other AI coding tools' config files, on request only; nothing is written at start-up.
 
 ## How it runs
 
