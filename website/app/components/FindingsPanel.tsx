@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { FindingWrong } from "./FindingWrong";
 
 interface ModuleResult {
   name: string;
@@ -138,9 +139,11 @@ interface Props {
   tier?: string;
   /** Called when the user clicks a per-finding Fix CTA */
   onUpgradeToFix?: (finding: Finding) => void;
+  /** Hosted scan id — rides on the per-finding "Wrong?" report */
+  scanId?: string;
 }
 
-export default function FindingsPanel({ modules, repoUrl, tier, onUpgradeToFix }: Props) {
+export default function FindingsPanel({ modules, repoUrl, tier, onUpgradeToFix, scanId }: Props) {
   const showFixCta = (tier === "quick" || tier === "full") && !!onUpgradeToFix;
   const findings = useMemo(() => buildFindings(modules), [modules]);
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
@@ -389,6 +392,13 @@ export default function FindingsPanel({ modules, repoUrl, tier, onUpgradeToFix }
                       Fix this →
                     </button>
                   )}
+                  <FindingWrong
+                    rule={f.module}
+                    file={f.file}
+                    scanId={scanId}
+                    tier={tier}
+                    className="shrink-0 ml-2 mt-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                  />
                 </div>
               </li>
             );

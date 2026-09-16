@@ -10,6 +10,7 @@ import {
   GRADE_COLORS,
   SEVERITY_STYLES,
 } from "./url-scan-flow-types";
+import { FindingWrong } from "./FindingWrong";
 
 export function HealthScoreCard({ score, grade, summary }: HealthScore) {
   const colors = GRADE_COLORS[grade];
@@ -95,9 +96,11 @@ export function StatCard({ label, value, accent }: { label: string; value: numbe
   );
 }
 
-export function FindingRow({ finding, index }: { finding: Finding; index: number }) {
+export function FindingRow({ finding, index, scanId, tier }: { finding: Finding; index: number; scanId?: string | null; tier?: string | null }) {
   const sev = SEVERITY_STYLES[finding.severity];
   const showCount = finding.instanceCount && finding.instanceCount > 1;
+  // The .gatetestignore identity of the cluster — module:rule, never content.
+  const ruleId = finding.ruleKey.includes(":") ? finding.ruleKey : `${finding.module}:${finding.ruleKey}`;
   return (
     <details
       className="group rounded-2xl border border-border bg-white overflow-hidden transition-shadow hover:shadow-sm"
@@ -138,7 +141,10 @@ export function FindingRow({ finding, index }: { finding: Finding; index: number
         <div className="border-t border-border pt-4 text-sm text-muted whitespace-pre-line leading-relaxed">
           {finding.body || "No additional detail."}
         </div>
-        <p className="mt-3 text-xs font-mono text-muted">Rule: <span className="text-foreground">{finding.ruleKey}</span></p>
+        <p className="mt-3 text-xs font-mono text-muted flex flex-wrap items-center gap-3">
+          <span>Rule: <span className="text-foreground">{finding.ruleKey}</span></span>
+          <FindingWrong rule={ruleId} scanId={scanId} tier={tier} className="font-sans" />
+        </p>
       </div>
     </details>
   );

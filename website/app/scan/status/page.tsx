@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import FindingsPanel, { type Finding } from "@/app/components/FindingsPanel";
+import { ScanFeedback } from "@/app/components/ScanFeedback";
 import LiveScanTerminal from "@/app/components/LiveScanTerminal";
 import { SUPPORT_EMAIL } from "@/app/lib/site-url";
 import REGISTRY_MODULES from "@/app/lib/mcp-remote-modules.json";
@@ -577,7 +578,14 @@ export default function ScanStatus() {
                 repoUrl={params.repo}
                 tier={params.tier}
                 onUpgradeToFix={(_f: Finding) => handleUpgradeToFix("scan_fix")}
+                scanId={params.id || undefined}
               />
+            )}
+
+            {/* One question, once per scan — a bad answer opens an issue on
+                our side before it lands on a review site. */}
+            {isComplete && (
+              <ScanFeedback surface="repo" scanId={params.id || null} tier={params.tier} contextKey={params.repo} />
             )}
 
             {/* Manual-review surfacing — findings whose file location couldn't

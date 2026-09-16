@@ -35,6 +35,7 @@ import type {
 import { HealthScoreCard, StatCard, FindingRow, RecommendationCard, PaywallCard } from "./url-scan-flow-cards";
 import { LiveModuleTicker, ProgressTicker, RuntimePending, RuntimeUnavailable } from "./url-scan-flow-progress";
 import { CopyForAgentButton } from "./url-scan-flow-export";
+import { ScanFeedback } from "./ScanFeedback";
 import { consumeSseStream } from "./url-scan-flow-sse";
 
 export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint, placeholderUrl = "https://yoursite.com", brandLabel, initialUrl = "" }: UrlScanFlowProps) {
@@ -273,6 +274,8 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
   }
 
   const showRuntime = result?.runtime?.status === "queued" || result?.runtime?.status === "completed";
+  // What the feedback row records as the tier: the free preview or the paid full report.
+  const feedbackTier = result?.preview ? "preview" : "full-report";
 
   return (
     <div className="w-full">
@@ -392,7 +395,7 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
               </div>
               <div className="space-y-3">
                 {result.findings.map((f, i) => (
-                  <FindingRow key={`${f.ruleKey}-${i}`} finding={f} index={i} />
+                  <FindingRow key={`${f.ruleKey}-${i}`} finding={f} index={i} scanId={result.scanId} tier={feedbackTier} />
                 ))}
               </div>
 
@@ -408,6 +411,10 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
               </p>
             </div>
           )}
+
+          {/* One question, once per scan — the answer is what reaches us
+              before a review site does. */}
+          <ScanFeedback surface={suite} scanId={result.scanId} tier={feedbackTier} contextKey={result.targetUrl} />
 
           {result.paywall && result.paywall.remainingCount > 0 && (
             <PaywallCard paywall={result.paywall} targetUrl={result.targetUrl} />
