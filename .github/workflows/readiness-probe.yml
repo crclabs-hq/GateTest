@@ -52,6 +52,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the drift step below counts commits between the
+          # deployed sha and origin/main.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -77,6 +81,25 @@ jobs:
           BASE_URL: ${{ github.event.inputs.base_url || 'https://gatetest.io' }}
         run: node scripts/ops/readiness-probe.js --base "$BASE_URL"
 
+      # Production must be running main. The probe's own deploy/fresh step
+      # deliberately does not assert an exact commit (main moves ahead of
+      # production between deploys); this step does, with a grace window
+      # for a deploy still in flight. Without it the probe was green on
+      # 2026-09-15/16 while production served 3884051c, 35 commits behind
+      # main, because deploy-box.yml had refused every push on box-side
+      # uncommitted changes and nothing else asked the question.
+      #
+      # scripts/ops/verify-deploy.js exits 0 in sync (or lagging but the
+      # expected commit is younger than the grace), 1 lagging / not on main,
+      # 2 unreachable. Runs even when the probe above already failed, so a
+      # red probe still says whether production is stale.
+      - name: Production runs main (deploy drift)
+        if: always()
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://gatetest.io' }}
+        run: |
+          expected=$(git rev-parse origin/main)
+          node scripts/ops/verify-deploy.js --base "$BASE_URL" --expect "$expected" --grace-minutes 30
       - name: Probe production (JSON artifact)
         if: always()
         env:
