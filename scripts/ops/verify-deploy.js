@@ -119,4 +119,6 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { parseArgs, defaultGit, annotate };
+// parseArgs is the only export with a reader (tests/verify-deploy.test.js);
+// the git adapter and the annotation writer are CLI-internal.
+module.exports = { parseArgs };
