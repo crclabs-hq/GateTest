@@ -10,6 +10,11 @@ import Section from "../components/site/Section";
 import StatTiles from "../components/site/StatTiles";
 
 const INSTALL_CMD = "curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integrations/scripts/install.sh | bash";
+// install.sh drops the CI workflow, hook and marker — it does NOT put a
+// `gatetest` binary on PATH. The local-scan card therefore installs the CLI
+// from npm first (bare `npx @gatetest/cli` does not resolve on the published
+// 1.61.0; `npm i -g` and `npx -p` both do).
+const CLI_INSTALL_CMD = "npm install -g @gatetest/cli";
 const SCAN_CMD = "gatetest scan --suite quick --diff";
 
 type CopyState = "idle" | "copied" | "failed";
@@ -174,8 +179,8 @@ export default function DevelopersPage() {
               </p>
               <div className="space-y-2">
                 <div className={`${CMD_ROW} text-emerald-300`}>
-                  <span className="break-all"><span className="text-panel-muted">$ </span>{INSTALL_CMD}</span>
-                  <CopyButton text={INSTALL_CMD} label="Copy" />
+                  <span className="break-all"><span className="text-panel-muted">$ </span>{CLI_INSTALL_CMD}</span>
+                  <CopyButton text={CLI_INSTALL_CMD} label="Copy" />
                 </div>
                 <div className={`${CMD_ROW} text-accent-light`}>
                   <span><span className="text-panel-muted">$ </span>{SCAN_CMD}</span>
@@ -221,7 +226,8 @@ export default function DevelopersPage() {
           <div className="flex-1">
             <h3 className="font-display font-semibold text-foreground mb-1">Private repos — install the GitHub App</h3>
             <p className="text-sm text-muted">
-              One click. Auto-scans every push and PR. Results posted as commit statuses and PR comments. Findings show as inline annotations in the diff.
+              One click. Auto-scans every push and PR. Results posted as commit statuses and PR comments.
+              The App is in private beta today — the curl | bash workflow above and the GitHub Action on the Marketplace run the same gate in your own CI now.
             </p>
           </div>
           <Link href="/github/setup" className="btn-secondary shrink-0 px-5 py-2.5 text-sm font-semibold rounded-xl whitespace-nowrap">

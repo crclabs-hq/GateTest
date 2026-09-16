@@ -15,7 +15,7 @@ import Section from "../components/site/Section";
 export const metadata = {
   title: "GateTest — Live Website Health Check, Security + Runtime Audit",
   description:
-    "Paste any URL. We run live HTTPS + header + cookie probes AND open the site in a real headless browser to catch JavaScript errors, broken assets, CSP violations and hydration mismatches in the actual page load. Plain-English report with a 0-100 health score.",
+    "Paste any URL. We run live HTTPS, security-header, TLS, cookie, accessibility, SEO, broken-link and page-weight probes against your site. Plain-English report with a 0-100 health score. The real-browser runtime pass (JavaScript errors, hydration mismatches, CSP violations) is rolling out and is reported separately when it runs.",
 };
 
 export default function WebLanding() {
@@ -27,10 +27,12 @@ export default function WebLanding() {
         title={<>What&apos;s actually wrong<br /><span className="text-accent">with your website?</span></>}
         lede={<>
           Most scanners only check what your server <em>says</em> it does.
-          We open your site in a real browser and watch what actually
-          happens. JavaScript errors. Broken hydration. CSP violations.
-          Mixed-content. Network failures. Plus all the usual hardening
-          checks. One 0-100 score. Plain-English fixes.
+          We probe your live site — security headers, TLS, cookies,
+          accessibility, SEO, broken links, page weight — and tell you what
+          is actually wrong. One 0-100 score. Plain-English fixes. The
+          real-browser pass (JavaScript errors, broken hydration, CSP
+          violations) is rolling out: when it can&apos;t run, the report says
+          so instead of pretending.
         </>}
         actions={
           <UrlScanFlow
@@ -44,12 +46,19 @@ export default function WebLanding() {
 
       <Section
         title="What we look for"
-        lede={<>We don&apos;t just check what your server <em>claims</em>. We open your site in a real Chromium and watch what actually breaks.</>}
+        lede={<>We don&apos;t just check what your server <em>claims</em>. Live probes run against your site on every scan; the real-Chromium checks below are marked while that pass is still rolling out.</>}
       >
         <div className="grid sm:grid-cols-2 gap-6">
-          {PAINKILLERS.map(({ title, pain, what }) => (
+          {PAINKILLERS.map(({ title, pain, what, browserPass }) => (
             <div key={title} className="card p-6">
-              <h3 className="font-display font-bold text-lg mb-2 text-foreground">{title}</h3>
+              <h3 className="font-display font-bold text-lg mb-2 text-foreground">
+                {title}
+                {browserPass && (
+                  <span className="ml-2 align-middle inline-block rounded-full border border-warning/40 bg-warning/5 px-2 py-0.5 text-[11px] font-semibold text-warning">
+                    browser pass · rolling out
+                  </span>
+                )}
+              </h3>
               <p className="text-sm text-danger mb-3">
                 <span className="font-semibold">Why it matters: </span>
                 {pain}
@@ -104,8 +113,8 @@ export default function WebLanding() {
           </Link>
           <p className="text-xs text-muted mt-6">
             Same engine as the developer <Link href="/" className="text-accent hover:underline">GateTest</Link> CLI —
-            this scan runs its {siteStats.suites.web}-module live-site suite (header, TLS and cookie probes plus
-            headless-browser runtime capture) out of the {TOTAL_MODULES}-module engine. WordPress
+            this scan runs its {siteStats.suites.web}-module live-site suite (header, TLS, cookie, accessibility,
+            SEO and link probes; the headless-browser runtime pass is rolling out) out of the {TOTAL_MODULES}-module engine. WordPress
             owner? <Link href="/wp" className="text-accent hover:underline">WordPress-specific scan here</Link>.
           </p>
         </div>
@@ -114,26 +123,30 @@ export default function WebLanding() {
   );
 }
 
-const PAINKILLERS = [
+const PAINKILLERS: { title: string; pain: string; what: string; browserPass?: boolean }[] = [
   {
     title: "Live JavaScript errors",
     pain: "Your visitors see a half-loaded page. Search and forms silently break. Static probes can't see this — only a real browser can.",
     what: "Uncaught page errors, unhandled promise rejections, console.error spam during initial load.",
+    browserPass: true,
   },
   {
     title: "Hydration mismatches",
     pain: "React/Next.js/Vue/Nuxt sites can render server HTML that doesn't match the client tree. Users see flicker or a blank UI for seconds before interactivity arrives.",
     what: "Console output captured by a real Chromium for hydration / SSR-mismatch / minified React error markers.",
+    browserPass: true,
   },
   {
     title: "Broken or blocked network resources",
     pain: "A 404 on a critical script kills features silently. A blocked CDN call breaks search or checkout. Real users feel it; uptime monitors don't.",
     what: "Every script, image, font, stylesheet, and fetch() call that fires during page load — fail status or DNS / refused / timeout reasons.",
+    browserPass: true,
   },
   {
     title: "Content Security Policy violations",
     pain: "A live browser blocked your own scripts or third-party assets. Either your CSP is too strict for your own code, or an analytics provider is breaking.",
     what: "Every CSP report-uri-style violation reported during the page session.",
+    browserPass: true,
   },
   {
     title: "Mixed content (HTTPS+HTTP)",
@@ -177,7 +190,7 @@ const TIERS = [
     includes: [
       "Every clustered issue on your site",
       "Per-cluster fix instructions",
-      "Live browser runtime capture",
+      "Browser runtime capture when the browser pass runs — the report tells you if it didn't",
       "Health Score + per-rule deductions",
       "Best for: post-deploy, post-redesign, quarterly audits",
     ],

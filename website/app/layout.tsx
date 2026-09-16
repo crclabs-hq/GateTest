@@ -5,6 +5,7 @@ import { ChatWidget } from "./components/ChatWidget";
 import { SiteHeader, SiteFooter } from "./components/SiteChrome";
 import { organizationSchema, webSiteSchema, jsonLd } from "./lib/seo/schema";
 import { SITE_URL } from "./lib/site-url";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 // Editorial display face for headlines — gives the marketing surfaces a
 // distinctive, premium voice without restyling body copy. Exposed as a CSS
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "GateTest — AI writes fast. GateTest keeps it honest.",
   description:
-    "121 modules scan your entire codebase. Security, accessibility, performance, and more. We find the bugs AND fix them. Pay per scan — subscriptions optional.",
+    `${TOTAL_MODULES} modules scan your entire codebase. Security, accessibility, performance, and more. We find the bugs AND fix them. Pay per scan — subscriptions optional.`,
   keywords: [
     "QA",
     "testing",
@@ -56,7 +57,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest — AI writes fast. GateTest keeps it honest.",
     description:
-      "121 modules scan your entire codebase. We find the bugs AND fix them. Pay per scan — subscriptions optional.",
+      `${TOTAL_MODULES} modules scan your entire codebase. We find the bugs AND fix them. Pay per scan — subscriptions optional.`,
     url: "/",
     siteName: "GateTest",
     type: "website",
@@ -66,7 +67,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "GateTest — AI writes fast. GateTest keeps it honest.",
     description:
-      "121 modules scan your entire codebase. We find the bugs AND fix them. Pay per scan — subscriptions optional.",
+      `${TOTAL_MODULES} modules scan your entire codebase. We find the bugs AND fix them. Pay per scan — subscriptions optional.`,
   },
   robots: {
     index: true,
@@ -110,7 +111,7 @@ export default function RootLayout({
               operatingSystem: "Any",
               url: SITE_URL,
               description:
-                "AI-powered QA platform that scans your entire codebase with 121 modules — security, supply chain, auth flaws, CI hardening, and more. Pay per scan via Stripe — one-time scan tiers, with optional Continuous and hosted MCP subscriptions.",
+                `AI-powered QA platform that scans your entire codebase with ${TOTAL_MODULES} modules — security, supply chain, auth flaws, CI hardening, and more. Pay per scan via Stripe — one-time scan tiers, with optional Continuous and hosted MCP subscriptions.`,
               offers: [
                 {
                   "@type": "Offer",
@@ -125,7 +126,7 @@ export default function RootLayout({
                   price: "99.00",
                   priceCurrency: "USD",
                   description:
-                    "Every applicable module of the 121-module engine, including AI code review, security, supply chain, auth flaws, and more",
+                    `Every applicable module of the ${TOTAL_MODULES}-module engine, including AI code review, security, supply chain, auth flaws, and more`,
                 },
                 {
                   "@type": "Offer",
@@ -133,7 +134,7 @@ export default function RootLayout({
                   price: "199.00",
                   priceCurrency: "USD",
                   description:
-                    "Every applicable module of the 121-module engine plus an AI auto-fix pull request with regression tests, pair-review, and architecture annotations",
+                    `Every applicable module of the ${TOTAL_MODULES}-module engine plus an AI auto-fix pull request with regression tests, pair-review, and architecture annotations`,
                 },
                 {
                   "@type": "Offer",

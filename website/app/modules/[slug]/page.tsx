@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     return { title: "Module not found — GateTest" };
   }
   const title = `${prettify(mod.name)} — GateTest module that catches it before you ship`;
-  const description = `${mod.description} Runs as part of the GateTest scan suite — one config, ${getTotalModuleCount()} modules, AI auto-fix PR included.`;
+  const description = `${mod.description} Runs as part of the GateTest scan suite — one config, ${getTotalModuleCount()} modules, AI auto-fix PR on the fix tiers.`;
   const canonical = `/modules/${mod.slug}`;
   return {
     title,

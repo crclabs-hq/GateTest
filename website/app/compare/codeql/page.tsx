@@ -7,7 +7,7 @@ import PageHero from "../../components/site/PageHero";
 export const metadata: Metadata = {
   title: "GateTest vs CodeQL — minutes, not 30, in 2026",
   description:
-    "CodeQL is GitHub's deep taint-analysis engine — best-in-class for multi-hop injection chains, but slow, GitHub-only, and zero auto-fix. GateTest covers the same attack classes in minutes across 121 modules and opens a fix PR.",
+    `CodeQL is GitHub's deep taint-analysis engine — best-in-class for multi-hop injection chains, but slow, GitHub-only, and zero auto-fix. GateTest covers the same attack classes in minutes across ${TOTAL_MODULES} modules and opens a fix PR.`,
   keywords: [
     "CodeQL alternative",
     "CodeQL vs GateTest",
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GateTest vs CodeQL — minutes, not 30, in 2026",
     description:
-      "CodeQL does deep taint analysis. GateTest does the same security classes plus everything else — 121 modules total — in minutes — and opens the fix PR.",
+      `CodeQL does deep taint analysis. GateTest does the same security classes plus everything else — ${TOTAL_MODULES} modules total — in minutes — and opens the fix PR.`,
     url: "/compare/codeql",
     siteName: "GateTest",
     type: "website",
@@ -33,15 +33,15 @@ export const metadata: Metadata = {
 const faqItems = [
   {
     q: "How does GateTest differ from CodeQL?",
-    a: "CodeQL is a semantic analysis engine that tracks data flow across function boundaries — it's genuinely excellent at multi-hop taint chains like 'user input enters here, passes through these two functions, reaches a SQL query there.' That depth comes with trade-offs: a CodeQL scan on a medium repo takes 15-30 minutes, it requires GitHub Actions or a local CodeQL runner, and GitHub Advanced Security (required for private repos) adds significant per-seat cost. GateTest covers the same SSRF, SQL injection, and command-injection attack classes in minutes across a broader surface (121 modules including Terraform, K8s, Dockerfile, accessibility, performance, and AI safety), and opens a fix PR on the Scan + Fix tier. The use case is complementary for high-assurance codebases: CodeQL for deep taint chains, GateTest for breadth + speed + fix delivery.",
+    a: `CodeQL is a semantic analysis engine that tracks data flow across function boundaries — it's genuinely excellent at multi-hop taint chains like 'user input enters here, passes through these two functions, reaches a SQL query there.' That depth comes with trade-offs: a CodeQL scan on a medium repo takes 15-30 minutes, it requires GitHub Actions or a local CodeQL runner, and GitHub Advanced Security (required for private repos) adds significant per-seat cost. GateTest covers the same SSRF, SQL injection, and command-injection attack classes in minutes across a broader surface (${TOTAL_MODULES} modules including Terraform, K8s, Dockerfile, accessibility, performance, and AI safety), and opens a fix PR on the Scan + Fix tier. The use case is complementary for high-assurance codebases: CodeQL for deep taint chains, GateTest for breadth + speed + fix delivery.`,
   },
   {
     q: "Does CodeQL find the same vulnerabilities as GateTest?",
-    a: "CodeQL covers a subset of the vulnerability classes GateTest covers, and covers them differently. CodeQL's taint-analysis approach genuinely tracks multi-step data flow chains that GateTest's module-based approach may miss — for example, user input flowing through 4 intermediate functions before reaching a sink. Across GateTest's 121 modules, the large majority address categories CodeQL doesn't touch at all: N+1 queries, race conditions, datetime timezone bugs, money-float errors, PII in logs, stale feature flags, import cycles, Dockerfile security, Kubernetes manifest hardening, CI pipeline permissions, accessibility (WCAG 2.2), and more. Honest answer: both tools have real, different coverage gaps.",
+    a: `CodeQL covers a subset of the vulnerability classes GateTest covers, and covers them differently. CodeQL's taint-analysis approach genuinely tracks multi-step data flow chains that GateTest's module-based approach may miss — for example, user input flowing through 4 intermediate functions before reaching a sink. Across GateTest's ${TOTAL_MODULES} modules, the large majority address categories CodeQL doesn't touch at all: N+1 queries, race conditions, datetime timezone bugs, money-float errors, PII in logs, stale feature flags, import cycles, Dockerfile security, Kubernetes manifest hardening, CI pipeline permissions, accessibility (WCAG 2.2), and more. Honest answer: both tools have real, different coverage gaps.`,
   },
   {
     q: "Does CodeQL require GitHub Advanced Security?",
-    a: "For public repositories on GitHub, CodeQL is free via GitHub Actions. For private repositories, CodeQL requires GitHub Advanced Security, which is priced per committer per month — a significant budget line for larger teams. GateTest charges per scan ($99 for all 121 modules, no per-seat licensing) and works with any GitHub repository (public or private) as well as Gluecron-hosted repos.",
+    a: `For public repositories on GitHub, CodeQL is free via GitHub Actions. For private repositories, CodeQL requires GitHub Advanced Security, which is priced per committer per month — a significant budget line for larger teams. GateTest charges per scan ($99 for all ${TOTAL_MODULES} modules, no per-seat licensing) and works with any GitHub repository (public or private) as well as Gluecron-hosted repos.`,
   },
   {
     q: "Can CodeQL auto-fix vulnerabilities?",
@@ -49,11 +49,11 @@ const faqItems = [
   },
   {
     q: "How long does a CodeQL scan take vs GateTest?",
-    a: "A typical CodeQL scan on a 50,000-line JavaScript/TypeScript codebase takes 10-30 minutes in GitHub Actions depending on query suite depth and build time. GateTest targets a full scan (121 modules) in minutes via a direct API call — no CI run required, no build step. For fast iteration (pre-commit, PR review, on-demand audits) the speed difference matters significantly.",
+    a: `A typical CodeQL scan on a 50,000-line JavaScript/TypeScript codebase takes 10-30 minutes in GitHub Actions depending on query suite depth and build time. GateTest targets a full scan (${TOTAL_MODULES} modules) in minutes via a direct API call — no CI run required, no build step. For fast iteration (pre-commit, PR review, on-demand audits) the speed difference matters significantly.`,
   },
   {
     q: "Does GateTest work without GitHub Actions?",
-    a: "Yes. GateTest's website scan (/pricing) runs on-demand via a direct API call — you paste a repo URL, pay, and get results without touching your CI. The GitHub App delivers results as commit statuses and PR comments. The CLI (npm install -g @gatetest/cli) runs locally or in any CI environment. CodeQL requires either GitHub Actions or a local CodeQL runner installed from GitHub's release page.",
+    a: "Yes. GateTest's website scan (/pricing) runs on-demand via a direct API call — you paste a repo URL, pay, and get results without touching your CI. The GitHub App (private beta) and the Marketplace Action deliver results as commit statuses and PR comments. The CLI (npm install -g @gatetest/cli) runs locally or in any CI environment. CodeQL requires either GitHub Actions or a local CodeQL runner installed from GitHub's release page.",
   },
 ];
 
@@ -235,7 +235,7 @@ export default function CodeQLPage() {
               },
               {
                 title: "No Advanced Security licence required",
-                body: "CodeQL on private repos requires GitHub Advanced Security, which is priced per committer per month. A 20-person team pays hundreds of dollars monthly before running a single scan. GateTest charges $99 per scan for all 121 modules — no seat licensing, no annual contracts. The price is identical for a solo developer and a 500-person team.",
+                body: `CodeQL on private repos requires GitHub Advanced Security, which is priced per committer per month. A 20-person team pays hundreds of dollars monthly before running a single scan. GateTest charges $99 per scan for all ${TOTAL_MODULES} modules — no seat licensing, no annual contracts. The price is identical for a solo developer and a 500-person team.`,
               },
               {
                 title: `${TOTAL_MODULES} categories vs. security-only`,
@@ -272,7 +272,7 @@ export default function CodeQLPage() {
         {/* CTA */}
         <section className="rounded-2xl border border-accent/20 bg-accent/5 px-6 py-10 sm:p-12 text-center">
           <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-4">
-            121 modules. Minutes, not 30. Fix PR included.
+            {TOTAL_MODULES} modules. Minutes, not 30. Fix PR included.
           </h2>
           <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
             Security, quality, accessibility, IaC, AI safety — in one scan, no CI required, no

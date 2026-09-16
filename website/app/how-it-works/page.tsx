@@ -17,7 +17,7 @@ const LIMITS = [
   "Coverage on Rust, Go, and Java is shallower than JS/TS/Python today. We have language-specific modules for nine non-JS backends but the depth is honestly thinner than our JS coverage.",
   "Hosted scans have a file cap. Full, Scan + Fix and Forensic read up to 4,000 source files per scan (prioritised by relevance); the free preview and the Quick tier sample 60. A very large monorepo gets a representative slice, not exhaustive coverage. The CLI and GitHub Action scan everything, with no file cap.",
   "No on-prem deployment yet. Everything runs on our own managed host with a Postgres (Neon) queue today. Air-gapped customers are on the roadmap.",
-  "The VS Code extension is brand new (1.1.0, on the Visual Studio Marketplace since 16 September 2026). It runs the same engine in-process and shows findings in the Problems panel, but it has no install base or reviews yet, and Cursor and Windsurf installs are untested. The proven loop is still push → CI → PR comment.",
+  "The VS Code extension is brand new (on the Visual Studio Marketplace since 16 September 2026). It runs the same engine in-process and shows findings in the Problems panel, but it has no install base or reviews yet, and it is not on Open VSX — so Cursor and Windsurf cannot install it yet. The proven loop is still push → CI → PR comment.",
 ];
 
 const QUIET_RULES = [

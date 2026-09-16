@@ -75,7 +75,9 @@ export default function HomeCode() {
             <code>
               <span className="text-emerald-400">$</span>{" "}
               <span className="text-white">npx</span>{" "}
+              <span className="text-amber-200">-p</span>{" "}
               <span className="text-teal-300">@gatetest/cli</span>{" "}
+              <span className="text-teal-300">gatetest</span>{" "}
               <span className="text-amber-200">--suite</span>{" "}
               <span className="text-purple-300">quick</span>
             </code>

@@ -11,6 +11,8 @@
  * sitemap; the drift test asserts the sitemap and all-urls.js stay in lockstep.
  */
 
+import { TOTAL_MODULES } from "@/app/lib/module-count";
+
 interface GlossaryEntry {
   /** URL slug (kebab-case). */
   slug: string;
@@ -45,7 +47,7 @@ export const GLOSSARY: GlossaryEntry[] = [
       "The trade-off is precision. A static analyzer reasons about all possible paths, so it can flag code that is technically reachable but practically safe (a false positive), and it can't see issues that only appear at runtime — misconfigured infrastructure, an exposed admin route, a broken auth check under real load. Mature programs pair SAST with DAST and software-composition analysis rather than treating any one of them as complete.",
     ],
     gatetest:
-      "Most of GateTest's 121 modules are SAST checks: secret scanning, SSRF and injection detection, the TLS/cookie/CORS hardening scanners, the cross-file taint tracker, and language analyzers for JavaScript, TypeScript, Python, Go, Rust, Java, Ruby, PHP, C#, Kotlin, and Swift. Every finding carries a file and line, and on the Scan + Fix tier the fix engine opens a pull request with the fix.",
+      `Most of GateTest's ${TOTAL_MODULES} modules are SAST checks: secret scanning, SSRF and injection detection, the TLS/cookie/CORS hardening scanners, the cross-file taint tracker, and language analyzers for JavaScript, TypeScript, Python, Go, Rust, Java, Ruby, PHP, C#, Kotlin, and Swift. Every finding carries a file and line, and on the Scan + Fix tier the fix engine opens a pull request with the fix.`,
     related: ["dast", "sca", "quality-gate", "false-positive-rate", "shift-left"],
     modules: ["security", "secrets", "ssrf", "crossFileTaint", "tlsSecurity"],
     faqs: [

@@ -1,4 +1,5 @@
 ﻿import { ImageResponse } from "next/og";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 // Rendered on the Node runtime: production is a Node server (the box), where
 // `runtime = "edge"` made this route 502 and every social share lost its image.
@@ -93,7 +94,7 @@ export default async function Image() {
             marginBottom: 36,
           }}
         >
-          <span>121 modules — deterministic first.</span>
+          <span>{`${TOTAL_MODULES} modules — deterministic first.`}</span>
           <span style={{ color: "#2dd4bf" }}>One AI pass when it&apos;s worth it.</span>
           <span>Zero hype.</span>
         </div>

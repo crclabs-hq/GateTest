@@ -359,7 +359,7 @@ export default async function CountryPage({ params }: PageParams) {
             CLI is MIT-licensed
           </span>
           <span className="px-3 py-1.5 rounded-full border border-border">
-            Available on GitHub Marketplace soon
+            GitHub Action on the GitHub Marketplace
           </span>
           {showLaunchBadges && (
             <span className="px-3 py-1.5 rounded-full border border-warning/30 text-warning">

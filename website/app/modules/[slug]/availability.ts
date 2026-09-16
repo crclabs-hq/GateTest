@@ -27,6 +27,26 @@ type Availability = {
 const usd = (t: keyof typeof TIERS) => `$${TIERS[t].priceInCents / 100}`;
 const QUICK_TIER_MODULES = TIERS.quick.modules.split(",").map((s) => s.trim());
 
+/**
+ * Live-URL modules that need a real browser (Playwright / Chromium). The
+ * hosted /web and /wp scans run on a serverless request with no browser; the
+ * worker tier that would run these has not shipped, so today they run only
+ * where the CLI or the GitHub Action can start Chromium. Mirrors the
+ * "(needs ... worker)" annotations on the `web` suite in src/core/config.js.
+ */
+const BROWSER_MODULES = [
+  "runtimeErrors",
+  "explorer",
+  "visualRegression",
+  "interactiveElements",
+  "performanceBudget",
+  "mobileRendering",
+  "formTesting",
+  "consoleErrors",
+  "designSystemCompliance",
+  "crossBrowser",
+];
+
 export function availabilityFor(name: string, pretty: string, totalModules: number): Availability {
   const suites = suitesForModule(name);
   const repoCli = `gatetest --module ${name}`;
@@ -87,6 +107,15 @@ export function availabilityFor(name: string, pretty: string, totalModules: numb
   }
   if (inWeb || inWp) {
     const tier = inWeb ? "web_scan" : "wp_health";
+    if (BROWSER_MODULES.includes(name)) {
+      return {
+        kind: "live",
+        tiers: `The CLI and the GitHub Action, against a live URL. It needs a real browser, and the hosted website scan (${usd("web_scan")} full report) does not have one yet — the hosted report marks this check as not run rather than pretending; it lights up there when the browser worker ships.`,
+        lead: "Runs against a live URL where a browser is available.",
+        cli: `gatetest --crawl https://your-site.example --module ${name}`,
+        offer: null,
+      };
+    }
     return {
       kind: "live",
       tiers: `The live-URL scanners, not the repository tiers: the website scan (${usd("web_scan")} full report)${inWp ? ` and the WordPress health check (${usd("wp_health")})` : ""}. It probes a running site, so it needs a URL rather than a repo.`,
