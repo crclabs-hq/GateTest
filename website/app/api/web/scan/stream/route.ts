@@ -25,6 +25,7 @@
 
 import { NextRequest } from "next/server";
 import { resolveFullReportAccess } from "@/app/lib/full-report-auth";
+import { gateRuntimeScan } from "@/app/lib/web-runtime-gate";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { resolveAndValidateUrl } = require("@/app/lib/ssrf-guard") as {
   resolveAndValidateUrl: (input: string) => Promise<{ ok: true; url: URL } | { ok: false; reason: string }>;
@@ -295,7 +296,9 @@ export async function POST(req: NextRequest) {
           infoCount: clusterResult.droppedInfo,
           preview: isPreview,
           findings,
-          runtime: { status: "unavailable" as const, reason: "Runtime worker wiring pending" },
+          // ONE decision with /api/web/scan: dispatch only when fully configured,
+          // otherwise an explicit reason code — never a silent default (KI #111).
+          runtime: await gateRuntimeScan({ scanId, targetUrl, suite: "web" }),
           paywall: isPreview ? {
             remainingCount: Math.max(0, clusterResult.clusters.length - findings.length),
             fullReportPriceUsd: 29, fullReportCadence: "one-shot",
