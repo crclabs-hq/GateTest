@@ -87,3 +87,22 @@ jobs:
           npx vsce verify-pat "${{ steps.pkg.outputs.publisher }}"
           npx vsce publish --packagePath "gatetest-${{ steps.pkg.outputs.version }}.vsix"
           echo "Published ${{ steps.pkg.outputs.publisher }}.gatetest@${{ steps.pkg.outputs.version }} — https://marketplace.visualstudio.com/items?itemName=${{ steps.pkg.outputs.publisher }}.gatetest"
+
+      # Open VSX is the registry Cursor, Windsurf, VSCodium and Gitpod read —
+      # they do NOT read Microsoft's Marketplace. Same .vsix, second registry.
+      # Skipped, loudly, until the OVSX_PAT repo secret exists (open-vsx.org →
+      # namespace `GateTestHQ` → Access Tokens) so a missing token never fails
+      # the Marketplace publish that just succeeded.
+      - name: Publish to Open VSX (Cursor / Windsurf / VSCodium)
+        if: ${{ !inputs.dry_run }}
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${OVSX_PAT}" ]; then
+            echo "::warning::OVSX_PAT repo secret is not set — skipped Open VSX. Create the '${{ steps.pkg.outputs.publisher }}' namespace at open-vsx.org, mint an access token, add it as OVSX_PAT, and re-run this workflow."
+            exit 0
+          fi
+          npx ovsx verify-pat "${{ steps.pkg.outputs.publisher }}" -p "${OVSX_PAT}"
+          npx ovsx publish "gatetest-${{ steps.pkg.outputs.version }}.vsix" -p "${OVSX_PAT}"
+          echo "Published to Open VSX — https://open-vsx.org/extension/${{ steps.pkg.outputs.publisher }}/gatetest"
