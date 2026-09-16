@@ -282,6 +282,8 @@ sore points matters the most"), commits 99c59379 + af22bc79:**
 
 ## KNOWN ISSUES — QUEUED FOR FIX
 
+> **Craig-only queue lives elsewhere.** Anything only the owner can do — account settings, secrets, tokens, DNS — is an item in `docs/ops/blocking-on-craig.json` (validated + rendered by `scripts/ops/blocking-on-craig.js`; `.github/workflows/blocking-on-craig.yml` commits `docs/ops/BLOCKING-ON-CRAIG.md` and keeps ONE pinned `craig-only` issue current daily). Rows below marked "Craig action" belong there, not here.
+
 | # | Issue | Severity | Status |
 |---|-------|----------|--------|
 | 3 | ~~Stripe test keys not yet swapped in~~ — **stale, closed 2026-07-27.** `GET gatetest.ai/api/status` reports `stripe.mode: "live"` with `STRIPE_SECRET_KEY` + `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` both set and no warning. Live keys are in place; the KI was never re-checked after the swap. | — | RESOLVED — verified live. |
