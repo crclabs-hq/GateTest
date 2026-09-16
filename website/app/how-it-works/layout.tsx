@@ -1,9 +1,10 @@
 ﻿import type { Metadata } from "next";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 export const metadata: Metadata = {
   title: "How GateTest works — Architecture, modules, flywheel, tiers",
   description:
-    "121 modules — deterministic first. One AI pass when it's worth it. Zero hype. The full technical architecture behind GateTest — the static engine, the fix flywheel, the 4-tier deliverable, and the honest limits.",
+    `${TOTAL_MODULES} modules — deterministic first. One AI pass when it's worth it. Zero hype. The full technical architecture behind GateTest — the static engine, the fix flywheel, the 4-tier deliverable, and the honest limits.`,
   keywords: [
     "GateTest architecture",
     "how GateTest works",
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "How GateTest works — Architecture, modules, flywheel, tiers",
     description:
-      "121 modules — deterministic first. One AI pass when it's worth it. The full technical architecture behind GateTest.",
+      `${TOTAL_MODULES} modules — deterministic first. One AI pass when it's worth it. The full technical architecture behind GateTest.`,
     url: "/how-it-works",
     siteName: "GateTest",
     type: "article",

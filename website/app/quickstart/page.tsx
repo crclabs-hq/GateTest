@@ -18,6 +18,7 @@
 import Link from "next/link";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 export const metadata = {
   title: "GateTest Quickstart — install to first fix PR in 5 minutes",
@@ -133,7 +134,7 @@ git add -A && git commit -m "test: trigger gate" && git push`}</CodeBlock>
               Within ~60 seconds of CI failing, a new pull request appears in
               your repo titled{" "}
               <code className="text-foreground">
-                AI CI-fixer: repair workflow run #{"<id>"}
+                GateTest auto-fix — N fixes (M findings total)
               </code>
               . It contains:
             </p>
@@ -201,7 +202,7 @@ git add -A && git commit -m "test: trigger gate" && git push`}</CodeBlock>
             main branch, and JUnit + SARIF artifacts wired to the native test
             reporting. On any other CI,{" "}
             <code className="text-foreground">npx -p @gatetest/cli gatetest --suite full</code>{" "}
-            from your pipeline runs the same 121 modules. Auto-fix PRs are also
+            from your pipeline runs the same {TOTAL_MODULES} modules. Auto-fix PRs are also
             available from the CLI via{" "}
             <code className="text-foreground">gatetest fix --apply</code> and{" "}
             <code className="text-foreground">--auto-pr</code>.

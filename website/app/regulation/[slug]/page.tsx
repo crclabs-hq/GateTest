@@ -235,7 +235,7 @@ export default async function RegulationPage({ params }: PageParams) {
           </span>
           <span className={PILL}>
             <span className="text-accent" aria-hidden="true">&#9679;</span>
-            Available on GitHub Marketplace soon
+            GitHub Action on the GitHub Marketplace
           </span>
           {SHOW_HN_BADGE && (
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-warning/30 bg-warning/5 text-sm text-warning">

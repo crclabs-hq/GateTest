@@ -11,6 +11,7 @@
 
 import Link from "next/link";
 import { faqSchema, jsonLd } from "../lib/seo/schema";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 interface Faq {
   q: string;
@@ -25,7 +26,7 @@ const FAQS: Faq[] = [
     a: (
       <>
         No. The deterministic engine ships first — AST, regex, file
-        walkers across 121 modules, no LLM in the loop. The AI layer only
+        walkers across {TOTAL_MODULES} modules, no LLM in the loop. The AI layer only
         enters when the deterministic layers can&apos;t resolve a finding
         The 4-layer{" "}
         <a href="#flywheel" className="text-accent hover:underline">
@@ -35,7 +36,7 @@ const FAQS: Faq[] = [
       </>
     ),
     plain:
-      "No. The deterministic engine ships first — AST, regex, file walkers across 121 modules, no LLM in the loop. The AI layer only enters when the deterministic layers can't resolve a finding. The 4-layer flywheel architecture is the moat.",
+      `No. The deterministic engine ships first — AST, regex, file walkers across ${TOTAL_MODULES} modules, no LLM in the loop. The AI layer only enters when the deterministic layers can't resolve a finding. The 4-layer flywheel architecture is the moat.`,
   },
   {
     q: "Is my code stored anywhere?",

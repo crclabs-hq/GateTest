@@ -7,6 +7,7 @@ import { totalModuleCount } from "@/app/components/howitworks/modules-data";
 import { SITE_URL, badgeUrl } from "@/app/lib/site-url";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -698,7 +699,7 @@ export default function PlaygroundPage() {
               {
                 icon: "🎯",
                 title: "Real checks, real findings",
-                body: "This isn't a canned demo — it runs the same four checks a paid Quick Scan does against your actual code. Paid Full, Scan + Fix and Forensic scans run every applicable module of the 121-module engine on top.",
+                body: `This isn't a canned demo — it runs the same four checks a paid Quick Scan does against your actual code. Paid Full, Scan + Fix and Forensic scans run every applicable module of the ${TOTAL_MODULES}-module engine on top.`,
               },
               {
                 icon: "🔒",

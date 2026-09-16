@@ -23,6 +23,14 @@
 # The box side just needs scripts/deploy/deploy-on-box.sh in the checkout
 # (ships with the repo). Activation = Craig's call (Boss Rule: production
 # deployment); the workflow skips cleanly while the secrets are absent.
+#
+# Two jobs. `deploy` ships; `verify` runs AFTERWARDS, whatever happened to
+# `deploy`, asks the live site which commit it is serving, and turns a lag
+# into ONE open issue labelled `deploy-drift` that closes itself when a
+# later run is in sync. A red job is a signal only to someone who opens the
+# Actions tab: from 2026-09-15 every push failed on the box's own
+# uncommitted changes, production served 3884051c while main moved 35
+# commits on, and nobody was told (docs/ROADMAP.md KI #112).
 name: Deploy to production box
 
 on:
@@ -38,10 +46,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      # Why the deploy did not land, in one line, for the verify job's issue.
+      # Empty when it did.
+      reason: ${{ steps.outcome.outputs.reason }}
     steps:
       # First, not last: the SSH step below streams THIS checkout's
-      # scripts/deploy/deploy-on-box.sh into the box, and the drift step at
-      # the end counts commits against it.
+      # scripts/deploy/deploy-on-box.sh into the box.
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -92,11 +103,13 @@ jobs:
           fi
 
       - name: Deploy over SSH
+        id: ssh
         if: steps.gate.outputs.enabled == 'true'
         env:
           BOX_SSH_KEY: ${{ secrets.BOX_SSH_KEY }}
           BOX_SSH_HOST: ${{ secrets.BOX_SSH_HOST }}
         run: |
+          set -o pipefail
           mkdir -p ~/.ssh
           printf '%s\n' "$BOX_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
@@ -120,14 +133,20 @@ jobs:
           # not expect (changelog.json), and #463, which fixed the list, was
           # refused by the same old script it was replacing. tests/
           # deploy-self-dirtied.test.js pins this shape.
+          #
+          # stdout+stderr are tee'd into deploy.log so the `[deploy] ERROR:`
+          # line the script prints on refusal can be read by the outcome step
+          # below and quoted in the drift issue. pipefail keeps the ssh exit
+          # code as the step's.
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 "$BOX_SSH_HOST" \
             'for d in "$GATETEST_APP_DIR" /opt/gatetest "$HOME/gatetest"; do
                [ -n "$d" ] && [ -d "$d/.git" ] && exec env GATETEST_APP_DIR="$d" bash -s;
              done;
              echo "no GateTest checkout found (tried GATETEST_APP_DIR, /opt/gatetest, \$HOME/gatetest)" >&2; exit 1' \
-            < scripts/deploy/deploy-on-box.sh
+            < scripts/deploy/deploy-on-box.sh 2>&1 | tee deploy.log
 
       - name: Verify live endpoints
+        id: smoke
         if: steps.gate.outputs.enabled == 'true'
         run: |
           sleep 5
@@ -135,38 +154,178 @@ jobs:
           echo "$status" | head -c 400
           echo "$status" | grep -q '"ready"' || { echo "::error::/api/status did not return JSON — deploy may not have taken"; exit 1; }
 
-      - name: Report production drift
-        # Runs LAST and regardless of whether the deploy was enabled — after a
-        # real deploy it confirms the new build actually took; when the deploy
-        # is inert it puts a number on how far behind production has fallen.
-        #
-        # Never fails the build: this is a visibility mechanism, not a gate.
-        # It exists because the skip path above reported green for six days
-        # while production sat 60 commits stale, serving copy we had already
-        # fixed (found 2026-08-04).
+      - name: Record why the deploy did not land
+        # Always runs. Produces ONE line the verify job can quote: the
+        # `[deploy] ERROR:` line from deploy-on-box.sh when there is one,
+        # otherwise which step failed. Empty on success.
+        id: outcome
         if: always()
-        continue-on-error: true
+        env:
+          GATE_ENABLED: ${{ steps.gate.outputs.enabled }}
+          SSH_OUTCOME: ${{ steps.ssh.outcome }}
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
         run: |
-          deployed=$(curl -s --max-time 20 https://gatetest.io/api/platform-status \
-            | sed -n 's/.*"commit":"\([0-9a-f]\{7,40\}\)".*/\1/p')
-          if [ -z "$deployed" ]; then
-            echo "::warning title=Could not read deployed commit::/api/platform-status returned no commit field."
-            exit 0
+          reason=""
+          if [ "$GATE_ENABLED" != "true" ]; then
+            reason="deploy skipped: BOX_SSH_KEY / BOX_SSH_HOST are not set on the repository"
+          elif [ "$SSH_OUTCOME" = "failure" ]; then
+            reason="$(grep -m1 '\[deploy\] ERROR:' deploy.log 2>/dev/null || true)"
+            [ -n "$reason" ] || reason="deploy-on-box.sh failed without a [deploy] ERROR line — read the 'Deploy over SSH' step log"
+          elif [ "$SMOKE_OUTCOME" = "failure" ]; then
+            reason="deploy ran but /api/status did not answer with JSON afterwards — the new build may not have taken"
           fi
-          echo "deployed=$deployed  head=$GITHUB_SHA"
-          if [ "$deployed" = "$GITHUB_SHA" ]; then
-            echo "✅ Production is current (\`$deployed\`)." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+          # Single line, no newlines, so it fits a $GITHUB_OUTPUT assignment.
+          reason="$(printf '%s' "$reason" | tr -d '\r\n' | head -c 1000)"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          if [ -n "$reason" ]; then
+            echo "$reason" > deploy-failure.txt
+            echo "deploy did not land: $reason"
           fi
-          behind=$(git rev-list --count "$deployed..$GITHUB_SHA" 2>/dev/null || echo "unknown")
-          echo "::warning title=Production is behind main::Deployed ${deployed} is ${behind} commit(s) behind ${GITHUB_SHA}. Customers — and any GitHub Marketplace reviewer — are seeing the older build."
-          {
-            echo "### 🚨 Production is ${behind} commit(s) behind \`main\`"
-            echo
-            echo "| | commit |"
-            echo "|---|---|"
-            echo "| deployed | \`${deployed}\` |"
-            echo "| \`main\` | \`${GITHUB_SHA}\` |"
-            echo
-            echo "Public copy fixes do not reach customers until this is redeployed."
-          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload deploy log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-log
+          path: |
+            deploy.log
+            deploy-failure.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+  verify:
+    # Runs after `deploy` whether it succeeded, failed or was skipped. Asks
+    # the live site which commit it serves and compares it with THIS commit
+    # (scripts/ops/verify-deploy.js — exit 0 in sync, 1 lagging, 2
+    # unreachable). A lag, or a failed deploy, becomes one issue labelled
+    # `deploy-drift` — opened once, updated on every later run, closed by the
+    # first run that verifies in sync. GITHUB_TOKEN only; no other secret.
+    needs: deploy
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history: the lag is `git rev-list --count deployed..HEAD`.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Compare production with this commit
+        id: verify
+        run: |
+          rc=0
+          node scripts/ops/verify-deploy.js --expect "$GITHUB_SHA" --out verify.json || rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          # Do not exit non-zero here: the issue step below must run on a lag.
+          # The last step fails the job on the same rc.
+
+      - name: Open, update or close the deploy-drift issue
+        uses: actions/github-script@v7
+        env:
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          DEPLOY_REASON: ${{ needs.deploy.outputs.reason }}
+          VERIFY_RC: ${{ steps.verify.outputs.rc }}
+        with:
+          script: |
+            const fs = require('fs');
+            const LABEL = 'deploy-drift';
+            const { owner, repo } = context.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const now = new Date().toISOString();
+
+            let report = null;
+            try { report = JSON.parse(fs.readFileSync('verify.json', 'utf8')); } catch { /* unreachable before a report was written */ }
+
+            const deployResult = process.env.DEPLOY_RESULT || 'unknown';
+            const deployReason = (process.env.DEPLOY_REASON || '').trim();
+            const deploySucceeded = deployResult === 'success';
+            const inSync = !!report && report.state === 'in-sync';
+            const lagging = !!report && (report.state === 'lagging' || report.state === 'not-on-main');
+
+            const open = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: 'open', labels: LABEL, per_page: 100,
+            });
+            const existing = open.find((i) => !i.pull_request);
+
+            if (inSync && deploySucceeded) {
+              if (existing) {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: existing.number,
+                  body: `Resolved: production is on \`${report.deployed}\` — in sync with \`main\` as of ${now} ([run](${runUrl})). Closing.`,
+                });
+                await github.rest.issues.update({ owner, repo, issue_number: existing.number, state: 'closed', state_reason: 'completed' });
+                core.info(`Closed #${existing.number}: production is in sync.`);
+              } else {
+                core.info('Production is in sync; no drift issue open.');
+              }
+              return;
+            }
+
+            if (!lagging && deploySucceeded) {
+              // Deploy landed but the site could not be compared (unreachable).
+              // The job goes red below; the readiness probe owns "site down".
+              core.warning(`No drift issue: deploy succeeded but verify reported ${report ? report.state : 'no report'}.`);
+              return;
+            }
+
+            const behind = report && Number.isInteger(report.behind) ? report.behind : null;
+            const title = behind !== null
+              ? `Production is behind main by ${behind} commit${behind === 1 ? '' : 's'}`
+              : 'Production is behind main (live commit could not be compared)';
+
+            const deployed = report && report.deployed ? `\`${report.deployed}\`` : '_unreadable_';
+            const version = report && report.version ? ` (v${report.version})` : '';
+            const built = report && report.builtAt ? `, built ${report.builtAt} — ${report.age} ago` : '';
+            const expected = (report && report.expected) || context.sha;
+            const statusLine = report ? report.message : 'verify-deploy produced no report';
+            const knownCause = /unexpected uncommitted changes/.test(deployReason);
+
+            const body = [
+              `Production is not running \`main\`. Every push to \`main\` runs this check; this issue is updated by each run and closes itself when a run verifies production in sync.`,
+              '',
+              '| | commit |',
+              '|---|---|',
+              `| deployed (${report ? report.url : '/api/platform-status'}) | ${deployed}${version}${built} |`,
+              `| expected (\`main\` at this run) | \`${expected}\` |`,
+              '',
+              `**Verify result:** ${statusLine}`,
+              '',
+              `**Deploy job:** ${deployResult}${deployReason ? ` — \`${deployReason.replace(/`/g, "'")}\`` : ''}`,
+              '',
+              knownCause
+                ? '**Fix for this cause (box-side uncommitted changes):** on the box: `cd /opt/gatetest && git status`; commit or discard, then re-run this workflow (Actions → Deploy to production box → Run workflow). `deploy-on-box.sh` refuses to `git reset --hard` over changes a human made; the files it dirties itself are already ignored (`SELF_DIRTIED`).'
+                : '**Fix:** read the failing step in the run linked below. If the box refused on `unexpected uncommitted changes`: on the box: `cd /opt/gatetest && git status`; commit or discard, then re-run this workflow. If the secrets are missing: add `BOX_SSH_KEY` / `BOX_SSH_HOST` under Settings → Secrets and variables → Actions.',
+              '',
+              `Last checked ${now} by [this run](${runUrl}). Deploy log: the \`deploy-log\` artifact on that run.`,
+            ].join('\n');
+
+            if (existing) {
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, title, body });
+              core.info(`Updated #${existing.number}: ${title}`);
+              return;
+            }
+
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: LABEL });
+            } catch (err) {
+              if (err.status !== 404) throw err;
+              await github.rest.issues.createLabel({ owner, repo, name: LABEL, color: 'b60205', description: 'Production is not running main' });
+            }
+            const { data: issue } = await github.rest.issues.create({ owner, repo, title, body, labels: [LABEL] });
+            core.info(`Opened #${issue.number}: ${title}`);
+
+      - name: Fail when production is not on this commit
+        if: steps.verify.outputs.rc != '0'
+        env:
+          VERIFY_RC: ${{ steps.verify.outputs.rc }}
+        run: |
+          echo "verify-deploy exited $VERIFY_RC (1 = lagging / not on main, 2 = unreachable) — see the step above"
+          exit "$VERIFY_RC"

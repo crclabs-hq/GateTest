@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { siteUrl, badgeUrl as badgeUrlFor } from "@/app/lib/site-url";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 interface ModuleSummary {
   module: string;
@@ -163,6 +164,7 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
                             {f.file}{f.line != null ? `:${f.line}` : ""}
                           </span>
                         )}
+                        <FindingWrong rule={f.module} file={f.file} tier="quick" className="ml-auto" />
                       </div>
                       <p className="text-sm text-foreground leading-snug">{f.message}</p>
                     </div>
@@ -176,10 +178,13 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
         <div className="rounded-xl bg-success/5 border border-success/20 p-6 text-center">
           <p className="font-mono text-success font-semibold mb-1">[PASS] all 4 modules — no issues found</p>
           <p className="text-sm text-muted mt-2">
-            The Quick tier covers 4 modules. Full scan ($99) runs every applicable module of the 121-module engine — security, supply chain, auth flaws, CI hardening.
+            The Quick tier covers 4 modules. Full scan ($99) runs every applicable module of the {TOTAL_MODULES}-module engine — security, supply chain, auth flaws, CI hardening.
           </p>
         </div>
       )}
+
+      {/* One question, once per repo — a bad answer reaches us before a review site. */}
+      <ScanFeedback surface="preview" tier="quick" contextKey={result.repo || repoUrl} />
 
       {/* Upsell: truncated */}
       {result.truncated && (
@@ -204,7 +209,7 @@ export function PreviewResults({ result, repoUrl, onTryAnother, exampleRepos }: 
         <div className="card p-6">
           <p className="font-semibold text-foreground mb-1">Quick scan: all clear.</p>
           <p className="text-sm text-muted mb-4">
-            4 modules checked. Full scan ($99) runs every applicable module of the 121-module engine — security, supply chain, auth flaws, CI hardening.
+            4 modules checked. Full scan ($99) runs every applicable module of the {TOTAL_MODULES}-module engine — security, supply chain, auth flaws, CI hardening.
           </p>
           <Link href="/#pricing" className="btn-cta inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl">
             Run full scan — $99 →

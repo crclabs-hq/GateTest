@@ -41,11 +41,11 @@ const faqItems = [
   },
   {
     q: "Does GateTest post commit statuses and PR comments like SonarQube does?",
-    a: "Yes. Install the GateTest GitHub App and every push gets a commit status (pass/fail) and every PR gets a formatted comment with per-module results, severity counts, and direct links to the issues. Identical workflow integration — better results.",
+    a: "Yes. Install the GateTest GitHub App (private beta today — the GitHub Action on the Marketplace runs the same gate in your CI now) and every push gets a commit status (pass/fail) and every PR gets a formatted comment with per-module results, severity counts, and direct links to the issues. Identical workflow integration — better results.",
   },
   {
     q: "Is GateTest harder to set up than SonarQube?",
-    a: "Dramatically easier. SonarQube requires running a server, configuring sonar-project.properties, setting up a scanner in CI, and managing database migrations. GateTest is zero-config: paste your repo URL, pay, get results. The GitHub App auto-scans on every push with no configuration file required.",
+    a: "Dramatically easier. SonarQube requires running a server, configuring sonar-project.properties, setting up a scanner in CI, and managing database migrations. GateTest is zero-config: paste your repo URL, pay, get results. The GitHub App (private beta) or the Marketplace Action scans on every push with no configuration file required.",
   },
   {
     q: "Does GateTest support languages other than JavaScript and TypeScript?",
@@ -181,7 +181,7 @@ export default function SonarQubePage() {
                 body: "SonarQube requires a running server, a database, and ongoing maintenance. SonarQube Cloud still requires sonar-project.properties and scanner configuration per project. GateTest: paste URL, get results. No config files, no servers, no ops burden.",
               },
               {
-                title: "121 modules vs 1 focus",
+                title: `${TOTAL_MODULES} modules vs 1 focus`,
                 body: "SonarQube focuses on code quality and security patterns. GateTest covers those plus accessibility, visual regression, performance, mutation testing (via the GitHub Action, which has a CI runner to drive it), N+1 queries, race conditions, TLS misconfigs, PII in logs, homoglyph attacks, and 40+ more dimensions — all in one scan.",
               },
               {
@@ -190,7 +190,7 @@ export default function SonarQubePage() {
               },
               {
                 title: "Faster feedback loop",
-                body: "SonarQube quality gates can take minutes on large projects. GateTest quick scans complete in well under a minute; full 121-module scans typically complete in a few minutes. Every push gets fast feedback — no waiting for a background worker to catch up.",
+                body: `SonarQube quality gates can take minutes on large projects. GateTest quick scans complete in well under a minute; full ${TOTAL_MODULES}-module scans typically complete in a few minutes. Every push gets fast feedback — no waiting for a background worker to catch up.`,
               },
             ].map((card) => (
               <div
@@ -226,7 +226,7 @@ export default function SonarQubePage() {
             Ready to replace SonarQube?
           </h2>
           <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
-            Paste your repo URL and get a full 121-module scan in minutes. No server setup,
+            Paste your repo URL and get a full {TOTAL_MODULES}-module scan in minutes. No server setup,
             no config files, no per-seat pricing. One-time payment per scan.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

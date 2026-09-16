@@ -6,6 +6,7 @@ import Link from "next/link";
 import PageHero from "../../components/site/PageHero";
 import Section from "../../components/site/Section";
 import type { WebFinding, WebScanResult } from "../../lib/website-scanner";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 const SEVERITY_CONFIG = {
   critical: {
@@ -390,7 +391,7 @@ function UrlScanInner() {
                 This was a surface-level website check.
               </p>
               <p className="text-muted text-sm mb-4">
-                If you have a GitHub repo, GateTest can scan 121 modules — security
+                If you have a GitHub repo, GateTest can scan {TOTAL_MODULES} modules — security
                 vulnerabilities, supply-chain risks, dependency issues, and more.
                 On Scan + Fix ($199) and Forensic Scan ($399) we also open a fix PR automatically.
               </p>

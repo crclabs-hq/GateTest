@@ -1,0 +1,21 @@
+{
+  "note": "Rendered on /status (14-day window). One entry per incident, newest first. Schema: { date: ISO-8601, title, components: names from website/app/lib/public-status.js COMPONENT_NAMES (empty when no customer-facing surface was affected), impact: none|minor|major, resolved: boolean, summary }. Customer-safe prose only: no env var names, hostnames, keys or file paths. tests/public-status.test.js validates this file.",
+  "incidents": [
+    {
+      "date": "2026-09-16T00:00:00Z",
+      "title": "Production deploy paused",
+      "components": [],
+      "impact": "none",
+      "resolved": true,
+      "summary": "An automated deploy to production was refused by its own safety check after uncommitted changes were found on the server. The check worked as designed: production kept serving the previous build throughout, and no customer-facing surface changed. Deploys resumed once the server checkout was cleaned up."
+    },
+    {
+      "date": "2026-09-15T00:00:00Z",
+      "title": "Phishing e-mail sent through a shared e-mail provider account",
+      "components": [],
+      "impact": "none",
+      "resolved": true,
+      "summary": "A third party obtained an e-mail-provider key belonging to the hosting platform's own service, on an account that also carried our sending domain, and used it to send phishing mail that spoofed one of our sender addresses. GateTest was a bystander: no GateTest system, key or customer data was involved, and no GateTest scan, sign-in, checkout or notification was affected. The compromised key was revoked and the account is being split so no other product's key can send as our domain again. If you received one of these messages, delete it; GateTest never asks for card or identity details by e-mail."
+    }
+  ]
+}

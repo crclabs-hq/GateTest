@@ -21,12 +21,13 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Precision", href: "/precision", desc: "Measured on real repositories. Bad numbers included." },
       { label: "How it works", href: "/how-it-works", desc: "Scan, fix, verify, open the PR." },
       { label: "Compare", href: "/compare", desc: "SonarQube, Snyk, CodeQL, Semgrep and more." },
+      { label: "Status", href: "/status", desc: "Live health of every surface." },
     ],
   },
   {
     label: "Solutions",
     items: [
-      { label: "GitHub", href: "/github/setup", desc: "Install the App. Every push and PR gets a gate." },
+      { label: "GitHub", href: "/github/setup", desc: "GitHub App (private beta) or the Marketplace Action. Every push and PR gets a gate." },
       { label: "Gluecron", href: "https://gluecron.com", desc: "Our git host, with the gate built in.", external: true },
       { label: "WordPress", href: "/wp", desc: "Scan a WordPress site. No code, no plugin." },
       { label: "Websites", href: "/web", desc: "Scan any URL for security, a11y and performance." },

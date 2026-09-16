@@ -175,6 +175,12 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
               Triage
             </a>
             <a
+              href="/admin/feedback"
+              className="text-xs px-3 py-2 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors font-medium"
+            >
+              Feedback
+            </a>
+            <a
               href="/admin/pipeline-trace"
               className="text-xs px-3 py-2 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors font-medium"
             >
