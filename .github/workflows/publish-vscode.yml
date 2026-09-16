@@ -110,7 +110,7 @@ jobs:
           # versions). A check that cannot be answered — network, an unexpected
           # shape — yields an empty list and falls through to publishing, which
           # still fails loudly on a duplicate; nothing is ever skipped on a guess.
-          listed="$(curl -sS --max-time 30 -X POST 'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery' \
+          if ! listed="$(curl -sS --max-time 30 -X POST 'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery' \
               -H 'Content-Type: application/json' -H 'Accept: application/json;api-version=3.0-preview.1' \
               -d "{\"filters\":[{\"criteria\":[{\"filterType\":7,\"value\":\"${PUBLISHER}.gatetest\"}]}],\"flags\":1}" \
             | node -e '
@@ -120,7 +120,10 @@ jobs:
                   const ext = JSON.parse(s).results[0].extensions[0];
                   process.stdout.write((ext.versions || []).map((v) => v.version).join(" "));
                 } catch { process.stdout.write(""); }
-              });' || true)"
+              });')"; then
+            echo "::warning::Marketplace version query failed — falling through to publish, which still fails loudly on a duplicate"
+            listed=""
+          fi
           echo "Marketplace has versions: ${listed:-<none / unknown>}"
           case " ${listed} " in
             *" ${VERSION} "*)
@@ -166,7 +169,10 @@ jobs:
           # otherwise. Any other answer (network, 5xx) falls through to publishing,
           # which still fails loudly on a duplicate — nothing is skipped on a guess.
           url="https://open-vsx.org/api/${PUBLISHER}/gatetest/${VERSION}"
-          code="$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' "${url}" || true)"
+          if ! code="$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' "${url}")"; then
+            echo "::warning::Open VSX version query failed (curl exit) — falling through to publish, which still fails loudly on a duplicate"
+            code="000"
+          fi
           if [ "${code:-000}" = "200" ]; then
             echo "${PUBLISHER}.gatetest@${VERSION} is already on Open VSX — nothing to publish (${url})"
             echo "result=already-published" >> "$GITHUB_OUTPUT"
