@@ -21,6 +21,17 @@ if [ "$count" -ge "$MAX_REWAKES" ]; then
   exit 0
 fi
 
+# Usage Doctrine (2026-09-16): a session that changed nothing has nothing to
+# sweep. Skip the suite, the build and the rewake when the tree is clean and
+# HEAD is already on origin/main — every rewake is a full model turn.
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  if [ -z "$(git status --porcelain 2>/dev/null)" ] \
+     && [ -n "$(git rev-parse --verify -q origin/main)" ] \
+     && [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ]; then
+    rm -f "$SENTINEL"
+    exit 0
+  fi
+fi
 findings=""
 
 # 1. Tests — through the project runner (Bible sweep checklist, 2026-09-05):
