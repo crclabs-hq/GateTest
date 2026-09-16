@@ -5,6 +5,9 @@
 # "Manage" scope for the publisher named in vscode-extension/package.json),
 # read by vsce from the environment. Nobody types it into a terminal or a chat.
 #
+# Each registry is one secret (VSCE_PAT, OVSX_PAT); a missing one skips that
+# registry with a warning and the run fails only if neither is set.
+#
 # dry_run=true builds and packages, uploads the .vsix as a run artifact, and
 # stops before publishing — the way to prove the package is sound before the
 # publisher exists. Publishing is idempotent per version: re-running with an
@@ -81,8 +84,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${VSCE_PAT}" ]; then
-            echo "::error::VSCE_PAT repo secret is not set — create an Azure DevOps PAT with the Marketplace 'Manage' scope for publisher '${{ steps.pkg.outputs.publisher }}' and add it under Settings → Secrets → Actions."
-            exit 1
+            echo "::warning::VSCE_PAT repo secret is not set — skipped the VS Code Marketplace. Create an Azure DevOps PAT (Marketplace: Manage) for publisher '${{ steps.pkg.outputs.publisher }}' and add it under Settings → Secrets → Actions, then re-run."
+            exit 0
           fi
           npx vsce verify-pat "${{ steps.pkg.outputs.publisher }}"
           npx vsce publish --packagePath "gatetest-${{ steps.pkg.outputs.version }}.vsix"
@@ -106,3 +109,17 @@ jobs:
           npx ovsx verify-pat "${{ steps.pkg.outputs.publisher }}" -p "${OVSX_PAT}"
           npx ovsx publish "gatetest-${{ steps.pkg.outputs.version }}.vsix" -p "${OVSX_PAT}"
           echo "Published to Open VSX — https://open-vsx.org/extension/${{ steps.pkg.outputs.publisher }}/gatetest"
+
+      # Either registry alone is a successful run (each is one secret); a run that
+      # published to NEITHER is a failure, never a green nothing (Doctrine #1).
+      - name: At least one registry received the package
+        if: ${{ !inputs.dry_run }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -z "${VSCE_PAT}" ] && [ -z "${OVSX_PAT}" ]; then
+            echo "::error::Neither VSCE_PAT nor OVSX_PAT is set — nothing was published."
+            exit 1
+          fi
+          echo "Published to: ${VSCE_PAT:+VS Code Marketplace }${OVSX_PAT:+Open VSX}"
