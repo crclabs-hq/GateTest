@@ -32,6 +32,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // /changelog renders website/app/data/changelog.json, generated from the
     // main branch history at build time and on the nightly.
     { url: `${base}/changelog`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+    // /status is derived from live probes every 30s — "always" is the honest
+    // change frequency, and a low priority keeps it out of the way of the
+    // pages that sell.
+    { url: `${base}/status`, lastModified: now, changeFrequency: "always", priority: 0.5 },
     { url: `${base}/how-it-works`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${base}/trust`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${base}/quickstart`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
