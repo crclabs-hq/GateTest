@@ -106,6 +106,15 @@ jobs:
             echo "::warning::OVSX_PAT repo secret is not set — skipped Open VSX. Create the '${{ steps.pkg.outputs.publisher }}' namespace at open-vsx.org, mint an access token, add it as OVSX_PAT, and re-run this workflow."
             exit 0
           fi
+          # The namespace must exist before verify-pat/publish. "already exists" is the only
+          # expected failure and is treated as success so re-runs stay green.
+          if ! npx ovsx create-namespace "${{ steps.pkg.outputs.publisher }}" -p "${OVSX_PAT}" 2>/tmp/ovsx-ns; then
+            if grep -qi "already exists" /tmp/ovsx-ns; then
+              echo "Open VSX namespace ${{ steps.pkg.outputs.publisher }} already exists"
+            else
+              cat /tmp/ovsx-ns; echo "::error::Could not create the Open VSX namespace '${{ steps.pkg.outputs.publisher }}'"; exit 1
+            fi
+          fi
           npx ovsx verify-pat "${{ steps.pkg.outputs.publisher }}" -p "${OVSX_PAT}"
           npx ovsx publish "gatetest-${{ steps.pkg.outputs.version }}.vsix" -p "${OVSX_PAT}"
           echo "Published to Open VSX — https://open-vsx.org/extension/${{ steps.pkg.outputs.publisher }}/gatetest"
