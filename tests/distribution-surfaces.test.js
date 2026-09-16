@@ -23,7 +23,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'vscode-extension', 
 // A tiny TS-to-data reader: pull every `href: "..."` / href: CONSTANT and the
 // constants themselves, without compiling the module.
 const CONSTANTS = {};
-for (const m of SRC.matchAll(/export const ([A-Z_]+) = "([^"]+)";/g)) CONSTANTS[m[1]] = m[2];
+for (const m of SRC.matchAll(/^(?:export )?const ([A-Z_]+) = "([^"]+)";/gm)) CONSTANTS[m[1]] = m[2];
 const HREFS = [];
 for (const m of SRC.matchAll(/href:\s*(?:"([^"]+)"|([A-Z_]+))/g)) HREFS.push(m[1] || CONSTANTS[m[2]] || m[2]);
 
@@ -58,8 +58,8 @@ describe('distribution surfaces: every listed channel points somewhere real', ()
   });
 
   it('the VS Code identity constant equals the extension manifest (pinned by test — the website builds standalone)', () => {
-    const m = SRC.match(/export const VSCODE_EXTENSION_ID = "([^"]+)";/);
-    assert.ok(m, 'VSCODE_EXTENSION_ID is a string constant');
+    const m = SRC.match(/^const VSCODE_EXTENSION_ID = "([^"]+)";/m);
+    assert.ok(m, 'VSCODE_EXTENSION_ID is a module-private string constant (only SURFACES and the Marketplace URL are exported)');
     assert.strictEqual(m[1], `${manifest.publisher}.${manifest.name}`, 'drifted from vscode-extension/package.json');
     assert.ok(!/from "\.\.\/\.\.\/\.\.\/vscode-extension/.test(SRC), 'no cross-tree import — the Docker image build cannot resolve it');
   });
