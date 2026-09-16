@@ -48,7 +48,15 @@ async function fetchUsage(days: WindowDays): Promise<LoadState | "signed-out"> {
       headers: { Accept: "application/json" },
       cache: "no-store",
     });
-    const body = await res.json().catch(() => null);
+    // A non-JSON body is a real failure mode (proxy error page, HTML 502). Keep the
+    // reason instead of dropping the rejection, so the "unavailable" state can show it.
+    let body: { summary?: unknown; error?: unknown } | null = null;
+    let parseError: string | null = null;
+    try {
+      body = await res.json();
+    } catch (err) {
+      parseError = err instanceof Error ? err.message : String(err);
+    }
     if (res.ok && body && body.summary) return { kind: "report", report: body as UsageReport };
     if (res.status === 401) return "signed-out";
     return {
@@ -56,6 +64,7 @@ async function fetchUsage(days: WindowDays): Promise<LoadState | "signed-out"> {
       status: res.status,
       message:
         (body && typeof body.error === "string" && body.error) ||
+        (parseError ? `The usage API answered ${res.status} with a body that was not JSON (${parseError}).` : null) ||
         (res.status === 503 ? "The usage ledger is not reachable right now." : `The usage API answered ${res.status}.`),
     };
   } catch (err) {
