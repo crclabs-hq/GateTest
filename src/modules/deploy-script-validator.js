@@ -107,10 +107,10 @@ class DeployScriptValidator extends BaseModule {
       // NAME happens to contain "deploy" (isDeployFile() matches by
       // substring) still gets its fixture strings harvested as literal
       // health-check URLs otherwise. tests/deploy-rules-self-scan-*.test.js
-      // writes `path: /nope-probe` as sample YAML content for its own
-      // assertions; the self-scan doesn't know that and reported a
-      // mismatch against the real app's routes. Skip via the canonical
-      // test-path definition (src/core/test-paths.js).
+      // writes a sample YAML liveness probe (a made-up route with no match
+      // anywhere in the app) for its own assertions; the self-scan doesn't
+      // know that and reported a mismatch against the real app's routes.
+      // Skip via the canonical test-path definition (src/core/test-paths.js).
       if (this._isTestPath(rel)) continue;
 
       let content;
