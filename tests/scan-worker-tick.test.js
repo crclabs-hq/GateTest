@@ -53,6 +53,7 @@ function makeQueueStore({
     claimNextJob: 0,
     markDone: [],
     markFailed: [],
+    markNotChecked: [],
   };
   return {
     calls,
@@ -71,6 +72,33 @@ function makeQueueStore({
     },
     markFailed: async (id, err, willRetry, _sql) => {
       calls.markFailed.push({ id, err: String(err), willRetry });
+    },
+    markNotChecked: async (id, reason, _sql) => {
+      calls.markNotChecked.push({ id, reason });
+    },
+  };
+}
+
+/**
+ * Double for usage-ledger.js — just enough of the real module's surface
+ * (recordUsage, resolveAccountKey, aiTotalsFromModules, countBlockingFindings)
+ * for runApiHostJob's ledger write to run against.
+ */
+function makeUsageStore({ recordThrows = null } = {}) {
+  const calls = { recordUsage: [] };
+  return {
+    calls,
+    resolveAccountKey: (ids = {}) => `apikey:${ids.apiKeyId || ids.fallback || 'unknown'}`,
+    aiTotalsFromModules: (modules) => {
+      let usd = 0;
+      for (const m of Array.isArray(modules) ? modules : []) usd += Number(m && m.costUsd) || 0;
+      return { aiCalls: 0, tokensIn: 0, tokensOut: 0, usd };
+    },
+    countBlockingFindings: () => 0,
+    recordUsage: async (_sql, event) => {
+      calls.recordUsage.push(event);
+      if (recordThrows) throw recordThrows;
+      return { id: 1 };
     },
   };
 }
@@ -218,39 +246,158 @@ describe('runWorkerTick — idle', () => {
   });
 });
 
-// ── KI #113: rows from a non-repository host are recorded, not "scanned" ────
-// An /api/v1/scans row (host='api') has no repo to fetch and no host to post
-// a verdict to. Before the fix the store relabelled it 'gluecron', so the
-// worker built https://gluecron.com/<hostname>/<path>, failed to fetch it for
-// MAX_ATTEMPTS ticks, then dead-lettered to Gluecron's callback for a repo
-// that never existed there. Control pair: an 'api' job is marked terminal
-// with no scan and no callback; a 'github' job with the same shape scans.
+// ── KI #113 Phase 2: `api`-host rows are now EXECUTED, not just recorded ────
+// Phase 1 (2026-09-16) marked every host='api' row terminal without running
+// it — a customer who submitted a scan through the public API got "queued"
+// then a silent, empty terminal state. Phase 2 tells the two shapes apart by
+// metadata.url: a git URL (github.com/gitlab.com) runs the SAME execution
+// path as a repo-host job; a bare website URL is checked against the
+// browser-runtime gate (web-runtime-gate.js, KI #111) and, when that isn't
+// configured, marked not-checked — never 'done' with zero findings. Neither
+// shape ever sends a callback (there is no Gluecron/GitHub consumer for an
+// api row); repo-host rows are unchanged (the 'github' control below).
 
-describe('runWorkerTick — non-repository host rows (KI #113)', () => {
-  it("host='api': marks the row terminal, runs NO scan, sends NO callback", async () => {
-    const qs = makeQueueStore({ nextJob: makeJob({ host: 'api', triggered_by: 'api_key:k1', metadata: { url: 'https://example.com' } }) });
+describe('runWorkerTick — api-host rows with a git URL (KI #113 Phase 2)', () => {
+  it('a github.com URL is scanned via runScan, marked done, and usage is recorded once', async () => {
+    const qs = makeQueueStore({
+      nextJob: makeJob({
+        host: 'api',
+        triggered_by: 'api_key:k1',
+        metadata: { url: 'https://github.com/alice/webapp' },
+      }),
+    });
+    const us = makeUsageStore();
+    let scanArgs = null;
+    let callbackCalls = 0;
+    const result = await runWorkerTick({
+      sql: SQL,
+      queueStore: qs,
+      runScan: async (repoUrl, tier, opts) => { scanArgs = { repoUrl, tier, opts }; return makeScanResult({ totalIssues: 3 }); },
+      sendCallback: async () => { callbackCalls++; },
+      usageStore: us,
+    });
+
+    assert.strictEqual(scanArgs.repoUrl, 'https://github.com/alice/webapp', 'the same URL the caller submitted, not a reconstructed one');
+    assert.strictEqual(callbackCalls, 0, 'api rows have no callback consumer');
+    assert.strictEqual(qs.calls.markDone.length, 1);
+    assert.strictEqual(qs.calls.markDone[0].id, 42);
+    assert.strictEqual(qs.calls.markFailed.length, 0);
+    assert.strictEqual(qs.calls.markNotChecked.length, 0);
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.ran, 42);
+
+    assert.strictEqual(us.calls.recordUsage.length, 1, 'usage recorded exactly once');
+    const event = us.calls.recordUsage[0];
+    assert.strictEqual(event.surface, 'api');
+    assert.strictEqual(event.accountKey, 'apikey:k1', 'identity comes from the api_key: prefix on triggered_by');
+    assert.strictEqual(event.findingsTotal, 3);
+  });
+
+  it('a gitlab.com URL is also recognised as a git URL and scanned', async () => {
+    const qs = makeQueueStore({
+      nextJob: makeJob({
+        host: 'api',
+        triggered_by: 'api_key:k2',
+        metadata: { url: 'https://gitlab.com/bob/service' },
+      }),
+    });
+    let scanCalls = 0;
+    const result = await runWorkerTick({
+      sql: SQL,
+      queueStore: qs,
+      runScan: async () => { scanCalls++; return makeScanResult(); },
+      sendCallback: async () => {},
+    });
+    assert.strictEqual(scanCalls, 1);
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(qs.calls.markDone.length, 1);
+  });
+
+  it('a failed scan retries/dead-letters exactly like a repo-host job, still with no callback', async () => {
+    const qs = makeQueueStore({
+      nextJob: makeJob({
+        id: 55,
+        attempts: 1,
+        host: 'api',
+        triggered_by: 'api_key:k3',
+        metadata: { url: 'https://github.com/alice/private-repo' },
+      }),
+    });
+    let callbackCalls = 0;
+    const result = await runWorkerTick({
+      sql: SQL,
+      queueStore: qs,
+      runScan: async () => makeScanResult({ status: 'failed', error: 'GitHub API 404: Not Found' }),
+      sendCallback: async () => { callbackCalls++; },
+    });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.terminal, true);
+    assert.strictEqual(qs.calls.markFailed.length, 1);
+    assert.strictEqual(qs.calls.markFailed[0].willRetry, false);
+    assert.strictEqual(callbackCalls, 0, 'api rows never get a dead-letter callback either');
+  });
+
+  it('does not crash the tick when the usage ledger write throws', async () => {
+    const qs = makeQueueStore({
+      nextJob: makeJob({ host: 'api', triggered_by: 'api_key:k4', metadata: { url: 'https://github.com/alice/webapp' } }),
+    });
+    const us = makeUsageStore({ recordThrows: new Error('ledger down') });
+    const result = await runWorkerTick({
+      sql: SQL,
+      queueStore: qs,
+      runScan: async () => makeScanResult(),
+      sendCallback: async () => {},
+      usageStore: us,
+    });
+    assert.strictEqual(result.ok, true, 'a ledger failure must not fail a tick whose scan already ran');
+    assert.strictEqual(qs.calls.markDone.length, 1);
+  });
+});
+
+describe('runWorkerTick — api-host rows with a bare website URL (KI #113 Phase 2)', () => {
+  it("without the browser runtime configured: not-checked, no scan, no callback, no usage", async () => {
+    const qs = makeQueueStore({ nextJob: makeJob({ host: 'api', triggered_by: 'api_key:k5', metadata: { url: 'https://example.com' } }) });
+    const us = makeUsageStore();
     let scanCalls = 0;
     let callbackCalls = 0;
     const result = await runWorkerTick({
       sql: SQL,
       queueStore: qs,
       runScan: async () => { scanCalls++; return makeScanResult(); },
-      sendCallback: async () => { callbackCalls++; return { sent: true }; },
+      sendCallback: async () => { callbackCalls++; },
+      usageStore: us,
+      env: {}, // no TALLRIG_*/VAPRON_*/GATETEST_PUBLIC_BASE_URL — every prerequisite missing
     });
-    assert.strictEqual(scanCalls, 0, 'nothing to fetch — runScan must not be called');
-    assert.strictEqual(callbackCalls, 0, 'no host to notify — the callback must not fire');
-    assert.strictEqual(qs.calls.markDone.length, 0);
-    assert.strictEqual(qs.calls.markFailed.length, 1);
-    assert.strictEqual(qs.calls.markFailed[0].id, 42);
-    assert.strictEqual(qs.calls.markFailed[0].willRetry, false, 'terminal: retrying cannot conjure a repository');
-    assert.match(qs.calls.markFailed[0].err, /\[terminal\] host 'api' rows are not executed/);
-    assert.strictEqual(result.ok, false);
-    assert.strictEqual(result.terminal, true);
-    assert.strictEqual(result.willRetry, false);
-    assert.strictEqual(result.host, 'api');
+
+    assert.strictEqual(scanCalls, 0, 'no repo, no browser runtime — nothing to run');
+    assert.strictEqual(callbackCalls, 0);
+    assert.strictEqual(us.calls.recordUsage.length, 0, 'never meter a scan that did not run');
+    assert.strictEqual(qs.calls.markDone.length, 0, 'never "done" with zero findings');
+    assert.strictEqual(qs.calls.markFailed.length, 0);
+    assert.strictEqual(qs.calls.markNotChecked.length, 1);
+    assert.strictEqual(qs.calls.markNotChecked[0].id, 42);
+    assert.strictEqual(qs.calls.markNotChecked[0].reason, 'web-runtime:not-configured');
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.notChecked, true);
+    assert.strictEqual(result.reason, 'web-runtime:not-configured');
   });
 
-  it("host='github' with the identical shape IS scanned (the control)", async () => {
+  it('a row with no metadata.url at all is terminal, not not-checked (nothing to poll for)', async () => {
+    const qs = makeQueueStore({ nextJob: makeJob({ host: 'api', triggered_by: 'api_key:k6', metadata: {} }) });
+    const result = await runWorkerTick({
+      sql: SQL,
+      queueStore: qs,
+      runScan: async () => makeScanResult(),
+      sendCallback: async () => {},
+    });
+    assert.strictEqual(qs.calls.markFailed.length, 1);
+    assert.strictEqual(qs.calls.markNotChecked.length, 0);
+    assert.strictEqual(result.terminal, true);
+  });
+});
+
+describe('runWorkerTick — repo-host rows are unchanged by KI #113 Phase 2 (the control)', () => {
+  it("host='github' with the identical shape IS scanned exactly as before", async () => {
     const qs = makeQueueStore({ nextJob: makeJob({ host: 'github', triggered_by: 'webhook:d1' }) });
     let scanCalls = 0;
     const result = await runWorkerTick({

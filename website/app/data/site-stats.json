@@ -1,22 +1,22 @@
 {
-  "generatedAt": "2026-09-16T08:32:54.500Z",
+  "generatedAt": "2026-09-17T08:37:42.631Z",
   "source": "scripts/generate-site-stats.js",
   "note": "Measured on every run. Displayed counts are rounded DOWN so the public \"N+\" claim is always an under-statement. Do not hand-edit — run the script.",
   "version": "1.61.1",
   "tests": {
-    "total": 10021,
-    "passing": 10019,
+    "total": 10114,
+    "passing": 10112,
     "failing": 0,
     "skipped": 2,
-    "displayPassing": "10,000+"
+    "displayPassing": "10,100+"
   },
   "modules": {
     "total": 121,
-    "green": 74,
+    "green": 85,
     "scanned": 85,
-    "displayGreen": "74/85",
+    "displayGreen": "85/85",
     "greenSource": "measured",
-    "greenMeasuredAt": "2026-09-16T08:32:54.514Z"
+    "greenMeasuredAt": "2026-09-17T08:37:42.645Z"
   },
   "suites": {
     "quick": 42,
@@ -57,9 +57,9 @@
     ]
   },
   "flywheel": {
-    "totalFixAttempts": 78,
-    "claudeRatioPct": 65.4,
-    "accuracyPct": 38.5,
-    "recent7dFixAttempts": 78
+    "totalFixAttempts": 79,
+    "claudeRatioPct": 65.8,
+    "accuracyPct": 39.2,
+    "recent7dFixAttempts": 79
   }
 }
