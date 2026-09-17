@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 interface CustomerInfo {
   login: string;
@@ -17,8 +16,13 @@ interface CustomerInfo {
  * which address to update (see release-notifier.js verifyUnsubscribeToken).
  */
 export default function NotificationSettings() {
-  const searchParams = useSearchParams();
-  const unsubscribeToken = searchParams.get("token");
+  // The unsubscribe token is read from window.location on the client, the way
+  // /playground reads its query string: useSearchParams() would force a Suspense
+  // boundary and failed the static prerender of this page in CI.
+  const [unsubscribeToken, setUnsubscribeToken] = useState<string | null>(null);
+  useEffect(() => {
+    setUnsubscribeToken(new URLSearchParams(window.location.search).get("token"));
+  }, []);
 
   const [customer, setCustomer] = useState<CustomerInfo | null>(null);
   const [loading, setLoading] = useState(true);
