@@ -1071,7 +1071,20 @@ class GateTestRunner extends EventEmitter {
     // are visible in the report but don't fail the gate.
     const nothingChecked = this._nothingChecked === true;
     const strictEmpty = nothingChecked && this.options.strict === true;
-    const gateStatus = (failed.length === 0 && totalBlockingErrors === 0 && !strictEmpty) ? 'PASSED' : 'BLOCKED';
+    const rawGateStatus = (failed.length === 0 && totalBlockingErrors === 0 && !strictEmpty) ? 'PASSED' : 'BLOCKED';
+
+    // KI #107 — admin softening, opt-in only, via `GATETEST_ADMIN=1` in the
+    // environment of THIS run. `.gatetest.json`'s `admin`/`owner` keys are
+    // read by other consumers (see config.js KNOWN_ROOT_KEYS) and never by
+    // this decision — see src/core/admin-override.js for why. Never silent:
+    // a loud notice here, and `adminOverride`/`rawGateStatus` on the summary
+    // for every reporter (Forbidden #16).
+    const adminOverride = require('./admin-override');
+    const adminOverrideActive = rawGateStatus === 'BLOCKED' && adminOverride.isRequested();
+    if (adminOverrideActive) {
+      console.error(adminOverride.notice({ totalBlockingErrors, failedModules: failed.length }));
+    }
+    const gateStatus = adminOverrideActive ? 'PASSED' : rawGateStatus;
 
     // Finding registry: one defect = one finding across modules, ranked by
     // blocking → severity → confidence. Counts above are UNTOUCHED (the gate
@@ -1092,6 +1105,11 @@ class GateTestRunner extends EventEmitter {
 
     return {
       gateStatus,
+      // KI #107: the pre-override verdict and whether admin softening was
+      // applied — always present so no reporter can show "PASSED" with no
+      // trace that a blocking result was overridden (Forbidden #16).
+      rawGateStatus,
+      adminOverride: adminOverrideActive,
       // No source file under the root: every module passed by default.
       // Reporters print it beside the verdict; the JSON carries it so no
       // consumer can read an empty scan as a clean one. `strict` turns it

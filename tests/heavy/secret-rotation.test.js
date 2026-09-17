@@ -136,6 +136,30 @@ describe('SecretRotationModule — stale & aging credentials (git-aware)', () =>
       undefined,
     );
   });
+
+  // Control pair (Doctrine #3): the same stale credential fires in src/ and
+  // stays silent in tests/ — a *.test.js fixture is never rotated, so
+  // flagging it as "past the rotation window" is noise, not signal.
+  it('control: a stale credential in src/ still fires', async () => {
+    initGit(tmp);
+    write(tmp, 'src/config.js', 'const key = "AKIAIOSFODNN7EXAMPLE";\n');
+    commit(tmp, 'seed', { date: daysAgo(200) });
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('secret-rotation:stale:aws-access-key:'));
+    assert.ok(hit, 'expected src/ credential to still fire');
+  });
+
+  it('control: the same credential string in a *.test.js fixture stays quiet', async () => {
+    initGit(tmp);
+    write(tmp, 'tests/config.test.js', 'const key = "AKIAIOSFODNN7EXAMPLE";\n');
+    commit(tmp, 'seed', { date: daysAgo(200) });
+    const r = await run(tmp);
+    assert.strictEqual(
+      r.checks.find((c) => c.name.startsWith('secret-rotation:stale:')),
+      undefined,
+      'test-path fixtures must not be flagged for rotation',
+    );
+  });
 });
 
 describe('SecretRotationModule — .env drift', () => {

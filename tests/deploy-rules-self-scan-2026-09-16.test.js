@@ -136,3 +136,41 @@ describe('deployScriptValidator: `body_path:` is a file, `path:` is a probe', ()
     fs.rmSync(tmp, { recursive: true, force: true });
   });
 });
+
+describe('deployScriptValidator: test-fixture files are not deploy config (self-scan 2026-09-16)', () => {
+  // Control pair: tests/deploy-rules-self-scan-2026-09-16.test.js:128 itself
+  // writes `path: /nope-probe` as fixture YAML content for the test above —
+  // isDeployFile() matches this file's own NAME by substring ("deploy"),
+  // so the self-scan harvested that fixture string as a real k8s probe and
+  // reported a mismatch against the app's actual routes. Same defendant as
+  // secretRotation/tests-fixture noise: skip test paths via the canonical
+  // definition (BaseModule._isTestPath / src/core/test-paths.js).
+  test('a real k8s manifest with an unmatched probe still fires', async () => {
+    const tmp = makeTmp();
+    write(tmp, 'k8s/deploy.yaml', 'livenessProbe:\n  httpGet:\n    path: /nope-probe\n    port: 3000\n');
+    write(tmp, 'app/api/health/route.ts', NEXT_HEALTH_ROUTE);
+    const r = makeResult();
+    await new DeployScriptValidator().run(r, { projectRoot: tmp });
+    const failing = r.checks.filter((c) => !c.passed).map((c) => c.name);
+    assert.ok(failing.includes('deploy-script-validator:mismatch:/nope-probe'));
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  test('the identical probe path inside a *.test.js fixture stays quiet', async () => {
+    const tmp = makeTmp();
+    write(
+      tmp,
+      'tests/deploy-rules-fixture.test.js',
+      "write(tmp, 'k8s/deploy.yaml', 'livenessProbe:\\n  httpGet:\\n    path: /nope-probe\\n    port: 3000\\n');\n",
+    );
+    write(tmp, 'app/api/health/route.ts', NEXT_HEALTH_ROUTE);
+    const r = makeResult();
+    await new DeployScriptValidator().run(r, { projectRoot: tmp });
+    const failing = r.checks.filter((c) => !c.passed).map((c) => c.name);
+    assert.ok(
+      !failing.some((n) => n.includes('/nope-probe')),
+      'a test-fixture string must not be read as a real health-check probe: ' + failing.join(', '),
+    );
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+});

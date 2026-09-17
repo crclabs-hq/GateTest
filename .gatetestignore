@@ -13,6 +13,17 @@ hardcoded-url:localhost@website/app/components/HomeEyesEarsHands.tsx
 # self-deception in the other direction.
 reliability-corpus/**
 
+# corpus/broken-sites/ is the deliberately-broken HTML fixture
+# scripts/compare-playwright.js uses to measure GateTest's runtime-errors
+# module against a hand-written Playwright capture (5 known bugs, by design:
+# missing viewport meta, missing lang attribute, missing main landmark,
+# missing meta description, etc.). Same rationale as reliability-corpus and
+# benchmarks/bench-target below — a11y/visual/seo findings here are the
+# fixture working as designed, not a defect in GateTest's own site. Verify
+# the fixture still triggers these modules when scanned directly:
+# `node bin/gatetest.js --project corpus/broken-sites --module accessibility`.
+corpus/broken-sites/**
+
 # benchmarks/bench-target/ is the frozen, deliberately-vulnerable target repo
 # the competitive benchmark (docs/COMPETITIVE-BENCHMARK.md, KI #31/#46)
 # measures GateTest and rival tools against. Its hardcoded secrets, eval(),
@@ -22,13 +33,6 @@ reliability-corpus/**
 # actually executed before, because CI's install step was broken from
 # 2026-07-19 until today — the first real sweep run surfaced this gap.
 benchmarks/bench-target/**
-
-# Playground.tsx deliberately renders the money-float anti-pattern
-# (parseFloat + `total * tax`) as marketing sample code showing customers
-# what GateTest catches. It legitimately corroborates (total + tax both
-# money-named in the same statement) — that's the demo working as intended,
-# not a real bug in this file.
-money-float:arithmetic@website/app/preview/_components/Playground.tsx
 
 # integrations/husky/pre-push:97 — `( cd … && timeout 5 git pull … >/dev/null 2>&1 || true )`
 # is the hook's best-effort cache refresh: capped at 5s, documented as "never

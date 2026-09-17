@@ -251,6 +251,88 @@ describe('auto-distill — promotion', () => {
     const after = incrementApplicationCount(written.recipe.id, store);
     assert.ok(after.provenance.lastAppliedAt);
   });
+
+  // KI #74f — the "promotion deadlock": applicationCount is bumped only on a
+  // real playback HIT, and a playback hit requires the recipe to already be
+  // stable. Without a second counter, a freshly-distilled recipe could never
+  // earn its first application. These tests pin the fix: independent,
+  // certified re-derivations of the identical fix (the "duplicate" branch
+  // above) now count too.
+  it('a new recipe starts with derivationCount: 0', () => {
+    const out = distillClaudeFix({
+      issue: { ruleKey: 'js-reject-unauthorized', module: 'tlsSecurity', file: 'src/foo.js' },
+      originalContent: REJECT_FIXTURE.before,
+      patchedContent: REJECT_FIXTURE.after,
+      recipeStorePath: store,
+    });
+    assert.strictEqual(out.recipe.derivationCount, 0);
+  });
+
+  it('the "duplicate" branch now counts as one independent derivation, not silently discarded', () => {
+    distillClaudeFix({
+      issue: { ruleKey: 'js-reject-unauthorized', module: 'tlsSecurity', file: 'src/foo.js' },
+      originalContent: REJECT_FIXTURE.before,
+      patchedContent: REJECT_FIXTURE.after,
+      recipeStorePath: store,
+    });
+    const out2 = distillClaudeFix({
+      issue: { ruleKey: 'js-reject-unauthorized', module: 'tlsSecurity', file: 'src/bar.js' },
+      originalContent: REJECT_FIXTURE.before,
+      patchedContent: REJECT_FIXTURE.after,
+      recipeStorePath: store,
+    });
+    assert.strictEqual(out2.written, false);
+    assert.strictEqual(out2.reason, 'duplicate');
+    assert.strictEqual(out2.recipe.derivationCount, 1);
+    assert.ok(out2.recipe.provenance.lastDerivedAt);
+    // Persisted, not just returned in memory.
+    assert.strictEqual(loadStore(store).recipes[0].derivationCount, 1);
+  });
+
+  it('promotes to "stable" after 3 independent re-derivations — with ZERO playback applications', () => {
+    const written = distillClaudeFix({
+      issue: { ruleKey: 'js-reject-unauthorized', module: 'tlsSecurity', file: 'src/foo.js' },
+      originalContent: REJECT_FIXTURE.before,
+      patchedContent: REJECT_FIXTURE.after,
+      recipeStorePath: store,
+    });
+    for (let i = 0; i < 3; i += 1) {
+      distillClaudeFix({
+        issue: { ruleKey: 'js-reject-unauthorized', module: 'tlsSecurity', file: `src/dup${i}.js` },
+        originalContent: REJECT_FIXTURE.before,
+        patchedContent: REJECT_FIXTURE.after,
+        recipeStorePath: store,
+      });
+    }
+    const recipe = loadStore(store).recipes.find((r) => r.id === written.recipe.id);
+    assert.strictEqual(recipe.derivationCount, 3);
+    assert.strictEqual(recipe.applicationCount, 0, 'promotion here must come from derivations alone');
+    assert.strictEqual(recipe.confidence, 'stable',
+      'this is the exact deadlock in KI #74f: without counting derivations, this recipe could never leave "low"');
+  });
+
+  it('applicationCount and derivationCount are independent counters that both feed the same threshold', () => {
+    const written = distillClaudeFix({
+      issue: { ruleKey: 'js-reject-unauthorized', module: 'tlsSecurity', file: 'src/foo.js' },
+      originalContent: REJECT_FIXTURE.before,
+      patchedContent: REJECT_FIXTURE.after,
+      recipeStorePath: store,
+    });
+    distillClaudeFix({
+      issue: { ruleKey: 'js-reject-unauthorized', module: 'tlsSecurity', file: 'src/bar.js' },
+      originalContent: REJECT_FIXTURE.before,
+      patchedContent: REJECT_FIXTURE.after,
+      recipeStorePath: store,
+    });
+    let r = incrementApplicationCount(written.recipe.id, store);
+    assert.strictEqual(r.derivationCount, 1);
+    assert.strictEqual(r.applicationCount, 1);
+    assert.strictEqual(r.confidence, 'low', '1 + 1 = 2, still below the threshold of 3');
+
+    r = incrementApplicationCount(written.recipe.id, store);
+    assert.strictEqual(r.applicationCount, 2);
+    assert.strictEqual(r.confidence, 'stable', '1 derivation + 2 applications = 3 total evidence');
+  });
 });
 
 describe('auto-distill — findMatchingRecipe + applyRecipe', () => {

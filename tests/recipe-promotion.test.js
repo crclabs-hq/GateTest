@@ -103,6 +103,41 @@ describe('recipe-promotion / assessPromotionCandidate', () => {
     assert.strictEqual(out.promote, true);
   });
 
+  // KI #74f — the promotion deadlock. applicationCount alone could never
+  // move off zero in production (playback only replays already-stable
+  // recipes), so the occurrences fallback must also honour derivationCount
+  // (independent, certified re-derivations of the identical fix) — see
+  // auto-distill.js. Neither counter is ever guessed: with both absent, the
+  // honest answer is 0 occurrences and a real "insufficient" reason.
+  it('falls back to derivationCount when occurrences and applicationCount are both unset', () => {
+    const rec = ripeRecipe();
+    delete rec.occurrences;
+    delete rec.applicationCount;
+    rec.derivationCount = 8;
+    const out = assessPromotionCandidate(rec);
+    assert.strictEqual(out.promote, true);
+    assert.match(out.reason, /8 occurrences/);
+  });
+
+  it('sums applicationCount + derivationCount when occurrences is not set', () => {
+    const rec = ripeRecipe();
+    delete rec.occurrences;
+    rec.applicationCount = 3;
+    rec.derivationCount = 5;
+    const out = assessPromotionCandidate(rec);
+    assert.strictEqual(out.promote, true);
+    assert.match(out.reason, /8 occurrences/);
+  });
+
+  it('reports an honest 0/N — never a fabricated pass — when no counter is supplied at all', () => {
+    const rec = ripeRecipe();
+    delete rec.occurrences;
+    delete rec.applicationCount;
+    const out = assessPromotionCandidate(rec);
+    assert.strictEqual(out.promote, false);
+    assert.match(out.reason, /insufficient-occurrences: 0\/5/);
+  });
+
   it('exposes defaults for tooling', () => {
     assert.strictEqual(DEFAULT_CRITERIA.minCustomers, 3);
     assert.strictEqual(DEFAULT_CRITERIA.minOccurrences, 5);

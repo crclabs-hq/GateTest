@@ -36,8 +36,41 @@
  *
  * PROMOTION:
  *   - First time a recipe is distilled → confidence: "low".
- *   - applicationCount reaches 3 → confidence: "stable".
- *   - Promotion happens via `incrementApplicationCount(id, store)`.
+ *   - `executePlaybackSimulation` (flywheel-playback-engine.js) deliberately
+ *     asks for STABLE recipes only (`includeLowConfidence: false`) — never
+ *     auto-apply an unproven, uncertified patch to customer code. That is a
+ *     product decision, not a bug (Known Issue #74f).
+ *   - Which means a recipe needs a way to earn "stable" BEFORE it is ever
+ *     played back. Two independent kinds of evidence count toward that,
+ *     tracked as two separate counters so neither one silently stands in
+ *     for the other in a report:
+ *       - `applicationCount` — the recipe was actually REPLAYED (a real
+ *         playback hit, zero Claude calls) and its patch applied again.
+ *         Bumped by `incrementApplicationCount`, called only from
+ *         `executePlaybackSimulation` on a hit.
+ *       - `derivationCount` — Claude independently re-derived the exact
+ *         same certified fix for a NEW occurrence of the bug (the
+ *         `distillClaudeFix` "duplicate" branch: same ruleKey/module/
+ *         fileExt/before, so same recipe id). Before this fix that branch
+ *         discarded the evidence and returned `written:false` with no
+ *         side effect — three real, independently-certified fixes of the
+ *         identical pattern left the recipe at count 0 forever, because
+ *         the only counter that could promote it (`applicationCount`) is
+ *         itself gated on already being "stable". That circularity is the
+ *         "promotion deadlock" in KI #74f.
+ *   - Counting rule (deliberate, so it cannot be gamed by hypothesis noise):
+ *     ONE increment per distinct, bidirectionally-certified fix event —
+ *     i.e. one increment per call to `distillClaudeFix` that resolves to
+ *     either a fresh write or the "duplicate" branch. NEVER per internal
+ *     hypothesis/attempt: `cli-fix-orchestrator.js` runs up to three
+ *     hypotheses per attempt but calls `distillRecipes` exactly once, for
+ *     the single winning, test-certified hypothesis — so there is exactly
+ *     one `distillClaudeFix` call per real customer fix, and exactly one
+ *     count per distinct fix, never one per derivation attempt.
+ *   - `applicationCount + derivationCount` reaching `STABLE_THRESHOLD` (3)
+ *     → confidence: "stable". Either counter alone can cross the line;
+ *     they are summed because both are equally strong evidence that this
+ *     exact literal substitution is safe to auto-apply next time.
  *
  * Concurrency: the store is a single JSON file rewritten on every write.
  * Reads are tolerant of missing / malformed files. This is enough for the
@@ -95,6 +128,12 @@ function clearRemoteCache() {
 // ---------------------------------------------------------------------------
 // Templatey-ness heuristic
 // ---------------------------------------------------------------------------
+
+// Recipe reaches "stable" (playable) once applicationCount + derivationCount
+// hits this. One definition — incrementApplicationCount and the duplicate-
+// derivation path in distillClaudeFix both call _promoteIfReady so a third
+// counting path can never drift from this number (Doctrine #4).
+const STABLE_THRESHOLD = 3;
 
 const MAX_DIFF_LINES_FOR_TEMPLATE = 5;
 const MAX_VARYING_IDENTIFIERS = 1;
@@ -251,6 +290,26 @@ function fileExtOf(filePath) {
   return dot >= 0 ? filePath.slice(dot).toLowerCase() : '';
 }
 
+/**
+ * Promote a recipe to "stable" once its combined evidence (real playback
+ * applications + independent certified re-derivations) reaches
+ * STABLE_THRESHOLD. Mutates `recipe` in place; caller persists the store.
+ * The single definition of "when is a recipe stable" — never re-derive this
+ * threshold check inline elsewhere.
+ *
+ * @param {object} recipe
+ * @returns {boolean} true if this call just promoted the recipe
+ */
+function _promoteIfReady(recipe) {
+  if (!recipe || typeof recipe !== 'object') return false;
+  const total = (recipe.applicationCount || 0) + (recipe.derivationCount || 0);
+  if (total >= STABLE_THRESHOLD && recipe.confidence !== 'stable') {
+    recipe.confidence = 'stable';
+    return true;
+  }
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -305,7 +364,18 @@ function distillClaudeFix({ issue, originalContent, patchedContent, recipeStoreP
 
     const existing = store.recipes.find(r => r.id === id);
     if (existing) {
-      // Already known — don't duplicate, don't reset confidence.
+      // Already known — don't duplicate the recipe row, but DO count this as
+      // independent evidence: Claude just re-derived the identical certified
+      // fix for a NEW occurrence of the bug. Before this fix that evidence
+      // was silently discarded and the recipe could never earn "stable"
+      // through any production path (KI #74f, the promotion deadlock) —
+      // see the counting rule in the module doc comment above.
+      if (typeof existing.derivationCount !== 'number') existing.derivationCount = 0;
+      existing.derivationCount += 1;
+      if (!existing.provenance) existing.provenance = {};
+      existing.provenance.lastDerivedAt = new Date().toISOString();
+      _promoteIfReady(existing);
+      saveStore(recipeStorePath, store);
       return { written: false, reason: 'duplicate', recipe: existing };
     }
 
@@ -318,6 +388,7 @@ function distillClaudeFix({ issue, originalContent, patchedContent, recipeStoreP
       after: verdict.afterSnippet,
       confidence: 'low',
       applicationCount: 0,
+      derivationCount: 0,
       provenance: {
         originalModel: originalModel || null,
         originalRuleKey: ruleKey,
@@ -474,8 +545,11 @@ function applyRecipe(content, recipe) {
 }
 
 /**
- * Increment the application counter on a recipe and promote to "stable" once
- * the counter reaches 3. Never throws — promotion is best-effort.
+ * Increment the application counter on a recipe — called only from a real
+ * playback HIT (executePlaybackSimulation) — and promote to "stable" once
+ * applicationCount + derivationCount reaches STABLE_THRESHOLD (see
+ * `_promoteIfReady` / the counting rule in the module doc comment). Never
+ * throws — promotion is best-effort.
  *
  * @param {string} recipeId
  * @param {string} recipeStorePath
@@ -492,9 +566,7 @@ function incrementApplicationCount(idOrRecipe, recipeStorePath) {
     recipe.applicationCount = (recipe.applicationCount || 0) + 1;
     if (!recipe.provenance) recipe.provenance = {};
     recipe.provenance.lastAppliedAt = new Date().toISOString();
-    if (recipe.applicationCount >= 3 && recipe.confidence !== 'stable') {
-      recipe.confidence = 'stable';
-    }
+    _promoteIfReady(recipe);
     saveStore(recipeStorePath, store);
     return recipe;
   } catch {
@@ -518,4 +590,6 @@ module.exports = {
   loadStore,
   saveStore,
   recipeId,
+  STABLE_THRESHOLD,
+  _promoteIfReady,
 };

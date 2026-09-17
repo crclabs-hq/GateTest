@@ -617,6 +617,60 @@ git pull origin main || {
     assert.equal(errors.length, 0, 'PREV_SHA rollback should not flag same-sha');
     fs.rmSync(tmp, { recursive: true });
   });
+
+  // Control pair (self-scan 2026-09-16): docs/deploy/JARVIS-MCP-DEPLOY.md
+  // flagged "rollback reuses the same health check" — the word "fallback" in
+  // an unrelated prose sentence opened a bogus rollback block that swallowed
+  // the whole doc, including its own smoke-test/verify curl commands
+  // matching themselves. Docs are prose, not scripts with a rollback branch
+  // to compare — scope the rule to executable scripts/workflows.
+  test('POSITIVE CONTROL: a real script reusing the same health check in its rollback branch still fires', async () => {
+    const tmp = makeTmp();
+    fs.writeFileSync(path.join(tmp, 'deploy-rollback.sh'), `#!/bin/bash
+set -euo pipefail
+curl -s http://127.0.0.1:8787/healthz
+git pull origin main || {
+  echo "Deploy failed — rollback"
+  curl -s http://127.0.0.1:8787/healthz
+  exit 0
+}
+`);
+    const r = makeResult();
+    await new RollbackHonesty().run(r, { projectRoot: tmp });
+    assert(
+      r.checks.some((c) => !c.passed && c.name.includes('same-health-check')),
+      'a real script reusing the same health check in its rollback branch should still fire',
+    );
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test('does not treat a markdown runbook as a script with a rollback branch', async () => {
+    const tmp = makeTmp();
+    fs.writeFileSync(path.join(tmp, 'DEPLOY.md'), `# Deploy
+
+> Not a fallback plan — this is the live path.
+
+## Steps
+
+\`\`\`bash
+curl -s http://127.0.0.1:8787/healthz
+\`\`\`
+
+## Verify
+
+\`\`\`bash
+curl -s http://127.0.0.1:8787/healthz
+\`\`\`
+`);
+    const r = makeResult();
+    await new RollbackHonesty().run(r, { projectRoot: tmp });
+    assert.equal(
+      r.checks.filter((c) => !c.passed && c.severity === 'error').length,
+      0,
+      'a markdown runbook is prose, not an executable rollback branch',
+    );
+    fs.rmSync(tmp, { recursive: true });
+  });
 });
 
 // ── deployContract basePath enhancement ───────────────────────────────────────

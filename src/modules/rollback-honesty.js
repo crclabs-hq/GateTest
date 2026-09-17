@@ -22,6 +22,12 @@ const HEALTH_CHECK_RE   = /curl\s+.*(?:health|ping|ready|status)|wget\s+.*(?:hea
 const SAME_SHA_PATTERN  = /git\s+reset\s+--hard\s+(?:HEAD|CURRENT|LATEST|\$(?:CURRENT_SHA|NEW_SHA|SHA))/i;
 const DIFF_SHA_PATTERN  = /git\s+reset\s+--hard\s+\$(?:PREV|PREVIOUS|OLD|LAST|BEFORE)_?SHA/i;
 
+// Prose runbooks, not executable code — this module's block-extraction is a
+// shell-syntax heuristic (brace/if/fi depth) with no equivalent in English,
+// so a doc is out of scope; only real scripts/workflows have a rollback
+// BRANCH to structurally compare against the main deploy branch.
+const DOC_EXT_RE = /\.(md|mdx|rst|txt|adoc)$/i;
+
 class RollbackHonestyModule extends BaseModule {
   constructor() { super('rollbackHonesty', 'Rollback Honesty Checker'); }
 
@@ -186,8 +192,20 @@ class RollbackHonestyModule extends BaseModule {
     // `deploy`), so the sweep takes '*' and filters on basename. The old
     // walk visited `.github/workflows` and then the whole tree again, so
     // every workflow was analysed twice; one pass covers it.
+    //
+    // Scoped to executable scripts/workflows only (self-scan 2026-09-16):
+    // docs/deploy/JARVIS-MCP-DEPLOY.md is a prose runbook, not a script —
+    // `_extractRollbackBlocks`'s brace/if/fi depth counter is a shell-syntax
+    // heuristic that has no equivalent in markdown, so the word "fallback"
+    // in an unrelated commentary sentence ("not a fallback") opened a
+    // "rollback block" that never closed and swallowed the rest of the
+    // document, including its own smoke-test/verify curl commands — which
+    // of course matched themselves as "the same health check". A doc has no
+    // deploy/rollback BRANCHES to compare in the first place; only real
+    // scripts and CI workflows do.
     return this._collectFiles(root, ['*']).filter((full) => {
       const name = path.basename(full);
+      if (DOC_EXT_RE.test(name)) return false;
       return /\.(sh|bash)$/.test(name) || /deploy/.test(name.toLowerCase());
     });
   }

@@ -1,6 +1,5 @@
 {
   "owner": "crclabs-hq",
-  "admin": true,
   "modules": {
     "prSize": {
       "maxLinesChangedWarning": 1000,

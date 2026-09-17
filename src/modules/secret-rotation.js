@@ -183,6 +183,12 @@ class SecretRotationModule extends BaseModule {
     // Shared walk replaced a private readdir sweep so --diff scans shrink the file set (KI #104).
     return this._collectFiles(projectRoot, ['*'], EXTRA_EXCLUDES).filter((full) => {
       const rel = repoRelative(projectRoot, full);
+      // Test fixtures are never rotated — a credential-shaped string in a
+      // *.test.js (or any other test path per the one canonical definition,
+      // BaseModule._isTestPath / src/core/test-paths.js) is sample data, not
+      // a live secret aging in production. Real secrets under src/ still age
+      // normally; this is scoped to test paths only (Doctrine #4/#5).
+      if (this._isTestPath(rel)) return false;
       if (SKIP_PATH_PARTS.some((p) => rel.includes(p))) return false;
       if (SKIP_EXTENSIONS.has(path.extname(full).toLowerCase())) return false;
       // Skip files > 1 MB — almost certainly generated/minified
