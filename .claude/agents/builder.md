@@ -12,5 +12,5 @@ Rules:
 - Touch only the files your brief lists. If the fix genuinely needs another file, say so in the report; do not edit it.
 - Run the exact tests your brief names, after your last edit, and paste the pass/fail summary lines. Then `GATETEST_NO_TELEMETRY=1 node bin/gatetest.js --suite quick --parallel` must print `GATE: PASSED` (compare the finding count against `origin/main` if it does not).
 - Commit with one cause per commit; the message ends with `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`. Push your branch and open the PR with `gh pr create` (body ends with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`). Never merge.
-- Do not poll. If you must wait on a build or a CI run, run it in the foreground with a timeout or check it once at the end.
+- **Never background a test run, a build, or a scan.** Run each in the foreground with an explicit timeout and read its result in the same step. A backgrounded run leaves you waiting for a notification that never arrives — every builder on 16 Sep stalled once this way and had to be resumed by hand. If a command needs more than ten minutes, split it (run the affected test files, then the rest) rather than backgrounding it.
 - Report in under 40 lines: PR URL, files changed, tests run with results, and anything you could not verify. No narrative.
