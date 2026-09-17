@@ -34,6 +34,18 @@ echo "[deploy] $(date -u +%FT%TZ) — deploying $(git rev-parse --abbrev-ref HEA
 # happened once already: Move 39 (2026-09-05) added generate-changelog.js to the
 # prebuild, changelog.json was not listed, and the next five deploys refused
 # themselves while production sat 85 commits behind main.
+# Production only ever deploys main. On 2026-09-15 the box was switched to a
+# feature branch (jarvis/fix-874) and sat there 127 commits behind while every
+# deploy refused on the dirty tree; `git reset --hard origin/main` below would
+# have silently moved that branch onto main and hidden the switch. Refuse as
+# loudly as the dirty-tree guard does, and say what to run.
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+if [ "$BRANCH" != "main" ]; then
+  echo "[deploy] ERROR: $APP_DIR is on branch '$BRANCH', not main — production deploys main only." >&2
+  echo "[deploy]        Save any hand edits first (git stash push -u -m box-edits-$(date -u +%F), then re-apply them in a PR)," >&2
+  echo "[deploy]        then: cd $APP_DIR && git checkout main && re-run the Deploy workflow." >&2
+  exit 1
+fi
 SELF_DIRTIED='package-lock.json website/app/data/build-info.json website/app/data/changelog.json website/package-lock.json'
 UNEXPECTED="$(git status --porcelain --untracked-files=no | awk '{print $2}' | while read -r f; do
   case " $SELF_DIRTIED " in *" $f "*) ;; *) echo "$f" ;; esac
