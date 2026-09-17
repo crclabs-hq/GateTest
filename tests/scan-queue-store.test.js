@@ -24,11 +24,14 @@ const {
   claimNextJob,
   markDone,
   markFailed,
+  markNotChecked,
   deadLetter,
   getQueueDepth,
   reclaimStuck,
   getScanByEventId,
   normalizeHost,
+  publicStatusFor,
+  PUBLIC_STATUS_MAP,
   KNOWN_HOSTS,
   REPO_HOSTS,
   DEFAULT_HOST,
@@ -351,6 +354,74 @@ describe('markDone / markFailed / deadLetter', () => {
     const sql = makeFakeSql([[]]);
     await deadLetter(11, 'gave up', sql);
     assert.match(sql.calls[0].text, /SET status = 'dead'/);
+  });
+});
+
+// ── KI #113 Phase 2: the honest third state for `api`-host rows the worker
+// cannot execute (e.g. a bare-URL scan needing an unconfigured browser
+// runtime) — never 'done' with zero findings, which reads as "scanned
+// clean" to the customer polling GET /api/v1/scans/:id.
+describe('markNotChecked', () => {
+  it("sets status='not_checked', stamps completed_at, stores the reason and empty findings", async () => {
+    const sql = makeFakeSql([[]]);
+    await markNotChecked(12, 'web-runtime:not-configured', sql);
+    const call = sql.calls[0];
+    assert.match(call.text, /SET status = 'not_checked'/);
+    assert.match(call.text, /completed_at = NOW\(\)/);
+    assert.match(call.text, /result_json = /);
+    const jsonParam = call.values.find(
+      (v) => typeof v === 'string' && v.includes('web-runtime:not-configured')
+    );
+    assert.ok(jsonParam, 'reason is carried in the result JSON');
+    const parsed = JSON.parse(jsonParam);
+    assert.strictEqual(parsed.notChecked, true);
+    assert.deepStrictEqual(parsed.findings, [], 'never fabricate findings for an unchecked row');
+    assert.strictEqual(call.values[call.values.length - 1], 12);
+  });
+
+  it('never marks the row done — a distinct terminal state, not a variant of success', async () => {
+    const sql = makeFakeSql([[]]);
+    await markNotChecked(13, 'web-runtime:not-configured', sql);
+    assert.doesNotMatch(sql.calls[0].text, /SET status = 'done'/);
+  });
+
+  it('rejects when sql is missing', async () => {
+    await assert.rejects(() => markNotChecked(1, 'x'), /sql tagged-template is required/);
+  });
+
+  it('rejects when id is missing', async () => {
+    await assert.rejects(() => markNotChecked(undefined, 'x', makeFakeSql([[]])), /id is required/);
+  });
+});
+
+// ── publicStatusFor — the ONE definition GET /api/v1/scans/:id imports
+// (Doctrine #4); used to be a second, hand-typed copy of this table inside
+// the route, which had no 'not_checked' entry at all.
+describe('publicStatusFor', () => {
+  it('maps every documented internal status to its public counterpart', () => {
+    assert.strictEqual(publicStatusFor('queued'), 'queued');
+    assert.strictEqual(publicStatusFor('pending'), 'queued');
+    assert.strictEqual(publicStatusFor('running'), 'running');
+    assert.strictEqual(publicStatusFor('in_progress'), 'running');
+    assert.strictEqual(publicStatusFor('failed'), 'running', 'queue failed = will retry, still in flight');
+    assert.strictEqual(publicStatusFor('done'), 'completed');
+    assert.strictEqual(publicStatusFor('completed'), 'completed');
+    assert.strictEqual(publicStatusFor('succeeded'), 'completed');
+    assert.strictEqual(publicStatusFor('not_checked'), 'not_checked');
+    assert.strictEqual(publicStatusFor('dead'), 'failed');
+    assert.strictEqual(publicStatusFor('error'), 'failed');
+  });
+
+  it('is case-insensitive and defaults unknown/absent statuses to queued', () => {
+    assert.strictEqual(publicStatusFor('NOT_CHECKED'), 'not_checked');
+    assert.strictEqual(publicStatusFor('something-new'), 'queued');
+    assert.strictEqual(publicStatusFor(undefined), 'queued');
+  });
+
+  it('PUBLIC_STATUS_MAP is exported and agrees with the function for every key', () => {
+    for (const [internal, expected] of Object.entries(PUBLIC_STATUS_MAP)) {
+      assert.strictEqual(publicStatusFor(internal), expected);
+    }
   });
 });
 

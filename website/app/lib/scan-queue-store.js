@@ -13,11 +13,16 @@
  * installation-store.js.
  *
  * Status lifecycle:
- *   queued   → claimed by claimNextJob (→ running, started_at stamped)
- *   running  → markDone / markFailed / reclaimStuck
- *   done     → terminal (result_json retained for debugging / audit)
- *   failed   → terminal-but-retryable if attempts < 5
- *   dead     → terminal; exceeded retry budget, error callback sent
+ *   queued      → claimed by claimNextJob (→ running, started_at stamped)
+ *   running     → markDone / markFailed / markNotChecked / reclaimStuck
+ *   done        → terminal (result_json retained for debugging / audit)
+ *   failed      → terminal-but-retryable if attempts < 5
+ *   dead        → terminal; exceeded retry budget, error callback sent
+ *   not_checked → terminal; the worker COULD NOT execute the row honestly
+ *                 (e.g. an `api`-host bare-URL scan needing an unconfigured
+ *                 browser runtime, KI #111/#113 Phase 2) — Doctrine #1's
+ *                 third state. Never 'done' with zero findings, which would
+ *                 read to the customer as "scanned clean".
  */
 
 const MAX_ATTEMPTS = 5;
@@ -269,6 +274,36 @@ async function getScanByEventId(eventId, sql) {
 }
 
 /**
+ * Map an internal scan_queue `status` to the four-state public API status
+ * that GET /api/v1/scans/:id returns. ONE definition (Doctrine #4) so the
+ * route never grows a second copy of this table that can drift from the
+ * lifecycle above. 'not_checked' is its own public state, never folded into
+ * 'completed' (which would read as "scanned, found nothing") or dropped to
+ * the 'queued' fallback (which would look eternally pending).
+ *
+ * @param {string} internalStatus
+ * @returns {'queued'|'running'|'completed'|'not_checked'|'failed'}
+ */
+const PUBLIC_STATUS_MAP = Object.freeze({
+  pending: 'queued',
+  queued: 'queued',
+  running: 'running',
+  in_progress: 'running',
+  failed: 'running', // queue 'failed' means "will retry" — still in flight to the caller
+  done: 'completed',
+  completed: 'completed',
+  succeeded: 'completed',
+  not_checked: 'not_checked',
+  dead: 'failed',
+  error: 'failed',
+});
+
+function publicStatusFor(internalStatus) {
+  const key = String(internalStatus || 'queued').toLowerCase();
+  return PUBLIC_STATUS_MAP[key] || 'queued';
+}
+
+/**
  * Mark a job as successfully done. Stores the result JSON payload and
  * stamps completed_at.
  *
@@ -340,6 +375,39 @@ async function markFailed(id, error, willRetry, sql) {
       WHERE id = ${id}
     `;
   }
+}
+
+/**
+ * Mark a job as executed but honestly unable to be checked — Doctrine #1's
+ * third state (clean / found / not checked), the terminal state added for
+ * KI #113 Phase 2. Used for `api`-host rows whose target needs a capability
+ * the worker does not currently have wired up (e.g. the headless-browser
+ * runtime pass for a bare website URL, gated by web-runtime-gate.js /
+ * KI #111). `result_json` carries the reason and an empty findings array so
+ * a client reading the row the same way it reads a `done` row never mistakes
+ * "not checked" for "scanned clean" — the row is NEVER marked `done` here.
+ *
+ * @param {number} id
+ * @param {string} reason  short machine-readable code, e.g. 'web-runtime:not-configured'
+ * @param {Function} sql
+ */
+async function markNotChecked(id, reason, sql) {
+  if (!sql || typeof sql !== 'function') {
+    throw new Error('markNotChecked: sql tagged-template is required');
+  }
+  if (id === null || id === undefined) {
+    throw new Error('markNotChecked: id is required');
+  }
+  const reasonText = String(reason || 'not-checked').slice(0, 200);
+  const json = JSON.stringify({ notChecked: true, reason: reasonText, findings: [] });
+  await sql`
+    UPDATE scan_queue
+    SET status = 'not_checked',
+        result_json = ${json}::jsonb,
+        completed_at = NOW(),
+        last_error = NULL
+    WHERE id = ${id}
+  `;
 }
 
 /**
@@ -448,12 +516,15 @@ module.exports = {
   getScanByEventId,
   markDone,
   markFailed,
+  markNotChecked,
   deadLetter,
   getQueueDepth,
   getQueueStats,
   reclaimStuck,
   isTerminalScanError,
   normalizeHost,
+  publicStatusFor,
+  PUBLIC_STATUS_MAP,
   KNOWN_HOSTS,
   REPO_HOSTS,
   DEFAULT_HOST,
