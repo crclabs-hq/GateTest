@@ -162,6 +162,12 @@ function buildJsonOutput(summary, ctx) {
     files,
     passed: gateStatus === 'PASSED',
     gateStatus,
+    // KI #107: whether GATETEST_ADMIN=1 softened a blocking result this run,
+    // and what the verdict would have been without it. Never leave a
+    // consumer reading "gateStatus: PASSED" with no trace that a blocking
+    // result was overridden (Forbidden #16 — never silently pass).
+    adminOverride: summary.adminOverride === true,
+    rawGateStatus: summary.rawGateStatus || gateStatus,
     exitCode: ctx.exitCode,
     nothingChecked: summary.nothingChecked === true,
     summary: summaryLine({ scope, gateStatus, counts, modules, duration: summary.duration, nothingChecked: summary.nothingChecked === true, files }),
