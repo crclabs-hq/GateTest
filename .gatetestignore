@@ -13,6 +13,17 @@ hardcoded-url:localhost@website/app/components/HomeEyesEarsHands.tsx
 # self-deception in the other direction.
 reliability-corpus/**
 
+# corpus/broken-sites/ is the deliberately-broken HTML fixture
+# scripts/compare-playwright.js uses to measure GateTest's runtime-errors
+# module against a hand-written Playwright capture (5 known bugs, by design:
+# missing viewport meta, missing lang attribute, missing main landmark,
+# missing meta description, etc.). Same rationale as reliability-corpus and
+# benchmarks/bench-target below — a11y/visual/seo findings here are the
+# fixture working as designed, not a defect in GateTest's own site. Verify
+# the fixture still triggers these modules when scanned directly:
+# `node bin/gatetest.js --project corpus/broken-sites --module accessibility`.
+corpus/broken-sites/**
+
 # benchmarks/bench-target/ is the frozen, deliberately-vulnerable target repo
 # the competitive benchmark (docs/COMPETITIVE-BENCHMARK.md, KI #31/#46)
 # measures GateTest and rival tools against. Its hardcoded secrets, eval(),
