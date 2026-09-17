@@ -169,6 +169,8 @@ export default function NotificationSettings() {
         <label className="flex items-start gap-3 p-4 rounded-xl border border-border bg-surface cursor-pointer">
           <input
             type="checkbox"
+            id="release-emails-opt-in"
+            aria-label="Email me release notes"
             checked={optIn}
             disabled={saving}
             onChange={(e) => toggle(e.target.checked)}
