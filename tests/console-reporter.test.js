@@ -136,3 +136,35 @@ describe('ConsoleReporter — a blocked gate leads with `gatetest replay` in CI'
     assert.doesNotMatch(passed, /Reproduce locally/);
   });
 });
+
+describe('ConsoleReporter — field-silence demotion line (the Fifty, move 08)', () => {
+  const passedSummary = {
+    gateStatus: 'PASSED', modules: { passed: 1, total: 1 },
+    checks: { total: 1, passed: 1, failed: 0, errors: 0, blockingErrors: 0, softErrors: 0, warnings: 0, infoFindings: 0 },
+    fixes: { total: 0 }, duration: 1, failedModules: [],
+  };
+  it('prints one line naming the count and pointing at /noise when the active list is non-empty', () => {
+    const output = captureLog(() => {
+      const runner = new EventEmitter();
+      new ConsoleReporter(runner);
+      runner.emit('suite:end', { ...passedSummary, demotedRuleCount: 3 });
+    });
+    assert.match(output, /3 rule\(s\) demoted by field silence data \(see \/noise\)/);
+  });
+  it('says nothing when no demotion is active — not even an empty line', () => {
+    const output = captureLog(() => {
+      const runner = new EventEmitter();
+      new ConsoleReporter(runner);
+      runner.emit('suite:end', { ...passedSummary, demotedRuleCount: 0 });
+    });
+    assert.doesNotMatch(output, /demoted by field silence data/);
+  });
+  it('says nothing when the field is absent entirely (older summary shape)', () => {
+    const output = captureLog(() => {
+      const runner = new EventEmitter();
+      new ConsoleReporter(runner);
+      runner.emit('suite:end', passedSummary);
+    });
+    assert.doesNotMatch(output, /demoted by field silence data/);
+  });
+});

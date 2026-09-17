@@ -223,6 +223,11 @@ class ConsoleReporter {
     if (summary.offline) {
       console.log(`${COLORS.dim}  Mode: ${OFFLINE_NOTE}${COLORS.reset}`);
     }
+    // The Fifty, move 08 — never silent: if the field-data demotion list is
+    // active at all, say so, even on a run where nothing it covers fired.
+    if (summary.demotedRuleCount > 0) {
+      console.log(`${COLORS.dim}  ${summary.demotedRuleCount} rule(s) demoted by field silence data (see /noise)${COLORS.reset}`);
+    }
     if (summary.pathFilter) {
       const pf = summary.pathFilter;
       const parts = [];

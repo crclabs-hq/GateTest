@@ -58,6 +58,13 @@ const { readPathFilter: _readPathFilter, pathInScope: _pathInScope } = require('
 const { ruleIdentity: _ruleIdentity } = require('./rule-identity');
 const { isOffline: _isOffline } = require('./offline');
 
+// Field-measured demotions (the Fifty, move 08) — a rule the field has
+// silenced past the retirement line, with enough findings to trust the
+// rate, ships as a warning instead of an error. Loaded defensively so a
+// missing/malformed data/rule-demotions.json never blocks a scan.
+let _ruleDemotion = null;
+try { _ruleDemotion = require('./rule-demotion'); } catch { _ruleDemotion = null; }
+
 function _loadIgnoreMatcher(projectRoot) {
   try { return _ignoreFile ? _ignoreFile.load(projectRoot) : null; }
   catch { return null; }
@@ -171,7 +178,21 @@ class TestResult {
    *   `blockThreshold` (default 0.7) do not block the gate.
    */
   addCheck(name, passed, details = {}) {
-    const severity = details.severity || (passed ? Severity.INFO : Severity.ERROR);
+    let severity = details.severity || (passed ? Severity.INFO : Severity.ERROR);
+
+    // Field-measured demotion (the Fifty, move 08): applied here — the one
+    // place every module's severity is finalised — so no individual module
+    // has to know about field data. Only a failing 'error' can be demoted,
+    // and only down to 'warning'; the finding still appears, with the
+    // reason attached as `check.demotedBy` below.
+    let demotedBy = null;
+    if (!passed && severity === Severity.ERROR && _ruleDemotion) {
+      const filePath = details.file || details.filePath;
+      const ruleId = _ruleIdentity({ name, file: filePath });
+      const applied = _ruleDemotion.applyDemotion(ruleId, severity);
+      severity = applied.severity;
+      demotedBy = applied.demotion;
+    }
 
     // Compute confidence ONLY for failing error/warning checks — passing
     // checks and info-level checks don't need scoring (they never block).
@@ -213,12 +234,18 @@ class TestResult {
     const check = {
       name,
       passed,
-      severity,
       timestamp: Date.now(),
       ...details,
+      // These three MUST win over `...details` — `severity` may have just
+      // been demoted above, and re-applying `details.severity` here would
+      // silently undo it (the original bug: `severity` used to sit BEFORE
+      // the spread, a no-op only because nothing ever mutated it after
+      // being read from `details` in the first place).
+      severity,
       confidence,
       confidenceSignals,
     };
+    if (demotedBy) check.demotedBy = demotedBy;
 
     // .gatetestignore suppression — mark, don't drop, so it stays auditable.
     if (!passed && this._ignoreMatcher) {
@@ -357,6 +384,16 @@ class TestResult {
         && Array.isArray(c.confidenceSignals)
         && c.confidenceSignals.includes('flywheel-softened'),
     );
+  }
+
+  /**
+   * Findings demoted error -> warning by field silence data (the Fifty,
+   * move 08, src/core/rule-demotion.js). Reported, not hidden — the same
+   * disclosure reasoning as `flywheelSoftenedChecks`: a scan output must
+   * never let a softened finding pass as if no field data existed.
+   */
+  get demotedChecks() {
+    return this.checks.filter(c => !c.passed && !c.suppressed && c.demotedBy);
   }
 
   /** Informational checks. */
@@ -1004,6 +1041,9 @@ class GateTestRunner extends EventEmitter {
     const totalFlywheelSoftened = this.results.reduce(
       (sum, r) => sum + r.flywheelSoftenedChecks.length, 0,
     );
+    const totalDemoted = this.results.reduce(
+      (sum, r) => sum + r.demotedChecks.length, 0,
+    );
     const totalInfoFindings = this.results.reduce((sum, r) => sum + r.infoFindingChecks.length, 0);
     const totalFixes = this.results.reduce((sum, r) => sum + r.fixes.length, 0);
     const totalBaselined = this.results.reduce(
@@ -1156,9 +1196,15 @@ class GateTestRunner extends EventEmitter {
         warnings: totalWarnings,
         softWarnings: totalSoftWarnings,
         flywheelSoftened: totalFlywheelSoftened,
+        demoted: totalDemoted,
         infoFindings: totalInfoFindings,
         baselined: totalBaselined,
       },
+      // The active demotion list (the Fifty, move 08) — a static fact about
+      // this run's data/rule-demotions.json, independent of whether any
+      // rule on it actually fired this scan. `checks.demoted` above is the
+      // per-scan count of findings it actually softened.
+      demotedRuleCount: _ruleDemotion ? _ruleDemotion.activeDemotionCount() : 0,
       fixes: {
         total: totalFixes,
         details: this.results.flatMap(r => r.fixes),

@@ -6,7 +6,9 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { aggregateRuleNoise, candidatesForRetirement, MIN_SCANS } = require('../website/app/lib/rule-noise');
+const {
+  aggregateRuleNoise, candidatesForRetirement, noisePublication, MIN_SCANS, MIN_FINDINGS_FLOOR,
+} = require('../website/app/lib/rule-noise');
 const { ruleIdentity } = require('../src/core/rule-identity');
 
 const row = (rules) => ({ ts: '2026-09-05T00:00:00Z', rules });
@@ -48,6 +50,32 @@ test('candidatesForRetirement: over 20%, not thin (the Fifty, move 08)', () => {
   rows.push(row([{ id: 'thin:one', fired: 0, silenced: 5 }]));
   const agg = aggregateRuleNoise(rows);
   assert.deepEqual(candidatesForRetirement(agg).map((r) => r.id), ['retire:me']);
+});
+
+test('noisePublication: candidate needs BOTH the rate line and the sample-size floor (the Fifty, move 08)', () => {
+  const rows = Array.from({ length: MIN_SCANS }, () => row([
+    { id: 'retire:me', fired: 13, silenced: 7 }, // -> 100 total, 35% silenced: over rate, over floor
+    { id: 'keep:me', fired: 45, silenced: 5 },   // -> 250 total, 10% silenced: under rate
+    { id: 'too:thin', fired: 3, silenced: 2 },   // -> 25 total, 40% silenced: over rate, UNDER the floor
+  ]));
+  const agg = aggregateRuleNoise(rows);
+  const table = noisePublication(agg);
+  const byId = Object.fromEntries(table.map((r) => [r.id, r]));
+
+  assert.equal(byId['retire:me'].sampleSize, 100);
+  assert.equal(byId['retire:me'].silencedRate, 0.35);
+  assert.equal(byId['retire:me'].candidate, true);
+
+  assert.equal(byId['keep:me'].candidate, false, 'below the retirement rate is untouched');
+
+  assert.equal(byId['too:thin'].sampleSize, 25);
+  assert.ok(byId['too:thin'].sampleSize < MIN_FINDINGS_FLOOR);
+  assert.equal(byId['too:thin'].candidate, false, 'noisy-looking but not enough samples to trust the rate');
+
+  // Worst-first by silenced rate, independent of candidate status — a rule
+  // below the floor is still shown, just not flagged for demotion.
+  assert.equal(table[0].id, 'too:thin');
+  assert.equal(table[1].id, 'retire:me');
 });
 
 test('rule identity has one home: the runner re-exports src/core/rule-identity.js', () => {
