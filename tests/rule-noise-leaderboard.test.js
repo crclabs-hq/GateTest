@@ -27,6 +27,17 @@ test('GET /api/telemetry/noise degrades to 503 without persistence', () => {
   assert.match(route, /aggregateRuleNoise/);
 });
 
+test('GET /api/noise (the Fifty, move 08): worst-first table, sampleSize/candidate, three-state status', () => {
+  const route = read('website/app/api/noise/route.ts');
+  assert.match(route, /noisePublication/);
+  assert.match(route, /MIN_FINDINGS_FLOOR/);
+  // 503 ledger-unavailable — never an empty 200 that could read as "no noisy rules".
+  assert.match(route, /status: 503/);
+  assert.match(route, /"ledger-unavailable"/);
+  assert.match(route, /"not-enough-data"/);
+  assert.match(route, /"ok"/);
+});
+
 test('the leaderboard is reachable from the footer and from /precision', () => {
   assert.match(read('website/app/components/Footer.tsx'), /href="\/noise"/);
   assert.match(read('website/app/precision/page.tsx'), /href="\/noise"/);
