@@ -72,8 +72,21 @@ function recipeFingerprint(recipe) {
  * — number of distinct customers, win rate, false-positive rate —
  * normally come from the central aggregator's telemetry roll-up. They
  * can also be supplied directly on the recipe (`recipe.customers`,
- * `recipe.winRate`, `recipe.falsePositiveRate`, `recipe.applicationCount`)
- * which is how the seed-data path and CLI tooling feed the assessment.
+ * `recipe.winRate`, `recipe.falsePositiveRate`, `recipe.applicationCount`,
+ * `recipe.derivationCount`) which is how the seed-data path and CLI
+ * tooling feed the assessment.
+ *
+ * `occurrences` reporting (Known Issue #74f — the "promotion deadlock"):
+ * a local recipe's `applicationCount` (real playback replays) used to be
+ * the ONLY fallback source for `occurrences`, and it could never move off
+ * zero in production — playback only replays already-stable recipes, so
+ * nothing could ever earn the replays needed to become stable. This
+ * function now also honours `derivationCount` (independent, certified
+ * re-derivations of the identical fix — see auto-distill.js), since that
+ * is equally real evidence the pattern is safe to promote. Both are
+ * measured counters, never a guess: with neither present, `occurrences`
+ * is honestly 0 and this function reports `insufficient-occurrences`
+ * rather than fabricating a pass.
  *
  * @param {object} recipe
  * @param {object} [criteria]
@@ -108,7 +121,9 @@ function assessPromotionCandidate(recipe, criteria = {}) {
 
   const customers = Number(recipe.customers || 0);
   const occurrences = Number(
-    recipe.occurrences != null ? recipe.occurrences : recipe.applicationCount || 0
+    recipe.occurrences != null
+      ? recipe.occurrences
+      : (recipe.applicationCount || 0) + (recipe.derivationCount || 0)
   );
   const winRate = Number(recipe.winRate != null ? recipe.winRate : 0);
   const fpRate  = Number(recipe.falsePositiveRate != null ? recipe.falsePositiveRate : 0);
