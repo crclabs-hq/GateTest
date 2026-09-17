@@ -34,13 +34,6 @@ corpus/broken-sites/**
 # 2026-07-19 until today — the first real sweep run surfaced this gap.
 benchmarks/bench-target/**
 
-# Playground.tsx deliberately renders the money-float anti-pattern
-# (parseFloat + `total * tax`) as marketing sample code showing customers
-# what GateTest catches. It legitimately corroborates (total + tax both
-# money-named in the same statement) — that's the demo working as intended,
-# not a real bug in this file.
-money-float:arithmetic@website/app/preview/_components/Playground.tsx
-
 # integrations/husky/pre-push:97 — `( cd … && timeout 5 git pull … >/dev/null 2>&1 || true )`
 # is the hook's best-effort cache refresh: capped at 5s, documented as "never
 # blocks the push", and the push goes ahead on the previous cache either way.
