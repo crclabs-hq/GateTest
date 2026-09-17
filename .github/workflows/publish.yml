@@ -262,6 +262,42 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
 
+      # Release notes to installs (board item) — e-mails opted-in customers
+      # that a new CLI version shipped. THIS IS USER COMMUNICATION (Bible
+      # Boss Rule): ships OFF unless the repo VARIABLE
+      # GATETEST_RELEASE_NOTIFY_ENABLED is exactly '1' — Craig sets it after
+      # setting the matching env var on the box. Non-fatal by construction
+      # (no continue-on-error — Forbidden #24 is about the quality gate, but
+      # this step still never uses `exit 1`): a failed or skipped notify
+      # must never fail a release that already published to npm.
+      - name: Notify customers of the new release
+        if: success() && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+        env:
+          NOTIFY_ENABLED: ${{ vars.GATETEST_RELEASE_NOTIFY_ENABLED }}
+          INTERNAL_TOKEN: ${{ secrets.GATETEST_INTERNAL_TOKEN }}
+          BASE_URL: ${{ vars.GATETEST_BASE_URL || 'https://gatetest.io' }}
+        run: |
+          if [ "$NOTIFY_ENABLED" != "1" ]; then
+            echo "release notify: disabled"
+            exit 0
+          fi
+          VER="$(node -p "require('./package.json').version")"
+          echo "Notifying opted-in customers of GateTest $VER at ${BASE_URL}/api/releases/notify"
+          RESPONSE=$(curl -sS -w "\n%{http_code}" \
+            -X POST "${BASE_URL}/api/releases/notify" \
+            -H "Authorization: Bearer ${INTERNAL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"version\":\"${VER}\"}" \
+            --max-time 60 \
+            2>&1) || true
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+          echo "HTTP status: ${HTTP_CODE}"
+          echo "Response: ${BODY}"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::release notify returned HTTP ${HTTP_CODE} — the release itself already published; not failing the workflow."
+          fi
+
   # The WordPress plugin zip rides on the same tag. scripts/build-wp-plugin-zip.js
   # writes dist/gatetest-health-check.zip with the plugin folder at the top
   # level (what WordPress's uploader needs) and this attaches it to the
