@@ -56,12 +56,12 @@
     },
     {
       "id": "cron-secret-repo",
-      "title": "Copy the box's CRON_SECRET into the repo secret CRON_SECRET",
-      "since": "2026-09-13",
-      "unblocks": "Cron Ticks workflow (cron-ticks.yml) can call /api/watches/tick and drain the scan queue.",
-      "step": "Read CRON_SECRET from /opt/gatetest/website/.env.local on box 161 over SSH and paste it into GitHub → crclabs-hq/GateTest → Settings → Secrets and variables → Actions → CRON_SECRET. Move it over SSH only — never through chat.",
+      "title": "Rotate CRON_SECRET everywhere, then copy it into the repo secret",
+      "since": "2026-09-16",
+      "unblocks": "Cron Ticks workflow (cron-ticks.yml) stops failing 401, and the tick bearer stops being a value that also lives on the compromised box 158.",
+      "step": "Tallrig (read-only, 2026-09-16) found Tallrig Cron already calls /api/scan/worker/tick and /api/watches/tick every 2 and 5 minutes with a bearer that matches box 161 — so the current CRON_SECRET is stored in cron-job headers on box 158, the compromised box: treat it as burned. After the 158 rebuild, over SSH, never in chat: generate a new value → /opt/gatetest/website/.env.local on 161 → restart gatetest-web.service → the two Tallrig cron jobs (ccj_gatetest_scan_worker, ccj_gatetest_watches) → GitHub repo secret CRON_SECRET. All in one sitting; the tick endpoints answer 401 to any caller still on the old value. Then decide which of the three callers to keep (Tallrig Cron is the one that should stay).",
       "where": "box 161 over SSH and https://github.com/crclabs-hq/GateTest/settings/secrets/actions",
-      "priority": 2,
+      "priority": 1,
       "done": false
     },
     {
