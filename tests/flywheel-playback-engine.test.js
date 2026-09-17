@@ -451,24 +451,24 @@ describe('distillRecipes — writes a real recipe', () => {
     assert.equal(fs.existsSync(store), false, 'nothing should have been written');
   });
 
-  // This test documents a FOURTH break that the fixes above do not resolve, and
-  // isolates exactly which link in the chain is missing.
+  // KI #74f — the "promotion deadlock" — RESOLVED in auto-distill.js.
   //
-  // The replay machinery works. Distillation now works. But a freshly distilled
-  // recipe is written `confidence: 'low'`, and executePlaybackSimulation asks for
-  // stable recipes only (`includeLowConfidence: false`). Promotion to stable
-  // happens in incrementApplicationCount at applicationCount >= 3 — and the only
-  // production caller of that is the playback path itself, which will never
-  // return a low-confidence recipe to apply.
+  // The replay machinery below is still deliberately unchanged: a freshly
+  // distilled recipe stays `confidence: 'low'` and executePlaybackSimulation
+  // still asks for stable recipes only (`includeLowConfidence: false`) — never
+  // auto-apply an unproven patch. That gate is correct, not the bug.
   //
-  // So: distil -> low -> never replayed -> never counted -> never promoted ->
-  // never replayed. A locally distilled recipe can never be used.
+  // The bug was that `applicationCount` (bumped only on a playback HIT) was
+  // the ONLY thing that could promote a recipe to stable — and a playback hit
+  // itself requires already being stable. Circular: distil -> low -> never
+  // replayed -> never counted -> never promoted -> never replayed.
   //
-  // Not resolved here on purpose: the fix is either "replay unproven recipes"
-  // (auto-applying an uncertified patch to a customer's code — a product-risk
-  // decision, not a bug fix) or "promote via the remote store" (which needs
-  // GATETEST_RECIPE_STORE_URL, unset — KI #74e). Both are Craig's call. Raised
-  // as a Known Issue rather than guessed at.
+  // Fixed by counting a second, independent kind of evidence that was
+  // previously discarded: `derivationCount`, bumped when `distillClaudeFix`
+  // hits its "duplicate" branch — i.e. Claude independently re-derives the
+  // identical bidirectionally-certified fix for a NEW occurrence of the same
+  // bug. See the "distillRecipes — the duplicate-derivation counting fix"
+  // describe block below for the end-to-end proof.
   test('a distilled recipe is low-confidence, so playback deliberately skips it', () => {
     const store = tmpStore();
     const d = distillRecipes({
@@ -525,6 +525,127 @@ describe('distillRecipes — writes a real recipe', () => {
     assert.equal(play.hit, true, `expected a replay hit once stable, got ${JSON.stringify(play)}`);
     assert.ok(play.code && play.code.includes('rejectUnauthorized: true'),
       'the replayed patch must contain the fix, with zero API spend');
+
+    fs.unlinkSync(store);
+  });
+});
+
+// ── KI #74f control pair: the promotion deadlock, fixed ────────────────────────
+//
+// Unlike the test above (which drives promotion by hand via
+// incrementApplicationCount to prove the replay machinery is sound), these
+// tests drive promotion through the ACTUAL production path: repeated calls to
+// distillClaudeFix/distillRecipes when Claude independently re-derives the
+// identical certified fix for new occurrences of the same bug. This is the
+// path that was completely dead before the fix (derivationCount never
+// existed, so the "duplicate" branch discarded the evidence).
+
+describe('KI #74f — duplicate-derivation counting fixes the deadlock', () => {
+  const BEFORE = "const opts = {\n  rejectUnauthorized: false,\n  host: 'api.example.com'\n};";
+  const AFTER = "const opts = {\n  rejectUnauthorized: true,\n  host: 'api.example.com'\n};";
+
+  const tmpStore = () => path.join(
+    os.tmpdir(),
+    `gt-flywheel-74f-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+  );
+
+  test('control (a): a saved recipe is replayed on the next scan and counted exactly once', () => {
+    const store = tmpStore();
+
+    // Scan 1: Claude fixes the bug the first time -- recipe distilled, low confidence.
+    distillRecipes({
+      originalContent: BEFORE, fixedContent: AFTER,
+      ruleKey: 'js-reject-unauthorized', module: 'tlsSecurity', fileExt: '.js',
+      recipePath: store,
+    });
+    assert.equal(JSON.parse(fs.readFileSync(store, 'utf-8')).recipes[0].confidence, 'low');
+
+    // Three MORE independent occurrences of the identical bug, each one a
+    // real, bidirectionally-certified Claude fix (this is what
+    // cli-fix-orchestrator.js does when playback declines a low-confidence
+    // recipe and has to call Claude again) -- distillRecipes hits the
+    // "duplicate" branch each time and now counts it.
+    for (let i = 0; i < 3; i += 1) {
+      distillRecipes({
+        originalContent: BEFORE, fixedContent: AFTER,
+        ruleKey: 'js-reject-unauthorized', module: 'tlsSecurity', fileExt: '.js',
+        recipePath: store,
+      });
+    }
+
+    const promoted = JSON.parse(fs.readFileSync(store, 'utf-8')).recipes[0];
+    assert.equal(promoted.derivationCount, 3, 'one increment per distinct fix, never per hypothesis');
+    assert.equal(promoted.applicationCount, 0, 'promotion here came from derivations, not replays');
+    assert.equal(promoted.confidence, 'stable', 'independent re-derivation must be able to promote a recipe');
+
+    // Next scan: a brand-new file shows the same bug pattern. Playback must
+    // now hit -- zero Claude calls -- and applicationCount must go up by
+    // EXACTLY one (not per issue, not per hypothesis).
+    const nextFile = "const opts = {\n  rejectUnauthorized: false,\n  host: 'other.example.com'\n};";
+    const play = executePlaybackSimulation({
+      content: nextFile, issues: ['js-reject-unauthorized'],
+      fileExt: '.js', module: 'tlsSecurity', recipePath: store,
+    });
+    assert.equal(play.hit, true, `expected a replay hit once stable, got ${JSON.stringify(play)}`);
+    assert.ok(play.code && play.code.includes('rejectUnauthorized: true'));
+
+    const afterReplay = JSON.parse(fs.readFileSync(store, 'utf-8')).recipes[0];
+    assert.equal(afterReplay.applicationCount, 1, 'counted exactly once for the one replay that happened');
+
+    fs.unlinkSync(store);
+  });
+
+  test('control (b): with no saved recipe, playback reports 0 and the promotion report is honest, not fabricated', () => {
+    const store = tmpStore(); // never created — no recipe was ever saved here
+
+    const play = executePlaybackSimulation({
+      content: BEFORE, issues: ['js-reject-unauthorized'],
+      fileExt: '.js', module: 'tlsSecurity', recipePath: store,
+    });
+    assert.equal(play.hit, false, 'no saved recipe means nothing to replay');
+
+    const { assessPromotionCandidate } = require('../src/core/recipe-promotion');
+    const assessment = assessPromotionCandidate({
+      ruleKey: 'js-reject-unauthorized', module: 'tlsSecurity',
+      before: 'x', after: 'y', customers: 5, winRate: 1,
+      // No occurrences, applicationCount or derivationCount supplied —
+      // the honest answer is 0 occurrences, not a guessed pass.
+    });
+    assert.equal(assessment.promote, false);
+    assert.match(assessment.reason, /insufficient-occurrences: 0\//,
+      `expected an honest zero, not a fabricated count: ${assessment.reason}`);
+  });
+
+  test('derivationCount and applicationCount both count toward the same stable threshold', () => {
+    const store = tmpStore();
+    distillRecipes({
+      originalContent: BEFORE, fixedContent: AFTER,
+      ruleKey: 'js-reject-unauthorized', module: 'tlsSecurity', fileExt: '.js',
+      recipePath: store,
+    });
+    const autoDistill = require('../src/core/auto-distill');
+    const id = JSON.parse(fs.readFileSync(store, 'utf-8')).recipes[0].id;
+
+    // Two real re-derivations plus one manually-driven replay application —
+    // mixed evidence should still cross the threshold at 3 total.
+    distillRecipes({
+      originalContent: BEFORE, fixedContent: AFTER,
+      ruleKey: 'js-reject-unauthorized', module: 'tlsSecurity', fileExt: '.js',
+      recipePath: store,
+    });
+    distillRecipes({
+      originalContent: BEFORE, fixedContent: AFTER,
+      ruleKey: 'js-reject-unauthorized', module: 'tlsSecurity', fileExt: '.js',
+      recipePath: store,
+    });
+    let recipe = JSON.parse(fs.readFileSync(store, 'utf-8')).recipes[0];
+    assert.equal(recipe.derivationCount, 2);
+    assert.equal(recipe.confidence, 'low', 'two of three is not yet enough');
+
+    autoDistill.incrementApplicationCount(id, store);
+    recipe = JSON.parse(fs.readFileSync(store, 'utf-8')).recipes[0];
+    assert.equal(recipe.applicationCount, 1);
+    assert.equal(recipe.confidence, 'stable', '2 derivations + 1 application = 3 total evidence');
 
     fs.unlinkSync(store);
   });

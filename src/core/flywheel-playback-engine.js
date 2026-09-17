@@ -12,6 +12,18 @@
  *   executePlaybackSimulation → auto-distill local recipe lookup (zero API)
  *   distillRecipes   → auto-distill.distillClaudeFix for certified fixes
  *
+ * KNOWN ISSUE #74f (the "promotion deadlock", RESOLVED in auto-distill.js):
+ *   executePlaybackSimulation deliberately asks for STABLE recipes only
+ *   (`includeLowConfidence: false` below) — never auto-apply an unproven
+ *   patch to customer code. That gate is correct and unchanged here. The
+ *   bug was that a freshly-distilled recipe had no path to EVER become
+ *   stable: promotion only happened on a playback hit, and a playback hit
+ *   requires already being stable. auto-distill.js now also promotes on
+ *   independent, certified re-derivations of the same fix (the
+ *   `distillClaudeFix` "duplicate" branch) — see `derivationCount` and
+ *   `_promoteIfReady` there. This file's replay path did not change: it was
+ *   already correct, which is why the fix could land without touching it.
+ *
  * CONTRACTS:
  *   - All four public functions NEVER throw. A failure in recording or
  *     playback must never block the underlying fix operation.
