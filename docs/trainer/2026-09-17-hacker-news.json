@@ -1,0 +1,339 @@
+{
+  "generatedAt": "2026-09-17T08:26:45.934Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 20,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 12,
+      "SonarQube": 3,
+      "Semgrep": 3,
+      "CodeQL": 2,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 0
+    },
+    "painPointsFound": 2
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49737915",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "[delayed]",
+        "url": "https://news.ycombinator.com/item?id=49737915",
+        "points": null,
+        "numComments": null,
+        "storyId": 49728536,
+        "createdAt": "2026-09-17T08:25:18Z",
+        "createdAtUnix": 1789633518,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49737801",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "But can you do it only having their DNA?",
+        "url": "https://news.ycombinator.com/item?id=49737801",
+        "points": null,
+        "numComments": null,
+        "storyId": 49728536,
+        "createdAt": "2026-09-17T08:06:00Z",
+        "createdAtUnix": 1789632360,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49735764",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "Was it James Baker?https:&#x2F;&#x2F;www.james-baker.com&#x2F;news&#x2F;the-inbetweener&#x2F;",
+        "url": "https://news.ycombinator.com/item?id=49735764",
+        "points": null,
+        "numComments": null,
+        "storyId": 49734171,
+        "createdAt": "2026-09-17T02:32:56Z",
+        "createdAtUnix": 1789612376,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49735741",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "They do; https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=49735585",
+        "url": "https://news.ycombinator.com/item?id=49735741",
+        "points": null,
+        "numComments": null,
+        "storyId": 49719596,
+        "createdAt": "2026-09-17T02:29:55Z",
+        "createdAtUnix": 1789612195,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49732951",
+        "author": "estearum",
+        "type": "comment",
+        "title": null,
+        "text": "In what way does the Montana law make snake oil salesmanship hard? Why can't a bad actor just repeatedly file INDs, go through Phase 1 (soon will be close to trivial given AI-enabled drug discovery&#x2F;design), then sell to unsuspecting consumers as a panacea, then rinse and repeat?",
+        "url": "https://news.ycombinator.com/item?id=49732951",
+        "points": null,
+        "numComments": null,
+        "storyId": 49731216,
+        "createdAt": "2026-09-16T21:00:35Z",
+        "createdAtUnix": 1789592435,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49731216",
+        "author": "niklas_anzinger",
+        "type": "story",
+        "title": "Tell HN: An inside view of Montana's new biotech law",
+        "text": "Montana passed a law called SB535. It builds on right-to-try (pre-approval access with informed consent, Phase 1 safety data etc.) but goes much further, fixing problems with those laws.Alex Tabarrok called it \"the most important regulatory innovation in drug approval in my lifetime\" (https:&#x2F;&#x2F;marginalrevolution.com&#x2F;marginalrevolution&#x2F;2026&#x2F;06&#x2F;mo...). Was posted here but died in &#x2F;new (https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=48559525). The mods suggested this post.I contributed ideas to the law and am now implementing it through my company. I invested in biotech for years and watched companies struggle. I built the biotech ecosystem in Prospera as an alternative, concluded it was too early, and now think Montana is the best place to prove this.Why this exists: When FDA approves a bad drug, heads roll. When it delays a good one, the deaths are statistical and nobody gets blamed (\"invisible graveyard\"). So the incentive is overcaution, which is why the cost per approved drug has roughly doubled every 9 years for decades (\"Eroom's Law\"). Founders are in the \"Valley of Death\" around Phase 1: grants are no longer available, and commercial money wants assurance the drug will pass the next trial. Only ~10% of post-Phase 1 drugs get approved, but 68% of failed trials don’t stop because they found lack of safety or efficacy but commercial reasons (Williams et al., PLOS ONE 2015). Federal Right to Try and Expanded Access haven't fixed this. Federal reform is super-hard.What Montana allows: A physician can give an experimental treatment outside a trial if: it completed FDA Phase 1 under an active IND; a state-registered private review board (ETRB) approved the protocol; it's delivered at a state-licensed clinic; consent exceeds the federal standard & adverse events need to be reported. The key is: sponsors and clinics can charge.Why this time it's different: The risk-reward ratio is what's broken. Right to Try and Expanded Access don't let sponsors charge, so treating a patient is risk plus expense. Montana is the first state law where sponsors of IND-stage drugs can price in that risk. Trial recruitment today is a price-control system: per-patient cost is around $50-100k, typically has a ceiling upward on what it can pay patients (\"undue inducement\") and a floor downward (no profit, only at cost in RTT &#x2F; EA). Montana removes both (I know this will lead to lots of debate, let’s have it.)So this is not a free for all, the additional liberties come with tough oversight. An ETRB is Montana's version of an IRB: safety review, consent, mandatory outcome reporting, and you can't withhold safety information from patients. That’s the truth-funding mechanism.What companies can do now: If you have a Phase 1 asset stuck in the Valley of Death: treat patients, negotiate payment, get real-world data, use it to sharpen your Phase 2&#x2F;3 design.Disclosure: my company formed the first ETRB. The model is review fees, like an IRB; no equity in applicants, no payment by outcome; COI policy and board bios public; decision letters published with applicant consent; annual outcome report required.Objections:- Someone gets hurt? Same as trials and ordinary care: US legal system, legal recourse.- FDA shuts it down? They haven't said they won't, but historically FDA goes after grey-market clinics, not state laws; we're asking for safe harbor, but some companies aren't waiting.- Snake oil? Bad actors want to fly under the radar, and Montana makes that hard.What's needed: Biotechs with Phase 1+ assets willing to move before full FDA assurance, to build the evidence that gets the agency on board - the point is not to skip FDA, but to reduce the cost of data. And ex-FDA reviewers, IND operators, IRB members telling us where this breaks.Happy to answer anything.",
+        "url": "https://news.ycombinator.com/item?id=49731216",
+        "points": 34,
+        "numComments": 15,
+        "storyId": 49731216,
+        "createdAt": "2026-09-16T18:43:57Z",
+        "createdAtUnix": 1789584237,
+        "intent": "bug"
+      },
+      {
+        "objectId": "49730196",
+        "author": "snikolaev",
+        "type": "story",
+        "title": "We need to stop using Stored Procedures",
+        "text": "We need to stop using Stored Procedures",
+        "url": "https://heffree.dev/blog/no-more-sprocs.html",
+        "points": 2,
+        "numComments": 1,
+        "storyId": 49730196,
+        "createdAt": "2026-09-16T17:24:27Z",
+        "createdAtUnix": 1789579467,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49728717",
+        "author": "snikolaev",
+        "type": "story",
+        "title": "How GCC Eliminates Unnecessary Integer Division",
+        "text": "How GCC Eliminates Unnecessary Integer Division",
+        "url": "https://leetarxiv.substack.com/p/how-gcc-eliminates-unnecessary-integer",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 49728717,
+        "createdAt": "2026-09-16T15:39:16Z",
+        "createdAtUnix": 1789573156,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49727207",
+        "author": "snikolaev",
+        "type": "story",
+        "title": "Beltdown: Escaping the Claude Code Sandbox",
+        "text": "Beltdown: Escaping the Claude Code Sandbox",
+        "url": "https://accomplish.ai/blog/beltdown-escaping-the-claude-code-sandbox/",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 49727207,
+        "createdAt": "2026-09-16T14:02:47Z",
+        "createdAtUnix": 1789567367,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49725751",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "Oh of course, but data sciency ML type people aren't [supposed to be] tasked with of operating and securing the infra, that would make it even worse.These labs have teams of dedicated security engineers and infrastructure engineers, that's why it doesn't add up for me.",
+        "url": "https://news.ycombinator.com/item?id=49725751",
+        "points": null,
+        "numComments": null,
+        "storyId": 49704132,
+        "createdAt": "2026-09-16T12:15:28Z",
+        "createdAtUnix": 1789560928,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49723638",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "Actually that's my bad. The current article still says fundamentally the same thing it's just formatted slightly differently:> Studies in the field of cognitive psychology had a higher replication rate (50%) than studies in the field of social psychology (25%).I somehow overlooked that part of your comment. The 23% figure is still present but it refers to a specific journal so I didn't take it into account.",
+        "url": "https://news.ycombinator.com/item?id=49723638",
+        "points": null,
+        "numComments": null,
+        "storyId": 49608697,
+        "createdAt": "2026-09-16T08:38:53Z",
+        "createdAtUnix": 1789547933,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49723543",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "What's the logic? Russia sabotages NATO infrastructure, claims innocence, and this is somehow supposed to generate support for war against NATO?",
+        "url": "https://news.ycombinator.com/item?id=49723543",
+        "points": null,
+        "numComments": null,
+        "storyId": 49710253,
+        "createdAt": "2026-09-16T08:27:39Z",
+        "createdAtUnix": 1789547259,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [
+      {
+        "objectId": "49728377",
+        "author": "ecshafer",
+        "type": "comment",
+        "title": null,
+        "text": "Sonarqube has existed for like 20 years. There's doezens of cyclomatic complexity, linter, and cve scanner tools though.",
+        "url": "https://news.ycombinator.com/item?id=49728377",
+        "points": null,
+        "numComments": null,
+        "storyId": 49726329,
+        "createdAt": "2026-09-16T15:18:19Z",
+        "createdAtUnix": 1789571899,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49727585",
+        "author": "paimapi",
+        "type": "comment",
+        "title": null,
+        "text": "I think the future of development will be a lot of automated quality checks like these on AI-drafted code that humans review and ensures that it doesn't muck up the business logic and actually fulfills the acceptance criteria. that said, I don't think existing toolsets are really great at actually measuring code qualityI've been in the process of reviewing and validating a lot of tools like this (qlty, Sonarqube, fallow, etc) and the false positive rate is anywhere from 20% to 80% for a lot of our sniff tests (zizmor produces an overwhelming majority of false positives here for what feels like arbitrary and very context-dependent GHA requirements)the last thing I want to do is to annoy the hell out of our devs by requiring checks like these to pass especially since it's only a small percentage of them who vibe code everything and then also vibe response to code reviews. I feel like that's the anti-pattern that we'd push people towards by requiring checks like these to passanother avenue of exploration has been requiring test coverage but also good test quality metrics (eg are there negative tests? mutation testing? empty asserts?) something that seems quite easy to spin up into a skill and pair with a deterministic harness. trash-tests is a neat little project that incorporates some of this: https:&#x2F;&#x2F;github.com&#x2F;frangelbarrera&#x2F;trash-tests (disclosure: I am not the repo owner or even a contributor, just a quality nerd who loves underdogs lol)all in all, it really does feel like we'll need a revamp of the SDLC with our current expected velocities",
+        "url": "https://news.ycombinator.com/item?id=49727585",
+        "points": null,
+        "numComments": null,
+        "storyId": 49726329,
+        "createdAt": "2026-09-16T14:28:05Z",
+        "createdAtUnix": 1789568885,
+        "intent": "bug"
+      },
+      {
+        "objectId": "49727346",
+        "author": "MichaelNolan",
+        "type": "comment",
+        "title": null,
+        "text": "Code metrics in general aren’t that widely used. I’ve only ever worked at one place (a bank) that tracked it, and that was only because sonarcube had it built in.While a lot of metrics make intuitive sense, we don’t have that much hard evidence to prove or disprove their value. Part of it is the whole “if a metric becomes a target, it ceases to be a good metric” thing. Adding the checks to a large existing project probably has negative value. But I think it’s worth doing for greenfield projects.For humans, these should just be advisory. But for LLMs I’m happy enough to make it a blocking check.I keep thinking of doing an experiment where I give the same LLM the same problem, and only change which metric is enforced. And then see if any of them have a noticeable effect on correctness&#x2F;maintainability.> any examples of how people get this into an actual report &#x2F; CI test &#x2F; benchmark &#x2F; whatever ?Yeah they have examples of adding it to CI, or local checks, generate html reports, etc in their docs.",
+        "url": "https://news.ycombinator.com/item?id=49727346",
+        "points": null,
+        "numComments": null,
+        "storyId": 49726329,
+        "createdAt": "2026-09-16T14:12:20Z",
+        "createdAtUnix": 1789567940,
+        "intent": "neutral"
+      }
+    ],
+    "Semgrep": [
+      {
+        "objectId": "49734184",
+        "author": "krapp",
+        "type": "comment",
+        "title": null,
+        "text": "It was probably the one where Picard refused to play god for an alien race because religion was a primitive superstition.Or the one where they recover cryogenically frozen people from the 20th century and Picard shits on a venture capitalist.Or the one where an alien race is outcast because they don't conform to gender norms and this is a bad thing.Or the one where an admiral starts a witch-hunt on board the Enterprise trying to weed out a conspiracy and Picard goes into an anti-fascist rant.Or the episode of DS9 that takes place during the 1950s where Sisko experiences racial segregation, and Star Trek is a sci-fi story he can't sell about a future he wants to live in.Or the one that establishes the Bell Riots, a widespread anti-capitalist revolt that takes place among the homeless and immigrant populations.",
+        "url": "https://news.ycombinator.com/item?id=49734184",
+        "points": null,
+        "numComments": null,
+        "storyId": 49689062,
+        "createdAt": "2026-09-16T22:58:17Z",
+        "createdAtUnix": 1789599497,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49733757",
+        "author": "Arainach",
+        "type": "comment",
+        "title": null,
+        "text": "Which Star Trek was \"trusting the viewer to draw their own conclusions\"?Was it the one where Kirk used \"half-breed\" as an insult so horrible and hurtful that it would reveal an android as an imposter (in a period where segregation was still legal in the US)?Was it the one about a long-standing war between two peoples based entirely on the color of their skin?How about the one with the Nazi planet?Surely you're not referring to the one with the first interracial kiss - something so political that the network debated censoring it and caused Shatner to intentionally ruin takes of an alternative version?Are you talking about the one which involved Kirk explicitly promoting contraception and calls out the hypocrisy of the self-proclaimed \"pro-life\" alien race?No, perhaps you're thinking of the one involving the torture of the leader of a revolutionary group.",
+        "url": "https://news.ycombinator.com/item?id=49733757",
+        "points": null,
+        "numComments": null,
+        "storyId": 49689062,
+        "createdAt": "2026-09-16T22:13:24Z",
+        "createdAtUnix": 1789596804,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49726327",
+        "author": "setgree",
+        "type": "comment",
+        "title": null,
+        "text": "And what should we do about apps' getting hacked, sending out malicious updates that get auto-updated and thereby infecting tens of millions or billions of phones simultaneously?I'm not saying we have the perfect system but anything that slants the system towards \"easier downloads\" or \"less gatekeeping\" brings large, obvious risks. I don't see how regulation would address them.",
+        "url": "https://news.ycombinator.com/item?id=49726327",
+        "points": null,
+        "numComments": null,
+        "storyId": 49724927,
+        "createdAt": "2026-09-16T13:00:59Z",
+        "createdAtUnix": 1789563659,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "49736939",
+        "author": "pjmlp",
+        "type": "comment",
+        "title": null,
+        "text": "Not really, first of all it is for C++, not the range of languages supported by CUDA.Before SPIR was a thing in OpenCL, Khronos could not understand why anyone would care about anything else other than C99, or why supporting Fortran on GPUs was at all relevant.Secondly, from the competition only Intel cares about SYCL with their own sugar on top, OpenAPI.AMD hasn't cared one second about it.You may mention Codeplay, which is anyway an Intel owned company since 2022.As for Vulkan, it doesn't have neither the features, nor the tooling that CUDA enjoys, it is the usual putting up with using LEGOs from different brands, with various pin sizes, that is so common with Khronos.",
+        "url": "https://news.ycombinator.com/item?id=49736939",
+        "points": null,
+        "numComments": null,
+        "storyId": 49724881,
+        "createdAt": "2026-09-17T06:01:22Z",
+        "createdAtUnix": 1789624882,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49732955",
+        "author": "codeulike",
+        "type": "comment",
+        "title": null,
+        "text": "Yes, the thing Salesforce are good at, and is little understood here, is that they've kept their platform online for 27 years so far. Its constantly evolving, three upgrades per year, but changes that require customers to change their customisations are rare, and when they happen they are communicated at least a year in advance. Approx 150,000 tenants, all with different configurations and some so heavily customized that they are effectively unique apps. Salesforce keeps them all online and evolving. In those 27 years there hasnt been a 'lets trash this and rewrite from scratch' and there hasn't been a 'you must migrate your data to our new platform, we're closing the old one'. They've just evolved it while running. They must have got some things very right in the original architecture to be able to do that.One thing that I find interesting is that they launched their platform language Apex (a sortof subset of Java) in 2007 when TDD was the hot new thing, so TDD is baked into the platform - your Apex code must have at least 75% test coverage, and the tests must pass, before you are allowed to deploy to prod.They leverage that test coverage when they are upgrading the platform - they have an internal process called The Hammer where they run all customer-created tests against customers own unique configs on the current platform and then again on the next version of the platform to see if any customer tests are being broken. Look it up, its really interesting.",
+        "url": "https://news.ycombinator.com/item?id=49732955",
+        "points": null,
+        "numComments": null,
+        "storyId": 49724488,
+        "createdAt": "2026-09-16T21:00:39Z",
+        "createdAtUnix": 1789592439,
+        "intent": "bug"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": []
+  },
+  "painPoints": [
+    {
+      "phrase": "false positive",
+      "count": 1,
+      "examples": [
+        {
+          "objectId": "49727585",
+          "url": "https://news.ycombinator.com/item?id=49727585",
+          "snippet": "I think the future of development will be a lot of automated quality checks like these on AI-drafted code that humans review and ensures that it doesn't muck up the business logic and actually fulfill"
+        }
+      ]
+    },
+    {
+      "phrase": "false positives",
+      "count": 1,
+      "examples": [
+        {
+          "objectId": "49727585",
+          "url": "https://news.ycombinator.com/item?id=49727585",
+          "snippet": "I think the future of development will be a lot of automated quality checks like these on AI-drafted code that humans review and ensures that it doesn't muck up the business logic and actually fulfill"
+        }
+      ]
+    }
+  ],
+  "actionItems": []
+}

@@ -23,6 +23,8 @@
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { MAX_ATTEMPTS, isTerminalScanError, REPO_HOSTS, DEFAULT_HOST } = require('./scan-queue-store');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { missingRuntimePrerequisites } = require('./web-runtime-gate');
 const { timingSafeEqual } = require('crypto');
 
 /**
@@ -62,6 +64,189 @@ function safeEqual(a, b) {
 // the worker checks job.diff_files against this constant before calling Claude.
 // Deterministic scans are never gated — the limit applies to AI invocations only.
 const MAX_DIFF_FILES = 20;
+
+/**
+ * Git-hosting domains the worker treats as "fetchable via runScan" when they
+ * appear in an `api`-host row's metadata.url (KI #113 Phase 2). Recognising
+ * the URL is the worker's whole job here; whether scan-executor's runScan
+ * actually knows how to fetch that particular host is its own concern — a
+ * host it can't fetch fails and retries/dead-letters exactly like a bad
+ * repo URL submitted through any other host.
+ */
+const GIT_URL_RE = /^https?:\/\/(www\.)?(github\.com|gitlab\.com)\//i;
+
+function isGitRepoUrl(url) {
+  return typeof url === 'string' && GIT_URL_RE.test(url);
+}
+
+/** scan_queue.metadata comes back parsed (JSONB) from a real driver, but a
+ *  test double or an older row may hand back a JSON string — accept both. */
+function parseJobMetadata(job) {
+  const raw = job && job.metadata;
+  if (raw && typeof raw === 'object') return raw;
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Record a completed `api`-host scan on the API caller's usage ledger.
+ * Identity: the API key id parsed out of `triggered_by` ("api_key:<id>",
+ * written by POST /api/v1/scans) — the SAME account-key scheme every other
+ * surface uses (usage-ledger.js `resolveAccountKey`), never a new one.
+ * Best-effort, like the repo-host ledger write above: a lost usage row must
+ * never fail a tick whose scan already ran.
+ */
+async function recordApiUsage({ sql, usageStore, job, scanResult, repo }) {
+  if (!usageStore || typeof usageStore.recordUsage !== 'function') return;
+  const match = /^api_key:(.+)$/.exec(String(job.triggered_by || ''));
+  const apiKeyId = match ? match[1] : null;
+  try {
+    const ai = usageStore.aiTotalsFromModules(scanResult.modules);
+    await usageStore.recordUsage(sql, {
+      accountKey: usageStore.resolveAccountKey({
+        apiKeyId,
+        fallback: job.triggered_by || undefined,
+      }),
+      surface: 'api',
+      repo,
+      suite: null,
+      scanId: job.event_id || null,
+      modulesRun: Array.isArray(scanResult.modules) ? scanResult.modules.length : 0,
+      findingsTotal: scanResult.totalIssues,
+      findingsBlocking: usageStore.countBlockingFindings(scanResult),
+      aiCalls: ai.aiCalls,
+      tokensIn: ai.tokensIn,
+      tokensOut: ai.tokensOut,
+      usdEstimated: ai.usd,
+      keyOwner: 'gatetest',
+    });
+  } catch (err) { // error-ok — the ledger must never fail the tick; one warning, scan already done
+    console.warn(
+      '[scan-worker] usage ledger write failed for api-host job (continuing):',
+      err && err.message ? err.message : err
+    );
+  }
+}
+
+/**
+ * Execute an `api`-host row (KI #113 Phase 2). Before this, EVERY `api` row
+ * was marked terminal without running — a customer who submitted a scan
+ * through the public API got "queued" then a silent, empty terminal state;
+ * Doctrine #1's worst form, because /api/v1/scans/:id could not even say
+ * WHY nothing happened.
+ *
+ * Two shapes, told apart by metadata.url:
+ *
+ *   - a git URL (github.com / gitlab.com)  → the SAME execution path as a
+ *     repo-host job: runScan(url, tier, …), under the same budget/time
+ *     guards, markDone, usage recorded.
+ *   - a bare website URL                   → the headless-browser runtime
+ *     pass is the advertised capability (web-runtime-gate.js, KI #111), and
+ *     that gate is also the honest answer here: when it isn't configured
+ *     the row is marked not-checked with the reason, NEVER 'done' with zero
+ *     findings (which would read to the customer as "scanned clean"). Even
+ *     when the platform prerequisites ARE present, this synchronous,
+ *     one-job-per-tick worker has no way to drive that gate's own
+ *     queued+polled dispatch (jobId/pollUrl, KI #111) to completion inside
+ *     one tick — so it stays honestly not-checked rather than fabricating a
+ *     result. TODO(host-parity/KI #111): a dedicated async lane for hosted
+ *     browser scans of bare-URL API submissions.
+ *
+ * No callback is ever sent for `api` rows — there is no Gluecron/GitHub
+ * consumer waiting on one; the caller polls GET /api/v1/scans/:id instead.
+ */
+async function runApiHostJob({ job, sql, queueStore, runScan, usageStore, tier, reclaimed, env = process.env }) {
+  const metadata = parseJobMetadata(job);
+  const targetUrl = metadata && typeof metadata.url === 'string' ? metadata.url : null;
+
+  if (!targetUrl) {
+    const errMsg = '[terminal] api row has no metadata.url to scan';
+    try {
+      await queueStore.markFailed(job.id, errMsg, false, sql);
+    } catch (err) { // error-ok — the terminal result below is returned to the caller regardless; a lost write is logged, not fatal to the tick
+      console.error('[scan-worker] markFailed (api, no url) failed:', err && err.message ? err.message : err);
+    }
+    return { ok: false, jobId: job.id, attempts: job.attempts, willRetry: false, terminal: true, reclaimed, host: 'api', error: errMsg };
+  }
+
+  if (!isGitRepoUrl(targetUrl)) {
+    // Bare website URL — no repository to clone. Ask the SAME gate
+    // /api/web/scan uses rather than duplicating its prerequisite list here.
+    let missing;
+    try {
+      missing = missingRuntimePrerequisites(env);
+    } catch { // error-ok — a throwing prerequisite check is itself "not configured"
+      missing = ['web-runtime-gate:threw'];
+    }
+    const reason = missing.length > 0 ? 'web-runtime:not-configured' : 'web-runtime:not-wired';
+    try {
+      await queueStore.markNotChecked(job.id, reason, sql);
+    } catch (err) { // error-ok — the not-checked outcome below is returned to the caller regardless; a lost write is logged, not fatal to the tick
+      console.error('[scan-worker] markNotChecked failed:', err && err.message ? err.message : err);
+    }
+    return { ok: true, jobId: job.id, notChecked: true, reason, reclaimed };
+  }
+
+  // Git URL — same execution path as a repo-host job, same budget/time
+  // guards (runScan owns ENGINE_MAX_FILES / ENGINE_TIME_BUDGET_MS). No ref
+  // is pinned: an API-submitted scan has no push event behind it, and
+  // job.sha is a digest of the URL (enqueueScan's placeholder for a
+  // repository-shaped row), not a real commit — passing it as `ref` would
+  // ask runScan to check out a ref that does not exist. Default to HEAD.
+  let scanResult;
+  try {
+    scanResult = await runScan(targetUrl, tier, {});
+  } catch (err) {
+    scanResult = {
+      status: 'failed',
+      modules: [],
+      totalModules: 0,
+      completedModules: 0,
+      totalIssues: 0,
+      totalFixed: 0,
+      duration: 0,
+      error: `scan crashed: ${err && err.message ? err.message : err}`,
+    };
+  }
+
+  const scanFailed = !scanResult || scanResult.status !== 'complete' || Boolean(scanResult.error);
+
+  if (!scanFailed) {
+    try {
+      await queueStore.markDone(job.id, scanResult, sql);
+    } catch (err) { // error-ok — the scan already ran and its outcome is returned to the caller regardless; a lost write is logged, not fatal to the tick
+      console.error('[scan-worker] markDone (api-git) failed:', err && err.message ? err.message : err);
+    }
+    await recordApiUsage({ sql, usageStore, job, scanResult, repo: targetUrl });
+    // No callback — there is no Gluecron/GitHub consumer for an api row.
+    return { ok: true, ran: job.id, reclaimed };
+  }
+
+  const rawErrMsg = (scanResult && scanResult.error) || `scan returned status=${scanResult && scanResult.status}`;
+  const terminal = isTerminalScanError(rawErrMsg);
+  const willRetry = !terminal && job.attempts < MAX_ATTEMPTS;
+  const errMsg = terminal ? `[terminal] ${rawErrMsg}` : rawErrMsg;
+  try {
+    await queueStore.markFailed(job.id, errMsg, willRetry, sql);
+  } catch (err) { // error-ok — the failure outcome below is returned to the caller regardless; a lost write is logged, not fatal to the tick
+    console.error('[scan-worker] markFailed (api-git) failed:', err && err.message ? err.message : err);
+  }
+  return {
+    ok: false,
+    jobId: job.id,
+    attempts: job.attempts,
+    willRetry,
+    terminal,
+    reclaimed,
+    error: String(errMsg).slice(0, 500),
+  };
+}
 
 /**
  * Validate that the request came from the Vercel cron OR from an admin.
@@ -113,6 +298,9 @@ function isAuthorisedTick({ cronHeader, isAdmin, env }) {
  *                                                          Anthropic-calling modules skipped. Until 2026-08-18 this
  *                                                          defaulted to 'quick' (4 in-memory modules on ≤50 files),
  *                                                          which made "121 modules on every push" false in production.
+ * @param {Record<string,string|undefined>} [args.env]     injected for tests (default process.env) — read only to
+ *                                                          decide whether an `api`-host bare-URL row's browser-runtime
+ *                                                          pass is configured (KI #111/#113 Phase 2).
  */
 async function runWorkerTick({
   sql,
@@ -122,6 +310,7 @@ async function runWorkerTick({
   continuousStore,
   usageStore,
   tier = 'deterministic',
+  env = process.env,
 }) {
   if (!sql || typeof sql !== 'function') {
     return { ok: false, error: 'sql tagged-template is required' };
@@ -158,14 +347,23 @@ async function runWorkerTick({
 
   const repository = job.repository;
 
-  // Only rows from a REPOSITORY host can be fetched and called back. A row
-  // from any other producer (host='api' — a URL scan attributed to an API
-  // key, KI #113) has no repo to clone and no host to post a verdict to; the
-  // pre-fix path would have built https://gluecron.com/<hostname>/<path>,
-  // burned five ticks failing to fetch it, then posted a dead-letter to
-  // Gluecron for a repository that never existed there. Record the honest
-  // terminal state instead and let /api/v1/scans/:id report it (Doctrine #1).
+  // `api`-host rows (KI #113 Phase 2) have their OWN execution path — a git
+  // URL runs through the same runScan() a repo-host job uses, a bare
+  // website URL is checked against the browser-runtime gate — never a
+  // repository fetch/callback, so they are handled before the REPO_HOSTS
+  // branch below rather than falling into it.
   const jobHost = job.host || DEFAULT_HOST;
+  if (jobHost === 'api') {
+    return runApiHostJob({ job, sql, queueStore, runScan, usageStore, tier, reclaimed, env });
+  }
+
+  // Only rows from a REPOSITORY host can be fetched and called back. A row
+  // from any other, non-repository, non-`api` producer has no repo to clone
+  // and no host to post a verdict to; the pre-fix path would have built
+  // https://gluecron.com/<hostname>/<path>, burned five ticks failing to
+  // fetch it, then posted a dead-letter to Gluecron for a repository that
+  // never existed there. Record the honest terminal state instead and let
+  // /api/v1/scans/:id report it (Doctrine #1).
   if (!REPO_HOSTS.includes(jobHost)) {
     const errMsg = `[terminal] host '${jobHost}' rows are not executed by the queue worker: no repository source to fetch and no host callback to post to`;
     try {
@@ -408,4 +606,5 @@ module.exports = {
   runWorkerTick,
   callWithRetry,
   MAX_DIFF_FILES,
+  isGitRepoUrl,
 };

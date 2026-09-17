@@ -25,6 +25,13 @@
  *       ]
  *     }
  *
+ *   not_checked (KI #113 Phase 2 — an `api`-host row the worker could not
+ *   execute honestly, e.g. a bare website URL needing an unconfigured
+ *   browser runtime; Doctrine #1's third state, never folded into
+ *   "completed" with zero findings):
+ *     { id, status: "not_checked", url, suite, createdAt, completedAt,
+ *       reason: "web-runtime:not-configured", findings: [] }
+ *
  *   failed:
  *     { id, status: "failed", url, suite, createdAt, error: "..." }
  *
@@ -97,24 +104,18 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     );
   }
 
-  // Map the queue's status lifecycle (queued → running → done | failed →
-  // dead; see scan-queue-store.js) to the public API's four states. `failed`
-  // in the queue means "will retry", so it is still "running" to the caller;
-  // `dead` is the terminal failure.
-  const internalStatus = String(row.status || "queued").toLowerCase();
-  const statusMap: Record<string, string> = {
-    pending: "queued",
-    queued: "queued",
-    running: "running",
-    in_progress: "running",
-    failed: "running",
-    done: "completed",
-    completed: "completed",
-    succeeded: "completed",
-    dead: "failed",
-    error: "failed",
+  // Map the queue's status lifecycle (queued → running → done | not_checked
+  // | failed → dead; see scan-queue-store.js) to the public API's states.
+  // `failed` in the queue means "will retry", so it is still "running" to
+  // the caller; `dead` is the terminal failure. ONE definition — imported,
+  // not re-typed here (Doctrine #4; this table used to be hand-written in
+  // this route and had no 'not_checked' entry at all).
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { publicStatusFor } = require("@/app/lib/scan-queue-store") as {
+    publicStatusFor: (internalStatus: string) => string;
   };
-  const publicStatus = statusMap[internalStatus] || "queued";
+  const internalStatus = String(row.status || "queued").toLowerCase();
+  const publicStatus = publicStatusFor(internalStatus);
 
   const metadata = (row.metadata || {}) as Record<string, unknown>;
   const result = (row.result_json || row.result || {}) as Record<string, unknown>;
@@ -139,6 +140,15 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     if (typeof result.healthScore === "number") {
       response.healthScore = result.healthScore;
     }
+  } else if (publicStatus === "not_checked") {
+    // KI #113 Phase 2 / Doctrine #1 third state — the worker recorded WHY it
+    // could not execute this row (markNotChecked) rather than marking it
+    // done with zero findings. Never present findings/summary here as if a
+    // scan had actually run.
+    response.completedAt = row.completed_at || row.updated_at;
+    response.reason = result.reason || null;
+    response.findings = [];
+    response.summary = null;
   } else if (publicStatus === "failed") {
     response.error = result.error || row.last_error || row.error_message || "Scan failed";
   }
