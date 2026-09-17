@@ -481,3 +481,28 @@ describe('MoneyFloatModule — one stripper: the masked line decides', () => {
     assert.ok(!r.checks.some((c) => c.name.startsWith('money-float:arithmetic:')), 'arithmetic in a template or comment is not arithmetic');
   });
 });
+
+describe('MoneyFloatModule — JSX display text quoting an identifier is not a variable reference (self-scan 2026-09-16)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-mf-jsx-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  const arith = (r) => r.checks.filter((c) => !c.passed && c.name.startsWith('money-float:arithmetic:'));
+
+  // Control pair: website/app/preview/_components/Playground.tsx renders a
+  // marketing code-sample as JSX text — `total * 0.0825` appeared as BARE
+  // JSX text (not inside a string), which the masker cannot distinguish
+  // from real executing code, and fired the arithmetic rule on a component
+  // that never runs any arithmetic at all. Wrapping the identifier as a
+  // quoted string (`{"total"}`) renders byte-identical output but moves it
+  // out of the code the mask leaves visible. A real bare identifier next to
+  // an arithmetic operator must still fire.
+  it('bare `total * 0.0825` in real code still fires', async () => {
+    write(tmp, 'src/quote.js', 'const tax = total * 0.0825;\n');
+    assert.strictEqual(arith(await run(tmp)).length, 1);
+  });
+
+  it('the same pattern with the identifier quoted as JSX display text does not', async () => {
+    write(tmp, 'src/Demo.tsx', 'const el = <>{"total"} * 0.0825</>;\n');
+    assert.strictEqual(arith(await run(tmp)).length, 0);
+  });
+});

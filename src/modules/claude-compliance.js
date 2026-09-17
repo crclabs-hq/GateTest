@@ -79,7 +79,12 @@ const MOCK_DATA_PATTERNS = [
   { re: /\b4242[\s-]?4242[\s-]?4242[\s-]?4242\b/, label: 'Stripe-test card 4242… in non-test path' },
 ];
 
-// Not-implemented stub signals.
+// Not-implemented stub signals. Each carries `commentOnly`: true when the
+// pattern's own definition of a stub IS a bare comment (the `// TODO:
+// implement` family) — those must sit in a real comment to mean anything.
+// `throw`/`raise` patterns are the opposite: they describe EXECUTABLE code,
+// so a match sitting inside a comment or string never actually runs and is
+// not a stub (see kindAt gating in _scanFile).
 const STUB_PATTERNS = [
   { re: /throw\s+new\s+Error\s*\(\s*["'`]\s*(?:not\s*implemented|TODO|unimplemented|stub)\b/i, label: '"not implemented" stub throw' },
   // Only a BARE raise. `raise NotImplementedError("Streamed bodies and files
@@ -91,10 +96,27 @@ const STUB_PATTERNS = [
   // `NotImplementedError()` with empty parens is still a stub candidate: no
   // message, no explanation, same crash for the caller.
   { re: /raise\s+NotImplementedError\s*(?:\(\s*\))?\s*(?:#.*)?$/, label: 'Python NotImplementedError stub' },
-  { re: /\/\/\s*TODO:?\s*implement\b/i, label: '"TODO: implement" placeholder' },
-  { re: /\/\/\s*FIXME:?\s*implement\b/i, label: '"FIXME: implement" placeholder' },
-  { re: /#\s*TODO:?\s*implement\b/i, label: '"TODO: implement" placeholder' },
+  { re: /\/\/\s*TODO:?\s*implement\b/i, label: '"TODO: implement" placeholder', commentOnly: true },
+  { re: /\/\/\s*FIXME:?\s*implement\b/i, label: '"FIXME: implement" placeholder', commentOnly: true },
+  { re: /#\s*TODO:?\s*implement\b/i, label: '"TODO: implement" placeholder', commentOnly: true },
 ];
+
+/**
+ * True when the match at [start, end) on `line` sits inside a backtick
+ * inline-code span on the SAME raw line — a JSDoc/markdown comment quoting
+ * a pattern as an example (`` `throw new Error("not implemented")` ``, ``
+ * `// TODO: implement` `` comment) rather than asserting it. This module's
+ * own doc comment describing these exact patterns is the case that proved
+ * it necessary (self-scan 2026-09-16, src/modules/claude-compliance.js:14-16)
+ * — the mock-data rule has the identical "a detector's own description is
+ * not data" problem, solved the same way for that rule in mockDataContext.
+ */
+function isBacktickQuoted(line, start, end) {
+  const before = line.lastIndexOf('`', start);
+  if (before === -1) return false;
+  const after = line.indexOf('`', end);
+  return after !== -1;
+}
 
 // WHAT-not-WHY comment noise. Each phrase, on its own line as a comment,
 // is a tell. We require the comment to be the WHOLE line (no trailing
@@ -286,6 +308,19 @@ class ClaudeComplianceModule extends BaseModule {
           // neither.
           const k = kindAt(i, sm.index);
           if (k === 'string' || k === 'regex') break;
+          if (p.commentOnly) {
+            // `// TODO: implement` etc. only mean something as a REAL
+            // comment left in code — and not when that comment is itself
+            // quoting the pattern as a doc example (backtick-fenced, as in
+            // this file's own JSDoc).
+            if (k !== 'comment') break;
+            if (isBacktickQuoted(line, sm.index, sm.index + sm[0].length)) break;
+          } else {
+            // throw/raise patterns describe EXECUTABLE code — the same text
+            // sitting in a comment (including a doc comment quoting it in
+            // backticks, as this file's own JSDoc does) never runs.
+            if (k !== 'code') break;
+          }
           if (/NotImplementedError/.test(p.label) && ClaudeComplianceModule._looksAbstract(lines, i, lines.join('\n'))) break;
           result.addCheck(`claude-compliance:stub:${rel}:${i + 1}`, false, {
             severity: ctx.isTest ? 'info' : 'error',

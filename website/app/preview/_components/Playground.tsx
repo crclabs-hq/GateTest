@@ -31,7 +31,7 @@ const SCENARIOS: Scenario[] = [
     sev: "critical",
     before: [
       { n: 1, t: <>{C.kw("const")} total = {C.fn("parseFloat")}(amount);</> },
-      { n: 2, t: <>{C.kw("const")} tax = total * {C.str("0.0825")};</> },
+      { n: 2, t: <>{C.kw("const")} tax = {"total"} * {C.str("0.0825")};</> },
       { n: 3, t: <>charge(total + tax); {C.com("// off by cents")}</> },
     ],
     finding:

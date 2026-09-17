@@ -68,14 +68,13 @@ jobs:
             --skip-module mutation --skip-module e2e --skip-module unitTests --skip-module dataIntegrity \
             > .dogfood/self-full.log 2>&1 && rc=0 || rc=$?
           echo "self-scan exit $rc (1 = findings, by design; anything else is a crash — read the log)"
-          node -e '
-            const r = require("./.gatetest/reports/gatetest-report-latest.json");
-            const mods = r.results || [];
-            const scanned = mods.length;
-            const green = mods.filter((m) => (m.checks || []).every((c) => c.passed || (c.severity || "error") !== "error")).length;
-            require("fs").writeFileSync(".dogfood/self-green.env", "GREEN=" + green + "\nSCANNED=" + scanned + "\n");
-            console.log("self-scan: " + green + "/" + scanned + " modules green");
-          '
+          # scripts/self-scan-green-count.js is the one definition of "green"
+          # (Doctrine #4/#7) — a module's `errors` field already excludes
+          # .gatetestignore-suppressed findings, unlike a naive
+          # checks.every(passed-or-not-error) recount which double-penalized
+          # deliberately-excluded fixture corpora (KI: 2026-09-16 self-scan).
+          node scripts/self-scan-green-count.js \
+            .gatetest/reports/gatetest-report-latest.json .dogfood/self-green.env
           cat .dogfood/self-green.env >> "$GITHUB_ENV"
 
       - name: Regenerate website testing statistics

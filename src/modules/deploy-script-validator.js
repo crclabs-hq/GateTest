@@ -103,6 +103,15 @@ class DeployScriptValidator extends BaseModule {
       // isDeployFile() names on its last line. That branch was unreachable.
       const segments = rel.split('/');
       if (segments.includes('node_modules') || segments.includes('.git')) continue;
+      // Test fixtures are never real deploy config — a *.test.js whose
+      // NAME happens to contain "deploy" (isDeployFile() matches by
+      // substring) still gets its fixture strings harvested as literal
+      // health-check URLs otherwise. tests/deploy-rules-self-scan-*.test.js
+      // writes a sample YAML liveness probe (a made-up route with no match
+      // anywhere in the app) for its own assertions; the self-scan doesn't
+      // know that and reported a mismatch against the real app's routes.
+      // Skip via the canonical test-path definition (src/core/test-paths.js).
+      if (this._isTestPath(rel)) continue;
 
       let content;
       try { content = fs.readFileSync(file, 'utf-8'); } catch { continue; }

@@ -230,6 +230,29 @@ describe('ClaudeComplianceModule — not-implemented stubs', () => {
     assert.equal(fail(r, 'stub').length, 1);
   });
 
+  // Control pair (self-scan 2026-09-16, src/modules/claude-compliance.js
+  // itself: lines 14-16 of its own JSDoc describe these exact patterns in
+  // backtick-quoted examples and were flagged as real stubs). A bare
+  // directive comment still fires; the identical text quoted as a doc
+  // example inside a block comment does not.
+  it('POSITIVE CONTROL: a bare stub throw/comment in real code still fires', async () => {
+    write(tmp, 'src/api.ts', 'function f() { throw new Error("not implemented"); }\n// TODO: implement\n');
+    const r = await run(tmp);
+    assert.equal(fail(r, 'stub').length, 2);
+  });
+
+  it('does not flag a JSDoc example quoting the stub patterns in backticks', async () => {
+    write(tmp, 'src/doc.ts', [
+      '/**',
+      ' * Detects stubs like `throw new Error("not implemented")` and a',
+      ' * bare `// TODO: implement` comment left behind.',
+      ' */',
+      'function real() { return 1; }',
+    ].join('\n') + '\n');
+    const r = await run(tmp);
+    assert.equal(fail(r, 'stub').length, 0, JSON.stringify(fail(r, 'stub')));
+  });
+
   it('downgrades stub severity to info in test paths', async () => {
     write(tmp, 'tests/foo.test.ts', 'it.skip("x", () => { throw new Error("not implemented"); });\n');
     const r = await run(tmp);
