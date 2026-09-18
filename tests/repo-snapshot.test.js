@@ -18,6 +18,9 @@ const {
   fetchPublicRepoSnapshot,
   parseTar,
   tarballUrl,
+  fetchPublicGitlabSnapshot,
+  gitlabTarballUrl,
+  isValidGitlabProjectPath,
 } = require('../website/app/lib/repo-snapshot.js');
 
 // ── minimal tar writer (ustar) for fixtures ────────────────────────────────
@@ -147,6 +150,89 @@ describe('repo-snapshot — fetchPublicRepoSnapshot', () => {
   });
 });
 
+// ── gitlab.com support (board item, PR #599 follow-up) ──────────────────────
+// Same tar/gzip machinery as GitHub above (GitLab's archive wraps entries in
+// the same "{project}-{sha}/" shape), so the control pair here is: a public
+// project (incl. a subgroup path) is fetched and parsed exactly like GitHub;
+// 401/403/404 throw WITH `.httpStatus` set so the caller can tell "the host
+// said no" apart from a network failure and report `gitlab:not-accessible`
+// instead of retrying forever.
+describe('repo-snapshot — fetchPublicGitlabSnapshot', () => {
+  it('builds the v4 archive URL with the full (possibly-subgrouped) project path URL-encoded', () => {
+    assert.strictEqual(
+      gitlabTarballUrl('group/subgroup/project', 'main'),
+      'https://gitlab.com/api/v4/projects/group%2Fsubgroup%2Fproject/repository/archive.tar.gz?sha=main'
+    );
+    assert.strictEqual(
+      gitlabTarballUrl('bob/service', 'v1.0'),
+      'https://gitlab.com/api/v4/projects/bob%2Fservice/repository/archive.tar.gz?sha=v1.0'
+    );
+  });
+
+  it('validates project paths (segment-shaped, at least namespace/project, no path-traversal smuggling)', () => {
+    assert.strictEqual(isValidGitlabProjectPath('bob/service'), true);
+    assert.strictEqual(isValidGitlabProjectPath('group/subgroup/project'), true);
+    assert.strictEqual(isValidGitlabProjectPath('onlyone'), false);
+    assert.strictEqual(isValidGitlabProjectPath('../evil/x'), false);
+    assert.strictEqual(isValidGitlabProjectPath('a/../../etc'), false);
+    assert.strictEqual(isValidGitlabProjectPath(''), false);
+  });
+
+  it('fetches a public project (positive control) — subgroup path, paths + decoded contents', async () => {
+    const gz = zlib.gzipSync(buildTar([
+      ['group-subgroup-project-abc123/README.md', '# hi'],
+      ['group-subgroup-project-abc123/lib/x.py', 'print(1)'],
+    ]));
+    const snap = await fetchPublicGitlabSnapshot('group/subgroup/project', 'main', { fetchImpl: fakeFetch(200, gz) });
+    assert.deepStrictEqual(snap.paths, ['README.md', 'lib/x.py']);
+    assert.strictEqual(snap.contents.get('lib/x.py'), 'print(1)');
+    assert.strictEqual(snap.source, 'gitlab-tarball');
+    assert.strictEqual(snap.truncated, false);
+  });
+
+  it('turns a 404 into an httpStatus-tagged "private or missing" error — never accepted for retry', async () => {
+    await assert.rejects(
+      fetchPublicGitlabSnapshot('bob/service', 'main', { fetchImpl: fakeFetch(404, Buffer.alloc(0)) }),
+      (err) => {
+        assert.match(err.message, /not found \(404\).*private, does not exist/);
+        assert.strictEqual(err.httpStatus, 404);
+        return true;
+      }
+    );
+  });
+
+  it('tags 401/403 with httpStatus too (private project, access-restricted)', async () => {
+    await assert.rejects(
+      fetchPublicGitlabSnapshot('bob/service', 'main', { fetchImpl: fakeFetch(401, Buffer.alloc(0)) }),
+      (err) => { assert.strictEqual(err.httpStatus, 401); return true; }
+    );
+    await assert.rejects(
+      fetchPublicGitlabSnapshot('bob/service', 'main', { fetchImpl: fakeFetch(403, Buffer.alloc(0)) }),
+      (err) => { assert.strictEqual(err.httpStatus, 403); return true; }
+    );
+  });
+
+  it('does not tag a network/decompression/other failure with httpStatus (a 500 retries like any host)', async () => {
+    await assert.rejects(
+      fetchPublicGitlabSnapshot('bob/service', 'main', { fetchImpl: fakeFetch(500, Buffer.alloc(0)) }),
+      (err) => { assert.strictEqual(err.httpStatus, 500); return true; }
+    );
+    // A genuinely invalid path never reaches the network at all.
+    await assert.rejects(fetchPublicGitlabSnapshot('onlyone', 'main'), /invalid gitlab project path/);
+  });
+
+  it('refuses archives over the byte cap before downloading them, same as GitHub', async () => {
+    const gz = zlib.gzipSync(buildTar([['r/a', 'x']]));
+    await assert.rejects(
+      fetchPublicGitlabSnapshot('bob/service', 'main', {
+        fetchImpl: fakeFetch(200, gz, { 'content-length': String(10 * 1024 * 1024) }),
+        maxBytes: 1024,
+      }),
+      /over the 1024-byte snapshot cap/
+    );
+  });
+});
+
 describe('repo-snapshot — wiring contract (KI #100/#101 must not regress)', () => {
   const read = (rel) => fs.readFileSync(path.join(__dirname, '..', 'website', 'app', rel), 'utf8');
 
@@ -168,5 +254,54 @@ describe('repo-snapshot — wiring contract (KI #100/#101 must not regress)', ()
         `${rel} still dead-ends on a missing token`);
       assert.match(src, /const token = auth\.token \|\| ""/, `${rel} should proceed with an empty token`);
     }
+  });
+});
+
+// ── gitlab.com fetch-layer wiring (board item, PR #599 follow-up) ──────────
+// scan-worker.js's isGitRepoUrl has recognised gitlab.com since #599; these
+// pin that scan-executor.ts and gluecron-client.ts actually fetch it now
+// instead of falling through to a retry storm. Both files are TypeScript —
+// same source-text-contract approach as tests/github-hardening.test.js,
+// which documents why (no transpile step in `node --test`).
+describe('gitlab.com fetch-layer wiring', () => {
+  const readWebsite = (rel) => fs.readFileSync(path.join(__dirname, '..', 'website', 'app', rel), 'utf8');
+
+  it('gluecron-client exports loadGitlabRepoFiles, unauthenticated, resolving the default branch before archiving', () => {
+    const src = readWebsite('lib/gluecron-client.ts');
+    assert.match(src, /export\s+async\s+function\s+loadGitlabRepoFiles/);
+    assert.match(src, /resolveGitlabDefaultBranch/);
+    // No token/credential anywhere in the gitlab path — public repos only.
+    const gitlabSection = src.slice(src.indexOf('gitlab.com support'));
+    assert.doesNotMatch(gitlabSection, /GITLAB_API_TOKEN|GITLAB_TOKEN/, 'gitlab.com support must stay unauthenticated (public repos only)');
+    assert.match(gitlabSection, /fetchWithTimeout\(/, 'the default-branch lookup must use the bounded fetch wrapper, never bare fetch');
+  });
+
+  it('scan-executor detects gitlab.com by hostname segment (never substring) BEFORE the owner/repo-only regexes', () => {
+    const src = readWebsite('lib/scan-executor.ts');
+    assert.match(src, /const GITLAB_URL_RE = \/\^https\?:/, 'declares an anchored gitlab.com host regex');
+    assert.match(src, /gitlab\\\.com\\\//, 'the regex requires the literal host segment "gitlab.com/"');
+    // `runScan(` with the literal paren excludes runScanDirect(/runScanJob(,
+    // which both also start with the substring "runScan".
+    const runScanBody = src.slice(src.indexOf('export async function runScan('));
+    // gitlab is matched before the gluecron/github owner/repo regexes, which
+    // only ever capture two path segments and would truncate a subgroup path.
+    assert.ok(
+      runScanBody.indexOf('GITLAB_URL_RE') < runScanBody.indexOf('gluecronMatch'),
+      'gitlab.com must be checked before the two-segment owner/repo regexes'
+    );
+  });
+
+  it('a gitlab.com project scan-executor cannot access reports notChecked, never a plain failure', () => {
+    const src = readWebsite('lib/scan-executor.ts');
+    assert.match(src, /notChecked\s*=\s*true/);
+    assert.match(src, /notCheckedReason\s*=\s*"gitlab:not-accessible"/);
+    // Only for the http-status-tagged failures — not every archive-read error.
+    assert.match(src, /httpStatus\s*===\s*401\s*\|\|\s*httpStatus\s*===\s*403\s*\|\|\s*httpStatus\s*===\s*404/);
+  });
+
+  it('scan-worker routes a notChecked git-URL scan to markNotChecked, never markFailed/retry', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'website', 'app', 'lib', 'scan-worker.js'), 'utf8');
+    assert.match(src, /scanResult\.notChecked/);
+    assert.match(src, /queueStore\.markNotChecked\(job\.id, reason, sql\)/);
   });
 });

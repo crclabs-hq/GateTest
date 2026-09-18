@@ -14,7 +14,7 @@
 
 import https from "https";
 import { getDb } from "./db";
-import { loadRepoFiles, resolveRepoAuth } from "./gluecron-client";
+import { loadRepoFiles, loadGitlabRepoFiles, resolveRepoAuth } from "./gluecron-client";
 import { type RepoFile, TIERS } from "./scan-modules";
 import { runEngineForTier, CLI_ENGINE_TIERS, type RankedFinding, type FindingSummary } from "./scan-engine-dispatch";
 import { changedLines, lineInChange } from "./changed-lines";
@@ -64,6 +64,13 @@ export interface ScanResult {
   duration: number;
   authSource?: string | null;
   error?: string;
+  /** set when the target could honestly not be checked (Doctrine #1's third
+   *  state) rather than failed/retried — e.g. a gitlab.com project that is
+   *  private, missing, or otherwise inaccessible without a credential we
+   *  don't hold. The caller (runApiHostJob in scan-worker.js) reports this
+   *  via markNotChecked instead of markFailed/retry. */
+  notChecked?: boolean;
+  notCheckedReason?: string;
   /** honesty fields — how much of the repo the engine actually saw */
   filesAnalysed?: number;
   filesInRepo?: number;
@@ -174,6 +181,104 @@ export async function runScanDirect(
   };
 }
 
+// gitlab.com — recognised as a git URL since #599 (scan-worker.js's
+// isGitRepoUrl) but never fetched until now. Host detection is by hostname
+// SEGMENT, not substring: anchored right after the optional "www.", so
+// "gitlab.com.evil.example" and "notgitlab.com" both miss it, matching the
+// same discipline isGitRepoUrl already applies (Doctrine #5).
+const GITLAB_URL_RE = /^https?:\/\/(?:www\.)?gitlab\.com\/([^?#]+)/i;
+
+/**
+ * Execute a gitlab.com scan — public projects only, unauthenticated
+ * (gluecron-client.ts's loadGitlabRepoFiles). `projectPath` may include
+ * subgroups ("group/subgroup/project"); that's exactly why gitlab.com gets
+ * its own branch instead of reusing the owner/repo regexes below, which
+ * only ever capture two path segments.
+ *
+ * A project that is private, missing, or otherwise inaccessible without a
+ * credential we don't hold (401/403/404) is reported `notChecked` —
+ * Doctrine #1's third state — rather than `failed`, so the caller
+ * (runApiHostJob in scan-worker.js) marks the queue row `not_checked` with
+ * reason `gitlab:not-accessible` instead of retrying/dead-lettering a
+ * target that will fail identically forever. Any other failure (network,
+ * timeout, decompression) is a normal failed result and gets the same
+ * retry/terminal classification any other host's scan does.
+ */
+async function runGitlabScan(
+  projectPath: string,
+  ref: string,
+  tier: string,
+  startTime: number
+): Promise<ScanResult> {
+  const normalisedTier = KNOWN_TIERS.has(tier) ? tier : "quick";
+  const engineTier = CLI_ENGINE_TIERS.has(normalisedTier);
+  const deadlineMs = startTime + ENGINE_TIME_BUDGET_MS;
+
+  let loaded;
+  try {
+    loaded = await loadGitlabRepoFiles(projectPath, ref, {
+      maxFiles: engineTier ? ENGINE_MAX_FILES : QUICK_MAX_FILES,
+      prioritize: prioritizeManifest,
+    });
+  } catch (err) {
+    const httpStatus = (err as { httpStatus?: number } | null)?.httpStatus;
+    const result = emptyResult(
+      startTime,
+      `Cannot access gitlab.com/${projectPath} (${err instanceof Error ? err.message : "archive read failed"})`,
+      "gitlab"
+    );
+    if (httpStatus === 401 || httpStatus === 403 || httpStatus === 404) {
+      result.notChecked = true;
+      result.notCheckedReason = "gitlab:not-accessible";
+    }
+    return result;
+  }
+
+  const { paths: files, fileContents } = loaded;
+  if (files.length === 0) {
+    return emptyResult(startTime, `Cannot access gitlab.com/${projectPath} — empty tree returned`, "gitlab");
+  }
+  if (loaded.warning) {
+    // eslint-disable-next-line no-console
+    console.warn(`[scan-executor] gitlab.com/${projectPath}: ${loaded.warning}`);
+  }
+
+  // owner/repo here are labels only (temp-workspace naming, log lines) —
+  // the CLI engine never re-fetches by them. The full path (with any
+  // subgroups) is preserved as `repo` so logs still show the real project.
+  const segments = projectPath.split("/");
+  const owner = segments[0];
+  const repo = segments.slice(1).join("/") || segments[0];
+
+  const { modules, totalIssues, engineUsed, findings, findingSummary } = await runEngineForTier({
+    tier: normalisedTier,
+    owner,
+    repo,
+    files,
+    fileContents,
+    deadlineMs,
+  });
+
+  return {
+    status: "complete",
+    modules,
+    totalModules: modules.length,
+    completedModules: modules.length,
+    totalIssues,
+    totalFixed: 0,
+    duration: Date.now() - startTime,
+    authSource: "gitlab",
+    filesAnalysed: fileContents.length,
+    filesInRepo: files.length,
+    coverageTruncated: loaded.truncated,
+    engine: engineUsed,
+    findings,
+    findingSummary,
+    changedFiles: null,
+    baseRef: null,
+  };
+}
+
 /**
  * Execute the scan for a repo + tier. Returns a ScanResult (never throws).
  */
@@ -187,6 +292,19 @@ export async function runScan(
   // worker gets to the job — a status posted on SHA X must describe SHA X.
   const ref = opts.ref && /^[A-Za-z0-9._\/-]+$/.test(opts.ref) ? opts.ref : "HEAD";
   const baseRef = opts.baseRef && /^[0-9a-f]{40}$/i.test(opts.baseRef) && opts.baseRef !== ref ? opts.baseRef : null;
+
+  // gitlab.com is checked BEFORE the github/gluecron regexes below: those
+  // only capture two path segments (owner/repo) and would silently
+  // truncate a subgroup path like group/subgroup/project down to
+  // group/subgroup, fetching the wrong (or a nonexistent) project.
+  const gitlabMatch = repoUrl.match(GITLAB_URL_RE);
+  if (gitlabMatch) {
+    const projectPath = gitlabMatch[1].replace(/\/+$/, "").replace(/\.git$/i, "");
+    if (!projectPath || !projectPath.includes("/")) {
+      return emptyResult(startTime, "Invalid gitlab.com repository URL (expected gitlab.com/<group>[/<subgroup>...]/<project>)");
+    }
+    return runGitlabScan(projectPath, ref, tier, startTime);
+  }
 
   // Accept Gluecron URLs first; fall back to GitHub URLs so customer-supplied
   // links work in either form during the migration window.
