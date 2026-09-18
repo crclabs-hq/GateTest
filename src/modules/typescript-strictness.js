@@ -142,6 +142,49 @@ function stripJsonc(src) {
   return out;
 }
 
+/**
+ * Code-only view of a TS source: comments and the CONTENTS of string and
+ * template literals are replaced by spaces, line for line, so a rule that
+ * looks for a token (`as any`, `: any`) cannot match prose. 2026-09-18: the
+ * JSDoc sentence "…same as any other host" on PR #606 was reported as an
+ * `as any` cast. Line count and column positions are preserved. Expressions
+ * inside `${…}` are masked with the rest of the template — a cast there is
+ * not checked, which is the conservative side for a warning-level rule.
+ */
+function maskCommentsAndStrings(lines) {
+  const out = [];
+  let state = 'code'; // code | block | single | double | template
+  for (const line of lines) {
+    let res = '';
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      const next = line[i + 1];
+      if (state === 'code') {
+        if (ch === '/' && next === '/') { res += ' '.repeat(line.length - i); break; }
+        if (ch === '/' && next === '*') { state = 'block'; res += '  '; i++; continue; }
+        if (ch === "'") { state = 'single'; res += ch; continue; }
+        if (ch === '"') { state = 'double'; res += ch; continue; }
+        if (ch === '`') { state = 'template'; res += ch; continue; }
+        res += ch;
+        continue;
+      }
+      if (state === 'block') {
+        if (ch === '*' && next === '/') { state = 'code'; res += '  '; i++; continue; }
+        res += ' ';
+        continue;
+      }
+      // inside a string or template literal
+      if (ch === '\\') { res += '  '; i++; continue; }
+      const closer = state === 'single' ? "'" : state === 'double' ? '"' : '`';
+      if (ch === closer) { state = 'code'; res += ch; continue; }
+      res += ' ';
+    }
+    // A quote left open at end of line is not a multi-line string in JS/TS.
+    if (state === 'single' || state === 'double') state = 'code';
+    out.push(res);
+  }
+  return out;
+}
 class TypeScriptStrictnessModule extends BaseModule {
   constructor() {
     super(
@@ -304,6 +347,8 @@ class TypeScriptStrictnessModule extends BaseModule {
     const lines = content.split(/\r?\n/);
     let issues = 0;
 
+    // Token rules below read code, never prose (see maskCommentsAndStrings).
+    const codeLines = maskCommentsAndStrings(lines);
     for (let i = 0; i < lines.length; i += 1) {
       const line = lines[i];
       const trimmed = line.trim();
@@ -360,7 +405,7 @@ class TypeScriptStrictnessModule extends BaseModule {
 
       // `any` leak detection — skip test files and .d.ts
       if (!isTest && !isDts) {
-        issues += this._scanAnyLeak(line, i + 1, rel, result);
+        issues += this._scanAnyLeak(codeLines[i], i + 1, rel, result);
       }
     }
 
@@ -420,3 +465,4 @@ class TypeScriptStrictnessModule extends BaseModule {
 }
 
 module.exports = TypeScriptStrictnessModule;
+module.exports.maskCommentsAndStrings = maskCommentsAndStrings;

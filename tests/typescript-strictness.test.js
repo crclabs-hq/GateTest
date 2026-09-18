@@ -272,6 +272,41 @@ describe('TypeScriptStrictnessModule — any leaks', () => {
     assert.strictEqual(hit.severity, 'warning');
   });
 
+  it('does NOT read prose as a cast: "same as any other host" in a JSDoc (PR #606)', async () => {
+    write(tmp, 'src/a.ts', [
+      '/**',
+      ' * falls through to the normal classification, same as any',
+      ' * other host.',
+      ' */',
+      'export function load(): number { return 1; } // treat it as any other value',
+      'const label = "cast as any";',
+      'const tpl = `as any`;',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name.startsWith('typescript-strictness:as-any:')), undefined);
+  });
+
+  it('still flags a real cast that shares a line with a comment', async () => {
+    write(tmp, 'src/a.ts', [
+      '/* header */ const x = JSON.parse(raw) as any; // why',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('typescript-strictness:as-any:'));
+    assert.ok(hit, 'a real `as any` must still fire');
+    assert.strictEqual(hit.line, 1);
+  });
+
+  it('maskCommentsAndStrings keeps line count and columns', () => {
+    const { maskCommentsAndStrings } = require('../src/modules/typescript-strictness');
+    const src = ['a /* b', 'c */ d // e', 'f = "g\\"h" as any'];
+    const out = maskCommentsAndStrings(src);
+    assert.strictEqual(out.length, src.length);
+    out.forEach((l, i) => assert.strictEqual(l.length, src[i].length));
+    assert.ok(!/b|c|e|g|h/.test(out.join('')), 'comment and string contents are masked');
+    assert.ok(/\bas\s+any\b/.test(out[2]), 'code after a string survives');
+  });
   it('records `as unknown as X` as info', async () => {
     write(tmp, 'src/a.ts', [
       'interface StripeEvent { id: string }',
