@@ -244,6 +244,11 @@ const repoSnapshot = require("./repo-snapshot") as {
     ref?: string,
     opts?: { token?: string; maxFiles?: number },
   ) => Promise<{ paths: string[]; contents: Map<string, string>; truncated: boolean; warning: string | null; source: string }>;
+  fetchPublicGitlabSnapshot: (
+    projectPath: string,
+    ref: string,
+    opts?: { maxFiles?: number },
+  ) => Promise<{ paths: string[]; contents: Map<string, string>; truncated: boolean; warning: string | null; source: string }>;
 };
 type Snapshot = Awaited<ReturnType<typeof repoSnapshot.fetchPublicRepoSnapshot>>;
 const SNAPSHOT_TTL_MS = 120_000;
@@ -524,7 +529,7 @@ interface RepoFilesResult {
   paths: string[];
   /** text files actually loaded, after `filter`, up to `maxFiles` */
   fileContents: Array<{ path: string; content: string }>;
-  source: "archive" | "archive-anonymous" | "api";
+  source: "archive" | "archive-anonymous" | "api" | "gitlab-archive";
   truncated: boolean;
   warning: string | null;
 }
@@ -654,6 +659,93 @@ export async function loadRepoFiles(
     ? `Archive read unavailable (${failures.join("; ") || "no archive attempt"}) — fell back to per-file reads capped at ${toRead.length} of ${ordered.length} files; findings in the remainder are not reported.`
     : tree.warning;
   return { paths: tree.paths, fileContents, source: "api", truncated, warning };
+}
+
+// ── gitlab.com support (board item, PR #599 follow-up) ────────────────────
+// isGitRepoUrl (scan-worker.js) has recognised gitlab.com URLs since #599;
+// nothing downstream fetched them, so every such scan retried and dead-
+// lettered. PUBLIC projects only, unauthenticated (Boss Rule #2 — no new
+// dependency, no credential to manage). Self-hosted GitLab is out of scope:
+// the caller (scan-executor.ts) only reaches here after matching the
+// hostname against exactly "gitlab.com".
+
+const GITLAB_BASE_URL = "https://gitlab.com";
+
+/**
+ * Resolve a PUBLIC gitlab.com project's default branch. GitLab's archive
+ * endpoint (unlike GitHub's codeload, which accepts the literal ref "HEAD")
+ * has no such alias, so a caller with no specific ref must be told the real
+ * default branch first. One extra unauthenticated call per scan (not memoised
+ * — this runs once per scan, not once per file like fetchBlob). Bounded by
+ * `fetchWithTimeout` (60s) like every other host API call in this file —
+ * never a bare `fetch`.
+ *
+ * Throws with `.httpStatus` set to the response status so the caller can
+ * tell "the host said no" (401/403/404) apart from a network failure.
+ */
+async function resolveGitlabDefaultBranch(projectPath: string): Promise<string> {
+  const res = await fetchWithTimeout(
+    `${GITLAB_BASE_URL}/api/v4/projects/${encodeURIComponent(projectPath)}`,
+    { headers: { "User-Agent": "GateTest", Accept: "application/json" } },
+  );
+  if (!res.ok) {
+    const err = new Error(`gitlab project lookup for ${projectPath} returned HTTP ${res.status}`) as Error & { httpStatus?: number };
+    err.httpStatus = res.status;
+    throw err;
+  }
+  const data = (await res.json()) as { default_branch?: string };
+  return typeof data.default_branch === "string" && data.default_branch ? data.default_branch : "main";
+}
+
+/**
+ * Load a PUBLIC gitlab.com project's files. Archive-only, unauthenticated —
+ * there is no credentialed path to fall back to here (gitlab.com support is
+ * public-repos-only by design), so unlike `loadRepoFiles` there is no
+ * "tree + capped blob reads" third attempt.
+ *
+ * `projectPath` is the FULL path including subgroups
+ * ("group/subgroup/project") — GitLab's API takes that as one URL-encoded
+ * segment, unlike GitHub's owner/repo split, which is why this is a sibling
+ * function rather than a branch inside `loadRepoFiles`.
+ *
+ * A read failure (private project, 404, self-hosted instance, network
+ * error) propagates with `.httpStatus` set when the failure was an HTTP
+ * status code (401/403/404) — the caller (scan-executor.ts) reports that as
+ * `gitlab:not-accessible`, never retried; no `.httpStatus` (network error,
+ * decompression failure, cap exceeded) falls through to the normal
+ * retry/dead-letter classification in scan-queue-store.js, same as any
+ * other host.
+ */
+export async function loadGitlabRepoFiles(
+  projectPath: string,
+  ref: string,
+  opts: LoadRepoFilesOptions = {},
+): Promise<RepoFilesResult> {
+  const { maxFiles = 4000, filter = defaultRepoFileFilter, prioritize } = opts;
+
+  const resolvedRef = ref && ref.toUpperCase() !== "HEAD"
+    ? ref
+    : await resolveGitlabDefaultBranch(projectPath);
+
+  const snap = await repoSnapshot.fetchPublicGitlabSnapshot(projectPath, resolvedRef, {
+    // maxFiles caps TEXT files kept by the archive reader; ask for headroom
+    // so a filter that drops vendor dirs still leaves `maxFiles` to load.
+    maxFiles: Math.max(maxFiles * 3, maxFiles + 2000),
+  });
+  const ordered = orderForLoad(snap.paths, filter, prioritize);
+  const fileContents: Array<{ path: string; content: string }> = [];
+  let loadable = 0;
+  for (const p of ordered) {
+    const c = snap.contents.get(p);
+    if (!c) continue;
+    loadable++;
+    if (fileContents.length < maxFiles) fileContents.push({ path: p, content: c });
+  }
+  const truncated = snap.truncated || loadable > fileContents.length;
+  const warning = truncated
+    ? `Repository has more text files than the ${maxFiles}-file scan cap — analysed the first ${fileContents.length}; findings in the remainder are not reported.`
+    : snap.warning;
+  return { paths: snap.paths, fileContents, source: "gitlab-archive", truncated, warning };
 }
 
 /**

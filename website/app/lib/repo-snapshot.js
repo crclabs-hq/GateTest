@@ -209,10 +209,146 @@ async function fetchPublicRepoSnapshot(owner, repo, ref = "HEAD", opts = {}) {
   }
 }
 
+// ── gitlab.com support (board item, PR #599 follow-up: "GitLab URLs are ─────
+// recognised but not fetched") ──────────────────────────────────────────────
+// isGitRepoUrl (scan-worker.js) has recognised gitlab.com URLs since #599;
+// nothing downstream knew how to fetch one, so every such scan retried and
+// dead-lettered. This is the fetch: gitlab.com's own archive endpoint,
+// unauthenticated, PUBLIC projects only — no dependency, no credential
+// (Boss Rule #2). Self-hosted GitLab is out of scope: `isGitlabProjectPath`
+// only validates the PATH, the caller is responsible for having matched the
+// hostname against exactly "gitlab.com" first (scan-executor.ts), so a
+// self-hosted instance never reaches this function in the first place.
+//
+// GitLab's archive wraps entries in the same shape GitHub's tarball does —
+// one top-level "{project}-{sha}/" directory — so the existing `parseTar`
+// handles both formats unmodified; only the request URL and error wording
+// differ, which is why this stays a sibling function rather than a
+// parameter added to `fetchPublicRepoSnapshot` (whose owner/repo split
+// doesn't fit an arbitrary-depth `group/subgroup/project` path anyway).
+
+function gitlabTarballUrl(projectPath, ref) {
+  return `https://gitlab.com/api/v4/projects/${encodeURIComponent(projectPath)}/repository/archive.tar.gz?sha=${encodeURIComponent(ref)}`;
+}
+
+/** Every path segment must be a safe git-host slug — same shape check as
+ *  owner/repo above, applied per segment so a subgroup path can't smuggle
+ *  `..` or a query string into the URL we build. */
+function isValidGitlabProjectPath(projectPath) {
+  if (typeof projectPath !== "string" || !projectPath) return false;
+  const segments = projectPath.split("/");
+  if (segments.length < 2) return false; // at minimum <namespace>/<project>
+  // "." and ".." are valid matches of the charset below but must still be
+  // rejected — otherwise "../evil/x" smuggles a traversal segment past a
+  // charset check the same way the owner/repo validation above guards against.
+  return segments.every((s) => s !== "." && s !== ".." && /^[A-Za-z0-9_.-]+$/.test(s));
+}
+
+/** Attach the HTTP status to a thrown Error so callers can tell "the host
+ *  said no" (401/403/404 → gluecron-client.ts/scan-executor.ts report
+ *  `gitlab:not-accessible`, never retried) apart from a network failure
+ *  (no `.httpStatus` → the normal retry/dead-letter classification in
+ *  scan-queue-store.js applies, same as any other host). */
+function httpError(message, status) {
+  const err = new Error(message);
+  err.httpStatus = status;
+  return err;
+}
+
+/**
+ * Download + parse a PUBLIC gitlab.com project's archive. `ref` must
+ * already be a real branch/tag/sha — unlike GitHub's codeload, GitLab's
+ * archive endpoint has no "HEAD" alias, so the caller (gluecron-client.ts's
+ * `loadGitlabRepoFiles`) resolves the default branch before calling this.
+ *
+ * @returns {Promise<{ paths: string[], contents: Map<string,string>, truncated: boolean, warning: string|null, source: 'gitlab-tarball' }>}
+ * @throws Error — `.httpStatus` set for a host-refused request (401/403/404),
+ *   unset for a network/decompression/cap failure.
+ */
+async function fetchPublicGitlabSnapshot(projectPath, ref, opts = {}) {
+  const {
+    fetchImpl = globalThis.fetch,
+    maxBytes = DEFAULT_MAX_BYTES,
+    maxFileBytes = DEFAULT_MAX_FILE_BYTES,
+    maxFiles = DEFAULT_MAX_FILES,
+    deadlineMs = DEFAULT_DEADLINE_MS,
+  } = opts;
+  if (!isValidGitlabProjectPath(projectPath)) {
+    throw new Error(`invalid gitlab project path ${projectPath}`);
+  }
+  if (!ref || typeof ref !== "string") {
+    throw new Error(`fetchPublicGitlabSnapshot: a resolved ref is required for ${projectPath}`);
+  }
+  const target = `${projectPath}@${ref}`;
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), deadlineMs);
+  try {
+    const headers = { "User-Agent": "GateTest", Accept: "application/octet-stream" };
+    const res = await fetchImpl(gitlabTarballUrl(projectPath, ref), {
+      headers,
+      redirect: "follow",
+      signal: ac.signal,
+    });
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw httpError(`public archive for ${target} not found (404) — the project is private, does not exist, or the ref is wrong`, 404);
+      }
+      if (res.status === 401 || res.status === 403) {
+        throw httpError(`public archive for ${target} refused (HTTP ${res.status}) — the project is private or access-restricted`, res.status);
+      }
+      throw httpError(`public archive for ${target} unavailable (HTTP ${res.status})`, res.status);
+    }
+    const declared = Number(res.headers.get("content-length") || 0);
+    if (declared > maxBytes) {
+      throw new Error(`public archive for ${target} is ${declared} bytes compressed — over the ${maxBytes}-byte snapshot cap`);
+    }
+    // Stream so an oversize body without content-length is stopped early.
+    const chunks = [];
+    let total = 0;
+    if (res.body && typeof res.body.getReader === "function") {
+      const reader = res.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > maxBytes) {
+          ac.abort();
+          throw new Error(`public archive for ${target} exceeded the ${maxBytes}-byte snapshot cap`);
+        }
+        chunks.push(Buffer.from(value));
+      }
+    } else {
+      const ab = await res.arrayBuffer();
+      total = ab.byteLength;
+      if (total > maxBytes) throw new Error(`public archive for ${target} exceeded the ${maxBytes}-byte snapshot cap`);
+      chunks.push(Buffer.from(ab));
+    }
+    const gz = Buffer.concat(chunks, total);
+    let tar;
+    try {
+      tar = zlib.gunzipSync(gz, { maxOutputLength: maxBytes * 8 });
+    } catch (err) {
+      throw new Error(`public archive for ${target} could not be decompressed (${err && err.message ? err.message : "gunzip failed"})`);
+    }
+    const { entries, allPaths, truncated } = parseTar(tar, { maxFileBytes, maxFiles });
+    const contents = new Map();
+    for (const [p, b] of entries) contents.set(p, b.toString("utf8"));
+    const warning = truncated
+      ? `Repository has more than ${maxFiles} text files — snapshot kept the first ${maxFiles}; scans may miss findings in the remainder.`
+      : null;
+    return { paths: allPaths, contents, truncated, warning, source: "gitlab-tarball" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 module.exports = {
   fetchPublicRepoSnapshot,
   parseTar,
   tarballUrl,
+  fetchPublicGitlabSnapshot,
+  gitlabTarballUrl,
+  isValidGitlabProjectPath,
   DEFAULT_MAX_BYTES,
   DEFAULT_MAX_FILE_BYTES,
   DEFAULT_MAX_FILES,

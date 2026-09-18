@@ -39,6 +39,12 @@ describe('isGitRepoUrl', () => {
     assert.strictEqual(isGitRepoUrl('https://github.com.evil.example/alice/webapp'), false, 'lookalike domain must not pass');
   });
 
+  it('does not treat a self-hosted or lookalike gitlab domain as gitlab.com (segment, not substring)', () => {
+    assert.strictEqual(isGitRepoUrl('https://gitlab.com.evil.example/alice/webapp'), false, 'lookalike domain must not pass');
+    assert.strictEqual(isGitRepoUrl('https://notgitlab.com/alice/webapp'), false, 'must be the real host, not a suffix match');
+    assert.strictEqual(isGitRepoUrl('https://gitlab.mycompany.com/alice/webapp'), false, 'self-hosted GitLab is out of scope — only gitlab.com is recognised');
+  });
+
   it('does not treat a gluecron.com URL as a git URL — that host already has its own repo-host path', () => {
     assert.strictEqual(isGitRepoUrl('https://gluecron.com/alice/webapp'), false);
   });
