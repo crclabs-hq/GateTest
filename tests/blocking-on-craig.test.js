@@ -173,7 +173,7 @@ describe('blocking-on-craig — markdown carries every title and the oldest-days
     assert.ok(md.includes(`oldest ${s.oldestDays} days`));
     assert.ok(md.includes(`waiting **${s.oldestDays} days** (since ${s.oldestSince})`));
     assert.ok(md.indexOf('## P1') < md.indexOf('## P2'), 'P1 renders before P2');
-    assert.ok(md.includes('(updated 2026-09-16)'));
+    assert.ok(md.includes(`(updated ${data.updated})`), `updated stamp missing: ${data.updated}`);
   });
 
   it('done items render struck through, oldest-first within a priority, and dependencies show', () => {
