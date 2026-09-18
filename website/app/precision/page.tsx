@@ -184,11 +184,16 @@ export default function PrecisionPage() {
             eslint-plugin-security&rsquo;s recommended rules. The counts are not comparable one-to-one:
             GateTest&rsquo;s <em>blocking</em> is a gate verdict &mdash; error-severity findings at or above the
             confidence threshold, across code quality, security, infrastructure and documentation &mdash; while
-            Semgrep&rsquo;s <em>error</em> is the label a rule author chose, and eslint-plugin-security reports
-            fourteen security rules. Read each column as what that tool says about that commit and how long it took
-            to say it. Each tool is time-boxed at {Math.round(headToHead.toolTimeoutSeconds / 60)} minutes per
-            repository. SonarQube and CodeQL have not been run yet; their columns say so and why, and no number
-            appears there until one is measured. {h2hMeasured} of {h2hCorpus} corpus repositories measured on{" "}
+            Semgrep&rsquo;s <em>error</em> is the label a rule author chose, eslint-plugin-security reports
+            fourteen security rules, and CodeQL&rsquo;s count comes from its own CLI running the official{" "}
+            <code className="font-mono">*-security-extended</code> query suite for the repository&rsquo;s language
+            (e.g. <code className="font-mono">javascript-security-extended.qls</code>), with a result counted as
+            blocking-equivalent at SARIF level error or a security-severity of 7.0 or above. Read each column as
+            what that tool says about that commit and how long it took to say it. Each
+            tool is time-boxed at {Math.round(headToHead.toolTimeoutSeconds / 60)} minutes per repository. SonarQube
+            has not been run yet; CodeQL runs where its CLI is installed and the repository&rsquo;s language has a
+            security-extended suite. Either column says so, and why, instead of a number when it was not measured.{" "}
+            {h2hMeasured} of {h2hCorpus} corpus repositories measured on{" "}
             {h2hGenerated.toISOString().slice(0, 10)} with GateTest <code className="font-mono">--suite {headToHead.suite}</code>.
           </p>
           <div className="overflow-x-auto rounded-xl border border-border">
