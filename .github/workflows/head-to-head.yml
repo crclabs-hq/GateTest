@@ -1,17 +1,20 @@
 name: Head to head — corpus vs other scanners
 
-# Measures GateTest, Semgrep and ESLint (eslint-plugin-security) on the same
-# pinned third-party commits the precision gate uses
+# Measures GateTest, Semgrep, ESLint (eslint-plugin-security) and CodeQL on
+# the same pinned third-party commits the precision gate uses
 # (reliability-corpus/real-world.json) and regenerates
 # website/app/data/head-to-head.json, which /precision renders. Weekly rather
-# than nightly: three tools over twenty repositories is an hour or more of
+# than nightly: four tools over twenty repositories is an hour or more of
 # runner time, and the table is a published comparison, not a gate.
 #
 # Nothing here fakes a number. Semgrep comes from pip on ubuntu (the Windows
 # laptop that cut the first table needed the per-user Scripts dir on PATH;
-# here it is a plain install). SonarQube and CodeQL are NOT run — the script
-# writes them as "not measured" with the reason — and this workflow never
-# touches reliability-corpus/real-world.json: the ceilings belong to
+# here it is a plain install). CodeQL comes from a pinned official CLI bundle
+# installed below; the adapter still writes a repo as "not measured" with the
+# reason whenever the CLI cannot build or analyse it — never a fabricated
+# zero. SonarQube is NOT run — the script writes it as "not measured" with
+# the reason — and this workflow never touches
+# reliability-corpus/real-world.json: the ceilings belong to
 # dogfood-nightly.yml's --ratchet run and to nothing else.
 
 on:
@@ -30,12 +33,13 @@ permissions:
 
 jobs:
   measure:
-    name: Measure the corpus against Semgrep and ESLint
+    name: Measure the corpus against Semgrep, ESLint and CodeQL
     runs-on: ubuntu-latest
-    # Worst case is every tool hitting its ten-minute box on every repo; the
-    # realistic run is well under two hours. The box is per tool, per repo,
-    # so a single slow scanner cannot eat the whole job.
-    timeout-minutes: 330
+    # Worst case is every tool (GateTest, Semgrep, ESLint, CodeQL's create +
+    # analyze) hitting its ten-minute box on every repo; the realistic run is
+    # well under two hours. The box is per tool, per repo, so a single slow
+    # scanner cannot eat the whole job.
+    timeout-minutes: 420
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,6 +64,40 @@ jobs:
           python -m pip install --upgrade semgrep
           semgrep --version
 
+      - name: Install CodeQL CLI
+        # Pinned release of the official CodeQL CLI bundle (linux64) from
+        # github/codeql-action — its query packs include the
+        # `<lang>-security-extended.qls` suite scripts/head-to-head.js's
+        # CodeQL adapter runs (isCodeqlBlocking documents the counting rule).
+        # The tag is an exact release, never a mutable "latest"; the bundle is
+        # verified against the checksum GitHub publishes for that same
+        # immutable release before it is trusted or extracted.
+        #
+        # Licence: the CodeQL CLI's terms
+        # (https://github.com/github/codeql-cli-binaries/blob/main/LICENSE.md)
+        # permit analysing open-source codebases — every repository in
+        # reliability-corpus/real-world.json is exactly that.
+        env:
+          CODEQL_RELEASE_TAG: codeql-bundle-v2.27.0
+        run: |
+          set -o pipefail
+          BASE_URL="https://github.com/github/codeql-action/releases/download/${CODEQL_RELEASE_TAG}"
+          curl -sSL --fail -o "$RUNNER_TEMP/codeql-bundle-linux64.tar.gz" "$BASE_URL/codeql-bundle-linux64.tar.gz"
+          curl -sSL --fail -o "$RUNNER_TEMP/codeql-bundle-linux64.tar.gz.checksum.txt" "$BASE_URL/codeql-bundle-linux64.tar.gz.checksum.txt"
+          if ! (cd "$RUNNER_TEMP" && sha256sum -c codeql-bundle-linux64.tar.gz.checksum.txt); then
+            echo "CodeQL bundle checksum did not match the release's own checksum file — refusing to install it" >&2
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/codeql-home"
+          tar -xzf "$RUNNER_TEMP/codeql-bundle-linux64.tar.gz" -C "$RUNNER_TEMP/codeql-home"
+          if ! test -x "$RUNNER_TEMP/codeql-home/codeql/codeql"; then
+            echo "CodeQL CLI did not extract to the expected path ($RUNNER_TEMP/codeql-home/codeql/codeql)" >&2
+            exit 1
+          fi
+          echo "CODEQL_HOME=$RUNNER_TEMP/codeql-home/codeql" >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP/codeql-home/codeql" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/codeql-home/codeql/codeql" version
+
       - name: Install all workspaces
         # Same script ci.yml and dogfood-nightly.yml use — a root-only
         # `npm ci` leaves modules that need a real npm package out of the
@@ -70,11 +108,12 @@ jobs:
         run: node bin/gatetest.js --list | wc -l
 
       - name: Measure
-        # The script installs its throwaway ESLint toolchain in the temp dir,
-        # never in this repository (tests/head-to-head.test.js pins that).
-        # A repository that could not be cloned exits non-zero AFTER the
-        # file is written for the ones that were — the red is visible here
-        # and the PR step ships only what was measured.
+        # The script installs its throwaway ESLint toolchain, and builds each
+        # repo's CodeQL database + SARIF output, in the temp dir — never in
+        # this repository (tests/head-to-head.test.js pins that for both). A
+        # repository that could not be cloned exits non-zero AFTER the file
+        # is written for the ones that were — the red is visible here and
+        # the PR step ships only what was measured.
         env:
           # Passed through env, never interpolated into the script: a
           # workflow_dispatch input is untrusted event data.
@@ -136,7 +175,7 @@ jobs:
           git -c commit.gpgsign=false commit -m "chore(precision): refresh the head-to-head table $(date -u +%Y-%m-%d)"
           git push -u origin "$BRANCH" --force
 
-          PR_BODY=$(printf 'Weekly head-to-head run refreshed `website/app/data/head-to-head.json` — GateTest, Semgrep and ESLint (eslint-plugin-security) on the same pinned corpus commits, rendered at /precision.\n\nEvery number is this run'"'"'s own measurement (`scripts/head-to-head.js`). A tool that timed out, failed or could not be installed is written as such; SonarQube and CodeQL are written as not measured, with the reason. Nothing in this PR touches the corpus ceilings.\n\nThis is a ROLLING PR — it is reset onto `main` every run, so it always shows the current table against current `main`.')
+          PR_BODY=$(printf 'Weekly head-to-head run refreshed `website/app/data/head-to-head.json` — GateTest, Semgrep, ESLint (eslint-plugin-security) and CodeQL on the same pinned corpus commits, rendered at /precision.\n\nEvery number is this run'"'"'s own measurement (`scripts/head-to-head.js`). A tool that timed out, failed or could not be installed is written as such; CodeQL is written as not measured (with the reason) for any repo it could not build or analyse; SonarQube is always written as not measured, with the reason. Nothing in this PR touches the corpus ceilings.\n\nThis is a ROLLING PR — it is reset onto `main` every run, so it always shows the current table against current `main`.')
           gh pr create \
             --base main \
             --head "$BRANCH" \

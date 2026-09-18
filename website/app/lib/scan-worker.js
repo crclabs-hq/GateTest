@@ -145,7 +145,10 @@ async function recordApiUsage({ sql, usageStore, job, scanResult, repo }) {
  *
  *   - a git URL (github.com / gitlab.com)  → the SAME execution path as a
  *     repo-host job: runScan(url, tier, …), under the same budget/time
- *     guards, markDone, usage recorded.
+ *     guards, markDone, usage recorded. gitlab.com is public-repos-only
+ *     (no credential); when runScan reports notChecked (private/missing/
+ *     inaccessible project) the row is marked not_checked with the reason
+ *     rather than retried — see the notChecked branch below.
  *   - a bare website URL                   → the headless-browser runtime
  *     pass is the advertised capability (web-runtime-gate.js, KI #111), and
  *     that gate is also the honest answer here: when it isn't configured
@@ -213,6 +216,22 @@ async function runApiHostJob({ job, sql, queueStore, runScan, usageStore, tier, 
       duration: 0,
       error: `scan crashed: ${err && err.message ? err.message : err}`,
     };
+  }
+
+  // A git-host scan can come back honestly unable-to-check rather than
+  // failed — e.g. a gitlab.com project that is private/missing/otherwise
+  // inaccessible without a credential we don't hold (scan-executor.ts's
+  // runGitlabScan). That is Doctrine #1's third state, not a retryable
+  // failure: the target will answer 401/403/404 identically forever, so
+  // markNotChecked here (not markFailed) — never a retry storm.
+  if (scanResult && scanResult.notChecked) {
+    const reason = String(scanResult.notCheckedReason || 'not-accessible').slice(0, 200);
+    try {
+      await queueStore.markNotChecked(job.id, reason, sql);
+    } catch (err) { // error-ok — the not-checked outcome below is returned to the caller regardless; a lost write is logged, not fatal to the tick
+      console.error('[scan-worker] markNotChecked (api-git) failed:', err && err.message ? err.message : err);
+    }
+    return { ok: true, jobId: job.id, notChecked: true, reason, reclaimed };
   }
 
   const scanFailed = !scanResult || scanResult.status !== 'complete' || Boolean(scanResult.error);

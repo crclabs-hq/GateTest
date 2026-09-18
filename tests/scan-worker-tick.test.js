@@ -313,6 +313,47 @@ describe('runWorkerTick — api-host rows with a git URL (KI #113 Phase 2)', () 
     assert.strictEqual(qs.calls.markDone.length, 1);
   });
 
+  // Board item ("GitLab URLs are recognised but not fetched", left open by
+  // PR #599): a gitlab.com project scan-executor.ts's runGitlabScan could
+  // not honestly check (private / missing / self-hosted-that-slipped-
+  // through) comes back with `notChecked` set rather than a plain failure.
+  // This must land as `not_checked` — never retried/dead-lettered, since a
+  // 401/403/404 from gitlab.com will answer identically on every attempt.
+  it('a gitlab.com URL that comes back notChecked is marked not_checked, never retried', async () => {
+    const qs = makeQueueStore({
+      nextJob: makeJob({
+        id: 77,
+        host: 'api',
+        triggered_by: 'api_key:k4',
+        metadata: { url: 'https://gitlab.com/group/subgroup/project' },
+      }),
+    });
+    let callbackCalls = 0;
+    const result = await runWorkerTick({
+      sql: SQL,
+      queueStore: qs,
+      runScan: async () => makeScanResult({
+        status: 'failed',
+        modules: [],
+        totalModules: 0,
+        completedModules: 0,
+        notChecked: true,
+        notCheckedReason: 'gitlab:not-accessible',
+        error: 'Cannot access gitlab.com/group/subgroup/project (public archive not found (404))',
+      }),
+      sendCallback: async () => { callbackCalls++; },
+    });
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.notChecked, true);
+    assert.strictEqual(result.reason, 'gitlab:not-accessible');
+    assert.strictEqual(qs.calls.markNotChecked.length, 1);
+    assert.strictEqual(qs.calls.markNotChecked[0].id, 77);
+    assert.strictEqual(qs.calls.markNotChecked[0].reason, 'gitlab:not-accessible');
+    assert.strictEqual(qs.calls.markFailed.length, 0, 'never retried/dead-lettered — this is the honest not_checked state');
+    assert.strictEqual(qs.calls.markDone.length, 0, 'never done with zero findings either');
+    assert.strictEqual(callbackCalls, 0, 'api rows have no callback consumer');
+  });
+
   it('a failed scan retries/dead-letters exactly like a repo-host job, still with no callback', async () => {
     const qs = makeQueueStore({
       nextJob: makeJob({
