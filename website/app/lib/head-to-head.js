@@ -139,6 +139,29 @@ function validateEslint(e, where, problems) {
 }
 
 /**
+ * CodeQL, per repo. `undefined`/`null` is accepted and renders as
+ * "not measured" (a document written before this column existed, or a run
+ * that skipped the tool outright) — it is never required the way gatetest's
+ * own result is, because a stale document must keep validating rather than
+ * being treated as corrupt. When present, an "ok" row needs its
+ * blocking-equivalent and total counts (never a bare zero with no numbers);
+ * anything else needs a reason, so a failure can never render as silence.
+ */
+function validateCodeql(c, where, problems) {
+  if (c === null || c === undefined) return;
+  if (typeof c !== 'object') { problems.push(`${where}: codeql must be an object, null or undefined`); return; }
+  if (!isStr(c.status)) problems.push(`${where}.codeql.status must be a non-empty string`);
+  if (!isNum(c.seconds)) problems.push(`${where}.codeql.seconds must be a number`);
+  if (c.status === STATUS.ok) {
+    if (!isInt(c.blocking)) problems.push(`${where}.codeql.blocking must be an integer`);
+    if (!isInt(c.total)) problems.push(`${where}.codeql.total must be an integer`);
+    if (isInt(c.blocking) && isInt(c.total) && c.blocking > c.total) problems.push(`${where}.codeql: blocking exceeds total`);
+  } else if (!isStr(c.reason)) {
+    problems.push(`${where}.codeql: a not-measured result needs a reason`);
+  }
+}
+
+/**
  * Every problem with a head-to-head document. [] means valid. Nothing here
  * is a warning: the page renders exactly what passes, so anything that
  * would render as a blank or a lie is an error.
@@ -166,11 +189,32 @@ function validateHeadToHead(doc) {
       if (!(v.version === null || isStr(v.version))) problems.push(`tools.${t}.version must be a string or null`);
       if (v.version === null && !isStr(v.reason)) problems.push(`tools.${t}: a null version needs a reason`);
     }
-    for (const t of ['sonarqube', 'codeql']) {
-      const v = tools[t];
-      if (!v || typeof v !== 'object') { problems.push(`tools.${t} must be an object`); continue; }
-      if (v.status !== STATUS.notMeasured) problems.push(`tools.${t}.status must be "${STATUS.notMeasured}" until it is measured for real`);
-      if (!isStr(v.reason)) problems.push(`tools.${t}.reason must say why it is not measured`);
+    // SonarQube needs a running server — this script never runs it, so its
+    // document-level entry is always "not measured" with a reason.
+    {
+      const v = tools.sonarqube;
+      if (!v || typeof v !== 'object') problems.push('tools.sonarqube must be an object');
+      else {
+        if (v.status !== STATUS.notMeasured) problems.push(`tools.sonarqube.status must be "${STATUS.notMeasured}" until it is measured for real`);
+        if (!isStr(v.reason)) problems.push('tools.sonarqube.reason must say why it is not measured');
+      }
+    }
+    // CodeQL: version string when the CLI ran on this runner, or null with a
+    // reason — the same shape as semgrep/eslintSecurity above, now that the
+    // adapter can actually measure a repo. Also accepts the pre-adapter
+    // shape ({status:'not measured', reason}) so a document generated before
+    // this column existed keeps validating; buildTable renders both the
+    // same way (Doctrine #7: generated over typed — nothing here is ever
+    // hand-edited to look newer than the run that produced it).
+    {
+      const v = tools.codeql;
+      if (!v || typeof v !== 'object') problems.push('tools.codeql must be an object');
+      else if (v.status === STATUS.notMeasured) {
+        if (!isStr(v.reason)) problems.push('tools.codeql.reason must say why it is not measured');
+      } else {
+        if (!(v.version === null || isStr(v.version))) problems.push('tools.codeql.version must be a string or null');
+        if (v.version === null && !isStr(v.reason)) problems.push('tools.codeql: a null version needs a reason');
+      }
     }
   }
 
@@ -194,6 +238,9 @@ function validateHeadToHead(doc) {
     validateSemgrep(r.semgrep, where, problems);
     if (!('eslintSecurity' in r)) problems.push(`${where}.eslintSecurity must be present (null when not a JS/TS repo)`);
     else validateEslint(r.eslintSecurity, where, problems);
+    // codeql is optional (see validateCodeql) so a document written before
+    // this column existed still validates; when present its shape is checked.
+    if ('codeql' in r) validateCodeql(r.codeql, where, problems);
   });
   return problems;
 }
@@ -257,10 +304,30 @@ function eslintCell(e) {
   };
 }
 
-/** SonarQube / CodeQL: not measured yet, with the reason from the document. */
+/** SonarQube: not measured yet, with the reason from the document. */
 function notMeasuredCell(tool) {
   const reason = tool && isStr(tool.reason) ? tool.reason : 'no measurement has been run';
   return { text: `${STATUS.notMeasured} — ${reason}`, kind: 'not-measured' };
+}
+
+/**
+ * @returns {Cell} CodeQL, per repo: measured blocking-equivalent / total
+ * results when the adapter ran, otherwise "not measured" with the reason
+ * (CLI absent, unsupported language, timeout or a failed CLI step) —
+ * `undefined`/`null` (a document from before this column existed) renders
+ * the same way, never a blank cell.
+ */
+function codeqlCell(c) {
+  if (!c || typeof c !== 'object') return { text: STATUS.notMeasured, kind: 'not-measured' };
+  if (c.status !== STATUS.ok) {
+    const reason = isStr(c.reason) ? c.reason : 'no measurement has been run';
+    return { text: `${STATUS.notMeasured} — ${reason}`, kind: 'not-measured' };
+  }
+  return {
+    text: `${c.blocking} blocking-equivalent / ${c.total} results`,
+    detail: fmtSeconds(c.seconds),
+    kind: c.blocking === 0 ? 'clean' : 'measured',
+  };
 }
 
 /**
@@ -286,7 +353,7 @@ function buildTable(doc) {
       semgrepCell(r.semgrep),
       eslintCell(r.eslintSecurity),
       notMeasuredCell(tools.sonarqube),
-      notMeasuredCell(tools.codeql),
+      codeqlCell(r.codeql),
     ],
   }));
   return { columns, rows };

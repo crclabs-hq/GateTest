@@ -63,6 +63,7 @@ function fixture(overrides = {}) {
         gatetest: { status: 'ok', blocking: 0, total: 13, seconds: 41.2 },
         semgrep: { status: 'tool unavailable on this runner', seconds: 0 },
         eslintSecurity: { status: 'timed out', seconds: 600.0 },
+        codeql: { status: 'ok', blocking: 2, total: 9, seconds: 88.4, language: 'javascript' },
       },
       {
         name: 'django', url: 'https://github.com/django/django.git', sha: SHA, language: 'Python',
@@ -70,6 +71,7 @@ function fixture(overrides = {}) {
         gatetest: { status: 'timed out', seconds: 600.0 },
         semgrep: { status: 'ok', error: 3, warning: 40, info: 2, exit: 0, seconds: 120.5 },
         eslintSecurity: null,
+        codeql: { status: 'not measured', seconds: 12.3, language: 'Python', reason: 'codeql database create failed (exit 1): some stderr tail' },
       },
       {
         name: 'gin', url: 'https://github.com/gin-gonic/gin.git', sha: SHA, language: 'Go',
@@ -77,6 +79,7 @@ function fixture(overrides = {}) {
         gatetest: { status: 'failed (exit 3)', seconds: 2.0 },
         semgrep: { status: 'failed (exit 2) — no JSON output', seconds: 9.9 },
         eslintSecurity: null,
+        // no codeql key at all — a row from before this column existed
       },
     ],
     ...overrides,
@@ -157,6 +160,57 @@ describe('validateHeadToHead', () => {
   it('rejects an empty corpus', () => {
     assert.ok(validateHeadToHead(fixture({ repos: [] })).some((p) => /repos must not be empty/.test(p)));
     assert.deepStrictEqual(validateHeadToHead(null), ['document must be an object']);
+  });
+
+  // -------------------------------------------------------------------------
+  // CodeQL — measured per repo now, but a document from before the adapter
+  // existed (no per-repo codeql key, or the old document-level
+  // {status:'not measured', reason} shape) must keep validating.
+  // -------------------------------------------------------------------------
+
+  it('accepts the versioned tools.codeql shape once the CLI has actually run', () => {
+    const doc = fixture();
+    doc.tools.codeql = { version: '2.27.0', command: 'codeql database create ...' };
+    assert.deepStrictEqual(validateHeadToHead(doc), []);
+  });
+
+  it('rejects an empty tools.codeql entry (neither versioned nor the pre-adapter shape)', () => {
+    const doc = fixture();
+    doc.tools.codeql = {};
+    assert.ok(validateHeadToHead(doc).some((p) => /tools\.codeql\.version must be a string or null/.test(p)));
+  });
+
+  it('rejects a versioned tools.codeql with a null version and no reason', () => {
+    const doc = fixture();
+    doc.tools.codeql = { version: null };
+    assert.ok(validateHeadToHead(doc).some((p) => /tools\.codeql: a null version needs a reason/.test(p)));
+  });
+
+  it('rejects an ok codeql row missing its blocking-equivalent/total counts', () => {
+    const doc = fixture();
+    doc.repos[0].codeql = { status: 'ok', seconds: 1 };
+    const problems = validateHeadToHead(doc);
+    assert.ok(problems.some((p) => /codeql\.blocking must be an integer/.test(p)));
+    assert.ok(problems.some((p) => /codeql\.total must be an integer/.test(p)));
+  });
+
+  it('rejects codeql blocking above total, the same rule gatetest gets', () => {
+    const doc = fixture();
+    doc.repos[0].codeql = { status: 'ok', blocking: 5, total: 2, seconds: 1 };
+    assert.ok(validateHeadToHead(doc).some((p) => /codeql: blocking exceeds total/.test(p)));
+  });
+
+  it('rejects a not-measured codeql row without a reason — never a silent zero', () => {
+    const doc = fixture();
+    doc.repos[0].codeql = { status: 'not measured', seconds: 1 };
+    assert.ok(validateHeadToHead(doc).some((p) => /codeql: a not-measured result needs a reason/.test(p)));
+  });
+
+  it('accepts codeql: null on a repo (explicitly skipped) and a repo with no codeql key at all', () => {
+    const doc = fixture();
+    doc.repos[0].codeql = null;
+    delete doc.repos[1].codeql;
+    assert.deepStrictEqual(validateHeadToHead(doc), []);
   });
 });
 
@@ -249,11 +303,21 @@ describe('buildTable', () => {
     assert.match(gin.cells[1].text, /^failed \(exit 2\)/);
   });
 
-  it('renders SonarQube and CodeQL as not measured, with the reason from the file', () => {
+  it('renders SonarQube as not measured for every repo, with the document reason', () => {
     for (const row of table.rows) {
       assert.match(row.cells[3].text, /^not measured — needs a server$/);
-      assert.match(row.cells[4].text, /^not measured — needs a database build$/);
     }
+  });
+
+  it('renders CodeQL per repo: measured when the adapter ran, not-measured with the reason when it could not, and generically not-measured for a row from before the column existed', () => {
+    const [express, django, gin] = table.rows;
+    assert.match(express.cells[4].text, /^2 blocking-equivalent \/ 9 results$/);
+    assert.strictEqual(express.cells[4].detail, '88.4 s');
+    assert.strictEqual(express.cells[4].kind, 'measured');
+    assert.match(django.cells[4].text, /^not measured — codeql database create failed \(exit 1\)/);
+    assert.strictEqual(django.cells[4].kind, 'not-measured');
+    assert.strictEqual(gin.cells[4].text, STATUS.notMeasured, 'a row with no codeql key at all still says something, never blank');
+    assert.strictEqual(gin.cells[4].kind, 'not-measured');
   });
 
   it('survives a document with nothing in it rather than throwing on the page', () => {
@@ -312,6 +376,92 @@ describe('scripts/head-to-head.js helpers', () => {
     const all = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}), ...(pkg.optionalDependencies || {}) };
     for (const name of ['eslint-plugin-security', '@typescript-eslint/parser', 'semgrep', '@semgrep/semgrep']) {
       assert.ok(!(name in all), `${name} must not be a dependency of this repository`);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The CodeQL adapter — offline: no CLI, no network, no real clone needed
+// ---------------------------------------------------------------------------
+
+describe('scripts/head-to-head.js CodeQL adapter', () => {
+  /** A minimal CodeQL SARIF document with one run. */
+  function sarifFixture(results, rules = []) {
+    return { runs: [{ tool: { driver: { name: 'CodeQL', rules } }, results }] };
+  }
+
+  it('counts two errors and one note as documented: level "error" is blocking-equivalent, "note" is not', () => {
+    const sarif = sarifFixture([
+      { level: 'error', ruleId: 'js/sql-injection' },
+      { level: 'error', ruleId: 'js/path-injection' },
+      { level: 'note', ruleId: 'js/useless-assignment' },
+    ]);
+    assert.deepStrictEqual(script.countCodeqlSarif(sarif), { blocking: 2, total: 3 });
+  });
+
+  it('a security-severity >= 7.0 on a non-error result still counts as blocking-equivalent; below 7.0 does not', () => {
+    const sarif = sarifFixture([
+      { level: 'warning', ruleId: 'a', properties: { 'security-severity': '7.0' } },
+      { level: 'warning', ruleId: 'b', properties: { 'security-severity': '6.9' } },
+    ]);
+    assert.deepStrictEqual(script.countCodeqlSarif(sarif), { blocking: 1, total: 2 });
+  });
+
+  it('a rule-level problem.severity of "error" counts as blocking-equivalent even when the result level does not', () => {
+    const sarif = sarifFixture(
+      [{ level: 'warning', ruleId: 'c', ruleIndex: 0 }],
+      [{ id: 'c', properties: { 'problem.severity': 'error' } }],
+    );
+    assert.deepStrictEqual(script.countCodeqlSarif(sarif), { blocking: 1, total: 1 });
+  });
+
+  it('an empty or missing SARIF run counts nothing, never throwing', () => {
+    assert.deepStrictEqual(script.countCodeqlSarif({}), { blocking: 0, total: 0 });
+    assert.deepStrictEqual(script.countCodeqlSarif({ runs: [] }), { blocking: 0, total: 0 });
+    assert.deepStrictEqual(script.countCodeqlSarif(null), { blocking: 0, total: 0 });
+  });
+
+  it('codeql temp paths (db + sarif) are siblings of the clone, never inside it', () => {
+    const dir = path.join(os.tmpdir(), 'gt-h2h-xxxx', 'express');
+    const paths = script.codeqlPaths(dir);
+    assert.ok(!paths.db.startsWith(`${dir}${path.sep}`), 'the database must not live inside the clone');
+    assert.ok(!paths.sarif.startsWith(`${dir}${path.sep}`), 'the SARIF output must not live inside the clone');
+    assert.strictEqual(path.dirname(paths.db), path.dirname(dir), 'both are siblings of the clone in the script\'s tmp dir');
+  });
+
+  it('an unsupported language is not-measured without attempting a CLI call, never a zero', () => {
+    const row = script.runCodeql({ bin: 'codeql' }, '/does/not/matter', 'Rust', 5000);
+    assert.strictEqual(row.status, 'not measured');
+    assert.match(row.reason, /Rust/);
+    assert.strictEqual(row.blocking, undefined);
+    assert.strictEqual(row.seconds, 0);
+  });
+
+  it('a CodeQL run that cannot spawn the CLI is not-measured with the reason, never a zero', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-h2h-codeql-'));
+    try {
+      const dir = path.join(tmp, 'repo');
+      fs.mkdirSync(dir);
+      const row = script.runCodeql({ bin: 'gt-h2h-nonexistent-codeql-binary-xyz' }, dir, 'JavaScript', 5000);
+      assert.strictEqual(row.status, 'not measured');
+      assert.strictEqual(row.blocking, undefined, 'a failed run never reports a blocking count');
+      assert.match(row.reason, /database create/);
+      assert.strictEqual(row.language, 'JavaScript');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('findCodeql looks at CODEQL_HOME before PATH and returns null rather than throwing when neither has one', () => {
+    assert.strictEqual(typeof script.findCodeql, 'function');
+    const saved = process.env.CODEQL_HOME;
+    delete process.env.CODEQL_HOME;
+    try {
+      // This sandbox has no CodeQL CLI installed; the important thing is
+      // that a missing tool is `null`, never a thrown exception.
+      assert.doesNotThrow(() => script.findCodeql());
+    } finally {
+      if (saved === undefined) delete process.env.CODEQL_HOME; else process.env.CODEQL_HOME = saved;
     }
   });
 });
@@ -409,5 +559,31 @@ describe('.github/workflows/head-to-head.yml', () => {
     const commands = yml.split(/\r?\n/).filter((l) => !/^\s*#/.test(l)).join('\n');
     assert.doesNotMatch(commands, /--ratchet/, 'the comparison never ratchets a ceiling');
     assert.doesNotMatch(commands, /real-world\.json/, 'no command touches the manifest');
+  });
+
+  it('installs a pinned, checksum-verified CodeQL CLI release before Measure, and exports CODEQL_HOME/PATH', () => {
+    assert.match(yml, /Install CodeQL CLI/);
+    const installIdx = yml.indexOf('Install CodeQL CLI');
+    const measureIdx = yml.search(/- name: Measure\r?\n/);
+    assert.ok(installIdx > -1 && measureIdx > installIdx, 'the CodeQL install step must run before Measure');
+    const installStep = yml.slice(installIdx, measureIdx);
+    assert.match(installStep, /codeql-bundle-v[\d.]+/, 'pins an exact release tag, never a mutable "latest"');
+    assert.match(installStep, /codeql-bundle-linux64\.tar\.gz/);
+    assert.match(installStep, /sha256sum -c/, 'verifies the download against the release\'s own checksum');
+    assert.match(installStep, /CODEQL_HOME/);
+    assert.match(installStep, /GITHUB_ENV/);
+    assert.match(installStep, /GITHUB_PATH/);
+    assert.match(installStep, /codeql version|codeql"\s*version/, 'prints the installed version');
+  });
+
+  it('never swallows a step failure with `|| true`, and the CodeQL install step never interpolates event data', () => {
+    const commands = yml.split(/\r?\n/).filter((l) => !/^\s*#/.test(l)).join('\n');
+    assert.doesNotMatch(commands, /\|\|\s*true\b/, 'a failure must be visible, never swallowed with `|| true`');
+    const installStep = yml.slice(yml.indexOf('Install CodeQL CLI'), yml.indexOf('name: Install all workspaces'));
+    assert.doesNotMatch(installStep, /\$\{\{\s*github\.event/, 'event data must flow through env: (like LIMIT does), never be interpolated directly into the script');
+    // The only untrusted input this workflow takes (workflow_dispatch's
+    // `repos`) already flows through env: as LIMIT — the pattern this step
+    // must also follow for anything it ever reads from the event.
+    assert.match(yml, /LIMIT: \$\{\{ github\.event\.inputs\.repos \}\}/);
   });
 });

@@ -22,14 +22,30 @@
  *   3. ESLint    eslint-plugin-security's recommended rules, only when the
  *                clone's dominant language is JavaScript or TypeScript, via a
  *                throwaway package.json in the temp dir (never in this repo).
+ *   4. CodeQL    the official CLI (found on PATH or at CODEQL_HOME — the
+ *                workflow installs a pinned bundle) builds a database for
+ *                the clone's detected language and runs that language's
+ *                `*-security-extended.qls` query suite, e.g.
+ *                `javascript-security-extended.qls`. A result counts as
+ *                blocking-equivalent when its SARIF level is "error", its
+ *                `problem.severity` is "error", or its `security-severity`
+ *                is >= 7.0 (see `isCodeqlBlocking`, the one definition).
+ *                Interpreted languages run with `--build-mode=none`;
+ *                compiled ones fall back to CodeQL's autobuild and simply
+ *                report "not measured" with the reason when it cannot build
+ *                the repo. A language with no security-extended suite (this
+ *                adapter currently covers JavaScript/TypeScript, Python,
+ *                Ruby, Go, Java, C# and Swift) is "not measured" too.
  *
  * Each tool is time-boxed per repo (TOOL_TIMEOUT_MS, ten minutes) and a run
  * that hits the box is written as "timed out" with the seconds it burned. A
  * tool that cannot be installed on this runner is written as "tool
- * unavailable on this runner" for every repo. SonarQube (needs a server) and
- * CodeQL (needs a per-language database build) are NOT run and are written
- * as "not measured" with the reason — a number nobody measured is not a
- * number.
+ * unavailable on this runner" for every repo. SonarQube (needs a server) is
+ * NOT run and is written as "not measured" with the reason — a number nobody
+ * measured is not a number. CodeQL is measured per repo when its CLI is
+ * present; any failure (CLI absent, unsupported language, timeout, non-zero
+ * exit from either CLI step) is written as "not measured" with the reason,
+ * the same rule applied to every other tool here — never a fabricated zero.
  *
  * Counts are not comparable one-to-one. GateTest's "blocking" is a gate
  * verdict on error-severity findings across code quality, security, infra
@@ -50,7 +66,7 @@
  *   node scripts/head-to-head.js --merge              # keep rows for repos not in this run
  *   node scripts/head-to-head.js --suite quick        # pre-commit tier instead of full
  *   node scripts/head-to-head.js --out <path>         # default website/app/data/head-to-head.json
- *   node scripts/head-to-head.js --no-semgrep --no-eslint --keep --timeout-minutes 10
+ *   node scripts/head-to-head.js --no-semgrep --no-eslint --no-codeql --keep --timeout-minutes 10
  */
 
 'use strict';
@@ -90,7 +106,7 @@ const log = (s) => process.stderr.write(`${s}\n`);
 function parseArgs(argv) {
   const opts = {
     repos: null, only: [], json: false, out: OUT_DEFAULT, suite: 'full', keep: false, merge: false,
-    semgrep: true, eslint: true, timeoutMs: TOOL_TIMEOUT_MS,
+    semgrep: true, eslint: true, codeql: true, timeoutMs: TOOL_TIMEOUT_MS,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
@@ -103,6 +119,7 @@ function parseArgs(argv) {
     else if (a === '--merge') opts.merge = true;
     else if (a === '--no-semgrep') opts.semgrep = false;
     else if (a === '--no-eslint') opts.eslint = false;
+    else if (a === '--no-codeql') opts.codeql = false;
     else if (a === '--timeout-minutes') { opts.timeoutMs = Number(argv[i + 1]) * 60 * 1000; i += 1; }
     else { throw new Error(`unknown argument: ${a}`); }
   }
@@ -329,6 +346,122 @@ function runEslint(tool, dir, timeoutMs) {
 }
 
 // ---------------------------------------------------------------------------
+// CodeQL
+// ---------------------------------------------------------------------------
+
+// CodeQL's own `--language=` identifiers, keyed by the display name
+// detectLanguage() returns — the one definition ESLint's JS_TS gate also
+// reads. TypeScript is analysed under CodeQL's combined "javascript"
+// extractor (it understands both). A language with no entry here (Rust, PHP,
+// Kotlin, unknown, as of this adapter) has no security-extended suite to run,
+// so a repo detected as one is "not measured" with that reason — never a
+// silent zero.
+const CODEQL_LANG = Object.freeze({
+  JavaScript: 'javascript', TypeScript: 'javascript',
+  Python: 'python', Ruby: 'ruby', Go: 'go', Java: 'java',
+  'C#': 'csharp', Swift: 'swift',
+});
+// Interpreted languages CodeQL can extract without compiling the project.
+// Java/C#/Swift still go through `database create`'s autobuild, which fails
+// (honestly, as "not measured") on a repo it cannot build unassisted.
+const CODEQL_BUILD_MODE_NONE = new Set(['javascript', 'python', 'ruby', 'go']);
+
+/**
+ * The database + SARIF paths for one repo's CodeQL run — always a sibling of
+ * the clone inside the script's own tmp dir, never inside the clone itself,
+ * so the repository under test never gains an untracked directory
+ * (tests/head-to-head.test.js pins this the same way it pins the throwaway
+ * ESLint toolchain never installing into this repository).
+ */
+function codeqlPaths(dir) {
+  const base = path.join(path.dirname(dir), path.basename(dir));
+  return { db: `${base}.codeql-db`, sarif: `${base}.codeql.sarif` };
+}
+
+/** Find a runnable CodeQL CLI: CODEQL_HOME first (the workflow sets it), then PATH. */
+function findCodeql() {
+  const exe = process.platform === 'win32' ? 'codeql.exe' : 'codeql';
+  const candidates = [];
+  if (process.env.CODEQL_HOME) candidates.push(path.join(process.env.CODEQL_HOME, exe));
+  candidates.push(exe);
+  for (const bin of candidates) {
+    let r;
+    try { r = spawnSync(bin, ['version', '--format=terse'], { encoding: 'utf8', timeout: 60000 }); } catch { continue; } // error-ok — not a codeql
+    if (r.status === 0 && r.stdout.trim()) return { bin, version: r.stdout.trim().split('\n').pop().trim() };
+  }
+  return null;
+}
+
+/**
+ * CodeQL SARIF severity mapping — the ONE definition of "blocking-equivalent"
+ * for this column, so a code path and its test can never disagree on the
+ * count. A result counts as blocking-equivalent when EITHER:
+ *   - its own SARIF `level` is "error", or
+ *   - its rule's (or its own) `problem.severity` property is "error", or
+ *   - its `security-severity` score (a CVSS-style 0-10 the query suite sets)
+ *     is >= 7.0 — CVSS "high" and above, mirroring the bar GateTest's own
+ *     error severity sets for blocking.
+ * Everything else (level warning/note/none with no qualifying severity) is
+ * counted in the total but not blocking-equivalent.
+ */
+function isCodeqlBlocking(result, rules) {
+  if (String(result.level || '').toLowerCase() === 'error') return true;
+  const idx = Number.isInteger(result.ruleIndex) ? result.ruleIndex
+    : (result.rule && Number.isInteger(result.rule.index) ? result.rule.index : null);
+  const rule = Number.isInteger(idx) ? rules[idx] : null;
+  const props = { ...((rule && rule.properties) || {}), ...(result.properties || {}) };
+  if (String(props['problem.severity'] || '').toLowerCase() === 'error') return true;
+  const sev = Number(props['security-severity']);
+  return Number.isFinite(sev) && sev >= 7.0;
+}
+
+/** Blocking-equivalent / total counts from one CodeQL SARIF document (first run only — this adapter writes exactly one). */
+function countCodeqlSarif(sarif) {
+  const run = sarif && Array.isArray(sarif.runs) ? sarif.runs[0] : null;
+  const rules = (run && run.tool && run.tool.driver && Array.isArray(run.tool.driver.rules)) ? run.tool.driver.rules : [];
+  const results = (run && Array.isArray(run.results)) ? run.results : [];
+  let blocking = 0;
+  for (const r of results) { if (isCodeqlBlocking(r, rules)) blocking += 1; }
+  return { blocking, total: results.length };
+}
+
+/**
+ * One repo's CodeQL measurement: `database create` then `database analyze`
+ * with the language's `*-security-extended.qls` suite. Any failure — an
+ * unsupported language, a timeout on either step, or a non-zero exit from
+ * either step — is written as "not measured" with the reason; this column
+ * never reports a zero it did not actually count (Doctrine #1).
+ */
+function runCodeql(tool, dir, language, timeoutMs) {
+  const lang = CODEQL_LANG[language];
+  if (!lang) return { status: STATUS.notMeasured, seconds: 0, language, reason: `CodeQL has no security-extended query suite for ${language}` };
+  const { db, sarif: sarifOut } = codeqlPaths(dir);
+  fs.rmSync(db, { recursive: true, force: true });
+  const start = process.hrtime.bigint();
+  const createArgs = ['database', 'create', db, `--language=${lang}`, '--source-root', dir, '--overwrite'];
+  if (CODEQL_BUILD_MODE_NONE.has(lang)) createArgs.push('--build-mode=none');
+  const create = spawnSync(tool.bin, createArgs, { encoding: 'utf8', maxBuffer: MAX_BUFFER, timeout: timeoutMs });
+  let seconds = elapsedSeconds(start);
+  if (timedOut(create)) return { status: STATUS.notMeasured, seconds, language, reason: `codeql database create timed out after ${seconds} s` };
+  if (create.status !== 0) return { status: STATUS.notMeasured, seconds, language, reason: `codeql database create failed (exit ${create.status}): ${tail(create.stderr)}` };
+
+  const remainingMs = Math.max(timeoutMs - Math.round(seconds * 1000), 30000);
+  const analyze = spawnSync(tool.bin, [
+    'database', 'analyze', db, '--format=sarif-latest', '--output', sarifOut, `${lang}-security-extended.qls`,
+  ], { encoding: 'utf8', maxBuffer: MAX_BUFFER, timeout: remainingMs });
+  seconds = elapsedSeconds(start);
+  if (timedOut(analyze)) return { status: STATUS.notMeasured, seconds, language, reason: `codeql database analyze timed out after ${seconds} s` };
+  if (analyze.status !== 0) return { status: STATUS.notMeasured, seconds, language, reason: `codeql database analyze failed (exit ${analyze.status}): ${tail(analyze.stderr)}` };
+
+  let sarifDoc;
+  try { sarifDoc = JSON.parse(fs.readFileSync(sarifOut, 'utf8')); } catch (err) {
+    return { status: STATUS.notMeasured, seconds, language, reason: `could not read the SARIF output: ${err.message}` }; // error-ok — reported as not-measured
+  }
+  const { blocking, total } = countCodeqlSarif(sarifDoc);
+  return { status: STATUS.ok, blocking, total, language, seconds };
+}
+
+// ---------------------------------------------------------------------------
 // The document
 // ---------------------------------------------------------------------------
 
@@ -338,7 +471,7 @@ function engineCommit() {
   } catch { return 'unknown'; } // error-ok — a missing .git only costs the label
 }
 
-function buildDocument({ opts, manifest, measured, semgrep, eslint, semgrepReason, eslintReason }) {
+function buildDocument({ opts, manifest, measured, semgrep, eslint, codeql, semgrepReason, eslintReason, codeqlReason }) {
   return {
     schemaVersion: h2h.SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
@@ -362,10 +495,12 @@ function buildDocument({ opts, manifest, measured, semgrep, eslint, semgrepReaso
         status: STATUS.notMeasured,
         reason: 'needs a running SonarQube server and a scanner token; no server is provisioned for the corpus yet, and no number is written until one measures it',
       },
-      codeql: {
-        status: STATUS.notMeasured,
-        reason: 'needs the CodeQL CLI and a per-language database build (a compile step for Java, C#, Kotlin, Swift, Go, Rust) for each repository; not automated on this runner yet',
-      },
+      codeql: codeql
+        ? {
+          version: codeql.version,
+          command: 'codeql database create <tmp>/<repo>.codeql-db --language=<lang> [--build-mode=none] --source-root <clone> --overwrite && codeql database analyze <db> --format=sarif-latest --output <tmp>/<repo>.codeql.sarif <lang>-security-extended.qls',
+        }
+        : { version: null, reason: codeqlReason },
     },
     repos: measured,
   };
@@ -385,16 +520,18 @@ function previousRows(outPath, measuredNames) {
 function printTable(doc) {
   const table = h2h.buildTable(doc);
   const pad = (s, n) => String(s).padEnd(n);
-  const w = [18, 11, 34, 44, 40];
-  const cols = ['Repository', 'Language', ...table.columns.slice(0, 3).map((c) => `${c.label}${c.version ? ` ${c.version}` : ''}`)];
+  // gatetest, semgrep, eslintSecurity, codeql — sonarqube is a single fact
+  // for every row (it is never run), so it gets one footer line instead.
+  const idxs = [0, 1, 2, 4];
+  const w = [18, 11, 34, 44, 40, 40];
+  const cols = ['Repository', 'Language', ...idxs.map((i) => `${table.columns[i].label}${table.columns[i].version ? ` ${table.columns[i].version}` : ''}`)];
   console.log(cols.map((c, i) => pad(c, w[i])).join('  '));
   console.log(w.map((n) => '-'.repeat(n)).join('  '));
   for (const row of table.rows) {
-    const cells = row.cells.slice(0, 3).map((c) => `${c.text}${c.detail ? ` (${c.detail})` : ''}`);
+    const cells = idxs.map((i) => `${row.cells[i].text}${row.cells[i].detail ? ` (${row.cells[i].detail})` : ''}`);
     console.log([row.name, row.language, ...cells].map((c, i) => pad(c, w[i])).join('  '));
   }
   console.log(`\nSonarQube: ${table.rows[0] ? table.rows[0].cells[3].text : STATUS.notMeasured}`);
-  console.log(`CodeQL:    ${table.rows[0] ? table.rows[0].cells[4].text : STATUS.notMeasured}`);
 }
 
 function main() {
@@ -426,6 +563,13 @@ function main() {
     log(eslint.ok ? `eslint ${eslint.version}, eslint-plugin-security ${eslint.pluginVersion} (${eslint.installSeconds} s to install)` : `eslint: ${eslint.reason}`);
   } else eslintReason = 'skipped with --no-eslint';
 
+  let codeql = null; let codeqlReason;
+  if (opts.codeql) {
+    codeql = findCodeql();
+    codeqlReason = codeql ? undefined : 'the CodeQL CLI is not installed on this runner (tried CODEQL_HOME and PATH)';
+    log(codeql ? `codeql ${codeql.version} (${codeql.bin})` : `codeql: ${codeqlReason}`);
+  } else codeqlReason = 'skipped with --no-codeql';
+
   // Rows this run keeps from the previous file (--merge) ride along with the
   // measured ones; the manifest order is the table order.
   const kept = opts.merge ? previousRows(opts.out, new Set(repos.map((r) => r.name))) : [];
@@ -436,7 +580,7 @@ function main() {
   // process. Each write is the whole document, validated.
   const writeDocument = () => {
     const rows = [...measured, ...kept].sort((a, b) => byManifest.indexOf(a.name) - byManifest.indexOf(b.name));
-    const doc = buildDocument({ opts, manifest, measured: rows, semgrep, eslint, semgrepReason, eslintReason });
+    const doc = buildDocument({ opts, manifest, measured: rows, semgrep, eslint, codeql, semgrepReason, eslintReason, codeqlReason });
     const problems = h2h.validateHeadToHead(doc);
     if (problems.length) {
       log('\nBUG: the document this script built does not validate — not writing:');
@@ -490,6 +634,13 @@ function main() {
         log(`    eslint    ${row.eslintSecurity.status}`);
       }
 
+      row.codeql = codeql
+        ? runCodeql(codeql, dest, language, opts.timeoutMs)
+        : { status: STATUS.notMeasured, seconds: 0, language, reason: codeqlReason };
+      log(`    codeql    ${row.codeql.status === STATUS.ok
+        ? `${row.codeql.blocking} blocking-equivalent / ${row.codeql.total} results (${row.codeql.language})`
+        : `${row.codeql.status} — ${row.codeql.reason}`}  ${row.codeql.seconds} s`);
+
       measured.push(row);
       writeDocument();
       // Free the disk before the next clone; the verdict is already in `row`.
@@ -521,4 +672,7 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { parseArgs, detectLanguage, countSemgrep, eslintConfig, buildDocument, ESLINT_PACKAGES };
+module.exports = {
+  parseArgs, detectLanguage, countSemgrep, eslintConfig, buildDocument, ESLINT_PACKAGES,
+  CODEQL_LANG, codeqlPaths, findCodeql, isCodeqlBlocking, countCodeqlSarif, runCodeql,
+};
