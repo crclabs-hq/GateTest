@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-16T06:51:02.129Z",
+  "generatedAt": "2026-09-19T15:04:37.755Z",
   "source": "scripts/head-to-head.js",
   "note": "Measured on pinned commits of repositories we do not control, every tool on the same clone. Counts are not comparable one-to-one across tools; each column is what that tool reports and how long it took. A tool that was not run says so. Do not hand-edit — run the script.",
   "engineVersion": "1.61.1",
-  "engineCommit": "b444057a",
+  "engineCommit": "e3288846",
   "suite": "full",
   "corpusSize": 20,
   "toolTimeoutSeconds": 600,
   "runner": {
-    "platform": "win32",
+    "platform": "linux",
     "arch": "x64",
-    "node": "v24.18.0"
+    "node": "v22.23.2"
   },
   "tools": {
     "gatetest": {
@@ -27,7 +27,7 @@
       "version": "9.39.5",
       "pluginVersion": "4.0.1",
       "parserVersion": "8.70.0",
-      "installSeconds": 38.4,
+      "installSeconds": 4.4,
       "command": "eslint --config <security-only flat config> --format json ."
     },
     "sonarqube": {
@@ -35,8 +35,8 @@
       "reason": "needs a running SonarQube server and a scanner token; no server is provisioned for the corpus yet, and no number is written until one measures it"
     },
     "codeql": {
-      "status": "not measured",
-      "reason": "needs the CodeQL CLI and a per-language database build (a compile step for Java, C#, Kotlin, Swift, Go, Rust) for each repository; not automated on this runner yet"
+      "version": "2.27.0",
+      "command": "codeql database create <tmp>/<repo>.codeql-db --language=<lang> [--build-mode=none] --source-root <clone> --overwrite && codeql database analyze <db> --format=sarif-latest --output <tmp>/<repo>.codeql.sarif <lang>-security-extended.qls"
     }
   },
   "repos": [
@@ -49,7 +49,7 @@
         "JavaScript": 141
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:08:57.853Z",
+      "measuredAt": "2026-09-19T14:02:08.006Z",
       "gatetest": {
         "status": "ok",
         "blocking": 0,
@@ -60,7 +60,7 @@
         "info": 45,
         "modules": 88,
         "exit": 0,
-        "seconds": 120.8
+        "seconds": 16.4
       },
       "semgrep": {
         "status": "ok",
@@ -74,7 +74,7 @@
         "scanErrors": 1,
         "filesScanned": 101,
         "exit": 0,
-        "seconds": 27
+        "seconds": 4.5
       },
       "eslintSecurity": {
         "status": "ok",
@@ -83,7 +83,14 @@
         "fatal": 0,
         "files": 142,
         "exit": 0,
-        "seconds": 22.3
+        "seconds": 1.8
+      },
+      "codeql": {
+        "status": "ok",
+        "blocking": 1,
+        "total": 5,
+        "language": "JavaScript",
+        "seconds": 50
       }
     },
     {
@@ -92,11 +99,11 @@
       "sha": "b3f4d83aad7f589f165a6d8b020b7acba4936f35",
       "language": "Python",
       "fileCounts": {
-        "Python": 2930,
-        "JavaScript": 45
+        "JavaScript": 45,
+        "Python": 2930
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:12:10.101Z",
+      "measuredAt": "2026-09-19T14:03:23.621Z",
       "gatetest": {
         "status": "ok",
         "blocking": 46,
@@ -107,7 +114,7 @@
         "info": 248,
         "modules": 88,
         "exit": 1,
-        "seconds": 225.1
+        "seconds": 20
       },
       "semgrep": {
         "status": "ok",
@@ -117,11 +124,18 @@
         "other": 0,
         "otherSeverities": [],
         "scanErrors": 62,
-        "filesScanned": 4391,
+        "filesScanned": 4387,
         "exit": 0,
-        "seconds": 166.1
+        "seconds": 66
       },
-      "eslintSecurity": null
+      "eslintSecurity": null,
+      "codeql": {
+        "status": "ok",
+        "blocking": 53,
+        "total": 55,
+        "language": "Python",
+        "seconds": 362.5
+      }
     },
     {
       "name": "rails",
@@ -133,7 +147,7 @@
         "JavaScript": 61
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:18:51.412Z",
+      "measuredAt": "2026-09-19T14:10:54.814Z",
       "gatetest": {
         "status": "ok",
         "blocking": 41,
@@ -144,21 +158,28 @@
         "info": 80,
         "modules": 88,
         "exit": 1,
-        "seconds": 104.9
+        "seconds": 12
       },
       "semgrep": {
         "status": "ok",
         "error": 45,
-        "warning": 196,
+        "warning": 197,
         "info": 0,
         "other": 0,
         "otherSeverities": [],
-        "scanErrors": 15,
+        "scanErrors": 0,
         "filesScanned": 2151,
         "exit": 0,
-        "seconds": 95.8
+        "seconds": 43.5
       },
-      "eslintSecurity": null
+      "eslintSecurity": null,
+      "codeql": {
+        "status": "ok",
+        "blocking": 420,
+        "total": 501,
+        "language": "Ruby",
+        "seconds": 474.9
+      }
     },
     {
       "name": "flask",
@@ -169,7 +190,7 @@
         "Python": 83
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:22:16.237Z",
+      "measuredAt": "2026-09-19T14:19:46.218Z",
       "gatetest": {
         "status": "ok",
         "blocking": 2,
@@ -180,7 +201,7 @@
         "info": 2,
         "modules": 88,
         "exit": 1,
-        "seconds": 14.2
+        "seconds": 2.2
       },
       "semgrep": {
         "status": "ok",
@@ -194,9 +215,16 @@
         "scanErrors": 5,
         "filesScanned": 162,
         "exit": 0,
-        "seconds": 25.7
+        "seconds": 7.2
       },
-      "eslintSecurity": null
+      "eslintSecurity": null,
+      "codeql": {
+        "status": "ok",
+        "blocking": 8,
+        "total": 8,
+        "language": "Python",
+        "seconds": 28.9
+      }
     },
     {
       "name": "fastify",
@@ -208,7 +236,7 @@
         "TypeScript": 34
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:22:58.161Z",
+      "measuredAt": "2026-09-19T14:20:25.471Z",
       "gatetest": {
         "status": "ok",
         "blocking": 3,
@@ -219,7 +247,7 @@
         "info": 181,
         "modules": 88,
         "exit": 1,
-        "seconds": 46.9
+        "seconds": 22.8
       },
       "semgrep": {
         "status": "ok",
@@ -231,7 +259,7 @@
         "scanErrors": 4,
         "filesScanned": 158,
         "exit": 0,
-        "seconds": 14.3
+        "seconds": 6.5
       },
       "eslintSecurity": {
         "status": "ok",
@@ -240,7 +268,14 @@
         "fatal": 0,
         "files": 297,
         "exit": 0,
-        "seconds": 22.9
+        "seconds": 4.4
+      },
+      "codeql": {
+        "status": "ok",
+        "blocking": 0,
+        "total": 0,
+        "language": "JavaScript",
+        "seconds": 78.2
       }
     },
     {
@@ -253,18 +288,18 @@
         "TypeScript": 505
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:24:25.339Z",
+      "measuredAt": "2026-09-19T14:22:19.040Z",
       "gatetest": {
         "status": "ok",
         "blocking": 3,
-        "total": 1417,
+        "total": 1403,
         "errors": 15,
         "softErrors": 12,
-        "warnings": 920,
+        "warnings": 906,
         "info": 482,
         "modules": 88,
         "exit": 1,
-        "seconds": 53.3
+        "seconds": 11.7
       },
       "semgrep": {
         "status": "ok",
@@ -275,10 +310,10 @@
         "otherSeverities": [
           "MEDIUM"
         ],
-        "scanErrors": 11,
-        "filesScanned": 471,
+        "scanErrors": 10,
+        "filesScanned": 467,
         "exit": 0,
-        "seconds": 74.8
+        "seconds": 17.1
       },
       "eslintSecurity": {
         "status": "ok",
@@ -287,7 +322,14 @@
         "fatal": 0,
         "files": 513,
         "exit": 1,
-        "seconds": 15.1
+        "seconds": 6.2
+      },
+      "codeql": {
+        "status": "ok",
+        "blocking": 3,
+        "total": 8,
+        "language": "TypeScript",
+        "seconds": 121.3
       }
     },
     {
@@ -299,7 +341,7 @@
         "Go": 99
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:26:51.338Z",
+      "measuredAt": "2026-09-19T14:24:56.030Z",
       "gatetest": {
         "status": "ok",
         "blocking": 0,
@@ -310,7 +352,7 @@
         "info": 19,
         "modules": 88,
         "exit": 0,
-        "seconds": 21.6
+        "seconds": 42.2
       },
       "semgrep": {
         "status": "ok",
@@ -324,9 +366,15 @@
         "scanErrors": 0,
         "filesScanned": 90,
         "exit": 0,
-        "seconds": 23.8
+        "seconds": 4.8
       },
-      "eslintSecurity": null
+      "eslintSecurity": null,
+      "codeql": {
+        "status": "not measured",
+        "seconds": 1.3,
+        "language": "Go",
+        "reason": "codeql database create failed (exit 2): Initializing database at /tmp/gt-h2h-jAWEgr/gin.codeql-db.\nA fatal error occurred: Go does not support the none build mode. Please try using one of the following build modes instead: autobuild, manual."
+      }
     },
     {
       "name": "laravel",
@@ -338,7 +386,7 @@
         "JavaScript": 3
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:27:48.651Z",
+      "measuredAt": "2026-09-19T14:25:46.230Z",
       "gatetest": {
         "status": "ok",
         "blocking": 4,
@@ -349,7 +397,7 @@
         "info": 20,
         "modules": 88,
         "exit": 1,
-        "seconds": 64.2
+        "seconds": 4.8
       },
       "semgrep": {
         "status": "ok",
@@ -363,9 +411,15 @@
         "scanErrors": 4,
         "filesScanned": 2057,
         "exit": 0,
-        "seconds": 100
+        "seconds": 17.9
       },
-      "eslintSecurity": null
+      "eslintSecurity": null,
+      "codeql": {
+        "status": "not measured",
+        "seconds": 0,
+        "language": "PHP",
+        "reason": "CodeQL has no security-extended query suite for PHP"
+      }
     },
     {
       "name": "got",
@@ -377,7 +431,7 @@
         "JavaScript": 6
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:30:38.902Z",
+      "measuredAt": "2026-09-19T14:26:09.857Z",
       "gatetest": {
         "status": "ok",
         "blocking": 0,
@@ -388,7 +442,7 @@
         "info": 164,
         "modules": 88,
         "exit": 0,
-        "seconds": 65.5
+        "seconds": 23.8
       },
       "semgrep": {
         "status": "ok",
@@ -402,7 +456,7 @@
         "scanErrors": 1,
         "filesScanned": 70,
         "exit": 0,
-        "seconds": 31.2
+        "seconds": 7.1
       },
       "eslintSecurity": {
         "status": "ok",
@@ -411,7 +465,14 @@
         "fatal": 0,
         "files": 86,
         "exit": 1,
-        "seconds": 7.7
+        "seconds": 2.9
+      },
+      "codeql": {
+        "status": "ok",
+        "blocking": 18,
+        "total": 18,
+        "language": "TypeScript",
+        "seconds": 65.5
       }
     },
     {
@@ -424,22 +485,22 @@
         "JavaScript": 3
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:32:27.272Z",
+      "measuredAt": "2026-09-19T14:27:50.283Z",
       "gatetest": {
         "status": "ok",
         "blocking": 17,
-        "total": 1702,
+        "total": 1701,
         "errors": 74,
         "softErrors": 57,
-        "warnings": 535,
+        "warnings": 534,
         "info": 1093,
         "modules": 88,
         "exit": 1,
-        "seconds": 84.8
+        "seconds": 8.8
       },
       "semgrep": {
         "status": "ok",
-        "error": 65,
+        "error": 64,
         "warning": 11,
         "info": 1,
         "other": 0,
@@ -447,7 +508,7 @@
         "scanErrors": 9,
         "filesScanned": 477,
         "exit": 0,
-        "seconds": 54
+        "seconds": 24.6
       },
       "eslintSecurity": {
         "status": "ok",
@@ -456,7 +517,14 @@
         "fatal": 0,
         "files": 386,
         "exit": 1,
-        "seconds": 8.1
+        "seconds": 5.3
+      },
+      "codeql": {
+        "status": "ok",
+        "blocking": 19,
+        "total": 25,
+        "language": "TypeScript",
+        "seconds": 91.6
       }
     },
     {
@@ -468,7 +536,7 @@
         "Java": 50
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:34:56.259Z",
+      "measuredAt": "2026-09-19T14:30:01.369Z",
       "gatetest": {
         "status": "ok",
         "blocking": 8,
@@ -479,7 +547,7 @@
         "info": 16,
         "modules": 88,
         "exit": 1,
-        "seconds": 6.3
+        "seconds": 113
       },
       "semgrep": {
         "status": "ok",
@@ -491,9 +559,16 @@
         "scanErrors": 2,
         "filesScanned": 102,
         "exit": 0,
-        "seconds": 11.2
+        "seconds": 4.1
       },
-      "eslintSecurity": null
+      "eslintSecurity": null,
+      "codeql": {
+        "status": "ok",
+        "blocking": 2,
+        "total": 2,
+        "language": "Java",
+        "seconds": 180
+      }
     },
     {
       "name": "axum",
@@ -505,18 +580,18 @@
         "JavaScript": 5
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:35:15.429Z",
+      "measuredAt": "2026-09-19T14:34:59.406Z",
       "gatetest": {
         "status": "ok",
         "blocking": 5,
-        "total": 436,
+        "total": 430,
         "errors": 9,
         "softErrors": 4,
-        "warnings": 393,
+        "warnings": 387,
         "info": 34,
         "modules": 88,
         "exit": 1,
-        "seconds": 9.2
+        "seconds": 80.6
       },
       "semgrep": {
         "status": "ok",
@@ -528,11 +603,17 @@
           "MEDIUM"
         ],
         "scanErrors": 2,
-        "filesScanned": 325,
+        "filesScanned": 320,
         "exit": 0,
-        "seconds": 14.5
+        "seconds": 4.6
       },
-      "eslintSecurity": null
+      "eslintSecurity": null,
+      "codeql": {
+        "status": "not measured",
+        "seconds": 0,
+        "language": "Rust",
+        "reason": "CodeQL has no security-extended query suite for Rust"
+      }
     },
     {
       "name": "cleanarchitecture",
@@ -545,18 +626,18 @@
         "TypeScript": 25
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:35:41.065Z",
+      "measuredAt": "2026-09-19T14:36:26.111Z",
       "gatetest": {
         "status": "ok",
         "blocking": 11,
-        "total": 88,
+        "total": 84,
         "errors": 11,
         "softErrors": 0,
-        "warnings": 59,
+        "warnings": 55,
         "info": 18,
         "modules": 88,
         "exit": 1,
-        "seconds": 9.8
+        "seconds": 2.2
       },
       "semgrep": {
         "status": "ok",
@@ -570,9 +651,16 @@
         "scanErrors": 2,
         "filesScanned": 207,
         "exit": 0,
-        "seconds": 11.8
+        "seconds": 4.7
       },
-      "eslintSecurity": null
+      "eslintSecurity": null,
+      "codeql": {
+        "status": "ok",
+        "blocking": 0,
+        "total": 0,
+        "language": "C#",
+        "seconds": 175.2
+      }
     },
     {
       "name": "ktor",
@@ -586,7 +674,7 @@
         "Java": 1
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:36:15.828Z",
+      "measuredAt": "2026-09-19T14:39:33.963Z",
       "gatetest": {
         "status": "ok",
         "blocking": 7,
@@ -597,7 +685,7 @@
         "info": 20,
         "modules": 88,
         "exit": 1,
-        "seconds": 57.6
+        "seconds": 307.5
       },
       "semgrep": {
         "status": "ok",
@@ -611,9 +699,15 @@
         "scanErrors": 9,
         "filesScanned": 2346,
         "exit": 0,
-        "seconds": 65.6
+        "seconds": 20.3
       },
-      "eslintSecurity": null
+      "eslintSecurity": null,
+      "codeql": {
+        "status": "not measured",
+        "seconds": 0,
+        "language": "Kotlin",
+        "reason": "CodeQL has no security-extended query suite for Kotlin"
+      }
     },
     {
       "name": "vapor",
@@ -624,18 +718,18 @@
         "Swift": 250
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:38:22.874Z",
+      "measuredAt": "2026-09-19T14:45:02.933Z",
       "gatetest": {
         "status": "ok",
         "blocking": 0,
-        "total": 44,
+        "total": 45,
         "errors": 0,
         "softErrors": 0,
         "warnings": 31,
-        "info": 13,
+        "info": 14,
         "modules": 88,
         "exit": 0,
-        "seconds": 7.1
+        "seconds": 2
       },
       "semgrep": {
         "status": "ok",
@@ -649,9 +743,15 @@
         "scanErrors": 0,
         "filesScanned": 283,
         "exit": 0,
-        "seconds": 14.1
+        "seconds": 7.1
       },
-      "eslintSecurity": null
+      "eslintSecurity": null,
+      "codeql": {
+        "status": "not measured",
+        "seconds": 1.8,
+        "language": "Swift",
+        "reason": "codeql database create failed (exit 2): Initializing database at /tmp/gt-h2h-jAWEgr/vapor.codeql-db.\nRunning build command: [/home/runner/work/_temp/codeql-home/codeql/swift/tools/autobuild.sh]\nRunning command in /tmp/gt-h2h-jAWEgr/vapor: [/home/runner/work/_temp/codeql-home/codeql/swift/tools/autobuild.sh]\nA fatal error occurred: Exit status 1 from command: [/home/runner/work/_temp/codeql-home/codeql/swift/tools/autobuild.sh]"
+      }
     },
     {
       "name": "nest",
@@ -663,22 +763,22 @@
         "TypeScript": 1904
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:38:47.598Z",
+      "measuredAt": "2026-09-19T14:45:15.031Z",
       "gatetest": {
         "status": "ok",
         "blocking": 9,
-        "total": 928,
+        "total": 927,
         "errors": 10,
         "softErrors": 1,
-        "warnings": 728,
+        "warnings": 727,
         "info": 190,
         "modules": 88,
         "exit": 1,
-        "seconds": 89.7
+        "seconds": 23
       },
       "semgrep": {
         "status": "ok",
-        "error": 6,
+        "error": 5,
         "warning": 43,
         "info": 0,
         "other": 1,
@@ -688,7 +788,7 @@
         "scanErrors": 0,
         "filesScanned": 2005,
         "exit": 0,
-        "seconds": 53.6
+        "seconds": 18.4
       },
       "eslintSecurity": {
         "status": "ok",
@@ -697,7 +797,14 @@
         "fatal": 0,
         "files": 1915,
         "exit": 1,
-        "seconds": 7.5
+        "seconds": 7.2
+      },
+      "codeql": {
+        "status": "ok",
+        "blocking": 4,
+        "total": 4,
+        "language": "TypeScript",
+        "seconds": 62.9
       }
     },
     {
@@ -710,7 +817,7 @@
         "TypeScript": 958
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:41:22.277Z",
+      "measuredAt": "2026-09-19T14:47:07.774Z",
       "gatetest": {
         "status": "ok",
         "blocking": 7,
@@ -721,7 +828,7 @@
         "info": 276,
         "modules": 88,
         "exit": 1,
-        "seconds": 57.9
+        "seconds": 25.1
       },
       "semgrep": {
         "status": "ok",
@@ -735,7 +842,7 @@
         "scanErrors": 39,
         "filesScanned": 1178,
         "exit": 0,
-        "seconds": 36.9
+        "seconds": 13.6
       },
       "eslintSecurity": {
         "status": "ok",
@@ -744,7 +851,14 @@
         "fatal": 0,
         "files": 986,
         "exit": 1,
-        "seconds": 5.3
+        "seconds": 5.7
+      },
+      "codeql": {
+        "status": "ok",
+        "blocking": 6,
+        "total": 6,
+        "language": "TypeScript",
+        "seconds": 103.2
       }
     },
     {
@@ -757,18 +871,18 @@
         "TypeScript": 113
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:43:04.633Z",
+      "measuredAt": "2026-09-19T14:49:36.517Z",
       "gatetest": {
         "status": "ok",
         "blocking": 0,
-        "total": 1997,
+        "total": 1988,
         "errors": 2,
         "softErrors": 2,
-        "warnings": 1970,
+        "warnings": 1961,
         "info": 25,
         "modules": 88,
         "exit": 0,
-        "seconds": 23.2
+        "seconds": 16.2
       },
       "semgrep": {
         "status": "ok",
@@ -779,10 +893,10 @@
         "otherSeverities": [
           "MEDIUM"
         ],
-        "scanErrors": 3,
-        "filesScanned": 296,
+        "scanErrors": 2,
+        "filesScanned": 295,
         "exit": 0,
-        "seconds": 29.5
+        "seconds": 23
       },
       "eslintSecurity": {
         "status": "ok",
@@ -791,7 +905,14 @@
         "fatal": 0,
         "files": 127,
         "exit": 0,
-        "seconds": 4
+        "seconds": 3.4
+      },
+      "codeql": {
+        "status": "ok",
+        "blocking": 10,
+        "total": 10,
+        "language": "TypeScript",
+        "seconds": 66.1
       }
     },
     {
@@ -804,22 +925,22 @@
         "TypeScript": 4460
       },
       "role": "precision",
-      "measuredAt": "2026-09-16T06:44:10.797Z",
+      "measuredAt": "2026-09-19T14:51:28.315Z",
       "gatetest": {
         "status": "ok",
         "blocking": 12,
-        "total": 1169,
+        "total": 1168,
         "errors": 30,
         "softErrors": 18,
-        "warnings": 670,
+        "warnings": 669,
         "info": 469,
         "modules": 88,
         "exit": 1,
-        "seconds": 221.2
+        "seconds": 70.5
       },
       "semgrep": {
         "status": "ok",
-        "error": 10,
+        "error": 1,
         "warning": 13,
         "info": 0,
         "other": 1,
@@ -827,9 +948,9 @@
           "MEDIUM"
         ],
         "scanErrors": 17,
-        "filesScanned": 3935,
+        "filesScanned": 3934,
         "exit": 0,
-        "seconds": 126.8
+        "seconds": 57.5
       },
       "eslintSecurity": {
         "status": "ok",
@@ -838,7 +959,14 @@
         "fatal": 0,
         "files": 4557,
         "exit": 1,
-        "seconds": 32.5
+        "seconds": 30.7
+      },
+      "codeql": {
+        "status": "ok",
+        "blocking": 34,
+        "total": 35,
+        "language": "TypeScript",
+        "seconds": 571.9
       }
     },
     {
@@ -850,7 +978,7 @@
         "JavaScript": 44
       },
       "role": "recall",
-      "measuredAt": "2026-09-16T06:50:35.670Z",
+      "measuredAt": "2026-09-19T15:03:40.212Z",
       "gatetest": {
         "status": "ok",
         "blocking": 53,
@@ -861,7 +989,7 @@
         "info": 53,
         "modules": 88,
         "exit": 1,
-        "seconds": 14.6
+        "seconds": 7.5
       },
       "semgrep": {
         "status": "ok",
@@ -873,7 +1001,7 @@
         "scanErrors": 10,
         "filesScanned": 72,
         "exit": 0,
-        "seconds": 9.2
+        "seconds": 4.8
       },
       "eslintSecurity": {
         "status": "ok",
@@ -882,7 +1010,14 @@
         "fatal": 0,
         "files": 45,
         "exit": 0,
-        "seconds": 1.6
+        "seconds": 0.8
+      },
+      "codeql": {
+        "status": "ok",
+        "blocking": 13,
+        "total": 17,
+        "language": "JavaScript",
+        "seconds": 43.5
       }
     }
   ]
