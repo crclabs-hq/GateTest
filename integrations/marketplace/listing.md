@@ -152,6 +152,28 @@ mailto:support@gatetest.io
 
 ---
 
+## Webhook
+
+The Marketplace listing's **own** webhook (Marketplace tab → Webhook page) —
+distinct from the GitHub App's push/PR webhook in the table below. GitHub
+POSTs `marketplace_purchase` events (purchased, cancelled, changed,
+pending_change, pending_change_cancelled) plus `ping` here for the listing's
+install lifecycle; the handler lives at
+`website/app/api/marketplace/webhook/route.ts`.
+
+| Setting | Value |
+|---------|-------|
+| **Payload URL** | `https://gatetest.io/api/marketplace/webhook` |
+| **Content type** | `application/json` |
+| **Secret** | `GITHUB_MARKETPLACE_WEBHOOK_SECRET` |
+
+The secret lives on the box and is typed by Craig in **both** places — the
+box's env file and this Webhook page — **never in chat**. Until Craig sets
+it, the endpoint fails closed with `503 {"error":"marketplace webhook not
+configured"}`.
+
+---
+
 ## Logo / screenshots
 
 A logo and at least one screenshot were already uploaded for the rejected

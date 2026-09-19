@@ -28,6 +28,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write           # dispatch ci.yml on the bot's PR branch (dispatch-required-ci.sh)
 
 jobs:
   train:
@@ -173,6 +174,7 @@ jobs:
           retention-days: 90
 
       - name: Open / update trainer PR
+        id: trainer_pr
         if: steps.train.outputs.lines != '' && steps.train.outputs.lines != '0'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -240,6 +242,7 @@ jobs:
           fi
           git -c commit.gpgsign=false commit -m "chore(trainer): all-8-trainers report $(date -u +%Y-%m-%d)"
           git push -u origin "$BRANCH" --force
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
           # Create PR (idempotent — gh fails harmlessly if PR exists)
           PR_BODY=$(printf '## Nightly flywheel trainer report (through %s)\n\nAll 8 trainers ran. Review each section and merge to land reports in docs/trainer/.\n\n**Pending rule files** (if any) are under `website/app/lib/rule-based-fixer-pending/` — verify the source SHAs in the header comment, then move the rule into `rule-based-fixer.js` RULES array.\n\n**Pending test stubs** (if any) are under `tests/auto-generated/*.pending.test.js` — fill in assertions and rename to `.test.js` to activate.\n\nThis is a ROLLING PR — rebuilt on current `main` every night, carrying every night not yet merged. Approve it and auto-merge lands the lot.' "$(date -u +%Y-%m-%d)")
@@ -256,3 +259,15 @@ jobs:
           # lands, so does the PR. A draft can never merge — that was the bug.
           gh pr ready "$BRANCH" || echo "gh pr ready: already ready, or unavailable ($?)"
           gh pr merge "$BRANCH" --auto --squash || echo "auto-merge unavailable — PR left open for review"
+
+      - name: Dispatch CI on the trainer-report PR branch
+        # GitHub does not start `pull_request` workflows for events created
+        # with secrets.GITHUB_TOKEN (the push/PR above), so ci.yml's four
+        # required checks would never report and this PR would sit BLOCKED
+        # forever (2026-09-19; see scripts/ops/dispatch-required-ci.sh).
+        # Only runs when the step above actually pushed the branch.
+        if: always() && steps.trainer_pr.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: flywheel/trainer-report
+        run: bash scripts/ops/dispatch-required-ci.sh "$BRANCH"

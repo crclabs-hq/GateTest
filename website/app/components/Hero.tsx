@@ -63,7 +63,7 @@ export default function Hero() {
             </h1>
 
             <p className="text-lg sm:text-xl text-gray-600 leading-relaxed mb-3 fade-up">
-              Measured on {CORPUS_SIZE} real repositories, the bad numbers published.
+              Measured on {CORPUS_SIZE} real repositories, the bad numbers published.{" "}
               {siteStats.modules.total} checks in one gate: it blocks on your new code, not your
               backlog, says what it didn&apos;t check, and opens the pull request with the fix
               already written, tested, and pair-reviewed by a second AI.

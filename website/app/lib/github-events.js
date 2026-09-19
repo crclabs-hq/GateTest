@@ -37,39 +37,10 @@
  */
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const crypto = require('crypto');
+const { verifyGitHubSignature } = require('./github-signature');
 
 const QUEUE_FULL_THRESHOLD = 500;
 const RETRY_AFTER_SECONDS = 30;
-
-function safeEqual(a, b) {
-  if (!a || !b) return false;
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  try {
-    return crypto.timingSafeEqual(bufA, bufB);
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Verify GitHub's X-Hub-Signature-256 header.
- * Format: `sha256=<hex-hmac-of-raw-body-keyed-with-secret>`.
- *
- * @param {string} rawBody
- * @param {string|null} headerValue
- * @param {string} secret
- */
-function verifyGitHubSignature(rawBody, headerValue, secret) {
-  if (!secret) return false;
-  if (!headerValue || typeof headerValue !== 'string') return false;
-  const expected =
-    'sha256=' +
-    crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-  return safeEqual(expected, headerValue);
-}
 
 /**
  * Translate a GitHub webhook payload into the canonical scan-queue shape.

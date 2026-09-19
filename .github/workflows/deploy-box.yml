@@ -36,7 +36,12 @@ name: Deploy to production box
 on:
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      recover:
+        description: "Recover the box first: stash any hand edits (kept, never deleted) and switch the checkout to main"
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-box
@@ -108,6 +113,9 @@ jobs:
         env:
           BOX_SSH_KEY: ${{ secrets.BOX_SSH_KEY }}
           BOX_SSH_HOST: ${{ secrets.BOX_SSH_HOST }}
+          # A boolean input mapped to a literal 1/0 here, never interpolated into the
+          # script: only a manual run with the box ticked can set it, a push cannot.
+          DEPLOY_RECOVER: ${{ (github.event_name == 'workflow_dispatch' && inputs.recover) && '1' || '0' }}
         run: |
           set -o pipefail
           mkdir -p ~/.ssh
@@ -138,7 +146,9 @@ jobs:
           # line the script prints on refusal can be read by the outcome step
           # below and quoted in the drift issue. pipefail keeps the ssh exit
           # code as the step's.
+          case "$DEPLOY_RECOVER" in 1) RECOVER_EXPORT="export DEPLOY_RECOVER=1;" ;; *) RECOVER_EXPORT="export DEPLOY_RECOVER=0;" ;; esac
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 "$BOX_SSH_HOST" \
+            "$RECOVER_EXPORT" \
             'for d in "$GATETEST_APP_DIR" /opt/gatetest "$HOME/gatetest"; do
                [ -n "$d" ] && [ -d "$d/.git" ] && exec env GATETEST_APP_DIR="$d" bash -s;
              done;
