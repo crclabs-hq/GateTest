@@ -5,6 +5,16 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # 2026-09-19: GitHub does not start `pull_request` workflows for events
+  # created with secrets.GITHUB_TOKEN, so a bot-opened/updated PR branch
+  # (dogfood-nightly.yml, trainer-nightly.yml, head-to-head.yml) never gets
+  # this workflow's required checks and sits BLOCKED forever. workflow_dispatch
+  # IS one of GitHub's documented exceptions — it starts workflows even when
+  # triggered via GITHUB_TOKEN, and a workflow_dispatch run on branch X
+  # attaches its check runs to X's head commit with the same job names used
+  # on pull_request, which is what required status checks match on. No
+  # inputs needed — scripts/ops/dispatch-required-ci.sh just names the ref.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -344,7 +354,14 @@ jobs:
     # not required, so main sat red for a day on three rule false positives
     # that no PR had ever been asked to pass. Same suite, same skips; the
     # SARIF upload below stays gated to main so it remains main's baseline.
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    #
+    # workflow_dispatch too (2026-09-19): this job is one of the four
+    # required checks, and a bot-authored PR's workflow_dispatch nudge
+    # (scripts/ops/dispatch-required-ci.sh) must produce the same check run
+    # on that branch's head commit that a human PR gets — excluding this
+    # event here would leave the job SKIPPED (not reported) on a dispatched
+    # run, which required status checks treat the same as never running.
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     permissions:
       security-events: write
       contents: read
