@@ -1,0 +1,190 @@
+{
+  "generatedAt": "2026-09-19T07:51:35.671Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 11,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 7,
+      "SonarQube": 0,
+      "Semgrep": 1,
+      "CodeQL": 2,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49759882",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "\"We're adding support for AGENTS.md to Claude Code.Starting today in version 2.1.277, if there is no CLAUDE.md in a folder, Claude will check for and use AGENTS.md.You can toggle this behavior in &#x2F;config.\"",
+        "url": "https://news.ycombinator.com/item?id=49759882",
+        "points": null,
+        "numComments": null,
+        "storyId": 49758250,
+        "createdAt": "2026-09-18T20:32:32Z",
+        "createdAtUnix": 1789763552,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49757044",
+        "author": "estearum",
+        "type": "comment",
+        "title": null,
+        "text": "No one is interested in your personal assessment of what’s trivial or not.I’m saying that the millions of dollars in expenses are irrelevant if you can recoup those costs plus some profit by selling snake oil.Your comment is just “millions of dollars is a lot of money!” I don’t care whether you think that’s a lot of money.If you think that cost cannot be recouped by selling snake oil for some reason, then explain why.",
+        "url": "https://news.ycombinator.com/item?id=49757044",
+        "points": null,
+        "numComments": null,
+        "storyId": 49731216,
+        "createdAt": "2026-09-18T16:54:04Z",
+        "createdAtUnix": 1789750444,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49756258",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": ">real problems of real people, including individuals and non-profitsAgain with the weasel words. Real people, including individuals? Pretty clear this is written from a pro-business perspective and can be safely dismissed.>\"robbery of all of our culture to sell it back to us at a mark-up\".Well, it is that. Why is it criminal for me to steal a big-business-movie for personal use, but they can just take all my blog posts and sell their deritives to others?",
+        "url": "https://news.ycombinator.com/item?id=49756258",
+        "points": null,
+        "numComments": null,
+        "storyId": 49752056,
+        "createdAt": "2026-09-18T15:56:39Z",
+        "createdAtUnix": 1789746999,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49755610",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "Based on my own observations the presentation and appearance of legitimacy matters far more than the actual argument, \"Lies, damned lies, and statistics\".Anecdotally I've noticed a trend of far-right bots&#x2F;trolls moving on from just spouting hatred and really lean into cherry picked and misrepresented statistics to give themselves an aura of credibility. That strategy seems moderately effective because the argument consists of verifiable facts even though it forms a faulty conclusion.So all of this is to say that this is a double edged sword where malicious actors will have the advantage.",
+        "url": "https://news.ycombinator.com/item?id=49755610",
+        "points": null,
+        "numComments": null,
+        "storyId": 49754250,
+        "createdAt": "2026-09-18T15:16:38Z",
+        "createdAtUnix": 1789744598,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49754647",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "I think we agree and you replied to the wrong comment here.i.e. You can look at family history and determine that autism runs in families, and by controlling for environmental factors you can conclude that it's very likely to be genetic, yet you still don't have a genetic test for it.Which is very different from measuring parents' heights and predicting the height of their child. Similarly you could look at 2 autistic adults and conclude that their child would almost certainly be autistic too.",
+        "url": "https://news.ycombinator.com/item?id=49754647",
+        "points": null,
+        "numComments": null,
+        "storyId": 49728536,
+        "createdAt": "2026-09-18T14:08:23Z",
+        "createdAtUnix": 1789740503,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49753747",
+        "author": "snek_case",
+        "type": "comment",
+        "title": null,
+        "text": "It might be conceptually similar to a single-output-token LLM (sort of). LLMs output next-token probabilities. You can ask LLMs to output yes&#x2F;no, or to output only a color, or only a digit or something like that.In this case I would imagine that they probably embed your input data into a vector space, and they embed your questions&#x2F;outputs into another space, and manage to predict probabilities&#x2F;classes&#x2F;scores for your outputs very quickly. Embedding the output classes&#x2F;questions into a vector spaces gives you something you can reuse across runs cheaply, as opposed to an LLM where you can prefill the KV cache but this is an expensive operation in terms of memory.",
+        "url": "https://news.ycombinator.com/item?id=49753747",
+        "points": null,
+        "numComments": null,
+        "storyId": 49752041,
+        "createdAt": "2026-09-18T12:54:42Z",
+        "createdAtUnix": 1789736082,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49752357",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "Yes. The first step could be a socialist system that preserves a market-based economy that avoids the horrors of private ownership of capital as well as the hubris of centrally managed economies.The primary goal should be democratic management of the means of production.",
+        "url": "https://news.ycombinator.com/item?id=49752357",
+        "points": null,
+        "numComments": null,
+        "storyId": 49715936,
+        "createdAt": "2026-09-18T10:27:37Z",
+        "createdAtUnix": 1789727257,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "49759151",
+        "author": "waffletower",
+        "type": "comment",
+        "title": null,
+        "text": "You can defer review entirely to an LLM, only to human reviewers, or both. We are experimenting with both and have configured LLM skills for pull request reviews. On large projects we also configure LLMs to produce commit segregated diffs within a single pull request, to aid human review. This process is using the github pull request workflow that Zed is attempting to replace.",
+        "url": "https://news.ycombinator.com/item?id=49759151",
+        "points": null,
+        "numComments": null,
+        "storyId": 49727245,
+        "createdAt": "2026-09-18T19:38:54Z",
+        "createdAtUnix": 1789760334,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "49760915",
+        "author": "codeulike",
+        "type": "comment",
+        "title": null,
+        "text": "Its not behind a paywall if you're in the UK",
+        "url": "https://news.ycombinator.com/item?id=49760915",
+        "points": null,
+        "numComments": null,
+        "storyId": 49760737,
+        "createdAt": "2026-09-18T22:10:24Z",
+        "createdAtUnix": 1789769424,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49751806",
+        "author": "CoderLim110",
+        "type": "story",
+        "title": "An evidence-ranked wiki for World of Warcraft: Forever",
+        "text": "An evidence-ranked wiki for World of Warcraft: Forever",
+        "url": "https://wowforeverwiki.org/",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 49751806,
+        "createdAt": "2026-09-18T09:00:33Z",
+        "createdAtUnix": 1789722033,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "49752919",
+        "author": "teekert",
+        "type": "comment",
+        "title": null,
+        "text": "\"But Google got caught precisely because of their own file‑restore robot, and this is my technical checkmate against them:\"Claudish (but not all of the text seems to be). Idk, I read this all day and am getting allergic to it. It's always the load-bearing decision worth my thought, and then some contradiction. It's not just this, it's THIS and THIS.I've been using some GLM5.2 via Mistral lately and it doesn't have this... tone... But it makes some mistakes sometimes that Claude wouldn't.Idk, just the idea that this was artificial expanded, makes me feel anyone could have written it, I could ask Claude for it directly. There will be no insight, even though there may be. What is happening to me, I am not anti AI.",
+        "url": "https://news.ycombinator.com/item?id=49752919",
+        "points": null,
+        "numComments": null,
+        "storyId": 49752279,
+        "createdAt": "2026-09-18T11:39:27Z",
+        "createdAtUnix": 1789731567,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
