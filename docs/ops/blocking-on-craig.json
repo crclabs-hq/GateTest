@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-17",
+  "updated": "2026-09-19",
   "items": [
     {
       "id": "npm-trusted-publisher-mcp",
@@ -9,7 +9,7 @@
       "step": "npmjs.com → sign in → package @gatetest/mcp-server → Settings → Publishing access / Trusted Publisher → add GitHub Actions: organization or user `crclabs-hq`, repository `GateTest`, workflow filename `publish.yml`, environment blank → Save.",
       "where": "https://www.npmjs.com/package/@gatetest/mcp-server/access",
       "priority": 1,
-      "done": false
+      "done": true
     },
     {
       "id": "tag-v1-61-1",
@@ -86,10 +86,10 @@
     },
     {
       "id": "github-app-public",
-      "title": "Fix App 3766251's permissions and events, make it public, list it in the Marketplace",
+      "title": "List the GitHub App on the Marketplace (Free plan)",
       "since": "2026-05-14",
       "unblocks": "GitHub Marketplace App page — the install path the listing, the install page and marketplace-sync.test.js all describe. Rejected once on 2026-05-14; scripts/marketplace-preflight.js exists so the second submission is not.",
-      "step": "Run `node scripts/marketplace-preflight.js` → App settings (App 3766251) → Permissions: contents write, statuses write, drop checks write → Subscribe to events: workflow_run + issue_comment → description from integrations/marketplace/listing.md → Save → Advanced → Make public → Marketplace → List in Marketplace → submit for review.",
+      "step": "Done 19 Sep: description, Contents + Commit statuses write, Checks removed, workflow_run + issue_comment subscribed, new permissions accepted on the org installation; `node scripts/marketplace-preflight.js` prints READY TO SUBMIT, 0 blockers. Remaining: https://github.com/marketplace/new → gatetest-hq → Free plan only → copy from integrations/marketplace/listing.md → submit for review. Later: make the stale duplicate App gatetesthq (3322634) private and uninstall it; never delete gatetest-hq (3766251).",
       "where": "https://github.com/settings/apps (App 3766251) then https://github.com/marketplace/new",
       "priority": 2,
       "done": false
@@ -109,7 +109,7 @@
       "title": "Submit the WordPress plugin to wordpress.org",
       "since": "2026-09-16",
       "unblocks": "GateTest in the wordpress.org plugin directory — installs from the WP admin instead of a zip download.",
-      "step": "After the v1.61.1 release exists: download the WordPress zip from the GitHub release → wordpress.org/plugins/developers/add → upload the zip → submit for review.",
+      "step": "Unblocked 19 Sep: release v1.61.1 exists with gatetest-health-check.zip attached (https://github.com/crclabs-hq/GateTest/releases/tag/v1.61.1). Download the zip → https://wordpress.org/plugins/developers/add/ → upload → submit for review.",
       "where": "https://wordpress.org/plugins/developers/add/",
       "priority": 3,
       "done": false,
@@ -135,7 +135,7 @@
       "step": "Settings → Branches → main protection rule → Require status checks to pass before merging: tick every check that runs on PRs, and add 'GateTest Full Scan' once it runs on PRs → Require branches to be up to date before merging: on → disable 'Update branch' auto-merge for PRs touching the same files → Save.",
       "where": "https://github.com/crclabs-hq/GateTest/settings/branches",
       "priority": 1,
-      "done": false
+      "done": true
     },
     {
       "id": "ghcr-package-public",
@@ -145,7 +145,7 @@
       "step": "github.com/orgs/crclabs-hq/packages → gatetest (container) → Package settings → Danger Zone → Change visibility → Public. The image itself was pushed by docker-publish.yml on the v1.61.1 tag (registry answers 403 = exists but private).",
       "where": "https://github.com/orgs/crclabs-hq/packages/container/gatetest/settings",
       "priority": 2,
-      "done": false
+      "done": true
     }
   ]
 }
