@@ -39,6 +39,43 @@ echo "[deploy] $(date -u +%FT%TZ) — deploying $(git rev-parse --abbrev-ref HEA
 # deploy refused on the dirty tree; `git reset --hard origin/main` below would
 # have silently moved that branch onto main and hidden the switch. Refuse as
 # loudly as the dirty-tree guard does, and say what to run.
+# Opt-in recovery — DEPLOY_RECOVER=1, set only by a manual "Run workflow" with
+# the recover box ticked (never by a push). Issue #542: the box sat on a feature
+# branch with hand edits for days, 205 commits behind, because both guards below
+# refuse (correctly) and the only fix was a human on SSH. Recovery never deletes
+# anything: tracked edits are copied to a patch file, everything (untracked
+# included) goes into a named stash, the old branch is left where it was, and
+# only then does the checkout move to main. The guards below still run after it.
+if [ "${DEPLOY_RECOVER:-0}" = "1" ]; then
+  R_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+  R_HEAD="$(git rev-parse --short HEAD)"
+  R_DIRTY="$(git status --porcelain)"
+  if [ "$R_BRANCH" != "main" ] || [ -n "$R_DIRTY" ]; then
+    R_TAG="deploy-recover-$(date -u +%Y%m%dT%H%M%SZ)"
+    echo "[deploy] RECOVER: box is on '$R_BRANCH' at $R_HEAD; changed paths:"
+    printf '%s\n' "${R_DIRTY:-  (none)}"
+    if [ -n "$R_DIRTY" ]; then
+      if git diff HEAD > "/var/tmp/$R_TAG.patch"; then
+        echo "[deploy] RECOVER: tracked edits copied to /var/tmp/$R_TAG.patch"
+      else
+        echo "[deploy] RECOVER: could not write the patch copy — the stash below is the only record" >&2
+      fi
+      git stash push -u -m "$R_TAG"
+      echo "[deploy] RECOVER: stashed as '$R_TAG' — restore with: git stash list, then git stash apply <ref>"
+    fi
+    if [ "$R_BRANCH" != "main" ]; then
+      git fetch origin main
+      if git show-ref --verify --quiet refs/heads/main; then
+        git checkout main
+      else
+        git checkout -b main origin/main
+      fi
+      echo "[deploy] RECOVER: switched from '$R_BRANCH' ($R_HEAD) to main — the old branch is untouched"
+    fi
+  else
+    echo "[deploy] RECOVER: requested, but the box is already clean on main — nothing to recover"
+  fi
+fi
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 if [ "$BRANCH" != "main" ]; then
   echo "[deploy] ERROR: $APP_DIR is on branch '$BRANCH', not main — production deploys main only." >&2
@@ -60,6 +97,7 @@ BEFORE=$(git rev-parse HEAD)
 git fetch origin main
 git reset --hard origin/main
 AFTER=$(git rev-parse HEAD)
+# --- end of sync phase --- (tests/deploy-recover.test.js runs the script up to this line)
 
 if [ "$BEFORE" = "$AFTER" ]; then
   echo "[deploy] already at $AFTER — nothing to do (use --force-build to rebuild anyway)"
