@@ -30,6 +30,7 @@ on:
 permissions:
   contents: write          # rolling PR branch push
   pull-requests: write
+  actions: write           # dispatch ci.yml on the bot's PR branch (dispatch-required-ci.sh)
 
 jobs:
   measure:
@@ -147,6 +148,7 @@ jobs:
         # newest is always a complete superset and there is nothing to
         # accumulate. Only head-to-head.json rides this PR; the corpus
         # ceilings and precision.json belong to the nightly.
+        id: h2h_pr
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -174,6 +176,7 @@ jobs:
           fi
           git -c commit.gpgsign=false commit -m "chore(precision): refresh the head-to-head table $(date -u +%Y-%m-%d)"
           git push -u origin "$BRANCH" --force
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
           PR_BODY=$(printf 'Weekly head-to-head run refreshed `website/app/data/head-to-head.json` — GateTest, Semgrep, ESLint (eslint-plugin-security) and CodeQL on the same pinned corpus commits, rendered at /precision.\n\nEvery number is this run'"'"'s own measurement (`scripts/head-to-head.js`). A tool that timed out, failed or could not be installed is written as such; CodeQL is written as not measured (with the reason) for any repo it could not build or analyse; SonarQube is always written as not measured, with the reason. Nothing in this PR touches the corpus ceilings.\n\nThis is a ROLLING PR — it is reset onto `main` every run, so it always shows the current table against current `main`.')
           gh pr create \
@@ -187,3 +190,15 @@ jobs:
 
           gh pr ready "$BRANCH" || echo "gh pr ready: already ready, or unavailable ($?)"
           gh pr merge "$BRANCH" --auto --squash || echo "auto-merge unavailable — PR left open for review"
+
+      - name: Dispatch CI on the head-to-head PR branch
+        # GitHub does not start `pull_request` workflows for events created
+        # with secrets.GITHUB_TOKEN (the push/PR above), so ci.yml's four
+        # required checks would never report and this PR would sit BLOCKED
+        # forever (2026-09-19; see scripts/ops/dispatch-required-ci.sh).
+        # Only runs when the step above actually pushed the branch.
+        if: always() && steps.h2h_pr.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: flywheel/head-to-head
+        run: bash scripts/ops/dispatch-required-ci.sh "$BRANCH"
