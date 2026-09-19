@@ -359,9 +359,12 @@ function loadYaml(rel) {
 test('deploy-box.yml parses and has a verify job after deploy that always runs', () => {
   const wf = loadYaml('.github/workflows/deploy-box.yml');
   assert.ok(wf.jobs.deploy, 'deploy job');
+  assert.ok(wf.jobs['poll-pull-deploy'], 'poll-pull-deploy job — the push-triggered replacement for the SSH attempt (box 161 closed port 22 2026-09-16)');
   assert.ok(wf.jobs.verify, 'verify job');
   const v = wf.jobs.verify;
-  assert.equal(v.needs, 'deploy');
+  // `deploy` (workflow_dispatch) and `poll-pull-deploy` (push) are mutually
+  // exclusive by their own job-level `if:` — verify waits on whichever ran.
+  assert.deepEqual(v.needs, ['deploy', 'poll-pull-deploy']);
   assert.equal(String(v.if), 'always()');
   assert.equal(v.permissions.issues, 'write', 'needs issues: write to open/close the drift issue');
   assert.equal(v.permissions.contents, 'read');
@@ -377,7 +380,10 @@ test('deploy-box.yml parses and has a verify job after deploy that always runs',
   assert.match(issueStep.with.script, /Production is behind main by \$\{behind\} commit/);
   assert.match(issueStep.with.script, /cd \/opt\/gatetest && git status/, 'the box-side fix is spelled out');
   assert.match(issueStep.with.script, /state: 'closed'/, 'closes the issue when in sync');
-  assert.equal(issueStep.env.DEPLOY_REASON, '${{ needs.deploy.outputs.reason }}');
+  // Exactly one of `deploy` / `poll-pull-deploy` ever runs for a given
+  // trigger — DEPLOY_REASON picks whichever one did.
+  assert.match(issueStep.env.DEPLOY_REASON, /needs\.deploy\.outputs\.reason/);
+  assert.match(issueStep.env.DEPLOY_REASON, /needs\.poll-pull-deploy\.outputs\.reason/);
   assert.ok(steps.some((s) => /exit "\$VERIFY_RC"/.test(s)), 'the job goes red on lag/unreachable');
 });
 
