@@ -1,0 +1,35 @@
+[Unit]
+Description=GateTest pull-based deploy — the box deploys itself; nothing inbound
+After=network-online.target gatetest-web.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# DEFAULT-FOR-NOW: /opt/gatetest is root-owned today, matching every other
+# operation deploy-on-box.sh performs (git, npm, systemctl restart), so this
+# unit runs as root like every deploy that has ever touched this checkout.
+# docs/deploy/PULL-DEPLOY.md "Recommended hardening: run as non-root" documents
+# the migration to a dedicated `gatetest` user — chown the checkout, add the
+# one sudoers line the restart step needs, then flip this to User=gatetest —
+# and says to do that BEFORE enabling this timer on a box that hosts other
+# products (Box 161 does).
+User=root
+# npm install + next build routinely take several minutes; give the unit real
+# headroom instead of relying on systemd's implicit default.
+TimeoutStartSec=1800
+# Invoked through bash rather than exec'd directly, so the timer does not
+# depend on the file's executable bit surviving a deploy — this repo is
+# authored on Windows where core.filemode is off, and `git reset --hard`
+# restores the mode from the index. Same reasoning as gatetest-tick.service.
+ExecStart=/bin/bash /opt/gatetest/scripts/deploy/pull-deploy.sh
+StandardOutput=journal
+StandardError=journal
+
+# No NoNewPrivileges= / ProtectHome= / other systemd sandboxing here: no
+# existing scheduled unit in this repo (gatetest-tick.service,
+# gatetest-watches.service, gatetest-empire-smoke.service) uses one, and
+# inventing an untested profile risks silently breaking `npm install` /
+# `next build` the same way `ProtectHome=true` blocks a home-directory Bun or
+# nvm binary (src/modules/systemd.js check #3 — protect-home-conflict). Add
+# hardening directives only after proving the build still runs under them on
+# the box, not as a first attempt on a job that runs unattended every 5 min.
