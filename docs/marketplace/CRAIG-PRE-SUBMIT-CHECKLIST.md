@@ -335,6 +335,26 @@ four are branched on in `website/app/lib/github-events.js`; the list is
 
 ---
 
+## 5c. 🔴 Configure the Marketplace listing's own webhook
+
+Added 2026-09-19: the listing checklist requires a Marketplace webhook (GitHub
+POSTs `marketplace_purchase` + `ping` to a payload URL) — separate from the
+App's push/PR webhook in 5b above. The handler is live at
+`website/app/api/marketplace/webhook/route.ts` and fails closed until this is
+done. See `integrations/marketplace/listing.md`'s "Webhook" section for the
+exact values.
+
+- [ ] On the Marketplace tab's Webhook page, set:
+      - Payload URL → `https://gatetest.io/api/marketplace/webhook`
+      - Content type → `application/json`
+      - Secret → generate one (`openssl rand -hex 32`) and type it in **both**
+        places yourself — the box's env file (`GITHUB_MARKETPLACE_WEBHOOK_SECRET`)
+        and this Webhook page — never in chat.
+- [ ] Send a test `ping` delivery from the Webhook page and confirm `200
+      {"ok":true,"event":"ping"}`.
+
+---
+
 ## 6. Final pass before clicking submit
 
 - [ ] Confirm the uploaded logo/screenshots aren't stale from the rejected

@@ -18,6 +18,9 @@ import { ADMIN_COOKIE_NAME } from "../../../lib/admin-auth";
 import { createHmac, timingSafeEqual } from "crypto";
 import { getDb } from "../../../lib/db";
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const marketplacePurchaseStore = require("../../../lib/marketplace-purchase-store");
+
 export const dynamic = "force-dynamic";
 
 function checkPwCookie(v: string | undefined): boolean {
@@ -83,12 +86,22 @@ export async function GET() {
     const customerCount = await sql`
       SELECT COUNT(*)::int AS total FROM customers`;
 
+    // GitHub Marketplace active-install count (from marketplace_purchase
+    // webhook deliveries) — best-effort, never fails the whole stats page.
+    let marketplaceActiveInstalls = 0;
+    try {
+      marketplaceActiveInstalls = (await marketplacePurchaseStore.summarize(sql)).activeInstalls;
+    } catch { // error-ok — an ops dashboard number is not a critical path
+      marketplaceActiveInstalls = 0;
+    }
+
     return NextResponse.json({
       scans: recentScans,
       customers,
       stats: {
         ...stats,
         total_customers: customerCount[0]?.total || 0,
+        marketplace_active_installs: marketplaceActiveInstalls,
       },
     });
   } catch (err) {
@@ -106,6 +119,7 @@ export async function GET() {
           avg_score: 0,
           avg_duration_ms: 0,
           total_customers: 0,
+          marketplace_active_installs: 0,
         },
         note: "Database tables not initialized. Run POST /api/db/init first.",
       });
