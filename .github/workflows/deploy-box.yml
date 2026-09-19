@@ -48,7 +48,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # SSH-over-the-internet to the box stopped being a working path on
+  # 2026-09-16: Box 161 closed public SSH (port 22) as part of estate
+  # hardening ("CI keys never get a shell"), so this job now only runs on a
+  # manual `workflow_dispatch` — kept alive for the day SSH-over-mesh exists
+  # (Tailscale/tailnet CI runner), not for every push. A push deploys via the
+  # pull timer on the box instead (gatetest-pull-deploy.timer,
+  # docs/deploy/PULL-DEPLOY.md) and is checked by the `poll-pull-deploy` job
+  # below, which replaces the push-triggered SSH attempt so a push no longer
+  # goes red for a path that cannot work.
   deploy:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
@@ -179,8 +189,17 @@ jobs:
           if [ "$GATE_ENABLED" != "true" ]; then
             reason="deploy skipped: BOX_SSH_KEY / BOX_SSH_HOST are not set on the repository"
           elif [ "$SSH_OUTCOME" = "failure" ]; then
-            reason="$(grep -m1 '\[deploy\] ERROR:' deploy.log 2>/dev/null || true)"
-            [ -n "$reason" ] || reason="deploy-on-box.sh failed without a [deploy] ERROR line — read the 'Deploy over SSH' step log"
+            # An honest classification, not "deploy-on-box.sh failed": when the
+            # SSH connection itself never came up, the script on the box never
+            # ran at all, so blaming it is wrong. Box 161 closed port 22 on
+            # 2026-09-16 — this branch is now the expected shape of a manual
+            # workflow_dispatch run until SSH-over-mesh exists.
+            if grep -qE 'ssh: connect to host|Connection timed out|Connection refused' deploy.log 2>/dev/null; then
+              reason="box unreachable over SSH (port 22 is closed by design since 2026-09-16) — production deploys by the pull timer on the box; see docs/deploy/PULL-DEPLOY.md"
+            else
+              reason="$(grep -m1 '\[deploy\] ERROR:' deploy.log 2>/dev/null || true)"
+              [ -n "$reason" ] || reason="deploy-on-box.sh failed without a [deploy] ERROR line — read the 'Deploy over SSH' step log"
+            fi
           elif [ "$SMOKE_OUTCOME" = "failure" ]; then
             reason="deploy ran but /api/status did not answer with JSON afterwards — the new build may not have taken"
           fi
@@ -203,14 +222,82 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # Replaces the push-triggered SSH attempt (the `deploy` job above now only
+  # runs on workflow_dispatch — SSH to the box stopped working 2026-09-16).
+  # Production deploys itself: gatetest-pull-deploy.timer on the box polls
+  # origin/main every 5 minutes (docs/deploy/PULL-DEPLOY.md). This job's only
+  # job is to say, within 15 minutes of a push, whether that actually happened
+  # — never a fake green, never a red run for a path that cannot work.
+  #
+  # /api/status (the operator-readiness probe — env var names, queue depth)
+  # carries NO commit stamp; the field that does is `commit` on
+  # /api/platform-status (website/app/api/platform-status/route.ts). That is
+  # exactly what src/core/verify-deploy.js already compares against a target
+  # sha, so this job reuses it (scripts/ops/verify-deploy.js) in a poll loop
+  # instead of re-implementing the comparison.
+  poll-pull-deploy:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      reason: ${{ steps.poll.outputs.reason }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Poll production for the pushed commit (up to 15 minutes)
+        id: poll
+        run: |
+          DEADLINE=$(( $(date +%s) + 900 ))
+          SHORT_SHA="${GITHUB_SHA:0:12}"
+          while :; do
+            if node scripts/ops/verify-deploy.js --expect "$GITHUB_SHA" --json --out verify.json; then
+              echo "poll: production is on $GITHUB_SHA"
+              echo "reason=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            STATE=$(node -e "let r={};try{r=JSON.parse(require('fs').readFileSync('verify.json','utf8'))}catch{} process.stdout.write(r.state||'')")
+            if [ "$STATE" = "unreachable" ]; then
+              MESSAGE=$(node -e "let r={};try{r=JSON.parse(require('fs').readFileSync('verify.json','utf8'))}catch{} process.stdout.write(r.message||'')")
+              case "$MESSAGE" in
+                *"carries no commit stamp"*)
+                  echo "::notice title=Deploy check not run::not checked: live endpoint exposes no commit"
+                  echo "reason=not checked: live endpoint exposes no commit" >> "$GITHUB_OUTPUT"
+                  exit 0
+                  ;;
+              esac
+            fi
+            NOW=$(date +%s)
+            if [ "$NOW" -ge "$DEADLINE" ]; then
+              echo "::error title=Pull timer did not deploy in time::pull timer did not pick up $SHORT_SHA within 15 min"
+              echo "reason=pull timer did not pick up $SHORT_SHA within 15 min" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
+            sleep 30
+          done
+
+      - name: Upload verify report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pull-deploy-poll
+          path: verify.json
+          if-no-files-found: ignore
+          retention-days: 14
+
   verify:
-    # Runs after `deploy` whether it succeeded, failed or was skipped. Asks
-    # the live site which commit it serves and compares it with THIS commit
-    # (scripts/ops/verify-deploy.js — exit 0 in sync, 1 lagging, 2
+    # Runs after `deploy` (workflow_dispatch) or `poll-pull-deploy` (push),
+    # whichever the trigger ran, whether it succeeded, failed or was skipped.
+    # Asks the live site which commit it serves and compares it with THIS
+    # commit (scripts/ops/verify-deploy.js — exit 0 in sync, 1 lagging, 2
     # unreachable). A lag, or a failed deploy, becomes one issue labelled
     # `deploy-drift` — opened once, updated on every later run, closed by the
     # first run that verifies in sync. GITHUB_TOKEN only; no other secret.
-    needs: deploy
+    needs: [deploy, poll-pull-deploy]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -240,8 +327,11 @@ jobs:
       - name: Open, update or close the deploy-drift issue
         uses: actions/github-script@v7
         env:
-          DEPLOY_RESULT: ${{ needs.deploy.result }}
-          DEPLOY_REASON: ${{ needs.deploy.outputs.reason }}
+          # `deploy` only runs on workflow_dispatch, `poll-pull-deploy` only on
+          # push — exactly one of the two is ever not 'skipped' for a given
+          # run, so this picks whichever one the trigger actually ran.
+          DEPLOY_RESULT: ${{ needs.deploy.result != 'skipped' && needs.deploy.result || needs.poll-pull-deploy.result }}
+          DEPLOY_REASON: ${{ needs.deploy.result != 'skipped' && needs.deploy.outputs.reason || needs.poll-pull-deploy.outputs.reason }}
           VERIFY_RC: ${{ steps.verify.outputs.rc }}
         with:
           script: |
