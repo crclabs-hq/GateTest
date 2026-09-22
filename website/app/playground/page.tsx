@@ -21,7 +21,10 @@ interface ModuleResult {
   severity?: Severity;
 }
 
-type Severity = "critical" | "warning" | "info";
+/** "error" is the gate's word for a blocking finding. "critical" is the name
+ *  the API used before 2026-09-22 and still arrives on share links inside
+ *  their 48h window, so it is kept as an alias rather than rendered blank. */
+type Severity = "error" | "critical" | "warning" | "info";
 
 interface LockedModule {
   name: string;
@@ -43,9 +46,34 @@ interface ScanResult {
   freeModules?: number;
   totalIssues: number;
   duration: number;
-  healthScore: number;
+  healthScore: number | null;
   grade: string;
   gradeColor: string;
+  /** F1 — the grade is driven by `blockingCount`; warnings are counted, shown, never fatal. */
+  blockingCount?: number;
+  warningCount?: number;
+  infoCount?: number;
+  countLabel?: string;
+  gradeSummary?: string;
+  /** F2 — what was scanned, when, under which report id. */
+  scanId?: string;
+  scannedAt?: string;
+  commitSha?: string | null;
+  branch?: string | null;
+  resultHeader?: string;
+  /** F3 — what the free scan actually read, and how long each half took. */
+  scopeLabel?: string;
+  coverage?: {
+    filesAnalysed?: number | null;
+    filesInRepo?: number | null;
+    source?: string | null;
+    truncated?: boolean;
+    engineMs?: number | null;
+    fetchMs?: number | null;
+    wallMs?: number | null;
+  };
+  /** F4 — resolved server-side; never trusted from the client. */
+  viewer?: { signedIn: boolean; canSignIn?: boolean; canFix: boolean };
   topFindings: Finding[];
   upgradeNote: string;
   error?: string;
@@ -76,22 +104,18 @@ const MODULE_LABELS: Record<string, string> = {
   codeQuality: "Code quality analysis",
 };
 
-const GRADE_RING_COLOR: Record<string, string> = {
-  A: "#22c55e",
-  B: "#0d9488",
-  C: "#eab308",
-  D: "#f97316",
-  F: "#ef4444",
-};
+/** Grey when there is no grade to show — never a colour that reads as a pass. */
+const NO_GRADE_COLOR = "#6b7280";
 
 const SEVERITY_STYLE: Record<Severity, { label: string; text: string; bg: string; border: string; dot: string }> = {
-  critical: { label: "CRITICAL", text: "text-red-700",    bg: "bg-red-500/[0.06]",    border: "border-red-500/25",    dot: "bg-red-500" },
+  error:    { label: "BLOCKING", text: "text-red-700",    bg: "bg-red-500/[0.06]",    border: "border-red-500/25",    dot: "bg-red-500" },
+  critical: { label: "BLOCKING", text: "text-red-700",    bg: "bg-red-500/[0.06]",    border: "border-red-500/25",    dot: "bg-red-500" },
   warning:  { label: "WARNING",  text: "text-amber-700",  bg: "bg-amber-500/[0.06]",  border: "border-amber-500/25",  dot: "bg-amber-500" },
   info:     { label: "INFO",     text: "text-sky-700",    bg: "bg-sky-500/[0.06]",    border: "border-sky-500/25",    dot: "bg-sky-500" },
 };
 
 function severityOf(raw: string | undefined): Severity {
-  return raw === "critical" || raw === "warning" || raw === "info" ? raw : "warning";
+  return raw === "error" || raw === "critical" || raw === "warning" || raw === "info" ? raw : "warning";
 }
 
 // Share links encode the whole result client-side (no backend store — see
@@ -121,11 +145,32 @@ function decodeShareData(encoded: string): ScanResult | null {
   }
 }
 
+/**
+ * F5 — a completed free scan gets a URL. Until 2026-09-22 the result replaced
+ * the hero in place at `/playground`, so back or reload threw it away and the
+ * only way to keep it was to press "Share results" first. The permalink is the
+ * SAME 48h encoding the share button already produced — one mechanism, not a
+ * second store — pushed to the address bar with replaceState as the result
+ * renders. Reload re-reads `?s=` and the result comes back.
+ *
+ * Returns the URL, or null when the browser refuses the history write (the
+ * encoded result is long; a refusal must not take the result down with it).
+ */
+function pushPermalink(result: ScanResult): string | null {
+  try {
+    const url = `${window.location.origin}/playground?s=${encodeShareData(result)}`;
+    window.history.replaceState({}, "", url);
+    return url;
+  } catch {
+    return null; // error-ok — an unwritable history entry is not a failed scan
+  }
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function GradeRing({ grade, score, animating }: { grade: string; score: number; animating: boolean }) {
-  const color = GRADE_RING_COLOR[grade] || "#6b7280";
-  const pct   = animating ? 0 : Math.max(4, score);
+function GradeRing({ grade, score, color: gradeColor, animating }: { grade: string; score: number | null; color?: string; animating: boolean }) {
+  const color = gradeColor || NO_GRADE_COLOR;
+  const pct   = animating || typeof score !== "number" ? 0 : Math.max(4, score);
   const r     = 54;
   const circ  = 2 * Math.PI * r;
   const dash  = (pct / 100) * circ;
@@ -148,7 +193,9 @@ function GradeRing({ grade, score, animating }: { grade: string; score: number; 
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="font-display text-5xl font-semibold" style={{ color, lineHeight: 1 }}>{grade}</span>
-          <span className="text-sm font-semibold text-foreground-secondary mt-1">{score}/100</span>
+          <span className="text-sm font-semibold text-foreground-secondary mt-1">
+            {typeof score !== "number" ? "not checked" : `${score}/100`}
+          </span>
         </div>
       </div>
       <p className="text-xs text-muted font-mono uppercase tracking-widest">Health Score</p>
@@ -167,23 +214,32 @@ function ModuleCard({ mod }: { mod: ModuleResult }) {
   }, []);
 
   const passed = mod.status === "passed";
+  // A module whose findings are warnings is not a red light. Painting every
+  // non-clean module red is half of why a repo of lint warnings read as an F.
+  const blocking = !passed && severityOf(mod.severity) !== "warning" && severityOf(mod.severity) !== "info";
+  const accent = passed
+    ? { border: "rgba(34,197,94,0.3)", bg: "rgba(34,197,94,0.05)", pill: "bg-green-500/15 text-green-700" }
+    : blocking
+      ? { border: "rgba(239,68,68,0.3)", bg: "rgba(239,68,68,0.05)", pill: "bg-red-500/15 text-red-700" }
+      : { border: "rgba(245,158,11,0.3)", bg: "rgba(245,158,11,0.05)", pill: "bg-amber-500/15 text-amber-700" };
+  const noun = blocking ? "blocking" : "warning";
   return (
     <div
       className="rounded-xl border p-4 transition-all duration-500"
       style={{
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(10px)",
-        borderColor: passed ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)",
-        background: passed ? "rgba(34,197,94,0.05)" : "rgba(239,68,68,0.05)",
+        borderColor: accent.border,
+        background: accent.bg,
       }}
     >
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm font-semibold text-foreground">{MODULE_LABELS[mod.name] || mod.name}</span>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${passed ? "bg-green-500/15 text-green-700" : "bg-red-500/15 text-red-700"}`}>
-          {passed ? "✓ PASS" : `✗ ${mod.issues} issue${mod.issues !== 1 ? "s" : ""}`}
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${accent.pill}`}>
+          {passed ? "✓ PASS" : `${mod.issues} ${noun}${mod.issues !== 1 ? "s" : ""}`}
         </span>
       </div>
-      <p className="text-xs text-muted font-mono">{(mod.duration / 1000).toFixed(2)}s · {mod.checks} checks</p>
+      <p className="text-xs text-muted font-mono">{(mod.duration / 1000).toFixed(2)}s engine time · {mod.checks} checks</p>
     </div>
   );
 }
@@ -310,6 +366,7 @@ export default function PlaygroundPage() {
   const [totalModules, setTotalModules] = useState(0);
   const [isSharedView, setIsSharedView] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [permalink, setPermalink] = useState<string | null>(null);
   const lineId = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -328,6 +385,7 @@ export default function PlaygroundPage() {
     if (decoded) {
       setResult(decoded);
       setIsSharedView(true);
+      setPermalink(window.location.href);
       setGradeAnimating(false);
     } else {
       setError("This shared link has expired or is invalid — run a new scan below.");
@@ -352,6 +410,7 @@ export default function PlaygroundPage() {
     setTotalModules(0);
     setIsSharedView(false);
     setShareCopied(false);
+    setPermalink(null);
     setGradeAnimating(true);
     lineId.current = 0;
 
@@ -386,8 +445,10 @@ export default function PlaygroundPage() {
         } else if (event === "module:end") {
           const d = data as ModuleResult;
           setLiveModules((prev) => [...prev, d]);
+          const sev = severityOf(d.severity);
+          const noun = sev === "warning" || sev === "info" ? "warning" : "blocking";
           if (d.status === "passed") addLine("pass", `${MODULE_LABELS[d.name] || d.name} — ${d.checks} checks passed`);
-          else if (d.status === "failed") addLine("fail", `${MODULE_LABELS[d.name] || d.name} — ${d.issues} issue${d.issues !== 1 ? "s" : ""} found`);
+          else if (d.status === "failed") addLine("fail", `${MODULE_LABELS[d.name] || d.name} — ${d.issues} ${noun}${d.issues !== 1 ? "s" : ""}`);
           else addLine("info", `${MODULE_LABELS[d.name] || d.name} — skipped`);
         } else if (event === "module:locked") {
           const d = data as LockedModule;
@@ -396,7 +457,9 @@ export default function PlaygroundPage() {
         } else if (event === "complete") {
           completed = data as ScanResult;
           addLine("info", "─────────────────────────────────");
-          addLine("done", `Scan complete — ${completed.totalIssues} issue${completed.totalIssues !== 1 ? "s" : ""} · ${(completed.duration / 1000).toFixed(1)}s · Grade ${completed.grade}`);
+          addLine("done", `Scan complete — ${completed.countLabel ?? `${completed.totalIssues} findings`} · ${(completed.duration / 1000).toFixed(1)}s engine time · Grade ${completed.grade}`);
+          if (completed.scopeLabel) addLine("info", completed.scopeLabel);
+          if (completed.resultHeader) addLine("info", completed.resultHeader);
         } else if (event === "error") {
           const d = data as { error?: string };
           throw new Error(d?.error || "Scan errored mid-stream");
@@ -405,6 +468,7 @@ export default function PlaygroundPage() {
 
       if (!completed) throw new Error("Scan stream closed unexpectedly — please try again");
       setResult(completed);
+      setPermalink(pushPermalink(completed));
       setTimeout(() => setGradeAnimating(false), 200);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
@@ -432,15 +496,17 @@ export default function PlaygroundPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The share link IS the address bar — the permalink pushed when the result
+  // rendered. Copying something different from what the visitor can see was
+  // the second half of the "reload loses it" complaint.
   const handleShare = useCallback(() => {
     if (!result) return;
-    const encoded = encodeShareData(result);
-    const shareUrl = `${window.location.origin}/playground?s=${encoded}`;
+    const shareUrl = permalink || `${window.location.origin}/playground?s=${encodeShareData(result)}`;
     navigator.clipboard?.writeText(shareUrl).then(() => {
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
     }).catch(() => {}); // error-ok: best-effort UI nicety; feature may be unavailable in this browser
-  }, [result]);
+  }, [result, permalink]);
 
   return (
     <main>
@@ -514,11 +580,11 @@ export default function PlaygroundPage() {
         {isSharedView && result && (
           <div className="rounded-xl border border-accent/25 bg-accent/5 px-4 py-3 flex items-center justify-between gap-3">
             <p className="text-sm text-accent">
-              Viewing a shared scan of <span className="font-mono">{result.repo_url.replace("https://github.com/", "")}</span>
+              Viewing a saved result for <span className="font-mono">{result.repo_url.replace("https://github.com/", "")}</span>
               {result.sharedAt && ` · shared ${Math.max(0, Math.round((Date.now() - result.sharedAt) / 3_600_000))}h ago`}
             </p>
             <button
-              onClick={() => { setIsSharedView(false); setResult(null); window.history.replaceState({}, "", "/playground"); }}
+              onClick={() => { setIsSharedView(false); setResult(null); setPermalink(null); window.history.replaceState({}, "", "/playground"); }}
               className="text-xs font-mono text-accent hover:underline shrink-0"
             >
               Run a new scan →
@@ -540,21 +606,39 @@ export default function PlaygroundPage() {
             {result && !scanning && (
               <div className="space-y-8 animate-in fade-in duration-700">
 
+                {/* ── Report header — the commit, the time, the report id (F2) ── */}
+                <div className="rounded-xl border border-border section-alt px-4 py-3 space-y-1">
+                  <p className="text-xs font-mono text-foreground-secondary break-all">
+                    {result.resultHeader
+                      ?? `${result.repo_url.replace("https://github.com/", "")} @ commit not resolved · scan time not recorded · report id not issued`}
+                  </p>
+                  {/* What the free scan actually read, so 0.1s is never mistaken
+                      for a clone-and-build of the whole repository (F3). */}
+                  <p className="text-xs font-mono text-muted break-all">
+                    {result.scopeLabel ?? "scan scope not recorded"}
+                  </p>
+                </div>
+
                 {/* Health score + module grid */}
                 <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-8 items-start">
-                  <GradeRing grade={result.grade} score={result.healthScore} animating={gradeAnimating} />
+                  <GradeRing grade={result.grade} score={result.healthScore} color={result.gradeColor} animating={gradeAnimating} />
 
                   <div className="space-y-3">
                     <div className="flex items-baseline gap-3 flex-wrap">
                       <h2 className="font-display text-xl font-bold text-foreground">
-                        {result.totalIssues === 0
-                          ? "Clean — no issues found"
-                          : `${result.totalIssues} issue${result.totalIssues !== 1 ? "s" : ""} found`}
+                        {result.countLabel
+                          ?? (result.totalIssues === 0
+                            ? "0 blocking · 0 warnings"
+                            : `${result.totalIssues} finding${result.totalIssues !== 1 ? "s" : ""}`)}
                       </h2>
                       <span className="text-xs font-mono text-muted">
-                        {(result.duration / 1000).toFixed(1)}s · quick tier
+                        {(result.duration / 1000).toFixed(1)}s engine time · quick tier
                       </span>
                     </div>
+
+                    {result.gradeSummary && (
+                      <p className="text-xs text-muted">{result.gradeSummary}</p>
+                    )}
 
                     {result.totalModules ? (
                       <ProgressBar completed={result.modules.length} total={result.totalModules} />
@@ -576,7 +660,7 @@ export default function PlaygroundPage() {
                   </div>
                 </div>
 
-                {/* Top findings — severity colour-coded, with a Fix This PR CTA per finding */}
+                {/* Top findings — severity colour-coded; the fix CTA is gated on the viewer */}
                 {result.topFindings.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -619,14 +703,27 @@ export default function PlaygroundPage() {
                               </div>
                               <p className="text-sm text-foreground-secondary break-all">{f.message}</p>
                             </div>
-                            {!isSharedView && (
+                            {/* F4 — the fix CTA is only real for someone who can
+                                push to this repository. Everyone else gets the
+                                sign-in link, or nothing. `viewer` is resolved
+                                server-side from the session cookie. */}
+                            {!isSharedView && result.viewer?.canFix && (
                               <Link
                                 href={`/checkout?tier=scan_fix&repo=${encodeURIComponent(result.repo_url)}&module=${encodeURIComponent(f.module)}`}
                                 className="btn-secondary shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
-                                title="Unlock AI-generated fixes with the Scan + Fix tier"
+                                title="Open a fix PR on this repository with the Scan + Fix tier"
                               >
                                 Fix This PR →
                               </Link>
+                            )}
+                            {!isSharedView && !result.viewer?.canFix && !result.viewer?.signedIn && result.viewer?.canSignIn && (
+                              <a
+                                href="/api/auth/github"
+                                className="shrink-0 text-xs font-mono text-muted hover:text-foreground underline whitespace-nowrap"
+                                title="Sign in to check whether you can open a fix PR on this repository"
+                              >
+                                Sign in to fix
+                              </a>
                             )}
                           </div>
                         );
