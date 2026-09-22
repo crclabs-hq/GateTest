@@ -51,7 +51,7 @@ jobs:
           # Workflows are addressed by file name: gh resolves display names
           # unreliably when they contain parentheses, and under the runner's
           # `bash -e` a failed lookup killed the whole step (first run, 2026-09-22).
-          last() { gh run list --workflow "$1" --limit 1 --json conclusion --jq '.[0].conclusion // "no runs"' 2>/dev/null || echo "lookup failed"; }
+          last() { gh run list --repo "$GITHUB_REPOSITORY" --workflow "$1" --limit 1 --json conclusion --jq '.[0].conclusion // "no runs"' 2>/dev/null || echo "lookup failed"; }
           cron=$(last cron-ticks.yml)
           digest=$(last digest-weekly.yml)
           mark() { [ "$1" = "success" ] && echo "done — last run green" || echo "OPEN — last run: $1"; }
@@ -87,4 +87,4 @@ jobs:
               echo "Still open. Steps are in the issue body; this comment repeats every Monday until the issue is closed."
             fi
           } > body.md
-          gh issue comment "$ISSUE" --body-file body.md
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file body.md
