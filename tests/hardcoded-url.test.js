@@ -575,3 +575,57 @@ describe('HardcodedUrlModule — CONTROL PAIR (issue #633): data-table loopback 
     assert.deepStrictEqual(hits.map((c) => c.line), [3], 'the data-table entry is quiet; the direct fetch call still fires');
   });
 });
+
+// Issue #657: Tallrig's real `release-pin.ts` `PINNED_UNITS` table (18
+// entries) still fired every hit after 132bb862's DATA_TABLE_VALUE_RE —
+// their shape wraps each URL in a `http(...)` helper call
+// (`health: http("http://127.0.0.1:3001/api/health")`), which sits AFTER
+// the property colon rather than directly after it, defeating the regex
+// that only recognised a bare string/template literal in that position.
+describe('HardcodedUrlModule — data-table exemption covers a call-wrapped URL (issue #657)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-hu-657-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('an 18-entry table shaped exactly like PINNED_UNITS, URL wrapped in http(...), is quiet', async () => {
+    const units = [
+      'vapron-api', 'vapron-orchestrator', 'vapron-worker', 'vapron-scheduler',
+      'vapron-gateway', 'vapron-auth', 'vapron-billing', 'vapron-notify',
+      'vapron-search', 'vapron-index', 'vapron-cache', 'vapron-queue',
+      'vapron-metrics', 'vapron-logs', 'vapron-admin', 'vapron-cron',
+      'vapron-webhook', 'vapron-export',
+    ];
+    assert.strictEqual(units.length, 18, 'fixture must match the customer\'s 18-entry table');
+    const rows = units.map((unit, idx) => (
+      `  { unit: "${unit}.service", subPath: "", tier: "hard", health: http("http://127.0.0.1:${3001 + idx}/api/health") },`
+    ));
+    write(tmp, 'src/release-pin.ts', [
+      'export const PINNED_UNITS: readonly PinnedUnitSpec[] = [',
+      ...rows,
+      '];',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.deepStrictEqual(
+      r.checks.filter((c) => c.name.startsWith('hardcoded-url:localhost:')), [],
+      'every call-wrapped table entry must stay quiet',
+    );
+  });
+
+  it('a call-wrapped URL still fires when the wrapping call IS the network call', async () => {
+    write(tmp, 'src/client.ts', [
+      'export const ENDPOINTS = [',
+      '  { name: "self", result: fetch("http://127.0.0.1:9999/self-health") },',
+      '];',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('hardcoded-url:localhost:'));
+    assert.ok(hit, 'a fetch() target wrapped in a table entry must still block');
+    assert.strictEqual(hit.severity, 'error');
+  });
+
+  it('a call-wrapped URL as a bare array element is also quiet', async () => {
+    write(tmp, 'src/health-endpoints.ts', 'export const ENDPOINTS = [http("http://127.0.0.1:3001/health"), http("http://127.0.0.1:3002/health")];\n');
+    const r = await run(tmp);
+    assert.deepStrictEqual(r.checks.filter((c) => c.name.startsWith('hardcoded-url:localhost:')), []);
+  });
+});

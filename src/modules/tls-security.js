@@ -124,6 +124,58 @@ const JS_RULES = [
   { re: JS_INSECURE_RE, id: 'js-insecure-flag', message: '`insecure: true` disables TLS validation in several HTTP-client configurations.' },
 ];
 
+// issue #657 (Tallrig, apps/api/src/domains/tls-probe.ts:287): a raw TLS
+// handshake PROBE — `tls.connect({ …, rejectUnauthorized: false })` inside
+// a helper like `observeHandshake()` — must be able to complete the
+// handshake against a broken / self-signed peer certificate in order to
+// GRADE it (the verdict is read back from `socket.authorized` /
+// `getPeerCertificate()` / `authorizationError`). `tls.connect` itself
+// never sends a request over that socket — it hands back a `TLSSocket`;
+// the deliberate laxity is the point of a probe, not a weakened client.
+// That is a different shape from `https.request({ rejectUnauthorized:
+// false })` or an axios/got/superagent config, which stay firing
+// unconditionally — a real client trusting any cert is exactly what this
+// rule exists to catch, so the exemption requires BOTH:
+//   1. the enclosing call the property sits in is `(tls.)?connect(` —
+//      never an HTTP request/response call, and
+//   2. the SAME FILE inspects the handshake result it just relaxed
+//      (`socket.authorized`, `.getPeerCertificate(`, `authorizationError`)
+//      — the tell that this code grades the peer certificate instead of
+//      silently trusting it.
+// Both conditions are checked on the MASKED text (comments/strings blanked)
+// so a docstring mentioning "socket.authorized" cannot manufacture the
+// exemption.
+const TLS_CONNECT_CALLEE_RE = /(?:^|\.)connect$/;
+const TLS_PROBE_INSPECTION_RE = /\bsocket\s*\.\s*authorized\b|\.\s*getPeerCertificate\s*\(|\bauthorizationError\b/;
+
+/**
+ * Walk backward from `(lineIdx, col)` through `maskedLines`, tracking paren
+ * depth, to find the callee of the nearest enclosing, not-yet-closed call —
+ * the multi-line twin of hardcoded-url.js's `_enclosingCallee` (an options
+ * object almost always spans several lines: `tls.connect({\n  host: …,\n
+ * rejectUnauthorized: false,\n})`, so a single-line lookback never reaches
+ * the `tls.connect(` that opened it).
+ */
+function _enclosingCallName(maskedLines, lineIdx, col) {
+  let depth = 0;
+  for (let line = lineIdx; line >= 0; line -= 1) {
+    const text = line === lineIdx ? (maskedLines[line] || '').slice(0, col) : (maskedLines[line] || '');
+    for (let p = text.length - 1; p >= 0; p -= 1) {
+      const ch = text[p];
+      if (ch === ')') { depth += 1; continue; }
+      if (ch === '(') {
+        if (depth === 0) {
+          const head = text.slice(0, p);
+          const m = head.match(/([A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*$/);
+          return m ? m[1].replace(/\s+/g, '') : null;
+        }
+        depth -= 1;
+      }
+    }
+  }
+  return null;
+}
+
 // Python patterns.
 // `verify=False`, `verify_ssl=False`, `ssl=False` — but NOT `ssl=False`
 // inside a function definition or type annotation. We require it to be
@@ -217,6 +269,10 @@ class TlsSecurityModule extends BaseModule {
     const errSev = isTest ? 'warning' : 'error';
     const lines = text.split(/\r?\n/);
     const masked = this._maskedLines(text);
+    // Whole-file signal 2 of the tls-probe exemption (issue #657): computed
+    // once per file, not per match — "inspected … in the same function or
+    // file" is satisfied at file scope.
+    const fileInspectsHandshake = masked.some((l) => TLS_PROBE_INSPECTION_RE.test(l || ''));
     let issues = 0;
 
     for (let i = 0; i < lines.length; i += 1) {
@@ -226,7 +282,15 @@ class TlsSecurityModule extends BaseModule {
 
       const fired = [];
       if (this._matchOnRaw(code, line, JS_NODE_TLS_ENV_SHAPE_RE, JS_NODE_TLS_ENV_RE)) fired.push(JS_ENV_BYPASS_RULE);
-      for (const rule of JS_RULES) if (rule.re.test(code)) fired.push(rule);
+      for (const rule of JS_RULES) {
+        const m = rule.re.exec(code);
+        if (!m) continue;
+        if (rule.id === 'js-reject-unauthorized' && fileInspectsHandshake) {
+          const callee = _enclosingCallName(masked, i, m.index);
+          if (callee && TLS_CONNECT_CALLEE_RE.test(callee)) continue; // a graded probe, not a weakened client
+        }
+        fired.push(rule);
+      }
       for (const rule of fired) {
         result.addCheck(`tls-security:${rule.id}:${rel}:${i + 1}`, false, {
           severity: errSev,

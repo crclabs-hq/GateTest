@@ -194,6 +194,18 @@ const NAMESPACE_CONTEXT_RE = /\bxmlns(?::[\w-]+)?\s*=\s*["'{]*$|\b(?:createEleme
 // "non-env ternary" positive control).
 const DATA_TABLE_VALUE_RE = /(?:[{,]\s*(?:[A-Za-z_$][\w$]*|['"][^'"]*['"])\s*:\s*['"`]$)|(?:[,[]\s*['"`]$)/;
 
+// The same data-table position, but the string is wrapped in a helper call
+// first — `health: http("http://127.0.0.1:3001/api/health")` (issue #657,
+// Tallrig's `PINNED_UNITS`: an 18-entry `const X: readonly T[] = [{ …,
+// health: http("…") }, …]` table where every entry normalizes its URL
+// through a `http()` helper before storing it). DATA_TABLE_VALUE_RE
+// requires the string to sit DIRECTLY after `key:`/`,`/`[`; a wrapping
+// call defeats it even though the call's result is still just a table
+// value, not a fetch target — `isNetworkCallSite` (checked before either
+// regex runs) is what still fires when the wrapping call itself IS the
+// network call (`url: fetch("http://localhost/x")` keeps blocking).
+const DATA_TABLE_CALL_ARG_RE = /(?:[{,]\s*(?:[A-Za-z_$][\w$]*|['"][^'"]*['"])\s*:\s*[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*\s*\(\s*['"`]$)|(?:[,[]\s*[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*\s*\(\s*['"`]$)/;
+
 // `probe(url = "http://127.0.0.1:9000/health")` — a configurable default,
 // not a hardcoded target. Covers a plain default and a TS-typed one
 // (`url: string = "..."`).
@@ -382,6 +394,7 @@ class HardcodedUrlModule extends BaseModule {
             const restOfLine = line.slice(m.index + m[0].length);
             if (
               DATA_TABLE_VALUE_RE.test(before)
+              || DATA_TABLE_CALL_ARG_RE.test(before)
               || PARAM_DEFAULT_RE.test(before)
               || DYNAMIC_PORT_RE.test(restOfLine)
             ) {
