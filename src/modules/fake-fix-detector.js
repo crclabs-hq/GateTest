@@ -149,6 +149,33 @@ function isWholeLineComment(sourceLine) {
 }
 
 /**
+ * #666: a `@ts-expect-error` in a test file, directly above a test that
+ * asserts a type is REJECTED, is the sanctioned use of the directive — the
+ * test would not compile (and would not prove the rejection) without it.
+ * Matches the shape `expect(...)` (the assertion the suppressed line feeds)
+ * or a TypeScript type assertion (`as SomeType` / `<SomeType>value`), which
+ * is how "this shouldn't compile" tests usually read the rejected value.
+ */
+const TS_EXPECT_ERROR_SANCTIONED_NEXT_LINE_RE = /\bexpect\s*\(|\bas\s+[A-Za-z_$][\w$.<>[\]]*\b|^<[A-Za-z_$][\w$.<>[\]]*>/;
+
+/**
+ * Walk forward from `fromIdx` (exclusive) in `hunk.lines`/`hunk.lineNumbers`
+ * to the next non-blank line that still exists in the NEW file (context or
+ * added — a removed line never appears in the result, so it cannot be "the
+ * next line" a reader sees). Returns `null` if the hunk ends first.
+ */
+function nextNonBlankNewFileLine(hunk, fromIdx) {
+  for (let i = fromIdx + 1; i < hunk.lines.length; i += 1) {
+    const raw = hunk.lines[i];
+    if (raw.startsWith('-')) continue;
+    const content = raw.slice(1);
+    if (content.trim() === '') continue;
+    return content;
+  }
+  return null;
+}
+
+/**
  * A skipped test blocks only when the commit that skipped it calls itself a
  * fix. Measured 2026-09-05 on ~14,000 commits across ten real repositories
  * (express, fastify, hono, zod, got, nest, trpc, prisma, apollo-server,
@@ -626,7 +653,8 @@ class FakeFixDetectorModule extends BaseModule {
         || /(?:^|\/)tests\/(?:fake-fix-detector|claude-compliance|ai-hallucination|guarded-catch|error-swallow)\.test\.js$/.test(hunk.file);
 
       // Walk added / removed lines
-      for (const line of hunk.lines) {
+      for (let idx = 0; idx < hunk.lines.length; idx += 1) {
+        const line = hunk.lines[idx];
         for (const rule of PATTERN_RULES) {
           if (rule.direction === 'added' && !line.startsWith('+')) continue;
           if (rule.direction === 'removed' && !line.startsWith('-')) continue;
@@ -645,11 +673,22 @@ class FakeFixDetectorModule extends BaseModule {
           if (rule.notInTests && this._isTestPath(hunk.file)) continue;
 
           if (rule.pattern.test(line)) {
+            let severity = rule.severity;
+            // #666: `@ts-expect-error` in a test, directly above the
+            // `expect(...)`/type-assertion it enables, is the sanctioned
+            // use — downgrade from the rule's default `error` to `info`.
+            if (rule.id === 'ts-ignore-added' && /@ts-expect-error/.test(line)
+              && this._isTestPath(hunk.file)) {
+              const nextLine = nextNonBlankNewFileLine(hunk, idx);
+              if (nextLine !== null && TS_EXPECT_ERROR_SANCTIONED_NEXT_LINE_RE.test(nextLine)) {
+                severity = 'info';
+              }
+            }
             findings.push({
               ruleId: rule.id,
               file: hunk.file,
-              line: hunk.lineNumber,
-              severity: rule.severity,
+              line: hunk.lineNumbers[idx],
+              severity,
               title: rule.title,
               explanation: rule.explanation,
               snippet: line.trim().slice(0, 160),
@@ -663,6 +702,7 @@ class FakeFixDetectorModule extends BaseModule {
       for (const rule of PATTERN_RULES.filter(r => r.direction === 'changed')) {
         if (isDemo && rule.severity === 'error') continue; // same fixture exemption
         const removed = hunk.lines.filter(l => l.startsWith('-') && rule.pattern.test(l));
+        const addedIdx = hunk.lines.findIndex(l => l.startsWith('+') && rule.replacement.test(l));
         const added = hunk.lines.filter(l => l.startsWith('+') && rule.replacement.test(l));
         let dropped = true;
         if (rule.strictCountMustDrop) {
@@ -675,7 +715,7 @@ class FakeFixDetectorModule extends BaseModule {
           findings.push({
             ruleId: rule.id,
             file: hunk.file,
-            line: hunk.lineNumber,
+            line: addedIdx >= 0 ? hunk.lineNumbers[addedIdx] : hunk.lineNumber,
             severity: rule.severity,
             title: rule.title,
             explanation: rule.explanation,
@@ -688,11 +728,23 @@ class FakeFixDetectorModule extends BaseModule {
     return findings;
   }
 
+  /**
+   * #666: a finding used to report `hunk.lineNumber` — the FIRST line of the
+   * hunk — for every match anywhere inside it, so a `@ts-expect-error` ten
+   * lines into a hunk was reported at the hunk's opening `return` or import
+   * line. `lines` stays the raw `+`/`-`/` ` diff lines (unchanged shape, so
+   * every existing consumer — `_renderHunk`, the `===` counter, the
+   * changed-line filters — keeps working); `lineNumbers[i]` is the new-file
+   * line number for `lines[i]`, computed by walking the hunk and advancing
+   * the counter on context (` `) and added (`+`) lines, which both occupy a
+   * line in the new file, and NOT on removed (`-`) lines, which don't.
+   */
   _parseDiff(diff) {
     const hunks = [];
     const lines = diff.split(/\r?\n/);
     let currentFile = null;
     let currentHunk = null;
+    let newLineCursor = 0;
 
     for (const line of lines) {
       if (line.startsWith('diff --git ')) {
@@ -701,13 +753,18 @@ class FakeFixDetectorModule extends BaseModule {
       } else if (line.startsWith('@@')) {
         if (currentHunk) hunks.push(currentHunk);
         const match = line.match(/\+(\d+)/);
+        const start = match ? parseInt(match[1], 10) : 0;
+        newLineCursor = start;
         currentHunk = {
           file: currentFile,
-          lineNumber: match ? parseInt(match[1], 10) : 0,
+          lineNumber: start,
           lines: [],
+          lineNumbers: [],
         };
       } else if (currentHunk && (line.startsWith('+') || line.startsWith('-') || line.startsWith(' '))) {
         currentHunk.lines.push(line);
+        currentHunk.lineNumbers.push(newLineCursor);
+        if (line.startsWith('+') || line.startsWith(' ')) newLineCursor += 1;
       }
     }
     if (currentHunk) hunks.push(currentHunk);

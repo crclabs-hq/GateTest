@@ -195,6 +195,154 @@ describe('MoneyFloatModule — plain arithmetic on a money-named identifier', ()
   });
 });
 
+// #666: money-float:arithmetic fired on a duration parser
+// (apps/api/src/automation/freshness.ts:351, seconds only, no money
+// anywhere in the file) — several MONEY_NAME_RE words double as ordinary
+// English outside a money domain. Bare mul/div now also requires a money
+// context word/import/type somewhere in the file.
+describe('MoneyFloatModule — #666: bare mul/div arithmetic requires money context', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-mf-ctx-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  const arith = (r) => r.checks.filter((c) => !c.passed && c.name.startsWith('money-float:arithmetic:'));
+
+  it('does NOT fire on a duration parser (`* 60`, `/ 1000`) with no money anywhere in the file', async () => {
+    write(tmp, 'src/freshness.ts', [
+      'function parseDurationCost(rawSeconds) {',
+      '  const ms = rawSeconds * 1000;',
+      '  const cost = ms / 60;',
+      '  return cost * 60;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.deepStrictEqual(arith(r).map((c) => c.name), [], 'a duration parser must not be reported as money arithmetic');
+  });
+
+  it('fires on `price * 1.15` in a file that imports a payment client', async () => {
+    write(tmp, 'src/checkout.js', [
+      "const { StripeClient } = require('./payment-client');",
+      '',
+      'function withTax(price) {',
+      '  return price * 1.15;',
+      '}',
+      '',
+      'module.exports = { withTax, StripeClient };',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = arith(r)[0];
+    assert.ok(hit, 'expected a money-float:arithmetic finding');
+    assert.strictEqual(hit.variable, 'price');
+  });
+
+  // Bonus control: the "money-typed import" alternative from the fix. `cost`
+  // is only a WEAK signal (needs a second, distinct signal to corroborate
+  // it) and there is no second money word anywhere in this file — so the
+  // finding can only fire because of the `Money`-typed import, a strong
+  // signal on its own.
+  it('fires via a `Money`-typed import even when the flagged word (`cost`) is only a weak signal on its own', async () => {
+    write(tmp, 'src/ledger.ts', [
+      "import type { Money } from '../types/finance';",
+      '',
+      'function scale(cost: Money) {',
+      '  return cost * 1.2;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = arith(r)[0];
+    assert.ok(hit, 'expected a money-float:arithmetic finding via the Money-typed import');
+    assert.strictEqual(hit.variable, 'cost');
+  });
+
+  it('specific names like `cost` still fire alone, uncorroborated, via compound-assign (unaffected by the mul/div context gate)', async () => {
+    // Same fixture as the pre-existing "fire alone, uncorroborated" test —
+    // proves the #666 context gate is scoped to bare mul/div and does not
+    // regress the compound-assign accumulator path.
+    write(tmp, 'src/a.js', [
+      'function bump(order) {',
+      '  order.cost += 1;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = arith(r)[0];
+    assert.ok(hit, 'specific money name via compound-assign must still fire without a second identifier');
+    assert.strictEqual(hit.variable, 'cost');
+  });
+});
+
+// #666 follow-up: the customer's own file — apps/api/src/automation/
+// freshness.ts — contains `amount` three times as the numeric part of a
+// `(\d+)\s*(ms|s|min|h|d|w)` duration parser, and no other money signal.
+// A single generic word must not be sufficient on its own: `amount`,
+// `total`, `balance` and `cost` are WEAK signals that only count once
+// corroborated by a second, distinct signal (strong or weak) elsewhere in
+// the file. `cents`, `currency`, `price`, `invoice`, `payment`, `stripe`,
+// `tax`, `fee`, a `Money`-typed import, and a payments/billing module
+// import are STRONG signals that suffice alone.
+describe('MoneyFloatModule — #666 follow-up: two-tier strong/weak money-context signals', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-mf-tier-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  const arith = (r) => r.checks.filter((c) => !c.passed && c.name.startsWith('money-float:arithmetic:'));
+
+  it('does NOT fire when `amount` (weak, alone) is the only signal — the exact freshness.ts duration-parser shape', async () => {
+    write(tmp, 'apps/api/src/automation/freshness.ts', [
+      'function parseFreshnessWindow(raw: string) {',
+      '  const match = /(\\d+)\\s*(ms|s|min|h|d|w)/.exec(raw);',
+      '  const amount = Number(match[1]);',
+      '  const unit = match[2];',
+      '  const amountMs = amount * unitToMs(unit);',
+      '  return amountMs / 1000;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.deepStrictEqual(arith(r).map((c) => c.name), [], 'a lone repeated weak signal (amount x3) must not fire');
+  });
+
+  it('fires when `amount` (weak) is corroborated by `currency` (strong)', async () => {
+    write(tmp, 'src/quote.ts', [
+      'function convert(amount, currency) {',
+      '  return amount * currency.rate;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = arith(r)[0];
+    assert.ok(hit, 'weak signal corroborated by a strong signal must fire');
+    assert.strictEqual(hit.variable, 'amount');
+  });
+
+  it('fires when `total` (weak) is corroborated by `balance` (weak) — two distinct weak signals', async () => {
+    write(tmp, 'src/ledger.js', [
+      'function project(total, balance) {',
+      '  return total * balance;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = arith(r)[0];
+    assert.ok(hit, 'two distinct weak signals in the same file must corroborate each other');
+    assert.strictEqual(hit.variable, 'total');
+  });
+
+  it('fires on `price` (strong) alone, uncorroborated', async () => {
+    write(tmp, 'src/quote.js', [
+      'function withMarkup(price) {',
+      '  return price * 1.2;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = arith(r)[0];
+    assert.ok(hit, 'a strong signal must fire alone');
+    assert.strictEqual(hit.variable, 'price');
+  });
+});
+
 describe('MoneyFloatModule — generic accumulator names require corroboration', () => {
   let tmp;
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-mf-generic-')); });
