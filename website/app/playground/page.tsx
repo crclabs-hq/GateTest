@@ -722,6 +722,15 @@ export default function PlaygroundPage() {
                         )}
                       </button>
                     </div>
+                    {/* issue #651 — the badge's own "needs account scan" copy says this
+                        same thing; a customer reading a shared free-scan link should not
+                        conclude their README badge updated when it did not. */}
+                    <p className="text-[11px] font-mono text-muted text-right -mt-1">
+                      <Link href="/playground" className="underline hover:text-foreground transition-colors">
+                        This free scan
+                      </Link>{" "}
+                      doesn&apos;t update a badge — an account scan does.
+                    </p>
                     <div className="space-y-2">
                       {result.topFindings.slice(0, 8).map((f, i) => {
                         const sev = severityOf(f.severity);

@@ -763,6 +763,97 @@ function describeThrown(host: string, err: unknown): string {
   return `${host} request failed (${err instanceof Error ? err.message : "network error"})`;
 }
 
+// Reason for a GitHub failure seen on a request that carried NO credential —
+// either the caller never had one, or a credentialed attempt already got
+// 401/403 and this is the anonymous retry. Deliberately never blames "our
+// credential": there wasn't one on this specific request, so a 404 here is
+// honestly ambiguous (private repo vs. one that doesn't exist), not a sign
+// our token is broken (issue #651: a public repo was showing a credential
+// failure to the customer even though it needs no credential at all).
+function describeAnonymousGithubFailure(status: number): string {
+  if (status === 404)
+    return "GitHub could not find this repository without a credential — it is private, was renamed, or does not exist";
+  if (status === 403) return "GitHub rate-limited or forbade the anonymous request (403)";
+  if (status === 401) return "GitHub requires a credential to view this repository (private or access-restricted)";
+  return `GitHub returned HTTP ${status} for an anonymous request`;
+}
+
+type GithubRepoRefResult =
+  | { ok: true; sha: string; defaultBranch: string }
+  | { ok: false; status: number; stage: "repo" | "ref" | "no-sha" };
+
+/** One repo-then-ref lookup with a given header set (bearer or anonymous). */
+async function fetchGithubRepoAndRefSha(
+  owner: string,
+  repo: string,
+  branch: string,
+  headers: Record<string, string>,
+): Promise<GithubRepoRefResult> {
+  const ghRepo = await fetchWithTimeout(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+  if (!ghRepo.ok) return { ok: false, status: ghRepo.status, stage: "repo" };
+  const repoData = (await ghRepo.json()) as { default_branch?: string };
+  const defaultBranch = branch || repoData.default_branch || "main";
+  const ghRef = await fetchWithTimeout(
+    `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(defaultBranch)}`,
+    { headers },
+  );
+  if (!ghRef.ok) return { ok: false, status: ghRef.status, stage: "ref" };
+  const refData = (await ghRef.json()) as { object?: { sha?: string } };
+  if (refData.object?.sha) return { ok: true, sha: refData.object.sha, defaultBranch };
+  return { ok: false, status: ghRef.status, stage: "no-sha" };
+}
+
+/**
+ * Bearer attempt, with an anonymous retry on 401/403 (issue #651: a public
+ * repo needs no credential at all, and a stale host token must not make a
+ * public repo look broken). Returns a resolved sha, or a customer-safe
+ * failure reason — by the time a failure is reported, the anonymous
+ * request (no credential at all) is the one that actually failed, so the
+ * reason never blames "our credential".
+ */
+async function attemptGithubBaseBranchSha(
+  owner: string,
+  repo: string,
+  branch: string,
+  token: string,
+  logTag: string,
+): Promise<{ sha: string; defaultBranch: string } | { reason: string }> {
+  const bearerHeaders: Record<string, string> = { "User-Agent": "GateTest", Accept: "application/vnd.github.v3+json" };
+  if (token) bearerHeaders.Authorization = `Bearer ${token}`;
+
+  const bearer = await fetchGithubRepoAndRefSha(owner, repo, branch, bearerHeaders);
+  if (bearer.ok) return { sha: bearer.sha, defaultBranch: bearer.defaultBranch };
+
+  if (!token) return { reason: describeAnonymousGithubFailure(bearer.status) };
+  if (bearer.status !== 401 && bearer.status !== 403) {
+    return {
+      reason:
+        bearer.stage === "no-sha"
+          ? "GitHub returned the branch ref with no sha"
+          : describeHttpFailure("GitHub", bearer.status),
+    };
+  }
+
+  // Bearer call was 401/403 — retry the same calls with no Authorization
+  // header. A public repo resolves here even though our credential is bad.
+  const anonHeaders: Record<string, string> = { "User-Agent": "GateTest", Accept: "application/vnd.github.v3+json" };
+  const anon = await fetchGithubRepoAndRefSha(owner, repo, branch, anonHeaders);
+  if (anon.ok) {
+    if (bearer.status === 401) {
+      // Server-side only — the customer's repo just resolved fine via the
+      // anonymous retry, so this is purely "our box's GITHUB_TOKEN /
+      // GATETEST_GITHUB_TOKEN needs rotation," never the customer's problem.
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[resolveBaseBranchSha:${logTag}] host GitHub credential rejected (401) for ${owner}/${repo} — GITHUB_TOKEN/GATETEST_GITHUB_TOKEN needs rotation; anonymous retry resolved the sha`,
+      );
+    }
+    return { sha: anon.sha, defaultBranch: anon.defaultBranch };
+  }
+  if (anon.stage === "no-sha") return { reason: "GitHub returned the branch ref with no sha" };
+  return { reason: describeAnonymousGithubFailure(anon.status) };
+}
+
 /**
  * Resolve the tip SHA of a branch. Tries Gluecron's tree endpoint first
  * (which carries the branch-tip sha on the response per its wire contract),
@@ -783,28 +874,11 @@ export async function resolveBaseBranchSha(
   // GitHub-first if the token is a GitHub credential
   if (isGitHubToken(token)) {
     try {
-      const ghRepo = await fetchWithTimeout(`https://api.github.com/repos/${owner}/${repo}`, {
-        headers: { Authorization: `Bearer ${token}`, "User-Agent": "GateTest", Accept: "application/vnd.github.v3+json" },
-      });
-      if (ghRepo.ok) {
-        const repoData = await ghRepo.json() as { default_branch?: string };
-        const defaultBranch = branch || repoData.default_branch || "main";
-        const ghRef = await fetchWithTimeout(
-          `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(defaultBranch)}`,
-          { headers: { Authorization: `Bearer ${token}`, "User-Agent": "GateTest", Accept: "application/vnd.github.v3+json" } }
-        );
-        if (ghRef.ok) {
-          const refData = await ghRef.json() as { object?: { sha?: string } };
-          if (refData.object?.sha) {
-            return { sha: refData.object.sha, defaultBranch, source: "github" };
-          }
-          attempts.push("GitHub returned the branch ref with no sha");
-        } else {
-          attempts.push(describeHttpFailure("GitHub", ghRef.status));
-        }
-      } else {
-        attempts.push(describeHttpFailure("GitHub", ghRepo.status));
+      const result = await attemptGithubBaseBranchSha(owner, repo, branch, token, "github-first");
+      if ("sha" in result) {
+        return { sha: result.sha, defaultBranch: result.defaultBranch, source: "github" };
       }
+      attempts.push(result.reason);
     } catch (err) {
       attempts.push(describeThrown("GitHub", err));
     }
@@ -849,28 +923,11 @@ export async function resolveBaseBranchSha(
   // public repos can be read unauthenticated, and in that case we still
   // want to be able to compute a base SHA rather than failing the whole PR.
   try {
-    const headers: Record<string, string> = { "User-Agent": "GateTest", Accept: "application/vnd.github.v3+json" };
-    if (token) headers.Authorization = `Bearer ${token}`;
-    const ghRepo = await fetchWithTimeout(`https://api.github.com/repos/${owner}/${repo}`, { headers });
-    if (ghRepo.ok) {
-      const repoData = await ghRepo.json() as { default_branch?: string };
-      const defaultBranch = branch || repoData.default_branch || "main";
-      const ghRef = await fetchWithTimeout(
-        `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(defaultBranch)}`,
-        { headers }
-      );
-      if (ghRef.ok) {
-        const refData = await ghRef.json() as { object?: { sha?: string } };
-        if (refData.object?.sha) {
-          return { sha: refData.object.sha, defaultBranch, source: "github" };
-        }
-        attempts.push("GitHub returned the branch ref with no sha");
-      } else {
-        attempts.push(describeHttpFailure("GitHub", ghRef.status));
-      }
-    } else {
-      attempts.push(describeHttpFailure("GitHub", ghRepo.status));
+    const result = await attemptGithubBaseBranchSha(owner, repo, branch, token, "last-ditch");
+    if ("sha" in result) {
+      return { sha: result.sha, defaultBranch: result.defaultBranch, source: "github" };
     }
+    attempts.push(result.reason);
   } catch (err) {
     attempts.push(describeThrown("GitHub", err));
   }
