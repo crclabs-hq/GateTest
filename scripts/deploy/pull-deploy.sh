@@ -159,11 +159,13 @@ echo "[pull-deploy] deploying from origin/main (never this box's stale copy — 
 # $GATETEST_RESTART_CMD" instead of its own systemd/pm2 auto-detect). Unless
 # PULL_DEPLOY_INPLACE=1 (a box with only one port free), point that override
 # at scripts/deploy/blue-green-restart.sh — see docs/deploy/PULL-DEPLOY.md
-# "Blue/green" for what it does and why the actual proxy switch is a
-# pluggable hook rather than a Caddy/nginx config (CLAUDE.md Deployment
-# Doctrine bans both on this box). $APP_DIR is already reset to $AFTER by
-# deploy-on-box.sh's sync phase by the time the restart runs, so this reads
-# from the just-deployed tree, not the box's previous copy.
+# "Blue/green" for what it does and how it flips the real front door
+# (Coolify's Traefik, verified on box 161 2026-09-22 — not the
+# tallrig-bun-gateway CLAUDE.md's Deployment Doctrine describes as the
+# intended end state; Caddy and nginx remain untouched either way). $APP_DIR
+# is already reset to $AFTER by deploy-on-box.sh's sync phase by the time the
+# restart runs, so this reads from the just-deployed tree, not the box's
+# previous copy.
 set +e
 if [ "${PULL_DEPLOY_INPLACE:-0}" = "1" ]; then
   git show origin/main:scripts/deploy/deploy-on-box.sh | GATETEST_APP_DIR="$APP_DIR" PULL_DEPLOY_INPLACE=1 bash -s

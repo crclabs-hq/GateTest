@@ -127,40 +127,64 @@ non-zero. After the switch, it polls the **public** `/api/platform-status`
 (through the proxy) once a second for 30 seconds and exits non-zero with a
 clear log line on the first non-200.
 
-**Why the proxy-switch step is a pluggable hook, not a Caddy or nginx
-config:** this repo's own `CLAUDE.md` ("DEPLOYMENT DOCTRINE — GATETEST.IO
-RUNS ON TALLRIG", 2026-09-11) is explicit that the box's reverse proxy is
-Tallrig's own `tallrig-bun-gateway`, that it owns 80/443 and all TLS
-termination, and that *"Caddy, nginx, certbot, and every other proxy are
-BANNED — never suggest, install, or configure one. Public hostnames are added
-on the Tallrig side, not here."* Neither Caddy nor nginx is used anywhere in
-this repo or on the box. Writing a config for either here would both violate
-that doctrine and configure a proxy that is not the one actually running in
-production.
+**The real front door — corrected 2026-09-22, verified read-only on box 161
+by the platform team.** CLAUDE.md's Deployment Doctrine describes the
+*intended end state* — Tallrig's own `tallrig-bun-gateway` fronting the box,
+Caddy/nginx banned — but that migration has not actually happened. **Nothing
+of Tallrig's is in front of gatetest.io today.** Ports 80/443 belong to the
+`coolify-proxy` container: **Traefik v3.6**, running with its **file
+provider** (`--providers.file.watch=true`), which reloads a watched dynamic
+config file **without dropping connections** — exactly the zero-downtime
+primitive this fix needs. gatetest.io's route is one file:
 
-So `blue-green-restart.sh` calls an external command,
+```
+/data/coolify/proxy/dynamic/gatetest-web.yaml
+```
+
+with router `gatetest-web` → service `gatetest-web` → a **single-server**
+`loadBalancer` pointed at `http://10.0.1.1:<port>`. (This is a factual
+correction to this runbook, not to `CLAUDE.md` — the doctrine there still
+describes the intended Tallrig end state and is left as-is.)
+
+`blue-green-restart.sh` calls an external command,
 `PULL_DEPLOY_PROXY_SWITCH_CMD` (default `scripts/deploy/switch-proxy.sh`),
-with the new port as its only argument, and treats a non-zero exit from it
-exactly like a failed health check: abort, old instance stays live, exit
-non-zero. **`scripts/deploy/switch-proxy.sh` ships refusing on purpose** — it
-does not know how to flip `tallrig-bun-gateway`'s upstream, because that
-mechanism lives on the Tallrig side, out of this repo's reach, and inventing
-one here would be the same doctrine violation. This is a genuine open item,
-not a code gap this PR could close: **Craig / the Tallrig side needs to
-decide how the box exposes a way to flip the gateway's upstream** (a config
-file it watches, an admin API, a signal — TBD), and then either implement
-that in `switch-proxy.sh` or point `PULL_DEPLOY_PROXY_SWITCH_CMD` at a script
-that does.
+as `"$CMD" <port> <expected-commit>`. **`switch-proxy.sh` implements the real
+switch**: it atomically rewrites the one `http://10.0.1.1:300[01]` line in
+the Traefik dynamic file to the new port (`sed` into a temp file, then `mv`
+onto the watched file — the `mv` is the atomic step Traefik's file watcher
+picks up), then polls the **public** hostname (`--resolve host:443:127.0.0.1`
+so it hits this box's own Traefik regardless of DNS/CDN in front of it) for
+up to 15s until the commit it reports matches. It refuses before touching
+anything if the file doesn't contain a matching upstream line (`grep -q`
+guard) or doesn't exist. **It never rolls back on its own** — if the
+15-second verification loop times out, the file has *already* been rewritten
+to the new port; only the caller (`blue-green-restart.sh`) knows whether the
+old instance is still running to roll back to, so on a failed switch it calls
+`switch-proxy.sh` again with the **old port and the commit the old instance
+was proven to be serving** (learned by direct curl before the new instance
+was even started), then stops the (still-unhealthy-for-this-purpose) new
+instance and exits non-zero. The old instance is never stopped until the
+*new* switch has verified, precisely so there is something to roll back to.
 
-**Until the proxy-switch command is wired up, every automatic deploy will
-abort safely** (new build built and health-checked on the alternate port,
-old build still serving, exit code non-zero, visible in
-`journalctl -u gatetest-pull-deploy`) rather than silently doing nothing —
-that is the intended, honest failure mode (Bible Engineering Doctrine #1:
-never report success while doing nothing), not a bug. **A box that is not
-ready for blue/green yet should set `PULL_DEPLOY_INPLACE=1`**, which restores
-the exact old behaviour (restart `gatetest-web` in place, brief 502s, no
-health check, no switch step) until the proxy-switch mechanism exists.
+Environment variables `switch-proxy.sh` reads (defaults match the box
+exactly as verified):
+
+| Var | Default | Meaning |
+|---|---|---|
+| `PULL_DEPLOY_TRAEFIK_FILE` | `/data/coolify/proxy/dynamic/gatetest-web.yaml` | the one dynamic-config file Traefik's file provider watches for this route |
+| `PULL_DEPLOY_BIND_HOST` | `10.0.1.1` | the interior address both blue/green instances bind |
+| `PULL_DEPLOY_PUBLIC_HOST` | `gatetest.io` | the public hostname verified through the real front door after the switch |
+
+**Deliberately ONE server in the `loadBalancer`, never two servers plus a
+`healthCheck` failover.** While both ports are healthy, Traefik would
+round-robin across the two builds — a page served by one build fetching
+`/_next/static/<hash>/...` assets built into the *other* build 404s. Single
+server, atomic file rewrite, verify through the real front door: never a
+rolling failover between two live builds.
+
+**A box that is not ready for blue/green yet should set
+`PULL_DEPLOY_INPLACE=1`**, which restores the exact old behaviour (restart
+`gatetest-web` in place, brief 502s, no health check, no switch step).
 
 ### Exact install commands (owner-run — never run by an agent against the box)
 
@@ -182,12 +206,11 @@ sudo systemctl stop gatetest-web.service
 sudo systemctl disable gatetest-web.service        # the template units own it from here
 echo 3000 | sudo tee /var/lib/gatetest/pull-deploy-active-port
 
-# One-time proxy config change (Tallrig side, not this repo): whoever owns
-# tallrig-bun-gateway's config needs to give this box a way to flip its
-# upstream between 10.0.1.1:3000 and 10.0.1.1:3001 on command, and that
-# command needs to be wired into scripts/deploy/switch-proxy.sh (or
-# PULL_DEPLOY_PROXY_SWITCH_CMD) before the next step. Until then, deploys
-# will abort safely at the switch step — see above.
+# Confirm the Traefik dynamic file is really there and really points at
+# 10.0.1.1:3000 before the first automatic blue/green deploy tries to
+# rewrite it (switch-proxy.sh refuses harmlessly if this doesn't match, but
+# check by hand once so the first real deploy isn't the first time you look):
+grep -n 'http://10.0.1.1:300[01]' /data/coolify/proxy/dynamic/gatetest-web.yaml
 ```
 
 **Verify** (after a real deploy has gone through blue/green at least once):
@@ -197,18 +220,20 @@ echo 3000 | sudo tee /var/lib/gatetest/pull-deploy-active-port
 cat /var/lib/gatetest/pull-deploy-active-port
 curl -s http://10.0.1.1:"$(cat /var/lib/gatetest/pull-deploy-active-port)"/api/platform-status | jq .commit
 
+# Confirms the Traefik dynamic file agrees.
+grep -n 'http://10.0.1.1:' /data/coolify/proxy/dynamic/gatetest-web.yaml
+
 # Confirms the public path (through the real proxy) matches the same commit.
 curl -s https://gatetest.io/api/platform-status | jq .commit
 
 # Confirms the OTHER port is not still holding an instance open.
 systemctl list-units 'gatetest-web@*' --no-legend
 
-journalctl -u gatetest-pull-deploy -n 50 --no-pager   # the [blue-green] log lines from the last deploy
+journalctl -u gatetest-pull-deploy -n 50 --no-pager   # the [blue-green] and [switch-proxy] log lines from the last deploy
 ```
 
-A box with only one port free (or that has not wired up the proxy-switch
-command yet) should skip the migration above and instead add one line to
-`gatetest-pull-deploy.service`'s `[Service]` block —
+A box with only one port free should skip the migration above and instead
+add one line to `gatetest-pull-deploy.service`'s `[Service]` block —
 `Environment=PULL_DEPLOY_INPLACE=1` — then `sudo systemctl daemon-reload`.
 `pull-deploy.sh` reads that and keeps restarting the single `gatetest-web`
 unit in place exactly as it always has (brief 502s, no health check, no

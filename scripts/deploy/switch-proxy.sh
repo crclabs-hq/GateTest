@@ -1,49 +1,74 @@
 #!/usr/bin/env bash
-# switch-proxy.sh <new-port> — flip the reverse proxy so gatetest.io traffic
-# goes to <new-port> instead of whichever port is currently active.
+# switch-proxy.sh <new-port> <expected-commit> — flip gatetest.io's real
+# front door from whichever port is currently active to <new-port>, then
+# verify the public endpoint actually serves <expected-commit> before
+# returning success.
 #
-# NOT IMPLEMENTED ON PURPOSE. CLAUDE.md's Deployment Doctrine (2026-09-11,
-# "DEPLOYMENT DOCTRINE — GATETEST.IO RUNS ON TALLRIG") is explicit:
+# CORRECTED 2026-09-22 (read-only verification on box 161 by the platform
+# team): CLAUDE.md's Deployment Doctrine describes the intended end state
+# (Tallrig's own `tallrig-bun-gateway` fronting the box), but that migration
+# has not happened — nothing of Tallrig's is in front of gatetest.io today.
+# Ports 80/443 belong to the `coolify-proxy` container: Traefik v3.6, file
+# provider, `--providers.file.watch=true`. gatetest.io's route is one file,
+# `/data/coolify/proxy/dynamic/gatetest-web.yaml` — router `gatetest-web` ->
+# service `gatetest-web` -> a single-server loadBalancer pointed at
+# `http://10.0.1.1:<port>`. Traefik reloads a watched file WITHOUT dropping
+# connections, which is exactly the zero-downtime primitive issue #663
+# needs. See docs/deploy/PULL-DEPLOY.md "Blue/green" for the full story —
+# this is a factual correction to that deploy doc, not to CLAUDE.md's
+# doctrine (which still describes the intended Tallrig end state and is left
+# untouched here).
 #
-#   "Reverse proxy: the platform's bun gateway (tallrig-bun-gateway) owns
-#   80/443, ALL TLS termination, and ACME certificates. Caddy, nginx,
-#   certbot, and every other proxy are BANNED — never suggest, install, or
-#   configure one. Public hostnames are added on the Tallrig side, not here."
+# Deliberately ONE server in the loadBalancer, never two-plus-healthCheck:
+# while both ports are healthy Traefik round-robins across builds, and a
+# page served by one build fetching /_next/static assets hashed by the
+# OTHER build 404s. Single server, atomic file rewrite, verify through the
+# real front door — never a rolling failover.
 #
-# scripts/deploy/blue-green-restart.sh (issue #663, the 502-during-restart
-# fix) needs SOME way to flip the box's real front door from the old build's
-# port to the new one, but that front door's config lives on the Tallrig
-# side, outside this repo's reach — writing a Caddy or nginx config here
-# would both violate the doctrine above and not even be the proxy that is
-# actually running in production. So this is a pluggable hook, not a
-# hardcoded implementation:
-#
-#   - Craig / the Tallrig side implements the real switch in this file (or
-#     points PULL_DEPLOY_PROXY_SWITCH_CMD at a script that does), once it is
-#     known how tallrig-bun-gateway's upstream can be flipped from the box
-#     side (a config file it watches, an admin API, a signal — TBD, a
-#     Tallrig-side decision, Boss Rule #4/#7: domain routing + new
-#     integrations need Craig's authorization).
-#   - Until then, this refuses loudly rather than silently doing nothing
-#     (Bible Engineering Doctrine #1 — never report success while doing
-#     nothing). blue-green-restart.sh treats a non-zero exit here as "abort,
-#     old instance stays live, exit non-zero" — the safe failure mode: no
-#     downtime, no traffic ever pointed at nothing, just a build that is
-#     ready and healthy on the alternate port and cannot go live
-#     automatically yet.
-#
-# A box that cannot wire this up yet should run with PULL_DEPLOY_INPLACE=1
-# instead (see docs/deploy/PULL-DEPLOY.md "Blue/green"), which restarts the
-# single existing unit exactly as pull-deploy.sh always has.
+# The `mv` onto the watched file is the atomic switch. The curl through the
+# public hostname (not localhost — the whole point is proving the REAL
+# front door serves the new build, not just that the file changed) is the
+# receipt. This script does NOT roll back on its own: if the verification
+# loop below times out, the file has ALREADY been rewritten to point at
+# <new-port> (the mv already happened) — rolling back is the CALLER's job.
+# blue-green-restart.sh calls this same script again with the OLD port and
+# OLD commit to roll back, because only the caller knows whether the old
+# instance is still running to roll back to.
 set -euo pipefail
 
-NEW_PORT="${1:?usage: switch-proxy.sh <new-port>}"
+P="${1:?usage: switch-proxy.sh <new-port> <expected-commit>}"
+EXP="${2:?usage: switch-proxy.sh <new-port> <expected-commit>}"
+f="${PULL_DEPLOY_TRAEFIK_FILE:-/data/coolify/proxy/dynamic/gatetest-web.yaml}"
+host="${PULL_DEPLOY_BIND_HOST:-10.0.1.1}"
+public="${PULL_DEPLOY_PUBLIC_HOST:-gatetest.io}"
+# Parameterized for tests only — production always gets the defaults below
+# (30 attempts * 0.5s = 15s), matching the verified box behaviour exactly.
+ATTEMPTS="${PULL_DEPLOY_TRAEFIK_VERIFY_ATTEMPTS:-30}"
+INTERVAL_S="${PULL_DEPLOY_TRAEFIK_VERIFY_INTERVAL_S:-0.5}"
 
-echo "[switch-proxy] ERROR: no proxy-switch mechanism is configured for this box." >&2
-echo "[switch-proxy]        tallrig-bun-gateway fronts gatetest.io and its upstream" >&2
-echo "[switch-proxy]        config lives on the Tallrig side (CLAUDE.md Deployment" >&2
-echo "[switch-proxy]        Doctrine bans Caddy/nginx here) — implement the real" >&2
-echo "[switch-proxy]        switch in this file, or point PULL_DEPLOY_PROXY_SWITCH_CMD" >&2
-echo "[switch-proxy]        at a script that does, before relying on blue/green." >&2
-echo "[switch-proxy]        Requested switch to port $NEW_PORT was NOT performed." >&2
+if [ ! -f "$f" ]; then
+  echo "[switch-proxy] ERROR: Traefik dynamic file not found: $f" >&2
+  exit 1
+fi
+
+if ! grep -q "http://${host}:300[01]" "$f"; then
+  echo "[switch-proxy] ERROR: no http://${host}:3000 or :3001 upstream found in $f — refusing to guess, nothing changed" >&2
+  exit 1
+fi
+
+sed "s#http://${host}:300[01]\b#http://${host}:${P}#" "$f" > "$f.tmp"
+mv -f "$f.tmp" "$f"
+echo "[switch-proxy] $f now points at http://${host}:${P}"
+
+c=""
+for i in $(seq 1 "$ATTEMPTS"); do
+  c=$(curl -s -m 3 --resolve "${public}:443:127.0.0.1" "https://${public}/api/platform-status" | grep -o '"commit":"[0-9a-f]*"' | cut -d'"' -f4 || true)
+  if [ "$c" = "$EXP" ]; then
+    echo "[switch-proxy] verified: ${public} now serves commit $EXP"
+    exit 0
+  fi
+  sleep "$INTERVAL_S"
+done
+
+echo "[switch-proxy] ERROR: proxy still serving ${c:-nothing}, expected $EXP — $f already points at ${P}, caller must roll back" >&2
 exit 1

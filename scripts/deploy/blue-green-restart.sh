@@ -9,18 +9,27 @@
 # into build-info.json: get public traffic onto it without the old process
 # ever having nothing to answer to (the 502s issue #663 reports).
 #
-# Why this is not a Caddy/nginx script: CLAUDE.md's Deployment Doctrine
-# (2026-09-11) bans configuring Caddy, nginx, or "every other proxy" on this
-# box — the front door is Tallrig's own `tallrig-bun-gateway`, and its config
-# lives on the Tallrig side, not in this repo. So the actual proxy-switch
-# step is delegated to a pluggable external command
-# (PULL_DEPLOY_PROXY_SWITCH_CMD, default scripts/deploy/switch-proxy.sh) that
-# the box operator supplies for whatever mechanism the real front door
-# exposes. Until that command is wired up, switch-proxy.sh refuses on
-# purpose (Bible Doctrine #1: never report success while doing nothing) and
-# this script aborts SAFELY — the old instance is left serving, exit
-# non-zero — rather than silently leaving two instances up with no traffic
-# switched.
+# The real front door (CORRECTED 2026-09-22, read-only verification on box
+# 161): Coolify's `coolify-proxy` (Traefik v3.6, file provider, reloads a
+# watched dynamic-config file without dropping connections) — not Tallrig's
+# `tallrig-bun-gateway`, which CLAUDE.md's Deployment Doctrine describes as
+# the intended end state but which is not actually in front of gatetest.io
+# yet. The proxy-switch step is still a pluggable external command
+# (PULL_DEPLOY_PROXY_SWITCH_CMD, default scripts/deploy/switch-proxy.sh) —
+# now a real implementation against Traefik's dynamic file, invoked as
+# "$CMD <port> <expected-commit>" — rather than logic inlined here, so the
+# box-specific mechanism stays swappable if the front door changes again.
+# See docs/deploy/PULL-DEPLOY.md "Blue/green" for the full story.
+#
+# Rollback: switch-proxy.sh's own verification loop does NOT roll back on
+# timeout — the dynamic file has already been rewritten to the new port by
+# the time it gives up, and only the CALLER (here) knows whether the old
+# instance is still around to roll back to. So on a switch failure this
+# script immediately calls the same switch command again with the OLD port
+# and the commit the old instance was reporting before the deploy started,
+# then stops the (unhealthy-for-this-purpose) new instance and exits
+# non-zero. The old instance is never stopped until the NEW switch has been
+# verified, precisely so that rollback target is still there to roll back to.
 #
 # Environment (all optional):
 #   GATETEST_APP_DIR              repo checkout               (default: /opt/gatetest)
@@ -38,8 +47,9 @@
 #   PULL_DEPLOY_HEALTH_TIMEOUT_S  seconds to wait for the new instance        (default: 120)
 #   PULL_DEPLOY_HEALTH_INTERVAL_S poll interval while waiting                 (default: 2)
 #   PULL_DEPLOY_PROXY_SWITCH_CMD  command to flip the real front door,
-#                                 invoked as "$CMD <new-port>"                (default: $APP_DIR/scripts/deploy/switch-proxy.sh)
-#   PULL_DEPLOY_SMOKE_URL         public URL polled after the switch          (default: https://gatetest.io/api/platform-status)
+#                                 invoked as "$CMD <port> <expected-commit>"  (default: $APP_DIR/scripts/deploy/switch-proxy.sh)
+#   PULL_DEPLOY_PUBLIC_HOST       public hostname, used for the final smoke  (default: gatetest.io)
+#   PULL_DEPLOY_SMOKE_URL         public URL polled after the switch          (default: https://<PUBLIC_HOST>/api/platform-status)
 #   PULL_DEPLOY_SMOKE_DURATION_S  how many 1-second polls                     (default: 30)
 #   PULL_DEPLOY_SMOKE_INTERVAL_S  seconds between polls                       (default: 1)
 set -euo pipefail
@@ -48,6 +58,11 @@ APP_DIR="${GATETEST_APP_DIR:-/opt/gatetest}"
 
 log() { echo "[blue-green] $*"; }
 err() { echo "[blue-green] ERROR: $*" >&2; }
+
+extract_commit() {
+  # $1 = a /api/platform-status response body
+  printf '%s' "$1" | grep -o '"commit":"[^"]*"' | head -n1 | cut -d'"' -f4
+}
 
 # ---------------------------------------------------------------------------
 # In-place fallback — PULL_DEPLOY_INPLACE=1, for a box with only one port
@@ -68,7 +83,8 @@ ACTIVE_PORT_FILE="${PULL_DEPLOY_ACTIVE_PORT_FILE:-/var/lib/gatetest/pull-deploy-
 HEALTH_TIMEOUT_S="${PULL_DEPLOY_HEALTH_TIMEOUT_S:-120}"
 HEALTH_INTERVAL_S="${PULL_DEPLOY_HEALTH_INTERVAL_S:-2}"
 SWITCH_CMD="${PULL_DEPLOY_PROXY_SWITCH_CMD:-$APP_DIR/scripts/deploy/switch-proxy.sh}"
-SMOKE_URL="${PULL_DEPLOY_SMOKE_URL:-https://gatetest.io/api/platform-status}"
+PUBLIC_HOST="${PULL_DEPLOY_PUBLIC_HOST:-gatetest.io}"
+SMOKE_URL="${PULL_DEPLOY_SMOKE_URL:-https://${PUBLIC_HOST}/api/platform-status}"
 SMOKE_DURATION_S="${PULL_DEPLOY_SMOKE_DURATION_S:-30}"
 SMOKE_INTERVAL_S="${PULL_DEPLOY_SMOKE_INTERVAL_S:-1}"
 
@@ -96,7 +112,20 @@ fi
 NEW_UNIT="${UNIT_TEMPLATE}${NEW_PORT}.service"
 ACTIVE_UNIT="${UNIT_TEMPLATE}${ACTIVE_PORT}.service"
 
-log "active=$ACTIVE_UNIT new=$NEW_UNIT expected commit=$EXPECTED_COMMIT"
+# --- learn what the currently-active instance reports, so a failed switch ---
+# --- can roll back to a commit switch-proxy.sh can actually verify. Best ---
+# --- effort: on the very first-ever bootstrap the active instance may not ---
+# --- be running the templated unit yet (see docs "Blue/green" migration), ---
+# --- in which case rollback verification just can't match and the ---
+# --- operator sees that plainly in the log rather than a silent no-op. ---
+PREV_BODY="$(curl -s -m 5 "http://${HOST}:${ACTIVE_PORT}/api/platform-status" 2>/dev/null || true)"
+PREV_COMMIT="$(extract_commit "$PREV_BODY")"
+if [ -z "$PREV_COMMIT" ]; then
+  log "WARNING: could not determine the commit currently served on port $ACTIVE_PORT — a rollback, if needed, will not verify"
+  PREV_COMMIT="unknown"
+fi
+
+log "active=$ACTIVE_UNIT (commit $PREV_COMMIT) new=$NEW_UNIT expected commit=$EXPECTED_COMMIT"
 
 cleanup_new() {
   systemctl stop "$NEW_UNIT" >/dev/null 2>&1 || true
@@ -130,15 +159,23 @@ if [ "$HEALTHY" -ne 1 ]; then
 fi
 log "$NEW_UNIT is healthy at commit $EXPECTED_COMMIT"
 
-# --- switch the reverse proxy upstream to the new port. ---
-if ! "$SWITCH_CMD" "$NEW_PORT"; then
-  err "proxy switch command failed ($SWITCH_CMD $NEW_PORT) — aborting, $ACTIVE_UNIT stays live, traffic never moved"
+# --- switch the reverse proxy upstream to the new port, verified through ---
+# --- the real public front door. The old instance is deliberately still ---
+# --- running at this point, so a failed switch can roll back to it. ---
+if ! "$SWITCH_CMD" "$NEW_PORT" "$EXPECTED_COMMIT"; then
+  err "proxy switch to port $NEW_PORT failed ($SWITCH_CMD) — rolling back to $ACTIVE_UNIT (port $ACTIVE_PORT, commit $PREV_COMMIT)"
+  if "$SWITCH_CMD" "$ACTIVE_PORT" "$PREV_COMMIT"; then
+    log "rollback to port $ACTIVE_PORT verified"
+  else
+    err "rollback to port $ACTIVE_PORT ALSO failed to verify — check $ACTIVE_UNIT and the proxy dynamic file by hand"
+  fi
   cleanup_new
   exit 1
 fi
-log "proxy switched to port $NEW_PORT"
+log "proxy switched to port $NEW_PORT (verified through $PUBLIC_HOST)"
 
-# --- old instance can go now that nothing points at it. ---
+# --- old instance can go now that the real front door verifiably serves ---
+# --- the new one. ---
 if ! systemctl stop "$ACTIVE_UNIT"; then
   log "WARNING: systemctl stop $ACTIVE_UNIT reported an error (non-fatal — new instance is already live and serving)"
 fi
@@ -147,13 +184,17 @@ if ! printf '%s' "$NEW_PORT" > "$ACTIVE_PORT_FILE" 2>/dev/null; then
 fi
 log "$ACTIVE_UNIT stopped; active port is now $NEW_PORT"
 
-# --- smoke test: poll the PUBLIC endpoint (through the proxy) every second
-# --- for SMOKE_DURATION_S. Any non-200 fails loudly and immediately — the
-# --- switch already happened, but a silent failure here is exactly the
-# --- "reports success while doing nothing" bug the Bible calls out. ---
+# --- final smoke test: poll the PUBLIC endpoint every second for
+# --- SMOKE_DURATION_S. switch-proxy.sh already verified the commit matches
+# --- once; this is the belt-and-braces "does it keep answering 200" check
+# --- from issue #663's own spec. Any non-200 fails loudly and immediately —
+# --- the switch already happened and the old instance is already gone, so
+# --- there is nothing left to roll back to; a silent failure here would be
+# --- exactly the "reports success while doing nothing" bug the Bible calls
+# --- out. ---
 i=0
 while [ "$i" -lt "$SMOKE_DURATION_S" ]; do
-  CODE="$(curl -s -o /dev/null -m 5 -w '%{http_code}' "$SMOKE_URL" 2>/dev/null || echo 000)"
+  CODE="$(curl -s -o /dev/null -m 5 -w '%{http_code}' --resolve "${PUBLIC_HOST}:443:127.0.0.1" "$SMOKE_URL" 2>/dev/null || echo 000)"
   if [ "$CODE" != "200" ]; then
     err "post-switch smoke: $SMOKE_URL returned HTTP $CODE at check $((i + 1))/$SMOKE_DURATION_S — exiting non-zero"
     exit 1
