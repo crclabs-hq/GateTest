@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import buildInfo from "@/app/data/build-info.json";
 import { siblingUrlMap } from "@/app/lib/platform-siblings";
 
+// CommonJS interop — helper is .js using require-style exports.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const tallrigPushEventStore = require("@/app/lib/tallrig-push-event-store");
+
 // Build-time stamp (website `prebuild` runs scripts/generate-build-info.js).
 // Env still wins if a deploy platform injects its own; otherwise the real git
 // SHA baked at build time makes a STALE deploy obvious — the SHA here won't
@@ -22,6 +26,19 @@ const BUILT_AT = buildInfo.builtAt ?? null;
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  // No `deployedBy` field exists on this response for a Tallrig push event
+  // to populate (issue #672) — this is the closest fit instead: the sha of
+  // the most recent `deploy.finished` event Tallrig has sent us, or null
+  // until one has been received. Read is best-effort; a store error here
+  // must never turn a healthy platform-status response into a 500.
+  let lastTallrigDeploy = null;
+  try {
+    lastTallrigDeploy = tallrigPushEventStore.lastTallrigDeploy();
+  } catch {
+    // not checked — the store had a problem; the rest of this response is
+    // still accurate, so it ships without the field rather than failing.
+  }
+
   return NextResponse.json(
     {
       product: PRODUCT,
@@ -31,6 +48,7 @@ export async function GET() {
       healthy: true,
       timestamp: new Date().toISOString(),
       siblings: siblingUrlMap(),
+      lastTallrigDeploy,
     },
     {
       headers: {
