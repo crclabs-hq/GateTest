@@ -1,7 +1,7 @@
 'use strict';
 
 const { URL } = require('url');
-const { fetchPage, checkUrl, extractLinks, extractImages } = require('./live-crawler-http-helpers');
+const { fetchPage, checkUrl, extractLinks, extractImages, extractTitle } = require('./live-crawler-http-helpers');
 const { authHeadersFor } = require('./live-crawler-auth');
 
 const ERROR_PATTERNS = [
@@ -60,11 +60,11 @@ async function crawlWithHttp(ctx) {
           message: `Page appears blank or nearly empty (${textContent.length} chars of text)` });
       }
 
-      const titleMatch = body.match(/<title>([^<]*)<\/title>/i);
-      if (!titleMatch || titleMatch[1].trim().length === 0) {
+      const title = extractTitle(body);
+      if (!title) {
         errors.push({ url, type: 'missing-title', message: 'Page has no <title> or title is empty' });
       } else {
-        titlesByUrl.set(url, titleMatch[1].trim());
+        titlesByUrl.set(url, title);
       }
 
       const metaDescMatch = body.match(/<meta\s+[^>]*name\s*=\s*["']description["'][^>]*content\s*=\s*["']([^"']*)["']/i);

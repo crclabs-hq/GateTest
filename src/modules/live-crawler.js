@@ -17,7 +17,7 @@
 
 const BaseModule = require('./base-module');
 const { URL } = require('url');
-const { checkUrl, getSuggestion } = require('./live-crawler-http-helpers');
+const { checkUrl, getSuggestion, extractDeclaredIconHref } = require('./live-crawler-http-helpers');
 const { crawlWithBrowser } = require('./live-crawler-browser-engine');
 const { crawlWithHttp } = require('./live-crawler-http-engine');
 const { generateFeedbackReport } = require('./live-crawler-report');
@@ -130,9 +130,7 @@ class LiveCrawlerModule extends BaseModule {
     if (crawlConfig.checkRobotsTxt !== false) await this._checkAuxUrl(result, baseUrl, '/robots.txt', timeout,
       'crawl:robots-missing', 'info', 'No /robots.txt found',
       'Add a /robots.txt even if it just says "User-agent: *\\nAllow: /" — signals intentionality.', auth);
-    if (crawlConfig.checkFavicon !== false) await this._checkAuxUrl(result, baseUrl, '/favicon.ico', timeout,
-      'crawl:favicon-missing', 'info', 'No /favicon.ico found',
-      'Add a favicon.ico in the site root. Modern alternative: <link rel="icon" href="..."> in <head>.', auth);
+    if (crawlConfig.checkFavicon !== false) await this._checkFavicon(result, baseUrl, timeout, auth, collectors.pages);
 
     generateFeedbackReport(config, {
       baseUrl,
@@ -309,6 +307,55 @@ class LiveCrawlerModule extends BaseModule {
         message: `${urlPath} was not checked — the request failed (${err && err.message ? err.message : err})`,
       });
     }
+  }
+
+  /**
+   * Favicon presence (#641): probing only /favicon.ico missed the "modern
+   * alternative" the rule's own old suggestion text named — a
+   * <link rel="icon"|"shortcut icon"|"apple-touch-icon" href="..."> in
+   * <head> (tallrig.com declares /favicon.svg this way and was flagged
+   * anyway). Discover the declared icon on the first crawled page, resolve
+   * it against the page URL, and only report when NEITHER it nor
+   * /favicon.ico actually resolves. Severity stays info, as before.
+   */
+  async _checkFavicon(result, baseUrl, timeout, auth, pages) {
+    const homepageBody = pages[0] && pages[0].body;
+    const declaredHref = homepageBody ? extractDeclaredIconHref(homepageBody) : null;
+
+    const candidates = [];
+    if (declaredHref) {
+      try { candidates.push(new URL(declaredHref, baseUrl).href); }
+      catch { /* error-ok — malformed declared href, /favicon.ico is still checked below */ }
+    }
+    candidates.push(new URL('/favicon.ico', baseUrl).href);
+
+    let anyResolved = false;
+    let anyChecked = false;
+    for (const candidate of candidates) {
+      try {
+        const r = await checkUrl(candidate, timeout, authHeadersFor(candidate, auth));
+        anyChecked = true;
+        if (r.status < 400) { anyResolved = true; break; }
+      } catch { /* this candidate could not be reached — try the next one */ }
+    }
+
+    if (anyResolved) return;
+
+    if (!anyChecked) {
+      result.addCheck('crawl:favicon-missing:not-checked', true, {
+        severity: 'info',
+        message: `Favicon was not checked — ${declaredHref ? 'the declared icon and ' : ''}/favicon.ico could not be reached`,
+      });
+      return;
+    }
+
+    result.addCheck('crawl:favicon-missing', false, {
+      severity: 'info',
+      message: declaredHref
+        ? `No favicon found — declared icon "${declaredHref}" and /favicon.ico both failed to resolve`
+        : 'No /favicon.ico found and no <link rel="icon"> declared',
+      suggestion: 'Add a favicon.ico in the site root, or a <link rel="icon" href="..."> in <head> that actually resolves.',
+    });
   }
 }
 

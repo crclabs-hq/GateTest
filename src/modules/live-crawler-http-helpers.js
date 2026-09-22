@@ -147,6 +147,47 @@ function extractLinks(html, baseUrl, pageUrl) {
   return { internal, external };
 }
 
+// One definition of "what is this page's <title>" — imported by the HTTP
+// engine's missing-title check, whose finding feeds the duplicate-title
+// grouping in live-crawler.js (titlesByUrl). A bare `/<title>/` requires an
+// attribute-free tag; framework-rendered pages commonly emit
+// `<title data-sm="...">` and were reported as missing a title they plainly
+// had (tallrig.com, #641). The browser engine reads `page.title()` off the
+// real DOM instead of this regex, so it never had this bug and doesn't call
+// this helper — but if it's ever changed to parse raw HTML for a title, this
+// is the one function to reach for.
+const TITLE_TAG_RE = /<title\b[^>]*>([^<]*)<\/title>/i;
+
+function extractTitle(html) {
+  const m = TITLE_TAG_RE.exec(html);
+  const text = m ? m[1].trim() : '';
+  return text.length > 0 ? text : null;
+}
+
+// One definition of "what icon does this page declare" — <link rel="icon">,
+// the legacy "shortcut icon" (splits into the tokens ['shortcut','icon'], so
+// checking for the 'icon' token alone covers it) and apple-touch-icon are
+// all "the site has a favicon" as far as a user/browser is concerned (#641:
+// live-crawler.js previously only ever probed /favicon.ico and flagged
+// tallrig.com despite its declared <link rel="icon" href="/favicon.svg">).
+// Reuses stripNonNavigableRegions so a <link> sitting inside a commented-out
+// or templated block is never mistaken for a live declaration.
+function extractDeclaredIconHref(html) {
+  const navigableHtml = stripNonNavigableRegions(html);
+  const linkRe = /<link\b[^>]*>/gi;
+  let m;
+  while ((m = linkRe.exec(navigableHtml)) !== null) {
+    const tag = m[0];
+    const relMatch = tag.match(/\brel\s*=\s*["']([^"']+)["']/i);
+    if (!relMatch) continue;
+    const rels = relMatch[1].toLowerCase().split(/\s+/);
+    if (!rels.includes('icon') && !rels.includes('apple-touch-icon')) continue;
+    const hrefMatch = tag.match(/\bhref\s*=\s*["']([^"']+)["']/i);
+    if (hrefMatch && hrefMatch[1].trim()) return hrefMatch[1].trim();
+  }
+  return null;
+}
+
 function extractImages(html, baseUrl, pageUrl) {
   const images = [];
   const srcRegex = /<img[^>]+src\s*=\s*["']([^"']+)/gi;
@@ -183,4 +224,7 @@ function getSuggestion(errorType) {
   return suggestions[errorType] || 'Investigate and fix the issue';
 }
 
-module.exports = { fetchPage, checkUrl, extractLinks, extractImages, getSuggestion };
+module.exports = {
+  fetchPage, checkUrl, extractLinks, extractImages, getSuggestion,
+  extractTitle, extractDeclaredIconHref,
+};
