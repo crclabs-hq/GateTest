@@ -65,7 +65,7 @@ export function Footer() {
             Gate<span className="text-teal-300">Test</span>
           </span>
           <span className="ml-2 text-xs text-zinc-600">
-            AI writes fast. GateTest keeps it honest.
+            Open-source engine. Hosted scans billed per run.
           </span>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-zinc-400">

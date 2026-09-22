@@ -55,7 +55,7 @@ export default function HomeCode() {
             Install
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold mt-4 mb-4 text-foreground">
-            Zero config. <span className="gradient-text">Zero ceremony.</span>
+            One command. <span className="gradient-text">No config file.</span>
           </h2>
           <p className="text-muted text-lg max-w-2xl mx-auto">
             One npx command for local. One YAML file for CI. The whole thing

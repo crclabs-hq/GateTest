@@ -52,7 +52,7 @@ const DATA_FLOW = [
   { label: "Runtime",  value: "Node on our own managed host. Every request handler is stateless — no in-memory persistence between requests." },
   { label: "Database", value: "Postgres on Neon. Holds scan_queue, audit log, fix-recipe store, customer sessions." },
   { label: "Payments", value: "Stripe upfront-charge. Scan tiers are one-time payments at checkout — no auto-renew. Continuous ($49/mo) and MCP ($29/mo) are monthly subscriptions, cancel anytime." },
-  { label: "AI layer", value: "AI-powered fix and review engine — deeper analysis on the paid fix tiers (Scan + Fix, Forensic), a lighter pass on the free and high-volume paths. Our key for managed scans; your key for the self-healing CI bot in your repo." },
+  { label: "AI layer", value: "AI-powered fix and review engine — deeper analysis on the paid fix tiers (Scan + Fix, Forensic), a lighter pass on the free and high-volume paths. Our key for managed scans; your key for the fix workflow in your own repo." },
   { label: "Git host",  value: "Dual-host: GitHub App webhook and Gluecron Signal Bus. HostBridge abstraction means new hosts plug in without rewiring." },
   { label: "Browser",   value: "Playwright (open-source, Microsoft) — used internally for chaos, explorer, and runtime-error modules. Not a paid competitor; an implementation detail." },
 ];
@@ -64,7 +64,7 @@ const HEAL_STEPS = [
   { n: "4", t: "Fix PR", d: "Patch lands on a follow-up branch, PR opens against your default." },
 ];
 
-const SELF_HEALING_YML = `name: GateTest Self-Healing CI
+const SELF_HEALING_YML = `name: GateTest fix workflow
 on:
   workflow_run:
     workflows: ["CI"]
@@ -91,7 +91,7 @@ export default function HowItWorksPage() {
       <PageHero
         eyebrow="Architecture, end to end"
         title="How GateTest works"
-        lede={<>{TOTAL_MODULES} deterministic modules. One AI pass when it&apos;s worth it. Zero hype.</>}
+        lede={<>{TOTAL_MODULES} deterministic modules. A model is called only to generate a fix, and only when a replayed recipe does not already solve the shape.</>}
         actions={
           <>
             <Link href="/web" className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm">
@@ -225,11 +225,11 @@ export default function HowItWorksPage() {
         </div>
       </Section>
 
-      {/* 6. SELF-HEALING CI */}
+      {/* 6. FIX WORKFLOW IN YOUR CI */}
       <Section
         id="self-healing"
         alt
-        title="Self-healing CI"
+        title="The fix workflow in your own CI"
         lede={
           <>
             Beyond the managed scan, GateTest ships a GitHub Actions workflow that runs in <em>your</em> CI with
@@ -245,7 +245,7 @@ export default function HowItWorksPage() {
             <span className="w-3 h-3 rounded-full bg-danger/80" aria-hidden="true" />
             <span className="w-3 h-3 rounded-full bg-warning/80" aria-hidden="true" />
             <span className="w-3 h-3 rounded-full bg-success/80" aria-hidden="true" />
-            <span className="ml-2 text-xs text-panel-muted font-mono">.github/workflows/gatetest-self-healing.yml</span>
+            <span className="ml-2 text-xs text-panel-muted font-mono">.github/workflows/gatetest-fix.yml</span>
           </div>
           <pre className="p-5 text-xs sm:text-sm text-panel-foreground font-mono leading-relaxed overflow-x-auto">{SELF_HEALING_YML}</pre>
         </div>

@@ -154,7 +154,7 @@ ${LOCAL_SERVER_CONFIG}`}
             <span className="font-display text-4xl font-bold text-accent">$29</span>
             <span className="text-muted text-sm">/ month — hosted endpoint</span>
           </div>
-          <p className="text-muted text-xs mt-2">Cancel anytime · API key emailed instantly · The local server stays free forever</p>
+          <p className="text-muted text-xs mt-2">Cancel anytime · API key emailed when checkout completes · The local server stays free forever</p>
         </div>
       </PageHero>
 
@@ -283,7 +283,7 @@ ${LOCAL_SERVER_CONFIG}`}
             Want it in your AI client on web/mobile? Subscribe and your key arrives in seconds.
           </p>
           <McpCheckoutButton label="Get the hosted endpoint — $29/mo →" />
-          <p className="text-muted text-xs mt-3">Cancel anytime · API key emailed instantly · Local server free forever</p>
+          <p className="text-muted text-xs mt-3">Cancel anytime · API key emailed when checkout completes · Local server free forever</p>
         </div>
       </Section>
     </main>

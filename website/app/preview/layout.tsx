@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 // it paints its own deep-ink surface and does NOT inherit the marketing
 // site's light theme. Deployed to /preview for review before any live swap.
 export const metadata: Metadata = {
-  title: "GateTest — AI writes fast. GateTest keeps it honest.",
+  title: "GateTest — CI quality gate for AI-written code",
   description:
     "The QA guardrail for the AI-assisted engineering era. 120+ checks in one unified scan — security, memory leaks, type safety, edge cases, architecture. Every issue ships back as an auto-fix pull request.",
   robots: { index: false, follow: false },

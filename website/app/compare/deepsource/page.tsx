@@ -5,7 +5,7 @@ import PageHero from "../../components/site/PageHero";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 export const metadata: Metadata = {
-  title: "GateTest vs DeepSource — AI-Native Code Quality in 2026",
+  title: "GateTest vs DeepSource — per-run pricing and a fix PR instead of a report",
   description:
     `DeepSource finds issues. GateTest finds them and — at the Scan + Fix tier ($199) and above — fixes them. ${TOTAL_MODULES} modules, per-scan pricing, no per-seat licensing, AI auto-fix PRs opened in minutes.`,
   keywords: [
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     canonical: "/compare/deepsource",
   },
   openGraph: {
-    title: "GateTest vs DeepSource — AI-Native Code Quality in 2026",
+    title: "GateTest vs DeepSource — per-run pricing and a fix PR instead of a report",
     description:
       `DeepSource finds issues. GateTest finds them and — at the Scan + Fix tier ($199) and above — fixes them. ${TOTAL_MODULES} modules, per-scan pricing, no per-seat licensing, AI auto-fix PRs.`,
     url: "/compare/deepsource",
@@ -99,14 +99,14 @@ export default function DeepSourcePage() {
           <>
             GateTest vs DeepSource
             <br />
-            <span className="text-accent">AI-Native Code Quality in 2026</span>
+            <span className="text-accent">Per-run pricing, and a fix PR instead of a report</span>
           </>
         }
         lede={
           <>
-            DeepSource is a solid static analysis tool. GateTest is an AI-native quality platform:
-            {TOTAL_MODULES} modules, generative AI code review, AI auto-fix PRs that write real code at the Scan + Fix tier ($199) and Forensic Scan ($399),
-            and per-scan pricing with no per-seat subscriptions.
+            DeepSource is a static analysis service billed per seat. GateTest is {TOTAL_MODULES} deterministic
+            checks in one gate, a model-generated fix PR with a regression test at the Scan + Fix tier ($199) and Forensic Scan ($399),
+            and per-run pricing with no seats.
           </>
         }
         actions={
@@ -184,7 +184,7 @@ export default function DeepSourcePage() {
 
         {/* Key differentiators */}
         <section className="mb-16">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8">Why teams switch from DeepSource</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8">Where GateTest and DeepSource differ</h2>
           <div className="grid sm:grid-cols-2 gap-5">
             {[
               {

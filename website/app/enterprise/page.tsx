@@ -102,9 +102,9 @@ export default function EnterprisePage() {
       <main>
         {/* === Hero + the offer === */}
         <PageHero
-          eyebrow="Built for engineering leadership"
-          title="Unlock AI velocity without surrendering control"
-          lede="Your team is shipping AI-generated code at record speed. GateTest is the gate that keeps that speed honest — a single, policy-driven checkpoint your CTO can stand behind in front of the board."
+          eyebrow="For platform and security teams"
+          title="The same gate at org scale, with the paperwork"
+          lede="Scoped App permissions, short-lived installation tokens, HMAC-verified webhooks, and a timestamped report on every gate pass. Add custom scan volume, a raised AI-review budget, priority support and invoicing on your terms."
         >
           <div className="card p-6 sm:p-8">
             <h2 className="font-display text-xl font-bold text-foreground">Enterprise</h2>

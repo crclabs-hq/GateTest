@@ -183,7 +183,7 @@ export const USE_CASES: UseCaseEntry[] = [
   {
     slug: "pre-push-gate",
     title: "Catch issues before they're pushed",
-    intent: "Run the gate locally as a pre-push hook for instant feedback",
+    intent: "Run the gate locally as a pre-push hook; results before the push",
     shortDef:
       "Install GateTest as a git pre-push hook so secrets, syntax errors, and obvious vulnerabilities are surfaced on your machine, at the moment you push — the last point where a leaked credential can still be pulled before anyone else clones it.",
     problem: [
