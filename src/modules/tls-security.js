@@ -144,7 +144,21 @@ class TlsSecurityModule extends BaseModule {
   }
 
   async run(result, config) {
-    const projectRoot = (config && config.projectRoot) || process.cwd();
+    if (config && config.livePage) {
+      // A fetch's headers/HTML never carry the negotiated TLS protocol or
+      // the peer certificate — that needs its own raw socket connection,
+      // which the single shared `config.livePage` fetch deliberately does
+      // not make (Doctrine §1: no fabricated pass; honestly not-checked).
+      this._notChecked(result, 'this module reads source code for TLS-validation bypass patterns (rejectUnauthorized:false, verify=False, …) — inspecting a live certificate/protocol needs a raw socket connection, which the shared page fetch for this scan does not make');
+      return;
+    }
+
+    if (this._isUrlOnlyScan(config)) {
+      this._notChecked(result, 'this module reads source files (TLS-validation-bypass patterns), not a live URL — no project files were provided for this scan');
+      return;
+    }
+
+    const projectRoot = config.projectRoot;
     const files = this._collect(projectRoot);
 
     if (files.length === 0) {

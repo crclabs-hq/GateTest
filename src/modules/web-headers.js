@@ -107,6 +107,104 @@ const MAX_SNIFF_BYTES = 1024 * 1024;
 
 const HSTS_MIN_MAX_AGE = 15552000; // 180 days, aligns with Mozilla
 
+/** Read a header by lowercase name from either a WHATWG `Headers`-like
+ *  object (`.get(name)`) or a plain `{ [name]: value }` object — the two
+ *  shapes a caller can reasonably hand us for one already-fetched response. */
+function _headerGet(headers, name) {
+  if (!headers) return null;
+  if (typeof headers.get === 'function') return headers.get(name) || null;
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === name);
+  return key ? headers[key] : null;
+}
+
+/**
+ * The live-response equivalent of this module's static-file rules: same
+ * signals (CSP present/unsafe-eval/unsafe-inline, HSTS present/max-age,
+ * X-Frame-Options or frame-ancestors, X-Content-Type-Options, CORS
+ * wildcard+credentials), read from actual response headers instead of
+ * source config. Exported so `/api/scan/url` and the hosted web scan can
+ * both call it — one definition (Doctrine §4) — rather than keeping two
+ * header-rule lists that drift.
+ *
+ * @param {unknown} headers — WHATWG Headers-like or plain object
+ * @returns {Array<{id:string, severity:'error'|'warning'|'info', message:string, suggestion:string}>}
+ */
+function liveHeaderChecks(headers) {
+  const findings = [];
+  const csp = _headerGet(headers, 'content-security-policy');
+  const hsts = _headerGet(headers, 'strict-transport-security');
+  const xfo = _headerGet(headers, 'x-frame-options');
+  const nosniff = _headerGet(headers, 'x-content-type-options');
+  const acao = _headerGet(headers, 'access-control-allow-origin');
+  const acac = _headerGet(headers, 'access-control-allow-credentials');
+
+  if (!csp) {
+    findings.push({
+      id: 'live-missing-csp', severity: 'warning',
+      message: 'No Content-Security-Policy header on the live response — XSS payloads run with the full permissions of the origin',
+      suggestion: "Add a strict CSP starting from default-src 'self'; script-src 'self' and open only what you need.",
+    });
+  } else {
+    if (/unsafe-eval/i.test(csp)) {
+      findings.push({
+        id: 'live-csp-unsafe-eval', severity: 'error',
+        message: 'Content-Security-Policy contains `unsafe-eval` — re-enables eval()/new Function() class attacks',
+        suggestion: 'Refactor away from eval, or use a strict-dynamic + nonce CSP instead.',
+      });
+    }
+    if (/unsafe-inline/i.test(csp)) {
+      findings.push({
+        id: 'live-csp-unsafe-inline', severity: 'warning',
+        message: 'Content-Security-Policy contains `unsafe-inline` — inline <script>/onclick= XSS payloads execute as if CSP weren\'t there',
+        suggestion: 'Replace with a per-request nonce (script-src \'nonce-{nonce}\') or strict-dynamic.',
+      });
+    }
+  }
+
+  if (!hsts) {
+    findings.push({
+      id: 'live-missing-hsts', severity: 'warning',
+      message: 'No Strict-Transport-Security header on the live response — first-visit MITM downgrade is still possible',
+      suggestion: 'Add Strict-Transport-Security: max-age=31536000; includeSubDomains; preload once HTTPS works everywhere.',
+    });
+  } else {
+    const m = /max-age\s*=\s*(\d+)/i.exec(hsts);
+    if (m && !Number.isNaN(Number(m[1])) && Number(m[1]) < HSTS_MIN_MAX_AGE) {
+      findings.push({
+        id: 'live-hsts-short', severity: 'warning',
+        message: `Strict-Transport-Security max-age=${m[1]} — below Mozilla's 180-day (15552000) recommendation`,
+        suggestion: 'Use max-age=31536000; includeSubDomains; preload.',
+      });
+    }
+  }
+
+  if (!xfo && !(csp && /frame-ancestors/i.test(csp))) {
+    findings.push({
+      id: 'live-missing-frame-options', severity: 'warning',
+      message: 'No X-Frame-Options and no CSP frame-ancestors on the live response — clickjacking surface',
+      suggestion: 'Add X-Frame-Options: DENY (or SAMEORIGIN), and/or frame-ancestors \'none\' in CSP.',
+    });
+  }
+
+  if (!nosniff) {
+    findings.push({
+      id: 'live-missing-nosniff', severity: 'info',
+      message: 'No X-Content-Type-Options header on the live response — legacy browsers may still MIME-sniff',
+      suggestion: 'Add X-Content-Type-Options: nosniff.',
+    });
+  }
+
+  if (acao === '*' && /\btrue\b/i.test(acac || '')) {
+    findings.push({
+      id: 'live-cors-wildcard-with-credentials', severity: 'error',
+      message: 'Access-Control-Allow-Origin: * co-occurs with Access-Control-Allow-Credentials: true — cross-site credential theft surface',
+      suggestion: 'Echo the request\'s Origin back only for a maintained allow-list, or drop Allow-Credentials.',
+    });
+  }
+
+  return findings;
+}
+
 class WebHeadersModule extends BaseModule {
   constructor() {
     super(
@@ -117,6 +215,26 @@ class WebHeadersModule extends BaseModule {
 
   async run(result, config) {
     const projectRoot = config.projectRoot;
+
+    // Hosted URL scan: no repo checked out, but the route fetched the page
+    // once and shared it via config.livePage — check the ACTUAL response
+    // headers instead of reading source. (Doctrine §4, one definition:
+    // _liveHeaderChecks is also what website-scanner.ts's /api/scan/url
+    // path is documented to need — see that file's header comment.)
+    if (config && config.livePage) {
+      this._runLive(config.livePage, result);
+      return;
+    }
+
+    if (this._isUrlOnlyScan(config)) {
+      // A URL-only scan (no projectRoot, or a `targetUrl`/`webUrl` hosted
+      // scan) with no shared page fetch either — this module reads source
+      // files, it cannot fabricate a pass for a URL it never looked at
+      // (distinct from a REAL repo with genuinely no header config, below).
+      this._notChecked(result, 'this module reads source files (header config), not a live URL — no project files or fetched page were provided for this scan');
+      return;
+    }
+
     // Shared walk from BaseModule — honours --diff/--pr scoping (KI #104).
     // '*' because header config has no single extension (_headers,
     // nginx.conf, vercel.json, …); the filename/content predicate is
@@ -145,6 +263,29 @@ class WebHeadersModule extends BaseModule {
     result.addCheck('web-headers:summary', true, {
       severity: 'info',
       message: `Web headers scan: ${files.length} file(s), ${totalIssues} issue(s)`,
+    });
+  }
+
+  /**
+   * Live-URL mode: `livePage` is `{ url, status, headers, html }` from ONE
+   * shared fetch the route already made (config.livePage) — this module
+   * never fetches on its own. `headers` is anything duck-typed like a
+   * WHATWG `Headers` (a `.get(name)` method) or a plain object.
+   */
+  _runLive(livePage, result) {
+    const findings = liveHeaderChecks(livePage && livePage.headers);
+    for (const f of findings) {
+      result.addCheck(`web-headers:${f.id}`, false, {
+        severity: f.severity,
+        message: f.message,
+        suggestion: f.suggestion,
+      });
+    }
+    result.addCheck('web-headers:live-summary', true, {
+      severity: 'info',
+      message: findings.length === 0
+        ? 'Live security headers check: no issues found'
+        : `Live security headers check: ${findings.length} issue(s) found on the fetched response`,
     });
   }
 
@@ -339,3 +480,4 @@ class WebHeadersModule extends BaseModule {
 }
 
 module.exports = WebHeadersModule;
+module.exports.liveHeaderChecks = liveHeaderChecks;

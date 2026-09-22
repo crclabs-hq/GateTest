@@ -52,6 +52,16 @@ export interface ScanResult {
   preview: boolean;
   findings: Finding[];
   runtime?: RuntimeBlock | null;
+  /** Modules the suite defines for this scan (issue #643 — six of the web
+   *  suite's modules are file scanners with nothing to read on a URL-only
+   *  scan; they report themselves not-checked rather than a fabricated
+   *  pass). Optional so an older cached/shared result still renders. */
+  totalModules?: number;
+  /** `totalModules` minus `notCheckedModules.length` — what the Health
+   *  Score above was actually computed over. */
+  checkedModules?: number;
+  /** Module names that reported themselves not-checked on this scan. */
+  notCheckedModules?: string[];
   paywall: {
     remainingCount: number;
     fullReportPriceUsd: number;

@@ -8,6 +8,8 @@ const {
   scoreToGrade,
   computeHealthScore,
   renderHealthScoreCard,
+  deriveModuleCoverage,
+  renderCoverageLine,
   HIGH_SIGNAL_WEIGHTS,
   STANDARD_WEIGHTS,
   INSTANCE_MULTIPLIER_CAP,
@@ -183,4 +185,56 @@ test('computeHealthScore — realistic scenario: 1 critical TLS + 2 missing head
   // Lose: ~12 (high-signal error) + ~3 (warning x 10 instances) + ~2.5 (warning x 5) ≈ 17-18 pts
   // Score should be in the B/C zone (75-89 / 60-74)
   assert.ok(r.score >= 70 && r.score <= 90, `expected 70-90, got ${r.score}`);
+});
+
+// Issue #643 — the Health Score must say when part of the suite never ran,
+// and exclude those modules from what it claims to have measured.
+
+test('deriveModuleCoverage — six not-checked modules out of a fourteen-module suite', () => {
+  const results = [];
+  const CHECKED = ['memory', 'performance', 'liveCrawler', 'runtimeErrors', 'explorer', 'visualRegression', 'interactiveElements', 'apiHealth'];
+  const NOT_CHECKED = ['webHeaders', 'tlsSecurity', 'cookieSecurity', 'accessibility', 'seo', 'links'];
+  for (const module of CHECKED) results.push({ module, checks: [{ name: `${module}:summary`, passed: true }] });
+  for (const module of NOT_CHECKED) {
+    results.push({ module, checks: [{ name: `${module}:not-checked`, passed: false, severity: 'info', notChecked: true, message: 'no project files or fetched page were provided' }] });
+  }
+  const coverage = deriveModuleCoverage(results);
+  assert.equal(coverage.totalModules, 14);
+  assert.equal(coverage.checkedModules, 8);
+  assert.equal(coverage.notChecked.length, 6);
+  assert.deepEqual(coverage.notChecked.map((n) => n.module).sort(), [...NOT_CHECKED].sort());
+
+  const line = renderCoverageLine(coverage);
+  assert.match(line, /^6 of 14 modules not checked: /);
+  for (const module of NOT_CHECKED) assert.ok(line.includes(module));
+});
+
+test('deriveModuleCoverage — a repo scan with no not-checked modules returns an empty list, no coverage line', () => {
+  const results = [
+    { module: 'webHeaders', checks: [{ name: 'web-headers:no-files', passed: true }] },
+    { module: 'seo', checks: [{ name: 'seo:files', passed: true }] },
+  ];
+  const coverage = deriveModuleCoverage(results);
+  assert.equal(coverage.notChecked.length, 0);
+  assert.equal(coverage.checkedModules, 2);
+  assert.equal(renderCoverageLine(coverage), null);
+});
+
+test('computeHealthScore — with moduleCoverage: excludes not-checked modules from what it claims to measure, and says so in the summary', () => {
+  const coverage = deriveModuleCoverage([
+    { module: 'seo', checks: [{ name: 'seo:summary', passed: true }] },
+    { module: 'webHeaders', checks: [{ name: 'webHeaders:not-checked', passed: false, severity: 'info', notChecked: true, message: 'no live page' }] },
+  ]);
+  const r = computeHealthScore([{ severity: 'warning', isHighSignal: false, count: 1, ruleKey: 'seo:missing-title' }], coverage);
+  assert.equal(r.coverage.totalModules, 2);
+  assert.equal(r.coverage.checkedModules, 1);
+  assert.deepEqual(r.coverage.notCheckedModules, ['webHeaders']);
+  assert.match(r.summary, /1 of 2 modules/);
+  assert.match(r.summary, /webHeaders/);
+});
+
+test('computeHealthScore — without moduleCoverage (existing callers): no coverage field, summary unchanged', () => {
+  const r = computeHealthScore([{ severity: 'warning', isHighSignal: false, count: 1, ruleKey: 'x' }]);
+  assert.equal(r.coverage, undefined);
+  assert.ok(!/not checked/i.test(r.summary));
 });
