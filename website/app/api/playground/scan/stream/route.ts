@@ -35,6 +35,14 @@
  *   scanId, scannedAt, commitSha, branch, resultHeader   reproducibility
  *   coverage + scopeLabel  what was actually read, fetch time vs engine time
  *   viewer                 whether this visitor may be offered a fix
+ *
+ * `coverage.wallMs` above is server time only (issue #662) — even started at
+ * the first line of the handler, it cannot see TLS/proxy time before the
+ * request arrives or transfer/render time after the response leaves. This
+ * event never carries a `clientMs`; the /playground page adds that field
+ * itself once this event lands, from a `performance.now()` it started at
+ * the scan button click, and carries it through the share payload from
+ * there so a restored share link shows the original browser time.
  */
 
 import crypto from "crypto";
@@ -279,6 +287,15 @@ export async function POST(req: NextRequest) {
             truncated: readTruncated,
             engineMs,
             fetchMs,
+            // wallMs is server time only (issue #662): the clock runs inside
+            // this handler, so it still can't see TLS/proxy time before the
+            // request arrives or transfer/render time after the response
+            // leaves. This route never adds a `clientMs` field — the
+            // /playground page stamps that on after this "complete" event
+            // arrives, from a `performance.now()` started at the scan
+            // button click (browser stopwatch, not server clock), then
+            // carries it through the share payload so a restored share link
+            // shows the original browser time instead of recomputing one.
             wallMs: Date.now() - startedAt,
             // N2 — one definition of the coverage fraction (Doctrine #4).
             scanned: coverage.scanned,

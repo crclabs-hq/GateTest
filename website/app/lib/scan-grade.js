@@ -304,17 +304,29 @@ function coverageQualifier(coverage) {
  * The headline duration a stranger reads first. Before 2026-09-22 the free
  * scan printed only the engine-time half of the fetch/engine split (e.g.
  * "0.9s") as if it were the whole request's duration, understating the real
- * wall clock (fetch + engine + overhead, e.g. 8.2s) by 40-55%. Wall clock is
- * now the headline; the split renders underneath, never in place of it.
+ * wall clock (fetch + engine + overhead, e.g. 8.2s) by 40-55%. Wall clock
+ * (`wallMs`) became the headline that day, labelled honestly.
  *
- * @param {{wallMs?: number|null, fetchMs?: number|null, engineMs?: number|null}} timing
- * @returns {{ headline: string, headlineLabel: string, split: string|null }}
+ * Issue #662: even `wallMs` is measured inside the Node handler, so TLS/proxy
+ * time before the request reaches Node and transfer/render time after the
+ * response leaves it are still invisible to it — no server-side timer can
+ * close that gap. So `wallMs` is now labelled "server time" (never "wall
+ * clock", which implied it was the whole request) and, when the caller also
+ * supplies `clientMs` — a browser `performance.now()` measurement from the
+ * scan button click to the report rendering (website/app/playground/page.tsx)
+ * — both numbers are shown: the customer's own stopwatch matches the browser
+ * number by construction. `clientMs` is never computed here; it is added by
+ * the client after this function's caller already has its server timing.
+ *
+ * @param {{wallMs?: number|null, fetchMs?: number|null, engineMs?: number|null, clientMs?: number|null}} timing
+ * @returns {{ headline: string, headlineLabel: string, split: string|null, clientHeadline: string|null, combined: string|null }}
  */
 function formatDurationHeadline(timing) {
   const t = timing || {};
   const wallMs = typeof t.wallMs === 'number' && Number.isFinite(t.wallMs) && t.wallMs >= 0 ? t.wallMs : null;
   const engineMs = typeof t.engineMs === 'number' && Number.isFinite(t.engineMs) && t.engineMs >= 0 ? t.engineMs : null;
   const fetchMs = typeof t.fetchMs === 'number' && Number.isFinite(t.fetchMs) && t.fetchMs >= 0 ? t.fetchMs : null;
+  const clientMs = typeof t.clientMs === 'number' && Number.isFinite(t.clientMs) && t.clientMs >= 0 ? t.clientMs : null;
 
   const splitParts = [];
   if (fetchMs !== null) splitParts.push(`${(fetchMs / 1000).toFixed(1)}s fetch`);
@@ -322,15 +334,35 @@ function formatDurationHeadline(timing) {
   const split = splitParts.length > 0 ? splitParts.join(' · ') : null;
 
   if (wallMs !== null) {
-    return { headline: `${(wallMs / 1000).toFixed(1)}s`, headlineLabel: 'wall clock', split };
+    const serverHeadline = `${(wallMs / 1000).toFixed(1)}s`;
+    if (clientMs !== null) {
+      const clientHeadline = `${(clientMs / 1000).toFixed(1)}s`;
+      return {
+        headline: serverHeadline,
+        headlineLabel: 'server time',
+        clientHeadline,
+        combined: `Scan took ${serverHeadline} on the server, ${clientHeadline} in your browser`,
+        split,
+      };
+    }
+    // No client measurement — an old share link from before #662, or a
+    // caller that never ran in a browser. Show only the server number,
+    // labelled honestly rather than implying it's the whole experience.
+    return { headline: serverHeadline, headlineLabel: 'server time', clientHeadline: null, combined: null, split };
   }
   // No wall-clock measurement made it through — fall back to the split, but
   // say so explicitly: an engine-only number must never be read as the whole
   // request the way the old unlabelled "0.1s" was.
   if (engineMs !== null) {
-    return { headline: `${(engineMs / 1000).toFixed(1)}s`, headlineLabel: 'engine time only', split: fetchMs !== null ? split : null };
+    return {
+      headline: `${(engineMs / 1000).toFixed(1)}s`,
+      headlineLabel: 'engine time only',
+      clientHeadline: null,
+      combined: null,
+      split: fetchMs !== null ? split : null,
+    };
   }
-  return { headline: 'not recorded', headlineLabel: 'duration not recorded', split: null };
+  return { headline: 'not recorded', headlineLabel: 'duration not recorded', clientHeadline: null, combined: null, split: null };
 }
 
 module.exports = {

@@ -170,6 +170,13 @@ export async function POST(req: NextRequest) {
       filesInRepo:   result.filesInRepo ?? null,
       truncated:     result.coverageTruncated ?? false,
       engineMs:      result.duration,
+      // wallMs is server time only (issue #662) — it cannot see TLS/proxy
+      // time before the request reaches this handler or transfer/render
+      // time after the response leaves it. This non-streaming route has no
+      // browser to measure that gap: `clientMs` is a client-added field
+      // (see the /playground page's ScanResult type) that only exists on
+      // the /stream sibling's payload once the page stamps it on after
+      // receiving the "complete" event; it is never computed server-side.
       wallMs:        Date.now() - startedAt,
       // N2 — one definition of the coverage fraction (Doctrine #4).
       scanned:       coverage.scanned,

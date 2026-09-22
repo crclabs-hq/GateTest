@@ -54,6 +54,86 @@ describe('free-scan result view — plausible numbers (F3)', () => {
   });
 });
 
+// =============================================================================
+// Issue #662 — a Tallrig re-walk found the headline duration still off an
+// independent stopwatch by 9-11% on three separate runs even after N3/#655
+// moved the server timer to handler entry: TLS/proxy time before the request
+// reaches Node, and transfer + render time after the response leaves it, are
+// both invisible to any server-side clock. The fix stops calling the server
+// number the whole story — it's relabelled "server time" — and adds a real
+// browser stopwatch (click to render) that matches the customer's own
+// stopwatch by construction, carried through the share payload as `clientMs`
+// so a restored link shows the original browser number rather than a
+// recomputed one.
+// =============================================================================
+describe('free-scan result view — server time is honestly labelled, the browser number rides beside it (issue #662)', () => {
+  it('the page renders the shared formatter\'s combined headline, and the formatter composes "on the server ... in your browser"', () => {
+    assert.ok(
+      /resultTiming\.combined/.test(src),
+      'the page never reads resultTiming.combined — it cannot show the browser number'
+    );
+    const gradeSrc = fs.readFileSync(path.join(ROOT, 'website', 'app', 'lib', 'scan-grade.js'), 'utf8');
+    assert.ok(
+      /on the server, \$\{clientHeadline\} in your browser/.test(gradeSrc),
+      'the one shared duration formatter never composes the "on the server ... in your browser" copy'
+    );
+  });
+
+  it('falls back to the server-time label alone when there is no browser measurement (an old share link)', () => {
+    assert.ok(
+      /resultTiming\.combined\s*\?\?\s*`\$\{resultTiming\.headline\} \$\{resultTiming\.headlineLabel\}`/.test(src),
+      'the page does not fall back from the combined headline to the plain headline+label pair'
+    );
+  });
+
+  it('never calls the headline "wall clock" any more — issue #662 renamed it "server time" because no server clock sees TLS/proxy or transfer/render time', () => {
+    const gradeSrc = fs.readFileSync(path.join(ROOT, 'website', 'app', 'lib', 'scan-grade.js'), 'utf8');
+    assert.ok(
+      !/headlineLabel:\s*'wall clock'/.test(gradeSrc),
+      'the shared formatter still hardcodes the retired "wall clock" label'
+    );
+    assert.ok(
+      /headlineLabel:\s*'server time'/.test(gradeSrc),
+      'the shared formatter never labels the headline "server time"'
+    );
+  });
+
+  it('ScanResult declares an optional clientMs field carried alongside the server fields', () => {
+    const idx = src.indexOf('interface ScanResult');
+    assert.ok(idx > 0, 'ScanResult interface is gone');
+    const body = src.slice(idx, src.indexOf('\n}', idx));
+    assert.ok(/clientMs\?:\s*number \| null/.test(body), 'ScanResult has no optional clientMs field');
+  });
+
+  it('the browser stopwatch is a real performance.now() measurement, not a copy of the server number', () => {
+    assert.ok(/performance\.now\(\)/.test(src), 'the page never calls performance.now()');
+    assert.ok(/clientScanStartRef/.test(src), 'no ref tracks when the scan actually started in the browser');
+    // The measurement must be taken independently of wallMs/duration — i.e.
+    // it is its own performance.now() delta, not `result.duration` renamed.
+    const clientMsAssignIdx = src.indexOf('const clientMs = Math.round(performance.now()');
+    assert.ok(clientMsAssignIdx > 0, 'clientMs is not computed from a performance.now() delta');
+  });
+
+  it('a completed scan stamps clientMs onto the payload before setResult/pushPermalink, so the permalink and the share link both carry it', () => {
+    const stampIdx = src.indexOf('completed = { ...completed, clientMs }');
+    assert.ok(stampIdx > 0, 'clientMs is never merged onto the completed scan payload');
+    const setResultIdx = src.indexOf('setResult(completed)');
+    const pushPermalinkIdx = src.indexOf('pushPermalink(completed)');
+    assert.ok(stampIdx < setResultIdx, 'clientMs is stamped on after setResult, so the rendered result would lag one update behind');
+    assert.ok(stampIdx < pushPermalinkIdx, 'clientMs is stamped on after the permalink is pushed, so a fresh reload would lose it');
+  });
+
+  it('a restored share link never fabricates a clientMs for a pre-#662 result', () => {
+    // decodeShareData parses whatever JSON was encoded and returns it as-is —
+    // no field is synthesized on restore, so an old link (encoded before this
+    // fix) comes back with clientMs simply absent, not a guessed value.
+    const idx = src.indexOf('function decodeShareData');
+    assert.ok(idx > 0, 'decodeShareData is gone');
+    const body = src.slice(idx, idx + 500);
+    assert.ok(!/clientMs\s*[:=]/.test(body), 'decodeShareData synthesizes a clientMs instead of reading whatever was encoded');
+  });
+});
+
 describe('free-scan result view — the fix CTA is gated (F4)', () => {
   it('"Fix This PR" is only reachable when the viewer can push to the repo', () => {
     const idx = src.indexOf('Fix This PR');
