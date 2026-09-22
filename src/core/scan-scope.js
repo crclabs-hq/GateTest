@@ -180,12 +180,68 @@ function hasSourceFiles(projectRoot) {
   return walk(projectRoot, 0);
 }
 
+/**
+ * How big is the tree a scan is about to walk — before running a single
+ * module. Issue #630: a customer on a 76-package monorepo saw no file
+ * count and no ETA before the CLI went quiet, so they could not tell a
+ * large-but-healthy scan from a hang. Counted with the SAME exclude set
+ * every module's walk honours (`WALK_EXCLUDE_SET`, `hasSourceFiles` above)
+ * — never a second, hand-typed estimate — plus the workspace-member count
+ * from the one definition of "what packages make up this repo"
+ * (`workspaces.js`). A tree with no declared/conventional workspace
+ * members is one package (the project itself), never zero.
+ *
+ * This is a real second file-system walk (readdirSync per directory, no
+ * file reads) run once, up front — cheap next to the module runs that
+ * follow, and the only way to report a real number instead of a guess.
+ *
+ * @param {string} projectRoot
+ * @returns {{ fileCount: number, packageCount: number }}
+ */
+function scanInventory(projectRoot) {
+  const fs = require('fs');
+  const path = require('path');
+  const { WALK_EXCLUDE_SET } = require('./walk-excludes');
+
+  let fileCount = 0;
+  const walk = (dir) => {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return; // unreadable: nothing here to count
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        if (WALK_EXCLUDE_SET.has(entry.name)) continue;
+        walk(path.join(dir, entry.name));
+      } else if (entry.isFile()) {
+        fileCount += 1;
+      }
+    }
+  };
+  walk(projectRoot);
+
+  let packageCount = 1;
+  try {
+    // Lazy require: workspaces.js imports walk-excludes.js too, and a
+    // top-level require here would be a load-order cycle with no runtime
+    // benefit — this file never needs it outside this function.
+    const { listWorkspacePackages } = require('./workspaces');
+    const members = listWorkspacePackages(projectRoot);
+    if (members.length > 0) packageCount = members.length;
+  } catch { /* error-ok — no workspace config: the whole tree is one package */ }
+
+  return { fileCount, packageCount };
+}
+
 module.exports = {
   isIllustrationPath,
   isNonUserFacingPage,
   isSpaShell,
   isImageRenderer,
   hasSourceFiles,
+  scanInventory,
   ILLUSTRATION_DIR_RE,
   HARNESS_DIR_RE,
   SOURCE_FILE_EXT_RE,

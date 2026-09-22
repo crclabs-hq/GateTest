@@ -728,6 +728,23 @@ async function main() {
     }
   }
 
+  // Progress and ETA (issue #630): a customer on a large tree saw no file
+  // count and no ETA before the CLI went quiet, so a slow-but-healthy scan
+  // read identically to a hang. Both numbers come from a real walk and the
+  // resolved suite (src/core/scan-scope.js `scanInventory`, one definition,
+  // the same exclude set every module honours) — never typed. Always
+  // stderr, unconditionally: a `--format json` run's stdout is the one
+  // JSON document, and this line must never land inside it either way.
+  if (!args.module) {
+    const { scanInventory } = require('../src/core/scan-scope');
+    const inventory = scanInventory(projectRoot);
+    const suiteModules = gatetest.config.getSuite(args.suite || 'standard');
+    console.error(
+      `[GateTest] Scanning ${inventory.fileCount} files in ${inventory.packageCount} packages ` +
+      `across ${suiteModules.length} modules`
+    );
+  }
+
   // Run tests
   const realStdoutWrite = process.stdout.write;
   if (jsonMode) {
