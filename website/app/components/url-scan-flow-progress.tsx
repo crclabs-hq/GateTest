@@ -18,6 +18,12 @@ export function LiveModuleTicker({ modules, elapsedSec }: { modules: ModuleProgr
           const done = m.state === "done";
           const skipped = m.state === "skipped";
           const running = m.state === "running";
+          // Issue #648 item 1: a module whose own `_notChecked` check fired
+          // must never render as a clean "done" tick — it gets its own
+          // state, distinct from both "done" and "skipped" (skipped means
+          // the runner didn't run it at all; not-checked means it ran and
+          // reported it had nothing it could look at).
+          const notChecked = m.state === "not-checked";
           const hasIssues = (m.errors || 0) + (m.warnings || 0) > 0;
           return (
             <li key={m.name} className="flex items-center gap-3 text-sm">
@@ -27,6 +33,8 @@ export function LiveModuleTicker({ modules, elapsedSec }: { modules: ModuleProgr
                     ? "bg-amber-500 text-white"
                     : done
                     ? "bg-emerald-500 text-white"
+                    : notChecked
+                    ? "bg-slate-200 text-slate-500"
                     : skipped
                     ? "bg-slate-200 text-slate-500"
                     : running
@@ -39,6 +47,8 @@ export function LiveModuleTicker({ modules, elapsedSec }: { modules: ModuleProgr
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
+                ) : notChecked ? (
+                  <span className="text-[10px] font-bold">?</span>
                 ) : skipped ? (
                   <span className="text-[10px] font-bold">—</span>
                 ) : running ? (
@@ -57,6 +67,11 @@ export function LiveModuleTicker({ modules, elapsedSec }: { modules: ModuleProgr
               )}
               {done && !hasIssues && <span className="text-xs font-mono text-emerald-700">clean</span>}
               {skipped && <span className="text-xs text-muted italic">skipped</span>}
+              {notChecked && (
+                <span className="text-xs text-muted italic" title={m.reason}>
+                  not checked
+                </span>
+              )}
               {done && typeof m.duration === "number" && m.duration > 100 && (
                 <span className="text-xs font-mono text-muted tabular-nums">{(m.duration / 1000).toFixed(1)}s</span>
               )}
