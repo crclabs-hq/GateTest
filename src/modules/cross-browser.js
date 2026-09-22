@@ -66,6 +66,14 @@ const REFERENCE_ENGINE = 'chromium';
 const DEFAULT_DIFF_THRESHOLD_PERCENT = 25; // generous — cross-engine font/AA differences are expected
 const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
 
+/** First line of an error string, capped so a finding's `message` carries
+ *  real evidence without dumping a full multi-KB Playwright stack trace
+ *  into a customer-facing report (`details` still keeps the full text). */
+function firstLine(text) {
+  const s = typeof text === 'string' ? text : String(text || '');
+  return s.split(/\r?\n/)[0].slice(0, 300);
+}
+
 function resolvePlaywright() {
   try {
     return require('playwright');
@@ -101,20 +109,15 @@ class CrossBrowserModule extends BaseModule {
       config.get('targetUrl');
 
     if (!baseUrl) {
-      result.addCheck('cross-browser:config', true, {
-        severity: 'info',
-        message: 'No target URL configured — set GATETEST_CROSS_BROWSER_URL or modules.crossBrowser.url in .gatetest/config.json',
-      });
+      // Issue #658 item 3: nothing to compare is "not checked", never a
+      // silent pass and never a failure — Doctrine #1's three-state rule.
+      this._notChecked(result, 'No target URL configured — set GATETEST_CROSS_BROWSER_URL or modules.crossBrowser.url in .gatetest/config.json');
       return;
     }
 
     const playwright = resolvePlaywright();
     if (!playwright) {
-      result.addCheck('cross-browser:playwright-missing', true, {
-        severity: 'info',
-        message: 'Playwright not available in this environment — cross-browser checks skipped.',
-        suggestion: 'npm install playwright && npx playwright install chromium firefox webkit',
-      });
+      this._notChecked(result, 'Playwright not available in this environment — cross-browser checks skipped. Install with: npm install playwright && npx playwright install chromium firefox webkit');
       return;
     }
 
@@ -134,6 +137,14 @@ class CrossBrowserModule extends BaseModule {
     } catch (err) {
       return { launched: false, skipReason: err && err.message ? err.message.split(/\r?\n/)[0] : String(err) };
     }
+
+    // Issue #658 item 3: a finding claiming "fails in Firefox" needs the
+    // engine version attached as evidence, alongside the error text — a
+    // customer has no way to reproduce or verify a bare claim otherwise.
+    let version = null;
+    try {
+      version = browser.version();
+    } catch { /* error-ok — version() is best-effort evidence, never blocks the probe */ }
 
     try {
       const context = await browser.newContext({
@@ -168,7 +179,7 @@ class CrossBrowserModule extends BaseModule {
       }
 
       await context.close().catch(() => {}); // error-ok: best-effort browser probe; absent target is a valid outcome, finding still recorded
-      return { launched: true, navigationFailure, status, pageErrors, consoleErrors, screenshotBuffer };
+      return { launched: true, version, navigationFailure, status, pageErrors, consoleErrors, screenshotBuffer };
     } finally {
       await browser.close().catch(() => {}); // error-ok: best-effort browser probe; absent target is a valid outcome, finding still recorded
     }
@@ -188,29 +199,36 @@ class CrossBrowserModule extends BaseModule {
 
     const launched = ENGINES.filter((e) => engineResults[e].launched);
     if (launched.length === 0) {
-      result.addCheck('cross-browser:no-engines', true, {
-        severity: 'info',
-        message: 'No browser engine could be launched — cross-browser comparison skipped entirely.',
-      });
+      // Issue #658 item 3: no engine binary was actually available — this
+      // is not-checked, never a failure (and never a silent pass either).
+      this._notChecked(result, `No browser engine could be launched — cross-browser comparison skipped entirely. ${ENGINES.map((e) => `${e}: ${engineResults[e].skipReason}`).join('; ')}`);
       return;
     }
 
     const reference = engineResults[REFERENCE_ENGINE];
     if (!reference.launched) {
-      result.addCheck('cross-browser:no-reference', true, {
-        severity: 'info',
-        message: `Reference engine (${REFERENCE_ENGINE}) could not be launched — comparison requires it.`,
-      });
+      this._notChecked(result, `Reference engine (${REFERENCE_ENGINE}) could not be launched (${reference.skipReason}) — comparison requires it.`);
       return;
     }
 
     // Navigation-failure diffs: an engine that fails where Chromium succeeded.
+    // Only ever drawn from `launched` — an engine whose binary never started
+    // can't reach here (that's the not-checked/skipped path above), so this
+    // is always a real navigation failure on an engine that actually ran.
     const brokenEngines = launched.filter((e) => e !== REFERENCE_ENGINE && !reference.navigationFailure && engineResults[e].navigationFailure);
     if (brokenEngines.length > 0) {
+      // Issue #658 item 3: attach the runtime error text and engine version
+      // to the finding itself (`message`, what the customer-facing report
+      // actually renders) — not just `details`, which the web-scan finding
+      // translators never surface. "Fails in Firefox" with no evidence a
+      // customer can verify is not an actionable finding.
+      const evidence = brokenEngines
+        .map((e) => `${e} v${engineResults[e].version || 'unknown'}: ${firstLine(engineResults[e].navigationFailure)}`)
+        .join('; ');
       result.addCheck('cross-browser:navigation-broken', false, {
         severity: 'error',
-        message: `${baseUrl} fails to load in ${brokenEngines.join(', ')} but loads fine in ${REFERENCE_ENGINE}`,
-        details: brokenEngines.map((e) => ({ engine: e, error: engineResults[e].navigationFailure })),
+        message: `${baseUrl} fails to load in ${brokenEngines.join(', ')} but loads fine in ${REFERENCE_ENGINE} (v${reference.version || 'unknown'}). Evidence: ${evidence}`,
+        details: brokenEngines.map((e) => ({ engine: e, engineVersion: engineResults[e].version || null, error: engineResults[e].navigationFailure })),
       });
     }
 
@@ -223,13 +241,17 @@ class CrossBrowserModule extends BaseModule {
       const referenceMessages = new Set([...(reference.pageErrors || []), ...(reference.consoleErrors || [])]);
       const unique = [...(er.pageErrors || []), ...(er.consoleErrors || [])].filter((msg) => !referenceMessages.has(msg));
       if (unique.length > 0) {
-        engineSpecificErrors.push({ engine, errors: unique.slice(0, 10) });
+        engineSpecificErrors.push({ engine, engineVersion: er.version || null, errors: unique.slice(0, 10) });
       }
     }
     if (engineSpecificErrors.length > 0) {
+      // Same rule: the actual error text and engine version go in `message`.
+      const evidence = engineSpecificErrors
+        .map((e) => `${e.engine} v${e.engineVersion || 'unknown'}: ${firstLine(e.errors[0])}${e.errors.length > 1 ? ` (+${e.errors.length - 1} more)` : ''}`)
+        .join('; ');
       result.addCheck('cross-browser:engine-specific-errors', false, {
         severity: 'error',
-        message: `Runtime/console errors unique to a non-reference engine (not seen in ${REFERENCE_ENGINE}) at ${baseUrl}`,
+        message: `Runtime/console errors unique to a non-reference engine (not seen in ${REFERENCE_ENGINE}) at ${baseUrl}. Evidence: ${evidence}`,
         details: engineSpecificErrors,
         suggestion: 'Check for engine-specific APIs (Chromium-only features used without a feature check) or CSS the other engine parses differently.',
       });
@@ -248,13 +270,16 @@ class CrossBrowserModule extends BaseModule {
         continue;
       }
       if (diff.diffPercent > threshold) {
-        renderDiffs.push({ engine, diffPercent: Number(diff.diffPercent.toFixed(2)), dimensionMismatch: diff.dimensionMismatch });
+        renderDiffs.push({ engine, engineVersion: er.version || null, diffPercent: Number(diff.diffPercent.toFixed(2)), dimensionMismatch: diff.dimensionMismatch });
       }
     }
     if (renderDiffs.length > 0) {
+      const evidence = renderDiffs
+        .map((d) => `${d.engine} v${d.engineVersion || 'unknown'}: ${d.diffPercent}% pixel diff${d.dimensionMismatch ? ' (dimension mismatch)' : ''}`)
+        .join('; ');
       result.addCheck('cross-browser:rendering-diff', false, {
         severity: 'warning',
-        message: `${renderDiffs.length} engine(s) render ${baseUrl} visibly differently from ${REFERENCE_ENGINE} (above ${threshold}% pixel diff)`,
+        message: `${renderDiffs.length} engine(s) render ${baseUrl} visibly differently from ${REFERENCE_ENGINE} (v${reference.version || 'unknown'}, above ${threshold}% pixel diff). Evidence: ${evidence}`,
         details: renderDiffs,
         suggestion: 'Some diff between engines is expected (font rendering/anti-aliasing) — review the flagged engine(s) for actual layout breakage, not just visual noise.',
       });
