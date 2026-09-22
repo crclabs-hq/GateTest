@@ -24,7 +24,7 @@ const STACK_PRODUCTS = [
   },
   {
     name: "Gluecron",
-    tagline: "The git host built for AI agents.",
+    tagline: "Git hosting with the gate on every push.",
     href: "https://gluecron.com",
     external: true,
     accent: "from-indigo-500/20 to-blue-500/10",
@@ -33,7 +33,7 @@ const STACK_PRODUCTS = [
   },
   {
     name: PLATFORM_NAME,
-    tagline: "AI-native. Edge-first. Zero ops.",
+    tagline: "Scheduled jobs with a record per run.",
     href: PLATFORM_SITE_URL,
     external: true,
     accent: "from-amber-500/20 to-orange-500/10",

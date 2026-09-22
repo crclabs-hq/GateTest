@@ -5,7 +5,7 @@ import PageHero from "../../components/site/PageHero";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 export const metadata: Metadata = {
-  title: "GateTest vs ESLint — Why 2026 Developers Are Moving On",
+  title: "GateTest vs ESLint — what a syntax-tree linter does not check",
   description:
     `ESLint is one tool. GateTest is ${TOTAL_MODULES}. Security, performance, accessibility, visual regression, mutation testing, AI code review — all in one gate. AI auto-fix at the Scan + Fix tier and above.`,
   keywords: [
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     canonical: "/compare/eslint",
   },
   openGraph: {
-    title: "GateTest vs ESLint — Why 2026 Developers Are Moving On",
+    title: "GateTest vs ESLint — what a syntax-tree linter does not check",
     description:
       `ESLint is one tool. GateTest is ${TOTAL_MODULES}. Security, performance, accessibility, visual regression, mutation testing, AI code review — all in one gate.`,
     url: "/compare/eslint",
@@ -98,7 +98,7 @@ export default function EsLintPage() {
           <>
             GateTest vs ESLint
             <br />
-            <span className="text-accent">Why 2026 Developers Are Moving On</span>
+            <span className="text-accent">What a syntax-tree linter does not check</span>
           </>
         }
         lede={

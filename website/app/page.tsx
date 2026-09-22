@@ -41,13 +41,8 @@ import HomePrecision from "./components/HomePrecision";
 import HomeHonest from "./components/HomeHonest";
 import HomeThreeDoors from "./components/HomeThreeDoors";
 import BeforeAfterDemo from "./components/BeforeAfterDemo";
-import HomeKills from "./components/HomeKills";
-import HomeModuleBreakdown from "./components/HomeModuleBreakdown";
-import HomeFlywheel from "./components/HomeFlywheel";
-import HomeEyesEarsHands from "./components/HomeEyesEarsHands";
 import HomeSelfScan from "./components/HomeSelfScan";
 import HomeCode from "./components/HomeCode";
-import HomeProof from "./components/HomeProof";
 import Pricing from "./components/Pricing";
 import PentestComingSoon from "./components/PentestComingSoon";
 import HomeFaq from "./components/HomeFaq";
@@ -75,13 +70,8 @@ export default function Home() {
         <HomeEverywhere />
         <BeforeAfterDemo />
         <HomeHonest />
-        <HomeKills />
-        <HomeModuleBreakdown />
-        <HomeFlywheel />
-        <HomeEyesEarsHands />
         <HomeSelfScan />
         <HomeCode />
-        <HomeProof />
         <Pricing />
         <PentestComingSoon />
         <HomeFaq />

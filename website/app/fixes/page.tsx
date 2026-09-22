@@ -166,10 +166,16 @@ export default async function FixesPage() {
 
                   <div className="flex items-center gap-4 mt-3 text-xs text-muted flex-wrap">
                     {fix.errors_fixed > 0 && (
-                      <span className="text-danger">🔴 {fix.errors_fixed} error{fix.errors_fixed !== 1 ? 's' : ''} fixed</span>
+                      <span className="text-danger inline-flex items-center gap-1.5">
+                        <span className="inline-block h-2 w-2 rounded-full bg-red-500" aria-hidden />
+                        {fix.errors_fixed} error{fix.errors_fixed !== 1 ? 's' : ''} fixed
+                      </span>
                     )}
                     {fix.warnings_fixed > 0 && (
-                      <span className="text-warning">🟡 {fix.warnings_fixed} warning{fix.warnings_fixed !== 1 ? 's' : ''} fixed</span>
+                      <span className="text-warning inline-flex items-center gap-1.5">
+                        <span className="inline-block h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+                        {fix.warnings_fixed} warning{fix.warnings_fixed !== 1 ? 's' : ''} fixed
+                      </span>
                     )}
                     {modules.length > 0 && (
                       <div className="flex items-center gap-1 flex-wrap">

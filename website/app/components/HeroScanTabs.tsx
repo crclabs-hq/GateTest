@@ -37,7 +37,7 @@ const SAMPLES: Record<Door, { label: string; value: string }[]> = {
   ],
 };
 
-const PILL = "replace-pill px-3 py-1.5 rounded-full text-gray-600 hover:text-gray-900 hover:border-[#0f766e]/30 transition-colors font-mono";
+const PILL = "replace-pill px-3 py-1.5 rounded-md text-gray-600 hover:text-gray-900 hover:border-black/30 transition-colors font-mono";
 
 export default function HeroScanTabs() {
   const [door, setDoor] = useState<Door>("repo");
@@ -63,7 +63,7 @@ export default function HeroScanTabs() {
 
   return (
     <div>
-      <div role="tablist" aria-label="What do you want to scan?" className="inline-flex rounded-xl border border-black/10 bg-white/70 p-1 mb-4 shadow-sm">
+      <div role="tablist" aria-label="What do you want to scan?" className="inline-flex rounded-md border border-black/10 bg-white p-0.5 mb-4">
         {DOORS.map((d) => {
           const active = d.id === door;
           return (
@@ -75,7 +75,7 @@ export default function HeroScanTabs() {
               aria-selected={active}
               aria-controls={`door-panel-${d.id}`}
               onClick={() => setDoor(d.id)}
-              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${active ? "bg-accent text-white shadow-sm" : "text-gray-600 hover:text-gray-900"}`}
+              className={`px-4 py-2 text-sm font-semibold rounded transition-colors ${active ? "bg-gray-900 text-white" : "text-gray-600 hover:text-gray-900"}`}
             >
               {d.label}
             </button>
@@ -95,9 +95,9 @@ export default function HeroScanTabs() {
               value={repo}
               onChange={(e) => setRepo(e.target.value)}
               placeholder="https://github.com/owner/repo — free, no signup"
-              className="flex-1 min-w-0 rounded-2xl border border-black/10 bg-white px-5 py-4 text-base text-gray-900 placeholder:text-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0f766e]/40"
+              className="flex-1 min-w-0 rounded-md border border-black/15 bg-white px-4 py-3 text-base font-mono text-gray-900 placeholder:text-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0f766e]/40"
             />
-            <button type="submit" className="hero-cta rounded-2xl px-7 py-4 text-base font-semibold whitespace-nowrap">
+            <button type="submit" className="btn-cta rounded-md px-6 py-3 text-base font-semibold whitespace-nowrap">
               Scan my repo
             </button>
           </form>

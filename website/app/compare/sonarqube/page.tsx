@@ -5,7 +5,7 @@ import PageHero from "../../components/site/PageHero";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 export const metadata: Metadata = {
-  title: "GateTest vs SonarQube — The Smarter Alternative in 2026",
+  title: "GateTest vs SonarQube — one gate, no server to run, per-run pricing",
   description:
     `GateTest replaces SonarQube with ${TOTAL_MODULES} AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing. Just results.`,
   keywords: [
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     canonical: "/compare/sonarqube",
   },
   openGraph: {
-    title: "GateTest vs SonarQube — The Smarter Alternative in 2026",
+    title: "GateTest vs SonarQube — one gate, no server to run, per-run pricing",
     description:
       `GateTest replaces SonarQube with ${TOTAL_MODULES} AI-powered modules, AI auto-fix PRs at the Scan + Fix tier and above, and per-scan pricing. No complex setup. No per-seat licensing.`,
     url: "/compare/sonarqube",
@@ -99,7 +99,7 @@ export default function SonarQubePage() {
           <>
             GateTest vs SonarQube
             <br />
-            <span className="text-accent">The Smarter Alternative in 2026</span>
+            <span className="text-accent">One gate, no server to run, per-run pricing</span>
           </>
         }
         lede={
@@ -169,8 +169,8 @@ export default function SonarQubePage() {
           <div className="grid sm:grid-cols-2 gap-5">
             {[
               {
-                title: "AI-native, not AI-bolted-on",
-                body: "SonarQube added AI features to a 2006 rule engine. GateTest is built AI-first — the review engine reads your actual code, understands context, and finds bugs that pattern matching misses. Real bugs, not rule violations.",
+                title: "Deterministic gate, model only for the fix",
+                body: "SonarQube runs rules and reports issues. GateTest runs deterministic checks the same way, then on the fix tiers hands each located finding to a model that writes a patch, re-runs the gate against it, adds a regression test and has a second model review the diff.",
               },
               {
                 title: "Auto-fix PRs, not just reports",
