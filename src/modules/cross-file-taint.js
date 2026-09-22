@@ -174,7 +174,15 @@ const SINKS = [
 // Sanitisation / validation patterns — if present on the same or prev 3 lines,
 // suppress the cross-file finding
 const SANITISE_RES = [
-  /validateUrl|isValidUrl|assertSafeUrl|sanitize|sanitise|escape\(|parameterize|parameterise/i,
+  // issue #633 (2026-09-22): a literal `escape\(` matches `escape(` but NOT
+  // `escapeForLike(` / `escapeLikePattern(` / `mysqlEscape(` — a SQL LIKE-
+  // clause escaper (Tallrig's `verifyCollabToken`-adjacent query helper)
+  // was invisible to this check because its name has "escape" as a PREFIX,
+  // not the whole identifier before `(`. `escape\w*\s*\(` catches any
+  // escape-shaped helper name while still requiring the word "escape" —
+  // `unescape(` also matches, deliberately (it's still string-transform
+  // sanitisation-adjacent, not the injection itself).
+  /validateUrl|isValidUrl|assertSafeUrl|sanitize|sanitise|escape\w*\s*\(|parameterize|parameterise/i,
   /allowedHosts\.includes|ALLOWLIST\.has|whitelist\.includes/i,
   /new URL\([^)]+\)\.hostname/,
   /parseInt\s*\(|parseFloat\s*\(|Number\s*\(|Boolean\s*\(/,
@@ -186,6 +194,14 @@ const SANITISE_RES = [
   /\bsql\s*`/,
   /\bPrisma\.sql\s*`/,
   /\bdb\.sql\s*`/,
+  // issue #633: a redirect target that is verified against an HMAC/
+  // signature (a collab-invite or webhook-callback token bound to its
+  // destination, checked with a constant-time compare) is not an open
+  // redirect — the server already proved the URL wasn't tampered with
+  // before following it. Covers Node's own primitives (createHmac,
+  // timingSafeEqual) and the common verify*/check* naming a hand-rolled
+  // signature check uses.
+  /\bcreateHmac\s*\(|\btimingSafeEqual\s*\(|\bcreateHash\s*\(|verifySignature|verifyHmac|checkSignature/i,
 ];
 
 const SUPPRESS_TAINT_OK_RE = /\/\/\s*taint-ok\b/;

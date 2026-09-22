@@ -109,6 +109,93 @@ describe('SqlMigrationsModule — destructive ops', () => {
   });
 });
 
+/**
+ * Issue #633 (Tallrig false-positive report, 2026-09-22): every DROP TABLE
+ * finding from an 8/8-FP module was actually SQLite's own documented
+ * table-rebuild idiom (lang_altertable.html §7) — CREATE __new_X, INSERT
+ * INTO __new_X SELECT ... FROM X, DROP TABLE X, ALTER TABLE __new_X RENAME
+ * TO X. The DROP in that sequence isn't data loss because the rows were
+ * copied into the replacement table first.
+ */
+describe('SqlMigrationsModule — DROP TABLE rebuild idiom (issue #633)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-sql-rebuild-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('POSITIVE (control): a bare DROP TABLE with no rebuild context still fires at error severity', async () => {
+    writeMigration(tmp, 'migrations/001.sql', 'DROP TABLE users;');
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('sql:drop-table:'));
+    assert.ok(hit, 'expected a plain drop-table finding');
+    assert.strictEqual(hit.severity, 'error');
+    assert.strictEqual(r.checks.find((c) => c.name.startsWith('sql:drop-table-rebuild:')), undefined);
+  });
+
+  it('NEGATIVE: the full create/copy/drop/rename idiom does NOT fire as destructive', async () => {
+    writeMigration(tmp, 'migrations/002.sql', [
+      'CREATE TABLE __new_users (id INTEGER PRIMARY KEY, email TEXT NOT NULL);',
+      'INSERT INTO __new_users (id, email) SELECT id, email FROM users;',
+      'DROP TABLE users;',
+      'ALTER TABLE __new_users RENAME TO users;',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name.startsWith('sql:drop-table:')), undefined,
+      'the rebuild-idiom DROP TABLE must not fire as a plain destructive drop');
+    const rebuildHit = r.checks.find((c) => c.name.startsWith('sql:drop-table-rebuild:'));
+    assert.ok(rebuildHit, 'expected an info-level rebuild-idiom note');
+    assert.strictEqual(rebuildHit.severity, 'info');
+  });
+
+  it('NEGATIVE: the idiom is also recognised with the shorter `new_X` naming', async () => {
+    writeMigration(tmp, 'migrations/003.sql', [
+      'CREATE TABLE new_orders (id INTEGER PRIMARY KEY, total REAL);',
+      'INSERT INTO new_orders (id, total) SELECT id, total FROM orders;',
+      'DROP TABLE orders;',
+      'ALTER TABLE new_orders RENAME TO orders;',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name.startsWith('sql:drop-table:')), undefined);
+    assert.ok(r.checks.find((c) => c.name.startsWith('sql:drop-table-rebuild:')));
+  });
+
+  it('a DROP TABLE __new_X for a DIFFERENT table than the one rebuilt still fires', async () => {
+    // Rebuilds `users`, but separately drops an unrelated real table —
+    // that drop must still be reported at full severity.
+    writeMigration(tmp, 'migrations/004.sql', [
+      'CREATE TABLE __new_users (id INTEGER PRIMARY KEY);',
+      'INSERT INTO __new_users (id) SELECT id FROM users;',
+      'DROP TABLE users;',
+      'ALTER TABLE __new_users RENAME TO users;',
+      'DROP TABLE orders;',
+    ].join('\n'));
+    const r = await run(tmp);
+    const plainDrops = r.checks.filter((c) => c.name.startsWith('sql:drop-table:'));
+    assert.strictEqual(plainDrops.length, 1, 'only the unrelated orders drop should fire as plain destructive');
+    assert.match(plainDrops[0].message, /orders|DROP TABLE/);
+    assert.strictEqual(plainDrops[0].line, 5);
+  });
+
+  it('POSITIVE (control): DROP TABLE IF EXISTS tmp_import_batch with no rebuild context is quieter than a real drop', async () => {
+    writeMigration(tmp, 'migrations/005.sql', 'DROP TABLE IF EXISTS tmp_import_batch;');
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.find((c) => c.name.startsWith('sql:drop-table:')), undefined,
+      'an ephemeral-named table must not be treated the same as a real table drop');
+    const hit = r.checks.find((c) => c.name.startsWith('sql:drop-table-ephemeral:'));
+    assert.ok(hit, 'expected an ephemeral-table finding');
+    assert.notStrictEqual(hit.severity, 'error');
+  });
+
+  it('other ephemeral-naming prefixes (temp_, staging_) are also recognised as lower risk', async () => {
+    writeMigration(tmp, 'migrations/006.sql', [
+      'DROP TABLE temp_export;',
+      'DROP TABLE staging_customers;',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.filter((c) => c.name.startsWith('sql:drop-table:')).length, 0);
+    assert.strictEqual(r.checks.filter((c) => c.name.startsWith('sql:drop-table-ephemeral:')).length, 2);
+  });
+});
+
 describe('SqlMigrationsModule — NOT NULL + ADD COLUMN', () => {
   let tmp;
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-sql-nn-')); });

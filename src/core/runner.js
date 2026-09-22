@@ -65,8 +65,22 @@ const { isOffline: _isOffline } = require('./offline');
 let _ruleDemotion = null;
 try { _ruleDemotion = require('./rule-demotion'); } catch { _ruleDemotion = null; }
 
-function _loadIgnoreMatcher(projectRoot) {
-  try { return _ignoreFile ? _ignoreFile.load(projectRoot) : null; }
+/**
+ * `.gatetest.json`'s `ignore` array (KI #112 G4) feeds the SAME
+ * .gatetestignore parser — never a second matcher. `config` may be a
+ * GateTestConfig instance (`.get('ignore')`), a plain object some callers
+ * construct directly (direct-repair.js), or absent; all three read as "no
+ * extra lines" rather than throwing.
+ */
+function _configIgnoreLines(config) {
+  try {
+    const raw = typeof config?.get === 'function' ? config.get('ignore') : config?.ignore;
+    return Array.isArray(raw) ? raw : [];
+  } catch { return []; }
+}
+
+function _loadIgnoreMatcher(projectRoot, config) {
+  try { return _ignoreFile ? _ignoreFile.load(projectRoot, _configIgnoreLines(config)) : null; }
   catch { return null; }
 }
 
@@ -499,7 +513,7 @@ class GateTestRunner extends EventEmitter {
     // penalties. Both are loaded once here (best-effort — a missing file or
     // memory just yields an empty matcher / no penalties) and threaded into
     // every TestResult so suppression and softening apply uniformly.
-    this._ignoreMatcher = _loadIgnoreMatcher(projectRoot);
+    this._ignoreMatcher = _loadIgnoreMatcher(projectRoot, config);
     this._confidencePenalties = _loadConfidencePenalties(projectRoot);
     // Baseline ("only fail on NEW issues", KI #66). When capturing a fresh
     // baseline the old one must NOT suppress anything — the snapshot has to
@@ -1188,6 +1202,14 @@ class GateTestRunner extends EventEmitter {
       // Carried on the summary so no consumer can present a deferred suite
       // as exhaustive — Forbidden #16.
       deferred: this.options.deferredModules || [],
+      // KI #112 (issue #633): `.gatetest.json` keys nothing reads used to be
+      // a stderr-only warning, invisible to `--format json` and the PR
+      // comment. `null` (never emitted) when the config has none — a
+      // three-state, never-blocking, printed-once-per-run finding
+      // (src/core/config.js `getUnknownKeysCheck` — one definition).
+      configCheck: (this.config && typeof this.config.getUnknownKeysCheck === 'function')
+        ? this.config.getUnknownKeysCheck()
+        : null,
       timestamp: new Date().toISOString(),
       duration: endTime - startTime,
       diffOnly: this.options.diffOnly,

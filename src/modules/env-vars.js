@@ -90,6 +90,7 @@
 const fs = require('fs');
 const path = require('path');
 const { repoRelative } = require('../core/repo-path');
+const { listWorkspacePackages, nearestWorkspacePackage } = require('../core/workspaces');
 const BaseModule = require('./base-module');
 
 // Directory excludes beyond what `BaseModule._collectFiles` already skips
@@ -171,6 +172,8 @@ const RUNTIME_ENV_ALLOWLIST = new Set([
 const RUNTIME_ENV_PREFIX_ALLOWLIST = [
   'GITHUB_',   // GitHub Actions default env (GITHUB_RUN_ID, _EVENT_NAME, _EVENT_PATH, _WORKSPACE, _SERVER_URL, _HEAD_REF, etc.)
   'RUNNER_',   // GitHub Actions runner env (RUNNER_OS, RUNNER_TEMP, RUNNER_TOOL_CACHE, RUNNER_ARCH, RUNNER_DEBUG, RUNNER_ENVIRONMENT, RUNNER_NAME)
+  'VERCEL_',   // Vercel build/runtime env beyond the exhaustive list above — same platform, same rationale.
+  'NPM_CONFIG_', // npm sets a wide family of NPM_CONFIG_* vars for lifecycle scripts (registry, userconfig, cache, etc.)
 ];
 
 function isRuntimeAllowed(key) {
@@ -276,13 +279,36 @@ class EnvVarsModule extends BaseModule {
 
     // Missing-from-example: referenced in code, not declared.
     // Severity follows RISK: only an UNGUARDED read (no `||`/`??`/`.get(k, d)`
-    // fallback) in a repo that HAS an `.env.example` can "boot a broken app".
-    // A guarded read, or a repo with no example file at all (nothing to be
-    // missing from), is a warning. Message names the language's own idiom
+    // fallback) in a package that SHIPS ITS OWN `.env.example` can "boot a
+    // broken app" — that package has opted into a documented contract and
+    // this key fell through it. A guarded read, or a read in a package that
+    // has no `.env.example` of its own at all (nothing it promised to be
+    // complete), is a warning. Message names the language's own idiom
     // (`os.environ["X"]`, not `process.env.X`, on a Python file).
     // (2026-08-18 audit: fastapi's `os.environ.get("FASTAPI_ENV")` with a
     // fallback was a blocking error, worded as `process.env.`.)
-    const hasExampleFile = ['.env.example', '.env.sample', '.env.template'].some((f) => fs.existsSync(path.join(projectRoot, f)));
+    //
+    // G5 (KI #112, issue #633): on a monorepo, "has `.env.example`" was
+    // checked once at the repo ROOT and applied to every workspace — a
+    // 76-workspace platform tree with one root `.env.example` covering the
+    // main app turned 291 warnings in unrelated packages into blocking
+    // errors. `.env.example` is resolved per the OWNING workspace
+    // (`src/core/workspaces.js` — the one definition), and only that
+    // package's own file (not an ancestor's, not root's, unless the read is
+    // itself in root) makes a miss blocking. A variable documented in ANY
+    // `.env.example` anywhere in the tree (the `declared` set above, built
+    // from every such file) is never "missing" at all, regardless of which
+    // package reads it.
+    const workspaceMembers = listWorkspacePackages(projectRoot);
+    const ownExampleFileCache = new Map();
+    const ownerHasExampleFile = (relFile) => {
+      const owner = nearestWorkspacePackage(workspaceMembers, relFile);
+      const ownerDir = owner ? owner.dir : projectRoot;
+      if (ownExampleFileCache.has(ownerDir)) return ownExampleFileCache.get(ownerDir);
+      const has = ['.env.example', '.env.sample', '.env.template'].some((f) => fs.existsSync(path.join(ownerDir, f)));
+      ownExampleFileCache.set(ownerDir, has);
+      return has;
+    };
     for (const [key, refs] of referenced) {
       if (isRuntimeAllowed(key)) continue;
       if (declared.has(key)) continue;
@@ -292,11 +318,16 @@ class EnvVarsModule extends BaseModule {
       // `.env.example`. It still counts as a use above (unused-in-code).
       if (refs.every((r) => r.form === 'child-env')) continue;
       const firstRef = refs[0];
-      const unguarded = refs.some((r) => !r.guarded);
+      const unguardedRefs = refs.filter((r) => !r.guarded);
+      const unguarded = unguardedRefs.length > 0;
+      // Blocking only when an unguarded read's OWN package ships a contract
+      // it fell through — not merely because some other package, or the
+      // root, happens to have one.
+      const blocking = unguardedRefs.some((r) => ownerHasExampleFile(r.file));
       const lang = firstRef.lang || 'js';
       const idiom = lang === 'py' ? `os.environ["${key}"]` : lang === 'go' ? `os.Getenv("${key}")` : `process.env.${key}`;
       issues += this._flag(result, `env-vars:missing-from-example:${key}`, {
-        severity: unguarded && hasExampleFile ? 'error' : 'warning',
+        severity: blocking ? 'error' : 'warning',
         key,
         file: firstRef.file,
         line: firstRef.line,

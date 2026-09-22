@@ -152,17 +152,34 @@ function parse(text) {
 }
 
 /**
- * Load + parse the .gatetestignore at a project root. Returns an empty matcher
- * when absent/unreadable. Never throws.
+ * Load + parse the .gatetestignore at a project root, merged with any lines
+ * from `.gatetest.json`'s `ignore` array (`config.ignore`, KI #112 G4).
+ *
+ * One suppressor, one parser: `.gatetest.json`'s `ignore` key is not a
+ * second matcher with its own semantics — it is the same line syntax as
+ * `.gatetestignore` (`module:rule`, `module`, `*:rule`, `module:rule@glob`,
+ * `path/glob/**`), fed through this same `parse()`. Before this fix the CLI
+ * silently accepted the key and read it never — the JSON config editor a
+ * customer already has (their build tooling can template `.gatetest.json`;
+ * a second, hand-appended `.gatetestignore` file is a step they often skip)
+ * had no effect at all (Bible Forbidden #16: never silently fail).
+ *
+ * Returns an empty matcher when both are absent/unreadable. Never throws.
  * @param {string} projectRoot
+ * @param {string[]} [extraLines] — additional suppression lines (from
+ *   `.gatetest.json`'s `ignore` array), applied IN ADDITION to the file.
  */
-function load(projectRoot) {
+function load(projectRoot, extraLines) {
+  let text = '';
   try {
-    const text = fs.readFileSync(path.join(projectRoot || process.cwd(), IGNORE_FILENAME), 'utf-8');
-    return parse(text);
-  } catch {
-    return parse('');
-  }
+    text = fs.readFileSync(path.join(projectRoot || process.cwd(), IGNORE_FILENAME), 'utf-8');
+  } catch { /* error-ok — no .gatetestignore file: the config array may still supply rules */ }
+
+  const extra = Array.isArray(extraLines)
+    ? extraLines.filter((l) => typeof l === 'string' && l.trim())
+    : [];
+  const combined = extra.length > 0 ? `${text}\n${extra.join('\n')}\n` : text;
+  return parse(combined);
 }
 
 /**
