@@ -171,6 +171,25 @@ describe('issue #658 item 1 — not-checked reason survives past the live stream
   });
 });
 
+describe('issue #658 item 2 — "why the score changed" note and hosted-vs-CLI methodology disclosure', () => {
+  it('UrlScanFlow computes explainScoreChange against the last scan of the SAME url, persisted client-side', () => {
+    const src = read('website/app/components/UrlScanFlow.tsx');
+    assert.match(src, /explainScoreChange/);
+    assert.match(src, /loadPreviousCoverage\(targetUrl\)/);
+    assert.match(src, /saveCoverage\(targetUrl, data\)/);
+    // Must be wrapped the same try/catch-per-viewer-convenience way as the
+    // existing ScanFeedback.tsx localStorage usage — never throw into the
+    // scan result over a blocked/unavailable store.
+    assert.match(src, /catch\s*{\s*\n\s*return null;.*storage/s);
+  });
+
+  it('HealthScoreCard renders the scoreChangeNote and a permanent hosted-vs-CLI methodology line', () => {
+    const src = read('website/app/components/url-scan-flow-cards.tsx');
+    assert.match(src, /scoreChangeNote/);
+    assert.match(src, /not directly comparable/);
+  });
+});
+
 describe('web-scan routes — moduleChecks field ships free regardless of preview tier (item 4)', () => {
   for (const rel of ['website/app/api/web/scan/route.ts', 'website/app/api/web/scan/stream/route.ts']) {
     it(`${rel} computes moduleChecks via the one shared definition and returns it unconditionally`, () => {

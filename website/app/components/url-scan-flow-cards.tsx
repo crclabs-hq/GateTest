@@ -32,9 +32,14 @@ interface HealthScoreCardProps extends HealthScore {
    *  still renders, falling back to the bare names in `notCheckedModules`. */
   notCheckedReasons?: Array<{ module: string; reason: string }>;
   totalModules?: number;
+  /** Issue #658 item 2 — why the score moved since the last scan of THIS
+   *  URL from this browser (persisted client-side; there's no server-side
+   *  scan history for /web to read instead). `null`/absent when there's
+   *  nothing to explain (no prior scan, or coverage unchanged). */
+  scoreChangeNote?: string | null;
 }
 
-export function HealthScoreCard({ score, grade, summary, notCheckedModules, notCheckedReasons, totalModules }: HealthScoreCardProps) {
+export function HealthScoreCard({ score, grade, summary, notCheckedModules, notCheckedReasons, totalModules, scoreChangeNote }: HealthScoreCardProps) {
   const colors = GRADE_COLORS[grade];
   const [displayScore, setDisplayScore] = useState(0);
 
@@ -112,6 +117,21 @@ export function HealthScoreCard({ score, grade, summary, notCheckedModules, notC
                 : notCheckedModules.join(", ")}
             </p>
           )}
+          {scoreChangeNote && (
+            <p className="text-xs text-amber-800 bg-amber-50 ring-1 ring-inset ring-amber-200 rounded-lg px-3 py-2 mt-3">
+              {scoreChangeNote}
+            </p>
+          )}
+          {/* Issue #658 item 2 (Tallrig correction 2026-09-22): a hosted
+              scan's page budget and browser engine set are NOT the same
+              as a desktop CLI crawl's — a customer comparing the two
+              numbers needs to know they are different measurements, not
+              a regression. */}
+          <p className="text-xs text-muted/80 mt-2">
+            This is a hosted scan — it uses this engine&apos;s own page budget and browser engine set.
+            A desktop CLI crawl of the same site may use a different page budget or browser engines,
+            so the two scores are not directly comparable.
+          </p>
         </div>
       </div>
     </div>
