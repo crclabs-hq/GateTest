@@ -1,7 +1,7 @@
 'use strict';
 
 const { URL } = require('url');
-const { fetchPage, checkUrl, extractLinks, extractImages } = require('./live-crawler-http-helpers');
+const { fetchPage, checkUrl, extractLinks, extractImages, extractTitle } = require('./live-crawler-http-helpers');
 const { authHeadersFor } = require('./live-crawler-auth');
 
 const ERROR_PATTERNS = [
@@ -24,11 +24,28 @@ async function crawlWithHttp(ctx) {
     brokenScripts, brokenStylesheets,
     missingMetaDescription, missingCanonical,
     slowPages, slowThresholdMs, anchorMissingId, titlesByUrl,
-    timedOutPages,
+    timedOutPages, offSiteRedirects, crawlDeadlineTs,
     auth,
   } = ctx;
 
+  let budgetExhausted = false;
+
   while (queue.length > 0 && visited.size < maxPages) {
+    // Crawl-wide wall-clock budget (#640): stop taking new pages once there
+    // is no longer time to safely attempt one more (worst case: pageTimeout)
+    // before the deadline this run was allotted (live-crawler.js's
+    // crawlDeadlineTs, derived from the module's own assigned timeout).
+    // Whatever is already in `pages` ships as a partial report instead of
+    // the runner's outer race timeout discarding it entirely. The very
+    // first page is always attempted regardless — an assigned budget
+    // smaller than a single page's own timeout is a misconfiguration the
+    // runner's own race timer remains the safety net for, not something to
+    // fake a deadline for here.
+    if (crawlDeadlineTs && visited.size > 0 && Date.now() + pageTimeout > crawlDeadlineTs) {
+      budgetExhausted = true;
+      break;
+    }
+
     const url = queue.shift();
     if (!url || visited.has(url)) continue;
     visited.add(url);
@@ -41,7 +58,17 @@ async function crawlWithHttp(ctx) {
       const pageResult = await fetchPage(url, pageTimeout, authHeadersFor(url, auth));
       pages.push(pageResult);
 
-      if (pageResult.status >= 400) {
+      if (pageResult.offSiteRedirect) {
+        // #634: the target's own first hop was a normal redirect (fine) —
+        // it left the target's origin, so it's disclosed, not graded as a
+        // finding against this site.
+        offSiteRedirects.push({
+          page: url,
+          redirectTo: pageResult.finalUrl,
+          status: pageResult.status,
+          message: 'third-party redirect chain, terminal host ≠ target',
+        });
+      } else if (pageResult.status >= 400) {
         errors.push({ url, status: pageResult.status, type: 'http-error',
           message: `HTTP ${pageResult.status} ${pageResult.statusText}` });
       }
@@ -60,11 +87,11 @@ async function crawlWithHttp(ctx) {
           message: `Page appears blank or nearly empty (${textContent.length} chars of text)` });
       }
 
-      const titleMatch = body.match(/<title>([^<]*)<\/title>/i);
-      if (!titleMatch || titleMatch[1].trim().length === 0) {
+      const title = extractTitle(body);
+      if (!title) {
         errors.push({ url, type: 'missing-title', message: 'Page has no <title> or title is empty' });
       } else {
-        titlesByUrl.set(url, titleMatch[1].trim());
+        titlesByUrl.set(url, title);
       }
 
       const metaDescMatch = body.match(/<meta\s+[^>]*name\s*=\s*["']description["'][^>]*content\s*=\s*["']([^"']*)["']/i);
@@ -154,6 +181,8 @@ async function crawlWithHttp(ctx) {
       }
     }
   }
+
+  return { budgetExhausted };
 }
 
 async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets, auth) {

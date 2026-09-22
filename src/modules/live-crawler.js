@@ -17,7 +17,7 @@
 
 const BaseModule = require('./base-module');
 const { URL } = require('url');
-const { checkUrl, getSuggestion } = require('./live-crawler-http-helpers');
+const { checkUrl, getSuggestion, extractDeclaredIconHref } = require('./live-crawler-http-helpers');
 const { crawlWithBrowser } = require('./live-crawler-browser-engine');
 const { crawlWithHttp } = require('./live-crawler-http-engine');
 const { generateFeedbackReport } = require('./live-crawler-report');
@@ -29,19 +29,55 @@ const { resolveAuth, authHeadersFor, isLoginUrl } = require('./live-crawler-auth
 // override it.
 const DEFAULT_PAGE_TIMEOUT_MS = 15000;
 
+// Headroom above the raw crawlMax × pageTimeout arithmetic (#640): time for
+// the aux checks (sitemap/robots/favicon), the feedback report, and the
+// runner's own overhead. One definition, used both by estimateTimeoutMs()
+// (the runner-consulted outer ceiling) and by run()'s own internal pacing
+// below, so the two figures can never independently drift (doctrine #4).
+const CRAWL_BUDGET_MARGIN_MS = 30000;
+
 class LiveCrawlerModule extends BaseModule {
   constructor() {
     super('liveCrawler', 'Live Site Crawl & Verification');
   }
 
-  async run(result, config) {
-    const crawlConfig = config.getModuleConfig('liveCrawler') || {};
-    const baseUrl =
-      crawlConfig.url ||
+  /** One definition of "which URL is this crawl targeting" — shared by run() and estimateTimeoutMs() below. */
+  _resolveBaseUrl(config, crawlConfig) {
+    return crawlConfig.url ||
       config.get('liveCrawler.url') ||
       config.get('targetUrl') ||
       config.get('webUrl') ||
       config.get('wpUrl');
+  }
+
+  /** One definition of "how long should this crawl's own configured workload take" (#640). */
+  _estimatedCrawlBudgetMs(maxPages, pageTimeout) {
+    return maxPages * pageTimeout + CRAWL_BUDGET_MARGIN_MS;
+  }
+
+  /**
+   * Runner hook consulted by GateTestRunner._moduleTimeoutMs (see that
+   * method's precedence comment in src/core/runner.js). A crawl's own
+   * workload — crawlMax pages × the per-page timeout — routinely exceeds
+   * the generic module ceiling meant for a lint pass, and used to be killed
+   * outright with zero pages recorded (#640: a 60-page crawl of a slow host
+   * died at the 120s default with nothing collected). Returning null (no
+   * URL configured, or no getModuleConfig to ask) defers to the runner's
+   * normal env-var/heavy/default cascade.
+   */
+  estimateTimeoutMs(config) {
+    if (!config || typeof config.getModuleConfig !== 'function') return null;
+    const crawlConfig = config.getModuleConfig('liveCrawler') || {};
+    const baseUrl = this._resolveBaseUrl(config, crawlConfig);
+    if (!baseUrl) return null;
+    const maxPages = crawlConfig.maxPages || 100;
+    const pageTimeout = crawlConfig.pageTimeout || DEFAULT_PAGE_TIMEOUT_MS;
+    return this._estimatedCrawlBudgetMs(maxPages, pageTimeout);
+  }
+
+  async run(result, config) {
+    const crawlConfig = config.getModuleConfig('liveCrawler') || {};
+    const baseUrl = this._resolveBaseUrl(config, crawlConfig);
 
     if (!baseUrl) {
       result.addCheck('crawl:config', true, {
@@ -97,6 +133,7 @@ class LiveCrawlerModule extends BaseModule {
       anchorMissingId: [],
       titlesByUrl: new Map(),
       timedOutPages: [],
+      offSiteRedirects: [],
     };
 
     let playwright = null;
@@ -110,29 +147,63 @@ class LiveCrawlerModule extends BaseModule {
       message: `Crawling ${baseUrl} (max ${maxPages} pages, mode: ${useBrowser ? 'browser (JS-rendered)' : 'HTTP-only'})...`,
     });
 
+    const runStartedAt = Date.now();
+    // The wall-clock budget the runner is ACTUALLY racing this run against
+    // — injected by GateTestRunner._runModule as config._moduleTimeoutMs
+    // when run through the runner (see estimateTimeoutMs above); falls back
+    // to this module's own estimate for direct/test invocations that
+    // bypass the runner. Pacing the crawl loop against this exact figure
+    // (not just a generic default) is what turns a tight budget into a
+    // partial report instead of the runner's own race silently discarding
+    // every page already fetched (#640).
+    const assignedTimeoutMs = (typeof config._moduleTimeoutMs === 'number' && config._moduleTimeoutMs > 0)
+      ? config._moduleTimeoutMs
+      : this._estimatedCrawlBudgetMs(maxPages, pageTimeout);
+    // Stop attempting new pages with at least one page's worst-case
+    // duration still in hand, so the aux checks + report below always have
+    // time to run before the runner's own race timer (using this exact
+    // budget) could fire. Never negative — the engines always allow their
+    // very first page attempt regardless of this deadline (see
+    // crawlWithHttp/crawlWithBrowser), so an assigned budget smaller than
+    // one page's own timeout still gets exactly one try rather than being
+    // inflated into a deadline the outer race timer doesn't actually have;
+    // in that genuinely pathological case (module budget < a single page's
+    // own timeout) the runner's own race remains the safety net, same as
+    // before this fix.
+    const crawlDeadlineTs = runStartedAt + Math.max(0, assignedTimeoutMs - pageTimeout);
+
     const engineCtx = {
       baseUrl, maxPages, timeout, pageTimeout, checkExternal, slowThresholdMs, auth,
+      crawlDeadlineTs,
       ...collectors,
     };
 
+    let crawlOutcome;
     if (useBrowser) {
-      await crawlWithBrowser(playwright, engineCtx);
+      crawlOutcome = await crawlWithBrowser(playwright, engineCtx);
     } else {
-      await crawlWithHttp(engineCtx);
+      crawlOutcome = await crawlWithHttp(engineCtx);
     }
+    collectors.budgetExhausted = !!(crawlOutcome && crawlOutcome.budgetExhausted);
+    collectors.maxPages = maxPages;
+    collectors.crawlElapsedMs = Date.now() - runStartedAt;
 
     this._emitChecks(result, baseUrl, collectors);
     this._emitAuthWallCheck(result, collectors, auth);
 
-    if (crawlConfig.checkSitemap !== false) await this._checkAuxUrl(result, baseUrl, '/sitemap.xml', timeout,
-      'crawl:sitemap-missing', 'warning', 'No /sitemap.xml found',
-      'Generate a sitemap.xml. Most frameworks have a plugin for this.', auth);
-    if (crawlConfig.checkRobotsTxt !== false) await this._checkAuxUrl(result, baseUrl, '/robots.txt', timeout,
-      'crawl:robots-missing', 'info', 'No /robots.txt found',
-      'Add a /robots.txt even if it just says "User-agent: *\\nAllow: /" — signals intentionality.', auth);
-    if (crawlConfig.checkFavicon !== false) await this._checkAuxUrl(result, baseUrl, '/favicon.ico', timeout,
-      'crawl:favicon-missing', 'info', 'No /favicon.ico found',
-      'Add a favicon.ico in the site root. Modern alternative: <link rel="icon" href="..."> in <head>.', auth);
+    // A crawl that was cut short by its own budget has none to spare on
+    // aux probes — every extra second spent here eats into the margin
+    // reserved above for actually writing the report before the runner's
+    // race timer fires.
+    if (!collectors.budgetExhausted) {
+      if (crawlConfig.checkSitemap !== false) await this._checkAuxUrl(result, baseUrl, '/sitemap.xml', timeout,
+        'crawl:sitemap-missing', 'warning', 'No /sitemap.xml found',
+        'Generate a sitemap.xml. Most frameworks have a plugin for this.', auth);
+      if (crawlConfig.checkRobotsTxt !== false) await this._checkAuxUrl(result, baseUrl, '/robots.txt', timeout,
+        'crawl:robots-missing', 'info', 'No /robots.txt found',
+        'Add a /robots.txt even if it just says "User-agent: *\\nAllow: /" — signals intentionality.', auth);
+      if (crawlConfig.checkFavicon !== false) await this._checkFavicon(result, baseUrl, timeout, auth, collectors.pages);
+    }
 
     generateFeedbackReport(config, {
       baseUrl,
@@ -142,6 +213,9 @@ class LiveCrawlerModule extends BaseModule {
       brokenImages: collectors.brokenImages,
       redirects: collectors.redirects,
       timedOutPages: collectors.timedOutPages,
+      budgetExhausted: collectors.budgetExhausted,
+      maxPages: collectors.maxPages,
+      crawlElapsedMs: collectors.crawlElapsedMs,
     });
   }
 
@@ -158,6 +232,30 @@ class LiveCrawlerModule extends BaseModule {
         message: `${timedOutPages.length} of ${attempted} page(s) timed out — a stalled page no longer blocks the rest of the crawl, but it was NOT checked`,
         details: timedOutPages.slice(0, 30),
         suggestion: 'Investigate why the page never responded (slow backend, infinite loop, hung upstream call). Raise --crawl-page-timeout if the page is just slow, not broken.',
+      });
+    }
+
+    const offSiteRedirects = c.offSiteRedirects || [];
+    if (offSiteRedirects.length > 0) {
+      // #634: a link redirecting off-site is disclosed, never graded as a
+      // broken link — the crawl does not own the terminal host's status.
+      result.addCheck('crawl:off-site-redirect', true, {
+        severity: 'info',
+        message: `${offSiteRedirects.length} link(s) redirected off-site — not followed past the target's own origin, so the terminal host's status is not graded against this site`,
+        details: offSiteRedirects.slice(0, 30),
+      });
+    }
+
+    // Doctrine #1 (three-state): a crawl cut short by its own wall-clock
+    // budget must say so explicitly, carrying what it DID fetch, rather
+    // than the runner's outer race discarding everything and reporting
+    // "no data was collected for this run" (#640).
+    if (c.budgetExhausted) {
+      const elapsedS = ((c.crawlElapsedMs || 0) / 1000).toFixed(1);
+      result.addCheck('crawl:not-checked:budget', true, {
+        severity: 'info',
+        message: `${c.pages.length} of ${c.maxPages} pages fetched in ${elapsedS}s — crawl budget exhausted before the page limit was reached`,
+        suggestion: 'Raise the module timeout (.gatetest config modules.liveCrawler under moduleTimeouts, or GATETEST_MODULE_TIMEOUT_MS) or lower --crawl-max / --crawl-page-timeout for this host.',
       });
     }
 
@@ -240,7 +338,19 @@ class LiveCrawlerModule extends BaseModule {
     // pages) would otherwise have reported "Site is clean — 0 pages", which
     // asserts a verdict off zero observations. Same shape as the aiReview
     // false-clean fixed in d04bd39.
-    if (nothingWrong && c.pages.length > 0) {
+    if (c.budgetExhausted) {
+      // An incomplete crawl can never claim "clean" — that would assert a
+      // verdict the crawl didn't finish earning. crawl:not-checked:budget
+      // above already discloses the shortfall; only add crawl:no-pages on
+      // top of it if truly nothing was fetched before the budget ran out.
+      if (c.pages.length === 0) {
+        result.addCheck('crawl:no-pages', false, {
+          severity: 'warning',
+          message: 'Crawl finished without fetching any pages — nothing was verified, so this is NOT a clean result',
+          suggestion: 'Check the start URL is reachable and that the page budget is above zero.',
+        });
+      }
+    } else if (nothingWrong && c.pages.length > 0) {
       result.addCheck('crawl:clean', true, {
         message: `Site is clean — ${c.pages.length} pages, 0 errors, 0 broken links, 0 broken images`,
       });
@@ -309,6 +419,55 @@ class LiveCrawlerModule extends BaseModule {
         message: `${urlPath} was not checked — the request failed (${err && err.message ? err.message : err})`,
       });
     }
+  }
+
+  /**
+   * Favicon presence (#641): probing only /favicon.ico missed the "modern
+   * alternative" the rule's own old suggestion text named — a
+   * <link rel="icon"|"shortcut icon"|"apple-touch-icon" href="..."> in
+   * <head> (tallrig.com declares /favicon.svg this way and was flagged
+   * anyway). Discover the declared icon on the first crawled page, resolve
+   * it against the page URL, and only report when NEITHER it nor
+   * /favicon.ico actually resolves. Severity stays info, as before.
+   */
+  async _checkFavicon(result, baseUrl, timeout, auth, pages) {
+    const homepageBody = pages[0] && pages[0].body;
+    const declaredHref = homepageBody ? extractDeclaredIconHref(homepageBody) : null;
+
+    const candidates = [];
+    if (declaredHref) {
+      try { candidates.push(new URL(declaredHref, baseUrl).href); }
+      catch { /* error-ok — malformed declared href, /favicon.ico is still checked below */ }
+    }
+    candidates.push(new URL('/favicon.ico', baseUrl).href);
+
+    let anyResolved = false;
+    let anyChecked = false;
+    for (const candidate of candidates) {
+      try {
+        const r = await checkUrl(candidate, timeout, authHeadersFor(candidate, auth));
+        anyChecked = true;
+        if (r.status < 400) { anyResolved = true; break; }
+      } catch { /* this candidate could not be reached — try the next one */ }
+    }
+
+    if (anyResolved) return;
+
+    if (!anyChecked) {
+      result.addCheck('crawl:favicon-missing:not-checked', true, {
+        severity: 'info',
+        message: `Favicon was not checked — ${declaredHref ? 'the declared icon and ' : ''}/favicon.ico could not be reached`,
+      });
+      return;
+    }
+
+    result.addCheck('crawl:favicon-missing', false, {
+      severity: 'info',
+      message: declaredHref
+        ? `No favicon found — declared icon "${declaredHref}" and /favicon.ico both failed to resolve`
+        : 'No /favicon.ico found and no <link rel="icon"> declared',
+      suggestion: 'Add a favicon.ico in the site root, or a <link rel="icon" href="..."> in <head> that actually resolves.',
+    });
   }
 }
 
