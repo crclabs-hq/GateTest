@@ -48,8 +48,8 @@ describe('homepage precision + honesty sections', () => {
 describe('homepage hero — the precision thesis', () => {
   it('leads with the claim and reads the corpus size from precision.json', () => {
     const hero = read('website/app/components/Hero.tsx');
-    assert.match(hero, /doesn&apos;t cry wolf/);
+    assert.match(hero, /Fails on the diff, not the backlog\./);
     assert.match(hero, /import precision from "\.\.\/data\/precision\.json"/);
-    assert.match(hero, /Measured on \{CORPUS_SIZE\} real repositories/);
+    assert.match(hero, /measured nightly on \{CORPUS_SIZE\} pinned third-party/);
   });
 });

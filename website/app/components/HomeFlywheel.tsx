@@ -163,7 +163,7 @@ export default function HomeFlywheel() {
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-bold text-foreground mb-2">
-                Self-healing CI
+                The fix workflow in your CI
               </h3>
               <p className="text-sm text-muted leading-relaxed">
                 When CI breaks, the agent reads the failing log, walks back to

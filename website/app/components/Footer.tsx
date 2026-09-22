@@ -19,7 +19,7 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-sm text-muted leading-relaxed">
-              The advanced QA gate between AI and GitHub. Nothing ships unless it&apos;s pristine.
+              A CI gate for AI-written code: deterministic checks, published precision, optional fix PRs.
             </p>
           </div>
 
@@ -97,7 +97,7 @@ export default function Footer() {
             &copy; {new Date().getFullYear()} GateTest. All rights reserved.
           </p>
           <p className="text-xs text-muted">
-            AI writes fast. GateTest keeps it honest.
+            Open-source engine. Hosted scans billed per run.
           </p>
         </div>
       </div>

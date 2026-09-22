@@ -110,7 +110,7 @@ export const mcpPlan = {
     "AI fix + diagnose, hosted (fix_issue, explain_finding)",
     "Hosted scan history (get_report)",
     "Free local server: npx @gatetest/mcp-server — every tool, your keys",
-    "API key delivered by email instantly"
+    "API key emailed when checkout completes"
   ],
   cta: "Get MCP Access",
   tier: "mcp"
@@ -206,7 +206,7 @@ function TierCard({
         <p className="text-xs text-[var(--muted)] mt-1.5 min-h-[48px] leading-relaxed">{description}</p>
       </div>
       <div className="flex items-baseline mb-5">
-        <span className="text-4xl font-black text-[var(--accent)] tracking-tight">{price}</span>
+        <span className="text-4xl font-semibold text-[var(--accent)] tracking-tight">{price}</span>
         <span className="text-[var(--muted)] text-xs ml-2">/ {period}</span>
       </div>
       <ul className="space-y-2.5 text-sm text-[var(--foreground-secondary)] mb-6 flex-grow">
@@ -248,7 +248,7 @@ function TierCard({
 export default function Pricing() {
   return (
     <section id="pricing" className="max-w-7xl mx-auto my-16 px-4">
-      <h2 className="text-3xl md:text-4xl font-black mb-2 text-center text-[var(--foreground)] tracking-tight">
+      <h2 className="text-3xl md:text-4xl font-semibold mb-2 text-center text-[var(--foreground)] tracking-tight">
         Pay per scan, not per seat
       </h2>
       <p className="text-[var(--muted)] text-center mb-10 max-w-2xl mx-auto text-sm leading-relaxed">

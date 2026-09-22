@@ -98,7 +98,7 @@ export const TIERS: Record<string, ScanTier> = {
     priceInCents: 2900,
     modules: "subscription-mcp",
     description:
-      "Hosted MCP access — use GateTest from web and mobile AI clients and locked-down machines with no local install, plus hosted scan history. The LOCAL MCP server is free with every tool ungated (2026-07-23) — this tier is for when you can't run npx. API key delivered by email instantly. Cancel anytime.",
+      "Hosted MCP access — use GateTest from web and mobile AI clients and locked-down machines with no local install, plus hosted scan history. The LOCAL MCP server is free with every tool ungated (2026-07-23) — this tier is for when you can't run npx. API key delivered by email when checkout completes. Cancel anytime.",
     recurring: true,
   },
 };

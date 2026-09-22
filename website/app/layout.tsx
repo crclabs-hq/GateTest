@@ -29,9 +29,9 @@ export const metadata: Metadata = {
   // against this. Page-level metadata must use relative paths ("/compare/snyk")
   // so a domain move stays a one-variable change.
   metadataBase: new URL(SITE_URL),
-  title: "GateTest — AI writes fast. GateTest keeps it honest.",
+  title: "GateTest — CI quality gate for AI-written code",
   description:
-    `${TOTAL_MODULES} modules scan your entire codebase. Security, accessibility, performance, and more. We find the bugs AND fix them. Pay per scan — subscriptions optional.`,
+    `${TOTAL_MODULES} deterministic checks in one CI gate. Fails on the diff, not the backlog. Precision published on pinned third-party repos. Optional fix PR with a regression test. Pay per run.`,
   keywords: [
     "QA",
     "testing",
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     "SEO audit",
   ],
   openGraph: {
-    title: "GateTest — AI writes fast. GateTest keeps it honest.",
+    title: "GateTest — CI quality gate for AI-written code",
     description:
       `${TOTAL_MODULES} modules scan your entire codebase. We find the bugs AND fix them. Pay per scan — subscriptions optional.`,
     url: "/",
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "GateTest — AI writes fast. GateTest keeps it honest.",
+    title: "GateTest — CI quality gate for AI-written code",
     description:
       `${TOTAL_MODULES} modules scan your entire codebase. We find the bugs AND fix them. Pay per scan — subscriptions optional.`,
   },
