@@ -737,3 +737,116 @@ describe('PromptSafetyModule — no-max-tokens is wrapper-aware (#669)', () => {
     assert.match(hit.message, /lib[/\\]anthropic-client\.js/, 'message must name the wrapper');
   });
 });
+
+// #673: WRAPPER_CAP_DEFAULT_RE only ever saw a numeric literal. The
+// customer's real wrapper reads `max_tokens: input.maxTokens ??
+// DEFAULT_MAX_OUTPUT_TOKENS` — the constant lives in a second file, imported
+// at the top of the wrapper. All 21 of their call sites stayed errors
+// because the wrapper "looked" uncapped to a regex expecting a bare number.
+describe('PromptSafetyModule — wrapper cap resolves through ?? and an imported constant (#673)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ps-wrapconst-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const noMaxTokens = (r) => r.checks.find((c) => c.name.startsWith('prompt-safety:no-max-tokens:'));
+
+  function writeClientAndConstant(tmpRoot) {
+    write(tmpRoot, 'lib/types.ts', [
+      'export const DEFAULT_MAX_OUTPUT_TOKENS = 4096;',
+      '',
+    ].join('\n'));
+    write(tmpRoot, 'lib/client.ts', [
+      'import Anthropic from "@anthropic-ai/sdk";',
+      'import { DEFAULT_MAX_OUTPUT_TOKENS } from "./types";',
+      'export const anthropic = new Anthropic();',
+      'const rawCreate = anthropic.messages.create.bind(anthropic.messages);',
+      'anthropic.messages.create = (params) => rawCreate({',
+      '  max_tokens: params.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,',
+      '  ...params,',
+      '});',
+      '',
+    ].join('\n'));
+  }
+
+  it('the customer\'s two-file shape (?? DEFAULT_MAX_OUTPUT_TOKENS, statically imported) downgrades to info and names the constant', async () => {
+    writeClientAndConstant(tmp);
+    write(tmp, 'src/a.ts', [
+      'import { anthropic } from "../lib/client";',
+      'async function run() {',
+      '  return anthropic.messages.create({ model: "claude-sonnet-5", messages: [] });',
+      '}',
+      'export { run };',
+      '',
+    ].join('\n'));
+
+    const r = await run(tmp);
+    const hit = noMaxTokens(r);
+    assert.ok(hit, 'expected a no-max-tokens check to still be recorded');
+    assert.strictEqual(hit.severity, 'info', 'a wrapper default resolved through ?? and an imported constant must downgrade to info');
+    assert.match(hit.message, /cap applied in lib[/\\]client\.ts/);
+    assert.match(hit.message, /default 4096 from lib[/\\]types\.ts/, 'message must name the resolved value and the file it came from');
+  });
+
+  it('the same shape through a dynamic import-and-destructure caller downgrades to info', async () => {
+    writeClientAndConstant(tmp);
+    write(tmp, 'src/dyn.ts', [
+      'async function run() {',
+      '  const { anthropic } = await import("../lib/client");',
+      '  return anthropic.messages.create({ model: "claude-sonnet-5", messages: [] });',
+      '}',
+      'export { run };',
+      '',
+    ].join('\n'));
+
+    const r = await run(tmp);
+    const hit = noMaxTokens(r);
+    assert.ok(hit, 'expected a no-max-tokens check to still be recorded');
+    assert.strictEqual(hit.severity, 'info', 'a dynamic-import-and-destructure caller must resolve the wrapper the same way a static import does');
+    assert.match(hit.message, /cap applied in lib[/\\]client\.ts/);
+    assert.match(hit.message, /default 4096 from lib[/\\]types\.ts/);
+  });
+
+  it('a wrapper whose fallback identifier resolves to nothing numeric keeps the caller an error and names the wrapper', async () => {
+    write(tmp, 'lib/client-bad.ts', [
+      'import Anthropic from "@anthropic-ai/sdk";',
+      'export const anthropic = new Anthropic();',
+      'const rawCreate = anthropic.messages.create.bind(anthropic.messages);',
+      'anthropic.messages.create = (params) => rawCreate({',
+      '  max_tokens: params.maxTokens ?? UNRESOLVED_DEFAULT,',
+      '  ...params,',
+      '});',
+      '',
+    ].join('\n'));
+    write(tmp, 'src/b.ts', [
+      'import { anthropic } from "../lib/client-bad";',
+      'async function run() {',
+      '  return anthropic.messages.create({ model: "claude-sonnet-5", messages: [] });',
+      '}',
+      'export { run };',
+      '',
+    ].join('\n'));
+
+    const r = await run(tmp);
+    const hit = noMaxTokens(r);
+    assert.ok(hit, 'expected a no-max-tokens failure');
+    assert.strictEqual(hit.severity, 'error', 'an unresolvable fallback identifier must not downgrade the caller');
+    assert.match(hit.message, /lib[/\\]client-bad\.ts/, 'message must name the wrapper');
+  });
+
+  it('a direct vendor-SDK call with no wrapper at all stays an error (control)', async () => {
+    write(tmp, 'src/c.ts', [
+      'import Anthropic from "@anthropic-ai/sdk";',
+      'const anthropic = new Anthropic();',
+      'async function run() {',
+      '  return anthropic.messages.create({ model: "claude-sonnet-5", messages: [] });',
+      '}',
+      'export { run };',
+      '',
+    ].join('\n'));
+
+    const r = await run(tmp);
+    const hit = noMaxTokens(r);
+    assert.ok(hit, 'expected a no-max-tokens failure');
+    assert.strictEqual(hit.severity, 'error', 'a direct vendor-SDK caller with no wrapper must stay an error');
+  });
+});

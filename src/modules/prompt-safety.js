@@ -245,7 +245,167 @@ const VENDOR_SDK_SPECIFIER_RE = /^(?:openai|anthropic|ai|replicate|ollama|cohere
 // A wrapper module "sets a default" when the cap field is assigned a literal
 // value (almost always a number) rather than merely forwarded
 // (`max_tokens: opts.max_tokens`) or read without a fallback.
-const WRAPPER_CAP_DEFAULT_RE = /\b(?:max_tokens|maxTokens|max_output_tokens)\s*[:=]\s*\d+/;
+//
+// #673: a bare literal isn't the only shape — the customer's wrapper reads
+// `max_tokens: input.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS`, falling back to
+// a named constant rather than a number written inline. `_findWrapperCapValue`
+// below finds the assignment, then resolves the RHS to a fixed number: a
+// literal directly, or an identifier (after `??`/`||`, or bare) traced to a
+// `const NAME = <number>` in the same file or an imported one — optionally
+// wrapped in `Math.min(...)`/`Math.max(...)`, which doesn't change the fact
+// that a fixed default is what the wrapper applies.
+const WRAPPER_CAP_FIELD_RE = /\b(?:max_tokens|maxTokens|max_output_tokens)\s*[:=]\s*/g;
+
+/**
+ * Capture the RHS of an assignment starting at `startIdx`, respecting
+ * `(`/`[`/`{` nesting so `Math.min(a, b)` isn't cut off at its internal
+ * comma. Stops at a top-level `,`/`;`/newline, or a closing bracket that
+ * would take the depth negative (the end of an enclosing object/call).
+ */
+function _captureAssignmentExpr(content, startIdx) {
+  let depth = 0;
+  let i = startIdx;
+  for (; i < content.length; i += 1) {
+    const ch = content[i];
+    if (ch === '(' || ch === '[' || ch === '{') depth += 1;
+    else if (ch === ')' || ch === ']' || ch === '}') {
+      if (depth === 0) break;
+      depth -= 1;
+    } else if (depth === 0 && (ch === ',' || ch === ';' || ch === '\n')) break;
+  }
+  return content.slice(startIdx, i).trim();
+}
+
+/** Split a `Math.min`/`Math.max` argument list on top-level commas only. */
+function _splitTopLevelArgs(s) {
+  const args = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < s.length; i += 1) {
+    const ch = s[i];
+    if (ch === '(' || ch === '[' || ch === '{') depth += 1;
+    else if (ch === ')' || ch === ']' || ch === '}') depth -= 1;
+    else if (ch === ',' && depth === 0) {
+      args.push(s.slice(start, i));
+      start = i + 1;
+    }
+  }
+  args.push(s.slice(start));
+  return args.map((a) => a.trim()).filter(Boolean);
+}
+
+/**
+ * Resolve a cap-field RHS expression to either a literal number or the
+ * identifier that would need tracing to one. `Math.min(...)`/`Math.max(...)`
+ * is unwrapped and each argument tried in turn. A plain forwarded value with
+ * no fallback (`opts.max_tokens`) resolves to neither — the wrapper isn't
+ * deciding a default, it's passing one through.
+ */
+function _resolveCapExpr(expr) {
+  const e = String(expr || '').trim();
+  const mathMatch = /^Math\.(?:min|max)\s*\(([\s\S]*)\)$/.exec(e);
+  if (mathMatch) {
+    for (const arg of _splitTopLevelArgs(mathMatch[1])) {
+      const resolved = _resolveCapExpr(arg);
+      if (resolved) return resolved;
+    }
+    return null;
+  }
+  // `<forwarded> ?? NAME` / `<forwarded> || NAME` — the identifier AFTER the
+  // operator is the default; whatever precedes it is the forwarded value.
+  const fallbackMatch = /(?:\?\?|\|\|)\s*([A-Za-z_$][\w$]*)\s*$/.exec(e);
+  if (fallbackMatch) return { identifier: fallbackMatch[1] };
+  if (/^\d+$/.test(e)) return { literal: Number(e) };
+  if (/^[A-Za-z_$][\w$]*$/.test(e)) return { identifier: e };
+  return null;
+}
+
+/** `const NAME = <number>` declared anywhere in this file (export or not). */
+function _findLocalNumberConst(content, name) {
+  const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`\\bconst\\s+${esc}\\s*(?::\\s*[^=\\n]+)?=\\s*(\\d+)\\b`);
+  const m = re.exec(content);
+  return m ? Number(m[1]) : null;
+}
+
+/** `export const NAME = <number>` — required for an IMPORTED constant. */
+function _findExportedNumberConst(content, name) {
+  const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`\\bexport\\s+const\\s+${esc}\\s*(?::\\s*[^=\\n]+)?=\\s*(\\d+)\\b`);
+  const m = re.exec(content);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Resolve `identifier` — the default side of a wrapper's cap assignment — to
+ * a fixed number: a `const NAME = <number>` in `fromFile` itself, or a named
+ * import of NAME whose source module (same package, relative or workspace
+ * path) declares `export const NAME = <number>`, followed through one level
+ * of re-export. Returns `{ value, file }` (the file the number actually
+ * lives in) or `null` when NAME cannot be traced to a number.
+ */
+function _resolveCapIdentifier(identifier, content, fromFile, projectRoot) {
+  const local = _findLocalNumberConst(content, identifier);
+  if (local !== null) return { value: local, file: fromFile };
+
+  const source = _findClientIdentifierOrigin(content, identifier);
+  if (!source) return null;
+  const modulePath = _resolveClientModule(source, fromFile, projectRoot);
+  if (!modulePath) return null;
+
+  let modContent;
+  try {
+    modContent = fs.readFileSync(modulePath, 'utf-8');
+  } catch {
+    return null;
+  }
+  const direct = _findExportedNumberConst(modContent, identifier);
+  if (direct !== null) return { value: direct, file: modulePath };
+
+  // One level of re-export: `export { NAME } from './real'`,
+  // `export * from './real'`, or `module.exports = require('./real')`.
+  REEXPORT_RE.lastIndex = 0;
+  let m;
+  while ((m = REEXPORT_RE.exec(modContent)) !== null) {
+    const reExportSource = m[1] || m[2];
+    if (!reExportSource || !(reExportSource.startsWith('.') || reExportSource.startsWith('/'))) continue;
+    const resolved = _resolveRelativeModule(reExportSource, modulePath);
+    if (!resolved) continue;
+    let reContent;
+    try {
+      reContent = fs.readFileSync(resolved, 'utf-8');
+    } catch {
+      continue;
+    }
+    const val = _findExportedNumberConst(reContent, identifier);
+    if (val !== null) return { value: val, file: resolved };
+  }
+  return null;
+}
+
+/**
+ * Scan `content` for every cap-field assignment and return the first one
+ * that resolves to a fixed number, plus where that number actually lives —
+ * `fromFile` itself for a literal or a same-file `const`, or the imported
+ * module for a named constant. `viaIdentifier` distinguishes "the wrapper
+ * spells the number out" from "the wrapper defers to a named constant",
+ * which the caller uses to decide whether the finding names that constant.
+ */
+function _findWrapperCapValue(content, fromFile, projectRoot) {
+  WRAPPER_CAP_FIELD_RE.lastIndex = 0;
+  let match;
+  while ((match = WRAPPER_CAP_FIELD_RE.exec(content)) !== null) {
+    const expr = _captureAssignmentExpr(content, match.index + match[0].length);
+    const resolved = _resolveCapExpr(expr);
+    if (!resolved) continue;
+    if (resolved.literal !== undefined) {
+      return { value: resolved.literal, file: fromFile, viaIdentifier: false };
+    }
+    const constResult = _resolveCapIdentifier(resolved.identifier, content, fromFile, projectRoot);
+    if (constResult) return { value: constResult.value, file: constResult.file, viaIdentifier: true };
+  }
+  return null;
+}
 
 // A module re-exporting its cap-setting internals — followed one level (or a
 // short chain, cycle-safe) so a thin `index.js` that just re-exports the real
@@ -273,10 +433,10 @@ function _resolveRelativeModule(specifier, fromFile) {
 
 /**
  * Where was `identifier` imported from in `content`? Covers CommonJS
- * `require`, ESM `import`, and Python `import` — plus one indirection for
- * `const anthropic = new Anthropic(...)`, where the call-site object is a
- * local instance and the SDK/wrapper class name is what was actually
- * imported.
+ * `require`, ESM `import`, dynamic `await import(...)` destructuring, and
+ * Python `import` — plus one indirection for `const anthropic = new
+ * Anthropic(...)`, where the call-site object is a local instance and the
+ * SDK/wrapper class name is what was actually imported.
  */
 function _findClientIdentifierOrigin(content, identifier, depth = 0) {
   const esc = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -287,6 +447,14 @@ function _findClientIdentifierOrigin(content, identifier, depth = 0) {
     new RegExp(`\\bimport\\s+${esc}\\s+from\\s+['"\`]([^'"\`]+)['"\`]`),
     new RegExp(`\\bimport\\s*\\{[^}]*\\b${esc}\\b[^}]*\\}\\s*from\\s+['"\`]([^'"\`]+)['"\`]`),
     new RegExp(`\\bimport\\s*\\*\\s*as\\s+${esc}\\s+from\\s+['"\`]([^'"\`]+)['"\`]`),
+    // #673: `const { gatewayClient } = await import("pkg/client")` binds the
+    // identifier to that module exactly like a static import — a caller
+    // written this way (top-level-await ESM, or a lazy-loaded wrapper)
+    // shouldn't lose wrapper-cap resolution just because the import is
+    // dynamic.
+    new RegExp(`\\b(?:const|let|var)\\s*\\{[^}]*\\b\\w+\\s*:\\s*${esc}\\b[^}]*\\}\\s*=\\s*await\\s+import\\(\\s*['"\`]([^'"\`]+)['"\`]\\s*\\)`),
+    new RegExp(`\\b(?:const|let|var)\\s*\\{[^}]*\\b${esc}\\b[^}]*\\}\\s*=\\s*await\\s+import\\(\\s*['"\`]([^'"\`]+)['"\`]\\s*\\)`),
+    new RegExp(`\\b(?:const|let|var)\\s+${esc}\\s*=\\s*await\\s+import\\(\\s*['"\`]([^'"\`]+)['"\`]\\s*\\)`),
     new RegExp(`\\bfrom\\s+([\\w.]+)\\s+import\\s+[^\\n]*\\b${esc}\\b`),
     new RegExp(`\\bimport\\s+([\\w.]+)\\s+as\\s+${esc}\\b`),
   ];
@@ -328,9 +496,11 @@ function _resolveClientModule(source, fromFile, projectRoot) {
 /**
  * Does `filePath` — or a module it re-exports from within the same package —
  * set a default output cap? `visited` guards against re-export cycles and
- * bounds the chain length.
+ * bounds the chain length. `projectRoot` is threaded through to
+ * `_findWrapperCapValue` so a `??`/`||` default's identifier can be resolved
+ * against an imported constant (#673).
  */
-function _wrapperSetsCap(filePath, visited) {
+function _wrapperSetsCap(filePath, projectRoot, visited) {
   if (visited.has(filePath) || visited.size > 5) return { capped: false };
   visited.add(filePath);
   let content;
@@ -339,7 +509,16 @@ function _wrapperSetsCap(filePath, visited) {
   } catch {
     return { capped: false };
   }
-  if (WRAPPER_CAP_DEFAULT_RE.test(content)) return { capped: true, module: filePath };
+  const found = _findWrapperCapValue(content, filePath, projectRoot);
+  if (found) {
+    return {
+      capped: true,
+      module: filePath,
+      value: found.value,
+      constantFile: found.file,
+      viaIdentifier: found.viaIdentifier,
+    };
+  }
 
   REEXPORT_RE.lastIndex = 0;
   let m;
@@ -348,7 +527,7 @@ function _wrapperSetsCap(filePath, visited) {
     if (!source || !(source.startsWith('.') || source.startsWith('/'))) continue;
     const resolved = _resolveRelativeModule(source, filePath);
     if (resolved) {
-      const nested = _wrapperSetsCap(resolved, visited);
+      const nested = _wrapperSetsCap(resolved, projectRoot, visited);
       if (nested.capped) return nested;
     }
   }
@@ -618,11 +797,22 @@ class PromptSafetyModule extends BaseModule {
           const source = _findClientIdentifierOrigin(content, identifier);
           const wrapperPath = _resolveClientModule(source, file, projectRoot);
           if (wrapperPath) {
-            const capResult = _wrapperSetsCap(wrapperPath, new Set());
+            const capResult = _wrapperSetsCap(wrapperPath, projectRoot, new Set());
             const wrapperRel = repoRelative(projectRoot, capResult.module || wrapperPath);
             if (capResult.capped) {
               severity = 'info';
-              message = `cap applied in ${wrapperRel}`;
+              // #673: when the wrapper's default came from a NAMED CONSTANT
+              // (`?? DEFAULT_MAX_OUTPUT_TOKENS`) rather than a literal typed
+              // right into the field, name where that constant actually
+              // lives — a bare "cap applied in client.ts" leaves the reader
+              // unable to see the value without opening a second file.
+              const constantRel = capResult.constantFile
+                ? repoRelative(projectRoot, capResult.constantFile)
+                : null;
+              const valueSuffix = capResult.viaIdentifier && constantRel
+                ? ` (default ${capResult.value} from ${constantRel})`
+                : '';
+              message = `cap applied in ${wrapperRel}${valueSuffix}`;
               suggestion = `The in-repo client at ${wrapperRel} already sets a default output cap for every call — no per-call change needed.`;
             } else {
               message = `Model client call sets no output cap, and the in-repo wrapper at ${wrapperRel} it comes from sets no default either — requests are unbounded`;

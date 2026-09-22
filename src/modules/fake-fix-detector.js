@@ -149,31 +149,17 @@ function isWholeLineComment(sourceLine) {
 }
 
 /**
- * #666: a `@ts-expect-error` in a test file, directly above a test that
- * asserts a type is REJECTED, is the sanctioned use of the directive — the
- * test would not compile (and would not prove the rejection) without it.
- * Matches the shape `expect(...)` (the assertion the suppressed line feeds)
- * or a TypeScript type assertion (`as SomeType` / `<SomeType>value`), which
- * is how "this shouldn't compile" tests usually read the rejected value.
+ * #673: `@ts-expect-error` is a compile-time ASSERTION by definition — the
+ * build fails if the error it names stops occurring. #666's heuristic
+ * (downgrade only when the next line is `expect(...)` or a type assertion)
+ * missed the customer's own shape: a bare call the directive suppresses,
+ * with no `expect(...)` at all, because the assertion IS the compiler
+ * rejecting the line — there is nothing else to assert. So inside a test
+ * file, an added `@ts-expect-error` is info unconditionally; `@ts-ignore`
+ * hides an error rather than asserting one, so it stays a warning there
+ * instead of the rule's default error. Outside a test file both are
+ * unchanged from #671/#669 — full error.
  */
-const TS_EXPECT_ERROR_SANCTIONED_NEXT_LINE_RE = /\bexpect\s*\(|\bas\s+[A-Za-z_$][\w$.<>[\]]*\b|^<[A-Za-z_$][\w$.<>[\]]*>/;
-
-/**
- * Walk forward from `fromIdx` (exclusive) in `hunk.lines`/`hunk.lineNumbers`
- * to the next non-blank line that still exists in the NEW file (context or
- * added — a removed line never appears in the result, so it cannot be "the
- * next line" a reader sees). Returns `null` if the hunk ends first.
- */
-function nextNonBlankNewFileLine(hunk, fromIdx) {
-  for (let i = fromIdx + 1; i < hunk.lines.length; i += 1) {
-    const raw = hunk.lines[i];
-    if (raw.startsWith('-')) continue;
-    const content = raw.slice(1);
-    if (content.trim() === '') continue;
-    return content;
-  }
-  return null;
-}
 
 /**
  * A skipped test blocks only when the commit that skipped it calls itself a
@@ -692,14 +678,16 @@ class FakeFixDetectorModule extends BaseModule {
 
           if (rule.pattern.test(line)) {
             let severity = rule.severity;
-            // #666: `@ts-expect-error` in a test, directly above the
-            // `expect(...)`/type-assertion it enables, is the sanctioned
-            // use — downgrade from the rule's default `error` to `info`.
-            if (rule.id === 'ts-ignore-added' && /@ts-expect-error/.test(line)
-              && this._isTestPath(hunk.file)) {
-              const nextLine = nextNonBlankNewFileLine(hunk, idx);
-              if (nextLine !== null && TS_EXPECT_ERROR_SANCTIONED_NEXT_LINE_RE.test(nextLine)) {
+            // #673: inside a test file, `@ts-expect-error` is a compile-time
+            // assertion by definition — info unconditionally, regardless of
+            // what follows it. `@ts-ignore`/`@ts-nocheck` hide an error
+            // instead of asserting one, so they stay a warning there rather
+            // than the rule's default error. Non-test files are unchanged.
+            if (rule.id === 'ts-ignore-added' && this._isTestPath(hunk.file)) {
+              if (/@ts-expect-error/.test(line)) {
                 severity = 'info';
+              } else {
+                severity = 'warning';
               }
             }
             findings.push({
