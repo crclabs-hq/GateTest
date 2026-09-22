@@ -99,6 +99,92 @@ describe('FakeFixDetectorModule', () => {
     assert.strictEqual(failure.severity, 'error');
   });
 
+  // #666: _parseDiff reported the hunk's FIRST line for every match inside
+  // it. Customer example: a finding at hunk-start line 2106 (a `return`)
+  // where the real `@ts-ignore` sits at 2116 — ten lines into the hunk.
+  // This reproduces that shape with a synthetic diff.
+  it('#666: reports the line of the matching `+` line, not the hunk start, 10 lines into the hunk', async () => {
+    const diff = [
+      'diff --git a/src/big-file.ts b/src/big-file.ts',
+      '--- a/src/big-file.ts',
+      '+++ b/src/big-file.ts',
+      '@@ -2106,12 +2106,13 @@',
+      '   return foo();',
+      '   const a = 1;',
+      '   const b = 2;',
+      '   const c = 3;',
+      '   const d = 4;',
+      '   const e = 5;',
+      '   const f = 6;',
+      '   const g = 7;',
+      '   const h = 8;',
+      '   const i = 9;',
+      '+  // @ts-ignore',
+      '   const j = 10;',
+    ].join('\n');
+
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+
+    await mod.run(result, makeConfig(diff));
+
+    const failure = findFailure(result, 'ts-ignore-added');
+    assert.ok(failure, 'expected ts-ignore-added failure');
+    assert.strictEqual(failure.line, 2116, `expected the @ts-ignore line (2116), not the hunk start (2106); got ${failure.line}`);
+  });
+
+  // #666: `@ts-expect-error` directly above the `expect(...)` it enables is
+  // the sanctioned use inside a test file — downgrade to info instead of
+  // reporting it as a suppressed type error.
+  it('#666: downgrades @ts-expect-error to info in a test file when the next line is an expect(...)', async () => {
+    const diff = [
+      'diff --git a/tests/add.test.ts b/tests/add.test.ts',
+      '--- a/tests/add.test.ts',
+      '+++ b/tests/add.test.ts',
+      '@@ -630,2 +630,4 @@',
+      "   it('rejects a string where a number is required', () => {",
+      '+    // @ts-expect-error',
+      "+    expect(() => add('1', 2)).toThrow();",
+      '   });',
+    ].join('\n');
+
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+
+    await mod.run(result, makeConfig(diff));
+
+    const failure = findFailure(result, 'ts-ignore-added');
+    assert.ok(failure, 'expected a ts-ignore-added check to still be recorded');
+    assert.strictEqual(failure.severity, 'info', 'sanctioned @ts-expect-error use must be downgraded to info');
+  });
+
+  // Control: the same shape OUTSIDE a test file must stay at error severity —
+  // proves the downgrade is scoped to test files, not to any expect()-like text.
+  it('#666: @ts-expect-error followed by expect(...) in a non-test file stays error', async () => {
+    const diff = [
+      'diff --git a/src/add.ts b/src/add.ts',
+      '--- a/src/add.ts',
+      '+++ b/src/add.ts',
+      '@@ -3,2 +3,4 @@',
+      '   function add(a, b) {',
+      '+    // @ts-expect-error',
+      '+    expect(a).toBeDefined();',
+      '   }',
+    ].join('\n');
+
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+
+    await mod.run(result, makeConfig(diff));
+
+    const failure = findFailure(result, 'ts-ignore-added');
+    assert.ok(failure, 'expected ts-ignore-added failure');
+    assert.strictEqual(failure.severity, 'error');
+  });
+
   it('flags if (false) dead-code guards', async () => {
     const diff = [
       'diff --git a/src/validator.js b/src/validator.js',
