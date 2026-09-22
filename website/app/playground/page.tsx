@@ -10,14 +10,20 @@ import Section from "../components/site/Section";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 // One definition of the honesty formatting shared with the two API routes
-// (Doctrine #4) — the wall-clock headline (N3/F3) so a 0.1s engine number is
-// never displayed as if it were the whole request.
+// (Doctrine #4) — the server-time headline (N3/F3) so a 0.1s engine number is
+// never displayed as if it were the whole request. Issue #662 — `clientMs`
+// (the browser's own stopwatch) is optional input; `combined` is only
+// non-null when both a server and a browser measurement are present.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const scanGrade = require("@/app/lib/scan-grade") as {
-  formatDurationHeadline: (timing: { wallMs?: number | null; fetchMs?: number | null; engineMs?: number | null } | null | undefined) => {
+  formatDurationHeadline: (
+    timing: { wallMs?: number | null; fetchMs?: number | null; engineMs?: number | null; clientMs?: number | null } | null | undefined
+  ) => {
     headline: string;
     headlineLabel: string;
     split: string | null;
+    clientHeadline: string | null;
+    combined: string | null;
   };
 };
 
@@ -94,6 +100,14 @@ interface ScanResult {
   upgradeNote: string;
   error?: string;
   sharedAt?: number;
+  /** Issue #662 — browser-measured wall time, click to render, added
+   *  client-side (never by the server, which cannot see TLS/proxy time
+   *  before the request arrives or transfer/render time after it leaves).
+   *  Absent on share links minted before this fix; the header then shows
+   *  only the "server time" (`coverage.wallMs`) number. Carried through
+   *  encodeShareData/decodeShareData like every other field so a restored
+   *  share link shows the original browser time rather than recomputing it. */
+  clientMs?: number | null;
 }
 
 interface TerminalLine {
@@ -385,6 +399,11 @@ export default function PlaygroundPage() {
   const [permalink, setPermalink] = useState<string | null>(null);
   const lineId = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+  // Issue #662 — set the instant a real scan starts (right after the click
+  // validates, before any network work), read back when the "complete"
+  // event arrives to produce clientMs: the browser's own stopwatch, click to
+  // report. Stays null for a restored share link, where no scan runs.
+  const clientScanStartRef = useRef<number | null>(null);
 
   const addLine = useCallback((type: TerminalLine["type"], text: string) => {
     setLines((prev) => [...prev, { id: lineId.current++, type, text }]);
@@ -416,6 +435,11 @@ export default function PlaygroundPage() {
       setError("Must be a github.com URL — e.g. https://github.com/owner/repo");
       return;
     }
+
+    // Issue #662 — the browser's own stopwatch starts here: right after the
+    // click validates and before any network work, so clientMs measures the
+    // same span an independent stopwatch held on this scan would.
+    clientScanStartRef.current = performance.now();
 
     setScanning(true);
     setResult(null);
@@ -472,6 +496,16 @@ export default function PlaygroundPage() {
           setLockedModules((prev) => [...prev, d]);
         } else if (event === "complete") {
           completed = data as ScanResult;
+          // Issue #662 — clientMs is the browser's own stopwatch: click to
+          // report, measured here (not by the server, which cannot see
+          // TLS/proxy time before the request arrives or transfer/render
+          // time after it leaves). Stamped onto the payload before it ever
+          // reaches setResult/pushPermalink so the address bar and the
+          // share link both carry the same number the visitor experienced.
+          if (clientScanStartRef.current != null) {
+            const clientMs = Math.round(performance.now() - clientScanStartRef.current);
+            completed = { ...completed, clientMs };
+          }
           addLine("info", "─────────────────────────────────");
           addLine("done", `Scan complete — ${completed.countLabel ?? `${completed.totalIssues} findings`} · ${(completed.duration / 1000).toFixed(1)}s engine time · Grade ${completed.grade}`);
           if (completed.scopeLabel) addLine("info", completed.scopeLabel);
@@ -524,11 +558,14 @@ export default function PlaygroundPage() {
     }).catch(() => {}); // error-ok: best-effort UI nicety; feature may be unavailable in this browser
   }, [result, permalink]);
 
-  // N3/F3 — wall clock is the headline duration; falls back to the shared
-  // definition's honest "engine time only" label when no wallMs was recorded
-  // (e.g. a pre-2026-09-22 permalink restored within its 48h window).
+  // N3/F3 — server time (`wallMs`) is the headline duration; falls back to
+  // the shared definition's honest "engine time only" label when no wallMs
+  // was recorded (e.g. a pre-2026-09-22 permalink restored within its 48h
+  // window). Issue #662 — clientMs (browser stopwatch, click to render) rides
+  // alongside on the same ScanResult, so a restored share link that predates
+  // #662 shows only the server number, never a recomputed browser one.
   const resultTiming = scanGrade.formatDurationHeadline(
-    result ? (result.coverage ?? { engineMs: result.duration }) : null
+    result ? { ...(result.coverage ?? { engineMs: result.duration }), clientMs: result.clientMs ?? null } : null
   );
 
   return (
@@ -662,12 +699,18 @@ export default function PlaygroundPage() {
                             ? "0 blocking · 0 warnings"
                             : `${result.totalIssues} finding${result.totalIssues !== 1 ? "s" : ""}`)}
                       </h2>
-                      {/* N3/F3 — wall clock is the headline, never the engine-only
+                      {/* N3/F3 — server time is the headline, never the engine-only
                           half of the split read as if it were the whole request
-                          (a 0.9s engine time next to an 8.2s wall clock is a
-                          40-55% understatement). The split renders beneath. */}
+                          (a 0.9s engine time next to an 8.2s server time is a
+                          40-55% understatement). The split renders beneath.
+                          Issue #662 — even server time can't see TLS/proxy or
+                          transfer/render time, so when a browser measurement
+                          rode along on this result, show both numbers rather
+                          than let the server-only one stand in for the whole
+                          experience; an old share link with no clientMs still
+                          shows the "server time" label alone. */}
                       <span className="text-xs font-mono text-muted">
-                        {resultTiming.headline} {resultTiming.headlineLabel} · quick tier
+                        {resultTiming.combined ?? `${resultTiming.headline} ${resultTiming.headlineLabel}`} · quick tier
                       </span>
                     </div>
                     {resultTiming.split && (
