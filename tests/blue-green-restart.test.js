@@ -238,7 +238,7 @@ test('proxy switch fails: rolls back to the old port+commit, old still serving, 
   try {
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /proxy switch to port 3001 failed/);
-    assert.match(result.stderr, /rolling back to gatetest-web@3000\.service/);
+    assert.match(result.stderr, /confirming rollback to gatetest-web@3000\.service/);
     // switch was attempted for the new port, THEN rolled back to the old
     // port+commit (the exact commit the old instance was proven to be
     // serving, learned before the new instance was even started).
@@ -258,7 +258,7 @@ test('proxy switch fails AND rollback also fails to verify: still exits non-zero
   const { result, files, tmp } = run({ SWITCH_FAIL_ALWAYS: '1' });
   try {
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /rollback to port 3000 ALSO failed/);
+    assert.match(result.stderr, /rollback confirmation to port 3000 ALSO failed/);
     assert.deepEqual(readLines(files.switchRecord), [
       'switch to 3001 expect newsha',
       'switch to 3000 expect oldsha',
@@ -424,18 +424,24 @@ test('switch-proxy.sh: verified commit -> rewrites the file and exits 0', { skip
     const content = fs.readFileSync(traefikFile, 'utf8');
     assert.match(content, /http:\/\/10\.0\.1\.1:3001/);
     assert.doesNotMatch(content, /http:\/\/10\.0\.1\.1:3000/);
+    assert.deepEqual(fs.readdirSync(tmp).filter((f) => f.includes('.pre-switch.')), [], 'a verified switch must discard its backup, not leave it behind');
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
-test('POSITIVE CONTROL: switch-proxy.sh: commit never matches -> exits non-zero, but the file is STILL rewritten (rollback is the caller\'s job)', { skip: SKIP }, () => {
-  const { result, traefikFile, tmp } = runSwitchProxy(TRAEFIK_FILE_TEMPLATE(3000), ['3001', 'abc123'], {
+test('POSITIVE CONTROL: switch-proxy.sh: commit never matches -> exits non-zero AND the file is byte-identical to the original (self-restored, no caller needed)', { skip: SKIP }, () => {
+  const original = TRAEFIK_FILE_TEMPLATE(3000);
+  const { result, traefikFile, tmp } = runSwitchProxy(original, ['3001', 'abc123'], {
     SWITCH_TEST_NEVER_MATCH: '1',
   });
   try {
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /caller must roll back/);
+    assert.match(result.stderr, /restoring .* to its pre-switch state/);
+    assert.match(result.stderr, /restored — never left pointing at the unverified port 3001/);
     const content = fs.readFileSync(traefikFile, 'utf8');
-    assert.match(content, /http:\/\/10\.0\.1\.1:3001/, 'the mv already happened before the verify loop ran');
+    assert.equal(content, original, 'the file must be byte-identical to what it was before the failed switch');
+    // and no leftover backup file
+    const leftovers = fs.readdirSync(tmp).filter((f) => f.includes('.pre-switch.'));
+    assert.deepEqual(leftovers, [], 'the backup must be consumed by the restore mv, not left behind');
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 

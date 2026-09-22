@@ -149,22 +149,30 @@ describes the intended Tallrig end state and is left as-is.)
 `blue-green-restart.sh` calls an external command,
 `PULL_DEPLOY_PROXY_SWITCH_CMD` (default `scripts/deploy/switch-proxy.sh`),
 as `"$CMD" <port> <expected-commit>`. **`switch-proxy.sh` implements the real
-switch**: it atomically rewrites the one `http://10.0.1.1:300[01]` line in
-the Traefik dynamic file to the new port (`sed` into a temp file, then `mv`
-onto the watched file — the `mv` is the atomic step Traefik's file watcher
-picks up), then polls the **public** hostname (`--resolve host:443:127.0.0.1`
-so it hits this box's own Traefik regardless of DNS/CDN in front of it) for
-up to 15s until the commit it reports matches. It refuses before touching
-anything if the file doesn't contain a matching upstream line (`grep -q`
-guard) or doesn't exist. **It never rolls back on its own** — if the
-15-second verification loop times out, the file has *already* been rewritten
-to the new port; only the caller (`blue-green-restart.sh`) knows whether the
-old instance is still running to roll back to, so on a failed switch it calls
+switch**: it copies the Traefik dynamic file's own bytes aside, atomically
+rewrites the one `http://10.0.1.1:300[01]` line to the new port (`sed` into a
+temp file, then `mv` onto the watched file — the `mv` is the atomic step
+Traefik's file watcher picks up), then polls the **public** hostname
+(`--resolve host:443:127.0.0.1` so it hits this box's own Traefik regardless
+of DNS/CDN in front of it) for up to 15s until the commit it reports
+matches. It refuses before touching anything if the file doesn't contain a
+matching upstream line (`grep -q` guard) or doesn't exist.
+
+**It restores its own pre-switch bytes on a failed receipt** (platform-team
+review, 2026-09-22) — if the 15-second verification loop times out, it `mv`s
+the copy it made back over the file before exiting non-zero, so the pointer
+never rests on a port that never answered through the real front door, even
+if `blue-green-restart.sh` itself dies immediately afterward (OOM, SSH drop,
+Ctrl-C) before it gets a chance to react. `blue-green-restart.sh` still calls
 `switch-proxy.sh` again with the **old port and the commit the old instance
 was proven to be serving** (learned by direct curl before the new instance
-was even started), then stops the (still-unhealthy-for-this-purpose) new
-instance and exits non-zero. The old instance is never stopped until the
-*new* switch has verified, precisely so there is something to roll back to.
+was even started) as an explicit, logged belt-and-braces confirmation — since
+the file is already back to that state by then, that call is a same-content
+rewrite that verifies immediately and must not itself be treated as a
+failure. Then it stops the (still-unhealthy-for-this-purpose) new instance
+and exits non-zero. The old instance is never stopped until the *new* switch
+has verified, so there is always something for either restore path to point
+back at.
 
 Environment variables `switch-proxy.sh` reads (defaults match the box
 exactly as verified):

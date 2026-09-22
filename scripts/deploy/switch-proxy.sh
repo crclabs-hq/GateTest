@@ -28,12 +28,26 @@
 # The `mv` onto the watched file is the atomic switch. The curl through the
 # public hostname (not localhost — the whole point is proving the REAL
 # front door serves the new build, not just that the file changed) is the
-# receipt. This script does NOT roll back on its own: if the verification
-# loop below times out, the file has ALREADY been rewritten to point at
-# <new-port> (the mv already happened) — rolling back is the CALLER's job.
-# blue-green-restart.sh calls this same script again with the OLD port and
-# OLD commit to roll back, because only the caller knows whether the old
-# instance is still running to roll back to.
+# receipt.
+#
+# SELF-RESTORING ON A FAILED RECEIPT (platform-team review of 338242e4,
+# 2026-09-22): a prior version left the file pointing at the unverified port
+# on a failed receipt and relied on the CALLER (blue-green-restart.sh) to
+# roll back. That has a real gap: if the caller dies between this script's
+# non-zero exit and its own rollback call (OOM, SSH drop, Ctrl-C), the site
+# stays dark on a port nothing ever proved was healthy through the real
+# front door — nobody asked it to serve, and it's what's left pointing at
+# it. So this script now copies the file's own bytes before rewriting it,
+# and if the receipt loop below times out, restores those exact bytes with
+# the same atomic `mv` before exiting non-zero — the pointer never rests on
+# a target that did not answer, regardless of what happens to the caller
+# afterward. blue-green-restart.sh still calls this same script again with
+# the OLD port and OLD commit on a failed switch, belt-and-braces: since the
+# file is already back to that state, that call is a same-content rewrite
+# (mv onto itself) that verifies immediately and succeeds — it is not
+# required for correctness any more, but it stays as an explicit, logged
+# confirmation and must not itself fail just because there was nothing left
+# to fix.
 set -euo pipefail
 
 P="${1:?usage: switch-proxy.sh <new-port> <expected-commit>}"
@@ -56,6 +70,14 @@ if ! grep -q "http://${host}:300[01]" "$f"; then
   exit 1
 fi
 
+# Byte-exact copy of the pre-switch file, kept only until we know the switch
+# either verified (then discarded) or didn't (then restored). $$ (this
+# script's own pid) is enough to avoid colliding with a concurrent run —
+# pull-deploy.sh's flock already serializes deploys, so this is belt and
+# braces, not the only thing preventing a collision.
+BACKUP="$f.pre-switch.$$"
+cp -p "$f" "$BACKUP"
+
 sed "s#http://${host}:300[01]\b#http://${host}:${P}#" "$f" > "$f.tmp"
 mv -f "$f.tmp" "$f"
 echo "[switch-proxy] $f now points at http://${host}:${P}"
@@ -65,10 +87,16 @@ for i in $(seq 1 "$ATTEMPTS"); do
   c=$(curl -s -m 3 --resolve "${public}:443:127.0.0.1" "https://${public}/api/platform-status" | grep -o '"commit":"[0-9a-f]*"' | cut -d'"' -f4 || true)
   if [ "$c" = "$EXP" ]; then
     echo "[switch-proxy] verified: ${public} now serves commit $EXP"
+    rm -f "$BACKUP"
     exit 0
   fi
   sleep "$INTERVAL_S"
 done
 
-echo "[switch-proxy] ERROR: proxy still serving ${c:-nothing}, expected $EXP — $f already points at ${P}, caller must roll back" >&2
+echo "[switch-proxy] ERROR: proxy still serving ${c:-nothing}, expected $EXP — restoring $f to its pre-switch state" >&2
+if ! mv -f "$BACKUP" "$f"; then
+  echo "[switch-proxy] ERROR: restore of $f ALSO failed — it may still point at the unverified port ${P}; fix by hand from $BACKUP" >&2
+  exit 1
+fi
+echo "[switch-proxy] $f restored — never left pointing at the unverified port ${P}" >&2
 exit 1

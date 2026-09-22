@@ -21,15 +21,19 @@
 # box-specific mechanism stays swappable if the front door changes again.
 # See docs/deploy/PULL-DEPLOY.md "Blue/green" for the full story.
 #
-# Rollback: switch-proxy.sh's own verification loop does NOT roll back on
-# timeout — the dynamic file has already been rewritten to the new port by
-# the time it gives up, and only the CALLER (here) knows whether the old
-# instance is still around to roll back to. So on a switch failure this
-# script immediately calls the same switch command again with the OLD port
+# Rollback: switch-proxy.sh now restores the dynamic file's pre-switch bytes
+# itself on a failed receipt (platform-team review of 338242e4, 2026-09-22)
+# — the pointer never rests on a target that never answered, even if THIS
+# script dies right after switch-proxy.sh exits (OOM, SSH drop, Ctrl-C).
+# This script still calls the same switch command again with the OLD port
 # and the commit the old instance was reporting before the deploy started,
-# then stops the (unhealthy-for-this-purpose) new instance and exits
+# belt and braces: since the file is already back to that state, the call
+# is a same-content rewrite that verifies immediately and must not itself
+# be treated as a failure just because there was nothing left to fix. Then
+# it stops the (unhealthy-for-this-purpose) new instance and exits
 # non-zero. The old instance is never stopped until the NEW switch has been
-# verified, precisely so that rollback target is still there to roll back to.
+# verified, so there is always something for either restore path to point
+# back at.
 #
 # Environment (all optional):
 #   GATETEST_APP_DIR              repo checkout               (default: /opt/gatetest)
@@ -163,11 +167,11 @@ log "$NEW_UNIT is healthy at commit $EXPECTED_COMMIT"
 # --- the real public front door. The old instance is deliberately still ---
 # --- running at this point, so a failed switch can roll back to it. ---
 if ! "$SWITCH_CMD" "$NEW_PORT" "$EXPECTED_COMMIT"; then
-  err "proxy switch to port $NEW_PORT failed ($SWITCH_CMD) — rolling back to $ACTIVE_UNIT (port $ACTIVE_PORT, commit $PREV_COMMIT)"
+  err "proxy switch to port $NEW_PORT failed ($SWITCH_CMD) — it should have already restored itself; confirming rollback to $ACTIVE_UNIT (port $ACTIVE_PORT, commit $PREV_COMMIT)"
   if "$SWITCH_CMD" "$ACTIVE_PORT" "$PREV_COMMIT"; then
-    log "rollback to port $ACTIVE_PORT verified"
+    log "rollback to port $ACTIVE_PORT confirmed"
   else
-    err "rollback to port $ACTIVE_PORT ALSO failed to verify — check $ACTIVE_UNIT and the proxy dynamic file by hand"
+    err "rollback confirmation to port $ACTIVE_PORT ALSO failed — check $ACTIVE_UNIT and the proxy dynamic file by hand"
   fi
   cleanup_new
   exit 1
