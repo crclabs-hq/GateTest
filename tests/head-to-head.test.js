@@ -492,9 +492,22 @@ describe('website/app/data/head-to-head.json — generated, valid, pinned to the
     }
   });
 
-  it('SonarQube and CodeQL are not measured until they are measured for real', () => {
+  it('SonarQube is not measured until it is measured for real', () => {
     assert.strictEqual(doc.tools.sonarqube.status, STATUS.notMeasured);
-    assert.strictEqual(doc.tools.codeql.status, STATUS.notMeasured);
+    assert.ok(typeof doc.tools.sonarqube.reason === 'string' && doc.tools.sonarqube.reason.length > 0);
+  });
+
+  it('CodeQL is either measured for real (version string) or says why not', () => {
+    // Mirrors validate(): the adapter runs CodeQL on the runner now, so a
+    // measured document carries a version string; one produced without the
+    // CLI carries null + reason; the pre-adapter shape stays valid.
+    const v = doc.tools.codeql;
+    if (v.status === STATUS.notMeasured) {
+      assert.ok(typeof v.reason === 'string' && v.reason.length > 0, 'not measured needs a reason');
+    } else {
+      assert.ok(v.version === null || typeof v.version === 'string', 'version must be a string or null');
+      if (v.version === null) assert.ok(typeof v.reason === 'string', 'a null version needs a reason');
+    }
   });
 
   it('renders without a blank cell', () => {

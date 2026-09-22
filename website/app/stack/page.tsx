@@ -124,7 +124,7 @@ export default function StackPage() {
           </p>
           <p>
             The shared philosophy: <span className="font-semibold text-foreground">pay-per-use where it works,
-            no-subscription-pressure, and brutally honest about what each tool DOES and DOESN&apos;T do.</span>
+            no-subscription-pressure, and explicit about what each tool does and does not do.</span>
           </p>
         </div>
       </Section>
@@ -164,7 +164,7 @@ const PRODUCTS = [
     name: "GateTest",
     badge: "G",
     badgeColor: "bg-accent",
-    tagline: "AI writes fast. GateTest keeps it honest.",
+    tagline: "CI quality gate for AI-written code.",
     body:
       `QA + security audit for your codebase OR your live website. ${siteStats.modules.total} modules covering security, performance, accessibility, SEO, supply chain, AI safety. Pay per scan, not per seat.`,
     bullets: [
@@ -197,14 +197,14 @@ const PRODUCTS = [
     name: PLATFORM_NAME,
     badge: "Ct",
     badgeColor: "bg-amber-500",
-    tagline: "AI-native. Edge-first. Zero ops.",
+    tagline: "Scheduled jobs with a record per run.",
     body:
-      `Scheduled jobs, background tasks, and event-driven work that runs at the edge with zero infrastructure to manage. Designed for the agent era — describe what you want done; ${PLATFORM_NAME} runs it.`,
+      `Scheduled jobs, background tasks and event-driven work, each run recorded with its start time, exit status, output and duration. Jobs are defined in code and dispatched by ${PLATFORM_NAME}; there is no server to provision.`,
     bullets: [
-      "Edge-first runtime — close to your users, close to your data",
-      "Zero infra to provision, zero on-call rotation",
-      "AI-native by design — agents understand your jobs",
-      "Pay only when work actually runs",
+      "A row per run: fired at, exit status, output, duration",
+      "No server to provision or patch",
+      "Jobs are defined in code and readable by tooling, including agents",
+      "Billed per run that executes",
     ],
     href: PLATFORM_SITE_URL,
     external: true,

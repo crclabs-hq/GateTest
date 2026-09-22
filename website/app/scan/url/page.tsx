@@ -11,7 +11,7 @@ import { TOTAL_MODULES } from "@/app/lib/module-count";
 const SEVERITY_CONFIG = {
   critical: {
     label: "Critical",
-    icon: "🔴",
+    dot: "bg-red-500",
     bg: "bg-red-500/5",
     border: "border-red-500/20",
     text: "text-red-700",
@@ -19,7 +19,7 @@ const SEVERITY_CONFIG = {
   },
   warning: {
     label: "Warning",
-    icon: "🟡",
+    dot: "bg-amber-500",
     bg: "bg-amber-500/5",
     border: "border-amber-500/20",
     text: "text-amber-700",
@@ -27,7 +27,7 @@ const SEVERITY_CONFIG = {
   },
   info: {
     label: "Info",
-    icon: "🔵",
+    dot: "bg-sky-500",
     bg: "bg-sky-500/5",
     border: "border-sky-500/20",
     text: "text-sky-700",
@@ -35,7 +35,7 @@ const SEVERITY_CONFIG = {
   },
   pass: {
     label: "Pass",
-    icon: "✅",
+    dot: "bg-emerald-500",
     bg: "bg-emerald-500/5",
     border: "border-emerald-500/20",
     text: "text-emerald-700",
@@ -88,7 +88,10 @@ function FindingCard({ finding }: { finding: WebFinding }) {
         onClick={() => setExpanded((e) => !e)}
         aria-expanded={expanded}
       >
-        <span className="text-base mt-0.5 shrink-0">{cfg.icon}</span>
+        <span className="mt-1.5 shrink-0 inline-flex items-center">
+          <span className={`inline-block h-2.5 w-2.5 rounded-full ${cfg.dot}`} aria-hidden />
+          <span className="sr-only">{cfg.label}</span>
+        </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-sm font-semibold ${cfg.text}`}>
@@ -233,18 +236,21 @@ function UrlScanInner() {
                 </div>
                 <div className="flex flex-wrap justify-center sm:justify-start gap-3 text-sm">
                   {result.summary.critical > 0 && (
-                    <span className="text-red-700 font-medium">
-                      🔴 {result.summary.critical} critical
+                    <span className="text-red-700 font-medium inline-flex items-center gap-1.5">
+                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+                      {result.summary.critical} critical
                     </span>
                   )}
                   {result.summary.warnings > 0 && (
-                    <span className="text-amber-700 font-medium">
-                      🟡 {result.summary.warnings} warnings
+                    <span className="text-amber-700 font-medium inline-flex items-center gap-1.5">
+                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" aria-hidden />
+                      {result.summary.warnings} warnings
                     </span>
                   )}
                   {result.summary.passed > 0 && (
-                    <span className="text-emerald-700 font-medium">
-                      ✅ {result.summary.passed} passed
+                    <span className="text-emerald-700 font-medium inline-flex items-center gap-1.5">
+                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" aria-hidden />
+                      {result.summary.passed} passed
                     </span>
                   )}
                 </div>
@@ -332,7 +338,6 @@ function UrlScanInner() {
             {result.platform?.canAutoFix && result.platform.fixFiles && result.platform.fixFiles.length > 0 && (
               <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-emerald-700 text-lg">⚡</span>
                   <h2 className="text-foreground font-semibold text-sm">
                     We generated a fix file for your {result.platform.name} site
                   </h2>
@@ -369,7 +374,6 @@ function UrlScanInner() {
             {result.platform?.manualSteps && result.platform.manualSteps.length > 0 && !result.platform.canAutoFix && (
               <div className="rounded-2xl border border-sky-500/20 bg-sky-500/5 p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-sky-700 text-lg">🔧</span>
                   <h2 className="text-foreground font-semibold text-sm">
                     How to fix these issues on {result.platform.name}
                   </h2>
@@ -417,13 +421,12 @@ function UrlScanInner() {
         {!scanning && !result && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             {[
-              { icon: "🔒", label: "Security headers" },
-              { icon: "⚡", label: "Page speed" },
-              { icon: "📱", label: "Mobile-friendly" },
-              { icon: "🔍", label: "SEO essentials" },
+              { label: "Security headers" },
+              { label: "Page speed" },
+              { label: "Mobile-friendly" },
+              { label: "SEO essentials" },
             ].map((item) => (
               <div key={item.label} className="card px-3 py-4">
-                <div className="text-2xl mb-1">{item.icon}</div>
                 <div className="text-xs text-muted">{item.label}</div>
               </div>
             ))}

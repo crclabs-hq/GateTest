@@ -98,8 +98,8 @@ export default function HomeKills() {
             Head to head
           </h3>
           <p className="text-center text-sm text-muted mb-6">
-            The others tell you what&apos;s wrong. GateTest fixes it, proves it,
-            and lets you drive.
+            The others report the issue. GateTest opens the fix PR and re-runs
+            the gate to confirm it.
           </p>
           <div className="rounded-2xl border border-border bg-background-alt overflow-x-auto">
             <table className="w-full text-sm min-w-[640px]">

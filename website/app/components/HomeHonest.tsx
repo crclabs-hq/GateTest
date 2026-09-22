@@ -50,7 +50,7 @@ export default function HomeHonest() {
         <p className="text-xs uppercase tracking-widest text-[var(--accent)] font-semibold mb-3">
           Built to be trusted, not tolerated
         </p>
-        <h2 className="text-3xl md:text-4xl font-black text-[var(--foreground)] tracking-tight max-w-3xl mx-auto" style={{ textWrap: "balance" }}>
+        <h2 className="text-3xl md:text-4xl font-semibold text-[var(--foreground)] tracking-tight max-w-3xl mx-auto" style={{ textWrap: "balance" }}>
           The six habits that separate a gate from a linter with better marketing
         </h2>
       </div>

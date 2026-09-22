@@ -7,7 +7,7 @@ import PageHero from "../../components/site/PageHero";
 export const metadata: Metadata = {
   title: "GateTest vs CodeQL — minutes, not 30, in 2026",
   description:
-    `CodeQL is GitHub's deep taint-analysis engine — best-in-class for multi-hop injection chains, but slow, GitHub-only, and zero auto-fix. GateTest covers the same attack classes in minutes across ${TOTAL_MODULES} modules and opens a fix PR.`,
+    `CodeQL is GitHub's taint-analysis engine — thorough on multi-hop injection chains, but slow, GitHub-only, and it does not write fixes. GateTest covers the same attack classes in minutes across ${TOTAL_MODULES} modules and opens a fix PR.`,
   keywords: [
     "CodeQL alternative",
     "CodeQL vs GateTest",

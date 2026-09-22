@@ -31,9 +31,9 @@ export default function Quickstart() {
     <main>
       <PageHero
         align="center"
-        eyebrow="5 minutes from install to first auto-fix PR"
-        title={<>Get your CI <span className="text-accent">self-healing</span><br />in four steps.</>}
-        lede="You install one workflow, add one secret, and the next time your CI fails you get a pull request with the fix already written."
+        eyebrow="Install to first fix PR in about five minutes"
+        title={<>Add the gate to CI <span className="text-accent">in four steps.</span></>}
+        lede="One workflow file, one secret. The next time the job fails, a pull request with the patch and a regression test is opened for your review."
       />
 
       {/* Steps */}

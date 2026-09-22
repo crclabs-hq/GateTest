@@ -29,7 +29,7 @@ export default function HomeProof() {
         <p className="text-xs uppercase tracking-widest text-[var(--accent)] font-semibold mb-3">
           The real math
         </p>
-        <h2 className="text-3xl md:text-4xl font-black text-[var(--foreground)] tracking-tight max-w-3xl mx-auto">
+        <h2 className="text-3xl md:text-4xl font-semibold text-[var(--foreground)] tracking-tight max-w-3xl mx-auto">
           The scanner isn&apos;t the cost. The ten tools it replaces are.
         </h2>
       </div>
@@ -82,7 +82,7 @@ export default function HomeProof() {
         <p className="text-xs uppercase tracking-widest text-[var(--accent)] font-semibold mb-3">
           Real scan · real production repo
         </p>
-        <h2 className="text-2xl md:text-3xl font-black text-[var(--foreground)] tracking-tight">
+        <h2 className="text-2xl md:text-3xl font-semibold text-[var(--foreground)] tracking-tight">
           Not a demo. Here&apos;s what one run found.
         </h2>
       </div>
@@ -90,15 +90,15 @@ export default function HomeProof() {
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)] p-8 shadow-sm">
         <div className="grid sm:grid-cols-3 gap-6 text-center mb-8">
           <div>
-            <div className="text-4xl font-black text-[var(--foreground)]">575</div>
+            <div className="text-4xl font-semibold text-[var(--foreground)]">575</div>
             <div className="text-xs text-[var(--muted)] mt-1">code-quality issues<br />(file length, dead logs, complexity)</div>
           </div>
           <div>
-            <div className="text-4xl font-black text-[var(--danger)]">14</div>
+            <div className="text-4xl font-semibold text-[var(--danger)]">14</div>
             <div className="text-xs text-[var(--muted)] mt-1">exposed secrets across<br />14 different files</div>
           </div>
           <div>
-            <div className="text-4xl font-black text-[var(--accent)]">2</div>
+            <div className="text-4xl font-semibold text-[var(--accent)]">2</div>
             <div className="text-xs text-[var(--muted)] mt-1">critical attack chains<br />the correlator assembled</div>
           </div>
         </div>

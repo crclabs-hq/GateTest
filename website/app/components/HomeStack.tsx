@@ -23,7 +23,7 @@ const PRODUCTS = [
     badge: "Gc",
     badgeColor: "bg-indigo-500",
     accent: "from-indigo-500/15 to-blue-500/5",
-    tagline: "The git host built for AI agents.",
+    tagline: "Git hosting with the gate on every push.",
     body:
       "Git hosting built for small teams — no tickets, no politics. GateTest is wired into it natively: every push lands on Gluecron's Signal Bus and triggers a scan from the same queue that serves GitHub.",
     proof: "Dogfooded: GateTest gates Gluecron's own codebase on every push.",
@@ -40,9 +40,9 @@ const PRODUCTS = [
     badge: PLATFORM_NAME.charAt(0),
     badgeColor: "bg-amber-500",
     accent: "from-amber-500/15 to-orange-500/5",
-    tagline: "Scheduled jobs that actually run. Cron with receipts.",
+    tagline: "Scheduled jobs with an execution record per run.",
     body:
-      "AI-native, edge-first, zero ops. The cron and background jobs that power your product — run with receipts, so \"did the job fire?\" is never a mystery again.",
+      "Cron and background jobs with a record per run: when it fired, what it returned, how long it took. The answer to \"did the job fire?\" is a row, not a guess.",
     proof: `Dogfooded: the live demo on this page replays a real ${PLATFORM_NAME} failure that GateTest caught and fixed.`,
     bullets: [
       "Production scheduling without babysitting",
