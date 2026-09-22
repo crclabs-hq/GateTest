@@ -9,6 +9,18 @@ import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 
+// One definition of the honesty formatting shared with the two API routes
+// (Doctrine #4) — the wall-clock headline (N3/F3) so a 0.1s engine number is
+// never displayed as if it were the whole request.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const scanGrade = require("@/app/lib/scan-grade") as {
+  formatDurationHeadline: (timing: { wallMs?: number | null; fetchMs?: number | null; engineMs?: number | null } | null | undefined) => {
+    headline: string;
+    headlineLabel: string;
+    split: string | null;
+  };
+};
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface ModuleResult {
@@ -71,6 +83,10 @@ interface ScanResult {
     engineMs?: number | null;
     fetchMs?: number | null;
     wallMs?: number | null;
+    /** N2 — one definition of the coverage fraction (Doctrine #4). */
+    scanned?: number;
+    total?: number;
+    partial?: boolean;
   };
   /** F4 — resolved server-side; never trusted from the client. */
   viewer?: { signedIn: boolean; canSignIn?: boolean; canFix: boolean };
@@ -508,6 +524,13 @@ export default function PlaygroundPage() {
     }).catch(() => {}); // error-ok: best-effort UI nicety; feature may be unavailable in this browser
   }, [result, permalink]);
 
+  // N3/F3 — wall clock is the headline duration; falls back to the shared
+  // definition's honest "engine time only" label when no wallMs was recorded
+  // (e.g. a pre-2026-09-22 permalink restored within its 48h window).
+  const resultTiming = scanGrade.formatDurationHeadline(
+    result ? (result.coverage ?? { engineMs: result.duration }) : null
+  );
+
   return (
     <main>
       <PageHero
@@ -597,12 +620,20 @@ export default function PlaygroundPage() {
           <ProgressBar completed={liveModules.length + lockedModules.length} total={totalModules} />
         )}
 
-        {/* ── Terminal + Results ── */}
-        {(scanning || lines.length > 0) && (
+        {/* ── Terminal + Results ──
+            F5 — a permalink (`?s=`) restores `result` without ever running a
+            scan, so `lines` stays empty. Until 2026-09-22 this block gated on
+            `scanning || lines.length > 0` alone, which a restored result never
+            satisfies — the grade and findings existed in state but had no
+            path to the DOM; only the "Viewing a saved result" banner above
+            rendered. `result` now opens the same path a completed scan uses. */}
+        {(scanning || lines.length > 0 || result) && (
           <div className="space-y-6">
-            <TerminalWindow lines={lines} scanning={scanning} />
+            {(scanning || lines.length > 0) && (
+              <TerminalWindow lines={lines} scanning={scanning} />
+            )}
 
-            {/* Results panel — shown after scan completes */}
+            {/* Results panel — shown after scan completes, or restored from a permalink */}
             {result && !scanning && (
               <div className="space-y-8 animate-in fade-in duration-700">
 
@@ -631,10 +662,17 @@ export default function PlaygroundPage() {
                             ? "0 blocking · 0 warnings"
                             : `${result.totalIssues} finding${result.totalIssues !== 1 ? "s" : ""}`)}
                       </h2>
+                      {/* N3/F3 — wall clock is the headline, never the engine-only
+                          half of the split read as if it were the whole request
+                          (a 0.9s engine time next to an 8.2s wall clock is a
+                          40-55% understatement). The split renders beneath. */}
                       <span className="text-xs font-mono text-muted">
-                        {(result.duration / 1000).toFixed(1)}s engine time · quick tier
+                        {resultTiming.headline} {resultTiming.headlineLabel} · quick tier
                       </span>
                     </div>
+                    {resultTiming.split && (
+                      <p className="text-[11px] font-mono text-muted">{resultTiming.split}</p>
+                    )}
 
                     {result.gradeSummary && (
                       <p className="text-xs text-muted">{result.gradeSummary}</p>
@@ -766,14 +804,20 @@ export default function PlaygroundPage() {
                   </p>
                 </div>
 
-                {/* Badge embed section — the snippet is what the README renders, so it stays a dark panel */}
+                {/* Badge embed section — the snippet is what the README renders, so it stays
+                    a dark panel. N2 — a partial-coverage scan (file cap reached) says so in
+                    the markdown's own alt text, not just in the grade line above; a badge
+                    pasted into a README outlives this page and must carry the caveat itself. */}
                 <div className="card p-6 space-y-3">
                   <h3 className="text-sm font-bold text-foreground">Add a live badge to your README</h3>
                   <p className="text-xs text-muted">
                     Shows your live GateTest grade — updates after every scan.
+                    {result.coverage?.partial && (
+                      <> Partial coverage: scanned {result.coverage.scanned} of {result.coverage.total} files (file cap reached).</>
+                    )}
                   </p>
                   <div className="rounded-xl bg-panel text-panel-foreground border border-panel-border p-3 font-mono text-xs overflow-x-auto">
-                    {`[![GateTest](${badgeUrl(`/badge/${
+                    {`[![GateTest${result.coverage?.partial ? " (partial coverage)" : ""}](${badgeUrl(`/badge/${
                       result.repo_url.replace("https://github.com/", "")
                     }`)})](${SITE_URL})`}
                   </div>
@@ -784,8 +828,12 @@ export default function PlaygroundPage() {
           </div>
         )}
 
-        {/* ── Initial state — feature callouts ── */}
-        {!scanning && lines.length === 0 && (
+        {/* ── Initial state — feature callouts ──
+            Excludes a restored permalink too (F5) — otherwise these three
+            generic cards rendered underneath a real result with no scan and
+            no lines recorded, since this condition previously only checked
+            `scanning`/`lines`, neither of which a restored `result` sets. */}
+        {!scanning && lines.length === 0 && !result && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               {

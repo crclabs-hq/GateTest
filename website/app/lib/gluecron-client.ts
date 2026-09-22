@@ -748,18 +748,38 @@ export async function loadGitlabRepoFiles(
   return { paths: snap.paths, fileContents, source: "gitlab-archive", truncated, warning };
 }
 
+/** "GitHub rate-limited or forbade the request (403)" — one status → one
+ *  sentence, so a caller can tell an outage from a typo'd repo (N1/F2:
+ *  before this every failure here collapsed to a bare null with no reason). */
+function describeHttpFailure(host: string, status: number): string {
+  if (status === 401) return `${host} rejected the credential (401)`;
+  if (status === 403) return `${host} rate-limited or forbade the request (403)`;
+  if (status === 404) return `${host} could not find the repository (404)`;
+  return `${host} returned HTTP ${status}`;
+}
+
+function describeThrown(host: string, err: unknown): string {
+  if (err instanceof Error && err.name === "AbortError") return `${host} request timed out`;
+  return `${host} request failed (${err instanceof Error ? err.message : "network error"})`;
+}
+
 /**
  * Resolve the tip SHA of a branch. Tries Gluecron's tree endpoint first
  * (which carries the branch-tip sha on the response per its wire contract),
  * then falls back to GitHub's git-ref endpoint. Returns null if neither
- * host can resolve it — caller should surface the error.
+ * host can resolve it — plus `reason`, the most recent attempt's own
+ * explanation, so the caller can print "sha not resolved: <reason>" instead
+ * of a silent null (N1/F2, 2026-09-22: three consecutive customer scans of a
+ * public repo all resolved to null with no way to tell why).
  */
 export async function resolveBaseBranchSha(
   owner: string,
   repo: string,
   branch: string,
   token: string
-): Promise<{ sha: string | null; defaultBranch: string; source: "gluecron" | "github" | "none" }> {
+): Promise<{ sha: string | null; defaultBranch: string; source: "gluecron" | "github" | "none"; reason?: string }> {
+  const attempts: string[] = [];
+
   // GitHub-first if the token is a GitHub credential
   if (isGitHubToken(token)) {
     try {
@@ -778,9 +798,16 @@ export async function resolveBaseBranchSha(
           if (refData.object?.sha) {
             return { sha: refData.object.sha, defaultBranch, source: "github" };
           }
+          attempts.push("GitHub returned the branch ref with no sha");
+        } else {
+          attempts.push(describeHttpFailure("GitHub", ghRef.status));
         }
+      } else {
+        attempts.push(describeHttpFailure("GitHub", ghRepo.status));
       }
-    } catch { /* error-ok — GitHub attempt failed — the Gluecron path below is next */ }
+    } catch (err) {
+      attempts.push(describeThrown("GitHub", err));
+    }
   }
 
   // Try Gluecron
@@ -789,23 +816,34 @@ export async function resolveBaseBranchSha(
       "GET",
       `/api/v2/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`
     );
-    const defaultBranch =
-      branch ||
-      ((repoRes.data.defaultBranch as string) ||
-        (repoRes.data.default_branch as string) ||
-        "main");
+    if (repoRes.status < 200 || repoRes.status >= 300) {
+      attempts.push(describeHttpFailure("Gluecron", repoRes.status));
+    } else {
+      const defaultBranch =
+        branch ||
+        ((repoRes.data.defaultBranch as string) ||
+          (repoRes.data.default_branch as string) ||
+          "main");
 
-    const treeMeta = await gluecronApi(
-      "GET",
-      `/api/v2/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/tree/${encodeURIComponent(defaultBranch)}?recursive=1`
-    );
-    const sha =
-      (treeMeta.data.sha as string | undefined) ||
-      ((treeMeta.data as { tree?: Array<{ sha?: string }> }).tree?.[0]?.sha) ||
-      null;
+      const treeMeta = await gluecronApi(
+        "GET",
+        `/api/v2/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/tree/${encodeURIComponent(defaultBranch)}?recursive=1`
+      );
+      const sha =
+        (treeMeta.data.sha as string | undefined) ||
+        ((treeMeta.data as { tree?: Array<{ sha?: string }> }).tree?.[0]?.sha) ||
+        null;
 
-    if (sha) return { sha, defaultBranch, source: "gluecron" };
-  } catch { /* error-ok — Gluecron unreachable — the unauthenticated GitHub attempt below is next */ }
+      if (sha) return { sha, defaultBranch, source: "gluecron" };
+      attempts.push(
+        treeMeta.status >= 200 && treeMeta.status < 300
+          ? "Gluecron has no sha for this repository"
+          : describeHttpFailure("Gluecron", treeMeta.status)
+      );
+    }
+  } catch (err) {
+    attempts.push(describeThrown("Gluecron", err));
+  }
 
   // Last-ditch GitHub attempt even without a recognised token shape — many
   // public repos can be read unauthenticated, and in that case we still
@@ -826,11 +864,25 @@ export async function resolveBaseBranchSha(
         if (refData.object?.sha) {
           return { sha: refData.object.sha, defaultBranch, source: "github" };
         }
+        attempts.push("GitHub returned the branch ref with no sha");
+      } else {
+        attempts.push(describeHttpFailure("GitHub", ghRef.status));
       }
+    } else {
+      attempts.push(describeHttpFailure("GitHub", ghRepo.status));
     }
-  } catch { /* error-ok — no base SHA from any host — the caller receives source: none */ }
+  } catch (err) {
+    attempts.push(describeThrown("GitHub", err));
+  }
 
-  return { sha: null, defaultBranch: branch || "main", source: "none" };
+  if (!token && attempts.length === 0) attempts.push("no git host token configured");
+
+  return {
+    sha: null,
+    defaultBranch: branch || "main",
+    source: "none",
+    reason: attempts[attempts.length - 1] || "sha resolution failed for an unknown reason",
+  };
 }
 
 /**
