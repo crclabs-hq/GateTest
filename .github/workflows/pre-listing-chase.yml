@@ -1,0 +1,87 @@
+# Weekly chase for the Craig-only pre-listing steps tracked in issue #627.
+# Probes what can be probed from outside (the Marketplace webhook secret,
+# the two scheduled workflows that 401 on missing repo secrets) and posts a
+# status comment on the issue. Stops on its own once the issue is closed.
+# No secrets are read or printed; GITHUB_TOKEN only writes the comment.
+name: Pre-listing chase (issue 627)
+
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Mondays 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  actions: read
+  contents: read
+
+env:
+  ISSUE: 627
+  BASE_URL: https://gatetest.io
+
+jobs:
+  chase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop if the issue is closed
+        id: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          state=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}" --jq .state)
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          echo "issue #${ISSUE} is $state"
+
+      - name: Probe the three items
+        if: steps.state.outputs.state == 'open'
+        id: probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -u
+          # 1. Marketplace webhook: 503 = secret not configured (fail-closed), 401 = configured and rejecting unsigned.
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -X POST \
+            -H 'content-type: application/json' -d '{}' "${BASE_URL}/api/marketplace/webhook" || echo "000")
+          case "$code" in
+            401) webhook="done — unsigned POST returns 401" ;;
+            503) webhook="OPEN — returns 503 (GITHUB_MARKETPLACE_WEBHOOK_SECRET not set on the box)" ;;
+            *)   webhook="unknown — returned HTTP ${code}" ;;
+          esac
+          # 3. The two scheduled workflows: last completed conclusion each.
+          last() { gh run list --workflow "$1" --limit 1 --json conclusion --jq '.[0].conclusion // "no runs"'; }
+          cron=$(last "Cron Ticks (off-Vercel stopgap)")
+          digest=$(last "Weekly Developer Digest")
+          mark() { [ "$1" = "success" ] && echo "done — last run green" || echo "OPEN — last run: $1"; }
+          {
+            echo "webhook=$webhook"
+            echo "cron=$(mark "$cron")"
+            echo "digest=$(mark "$digest")"
+          } >> "$GITHUB_OUTPUT"
+          # Done when the webhook is 401 and both workflows are green.
+          if [ "$code" = "401" ] && [ "$cron" = "success" ] && [ "$digest" = "success" ]; then
+            echo "all=true" >> "$GITHUB_OUTPUT"; else echo "all=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Comment on the issue
+        if: steps.state.outputs.state == 'open'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WEBHOOK: ${{ steps.probe.outputs.webhook }}
+          CRON: ${{ steps.probe.outputs.cron }}
+          DIGEST: ${{ steps.probe.outputs.digest }}
+          ALL: ${{ steps.probe.outputs.all }}
+        run: |
+          {
+            echo "**Weekly chase — $(date -u +%Y-%m-%d)**"
+            echo
+            echo "1. Marketplace webhook secret: ${WEBHOOK}"
+            echo "2. Duplicate app 3322634: cannot be probed from CI — tick it here when done"
+            echo "3a. CRON_SECRET repo secret (Cron Ticks): ${CRON}"
+            echo "3b. GATETEST_ADMIN_PASSWORD repo secret (Weekly Developer Digest): ${DIGEST}"
+            echo
+            if [ "$ALL" = "true" ]; then
+              echo "Everything probeable is done. Close this issue once item 2 is ticked and this check stops."
+            else
+              echo "Still open. Steps are in the issue body; this comment repeats every Monday until the issue is closed."
+            fi
+          } > body.md
+          gh issue comment "$ISSUE" --body-file body.md
