@@ -55,6 +55,18 @@ test('a passed run says so, and says NEW when something was grandfathered', () =
   assert.match(grandfathered, /3 low-priority note\(s\)/);
 });
 
+// Issue #657: the ignore-suppression count (`.gatetest.json` `ignore` +
+// `.gatetestignore`, combined) needs its own visible line, same shape as
+// the baseline transparency line above it, so a customer can see the
+// suppression actually took.
+test('ignore-suppressed findings get their own visible line, combined across both sources', () => {
+  const clean = text({ gateStatus: 'PASSED', checks: { blockingErrors: 0, softErrors: 0, warnings: 0, baselined: 0 } }, {});
+  assert.doesNotMatch(clean, /suppressed by ignore/);
+
+  const suppressed = text({ gateStatus: 'PASSED', checks: { blockingErrors: 0, softErrors: 0, warnings: 0, baselined: 0, ignoreSuppressed: 754 } }, {});
+  assert.match(suppressed, /754 findings suppressed by ignore \(config \+ \.gatetestignore\)/);
+});
+
 test('singular and plural are both right', () => {
   assert.match(text(blocked(1), { diffScoped: true }), /1 issue is blocking/);
   assert.match(text(blocked(2), { diffScoped: true }), /2 issues are blocking/);

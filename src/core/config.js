@@ -723,12 +723,16 @@ const DEFAULT_CONFIG = {
     exclude: [],
   },
 
-  // Finding suppression (KI #112 G4): the SAME line syntax as a repo-root
-  // `.gatetestignore` (`module:rule` | `module` | `*:rule` |
-  // `module:rule@glob` | `path/glob/**`), fed to the same parser
+  // Finding suppression (KI #112 G4, widened issue #657): the SAME line
+  // syntax as a repo-root `.gatetestignore` (`module:rule` | `module` |
+  // `*:rule` | `module:rule@glob` | `path/glob/**`), fed to the same parser
   // (src/core/ignore-file.js — one definition, no second matcher) by
   // src/core/runner.js. Lets a `.gatetest.json`-templating build pipeline
-  // suppress findings without also hand-maintaining a second file.
+  // suppress findings without also hand-maintaining a second file. Accepts
+  // a top-level array OR a nested `{ paths: [...] }` object — both read by
+  // `runner.js`'s `_configIgnoreLines`, both rendered as bare path-glob
+  // lines. The default is the array shape; `_deepMerge` (below) preserves
+  // whichever shape the customer's file actually uses.
   ignore: [],
 };
 
