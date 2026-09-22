@@ -660,3 +660,80 @@ describe('PromptSafetyModule — one stripper: the masked line decides', () => {
     assert.deepStrictEqual(models.map((c) => c.line), [4]);
   });
 });
+
+// #669: no-max-tokens is wrapper-aware. Tallrig's in-process client wraps
+// every provider call and sets a 4096-token default server-side, so the
+// call-site pattern (`anthropic.messages.create({...})` with no `max_tokens`
+// in the body) still matches although every request is actually capped.
+describe('PromptSafetyModule — no-max-tokens is wrapper-aware (#669)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ps-wrap-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const noMaxTokens = (r) => r.checks.find((c) => c.name.startsWith('prompt-safety:no-max-tokens:'));
+
+  it('downgrades to info when the in-repo client the call comes from sets a max_tokens default', async () => {
+    write(tmp, 'lib/anthropic-client.js', [
+      'const Anthropic = require("@anthropic-ai/sdk");',
+      'const anthropic = new Anthropic();',
+      'const rawCreate = anthropic.messages.create.bind(anthropic.messages);',
+      'anthropic.messages.create = (params) => rawCreate({ max_tokens: 4096, ...params });',
+      'module.exports = { anthropic };',
+      '',
+    ].join('\n'));
+    write(tmp, 'src/a.js', [
+      'const { anthropic } = require("../lib/anthropic-client");',
+      'async function run() {',
+      '  return anthropic.messages.create({ model: "claude-sonnet-5", messages: [] });',
+      '}',
+      'module.exports = { run };',
+      '',
+    ].join('\n'));
+
+    const r = await run(tmp);
+    const hit = noMaxTokens(r);
+    assert.ok(hit, 'expected a no-max-tokens check to still be recorded');
+    assert.strictEqual(hit.severity, 'info', 'a call through a client that caps by default must be downgraded to info');
+    assert.match(hit.message, /cap applied in lib[/\\]anthropic-client\.js/);
+  });
+
+  it('a direct vendor-SDK call with no cap stays an error (control)', async () => {
+    write(tmp, 'src/a.js', [
+      'const Anthropic = require("@anthropic-ai/sdk");',
+      'const anthropic = new Anthropic();',
+      'async function run() {',
+      '  return anthropic.messages.create({ model: "claude-sonnet-5", messages: [] });',
+      '}',
+      'module.exports = { run };',
+      '',
+    ].join('\n'));
+
+    const r = await run(tmp);
+    const hit = noMaxTokens(r);
+    assert.ok(hit, 'expected a no-max-tokens failure');
+    assert.strictEqual(hit.severity, 'error', 'a direct vendor-SDK caller with no cap must stay an error');
+  });
+
+  it('a wrapper that sets no default keeps the caller an error and names the wrapper', async () => {
+    write(tmp, 'lib/anthropic-client.js', [
+      'const Anthropic = require("@anthropic-ai/sdk");',
+      'const anthropic = new Anthropic();',
+      'module.exports = { anthropic };',
+      '',
+    ].join('\n'));
+    write(tmp, 'src/a.js', [
+      'const { anthropic } = require("../lib/anthropic-client");',
+      'async function run() {',
+      '  return anthropic.messages.create({ model: "claude-sonnet-5", messages: [] });',
+      '}',
+      'module.exports = { run };',
+      '',
+    ].join('\n'));
+
+    const r = await run(tmp);
+    const hit = noMaxTokens(r);
+    assert.ok(hit, 'expected a no-max-tokens failure');
+    assert.strictEqual(hit.severity, 'error', 'a wrapper that sets no default must not downgrade the caller');
+    assert.match(hit.message, /lib[/\\]anthropic-client\.js/, 'message must name the wrapper');
+  });
+});

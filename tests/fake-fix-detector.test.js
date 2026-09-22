@@ -417,6 +417,65 @@ describe('FakeFixDetectorModule — documentation is not source', () => {
   });
 });
 
+// #669: adminOps.ts:2116 was a JSDoc line describing the directive in prose
+// ("Use // @ts-expect-error when …"), not the directive itself, and the old
+// `.*@ts-...` pattern matched it anywhere on the line. The directive must
+// now be the first non-space token of the added line.
+describe('FakeFixDetectorModule — ts-ignore-added fires only on the real directive (#669)', () => {
+  async function run(diff) {
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+    await mod.run(result, makeConfig(diff));
+    return result;
+  }
+
+  it('does not fire on a JSDoc line that mentions @ts-expect-error in prose', async () => {
+    const diff = [
+      'diff --git a/src/adminOps.ts b/src/adminOps.ts',
+      '--- a/src/adminOps.ts',
+      '+++ b/src/adminOps.ts',
+      '@@ -10,2 +10,3 @@',
+      ' /**',
+      '+ * Use // @ts-expect-error when bypassing a known-bad third-party type.',
+      '  */',
+    ].join('\n');
+    const r = await run(diff);
+    assert.ok(!findFailure(r, 'ts-ignore-added'), 'a doc comment describing the directive must not fire');
+  });
+
+  it('fires when // @ts-ignore is the first token of the added line', async () => {
+    const diff = [
+      'diff --git a/src/a.ts b/src/a.ts',
+      '--- a/src/a.ts',
+      '+++ b/src/a.ts',
+      '@@ -1,2 +1,3 @@',
+      ' function parse(input) {',
+      '+  // @ts-ignore',
+      '   return JSON.parse(input)',
+      ' }',
+    ].join('\n');
+    const r = await run(diff);
+    const failure = findFailure(r, 'ts-ignore-added');
+    assert.ok(failure, 'a real directive line must fire');
+    assert.strictEqual(failure.severity, 'error');
+  });
+
+  it('does not fire when // @ts-ignore trails real code instead of leading the line', async () => {
+    const diff = [
+      'diff --git a/src/a.ts b/src/a.ts',
+      '--- a/src/a.ts',
+      '+++ b/src/a.ts',
+      '@@ -1,2 +1,2 @@',
+      ' function f() {',
+      '+  const x = 1; // @ts-ignore',
+      ' }',
+    ].join('\n');
+    const r = await run(diff);
+    assert.ok(!findFailure(r, 'ts-ignore-added'), 'a trailing comment is not a functioning TS directive and must not fire');
+  });
+});
+
 // `temp` matched `// template expression` — a comment about template
 // literals was "a TODO/FIXME/HACK comment added". Found by the determinism
 // gate on our own diff (2026-09-05). Token, not prefix (doctrine §5).

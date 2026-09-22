@@ -331,9 +331,27 @@ const PATTERN_RULES = [
 
   // --- Type escape hatches ---
   {
+    // #669: the old pattern (`.*@ts-...`, matching anywhere on the line) fired
+    // on a doc comment that mentions the directive in PROSE — a JSDoc line
+    // like `* Use // @ts-expect-error when …` describes the directive
+    // without being one, the same "text about the pattern reads as the
+    // pattern" shape web-headers.js hit with CSP directive markers after
+    // #668. There the fix is to skip whole-line comments outright because a
+    // CSP header is never legitimately set from inside one; that does not
+    // transfer directly here because the real directive IS a `//` comment.
+    // Instead the directive must be the FIRST non-space token on the added
+    // line: `// @ts-ignore` / `// @ts-nocheck` / `// @ts-expect-error`,
+    // optionally followed by a reason. A JSDoc continuation line opens with
+    // `*` (or a block comment with `/*`), not `//`, so it can never match —
+    // the same "skip full-line comments and JSDoc blocks" idea, applied by
+    // requiring the SPECIFIC marker a real directive uses to lead the line
+    // rather than skipping every comment marker. A trailing comment after
+    // code (`const x = 1; // @ts-ignore`) also fails to match — `const` is
+    // the first token, not `//` — which matches TypeScript's own rule that
+    // the directive must be a comment on its own line, not a trailing note.
     id: 'ts-ignore-added',
     direction: 'added',
-    pattern: /^\+.*@ts-(ignore|nocheck|expect-error)/,
+    pattern: /^\+\s*\/\/\s*@ts-(?:ignore|nocheck|expect-error)\b/,
     severity: 'error',
     title: 'TypeScript error suppressed with @ts-ignore',
     explanation: 'Type errors are being suppressed rather than fixed. The underlying type issue remains.',
