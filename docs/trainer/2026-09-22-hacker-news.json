@@ -1,0 +1,261 @@
+{
+  "generatedAt": "2026-09-22T08:18:30.866Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 16,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 11,
+      "SonarQube": 1,
+      "Semgrep": 2,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49797536",
+        "author": "flohofwoe",
+        "type": "comment",
+        "title": null,
+        "text": "> I guess you’re rather young or not really acquainted with the history of computer science.Lol, thanks for the compliment. I've been programming computers since around 1984. But I learned to recognize snake oil when I see it (since around the mid-90s when the OOP hype was in full swing and I was a true believer for a while, the OOP hype did indeed have a lot in common with the current AI hype - e.g. about 10% useful, 90% snake oil, but it took the industry nearly two decades to recognize how harmful the OOP hype actually was even to the original idea of OOP itself... different topic though).Also I think you're retconning&#x2F;simplifying computing history a bit, it's not a linear evolution from low-level to high-level (e.g. when C was created, there were already much higher level programming languages common), and understanding the compiler output on CPU instruction level and the hardware it runs on is still very necessary for proper optimization work, even when working in a high level language.E.g. you can't simply ignore the lowest level foundations even after adding new abstraction levels on top.PS: what's up with all those throwaway accounts in the thread anyway?",
+        "url": "https://news.ycombinator.com/item?id=49797536",
+        "points": null,
+        "numComments": null,
+        "storyId": 49766676,
+        "createdAt": "2026-09-22T06:49:23Z",
+        "createdAtUnix": 1790059763,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49796743",
+        "author": "shykes",
+        "type": "comment",
+        "title": null,
+        "text": "> QA is about finding the things that you didn't think of and so didn't write a test for itQA is about quality. That it has been increasingly used to mean \"repetitive manual testing only\" is part of the very trend you decry of qa being undervalued.Fundamentally QA is about two groups of people collaborating in an adversarial process (\"you build it we break it\") to achieve a common goal: a better product. QA by definition requires a relationship of equals, or the process ceases to be adversarial and becomes useless ceremony. If you're not able to assemble two distinct groups of people, one person can wear both hats (ie you test your own software) but you'll have more blind spots.How much of QA is done by a human or automated, is and has always been an implementation detail.If you're in charge of QA, you're in charge not just of finding new problems, but preventing regressions as well. And you're responsible for embedding as much of that work into the devloop itself, so that builders can find and remediate problems earlier and with less pressure on your limited time. How do you achieve that? automation.I started my career doing QA and 99% of what I was doing could be automated by an AI today. Today I still do QA on my own product- I just spend all my time on the remaining 1% and my product is better as a result.",
+        "url": "https://news.ycombinator.com/item?id=49796743",
+        "points": null,
+        "numComments": null,
+        "storyId": 49792067,
+        "createdAt": "2026-09-22T04:17:53Z",
+        "createdAtUnix": 1790050673,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49795384",
+        "author": "shykes",
+        "type": "comment",
+        "title": null,
+        "text": "I think to solve this problem properly, we have to stop treating \"build\" and \"test\" as separate buckets of work, to be designed and scaled separately. It's all CI. As soon as you try seriously scaling out tests, you will run into build bottlenecks. To truly scale CI you need a scheduler that understands your build, test environment, and all the glue in between, well enough to schedule it in a way that actually speeds things up. That is very difficult and not something that even the best build tools can do - yes, even Bazel. Bazel can run tests but it's not nearly as good at it than at building.",
+        "url": "https://news.ycombinator.com/item?id=49795384",
+        "points": null,
+        "numComments": null,
+        "storyId": 49792067,
+        "createdAt": "2026-09-22T00:37:44Z",
+        "createdAtUnix": 1790037464,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49795066",
+        "author": "shykes",
+        "type": "comment",
+        "title": null,
+        "text": "You are right, but one problem at a time :)",
+        "url": "https://news.ycombinator.com/item?id=49795066",
+        "points": null,
+        "numComments": null,
+        "storyId": 49792067,
+        "createdAt": "2026-09-22T00:00:55Z",
+        "createdAtUnix": 1790035255,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49794104",
+        "author": "chris_money202",
+        "type": "comment",
+        "title": null,
+        "text": "I don't know that's moving the goalpost, SpaceX's mission was not that originally. Some could say the original mission failed and they are pivoting, Elon will say it's a means to the end of the original mission still to save face. Some read it all as snake oil",
+        "url": "https://news.ycombinator.com/item?id=49794104",
+        "points": null,
+        "numComments": null,
+        "storyId": 49788838,
+        "createdAt": "2026-09-21T22:08:18Z",
+        "createdAtUnix": 1790028498,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49793575",
+        "author": "shykes",
+        "type": "comment",
+        "title": null,
+        "text": "I think you're being sarcastic, but there is actual truth behind what you're saying.Because every developer is now a slop cannon by default, by default users will experience churn and whiplash, and things will break all over the place. As you point out, this is bad. It's also impossible to fix without deploying agents on the QA side. Like it or hate it, agentic testing is inevitable to protect users from the churn and noise caused by the slop cannon. I don't think that replaces test engineers at all - if anything it makes the job more fun. If you've ever had to keep playwright tests in sync with the target manually, and kept the CI environment up to speed with toolchain changes, you know what I mean.Whether the \"slop cannon by default\" situation could have been avoided in the first place, is another question... But we're here now and there's no going back. Might as well deal with it as best as we can.TLDR: it's not all bad :)",
+        "url": "https://news.ycombinator.com/item?id=49793575",
+        "points": null,
+        "numComments": null,
+        "storyId": 49792067,
+        "createdAt": "2026-09-21T21:17:38Z",
+        "createdAtUnix": 1790025458,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49793493",
+        "author": "shykes",
+        "type": "comment",
+        "title": null,
+        "text": "I call this moment \"the Great CI Bottleneck of 2026\". Here are my thoughts on it: https:&#x2F;&#x2F;dagger.io&#x2F;blog&#x2F;the-great-ci-bottleneck-of-2026&#x2F;",
+        "url": "https://news.ycombinator.com/item?id=49793493",
+        "points": null,
+        "numComments": null,
+        "storyId": 49792067,
+        "createdAt": "2026-09-21T21:11:08Z",
+        "createdAtUnix": 1790025068,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49793477",
+        "author": "shykes",
+        "type": "comment",
+        "title": null,
+        "text": "You're assuming QA reviews won't be fully automated, and triggered from a CI pipeline.",
+        "url": "https://news.ycombinator.com/item?id=49793477",
+        "points": null,
+        "numComments": null,
+        "storyId": 49792067,
+        "createdAt": "2026-09-21T21:10:15Z",
+        "createdAtUnix": 1790025015,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49793369",
+        "author": "shykes",
+        "type": "comment",
+        "title": null,
+        "text": "Think of it as a layered problem. If the bottom layer (CI) cannot keep up with the output of agents, then solving problems at a higher layer - like user experience checks - will be exponentially slower and less reliable. Kind of like how optimizing tight inner loops makes your whole program faster.",
+        "url": "https://news.ycombinator.com/item?id=49793369",
+        "points": null,
+        "numComments": null,
+        "storyId": 49792067,
+        "createdAt": "2026-09-21T21:01:36Z",
+        "createdAtUnix": 1790024496,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49791406",
+        "author": "throw8383939",
+        "type": "comment",
+        "title": null,
+        "text": "> Many smaller landlords will choose to exclude petsThat would be amazing! Imagine no poop and no smell! And no barking!And no subsidizing others peoples farm animals!Funny how \"pets\" does not usually include rabbits, mouse, aquarium fish or snakes.",
+        "url": "https://news.ycombinator.com/item?id=49791406",
+        "points": null,
+        "numComments": null,
+        "storyId": 49790501,
+        "createdAt": "2026-09-21T18:34:48Z",
+        "createdAtUnix": 1790015688,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49785484",
+        "author": "skykooler",
+        "type": "comment",
+        "title": null,
+        "text": "If a model is derived work of its training data, surely all the existing frontier models that have been training on copyrighted work have a big legal issue, and therefore so does anything produced with them?",
+        "url": "https://news.ycombinator.com/item?id=49785484",
+        "points": null,
+        "numComments": null,
+        "storyId": 49775499,
+        "createdAt": "2026-09-21T10:40:52Z",
+        "createdAtUnix": 1789987252,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [
+      {
+        "objectId": "49785440",
+        "author": "mawadev",
+        "type": "comment",
+        "title": null,
+        "text": "This needs an SBOM and a SonarQube Qualitygate pass to be considered production grade code",
+        "url": "https://news.ycombinator.com/item?id=49785440",
+        "points": null,
+        "numComments": null,
+        "storyId": 49784706,
+        "createdAt": "2026-09-21T10:34:25Z",
+        "createdAtUnix": 1789986865,
+        "intent": "neutral"
+      }
+    ],
+    "Semgrep": [
+      {
+        "objectId": "49792368",
+        "author": "rmason",
+        "type": "story",
+        "title": "In Fighting for Every Black Child, Did I Betray My Own?",
+        "text": "In Fighting for Every Black Child, Did I Betray My Own?",
+        "url": "https://www.nytimes.com/2026/09/20/magazine/ny-public-schools-black-students-segregation.html",
+        "points": 4,
+        "numComments": 1,
+        "storyId": 49792368,
+        "createdAt": "2026-09-21T19:45:53Z",
+        "createdAtUnix": 1790019953,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49792049",
+        "author": "iamnothere",
+        "type": "comment",
+        "title": null,
+        "text": "The comment that I replied to:> Who besides the conservatives right now is broadly opposed to free speech?But to answer your question about conservative opposition to free speech, some conservatives are now showing support for hate speech laws, specifically laws against antisemitic speech, which is new. So this is actually a current “both sides” issue. Time will tell if the poles fully reverse on this; I think it depends on what form post-Trump politics takes.Edit: wow, TIL. Apparently there were local laws against “race hatred” on the books in the early 1900s, and some conservative segregationists found that they could use those laws against “anti-white” speech (like supporting integration) in the 40s and 50s. So believe it or not, they became supportive of these laws until the Warren court overturned them, thanks to the work of the ACLU.",
+        "url": "https://news.ycombinator.com/item?id=49792049",
+        "points": null,
+        "numComments": null,
+        "storyId": 49780820,
+        "createdAt": "2026-09-21T19:22:16Z",
+        "createdAtUnix": 1790018536,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "49795755",
+        "author": "CoderLim110",
+        "type": "story",
+        "title": "Escaping the OpenAI Codex sandbox, twice",
+        "text": "Escaping the OpenAI Codex sandbox, twice",
+        "url": "https://accomplish.ai/blog/escaping-the-openai-codex-sandbox-twice/",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 49795755,
+        "createdAt": "2026-09-22T01:29:59Z",
+        "createdAtUnix": 1790040599,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "49796233",
+        "author": "hn_throwaway_99",
+        "type": "comment",
+        "title": null,
+        "text": "> you're free to downvote me if you disagree, because either way, in this case both up and down votes prove me right.incants magical spell so that I'm always right!Checkmate atheists, or something.",
+        "url": "https://news.ycombinator.com/item?id=49796233",
+        "points": null,
+        "numComments": null,
+        "storyId": 49795718,
+        "createdAt": "2026-09-22T02:42:02Z",
+        "createdAtUnix": 1790044922,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
