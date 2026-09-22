@@ -32,11 +32,53 @@ import type {
   ScanResult,
   UrlScanFlowProps,
 } from "./url-scan-flow-types";
-import { HealthScoreCard, StatCard, FindingRow, RecommendationCard, PaywallCard } from "./url-scan-flow-cards";
+import { HealthScoreCard, StatCard, FindingRow, RecommendationCard, PaywallCard, ModuleChecksCard } from "./url-scan-flow-cards";
 import { LiveModuleTicker, ProgressTicker, RuntimePending, RuntimeUnavailable } from "./url-scan-flow-progress";
 import { CopyForAgentButton } from "./url-scan-flow-export";
 import { ScanFeedback } from "./ScanFeedback";
 import { consumeSseStream } from "./url-scan-flow-sse";
+
+// Issue #648 item 3 — permalink + restore for /web (and /wp, which shares
+// this component) results. Reuses the EXACT client-side encoding #647
+// already shipped for the free-scan playground (`?s=` — see
+// website/app/playground/page.tsx's encodeShareData/decodeShareData/
+// pushPermalink) rather than inventing a second permalink mechanism: whole
+// result, base64url-encoded with an embedded `sharedAt` timestamp, pushed
+// to the address bar with replaceState, expiring after 48h. No server-side
+// store — same tradeoff #647 already accepted, and this route has no
+// `scanId`-keyed persistence to restore from instead.
+const SHARE_EXPIRY_MS = 48 * 60 * 60 * 1000;
+
+function encodeShareData(result: ScanResult): string {
+  const payload = { ...result, sharedAt: Date.now() };
+  return btoa(encodeURIComponent(JSON.stringify(payload))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function decodeShareData(encoded: string): ScanResult | null {
+  try {
+    const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(atob(base64));
+    const data = JSON.parse(json) as ScanResult;
+    if (!data.sharedAt || Date.now() - data.sharedAt > SHARE_EXPIRY_MS) return null;
+    return data;
+  } catch {
+    return null; // error-ok — a malformed or tampered `?s=` value is not a scan result
+  }
+}
+
+/** Pushes the current result into the address bar as `?s=...` so reload
+ *  and copy-link both restore it. Returns the URL, or null when the
+ *  browser refuses the history write (a long encoded result) — a refusal
+ *  must not take the on-screen result down with it. */
+function pushPermalink(result: ScanResult): string | null {
+  try {
+    const url = `${window.location.origin}${window.location.pathname}?s=${encodeShareData(result)}`;
+    window.history.replaceState({}, "", url);
+    return url;
+  } catch {
+    return null; // error-ok — see above
+  }
+}
 
 export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint, placeholderUrl = "https://yoursite.com", brandLabel, initialUrl = "" }: UrlScanFlowProps) {
   type Phase = "idle" | "scanning" | "results" | "error";
@@ -91,13 +133,25 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
     return () => clearTimeout(timer);
   }, [url, recommendEndpoint, phase]);
 
-  // Stripe-return auto-run: /web?session_id=cs_...&url=<target> lands here
-  // after a successful full-report checkout — pick up both params, run the
-  // scan once with the paid session attached.
+  // Restore from a `?s=` permalink (item 3), or Stripe-return auto-run:
+  // /web?session_id=cs_...&url=<target> lands here after a successful
+  // full-report checkout — pick up both params, run the scan once with the
+  // paid session attached. A permalink takes priority: it's a completed
+  // result to render immediately, not a scan to (re-)run.
   useEffect(() => {
     if (autoRanRef.current) return;
     autoRanRef.current = true;
     const sp = new URLSearchParams(window.location.search);
+    const shared = sp.get("s");
+    if (shared) {
+      const restored = decodeShareData(shared);
+      if (restored) {
+        setUrl(restored.targetUrl || "");
+        setResult(restored);
+        setPhase("results");
+        return;
+      }
+    }
     const sid = (sp.get("session_id") || "").trim();
     const paidUrl = (sp.get("url") || "").trim();
     if (sid) sessionIdRef.current = sid;
@@ -155,10 +209,17 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
           return [...prev, { name: d.module, state: "running" }];
         });
       } else if (event === "module:end") {
-        const d = data as { module: string; errors?: number; warnings?: number; duration?: number };
+        // Issue #648 items 1-2: the server now says explicitly whether a
+        // module was actually checked. A not-checked module gets its own
+        // ticker state (never "done") and carries its own reason — never
+        // the runtime-dispatch reason from a different part of the report.
+        const d = data as { module: string; status?: "checked" | "not-checked"; errors?: number; warnings?: number; duration?: number; reason?: string };
         setLiveModules((prev) => {
           const i = prev.findIndex((m) => m.name === d.module);
-          const updated: ModuleProgress = { name: d.module, state: "done", errors: d.errors, warnings: d.warnings, duration: d.duration };
+          const updated: ModuleProgress =
+            d.status === "not-checked"
+              ? { name: d.module, state: "not-checked", reason: d.reason, duration: d.duration }
+              : { name: d.module, state: "done", errors: d.errors, warnings: d.warnings, duration: d.duration };
           if (i >= 0) {
             const copy = [...prev];
             copy[i] = updated;
@@ -219,6 +280,9 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
         : await runNonStreaming(targetUrl);
       setResult(data);
       setPhase("results");
+      // Item 3 — a completed scan gets a URL immediately, not only on an
+      // explicit "share" click, so reload/back never drops the report.
+      pushPermalink(data);
     } catch (err) {
       if ((err as Error)?.name === "AbortError") {
         setPhase("idle");
@@ -241,6 +305,24 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
     setLiveModules([]);
     setPhase("idle");
     setUrl("");
+    // Drop a restored/pushed `?s=` permalink so "scan a different URL"
+    // doesn't leave the old report's link sitting in the address bar.
+    try {
+      window.history.replaceState({}, "", window.location.pathname);
+    } catch { /* error-ok — an unwritable history entry is not worth failing the reset over */ }
+  }
+
+  const [linkCopied, setLinkCopied] = useState(false);
+  async function copyPermalink() {
+    if (!result) return;
+    const url = pushPermalink(result) || window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2400);
+    } catch {
+      /* error-ok — clipboard denied; the address bar already carries the link */
+    }
   }
 
   function applyRuntimePayload(payload: RuntimeBlock["payload"]) {
@@ -348,12 +430,20 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
               <span className="font-mono tabular-nums text-foreground">{(result.duration / 1000).toFixed(1)}s</span>
               {brandLabel && <span className="ml-2 text-muted">• {brandLabel}</span>}
             </p>
-            <button
-              onClick={reset}
-              className="text-accent hover:text-accent-hover font-medium transition-colors focus:outline-none focus-visible:underline"
-            >
-              Scan a different URL →
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={copyPermalink}
+                className="text-accent hover:text-accent-hover font-medium transition-colors focus:outline-none focus-visible:underline"
+              >
+                {linkCopied ? "Link copied!" : "Copy link to this result"}
+              </button>
+              <button
+                onClick={reset}
+                className="text-accent hover:text-accent-hover font-medium transition-colors focus:outline-none focus-visible:underline"
+              >
+                Scan a different URL →
+              </button>
+            </div>
           </div>
 
           <HealthScoreCard {...result.healthScore} notCheckedModules={result.notCheckedModules} totalModules={result.totalModules} />
@@ -380,6 +470,10 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
           {result.runtime?.status === "unavailable" && (
             <RuntimeUnavailable reason={result.runtime.reason} />
           )}
+
+          {/* Issue #648 item 4 — free regardless of `result.preview`: check
+              NAMES are not the paid part, only the fix guidance below is. */}
+          <ModuleChecksCard moduleChecks={result.moduleChecks} />
 
           {result.findings.length > 0 ? (
             <div>
