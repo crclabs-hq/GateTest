@@ -180,6 +180,37 @@ const JS_MONEY_MULDIV_RE = /\b((?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*)\s*([*/])
 // pence, minor, subunit, satoshi…) so `price / 100` still fires.
 const MINOR_UNITS_NAME_RE = /(?:^|[._$])(?:cents?|pence|pennies|minor(?:Units?)?|sub[-_]?units?|sat(?:oshi)?s?|_?in_?cents)$/i;
 const DISPLAY_FORMATTER_RE = /\bMath\.(?:round|floor|ceil|trunc)\s*\(|\.toFixed\s*\(|\bIntl\.NumberFormat\b|\.toLocaleString\s*\(|\.format\s*\(/;
+
+// issue #633 (2026-09-22): `const label = cents / 100;` — no formatter call
+// and no template literal on the SAME line, so it fell through the two
+// checks above and fired as "money arithmetic" even though nothing is
+// stored: the result goes straight into a variable the FILE ITSELF names
+// as display text. The identifier, not the value (same principle as
+// MONEY_NAME_RE) — a target named `label`/`display`/`text`/… is read by a
+// person, not persisted or computed on further, so this is the same
+// "render minor units for a human" idiom the formatter/template checks
+// already exempt. `total`/`amount`/etc. as a target name do NOT match this
+// list — only names that say "this is text for display", so `const total =
+// cents / 100` (a stored, further-computable total) still fires.
+const DISPLAY_TARGET_WORDS = new Set([
+  'label', 'display', 'formatted', 'text', 'caption', 'pretty', 'readable',
+  'string', 'str', 'html', 'markup', 'title', 'subtitle', 'placeholder',
+]);
+// `const label =` / `let display: string =` / bare `label = ` reassignment,
+// optionally opening one or more parens before the arithmetic starts
+// (`const label = (cents / 100).toFixed(2)`).
+const ASSIGN_TARGET_RE = /(?:\b(?:const|let|var)\s+)?([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*\(*$/;
+function nameWords(name) {
+  return String(name || '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .split(/[_\-\s]+/)
+    .map((w) => w.toLowerCase())
+    .filter(Boolean);
+}
+function isDisplayTargetName(name) {
+  return nameWords(name).some((w) => DISPLAY_TARGET_WORDS.has(w));
+}
+
 function isMinorUnitsDisplay(line, mArith, opIdx) {
   if (mArith[2] !== '/') return false;
   if (!MINOR_UNITS_NAME_RE.test(mArith[1])) return false;
@@ -187,7 +218,9 @@ function isMinorUnitsDisplay(line, mArith, opIdx) {
   if (!/^(?:100|1000|10000|1e2|1e3|1e4)\b/.test(rhs)) return false;
   const before = line.slice(0, mArith.index);
   const inTemplate = /\$\{[^}]*$/.test(before);
-  return DISPLAY_FORMATTER_RE.test(before) || inTemplate;
+  if (DISPLAY_FORMATTER_RE.test(before) || inTemplate) return true;
+  const target = ASSIGN_TARGET_RE.exec(before);
+  return !!(target && isDisplayTargetName(target[1]));
 }
 
 // Library-detection patterns. If any of these appear anywhere in
