@@ -36,7 +36,15 @@
  * Rules:
  *
  *   error:   Hardcoded `http://localhost` / `http://127.0.0.1` /
- *            `http://0.0.0.0` in non-test production source.
+ *            `http://0.0.0.0` in non-test production source, passed
+ *            directly to a network/redirect call or a `location.*`
+ *            assignment. Quiet when the SAME host is a data-table value
+ *            (an object property or array element in a config/health-
+ *            check manifest), a function parameter default, or has an
+ *            env/variable-driven port (`` `http://localhost:${port}` ``)
+ *            — issue #633: 11/15 sampled findings on a real monorepo were
+ *            a per-unit health-check manifest where every entry IS
+ *            supposed to be loopback.
  *            (rule: `hardcoded-url:localhost:<rel>:<line>`)
  *
  *   error:   Hardcoded RFC1918 private-range URL
@@ -158,6 +166,89 @@ const DOC_TLD_RE = /\.(?:example|invalid)$/i;
 // `setAttributeNS(`, `namespaceURI`).
 const NAMESPACE_HOSTS = new Set(['www.w3.org']);
 const NAMESPACE_CONTEXT_RE = /\bxmlns(?::[\w-]+)?\s*=\s*["'{]*$|\b(?:createElementNS|setAttributeNS|getAttributeNS|hasAttributeNS|removeAttributeNS)\s*\(\s*["']$|\bnamespaceURI\b[^"']*["']$/;
+
+// issue #633 (2026-09-22): Tallrig sampled 15 of 73 `localhost` findings on
+// their monorepo. 11/15 were a service-catalog data table — a per-unit
+// health-check manifest (`const SERVICES = [{ url: "http://127.0.0.1:8080"
+// }]`) where every entry IS supposed to be loopback, not a leaked remote
+// target. 2/15 a log banner with a variable port and a function parameter
+// default. 2/15 were REAL: a loopback probe missing the env override its
+// sibling probes have, at an actual fetch/redirect call site. The
+// defendant is the RULE, not the file: a loopback host in a plain
+// data-table value, a parameter default, or with a dynamic (env/variable)
+// port is configuration, not a hardcoded target — but the SAME host
+// passed straight to a network/redirect call keeps firing regardless of
+// which file it's in. No per-file allow-list.
+
+// A loopback string sitting right after an object property's `key:` or a
+// bare `,`/`[` array-element position — the shape of a data-table entry,
+// not a call argument. `before` is the masked line up to (not including)
+// the string's own content, so it still ends in the opening quote.
+//
+// Deliberately NOT a bare `/[:,[]\s*['"\`]$/`: a ternary's `? a : b` uses
+// the identical `:` character, and `isStaging ? 'https://…' : 'http://
+// localhost:4000'` is a real leak in its false branch, not a data table —
+// the FIRST alternative below requires the colon's key to be introduced by
+// `{` or `,` (an actual property position), which a ternary's colon never
+// is (issue #633, caught by tests/hardcoded-url.test.js's existing
+// "non-env ternary" positive control).
+const DATA_TABLE_VALUE_RE = /(?:[{,]\s*(?:[A-Za-z_$][\w$]*|['"][^'"]*['"])\s*:\s*['"`]$)|(?:[,[]\s*['"`]$)/;
+
+// `probe(url = "http://127.0.0.1:9000/health")` — a configurable default,
+// not a hardcoded target. Covers a plain default and a TS-typed one
+// (`url: string = "..."`).
+const PARAM_DEFAULT_RE = /\(\s*[A-Za-z_$][\w$]*(?:\s*:\s*[^=()]+)?\s*=\s*['"`]$/;
+
+// The port is env/variable-driven — `http://localhost:${port}` — so what
+// actually gets dialed is not "localhost" at all once resolved. URL_RE's
+// port group only matches literal digits, so a template port leaves `host`
+// as the bare loopback name with `:${...}` (or `${...}` with no colon,
+// `localhost${suffix}`) immediately following in the RAW line.
+const DYNAMIC_PORT_RE = /^:?\$\{/;
+
+// Call/assignment shapes that actually DIAL or REDIRECT to the URL —
+// these keep firing even when the string also happens to sit after a
+// colon (`fetch({ url: "http://localhost/x" })` is still a fetch target).
+const NETWORK_CALL_NAMES = new Set([
+  'fetch', 'axios', 'got', 'ky', 'superagent', 'request', 'redirect',
+  'navigate', 'get', 'post', 'put', 'patch', 'delete', 'head', 'push',
+  'open', 'send',
+]);
+const LOCATION_ASSIGN_RE = /\blocation\.(?:href|hash|search)\s*=\s*['"`]$/;
+
+/**
+ * The name of the call whose argument list directly encloses the position
+ * just before `beforeCode` ends (a string's opening quote) — walking
+ * backward and stopping at the first `(` not balanced by a `)` already
+ * seen. `fetch("` -> `fetch`; `axios.get("` -> `axios.get`; a nested,
+ * already-closed call in between does not confuse it (depth-tracked).
+ */
+function _enclosingCallee(beforeCode) {
+  let depth = 0;
+  for (let p = beforeCode.length - 1; p >= 0; p -= 1) {
+    const ch = beforeCode[p];
+    if (ch === ')') depth += 1;
+    else if (ch === '(') {
+      if (depth === 0) {
+        const head = beforeCode.slice(0, p);
+        const m = head.match(/([A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*$/);
+        return m ? m[1].replace(/\s+/g, '') : null;
+      }
+      depth -= 1;
+    }
+  }
+  return null;
+}
+
+/** Is this loopback string a direct argument to a network/redirect call, or a `location.*` assignment? */
+function isNetworkCallSite(before) {
+  if (LOCATION_ASSIGN_RE.test(before)) return true;
+  const beforeCode = before.replace(/['"`]$/, '');
+  const callee = _enclosingCallee(beforeCode);
+  if (!callee) return false;
+  const segs = callee.split('.');
+  return NETWORK_CALL_NAMES.has(segs[segs.length - 1]);
+}
 
 
 class HardcodedUrlModule extends BaseModule {
@@ -281,6 +372,22 @@ class HardcodedUrlModule extends BaseModule {
         if (BARE_LOCALHOST_RE.test(line.slice(m.index)) && isUrlParseBase(line, before, masked.join('\n'))) continue;
 
         if (LOCALHOST_RE.test(host)) {
+          // issue #633: a loopback host that is data-table configuration
+          // (an object property value, an array element, a parameter
+          // default) or whose port is env/variable-driven is not a
+          // hardcoded fetch target — UNLESS it's passed straight to a
+          // network/redirect call or a `location.*` assignment, which
+          // fires regardless of the shape it sits in.
+          if (!isNetworkCallSite(before)) {
+            const restOfLine = line.slice(m.index + m[0].length);
+            if (
+              DATA_TABLE_VALUE_RE.test(before)
+              || PARAM_DEFAULT_RE.test(before)
+              || DYNAMIC_PORT_RE.test(restOfLine)
+            ) {
+              continue;
+            }
+          }
           issues += this._flag(result, `hardcoded-url:localhost:${rel}:${i + 1}`, {
             severity: isTestFile ? 'info' : 'error',
             file: rel,

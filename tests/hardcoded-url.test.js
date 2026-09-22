@@ -498,3 +498,80 @@ describe('HardcodedUrlModule — a private IP or internal host in a test file is
     assert.match(sTld.message, /won't resolve for external users/);
   });
 });
+
+// Issue #633 (2026-09-22): Tallrig sampled 15 of 73 `localhost` findings.
+// 11/15 were a service-catalog data table (every entry IS supposed to be
+// loopback); 2/15 a log banner with a variable port and a function
+// parameter default; 2/15 REAL — a loopback probe at an actual fetch call
+// site missing the env override its siblings have.
+describe('HardcodedUrlModule — CONTROL PAIR (issue #633): data-table loopback is quiet, a fetch/redirect target still fires', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-hu-633-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('a data-table export of loopback health-check URLs is quiet', async () => {
+    write(tmp, 'src/service-registry-data.ts', [
+      'export const SERVICES = [',
+      '  { name: "api", url: "http://127.0.0.1:8080/health" },',
+      '  { name: "worker", url: "http://127.0.0.1:8081/health" },',
+      '];',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.deepStrictEqual(r.checks.filter((c) => c.name.startsWith('hardcoded-url:localhost:')), []);
+  });
+
+  it('`fetch("http://localhost:3000/api")` inside a route handler still fires', async () => {
+    write(tmp, 'src/routes/admin.ts', [
+      'app.get("/proxy", async (req, res) => {',
+      '  const r = await fetch("http://localhost:3000/api");',
+      '  res.json(await r.json());',
+      '});',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('hardcoded-url:localhost:'));
+    assert.ok(hit);
+    assert.strictEqual(hit.severity, 'error');
+  });
+
+  it('`https://api.example.com` fires whether inside a data table or a fetch call (non-loopback is never exempt)', async () => {
+    write(tmp, 'src/service-registry-data.ts', 'export const SERVICES = [{ url: "https://api.example.com/health" }];\n');
+    write(tmp, 'src/client.ts', 'fetch("https://api.example.com/health");\n');
+    const r = await run(tmp);
+    // Neither is localhost — both should surface as insecure-scheme is N/A
+    // (https), and neither is internal-tld/private-ip either: this asserts
+    // the ABSENCE of any silent "data table" exemption for a real host, by
+    // showing this rule genuinely has nothing to say about either (a real
+    // external host is simply not this rule's concern) — the point is that
+    // adding the data-table exemption did not accidentally widen to hosts
+    // it was never meant to touch.
+    assert.deepStrictEqual(r.checks.filter((c) => !c.passed && c.kind === 'localhost'), []);
+  });
+
+  it('a log banner with a variable port is quiet: `http://localhost:${port}`', async () => {
+    write(tmp, 'src/server.ts', [
+      'server.listen(0, () => {});',
+      'const port = server.address().port;',
+      'setTimeout(() => console.log(`Ready at http://localhost:${port}`), 1000);',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.deepStrictEqual(r.checks.filter((c) => c.name.startsWith('hardcoded-url:localhost:')), []);
+  });
+
+  it('a function parameter default of a loopback health-check URL is quiet', async () => {
+    write(tmp, 'src/probe.ts', 'function probe(url = "http://127.0.0.1:9000/health") { return fetch(url); }\n');
+    const r = await run(tmp);
+    assert.deepStrictEqual(r.checks.filter((c) => c.name.startsWith('hardcoded-url:localhost:')), []);
+  });
+
+  it('a loopback probe passed straight to fetch with no env override still fires, even beside a data table', async () => {
+    write(tmp, 'src/health-probes.ts', [
+      'export const PROBES = [{ name: "api", url: "http://127.0.0.1:8080/health" }];',
+      'async function checkSelf() {',
+      '  return fetch("http://127.0.0.1:9999/self-health");',
+      '}',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.name.startsWith('hardcoded-url:localhost:'));
+    assert.deepStrictEqual(hits.map((c) => c.line), [3], 'the data-table entry is quiet; the direct fetch call still fires');
+  });
+});

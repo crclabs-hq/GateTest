@@ -213,6 +213,41 @@ describe('ShellModule — eval + secrets', () => {
     assert.ok(r.checks.find((c) => c.name.startsWith('shell:eval-var:')));
   });
 
+  // issue #633 (2026-09-22): `run(){ eval "$@"; }` — the dry-run/verbose
+  // wrapper idiom — was reported 5x on one repo, 0 of them real: the
+  // shell has already tokenized "$@" into the caller's own argument
+  // vector, structurally different from eval'ing a single variable.
+  it('CONTROL PAIR (issue #633): `eval "$@"` (positional-params wrapper) is quiet; `eval "$CMD"` beside it still fires', async () => {
+    write(tmp, 'scripts/run.sh', [
+      '#!/usr/bin/env bash',
+      'run() { echo "+ $@"; eval "$@"; }',
+      'run "$CMD"',
+    ].join('\n'));
+    const r = await run(tmp);
+    const evals = r.checks.filter((c) => c.name.startsWith('shell:eval-var:'));
+    assert.strictEqual(evals.length, 0, JSON.stringify(evals));
+  });
+
+  it('`eval "${@}"` and `eval "$*"` are the same passthrough shape and stay quiet', async () => {
+    write(tmp, 's.sh', [
+      '#!/usr/bin/env bash',
+      'run_a() { eval "${@}"; }',
+      'run_b() { eval "$*"; }',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.filter((c) => c.name.startsWith('shell:eval-var:')).length, 0);
+  });
+
+  it('`eval "$@ extra"` (not a pure passthrough) and `eval "$1"` still fire', async () => {
+    write(tmp, 's.sh', [
+      '#!/usr/bin/env bash',
+      'eval "$@ extra"',
+      'eval "$1"',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(r.checks.filter((c) => c.name.startsWith('shell:eval-var:')).length, 2);
+  });
+
   it('errors on hardcoded AWS access key', async () => {
     write(tmp, 's.sh', [
       '#!/usr/bin/env bash',

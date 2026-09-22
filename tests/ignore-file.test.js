@@ -4,9 +4,12 @@
 // .gatetestignore — user-facing finding suppression (WS2, Craig 2026-07-11).
 // =============================================================================
 
-const { describe, it } = require('node:test');
+const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert');
-const { parse } = require('../src/core/ignore-file');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { parse, load } = require('../src/core/ignore-file');
 
 describe('ignore-file — module:rule matching', () => {
   it('module:rule suppresses exactly that rule in that module', () => {
@@ -179,5 +182,39 @@ describe('ignore-file — suggestLine round-trips through the matcher', () => {
 
   it('returns null without a module', () => {
     assert.strictEqual(suggestLine({ name: 'x' }), null);
+  });
+});
+
+// KI #112 G4 (issue #633): `.gatetest.json`'s `ignore` array is not a second
+// matcher — it feeds the SAME parser as `.gatetestignore`, via load()'s
+// second argument.
+describe('ignore-file — load() merges .gatetest.json\'s `ignore` array (KI #112 G4)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ignore-load-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('extraLines alone suppress, with no .gatetestignore file present at all', () => {
+    const m = load(tmp, ['secrets:apiKey']);
+    assert.equal(m.matches({ module: 'secrets', ruleKey: 'secrets:apiKey', file: 'a.js' }), true);
+  });
+
+  it('.gatetestignore and config extraLines combine — either suppresses', () => {
+    fs.writeFileSync(path.join(tmp, '.gatetestignore'), 'lint:todoComment\n');
+    const m = load(tmp, ['secrets:apiKey']);
+    assert.equal(m.matches({ module: 'lint', ruleKey: 'lint:todoComment', file: 'a.js' }), true, 'file rule still works');
+    assert.equal(m.matches({ module: 'secrets', ruleKey: 'secrets:apiKey', file: 'a.js' }), true, 'config rule also works');
+    assert.equal(m.matches({ module: 'secrets', ruleKey: 'secrets:other', file: 'a.js' }), false);
+  });
+
+  it('no file, no extraLines → empty matcher, nothing suppressed', () => {
+    const m = load(tmp, []);
+    assert.equal(m.isEmpty, true);
+    assert.equal(m.matches({ module: 'secrets', ruleKey: 'secrets:apiKey', file: 'a.js' }), false);
+  });
+
+  it('non-array / undefined extraLines is tolerated (defensive callers)', () => {
+    fs.writeFileSync(path.join(tmp, '.gatetestignore'), 'secrets:apiKey\n');
+    const m = load(tmp, undefined);
+    assert.equal(m.matches({ module: 'secrets', ruleKey: 'secrets:apiKey', file: 'a.js' }), true);
   });
 });

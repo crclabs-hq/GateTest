@@ -121,8 +121,11 @@ describe('ResourceLeakModule — setInterval', () => {
   afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
 
   it('errors on bare setInterval with discarded return value', async () => {
+    // Named to avoid the process-entrypoint carve-out (issue #633) so this
+    // stays a plain "still fires" control test — see the dedicated
+    // "process-entrypoint setInterval carve-out" describe block below.
     write(tmp, 'src/a.ts', [
-      'function start() {',
+      'function pollOnce() {',
       '  setInterval(() => console.log("tick"), 1000);',
       '}',
       '',
@@ -135,7 +138,7 @@ describe('ResourceLeakModule — setInterval', () => {
 
   it('warns on captured setInterval that is never cleared', async () => {
     write(tmp, 'src/a.ts', [
-      'function start() {',
+      'function pollOnce() {',
       '  const h = setInterval(() => console.log("tick"), 1000);',
       '  console.log("started", h);',
       '}',
@@ -149,7 +152,7 @@ describe('ResourceLeakModule — setInterval', () => {
 
   it('does NOT flag setInterval that is cleared', async () => {
     write(tmp, 'src/a.ts', [
-      'function start() {',
+      'function pollOnce() {',
       '  const h = setInterval(() => console.log("tick"), 1000);',
       '  setTimeout(() => clearInterval(h), 60000);',
       '}',
@@ -171,6 +174,89 @@ describe('ResourceLeakModule — setInterval', () => {
     const r = await run(tmp);
     const leaks = r.checks.filter((c) => c.passed === false);
     assert.strictEqual(leaks.length, 0);
+  });
+});
+
+/**
+ * Issue #633 (Tallrig false-positive report, 2026-09-22): 19/19 findings
+ * from this module were setInterval calls inside process-lifetime daemon
+ * entrypoints (start/startServer/main/etc.) — intervals that are meant to
+ * run for the entire life of the process, so there is no shorter scope for
+ * them to leak past. The control pair: a plain function unrelated to
+ * process startup (`pollOnce`, tested above) must keep firing at full
+ * severity; only the entrypoint-shaped names downgrade.
+ */
+describe('ResourceLeakModule — process-entrypoint setInterval carve-out (issue #633)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-rl-entry-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('downgrades a bare setInterval inside function main()', async () => {
+    write(tmp, 'src/a.ts', [
+      'function main() {',
+      '  setInterval(() => console.log("tick"), 1000);',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('resource-leak:setinterval:'));
+    assert.ok(hit);
+    assert.notStrictEqual(hit.severity, 'error');
+  });
+
+  it('downgrades a bare setInterval inside function startServer()', async () => {
+    write(tmp, 'src/a.ts', [
+      'function startServer() {',
+      '  setInterval(() => console.log("heartbeat"), 5000);',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('resource-leak:setinterval:'));
+    assert.ok(hit);
+    assert.notStrictEqual(hit.severity, 'error');
+  });
+
+  it('downgrades a captured-but-uncleared setInterval inside function bootstrap()', async () => {
+    write(tmp, 'src/a.ts', [
+      'function bootstrap() {',
+      '  const h = setInterval(() => console.log("poll"), 1000);',
+      '  console.log("bootstrapped", h);',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('resource-leak:uncleared-interval:'));
+    assert.ok(hit);
+    assert.notStrictEqual(hit.severity, 'warning');
+  });
+
+  it('does NOT downgrade a setInterval inside an unrelated function whose name merely contains "start"', async () => {
+    // Whole-word match only — `startupCheck` must not be treated as an
+    // entrypoint just because it shares a prefix with `start`.
+    write(tmp, 'src/a.ts', [
+      'function startupCheck() {',
+      '  setInterval(() => console.log("tick"), 1000);',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('resource-leak:setinterval:'));
+    assert.ok(hit);
+    assert.strictEqual(hit.severity, 'error');
+  });
+
+  it('CONTROL: an ordinary per-request function called `pollOnce` with no clearInterval still fires at full severity', async () => {
+    write(tmp, 'src/a.ts', [
+      'function pollOnce() {',
+      '  setInterval(() => console.log("tick"), 1000);',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('resource-leak:setinterval:'));
+    assert.ok(hit);
+    assert.strictEqual(hit.severity, 'error');
   });
 });
 

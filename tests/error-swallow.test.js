@@ -382,7 +382,13 @@ describe('ErrorSwallowModule — log-and-eat', () => {
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-es-log-')); });
   afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
 
-  it('errors on catch that only console.errors', async () => {
+  // WARNING, not ERROR (issue #633, 2026-09-22): Tallrig sampled 20 of 134
+  // error-swallow findings on their monorepo — 12 were this exact shape,
+  // used ON PURPOSE (bootstrap-admin.ts:100 warns then continues by
+  // design), at what was BLOCKING severity. A logged swallow is visible in
+  // production logs; a bare/undefined one (below) has NO trace at all and
+  // stays blocking — the two are not the same risk.
+  it('WARNS (not blocks) on catch that only console.errors', async () => {
     write(tmp, 'src/a.js', [
       'async function run() {',
       '  try {',
@@ -396,7 +402,7 @@ describe('ErrorSwallowModule — log-and-eat', () => {
     const r = await run(tmp);
     const hit = r.checks.find((c) => c.name.startsWith('error-swallow:log-and-eat:'));
     assert.ok(hit);
-    assert.strictEqual(hit.severity, 'error');
+    assert.strictEqual(hit.severity, 'warning');
   });
 
   it('does NOT flag catch that logs AND rethrows', async () => {
@@ -1164,5 +1170,57 @@ describe('ErrorSwallowModule — one stripper (control pair)', () => {
     const flagged = r.checks.filter((c) => !c.passed && /^error-swallow:/.test(c.name));
     assert.deepStrictEqual(flagged.map((c) => c.name), ['error-swallow:empty-catch:src/svc.js:4']);
     assert.strictEqual(flagged[0].severity, 'error');
+  });
+});
+
+// Issue #633 (2026-09-22): Tallrig sampled 20 of 134 error-swallow findings
+// against their code. 6/20 were real (an empty/undefined `.catch()` on a
+// write that matters); 12/20 were the log-and-eat idiom used on purpose
+// (now WARNING, see above); 2/20 were a caught value that IS the signal,
+// validated downstream — a false positive this module never actually
+// produces (assignment isn't a log call and isn't empty, so neither
+// `empty-catch` nor `log-and-eat` matches it — pinned here as a control).
+describe('ErrorSwallowModule — CONTROL PAIR (issue #633): empty stays blocking, logged is a warning, checked-downstream is quiet', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-es-633-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('`.catch(() => {})` — no trace at all — still blocks', async () => {
+    write(tmp, 'src/billing.js', 'meterUsage(id).catch(() => {});\nmodule.exports = {};\n');
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('error-swallow:catch-noop:'));
+    assert.ok(hit);
+    assert.strictEqual(hit.severity, 'error');
+  });
+
+  it('`.catch((e) => { logger.warn(e); })` — logged, not lost — is a WARNING, not blocking', async () => {
+    write(tmp, 'src/billing.js', 'meterUsage(id).catch((e) => { logger.warn(e); });\nmodule.exports = {};\n');
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('error-swallow:log-and-eat:'));
+    assert.ok(hit, 'a logged .catch() handler is now recognised as log-and-eat');
+    assert.strictEqual(hit.severity, 'warning');
+    const noop = r.checks.find((c) => c.name.startsWith('error-swallow:catch-noop:'));
+    assert.strictEqual(noop, undefined, 'not double-reported as catch-noop');
+  });
+
+  it('`catch (e) { result = null } … if (result === null) …` — the caught value IS the signal, checked downstream — quiet', async () => {
+    write(tmp, 'src/deploy-supervisor.js', [
+      'function run() {',
+      '  let result;',
+      '  try {',
+      '    result = attempt();',
+      '  } catch (e) {',
+      '    result = null;',
+      '  }',
+      '  if (result === null) {',
+      '    return fallback();',
+      '  }',
+      '  return result;',
+      '}',
+      'module.exports = { run };',
+    ].join('\n'));
+    const r = await run(tmp);
+    const flagged = r.checks.filter((c) => !c.passed && /^error-swallow:/.test(c.name));
+    assert.deepStrictEqual(flagged, [], 'an assignment the caller checks is not a swallow at all');
   });
 });

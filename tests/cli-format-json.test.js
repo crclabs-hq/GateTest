@@ -233,6 +233,28 @@ describe('buildJsonOutput', () => {
     assert.match(summaryLine({ scope: 'x', gateStatus: 'PASSED', counts: { errors: 0, warnings: 0, notes: 0 }, modules: { total: 0 }, nothingChecked: true }), /no source files/);
   });
 
+  it('modules.list carries per-module durationMs (KI #112 G3, issue #633: --json had only whole-run duration)', () => {
+    const withTimings = {
+      ...summary,
+      results: [
+        { module: 'secrets', status: 'failed', duration: 842, checks: summary.results[0].checks },
+        { module: 'codeQuality', status: 'passed', duration: 1911, checks: summary.results[1].checks },
+      ],
+    };
+    const doc = buildJsonOutput(withTimings, { projectRoot: root, suite: 'quick', files: null, exitCode: 1, reportPath: null });
+    assert.deepEqual(doc.modules.list, [
+      { module: 'secrets', status: 'failed', durationMs: 842 },
+      { module: 'codeQuality', status: 'passed', durationMs: 1911 },
+    ]);
+    // Still keyed off the same aggregate counts as before — additive, not a replacement.
+    assert.equal(doc.modules.total, 3);
+  });
+
+  it('modules.list is [] when the summary carries no results array (defensive, never throws)', () => {
+    const doc = buildJsonOutput({ ...summary, results: undefined }, { projectRoot: root, suite: 'quick', exitCode: 1 });
+    assert.deepEqual(doc.modules.list, []);
+  });
+
   it('scanExitCode is the one gate rule both output modes share', () => {
     assert.equal(scanExitCode({ gateStatus: 'PASSED' }), 0);
     assert.equal(scanExitCode({ gateStatus: 'BLOCKED' }), 1);
