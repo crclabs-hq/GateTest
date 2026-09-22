@@ -93,6 +93,25 @@ const SUPPRESS_RE = /\bmoney-float-ok\b/;
 const MONEY_NAME_RE =
   /\b(price|amount|total|cost|fee|tax|subtotal|balance|payment|charge|refund|credit|debit|salary|wage|rent|bill|invoice|revenue|profit|margin|discount|coupon|tip|gratuity|usd|eur|gbp|jpy|cad|aud|nzd|chf|dollar|dollars|euro|euros|pound|pounds|yen|yuan|rupee|peso|cents?)s?\b/i;
 
+// #666: `money-float:arithmetic` fired on a duration parser
+// (`apps/api/src/automation/freshness.ts:351`, seconds only, no money
+// anywhere in the file) because several MONEY_NAME_RE words (`cost`,
+// `charge`, `credit`, `discount`, currency codes, ...) double as ordinary
+// English outside a money domain. This narrower list is the money-CONTEXT
+// signal: bare mul/div arithmetic (the shape with no cast and no compound
+// accumulator, `price * 1.15`) now also requires one of these words —
+// unambiguous even alone — or a money-typed import to appear somewhere in
+// the file before it fires. `stripe` covers importing a payment SDK
+// directly; `MONEY_TYPED_IMPORT_RE` covers a shared `Money` type instead.
+// Deliberately narrower than MONEY_NAME_RE: this is corroboration, not the
+// trigger, so the overloaded words above must not satisfy it on their own.
+const MONEY_CONTEXT_RE = /\b(price|amount|cents?|currency|total|invoice|payment|balance|fee|tax|stripe)\b/i;
+const MONEY_TYPED_IMPORT_RE = /\bimport\b[^;\n]{0,120}\bMoney\b|:\s*Money(?:\[\])?\b/;
+
+function hasMoneyContext(text) {
+  return MONEY_CONTEXT_RE.test(text) || MONEY_TYPED_IMPORT_RE.test(text);
+}
+
 // A handful of MONEY_NAME_RE entries double as plain accumulator/counter
 // names in non-money contexts (`all.total += 1`, `total += items.length`,
 // a running `balance` of unrelated items, a loop `credit`/`margin` counter).
@@ -325,12 +344,17 @@ class MoneyFloatModule extends BaseModule {
     // that replaced it could not see a template literal or a block comment
     // that started on an earlier line; the whole-file mask can (2026-09-05).
     const masked = this._maskedLines(text);
+    // #666: computed once per file — a money-named import, type or
+    // identifier anywhere in the file (or, transitively, in any function in
+    // it) corroborates the bare mul/div arithmetic rule below. See
+    // MONEY_CONTEXT_RE for why this list is narrower than MONEY_NAME_RE.
+    const fileHasMoneyContext = hasMoneyContext(text);
     let issues = 0;
 
     for (let i = 0; i < lines.length; i += 1) {
       const code = masked[i] || '';
       if (!code.trim() || this._suppressed(lines, i)) continue;
-      const at = { rel, line: i + 1, sev };
+      const at = { rel, line: i + 1, sev, fileHasMoneyContext };
       if (!hasLibrary) {
         issues += this._castRule(code, at, result);
         issues += this._arithmeticRule(code, at, result);
@@ -403,6 +427,12 @@ class MoneyFloatModule extends BaseModule {
     }
     const mArith = JS_MONEY_MULDIV_RE.exec(code);
     if (!mArith || !MONEY_NAME_RE.test(mArith[1])) return 0;
+    // #666: bare mul/div (no cast, no compound accumulator) is the shape a
+    // unit-conversion helper uses too (`seconds * 60`, `ms / 1000`) — unlike
+    // the compound-assign accumulator above, a single arithmetic expression
+    // is not on its own strong enough evidence of money without some other
+    // money-named identifier, import or type in the file.
+    if (!at.fileHasMoneyContext) return 0;
     const opIdx = code.indexOf(mArith[2], mArith.index + mArith[1].length);
     const isRegexLiteralTail = mArith[2] === '/' && REGEX_LITERAL_TAIL_RE.test(code.slice(opIdx + 1));
     const generic = isGenericMoneyName(mArith[1]);

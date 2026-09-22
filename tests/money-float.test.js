@@ -195,6 +195,82 @@ describe('MoneyFloatModule — plain arithmetic on a money-named identifier', ()
   });
 });
 
+// #666: money-float:arithmetic fired on a duration parser
+// (apps/api/src/automation/freshness.ts:351, seconds only, no money
+// anywhere in the file) — several MONEY_NAME_RE words double as ordinary
+// English outside a money domain. Bare mul/div now also requires a money
+// context word/import/type somewhere in the file.
+describe('MoneyFloatModule — #666: bare mul/div arithmetic requires money context', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-mf-ctx-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  const arith = (r) => r.checks.filter((c) => !c.passed && c.name.startsWith('money-float:arithmetic:'));
+
+  it('does NOT fire on a duration parser (`* 60`, `/ 1000`) with no money anywhere in the file', async () => {
+    write(tmp, 'src/freshness.ts', [
+      'function parseDurationCost(rawSeconds) {',
+      '  const ms = rawSeconds * 1000;',
+      '  const cost = ms / 60;',
+      '  return cost * 60;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.deepStrictEqual(arith(r).map((c) => c.name), [], 'a duration parser must not be reported as money arithmetic');
+  });
+
+  it('fires on `price * 1.15` in a file that imports a payment client', async () => {
+    write(tmp, 'src/checkout.js', [
+      "const { StripeClient } = require('./payment-client');",
+      '',
+      'function withTax(price) {',
+      '  return price * 1.15;',
+      '}',
+      '',
+      'module.exports = { withTax, StripeClient };',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = arith(r)[0];
+    assert.ok(hit, 'expected a money-float:arithmetic finding');
+    assert.strictEqual(hit.variable, 'price');
+  });
+
+  // Bonus control: the "money-typed import" alternative from the fix, using
+  // a word (`cost`) that is NOT itself in the narrower context list, so the
+  // finding can only fire because of the `Money`-typed import.
+  it('fires via a `Money`-typed import even when the flagged word (`cost`) is not itself a context word', async () => {
+    write(tmp, 'src/ledger.ts', [
+      "import type { Money } from '../types/finance';",
+      '',
+      'function scale(cost: Money) {',
+      '  return cost * 1.2;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = arith(r)[0];
+    assert.ok(hit, 'expected a money-float:arithmetic finding via the Money-typed import');
+    assert.strictEqual(hit.variable, 'cost');
+  });
+
+  it('specific names like `cost` still fire alone, uncorroborated, via compound-assign (unaffected by the mul/div context gate)', async () => {
+    // Same fixture as the pre-existing "fire alone, uncorroborated" test —
+    // proves the #666 context gate is scoped to bare mul/div and does not
+    // regress the compound-assign accumulator path.
+    write(tmp, 'src/a.js', [
+      'function bump(order) {',
+      '  order.cost += 1;',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = arith(r)[0];
+    assert.ok(hit, 'specific money name via compound-assign must still fire without a second identifier');
+    assert.strictEqual(hit.variable, 'cost');
+  });
+});
+
 describe('MoneyFloatModule — generic accumulator names require corroboration', () => {
   let tmp;
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-mf-generic-')); });
