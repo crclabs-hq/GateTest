@@ -1,4 +1,10 @@
 import { APP_SLUG, appInstallUrl } from "../../lib/github-app-permissions";
+import { VSCODE_MARKETPLACE_URL } from "../../lib/distribution";
+import { TOOL_COUNT } from "../../mcp/tools-data";
+
+// The extension id is read back out of the one Marketplace URL definition
+// (tests/github-app-identity.test.js forbids the literal anywhere else).
+const VSCODE_EXTENSION_ID = new URL(VSCODE_MARKETPLACE_URL).searchParams.get("itemName") ?? "";
 
 /**
  * Where the same engine runs. A table, because the reader is comparing
@@ -9,8 +15,8 @@ const ROWS = [
   { where: "GitHub App", id: `github.com/apps/${APP_SLUG}`, price: "free gate on every push", out: "commit status, PR comment", href: appInstallUrl() },
   { where: "GitHub Action", id: "uses: crclabs-hq/GateTest@v1", price: "free, public and private", out: "gate, SARIF, JUnit, baseline", href: "https://github.com/marketplace/actions/gatetest-quality-gate" },
   { where: "Terminal", id: "npx -p @gatetest/cli gatetest --suite quick", price: "free, offline, MIT", out: "verdict, exit code, JSON", href: "https://www.npmjs.com/package/@gatetest/cli" },
-  { where: "VS Code / Open VSX", id: "GateTestHQ.gatetest", price: "free, nothing leaves the machine", out: "findings in the Problems panel", href: "https://marketplace.visualstudio.com/items?itemName=GateTestHQ.gatetest" },
-  { where: "AI agent (MCP)", id: "npx @gatetest/mcp-server", price: "free on your own keys", out: "24 tools: scan, explain, fix, run tests, verify", href: "/mcp" },
+  { where: "VS Code / Open VSX", id: VSCODE_EXTENSION_ID, price: "free, nothing leaves the machine", out: "findings in the Problems panel", href: VSCODE_MARKETPLACE_URL },
+  { where: "AI agent (MCP)", id: "npx @gatetest/mcp-server", price: "free on your own keys", out: `${TOOL_COUNT} tools: scan, explain, fix, run tests, verify`, href: "/mcp" },
   { where: "GitLab / CircleCI", id: "gatetest --ci-init gitlab | circleci", price: "free", out: "a complete pipeline file", href: "/quickstart" },
   { where: "Any live site", id: "gatetest --crawl https://example.com", price: "free preview, no repo", out: "headers, TLS, links, a11y, SEO per page", href: "/web" },
 ];
