@@ -16,10 +16,23 @@
  * Actions badge convention every other badge on the internet already
  * follows.
  *
- * No scan on record → a neutral grey "not scanned" badge, never an error
- * (a broken badge image in someone's README is worse than an honest
- * "not scanned" — same "false positive is worse than a missed issue"
- * spirit as the rest of this session's false-positive-elimination work).
+ * No scan on record → a neutral grey badge, never an error (a broken badge
+ * image in someone's README is worse than an honest gap — same "false
+ * positive is worse than a missed issue" spirit as the rest of this
+ * session's false-positive-elimination work).
+ *
+ * issue #651 (N2 partial, Tallrig re-walk 2 on #647): this used to claim
+ * the repo had never been scanned, even for one the free scan at
+ * /playground had just graded a minute earlier. That reads as the badge
+ * (and by extension GateTest) being broken. The honest fix is NOT reading
+ * the free scan's grade — playground scans have nowhere server-side to
+ * read it from: the share/permalink `?s=` mechanism in playground/page.tsx
+ * encodes the whole result into the URL client-side (base64 JSON, see
+ * encodeShareData there), and neither playground/scan/route.ts nor its
+ * /stream sibling writes a row to `scans` or anywhere else — there is no
+ * free-scan store this route could read even if it wanted to. So the badge
+ * copy says what is actually true: a free scan doesn't produce a badge,
+ * and getting one needs an account scan.
  *
  * Cached 5 minutes (CDN + browser) — badges render on every README page
  * view; no need to hit the DB more than that.
@@ -32,13 +45,14 @@ import { siteUrl } from "@/app/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
-function notScannedBadge(owner: string, repo: string): string {
+function needsAccountScanBadge(owner: string, repo: string): string {
   return renderBadge(
     [
       { text: "GateTest", bg: "#555" },
-      { text: "not scanned", bg: "#9ca3af" },
+      { text: "needs account scan", bg: "#9ca3af" },
     ],
-    `GateTest: ${owner}/${repo} has not been scanned yet — ${siteUrl('/playground')}`
+    `GateTest: ${owner}/${repo} has no account scan on record — a free scan at ` +
+      `${siteUrl('/playground')} does not appear on a badge; run an account scan for one`
   );
 }
 
@@ -56,7 +70,7 @@ export async function GET(
   };
 
   if (!owner || !repo) {
-    return new NextResponse(notScannedBadge(owner || "?", repo || "?"), { headers });
+    return new NextResponse(needsAccountScanBadge(owner || "?", repo || "?"), { headers });
   }
 
   try {
@@ -72,7 +86,7 @@ export async function GET(
     `;
 
     if (rows.length === 0) {
-      return new NextResponse(notScannedBadge(owner, repo), { headers });
+      return new NextResponse(needsAccountScanBadge(owner, repo), { headers });
     }
 
     const scan = rows[0] as { score: number; results: Array<{ issues?: number }> | null; completed_at: string | null };
@@ -95,6 +109,6 @@ export async function GET(
   } catch {
     // DB unavailable (DATABASE_URL unset, connection error, etc.) — same
     // honest fallback as "no scan on record", never a broken image.
-    return new NextResponse(notScannedBadge(owner, repo), { headers });
+    return new NextResponse(needsAccountScanBadge(owner, repo), { headers });
   }
 }
