@@ -8,9 +8,15 @@
  *
  * Event types:
  *   event: start          { targetUrl, scanId, suite }
- *   event: module:start   { module, name }
- *   event: module:end     { module, name, errors, warnings, info, duration }
- *   event: module:skip    { module, name, reason }
+ *   event: module:start   { module }
+ *   event: module:end     { module, status: "checked", errors, warnings, info, duration }
+ *                      or  { module, status: "not-checked", reason, duration }
+ *                          `status`/`reason` are issue #648 items 1+2: a
+ *                          module whose own `_notChecked` check fired emits
+ *                          `not-checked` here — never a clean tick — and
+ *                          `reason` is that check's own message, never
+ *                          web-runtime-gate.js's runtime-dispatch reason.
+ *   event: module:skip    { module, skipped }
  *   event: complete       <full ScanResult JSON>
  *   event: error          { error }
  *
@@ -50,8 +56,8 @@ interface StreamRequest {
   sessionId?: string;
 }
 
-interface RawCheck { name: string; severity?: string; passed: boolean; message?: string }
-interface RawResult { module?: string; name?: string; checks?: RawCheck[]; errors?: number; warnings?: number; info?: number; duration?: number; skipped?: string }
+interface RawCheck { name: string; severity?: string; passed: boolean; message?: string; notChecked?: boolean }
+interface RawResult { module?: string; name?: string; checks?: RawCheck[]; errors?: number; warnings?: number; infoFindings?: number; info?: number; duration?: number; skipped?: string; toJSON?: () => RawResult }
 interface RawSummary { results?: RawResult[]; gateStatus?: string; totalErrors?: number; totalWarnings?: number }
 
 interface WebFinding {
@@ -243,15 +249,50 @@ export async function POST(req: NextRequest) {
             // Forward only the lightweight per-module events to the SSE
             // stream. Full suite:end carries the entire summary which we
             // process locally below.
-            if (event === "module:start" || event === "module:end" || event === "module:skip") {
-              const p = payload as { module?: string; name?: string; errors?: number; warnings?: number; info?: number; duration?: number; skipped?: string };
+            if (event === "module:start" || event === "module:skip") {
+              const p = payload as { module?: string; name?: string; skipped?: string };
+              send(event, { module: p.module || p.name || "unknown", skipped: p.skipped });
+              return;
+            }
+            if (event === "module:end") {
+              // `payload` is the runner's live TestResult instance, not its
+              // toJSON() shape — reading `.errors`/`.warnings` straight off
+              // it (the old code) always read `undefined`, so every module
+              // ticked "clean" in the live list no matter what it actually
+              // found or whether it ran at all (issue #648 item 1: the
+              // stream contradicted the final card). `.toJSON()` is the one
+              // place that has real numbers AND the raw `checks` array with
+              // each check's own `notChecked` flag — the exact shape
+              // `deriveModuleCoverage()` below reads off `summary.results`.
+              const raw = payload as { toJSON?: () => RawResult };
+              const p: RawResult = typeof raw.toJSON === "function" ? raw.toJSON() : (payload as RawResult);
+              const moduleName = p.module || p.name || "unknown";
+              const checks = Array.isArray(p.checks) ? p.checks : [];
+              const notCheckedCheck = checks.find((c) => c && c.notChecked === true);
+              if (notCheckedCheck) {
+                send(event, {
+                  module: moduleName,
+                  status: "not-checked",
+                  // Issue #648 item 2: this reason is the module's OWN
+                  // `_notChecked()` message (BaseModule) — never
+                  // web-runtime-gate.js's dispatch-reason vocabulary
+                  // ("not-configured" etc). Those describe a separate
+                  // decision (whether the real-browser runtime pass was
+                  // dispatched to the platform worker), not why THIS
+                  // module — a file-scanner with no live-URL mode yet —
+                  // never looked at anything on this scan.
+                  reason: notCheckedCheck.message || "not checked",
+                  duration: p.duration,
+                });
+                return;
+              }
               send(event, {
-                module: p.module || p.name || "unknown",
+                module: moduleName,
+                status: "checked",
                 errors: p.errors,
                 warnings: p.warnings,
-                info: p.info,
+                info: p.infoFindings,
                 duration: p.duration,
-                skipped: p.skipped,
               });
             }
           },
@@ -296,7 +337,7 @@ export async function POST(req: NextRequest) {
           };
         };
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { computeHealthScore, deriveModuleCoverage } = require("@/app/lib/health-score") as {
+        const { computeHealthScore, deriveModuleCoverage, deriveFreeCheckNames, LIVE_URL_MODULES } = require("@/app/lib/health-score") as {
           computeHealthScore: (
             clusters: Array<{ severity: string; isHighSignal: boolean; count: number; ruleKey?: string }>,
             moduleCoverage?: { totalModules: number; checkedModules: number; notChecked: Array<{ module: string; reason: string }> },
@@ -305,6 +346,8 @@ export async function POST(req: NextRequest) {
             coverage?: { totalModules: number; checkedModules: number; notCheckedModules: string[] };
           };
           deriveModuleCoverage: (results: RawResult[]) => { totalModules: number; checkedModules: number; notChecked: Array<{ module: string; reason: string }> };
+          deriveFreeCheckNames: (results: RawResult[], liveModules?: string[]) => Array<{ module: string; status: 'checked' | 'not-checked'; reason?: string; duration?: number; checks: Array<{ name: string; passed: boolean; severity: string }> }>;
+          LIVE_URL_MODULES: string[];
         };
 
         const clusterResult = clusterAndRankUrlFindings(allFindings);
@@ -315,6 +358,9 @@ export async function POST(req: NextRequest) {
         // says, in the same sentence, what it did and did not measure.
         const moduleCoverage = deriveModuleCoverage(summary.results || []);
         const healthScore = computeHealthScore(clusterResult.clusters, moduleCoverage);
+        // Issue #648 item 4: check NAMES for the four live-URL modules are
+        // free — only the fix guidance (findings[].body) stays paywalled.
+        const moduleChecks = deriveFreeCheckNames(summary.results || [], LIVE_URL_MODULES);
 
         const PREVIEW_LIMIT = 3;
         const isPreview = !fullReport;
@@ -343,6 +389,9 @@ export async function POST(req: NextRequest) {
           totalModules: moduleCoverage.totalModules,
           checkedModules: moduleCoverage.checkedModules,
           notCheckedModules: moduleCoverage.notChecked.map((n) => n.module),
+          // Free regardless of `preview` — check NAMES are not the paid
+          // part, only the fix guidance in `findings[].body` is (item 4).
+          moduleChecks,
           // ONE decision with /api/web/scan: dispatch only when fully configured,
           // otherwise an explicit reason code — never a silent default (KI #111).
           runtime: await gateRuntimeScan({ scanId, targetUrl, suite: "web" }),
