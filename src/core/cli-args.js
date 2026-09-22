@@ -124,6 +124,7 @@ const FLAG_SPEC = [
   { flags: ['--file', '--files'], key: 'files', type: 'append', split: ',' },
 
   { flags: ['--crawl-max'], key: 'crawlMax', type: 'int' },
+  { flags: ['--crawl-page-timeout'], key: 'crawlPageTimeout', type: 'int' },
   { flags: ['--monitor-interval'], key: 'monitorInterval', type: 'int' },
   { flags: ['--confidence-threshold'], key: 'confidenceThreshold', type: 'float01' },
 ];

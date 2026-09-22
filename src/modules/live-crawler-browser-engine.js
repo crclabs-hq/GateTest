@@ -17,9 +17,9 @@ const RENDERED_ERROR_PATTERNS = [
 
 async function crawlWithBrowser(playwright, ctx) {
   const {
-    baseUrl, maxPages, timeout, checkExternal,
+    baseUrl, maxPages, timeout, pageTimeout, checkExternal,
     visited, pages, errors, brokenLinks, brokenImages, queue,
-    redirects, auth,
+    redirects, timedOutPages, auth,
   } = ctx;
 
   const browser = await playwright.chromium.launch({ headless: true });
@@ -70,8 +70,12 @@ async function crawlWithBrowser(playwright, ctx) {
       if (!url || visited.has(url)) continue;
       visited.add(url);
 
+      const pageStartedAt = Date.now();
       try {
-        const response = await page.goto(url, { timeout, waitUntil: 'networkidle' });
+        // Same per-page budget as the HTTP engine (live-crawler.js's
+        // pageTimeout, one definition) — a page that never settles must not
+        // consume the module's whole wall-clock ceiling on its own.
+        const response = await page.goto(url, { timeout: pageTimeout, waitUntil: 'networkidle' });
         const status = response?.status() || 0;
         const body = await page.content();
         pages.push({ url, status, body });
@@ -151,7 +155,13 @@ async function crawlWithBrowser(playwright, ctx) {
         }
 
       } catch (err) {
-        errors.push({ url, type: 'fetch-error', message: `Failed to load: ${err.message}` });
+        const isTimeout = err && (err.name === 'TimeoutError' || /timeout.*exceeded/i.test(err.message || ''));
+        if (isTimeout && timedOutPages) {
+          const elapsedMs = Date.now() - pageStartedAt;
+          timedOutPages.push({ url, elapsedMs, message: `Page load timed out after ${elapsedMs}ms (budget ${pageTimeout}ms)` });
+        } else {
+          errors.push({ url, type: 'fetch-error', message: `Failed to load: ${err.message}` });
+        }
       }
     }
 
