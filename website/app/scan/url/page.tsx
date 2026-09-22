@@ -265,6 +265,18 @@ function UrlScanInner() {
               </div>
             </div>
 
+            {/* Issue #643 / Voice rule 6 — state the limit in the same
+                breath as the claim: this is a shallow header/HTML probe,
+                not the 121-module engine, and the hosted scan is right
+                there for anyone who wants the real thing. */}
+            <p className="text-xs text-muted text-center sm:text-left">
+              10 quick checks on the fetched page, not the full engine.{" "}
+              <Link href="/web" className="underline hover:no-underline">
+                Run the hosted web scan
+              </Link>{" "}
+              for the full engine.
+            </p>
+
             {/* Score legend */}
             {result.summary.critical > 0 && (
               <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-800 leading-relaxed">

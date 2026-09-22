@@ -144,6 +144,63 @@ const PY_FRAMEWORK_DEFAULTS_RE = /(?:^|\/)(?:global_settings|default_settings|se
 // in the DOM regardless. Written out explicitly it is worth a look, not a gate.
 const PY_CSRF_HTTPONLY_SETTING = 'CSRF_COOKIE_HTTPONLY';
 
+/** Every `Set-Cookie` header on a fetched response — a WHATWG `Headers`
+ *  (`.getSetCookie()`, falling back to `.get()` for a single value on older
+ *  runtimes) or a plain `{ 'set-cookie': string | string[] }` object. */
+function _getSetCookies(headers) {
+  if (!headers) return [];
+  if (typeof headers.getSetCookie === 'function') return headers.getSetCookie();
+  if (typeof headers.get === 'function') {
+    const v = headers.get('set-cookie');
+    return v ? [v] : [];
+  }
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === 'set-cookie');
+  if (!key) return [];
+  const v = headers[key];
+  return Array.isArray(v) ? v : [v];
+}
+
+/**
+ * Live-response equivalent of the static `httpOnly:false` / `secure:false`
+ * rules: read the ACTUAL `Set-Cookie` flags from one already-fetched
+ * response instead of source. Exported so `/api/scan/url` and the hosted
+ * web scan share one definition (Doctrine §4).
+ *
+ * @param {unknown} headers
+ * @returns {Array<{id:string, severity:'error'|'warning'|'info', message:string, suggestion:string}>}
+ */
+function liveCookieChecks(headers) {
+  const findings = [];
+  const cookies = _getSetCookies(headers);
+  for (const raw of cookies) {
+    if (typeof raw !== 'string' || !raw) continue;
+    const name = (raw.split('=')[0] || 'cookie').trim() || 'cookie';
+    const hasSecure = /;\s*Secure\b/i.test(raw);
+    if (!/;\s*HttpOnly\b/i.test(raw)) {
+      findings.push({
+        id: `live-httponly-missing:${name}`, severity: 'warning',
+        message: `Cookie "${name}" has no HttpOnly flag on the live response — readable from JS; an XSS bug becomes session takeover`,
+        suggestion: `Add the HttpOnly flag: Set-Cookie: ${name}=...; HttpOnly; Secure; SameSite=Lax`,
+      });
+    }
+    if (!hasSecure) {
+      findings.push({
+        id: `live-secure-missing:${name}`, severity: 'warning',
+        message: `Cookie "${name}" has no Secure flag on the live response — can be sent over plain HTTP`,
+        suggestion: `Add the Secure flag: Set-Cookie: ${name}=...; HttpOnly; Secure; SameSite=Lax`,
+      });
+    }
+    if (/;\s*SameSite\s*=\s*None/i.test(raw) && !hasSecure) {
+      findings.push({
+        id: `live-samesite-none-insecure:${name}`, severity: 'warning',
+        message: `Cookie "${name}" sets SameSite=None without Secure — browsers reject or drop this combination`,
+        suggestion: 'Pair SameSite=None with the Secure flag.',
+      });
+    }
+  }
+  return findings;
+}
+
 class CookieSecurityModule extends BaseModule {
   constructor() {
     super(
@@ -153,7 +210,20 @@ class CookieSecurityModule extends BaseModule {
   }
 
   async run(result, config) {
-    const projectRoot = (config && config.projectRoot) || process.cwd();
+    // Hosted URL scan: the route fetched the page once and shared the
+    // response headers via config.livePage — Set-Cookie flags (HttpOnly /
+    // Secure / SameSite) are visible there without any source to read.
+    if (config && config.livePage) {
+      this._runLive(config.livePage, result);
+      return;
+    }
+
+    if (this._isUrlOnlyScan(config)) {
+      this._notChecked(result, 'this module reads source files (session/cookie config), not a live URL — no project files or fetched page were provided for this scan');
+      return;
+    }
+
+    const projectRoot = config.projectRoot;
     const files = this._collect(projectRoot);
 
     if (files.length === 0) {
@@ -206,6 +276,25 @@ class CookieSecurityModule extends BaseModule {
   _collect(root) {
     return this._collectFiles(root, [...JS_EXTS, ...PY_EXTS], ['.terraform'])
       .filter((abs) => !repoRelative(root, abs).split('/').some((s) => s.startsWith('.')));
+  }
+
+  /** Live-URL mode: `livePage` is `{ url, status, headers, html }` from ONE
+   *  shared fetch the route already made (config.livePage). */
+  _runLive(livePage, result) {
+    const findings = liveCookieChecks(livePage && livePage.headers);
+    for (const f of findings) {
+      result.addCheck(`cookie-sec:${f.id}`, false, {
+        severity: f.severity,
+        message: f.message,
+        suggestion: f.suggestion,
+      });
+    }
+    result.addCheck('cookie-sec:live-summary', true, {
+      severity: 'info',
+      message: findings.length === 0
+        ? 'Live cookie check: no Set-Cookie flag issues found (or the response set no cookies)'
+        : `Live cookie check: ${findings.length} issue(s) found on the fetched response`,
+    });
   }
 
   /**
@@ -401,3 +490,4 @@ class CookieSecurityModule extends BaseModule {
 }
 
 module.exports = CookieSecurityModule;
+module.exports.liveCookieChecks = liveCookieChecks;

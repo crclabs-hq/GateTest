@@ -15,6 +15,64 @@ class BaseModule {
   }
 
   /**
+   * Record `<module>:not-checked` — three-state reporting (Doctrine #1:
+   * clean / found / NOT CHECKED, and the third must be printed). Use this
+   * when the module has NO way to look at all on this scan — e.g. a
+   * file-walking module (webHeaders, tlsSecurity, cookieSecurity,
+   * accessibility, seo, links) invoked on a URL-only hosted scan with no
+   * `config.projectRoot` and no usable `config.livePage` — as opposed to a
+   * module that legitimately walked the project and found nothing
+   * applicable (that stays a `passed: true` info check; see each module's
+   * own `:no-files`/`:files` check for that path).
+   *
+   * `passed: false` (not `true`) is deliberate here: a silent `true` risks
+   * being read as "checked, nothing found" by anything that just counts
+   * passes. `notChecked: true` is the flag every caller (Health Score,
+   * result cards, JSON/markdown exports) keys on to pull this out of the
+   * pass/fail denominator and surface it as its own bucket instead.
+   *
+   * @param {TestResult} result
+   * @param {string} reason — plain-English, e.g. "this module reads source
+   *   files, not a live URL"
+   */
+  _notChecked(result, reason) {
+    result.addCheck(`${this.name}:not-checked`, false, {
+      severity: 'info',
+      notChecked: true,
+      message: reason,
+    });
+  }
+
+  /**
+   * One definition (Doctrine §4) of "is this a URL-only / hosted-web scan,
+   * as opposed to a repo checkout with a real (if momentarily empty)
+   * `projectRoot`?" `GateTestConfig` always defaults `projectRoot` to
+   * something truthy (the given root, or `process.cwd()` — src/core/config.js),
+   * so a file-walking module cannot tell "URL-only scan" from "empty repo"
+   * by `projectRoot` alone. The web-scan route sets `targetUrl`/`webUrl` on
+   * the config for exactly this reason (see stream/route.ts); a caller
+   * that built a bare config object for a live scan without going through
+   * `GateTestConfig` (unit tests, the non-streaming route) may also simply
+   * leave `projectRoot` unset — both count.
+   *
+   * @param {GateTestConfig|object} config
+   * @returns {boolean}
+   */
+  _isUrlOnlyScan(config) {
+    if (!config) return false;
+    if (!config.projectRoot) return true;
+    // `targetUrl`/`webUrl` are written through `GateTestConfig#set()`,
+    // which nests them under `config.config.targetUrl` — `config.get()` is
+    // the only reader that sees them on a real config instance (KI: this
+    // is why `website/app/api/web/scan/route.ts` guards `config.set` at
+    // all — src/core/config.js's own comment on `set()`). A bare test
+    // object with no `.get()` gets the direct property instead, matching
+    // the fallback several wp-* modules already use for the same field.
+    const read = (key) => (typeof config.get === 'function' ? config.get(key) : config[key]);
+    return Boolean(read('targetUrl') || read('webUrl'));
+  }
+
+  /**
    * Run the module's checks.
    * @param {TestResult} result - The result object to record checks against.
    * @param {GateTestConfig} config - The GateTest configuration.

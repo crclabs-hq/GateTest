@@ -46,6 +46,24 @@ class LinksModule extends BaseModule {
 
   async run(result, config) {
     const projectRoot = config.projectRoot;
+
+    if (config && config.livePage) {
+      // The shared single-fetch `config.livePage` gives one page's HTML —
+      // crawling the site's own links (same-origin anchors, HEAD checks,
+      // a request cap) is a live-crawl feature this module does not yet
+      // have; `liveCrawler` covers broken-link detection on the deployed
+      // site elsewhere in the `web` suite. Reporting a pass here (as the
+      // old "no template files" branch would, since there IS no
+      // projectRoot to walk) would fabricate a check that never ran.
+      this._notChecked(result, 'this module resolves link targets against files on disk — checking a live page\'s links needs its own crawl (same-origin anchors + HEAD requests), which this scan does not yet run here; see the liveCrawler module for deployed-site link checks');
+      return;
+    }
+
+    if (this._isUrlOnlyScan(config)) {
+      this._notChecked(result, 'this module resolves link targets against files on disk, not a live URL — no project files were provided for this scan');
+      return;
+    }
+
     const moduleConfig = (config && typeof config.getModuleConfig === 'function')
       ? (config.getModuleConfig('links') || {})
       : {};
