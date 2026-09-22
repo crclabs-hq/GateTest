@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   type Finding,
   type HealthScore,
+  type ModuleCheckSummary,
   type Recommendation,
   type ScanResult,
   GRADE_COLORS,
@@ -217,6 +218,58 @@ export function RecommendationCard({ rec }: { rec: Recommendation }) {
             </p>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Free "what we checked" view for the four live-URL modules (issue #648
+ * item 4). Check NAMES and pass/fail state render for every viewer,
+ * free or paid — this component never reads `Finding.body` (the fix
+ * guidance), which stays behind the paywall on the findings list below it.
+ * Renders nothing when the scan carries no module breakdown (an older
+ * cached/shared result, or a scan with zero live modules run).
+ */
+export function ModuleChecksCard({ moduleChecks }: { moduleChecks?: ModuleCheckSummary[] }) {
+  if (!moduleChecks || moduleChecks.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-border bg-white p-6">
+      <h3 className="font-semibold text-foreground mb-1">What we checked</h3>
+      <p className="text-xs text-muted mb-4">
+        Check names and pass/fail status are always free. Fix guidance for each finding is below, in the findings list.
+      </p>
+      <div className="space-y-4">
+        {moduleChecks.map((m) => (
+          <div key={m.module}>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-foreground">{m.module}</p>
+              {typeof m.duration === "number" && (
+                <span className="text-xs font-mono text-muted">{m.duration}ms</span>
+              )}
+            </div>
+            {m.status === "not-checked" ? (
+              <p className="text-xs text-muted italic mt-1">not checked — {m.reason}</p>
+            ) : m.checks.length === 0 ? (
+              <p className="text-xs text-muted italic mt-1">no applicable checks on this page</p>
+            ) : (
+              <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                {m.checks.map((c) => (
+                  <li
+                    key={c.name}
+                    className={`text-xs font-mono px-2 py-0.5 rounded-md ring-1 ring-inset ${
+                      c.passed
+                        ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                        : "bg-rose-50 text-rose-700 ring-rose-200"
+                    }`}
+                  >
+                    {c.passed ? "✓" : "✗"} {c.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
