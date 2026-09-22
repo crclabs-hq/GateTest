@@ -24,12 +24,20 @@ const ROOT = path.resolve(__dirname, '..');
 const GRADE = require('../website/app/lib/scan-grade.js');
 const { scoreToGrade } = require('../website/app/lib/health-score.js');
 
+const FREE_SCAN_ROUTES = [
+  'website/app/api/playground/scan/route.ts',
+  'website/app/api/playground/scan/stream/route.ts',
+];
+
 const {
   computeScanGrade,
   countFindingsBySeverity,
   severityForModule,
   describeScanScope,
   formatResultHeader,
+  computeCoverage,
+  coverageQualifier,
+  formatDurationHeadline,
   NON_FAILING_SCORE,
   WARNING_PENALTY_CAP,
 } = GRADE;
@@ -243,5 +251,131 @@ describe('one definition, imported (Doctrine #4)', () => {
     for (const field of ['scanId', 'scannedAt', 'commitSha', 'branch', 'resultHeader', 'scopeLabel', 'blockingCount', 'warningCount']) {
       assert.ok(new RegExp(`\\b${field}\\b`).test(src), `stream route does not emit ${field}`);
     }
+  });
+
+  it('both free-scan routes pass the sha resolver\'s reason through to the result header', () => {
+    for (const rel of ROUTES) {
+      const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+      assert.ok(/shaReason/.test(src), `${rel} does not pass shaReason to formatResultHeader`);
+    }
+  });
+});
+
+// =============================================================================
+// N1/F2 — a sha that did not resolve says WHY, not just "not resolved"
+// =============================================================================
+// Tallrig re-walk 2026-09-22: three consecutive scans of a public repo all
+// showed a bare "commit not resolved" — resolveBaseBranchSha (gluecron-client)
+// swallowed every failure (rate-limited, 404, no token, timeout) into the same
+// null with no reason attached, so there was nothing honest left to print.
+// =============================================================================
+describe('free-scan result header — the sha resolver\'s reason is never dropped (N1/F2)', () => {
+  it('control pair: a resolved sha shows it; a resolver reason shows instead of a bare null', () => {
+    const resolved = formatResultHeader({
+      repoSlug: 'expressjs/express',
+      commitSha: '4f1e2ab9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3',
+      branch: 'main',
+      scannedAt: '2026-09-22T09:00:00.000Z',
+      scanId: 'scn_a',
+    });
+    assert.ok(resolved.includes('@ 4f1e2ab'), resolved);
+    assert.ok(!resolved.includes('not resolved'), resolved);
+
+    const rateLimited = formatResultHeader({
+      repoSlug: 'expressjs/express',
+      commitSha: null,
+      shaReason: 'GitHub rate-limited or forbade the request (403)',
+      branch: null,
+      scannedAt: '2026-09-22T09:00:00.000Z',
+      scanId: 'scn_b',
+    });
+    assert.ok(rateLimited.includes('commit not resolved'), rateLimited);
+    assert.ok(
+      rateLimited.includes('GitHub rate-limited or forbade the request (403)'),
+      `expected the 403 reason in the header, got: ${rateLimited}`
+    );
+  });
+
+  it('still says "commit not resolved" with no reason (back-compat with links minted before this fix)', () => {
+    const header = formatResultHeader({ repoSlug: 'owner/repo', commitSha: null, scannedAt: null, scanId: null });
+    assert.ok(header.includes('commit not resolved'), header);
+    assert.ok(!header.includes('undefined') && !header.includes('null'), header);
+  });
+});
+
+// =============================================================================
+// N2 — the coverage fraction is ONE definition, and a partial read says so
+// everywhere the result is read (Doctrine #1/#4/#6)
+// =============================================================================
+describe('coverage fraction — one definition, and the qualifier only appears when partial (N2)', () => {
+  it('control pair: full coverage carries no qualifier; partial coverage always does', () => {
+    const full = computeCoverage(214, 214);
+    assert.strictEqual(full.partial, false);
+    assert.strictEqual(coverageQualifier(full), '');
+
+    const partial = computeCoverage(50, 214);
+    assert.strictEqual(partial.partial, true);
+    assert.strictEqual(coverageQualifier(partial), ' on 50 of 214 files');
+
+    const summaryWithQualifier = 'Grade B — no blocking findings.' + coverageQualifier(partial);
+    assert.ok(summaryWithQualifier.includes('on 50 of 214 files'), summaryWithQualifier);
+    const summaryWithoutQualifier = 'Grade A — no findings from the modules that ran.' + coverageQualifier(full);
+    assert.ok(!summaryWithoutQualifier.includes(' on '), summaryWithoutQualifier);
+  });
+
+  it('an unknown total is never called partial — that would be a guess', () => {
+    const unknown = computeCoverage(50, 0);
+    assert.strictEqual(unknown.partial, false, 'a zero/unknown total must not be read as 100% coverage');
+    assert.strictEqual(coverageQualifier(unknown), '');
+  });
+
+  it('both free-scan routes call the shared computeCoverage/coverageQualifier and surface {scanned, total, partial}', () => {
+    for (const rel of FREE_SCAN_ROUTES) {
+      const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+      assert.ok(/computeCoverage/.test(src), `${rel} does not call the shared computeCoverage`);
+      assert.ok(/coverageQualifier/.test(src), `${rel} does not call the shared coverageQualifier`);
+      assert.ok(/scanned:\s*coverage\.scanned/.test(src), `${rel} does not emit coverage.scanned`);
+      assert.ok(/total:\s*coverage\.total/.test(src), `${rel} does not emit coverage.total`);
+      assert.ok(/partial:\s*coverage\.partial/.test(src), `${rel} does not emit coverage.partial`);
+    }
+  });
+
+  it('the free-scan page marks the badge markdown and alt text "partial" when coverage is partial', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'website/app/playground/page.tsx'), 'utf8');
+    const idx = src.indexOf('Add a live badge to your README');
+    assert.ok(idx > 0, 'badge embed section is gone');
+    const body = src.slice(idx, idx + 900);
+    assert.ok(/coverage\?\.partial/.test(body), 'the badge markdown does not check coverage.partial');
+    assert.ok(/partial coverage/i.test(body), 'the badge gives no partial-coverage wording');
+  });
+});
+
+// =============================================================================
+// N3/F3 — the headline duration is wall clock, not the engine-only half of
+// the split read as if it were the whole request
+// =============================================================================
+describe('duration headline — wall clock leads, the split follows, and a missing wallMs says so (N3/F3)', () => {
+  it('control pair: wallMs 8200 headlines "8.2s"; fetch/engine render as the split beneath it', () => {
+    const t = formatDurationHeadline({ wallMs: 8200, fetchMs: 3100, engineMs: 900 });
+    assert.strictEqual(t.headline, '8.2s');
+    assert.strictEqual(t.headlineLabel, 'wall clock');
+    assert.ok(t.split, 'expected a fetch/engine split beneath the headline');
+    assert.ok(t.split.includes('3.1s fetch'), t.split);
+    assert.ok(t.split.includes('0.9s engine time'), t.split);
+  });
+
+  it('control pair: no wallMs falls back to the split with an honest "engine time only" label', () => {
+    const t = formatDurationHeadline({ engineMs: 900 });
+    assert.strictEqual(t.headline, '0.9s');
+    assert.strictEqual(t.headlineLabel, 'engine time only');
+  });
+
+  it('the free-scan page renders the wall-clock headline via the one shared definition', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'website/app/playground/page.tsx'), 'utf8');
+    assert.ok(/formatDurationHeadline/.test(src), 'the page does not call the shared formatDurationHeadline');
+    assert.ok(
+      !/\{\(result\.duration \/ 1000\)\.toFixed\(1\)\}s engine time · quick tier/.test(src),
+      'the headline still prints the raw engine-only duration'
+    );
   });
 });
