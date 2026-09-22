@@ -24,11 +24,28 @@ async function crawlWithHttp(ctx) {
     brokenScripts, brokenStylesheets,
     missingMetaDescription, missingCanonical,
     slowPages, slowThresholdMs, anchorMissingId, titlesByUrl,
-    timedOutPages, offSiteRedirects,
+    timedOutPages, offSiteRedirects, crawlDeadlineTs,
     auth,
   } = ctx;
 
+  let budgetExhausted = false;
+
   while (queue.length > 0 && visited.size < maxPages) {
+    // Crawl-wide wall-clock budget (#640): stop taking new pages once there
+    // is no longer time to safely attempt one more (worst case: pageTimeout)
+    // before the deadline this run was allotted (live-crawler.js's
+    // crawlDeadlineTs, derived from the module's own assigned timeout).
+    // Whatever is already in `pages` ships as a partial report instead of
+    // the runner's outer race timeout discarding it entirely. The very
+    // first page is always attempted regardless — an assigned budget
+    // smaller than a single page's own timeout is a misconfiguration the
+    // runner's own race timer remains the safety net for, not something to
+    // fake a deadline for here.
+    if (crawlDeadlineTs && visited.size > 0 && Date.now() + pageTimeout > crawlDeadlineTs) {
+      budgetExhausted = true;
+      break;
+    }
+
     const url = queue.shift();
     if (!url || visited.has(url)) continue;
     visited.add(url);
@@ -164,6 +181,8 @@ async function crawlWithHttp(ctx) {
       }
     }
   }
+
+  return { budgetExhausted };
 }
 
 async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets, auth) {
