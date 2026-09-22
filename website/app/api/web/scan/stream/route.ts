@@ -210,9 +210,32 @@ export async function POST(req: NextRequest) {
         const { GateTest } = require(/* turbopackIgnore: true */ engineEntry) as {
           GateTest: new (root: string, opts?: Record<string, unknown>) => {
             init: () => { runSuite: (name: string) => Promise<unknown> };
-            config: { set?: (key: string, value: unknown) => void; data?: Record<string, unknown> };
+            config: { set?: (key: string, value: unknown) => void; data?: Record<string, unknown> } & Record<string, unknown>;
           };
         };
+
+        // ONE shared fetch for the whole suite (issue #643): webHeaders,
+        // seo, accessibility and cookieSecurity all read this instead of
+        // each re-fetching the page, so `/api/scan/url` and this hosted
+        // scan can eventually agree on the same header/HTML check
+        // functions (src/modules/{web-headers,seo,accessibility,
+        // cookie-security}.js export the pure check fns for exactly that).
+        // A failed fetch here is not fatal — the runner still executes;
+        // the modules that need `config.livePage` report themselves
+        // `notChecked` when it's absent rather than fabricating a pass.
+        let livePage: { url: string; status: number; headers: Headers; html: string } | null = null;
+        try {
+          const pageController = new AbortController();
+          const pageTimer = setTimeout(() => pageController.abort(), 15000);
+          const pageRes = await fetch(targetUrl, {
+            signal: pageController.signal,
+            redirect: "follow",
+            headers: { "User-Agent": "GateTest/1.0 Web Scanner (gatetest.io)" },
+          });
+          clearTimeout(pageTimer);
+          const html = await pageRes.text().catch(() => "");
+          livePage = { url: pageRes.url || targetUrl, status: pageRes.status, headers: pageRes.headers, html };
+        } catch { /* error-ok — livePage stays null; affected modules report not-checked with a reason */ }
         // Module-level event forwarding via the new onProgress hook
         const gt = new GateTest(workspace, {
           silent: true,
@@ -235,7 +258,7 @@ export async function POST(req: NextRequest) {
         });
         gt.init();
         if (gt.config && typeof gt.config === "object") {
-          const c = gt.config as { set?: (k: string, v: unknown) => void; data?: Record<string, unknown> };
+          const c = gt.config as { set?: (k: string, v: unknown) => void; data?: Record<string, unknown> } & Record<string, unknown>;
           if (typeof c.set === "function") {
             c.set("targetUrl", targetUrl);
             c.set("webUrl", targetUrl);
@@ -243,6 +266,13 @@ export async function POST(req: NextRequest) {
             c.data.targetUrl = targetUrl;
             c.data.webUrl = targetUrl;
           }
+          // Direct property, not `.set()` — `.set()` nests under
+          // `config.config.livePage`, but every module reads
+          // `config.livePage` directly (see src/modules/base-module.js
+          // `_isUrlOnlyScan` for why `targetUrl` above needed `.get()`
+          // instead: two different existing conventions in this engine,
+          // and `livePage` is new so it gets the simpler one).
+          if (livePage) c.livePage = livePage;
         }
         const summary = (await gt.init().runSuite("web")) as RawSummary;
 
@@ -266,14 +296,25 @@ export async function POST(req: NextRequest) {
           };
         };
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { computeHealthScore } = require("@/app/lib/health-score") as {
-          computeHealthScore: (clusters: Array<{ severity: string; isHighSignal: boolean; count: number; ruleKey?: string }>) => {
+        const { computeHealthScore, deriveModuleCoverage } = require("@/app/lib/health-score") as {
+          computeHealthScore: (
+            clusters: Array<{ severity: string; isHighSignal: boolean; count: number; ruleKey?: string }>,
+            moduleCoverage?: { totalModules: number; checkedModules: number; notChecked: Array<{ module: string; reason: string }> },
+          ) => {
             score: number; grade: 'A' | 'B' | 'C' | 'D' | 'F'; deductions: Array<unknown>; summary: string;
+            coverage?: { totalModules: number; checkedModules: number; notCheckedModules: string[] };
           };
+          deriveModuleCoverage: (results: RawResult[]) => { totalModules: number; checkedModules: number; notChecked: Array<{ module: string; reason: string }> };
         };
 
         const clusterResult = clusterAndRankUrlFindings(allFindings);
-        const healthScore = computeHealthScore(clusterResult.clusters);
+        // Six of the fourteen `web`-suite modules are file scanners that
+        // have nothing to read on a URL-only scan (issue #643) — they
+        // report themselves `notChecked` rather than a fabricated pass.
+        // Pull that out of the summary BEFORE scoring so the Health Score
+        // says, in the same sentence, what it did and did not measure.
+        const moduleCoverage = deriveModuleCoverage(summary.results || []);
+        const healthScore = computeHealthScore(clusterResult.clusters, moduleCoverage);
 
         const PREVIEW_LIMIT = 3;
         const isPreview = !fullReport;
@@ -296,6 +337,12 @@ export async function POST(req: NextRequest) {
           infoCount: clusterResult.droppedInfo,
           preview: isPreview,
           findings,
+          // Say what was not checked wherever the result is read (Doctrine
+          // #6) — the card, the JSON, and the markdown export all read this
+          // same field rather than re-deriving it.
+          totalModules: moduleCoverage.totalModules,
+          checkedModules: moduleCoverage.checkedModules,
+          notCheckedModules: moduleCoverage.notChecked.map((n) => n.module),
           // ONE decision with /api/web/scan: dispatch only when fully configured,
           // otherwise an explicit reason code — never a silent default (KI #111).
           runtime: await gateRuntimeScan({ scanId, targetUrl, suite: "web" }),

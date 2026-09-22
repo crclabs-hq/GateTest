@@ -404,6 +404,13 @@ export async function POST(req: NextRequest) {
   // the gap between what the config says and what the server actually returns.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   let liveProbePromise: Promise<Array<{ module: string; severity: string; rule: string; message: string }>> = Promise.resolve([]);
+  // Whether url-prober actually got a response (regardless of whether it
+  // found anything) — url-prober already covers webHeaders/cookieSecurity/
+  // tlsSecurity live checks for THIS route (module tags in
+  // src/core/reliability/url-prober.js), so those three must not also be
+  // reported `notChecked` in the coverage summary below just because zero
+  // findings came back from it.
+  let liveProbeOk = false;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const urlProber = require("@/app/lib/reliability/url-prober") as {
@@ -425,13 +432,34 @@ export async function POST(req: NextRequest) {
       timeoutMs: 12_000,
       ...(probeAuthHeaders && Object.keys(probeAuthHeaders).length > 0 ? { authHeaders: probeAuthHeaders } : {}),
     })
-      .then((r) => r.findings)
+      .then((r) => {
+        liveProbeOk = typeof r.status === "number" && !r.error;
+        return r.findings;
+      })
       .catch(() => []);
   } catch {
     // error-ok — url-prober unavailable — continue with static-only scan
   }
 
   let summary: { results?: Array<{ module?: string; name?: string; checks?: Array<{ name: string; severity?: string; passed: boolean; message?: string }>; errors?: number; warnings?: number; info?: number; duration?: number; skipped?: string }>; gateStatus?: string; totalErrors?: number; totalWarnings?: number };
+
+  // ONE shared fetch (issue #643): webHeaders, seo, accessibility and
+  // cookieSecurity read this via config.livePage instead of each re-fetching
+  // the page, and report themselves not-checked when it's absent rather
+  // than fabricating a pass. A failed fetch here is not fatal.
+  let livePage: { url: string; status: number; headers: Headers; html: string } | null = null;
+  try {
+    const pageController = new AbortController();
+    const pageTimer = setTimeout(() => pageController.abort(), 15000);
+    const pageRes = await fetch(targetUrl, {
+      signal: pageController.signal,
+      redirect: "follow",
+      headers: { "User-Agent": "GateTest/1.0 Web Scanner (gatetest.io)" },
+    });
+    clearTimeout(pageTimer);
+    const html = await pageRes.text().catch(() => "");
+    livePage = { url: pageRes.url || targetUrl, status: pageRes.status, headers: pageRes.headers, html };
+  } catch { /* error-ok — livePage stays null; affected modules report not-checked with a reason */ }
 
   try {
     const gt = new GateTest(workspace, { silent: true });
@@ -450,6 +478,9 @@ export async function POST(req: NextRequest) {
         if (sanitizedAuth.cookie) cfg.set("modules.liveCrawler.cookie", sanitizedAuth.cookie);
       }
     }
+    // Direct property (not `.set()`, which nests under config.config) —
+    // every module reads config.livePage directly.
+    if (livePage && gt.config) (gt.config as Record<string, unknown>).livePage = livePage;
     summary = (await gt.init().runSuite("web")) as typeof summary;
   } catch (err) {
     process.exitCode = previousExitCode;
@@ -493,17 +524,35 @@ export async function POST(req: NextRequest) {
     };
   };
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { computeHealthScore } = require("@/app/lib/health-score") as {
-    computeHealthScore: (clusters: Array<{ severity: string; isHighSignal: boolean; count: number; ruleKey?: string }>) => {
+  const { computeHealthScore, deriveModuleCoverage } = require("@/app/lib/health-score") as {
+    computeHealthScore: (
+      clusters: Array<{ severity: string; isHighSignal: boolean; count: number; ruleKey?: string }>,
+      moduleCoverage?: { totalModules: number; checkedModules: number; notChecked: Array<{ module: string; reason: string }> },
+    ) => {
       score: number;
       grade: 'A' | 'B' | 'C' | 'D' | 'F';
       deductions: Array<unknown>;
       summary: string;
+      coverage?: { totalModules: number; checkedModules: number; notCheckedModules: string[] };
     };
+    deriveModuleCoverage: (results: typeof summary.results) => { totalModules: number; checkedModules: number; notChecked: Array<{ module: string; reason: string }> };
   };
 
   const clusterResult = clusterAndRankUrlFindings(allFindings);
-  const healthScore = computeHealthScore(clusterResult.clusters);
+  // Six of the fourteen `web`-suite modules are file scanners with nothing
+  // to read on a URL-only scan (issue #643) — they report `notChecked`
+  // instead of a fabricated pass. url-prober (above) already covers
+  // webHeaders/cookieSecurity/tlsSecurity live checks for this route
+  // independently of those modules, so a module that reports itself
+  // not-checked but WAS covered by url-prober must not double-count as
+  // uncovered.
+  const moduleCoverage = deriveModuleCoverage(summary.results || []);
+  if (liveProbeOk) {
+    const PROBE_COVERED = new Set(['webHeaders', 'cookieSecurity', 'tlsSecurity']);
+    moduleCoverage.notChecked = moduleCoverage.notChecked.filter((n) => !PROBE_COVERED.has(n.module));
+    moduleCoverage.checkedModules = Math.max(0, moduleCoverage.totalModules - moduleCoverage.notChecked.length);
+  }
+  const healthScore = computeHealthScore(clusterResult.clusters, moduleCoverage);
 
   const PREVIEW_LIMIT = 3;
   const isPreview = !fullReport;
@@ -568,6 +617,10 @@ export async function POST(req: NextRequest) {
     infoCount: clusterResult.droppedInfo,
     preview: isPreview,
     findings,
+    // Say what was not checked wherever the result is read (Doctrine #6).
+    totalModules: moduleCoverage.totalModules,
+    checkedModules: moduleCoverage.checkedModules,
+    notCheckedModules: moduleCoverage.notChecked.map((n) => n.module),
     // Honesty flag: true when the caller supplied a session. It is carried
     // by the crawl, the live probe, AND (in the HMAC-signed dispatch body)
     // the runtime browser worker — so authenticated coverage is end-to-end.

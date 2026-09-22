@@ -20,7 +20,16 @@ function IconMark() {
   );
 }
 
-export function HealthScoreCard({ score, grade, summary }: HealthScore) {
+interface HealthScoreCardProps extends HealthScore {
+  /** Issue #643 — modules that reported themselves not-checked on this
+   *  scan (a URL-only scan has no source files for the six file-scanning
+   *  modules to read). Optional so an older cached/shared result still
+   *  renders without this line. */
+  notCheckedModules?: string[];
+  totalModules?: number;
+}
+
+export function HealthScoreCard({ score, grade, summary, notCheckedModules, totalModules }: HealthScoreCardProps) {
   const colors = GRADE_COLORS[grade];
   const [displayScore, setDisplayScore] = useState(0);
 
@@ -83,6 +92,11 @@ export function HealthScoreCard({ score, grade, summary }: HealthScore) {
           </div>
 
           <p className="text-sm text-muted mt-3">{summary}</p>
+          {notCheckedModules && notCheckedModules.length > 0 && (
+            <p className="text-xs text-muted mt-2">
+              {notCheckedModules.length} of {totalModules ?? notCheckedModules.length} modules not checked: {notCheckedModules.join(", ")}
+            </p>
+          )}
         </div>
       </div>
     </div>
