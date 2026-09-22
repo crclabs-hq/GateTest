@@ -39,7 +39,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -u
-          set +e
           # 1. Marketplace webhook: 503 = secret not configured (fail-closed), 401 = configured and rejecting unsigned.
           code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -X POST \
             -H 'content-type: application/json' -d '{}' "${BASE_URL}/api/marketplace/webhook" || echo "000")
