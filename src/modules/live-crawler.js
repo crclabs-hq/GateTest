@@ -97,6 +97,7 @@ class LiveCrawlerModule extends BaseModule {
       anchorMissingId: [],
       titlesByUrl: new Map(),
       timedOutPages: [],
+      offSiteRedirects: [],
     };
 
     let playwright = null;
@@ -156,6 +157,17 @@ class LiveCrawlerModule extends BaseModule {
         message: `${timedOutPages.length} of ${attempted} page(s) timed out — a stalled page no longer blocks the rest of the crawl, but it was NOT checked`,
         details: timedOutPages.slice(0, 30),
         suggestion: 'Investigate why the page never responded (slow backend, infinite loop, hung upstream call). Raise --crawl-page-timeout if the page is just slow, not broken.',
+      });
+    }
+
+    const offSiteRedirects = c.offSiteRedirects || [];
+    if (offSiteRedirects.length > 0) {
+      // #634: a link redirecting off-site is disclosed, never graded as a
+      // broken link — the crawl does not own the terminal host's status.
+      result.addCheck('crawl:off-site-redirect', true, {
+        severity: 'info',
+        message: `${offSiteRedirects.length} link(s) redirected off-site — not followed past the target's own origin, so the terminal host's status is not graded against this site`,
+        details: offSiteRedirects.slice(0, 30),
       });
     }
 

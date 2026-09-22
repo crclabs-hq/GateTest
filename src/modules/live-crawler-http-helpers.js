@@ -6,9 +6,13 @@ const { URL } = require('url');
 
 const UA = 'GateTest/1.0 (Quality Assurance Crawler)';
 
-function fetchPage(url, timeout, extraHeaders) {
+function fetchPage(url, timeout, extraHeaders, _originHost) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
+    // The origin THIS crawl entry started at — threaded through recursive
+    // redirect-follows below so a later hop is judged against where the
+    // chain began, not merely against the immediately previous hop (#634).
+    const originHost = _originHost || parsedUrl.origin;
     const client = parsedUrl.protocol === 'https:' ? https : http;
     const startedAt = Date.now();
 
@@ -21,12 +25,47 @@ function fetchPage(url, timeout, extraHeaders) {
       },
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        const redirectUrl = new URL(res.headers.location, url).href;
+        let redirectUrl;
+        let redirectOrigin;
+        try {
+          redirectUrl = new URL(res.headers.location, url).href;
+          redirectOrigin = new URL(redirectUrl).origin;
+        } catch {
+          // Malformed Location header — nothing safe to follow; treat this
+          // hop as terminal rather than let a broken redirect reject/hang.
+          resolve({
+            url, finalUrl: url, status: res.statusCode, statusText: res.statusMessage,
+            contentType: res.headers['content-type'] || '', body: '',
+            redirected: false, responseMs: Date.now() - startedAt,
+          });
+          res.resume();
+          return;
+        }
+
+        if (redirectOrigin !== originHost) {
+          // Off-site hop (#634): the site being crawled answered with a
+          // perfectly ordinary redirect — 2xx/3xx from the target's OWN
+          // origin is fine, and grading stops right there. The bug was
+          // following the chain FURTHER once it left the target, ending up
+          // on a page this crawl does not own and reporting THAT status
+          // against the original URL (reproduced: gluecron.com/login/google
+          // → Google's own OAuth redirect chain → a 404 on
+          // accounts.google.com, reported as a broken link on gluecron.com).
+          resolve({
+            url, finalUrl: redirectUrl, status: res.statusCode, statusText: res.statusMessage,
+            contentType: res.headers['content-type'] || '', body: '',
+            redirected: true, redirectStatus: res.statusCode, originalUrl: url,
+            offSiteRedirect: true, responseMs: Date.now() - startedAt,
+          });
+          res.resume();
+          return;
+        }
+
         // Auth headers only follow a redirect that stays on the same origin —
         // never leak session material to a third-party redirect target.
         const redirectHeaders =
-          new URL(redirectUrl).origin === parsedUrl.origin ? extraHeaders : undefined;
-        fetchPage(redirectUrl, timeout, redirectHeaders).then(redirectResult => {
+          redirectOrigin === parsedUrl.origin ? extraHeaders : undefined;
+        fetchPage(redirectUrl, timeout, redirectHeaders, originHost).then(redirectResult => {
           resolve({
             ...redirectResult,
             redirected: true,

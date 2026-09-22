@@ -24,7 +24,7 @@ async function crawlWithHttp(ctx) {
     brokenScripts, brokenStylesheets,
     missingMetaDescription, missingCanonical,
     slowPages, slowThresholdMs, anchorMissingId, titlesByUrl,
-    timedOutPages,
+    timedOutPages, offSiteRedirects,
     auth,
   } = ctx;
 
@@ -41,7 +41,17 @@ async function crawlWithHttp(ctx) {
       const pageResult = await fetchPage(url, pageTimeout, authHeadersFor(url, auth));
       pages.push(pageResult);
 
-      if (pageResult.status >= 400) {
+      if (pageResult.offSiteRedirect) {
+        // #634: the target's own first hop was a normal redirect (fine) —
+        // it left the target's origin, so it's disclosed, not graded as a
+        // finding against this site.
+        offSiteRedirects.push({
+          page: url,
+          redirectTo: pageResult.finalUrl,
+          status: pageResult.status,
+          message: 'third-party redirect chain, terminal host ≠ target',
+        });
+      } else if (pageResult.status >= 400) {
         errors.push({ url, status: pageResult.status, type: 'http-error',
           message: `HTTP ${pageResult.status} ${pageResult.statusText}` });
       }
