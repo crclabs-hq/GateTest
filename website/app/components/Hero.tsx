@@ -23,7 +23,6 @@
  * free scan, paywall, health score, and result rendering.
  */
 
-import Link from "next/link";
 import HeroScanTabs from "./HeroScanTabs";
 import CountUp from "./CountUp";
 import LiveStats from "./LiveStats";
