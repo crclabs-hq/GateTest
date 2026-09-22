@@ -27,10 +27,14 @@ interface HealthScoreCardProps extends HealthScore {
    *  modules to read). Optional so an older cached/shared result still
    *  renders without this line. */
   notCheckedModules?: string[];
+  /** Issue #658 item 1 — per-module not-checked reason, same text the live
+   *  stream showed. Optional so an older cached/shared result (pre-fix)
+   *  still renders, falling back to the bare names in `notCheckedModules`. */
+  notCheckedReasons?: Array<{ module: string; reason: string }>;
   totalModules?: number;
 }
 
-export function HealthScoreCard({ score, grade, summary, notCheckedModules, totalModules }: HealthScoreCardProps) {
+export function HealthScoreCard({ score, grade, summary, notCheckedModules, notCheckedReasons, totalModules }: HealthScoreCardProps) {
   const colors = GRADE_COLORS[grade];
   const [displayScore, setDisplayScore] = useState(0);
 
@@ -95,7 +99,17 @@ export function HealthScoreCard({ score, grade, summary, notCheckedModules, tota
           <p className="text-sm text-muted mt-3">{summary}</p>
           {notCheckedModules && notCheckedModules.length > 0 && (
             <p className="text-xs text-muted mt-2">
-              {notCheckedModules.length} of {totalModules ?? notCheckedModules.length} modules not checked: {notCheckedModules.join(", ")}
+              {notCheckedModules.length} of {totalModules ?? notCheckedModules.length} modules not checked:{" "}
+              {notCheckedReasons && notCheckedReasons.length > 0
+                // Issue #658 item 1: show WHY each module was not checked —
+                // the same reason the live stream showed — not just its name.
+                ? notCheckedReasons.map((n, i) => (
+                    <span key={n.module}>
+                      {i > 0 && ", "}
+                      <span className="font-medium text-foreground">{n.module}</span> ({n.reason})
+                    </span>
+                  ))
+                : notCheckedModules.join(", ")}
             </p>
           )}
         </div>

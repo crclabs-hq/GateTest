@@ -446,7 +446,7 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
             </div>
           </div>
 
-          <HealthScoreCard {...result.healthScore} notCheckedModules={result.notCheckedModules} totalModules={result.totalModules} />
+          <HealthScoreCard {...result.healthScore} notCheckedModules={result.notCheckedModules} notCheckedReasons={result.notCheckedReasons} totalModules={result.totalModules} />
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <StatCard label="Errors" value={result.errorCount} accent="rose" />

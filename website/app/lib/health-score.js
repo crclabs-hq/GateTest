@@ -84,6 +84,12 @@ function computeHealthScore(clusters, moduleCoverage) {
       totalModules: moduleCoverage.totalModules,
       checkedModules: moduleCoverage.checkedModules,
       notCheckedModules: moduleCoverage.notChecked.map((n) => n.module),
+      // Issue #658 item 1: the module's own not-checked reason, carried
+      // alongside the name-only list above (kept for back-compat with
+      // existing callers/tests) so a completed report and a restored
+      // share-link can render the SAME reason text the live stream showed —
+      // before this, only the name survived past the live ticker.
+      notChecked: moduleCoverage.notChecked,
     };
   }
   return result;
