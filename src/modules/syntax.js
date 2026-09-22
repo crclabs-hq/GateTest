@@ -477,6 +477,9 @@ class SyntaxModule extends BaseModule {
       const shown = skippedDirs.slice(0, 5).map((d) => repoRelative(projectRoot, d) || '.');
       result.addCheck('typescript-strict:budget', true, {
         severity: 'info',
+        // Every skipped project is named in `details` so "quick suite green" can never
+        // be read as "types checked" on a tree where most packages were not (Tallrig, 22 Sep).
+        details: skippedDirs.map((d) => repoRelative(projectRoot, d) || '.'),
         message: `${skippedDirs.length} additional TypeScript project(s) NOT type-checked — ` +
           `the ${Math.round(timeBudgetMs / 1000)}s tsc time budget was reached on a large tree ` +
           `(not checked: ${shown.join(', ')}${skippedDirs.length > shown.length ? ', …' : ''}). ` +
