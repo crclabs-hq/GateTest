@@ -1,5 +1,6 @@
 import { detectPlatform } from "./platform-detector";
 import { generatePlatformFix } from "./platform-fix-generator";
+import { matchTitleTag, matchMetaDescriptionTag } from "./html-extract";
 
 /**
  * Website Scanner — scan a live deployed URL without needing source code.
@@ -241,9 +242,15 @@ export async function scanWebsite(rawUrl: string): Promise<WebScanResult> {
 
   // ── HTML checks ──────────────────────────────────────────────────────────
   if (html) {
-    // Title
-    const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-    const title = titleMatch?.[1]?.trim() || "";
+    // Title — #653: a bare `<title[^>]*>` regex still requires the tag body
+    // and closing tag to sit on one match with no newline-adjacent quirks,
+    // and never excluded a <title> nested inside <svg>...</svg> (SVG
+    // accessibility text, not the document's title). matchTitleTag() is the
+    // one definition (src/core/html-extract.js; duplicated here as
+    // ./html-extract.ts, see that file's header comment) also used by
+    // src/modules/seo.js and the crawler.
+    const rawTitle = matchTitleTag(html);
+    const title = (rawTitle ?? "").trim();
     if (!title) {
       findings.push({
         severity: "warning",
@@ -264,10 +271,12 @@ export async function scanWebsite(rawUrl: string): Promise<WebScanResult> {
       findings.push({ severity: "pass", category: "SEO", title: "Page title present", detail: `"${title}"` });
     }
 
-    // Meta description
-    const descMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i)
-      || html.match(/<meta\s+content=["']([^"']*)["']\s+name=["']description["']/i);
-    const desc = descMatch?.[1]?.trim() || "";
+    // Meta description — #653: the two-alternative regex only matched
+    // `name` immediately followed by `content` (or vice versa); an
+    // attribute sitting between them was reported missing.
+    // matchMetaDescriptionTag() reads name/content independently per tag.
+    const rawDesc = matchMetaDescriptionTag(html);
+    const desc = (rawDesc ?? "").trim();
     if (!desc) {
       findings.push({
         severity: "warning",
