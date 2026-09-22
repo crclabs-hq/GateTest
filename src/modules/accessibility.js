@@ -47,6 +47,21 @@ class AccessibilityModule extends BaseModule {
 
   async run(result, config) {
     const projectRoot = config.projectRoot;
+
+    // Hosted URL scan: the route fetched the page once and shared the HTML
+    // via config.livePage — audit the ACTUAL rendered markup instead of
+    // reading source files that don't exist for this scan.
+    if (config && config.livePage) {
+      this._runLive(config.livePage, result);
+      await this._checkLiveContrast(config, result);
+      return;
+    }
+
+    if (this._isUrlOnlyScan(config)) {
+      this._notChecked(result, 'this module reads HTML/CSS source files, not a live URL — no project files or fetched page were provided for this scan');
+      return;
+    }
+
     const htmlFiles = this._collectFiles(projectRoot, ['.html', '.htm', '.jsx', '.tsx', '.vue', '.svelte']);
 
     if (htmlFiles.length === 0) {
@@ -100,6 +115,50 @@ class AccessibilityModule extends BaseModule {
     // Color contrast checks
     this._checkColorContrast(projectRoot, result);
     await this._checkLiveContrast(config, result);
+  }
+
+  /**
+   * Live-URL mode: `livePage` is `{ url, status, headers, html }` from ONE
+   * shared fetch the route already made (config.livePage). Reuses the same
+   * check functions the static-file path uses — one definition (Doctrine
+   * §4) of "what makes a page accessible" whether the HTML came from disk
+   * or from the wire.
+   */
+  _runLive(livePage, result) {
+    const html = (livePage && livePage.html) || '';
+    const label = (livePage && livePage.url) || 'fetched page';
+    if (!html) {
+      this._notChecked(result, 'the shared page fetch for this scan returned no HTML body to audit');
+      return;
+    }
+    if (isImageRenderer(html)) {
+      result.addCheck('a11y:live-summary', true, {
+        severity: 'info',
+        message: 'Fetched response does not look like an HTML page — nothing to audit',
+      });
+      return;
+    }
+    this._checkLanguageAttribute(label, html, result);
+    if (isSpaShell(html)) {
+      result.addCheck('a11y:live-summary', true, {
+        severity: 'info',
+        message: 'Page is a client-rendered SPA shell — no server-rendered content to audit beyond <html lang>',
+      });
+      return;
+    }
+    const before = result.checks.length;
+    this._checkImages(label, html, result);
+    this._checkFormLabels(label, html, result);
+    this._checkHeadingHierarchy(label, html, result);
+    this._checkAriaUsage(label, html, result);
+    this._checkLandmarks(label, html, result);
+    const added = result.checks.length - before;
+    result.addCheck('a11y:live-summary', true, {
+      severity: 'info',
+      message: added === 0
+        ? 'Live accessibility check: no issues found on the fetched page'
+        : `Live accessibility check: ${added} issue(s) found on the fetched page`,
+    });
   }
 
   _checkImages(relPath, content, result) {

@@ -16,6 +16,20 @@ class SeoModule extends BaseModule {
 
   async run(result, config) {
     const projectRoot = config.projectRoot;
+
+    // Hosted URL scan: the route fetched the page once and shared the HTML
+    // via config.livePage — check the ACTUAL rendered <head> instead of
+    // reading source files that don't exist for this scan.
+    if (config && config.livePage) {
+      this._runLive(config.livePage, config, result);
+      return;
+    }
+
+    if (this._isUrlOnlyScan(config)) {
+      this._notChecked(result, 'this module reads HTML source files, not a live URL — no project files or fetched page were provided for this scan');
+      return;
+    }
+
     const seoConfig = config.getModuleConfig('seo');
     const htmlFiles = this._collectFiles(projectRoot, ['.html']);
 
@@ -147,6 +161,48 @@ class SeoModule extends BaseModule {
     return configs.some((rel) => {
       if (!has(rel)) return false;
       try { return re.test(fs.readFileSync(path.join(projectRoot, rel), 'utf-8')); } catch { return false; } // error-ok — unreadable config is "not declared"
+    });
+  }
+
+  /**
+   * Live-URL mode: `livePage` is `{ url, status, headers, html }` from ONE
+   * shared fetch the route already made (config.livePage). Reuses the same
+   * check functions the static-file path uses — one definition (Doctrine
+   * §4) of "what makes a page's metadata sound" whether the HTML came from
+   * disk or from the wire. Sitemap/robots discovery stays file-based only
+   * (a live scan has no repository layout to check for those files).
+   */
+  _runLive(livePage, config, result) {
+    const html = (livePage && livePage.html) || '';
+    const label = (livePage && livePage.url) || 'fetched page';
+    if (!html) {
+      this._notChecked(result, 'the shared page fetch for this scan returned no HTML body to audit');
+      return;
+    }
+    if (isSpaShell(html)) {
+      result.addCheck('seo:live-summary', true, {
+        severity: 'info',
+        message: 'Page is a client-rendered SPA shell — no server-rendered metadata to audit',
+      });
+      return;
+    }
+    const seoConfig = (config && typeof config.getModuleConfig === 'function')
+      ? (config.getModuleConfig('seo') || {})
+      : {};
+    const before = result.checks.length;
+    this._checkTitle(label, html, seoConfig, result);
+    this._checkMetaDescription(label, html, seoConfig, result);
+    this._checkOpenGraph(label, html, result);
+    this._checkTwitterCards(label, html, result);
+    this._checkCanonical(label, html, result);
+    this._checkStructuredData(label, html, result);
+    this._checkHeadingSeo(label, html, result);
+    const issues = result.checks.slice(before).filter((c) => !c.passed).length;
+    result.addCheck('seo:live-summary', true, {
+      severity: 'info',
+      message: issues === 0
+        ? 'Live SEO check: no issues found on the fetched page'
+        : `Live SEO check: ${issues} issue(s) found on the fetched page`,
     });
   }
 
