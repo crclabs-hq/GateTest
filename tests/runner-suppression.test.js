@@ -110,6 +110,111 @@ describe('GateTestRunner — `.gatetest.json`\'s `ignore` array feeds the suppre
   });
 });
 
+// Issue #657: a real customer config used the NESTED `ignore: { paths: [...] }`
+// shape — `.gatetest.json`'s `ignore` key was already read into the merged
+// config by config.js (so it stopped tripping config:unknown-keys), but
+// `_configIgnoreLines` only ever recognised a top-level array, so the
+// customer's two patterns (`scripts/**`, `packages/db/migrations/**`) fed
+// zero extra lines into the suppressor and 754 findings kept firing with no
+// error anywhere. Exactly their two patterns, one finding under each,
+// end-to-end through a real GateTestRunner + fake module — and the finding
+// is reported with an ABSOLUTE path, so this also proves the repo-relative
+// normalisation fix (a hand-written glob is anchored against the
+// repo-relative form; a module reporting an absolute path used to never
+// match even with the shape fixed).
+describe('GateTestRunner — `.gatetest.json`\'s nested `ignore: { paths: [...] }` shape (issue #657)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-runner-ignore-paths-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('suppresses a finding under each of the customer\'s two patterns; an unrelated file still blocks', async () => {
+    fs.writeFileSync(path.join(tmp, '.gatetest.json'), JSON.stringify({
+      ignore: { paths: ['scripts/**', 'packages/db/migrations/**'] },
+    }));
+    const config = new GateTestConfig(tmp);
+    const runner = new GateTestRunner(config);
+
+    const scriptsFile = path.join(tmp, 'scripts', 'build.js');
+    const migrationFile = path.join(tmp, 'packages', 'db', 'migrations', '0001_init.sql');
+    const unrelatedFile = path.join(tmp, 'src', 'app.js');
+
+    runner.register('fakeMod', {
+      async run(result) {
+        result.addCheck('fakeMod:scripts', false, {
+          severity: 'error', file: scriptsFile, message: 'boom', confidence: 0.95,
+        });
+        result.addCheck('fakeMod:migration', false, {
+          severity: 'error', file: migrationFile, message: 'boom', confidence: 0.95,
+        });
+        result.addCheck('fakeMod:unrelated', false, {
+          severity: 'error', file: unrelatedFile, message: 'boom', confidence: 0.95,
+        });
+      },
+    });
+
+    const summary = await runner.run(['fakeMod']);
+    assert.strictEqual(summary.checks.ignoreSuppressed, 2, 'both patterned findings are suppressed');
+    assert.strictEqual(summary.checks.blockingErrors, 1, 'the unrelated finding still blocks');
+    assert.strictEqual(summary.gateStatus, 'BLOCKED');
+
+    const fakeResult = summary.results.find((r) => r.module === 'fakeMod');
+    const scriptsCheck = fakeResult.checks.find((c) => c.name === 'fakeMod:scripts');
+    const migrationCheck = fakeResult.checks.find((c) => c.name === 'fakeMod:migration');
+    const unrelatedCheck = fakeResult.checks.find((c) => c.name === 'fakeMod:unrelated');
+    assert.strictEqual(scriptsCheck.suppressed, true);
+    assert.strictEqual(scriptsCheck.suppressReason, 'gatetestignore');
+    assert.strictEqual(migrationCheck.suppressed, true);
+    assert.strictEqual(migrationCheck.suppressReason, 'gatetestignore');
+    assert.strictEqual(unrelatedCheck.suppressed, undefined);
+  });
+
+  it('the top-level array shape still suppresses a path glob (no regression)', async () => {
+    fs.writeFileSync(path.join(tmp, '.gatetest.json'), JSON.stringify({
+      ignore: ['scripts/**'],
+    }));
+    const config = new GateTestConfig(tmp);
+    const runner = new GateTestRunner(config);
+    const scriptsFile = path.join(tmp, 'scripts', 'build.js');
+
+    runner.register('fakeMod', {
+      async run(result) {
+        result.addCheck('fakeMod:scripts', false, {
+          severity: 'error', file: scriptsFile, message: 'boom', confidence: 0.95,
+        });
+      },
+    });
+
+    const summary = await runner.run(['fakeMod']);
+    assert.strictEqual(summary.checks.ignoreSuppressed, 1);
+    assert.strictEqual(summary.checks.blockingErrors, 0);
+    assert.strictEqual(summary.gateStatus, 'PASSED');
+  });
+
+  it('without the ignore key, the same two files block (control)', async () => {
+    fs.writeFileSync(path.join(tmp, '.gatetest.json'), JSON.stringify({}));
+    const config = new GateTestConfig(tmp);
+    const runner = new GateTestRunner(config);
+    const scriptsFile = path.join(tmp, 'scripts', 'build.js');
+    const migrationFile = path.join(tmp, 'packages', 'db', 'migrations', '0001_init.sql');
+
+    runner.register('fakeMod', {
+      async run(result) {
+        result.addCheck('fakeMod:scripts', false, {
+          severity: 'error', file: scriptsFile, message: 'boom', confidence: 0.95,
+        });
+        result.addCheck('fakeMod:migration', false, {
+          severity: 'error', file: migrationFile, message: 'boom', confidence: 0.95,
+        });
+      },
+    });
+
+    const summary = await runner.run(['fakeMod']);
+    assert.strictEqual(summary.checks.ignoreSuppressed, 0);
+    assert.strictEqual(summary.checks.blockingErrors, 2);
+    assert.strictEqual(summary.gateStatus, 'BLOCKED');
+  });
+});
+
 // KI #112: `config:unknown-keys` reaches the summary (and from there,
 // json-output.js and the console reporter) as a three-state, never-blocking
 // finding — present only when there is something to say.

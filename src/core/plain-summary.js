@@ -52,6 +52,7 @@ function plainSummaryLines(summary, ctx = {}, { color = true } = {}) {
   const soft = checks.softErrors || 0;
   const warnings = checks.warnings || 0;
   const baselined = checks.baselined || 0;
+  const ignoreSuppressed = checks.ignoreSuppressed || 0;
   const lines = [];
 
   lines.push(`  ${c.dim}${'─'.repeat(52)}${c.off}`);
@@ -60,6 +61,14 @@ function plainSummaryLines(summary, ctx = {}, { color = true } = {}) {
   // clean bill of health.
   if (baselined > 0) {
     lines.push(`  ${c.dim}${baselined} pre-existing finding(s) baselined — not blocking. Refresh: gatetest --baseline${c.off}`);
+  }
+
+  // Ignore-suppression transparency (issue #657): a customer whose
+  // `.gatetest.json` `ignore` key or `.gatetestignore` silenced findings
+  // needs to see it actually took, combined across both sources (one
+  // matcher, Doctrine #4 — see src/core/ignore-file.js).
+  if (ignoreSuppressed > 0) {
+    lines.push(`  ${c.dim}${ignoreSuppressed} findings suppressed by ignore (config + .gatetestignore)${c.off}`);
   }
 
   // An empty scan is not a clean one. No source file under the root means

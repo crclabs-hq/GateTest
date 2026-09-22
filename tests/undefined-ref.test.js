@@ -605,3 +605,74 @@ describe('UndefinedRefModule — two declarations on one line (PR #435 bot findi
     assert.ok(r.checks.some((c) => !c.passed && /neverDeclaredAnywhere/.test(c.name || '')), r.checks.map((c) => c.name).join('\n'));
   });
 });
+
+// Issue #657 (Tallrig, services/object-storage/src/drivers/minio.ts:222):
+// reported as a false positive on `head`, a typed local from
+// `headObject(): Promise<ObjectMetadata | null>`, null-checked, then used
+// as an object-literal property value.
+//
+// Investigation (this session): the customer's own reproduction —
+// `const head = await client.headObject(key); if (!head) return null;
+// return head.size;` — cannot fire under the CURRENT engine regardless of
+// the fix in this PR: `_shouldFlag` requires `name.length >= 8`
+// (undefined-ref.js), and `head` is 4 characters, filtered before scope is
+// even consulted. Re-tested the same shape with a qualifying-length
+// camelCase name (`headObjectResult`, `headMetadata`) — including the
+// customer's own multi-line and `this.headObject(bucket, key)` shapes,
+// with the value narrowed via `=== null` / `!== null` — and every variant
+// is already correctly scoped: `_harvestScope`'s `const|let|var` regex
+// (undefined-ref.js) captures ANY declared name, of any length, from
+// `const NAME = ...`, independent of null-narrowing (the rule does not
+// need to reason about types at all — it only needs the name declared
+// somewhere in the file). No code change was justified by reproduction;
+// this locks in the already-correct behavior as a regression test and
+// documents the length-filter reason a literal `head` never reaches the
+// scope check in the first place.
+describe('UndefinedRefModule — issue #657: a narrowed, declared local used as an object-literal value stays quiet', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-uref-657-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('NEGATIVE: the customer\'s exact shape (this.headObject, === null narrowing, object-literal value) is quiet, with a qualifying-length name', async () => {
+    write(tmp, 'src/minio.ts', [
+      'class MinioDriver {',
+      '  async headObject(bucket, key) {',
+      '    return null;',
+      '  }',
+      '',
+      '  async completeMultipart(bucket, key) {',
+      '    const headObjectResult = await this.headObject(bucket, key);',
+      '    if (headObjectResult === null) {',
+      "      throw new Error('minio: completeMultipart returned no object');",
+      '    }',
+      '    return { metadata: headObjectResult };',
+      '  }',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.deepStrictEqual(r.checks.filter((c) => !c.passed), []);
+  });
+
+  it('NEGATIVE: the customer\'s own literal reproduction fixture (short name) is quiet', async () => {
+    write(tmp, 'src/minio-repro.ts', 'function getSize(client, key) { const head = client.headObject(key); if (!head) return null; return head.size; }\n');
+    const r = await run(tmp);
+    assert.deepStrictEqual(r.checks.filter((c) => !c.passed), []);
+  });
+
+  it('POSITIVE (control): the same shape with a genuinely undeclared value name still fires', async () => {
+    write(tmp, 'src/minio-bad.ts', [
+      'class MinioDriver {',
+      '  async completeMultipart(bucket, key) {',
+      '    return { metadata: neverDeclaredObjectHead };',
+      '  }',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.ok(
+      r.checks.some((c) => !c.passed && /neverDeclaredObjectHead/.test(c.name || '')),
+      r.checks.map((c) => c.name).join('\n'),
+    );
+  });
+});

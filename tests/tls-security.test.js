@@ -291,3 +291,94 @@ describe('TlsSecurityModule — one stripper: the masked line decides', () => {
     assert.deepStrictEqual(hits.map((c) => c.line), [5]);
   });
 });
+
+// Issue #657 (Tallrig, apps/api/src/domains/tls-probe.ts:287): a diagnostic
+// TLS handshake — `tls.connect({ …, rejectUnauthorized: false })` — must be
+// able to complete against a broken/self-signed peer cert in order to GRADE
+// it; the verdict is read from `socket.authorized` / `getPeerCertificate()`
+// / `authorizationError` in the same file. That is not the same shape as a
+// real client trusting any cert, which must keep firing.
+describe('TlsSecurityModule — CONTROL PAIR (issue #657): a graded TLS probe is quiet, a weakened client still fires', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-tls-657-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('a tls.connect() probe that grades the handshake result is quiet (deliberate, must-not-fire)', async () => {
+    write(tmp, 'src/tls-probe.ts', [
+      'import * as tls from "tls";',
+      '',
+      '// Chain verification still runs even with rejectUnauthorized:false below —',
+      '// the verdict is read back from socket.authorized / authorizationError,',
+      '// never trusted silently.',
+      'function evaluatePeerCertificate(socket) {',
+      '  return {',
+      '    authorized: socket.authorized,',
+      '    authorizationError: socket.authorizationError,',
+      '    cert: socket.getPeerCertificate(),',
+      '  };',
+      '}',
+      '',
+      'function observeHandshake(host, port) {',
+      '  return new Promise((resolve, reject) => {',
+      '    const socket = tls.connect({',
+      '      host,',
+      '      port,',
+      '      servername: host,',
+      '      rejectUnauthorized: false,',
+      '    });',
+      '    socket.on("secureConnect", () => {',
+      '      resolve(evaluatePeerCertificate(socket));',
+      '      socket.end();',
+      '    });',
+      '    socket.on("error", reject);',
+      '  });',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.deepStrictEqual(r.checks.filter((c) => c.name.startsWith('tls-security:js-reject-unauthorized:')), []);
+  });
+
+  it('https.request({ rejectUnauthorized: false }) with a response body read still fires (real client weakening, must-fire) — even beside probe-shaped code in the SAME file', async () => {
+    write(tmp, 'src/insecure-client.ts', [
+      'import * as https from "https";',
+      '',
+      '// This file also happens to mention socket.authorized / getPeerCertificate',
+      '// / authorizationError elsewhere (see the comment below) — the exemption',
+      '// requires the ENCLOSING call to be tls.connect, not just those tokens',
+      '// appearing somewhere in the file.',
+      '// (socket.authorized, getPeerCertificate, authorizationError)',
+      '',
+      'function fetchInsecure(url) {',
+      '  return new Promise((resolve, reject) => {',
+      '    const req = https.request(url, { rejectUnauthorized: false }, (res) => {',
+      '      let body = "";',
+      '      res.on("data", (chunk) => { body += chunk; });',
+      '      res.on("end", () => resolve(body));',
+      '    });',
+      '    req.on("error", reject);',
+      '    req.end();',
+      '  });',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('tls-security:js-reject-unauthorized:'));
+    assert.ok(hit, 'a real https.request client weakening must still block, even in a file that also mentions handshake-inspection tokens');
+    assert.strictEqual(hit.severity, 'error');
+  });
+
+  it('tls.connect({ rejectUnauthorized: false }) with NO handshake grading anywhere in the file still fires', async () => {
+    write(tmp, 'src/lazy-connect.ts', [
+      'import * as tls from "tls";',
+      '',
+      'function connectInsecure(host, port) {',
+      '  return tls.connect({ host, port, rejectUnauthorized: false });',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('tls-security:js-reject-unauthorized:'));
+    assert.ok(hit, 'a tls.connect() that never inspects the handshake result is not a proven probe — it still blocks');
+  });
+});

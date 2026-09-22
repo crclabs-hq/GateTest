@@ -66,16 +66,28 @@ let _ruleDemotion = null;
 try { _ruleDemotion = require('./rule-demotion'); } catch { _ruleDemotion = null; }
 
 /**
- * `.gatetest.json`'s `ignore` array (KI #112 G4) feeds the SAME
- * .gatetestignore parser — never a second matcher. `config` may be a
+ * `.gatetest.json`'s `ignore` key (KI #112 G4, widened issue #657) feeds the
+ * SAME .gatetestignore parser — never a second matcher. `config` may be a
  * GateTestConfig instance (`.get('ignore')`), a plain object some callers
  * construct directly (direct-repair.js), or absent; all three read as "no
  * extra lines" rather than throwing.
+ *
+ * Two shapes are accepted, both rendered as bare path-glob lines (the same
+ * grammar `.gatetestignore` uses for a directory exclude):
+ *   - a top-level array:        `ignore: ["scripts/**", "module:rule"]`
+ *   - a nested `paths` object:  `ignore: { paths: ["scripts/**"] }`
+ * A customer's build tooling templating `.gatetest.json` produced the
+ * second shape (issue #657: `ignore.paths` was read into the merged config
+ * by config.js but this function only ever recognised the first, so 754
+ * findings under two glob patterns kept firing with no error anywhere —
+ * Bible Forbidden #16, a config key that looks live and does nothing).
  */
 function _configIgnoreLines(config) {
   try {
     const raw = typeof config?.get === 'function' ? config.get('ignore') : config?.ignore;
-    return Array.isArray(raw) ? raw : [];
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object' && Array.isArray(raw.paths)) return raw.paths;
+    return [];
   } catch { return []; }
 }
 
@@ -262,9 +274,21 @@ class TestResult {
     if (demotedBy) check.demotedBy = demotedBy;
 
     // .gatetestignore suppression — mark, don't drop, so it stays auditable.
+    // The path-glob lines (`scripts/**`, from a bare .gatetestignore line OR
+    // from .gatetest.json's `ignore.paths`) are anchored (`^…$`) against a
+    // REPO-RELATIVE, posix-joined path — the exact form a hand-written
+    // .gatetestignore line is written against. A module that reports an
+    // absolute path (or one already relative-but-backslashed on Windows)
+    // must be normalised the same way before matching, or a glob that is
+    // provably correct never matches anything (issue #657).
     if (!passed && this._ignoreMatcher) {
       const filePath = details.file || details.filePath;
-      const finding = { module: this.module, ruleKey: name, name, file: filePath };
+      const relFile = filePath
+        ? (this._projectRoot && path.isAbsolute(filePath)
+          ? repoRelative(this._projectRoot, filePath)
+          : toPosix(filePath).replace(/^\.\//, ''))
+        : filePath;
+      const finding = { module: this.module, ruleKey: name, name, file: relFile };
       const kind = typeof this._ignoreMatcher.matchKind === 'function'
         ? this._ignoreMatcher.matchKind(finding)
         : (this._ignoreMatcher.matches(finding) ? 'moduleRule' : null);
@@ -797,6 +821,17 @@ class GateTestRunner extends EventEmitter {
       await this._runModuleWithTimeout(name, mod.run(result, moduleConfig), timeoutMs);
       this._scopeResultToChangedFiles(result, name);
       this._scopeResultToPathFilter(result);
+      // A defensive second pass, run AFTER every module regardless of how it
+      // walked its own files (issue #657: the customer's hypothesis was that
+      // a module with its own file lookup, rather than the shared
+      // `_collectFiles`, could bypass suppression — TestResult.addCheck
+      // already checks every finding as it's added, but it does so before
+      // this module's checks have been through `_scopeResultToPathFilter`'s
+      // repo-relative normalisation. This sweep re-checks anything the
+      // per-check pass left unsuppressed using the same repo-relative path
+      // every other scoping step in the runner uses, so no module's walker
+      // shape can leave the config's `ignore.paths` globs unapplied.
+      this._scopeResultToIgnoreConfig(result);
 
       // Only CONFIDENT errors block — soft errors (below threshold) are
       // surfaced in the report but don't fail the module. Warnings always
@@ -988,6 +1023,41 @@ class GateTestRunner extends EventEmitter {
   }
 
   /**
+   * Runner-level safety net for `.gatetestignore` / `.gatetest.json`
+   * `ignore` suppression (issue #657), applied after every module returns —
+   * so no module's file-walking shape decides whether suppression applies.
+   * TestResult.addCheck already marks a match as it is added; this second
+   * pass exists because that per-check match runs on whatever `file` string
+   * the module happened to report (absolute, backslashed, already-relative),
+   * while a hand-written `.gatetestignore` / `ignore.paths` glob is written
+   * against the repo-relative, posix form. Re-normalising and re-checking
+   * here — the SAME repo-relative conversion `_scopeResultToPathFilter`
+   * uses two lines above — closes that gap without a second matcher
+   * (Doctrine #4: `ignore-file.js` is still the only parser).
+   */
+  _scopeResultToIgnoreConfig(result) {
+    if (!this._ignoreMatcher || !result || !Array.isArray(result.checks)) return;
+    const root = this.config && this.config.projectRoot;
+    const rel = (f) => {
+      return (root && path.isAbsolute(f) ? repoRelative(root, f) : toPosix(f)).replace(/^\.\//, '');
+    };
+    for (const check of result.checks) {
+      if (check.passed || check.suppressed) continue;
+      const own = check.file || check.filePath;
+      if (!own) continue;
+      const finding = { module: result.module, ruleKey: check.name, name: check.name, file: rel(own) };
+      const kind = typeof this._ignoreMatcher.matchKind === 'function'
+        ? this._ignoreMatcher.matchKind(finding)
+        : (this._ignoreMatcher.matches(finding) ? 'moduleRule' : null);
+      if (kind) {
+        check.suppressed = true;
+        check.suppressReason = 'gatetestignore';
+        check.suppressKind = kind;
+      }
+    }
+  }
+
+  /**
    * Get list of files changed relative to the merge-base with the default branch.
    */
   _getChangedFiles() {
@@ -1087,6 +1157,16 @@ class GateTestRunner extends EventEmitter {
     const totalFixes = this.results.reduce((sum, r) => sum + r.fixes.length, 0);
     const totalBaselined = this.results.reduce(
       (sum, r) => sum + r.checks.filter(c => c.suppressReason === 'baseline').length, 0,
+    );
+    // `.gatetestignore` + `.gatetest.json` `ignore` (array or `{paths:[]}`)
+    // suppressions, combined — issue #657 asked for one visible count so a
+    // customer whose config suppresses findings can see it actually took.
+    // Printed by the CLI (bin/gatetest.js), not here: this file is scanned
+    // by codeQuality's `console.log` forbidden pattern (it is not in that
+    // module's `excludePaths`), so the runner only carries the number on
+    // the summary and the CLI is the one thing allowed to print it.
+    const totalIgnoreSuppressed = this.results.reduce(
+      (sum, r) => sum + r.checks.filter(c => c.suppressReason === 'gatetestignore').length, 0,
     );
 
     // Distinct module:ruleKey pairs the user silenced via .gatetestignore.
@@ -1246,6 +1326,7 @@ class GateTestRunner extends EventEmitter {
         demoted: totalDemoted,
         infoFindings: totalInfoFindings,
         baselined: totalBaselined,
+        ignoreSuppressed: totalIgnoreSuppressed,
       },
       // The active demotion list (the Fifty, move 08) — a static fact about
       // this run's data/rule-demotions.json, independent of whether any
