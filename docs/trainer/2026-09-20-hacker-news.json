@@ -1,0 +1,190 @@
+{
+  "generatedAt": "2026-09-20T08:21:04.120Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 11,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 7,
+      "SonarQube": 0,
+      "Semgrep": 1,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 2
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49770685",
+        "author": "lproven",
+        "type": "comment",
+        "title": null,
+        "text": "> So, they actually look like that as in the first video (gliding ribbon-like thing)?It's real, and that's a real video, but it's a very weird, very atypical ctenophore.https:&#x2F;&#x2F;en.wikipedia.org&#x2F;wiki&#x2F;Venus_girdleThe \"Venus's girdle\" is a long thin flat belt-shaped thing, but it is not wormlike. It has no head, no sense organs or anything, and the \"mouth\" and other main organs are in the centre of the belt, not at one end like a worm or a snake -- or you.Most ctenophores are called \"comb jellies\"; one group is named \"sea grapes\". They are hard to generalise and not all are like this by any means, but most tend to be small, and egg-shaped, possibly with protrusions. Most tend to have 2 long trailing tentacles they use to catch food.Most don't have muscles. They swim using bands of cilia,which are the same fine hairs that unicellular organisms use to swim, and that line your bronchi and throat. Your body uses cilia to propel mucus out of your lungs and up to where you can cough it up.Comb jellies' cilia are in long lines, usually 8 rows. They move like a Mexican wave in a sports crowd. The light refracting through these near-microscopic beating hairs looks like they flicker with rainbows. Thus the name, comb jellies. They are often radially symmetrical along the line from mouth to other end.That's all they have; no legs, no fins, no eyes, no dedicated sense organs. Most are not bioluminescent, but like I said, there's pretty much nothing you can say about comb jellies that applies to all of them. One type is an internal parasite that looks like a worm, although internally it's nothing like a worm. (That one is not 2-way symmetrical like us and most animals; it's four way symmetrical. It is alien compared to all other wormlike things.) Other parasitic ones are just small branching bags that don't move.They are about the only multicellular animal that swims with cilia. They are so unlike all other multicellular animals it's just about possible that they evolved the whole plan of being multicellular entirely independently.They look like jellyfish but are nothing like them.Jellyfish have lots of tentacles; those comb jellies that have them, have 2, no more, no less. The tentacles don't sting; they are sticky, and the animal catches tiny plankton this way and pulls them up to its mouth to eat.One type, Beroids, have a mouth they can close, and they can actually swallow other smaller jellies (comb jellies or jellyfish). Their lips zip shut from the edges and they have more cilia inside to propel the prey down their \"throat,\" but they can't chew.Some have muscles and can flex and move. Some but not many sort of swim this way, like the Venus's girdle. A very few stick to the bottom and stay there.Comb jellies tend to have a front end and a back end, but most have no anus, just 1 hole; any food waste is vomited. But, rather wonderfully, some form an anus only when they need to poop and then it closes up again, \"heals\" shut, totally gone.https:&#x2F;&#x2F;www.livescience.com&#x2F;64956-ctenophore-sometime-anus.h...They are just wonderfully weird.They are not really alien; their genetic code is the same as ours, although they don't do things all other animals do. For example their nerves do not have synapses, so they don't need neurotransmitters to carry signals across the joins between nerves. They don't have joins. Their nerves are a continuous mesh, with long lines of cytoplasm dotted with nuclei, not divided up into separate cells -- the same sort of structure as most fungi, but flexible.I think they are beautiful. Little was known about them when I did my biology degree, but I got into them about 5 years ago and read a lot about them for a while. They are like nothing else. Even the parasitic ones, while kind of nasty, are deeply weird.",
+        "url": "https://news.ycombinator.com/item?id=49770685",
+        "points": null,
+        "numComments": null,
+        "storyId": 49735541,
+        "createdAt": "2026-09-19T22:39:00Z",
+        "createdAtUnix": 1789857540,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49770620",
+        "author": "mauvehaus",
+        "type": "comment",
+        "title": null,
+        "text": "Fun fact an adder (snake) was once a nadder, and an apron was on a napron. This fun fact brought to you by The History of English Podcast.https:&#x2F;&#x2F;historyofenglishpodcast.com&#x2F;Happily sourced in Wikipedia so I don't have to figure out which episode I learned that from:https:&#x2F;&#x2F;en.wikipedia.org&#x2F;wiki&#x2F;Adder <- see below the table in Taxonomy.",
+        "url": "https://news.ycombinator.com/item?id=49770620",
+        "points": null,
+        "numComments": null,
+        "storyId": 49769944,
+        "createdAt": "2026-09-19T22:29:06Z",
+        "createdAtUnix": 1789856946,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49768560",
+        "author": "hiddencost",
+        "type": "comment",
+        "title": null,
+        "text": "Please stop using this stuff. It's snake oil.",
+        "url": "https://news.ycombinator.com/item?id=49768560",
+        "points": null,
+        "numComments": null,
+        "storyId": 49758580,
+        "createdAt": "2026-09-19T17:38:24Z",
+        "createdAtUnix": 1789839504,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49768279",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "The balancing act between Egyptian tourism mystery golden goose eggs, and just cutting the pyramid in half.",
+        "url": "https://news.ycombinator.com/item?id=49768279",
+        "points": null,
+        "numComments": null,
+        "storyId": 49742697,
+        "createdAt": "2026-09-19T17:07:01Z",
+        "createdAtUnix": 1789837621,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49765637",
+        "author": "snek_case",
+        "type": "comment",
+        "title": null,
+        "text": "Probably AVX-512. AFAIK Apple CPUs are still using ARM NEON instructions with 128-wide SIMD registers. I guess they are banking on you using the GPU if you want to parallelize those kinds of workload.",
+        "url": "https://news.ycombinator.com/item?id=49765637",
+        "points": null,
+        "numComments": null,
+        "storyId": 49763883,
+        "createdAt": "2026-09-19T11:30:33Z",
+        "createdAtUnix": 1789817433,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49764946",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "<Platform> is basically impossible to support. <Company> pulled it off by shipping a complete copy of the Chromium browser with <Product> and turning it into a web application.In any case I don't see how this is materially different from Windows where it's the norm for every game to ship its own libraries and install various redistributables to function.",
+        "url": "https://news.ycombinator.com/item?id=49764946",
+        "points": null,
+        "numComments": null,
+        "storyId": 49760187,
+        "createdAt": "2026-09-19T09:45:36Z",
+        "createdAtUnix": 1789811136,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49764504",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "Probably not for the lack of trying.",
+        "url": "https://news.ycombinator.com/item?id=49764504",
+        "points": null,
+        "numComments": null,
+        "storyId": 49758580,
+        "createdAt": "2026-09-19T08:21:37Z",
+        "createdAtUnix": 1789806097,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "49767444",
+        "author": "doc_ick",
+        "type": "comment",
+        "title": null,
+        "text": "Please cite claude or llms when they write code.“Most existing open-source SAST tools rely on regex patterns or LLMs”, this may be the case with new tools in the last 7 months but before then has definitely not been. (Bandit, semgrep, black duck, etc…)I do like this as an intro project, but why did you choose to use Python source code as your validators and remediation? I initially assumed for llm.",
+        "url": "https://news.ycombinator.com/item?id=49767444",
+        "points": null,
+        "numComments": null,
+        "storyId": 49765426,
+        "createdAt": "2026-09-19T15:39:25Z",
+        "createdAtUnix": 1789832365,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "49766366",
+        "author": "CoderLim110",
+        "type": "story",
+        "title": "Reimagining research papers as interactive and reliable AI agents",
+        "text": "Reimagining research papers as interactive and reliable AI agents",
+        "url": "https://www.nature.com/articles/s41586-026-11044-y",
+        "points": 4,
+        "numComments": 1,
+        "storyId": 49766366,
+        "createdAt": "2026-09-19T13:18:20Z",
+        "createdAtUnix": 1789823900,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "49772670",
+        "author": "pixelsort",
+        "type": "comment",
+        "title": null,
+        "text": "If this ever became widespread, people would game the \"verified real\" checkmark using the analog gap.1. Print AI photo 2. Point fancy expensive camera at printed photo 3. Take a \"real\" photoThen you'd see more sensors and even more expensive cameras. Then you'd see miniatured virtual-production volumes.So, this is not a solution. It's just an arms race disguised as one.",
+        "url": "https://news.ycombinator.com/item?id=49772670",
+        "points": null,
+        "numComments": null,
+        "storyId": 49769405,
+        "createdAt": "2026-09-20T05:13:38Z",
+        "createdAtUnix": 1789881218,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49770621",
+        "author": "vlovich123",
+        "type": "comment",
+        "title": null,
+        "text": "build.rs checkmate",
+        "url": "https://news.ycombinator.com/item?id=49770621",
+        "points": null,
+        "numComments": null,
+        "storyId": 49766637,
+        "createdAt": "2026-09-19T22:29:10Z",
+        "createdAtUnix": 1789856950,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
