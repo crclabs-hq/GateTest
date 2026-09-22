@@ -1,9 +1,12 @@
+import { APP_SLUG, appInstallUrl } from "../../lib/github-app-permissions";
+
 /**
  * Where the same engine runs. A table, because the reader is comparing
- * identifiers, not admiring cards.
+ * identifiers, not admiring cards. The App's slug and install URL come from
+ * the one definition (src/core/github-app-permissions.js), never a literal.
  */
 const ROWS = [
-  { where: "GitHub App", id: "github.com/apps/gatetest-hq", price: "free gate on every push", out: "commit status, PR comment", href: "https://github.com/apps/gatetest-hq" },
+  { where: "GitHub App", id: `github.com/apps/${APP_SLUG}`, price: "free gate on every push", out: "commit status, PR comment", href: appInstallUrl() },
   { where: "GitHub Action", id: "uses: crclabs-hq/GateTest@v1", price: "free, public and private", out: "gate, SARIF, JUnit, baseline", href: "https://github.com/marketplace/actions/gatetest-quality-gate" },
   { where: "Terminal", id: "npx -p @gatetest/cli gatetest --suite quick", price: "free, offline, MIT", out: "verdict, exit code, JSON", href: "https://www.npmjs.com/package/@gatetest/cli" },
   { where: "VS Code / Open VSX", id: "GateTestHQ.gatetest", price: "free, nothing leaves the machine", out: "findings in the Problems panel", href: "https://marketplace.visualstudio.com/items?itemName=GateTestHQ.gatetest" },

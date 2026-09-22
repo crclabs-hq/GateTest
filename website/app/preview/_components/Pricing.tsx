@@ -5,9 +5,15 @@ import { TIERS } from "../../lib/checkout-tiers";
  * (website/app/lib/checkout-tiers.ts) so the page cannot drift from what
  * Stripe charges.
  */
+// Integer formatting only: the tier prices are whole cents and stay that way.
+// No float arithmetic on money (moneyFloat gate), so the dollar and cent parts
+// are split as strings.
 function price(cents: number, recurring?: boolean) {
-  const dollars = cents % 100 === 0 ? (cents / 100).toString() : (cents / 100).toFixed(2);
-  return `$${dollars}${recurring ? "/mo" : ""}`;
+  const whole = String(Math.trunc(cents)).padStart(3, "0");
+  const dollars = whole.slice(0, -2);
+  const rest = whole.slice(-2);
+  const amount = rest === "00" ? dollars : `${dollars}.${rest}`;
+  return `$${amount}${recurring ? "/mo" : ""}`;
 }
 
 export function Pricing() {

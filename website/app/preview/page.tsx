@@ -1,5 +1,6 @@
 import siteStats from "../data/site-stats.json";
 import precision from "../data/precision.json";
+import { appInstallUrl } from "../lib/github-app-permissions";
 import { Rail } from "./_components/Rail";
 import { LiveRun } from "./_components/LiveRun";
 import { Numbers } from "./_components/Numbers";
@@ -46,7 +47,7 @@ export default function PreviewHomepage() {
             {corpusSize} pinned third-party repositories and published, misses included.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <a href="https://github.com/apps/gatetest-hq" className="v2-btn v2-btn-primary">Install the GitHub App</a>
+            <a href={appInstallUrl()} className="v2-btn v2-btn-primary">Install the GitHub App</a>
             <a href="/quickstart" className="v2-btn">Quickstart, four steps</a>
             <code className="v2-mono self-center text-[13px] text-[var(--v2-muted)]">npx -p @gatetest/cli gatetest --suite quick</code>
           </div>
