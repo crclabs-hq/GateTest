@@ -10,6 +10,7 @@ const {
   renderHealthScoreCard,
   deriveModuleCoverage,
   renderCoverageLine,
+  explainScoreChange,
   HIGH_SIGNAL_WEIGHTS,
   STANDARD_WEIGHTS,
   INSTANCE_MULTIPLIER_CAP,
@@ -237,4 +238,63 @@ test('computeHealthScore — without moduleCoverage (existing callers): no cover
   const r = computeHealthScore([{ severity: 'warning', isHighSignal: false, count: 1, ruleKey: 'x' }]);
   assert.equal(r.coverage, undefined);
   assert.ok(!/not checked/i.test(r.summary));
+});
+
+// Issue #658 item 2 — a score drift between two scans of an unchanged URL
+// can be legitimate (a: new checks shipped; d: more modules excluded) as
+// well as a bug (b/c) — explainScoreChange only speaks to the legitimate
+// causes, deterministically, from the two coverage snapshots alone.
+
+test('explainScoreChange — no prior snapshot: nothing to explain', () => {
+  assert.equal(explainScoreChange(null, { totalModules: 20, checkedModules: 18, notCheckedModules: [] }), null);
+  assert.equal(explainScoreChange(undefined, { totalModules: 20, checkedModules: 18, notCheckedModules: [] }), null);
+});
+
+test('explainScoreChange — identical coverage: nothing to explain', () => {
+  const snap = { totalModules: 20, checkedModules: 18, notCheckedModules: ['tlsSecurity', 'links'] };
+  assert.equal(explainScoreChange(snap, { ...snap }), null);
+});
+
+test('explainScoreChange — more modules ran real checks since last time (cause a)', () => {
+  const previous = { totalModules: 20, checkedModules: 14, notCheckedModules: [] };
+  const current = { totalModules: 20, checkedModules: 18, notCheckedModules: [] };
+  const line = explainScoreChange(previous, current);
+  assert.match(line, /4 checks were added/);
+  assert.match(line, /14 → 18/);
+  assert.match(line, /20 modules/);
+});
+
+test('explainScoreChange — singular phrasing for exactly one added check', () => {
+  const line = explainScoreChange(
+    { totalModules: 20, checkedModules: 17, notCheckedModules: [] },
+    { totalModules: 20, checkedModules: 18, notCheckedModules: [] }
+  );
+  assert.match(line, /^1 check was added/);
+});
+
+test('explainScoreChange — more modules excluded as not-checked since last time (cause d)', () => {
+  const previous = { totalModules: 20, checkedModules: 18, notCheckedModules: ['tlsSecurity', 'links'] };
+  const current = { totalModules: 20, checkedModules: 15, notCheckedModules: ['tlsSecurity', 'links', 'crossBrowser', 'memory', 'apiHealth'] };
+  const line = explainScoreChange(previous, current);
+  assert.match(line, /5 of 20 modules were excluded as not-checked this scan \(previously 2\)/);
+});
+
+test('explainScoreChange — cause (d) takes priority when both shift in the same scan', () => {
+  // checkedModules dropped AND notChecked grew in the same scan — the
+  // "you're now seeing less of your site" message must win, not the
+  // (never-true-here) "more checks ran" message.
+  const previous = { totalModules: 20, checkedModules: 18, notCheckedModules: ['tlsSecurity', 'links'] };
+  const current = { totalModules: 20, checkedModules: 15, notCheckedModules: ['tlsSecurity', 'links', 'crossBrowser', 'memory', 'apiHealth'] };
+  const line = explainScoreChange(previous, current);
+  assert.match(line, /excluded as not-checked/);
+  assert.ok(!/checks were added/.test(line));
+});
+
+test('explainScoreChange — fewer modules excluded (coverage improved): nothing alarming to say', () => {
+  const previous = { totalModules: 20, checkedModules: 15, notCheckedModules: ['a', 'b', 'c', 'd', 'e'] };
+  const current = { totalModules: 20, checkedModules: 18, notCheckedModules: ['a', 'b'] };
+  // checkedModules grew AND notChecked shrank — this IS the "more checks
+  // ran" case (cause a), just phrased from module coverage, not a silent null.
+  const line = explainScoreChange(previous, current);
+  assert.match(line, /3 checks were added/);
 });

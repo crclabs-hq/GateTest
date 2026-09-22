@@ -73,7 +73,14 @@ describe('UrlScanFlow — the existing result JSX renders the grade, not-checked
   // restore path (which reuses the same `result` state and "results" phase
   // as a live scan) draws the full report, not a stripped-down view.
   it('the results phase renders HealthScoreCard with notCheckedModules', () => {
-    assert.match(src, /<HealthScoreCard \{\.\.\.result\.healthScore\} notCheckedModules=\{result\.notCheckedModules\}/);
+    // Issue #658 items 1-2 reformatted this call onto multiple lines (added
+    // notCheckedReasons/scoreChangeNote props) — match the spread + prop on
+    // the surrounding JSX block rather than one exact single-line shape.
+    const idx = src.indexOf('<HealthScoreCard');
+    assert.ok(idx > -1, 'HealthScoreCard JSX not found');
+    const block = src.slice(idx, idx + 300);
+    assert.match(block, /\{\.\.\.result\.healthScore\}/);
+    assert.match(block, /notCheckedModules=\{result\.notCheckedModules\}/);
   });
 
   it('the results phase renders the findings list, including the first finding', () => {
