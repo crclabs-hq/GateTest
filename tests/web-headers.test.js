@@ -105,6 +105,49 @@ describe('WebHeadersModule — CSP hardening', () => {
     assert.strictEqual(hit.severity, 'error');
   });
 
+  // #666: csp-unsafe-eval was a substring match — `wasm-unsafe-eval` (a
+  // different, sandboxed CSP directive) and a comment mentioning the
+  // directive both fired it. Control pair: the real line that must fire
+  // (above) plus these two idioms that must stay quiet.
+  it('#666: does not fire on the unrelated `wasm-unsafe-eval` directive', async () => {
+    write(tmp, 'next.config.js', [
+      'module.exports = {',
+      '  async headers() {',
+      '    return [{',
+      '      source: "/(.*)",',
+      '      headers: [',
+      "        { key: 'Content-Security-Policy', value: \"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'\" },",
+      '      ],',
+      '    }];',
+      '  },',
+      '};',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('web-headers:csp-unsafe-eval:'));
+    assert.ok(!hit, 'wasm-unsafe-eval must not be reported as csp-unsafe-eval');
+  });
+
+  it('#666: does not fire on a comment mentioning unsafe-eval', async () => {
+    write(tmp, 'next.config.js', [
+      'module.exports = {',
+      '  async headers() {',
+      '    return [{',
+      '      source: "/(.*)",',
+      '      headers: [',
+      "        // script-src default-src NO 'unsafe-eval' used here",
+      "        { key: 'Content-Security-Policy', value: \"default-src 'self'; script-src 'self'\" },",
+      '      ],',
+      '    }];',
+      '  },',
+      '};',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('web-headers:csp-unsafe-eval:'));
+    assert.ok(!hit, 'a comment mentioning unsafe-eval must not be reported as csp-unsafe-eval');
+  });
+
   it('warns on CSP containing unsafe-inline', async () => {
     write(tmp, 'next.config.js', [
       'module.exports = {',

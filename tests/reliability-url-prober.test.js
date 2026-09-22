@@ -109,6 +109,14 @@ test("findingsFromResponse: CSP with unsafe-eval → error", () => {
   assert.ok(findings.some((f) => f.rule === "csp-unsafe-eval"));
 });
 
+// #666: csp-unsafe-eval must not fire on the unrelated, sandboxed
+// `wasm-unsafe-eval` directive — the control pair to the positive test above.
+test("findingsFromResponse: CSP with wasm-unsafe-eval → no csp-unsafe-eval finding", () => {
+  const r = mockResponse({ headers: { "content-security-policy": "default-src 'self'; script-src 'wasm-unsafe-eval'" } });
+  const findings = findingsFromResponse({ url: "https://x.com", response: r, bodySnippet: "" });
+  assert.ok(!findings.some((f) => f.rule === "csp-unsafe-eval"));
+});
+
 test("findingsFromResponse: CSP with unsafe-inline → warning", () => {
   const r = mockResponse({ headers: { "content-security-policy": "default-src 'self'; script-src 'unsafe-inline'" } });
   const findings = findingsFromResponse({ url: "https://x.com", response: r, bodySnippet: "" });
