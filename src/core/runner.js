@@ -65,8 +65,22 @@ const { isOffline: _isOffline } = require('./offline');
 let _ruleDemotion = null;
 try { _ruleDemotion = require('./rule-demotion'); } catch { _ruleDemotion = null; }
 
-function _loadIgnoreMatcher(projectRoot) {
-  try { return _ignoreFile ? _ignoreFile.load(projectRoot) : null; }
+/**
+ * `.gatetest.json`'s `ignore` array (KI #112 G4) feeds the SAME
+ * .gatetestignore parser — never a second matcher. `config` may be a
+ * GateTestConfig instance (`.get('ignore')`), a plain object some callers
+ * construct directly (direct-repair.js), or absent; all three read as "no
+ * extra lines" rather than throwing.
+ */
+function _configIgnoreLines(config) {
+  try {
+    const raw = typeof config?.get === 'function' ? config.get('ignore') : config?.ignore;
+    return Array.isArray(raw) ? raw : [];
+  } catch { return []; }
+}
+
+function _loadIgnoreMatcher(projectRoot, config) {
+  try { return _ignoreFile ? _ignoreFile.load(projectRoot, _configIgnoreLines(config)) : null; }
   catch { return null; }
 }
 
@@ -499,7 +513,7 @@ class GateTestRunner extends EventEmitter {
     // penalties. Both are loaded once here (best-effort — a missing file or
     // memory just yields an empty matcher / no penalties) and threaded into
     // every TestResult so suppression and softening apply uniformly.
-    this._ignoreMatcher = _loadIgnoreMatcher(projectRoot);
+    this._ignoreMatcher = _loadIgnoreMatcher(projectRoot, config);
     this._confidencePenalties = _loadConfidencePenalties(projectRoot);
     // Baseline ("only fail on NEW issues", KI #66). When capturing a fresh
     // baseline the old one must NOT suppress anything — the snapshot has to
@@ -521,11 +535,26 @@ class GateTestRunner extends EventEmitter {
   /**
    * Resolve the wall-clock timeout for a given module, in ms.
    * Precedence: explicit per-module override (config.moduleTimeouts /
-   * constructor option) > env var override > heavy-module default > the
-   * general default. Kept a plain method (not a constant lookup) so tests
-   * can inject a short timeout via the constructor without touching env.
+   * constructor option) > env var override > the module's OWN declared
+   * estimate (optional `estimateTimeoutMs(moduleConfig)` instance method) >
+   * heavy-module default > the general default. Kept a plain method (not a
+   * constant lookup) so tests can inject a short timeout via the constructor
+   * without touching env.
+   *
+   * The module-declared tier (added #640) lets a module size its own budget
+   * from its own configured workload instead of inheriting the generic
+   * ceiling meant for a lint pass — liveCrawler sizes itself from
+   * crawlMax × pageTimeout rather than dying at the flat 120s default with
+   * zero pages recorded. It sits BELOW the env var (an operator who set
+   * GATETEST_MODULE_TIMEOUT_MS made a deliberate, if global, choice and it
+   * still wins) but ABOVE the flat default, which is what actually mattered
+   * for #640: nobody had set that env var for the customer's slow-host
+   * crawl, so the flat 120s default was all that stood between "zero pages
+   * recorded" and a budget shaped like the crawl's own configured workload.
+   * `mod` is optional so existing callers/tests that only pass `name` keep
+   * working — they just skip this tier.
    */
-  _moduleTimeoutMs(name) {
+  _moduleTimeoutMs(name, mod, moduleConfig) {
     const overrides = this.options.moduleTimeouts
       || (this.config && this.config.config && this.config.config.moduleTimeouts)
       || {};
@@ -535,6 +564,11 @@ class GateTestRunner extends EventEmitter {
     const envKey = isHeavy ? 'GATETEST_HEAVY_MODULE_TIMEOUT_MS' : 'GATETEST_MODULE_TIMEOUT_MS';
     const envMs = Number(process.env[envKey]);
     if (Number.isFinite(envMs) && envMs > 0) return envMs;
+
+    if (mod && typeof mod.estimateTimeoutMs === 'function') {
+      const estimated = mod.estimateTimeoutMs(moduleConfig);
+      if (typeof estimated === 'number' && estimated > 0) return estimated;
+    }
 
     return isHeavy ? HEAVY_MODULE_TIMEOUT_MS : DEFAULT_MODULE_TIMEOUT_MS;
   }
@@ -754,7 +788,12 @@ class GateTestRunner extends EventEmitter {
           moduleConfig._incrementalFiles = this._incrementalFileSet;
         }
       }
-      const timeoutMs = this._moduleTimeoutMs(name);
+      const timeoutMs = this._moduleTimeoutMs(name, mod, moduleConfig);
+      // Let the module read back the exact wall-clock budget it's racing
+      // against, so a module that paces its own work (liveCrawler, #640)
+      // can hand back a partial result instead of losing everything to the
+      // timeout below.
+      moduleConfig._moduleTimeoutMs = timeoutMs;
       await this._runModuleWithTimeout(name, mod.run(result, moduleConfig), timeoutMs);
       this._scopeResultToChangedFiles(result, name);
       this._scopeResultToPathFilter(result);
@@ -1163,6 +1202,14 @@ class GateTestRunner extends EventEmitter {
       // Carried on the summary so no consumer can present a deferred suite
       // as exhaustive — Forbidden #16.
       deferred: this.options.deferredModules || [],
+      // KI #112 (issue #633): `.gatetest.json` keys nothing reads used to be
+      // a stderr-only warning, invisible to `--format json` and the PR
+      // comment. `null` (never emitted) when the config has none — a
+      // three-state, never-blocking, printed-once-per-run finding
+      // (src/core/config.js `getUnknownKeysCheck` — one definition).
+      configCheck: (this.config && typeof this.config.getUnknownKeysCheck === 'function')
+        ? this.config.getUnknownKeysCheck()
+        : null,
       timestamp: new Date().toISOString(),
       duration: endTime - startTime,
       diffOnly: this.options.diffOnly,

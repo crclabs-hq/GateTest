@@ -451,6 +451,73 @@ function compute(expression) {
 });
 
 // ---------------------------------------------------------------------------
+// issue #633 (2026-09-22): two sanitiser shapes SANITISE_RES did not
+// recognise. Control pairs prove the mechanism actually engages (a bare
+// version of each shape still fires) rather than the sink never firing at
+// all in a single-file scan.
+// ---------------------------------------------------------------------------
+
+describe('CrossFileTaintModule — CONTROL PAIR (issue #633): a LIKE-escaping helper named escapeForLike is a sanitiser', () => {
+  it('quiet: `escapeForLike(input)` feeding a LIKE-clause concat', async () => {
+    const result = await run({
+      'search.js': `
+function searchUsers(req) {
+  const input = req.query.name;
+  const pattern = escapeForLike(input) + '%';
+  return db.query('SELECT * FROM users WHERE name LIKE ' + pattern);
+}
+`,
+    });
+    const errors = result.errors().filter((e) => e.sink === 'sql-query');
+    assert.strictEqual(errors.length, 0, `escapeForLike must be recognised as a sanitiser: ${JSON.stringify(errors)}`);
+  });
+
+  it('STILL FIRES: the same concat with no escaping helper at all', async () => {
+    const result = await run({
+      'search.js': `
+function searchUsers(req) {
+  const input = req.query.name;
+  const pattern = input + '%';
+  return db.query('SELECT * FROM users WHERE name LIKE ' + pattern);
+}
+`,
+    });
+    const errors = result.errors().filter((e) => e.sink === 'sql-query');
+    assert.ok(errors.length > 0, 'an unescaped concat into a SQL sink must still be flagged');
+  });
+});
+
+describe('CrossFileTaintModule — CONTROL PAIR (issue #633): an HMAC/signature-verified redirect target is not an open redirect', () => {
+  it('quiet: the target is checked against a signature before res.redirect', async () => {
+    const result = await run({
+      'handler.js': `
+function handleCollabRedirect(req, res) {
+  const url = req.query.dest;
+  const valid = verifySignature(url, req.query.token);
+  if (!valid) return res.status(403).end();
+  res.redirect(url);
+}
+`,
+    });
+    const errors = result.errors().filter((e) => e.sink === 'redirect');
+    assert.strictEqual(errors.length, 0, `an HMAC/signature-checked target must not read as an open redirect: ${JSON.stringify(errors)}`);
+  });
+
+  it('STILL FIRES: the same tainted target with no signature check', async () => {
+    const result = await run({
+      'handler.js': `
+function handleRedirect(req, res) {
+  const url = req.query.dest;
+  res.redirect(url);
+}
+`,
+    });
+    const errors = result.errors().filter((e) => e.sink === 'redirect');
+    assert.ok(errors.length > 0, 'an unchecked tainted redirect target must still be flagged');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Cross-file taint — test paths downgrade to warning
 // ---------------------------------------------------------------------------
 

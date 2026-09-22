@@ -199,6 +199,64 @@ describe('GateTestRunner', () => {
     assert.strictEqual(runner._moduleTimeoutMs('lint'), 9000);
   });
 
+  // #640: a module can size its own budget from its own configured workload
+  // (liveCrawler: crawlMax × pageTimeout) instead of inheriting the flat
+  // default meant for a lint pass. See _moduleTimeoutMs's precedence
+  // comment in src/core/runner.js.
+  describe('module-declared timeout hook (#640)', () => {
+    it('a module\'s estimateTimeoutMs(moduleConfig) wins over the generic default when nothing else is set', () => {
+      const config = new GateTestConfig(path.resolve(__dirname, '..'));
+      const runner = new GateTestRunner(config);
+      const mod = { estimateTimeoutMs: () => 45000 };
+
+      assert.strictEqual(runner._moduleTimeoutMs('bigCrawl', mod, {}), 45000);
+    });
+
+    it('the explicit per-module override still wins over the module\'s own estimate', () => {
+      const config = new GateTestConfig(path.resolve(__dirname, '..'));
+      const runner = new GateTestRunner(config, { moduleTimeouts: { bigCrawl: 5000 } });
+      const mod = { estimateTimeoutMs: () => 45000 };
+
+      assert.strictEqual(runner._moduleTimeoutMs('bigCrawl', mod, {}), 5000);
+    });
+
+    it('an operator-set env var still wins over the module\'s own estimate (a deliberate, if global, choice)', () => {
+      const config = new GateTestConfig(path.resolve(__dirname, '..'));
+      const runner = new GateTestRunner(config);
+      const mod = { estimateTimeoutMs: () => 45000 };
+
+      process.env.GATETEST_MODULE_TIMEOUT_MS = '2500';
+      try {
+        assert.strictEqual(runner._moduleTimeoutMs('bigCrawl', mod, {}), 2500);
+      } finally {
+        delete process.env.GATETEST_MODULE_TIMEOUT_MS;
+      }
+    });
+
+    it('a module with no estimateTimeoutMs (or one returning null) falls through unchanged', () => {
+      const config = new GateTestConfig(path.resolve(__dirname, '..'));
+      const runner = new GateTestRunner(config);
+
+      assert.strictEqual(runner._moduleTimeoutMs('lint', { run() {} }, {}), DEFAULT_MODULE_TIMEOUT_MS);
+      assert.strictEqual(runner._moduleTimeoutMs('lint', { estimateTimeoutMs: () => null }, {}), DEFAULT_MODULE_TIMEOUT_MS);
+      // `mod` omitted entirely (existing callers/tests) must keep working.
+      assert.strictEqual(runner._moduleTimeoutMs('lint'), DEFAULT_MODULE_TIMEOUT_MS);
+    });
+
+    it('_runModule injects the resolved budget back onto moduleConfig as _moduleTimeoutMs', async () => {
+      const config = new GateTestConfig(path.resolve(__dirname, '..'));
+      const runner = new GateTestRunner(config);
+      let seenTimeoutMs = null;
+      runner.register('selfSizing', {
+        estimateTimeoutMs: () => 33000,
+        async run(_result, moduleConfig) { seenTimeoutMs = moduleConfig._moduleTimeoutMs; },
+      });
+
+      await runner.run(['selfSizing']);
+      assert.strictEqual(seenTimeoutMs, 33000);
+    });
+  });
+
   it('a slow-but-finishing module completes normally under its timeout', async () => {
     const config = new GateTestConfig(path.resolve(__dirname, '..'));
     const runner = new GateTestRunner(config, { moduleTimeouts: { slow: 5000 } });

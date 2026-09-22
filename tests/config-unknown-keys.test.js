@@ -125,6 +125,45 @@ describe('config: unrecognised .gatetest.json keys', () => {
     assert.strictEqual(stderr, '');
   });
 
+  test('CONTROL PAIR — known-only config emits no config:unknown-keys check; severity+gating names exactly those two, with hints', () => {
+    const cleanDir = projectWith({ thresholds: { maxFileLength: 800 }, ignore: ['secrets:apiKey'] }, 'check-clean');
+    const cleanCfg = new GateTestConfig(cleanDir);
+    assert.strictEqual(cleanCfg.getUnknownKeysCheck(), null, 'no unknown keys → no check at all');
+
+    const dirtyDir = projectWith({ severity: 'error', gating: { blockOnFailure: true } }, 'check-dirty');
+    const { cfg: dirtyCfg } = loadQuietly(dirtyDir);
+    const check = dirtyCfg.getUnknownKeysCheck();
+    assert.ok(check, 'unknown keys → a check is emitted');
+    assert.strictEqual(check.name, 'config:unknown-keys');
+    assert.strictEqual(check.passed, false);
+    assert.strictEqual(check.severity, 'info');
+    assert.deepStrictEqual(check.keys.sort(), ['gating', 'severity']);
+    assert.strictEqual(check.hints.gating, 'gate', '"gating" maps to the real "gate" key');
+    assert.strictEqual(check.hints.severity, null, 'no severity-override mechanism exists — honest "no equivalent"');
+    assert.match(check.message, /severity \(no equivalent in this version\)/);
+    assert.match(check.message, /gating \(did you mean "gate"\?\)/);
+  });
+
+  test('a key starting with `$` is documentation, never unknown, at any name', () => {
+    const dir = projectWith({ $comment: 'internal notes', $id: 'x', thresholds: {} }, 'dollar-keys');
+    const { cfg, stderr } = loadQuietly(dir);
+    assert.deepStrictEqual(cfg.unknownKeys, []);
+    assert.strictEqual(stderr, '');
+  });
+
+  test('the protection-marker keys install.sh writes (protected, do_not_remove, integration_version) are known, not unknown', () => {
+    const dir = projectWith({
+      protected: true,
+      gatetest_source: 'https://github.com/crclabs-hq/gatetest',
+      do_not_remove: 'This repo is protected by GateTest.',
+      integration_version: 2,
+      mode: 'advisory',
+    }, 'marker-keys');
+    const { cfg, stderr } = loadQuietly(dir);
+    assert.deepStrictEqual(cfg.unknownKeys, []);
+    assert.strictEqual(stderr, '');
+  });
+
   test('a malformed config warns about parsing, not about keys', () => {
     const dir = path.join(tmpRoot, 'malformed');
     fs.mkdirSync(dir, { recursive: true });
