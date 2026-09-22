@@ -97,19 +97,53 @@ const MONEY_NAME_RE =
 // (`apps/api/src/automation/freshness.ts:351`, seconds only, no money
 // anywhere in the file) because several MONEY_NAME_RE words (`cost`,
 // `charge`, `credit`, `discount`, currency codes, ...) double as ordinary
-// English outside a money domain. This narrower list is the money-CONTEXT
-// signal: bare mul/div arithmetic (the shape with no cast and no compound
-// accumulator, `price * 1.15`) now also requires one of these words —
-// unambiguous even alone — or a money-typed import to appear somewhere in
-// the file before it fires. `stripe` covers importing a payment SDK
-// directly; `MONEY_TYPED_IMPORT_RE` covers a shared `Money` type instead.
-// Deliberately narrower than MONEY_NAME_RE: this is corroboration, not the
-// trigger, so the overloaded words above must not satisfy it on their own.
-const MONEY_CONTEXT_RE = /\b(price|amount|cents?|currency|total|invoice|payment|balance|fee|tax|stripe)\b/i;
+// English outside a money domain. Bare mul/div arithmetic (the shape with
+// no cast and no compound accumulator, `price * 1.15`) now also requires a
+// money-CONTEXT signal to appear somewhere in the file before it fires.
+//
+// Two tiers, because a single generic word is not always enough evidence
+// on its own (customer follow-up, same file: `amount` appears three times
+// as the numeric part of a `(\d+)\s*(ms|s|min|h|d|w)` duration parser — no
+// other money signal anywhere — and firing on `amount` alone reproduced the
+// exact false positive `price`/`currency`/etc. were added to fix):
+//   - STRONG: unambiguous even alone (`cents`, `currency`, `price`,
+//     `invoice`, `payment`, `stripe`, `tax`, `fee`), or a money-typed
+//     import (`Money`) / an import from a payments-or-billing module.
+//   - WEAK: common enough as ordinary English (`amount`, `total`,
+//     `balance`, `cost`) that ONE occurrence — however many times it
+//     repeats — proves nothing; firing requires a SECOND, DISTINCT signal
+//     (strong or weak) elsewhere in the file. `total`+`balance` in the same
+//     file corroborate each other; three `amount`s alone do not.
+const STRONG_CONTEXT_WORD_RES = [
+  /\bcents?\b/i, /\bcurrency\b/i, /\bprice\b/i, /\binvoice\b/i,
+  /\bpayment\b/i, /\bstripe\b/i, /\btax\b/i, /\bfee\b/i,
+];
+const WEAK_CONTEXT_WORD_RES = [
+  /\bamount\b/i, /\btotal\b/i, /\bbalance\b/i, /\bcost\b/i,
+];
+// A shared `Money` type, imported or used as a type annotation.
 const MONEY_TYPED_IMPORT_RE = /\bimport\b[^;\n]{0,120}\bMoney\b|:\s*Money(?:\[\])?\b/;
+// An import/require whose module path names a payments or billing
+// subsystem (`from '../payments/client'`, `require('./billing/invoicer')`)
+// even when the imported binding itself carries no money-named word.
+const PAYMENTS_OR_BILLING_IMPORT_RE =
+  /\b(?:import|require)\b[^;\n]{0,160}['"][^'"]*\b(?:payments?|billing)\b[^'"]*['"]/i;
+
+function distinctWordTypesPresent(text, wordRes) {
+  let n = 0;
+  for (const re of wordRes) {
+    if (re.test(text)) n += 1;
+  }
+  return n;
+}
 
 function hasMoneyContext(text) {
-  return MONEY_CONTEXT_RE.test(text) || MONEY_TYPED_IMPORT_RE.test(text);
+  if (MONEY_TYPED_IMPORT_RE.test(text) || PAYMENTS_OR_BILLING_IMPORT_RE.test(text)) return true;
+  if (distinctWordTypesPresent(text, STRONG_CONTEXT_WORD_RES) >= 1) return true;
+  // A weak signal only counts once corroborated by a SECOND, distinct
+  // signal — which, since no strong signal or typed import matched above,
+  // must be a second distinct WEAK word type.
+  return distinctWordTypesPresent(text, WEAK_CONTEXT_WORD_RES) >= 2;
 }
 
 // A handful of MONEY_NAME_RE entries double as plain accumulator/counter
@@ -344,10 +378,9 @@ class MoneyFloatModule extends BaseModule {
     // that replaced it could not see a template literal or a block comment
     // that started on an earlier line; the whole-file mask can (2026-09-05).
     const masked = this._maskedLines(text);
-    // #666: computed once per file — a money-named import, type or
-    // identifier anywhere in the file (or, transitively, in any function in
-    // it) corroborates the bare mul/div arithmetic rule below. See
-    // MONEY_CONTEXT_RE for why this list is narrower than MONEY_NAME_RE.
+    // #666: computed once per file — see `hasMoneyContext` above for the
+    // strong/weak signal tiers this corroborates the bare mul/div
+    // arithmetic rule below with.
     const fileHasMoneyContext = hasMoneyContext(text);
     let issues = 0;
 
