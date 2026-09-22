@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { repoRelative } = require('../core/repo-path');
 const { isNonUserFacingPage, isSpaShell } = require('../core/scan-scope');
+const { matchTitleTag, matchMetaDescriptionTag } = require('../core/html-extract');
 
 class SeoModule extends BaseModule {
   constructor() {
@@ -206,9 +207,18 @@ class SeoModule extends BaseModule {
     });
   }
 
+  // #653: a bare `/<title>([^<]*)<\/title>/i` requires an attribute-free
+  // tag written on one line — `<title lang="en">` or a multi-line title
+  // never matched, and the page was reported as having no <title> at all
+  // (12 of 26 grade points on tallrig.com were exactly this false
+  // positive). matchTitleTag() (src/core/html-extract.js, the same one
+  // definition #641/#646 fixed for the crawler) accepts attributes in any
+  // order, whitespace/newlines inside the tag, and ignores a <title>
+  // nested inside <svg>...</svg>. It returns `undefined` only when there is
+  // truly no <title> tag, distinct from a tag that is merely empty.
   _checkTitle(relPath, content, config, result) {
-    const titleMatch = content.match(/<title>([^<]*)<\/title>/i);
-    if (!titleMatch) {
+    const rawTitle = matchTitleTag(content);
+    if (rawTitle === undefined) {
       result.addCheck(`seo:title:${relPath}`, false, {
         file: relPath,
         message: 'Missing <title> tag',
@@ -217,7 +227,7 @@ class SeoModule extends BaseModule {
       return;
     }
 
-    const title = titleMatch[1].trim();
+    const title = rawTitle.trim();
     const maxLength = config.maxTitleLength || 60;
 
     if (title.length === 0) {
@@ -239,11 +249,17 @@ class SeoModule extends BaseModule {
     }
   }
 
+  // #653: the two-alternative regex only handled `name` immediately
+  // followed by `content` (or vice versa) — an attribute sitting between
+  // them (`<meta name="description" lang="en" content="...">`) matched
+  // neither alternative and was reported missing. matchMetaDescriptionTag()
+  // (src/core/html-extract.js) scopes to one <meta ...> tag at a time and
+  // reads `name`/`content` independently, so order and any other attribute
+  // in between no longer matter.
   _checkMetaDescription(relPath, content, config, result) {
-    const descMatch = content.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i) ||
-                      content.match(/<meta\s+content=["']([^"']*)["']\s+name=["']description["']/i);
+    const rawDesc = matchMetaDescriptionTag(content);
 
-    if (!descMatch) {
+    if (rawDesc === undefined) {
       result.addCheck(`seo:description:${relPath}`, false, {
         file: relPath,
         message: 'Missing meta description',
@@ -252,7 +268,7 @@ class SeoModule extends BaseModule {
       return;
     }
 
-    const desc = descMatch[1].trim();
+    const desc = rawDesc.trim();
     const maxLength = config.maxDescriptionLength || 160;
 
     if (desc.length > maxLength) {
