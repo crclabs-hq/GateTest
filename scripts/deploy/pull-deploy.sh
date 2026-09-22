@@ -20,6 +20,12 @@
 #                                built-in GateTest github.com URLs. Tests use
 #                                this to point at a throwaway repo; there is no
 #                                other reason to set it.
+#   PULL_DEPLOY_INPLACE          1 = restart the single existing unit in place
+#                                instead of blue/green (a box with only one
+#                                port free). Default is blue/green via
+#                                scripts/deploy/blue-green-restart.sh — see
+#                                docs/deploy/PULL-DEPLOY.md "Blue/green" for
+#                                the rest of that script's env vars.
 set -euo pipefail
 
 APP_DIR="${GATETEST_APP_DIR:-/opt/gatetest}"
@@ -147,8 +153,27 @@ echo "[pull-deploy] deploying from origin/main (never this box's stale copy — 
 # a fix to the deploy script can never reach the box through the box's own
 # stale script (see the long comment on this exact point in
 # .github/workflows/deploy-box.yml, "Deploy over SSH").
+#
+# Restart strategy (issue #663): deploy-on-box.sh already supports a restart
+# override, GATETEST_RESTART_CMD ("if -n GATETEST_RESTART_CMD; bash -c
+# $GATETEST_RESTART_CMD" instead of its own systemd/pm2 auto-detect). Unless
+# PULL_DEPLOY_INPLACE=1 (a box with only one port free), point that override
+# at scripts/deploy/blue-green-restart.sh — see docs/deploy/PULL-DEPLOY.md
+# "Blue/green" for what it does and why the actual proxy switch is a
+# pluggable hook rather than a Caddy/nginx config (CLAUDE.md Deployment
+# Doctrine bans both on this box). $APP_DIR is already reset to $AFTER by
+# deploy-on-box.sh's sync phase by the time the restart runs, so this reads
+# from the just-deployed tree, not the box's previous copy.
 set +e
-git show origin/main:scripts/deploy/deploy-on-box.sh | GATETEST_APP_DIR="$APP_DIR" bash -s
+if [ "${PULL_DEPLOY_INPLACE:-0}" = "1" ]; then
+  git show origin/main:scripts/deploy/deploy-on-box.sh | GATETEST_APP_DIR="$APP_DIR" PULL_DEPLOY_INPLACE=1 bash -s
+else
+  git show origin/main:scripts/deploy/deploy-on-box.sh | \
+    GATETEST_APP_DIR="$APP_DIR" \
+    GATETEST_RESTART_CMD="$APP_DIR/scripts/deploy/blue-green-restart.sh" \
+    PULL_DEPLOY_EXPECTED_COMMIT="$AFTER" \
+    bash -s
+fi
 DEPLOY_RC=$?
 set -e
 
