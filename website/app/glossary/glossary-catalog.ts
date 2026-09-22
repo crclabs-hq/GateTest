@@ -301,7 +301,7 @@ export const GLOSSARY: GlossaryEntry[] = [
       "In practice, shifting left means a SAST check in CI on every pull request, a secret scan in a pre-push hook, dependency checks at install time, and fast feedback that lands while the change is fresh. The failure mode to avoid is shifting left so aggressively (or noisily) that developers route around the checks — speed and signal-to-noise matter as much as placement.",
     ],
     gatetest:
-      "GateTest is built to shift left: it runs as a GitHub Action on every pull request, as a local pre-push hook for instant feedback, and as an on-demand scan — surfacing findings while the author still has the context, with auto-fix PRs on the Scan + Fix tier so the fix is as fast as the finding.",
+      "GateTest is built to shift left: it runs as a GitHub Action on every pull request, as a local pre-push hook that reports before the push, and as an on-demand scan — surfacing findings while the author still has the context, with auto-fix PRs on the Scan + Fix tier so the fix is as fast as the finding.",
     related: ["sast", "quality-gate", "secret-scanning", "false-positive-rate"],
     modules: [],
     faqs: [

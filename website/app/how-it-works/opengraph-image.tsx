@@ -96,7 +96,7 @@ export default async function Image() {
         >
           <span>{`${TOTAL_MODULES} modules — deterministic first.`}</span>
           <span style={{ color: "#2dd4bf" }}>One AI pass when it&apos;s worth it.</span>
-          <span>Zero hype.</span>
+          <span>Deterministic first.</span>
         </div>
 
         {/* Pillars row */}

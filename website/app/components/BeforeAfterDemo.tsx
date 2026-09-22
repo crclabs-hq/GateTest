@@ -21,12 +21,12 @@ export default function BeforeAfterDemo() {
             What you get
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mt-4 mb-4 text-foreground">
-            From red CI to merged fix &mdash;{" "}
-            <span className="gradient-text">while you sleep.</span>
+            From a red job to a{" "}
+            <span className="gradient-text">reviewed fix PR.</span>
           </h2>
           <p className="text-muted text-lg max-w-2xl mx-auto">
-            Most tools tell you what&apos;s broken. We open the PR that fixes
-            it. This is what a single GateTest run looks like, end-to-end.
+            Most scanners stop at the report. On the fix tiers GateTest opens the
+            pull request. This is one run, end to end, with timestamps.
           </p>
         </div>
 
@@ -62,7 +62,7 @@ export default function BeforeAfterDemo() {
             timestamp="02:14 + 38s"
             badge="GateTest working"
             badgeColor="teal"
-            title="Auto-fix runs while you sleep"
+            title="The fix loop runs against the failing job"
             body={
               <>
                 <ul className="text-sm space-y-2.5 mb-3">

@@ -5,7 +5,7 @@ import PageHero from "../../components/site/PageHero";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 
 export const metadata: Metadata = {
-  title: "GateTest vs GitHub Code Scanning — The Complete QA Platform",
+  title: "GateTest vs GitHub Code Scanning — security plus the rest of the gate",
   description:
     `GitHub Code Scanning covers security basics. GateTest covers ${TOTAL_MODULES} quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing (via GitHub Action), and auto-fix at the Scan + Fix tier and above.`,
   keywords: [
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     "GitHub Advanced Security alternative",
     "CodeQL alternative",
     "beyond GitHub security",
-    "complete QA platform",
+    "QA gate for GitHub",
     "GateTest vs GitHub",
     "GHAS alternative",
   ],
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     canonical: "/compare/github-code-scanning",
   },
   openGraph: {
-    title: "GateTest vs GitHub Code Scanning — The Complete QA Platform",
+    title: "GateTest vs GitHub Code Scanning — security plus the rest of the gate",
     description:
       `GitHub Code Scanning covers security basics. GateTest covers ${TOTAL_MODULES} quality dimensions: security, performance, accessibility, AI safety, visual regression, chaos testing (via GitHub Action), and auto-fix at the Scan + Fix tier and above.`,
     url: "/compare/github-code-scanning",
@@ -100,7 +100,7 @@ export default function GitHubCodeScanningPage() {
           <>
             GateTest vs GitHub Code Scanning
             <br />
-            <span className="text-accent">The Complete QA Platform</span>
+            <span className="text-accent">Security, plus the other checks in the same gate</span>
           </>
         }
         lede={
