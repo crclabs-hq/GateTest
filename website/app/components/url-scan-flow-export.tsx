@@ -11,6 +11,12 @@ function formatFindingsForAgent(result: ScanResult): string {
   lines.push(`**Site scanned:** ${result.targetUrl}`);
   lines.push(`**Health Score:** ${result.healthScore.score} / 100 (Grade ${result.healthScore.grade})`);
   lines.push(`**Summary:** ${result.healthScore.summary}`);
+  if (result.notCheckedModules && result.notCheckedModules.length > 0) {
+    // Issue #643 — say what was not checked wherever the result is read;
+    // this export is pasted verbatim into an agent's context, so it needs
+    // its own explicit line rather than relying on the summary sentence.
+    lines.push(`**Not checked:** ${result.notCheckedModules.length} of ${result.totalModules ?? result.notCheckedModules.length} modules — ${result.notCheckedModules.join(", ")} (no project files or fetched page were applicable to these on this URL-only scan).`);
+  }
   lines.push("");
   lines.push(`## Task for the agent`);
   lines.push(`Investigate the codebase that powers \`${result.targetUrl}\` and fix the issues below. Where the source of an issue isn't obvious, search for the relevant file. Group fixes by root cause where possible — many of these findings collapse to a single configuration change.`);
