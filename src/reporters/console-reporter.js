@@ -271,6 +271,13 @@ class ConsoleReporter {
         `  ${COLORS.dim}Deferred: ${d.module} — ${d.reason}. Runs in: ${d.runsIn}${COLORS.reset}`,
       );
     }
+    // KI #112 (issue #633): `.gatetest.json` keys nothing reads, printed
+    // exactly once per run (config.js already warns to stderr at load time;
+    // this is the same finding surfacing where a customer actually reads
+    // their scan result — console, and via json-output.js the JSON report).
+    if (summary.configCheck) {
+      console.log(`  ${COLORS.dim}Config: ${summary.configCheck.message}${COLORS.reset}`);
+    }
     // Info-severity "findings" (markdown whitespace nits, missing Stylelint
     // config, etc.) never block and are never even a warning — but each one
     // still counts as one failed check in the raw total. Left in the

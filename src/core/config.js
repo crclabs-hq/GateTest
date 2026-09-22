@@ -754,7 +754,31 @@ const KNOWN_ROOT_KEYS = new Set([
   'owner', 'admin', 'mode', 'telemetry',
   // Descriptive / provenance only; deliberately no-ops.
   '$schema', 'version', 'name', 'description', 'notes', 'gatetest_source',
+  // Protection-marker keys (integrations/scripts/install.sh writes these —
+  // see PROTECTED PLATFORMS in CLAUDE.md). `gatetest_source` is above;
+  // these three are the rest of the marker block install.sh generates.
+  // They exist to be read by our own tooling (a future session checking
+  // "is this repo protected?"), not by a scan — legitimate no-ops here.
+  'protected', 'do_not_remove', 'integration_version',
 ]);
+
+/**
+ * "Did you mean X?" for a root key that is not read — keyed on the exact
+ * unknown key. Kept deliberately small and explicit: a guess that is WRONG
+ * is worse than "no equivalent in this version", so this only names a
+ * substitute when the mapping is genuinely close (the same concept, a
+ * different key name), never a fuzzy string match.
+ *
+ * `severity` has no entry on purpose — there is no per-module severity
+ * override mechanism in this version (only the field-measured demotions in
+ * rule-demotion.js, which are not user-configurable), so a customer setting
+ * it gets an honest "no equivalent" rather than a guess.
+ */
+const KEY_HINTS = {
+  gating: 'gate',
+  output: 'reporting',
+  artifacts: 'reporting.outputDir',
+};
 
 class GateTestConfig {
   constructor(projectRoot) {
@@ -789,6 +813,7 @@ class GateTestConfig {
       }
     }
 
+    this.unknownKeyHints = {};
     this.unknownKeys = sourcePath ? this._reportUnknownKeys(fileConfig, sourcePath) : [];
 
     return this._deepMerge(DEFAULT_CONFIG, fileConfig);
@@ -802,10 +827,18 @@ class GateTestConfig {
    * one word away from `modules.aiReview`, and today the difference between
    * the two is completely silent. Returns the offending keys so callers (and
    * tests) can assert on them without capturing stderr.
+   *
+   * A key starting with `$` (e.g. `$comment`, `$schema`) is documentation by
+   * convention, not configuration — never reported, whatever it's named.
+   * Sets `this.unknownKeyHints`, a `{key: hint|null}` map (`hint` is the
+   * known key a customer probably meant, or `null` for "no equivalent in
+   * this version") — the same data the `config:unknown-keys` check
+   * (src/core/runner.js) reports as a three-state, never-blocking finding.
    */
   _reportUnknownKeys(fileConfig, sourcePath) {
+    this.unknownKeyHints = {};
     if (!fileConfig || typeof fileConfig !== 'object' || Array.isArray(fileConfig)) return [];
-    const unknown = Object.keys(fileConfig).filter((key) => !KNOWN_ROOT_KEYS.has(key));
+    const unknown = Object.keys(fileConfig).filter((key) => !key.startsWith('$') && !KNOWN_ROOT_KEYS.has(key));
     if (unknown.length === 0) return [];
 
     let moduleNames;
@@ -815,17 +848,46 @@ class GateTestConfig {
       moduleNames = new Set();
     }
 
-    const described = unknown.map((key) => (
-      moduleNames.has(key)
-        ? `${key} (module config belongs under "modules.${key}")`
-        : key
-    ));
+    const hintFor = (key) => (moduleNames.has(key) ? `modules.${key}` : (KEY_HINTS[key] || null));
+    const described = unknown.map((key) => {
+      const hint = hintFor(key);
+      this.unknownKeyHints[key] = hint;
+      if (moduleNames.has(key)) return `${key} (module config belongs under "modules.${key}")`;
+      return hint ? `${key} (did you mean "${hint}"?)` : `${key} (no equivalent in this version)`;
+    });
 
     console.error(
       `[GateTest] Warning: ${sourcePath} sets ${unknown.length} key(s) GateTest does not read: `
       + `${described.join(', ')}. They have no effect on this scan.`
     );
     return unknown;
+  }
+
+  /**
+   * The `config:unknown-keys` finding (KI #112, issue #633's "13 unread
+   * keys" report) — an INFO-severity, never-blocking, three-state check:
+   * `null` when every root key is one this version reads (nothing to say,
+   * so nothing is emitted — Doctrine #1's "clean" state), otherwise an
+   * object naming every unrecognised key and, per key, the known key a
+   * customer probably meant (or "no equivalent in this version"). One
+   * definition — src/core/runner.js reads this, not a second computation,
+   * so the console/PR-comment/JSON-report copies can never disagree.
+   * @returns {{name:string, passed:boolean, severity:string, message:string, keys:string[], hints:Object}|null}
+   */
+  getUnknownKeysCheck() {
+    if (!Array.isArray(this.unknownKeys) || this.unknownKeys.length === 0) return null;
+    const hints = this.unknownKeyHints || {};
+    const parts = this.unknownKeys.map((key) => (
+      hints[key] ? `${key} (did you mean "${hints[key]}"?)` : `${key} (no equivalent in this version)`
+    ));
+    return {
+      name: 'config:unknown-keys',
+      passed: false,
+      severity: 'info',
+      message: `.gatetest.json sets ${this.unknownKeys.length} key(s) this version does not read: ${parts.join(', ')}. They have no effect on this scan.`,
+      keys: [...this.unknownKeys],
+      hints: { ...hints },
+    };
   }
 
   _deepMerge(target, source) {

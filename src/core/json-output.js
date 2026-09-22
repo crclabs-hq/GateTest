@@ -198,6 +198,10 @@ function buildJsonOutput(summary, ctx) {
     checks: summary.checks || null,
     duration: typeof summary.duration === 'number' ? summary.duration : null,
     deferred: Array.isArray(summary.deferred) ? summary.deferred : [],
+    // KI #112 (issue #633): null when .gatetest.json has no unrecognised
+    // root keys — never a placeholder object. See src/core/config.js
+    // getUnknownKeysCheck() for the one definition of this shape.
+    configCheck: summary.configCheck || null,
     failedModules: Array.isArray(summary.failedModules) ? summary.failedModules : [],
     report: ctx.reportPath || null,
     issues,

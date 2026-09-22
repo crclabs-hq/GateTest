@@ -1177,6 +1177,14 @@ class GateTestRunner extends EventEmitter {
       // Carried on the summary so no consumer can present a deferred suite
       // as exhaustive — Forbidden #16.
       deferred: this.options.deferredModules || [],
+      // KI #112 (issue #633): `.gatetest.json` keys nothing reads used to be
+      // a stderr-only warning, invisible to `--format json` and the PR
+      // comment. `null` (never emitted) when the config has none — a
+      // three-state, never-blocking, printed-once-per-run finding
+      // (src/core/config.js `getUnknownKeysCheck` — one definition).
+      configCheck: (this.config && typeof this.config.getUnknownKeysCheck === 'function')
+        ? this.config.getUnknownKeysCheck()
+        : null,
       timestamp: new Date().toISOString(),
       duration: endTime - startTime,
       diffOnly: this.options.diffOnly,

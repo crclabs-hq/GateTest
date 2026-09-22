@@ -109,3 +109,40 @@ describe('GateTestRunner — `.gatetest.json`\'s `ignore` array feeds the suppre
     assert.equal(runner._ignoreMatcher.isEmpty, true);
   });
 });
+
+// KI #112: `config:unknown-keys` reaches the summary (and from there,
+// json-output.js and the console reporter) as a three-state, never-blocking
+// finding — present only when there is something to say.
+describe('GateTestRunner — summary carries `config:unknown-keys` (KI #112)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-runner-cfgcheck-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  function buildSummary(configJson) {
+    fs.writeFileSync(path.join(tmp, '.gatetest.json'), JSON.stringify(configJson));
+    const original = console.error;
+    console.error = () => {};
+    try {
+      const config = new GateTestConfig(tmp);
+      const runner = new GateTestRunner(config, {});
+      runner.results = [];
+      return runner._buildSummary(Date.now(), Date.now());
+    } finally {
+      console.error = original;
+    }
+  }
+
+  it('a config with only known keys → summary.configCheck is null (no check emitted)', () => {
+    const summary = buildSummary({ thresholds: { maxFileLength: 800 } });
+    assert.strictEqual(summary.configCheck, null);
+  });
+
+  it('a config with unknown keys → summary.configCheck names them, info severity, never blocking', () => {
+    const summary = buildSummary({ severity: 'error', gating: true });
+    assert.ok(summary.configCheck);
+    assert.strictEqual(summary.configCheck.name, 'config:unknown-keys');
+    assert.strictEqual(summary.configCheck.severity, 'info');
+    assert.strictEqual(summary.configCheck.passed, false);
+    assert.deepStrictEqual(summary.configCheck.keys.sort(), ['gating', 'severity']);
+  });
+});
