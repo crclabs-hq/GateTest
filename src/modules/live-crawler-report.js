@@ -46,23 +46,37 @@ function generateFeedbackReport(config, data) {
 
   const timedOutPages = data.timedOutPages || [];
   const pagesAttempted = data.pagesScanned + timedOutPages.length;
+  const budgetExhausted = !!data.budgetExhausted;
+  const elapsedS = ((data.crawlElapsedMs || 0) / 1000).toFixed(1);
 
   const lines = [];
   lines.push('# GateTest Live Crawl Report');
   lines.push(`# URL: ${data.baseUrl}`);
-  lines.push(timedOutPages.length > 0
-    ? `# Pages scanned: ${data.pagesScanned} (${timedOutPages.length} of ${pagesAttempted} timed out)`
-    : `# Pages scanned: ${data.pagesScanned}`);
+  let pagesLine = `# Pages scanned: ${data.pagesScanned}`;
+  if (timedOutPages.length > 0) pagesLine += ` (${timedOutPages.length} of ${pagesAttempted} timed out)`;
+  // Doctrine #1 (three-state): a crawl cut short by its own wall-clock
+  // budget carries what it fetched, labelled, instead of the runner's
+  // outer race discarding it and printing "no data was collected" (#640).
+  if (budgetExhausted) pagesLine += ` — crawl budget exhausted: ${data.pagesScanned} of ${data.maxPages} pages fetched in ${elapsedS}s`;
+  lines.push(pagesLine);
   lines.push(`# Generated: ${new Date().toISOString()}`);
   lines.push('');
 
   if (data.errors.length === 0 && data.brokenLinks.length === 0
-      && data.brokenImages.length === 0 && timedOutPages.length === 0) {
+      && data.brokenImages.length === 0 && timedOutPages.length === 0
+      && !budgetExhausted) {
     lines.push('## RESULT: ALL CLEAR');
     lines.push('No errors, broken links, or broken images found.');
   } else {
     lines.push('## RESULT: ISSUES FOUND — FIX REQUIRED');
     lines.push('');
+
+    if (budgetExhausted) {
+      lines.push('### Crawl Budget Exhausted (not checked)');
+      lines.push(`${data.pagesScanned} of ${data.maxPages} pages fetched in ${elapsedS}s before the wall-clock budget ran out; the remaining pages were NOT checked.`);
+      lines.push('Raise the module timeout (.gatetest config modules.liveCrawler under moduleTimeouts, or GATETEST_MODULE_TIMEOUT_MS) or lower --crawl-max / --crawl-page-timeout for this host.');
+      lines.push('');
+    }
 
     if (timedOutPages.length > 0) {
       lines.push(`### Page Timeouts (${timedOutPages.length} of ${pagesAttempted} pages)`);

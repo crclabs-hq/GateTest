@@ -43,6 +43,14 @@
  *            variable is never passed to `clearInterval`.
  *            (rule: `resource-leak:uncleared-interval:<rel>:<line>`)
  *
+ *   Both setInterval rules downgrade to `info` when the call lives inside
+ *   a process-entrypoint function (start/startServer/startDaemon/main/run/
+ *   init/bootstrap/listen — whole-word match, case-insensitive). Issue
+ *   #633: a daemon's heartbeat/poller interval is meant to live exactly as
+ *   long as the process, so there is no shorter scope for it to leak past.
+ *   An ordinary function unrelated to process startup still fires at full
+ *   severity — see tests/resource-leak.test.js.
+ *
  *   warning: `new WebSocket(...)` / `new EventSource(...)` /
  *            `client.connect()` whose handle is never `.close()`ed
  *            in the visible window.
@@ -108,6 +116,15 @@ const ACQUIRE_PATTERNS = [
 // capture and `clearInterval`).
 const SETINTERVAL_ASSIGNED_RE = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*setInterval\s*\(/;
 const SETINTERVAL_BARE_RE = /(?:^|[;\s])setInterval\s*\(/;
+
+// Issue #633 (Tallrig false-positive report): a setInterval that lives
+// inside a process-entrypoint function — start/startServer/main/run/init/
+// bootstrap/listen — has no shorter lifetime to leak past. It's meant to
+// run for the entire life of the process (a heartbeat, a poller), so
+// "never cleared" isn't a leak there the way it is in an ordinary
+// function. Whole-word match only — `startupCheck` or `startTicker` do
+// not count, just the bare entrypoint-shaped names themselves.
+const PROCESS_ENTRYPOINT_NAMES = new Set(['start', 'startserver', 'startdaemon', 'main', 'run', 'init', 'bootstrap', 'listen']);
 
 class ResourceLeakModule extends BaseModule {
   constructor() {
@@ -196,13 +213,18 @@ class ResourceLeakModule extends BaseModule {
         const cleared = this._isIntervalCleared(lines, i, varName);
         const returned = this._isReturnedOrExported(lines, i, varName);
         if (!cleared && !returned) {
+          const entrypoint = this._isProcessEntrypoint(lines, i);
           issues += this._flag(result, `resource-leak:uncleared-interval:${rel}:${i + 1}`, {
-            severity: isTestFile ? 'info' : 'warning',
+            severity: (isTestFile || entrypoint) ? 'info' : 'warning',
             file: rel,
             line: i + 1,
             variable: varName,
-            message: `${rel}:${i + 1} \`${varName} = setInterval(...)\` is captured but never \`clearInterval(${varName})\`-ed — the interval keeps the event loop alive forever`,
-            suggestion: 'Store the handle and call `clearInterval(handle)` in your shutdown path. For servers, listen on `SIGTERM`/`SIGINT` and clear all intervals before exit.',
+            message: entrypoint
+              ? `${rel}:${i + 1} \`${varName} = setInterval(...)\` lives inside a process-entrypoint function — it is meant to run for the life of the process, so an uncleared interval here is not a leak`
+              : `${rel}:${i + 1} \`${varName} = setInterval(...)\` is captured but never \`clearInterval(${varName})\`-ed — the interval keeps the event loop alive forever`,
+            suggestion: entrypoint
+              ? 'No action needed if this interval is meant to run for the whole process lifetime. Add a `clearInterval` on SIGTERM/SIGINT only if the process is expected to shut down cleanly.'
+              : 'Store the handle and call `clearInterval(handle)` in your shutdown path. For servers, listen on `SIGTERM`/`SIGINT` and clear all intervals before exit.',
           });
         }
         continue;
@@ -212,12 +234,17 @@ class ResourceLeakModule extends BaseModule {
       const siBare = SETINTERVAL_BARE_RE.exec(line);
       // Reject when the line already had an assignment (handled above)
       if (siBare && !SETINTERVAL_ASSIGNED_RE.test(line) && !/=\s*setInterval/.test(line)) {
+        const entrypoint = this._isProcessEntrypoint(lines, i);
         issues += this._flag(result, `resource-leak:setinterval:${rel}:${i + 1}`, {
-          severity: isTestFile ? 'info' : 'error',
+          severity: (isTestFile || entrypoint) ? 'info' : 'error',
           file: rel,
           line: i + 1,
-          message: `${rel}:${i + 1} bare \`setInterval(...)\` — return value discarded, \`clearInterval\` is impossible; the interval runs forever`,
-          suggestion: 'Capture the handle: `const h = setInterval(...)`; clear it on shutdown: `clearInterval(h)`.',
+          message: entrypoint
+            ? `${rel}:${i + 1} bare \`setInterval(...)\` lives inside a process-entrypoint function — meant to run for the life of the process, so the discarded handle is not a leak`
+            : `${rel}:${i + 1} bare \`setInterval(...)\` — return value discarded, \`clearInterval\` is impossible; the interval runs forever`,
+          suggestion: entrypoint
+            ? 'No action needed if this interval is meant to run for the whole process lifetime.'
+            : 'Capture the handle: `const h = setInterval(...)`; clear it on shutdown: `clearInterval(h)`.',
         });
       }
     }
@@ -277,6 +304,60 @@ class ResourceLeakModule extends BaseModule {
       if (returnRe.test(ln) || exportRe.test(ln) || propAssignRe.test(ln) || pushRe.test(ln)) return true;
     }
     return false;
+  }
+
+  // Whether the setInterval at `lines[index]` sits inside a function whose
+  // name strongly suggests a process entrypoint (start/main/run/init/
+  // bootstrap/listen and friends) — see PROCESS_ENTRYPOINT_NAMES above.
+  _isProcessEntrypoint(lines, index) {
+    const name = this._enclosingFunctionName(lines, index);
+    return !!name && PROCESS_ENTRYPOINT_NAMES.has(name.toLowerCase());
+  }
+
+  // Walk outward through enclosing braces (on the already-masked lines, so
+  // braces inside strings/comments are not counted) looking for the
+  // nearest one that reads as a function/method definition. No AST here —
+  // same line-heuristic style as the rest of this module — so this can
+  // miss unusual formatting, but it's enough to tell `function main() {
+  // setInterval(...) }` from `function pollOnce() { setInterval(...) }`.
+  _enclosingFunctionName(lines, index) {
+    let searchFrom = index;
+    for (let depth = 0; depth < 10; depth += 1) {
+      const braceLine = this._findEnclosingBraceLine(lines, searchFrom);
+      if (braceLine === -1) return null;
+      const name = this._extractFnNameFromLine(lines[braceLine]);
+      if (name) return name;
+      searchFrom = braceLine;
+    }
+    return null;
+  }
+
+  // Scans backward from `index` tracking brace balance to find the line
+  // holding the nearest unmatched `{` that encloses `index`.
+  _findEnclosingBraceLine(lines, index) {
+    let balance = 0;
+    for (let i = index - 1; i >= 0; i -= 1) {
+      const line = lines[i] || '';
+      const opens = (line.match(/\{/g) || []).length;
+      const closes = (line.match(/\}/g) || []).length;
+      balance += closes - opens;
+      if (balance < 0) return i;
+    }
+    return -1;
+  }
+
+  _extractFnNameFromLine(line) {
+    let m = /\bfunction\s*\*?\s+([A-Za-z_$][\w$]*)\s*\(/.exec(line);
+    if (m) return m[1];
+    m = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:function\b|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/.exec(line);
+    if (m) return m[1];
+    m = /\b([A-Za-z_$][\w$]*)\s*:\s*(?:async\s+)?(?:function\b|\([^)]*\)\s*=>)/.exec(line);
+    if (m) return m[1];
+    // Class/object method shorthand: `name(...) {` — exclude control-flow
+    // keywords that share the same shape.
+    m = /(?:^|[\s;{}])([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{\s*$/.exec(line);
+    if (m && !/^(?:if|for|while|switch|catch|function|return|typeof|new|else)$/i.test(m[1])) return m[1];
+    return null;
   }
 
   _escapeRegex(s) {

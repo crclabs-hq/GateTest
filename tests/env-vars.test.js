@@ -411,3 +411,56 @@ describe('EnvVarsModule — only the .env* files are the contract unused-in-code
     assert.deepStrictEqual(missing, ['COMMENTED']);
   });
 });
+
+describe('EnvVarsModule — G5 (KI #112, issue #633): .env.example resolved per workspace on a monorepo', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ev-mono-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  function writePkg(root, rel, name) {
+    write(root, `${rel}/package.json`, JSON.stringify({ name }));
+  }
+
+  it('CONTROL PAIR — a workspace-local .env.example satisfies the check; a genuinely undocumented variable in src/ still fires', async () => {
+    // packages/foo ships its own .env.example documenting FOO_DOCUMENTED —
+    // reading it is fine. It also reads FOO_UNDOCUMENTED, unguarded, which
+    // its own contract does not mention: that is a real, blocking miss.
+    writePkg(tmp, 'packages/foo', '@t/foo');
+    write(tmp, 'packages/foo/.env.example', 'FOO_DOCUMENTED=\n');
+    write(tmp, 'packages/foo/src/index.js', [
+      'const a = process.env.FOO_DOCUMENTED;',
+      'const b = process.env.FOO_UNDOCUMENTED;',
+      'module.exports = { a, b };',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.ok(
+      !r.checks.some((c) => c.name === 'env-vars:missing-from-example:FOO_DOCUMENTED'),
+      'a var documented in the reading package\'s own .env.example must not fire at all',
+    );
+    const undoc = r.checks.find((c) => c.name === 'env-vars:missing-from-example:FOO_UNDOCUMENTED');
+    assert.ok(undoc, 'a var genuinely undocumented anywhere in the repo must still fire');
+    assert.strictEqual(undoc.severity, 'error', 'the owning package ships its own contract and missed this key — blocking');
+  });
+
+  it('an unguarded read in a workspace with NO .env.example of its own is a warning, even though the repo root has one', async () => {
+    // Root ships an .env.example for the main app. packages/bar has never
+    // opted into a documented contract of its own — root's file is not
+    // bar's promise, so a miss there is documentation debt, not a boot risk.
+    write(tmp, '.env.example', 'ROOT_KEY=\n');
+    writePkg(tmp, 'packages/bar', '@t/bar');
+    write(tmp, 'packages/bar/src/index.js', 'const x = process.env.BAR_UNDOCUMENTED;\nmodule.exports = { x };\n');
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name === 'env-vars:missing-from-example:BAR_UNDOCUMENTED');
+    assert.ok(hit);
+    assert.strictEqual(hit.severity, 'warning');
+  });
+
+  it('a variable documented in a DIFFERENT workspace\'s .env.example is still not "missing" (declared is repo-wide)', async () => {
+    writePkg(tmp, 'packages/foo', '@t/foo');
+    write(tmp, 'packages/foo/.env.example', 'SHARED_KEY=\n');
+    writePkg(tmp, 'packages/bar', '@t/bar');
+    write(tmp, 'packages/bar/src/index.js', 'const x = process.env.SHARED_KEY;\nmodule.exports = { x };\n');
+    const r = await run(tmp);
+    assert.ok(!r.checks.some((c) => c.name === 'env-vars:missing-from-example:SHARED_KEY'));
+  });
+});

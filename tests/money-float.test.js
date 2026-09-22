@@ -455,6 +455,22 @@ describe('MoneyFloatModule — minor units divided for display are not float mon
     const names = arith(await run(tmp)).map((c) => c.name);
     assert.strictEqual(names.length, 3, names.join(', '));
   });
+
+  // issue #633 (2026-09-22): a bare `const label = cents / 100;` — no
+  // formatter call, no template literal — was still flagged as money
+  // arithmetic even though nothing is stored: the target's OWN name says
+  // it's display text. `total` (already covered above) still fires: the
+  // fix is scoped to display-shaped target names, not every assignment.
+  it('CONTROL PAIR (issue #633): a display-named target (label/text/formatted/…) is quiet; a money-named target (total) still fires', async () => {
+    write(tmp, 'src/receipt.ts', [
+      'const label = cents / 100;',
+      'let formattedText = pence / 100;',
+      'const total = cents / 100;',
+      '',
+    ].join('\n'));
+    const names = arith(await run(tmp)).map((c) => c.name);
+    assert.deepStrictEqual(names, ['money-float:arithmetic:src/receipt.ts:3']);
+  });
 });
 
 describe('MoneyFloatModule — one stripper: the masked line decides', () => {

@@ -268,6 +268,54 @@ describe('PromptSafetyModule — prompt injection', () => {
       undefined,
     );
   });
+
+  // Issue #633 (Tallrig): a "you are ..."-shaped string interpolating a
+  // hint-named variable was flagged as prompt injection in a file whose
+  // ONLY AI-adjacency signal was an unrelated NEXT_PUBLIC_* env var
+  // elsewhere in the file — there was no LLM call anywhere on that code
+  // path. AI-adjacency (file worth reading) and "this string reaches a
+  // live LLM call" (safe to accuse) are different claims; LLM_CALL_EVIDENCE_RE
+  // draws the line the rule was missing.
+  it('does NOT flag a prompt-shaped template when the only AI-adjacency signal is an unrelated NEXT_PUBLIC_* env var (issue #633)', async () => {
+    write(tmp, 'src/a.js', [
+      "const config = { NEXT_PUBLIC_ANALYTICS_TOKEN: 'xyz' };",
+      'function describeUser(userMessage) {',
+      '  return `You are being shown this message: ${userMessage}`;',
+      '}',
+      'module.exports = { describeUser };',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(
+      r.checks.find((c) => c.name.startsWith('prompt-safety:prompt-injection:')),
+      undefined,
+      'a file with no LLM call anywhere must not accuse a plain string of prompt injection',
+    );
+  });
+
+  // Control: the identical shape, but the file ALSO makes a real LLM call —
+  // the rule must still fire. A rule that stops looking altogether would
+  // pass the negative control above for the wrong reason.
+  it('still flags the same shape when the file also makes a real LLM call (control pair for issue #633)', async () => {
+    write(tmp, 'src/a.js', [
+      'const OpenAI = require("openai");',
+      'const client = new OpenAI();',
+      "const config = { NEXT_PUBLIC_ANALYTICS_TOKEN: 'xyz' };",
+      'function describeUser(userMessage) {',
+      '  return `You are being shown this message: ${userMessage}`;',
+      '}',
+      'async function ask(userMessage) {',
+      '  return client.chat.completions.create({ model: "gpt-4o", max_tokens: 100, messages: [{ role: "user", content: describeUser(userMessage) }] });',
+      '}',
+      'module.exports = { describeUser, ask };',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.ok(
+      r.checks.find((c) => c.name.startsWith('prompt-safety:prompt-injection:')),
+      'a file that really does call an LLM must still be flagged',
+    );
+  });
 });
 
 describe('PromptSafetyModule — deprecated models', () => {

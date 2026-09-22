@@ -19,6 +19,15 @@
  *
  * Rules:
  *   error:   DROP COLUMN / DROP TABLE               — data loss
+ *            (DROP TABLE is excused when it is part of SQLite's documented
+ *            table-rebuild idiom — CREATE __new_X, INSERT INTO __new_X
+ *            SELECT ... FROM X, DROP TABLE X, ALTER TABLE __new_X RENAME TO
+ *            X — since the data was copied into the replacement table
+ *            first: https://www.sqlite.org/lang_altertable.html §7. A DROP
+ *            TABLE on an ephemeral-looking name — tmp_*, temp_*, _temp,
+ *            staging_*, _staging — outside that idiom is downgraded to a
+ *            warning rather than excused outright, since it is still a
+ *            real drop, just of a table that was named as disposable.)
  *   error:   ADD COLUMN ... NOT NULL  (no DEFAULT)  — rejects existing rows
  *   error:   ALTER COLUMN ... SET NOT NULL          — full-table lock
  *   error:   CREATE INDEX CONCURRENTLY inside BEGIN — Postgres refuses this
@@ -105,6 +114,7 @@ class SqlMigrationsModule extends BaseModule {
     let issues = 0;
     let inTransaction = false;
     let transactionStart = 0;
+    const rebuiltTables = this._findRebuiltTables(lines);
 
     for (let i = 0; i < lines.length; i += 1) {
       const line = lines[i];
@@ -136,14 +146,41 @@ class SqlMigrationsModule extends BaseModule {
       }
 
       // 2. DROP TABLE
-      if (/^\s*DROP\s+TABLE\b/i.test(t)) {
-        issues += this._flag(result, `sql:drop-table:${rel}:${i + 1}`, {
-          severity: 'error',
-          file: rel,
-          line: i + 1,
-          message: '`DROP TABLE` — irreversible data loss',
-          suggestion: 'Rename the table first (`ALTER TABLE foo RENAME TO foo_deprecated`), let code deploy without referencing it, then drop in a later migration.',
-        });
+      const dropTableMatch = /^\s*DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:`|"|\[)?([A-Za-z_][\w]*)/i.exec(t);
+      if (dropTableMatch) {
+        const droppedTable = dropTableMatch[1];
+        if (rebuiltTables.has(droppedTable.toLowerCase())) {
+          // SQLite's documented table-rebuild idiom (lang_altertable.html §7):
+          // CREATE __new_X, copy the data in, DROP TABLE X, RENAME __new_X TO
+          // X. The data survived via the copy, so this DROP is not a loss.
+          issues += this._flag(result, `sql:drop-table-rebuild:${rel}:${i + 1}`, {
+            severity: 'info',
+            file: rel,
+            line: i + 1,
+            message: `\`DROP TABLE ${droppedTable}\` — part of the SQLite table-rebuild idiom (CREATE __new_${droppedTable}, copy, DROP, RENAME back); not data loss since the rows were copied first`,
+            suggestion: 'No action needed — this is the documented ALTER TABLE workaround, not a destructive drop.',
+          });
+        } else if (/^(?:tmp_|temp_|_temp|staging_|_staging)/i.test(droppedTable)) {
+          // An ephemeral/staging-named table is lower risk than a real
+          // table, but it is still a real DROP outside of any rebuild
+          // idiom, so keep it visible at a reduced severity rather than
+          // excusing it outright.
+          issues += this._flag(result, `sql:drop-table-ephemeral:${rel}:${i + 1}`, {
+            severity: 'warning',
+            file: rel,
+            line: i + 1,
+            message: `\`DROP TABLE ${droppedTable}\` — name matches an ephemeral/staging convention, lower risk than dropping a real table, but confirm it is not the last copy of its data`,
+            suggestion: 'If this table only ever holds transient data for this migration, no action needed. If it can hold real data, rename the convention or add a rebuild-idiom copy step.',
+          });
+        } else {
+          issues += this._flag(result, `sql:drop-table:${rel}:${i + 1}`, {
+            severity: 'error',
+            file: rel,
+            line: i + 1,
+            message: '`DROP TABLE` — irreversible data loss',
+            suggestion: 'Rename the table first (`ALTER TABLE foo RENAME TO foo_deprecated`), let code deploy without referencing it, then drop in a later migration.',
+          });
+        }
       }
 
       // 3. ADD COLUMN ... NOT NULL without DEFAULT
@@ -261,6 +298,36 @@ class SqlMigrationsModule extends BaseModule {
     }
 
     return issues;
+  }
+
+  // SQLite's documented table-rebuild idiom (lang_altertable.html §7): a
+  // migration that can't be done with a plain ALTER TABLE creates a
+  // `__new_<table>` (or `new_<table>`) shadow with the new schema, copies
+  // the data in, drops the old table, then renames the shadow back to the
+  // original name. Returns the set of (lowercased) real table names that
+  // this file rebuilds that way, so DROP TABLE on one of them isn't a data
+  // loss — the rows were copied into the replacement first.
+  _findRebuiltTables(lines) {
+    const text = lines.join('\n');
+    const rebuilt = new Set();
+
+    const createRe = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`|"|\[)?(?:__new_|new_)([A-Za-z_][\w]*)/gi;
+    const created = new Set();
+    let m;
+    while ((m = createRe.exec(text)) !== null) {
+      created.add(m[1].toLowerCase());
+    }
+    if (created.size === 0) return rebuilt;
+
+    const renameRe = /ALTER\s+TABLE\s+(?:`|"|\[)?(?:__new_|new_)([A-Za-z_][\w]*)(?:`|"|\])?\s+RENAME\s+TO\s+(?:`|"|\[)?([A-Za-z_][\w]*)/gi;
+    while ((m = renameRe.exec(text)) !== null) {
+      const suffix = m[1].toLowerCase();
+      const target = m[2].toLowerCase();
+      if (suffix === target && created.has(suffix)) {
+        rebuilt.add(target);
+      }
+    }
+    return rebuilt;
   }
 
   _flag(result, name, details) {

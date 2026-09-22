@@ -189,7 +189,19 @@ class ShellModule extends BaseModule {
       }
 
       // 3. eval of variables or command substitution
-      if (/\beval\s+["']?\$/.test(trimmed) || /\beval\s+.*\$\(/.test(trimmed) || /\beval\s+.*`/.test(trimmed)) {
+      //
+      // issue #633 (2026-09-22): `run(){ eval "$@"; }` — the standard
+      // dry-run/verbose-command wrapper idiom (`run "$@"` logs then
+      // `eval`s the caller's own already-tokenized positional
+      // parameters) — was reported 5x on one repo, 0 of them real. `"$@"`
+      // is structurally different from `eval "$VAR"` or `eval "$(cmd)"`:
+      // the shell has already split it into the caller's own argument
+      // vector, not a single string an attacker can smuggle metacharacters
+      // through by controlling ONE variable's contents. Scoped narrowly to
+      // eval's entire argument being `$@`/`"$@"`/`${@}`/`"$*"` and nothing
+      // else — `eval "$@ extra"` or `eval "$1"` still fire below.
+      const evalArgsPassthrough = /\beval\s+["']?\$\{?[@*]\}?["']?\s*;?\s*\}?\s*$/.test(trimmed);
+      if (!evalArgsPassthrough && (/\beval\s+["']?\$/.test(trimmed) || /\beval\s+.*\$\(/.test(trimmed) || /\beval\s+.*`/.test(trimmed))) {
         issues += flag(`shell:eval-var:${rel}:${i + 1}`, {
           severity: 'error',
           file: rel,

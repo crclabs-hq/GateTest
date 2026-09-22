@@ -62,9 +62,16 @@
  *            documented idiom is a commented catch explaining WHY it's
  *            safe, and the module's own fix advice blesses that pattern.
  *            (rule: `error-swallow:empty-catch:<rel>:<line>`)
- *   error:   catch block that only calls `console.log`/`console.warn`
- *            and does not re-throw — visible in logs but breaks
- *            downstream callers
+ *   warning: catch block (or `.catch()` handler) that calls a logger —
+ *            `console.*`, `log.*` or `logger.*`, any method — and does
+ *            not re-throw: visible in logs but invisible to callers.
+ *            Not blocking (issue #633, 2026-09-22): Tallrig's sample of
+ *            134 findings on their monorepo showed 12/20 were the fail-
+ *            soft-and-log idiom used ON PURPOSE (bootstrap-admin.ts:100
+ *            warns then continues by design) at BLOCKING severity — a
+ *            logged swallow is a real code smell but a materially
+ *            different risk than one with NO trace at all, which is
+ *            `error-swallow:empty-catch` / `catch-noop` and still blocks.
  *            (rule: `error-swallow:log-and-eat:<rel>:<line>`)
  *   error:   `.catch(() => {})` / `.catch(() => null)` /
  *            `.catch(() => undefined)` on a Promise chain — swallows
@@ -316,8 +323,12 @@ class ErrorSwallowModule extends BaseModule {
             this._emptyCatchDetails({ rel, line: i + 1, isHarness, isBareEmpty, guard }),
           );
         } else if (block.closed && this._isLogAndEat(block.code)) {
+          // WARNING, not blocking (issue #633): a logger call is evidence the
+          // author chose fail-soft-and-log on purpose, a materially
+          // different risk than a catch with no trace at all. That's still
+          // `empty-catch`/`catch-noop` above, unchanged at `error`.
           issues += this._flag(result, `error-swallow:log-and-eat:${rel}:${i + 1}`, {
-            severity: isHarness ? 'info' : 'error',
+            severity: isHarness ? 'info' : 'warning',
             file: rel,
             line: i + 1,
             message: `${rel}:${i + 1} catch block only logs and does not re-throw — visible in logs but invisible to callers, breaks downstream error handling`,
@@ -355,6 +366,26 @@ class ErrorSwallowModule extends BaseModule {
           what: 'passes a known noop (`noop`/`ignore`/`swallow`/`_`) to `.catch()`',
           suggestion: 'Give the handler a real body, or use `void promise` for fire-and-forget, or add `// gatetest-fire-and-forget`.',
         }));
+      }
+
+      // 2c. `.catch((e) => { logger.warn(e); })` — a ONE-LINE arrow body that
+      // is only logger calls (the same `_isLogAndEat` test the try/catch
+      // rule uses). Deliberately narrow: `[^{}]*` does not cross a nested
+      // brace, so a multi-line or non-trivial handler body falls through
+      // unclaimed rather than being misread. This is `log-and-eat`, not
+      // `catch-noop` — the rejection IS visible, just not to the caller —
+      // so it shares that rule's WARNING severity (issue #633).
+      if (!catchNoop && !catchNamedNoop && !this._isSuppressed(lines, i) && !this._isVoidFireAndForget(masked, i)) {
+        const catchLoggerOnly = code.match(/\.catch\s*\(\s*(?:\(\s*\w*\s*\)|\w+)\s*=>\s*\{([^{}]*)\}\s*\)/);
+        if (catchLoggerOnly && this._isLogAndEat(catchLoggerOnly[1])) {
+          issues += this._flag(result, `error-swallow:log-and-eat:${rel}:${i + 1}`, {
+            severity: isHarness ? 'info' : 'warning',
+            file: rel,
+            line: i + 1,
+            message: `${rel}:${i + 1} \`.catch()\` handler only logs and does not re-throw — visible in logs but invisible to callers, breaks downstream error handling`,
+            suggestion: 'Either re-throw after logging or surface a typed error to the caller. If this is intentional fire-and-forget, use `void promise` or add `// gatetest-fire-and-forget`.',
+          });
+        }
       }
 
       // 3. Global silent handlers — the call shape on the masked line, the

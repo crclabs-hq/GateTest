@@ -72,6 +72,49 @@ const AI_ADJACENT_RE = new RegExp([
   String.raw`\bGoogleGenerativeAI\b|\bInvokeModel(?:WithResponseStream)?Command\b|\bChat(?:OpenAI|Anthropic|GoogleGenerativeAI|Bedrock|VertexAI|Ollama|Groq|Mistral)\b|\b(?:generateText|streamText|generateObject|streamObject)\s*\(`,
 ].join('|'), 'i');
 
+/**
+ * Evidence that this file actually SENDS a prompt to an LLM — narrower than
+ * AI_ADJACENT_RE (which also opens a file, correctly, on nothing stronger
+ * than the bare word `openai`/`anthropic` appearing anywhere, e.g. inside an
+ * unrelated package name like `openai-tokenizer`, or a `NEXT_PUBLIC_*`
+ * env var that has nothing to do with prompting at all).
+ *
+ * Issue #633 (Tallrig, 76-workspace monorepo): the prompt-injection rule
+ * fired on a plain identifier interpolated into a "you are ..." shaped
+ * string in a file whose ONLY AI-adjacency signal was an unrelated
+ * `NEXT_PUBLIC_*` env var elsewhere in the file — there was no LLM call on
+ * that code path at all. `_looksAiAdjacent` deciding "read this file" is a
+ * cheap, deliberately loose gate (missing a real prompt call is worse than
+ * a wasted read); "flag this line as prompt injection" is a claim about
+ * data flowing into a live API call and needs the stronger signal below —
+ * a real SDK import/require, a recognised provider endpoint or model
+ * string, or an actual call-site construct (`.messages.create(`,
+ * `generateText(`, a LangChain `Chat*` constructor, etc.).
+ *
+ * Deliberately file-scoped rather than function-scoped: this module has no
+ * AST, and a prompt string built in a helper is routinely passed to the
+ * call site in a different function in the same file (every existing
+ * positive control in tests/prompt-safety.test.js does exactly this — the
+ * template is built in one function, `require("openai")` sits at module
+ * scope). Fails toward detection: a file that also happens to construct
+ * an unrelated prompt-shaped string is still scanned, just more precisely.
+ */
+const LLM_CALL_EVIDENCE_RE = new RegExp([
+  // a real SDK import/require, not a bare word mention
+  String.raw`require\(\s*['"](?:openai|@anthropic-ai\/sdk|@anthropic\/sdk)['"]\s*\)`,
+  String.raw`import\s+[\s\S]{0,80}?from\s+['"](?:openai|@anthropic-ai\/sdk|@anthropic\/sdk)['"]`,
+  String.raw`@anthropic-ai\/sdk|@anthropic\/sdk|openai\/openai|@google\/generative-ai|@google\/genai|@google-cloud\/vertexai|@aws-sdk\/client-bedrock-runtime|@azure\/openai|@azure-rest\/ai-inference|@mistralai\/|cohere-ai|groq-sdk|together-ai|openrouter|@ai-sdk\/|@langchain\/|['"]langchain|['"]ollama['"]|['"]replicate['"]`,
+  String.raw`\bfrom\s+(?:openai|anthropic|google\.generativeai|google\.genai|vertexai|langchain\w*|litellm|ollama|cohere|mistralai|groq)\b\s+import|\bimport\s+(?:openai|anthropic|google\.generativeai|vertexai|langchain\w*|litellm|ollama|cohere|mistralai|groq)\b`,
+  String.raw`boto3[\s\S]{0,60}?bedrock-runtime|['"]bedrock-runtime['"]`,
+  // a recognised provider endpoint — the gateway shape
+  String.raw`api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com|aiplatform\.googleapis\.com|bedrock-runtime\.[a-z0-9-]+\.amazonaws\.com|openrouter\.ai\/api|api\.mistral\.ai|api\.groq\.com|api\.together\.xyz|api\.cohere\.(?:ai|com)|openai\.azure\.com|:11434\b`,
+  // a model identifier in a string — nobody writes `claude-...` / `gpt-...`
+  // in a quoted literal except to name the model a call is invoking
+  String.raw`['"\x60](?:gpt-[345o]|o[134](?:-mini)?\b|claude-|gemini-|text-davinci|text-bison|palm-|mistral-(?:large|medium|small|tiny)|mixtral-|llama-?[23]|command-r)`,
+  // an actual call-site construct
+  String.raw`\.(?:chat\.completions\.create|messages\.create)\s*\(|\bgenerateContent(?:Stream)?\s*\(|\bgenerate_content\s*\(|\bInvokeModel(?:WithResponseStream)?Command\s*\(|\b(?:generateText|streamText|generateObject|streamObject)\s*\(|\bnew\s+Chat(?:OpenAI|Anthropic|GoogleGenerativeAI|Bedrock|VertexAI|Ollama|Groq|Mistral)\s*\(|\bChat(?:OpenAI|Anthropic|Bedrock|GoogleGenerativeAI|VertexAI|Groq|MistralAI)\s*\(`,
+].join('|'), 'i');
+
 // Client-bundled env prefixes. NEXT_PUBLIC_* (Next.js), VITE_* (Vite),
 // REACT_APP_* (CRA), EXPO_PUBLIC_* (Expo), PUBLIC_* (SvelteKit).
 const PUBLIC_ENV_PREFIX = /\b(NEXT_PUBLIC_|VITE_|REACT_APP_|EXPO_PUBLIC_|PUBLIC_)/;
@@ -318,8 +361,13 @@ class PromptSafetyModule extends BaseModule {
 
     // 5. Prompt injection: string templates combining a prompt-shaped
     // literal with a user-input-hinted variable, with no delimiter
-    // between the literal and the var.
-    issues += this._scanPromptInjection(lines, rel, result, isCode);
+    // between the literal and the var. Gated on LLM_CALL_EVIDENCE_RE — see
+    // its comment: AI-adjacency alone (which may be nothing stronger than
+    // an unrelated NEXT_PUBLIC_* env var) is not evidence this string is
+    // ever sent to a model.
+    if (LLM_CALL_EVIDENCE_RE.test(content)) {
+      issues += this._scanPromptInjection(lines, rel, result, isCode);
+    }
 
     return issues;
   }

@@ -147,6 +147,92 @@ describe('SecretsModule — "example" suppression is word-bounded', () => {
   });
 });
 
+// Issue #633 (Tallrig, 76-workspace monorepo): 13/13 sampled findings were
+// false positives, two named shapes —
+//   1. `vapron-default-key-change-me`, a placeholder the app's own boot
+//      guard REJECTS (`if (key === 'vapron-default-key-change-me') throw …`).
+//      Investigated: PLACEHOLDER_VALUE_RE's `default[_-]?(?:secret|key|
+//      password|token)` alternative already matches the `default-key`
+//      segment inside this value case-insensitively, so it is suppressed by
+//      the very first placeholder check the main scan loop runs (line 826)
+//      before any comparison/assignment context is even considered — the
+//      comparison itself is ALSO already neutralised by
+//      _stripComparisonLiterals for `===`/`!==`/`==`/`!=`. No rule change
+//      reproduces a finding for this value in any of: a same-line `===`
+//      comparison, an `_envFallbackSecret` (`?? '...'`) default, or a bare
+//      assignment — see the three describe blocks below.
+//   2. `` $(openssl rand -hex 32) `` — a shell command substitution that
+//      GENERATES a value, not a literal. Investigated: _looksLikeReference
+//      already treats any value starting with `$(` or a backtick as a
+//      reference rather than a literal (see its own doc comment, which
+//      predates this issue and was written for a different command
+//      entirely — `sed`), so no command-specific list is needed; `openssl`,
+//      `uuidgen`, etc. all trigger the same `$(` / backtick prefix check.
+//
+// Both shapes are already excluded by existing, generalised logic — not a
+// hardcoded match on these two exact strings. These tests are the control
+// pair the issue asked for: the two reported shapes stay quiet, and a real
+// hardcoded AWS-style key alongside them still fires.
+describe('SecretsModule — issue #633: boot-guard placeholder and $(...) generator are not secrets', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-secrets-633-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  async function scan(filename, source) {
+    fs.writeFileSync(path.join(tmp, filename), source);
+    const mod = new SecretsModule();
+    const result = makeResult();
+    await mod.run(result, { projectRoot: tmp });
+    return result.checks.filter((c) => !c.passed && c.name.startsWith('secrets:') && c.file === filename);
+  }
+
+  // A real hardcoded AWS-style key — assembled at runtime, split across
+  // pieces on disk, same convention as the sk_live_ fixture above, so this
+  // commit doesn't itself trip GitHub push protection.
+  const REAL_AWS_KEY = ['AKIA', 'QWERTYUIOPASDFGH'].join('');
+
+  it('the boot-guard placeholder in a same-line === comparison is quiet; a real key beside it still fires', async () => {
+    const found = await scan('guard.js', [
+      "if (apiKey === 'vapron-default-key-change-me') {",
+      "  throw new Error('change the default key before deploying');",
+      '}',
+      `const accessKeyId = "${REAL_AWS_KEY}";`,
+    ].join('\n'));
+    assert.strictEqual(found.length, 1, `expected exactly the AWS key to fire, got ${JSON.stringify(found)}`);
+    assert.match(found[0].details[0].type, /^AWS/);
+  });
+
+  it('the boot-guard placeholder as an env-fallback default is quiet', async () => {
+    const found = await scan('fallback.js', [
+      "const AUTH_SECRET = process.env.AUTH_SECRET ?? 'vapron-default-key-change-me';",
+      "if (AUTH_SECRET === 'vapron-default-key-change-me') {",
+      "  throw new Error('rotate the secret');",
+      '}',
+    ].join('\n'));
+    assert.deepStrictEqual(found, []);
+  });
+
+  it('the boot-guard placeholder as a bare assignment is quiet', async () => {
+    const found = await scan('bare.js', "const secretToken = 'vapron-default-key-change-me';\n");
+    assert.deepStrictEqual(found, []);
+  });
+
+  it('a $(openssl ...) command substitution assigned to a credential-named identifier is quiet; a real key beside it still fires', async () => {
+    const found = await scan('gen.sh', [
+      'export DATABASE_PASSWORD="$(openssl rand -hex 32)"',
+      'export SESSION_TOKEN="$(uuidgen)"',
+      `export AWS_ACCESS_KEY_ID="${REAL_AWS_KEY}"`,
+    ].join('\n'));
+    assert.strictEqual(found.length, 1, `expected exactly the AWS key to fire, got ${JSON.stringify(found)}`);
+    assert.match(found[0].details[0].type, /^AWS/);
+  });
+
+  it('a backtick command substitution is quiet the same way', async () => {
+    const found = await scan('gen2.js', 'const secret = `$(openssl rand -hex 32)`;\n');
+    assert.deepStrictEqual(found, []);
+  });
+});
+
 // secrets.js carried its own private test-path regex, which did not know the
 // separator-compound dirs (`js_tests/`, `runtime-tests/`) that base-module's
 // TEST_PATH_RE learned from django and hono. One definition now.
