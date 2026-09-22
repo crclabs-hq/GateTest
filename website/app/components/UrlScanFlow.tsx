@@ -90,7 +90,7 @@ function pushPermalink(result: ScanResult): string | null {
 // unavailable (private browsing, quota, SSR).
 const COVERAGE_STORAGE_PREFIX = "gt_web_coverage:";
 
-function loadPreviousCoverage(targetUrl: string): { totalModules?: number; checkedModules?: number; notCheckedModules?: string[] } | null {
+function loadPreviousCoverage(targetUrl: string): { totalModules?: number; checkedModules?: number; notCheckedModules?: string[]; score?: number; build?: string } | null {
   try {
     const raw = window.localStorage.getItem(COVERAGE_STORAGE_PREFIX + targetUrl);
     return raw ? JSON.parse(raw) : null;
@@ -107,6 +107,11 @@ function saveCoverage(targetUrl: string, result: ScanResult): void {
         totalModules: result.totalModules,
         checkedModules: result.checkedModules,
         notCheckedModules: result.notCheckedModules,
+        // Issue #661 — score + engine build ride along so the NEXT scan of
+        // this URL can tell a build-caused score move apart from a real
+        // change on the customer's site, even when coverage is unchanged.
+        score: result.healthScore?.score,
+        build: result.build,
       })
     );
   } catch {
@@ -323,6 +328,8 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
           totalModules: data.totalModules,
           checkedModules: data.checkedModules,
           notCheckedModules: data.notCheckedModules,
+          score: data.healthScore?.score,
+          build: data.build,
         })
       );
       saveCoverage(targetUrl, data);

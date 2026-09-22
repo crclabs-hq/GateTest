@@ -29,6 +29,8 @@ const { resolveAndValidateUrl } = require("@/app/lib/ssrf-guard") as {
   resolveAndValidateUrl: (input: string) => Promise<{ ok: true; url: URL } | { ok: false; reason: string }>;
 };
 // eslint-disable-next-line @typescript-eslint/no-require-imports
+const { engineBuild } = require("@/app/lib/engine-build") as { engineBuild: () => string };
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
   createLimiter: (opts: { windowMs: number; maxRequests: number }) => {
     guard: (req: NextRequest) => Promise<{ allowed: boolean; status?: number; body?: Record<string, unknown>; headers?: Record<string, string> }>;
@@ -634,6 +636,11 @@ export async function POST(req: NextRequest) {
     // Free regardless of `preview` — check NAMES are not the paid part,
     // only the fix guidance in `findings[].body` is (item 4).
     moduleChecks,
+    // Issue #661 — the engine build stamp, the SAME value `/api/platform-
+    // status` reports as `commit`. Carried so a customer's client-side
+    // per-URL snapshot (UrlScanFlow.tsx) can tell "the engine changed
+    // between your two scans" apart from "your site changed".
+    build: engineBuild(),
     // Honesty flag: true when the caller supplied a session. It is carried
     // by the crawl, the live probe, AND (in the HMAC-signed dispatch body)
     // the runtime browser worker — so authenticated coverage is end-to-end.

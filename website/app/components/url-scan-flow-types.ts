@@ -89,6 +89,12 @@ export interface ScanResult {
   /** Free check-name breakdown for the four live-URL modules (item 4).
    *  Optional so an older cached/shared result still renders. */
   moduleChecks?: ModuleCheckSummary[];
+  /** Issue #661 — the engine build stamp (same value `/api/platform-status`
+   *  reports as `commit`), so a score move with unchanged coverage between
+   *  two scans of the same URL can still be explained as "the engine
+   *  changed" rather than implying the customer's site did. Optional so an
+   *  older cached/shared result (pre-fix) still renders. */
+  build?: string;
   /** Present only on a result restored from a `?s=` permalink (item 3) —
    *  the client-side share encoding's own embedded timestamp, read by
    *  `decodeShareData()` to expire a link after 48h. Never sent by the
