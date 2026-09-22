@@ -39,6 +39,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -u
+          set +e
           # 1. Marketplace webhook: 503 = secret not configured (fail-closed), 401 = configured and rejecting unsigned.
           code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -X POST \
             -H 'content-type: application/json' -d '{}' "${BASE_URL}/api/marketplace/webhook" || echo "000")
@@ -48,9 +49,12 @@ jobs:
             *)   webhook="unknown — returned HTTP ${code}" ;;
           esac
           # 3. The two scheduled workflows: last completed conclusion each.
-          last() { gh run list --workflow "$1" --limit 1 --json conclusion --jq '.[0].conclusion // "no runs"'; }
-          cron=$(last "Cron Ticks (off-Vercel stopgap)")
-          digest=$(last "Weekly Developer Digest")
+          # Workflows are addressed by file name: gh resolves display names
+          # unreliably when they contain parentheses, and under the runner's
+          # `bash -e` a failed lookup killed the whole step (first run, 2026-09-22).
+          last() { gh run list --workflow "$1" --limit 1 --json conclusion --jq '.[0].conclusion // "no runs"' 2>/dev/null || echo "lookup failed"; }
+          cron=$(last cron-ticks.yml)
+          digest=$(last digest-weekly.yml)
           mark() { [ "$1" = "success" ] && echo "done — last run green" || echo "OPEN — last run: $1"; }
           {
             echo "webhook=$webhook"
