@@ -64,7 +64,7 @@ function GradeRing({ score, grade, color }: { score: number; grade: string; colo
         />
       </svg>
       <div className="absolute text-center">
-        <div className="font-display text-4xl font-black text-foreground">{grade}</div>
+        <div className="font-display text-4xl font-semibold text-foreground">{grade}</div>
         <div className="text-lg font-bold" style={{ color }}>{score}/100</div>
       </div>
     </div>
@@ -179,7 +179,7 @@ export default async function ScorePage({
         ) : (
           /* No scan yet */
           <div className="card text-center py-16 px-6">
-            <div className="font-display text-6xl font-black text-muted/30 mb-4" aria-hidden="true">?</div>
+            <div className="font-display text-6xl font-semibold text-muted/30 mb-4" aria-hidden="true">?</div>
             <h2 className="font-display text-2xl font-bold text-foreground mb-2">No scans found</h2>
             <p className="text-foreground-secondary mb-8">
               {owner}/{repo} hasn&apos;t been scanned yet. Run a GateTest scan to get a public score.

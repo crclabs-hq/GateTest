@@ -12,6 +12,14 @@ import {
 } from "./url-scan-flow-types";
 import { FindingWrong } from "./FindingWrong";
 
+function IconMark() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <circle cx="12" cy="12" r="8" />
+    </svg>
+  );
+}
+
 export function HealthScoreCard({ score, grade, summary }: HealthScore) {
   const colors = GRADE_COLORS[grade];
   const [displayScore, setDisplayScore] = useState(0);
@@ -115,7 +123,7 @@ export function FindingRow({ finding, index, scanId, tier }: { finding: Finding;
             </span>
             {finding.highSignal && (
               <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200">
-                🔥 High signal
+                High signal
               </span>
             )}
             {showCount && (
@@ -161,7 +169,9 @@ export function RecommendationCard({ rec }: { rec: Recommendation }) {
   return (
     <div className="mt-6 max-w-2xl mx-auto rounded-2xl border border-accent/20 bg-accent/5 p-5">
       <div className="flex items-start gap-3">
-        <span className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full bg-accent/15 text-accent text-sm font-bold">✦</span>
+        <span className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full bg-accent/15 text-accent">
+          <IconMark />
+        </span>
         <div className="flex-1">
           <div className="flex flex-wrap items-baseline gap-2 mb-2">
             <p className="font-semibold text-foreground">Detected</p>

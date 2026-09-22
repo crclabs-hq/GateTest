@@ -84,21 +84,21 @@ const INSTALL_PATHS = [
 
 const VALUE_PROPS = [
   {
-    icon: "👁", label: "Eyes", cls: EYES, title: "See the rendered page",
+    label: "Eyes", cls: EYES, title: "See the rendered page",
     items: [
       ["capture_screenshot", "see what the rendered page actually looks like. Works on localhost, staging, and production."],
       ["get_visual_diff", "baseline vs current comparison so your agent spots regressions before you do."],
     ],
   },
   {
-    icon: "👂", label: "Ears", cls: EARS, title: "Hear what's breaking",
+    label: "Ears", cls: EARS, title: "Hear what's breaking",
     items: [
       ["get_production_errors", "pull your top Sentry, Datadog, or Rollbar errors with file:line attribution so your agent fixes what prod says is broken, first."],
       ["run_live_checks", "runtime error sweep, console warnings, and API health against any URL."],
     ],
   },
   {
-    icon: "🤝", label: "Hands", cls: HANDS, title: "Prove the fix worked",
+    label: "Hands", cls: HANDS, title: "Prove the fix worked",
     items: [
       ["verify_fix", "re-run the relevant modules on changed files. Pass/fail verdict so your agent knows the fix actually worked."],
       ["run_tests", "auto-detect and run Jest, Vitest, pytest, cargo test, or go test. Structured pass/fail per test."],
@@ -108,6 +108,15 @@ const VALUE_PROPS = [
     ],
   },
 ];
+
+function LockIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <rect x="4" y="11" width="16" height="9" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
 
 export default function McpPage() {
   return (
@@ -226,7 +235,7 @@ ${LOCAL_SERVER_CONFIG}`}
                   <td className="px-4 py-3 text-center">
                     {tool.paid ? (
                       <span className={`inline-flex items-center gap-1 bg-sky-500/10 ${EYES} border border-sky-500/30 rounded-full px-2.5 py-0.5 text-xs font-semibold`}>
-                        🔒 $29/mo
+                        <LockIcon /> $29/mo
                       </span>
                     ) : (
                       <span className={`inline-flex items-center gap-1 bg-emerald-500/10 ${EARS} border border-emerald-500/30 rounded-full px-2.5 py-0.5 text-xs font-semibold`}>
@@ -246,7 +255,6 @@ ${LOCAL_SERVER_CONFIG}`}
         <div className="grid md:grid-cols-3 gap-6">
           {VALUE_PROPS.map((v) => (
             <div key={v.label} className="card p-6">
-              <div className="text-3xl mb-3">{v.icon}</div>
               <div className={`text-[11px] font-bold uppercase tracking-widest ${v.cls} mb-1`}>{v.label}</div>
               <h3 className="font-display font-bold text-lg mb-2 text-foreground">{v.title}</h3>
               <p className="text-muted text-sm">

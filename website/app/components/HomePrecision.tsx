@@ -37,7 +37,7 @@ export default function HomePrecision() {
         <p className="text-xs uppercase tracking-widest text-[var(--accent)] font-semibold mb-3">
           Measured on code we didn&apos;t write
         </p>
-        <h2 className="text-3xl md:text-4xl font-black text-[var(--foreground)] tracking-tight max-w-3xl mx-auto" style={{ textWrap: "balance" }}>
+        <h2 className="text-3xl md:text-4xl font-semibold text-[var(--foreground)] tracking-tight max-w-3xl mx-auto" style={{ textWrap: "balance" }}>
           A gate that blocks clean code gets uninstalled. So we publish the numbers.
         </h2>
         <p className="text-[var(--muted)] mt-4 max-w-2xl mx-auto">
@@ -101,7 +101,7 @@ export default function HomePrecision() {
 function Stat({ num, label }: { num: string; label: string }) {
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--background-alt)] p-6 text-center">
-      <div className="text-4xl font-black text-[var(--foreground)]" style={{ fontVariantNumeric: "tabular-nums" }}>{num}</div>
+      <div className="text-4xl font-semibold text-[var(--foreground)]" style={{ fontVariantNumeric: "tabular-nums" }}>{num}</div>
       <div className="text-xs text-[var(--muted)] mt-2 leading-relaxed">{label}</div>
     </div>
   );
