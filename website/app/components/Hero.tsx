@@ -41,15 +41,13 @@ const REPLACES = ["SonarQube", "Snyk", "ESLint", "Semgrep", "CodeQL", "DeepSourc
 export default function Hero() {
   return (
     <section className="hero-warm relative overflow-hidden">
-      <div className="hero-aurora" aria-hidden="true" />
-      <div className="hero-warm-grid" aria-hidden="true" />
 
       <div className="relative z-10 mx-auto max-w-7xl px-6 pb-12 pt-14">
         <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-10 items-center">
 
           {/* ── LEFT: editorial headline + live CTA ───────────────────── */}
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white/70 border border-black/5 text-sm font-medium text-gray-700 mb-7 fade-up shadow-sm">
+            <div className="inline-flex items-center gap-2.5 text-[13px] font-mono text-gray-600 mb-7 fade-up">
               <span className="relative flex h-2 w-2" aria-hidden="true">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
@@ -57,7 +55,7 @@ export default function Hero() {
               <span>Live in beta &middot; {siteStats.modules.total} modules in the gate</span>
             </div>
 
-            <h1 className="font-display text-[2.7rem] leading-[1.04] sm:text-6xl lg:text-[4.1rem] font-extrabold text-gray-900 mb-6 fade-up" style={{ textWrap: "balance" }}>
+            <h1 className="font-display text-[2.4rem] leading-[1.06] sm:text-5xl lg:text-[3.5rem] font-semibold text-gray-900 mb-6 fade-up" style={{ textWrap: "balance" }}>
               The gate that{" "}
               <span className="text-[#0f766e]">doesn&apos;t cry wolf.</span>
             </h1>
@@ -79,71 +77,41 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* ── RIGHT: polished auto-fix PR product card ──────────────── */}
+          {/* ── RIGHT: real scanner output. Captured 2026-09-22 from
+              `gatetest --suite quick --project reliability-corpus/known-bad/sqli-string-concat`
+              (exit 1). Trimmed to the lines that decide the gate; nothing invented. */}
           <div className="relative fade-up">
-            <div className="product-card browser-frame card-float p-1.5">
-              {/* browser chrome with URL bar — reads as a real screenshot */}
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="h-3 w-3 rounded-full bg-red-400/80" />
-                  <span className="h-3 w-3 rounded-full bg-amber-400/80" />
-                  <span className="h-3 w-3 rounded-full bg-emerald-400/80" />
-                </div>
-                {/* min-w-0: without it this flex item's minimum width is the full URL text,
-                    which made the whole hero column 487px on a 390px phone — the section's
-                    overflow-hidden hid it from the page-width check (2026-09-10). */}
-                <div className="url-bar flex-1 w-0 min-w-0 flex items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-mono text-white/45 truncate">
-                  <span className="text-emerald-400/70" aria-hidden="true">&#128274;</span>
-                  github.com/your-org/your-repo
-                  <span className="text-white/25">/pull/248</span>
-                </div>
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 shrink-0">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  Gate green
+            <div className="product-card p-0 overflow-hidden">
+              <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-white/[0.08]">
+                <span className="font-mono text-[12px] text-white/60 truncate">
+                  $ npx -p @gatetest/cli gatetest --suite quick
                 </span>
+                <span className="font-mono text-[11px] text-red-300/90 shrink-0">exit 1</span>
               </div>
+              <pre className="px-4 py-4 font-mono text-[12.5px] leading-[1.55] text-white/80 overflow-x-auto whitespace-pre">
+{`  [RUN] crossFileTaint  [FAIL]  (2 errors, 18ms)
+  ----------------------------------------
+  GATE: BLOCKED
+  Checks:   62/67 passed
+  Errors:   2
+  Warnings: 3
+  Time:     1608ms
 
-              {/* PR body */}
-              <div className="px-5 py-5">
-                <div className="text-xs font-mono text-white/40 mb-1">pull request #248</div>
-                <div className="text-[15px] font-semibold text-white mb-4">
-                  fix: define <span className="text-teal-300">resolveTenantCapForHotPath</span>
-                </div>
-
-                <div className="rounded-lg bg-black/40 border border-white/[0.06] p-4 font-mono text-[12.5px] leading-relaxed overflow-hidden">
-                  <div className="text-white/30">apps/api/src/cdn/handler.ts</div>
-                  <div className="mt-2 text-red-300/90">
-                    <span className="text-red-400/60">- </span>ReferenceError: not defined
-                  </div>
-                  <div className="text-emerald-300/90">
-                    <span className="text-emerald-400/60">+ </span>import {"{ resolveTenantCapForHotPath }"}
-                  </div>
-                  <div className="text-emerald-300/90">
-                    <span className="text-emerald-400/60">+ </span>&nbsp;&nbsp;from &quot;./quotas&quot;;
-                  </div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-[11.5px] text-white/55">
-                  <span>✓ 1 regression test added</span>
-                  <span>✓ pair-reviewed</span>
-                  <span>✓ 38s · ~$0.02</span>
-                </div>
+  What's blocking you
+  ✗ src/handler.js:12
+      Taint: \`q\` (from request input) reaches
+      \`sql-query\` sink without sanitisation
+      wrong? add to .gatetestignore:
+      crossFileTaint@src/handler.js`}
+              </pre>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-2.5 border-t border-white/[0.08] font-mono text-[11px] text-white/45">
+                <span>67 checks · 42 modules · quick suite</span>
+                <span>SARIF, JUnit, JSON via --format</span>
               </div>
             </div>
-
-            {/* floating KPI chip for depth — the green count is shown ONLY when
-                the nightly self-scan measured it (greenSource "measured");
-                a carried number is not a stat (2026-08-18 audit). */}
-            <div className="product-chip hidden sm:flex items-center gap-2.5 absolute -bottom-5 -left-5 px-4 py-3 rounded-xl">
-              <div className="text-2xl font-extrabold text-[#0f766e] tabular-nums leading-none">
-                {siteStats.modules.greenSource === "measured"
-                  ? <><CountUp value={String(siteStats.modules.green)} duration={1400} />/{siteStats.modules.scanned}</>
-                  : <><CountUp value={String(siteStats.modules.total)} duration={1400} /></>}
-              </div>
-              <div className="text-[11px] text-gray-500 leading-tight">
-                {siteStats.modules.greenSource === "measured" ? <>modules green · nightly<br />full suite on our own repo</> : <>modules loaded<br />every commit</>}
-              </div>
-            </div>
+            <p className="mt-3 font-mono text-[11px] text-gray-500 leading-relaxed">
+              Real run, 2026-09-22, on reliability-corpus/known-bad/sqli-string-concat. Exit code 1 fails the CI job; the same finding is posted as a commit status and PR comment by the App.
+            </p>
           </div>
         </div>
 
@@ -155,10 +123,7 @@ export default function Hero() {
             </span>
             <div className="flex flex-wrap items-center gap-2.5">
               {REPLACES.map((tool) => (
-                <span
-                  key={tool}
-                  className="replace-pill px-3.5 py-1.5 rounded-full text-sm font-medium text-gray-600"
-                >
+                <span key={tool} className="font-mono text-[13px] text-gray-600">
                   {tool}
                 </span>
               ))}
