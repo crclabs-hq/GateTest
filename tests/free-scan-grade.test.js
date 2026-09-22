@@ -244,4 +244,53 @@ describe('one definition, imported (Doctrine #4)', () => {
       assert.ok(new RegExp(`\\b${field}\\b`).test(src), `stream route does not emit ${field}`);
     }
   });
+
+  it('both free-scan routes pass the sha resolver\'s reason through to the result header', () => {
+    for (const rel of ROUTES) {
+      const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+      assert.ok(/shaReason/.test(src), `${rel} does not pass shaReason to formatResultHeader`);
+    }
+  });
+});
+
+// =============================================================================
+// N1/F2 — a sha that did not resolve says WHY, not just "not resolved"
+// =============================================================================
+// Tallrig re-walk 2026-09-22: three consecutive scans of a public repo all
+// showed a bare "commit not resolved" — resolveBaseBranchSha (gluecron-client)
+// swallowed every failure (rate-limited, 404, no token, timeout) into the same
+// null with no reason attached, so there was nothing honest left to print.
+// =============================================================================
+describe('free-scan result header — the sha resolver\'s reason is never dropped (N1/F2)', () => {
+  it('control pair: a resolved sha shows it; a resolver reason shows instead of a bare null', () => {
+    const resolved = formatResultHeader({
+      repoSlug: 'expressjs/express',
+      commitSha: '4f1e2ab9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3',
+      branch: 'main',
+      scannedAt: '2026-09-22T09:00:00.000Z',
+      scanId: 'scn_a',
+    });
+    assert.ok(resolved.includes('@ 4f1e2ab'), resolved);
+    assert.ok(!resolved.includes('not resolved'), resolved);
+
+    const rateLimited = formatResultHeader({
+      repoSlug: 'expressjs/express',
+      commitSha: null,
+      shaReason: 'GitHub rate-limited or forbade the request (403)',
+      branch: null,
+      scannedAt: '2026-09-22T09:00:00.000Z',
+      scanId: 'scn_b',
+    });
+    assert.ok(rateLimited.includes('commit not resolved'), rateLimited);
+    assert.ok(
+      rateLimited.includes('GitHub rate-limited or forbade the request (403)'),
+      `expected the 403 reason in the header, got: ${rateLimited}`
+    );
+  });
+
+  it('still says "commit not resolved" with no reason (back-compat with links minted before this fix)', () => {
+    const header = formatResultHeader({ repoSlug: 'owner/repo', commitSha: null, scannedAt: null, scanId: null });
+    assert.ok(header.includes('commit not resolved'), header);
+    assert.ok(!header.includes('undefined') && !header.includes('null'), header);
+  });
 });

@@ -150,7 +150,12 @@ export async function POST(req: NextRequest) {
         // it costs no extra wall-clock; a failure leaves the sha null and the
         // header says "commit not resolved" rather than inventing one.
         const headPromise = resolveBaseBranchSha(owner, repo, "", token).catch(
-          () => ({ sha: null as string | null, defaultBranch: "", source: "none" as const })
+          (err) => ({
+            sha: null as string | null,
+            defaultBranch: "",
+            source: "none" as const,
+            reason: err instanceof Error ? `sha resolution crashed (${err.message})` : "sha resolution crashed",
+          })
         );
 
         // One archive read for tree + contents (credentialed → anonymous →
@@ -238,10 +243,13 @@ export async function POST(req: NextRequest) {
           scanId,
           scannedAt,
           commitSha: head.sha,
+          // N1/F2 — why the sha is null, never a bare null the reader has to guess at.
+          commitShaReason: head.sha ? null : (head.reason || "sha not resolved for an unknown reason"),
           branch: head.defaultBranch || null,
           resultHeader: scanGrade.formatResultHeader({
             repoSlug,
             commitSha: head.sha,
+            shaReason: head.reason,
             branch: head.defaultBranch || null,
             scannedAt,
             scanId,

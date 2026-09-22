@@ -246,10 +246,14 @@ function describeScanScope(scope) {
 /**
  * `expressjs/express @ 4f1e2ab (main) · scanned <ISO> · report scn_…`
  *
- * A sha we did not resolve says so. Nothing here is derived from a guess.
+ * A sha we did not resolve says so — and, since 2026-09-22, WHY: before this,
+ * every failure (rate-limited, 404, no token, timeout) collapsed to the same
+ * bare "commit not resolved" with no way for a reader to tell an outage from
+ * a typo'd repo. `shaReason` is the resolver's own explanation
+ * (gluecron-client's `resolveBaseBranchSha`); nothing here is a guess.
  *
- * @param {{ repoSlug?: string, commitSha?: string|null, branch?: string|null,
- *           scannedAt?: string|null, scanId?: string|null }} meta
+ * @param {{ repoSlug?: string, commitSha?: string|null, shaReason?: string|null,
+ *           branch?: string|null, scannedAt?: string|null, scanId?: string|null }} meta
  */
 function formatResultHeader(meta) {
   const m = meta || {};
@@ -257,9 +261,11 @@ function formatResultHeader(meta) {
   const sha = typeof m.commitSha === 'string' && /^[0-9a-f]{7,40}$/i.test(m.commitSha)
     ? m.commitSha.slice(0, 7)
     : null;
+  const reason = typeof m.shaReason === 'string' && m.shaReason.trim() ? m.shaReason.trim() : null;
+  const notResolved = reason ? `commit not resolved: ${reason}` : 'commit not resolved';
   const head = sha
     ? `${slug} @ ${sha}${m.branch ? ` (${m.branch})` : ''}`
-    : `${slug} @ commit not resolved${m.branch ? ` (${m.branch})` : ''}`;
+    : `${slug} @ ${notResolved}${m.branch ? ` (${m.branch})` : ''}`;
   const parts = [head];
   parts.push(m.scannedAt ? `scanned ${m.scannedAt}` : 'scan time not recorded');
   parts.push(m.scanId ? `report ${m.scanId}` : 'report id not issued');

@@ -92,15 +92,23 @@ export async function POST(req: NextRequest) {
   }
 
   // The commit this scan read. Never guessed — a failure leaves it null and
-  // the rendered header says the commit was not resolved.
+  // the rendered header says the commit was not resolved, WHY (N1/F2:
+  // resolveBaseBranchSha now always returns a `reason` alongside a null sha
+  // — rate-limited, 404, no token, timeout — instead of a bare null nobody
+  // could explain).
   const slugMatch = /github\.com\/([^/]+)\/([^/?#\s]+)/.exec(repoUrl);
   const owner = slugMatch?.[1] || "";
   const repoName = slugMatch?.[2] || "";
   const head = owner && repoName
     ? await resolveRepoAuth(owner, repoName)
         .then((auth) => resolveBaseBranchSha(owner, repoName, "", auth.token || ""))
-        .catch(() => ({ sha: null as string | null, defaultBranch: "", source: "none" as const }))
-    : { sha: null as string | null, defaultBranch: "", source: "none" as const };
+        .catch((err) => ({
+          sha: null as string | null,
+          defaultBranch: "",
+          source: "none" as const,
+          reason: err instanceof Error ? `sha resolution crashed (${err.message})` : "sha resolution crashed",
+        }))
+    : { sha: null as string | null, defaultBranch: "", source: "none" as const, reason: "repo_url could not be parsed" };
   const scannedAt = new Date().toISOString();
 
   return NextResponse.json({
@@ -129,10 +137,13 @@ export async function POST(req: NextRequest) {
     scanId,
     scannedAt,
     commitSha:       head.sha,
+    // N1/F2 — why the sha is null, never a bare null the reader has to guess at.
+    commitShaReason: head.sha ? null : (head.reason || "sha not resolved for an unknown reason"),
     branch:          head.defaultBranch || null,
     resultHeader:    scanGrade.formatResultHeader({
       repoSlug: owner && repoName ? `${owner}/${repoName}` : repoUrl,
       commitSha: head.sha,
+      shaReason: head.reason,
       branch: head.defaultBranch || null,
       scannedAt,
       scanId,
