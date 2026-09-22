@@ -12,6 +12,17 @@ const { repoRelative } = require('../core/repo-path');
 const { WALK_EXCLUDE_SET } = require('../core/walk-excludes');
 const { stripJsonc, isJsoncPath } = require('../core/jsonc');
 
+// Issue #630 — a real `npx tsc --noEmit` per workspace package is O(packages),
+// not O(files): a 76-package monorepo turned the quick suite's ~15s bar into
+// a 10-minute kill (and worse, because `_exec` is synchronous, it blocked the
+// event loop even under --parallel, starving every other module until it was
+// done). This budgets the WALL-CLOCK the TypeScript phase may spend across
+// ALL projects in one run, checked only BETWEEN projects — a single real
+// tsconfig (the common case, and every repo in the precision corpus) always
+// gets its one compile in full; the cap only stops a large tree from growing
+// the module's cost with its package count. See `_checkTypeScript`.
+const DEFAULT_TS_TIME_BUDGET_MS = 20_000;
+
 class SyntaxModule extends BaseModule {
   constructor() {
     super('syntax', 'Syntax & Compilation Checks');
@@ -34,7 +45,7 @@ class SyntaxModule extends BaseModule {
     // TypeScript
     const tsFiles = this._collectFiles(projectRoot, ['.ts', '.tsx']);
     if (tsFiles.length > 0) {
-      this._checkTypeScript(projectRoot, result);
+      this._checkTypeScript(projectRoot, result, config);
     }
 
     // JSX (React)
@@ -404,7 +415,7 @@ class SyntaxModule extends BaseModule {
     }
   }
 
-  _checkTypeScript(projectRoot, result) {
+  _checkTypeScript(projectRoot, result, config) {
     // Discover every tsconfig.json in the workspace (depth-limited so we
     // don't walk node_modules). Then run tsc only in directories where
     // the tsconfig is "real" — i.e. has compilerOptions configured. Stub
@@ -418,7 +429,27 @@ class SyntaxModule extends BaseModule {
     let allPass = true;
     const allErrors = [];
 
+    // Issue #630: each iteration below is a synchronous `npx tsc` subprocess
+    // (spawn + module resolution + real type-check), so this loop's cost is
+    // O(real tsconfigs found), not O(files). On a 76-package monorepo that
+    // is 76 sequential compiles — measured at ~272s of a ~273s total quick
+    // suite on a throwaway 76-package/~4200-file fixture, vs ~50s for the
+    // next-slowest module, and because `_exec` (execSync) is synchronous it
+    // blocks the event loop, so nothing else in --parallel mode could
+    // progress either. The budget below is consulted only BETWEEN projects,
+    // never mid-compile, so a repo with one real tsconfig — the common case,
+    // and every repo in reliability-corpus/real-world.json — always gets its
+    // one full compile; only a tree with many real tsconfigs has the tail
+    // cut, and honestly (three-state: says what was not checked), never
+    // silently.
+    const syntaxConfig = config && config.getModuleConfig ? config.getModuleConfig('syntax') : {};
+    const timeBudgetMs = (syntaxConfig && syntaxConfig.tsTimeBudgetMs) || DEFAULT_TS_TIME_BUDGET_MS;
+    const deadline = Date.now() + timeBudgetMs;
+    const skippedDirs = [];
+
     for (const dir of tscDirs) {
+      if (Date.now() > deadline) { skippedDirs.push(dir); continue; }
+
       // Skip subprojects whose deps aren't installed. `tsc --noEmit` against
       // a directory without node_modules emits "Cannot find type definition
       // for X" noise that has nothing to do with the user's code. The CI
@@ -442,8 +473,25 @@ class SyntaxModule extends BaseModule {
       }
     }
 
+    if (skippedDirs.length > 0) {
+      const shown = skippedDirs.slice(0, 5).map((d) => repoRelative(projectRoot, d) || '.');
+      result.addCheck('typescript-strict:budget', true, {
+        severity: 'info',
+        message: `${skippedDirs.length} additional TypeScript project(s) NOT type-checked — ` +
+          `the ${Math.round(timeBudgetMs / 1000)}s tsc time budget was reached on a large tree ` +
+          `(not checked: ${shown.join(', ')}${skippedDirs.length > shown.length ? ', …' : ''}). ` +
+          'Run "gatetest --project <package>" to check one directly, or raise ' +
+          'modules.syntax.tsTimeBudgetMs in .gatetest.json.',
+      });
+    }
+
     if (!anyRan) {
-      result.addCheck('typescript-strict', true, { message: 'No real tsconfig.json found (stub configs without compilerOptions are skipped)', severity: 'info' });
+      result.addCheck('typescript-strict', true, {
+        message: skippedDirs.length > 0
+          ? 'The tsc time budget was reached before any project could be checked — see typescript-strict:budget above'
+          : 'No real tsconfig.json found (stub configs without compilerOptions are skipped)',
+        severity: 'info',
+      });
     } else if (allPass) {
       result.addCheck('typescript-strict', true);
     } else {
