@@ -149,6 +149,22 @@ function buildJsonOutput(summary, ctx) {
     duplicatesCollapsed,
   };
   const modules = summary.modules || { total: 0, passed: 0, failed: 0, skipped: 0 };
+  // KI #112 G3 (issue #630/#633): `--json` had whole-run `duration` but no
+  // per-module timing, so a customer profiling a slow scan on a large
+  // monorepo could not tell which of the suite's modules to look at without
+  // re-running under `--module`. The console reporter has had a per-module
+  // elapsed line since #644 (src/reporters/console-reporter.js, from
+  // TestResult.duration — one definition, not re-measured here);
+  // `modules.list` is the same numbers, one entry per module that actually
+  // ran, in run order. `durationMs` is `null` only when a module result
+  // carries no numeric duration (defensive — never fabricated).
+  const moduleTimings = Array.isArray(summary.results)
+    ? summary.results.map((r) => ({
+      module: r.module,
+      status: r.status,
+      durationMs: typeof r.duration === 'number' ? r.duration : null,
+    }))
+    : [];
   const gateStatus = summary.gateStatus || 'BLOCKED';
   const files = Array.isArray(ctx.files) && ctx.files.length ? ctx.files.slice() : null;
   const scope = ctx.module ? `module ${ctx.module}` : `${ctx.suite || 'standard'} scan`;
@@ -177,6 +193,7 @@ function buildJsonOutput(summary, ctx) {
       passed: modules.passed || 0,
       failed: modules.failed || 0,
       skipped: modules.skipped || 0,
+      list: moduleTimings,
     },
     checks: summary.checks || null,
     duration: typeof summary.duration === 'number' ? summary.duration : null,
