@@ -19,8 +19,10 @@ async function crawlWithBrowser(playwright, ctx) {
   const {
     baseUrl, maxPages, timeout, pageTimeout, checkExternal,
     visited, pages, errors, brokenLinks, brokenImages, queue,
-    redirects, timedOutPages, auth,
+    redirects, timedOutPages, auth, crawlDeadlineTs,
   } = ctx;
+
+  let budgetExhausted = false;
 
   const browser = await playwright.chromium.launch({ headless: true });
   const contextOptions = {
@@ -66,6 +68,13 @@ async function crawlWithBrowser(playwright, ctx) {
     });
 
     while (queue.length > 0 && visited.size < maxPages) {
+      // Crawl-wide wall-clock budget (#640) — same deadline, reasoning, and
+      // always-attempt-the-first-page exception as the HTTP engine.
+      if (crawlDeadlineTs && visited.size > 0 && Date.now() + pageTimeout > crawlDeadlineTs) {
+        budgetExhausted = true;
+        break;
+      }
+
       const url = queue.shift();
       if (!url || visited.has(url)) continue;
       visited.add(url);
@@ -186,6 +195,8 @@ async function crawlWithBrowser(playwright, ctx) {
   } finally {
     await browser.close();
   }
+
+  return { budgetExhausted };
 }
 
 module.exports = { crawlWithBrowser };

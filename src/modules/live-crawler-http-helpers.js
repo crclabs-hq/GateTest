@@ -6,9 +6,13 @@ const { URL } = require('url');
 
 const UA = 'GateTest/1.0 (Quality Assurance Crawler)';
 
-function fetchPage(url, timeout, extraHeaders) {
+function fetchPage(url, timeout, extraHeaders, _originHost) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
+    // The origin THIS crawl entry started at — threaded through recursive
+    // redirect-follows below so a later hop is judged against where the
+    // chain began, not merely against the immediately previous hop (#634).
+    const originHost = _originHost || parsedUrl.origin;
     const client = parsedUrl.protocol === 'https:' ? https : http;
     const startedAt = Date.now();
 
@@ -21,12 +25,47 @@ function fetchPage(url, timeout, extraHeaders) {
       },
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        const redirectUrl = new URL(res.headers.location, url).href;
+        let redirectUrl;
+        let redirectOrigin;
+        try {
+          redirectUrl = new URL(res.headers.location, url).href;
+          redirectOrigin = new URL(redirectUrl).origin;
+        } catch {
+          // Malformed Location header — nothing safe to follow; treat this
+          // hop as terminal rather than let a broken redirect reject/hang.
+          resolve({
+            url, finalUrl: url, status: res.statusCode, statusText: res.statusMessage,
+            contentType: res.headers['content-type'] || '', body: '',
+            redirected: false, responseMs: Date.now() - startedAt,
+          });
+          res.resume();
+          return;
+        }
+
+        if (redirectOrigin !== originHost) {
+          // Off-site hop (#634): the site being crawled answered with a
+          // perfectly ordinary redirect — 2xx/3xx from the target's OWN
+          // origin is fine, and grading stops right there. The bug was
+          // following the chain FURTHER once it left the target, ending up
+          // on a page this crawl does not own and reporting THAT status
+          // against the original URL (reproduced: gluecron.com/login/google
+          // → Google's own OAuth redirect chain → a 404 on
+          // accounts.google.com, reported as a broken link on gluecron.com).
+          resolve({
+            url, finalUrl: redirectUrl, status: res.statusCode, statusText: res.statusMessage,
+            contentType: res.headers['content-type'] || '', body: '',
+            redirected: true, redirectStatus: res.statusCode, originalUrl: url,
+            offSiteRedirect: true, responseMs: Date.now() - startedAt,
+          });
+          res.resume();
+          return;
+        }
+
         // Auth headers only follow a redirect that stays on the same origin —
         // never leak session material to a third-party redirect target.
         const redirectHeaders =
-          new URL(redirectUrl).origin === parsedUrl.origin ? extraHeaders : undefined;
-        fetchPage(redirectUrl, timeout, redirectHeaders).then(redirectResult => {
+          redirectOrigin === parsedUrl.origin ? extraHeaders : undefined;
+        fetchPage(redirectUrl, timeout, redirectHeaders, originHost).then(redirectResult => {
           resolve({
             ...redirectResult,
             redirected: true,
@@ -147,6 +186,47 @@ function extractLinks(html, baseUrl, pageUrl) {
   return { internal, external };
 }
 
+// One definition of "what is this page's <title>" — imported by the HTTP
+// engine's missing-title check, whose finding feeds the duplicate-title
+// grouping in live-crawler.js (titlesByUrl). A bare `/<title>/` requires an
+// attribute-free tag; framework-rendered pages commonly emit
+// `<title data-sm="...">` and were reported as missing a title they plainly
+// had (tallrig.com, #641). The browser engine reads `page.title()` off the
+// real DOM instead of this regex, so it never had this bug and doesn't call
+// this helper — but if it's ever changed to parse raw HTML for a title, this
+// is the one function to reach for.
+const TITLE_TAG_RE = /<title\b[^>]*>([^<]*)<\/title>/i;
+
+function extractTitle(html) {
+  const m = TITLE_TAG_RE.exec(html);
+  const text = m ? m[1].trim() : '';
+  return text.length > 0 ? text : null;
+}
+
+// One definition of "what icon does this page declare" — <link rel="icon">,
+// the legacy "shortcut icon" (splits into the tokens ['shortcut','icon'], so
+// checking for the 'icon' token alone covers it) and apple-touch-icon are
+// all "the site has a favicon" as far as a user/browser is concerned (#641:
+// live-crawler.js previously only ever probed /favicon.ico and flagged
+// tallrig.com despite its declared <link rel="icon" href="/favicon.svg">).
+// Reuses stripNonNavigableRegions so a <link> sitting inside a commented-out
+// or templated block is never mistaken for a live declaration.
+function extractDeclaredIconHref(html) {
+  const navigableHtml = stripNonNavigableRegions(html);
+  const linkRe = /<link\b[^>]*>/gi;
+  let m;
+  while ((m = linkRe.exec(navigableHtml)) !== null) {
+    const tag = m[0];
+    const relMatch = tag.match(/\brel\s*=\s*["']([^"']+)["']/i);
+    if (!relMatch) continue;
+    const rels = relMatch[1].toLowerCase().split(/\s+/);
+    if (!rels.includes('icon') && !rels.includes('apple-touch-icon')) continue;
+    const hrefMatch = tag.match(/\bhref\s*=\s*["']([^"']+)["']/i);
+    if (hrefMatch && hrefMatch[1].trim()) return hrefMatch[1].trim();
+  }
+  return null;
+}
+
 function extractImages(html, baseUrl, pageUrl) {
   const images = [];
   const srcRegex = /<img[^>]+src\s*=\s*["']([^"']+)/gi;
@@ -183,4 +263,7 @@ function getSuggestion(errorType) {
   return suggestions[errorType] || 'Investigate and fix the issue';
 }
 
-module.exports = { fetchPage, checkUrl, extractLinks, extractImages, getSuggestion };
+module.exports = {
+  fetchPage, checkUrl, extractLinks, extractImages, getSuggestion,
+  extractTitle, extractDeclaredIconHref,
+};

@@ -142,4 +142,87 @@ describe('SyntaxModule — TypeScript check time budget (issue #630)', () => {
     assert.ok(brokenCheck, 'the real syntax error must still be reported');
     assert.strictEqual(brokenCheck.passed, false);
   });
+
+  // Issue #649 D2 — on Tallrig's real 75-package monorepo run, the separate
+  // `typescript-strict` check was failed BLOCKING with the message "0
+  // TypeScript error(s)" and empty details once the budget had skipped most
+  // projects, even though every project that DID run was clean. A check
+  // must never contradict its own message (Doctrine #1), and a budget cut
+  // is "not checked", not a failure.
+  it('control pair: budget hit with zero real errors reports info and never blocks — never "0 TypeScript error(s)" as a failure', () => {
+    const PKG_COUNT = 20;
+    for (let i = 0; i < PKG_COUNT; i++) {
+      const dir = path.join(tmp, 'packages', `pkg-${i}`);
+      writeRealTsconfig(dir);
+      fs.writeFileSync(path.join(dir, 'index.ts'), `export const x${i} = ${i};\n`);
+    }
+
+    const mod = new SyntaxModule();
+    // Every checked project is clean. Some real-world causes of a nonzero
+    // exit with no `error TS` text (npx resolution failure, a per-call
+    // timeout, a compiler crash) would previously have been misread as a
+    // failure; here every call exits 0 to isolate the budget-only case.
+    mod._exec = () => { blockFor(30); return { exitCode: 0, stdout: '', stderr: '' }; };
+
+    const result = makeResult();
+    const config = { getModuleConfig: () => ({ tsTimeBudgetMs: 90 }) };
+
+    mod._checkTypeScript(tmp, result, config);
+
+    const budgetCheck = result.checks.find((c) => c.name === 'typescript-strict:budget');
+    assert.ok(budgetCheck, 'expected the budget to actually engage in this fixture');
+
+    const tsCheck = result.checks.find((c) => c.name === 'typescript-strict');
+    assert.ok(tsCheck, 'expected a typescript-strict check');
+    assert.strictEqual(tsCheck.passed, true, 'a budget cut with zero real errors must never block the gate');
+    assert.strictEqual(tsCheck.severity, 'info');
+    assert.match(tsCheck.message, /of \d+ TypeScript projects type-checked/);
+    assert.match(tsCheck.message, /not checked/);
+    assert.match(tsCheck.message, /tsc time budget/);
+    assert.match(tsCheck.message, /typescript-strict:budget/);
+    assert.doesNotMatch(
+      tsCheck.message,
+      /\b0 TypeScript error/i,
+      'must never say "0 errors" on a check — and definitely never on one reported as failed',
+    );
+  });
+
+  // Control: a real tsc compile error must still fail the gate, WITH the
+  // error in details, even on a tree where the budget also skipped other
+  // projects — proving the fix above didn't just soften real failures away.
+  it('control pair: a real tsc error still fails typescript-strict with the error in details, budget notwithstanding', () => {
+    const PKG_COUNT = 5;
+    for (let i = 0; i < PKG_COUNT; i++) {
+      const dir = path.join(tmp, 'packages', `pkg-${i}`);
+      writeRealTsconfig(dir);
+      fs.writeFileSync(path.join(dir, 'index.ts'), `export const x${i} = ${i};\n`);
+    }
+
+    const mod = new SyntaxModule();
+    let execCalls = 0;
+    mod._exec = () => {
+      execCalls += 1;
+      blockFor(30);
+      if (execCalls === 1) {
+        return {
+          exitCode: 1,
+          stdout: "packages/pkg-0/index.ts:1:7 - error TS2322: Type 'string' is not assignable to type 'number'.\n",
+          stderr: '',
+        };
+      }
+      return { exitCode: 0, stdout: '', stderr: '' };
+    };
+
+    const result = makeResult();
+    const config = { getModuleConfig: () => ({ tsTimeBudgetMs: 60 }) };
+
+    mod._checkTypeScript(tmp, result, config);
+
+    const tsCheck = result.checks.find((c) => c.name === 'typescript-strict');
+    assert.ok(tsCheck, 'expected a typescript-strict check');
+    assert.strictEqual(tsCheck.passed, false, 'a real TS error must still block the gate');
+    assert.match(tsCheck.message, /1 TypeScript error/);
+    assert.ok(tsCheck.details && tsCheck.details.length > 0, 'the real error must be in details, not empty');
+    assert.match(tsCheck.details[0], /error TS2322/);
+  });
 });

@@ -246,10 +246,14 @@ function describeScanScope(scope) {
 /**
  * `expressjs/express @ 4f1e2ab (main) · scanned <ISO> · report scn_…`
  *
- * A sha we did not resolve says so. Nothing here is derived from a guess.
+ * A sha we did not resolve says so — and, since 2026-09-22, WHY: before this,
+ * every failure (rate-limited, 404, no token, timeout) collapsed to the same
+ * bare "commit not resolved" with no way for a reader to tell an outage from
+ * a typo'd repo. `shaReason` is the resolver's own explanation
+ * (gluecron-client's `resolveBaseBranchSha`); nothing here is a guess.
  *
- * @param {{ repoSlug?: string, commitSha?: string|null, branch?: string|null,
- *           scannedAt?: string|null, scanId?: string|null }} meta
+ * @param {{ repoSlug?: string, commitSha?: string|null, shaReason?: string|null,
+ *           branch?: string|null, scannedAt?: string|null, scanId?: string|null }} meta
  */
 function formatResultHeader(meta) {
   const m = meta || {};
@@ -257,13 +261,76 @@ function formatResultHeader(meta) {
   const sha = typeof m.commitSha === 'string' && /^[0-9a-f]{7,40}$/i.test(m.commitSha)
     ? m.commitSha.slice(0, 7)
     : null;
+  const reason = typeof m.shaReason === 'string' && m.shaReason.trim() ? m.shaReason.trim() : null;
+  const notResolved = reason ? `commit not resolved: ${reason}` : 'commit not resolved';
   const head = sha
     ? `${slug} @ ${sha}${m.branch ? ` (${m.branch})` : ''}`
-    : `${slug} @ commit not resolved${m.branch ? ` (${m.branch})` : ''}`;
+    : `${slug} @ ${notResolved}${m.branch ? ` (${m.branch})` : ''}`;
   const parts = [head];
   parts.push(m.scannedAt ? `scanned ${m.scannedAt}` : 'scan time not recorded');
   parts.push(m.scanId ? `report ${m.scanId}` : 'report id not issued');
   return parts.join(' · ');
+}
+
+/**
+ * Coverage fraction — ONE definition (Doctrine #4), always
+ * `{scanned, total, partial}`. `total` of 0 means "unknown", never "100%" —
+ * partial is only ever asserted when we actually know a smaller total exists.
+ *
+ * @param {number|null|undefined} scanned
+ * @param {number|null|undefined} total
+ */
+function computeCoverage(scanned, total) {
+  const s = typeof scanned === 'number' && Number.isFinite(scanned) && scanned >= 0 ? Math.round(scanned) : 0;
+  const t = typeof total === 'number' && Number.isFinite(total) && total >= 0 ? Math.round(total) : 0;
+  return { scanned: s, total: t, partial: t > 0 && s < t };
+}
+
+/**
+ * " on 50 of 214 files" appended to the grade line when coverage is partial;
+ * '' when the scan covered everything (or coverage is unknown) — the control
+ * pair Doctrine #3 wants: full coverage never carries the qualifier, partial
+ * coverage always does.
+ *
+ * @param {{scanned:number, total:number, partial:boolean}|null|undefined} coverage
+ */
+function coverageQualifier(coverage) {
+  const c = coverage || {};
+  if (!c.partial) return '';
+  return ` on ${Number(c.scanned).toLocaleString('en-US')} of ${Number(c.total).toLocaleString('en-US')} files`;
+}
+
+/**
+ * The headline duration a stranger reads first. Before 2026-09-22 the free
+ * scan printed only the engine-time half of the fetch/engine split (e.g.
+ * "0.9s") as if it were the whole request's duration, understating the real
+ * wall clock (fetch + engine + overhead, e.g. 8.2s) by 40-55%. Wall clock is
+ * now the headline; the split renders underneath, never in place of it.
+ *
+ * @param {{wallMs?: number|null, fetchMs?: number|null, engineMs?: number|null}} timing
+ * @returns {{ headline: string, headlineLabel: string, split: string|null }}
+ */
+function formatDurationHeadline(timing) {
+  const t = timing || {};
+  const wallMs = typeof t.wallMs === 'number' && Number.isFinite(t.wallMs) && t.wallMs >= 0 ? t.wallMs : null;
+  const engineMs = typeof t.engineMs === 'number' && Number.isFinite(t.engineMs) && t.engineMs >= 0 ? t.engineMs : null;
+  const fetchMs = typeof t.fetchMs === 'number' && Number.isFinite(t.fetchMs) && t.fetchMs >= 0 ? t.fetchMs : null;
+
+  const splitParts = [];
+  if (fetchMs !== null) splitParts.push(`${(fetchMs / 1000).toFixed(1)}s fetch`);
+  if (engineMs !== null) splitParts.push(`${(engineMs / 1000).toFixed(1)}s engine time`);
+  const split = splitParts.length > 0 ? splitParts.join(' · ') : null;
+
+  if (wallMs !== null) {
+    return { headline: `${(wallMs / 1000).toFixed(1)}s`, headlineLabel: 'wall clock', split };
+  }
+  // No wall-clock measurement made it through — fall back to the split, but
+  // say so explicitly: an engine-only number must never be read as the whole
+  // request the way the old unlabelled "0.1s" was.
+  if (engineMs !== null) {
+    return { headline: `${(engineMs / 1000).toFixed(1)}s`, headlineLabel: 'engine time only', split: fetchMs !== null ? split : null };
+  }
+  return { headline: 'not recorded', headlineLabel: 'duration not recorded', split: null };
 }
 
 module.exports = {
@@ -285,4 +352,7 @@ module.exports = {
   computeScanGrade,
   describeScanScope,
   formatResultHeader,
+  computeCoverage,
+  coverageQualifier,
+  formatDurationHeadline,
 };

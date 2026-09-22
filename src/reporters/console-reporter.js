@@ -140,10 +140,18 @@ class ConsoleReporter {
     // the fallback when a tree is just genuinely large). Always stderr,
     // never gated on `showAll` — this is liveness, not a finding.
     if (this._parallelRun && this._suiteStartedAt) {
-      const elapsedMs = Date.now() - this._suiteStartedAt;
-      if (elapsedMs > 30_000) {
+      const sinceSuiteStartMs = Date.now() - this._suiteStartedAt;
+      if (sinceSuiteStartMs > 30_000) {
+        // Issue #649 (D1): this used to print `sinceSuiteStartMs` here too,
+        // so every module finishing near the end of a long --parallel run
+        // showed the SAME near-suite-total number — fakeFixDetector (1,186ms)
+        // and memory (569,775ms) both read "[569.8s elapsed]". The runner
+        // already records each module's own duration (`result.duration`,
+        // the same value the JSON report carries — Doctrine #4, one
+        // definition) — print THAT here. The suite clock is shown exactly
+        // once, on the summary line (`_onSuiteEnd`'s "Time: Xms").
         process.stderr.write(
-          `  ${COLORS.dim}[${(elapsedMs / 1000).toFixed(1)}s elapsed] ${result.module} finished (${result.duration}ms)${COLORS.reset}\n`,
+          `  ${COLORS.dim}[${(result.duration / 1000).toFixed(1)}s elapsed] ${result.module} finished${COLORS.reset}\n`,
         );
       }
     }
