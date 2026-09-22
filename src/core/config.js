@@ -722,6 +722,14 @@ const DEFAULT_CONFIG = {
     include: [],
     exclude: [],
   },
+
+  // Finding suppression (KI #112 G4): the SAME line syntax as a repo-root
+  // `.gatetestignore` (`module:rule` | `module` | `*:rule` |
+  // `module:rule@glob` | `path/glob/**`), fed to the same parser
+  // (src/core/ignore-file.js — one definition, no second matcher) by
+  // src/core/runner.js. Lets a `.gatetest.json`-templating build pipeline
+  // suppress findings without also hand-maintaining a second file.
+  ignore: [],
 };
 
 /**
