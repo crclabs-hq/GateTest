@@ -3,6 +3,7 @@
 const http = require('http');
 const https = require('https');
 const { URL } = require('url');
+const { extractTitle } = require('../core/html-extract');
 
 const UA = 'GateTest/1.0 (Quality Assurance Crawler)';
 
@@ -186,22 +187,18 @@ function extractLinks(html, baseUrl, pageUrl) {
   return { internal, external };
 }
 
-// One definition of "what is this page's <title>" — imported by the HTTP
-// engine's missing-title check, whose finding feeds the duplicate-title
-// grouping in live-crawler.js (titlesByUrl). A bare `/<title>/` requires an
+// "What is this page's <title>" — imported by the HTTP engine's
+// missing-title check, whose finding feeds the duplicate-title grouping in
+// live-crawler.js (titlesByUrl). A bare `/<title>/` requires an
 // attribute-free tag; framework-rendered pages commonly emit
 // `<title data-sm="...">` and were reported as missing a title they plainly
 // had (tallrig.com, #641). The browser engine reads `page.title()` off the
 // real DOM instead of this regex, so it never had this bug and doesn't call
 // this helper — but if it's ever changed to parse raw HTML for a title, this
-// is the one function to reach for.
-const TITLE_TAG_RE = /<title\b[^>]*>([^<]*)<\/title>/i;
-
-function extractTitle(html) {
-  const m = TITLE_TAG_RE.exec(html);
-  const text = m ? m[1].trim() : '';
-  return text.length > 0 ? text : null;
-}
+// is the one function to reach for. The one definition now lives in
+// `src/core/html-extract.js` (#653: also shared with `src/modules/seo.js`
+// and the website's quick URL scan) — re-exported here for backward
+// compatibility with existing callers of this module.
 
 // One definition of "what icon does this page declare" — <link rel="icon">,
 // the legacy "shortcut icon" (splits into the tokens ['shortcut','icon'], so

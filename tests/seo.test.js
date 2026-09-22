@@ -251,3 +251,82 @@ describe('SeoModule — looksLikeWebsite recognises every deployable-site framew
     } finally { fs.rmSync(d, { recursive: true, force: true }); }
   });
 });
+
+// ============================================================================
+// #653 — <title lang="en">/multi-line <title>/meta description with attributes
+// in between were all reported "missing" by bare-tag regexes. 12 of 26 lost
+// grade points on tallrig.com were exactly this false positive. seo.js now
+// reads both through src/core/html-extract.js (matchTitleTag /
+// matchMetaDescriptionTag) — the same one definition #641/#646 fixed for the
+// crawler.
+// ============================================================================
+describe('SeoModule — <title>/meta description with attributes is not "missing" (#653)', () => {
+  let root;
+  before(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-seo-653-')); });
+  after(() => { fs.rmSync(root, { recursive: true, force: true }); });
+
+  it('CONTROL — a <title lang="en"> tag is read, not reported missing', async () => {
+    write(root, 'lang-title.html',
+      '<!doctype html><html><head><meta charset="utf-8">' +
+      '<title lang="en">Tallrig — Automated Quality Gate</title>' +
+      '<meta name="description" content="A description long enough to pass."></head>' +
+      '<body><h1>Home</h1></body></html>');
+    const checks = await runOn(root);
+    const bad = failing(checks);
+    assert.ok(!bad.some((c) => c.id === 'seo:title:lang-title.html'), 'a <title lang="en"> must not be reported missing');
+    assert.ok(checks.some((c) => c.id === 'seo:title:lang-title.html' && c.passed), 'title check must pass');
+  });
+
+  it('CONTROL — a multi-line <title> is read, not reported missing', async () => {
+    write(root, 'multiline-title.html',
+      '<!doctype html><html><head><meta charset="utf-8">\n' +
+      '<title>\n  Tallrig — Automated Quality Gate\n</title>\n' +
+      '<meta name="description" content="A description long enough to pass.">' +
+      '</head><body><h1>Home</h1></body></html>');
+    const checks = await runOn(root);
+    const bad = failing(checks);
+    assert.ok(!bad.some((c) => c.id === 'seo:title:multiline-title.html'), 'a multi-line <title> must not be reported missing');
+    assert.ok(checks.some((c) => c.id === 'seo:title:multiline-title.html' && c.passed), 'title check must pass');
+  });
+
+  it('POSITIVE CONTROL — a <title> that only exists inside an <svg> still counts as missing', async () => {
+    write(root, 'svg-only-title.html',
+      '<!doctype html><html><head><meta charset="utf-8">' +
+      '<meta name="description" content="A description long enough to pass.">' +
+      '</head><body><svg viewBox="0 0 10 10"><title>Icon</title></svg><h1>Home</h1></body></html>');
+    const checks = await runOn(root);
+    const bad = failing(checks);
+    assert.ok(bad.some((c) => c.id === 'seo:title:svg-only-title.html'), 'an svg-only <title> must still be reported missing');
+  });
+
+  it('CONTROL — a meta description with an attribute BETWEEN name and content is read, either order', async () => {
+    write(root, 'meta-attrs.html',
+      '<!doctype html><html><head><meta charset="utf-8"><title>Home</title>' +
+      '<meta name="description" lang="en" content="A description long enough to pass, with an attribute in between.">' +
+      '</head><body><h1>Home</h1></body></html>');
+    write(root, 'meta-attrs-reversed.html',
+      '<!doctype html><html><head><meta charset="utf-8"><title>Home</title>' +
+      '<meta content="A description long enough to pass, with an attribute after content." lang="en" name="description">' +
+      '</head><body><h1>Home</h1></body></html>');
+    const checks = await runOn(root);
+    const bad = failing(checks);
+    assert.ok(!bad.some((c) => c.id === 'seo:description:meta-attrs.html'), 'name ... lang ... content must not be reported missing');
+    assert.ok(!bad.some((c) => c.id === 'seo:description:meta-attrs-reversed.html'), 'content ... lang ... name must not be reported missing');
+  });
+
+  it('a fixture reproducing the tallrig.com false positive now passes both checks', async () => {
+    const r = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-seo-653-tallrig-'));
+    try {
+      write(r, 'index.html',
+        '<!doctype html><html lang="en"><head>\n' +
+        '<meta charset="utf-8">\n' +
+        '<title data-sm="00000001">\n  Tallrig — Automated Quality Gate\n</title>\n' +
+        '<meta name="description" data-sm="00000002" content="Automated quality gating for every push, catching regressions before they ship.">\n' +
+        '</head><body><h1>Tallrig</h1></body></html>');
+      const checks = await runOn(r);
+      const bad = failing(checks);
+      assert.ok(!bad.some((c) => c.id === 'seo:title:index.html'), 'title must not be reported missing');
+      assert.ok(!bad.some((c) => c.id === 'seo:description:index.html'), 'description must not be reported missing');
+    } finally { fs.rmSync(r, { recursive: true, force: true }); }
+  });
+});
