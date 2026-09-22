@@ -11,6 +11,15 @@ const { URL } = require('url');
 const dns = require('dns');
 const tls = require('tls');
 
+// One definition of what the compression probe advertises. Without an
+// Accept-Encoding header a well-behaved server answers `identity` — that is
+// the server correctly following the request, not the server failing to
+// compress (reproduced against tallrig.com/gluecron.com, which both return
+// Content-Encoding: gzip once asked). _timedRequest never reads the response
+// body (only status/headers), so requesting a compressed body here is safe
+// even though nothing decompresses it.
+const COMPRESSION_ACCEPT_ENCODING = 'gzip, br, zstd';
+
 class ServerScanner {
   constructor() {
     this.modules = [
@@ -363,14 +372,16 @@ class ServerScanner {
         mod.details.push(`pass: TTFB under 800ms`);
       }
 
-      // Check compression
+      // Check compression — the request carries Accept-Encoding (see
+      // COMPRESSION_ACCEPT_ENCODING), so a server answering `identity` here
+      // genuinely does not compress; it is not just unasked.
       mod.checks++;
       const encoding = headers['content-encoding'];
-      if (encoding && (encoding.includes('gzip') || encoding.includes('br'))) {
-        mod.details.push(`pass: Compression enabled (${encoding})`);
+      if (encoding && encoding !== 'identity') {
+        mod.details.push(`pass: ${encoding} compression (Content-Encoding: ${encoding})`);
       } else {
         mod.issues++;
-        mod.details.push('warning: No compression (gzip/brotli) — larger payloads');
+        mod.details.push(`warning: No compression (gzip/brotli) — larger payloads (sent Accept-Encoding: ${COMPRESSION_ACCEPT_ENCODING}, server did not compress)`);
       }
 
       // Check cache headers
@@ -474,7 +485,10 @@ class ServerScanner {
       const req = client.request(url, {
         method: 'GET',
         timeout: 15000,
-        headers: { 'User-Agent': 'GateTest/1.0 ServerScanner' },
+        headers: {
+          'User-Agent': 'GateTest/1.0 ServerScanner',
+          'Accept-Encoding': COMPRESSION_ACCEPT_ENCODING,
+        },
       }, (res) => {
         if (followRedirects && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           this._timedRequest(res.headers.location, true).then(resolve).catch(reject);
