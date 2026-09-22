@@ -199,23 +199,19 @@ export default function BadgePage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             {
-              icon: "🏷️",
               title: "The grade shows before the code is read",
               body: "Contributors and users see your code quality grade before they read a single line of code.",
             },
             {
-              icon: "🔄",
               title: "Always up to date",
               body: "The badge reflects the latest completed scan. Run a scan → badge updates. No manual steps.",
             },
             {
-              icon: "📈",
               title: "Accountability built in",
               body: "A declining grade is visible to every contributor and every issue reporter.",
             },
           ].map((card) => (
             <div key={card.title} className="card p-5 space-y-2">
-              <span className="text-2xl">{card.icon}</span>
               <h3 className="text-sm font-bold text-foreground">{card.title}</h3>
               <p className="text-xs text-muted leading-relaxed">{card.body}</p>
             </div>

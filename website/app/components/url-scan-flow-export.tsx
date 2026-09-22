@@ -24,11 +24,11 @@ function formatFindingsForAgent(result: ScanResult): string {
   for (const sev of ["error", "warning", "info"] as Severity[]) {
     const items = bySev[sev];
     if (items.length === 0) continue;
-    const label = sev === "error" ? "🔴 Errors" : sev === "warning" ? "🟡 Warnings" : "⚪ Info";
+    const label = sev === "error" ? "Errors" : sev === "warning" ? "Warnings" : "Info";
     lines.push(`## ${label} (${items.length})`);
     lines.push("");
     items.forEach((f, i) => {
-      const flag = f.highSignal ? " 🔥 HIGH-SIGNAL" : "";
+      const flag = f.highSignal ? " (HIGH-SIGNAL)" : "";
       const count = f.instanceCount && f.instanceCount > 1 ? ` × ${f.instanceCount}` : "";
       lines.push(`### ${i + 1}. ${f.title}${flag}${count}`);
       lines.push(`- **Module:** \`${f.module}\``);

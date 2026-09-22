@@ -147,7 +147,7 @@ function GradeRing({ grade, score, animating }: { grade: string; score: number; 
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-display text-5xl font-black" style={{ color, lineHeight: 1 }}>{grade}</span>
+          <span className="font-display text-5xl font-semibold" style={{ color, lineHeight: 1 }}>{grade}</span>
           <span className="text-sm font-semibold text-foreground-secondary mt-1">{score}/100</span>
         </div>
       </div>
