@@ -9,6 +9,18 @@ import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 
+// One definition of the honesty formatting shared with the two API routes
+// (Doctrine #4) — the wall-clock headline (N3/F3) so a 0.1s engine number is
+// never displayed as if it were the whole request.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const scanGrade = require("@/app/lib/scan-grade") as {
+  formatDurationHeadline: (timing: { wallMs?: number | null; fetchMs?: number | null; engineMs?: number | null } | null | undefined) => {
+    headline: string;
+    headlineLabel: string;
+    split: string | null;
+  };
+};
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface ModuleResult {
@@ -512,6 +524,13 @@ export default function PlaygroundPage() {
     }).catch(() => {}); // error-ok: best-effort UI nicety; feature may be unavailable in this browser
   }, [result, permalink]);
 
+  // N3/F3 — wall clock is the headline duration; falls back to the shared
+  // definition's honest "engine time only" label when no wallMs was recorded
+  // (e.g. a pre-2026-09-22 permalink restored within its 48h window).
+  const resultTiming = scanGrade.formatDurationHeadline(
+    result ? (result.coverage ?? { engineMs: result.duration }) : null
+  );
+
   return (
     <main>
       <PageHero
@@ -643,10 +662,17 @@ export default function PlaygroundPage() {
                             ? "0 blocking · 0 warnings"
                             : `${result.totalIssues} finding${result.totalIssues !== 1 ? "s" : ""}`)}
                       </h2>
+                      {/* N3/F3 — wall clock is the headline, never the engine-only
+                          half of the split read as if it were the whole request
+                          (a 0.9s engine time next to an 8.2s wall clock is a
+                          40-55% understatement). The split renders beneath. */}
                       <span className="text-xs font-mono text-muted">
-                        {(result.duration / 1000).toFixed(1)}s engine time · quick tier
+                        {resultTiming.headline} {resultTiming.headlineLabel} · quick tier
                       </span>
                     </div>
+                    {resultTiming.split && (
+                      <p className="text-[11px] font-mono text-muted">{resultTiming.split}</p>
+                    )}
 
                     {result.gradeSummary && (
                       <p className="text-xs text-muted">{result.gradeSummary}</p>

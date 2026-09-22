@@ -37,6 +37,7 @@ const {
   formatResultHeader,
   computeCoverage,
   coverageQualifier,
+  formatDurationHeadline,
   NON_FAILING_SCORE,
   WARNING_PENALTY_CAP,
 } = GRADE;
@@ -346,5 +347,35 @@ describe('coverage fraction — one definition, and the qualifier only appears w
     const body = src.slice(idx, idx + 900);
     assert.ok(/coverage\?\.partial/.test(body), 'the badge markdown does not check coverage.partial');
     assert.ok(/partial coverage/i.test(body), 'the badge gives no partial-coverage wording');
+  });
+});
+
+// =============================================================================
+// N3/F3 — the headline duration is wall clock, not the engine-only half of
+// the split read as if it were the whole request
+// =============================================================================
+describe('duration headline — wall clock leads, the split follows, and a missing wallMs says so (N3/F3)', () => {
+  it('control pair: wallMs 8200 headlines "8.2s"; fetch/engine render as the split beneath it', () => {
+    const t = formatDurationHeadline({ wallMs: 8200, fetchMs: 3100, engineMs: 900 });
+    assert.strictEqual(t.headline, '8.2s');
+    assert.strictEqual(t.headlineLabel, 'wall clock');
+    assert.ok(t.split, 'expected a fetch/engine split beneath the headline');
+    assert.ok(t.split.includes('3.1s fetch'), t.split);
+    assert.ok(t.split.includes('0.9s engine time'), t.split);
+  });
+
+  it('control pair: no wallMs falls back to the split with an honest "engine time only" label', () => {
+    const t = formatDurationHeadline({ engineMs: 900 });
+    assert.strictEqual(t.headline, '0.9s');
+    assert.strictEqual(t.headlineLabel, 'engine time only');
+  });
+
+  it('the free-scan page renders the wall-clock headline via the one shared definition', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'website/app/playground/page.tsx'), 'utf8');
+    assert.ok(/formatDurationHeadline/.test(src), 'the page does not call the shared formatDurationHeadline');
+    assert.ok(
+      !/\{\(result\.duration \/ 1000\)\.toFixed\(1\)\}s engine time · quick tier/.test(src),
+      'the headline still prints the raw engine-only duration'
+    );
   });
 });

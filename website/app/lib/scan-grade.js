@@ -300,6 +300,39 @@ function coverageQualifier(coverage) {
   return ` on ${Number(c.scanned).toLocaleString('en-US')} of ${Number(c.total).toLocaleString('en-US')} files`;
 }
 
+/**
+ * The headline duration a stranger reads first. Before 2026-09-22 the free
+ * scan printed only the engine-time half of the fetch/engine split (e.g.
+ * "0.9s") as if it were the whole request's duration, understating the real
+ * wall clock (fetch + engine + overhead, e.g. 8.2s) by 40-55%. Wall clock is
+ * now the headline; the split renders underneath, never in place of it.
+ *
+ * @param {{wallMs?: number|null, fetchMs?: number|null, engineMs?: number|null}} timing
+ * @returns {{ headline: string, headlineLabel: string, split: string|null }}
+ */
+function formatDurationHeadline(timing) {
+  const t = timing || {};
+  const wallMs = typeof t.wallMs === 'number' && Number.isFinite(t.wallMs) && t.wallMs >= 0 ? t.wallMs : null;
+  const engineMs = typeof t.engineMs === 'number' && Number.isFinite(t.engineMs) && t.engineMs >= 0 ? t.engineMs : null;
+  const fetchMs = typeof t.fetchMs === 'number' && Number.isFinite(t.fetchMs) && t.fetchMs >= 0 ? t.fetchMs : null;
+
+  const splitParts = [];
+  if (fetchMs !== null) splitParts.push(`${(fetchMs / 1000).toFixed(1)}s fetch`);
+  if (engineMs !== null) splitParts.push(`${(engineMs / 1000).toFixed(1)}s engine time`);
+  const split = splitParts.length > 0 ? splitParts.join(' · ') : null;
+
+  if (wallMs !== null) {
+    return { headline: `${(wallMs / 1000).toFixed(1)}s`, headlineLabel: 'wall clock', split };
+  }
+  // No wall-clock measurement made it through — fall back to the split, but
+  // say so explicitly: an engine-only number must never be read as the whole
+  // request the way the old unlabelled "0.1s" was.
+  if (engineMs !== null) {
+    return { headline: `${(engineMs / 1000).toFixed(1)}s`, headlineLabel: 'engine time only', split: fetchMs !== null ? split : null };
+  }
+  return { headline: 'not recorded', headlineLabel: 'duration not recorded', split: null };
+}
+
 module.exports = {
   SEVERITY_BY_MODULE,
   DEFAULT_MODULE_SEVERITY,
@@ -321,4 +354,5 @@ module.exports = {
   formatResultHeader,
   computeCoverage,
   coverageQualifier,
+  formatDurationHeadline,
 };
