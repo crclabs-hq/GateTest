@@ -31,6 +31,7 @@ const {
   USAGE_EXIT_CODE,
 } = require('../src/core/cli-args');
 const { buildJsonOutput, scanExitCode } = require('../src/core/json-output');
+const { crawlReportPaths } = require('../src/modules/live-crawler-report');
 
 /**
  * `--project <path>` must name an existing directory, or the run is a usage
@@ -244,6 +245,9 @@ const HELP = `
     --crawl <url>      Crawl a live website and test every page
     --crawl-loop <url> Crawl, report failures, wait for fixes, repeat until clean
     --crawl-max <n>    Max pages to crawl (default: 100)
+    --crawl-page-timeout <ms>  Per-page fetch budget (default: 15000). A
+                       stalled page costs at most this much, not the whole
+                       crawl's wall-clock ceiling.
     --crawl-header "Name: value"   Send a header on same-origin requests so the
                        crawler can reach pages behind auth (repeatable;
                        values support \${ENV_VAR} expansion)
@@ -620,13 +624,15 @@ async function main() {
 
   // Live site crawl
   if (args.crawl) {
-    await runCrawl(gatetest, args.crawl, args.crawlMax || 100, crawlAuthFromArgs(args));
+    await runCrawl(gatetest, args.crawl, args.crawlMax || 100,
+      { ...crawlAuthFromArgs(args), ...(args.crawlPageTimeout ? { pageTimeout: args.crawlPageTimeout } : {}) });
     return;
   }
 
   // Continuous crawl-fix loop
   if (args.crawlLoop) {
-    await runCrawlLoop(gatetest, args.crawlLoop, args.crawlMax || 100, crawlAuthFromArgs(args));
+    await runCrawlLoop(gatetest, args.crawlLoop, args.crawlMax || 100,
+      { ...crawlAuthFromArgs(args), ...(args.crawlPageTimeout ? { pageTimeout: args.crawlPageTimeout } : {}) });
     return;
   }
 
@@ -1339,6 +1345,50 @@ function crawlAuthFromArgs(args) {
   return auth;
 }
 
+/**
+ * A run's own crawl report, keyed by pid + target origin (crawlReportPaths,
+ * same definition the module writes with) so two concurrent `--crawl`
+ * processes from the same project root never read each other's file. Belt
+ * and suspenders on top of the path keying: also refuse to print a file
+ * whose own "# URL:" header does not match the URL this run just crawled —
+ * a leftover file from a crashed/reused pid must never be presented as this
+ * run's result (reproduced 2026-09-21/22: a tallrig run printed gluecron's
+ * report; a timed-out run printed a stale report from an earlier crawl).
+ */
+function readOwnCrawlReport(mdPath, url) {
+  if (!fs.existsSync(mdPath)) return null;
+  const content = fs.readFileSync(mdPath, 'utf-8');
+  const urlLine = content.split(/\r?\n/).find((l) => l.startsWith('# URL: '));
+  if (!urlLine || urlLine.slice('# URL: '.length).trim() !== url) return null;
+  return content;
+}
+
+/** If the liveCrawler module hit its wall-clock timeout, the message to show instead of any report. */
+function crawlTimeoutMessage(summary) {
+  const failed = (summary.failedModules || []).find((m) => m.module === 'liveCrawler');
+  if (!failed) return null;
+  const match = /timed out after (\d+)ms/.exec(failed.error || '');
+  if (!match) return null;
+  return `No crawl report: module timed out after ${match[1]}ms — no data was collected for this run.`;
+}
+
+/** Print this run's own crawl report (or say plainly why there isn't one). Shared by runCrawl/runCrawlLoop. */
+function printOwnCrawlReport(gatetest, url) {
+  const { mdPath } = crawlReportPaths(gatetest.projectRoot, url);
+  const timeoutMessage = crawlTimeoutMessage(gatetest._lastCrawlSummary);
+  if (timeoutMessage) {
+    console.log(`\n[GateTest] ${timeoutMessage}\n`);
+    return null;
+  }
+  const report = readOwnCrawlReport(mdPath, url);
+  if (!report) {
+    console.log(`\n[GateTest] No crawl report was produced for ${url} this run.\n`);
+    return null;
+  }
+  console.log('\n' + report);
+  return report;
+}
+
 async function runCrawl(gatetest, url, maxPages, authConfig = {}) {
   // Inject crawl URL into config — merged over any .gatetest config so
   // file-based crawl settings (headers, cookie, thresholds) still apply
@@ -1353,12 +1403,9 @@ async function runCrawl(gatetest, url, maxPages, authConfig = {}) {
 
   console.log(`\n[GateTest] Crawling ${url} (max ${maxPages} pages)...\n`);
   const summary = await gatetest.runModule('liveCrawler');
+  gatetest._lastCrawlSummary = summary;
 
-  // Show the feedback report
-  const feedbackPath = path.join(gatetest.projectRoot, '.gatetest/reports/crawl-feedback.md');
-  if (fs.existsSync(feedbackPath)) {
-    console.log('\n' + fs.readFileSync(feedbackPath, 'utf-8'));
-  }
+  printOwnCrawlReport(gatetest, url);
 
   process.exit(summary.gateStatus === 'PASSED' ? 0 : 1);
 }
@@ -1382,17 +1429,13 @@ async function runCrawlLoop(gatetest, url, maxPages, authConfig = {}) {
     console.log(`[GateTest] Testing: ${url}`);
     console.log(`${'='.repeat(50)}\n`);
 
-    await gatetest.runModule('liveCrawler');
+    const summary = await gatetest.runModule('liveCrawler');
+    gatetest._lastCrawlSummary = summary;
 
-    const feedbackPath = path.join(gatetest.projectRoot, '.gatetest/reports/crawl-feedback.md');
-    if (fs.existsSync(feedbackPath)) {
-      const feedback = fs.readFileSync(feedbackPath, 'utf-8');
-      console.log('\n' + feedback);
-
-      if (feedback.includes('ALL CLEAR')) {
-        console.log('\n[GateTest] SITE IS CLEAN. All pages verified. Loop complete.\n');
-        process.exit(0);
-      }
+    const feedback = printOwnCrawlReport(gatetest, url);
+    if (feedback && feedback.includes('ALL CLEAR')) {
+      console.log('\n[GateTest] SITE IS CLEAN. All pages verified. Loop complete.\n');
+      process.exit(0);
     }
 
     console.log(`\n[GateTest] Issues found. Waiting for fixes...`);

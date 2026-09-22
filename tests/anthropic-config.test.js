@@ -137,7 +137,7 @@ describe('anthropic-config — twins agree', () => {
 });
 
 describe('KI #78 — the migration is complete (all-or-nothing ratchet)', () => {
-  const SKIP_DIRS = new Set(['node_modules', '.next', '.git', 'reliability-corpus', 'benchmarks', 'tests', 'docs']);
+  const SKIP_DIRS = new Set(['node_modules', '.next', '.git', '.claude', '.gatetest', 'reliability-corpus', 'benchmarks', 'tests', 'docs']);
   // Legitimate remaining mentions: the config modules define the default, and
   // next.config.ts lists the host in a browser CSP (server-side calls are not
   // CSP-governed, so a custom base URL needs no CSP entry).
