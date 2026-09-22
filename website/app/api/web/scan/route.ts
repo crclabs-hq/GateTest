@@ -524,7 +524,7 @@ export async function POST(req: NextRequest) {
     };
   };
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { computeHealthScore, deriveModuleCoverage } = require("@/app/lib/health-score") as {
+  const { computeHealthScore, deriveModuleCoverage, deriveFreeCheckNames, LIVE_URL_MODULES } = require("@/app/lib/health-score") as {
     computeHealthScore: (
       clusters: Array<{ severity: string; isHighSignal: boolean; count: number; ruleKey?: string }>,
       moduleCoverage?: { totalModules: number; checkedModules: number; notChecked: Array<{ module: string; reason: string }> },
@@ -536,6 +536,8 @@ export async function POST(req: NextRequest) {
       coverage?: { totalModules: number; checkedModules: number; notCheckedModules: string[] };
     };
     deriveModuleCoverage: (results: typeof summary.results) => { totalModules: number; checkedModules: number; notChecked: Array<{ module: string; reason: string }> };
+    deriveFreeCheckNames: (results: typeof summary.results, liveModules?: string[]) => Array<{ module: string; status: 'checked' | 'not-checked'; reason?: string; duration?: number; checks: Array<{ name: string; passed: boolean; severity: string }> }>;
+    LIVE_URL_MODULES: string[];
   };
 
   const clusterResult = clusterAndRankUrlFindings(allFindings);
@@ -553,6 +555,9 @@ export async function POST(req: NextRequest) {
     moduleCoverage.checkedModules = Math.max(0, moduleCoverage.totalModules - moduleCoverage.notChecked.length);
   }
   const healthScore = computeHealthScore(clusterResult.clusters, moduleCoverage);
+  // Issue #648 item 4: check NAMES for the four live-URL modules are free —
+  // only the fix guidance (findings[].body) stays behind the paywall below.
+  const moduleChecks = deriveFreeCheckNames(summary.results || [], LIVE_URL_MODULES);
 
   const PREVIEW_LIMIT = 3;
   const isPreview = !fullReport;
@@ -621,6 +626,9 @@ export async function POST(req: NextRequest) {
     totalModules: moduleCoverage.totalModules,
     checkedModules: moduleCoverage.checkedModules,
     notCheckedModules: moduleCoverage.notChecked.map((n) => n.module),
+    // Free regardless of `preview` — check NAMES are not the paid part,
+    // only the fix guidance in `findings[].body` is (item 4).
+    moduleChecks,
     // Honesty flag: true when the caller supplied a session. It is carried
     // by the crawl, the live probe, AND (in the HMAC-signed dispatch body)
     // the runtime browser worker — so authenticated coverage is end-to-end.

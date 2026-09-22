@@ -38,6 +38,24 @@ export interface RuntimeBlock {
   };
 }
 
+/**
+ * Issue #648 item 4 — free-safe per-module check breakdown for the four
+ * live-URL modules (webHeaders/seo/accessibility/cookieSecurity). Check
+ * NAMES and pass/fail state are free; fix guidance (`Finding.body`) stays
+ * behind the existing paywall boundary on `ScanResult.findings`. Built by
+ * `deriveFreeCheckNames()` in website/app/lib/health-score.js — the one
+ * definition both /api/web/scan and /api/web/scan/stream import.
+ */
+export interface ModuleCheckSummary {
+  module: string;
+  status: "checked" | "not-checked";
+  /** Only present when status is "not-checked" — the module's own
+   *  `_notChecked()` message, never web-runtime-gate.js's reason text. */
+  reason?: string;
+  duration?: number;
+  checks: Array<{ name: string; passed: boolean; severity: Severity }>;
+}
+
 export interface ScanResult {
   scanId?: string;
   targetUrl: string;
@@ -62,6 +80,14 @@ export interface ScanResult {
   checkedModules?: number;
   /** Module names that reported themselves not-checked on this scan. */
   notCheckedModules?: string[];
+  /** Free check-name breakdown for the four live-URL modules (item 4).
+   *  Optional so an older cached/shared result still renders. */
+  moduleChecks?: ModuleCheckSummary[];
+  /** Present only on a result restored from a `?s=` permalink (item 3) —
+   *  the client-side share encoding's own embedded timestamp, read by
+   *  `decodeShareData()` to expire a link after 48h. Never sent by the
+   *  server. */
+  sharedAt?: number;
   paywall: {
     remainingCount: number;
     fullReportPriceUsd: number;
@@ -105,10 +131,16 @@ export interface Recommendation {
 
 export interface ModuleProgress {
   name: string;
-  state: "queued" | "running" | "done" | "skipped";
+  /** "not-checked" — issue #648 item 1: a module whose own `_notChecked`
+   *  check fired must render distinctly from "done" (clean/found), never
+   *  as a clean tick. */
+  state: "queued" | "running" | "done" | "skipped" | "not-checked";
   errors?: number;
   warnings?: number;
   duration?: number;
+  /** Only present when state is "not-checked" — the module's own reason,
+   *  never web-runtime-gate.js's runtime-dispatch reason (item 2). */
+  reason?: string;
 }
 
 export const MODULE_TICKER: Record<"web" | "wp", string[]> = {
