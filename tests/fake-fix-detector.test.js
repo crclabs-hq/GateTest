@@ -185,6 +185,62 @@ describe('FakeFixDetectorModule', () => {
     assert.strictEqual(failure.severity, 'error');
   });
 
+  // #673: the customer's shape had NO `expect(...)` after the directive at
+  // all — `adminOps.catalog.test.ts:636` was `// @ts-expect-error` followed
+  // by a plain call, `deriveDisabledStatus(derived);`. The assertion is the
+  // compiler rejecting the call; #666's "next line must be expect(...) or a
+  // type assertion" heuristic missed it and reported it as a suppressed
+  // error. Inside a test file the directive is info unconditionally.
+  it('#673: @ts-expect-error in a test file is info even with a plain call next (no expect())', async () => {
+    const diff = [
+      'diff --git a/tests/adminOps.catalog.test.ts b/tests/adminOps.catalog.test.ts',
+      '--- a/tests/adminOps.catalog.test.ts',
+      '+++ b/tests/adminOps.catalog.test.ts',
+      '@@ -634,2 +634,4 @@',
+      "   it('rejects a raw unit state', () => {",
+      '+    // @ts-expect-error — deriveDisabledStatus takes a RawUnitState OBJECT',
+      '+    deriveDisabledStatus(derived);',
+      '   });',
+    ].join('\n');
+
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+
+    await mod.run(result, makeConfig(diff));
+
+    const failure = findFailure(result, 'ts-ignore-added');
+    assert.ok(failure, 'expected a ts-ignore-added check to still be recorded');
+    assert.strictEqual(failure.severity, 'info', '@ts-expect-error in a test file must be info unconditionally');
+  });
+
+  // #673: `@ts-ignore` HIDES an error rather than asserting one — it does not
+  // get the same unconditional downgrade as `@ts-expect-error`, but a test
+  // file is still a lower-stakes place for it than production code, so it
+  // stays a warning instead of the rule's default error.
+  it('#673: @ts-ignore in a test file stays a warning (not info, not error)', async () => {
+    const diff = [
+      'diff --git a/tests/parse.test.ts b/tests/parse.test.ts',
+      '--- a/tests/parse.test.ts',
+      '+++ b/tests/parse.test.ts',
+      '@@ -10,2 +10,3 @@',
+      "   it('parses legacy input', () => {",
+      '+    // @ts-ignore',
+      "     expect(parse(legacyInput)).toEqual(expected);",
+      '   });',
+    ].join('\n');
+
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+
+    await mod.run(result, makeConfig(diff));
+
+    const failure = findFailure(result, 'ts-ignore-added');
+    assert.ok(failure, 'expected a ts-ignore-added check to still be recorded');
+    assert.strictEqual(failure.severity, 'warning', '@ts-ignore in a test file must be a warning');
+  });
+
   it('flags if (false) dead-code guards', async () => {
     const diff = [
       'diff --git a/src/validator.js b/src/validator.js',
