@@ -272,6 +272,34 @@ function formatResultHeader(meta) {
   return parts.join(' · ');
 }
 
+/**
+ * Coverage fraction — ONE definition (Doctrine #4), always
+ * `{scanned, total, partial}`. `total` of 0 means "unknown", never "100%" —
+ * partial is only ever asserted when we actually know a smaller total exists.
+ *
+ * @param {number|null|undefined} scanned
+ * @param {number|null|undefined} total
+ */
+function computeCoverage(scanned, total) {
+  const s = typeof scanned === 'number' && Number.isFinite(scanned) && scanned >= 0 ? Math.round(scanned) : 0;
+  const t = typeof total === 'number' && Number.isFinite(total) && total >= 0 ? Math.round(total) : 0;
+  return { scanned: s, total: t, partial: t > 0 && s < t };
+}
+
+/**
+ * " on 50 of 214 files" appended to the grade line when coverage is partial;
+ * '' when the scan covered everything (or coverage is unknown) — the control
+ * pair Doctrine #3 wants: full coverage never carries the qualifier, partial
+ * coverage always does.
+ *
+ * @param {{scanned:number, total:number, partial:boolean}|null|undefined} coverage
+ */
+function coverageQualifier(coverage) {
+  const c = coverage || {};
+  if (!c.partial) return '';
+  return ` on ${Number(c.scanned).toLocaleString('en-US')} of ${Number(c.total).toLocaleString('en-US')} files`;
+}
+
 module.exports = {
   SEVERITY_BY_MODULE,
   DEFAULT_MODULE_SEVERITY,
@@ -291,4 +319,6 @@ module.exports = {
   computeScanGrade,
   describeScanScope,
   formatResultHeader,
+  computeCoverage,
+  coverageQualifier,
 };

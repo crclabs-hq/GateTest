@@ -24,12 +24,19 @@ const ROOT = path.resolve(__dirname, '..');
 const GRADE = require('../website/app/lib/scan-grade.js');
 const { scoreToGrade } = require('../website/app/lib/health-score.js');
 
+const FREE_SCAN_ROUTES = [
+  'website/app/api/playground/scan/route.ts',
+  'website/app/api/playground/scan/stream/route.ts',
+];
+
 const {
   computeScanGrade,
   countFindingsBySeverity,
   severityForModule,
   describeScanScope,
   formatResultHeader,
+  computeCoverage,
+  coverageQualifier,
   NON_FAILING_SCORE,
   WARNING_PENALTY_CAP,
 } = GRADE;
@@ -292,5 +299,52 @@ describe('free-scan result header — the sha resolver\'s reason is never droppe
     const header = formatResultHeader({ repoSlug: 'owner/repo', commitSha: null, scannedAt: null, scanId: null });
     assert.ok(header.includes('commit not resolved'), header);
     assert.ok(!header.includes('undefined') && !header.includes('null'), header);
+  });
+});
+
+// =============================================================================
+// N2 — the coverage fraction is ONE definition, and a partial read says so
+// everywhere the result is read (Doctrine #1/#4/#6)
+// =============================================================================
+describe('coverage fraction — one definition, and the qualifier only appears when partial (N2)', () => {
+  it('control pair: full coverage carries no qualifier; partial coverage always does', () => {
+    const full = computeCoverage(214, 214);
+    assert.strictEqual(full.partial, false);
+    assert.strictEqual(coverageQualifier(full), '');
+
+    const partial = computeCoverage(50, 214);
+    assert.strictEqual(partial.partial, true);
+    assert.strictEqual(coverageQualifier(partial), ' on 50 of 214 files');
+
+    const summaryWithQualifier = 'Grade B — no blocking findings.' + coverageQualifier(partial);
+    assert.ok(summaryWithQualifier.includes('on 50 of 214 files'), summaryWithQualifier);
+    const summaryWithoutQualifier = 'Grade A — no findings from the modules that ran.' + coverageQualifier(full);
+    assert.ok(!summaryWithoutQualifier.includes(' on '), summaryWithoutQualifier);
+  });
+
+  it('an unknown total is never called partial — that would be a guess', () => {
+    const unknown = computeCoverage(50, 0);
+    assert.strictEqual(unknown.partial, false, 'a zero/unknown total must not be read as 100% coverage');
+    assert.strictEqual(coverageQualifier(unknown), '');
+  });
+
+  it('both free-scan routes call the shared computeCoverage/coverageQualifier and surface {scanned, total, partial}', () => {
+    for (const rel of FREE_SCAN_ROUTES) {
+      const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+      assert.ok(/computeCoverage/.test(src), `${rel} does not call the shared computeCoverage`);
+      assert.ok(/coverageQualifier/.test(src), `${rel} does not call the shared coverageQualifier`);
+      assert.ok(/scanned:\s*coverage\.scanned/.test(src), `${rel} does not emit coverage.scanned`);
+      assert.ok(/total:\s*coverage\.total/.test(src), `${rel} does not emit coverage.total`);
+      assert.ok(/partial:\s*coverage\.partial/.test(src), `${rel} does not emit coverage.partial`);
+    }
+  });
+
+  it('the free-scan page marks the badge markdown and alt text "partial" when coverage is partial', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'website/app/playground/page.tsx'), 'utf8');
+    const idx = src.indexOf('Add a live badge to your README');
+    assert.ok(idx > 0, 'badge embed section is gone');
+    const body = src.slice(idx, idx + 900);
+    assert.ok(/coverage\?\.partial/.test(body), 'the badge markdown does not check coverage.partial');
+    assert.ok(/partial coverage/i.test(body), 'the badge gives no partial-coverage wording');
   });
 });

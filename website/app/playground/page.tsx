@@ -71,6 +71,10 @@ interface ScanResult {
     engineMs?: number | null;
     fetchMs?: number | null;
     wallMs?: number | null;
+    /** N2 — one definition of the coverage fraction (Doctrine #4). */
+    scanned?: number;
+    total?: number;
+    partial?: boolean;
   };
   /** F4 — resolved server-side; never trusted from the client. */
   viewer?: { signedIn: boolean; canSignIn?: boolean; canFix: boolean };
@@ -774,14 +778,20 @@ export default function PlaygroundPage() {
                   </p>
                 </div>
 
-                {/* Badge embed section — the snippet is what the README renders, so it stays a dark panel */}
+                {/* Badge embed section — the snippet is what the README renders, so it stays
+                    a dark panel. N2 — a partial-coverage scan (file cap reached) says so in
+                    the markdown's own alt text, not just in the grade line above; a badge
+                    pasted into a README outlives this page and must carry the caveat itself. */}
                 <div className="card p-6 space-y-3">
                   <h3 className="text-sm font-bold text-foreground">Add a live badge to your README</h3>
                   <p className="text-xs text-muted">
                     Shows your live GateTest grade — updates after every scan.
+                    {result.coverage?.partial && (
+                      <> Partial coverage: scanned {result.coverage.scanned} of {result.coverage.total} files (file cap reached).</>
+                    )}
                   </p>
                   <div className="rounded-xl bg-panel text-panel-foreground border border-panel-border p-3 font-mono text-xs overflow-x-auto">
-                    {`[![GateTest](${badgeUrl(`/badge/${
+                    {`[![GateTest${result.coverage?.partial ? " (partial coverage)" : ""}](${badgeUrl(`/badge/${
                       result.repo_url.replace("https://github.com/", "")
                     }`)})](${SITE_URL})`}
                   </div>

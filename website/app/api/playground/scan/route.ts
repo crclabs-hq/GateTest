@@ -46,6 +46,12 @@ const scanGrade = require("@/app/lib/scan-grade") as {
   };
   describeScanScope: (scope: Record<string, unknown>) => string;
   formatResultHeader: (meta: Record<string, unknown>) => string;
+  computeCoverage: (scanned: number | null | undefined, total: number | null | undefined) => {
+    scanned: number;
+    total: number;
+    partial: boolean;
+  };
+  coverageQualifier: (coverage: { scanned: number; total: number; partial: boolean } | null | undefined) => string;
 };
 
 function problem(status: number, error: string) {
@@ -110,6 +116,10 @@ export async function POST(req: NextRequest) {
         }))
     : { sha: null as string | null, defaultBranch: "", source: "none" as const, reason: "repo_url could not be parsed" };
   const scannedAt = new Date().toISOString();
+  // N2 — one definition of the coverage fraction (Doctrine #4), and the
+  // grade line's own qualifier when the read was partial (file cap).
+  const coverage = scanGrade.computeCoverage(result.filesAnalysed, result.filesInRepo);
+  const gradeSummary = verdict.summary + scanGrade.coverageQualifier(coverage);
 
   return NextResponse.json({
     status:          result.status,
@@ -133,7 +143,7 @@ export async function POST(req: NextRequest) {
     warningCount:    verdict.warnings,
     infoCount:       verdict.info,
     countLabel:      verdict.countLabel,
-    gradeSummary:    verdict.summary,
+    gradeSummary,
     scanId,
     scannedAt,
     commitSha:       head.sha,
@@ -154,6 +164,10 @@ export async function POST(req: NextRequest) {
       truncated:     result.coverageTruncated ?? false,
       engineMs:      result.duration,
       wallMs:        Date.now() - startedAt,
+      // N2 — one definition of the coverage fraction (Doctrine #4).
+      scanned:       coverage.scanned,
+      total:         coverage.total,
+      partial:       coverage.partial,
     },
     scopeLabel:      scanGrade.describeScanScope({
       filesAnalysed: result.filesAnalysed,

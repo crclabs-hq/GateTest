@@ -71,6 +71,12 @@ const scanGrade = require("@/app/lib/scan-grade") as {
   };
   describeScanScope: (scope: Record<string, unknown>) => string;
   formatResultHeader: (meta: Record<string, unknown>) => string;
+  computeCoverage: (scanned: number | null | undefined, total: number | null | undefined) => {
+    scanned: number;
+    total: number;
+    partial: boolean;
+  };
+  coverageQualifier: (coverage: { scanned: number; total: number; partial: boolean } | null | undefined) => string;
 };
 
 export async function POST(req: NextRequest) {
@@ -220,6 +226,10 @@ export async function POST(req: NextRequest) {
         const engineMs = modules.reduce((s, m) => s + m.duration, 0);
         const scannedAt = new Date().toISOString();
         const repoSlug = `${owner}/${repo}`;
+        // N2 — one definition of the coverage fraction (Doctrine #4), and the
+        // grade line's own qualifier when the read was partial (file cap).
+        const coverage = scanGrade.computeCoverage(fileContents.length, files.length);
+        const gradeSummary = verdict.summary + scanGrade.coverageQualifier(coverage);
 
         send("complete", {
           status: "complete",
@@ -238,7 +248,7 @@ export async function POST(req: NextRequest) {
           warningCount: verdict.warnings,
           infoCount: verdict.info,
           countLabel: verdict.countLabel,
-          gradeSummary: verdict.summary,
+          gradeSummary,
           // F2 — what was scanned, when, and under which report id.
           scanId,
           scannedAt,
@@ -263,6 +273,10 @@ export async function POST(req: NextRequest) {
             engineMs,
             fetchMs,
             wallMs: Date.now() - startedAt,
+            // N2 — one definition of the coverage fraction (Doctrine #4).
+            scanned: coverage.scanned,
+            total: coverage.total,
+            partial: coverage.partial,
           },
           scopeLabel: scanGrade.describeScanScope({
             filesAnalysed: fileContents.length,
