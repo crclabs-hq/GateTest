@@ -351,14 +351,14 @@ describe('coverage fraction — one definition, and the qualifier only appears w
 });
 
 // =============================================================================
-// N3/F3 — the headline duration is wall clock, not the engine-only half of
+// N3/F3 — the headline duration is server time, not the engine-only half of
 // the split read as if it were the whole request
 // =============================================================================
-describe('duration headline — wall clock leads, the split follows, and a missing wallMs says so (N3/F3)', () => {
+describe('duration headline — server time leads, the split follows, and a missing wallMs says so (N3/F3)', () => {
   it('control pair: wallMs 8200 headlines "8.2s"; fetch/engine render as the split beneath it', () => {
     const t = formatDurationHeadline({ wallMs: 8200, fetchMs: 3100, engineMs: 900 });
     assert.strictEqual(t.headline, '8.2s');
-    assert.strictEqual(t.headlineLabel, 'wall clock');
+    assert.strictEqual(t.headlineLabel, 'server time');
     assert.ok(t.split, 'expected a fetch/engine split beneath the headline');
     assert.ok(t.split.includes('3.1s fetch'), t.split);
     assert.ok(t.split.includes('0.9s engine time'), t.split);
@@ -370,12 +370,95 @@ describe('duration headline — wall clock leads, the split follows, and a missi
     assert.strictEqual(t.headlineLabel, 'engine time only');
   });
 
-  it('the free-scan page renders the wall-clock headline via the one shared definition', () => {
+  it('the free-scan page renders the server-time headline via the one shared definition', () => {
     const src = fs.readFileSync(path.join(ROOT, 'website/app/playground/page.tsx'), 'utf8');
     assert.ok(/formatDurationHeadline/.test(src), 'the page does not call the shared formatDurationHeadline');
     assert.ok(
       !/\{\(result\.duration \/ 1000\)\.toFixed\(1\)\}s engine time · quick tier/.test(src),
       'the headline still prints the raw engine-only duration'
     );
+  });
+
+  // =============================================================================
+  // Issue #662 — server time alone still isn't within 10% of an independent
+  // stopwatch (TLS/proxy time before Node, transfer/render after it — no
+  // server-side timer can see either). The fix shows both numbers, so the
+  // browser one — which matches a customer's own stopwatch by construction —
+  // is never hidden behind a server-only figure that reads low.
+  // =============================================================================
+  describe('duration headline — clientMs rides alongside wallMs (issue #662)', () => {
+    it('control pair: wallMs + clientMs both present headlines "Scan took Ns on the server, Ms in your browser"', () => {
+      const t = formatDurationHeadline({ wallMs: 12400, clientMs: 13100 });
+      assert.strictEqual(t.headline, '12.4s');
+      assert.strictEqual(t.headlineLabel, 'server time');
+      assert.strictEqual(t.clientHeadline, '13.1s');
+      assert.strictEqual(t.combined, 'Scan took 12.4s on the server, 13.1s in your browser');
+    });
+
+    it('control pair: wallMs with no clientMs (an old share link) shows only the "server time" label, no combined string', () => {
+      const t = formatDurationHeadline({ wallMs: 12400 });
+      assert.strictEqual(t.headline, '12.4s');
+      assert.strictEqual(t.headlineLabel, 'server time');
+      assert.strictEqual(t.clientHeadline, null);
+      assert.strictEqual(t.combined, null);
+    });
+
+    it('an invalid clientMs (negative, NaN, non-number) is ignored, not surfaced as a bogus browser time', () => {
+      for (const bad of [-5, NaN, 'oops', undefined]) {
+        const t = formatDurationHeadline({ wallMs: 1000, clientMs: bad });
+        assert.strictEqual(t.clientHeadline, null, `clientMs=${bad} should not produce a clientHeadline`);
+        assert.strictEqual(t.combined, null, `clientMs=${bad} should not produce a combined headline`);
+      }
+    });
+
+    it('clientMs with no wallMs never surfaces on its own — the headline still falls back to engine time', () => {
+      const t = formatDurationHeadline({ engineMs: 900, clientMs: 1300 });
+      assert.strictEqual(t.headlineLabel, 'engine time only');
+      assert.strictEqual(t.clientHeadline, null);
+      assert.strictEqual(t.combined, null);
+    });
+
+    it('the free-scan page type declares clientMs on the shared formatDurationHeadline signature', () => {
+      const src = fs.readFileSync(path.join(ROOT, 'website/app/playground/page.tsx'), 'utf8');
+      assert.ok(/clientMs/.test(src), 'the page never mentions clientMs');
+      assert.ok(/combined:\s*string\s*\|\s*null/.test(src), 'the page type does not declare the combined headline field');
+    });
+
+    it('the free-scan page renders the combined "on the server, ... in your browser" copy, falling back to the label alone', () => {
+      const src = fs.readFileSync(path.join(ROOT, 'website/app/playground/page.tsx'), 'utf8');
+      assert.ok(
+        /resultTiming\.combined\s*\?\?\s*`\$\{resultTiming\.headline\} \$\{resultTiming\.headlineLabel\}`/.test(src),
+        'the page does not fall back from the combined headline to the plain server-time label'
+      );
+    });
+
+    it('ScanResult carries clientMs so it is spread into the share payload like every other field', () => {
+      const src = fs.readFileSync(path.join(ROOT, 'website/app/playground/page.tsx'), 'utf8');
+      const idx = src.indexOf('interface ScanResult');
+      assert.ok(idx > 0, 'ScanResult interface is gone');
+      const body = src.slice(idx, src.indexOf('\n}', idx));
+      assert.ok(/clientMs\?:\s*number \| null/.test(body), 'ScanResult does not declare an optional clientMs field');
+    });
+
+    it('the browser stopwatch starts at the scan click, not inside the fetch/response handling', () => {
+      const src = fs.readFileSync(path.join(ROOT, 'website/app/playground/page.tsx'), 'utf8');
+      const startIdx = src.indexOf('clientScanStartRef.current = performance.now()');
+      assert.ok(startIdx > 0, 'no performance.now() stamp for the click-to-report browser stopwatch');
+      const fetchIdx = src.indexOf('fetch("/api/playground/scan/stream"');
+      assert.ok(fetchIdx > startIdx, 'the browser stopwatch starts after the fetch, not before it');
+    });
+
+    it('clientMs is computed once the "complete" event lands, before setResult/pushPermalink see the payload', () => {
+      const src = fs.readFileSync(path.join(ROOT, 'website/app/playground/page.tsx'), 'utf8');
+      const completeIdx = src.indexOf('event === "complete"');
+      assert.ok(completeIdx > 0, 'no complete-event handler');
+      const setResultIdx = src.indexOf('setResult(completed)');
+      assert.ok(setResultIdx > completeIdx, 'setResult(completed) is not after the complete-event handler');
+      const between = src.slice(completeIdx, setResultIdx);
+      assert.ok(
+        /clientScanStartRef\.current/.test(between) && /performance\.now\(\)/.test(between),
+        'clientMs is not computed from the click-start ref between the complete event and setResult'
+      );
+    });
   });
 });

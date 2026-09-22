@@ -298,3 +298,29 @@ test('explainScoreChange — fewer modules excluded (coverage improved): nothing
   const line = explainScoreChange(previous, current);
   assert.match(line, /3 checks were added/);
 });
+
+// Issue #661 — the customer's actual case: coverage UNCHANGED between two
+// scans, but the ENGINE build changed and the score moved (a rule change,
+// not a change on their site). explainScoreChange must speak to this too.
+
+test('explainScoreChange — build changed between scans, same coverage, score moved: the build line', () => {
+  const previous = { totalModules: 20, checkedModules: 18, notCheckedModules: ['tlsSecurity', 'links'], score: 32, build: 'ab12cd34' };
+  const current = { totalModules: 20, checkedModules: 18, notCheckedModules: ['tlsSecurity', 'links'], score: 56, build: 'ef56gh78' };
+  const line = explainScoreChange(previous, current);
+  assert.match(line, /GateTest was updated between your scans \(build ab12cd34 → ef56gh78\)/);
+  assert.match(line, /Rule changes in that update can move the score without any change on your site/);
+});
+
+test('explainScoreChange — same build, same coverage, different score: nothing to explain', () => {
+  const previous = { totalModules: 20, checkedModules: 18, notCheckedModules: [], score: 32, build: 'ab12cd34' };
+  const current = { totalModules: 20, checkedModules: 18, notCheckedModules: [], score: 56, build: 'ab12cd34' };
+  assert.equal(explainScoreChange(previous, current), null);
+});
+
+test('explainScoreChange — coverage change AND build change: both sentences, one string', () => {
+  const previous = { totalModules: 20, checkedModules: 14, notCheckedModules: [], score: 32, build: 'ab12cd34' };
+  const current = { totalModules: 20, checkedModules: 18, notCheckedModules: [], score: 56, build: 'ef56gh78' };
+  const line = explainScoreChange(previous, current);
+  assert.match(line, /4 checks were added/);
+  assert.match(line, /GateTest was updated between your scans \(build ab12cd34 → ef56gh78\)/);
+});
