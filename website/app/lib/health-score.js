@@ -84,6 +84,12 @@ function computeHealthScore(clusters, moduleCoverage) {
       totalModules: moduleCoverage.totalModules,
       checkedModules: moduleCoverage.checkedModules,
       notCheckedModules: moduleCoverage.notChecked.map((n) => n.module),
+      // Issue #658 item 1: the module's own not-checked reason, carried
+      // alongside the name-only list above (kept for back-compat with
+      // existing callers/tests) so a completed report and a restored
+      // share-link can render the SAME reason text the live stream showed —
+      // before this, only the name survived past the live ticker.
+      notChecked: moduleCoverage.notChecked,
     };
   }
   return result;
@@ -184,6 +190,47 @@ function deriveFreeCheckNames(results, liveModules) {
   return out;
 }
 
+/**
+ * Issue #658 item 2 — a score that moves between two scans of an
+ * unchanged URL needs to say WHY when the cause is (a) the suite gaining
+ * real checks, or (d) more modules being excluded as not-checked, so a
+ * customer isn't left assuming their site changed when the ENGINE did.
+ * (b) false positives and (c) nondeterminism are fixed in the module/crawl
+ * code itself, not explained after the fact — this only covers the two
+ * causes that are legitimate, disclosed differences in what was measured.
+ *
+ * Pure and deterministic: given the same two coverage snapshots it always
+ * returns the same line (or `null` when coverage is identical / no prior
+ * snapshot exists — nothing to explain).
+ *
+ * @param {{totalModules?:number, checkedModules?:number, notCheckedModules?:string[]}|null|undefined} previous
+ *   The coverage the CALLER remembers from an earlier scan of the SAME
+ *   target URL (e.g. persisted client-side, per issue #658 item 2 — there
+ *   is no server-side scanId store for /web scans to read this back from).
+ *   `null`/`undefined` when there is no prior scan to compare against.
+ * @param {{totalModules?:number, checkedModules?:number, notCheckedModules?:string[]}} current
+ *   This scan's coverage (`ScanResult.totalModules/checkedModules/notCheckedModules`).
+ * @returns {string|null}
+ */
+function explainScoreChange(previous, current) {
+  if (!previous || !current) return null;
+  if (typeof previous.checkedModules !== 'number' || typeof current.checkedModules !== 'number') return null;
+  const prevNotChecked = Array.isArray(previous.notCheckedModules) ? previous.notCheckedModules.length : 0;
+  const curNotChecked = Array.isArray(current.notCheckedModules) ? current.notCheckedModules.length : 0;
+
+  // (d) first — fewer modules counted is the more customer-alarming
+  // direction (the score now covers LESS of the site), so it takes
+  // priority when both shifted in the same scan.
+  if (curNotChecked > prevNotChecked) {
+    return `${curNotChecked} of ${current.totalModules} modules were excluded as not-checked this scan (previously ${prevNotChecked}) — the score is computed over fewer modules than your last scan of this URL.`;
+  }
+  if (current.checkedModules > previous.checkedModules) {
+    const added = current.checkedModules - previous.checkedModules;
+    return `${added} check${added === 1 ? '' : 's'} ${added === 1 ? 'was' : 'were'} added since your last scan of this URL (${previous.checkedModules} → ${current.checkedModules} of ${current.totalModules} modules now run real checks) — part of any score change reflects new coverage, not a change on your site.`;
+  }
+  return null;
+}
+
 /** One line, reusable verbatim on the result card, the JSON, and the
  *  markdown export: `null` when nothing was skipped (nothing to say). */
 function renderCoverageLine(moduleCoverage) {
@@ -264,6 +311,7 @@ module.exports = {
   renderHealthScoreCard,
   deriveModuleCoverage,
   renderCoverageLine,
+  explainScoreChange,
   LIVE_URL_MODULES,
   deriveFreeCheckNames,
 };

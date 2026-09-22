@@ -33,6 +33,7 @@ import type {
   UrlScanFlowProps,
 } from "./url-scan-flow-types";
 import { HealthScoreCard, StatCard, FindingRow, RecommendationCard, PaywallCard, ModuleChecksCard } from "./url-scan-flow-cards";
+import { explainScoreChange } from "@/app/lib/health-score";
 import { LiveModuleTicker, ProgressTicker, RuntimePending, RuntimeUnavailable } from "./url-scan-flow-progress";
 import { CopyForAgentButton } from "./url-scan-flow-export";
 import { ScanFeedback } from "./ScanFeedback";
@@ -80,6 +81,39 @@ function pushPermalink(result: ScanResult): string | null {
   }
 }
 
+// Issue #658 item 2 — "why did the score move" needs SOMETHING to compare
+// against. There's no server-side scanId-keyed history for /web scans (same
+// gap item 3/#647 already accepted for the permalink), so the last scan's
+// coverage numbers for THIS target URL are remembered client-side, same
+// pattern/tradeoff as ScanFeedback.tsx's per-scan "already answered" memory.
+// Per-viewer convenience only — never blocks rendering when storage is
+// unavailable (private browsing, quota, SSR).
+const COVERAGE_STORAGE_PREFIX = "gt_web_coverage:";
+
+function loadPreviousCoverage(targetUrl: string): { totalModules?: number; checkedModules?: number; notCheckedModules?: string[] } | null {
+  try {
+    const raw = window.localStorage.getItem(COVERAGE_STORAGE_PREFIX + targetUrl);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null; // error-ok — storage blocked/unavailable; nothing to compare against
+  }
+}
+
+function saveCoverage(targetUrl: string, result: ScanResult): void {
+  try {
+    window.localStorage.setItem(
+      COVERAGE_STORAGE_PREFIX + targetUrl,
+      JSON.stringify({
+        totalModules: result.totalModules,
+        checkedModules: result.checkedModules,
+        notCheckedModules: result.notCheckedModules,
+      })
+    );
+  } catch {
+    /* error-ok — storage blocked; the explanation just won't be available next time */
+  }
+}
+
 export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint, placeholderUrl = "https://yoursite.com", brandLabel, initialUrl = "" }: UrlScanFlowProps) {
   type Phase = "idle" | "scanning" | "results" | "error";
   const [phase, setPhase] = useState<Phase>("idle");
@@ -89,6 +123,9 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
   const [elapsedSec, setElapsedSec] = useState(0);
   const [liveModules, setLiveModules] = useState<ModuleProgress[]>([]);
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
+  // Issue #658 item 2 — "N checks added" / "M modules excluded" vs the last
+  // scan of this same URL from this browser.
+  const [scoreChangeNote, setScoreChangeNote] = useState<string | null>(null);
   const tickerRef = useRef<NodeJS.Timeout | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const recAbortRef = useRef<AbortController | null>(null);
@@ -278,6 +315,17 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
       const data = streamEndpoint
         ? await runStreaming(targetUrl, abort)
         : await runNonStreaming(targetUrl);
+      // Issue #658 item 2 — compare against the LAST scan of this exact
+      // URL from this browser before overwriting the remembered coverage.
+      const previousCoverage = loadPreviousCoverage(targetUrl);
+      setScoreChangeNote(
+        explainScoreChange(previousCoverage, {
+          totalModules: data.totalModules,
+          checkedModules: data.checkedModules,
+          notCheckedModules: data.notCheckedModules,
+        })
+      );
+      saveCoverage(targetUrl, data);
       setResult(data);
       setPhase("results");
       // Item 3 — a completed scan gets a URL immediately, not only on an
@@ -303,6 +351,7 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
     setResult(null);
     setError(null);
     setLiveModules([]);
+    setScoreChangeNote(null);
     setPhase("idle");
     setUrl("");
     // Drop a restored/pushed `?s=` permalink so "scan a different URL"
@@ -446,7 +495,13 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
             </div>
           </div>
 
-          <HealthScoreCard {...result.healthScore} notCheckedModules={result.notCheckedModules} totalModules={result.totalModules} />
+          <HealthScoreCard
+            {...result.healthScore}
+            notCheckedModules={result.notCheckedModules}
+            notCheckedReasons={result.notCheckedReasons}
+            totalModules={result.totalModules}
+            scoreChangeNote={scoreChangeNote}
+          />
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <StatCard label="Errors" value={result.errorCount} accent="rose" />
