@@ -23,6 +23,12 @@ const { crawlWithHttp } = require('./live-crawler-http-engine');
 const { generateFeedbackReport } = require('./live-crawler-report');
 const { resolveAuth, authHeadersFor, isLoginUrl } = require('./live-crawler-auth');
 
+// One definition of the per-page fetch budget, imported by both engines
+// (live-crawler-http-engine.js, live-crawler-browser-engine.js) and this
+// module's own default when .gatetest config / --crawl-page-timeout don't
+// override it.
+const DEFAULT_PAGE_TIMEOUT_MS = 15000;
+
 class LiveCrawlerModule extends BaseModule {
   constructor() {
     super('liveCrawler', 'Live Site Crawl & Verification');
@@ -46,6 +52,14 @@ class LiveCrawlerModule extends BaseModule {
 
     const maxPages = crawlConfig.maxPages || 100;
     const timeout = crawlConfig.timeout || 10000;
+    // Per-page fetch budget — separate from `timeout` (the socket timeout
+    // used for individual asset/link HEAD checks). A handful of pages that
+    // each take a few seconds can add up past the module's wall-clock
+    // ceiling before the run ever reaches generateFeedbackReport, producing
+    // "zero pages recorded" with no report at all. Bounding each page's own
+    // fetch keeps a stalled page from silently eating the whole budget, and
+    // labels it as a timeout finding instead of a generic fetch error.
+    const pageTimeout = crawlConfig.pageTimeout || DEFAULT_PAGE_TIMEOUT_MS;
     const checkExternal = crawlConfig.checkExternal !== false;
     const slowThresholdMs = crawlConfig.slowThresholdMs || 2500;
 
@@ -82,6 +96,7 @@ class LiveCrawlerModule extends BaseModule {
       slowPages: [],
       anchorMissingId: [],
       titlesByUrl: new Map(),
+      timedOutPages: [],
     };
 
     let playwright = null;
@@ -96,7 +111,7 @@ class LiveCrawlerModule extends BaseModule {
     });
 
     const engineCtx = {
-      baseUrl, maxPages, timeout, checkExternal, slowThresholdMs, auth,
+      baseUrl, maxPages, timeout, pageTimeout, checkExternal, slowThresholdMs, auth,
       ...collectors,
     };
 
@@ -126,6 +141,7 @@ class LiveCrawlerModule extends BaseModule {
       brokenLinks: collectors.brokenLinks,
       brokenImages: collectors.brokenImages,
       redirects: collectors.redirects,
+      timedOutPages: collectors.timedOutPages,
     });
   }
 
@@ -133,6 +149,17 @@ class LiveCrawlerModule extends BaseModule {
     result.addCheck('crawl:pages-scanned', true, {
       message: `Crawled ${c.pages.length} page(s) from ${baseUrl}`,
     });
+
+    const timedOutPages = c.timedOutPages || [];
+    if (timedOutPages.length > 0) {
+      const attempted = c.pages.length + timedOutPages.length;
+      result.addCheck('crawl:page-timeouts', false, {
+        severity: 'warning',
+        message: `${timedOutPages.length} of ${attempted} page(s) timed out — a stalled page no longer blocks the rest of the crawl, but it was NOT checked`,
+        details: timedOutPages.slice(0, 30),
+        suggestion: 'Investigate why the page never responded (slow backend, infinite loop, hung upstream call). Raise --crawl-page-timeout if the page is just slow, not broken.',
+      });
+    }
 
     if (c.errors.length > 0) {
       const grouped = {};
@@ -203,7 +230,8 @@ class LiveCrawlerModule extends BaseModule {
 
     const nothingWrong = c.errors.length === 0
       && c.brokenLinks.length === 0
-      && c.brokenImages.length === 0;
+      && c.brokenImages.length === 0
+      && timedOutPages.length === 0;
 
     // "Site is clean" is a claim, and it needs evidence: at least one page must
     // actually have been fetched. Both engines record a fetch-error when a page

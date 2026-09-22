@@ -18,12 +18,13 @@ const ERROR_PATTERNS = [
 
 async function crawlWithHttp(ctx) {
   const {
-    baseUrl, maxPages, timeout, checkExternal,
+    baseUrl, maxPages, timeout, pageTimeout, checkExternal,
     visited, pages, errors, brokenLinks, brokenImages, redirects, queue,
     // Phase-2 collectors (closure-bug fix: explicit pass-through)
     brokenScripts, brokenStylesheets,
     missingMetaDescription, missingCanonical,
     slowPages, slowThresholdMs, anchorMissingId, titlesByUrl,
+    timedOutPages,
     auth,
   } = ctx;
 
@@ -33,7 +34,11 @@ async function crawlWithHttp(ctx) {
     visited.add(url);
 
     try {
-      const pageResult = await fetchPage(url, timeout, authHeadersFor(url, auth));
+      // The main page fetch uses its OWN budget (pageTimeout), separate from
+      // `timeout` (used below for per-asset/per-link HEAD checks) — a page
+      // that stalls must cost at most one bounded slot in the queue, not an
+      // unbounded share of the module's overall wall-clock ceiling.
+      const pageResult = await fetchPage(url, pageTimeout, authHeadersFor(url, auth));
       pages.push(pageResult);
 
       if (pageResult.status >= 400) {
@@ -141,7 +146,12 @@ async function crawlWithHttp(ctx) {
       }
 
     } catch (err) {
-      errors.push({ url, type: 'fetch-error', message: `Failed to fetch: ${err.message}` });
+      if (err && err.isTimeout) {
+        const elapsedMs = err.elapsedMs || pageTimeout;
+        timedOutPages.push({ url, elapsedMs, message: `Page fetch timed out after ${elapsedMs}ms (budget ${pageTimeout}ms)` });
+      } else {
+        errors.push({ url, type: 'fetch-error', message: `Failed to fetch: ${err.message}` });
+      }
     }
   }
 }

@@ -56,7 +56,12 @@ function fetchPage(url, timeout, extraHeaders) {
     req.on('error', reject);
     req.on('timeout', () => {
       req.destroy();
-      reject(new Error(`Timeout after ${timeout}ms`));
+      // Flagged (not just worded) so a caller can tell "this page stalled"
+      // apart from any other network failure without parsing message text.
+      const err = new Error(`Timeout after ${timeout}ms`);
+      err.isTimeout = true;
+      err.elapsedMs = Date.now() - startedAt;
+      reject(err);
     });
   });
 }
@@ -84,13 +89,47 @@ function checkUrl(url, timeout, extraHeaders) {
   });
 }
 
+// Link (and image) extraction runs a flat regex over raw HTML, so it must
+// never be shown text that only LOOKS like markup: `<script>`/`<style>`/
+// `<template>` bodies and HTML comments can all contain a literal
+// `href="..."` or `src="..."` that is not a real link (e.g. an inline
+// templating script emitting anchor markup as a string — reproduced on
+// gluecron.com, which 404'd on a URL lifted from its own markdown-preview
+// script). One strip, imported by every raw-HTML extractor in this file.
+function stripNonNavigableRegions(html) {
+  let stripped = html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<template\b[^>]*>[\s\S]*?<\/template>/gi, '');
+  // Resource hints (<link rel="preconnect"|"dns-prefetch">, and
+  // rel="preload"/"modulepreload" specifically for as="font") name an
+  // origin or a URL the browser should warm up — they are never a page
+  // navigation, so blank the whole tag out before the href regex runs.
+  stripped = stripped.replace(/<link\b[^>]*>/gi, (tag) => (isResourceHintLinkTag(tag) ? '' : tag));
+  return stripped;
+}
+
+function isResourceHintLinkTag(linkTag) {
+  const relMatch = linkTag.match(/\brel\s*=\s*["']([^"']+)["']/i);
+  if (!relMatch) return false;
+  const rels = relMatch[1].toLowerCase().split(/\s+/);
+  if (rels.includes('preconnect') || rels.includes('dns-prefetch')) return true;
+  if (rels.includes('preload') || rels.includes('modulepreload')) {
+    const asMatch = linkTag.match(/\bas\s*=\s*["']([^"']+)["']/i);
+    return !!asMatch && asMatch[1].toLowerCase() === 'font';
+  }
+  return false;
+}
+
 function extractLinks(html, baseUrl, pageUrl) {
   const internal = [];
   const external = [];
   const hrefRegex = /href\s*=\s*["']([^"'#]+)/gi;
   let match;
+  const navigableHtml = stripNonNavigableRegions(html);
 
-  while ((match = hrefRegex.exec(html)) !== null) {
+  while ((match = hrefRegex.exec(navigableHtml)) !== null) {
     const href = match[1].trim();
     if (href.startsWith('mailto:') || href.startsWith('tel:') ||
         href.startsWith('javascript:') || href.startsWith('data:')) continue;
@@ -112,8 +151,9 @@ function extractImages(html, baseUrl, pageUrl) {
   const images = [];
   const srcRegex = /<img[^>]+src\s*=\s*["']([^"']+)/gi;
   let match;
+  const navigableHtml = stripNonNavigableRegions(html);
 
-  while ((match = srcRegex.exec(html)) !== null) {
+  while ((match = srcRegex.exec(navigableHtml)) !== null) {
     try {
       const resolved = new URL(match[1].trim(), pageUrl).href;
       images.push(resolved);
