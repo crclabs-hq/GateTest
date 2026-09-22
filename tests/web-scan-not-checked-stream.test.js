@@ -1,0 +1,135 @@
+'use strict';
+
+/**
+ * Issue #648 items 1-2 — the hosted /web SSE stream must tick a not-checked
+ * module as not-checked (never a clean pass), and the reason it prints must
+ * come from the module's OWN `_notChecked()` message, never from
+ * web-runtime-gate.js's unrelated runtime-dispatch reason vocabulary.
+ *
+ * The route is a Next.js server route (ReadableStream + require() of the
+ * bundled engine entry) that isn't practical to execute directly in a plain
+ * `node --test` file — the existing web-scan-auth.test.js /
+ * web-runtime-gate.test.js tests for these routes are source-text contracts
+ * for the same reason. This file follows that pattern, plus a direct unit
+ * test of the pure `deriveFreeCheckNames` logic in health-score.js that the
+ * route's `moduleChecks` field is built from.
+ */
+
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
+
+const { deriveFreeCheckNames, LIVE_URL_MODULES } = require('../website/app/lib/health-score.js');
+
+function read(rel) {
+  return fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+}
+
+describe('web-scan/stream route — module:end says not-checked, not clean (item 1)', () => {
+  const src = read('website/app/api/web/scan/stream/route.ts');
+
+  it('reads the real TestResult#toJSON() shape instead of undefined properties off the live instance', () => {
+    assert.match(src, /raw\.toJSON\s*\(\s*\)/);
+    assert.match(src, /typeof raw\.toJSON === "function"/);
+  });
+
+  it('a module whose checks carry notChecked emits status "not-checked", never "checked"', () => {
+    assert.match(src, /notCheckedCheck\.message \|\| "not checked"/);
+    assert.match(src, /status: "not-checked"/);
+    assert.match(src, /status: "checked"/);
+  });
+
+  it('the not-checked branch returns before the clean-tick branch runs', () => {
+    const idx = src.indexOf('if (event === "module:end")');
+    assert.ok(idx > -1, 'module:end handler not found');
+    const body = src.slice(idx, idx + 2500);
+    const notCheckedIdx = body.indexOf('status: "not-checked"');
+    const checkedIdx = body.indexOf('status: "checked"');
+    assert.ok(notCheckedIdx > -1 && checkedIdx > -1 && notCheckedIdx < checkedIdx);
+    // A `return;` must separate them so a not-checked module never also
+    // sends the checked-branch event.
+    assert.match(body.slice(notCheckedIdx, checkedIdx), /return;/);
+  });
+});
+
+describe('web-scan/stream route — not-checked reason is module-scoped, not runtime-scoped (item 2)', () => {
+  const src = read('website/app/api/web/scan/stream/route.ts');
+
+  it('the module:end not-checked reason reads the check message, never the runtime gate', () => {
+    const idx = src.indexOf('if (event === "module:end")');
+    const notCheckedIdx = src.indexOf('status: "not-checked"', idx);
+    const block = src.slice(Math.max(0, notCheckedIdx - 400), notCheckedIdx + 900);
+    assert.match(block, /notCheckedCheck\.message/);
+    assert.ok(!/runtimeGate|gateRuntimeScan/.test(block), 'module-level reason must not reference the runtime dispatch gate');
+  });
+
+  it('web-runtime-gate.js reason codes and a module\'s own not-checked message are different vocabularies', () => {
+    const gate = require('../website/app/lib/web-runtime-gate.js');
+    const moduleReason = 'this module reads source files, not a live URL';
+    assert.notEqual(moduleReason, gate.RUNTIME_REASONS.NOT_CONFIGURED);
+    assert.ok(!moduleReason.includes('live-browser worker'));
+  });
+});
+
+describe('deriveFreeCheckNames — free-safe check-name breakdown (item 4 groundwork, item 1 JSON-route parity)', () => {
+  it('a not-checked live module reports status not-checked with its own reason, no check names', () => {
+    const results = [
+      { module: 'webHeaders', duration: 3, checks: [{ name: 'web-headers:not-checked', passed: false, severity: 'info', notChecked: true, message: 'no live page was fetched for this scan' }] },
+    ];
+    const out = deriveFreeCheckNames(results, ['webHeaders']);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].status, 'not-checked');
+    assert.equal(out[0].reason, 'no live page was fetched for this scan');
+    assert.deepEqual(out[0].checks, []);
+  });
+
+  it('a checked live module reports check names + pass/fail, never the message (fix guidance)', () => {
+    const results = [
+      {
+        module: 'webHeaders', duration: 2, checks: [
+          { name: 'web-headers:live-missing-csp', passed: false, severity: 'warning', message: 'Add a Content-Security-Policy header — full fix guidance here' },
+          { name: 'web-headers:live-hsts-present', passed: true, severity: 'info' },
+        ],
+      },
+    ];
+    const out = deriveFreeCheckNames(results, ['webHeaders']);
+    assert.equal(out[0].status, 'checked');
+    assert.deepEqual(out[0].checks.map((c) => c.name).sort(), ['web-headers:live-hsts-present', 'web-headers:live-missing-csp']);
+    for (const c of out[0].checks) assert.equal('message' in c, false, 'fix guidance must never appear in the free check-name view');
+    const failed = out[0].checks.find((c) => c.name === 'web-headers:live-missing-csp');
+    assert.equal(failed.passed, false);
+    assert.equal(failed.severity, 'warning');
+  });
+
+  it('a non-live module (e.g. liveCrawler) is excluded from the free view entirely', () => {
+    const results = [{ module: 'liveCrawler', checks: [{ name: 'crawl:broken-links', passed: false, severity: 'error' }] }];
+    assert.deepEqual(deriveFreeCheckNames(results, LIVE_URL_MODULES), []);
+  });
+
+  it('LIVE_URL_MODULES is exactly the four modules that gained a live-URL mode in #645', () => {
+    assert.deepEqual([...LIVE_URL_MODULES].sort(), ['accessibility', 'cookieSecurity', 'seo', 'webHeaders']);
+  });
+
+  it('non-array / missing results are safe (no throw, empty output)', () => {
+    assert.deepEqual(deriveFreeCheckNames(null, LIVE_URL_MODULES), []);
+    assert.deepEqual(deriveFreeCheckNames([undefined, null, {}], LIVE_URL_MODULES), []);
+  });
+});
+
+describe('web-scan routes — moduleChecks field ships free regardless of preview tier (item 4)', () => {
+  for (const rel of ['website/app/api/web/scan/route.ts', 'website/app/api/web/scan/stream/route.ts']) {
+    it(`${rel} computes moduleChecks via the one shared definition and returns it unconditionally`, () => {
+      const src = read(rel);
+      assert.match(src, /deriveFreeCheckNames/);
+      assert.match(src, /LIVE_URL_MODULES/);
+      assert.match(src, /moduleChecks/);
+      // The field must not be inside an `isPreview ? … : null`-style gate —
+      // simplest proof available from source text: it's assigned once,
+      // outside the `paywall:` block that IS conditioned on isPreview.
+      const paywallIdx = src.indexOf('paywall:');
+      const moduleChecksIdx = src.indexOf('moduleChecks,');
+      assert.ok(moduleChecksIdx > -1 && moduleChecksIdx < paywallIdx, 'moduleChecks must be assigned outside/before the paywall-gated block');
+    });
+  }
+});

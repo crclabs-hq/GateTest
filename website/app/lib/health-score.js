@@ -122,6 +122,68 @@ function deriveModuleCoverage(results) {
   };
 }
 
+/**
+ * The four `web`-suite modules that gained a real live-URL mode in #645
+ * (driven by `config.livePage` — one shared page fetch, the exact check
+ * functions the static-file path uses). `tlsSecurity` and `links` are
+ * deliberately absent — they stay honestly `not-checked` on a URL-only scan
+ * (no raw-socket / same-origin-crawl mode yet). One definition (Doctrine
+ * §4) so the free check-name view (`deriveFreeCheckNames` below) and any
+ * other caller agree on which modules have real names worth showing.
+ */
+const LIVE_URL_MODULES = Object.freeze(['webHeaders', 'seo', 'accessibility', 'cookieSecurity']);
+
+/**
+ * Free-safe check-name breakdown for the four live-URL modules (issue #648
+ * item 4). A free viewer could see per-module durations but never WHAT ran —
+ * the pass/fail detail was entirely behind the paywall, so "checked, found
+ * nothing" and "never checked" looked identical from outside (Doctrine #6:
+ * say what was checked where the result is read). This returns check NAMES
+ * and their pass/fail state only — never `message` (the fix guidance),
+ * which stays behind the existing paywall boundary on `findings[].body`.
+ *
+ * One definition (Doctrine §4), imported by both `/api/web/scan` and
+ * `/api/web/scan/stream` so the two routes cannot drift on what "free"
+ * means.
+ *
+ * @param {Array<{module?:string, name?:string, duration?:number, checks?:Array<{name:string, passed:boolean, severity?:string, notChecked?:boolean, message?:string}>}>} results
+ * @param {string[]} [liveModules] — defaults to `LIVE_URL_MODULES`; a param
+ *   only so tests can exercise the function against a smaller fixture set.
+ * @returns {Array<{module:string, status:'checked'|'not-checked', reason?:string, duration?:number, checks:Array<{name:string, passed:boolean, severity:string}>}>}
+ */
+function deriveFreeCheckNames(results, liveModules) {
+  const safe = Array.isArray(results) ? results : [];
+  const live = new Set(Array.isArray(liveModules) && liveModules.length > 0 ? liveModules : LIVE_URL_MODULES);
+  const out = [];
+  for (const r of safe) {
+    if (!r) continue;
+    const moduleName = r.module || r.name;
+    if (!moduleName || !live.has(moduleName)) continue;
+    const checks = Array.isArray(r.checks) ? r.checks : [];
+    const notCheckedCheck = checks.find((c) => c && c.notChecked === true);
+    if (notCheckedCheck) {
+      out.push({
+        module: moduleName,
+        status: 'not-checked',
+        reason: notCheckedCheck.message || 'not checked',
+        duration: r.duration,
+        checks: [],
+      });
+      continue;
+    }
+    // Name + pass/fail only — `message` (fix guidance) is the paid part.
+    const safeChecks = checks
+      .filter((c) => c && c.name && !c.notChecked)
+      .map((c) => ({
+        name: c.name,
+        passed: Boolean(c.passed),
+        severity: c.severity || (c.passed ? 'info' : 'error'),
+      }));
+    out.push({ module: moduleName, status: 'checked', duration: r.duration, checks: safeChecks });
+  }
+  return out;
+}
+
 /** One line, reusable verbatim on the result card, the JSON, and the
  *  markdown export: `null` when nothing was skipped (nothing to say). */
 function renderCoverageLine(moduleCoverage) {
@@ -202,4 +264,6 @@ module.exports = {
   renderHealthScoreCard,
   deriveModuleCoverage,
   renderCoverageLine,
+  LIVE_URL_MODULES,
+  deriveFreeCheckNames,
 };
