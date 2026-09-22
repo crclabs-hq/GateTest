@@ -37,7 +37,7 @@ export function Enterprise() {
                 Built for engineering leadership
               </p>
               <h2 className="mt-3 font-display text-[clamp(2rem,4vw,3rem)] font-bold tracking-tight text-white">
-                Unlock AI velocity without surrendering control
+                The same gate at org scale, with the paperwork
               </h2>
               <p className="mt-4 text-lg leading-relaxed text-zinc-400">
                 Your team is shipping AI-generated code at record speed. GateTest

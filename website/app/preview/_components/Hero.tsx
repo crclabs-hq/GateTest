@@ -192,7 +192,7 @@ export function Hero() {
               AI writes fast.
               <br />
               <span className="bg-gradient-to-r from-teal-200 via-teal-300 to-emerald-300 bg-clip-text text-transparent">
-                GateTest keeps it honest.
+                CI quality gate for AI-written code.
               </span>
             </h1>
           </Reveal>

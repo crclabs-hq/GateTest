@@ -17,7 +17,7 @@ export default function SiblingProducts() {
         GateTest pairs well with {PLATFORM_NAME} and Gluecron
       </h3>
       <p className="text-sm text-muted mb-5">
-        GateTest keeps your code honest. {PLATFORM_NAME} runs your scheduled jobs.
+        GateTest gates your code. {PLATFORM_NAME} runs your scheduled jobs.
         Gluecron hosts your git. Three small tools, one loose family — use
         whichever you need.
       </p>
@@ -36,7 +36,7 @@ export default function SiblingProducts() {
             </span>
           </div>
           <p className="text-xs text-muted">
-            Scheduled jobs that actually run. Cron with receipts.
+            Scheduled jobs with an execution record per run.
           </p>
         </a>
 

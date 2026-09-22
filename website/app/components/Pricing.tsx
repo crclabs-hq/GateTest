@@ -110,7 +110,7 @@ export const mcpPlan = {
     "AI fix + diagnose, hosted (fix_issue, explain_finding)",
     "Hosted scan history (get_report)",
     "Free local server: npx @gatetest/mcp-server — every tool, your keys",
-    "API key delivered by email instantly"
+    "API key emailed when checkout completes"
   ],
   cta: "Get MCP Access",
   tier: "mcp"

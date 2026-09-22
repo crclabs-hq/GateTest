@@ -82,7 +82,7 @@ export default async function Image() {
           }}
         >
           <div style={{ display: "flex" }}>AI writes fast.</div>
-          <div style={{ display: "flex", color: "#0f766e" }}>GateTest keeps it honest.</div>
+          <div style={{ display: "flex", color: "#0f766e" }}>CI quality gate for AI-written code.</div>
         </div>
 
         {/* Subtext */}

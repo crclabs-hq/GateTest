@@ -58,19 +58,21 @@ export default function Hero() {
             </div>
 
             <h1 className="font-display text-[2.7rem] leading-[1.04] sm:text-6xl lg:text-[4.1rem] font-extrabold text-gray-900 mb-6 fade-up" style={{ textWrap: "balance" }}>
-              The gate that{" "}
-              <span className="text-[#0f766e]">doesn&apos;t cry wolf.</span>
+              {siteStats.modules.total} checks, one CI gate.{" "}
+              <span className="text-[#0f766e]">Fails on the diff, not the backlog.</span>
             </h1>
 
             <p className="text-lg sm:text-xl text-gray-600 leading-relaxed mb-3 fade-up">
-              Measured on {CORPUS_SIZE} real repositories, the bad numbers published.{" "}
-              {siteStats.modules.total} checks in one gate: it blocks on your new code, not your
-              backlog, says what it didn&apos;t check, and opens the pull request with the fix
-              already written, tested, and pair-reviewed by a second AI.
+              Deterministic static analysis on every push, scored against a baseline file you
+              commit, so the job fails only on new findings. Every report lists what was not
+              checked. Precision is measured nightly on {CORPUS_SIZE} pinned third-party
+              repositories and published, misses included. On the fix tiers a red gate opens a
+              pull request with the patch, a regression test, and a second-model review.
             </p>
             <p className="text-base text-gray-500 mb-8 fade-up">
-              Pay per scan &mdash; no seat licences, no minimum. AI-powered fixes &mdash;{" "}
-              <span className="font-semibold text-gray-700">deeper analysis on the fix tiers</span>, the deterministic engine everywhere else.
+              Pay per run &mdash; no seats, no minimum. The engine is open source and free to run
+              yourself;{" "}
+              <span className="font-semibold text-gray-700">model-generated fixes are on the fix tiers only</span>.
             </p>
 
             {/* One action, three audiences: repository, website, WordPress. */}
