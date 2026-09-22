@@ -426,7 +426,7 @@ class SyntaxModule extends BaseModule {
     const tscDirs = this._discoverRealTsconfigs(projectRoot);
 
     let anyRan = false;
-    let allPass = true;
+    let ranCount = 0;
     const allErrors = [];
 
     // Issue #630: each iteration below is a synchronous `npx tsc` subprocess
@@ -461,12 +461,19 @@ class SyntaxModule extends BaseModule {
       const inheritsRootDeps = isRoot && fs.existsSync(path.join(projectRoot, 'node_modules'));
       if (!hasOwnDeps && !inheritsRootDeps) continue;
       anyRan = true;
+      ranCount += 1;
       const { exitCode, stdout, stderr } = this._exec('npx tsc --noEmit 2>&1', {
         cwd: dir,
         timeout: 120000,
       });
       if (exitCode !== 0) {
-        allPass = false;
+        // Issue #649 (D2): a nonzero exit does not by itself mean tsc found
+        // a type error — `npx` failing to resolve, a per-call timeout, or a
+        // compiler crash also exit nonzero but leave nothing matching
+        // `error TS` in the output. Only real `error TSxxxx` diagnostics
+        // are collected here; pass/fail below is decided from THIS array,
+        // never from the raw exit code, so a checked-clean project can
+        // never be reported as "0 TypeScript error(s)" and failed.
         const output = stdout + stderr;
         const errors = output.split(/\r?\n/).filter(l => l.includes('error TS'));
         allErrors.push(...errors);
@@ -488,21 +495,42 @@ class SyntaxModule extends BaseModule {
       });
     }
 
-    if (!anyRan) {
+    // Issue #649 (D2): a check must never contradict its own message
+    // (Doctrine #1), and a budget cut is "not checked", not a failure. The
+    // three states, in priority order:
+    //   1. Real tsc errors were found in a checked project → failed, with
+    //      the errors in details (unchanged from before).
+    //   2. Nothing ran (no real tsconfig, or the budget was gone before the
+    //      first project) → the existing info line.
+    //   3. Everything that ran was clean, but the budget skipped the rest →
+    //      passed:true, severity info, and the message says exactly what
+    //      was and was not checked — never a bare "0 TypeScript error(s)"
+    //      FAILURE, which is what a budget-limited run on Tallrig's
+    //      75-package monorepo produced before this fix (nonzero exits
+    //      from timed-out/uninstallable `npx tsc` calls were treated as
+    //      real type errors even though nothing matched `error TS`).
+    if (allErrors.length > 0) {
+      result.addCheck('typescript-strict', false, {
+        message: `${allErrors.length} TypeScript error(s)`,
+        details: allErrors.slice(0, 10),
+        suggestion: 'Run "npx tsc --noEmit" to see all errors',
+      });
+    } else if (!anyRan) {
       result.addCheck('typescript-strict', true, {
         message: skippedDirs.length > 0
           ? 'The tsc time budget was reached before any project could be checked — see typescript-strict:budget above'
           : 'No real tsconfig.json found (stub configs without compilerOptions are skipped)',
         severity: 'info',
       });
-    } else if (allPass) {
-      result.addCheck('typescript-strict', true);
-    } else {
-      result.addCheck('typescript-strict', false, {
-        message: `${allErrors.length} TypeScript error(s)`,
-        details: allErrors.slice(0, 10),
-        suggestion: 'Run "npx tsc --noEmit" to see all errors',
+    } else if (skippedDirs.length > 0) {
+      const totalProjects = ranCount + skippedDirs.length;
+      result.addCheck('typescript-strict', true, {
+        severity: 'info',
+        message: `${ranCount} of ${totalProjects} TypeScript projects type-checked, ${skippedDirs.length} not checked — ` +
+          'tsc time budget; see typescript-strict:budget',
       });
+    } else {
+      result.addCheck('typescript-strict', true);
     }
   }
 
