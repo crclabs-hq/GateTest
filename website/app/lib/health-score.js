@@ -191,25 +191,30 @@ function deriveFreeCheckNames(results, liveModules) {
 }
 
 /**
- * Issue #658 item 2 — a score that moves between two scans of an
+ * Issue #658 item 2 / #661 — a score that moves between two scans of an
  * unchanged URL needs to say WHY when the cause is (a) the suite gaining
- * real checks, or (d) more modules being excluded as not-checked, so a
+ * real checks, (d) more modules being excluded as not-checked, or (e) the
+ * engine build itself changed (a rule changed between the two scans), so a
  * customer isn't left assuming their site changed when the ENGINE did.
  * (b) false positives and (c) nondeterminism are fixed in the module/crawl
- * code itself, not explained after the fact — this only covers the two
- * causes that are legitimate, disclosed differences in what was measured.
+ * code itself, not explained after the fact — this only covers causes that
+ * are legitimate, disclosed differences in what was measured.
  *
- * Pure and deterministic: given the same two coverage snapshots it always
- * returns the same line (or `null` when coverage is identical / no prior
- * snapshot exists — nothing to explain).
+ * Pure and deterministic: given the same two snapshots it always returns
+ * the same line (or `null` when nothing legitimate explains a score move —
+ * that is either no change at all, or a real change on the customer's site).
  *
- * @param {{totalModules?:number, checkedModules?:number, notCheckedModules?:string[]}|null|undefined} previous
- *   The coverage the CALLER remembers from an earlier scan of the SAME
+ * @param {{totalModules?:number, checkedModules?:number, notCheckedModules?:string[], score?:number, build?:string}|null|undefined} previous
+ *   The snapshot the CALLER remembers from an earlier scan of the SAME
  *   target URL (e.g. persisted client-side, per issue #658 item 2 — there
  *   is no server-side scanId store for /web scans to read this back from).
  *   `null`/`undefined` when there is no prior scan to compare against.
- * @param {{totalModules?:number, checkedModules?:number, notCheckedModules?:string[]}} current
- *   This scan's coverage (`ScanResult.totalModules/checkedModules/notCheckedModules`).
+ *   `build` (issue #661) is the engine build stamp — the same `commit`
+ *   value `/api/platform-status` reports — carried alongside coverage so a
+ *   score move with unchanged coverage can still be explained when the
+ *   ENGINE changed between the two scans.
+ * @param {{totalModules?:number, checkedModules?:number, notCheckedModules?:string[], score?:number, build?:string}} current
+ *   This scan's snapshot (`ScanResult.totalModules/checkedModules/notCheckedModules/healthScore.score/build`).
  * @returns {string|null}
  */
 function explainScoreChange(previous, current) {
@@ -218,17 +223,36 @@ function explainScoreChange(previous, current) {
   const prevNotChecked = Array.isArray(previous.notCheckedModules) ? previous.notCheckedModules.length : 0;
   const curNotChecked = Array.isArray(current.notCheckedModules) ? current.notCheckedModules.length : 0;
 
-  // (d) first — fewer modules counted is the more customer-alarming
-  // direction (the score now covers LESS of the site), so it takes
-  // priority when both shifted in the same scan.
+  // Coverage causes first — (d) fewer modules counted is the more
+  // customer-alarming direction (the score now covers LESS of the site),
+  // so it takes priority over (a) when both shifted in the same scan.
+  let coverageLine = null;
   if (curNotChecked > prevNotChecked) {
-    return `${curNotChecked} of ${current.totalModules} modules were excluded as not-checked this scan (previously ${prevNotChecked}) — the score is computed over fewer modules than your last scan of this URL.`;
-  }
-  if (current.checkedModules > previous.checkedModules) {
+    coverageLine = `${curNotChecked} of ${current.totalModules} modules were excluded as not-checked this scan (previously ${prevNotChecked}) — the score is computed over fewer modules than your last scan of this URL.`;
+  } else if (current.checkedModules > previous.checkedModules) {
     const added = current.checkedModules - previous.checkedModules;
-    return `${added} check${added === 1 ? '' : 's'} ${added === 1 ? 'was' : 'were'} added since your last scan of this URL (${previous.checkedModules} → ${current.checkedModules} of ${current.totalModules} modules now run real checks) — part of any score change reflects new coverage, not a change on your site.`;
+    coverageLine = `${added} check${added === 1 ? '' : 's'} ${added === 1 ? 'was' : 'were'} added since your last scan of this URL (${previous.checkedModules} → ${current.checkedModules} of ${current.totalModules} modules now run real checks) — part of any score change reflects new coverage, not a change on your site.`;
   }
-  return null;
+
+  // (e) the engine build changed between the two scans AND the score
+  // actually moved — same build or same score means nothing to say here
+  // (a rebuild with no rule change, or a build change that happened not to
+  // move this URL's score, is not worth surfacing).
+  let buildLine = null;
+  if (
+    typeof previous.build === 'string' && previous.build.length > 0 &&
+    typeof current.build === 'string' && current.build.length > 0 &&
+    previous.build !== current.build &&
+    typeof previous.score === 'number' && typeof current.score === 'number' &&
+    previous.score !== current.score
+  ) {
+    const prevShort = previous.build.slice(0, 8);
+    const curShort = current.build.slice(0, 8);
+    buildLine = `GateTest was updated between your scans (build ${prevShort} → ${curShort}). Rule changes in that update can move the score without any change on your site.`;
+  }
+
+  if (coverageLine && buildLine) return `${coverageLine} ${buildLine}`;
+  return coverageLine || buildLine;
 }
 
 /** One line, reusable verbatim on the result card, the JSON, and the
