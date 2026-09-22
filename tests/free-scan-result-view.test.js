@@ -106,4 +106,33 @@ describe('free-scan result view — the result has a URL (F5)', () => {
     const body = src.slice(idx, idx + 500);
     assert.ok(/permalink \|\|/.test(body), 'the share link is derived separately from the permalink');
   });
+
+  // Root cause (found 2026-09-22, Tallrig re-walk): the restore effect sets
+  // `result` and `isSharedView` correctly from `?s=`, but the render gate on
+  // the whole terminal+results block was `scanning || lines.length > 0` —
+  // neither of which a restored permalink ever sets, since no scan runs and
+  // no terminal lines are appended. Only the "Viewing a saved result" banner
+  // (outside that gate) rendered; the grade, findings and everything else
+  // were unreachable. This pins the gate open for a restored `result` too.
+  it('the results panel is reachable for a restored permalink, not gated on scanning/lines alone', () => {
+    const gateIdx = src.indexOf('Terminal + Results');
+    assert.ok(gateIdx > 0, 'the terminal+results section marker is gone');
+    const gate = src.slice(gateIdx, gateIdx + 900);
+    assert.match(
+      gate,
+      /\{\(scanning \|\| lines\.length > 0 \|\| result\) && \(/,
+      'the results block still gates on scanning/lines alone — a permalink restore never sets either, so the panel stays unreachable'
+    );
+  });
+
+  it('the initial-state feature cards do not render underneath a restored result', () => {
+    const idx = src.indexOf('Initial state');
+    assert.ok(idx > 0, 'the initial-state section marker is gone');
+    const body = src.slice(idx, idx + 500);
+    assert.match(
+      body,
+      /\{!scanning && lines\.length === 0 && !result && \(/,
+      'the generic feature cards can render alongside a restored result'
+    );
+  });
 });
