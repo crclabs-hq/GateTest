@@ -84,7 +84,9 @@ echo "[switch-proxy] $f now points at http://${host}:${P}"
 
 c=""
 for i in $(seq 1 "$ATTEMPTS"); do
-  c=$(curl -s -m 3 --resolve "${public}:443:127.0.0.1" "https://${public}/api/platform-status" | grep -o '"commit":"[0-9a-f]*"' | cut -d'"' -f4 || true)
+  if ! c="$(curl -s -m 3 --resolve "${public}:443:127.0.0.1" "https://${public}/api/platform-status" | grep -o '"commit":"[0-9a-f]*"' | cut -d'"' -f4)"; then
+    c=""
+  fi
   if [ "$c" = "$EXP" ]; then
     echo "[switch-proxy] verified: ${public} now serves commit $EXP"
     rm -f "$BACKUP"

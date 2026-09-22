@@ -99,10 +99,13 @@ fi
 
 # --- which port is live today? Default to A on first-ever run (bootstrap is
 # --- a documented manual step — see docs/deploy/PULL-DEPLOY.md "Blue/green").
-mkdir -p "$(dirname "$ACTIVE_PORT_FILE")" 2>/dev/null || true
+if ! mkdir -p "$(dirname "$ACTIVE_PORT_FILE")"; then
+  err "cannot create $(dirname "$ACTIVE_PORT_FILE") — aborting before touching any unit"
+  exit 1
+fi
 ACTIVE_PORT="$PORT_A"
 if [ -r "$ACTIVE_PORT_FILE" ]; then
-  READ_PORT="$(cat "$ACTIVE_PORT_FILE" 2>/dev/null || true)"
+  READ_PORT="$(cat "$ACTIVE_PORT_FILE")"
   if [ "$READ_PORT" = "$PORT_A" ] || [ "$READ_PORT" = "$PORT_B" ]; then
     ACTIVE_PORT="$READ_PORT"
   fi
@@ -122,7 +125,9 @@ ACTIVE_UNIT="${UNIT_TEMPLATE}${ACTIVE_PORT}.service"
 # --- be running the templated unit yet (see docs "Blue/green" migration), ---
 # --- in which case rollback verification just can't match and the ---
 # --- operator sees that plainly in the log rather than a silent no-op. ---
-PREV_BODY="$(curl -s -m 5 "http://${HOST}:${ACTIVE_PORT}/api/platform-status" 2>/dev/null || true)"
+if ! PREV_BODY="$(curl -s -m 5 "http://${HOST}:${ACTIVE_PORT}/api/platform-status")"; then
+  PREV_BODY=""
+fi
 PREV_COMMIT="$(extract_commit "$PREV_BODY")"
 if [ -z "$PREV_COMMIT" ]; then
   log "WARNING: could not determine the commit currently served on port $ACTIVE_PORT — a rollback, if needed, will not verify"
@@ -132,7 +137,9 @@ fi
 log "active=$ACTIVE_UNIT (commit $PREV_COMMIT) new=$NEW_UNIT expected commit=$EXPECTED_COMMIT"
 
 cleanup_new() {
-  systemctl stop "$NEW_UNIT" >/dev/null 2>&1 || true
+  if ! systemctl stop "$NEW_UNIT"; then
+    log "WARNING: could not stop $NEW_UNIT after an aborted cutover — stop it by hand"
+  fi
 }
 
 log "starting $NEW_UNIT"
@@ -146,7 +153,9 @@ fi
 DEADLINE=$((SECONDS + HEALTH_TIMEOUT_S))
 HEALTHY=0
 while [ "$SECONDS" -lt "$DEADLINE" ]; do
-  BODY="$(curl -s -m 5 "http://${HOST}:${NEW_PORT}/api/platform-status" 2>/dev/null || true)"
+  if ! BODY="$(curl -s -m 5 "http://${HOST}:${NEW_PORT}/api/platform-status")"; then
+    BODY=""
+  fi
   case "$BODY" in
     *"\"commit\":\"${EXPECTED_COMMIT}\""*)
       HEALTHY=1
