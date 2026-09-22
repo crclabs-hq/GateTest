@@ -6,6 +6,17 @@
  * come from the module's OWN `_notChecked()` message, never from
  * web-runtime-gate.js's unrelated runtime-dispatch reason vocabulary.
  *
+ * Issue #658 item 1 extends this: that live reason was reaching the SSE
+ * ticker (`module:end`) fine, but was dropped by the time the scan finished
+ * — the `complete` event, the non-streaming route's JSON, and (since the
+ * share-link is that same JSON re-encoded client-side in UrlScanFlow.tsx)
+ * the restored share-link all carried only bare module NAMES
+ * (`notCheckedModules: string[]`), never the reason. Fixed by carrying a
+ * `notCheckedReasons: Array<{module, reason}>` field alongside it end to
+ * end: `deriveModuleCoverage()` (already had the reason) → `computeHealthScore()`'s
+ * `coverage.notChecked` → both routes' response JSON → `ScanResult` type →
+ * `HealthScoreCard`.
+ *
  * The route is a Next.js server route (ReadableStream + require() of the
  * bundled engine entry) that isn't practical to execute directly in a plain
  * `node --test` file — the existing web-scan-auth.test.js /
@@ -20,7 +31,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 
-const { deriveFreeCheckNames, LIVE_URL_MODULES } = require('../website/app/lib/health-score.js');
+const { deriveFreeCheckNames, LIVE_URL_MODULES, computeHealthScore, deriveModuleCoverage } = require('../website/app/lib/health-score.js');
 
 function read(rel) {
   return fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
@@ -114,6 +125,68 @@ describe('deriveFreeCheckNames — free-safe check-name breakdown (item 4 ground
   it('non-array / missing results are safe (no throw, empty output)', () => {
     assert.deepEqual(deriveFreeCheckNames(null, LIVE_URL_MODULES), []);
     assert.deepEqual(deriveFreeCheckNames([undefined, null, {}], LIVE_URL_MODULES), []);
+  });
+});
+
+describe('issue #658 item 1 — not-checked reason survives past the live stream into the completed report', () => {
+  it('computeHealthScore carries the per-module reason in coverage.notChecked, not just names', () => {
+    const coverage = deriveModuleCoverage([
+      { module: 'seo', checks: [{ name: 'seo:summary', passed: true }] },
+      { module: 'links', checks: [{ name: 'links:not-checked', passed: false, severity: 'info', notChecked: true, message: 'no live page was fetched for this scan' }] },
+    ]);
+    const r = computeHealthScore([], coverage);
+    assert.deepEqual(r.coverage.notCheckedModules, ['links']); // back-compat: unchanged shape
+    assert.equal(r.coverage.notChecked.length, 1);
+    assert.equal(r.coverage.notChecked[0].module, 'links');
+    assert.equal(r.coverage.notChecked[0].reason, 'no live page was fetched for this scan');
+  });
+
+  for (const rel of ['website/app/api/web/scan/route.ts', 'website/app/api/web/scan/stream/route.ts']) {
+    it(`${rel} returns notCheckedReasons (module + reason) alongside notCheckedModules`, () => {
+      const src = read(rel);
+      assert.match(src, /notCheckedReasons:\s*moduleCoverage\.notChecked/);
+      // Must appear after moduleCoverage is computed, not a re-derivation —
+      // one definition (Doctrine #4): the SAME array `deriveModuleCoverage`
+      // returned, not a second pass over `summary.results`.
+      const coverageIdx = src.indexOf('const moduleCoverage = deriveModuleCoverage(');
+      const reasonsIdx = src.indexOf('notCheckedReasons:');
+      assert.ok(coverageIdx > -1 && reasonsIdx > coverageIdx);
+    });
+  }
+
+  it('ScanResult carries notCheckedReasons so the share-link (a re-encode of this same object) restores it too', () => {
+    const src = read('website/app/components/url-scan-flow-types.ts');
+    assert.match(src, /notCheckedReasons\?:\s*Array<\{\s*module:\s*string;\s*reason:\s*string\s*\}>/);
+  });
+
+  it('HealthScoreCard renders the reason per module when notCheckedReasons is present', () => {
+    const src = read('website/app/components/url-scan-flow-cards.tsx');
+    assert.match(src, /notCheckedReasons/);
+    assert.match(src, /n\.reason/);
+  });
+
+  it('UrlScanFlow passes notCheckedReasons from the result into HealthScoreCard', () => {
+    const src = read('website/app/components/UrlScanFlow.tsx');
+    assert.match(src, /notCheckedReasons=\{result\.notCheckedReasons\}/);
+  });
+});
+
+describe('issue #658 item 2 — "why the score changed" note and hosted-vs-CLI methodology disclosure', () => {
+  it('UrlScanFlow computes explainScoreChange against the last scan of the SAME url, persisted client-side', () => {
+    const src = read('website/app/components/UrlScanFlow.tsx');
+    assert.match(src, /explainScoreChange/);
+    assert.match(src, /loadPreviousCoverage\(targetUrl\)/);
+    assert.match(src, /saveCoverage\(targetUrl, data\)/);
+    // Must be wrapped the same try/catch-per-viewer-convenience way as the
+    // existing ScanFeedback.tsx localStorage usage — never throw into the
+    // scan result over a blocked/unavailable store.
+    assert.match(src, /catch\s*{\s*\n\s*return null;.*storage/s);
+  });
+
+  it('HealthScoreCard renders the scoreChangeNote and a permanent hosted-vs-CLI methodology line', () => {
+    const src = read('website/app/components/url-scan-flow-cards.tsx');
+    assert.match(src, /scoreChangeNote/);
+    assert.match(src, /not directly comparable/);
   });
 });
 

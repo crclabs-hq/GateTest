@@ -626,6 +626,11 @@ export async function POST(req: NextRequest) {
     totalModules: moduleCoverage.totalModules,
     checkedModules: moduleCoverage.checkedModules,
     notCheckedModules: moduleCoverage.notChecked.map((n) => n.module),
+    // Issue #658 item 1: carry the module's own not-checked reason through
+    // the persisted/returned scan record (and, since the share-link is this
+    // same JSON re-encoded client-side, through the share payload too) —
+    // before this fix only the bare module name survived past this route.
+    notCheckedReasons: moduleCoverage.notChecked,
     // Free regardless of `preview` — check NAMES are not the paid part,
     // only the fix guidance in `findings[].body` is (item 4).
     moduleChecks,

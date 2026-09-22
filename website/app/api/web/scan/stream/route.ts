@@ -389,6 +389,11 @@ export async function POST(req: NextRequest) {
           totalModules: moduleCoverage.totalModules,
           checkedModules: moduleCoverage.checkedModules,
           notCheckedModules: moduleCoverage.notChecked.map((n) => n.module),
+          // Issue #658 item 1: the module's own reason (shown live via
+          // module:end above) must survive into the completed report and
+          // the share-link payload, which is this same `complete` event's
+          // JSON re-encoded — before this fix only the bare name did.
+          notCheckedReasons: moduleCoverage.notChecked,
           // Free regardless of `preview` — check NAMES are not the paid
           // part, only the fix guidance in `findings[].body` is (item 4).
           moduleChecks,

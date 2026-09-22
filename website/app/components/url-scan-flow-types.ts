@@ -80,6 +80,12 @@ export interface ScanResult {
   checkedModules?: number;
   /** Module names that reported themselves not-checked on this scan. */
   notCheckedModules?: string[];
+  /** Issue #658 item 1 — the module's own not-checked reason (the exact
+   *  text the live stream showed via `ModuleProgress.reason`), carried
+   *  through the completed report and the share-link payload. Optional so
+   *  an older cached/shared result (pre-fix) still renders — falls back to
+   *  the bare names in `notCheckedModules` above. */
+  notCheckedReasons?: Array<{ module: string; reason: string }>;
   /** Free check-name breakdown for the four live-URL modules (item 4).
    *  Optional so an older cached/shared result still renders. */
   moduleChecks?: ModuleCheckSummary[];

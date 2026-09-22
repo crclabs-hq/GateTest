@@ -59,6 +59,14 @@ function problem(status: number, error: string) {
 }
 
 export async function POST(req: NextRequest) {
+  // N3 (issue #651) — wallMs is the headline duration, so the clock starts
+  // at the very first line of the handler, before the body is even parsed.
+  // Starting it once req.json() has resolved (as this did until 2026-09-22)
+  // dropped the body-parse wait from the number and made it read low
+  // against an independent stopwatch — same bug class as excluding fetch
+  // or engine time (see the /stream sibling for the matching fix).
+  const startedAt = Date.now();
+
   let body: { repo_url?: string };
   try {
     body = await req.json();
@@ -76,7 +84,6 @@ export async function POST(req: NextRequest) {
   }
 
   const scanId = `scn_${crypto.randomBytes(9).toString("hex")}`;
-  const startedAt = Date.now();
   const result = await runScan(repoUrl, "quick");
   const verdict = scanGrade.computeScanGrade(result.modules);
 

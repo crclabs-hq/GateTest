@@ -80,6 +80,14 @@ const scanGrade = require("@/app/lib/scan-grade") as {
 };
 
 export async function POST(req: NextRequest) {
+  // N3 (issue #651) — wallMs is the headline duration, so the clock starts
+  // at the very first line of the handler, before the body is even parsed.
+  // Starting it once req.json() has resolved (as this did until 2026-09-22)
+  // dropped the body-parse wait from the number and made it read low
+  // against an independent stopwatch — small on a fast body, but the same
+  // bug class as excluding fetch or engine time.
+  const startedAt = Date.now();
+
   let body: { repo_url?: string };
   try {
     body = await req.json();
@@ -102,7 +110,6 @@ export async function POST(req: NextRequest) {
   // F2 — every completed free scan gets an id at the moment it starts, so the
   // permalink, the share link and the report header all name the same run.
   const scanId = `scn_${crypto.randomBytes(9).toString("hex")}`;
-  const startedAt = Date.now();
   // F4 — resolved once per scan, off the request's own cookie. Signed-out
   // visitors and visitors without push access never see a fix CTA.
   // The catch matters: a scan that fails on the tree read never awaits this,
