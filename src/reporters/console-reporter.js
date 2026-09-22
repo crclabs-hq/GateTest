@@ -116,6 +116,17 @@ class ConsoleReporter {
     console.log(`${COLORS.bold}${COLORS.cyan}========================================${COLORS.reset}`);
     console.log(`${COLORS.dim}  Modules: ${data.modules.join(', ')}${COLORS.reset}`);
     console.log('');
+
+    // Issue #630 — in --parallel mode every module "starts" in the same
+    // burst (the [RUN] line above), so the only per-module signal a
+    // customer gets is whichever result resolves first; a slow module
+    // (a big monorepo's tsc pass, say) reads identically to a hung
+    // process until SOMETHING prints. `_onModuleEnd` below adds an
+    // elapsed-since-suite-start line, to stderr so `--format json`'s
+    // stdout stays the one JSON document, once the run has been going
+    // long enough that "is this still alive" is a real question.
+    this._suiteStartedAt = Date.now();
+    this._parallelRun = Boolean(this.runner.options && this.runner.options.parallel);
   }
 
   _onModuleStart(result) {
@@ -123,6 +134,20 @@ class ConsoleReporter {
   }
 
   _onModuleEnd(result) {
+    // Progress, not the report: a completion ping once a --parallel run
+    // has run long enough that silence would read as a hang (Doctrine
+    // #14 — speed is a precision feature, but honesty about slowness is
+    // the fallback when a tree is just genuinely large). Always stderr,
+    // never gated on `showAll` — this is liveness, not a finding.
+    if (this._parallelRun && this._suiteStartedAt) {
+      const elapsedMs = Date.now() - this._suiteStartedAt;
+      if (elapsedMs > 30_000) {
+        process.stderr.write(
+          `  ${COLORS.dim}[${(elapsedMs / 1000).toFixed(1)}s elapsed] ${result.module} finished (${result.duration}ms)${COLORS.reset}\n`,
+        );
+      }
+    }
+
     const errors = result.errorChecks.length;
     const warnings = result.warningChecks.length;
     const fixes = result.fixes.length;

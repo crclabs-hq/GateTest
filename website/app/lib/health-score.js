@@ -44,9 +44,13 @@ function instanceMultiplier(count) {
  *   grade: 'A'|'B'|'C'|'D'|'F',
  *   deductions: Array<{ruleKey?:string, severity:string, deduction:number, instances:number, highSignal:boolean}>,
  *   summary: string,
+ *   coverage?: {totalModules:number, checkedModules:number, notCheckedModules:string[]},
  * }}
+ * @param {{totalModules:number, checkedModules:number, notChecked:Array<{module:string, reason:string}>}} [moduleCoverage]
+ *   From `deriveModuleCoverage()` below. Optional — omit for a caller (repo
+ *   scans, existing callers) that has no notion of per-module coverage.
  */
-function computeHealthScore(clusters) {
+function computeHealthScore(clusters, moduleCoverage) {
   const safe = Array.isArray(clusters) ? clusters : [];
   const deductions = [];
   let score = 100;
@@ -70,8 +74,62 @@ function computeHealthScore(clusters) {
 
   score = Math.max(0, Math.min(100, Math.round(score)));
   const grade = scoreToGrade(score);
-  const summary = renderSummary(score, grade, deductions, safe.length);
-  return { score, grade, deductions, summary };
+  const summary = renderSummary(score, grade, deductions, safe.length, moduleCoverage);
+  const result = { score, grade, deductions, summary };
+  if (moduleCoverage && Array.isArray(moduleCoverage.notChecked) && moduleCoverage.notChecked.length > 0) {
+    // Never invent a percentage over modules that never ran — this is the
+    // real denominator (Doctrine #7: generated, not typed) the caller
+    // measured from the modules that actually reported this scan.
+    result.coverage = {
+      totalModules: moduleCoverage.totalModules,
+      checkedModules: moduleCoverage.checkedModules,
+      notCheckedModules: moduleCoverage.notChecked.map((n) => n.module),
+    };
+  }
+  return result;
+}
+
+/**
+ * Which modules in a scan's raw per-module results reported themselves
+ * `notChecked` (BaseModule#_notChecked — "I never looked", distinct from
+ * "I looked and found nothing"). One definition (Doctrine §4) consumed by
+ * every surface that needs to say "N of M modules not checked": the
+ * result card, the JSON summary, the markdown export.
+ *
+ * @param {Array<{module?:string, name?:string, checks?:Array<{notChecked?:boolean, message?:string}>}>} results
+ *   `summary.results` from a suite run (each entry is a per-module
+ *   TestResult#toJSON()-shaped object, or close enough — only `module`/
+ *   `name` and `checks` are read).
+ * @returns {{totalModules:number, checkedModules:number, notChecked:Array<{module:string, reason:string}>}}
+ */
+function deriveModuleCoverage(results) {
+  const safe = Array.isArray(results) ? results : [];
+  const notChecked = [];
+  for (const r of safe) {
+    if (!r || !Array.isArray(r.checks)) continue;
+    const nc = r.checks.find((c) => c && c.notChecked === true);
+    if (nc) {
+      notChecked.push({
+        module: r.module || r.name || '(unknown)',
+        reason: nc.message || 'not checked',
+      });
+    }
+  }
+  return {
+    totalModules: safe.length,
+    checkedModules: Math.max(0, safe.length - notChecked.length),
+    notChecked,
+  };
+}
+
+/** One line, reusable verbatim on the result card, the JSON, and the
+ *  markdown export: `null` when nothing was skipped (nothing to say). */
+function renderCoverageLine(moduleCoverage) {
+  if (!moduleCoverage || !Array.isArray(moduleCoverage.notChecked) || moduleCoverage.notChecked.length === 0) {
+    return null;
+  }
+  const names = moduleCoverage.notChecked.map((n) => n.module).join(', ');
+  return `${moduleCoverage.notChecked.length} of ${moduleCoverage.totalModules} modules not checked: ${names}`;
 }
 
 /** @param {number} score */
@@ -83,9 +141,16 @@ function scoreToGrade(score) {
   return 'F';
 }
 
-function renderSummary(score, grade, deductions, clusterCount) {
+function renderSummary(score, grade, deductions, clusterCount, moduleCoverage) {
+  const coverageLine = renderCoverageLine(moduleCoverage);
+  // "Computed over N of M modules" — the score above is real, but only
+  // over what actually ran; say so in the same sentence it's read in,
+  // never in a separate place someone can miss (Doctrine #6).
+  const coverageSuffix = coverageLine
+    ? ` Score computed over ${moduleCoverage.checkedModules} of ${moduleCoverage.totalModules} modules — ${coverageLine}.`
+    : '';
   if (clusterCount === 0) {
-    return `Health Score: ${score}/100 (${grade}) — no findings to deduct from.`;
+    return `Health Score: ${score}/100 (${grade}) — no findings to deduct from.${coverageSuffix}`;
   }
   const errorCount = deductions.filter((d) => d.severity === 'error').length;
   const warningCount = deductions.filter((d) => d.severity === 'warning').length;
@@ -95,6 +160,7 @@ function renderSummary(score, grade, deductions, clusterCount) {
   if (errorCount > 0) parts.push(`${errorCount} error-severity.`);
   if (warningCount > 0) parts.push(`${warningCount} warning-severity.`);
   if (highSignalCount > 0) parts.push(`${highSignalCount} high-signal (urgent).`);
+  if (coverageSuffix) parts.push(coverageSuffix.trim());
   return parts.join(' ');
 }
 
@@ -134,4 +200,6 @@ module.exports = {
   scoreToGrade,
   computeHealthScore,
   renderHealthScoreCard,
+  deriveModuleCoverage,
+  renderCoverageLine,
 };
