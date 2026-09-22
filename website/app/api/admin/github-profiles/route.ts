@@ -15,13 +15,11 @@ import {
   listGitHubProfiles,
   removeGitHubProfile,
 } from "@/app/lib/admin-github-profiles";
-
-const ADMIN_PASSWORD = process.env.GATETEST_ADMIN_PASSWORD || "";
+import { verifyAdminPassword } from "@/app/lib/admin-auth";
 
 function isAuthorized(req: NextRequest): boolean {
   const header = req.headers.get("x-admin-password") || "";
-  if (!ADMIN_PASSWORD) return false;
-  return header === ADMIN_PASSWORD;
+  return verifyAdminPassword(header);
 }
 
 export async function GET(req: NextRequest) {
