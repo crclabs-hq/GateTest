@@ -93,6 +93,59 @@ const SUPPRESS_RE = /\bmoney-float-ok\b/;
 const MONEY_NAME_RE =
   /\b(price|amount|total|cost|fee|tax|subtotal|balance|payment|charge|refund|credit|debit|salary|wage|rent|bill|invoice|revenue|profit|margin|discount|coupon|tip|gratuity|usd|eur|gbp|jpy|cad|aud|nzd|chf|dollar|dollars|euro|euros|pound|pounds|yen|yuan|rupee|peso|cents?)s?\b/i;
 
+// #666: `money-float:arithmetic` fired on a duration parser
+// (`apps/api/src/automation/freshness.ts:351`, seconds only, no money
+// anywhere in the file) because several MONEY_NAME_RE words (`cost`,
+// `charge`, `credit`, `discount`, currency codes, ...) double as ordinary
+// English outside a money domain. Bare mul/div arithmetic (the shape with
+// no cast and no compound accumulator, `price * 1.15`) now also requires a
+// money-CONTEXT signal to appear somewhere in the file before it fires.
+//
+// Two tiers, because a single generic word is not always enough evidence
+// on its own (customer follow-up, same file: `amount` appears three times
+// as the numeric part of a `(\d+)\s*(ms|s|min|h|d|w)` duration parser — no
+// other money signal anywhere — and firing on `amount` alone reproduced the
+// exact false positive `price`/`currency`/etc. were added to fix):
+//   - STRONG: unambiguous even alone (`cents`, `currency`, `price`,
+//     `invoice`, `payment`, `stripe`, `tax`, `fee`), or a money-typed
+//     import (`Money`) / an import from a payments-or-billing module.
+//   - WEAK: common enough as ordinary English (`amount`, `total`,
+//     `balance`, `cost`) that ONE occurrence — however many times it
+//     repeats — proves nothing; firing requires a SECOND, DISTINCT signal
+//     (strong or weak) elsewhere in the file. `total`+`balance` in the same
+//     file corroborate each other; three `amount`s alone do not.
+const STRONG_CONTEXT_WORD_RES = [
+  /\bcents?\b/i, /\bcurrency\b/i, /\bprice\b/i, /\binvoice\b/i,
+  /\bpayment\b/i, /\bstripe\b/i, /\btax\b/i, /\bfee\b/i,
+];
+const WEAK_CONTEXT_WORD_RES = [
+  /\bamount\b/i, /\btotal\b/i, /\bbalance\b/i, /\bcost\b/i,
+];
+// A shared `Money` type, imported or used as a type annotation.
+const MONEY_TYPED_IMPORT_RE = /\bimport\b[^;\n]{0,120}\bMoney\b|:\s*Money(?:\[\])?\b/;
+// An import/require whose module path names a payments or billing
+// subsystem (`from '../payments/client'`, `require('./billing/invoicer')`)
+// even when the imported binding itself carries no money-named word.
+const PAYMENTS_OR_BILLING_IMPORT_RE =
+  /\b(?:import|require)\b[^;\n]{0,160}['"][^'"]*\b(?:payments?|billing)\b[^'"]*['"]/i;
+
+function distinctWordTypesPresent(text, wordRes) {
+  let n = 0;
+  for (const re of wordRes) {
+    if (re.test(text)) n += 1;
+  }
+  return n;
+}
+
+function hasMoneyContext(text) {
+  if (MONEY_TYPED_IMPORT_RE.test(text) || PAYMENTS_OR_BILLING_IMPORT_RE.test(text)) return true;
+  if (distinctWordTypesPresent(text, STRONG_CONTEXT_WORD_RES) >= 1) return true;
+  // A weak signal only counts once corroborated by a SECOND, distinct
+  // signal — which, since no strong signal or typed import matched above,
+  // must be a second distinct WEAK word type.
+  return distinctWordTypesPresent(text, WEAK_CONTEXT_WORD_RES) >= 2;
+}
+
 // A handful of MONEY_NAME_RE entries double as plain accumulator/counter
 // names in non-money contexts (`all.total += 1`, `total += items.length`,
 // a running `balance` of unrelated items, a loop `credit`/`margin` counter).
@@ -325,12 +378,16 @@ class MoneyFloatModule extends BaseModule {
     // that replaced it could not see a template literal or a block comment
     // that started on an earlier line; the whole-file mask can (2026-09-05).
     const masked = this._maskedLines(text);
+    // #666: computed once per file — see `hasMoneyContext` above for the
+    // strong/weak signal tiers this corroborates the bare mul/div
+    // arithmetic rule below with.
+    const fileHasMoneyContext = hasMoneyContext(text);
     let issues = 0;
 
     for (let i = 0; i < lines.length; i += 1) {
       const code = masked[i] || '';
       if (!code.trim() || this._suppressed(lines, i)) continue;
-      const at = { rel, line: i + 1, sev };
+      const at = { rel, line: i + 1, sev, fileHasMoneyContext };
       if (!hasLibrary) {
         issues += this._castRule(code, at, result);
         issues += this._arithmeticRule(code, at, result);
@@ -403,6 +460,12 @@ class MoneyFloatModule extends BaseModule {
     }
     const mArith = JS_MONEY_MULDIV_RE.exec(code);
     if (!mArith || !MONEY_NAME_RE.test(mArith[1])) return 0;
+    // #666: bare mul/div (no cast, no compound accumulator) is the shape a
+    // unit-conversion helper uses too (`seconds * 60`, `ms / 1000`) — unlike
+    // the compound-assign accumulator above, a single arithmetic expression
+    // is not on its own strong enough evidence of money without some other
+    // money-named identifier, import or type in the file.
+    if (!at.fileHasMoneyContext) return 0;
     const opIdx = code.indexOf(mArith[2], mArith.index + mArith[1].length);
     const isRegexLiteralTail = mArith[2] === '/' && REGEX_LITERAL_TAIL_RE.test(code.slice(opIdx + 1));
     const generic = isGenericMoneyName(mArith[1]);

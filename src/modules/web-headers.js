@@ -60,6 +60,18 @@ const fs = require('fs');
 const path = require('path');
 const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
+const { CSP_UNSAFE_EVAL_TOKEN } = require('../core/reliability/url-prober');
+
+// A line whose first non-whitespace characters are a comment marker. Used
+// to skip lines like `// NO 'unsafe-eval'` before the CSP token check runs
+// — the marker text mentions the directive without setting it. Deliberately
+// a prefix check, not a full tokenizer: `maskCommentsAndStrings` in
+// `typescript-strictness.js` also masks string CONTENTS, which would erase
+// the very CSP token (itself a quoted string) this module searches for.
+const COMMENT_LINE_PREFIXES = ['//', '#', '/*', '*', '--'];
+function _isCommentLine(trimmed) {
+  return COMMENT_LINE_PREFIXES.some((marker) => trimmed.startsWith(marker));
+}
 
 // Directory excludes beyond what `BaseModule._collectFiles` already skips
 // (node_modules, .git, dist, build, coverage, .next, out, …). The old
@@ -145,7 +157,7 @@ function liveHeaderChecks(headers) {
       suggestion: "Add a strict CSP starting from default-src 'self'; script-src 'self' and open only what you need.",
     });
   } else {
-    if (/unsafe-eval/i.test(csp)) {
+    if (CSP_UNSAFE_EVAL_TOKEN.test(csp)) {
       findings.push({
         id: 'live-csp-unsafe-eval', severity: 'error',
         message: 'Content-Security-Policy contains `unsafe-eval` — re-enables eval()/new Function() class attacks',
@@ -361,10 +373,14 @@ class WebHeadersModule extends BaseModule {
       const prevLine = i > 0 ? lines[i - 1] : '';
       if (/\bweb-headers-ok\b/.test(line) || /\bweb-headers-ok\b/.test(prevLine)) continue;
 
+      // A comment line ("// NO 'unsafe-eval'") mentions the directive
+      // without setting it — do not let it fire the CSP token checks below.
+      if (_isCommentLine(trimmed)) continue;
+
       // CSP: unsafe-eval / unsafe-inline. Look only on lines that
       // include a CSP directive marker.
       if (/content-security-policy|frame-ancestors|default-src|script-src|style-src|object-src/i.test(line)) {
-        if (/['"`]?unsafe-eval['"`]?/i.test(line)) {
+        if (CSP_UNSAFE_EVAL_TOKEN.test(line)) {
           issues += this._flag(result, `web-headers:csp-unsafe-eval:${rel}:${i + 1}`, {
             // isTest files return 0 above, before this line is reachable.
             severity: 'error',
