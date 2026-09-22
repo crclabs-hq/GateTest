@@ -26,12 +26,24 @@
  *   event: module:locked  { name, category }
  *   event: complete       <same payload shape as /api/playground/scan>
  *   event: error          { error }
+ *
+ * The `complete` payload is what the result view reads, and since 2026-09-22
+ * it carries what a stranger needs to trust it (all shaped by
+ * app/lib/scan-grade.js, the one definition):
+ *   grade / healthScore   driven by BLOCKING findings, the gate's rule
+ *   blockingCount, warningCount, countLabel   both numbers, always
+ *   scanId, scannedAt, commitSha, branch, resultHeader   reproducibility
+ *   coverage + scopeLabel  what was actually read, fetch time vs engine time
+ *   viewer                 whether this visitor may be offered a fix
  */
 
+import crypto from "crypto";
 import { NextRequest } from "next/server";
 import { runTier, type ModuleResultEnvelope } from "@/app/lib/scan-modules";
-import { resolveRepoAuth, loadRepoFiles } from "@/app/lib/gluecron-client";
+import { resolveRepoAuth, loadRepoFiles, resolveBaseBranchSha } from "@/app/lib/gluecron-client";
 import { MODULE_CATEGORIES, totalModuleCount } from "@/app/components/howitworks/modules-data";
+import { resolveFreeScanViewer, type FreeScanViewer } from "@/app/lib/free-scan-viewer";
+import { CUSTOMER_COOKIE_NAME } from "@/app/lib/customer-session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,39 +52,26 @@ export const maxDuration = 60;
 const QUICK_MODULES = ["syntax", "lint", "secrets", "codeQuality"];
 const MAX_FILES_TO_READ = 50;
 
-// Coarse severity-by-module heuristic — the module envelope doesn't carry
-// per-finding severity at this layer (details are plain strings), so this
-// assigns a defensible default per module rather than fabricating false
-// precision per-line. secrets/syntax block real work (critical); lint/
-// codeQuality are real but rarely release-blocking (warning).
-const MODULE_SEVERITY: Record<string, "critical" | "warning" | "info"> = {
-  secrets: "critical",
-  syntax: "critical",
-  lint: "warning",
-  codeQuality: "warning",
+// One definition of the grade, the severity split and the honesty labels —
+// shared with /api/playground/scan and proven by tests/free-scan-grade.test.js.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const scanGrade = require("@/app/lib/scan-grade") as {
+  severityForModule: (name: string) => "error" | "warning" | "info";
+  computeScanGrade: (modules: Array<{ name?: string; status?: string; issues?: number }>) => {
+    score: number | null;
+    grade: string;
+    gradeColor: string;
+    blocking: number;
+    warnings: number;
+    info: number;
+    total: number;
+    notChecked: boolean;
+    countLabel: string;
+    summary: string;
+  };
+  describeScanScope: (scope: Record<string, unknown>) => string;
+  formatResultHeader: (meta: Record<string, unknown>) => string;
 };
-
-function computeHealthScore(modules: Array<{ status: string; issues?: number }>): {
-  score: number;
-  grade: string;
-  gradeColor: string;
-} {
-  if (!modules.length) return { score: 0, grade: "F", gradeColor: "#ef4444" };
-  const passed = modules.filter((m) => m.status === "passed").length;
-  const total = modules.length;
-  const errors = modules.reduce((s, m) => s + (m.issues || 0), 0);
-  const base = Math.round((passed / total) * 100);
-  const penalty = Math.min(50, errors * 3);
-  const score = Math.max(0, base - penalty);
-  let grade: string;
-  let gradeColor: string;
-  if (score >= 90) { grade = "A"; gradeColor = "#22c55e"; }
-  else if (score >= 75) { grade = "B"; gradeColor = "#0d9488"; }
-  else if (score >= 60) { grade = "C"; gradeColor = "#eab308"; }
-  else if (score >= 40) { grade = "D"; gradeColor = "#f97316"; }
-  else { grade = "F"; gradeColor = "#ef4444"; }
-  return { score, grade, gradeColor };
-}
 
 export async function POST(req: NextRequest) {
   let body: { repo_url?: string };
@@ -93,6 +92,20 @@ export async function POST(req: NextRequest) {
   const match = /github\.com\/([^/]+)\/([^/?#\s]+)/.exec(repoUrl);
   const owner = match?.[1] || "";
   const repo = match?.[2] || "";
+
+  // F2 — every completed free scan gets an id at the moment it starts, so the
+  // permalink, the share link and the report header all name the same run.
+  const scanId = `scn_${crypto.randomBytes(9).toString("hex")}`;
+  const startedAt = Date.now();
+  // F4 — resolved once per scan, off the request's own cookie. Signed-out
+  // visitors and visitors without push access never see a fix CTA.
+  // The catch matters: a scan that fails on the tree read never awaits this,
+  // and an unhandled rejection is a thrown exception on Node 24.
+  const viewerPromise: Promise<FreeScanViewer> = resolveFreeScanViewer(
+    req.cookies.get(CUSTOMER_COOKIE_NAME)?.value,
+    owner,
+    repo
+  ).catch(() => ({ signedIn: false, canSignIn: false, login: null, canFix: false, reason: "viewer not checked" }));
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -131,14 +144,30 @@ export async function POST(req: NextRequest) {
         const sourceExts = [".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".java", ".rb", ".md", ".json"];
         const isPlaygroundSource = (f: string) =>
           sourceExts.some((ext) => f.endsWith(ext)) && !f.includes("node_modules") && !f.includes(".next") && !f.includes("dist/");
+        // F2 — the commit this scan actually read. resolveBaseBranchSha is the
+        // one definition of "default branch + its head sha" and works
+        // unauthenticated for public repos. It runs alongside the file read so
+        // it costs no extra wall-clock; a failure leaves the sha null and the
+        // header says "commit not resolved" rather than inventing one.
+        const headPromise = resolveBaseBranchSha(owner, repo, "", token).catch(
+          () => ({ sha: null as string | null, defaultBranch: "", source: "none" as const })
+        );
+
         // One archive read for tree + contents (credentialed → anonymous →
         // per-blob API) instead of `git/trees` + N blob calls.
         let files: string[];
         let fileContents: Array<{ path: string; content: string }>;
+        let readSource = "";
+        let readTruncated = false;
+        let fetchMs = 0;
         try {
+          const fetchStart = Date.now();
           const loaded = await loadRepoFiles(owner, repo, "HEAD", token, { maxFiles: MAX_FILES_TO_READ, filter: isPlaygroundSource });
+          fetchMs = Date.now() - fetchStart;
           files = loaded.paths;
           fileContents = loaded.fileContents;
+          readSource = loaded.source;
+          readTruncated = loaded.truncated;
         } catch (err) {
           send("error", { error: `Cannot access ${owner}/${repo} (${err instanceof Error ? err.message : "tree read failed"})` });
           clearInterval(keepAlive);
@@ -165,21 +194,27 @@ export async function POST(req: NextRequest) {
               checks: result.checks,
               issues: result.issues,
               duration: result.duration,
-              severity: MODULE_SEVERITY[result.name] || "info",
+              severity: scanGrade.severityForModule(result.name),
             });
           }
         );
 
-        const { score, grade, gradeColor } = computeHealthScore(modules);
+        const verdict = scanGrade.computeScanGrade(modules);
         const topFindings: Array<{ module: string; message: string; severity: string }> = [];
         for (const mod of modules) {
           if (mod.status === "failed" && mod.details) {
             for (const detail of mod.details.slice(0, 3)) {
               if (topFindings.length >= 8) break;
-              topFindings.push({ module: mod.name, message: detail, severity: MODULE_SEVERITY[mod.name] || "warning" });
+              topFindings.push({ module: mod.name, message: detail, severity: scanGrade.severityForModule(mod.name) });
             }
           }
         }
+
+        const head = await headPromise;
+        const viewer = await viewerPromise;
+        const engineMs = modules.reduce((s, m) => s + m.duration, 0);
+        const scannedAt = new Date().toISOString();
+        const repoSlug = `${owner}/${repo}`;
 
         send("complete", {
           status: "complete",
@@ -189,10 +224,48 @@ export async function POST(req: NextRequest) {
           totalModules,
           freeModules: QUICK_MODULES.length,
           totalIssues,
-          duration: modules.reduce((s, m) => s + m.duration, 0),
-          healthScore: score,
-          grade,
-          gradeColor,
+          duration: engineMs,
+          healthScore: verdict.score,
+          grade: verdict.grade,
+          gradeColor: verdict.gradeColor,
+          // F1 — both numbers, always. The grade comes from `blocking`.
+          blockingCount: verdict.blocking,
+          warningCount: verdict.warnings,
+          infoCount: verdict.info,
+          countLabel: verdict.countLabel,
+          gradeSummary: verdict.summary,
+          // F2 — what was scanned, when, and under which report id.
+          scanId,
+          scannedAt,
+          commitSha: head.sha,
+          branch: head.defaultBranch || null,
+          resultHeader: scanGrade.formatResultHeader({
+            repoSlug,
+            commitSha: head.sha,
+            branch: head.defaultBranch || null,
+            scannedAt,
+            scanId,
+          }),
+          // F3 — what the free scan actually did, in the reader's words.
+          coverage: {
+            filesAnalysed: fileContents.length,
+            filesInRepo: files.length,
+            source: readSource || null,
+            truncated: readTruncated,
+            engineMs,
+            fetchMs,
+            wallMs: Date.now() - startedAt,
+          },
+          scopeLabel: scanGrade.describeScanScope({
+            filesAnalysed: fileContents.length,
+            filesInRepo: files.length,
+            source: readSource,
+            truncated: readTruncated,
+            engineMs,
+            fetchMs,
+          }),
+          // F4 — only a signed-in viewer with push access is offered a fix.
+          viewer: { signedIn: viewer.signedIn, canSignIn: viewer.canSignIn, canFix: viewer.canFix },
           topFindings,
           upgradeNote: `This is ${QUICK_MODULES.length} of ${totalModules} modules. A full scan would check ${totalModules - QUICK_MODULES.length} more.`,
         });

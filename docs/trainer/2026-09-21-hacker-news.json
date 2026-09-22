@@ -1,0 +1,298 @@
+{
+  "generatedAt": "2026-09-21T08:39:15.340Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 17,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 8,
+      "SonarQube": 0,
+      "Semgrep": 3,
+      "CodeQL": 4,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 1,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 2
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49784526",
+        "author": "faangguyindia",
+        "type": "comment",
+        "title": null,
+        "text": "On Gemma 4 12B, I am getting 220 ms per move or QS. I used it to play the Snake game locally:prompt_eval=244 ms wall=245 ms schema_cache=hit generated=0Move limit reached after 200 moves: score=16, length=19.So, if a 12B dense model can offer this latency on a local old PC, then definitely you can scale it up with more powerful machines and get even lower latency.",
+        "url": "https://news.ycombinator.com/item?id=49784526",
+        "points": null,
+        "numComments": null,
+        "storyId": 49783999,
+        "createdAt": "2026-09-21T08:18:02Z",
+        "createdAtUnix": 1789978682,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49782578",
+        "author": "jongjong",
+        "type": "comment",
+        "title": null,
+        "text": "> They sell insurance against the maintainer, when the maintainer is the one person in the chain who can actually make the code more secure, and she gets nothing while a company two layers up gets paid to tell you whether she did.Damn, this is a really good line. It's the reason why existing tools like Snyk give so many false positives and miss so many actual vulnerabilities. They're kind of useless really.They create false comfort and busy-work for staff whilst providing a ready-made \"Snyk said it was secure\" narrative to cover everyone's asses when things inevitably go belly-up.And Snyk be like \"We responded as fast as possible, so we fulfilled our part\" yet what really counts is not even in the equation.Personally, I stopped contributing my code open source. I still write it and I've built a major project I'd love to make public but I'm keeping it for myself. I'm waiting for communism or UBI to arrive, then I may resume publishing as open source.If it takes too long, I will pass it down to my son and he will wait until communism arrives to make it public.",
+        "url": "https://news.ycombinator.com/item?id=49782578",
+        "points": null,
+        "numComments": null,
+        "storyId": 49780064,
+        "createdAt": "2026-09-21T03:01:13Z",
+        "createdAtUnix": 1789959673,
+        "intent": "bug"
+      },
+      {
+        "objectId": "49781045",
+        "author": "KenPainter",
+        "type": "comment",
+        "title": null,
+        "text": "Nothing. Everybody is drawn to activities that bring them quiet satisfaction in both the task and it's completion.We think we need perseverance when we get discouraged. Setbacks, dead-ends, conflicting priorities, all of these are discouraging. Too many at once or for too long, we get discouraged and doubt the endeavor.Maybe the endeavor is not really yours. Maybe the other demands truly require more of your attention to lay them to rest, then you return to it.\"Inspiration\" is snake oil offered to your lesser self, the self that wants to be on the mountaintop all the time.",
+        "url": "https://news.ycombinator.com/item?id=49781045",
+        "points": null,
+        "numComments": null,
+        "storyId": 49780680,
+        "createdAt": "2026-09-20T23:04:19Z",
+        "createdAtUnix": 1789945459,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49779758",
+        "author": "putna",
+        "type": "comment",
+        "title": null,
+        "text": "its just an example how to run it locally. it takes the laya from official repo with the provided snake example. you can try running it in 2 minutes",
+        "url": "https://news.ycombinator.com/item?id=49779758",
+        "points": null,
+        "numComments": null,
+        "storyId": 49777106,
+        "createdAt": "2026-09-20T20:27:59Z",
+        "createdAtUnix": 1789936079,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49778556",
+        "author": "vunderba",
+        "type": "comment",
+        "title": null,
+        "text": "Can do! GPT-Image-2 already scored unsurprisingly very high: 12 out of 15 on text-to-image, and 10 out of 12 on image-to-image.The three benchmarks it failed on (D20, Flat Earth, and Banded Snake) are pretty difficult, so I'd be surprised if 2.5 manages to pass them, but I’ll add it for completeness’ sake later this week.",
+        "url": "https://news.ycombinator.com/item?id=49778556",
+        "points": null,
+        "numComments": null,
+        "storyId": 49775499,
+        "createdAt": "2026-09-20T18:32:02Z",
+        "createdAtUnix": 1789929122,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49777861",
+        "author": "frag",
+        "type": "comment",
+        "title": null,
+        "text": "Great job! Did you finetune your own Laya for the snake game or what?",
+        "url": "https://news.ycombinator.com/item?id=49777861",
+        "points": null,
+        "numComments": null,
+        "storyId": 49777106,
+        "createdAt": "2026-09-20T17:21:10Z",
+        "createdAtUnix": 1789924870,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49777807",
+        "author": "tentacleuno",
+        "type": "comment",
+        "title": null,
+        "text": "This looks like a local AI model playing Snake -- is that correct? The article offers no explanation.",
+        "url": "https://news.ycombinator.com/item?id=49777807",
+        "points": null,
+        "numComments": null,
+        "storyId": 49777106,
+        "createdAt": "2026-09-20T17:17:25Z",
+        "createdAtUnix": 1789924645,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49775319",
+        "author": "snikeris",
+        "type": "comment",
+        "title": null,
+        "text": "Yeah, what's the deal with this error message?",
+        "url": "https://news.ycombinator.com/item?id=49775319",
+        "points": null,
+        "numComments": null,
+        "storyId": 49766966,
+        "createdAt": "2026-09-20T12:47:53Z",
+        "createdAtUnix": 1789908473,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "49782617",
+        "author": "doctorpangloss",
+        "type": "story",
+        "title": "NYTimes Journalist Regrets Long Ordeal Sending Daughter to Worse NY Schools",
+        "text": "NYTimes Journalist Regrets Long Ordeal Sending Daughter to Worse NY Schools",
+        "url": "https://www.nytimes.com/2026/09/20/magazine/ny-public-schools-black-students-segregation.html",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 49782617,
+        "createdAt": "2026-09-21T03:08:01Z",
+        "createdAtUnix": 1789960081,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49778400",
+        "author": "stefan_",
+        "type": "story",
+        "title": "In Fighting for Every Black Child, Did I Betray My Own?",
+        "text": "In Fighting for Every Black Child, Did I Betray My Own?",
+        "url": "https://www.nytimes.com/2026/09/20/magazine/ny-public-schools-black-students-segregation.html",
+        "points": 11,
+        "numComments": 3,
+        "storyId": 49778400,
+        "createdAt": "2026-09-20T18:16:18Z",
+        "createdAtUnix": 1789928178,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49777852",
+        "author": "jfengel",
+        "type": "comment",
+        "title": null,
+        "text": "We had a similar discussion about computers the other day. A lot of us miss the days of tiny memory and optimizing for that.It takes all kinds and I see no reason to gate keep either way. It's too bad that we do t often segregate around those opinions and don't share as much",
+        "url": "https://news.ycombinator.com/item?id=49777852",
+        "points": null,
+        "numComments": null,
+        "storyId": 49776627,
+        "createdAt": "2026-09-20T17:20:38Z",
+        "createdAtUnix": 1789924838,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "49784474",
+        "author": "CoderLim110",
+        "type": "story",
+        "title": "Google Home MCP Server",
+        "text": "Google Home MCP Server",
+        "url": "https://developers.home.google.com/mcp/home",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 49784474,
+        "createdAt": "2026-09-21T08:12:06Z",
+        "createdAtUnix": 1789978326,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49777910",
+        "author": "derefr",
+        "type": "comment",
+        "title": null,
+        "text": "On the opposite end of the spectrum from this idea, I've been thinking for a long time now that much of what's weird&#x2F;redundant about Unicode comes from its self-synchronization requirement. And that you could create a very compact and flexible \"re-embedding\" of Unicode if you dropped this requirement.Self-synchronization is the idea that if you take an arbitrary Unicode-encoding-encoded text stream, and then do any combination of 1. flipping bits in it at random, 2. injecting random extra whole bytes into the stream, and 3. dropping random whole bytes from the stream, then each such change will corrupt at most one Unicode code-unit in the stream, and from that, corrupt at most one semantic grapheme-cluster encoded by the stream. No such change will corrupt the stream itself so as to leave the stream in an invalid&#x2F;indeterminate state that a Unicode parser can't know how to recover from. You'll have a one-character-wide \"hole\", and then the stream will resume. Unless that hole occurred at a character that's critical to the stream's meaning on an application-semantics level, the document will still be valid&#x2F;useful (especially for archival&#x2F;forensic-recovery purposes); just like a printed document is still valid&#x2F;useful even if you drip a bit of ink on it.Unicode encodings are self-synchronizing at the byte-pattern level. But, much less often discussed, Unicode itself is also designed to be self-synchronizing in how it encodes interactions between code-units. (In other words, Unicode is designed to never have modal or stateful semantics, beyond the boundary of a single grapheme cluster.) And this really constrains how certain Unicode features can be, and historically have been, designed.If you want a run of Unicode code-units to all be \"tagged\" or \"colored\" with some property, then, due to the self-synchronization requirement (i.e. due to the assumption that any single one of those bytes could be corrupted or blown away, including whatever metadata-encoding bytes your scheme wants to use), you have to either:- define a \"pre-colored\" alphabet, and express your tagged content in that alphabet. (Think of e.g. the Unicode flag codepoints [https:&#x2F;&#x2F;en.wikipedia.org&#x2F;wiki&#x2F;Regional_indicator_symbol], which are essentially a special namespaced copy of the roman upper-case alphabet intended to be used only to spell out two-letter contiguous pairs that are [or at some point were] valid ISO country codes; where, when used in this way, the resulting 'colored'-letter-pair sequence has 'flag semantics', i.e. is meant to be rendered as a flag and machine-legible as a flag)- or individually tag each and every one of those codepoints with its own tag&#x2F;color codepoint (as in Unicode variation selectors)- or interject binary-infix \"operator\" codepoints as glue between each codepoint in a codepoint sequence, so that those \"operator\" codepoints each affix together their immediate sibling codepoints, essentially constructing an abstract-Unicode-semantics list ADT \"cons by cons\", so that said list then may then be assigned its own semantics, e.g. being treated as a single grapheme-cluster with its own rendering (as in e.g. ZERO WIDTH JOINER used in its role in constructing complex emoji)These encodings are all very high-overhead; but these are the kinds of trade-offs you have to make for self-synchronization to work.And these trade-offs are sensible to make... if you're Ken Thompson in 1992, having to consider e.g. plaintexts being transmitted over raw RS232, or filesystems that just blast bytes to a spinning-rust disk without so much as a checksum, and then read them back \"blindly\" years later with that disk potentially highly-degraded.But what if you live in the modern world, and you only care about holding and manipulating known-length strings in memory and&#x2F;or embedded into code-signed (and thereby hashed) binaries; checksummed-block filesystems over rarely-corrupting NVMe; and transmission of data mostly over encrypted-stream protocols, where even the rare packet-level corruption that still TCP-checksums correctly, doesn't decrypt successfully, and therefore causes TLS-level retransmission?Well, then you could define a much-more-concise reformulation of Unicode, that uses all the \"forbidden\" semantics-encoding techniques that Unicode itself avoids due to the self-synchronization constraint.Where by \"reformulation\", I mean: a standard that keeps parity with Unicode in terms of what it can encode; and which at all times maintains a clearly-defined lossless bijective transformation between it and Unicode, evolving in lockstep with Unicode; but where Unicode and this formulation have their own distinct universes of codepoints, that compose using different rules, into the same ultimate sets of reachable grapheme-clusters with the same text-segmentation&#x2F;collation&#x2F;etc semantics.I'm honestly kind of surprised that there isn't already a project somewhere to define an alternative Unicode formulation that looks like this.It'd not only be potentially a highly-efficient representation for many in-memory string operations (that text shaping libraries would also love); it'd also likely perform impressively (compared to regular UTF-8) as a canonical representation for documents used to train+prompt LLMs. It'd give \"more meaning per token\", via all the repeated-per-codel overhead becoming once-per-sequence overhead; and it'd also allow many layers of meaning that are currently encoded via in-band protocols (ANSI escape codes, Markdown, HTML&#x2F;XML, etc) that the LLM needs to learn additional recognition logic for, to instead be parsed out \"during\" initial text-stream recognition.(And it's taking me real willpower not to go into depth on all the features such a formulation could have, and all the benefits it could provide. I should probably stop here before I nerd-snipe myself!)",
+        "url": "https://news.ycombinator.com/item?id=49777910",
+        "points": null,
+        "numComments": null,
+        "storyId": 49772677,
+        "createdAt": "2026-09-20T17:26:41Z",
+        "createdAtUnix": 1789925201,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49776800",
+        "author": "dalvrosa",
+        "type": "story",
+        "title": "Emacs: Spacious-Padding Version 0.9.0",
+        "text": "Emacs: Spacious-Padding Version 0.9.0",
+        "url": "https://protesilaos.com/codelog/2026-09-20-emacs-spacious-padding-0-9-0/",
+        "points": 4,
+        "numComments": 0,
+        "storyId": 49776800,
+        "createdAt": "2026-09-20T15:25:57Z",
+        "createdAtUnix": 1789917957,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49776243",
+        "author": "iqbal1980",
+        "type": "story",
+        "title": "Codelytra",
+        "text": "Codelytra",
+        "url": "https://www.npmjs.com/package/@ezducate/codelytra",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 49776243,
+        "createdAt": "2026-09-20T14:27:40Z",
+        "createdAtUnix": 1789914460,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [
+      {
+        "objectId": "49773855",
+        "author": "ahartmetz",
+        "type": "comment",
+        "title": null,
+        "text": "https:&#x2F;&#x2F;invent.kde.org&#x2F;sdk&#x2F;dferry&#x2F;-&#x2F;tree&#x2F;fercode?ref_type=he...serialization&#x2F;fercode.py, codegen.py and argumentscgreader_t.cpp. It's in Python for easier cross builds, so that there is no need to build the tooling for the host platform.",
+        "url": "https://news.ycombinator.com/item?id=49773855",
+        "points": null,
+        "numComments": null,
+        "storyId": 49743934,
+        "createdAt": "2026-09-20T08:44:42Z",
+        "createdAtUnix": 1789893882,
+        "intent": "neutral"
+      }
+    ],
+    "Checkmarx": [
+      {
+        "objectId": "49775293",
+        "author": "jan_m_savage",
+        "type": "comment",
+        "title": null,
+        "text": "Errr. Modern chess was not invented in India, but in ancient Persia. Afrasyab (the first pics on that site) is also the name of some character in Ferdowsi's Shah Nameh or Epic of the Kings (شاهنامه).The name of the elephant (called FIL in Persian&#x2F;Arabic) is not Indian (Indians call the elephant 'Haathi'). So is Vizier, a persian word (not queen!, it means something like minister or second in command after king).In Russian, chess is called SHAKHMAT, but that is also derived from Persian: Shah means king, maat means defeat (this was somehow Anglified into checkmate).The original word in Indian was chaturanga but that was a wholly different game-- a sort of predecessor. But so did the Chinese have a strategy board game which is also a far cry from chess as you know it now (and the Chinese \"chess\" still has remained the same as it was in ancient times).The current, modern chess as you and I know it was invented in Saasaanid Persia, and the word used for it was SHATRANJ, as a sort of nod to Chaturanga, though the games are wildly different in every way except in intention (both are games of strategy).According to Wikipedia: \"During the Islamic Golden Age, many works on shatranj were written, recording for the first time the analysis of opening moves, game problems, the knight's tour, and many more subjects common in modern chess books. Many of these manuscripts are missing, but their content is known due to compilation work done by the later authors\".",
+        "url": "https://news.ycombinator.com/item?id=49775293",
+        "points": null,
+        "numComments": null,
+        "storyId": 49764631,
+        "createdAt": "2026-09-20T12:43:27Z",
+        "createdAtUnix": 1789908207,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [
+    {
+      "phrase": "false positive",
+      "count": 1,
+      "examples": [
+        {
+          "objectId": "49782578",
+          "url": "https://news.ycombinator.com/item?id=49782578",
+          "snippet": "> They sell insurance against the maintainer, when the maintainer is the one person in the chain who can actually make the code more secure, and she gets nothing while a company two layers up gets pai"
+        }
+      ]
+    },
+    {
+      "phrase": "false positives",
+      "count": 1,
+      "examples": [
+        {
+          "objectId": "49782578",
+          "url": "https://news.ycombinator.com/item?id=49782578",
+          "snippet": "> They sell insurance against the maintainer, when the maintainer is the one person in the chain who can actually make the code more secure, and she gets nothing while a company two layers up gets pai"
+        }
+      ]
+    }
+  ],
+  "actionItems": []
+}

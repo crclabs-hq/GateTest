@@ -18,41 +18,38 @@
  * external API consumers (see /docs/api) who want a single JSON response.
  */
 
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { runScan } from "@/app/lib/scan-executor";
+import { resolveBaseBranchSha, resolveRepoAuth } from "@/app/lib/gluecron-client";
 import { totalModuleCount } from "@/app/components/howitworks/modules-data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+// One definition of the grade, the severity split and the honesty labels —
+// shared with /api/playground/scan/stream (tests/free-scan-grade.test.js).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const scanGrade = require("@/app/lib/scan-grade") as {
+  severityForModule: (name: string) => "error" | "warning" | "info";
+  computeScanGrade: (modules: Array<{ name?: string; status?: string; issues?: number }>) => {
+    score: number | null;
+    grade: string;
+    gradeColor: string;
+    blocking: number;
+    warnings: number;
+    info: number;
+    notChecked: boolean;
+    countLabel: string;
+    summary: string;
+  };
+  describeScanScope: (scope: Record<string, unknown>) => string;
+  formatResultHeader: (meta: Record<string, unknown>) => string;
+};
+
 function problem(status: number, error: string) {
   return NextResponse.json({ error }, { status });
-}
-
-function computeHealthScore(modules: Array<{ status: string; issues?: number }>): {
-  score: number;
-  grade: string;
-  gradeColor: string;
-} {
-  if (!modules.length) return { score: 0, grade: "F", gradeColor: "#ef4444" };
-
-  const passed    = modules.filter((m) => m.status === "passed").length;
-  const total     = modules.length;
-  const errors    = modules.reduce((s, m) => s + (m.issues || 0), 0);
-  const base      = Math.round((passed / total) * 100);
-  const penalty   = Math.min(50, errors * 3);
-  const score     = Math.max(0, base - penalty);
-
-  let grade: string;
-  let gradeColor: string;
-  if (score >= 90) { grade = "A"; gradeColor = "#22c55e"; }
-  else if (score >= 75) { grade = "B"; gradeColor = "#0d9488"; }
-  else if (score >= 60) { grade = "C"; gradeColor = "#eab308"; }
-  else if (score >= 40) { grade = "D"; gradeColor = "#f97316"; }
-  else { grade = "F"; gradeColor = "#ef4444"; }
-
-  return { score, grade, gradeColor };
 }
 
 export async function POST(req: NextRequest) {
@@ -72,10 +69,14 @@ export async function POST(req: NextRequest) {
     return problem(400, "repo_url must be a public github.com URL — e.g. https://github.com/owner/repo");
   }
 
+  const scanId = `scn_${crypto.randomBytes(9).toString("hex")}`;
+  const startedAt = Date.now();
   const result = await runScan(repoUrl, "quick");
-  const { score, grade, gradeColor } = computeHealthScore(result.modules);
+  const verdict = scanGrade.computeScanGrade(result.modules);
 
-  // Flatten top findings for the playground results panel
+  // Flatten top findings for the playground results panel. Severity comes
+  // from the shared map — this route used to stamp every finding "error",
+  // which is how a repo of lint warnings could read as release-blocking.
   const topFindings: Array<{ module: string; message: string; severity: string }> = [];
   for (const mod of result.modules) {
     if (mod.status === "failed" && mod.details) {
@@ -84,11 +85,23 @@ export async function POST(req: NextRequest) {
         topFindings.push({
           module: mod.name,
           message: detail,
-          severity: "error",
+          severity: scanGrade.severityForModule(mod.name),
         });
       }
     }
   }
+
+  // The commit this scan read. Never guessed — a failure leaves it null and
+  // the rendered header says the commit was not resolved.
+  const slugMatch = /github\.com\/([^/]+)\/([^/?#\s]+)/.exec(repoUrl);
+  const owner = slugMatch?.[1] || "";
+  const repoName = slugMatch?.[2] || "";
+  const head = owner && repoName
+    ? await resolveRepoAuth(owner, repoName)
+        .then((auth) => resolveBaseBranchSha(owner, repoName, "", auth.token || ""))
+        .catch(() => ({ sha: null as string | null, defaultBranch: "", source: "none" as const }))
+    : { sha: null as string | null, defaultBranch: "", source: "none" as const };
+  const scannedAt = new Date().toISOString();
 
   return NextResponse.json({
     status:          result.status,
@@ -105,9 +118,38 @@ export async function POST(req: NextRequest) {
     totalModules:    result.totalModules,
     totalIssues:     result.totalIssues,
     duration:        result.duration,
-    healthScore:     score,
-    grade,
-    gradeColor,
+    healthScore:     verdict.score,
+    grade:           verdict.grade,
+    gradeColor:      verdict.gradeColor,
+    blockingCount:   verdict.blocking,
+    warningCount:    verdict.warnings,
+    infoCount:       verdict.info,
+    countLabel:      verdict.countLabel,
+    gradeSummary:    verdict.summary,
+    scanId,
+    scannedAt,
+    commitSha:       head.sha,
+    branch:          head.defaultBranch || null,
+    resultHeader:    scanGrade.formatResultHeader({
+      repoSlug: owner && repoName ? `${owner}/${repoName}` : repoUrl,
+      commitSha: head.sha,
+      branch: head.defaultBranch || null,
+      scannedAt,
+      scanId,
+    }),
+    coverage: {
+      filesAnalysed: result.filesAnalysed ?? null,
+      filesInRepo:   result.filesInRepo ?? null,
+      truncated:     result.coverageTruncated ?? false,
+      engineMs:      result.duration,
+      wallMs:        Date.now() - startedAt,
+    },
+    scopeLabel:      scanGrade.describeScanScope({
+      filesAnalysed: result.filesAnalysed,
+      filesInRepo:   result.filesInRepo,
+      truncated:     result.coverageTruncated,
+      engineMs:      result.duration,
+    }),
     topFindings,
     upgradeNote:     `This is 4 of ${totalModuleCount()} modules. A full scan would check ${totalModuleCount() - 4} more.`,
   });
