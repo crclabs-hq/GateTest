@@ -50,6 +50,39 @@ describe('premise: playground/free scans have no server-side store', () => {
   });
 });
 
+describe('/playground page — the badge gap is disclosed next to the share link (issue #651 follow-up)', () => {
+  const src = read('website/app/playground/page.tsx');
+
+  it('carries a one-sentence note, next to the share button, that a free scan does not update a badge', () => {
+    // Anchored to the same "Share results" button block, not just anywhere
+    // on the page — the reviewer asked for it "next to the share link".
+    const shareButtonIdx = src.indexOf('Share results (link works for 48h)');
+    assert.notStrictEqual(shareButtonIdx, -1, 'share button copy not found — did it move or reword?');
+    const nearby = src.slice(shareButtonIdx, shareButtonIdx + 1200);
+
+    assert.match(
+      nearby,
+      /doesn&apos;t update a badge — an account scan does\./,
+      'expected a one-sentence, badge-matching note ("needs account scan") near the share button',
+    );
+  });
+
+  it('the note links to the same place the badge tooltip points (siteUrl(\'/playground\'))', () => {
+    const shareButtonIdx = src.indexOf('Share results (link works for 48h)');
+    const nearby = src.slice(shareButtonIdx, shareButtonIdx + 1200);
+    assert.match(nearby, /<Link href="\/playground"/, 'the note should link to /playground, matching the badge route\'s siteUrl(\'/playground\') destination');
+
+    const badgeRouteSrc = read('website/app/badge/[owner]/[repo]/route.ts');
+    assert.match(badgeRouteSrc, /siteUrl\('\/playground'\)/, 'premise: the badge tooltip must still point at /playground for this to match');
+  });
+
+  it('stays vendor-neutral (no AI vendor or model name)', () => {
+    const shareButtonIdx = src.indexOf('Share results (link works for 48h)');
+    const nearby = src.slice(shareButtonIdx, shareButtonIdx + 1200);
+    assert.doesNotMatch(nearby, /claude|anthropic|gpt|openai/i, 'the badge-gap note must not name a vendor or model');
+  });
+});
+
 describe('/badge/:owner/:repo — honest copy when there is no account scan on record', () => {
   const src = read(BADGE_ROUTE);
 
