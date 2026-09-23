@@ -76,10 +76,7 @@ npm install -g @gatetest/cli
 gatetest --suite quick
 
 # Or run against the current directory with no install:
-npx -p @gatetest/cli gatetest --suite quick
-# (bare `npx @gatetest/cli --suite quick` needs the `cli` bin, which ships in
-#  1.61.1 — the release on npm today, 1.61.0, answers "could not determine
-#  executable to run"; the -p form works on every version)
+npx --yes @gatetest/cli --suite quick
 
 # Or clone and run from source:
 git clone https://github.com/crclabs-hq/GateTest
@@ -216,8 +213,7 @@ On any other CI — Jenkins, Buildkite, Bitbucket, Drone — the CLI is the whol
 integration:
 
 ```bash
-npx -p @gatetest/cli gatetest --suite full --junit --sarif
-# (bare `npx @gatetest/cli …` works once 1.61.1 is on npm; -p works on every version)
+npx --yes @gatetest/cli --suite full --junit --sarif
 ```
 
 Onboarding an existing codebase? Pair this with **baseline mode** above so the gate

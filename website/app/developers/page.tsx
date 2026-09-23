@@ -12,8 +12,7 @@ import StatTiles from "../components/site/StatTiles";
 const INSTALL_CMD = "curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integrations/scripts/install.sh | bash";
 // install.sh drops the CI workflow, hook and marker — it does NOT put a
 // `gatetest` binary on PATH. The local-scan card therefore installs the CLI
-// from npm first (bare `npx @gatetest/cli` does not resolve on the published
-// 1.61.0; `npm i -g` and `npx -p` both do).
+// from npm first.
 const CLI_INSTALL_CMD = "npm install -g @gatetest/cli";
 const SCAN_CMD = "gatetest scan --suite quick --diff";
 
