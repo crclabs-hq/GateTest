@@ -126,7 +126,7 @@ export default function GitHubCodeScanningPage() {
 
         {/* Coverage gap visual */}
         <section className="mb-16">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-6">What GitHub Code Scanning doesn&rsquo;t cover</h2>
+          <h2 className="v2-h2 !text-2xl sm:!text-3xl mb-6">What GitHub Code Scanning doesn&rsquo;t cover</h2>
           <div className="grid sm:grid-cols-3 gap-4">
             {[
               { label: "Performance", items: ["Core Web Vitals", "Bundle size", "N+1 queries", "Lighthouse scores"] },
@@ -153,35 +153,32 @@ export default function GitHubCodeScanningPage() {
 
         {/* Comparison table */}
         <section className="mb-16">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-6">Feature Comparison</h2>
-          <div className="rounded-xl border border-border overflow-x-auto">
-            <table className="w-full min-w-[560px] text-sm">
+          <h2 className="v2-h2 !text-2xl sm:!text-3xl mb-6">Feature Comparison</h2>
+          <div className="overflow-x-auto">
+            <table className="v2-table min-w-[560px]">
               <thead>
-                <tr className="border-b border-border bg-surface-light">
-                  <th className="text-left px-5 py-4 text-muted font-medium">Feature</th>
-                  <th className="text-center px-5 py-4 text-accent font-semibold">GateTest</th>
-                  <th className="text-center px-5 py-4 text-muted font-medium">GitHub Code Scanning</th>
+                <tr>
+                  <th>Feature</th>
+                  <th className="text-center text-[var(--v2-accent)]">GateTest</th>
+                  <th className="text-center">GitHub Code Scanning</th>
                 </tr>
               </thead>
               <tbody>
                 {comparisonRows.map((row) => (
-                  <tr
-                    key={row.feature}
-                    className="border-b border-border last:border-0 hover:bg-surface-light transition-colors"
-                  >
-                    <td className="px-5 py-3.5 text-foreground-secondary">{row.feature}</td>
-                    <td className="px-5 py-3.5 text-center">
+                  <tr key={row.feature}>
+                    <td>{row.feature}</td>
+                    <td className="text-center">
                       {row.gatetest ? (
-                        <span className="text-success font-bold text-base">&#10003;</span>
+                        <span className="text-[var(--v2-ok)] font-bold text-base">&#10003;</span>
                       ) : (
-                        <span className="text-muted">&#8212;</span>
+                        <span className="text-[var(--v2-muted)]">&#8212;</span>
                       )}
                     </td>
-                    <td className="px-5 py-3.5 text-center">
+                    <td className="text-center">
                       {row.competitor ? (
-                        <span className="text-success/70 font-bold text-base">&#10003;</span>
+                        <span className="text-[var(--v2-ok)]/70 font-bold text-base">&#10003;</span>
                       ) : (
-                        <span className="text-danger/70">&#10007;</span>
+                        <span className="text-[var(--v2-bad)]/70">&#10007;</span>
                       )}
                     </td>
                   </tr>
@@ -193,7 +190,7 @@ export default function GitHubCodeScanningPage() {
 
         {/* Key differentiators */}
         <section className="mb-16">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8">The complete picture</h2>
+          <h2 className="v2-h2 !text-2xl sm:!text-3xl mb-8">The complete picture</h2>
           <div className="grid sm:grid-cols-2 gap-5">
             {[
               {
@@ -226,7 +223,7 @@ export default function GitHubCodeScanningPage() {
 
         {/* FAQ */}
         <section className="mb-16">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8">Frequently asked questions</h2>
+          <h2 className="v2-h2 !text-2xl sm:!text-3xl mb-8">Frequently asked questions</h2>
           <div className="space-y-4">
             {faqItems.map((item) => (
               <div
