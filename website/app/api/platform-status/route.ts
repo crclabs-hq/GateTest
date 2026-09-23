@@ -5,6 +5,8 @@ import { siblingUrlMap } from "@/app/lib/platform-siblings";
 // CommonJS interop — helper is .js using require-style exports.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const tallrigPushEventStore = require("@/app/lib/tallrig-push-event-store");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pullDeployStatus = require("@/app/lib/pull-deploy-status");
 
 // Build-time stamp (website `prebuild` runs scripts/generate-build-info.js).
 // Env still wins if a deploy platform injects its own; otherwise the real git
@@ -39,6 +41,18 @@ export async function GET() {
     // still accurate, so it ships without the field rather than failing.
   }
 
+  // The box's own deploy status (issue #706) — scripts/deploy/pull-deploy.sh
+  // writes this on every tick. readLastPullDeploy() never throws (a missing
+  // or unreadable file is reported as `result: "unknown"`), but the try/catch
+  // stays for the same reason as lastTallrigDeploy above: a store this route
+  // doesn't own must never turn a healthy response into a 500.
+  let lastPullDeploy = { result: "unknown", reason: "status file not readable" };
+  try {
+    lastPullDeploy = pullDeployStatus.readLastPullDeploy();
+  } catch {
+    // not checked — see comment above.
+  }
+
   return NextResponse.json(
     {
       product: PRODUCT,
@@ -49,6 +63,7 @@ export async function GET() {
       timestamp: new Date().toISOString(),
       siblings: siblingUrlMap(),
       lastTallrigDeploy,
+      lastPullDeploy,
     },
     {
       headers: {
