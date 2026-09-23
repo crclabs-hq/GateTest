@@ -48,6 +48,17 @@ const INCIDENT_IMPACTS = Object.freeze(['none', 'minor', 'major']);
 
 /** A queued job older than this has been waiting too long — the worker is not keeping up. */
 const QUEUE_STALE_SECONDS = 900;
+/**
+ * No job activity for longer than this and an empty queue stop being
+ * "operational, just quiet" (issue #678 defect 4: the live page reported the
+ * scan worker as Operational while its own detail line read "Idle — last job
+ * activity 12 days ago" — Doctrine #1, reporting success while doing
+ * nothing). Past this ceiling the honest answer is the same one
+ * mapWebhooks() already gives a webhook that never delivered: "unknown", not
+ * a confident green — an empty queue this long cannot be told apart from a
+ * worker that stopped ticking.
+ */
+const WORKER_STALE_SECONDS = 24 * 60 * 60;
 /** How far back the incident list on /status reaches. */
 const INCIDENT_WINDOW_DAYS = 14;
 
@@ -228,6 +239,12 @@ function mapScanWorker(worker, queue, now) {
   }
   if (q && queued > 0) {
     return { state: 'operational', detail: `Processing — last job activity ${formatAge(now - last)}.` };
+  }
+  if (now - last > WORKER_STALE_SECONDS * 1000) {
+    return {
+      state: 'unknown',
+      detail: `No job activity in over a day (last ${formatAge(now - last)}) — cannot tell a quiet period from a stopped worker.`,
+    };
   }
   return { state: 'operational', detail: `Idle — last job activity ${formatAge(now - last)}.` };
 }
@@ -464,6 +481,7 @@ module.exports = {
   OVERALLS,
   INCIDENT_IMPACTS,
   QUEUE_STALE_SECONDS,
+  WORKER_STALE_SECONDS,
   INCIDENT_WINDOW_DAYS,
   UNKNOWN_DETAIL,
   summarisePublicStatus,
