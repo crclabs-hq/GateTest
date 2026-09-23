@@ -81,6 +81,24 @@ function hardFindingCount(data) {
     + (data.brokenStylesheets || []).length;
 }
 
+/**
+ * The one "Warnings" block shared by both RESULT branches below (issue
+ * #703) — printed regardless of ALL CLEAR/ISSUES FOUND, since a warning
+ * never flips that verdict (crawlResultLabel only looks at hard findings)
+ * but must never be silently uncounted either. One definition so the ALL
+ * CLEAR path (which used to say nothing else at all) and the ISSUES FOUND
+ * path can't render this differently.
+ */
+function pushWarningsSection(lines, warnings) {
+  if (!warnings || warnings.length === 0) return;
+  lines.push(`### Warnings (${warnings.length})`);
+  for (const w of warnings) {
+    const loc = w.url ? ` — ${w.url}` : '';
+    lines.push(`- **${w.module}**${loc}: ${w.message}`);
+  }
+  lines.push('');
+}
+
 /** The one-word verdict the markdown heading and the JSON `result` field both show. */
 function crawlResultLabel(data) {
   const clean = hardFindingCount(data) === 0
@@ -153,6 +171,19 @@ function buildCrawlFindings(data) {
       url: null,
     });
   }
+  // Every OTHER warning-severity check the crawl raised (issue #703) —
+  // duplicate titles, missing meta description/canonical, slow pages,
+  // broken anchor targets, the no-session auth wall. Read from `data.warnings`,
+  // the SAME array the text report's "Warnings" section prints from, so the
+  // JSON document can never disagree with the human-readable one.
+  for (const w of data.warnings || []) {
+    findings.push({
+      type: (w.key || 'warning').replace(/^crawl:/, ''),
+      severity: 'warning',
+      message: w.message || null,
+      url: w.url || null,
+    });
+  }
   return findings;
 }
 
@@ -171,6 +202,11 @@ function generateFeedbackReport(config, data) {
   const elapsedS = ((data.crawlElapsedMs || 0) / 1000).toFixed(1);
   const resultLabel = crawlResultLabel(data);
   const notChecked = notCheckedLine(data);
+  // Every non-blocking finding the crawl raised beyond hard errors and page
+  // timeouts (duplicate titles, missing meta/canonical, slow pages, broken
+  // anchor targets, the no-session auth wall) — the SAME array `warningChecks`
+  // counts, so the recap's "N warnings" always has text behind it (#703).
+  const warnings = data.warnings || [];
 
   const lines = [];
   lines.push('# GateTest Live Crawl Report');
@@ -192,6 +228,8 @@ function generateFeedbackReport(config, data) {
   if (resultLabel === 'ALL CLEAR') {
     lines.push('## RESULT: ALL CLEAR');
     lines.push('No errors, broken links, or broken images found.');
+    lines.push('');
+    pushWarningsSection(lines, warnings);
   } else {
     lines.push('## RESULT: ISSUES FOUND — FIX REQUIRED');
     lines.push('');
@@ -251,6 +289,8 @@ function generateFeedbackReport(config, data) {
       }
       lines.push('');
     }
+
+    pushWarningsSection(lines, warnings);
 
     lines.push('## ACTION REQUIRED');
     lines.push('Fix all issues listed above and run `gatetest --module liveCrawler` again.');
