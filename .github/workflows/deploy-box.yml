@@ -239,11 +239,21 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      # issues: write is for the "Production deploy stalled" issue only
+      # (issue #706 part 2) — every other step here only reads.
+      issues: write
     outputs:
       reason: ${{ steps.poll.outputs.reason }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Full history: the stalled-issue step below lists the merges
+          # between the box's live commit and this push with `git log
+          # --merges <live>..HEAD`.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -288,6 +298,74 @@ jobs:
           path: verify.json
           if-no-files-found: ignore
           retention-days: 14
+
+      # issue #706 part 2: on a stalled deploy, open or update ONE issue
+      # titled "Production deploy stalled" (label `ops`, assignee the repo
+      # owner) naming the reason, the unshipped merges, and the box command
+      # to run — closed automatically once a later push sees the box caught
+      # up. Deliberately separate from the `deploy-drift` issue the `verify`
+      # job below manages: that one asks "is the live commit behind main";
+      # this one asks "is the box's OWN pull-deploy.sh reporting failure",
+      # using the reason it already wrote to its status file
+      # (/api/platform-status `lastPullDeploy`) — a narrower signal that
+      # fires even when the live commit still looks acceptably fresh.
+      #
+      # "stalled" here means the poll step above genuinely FAILED (its
+      # 15-minute wait ran out) — not the "not checked: live endpoint
+      # exposes no commit" case, which also exits 0 but means the probe
+      # could not tell either way and must never be reported as "caught up"
+      # (Doctrine #1 — never report success while doing nothing).
+      - name: Report to the "Production deploy stalled" issue
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          POLL_OUTCOME: ${{ steps.poll.outcome }}
+          POLL_REASON: ${{ steps.poll.outputs.reason }}
+        run: |
+          STATUS_JSON=$(curl -s --max-time 20 https://gatetest.io/api/platform-status || echo '{}')
+          echo "$STATUS_JSON" > platform-status.json
+          LIVE_COMMIT=$(node -e "let d={};try{d=JSON.parse(require('fs').readFileSync('platform-status.json','utf8'))}catch{}; process.stdout.write(d.commit||'')")
+          PULL_RESULT=$(node -e "let d={};try{d=JSON.parse(require('fs').readFileSync('platform-status.json','utf8'))}catch{}; process.stdout.write((d.lastPullDeploy&&d.lastPullDeploy.result)||'')")
+          PULL_REASON=$(node -e "let d={};try{d=JSON.parse(require('fs').readFileSync('platform-status.json','utf8'))}catch{}; process.stdout.write((d.lastPullDeploy&&d.lastPullDeploy.reason)||'')" | tr -d '\r\n')
+
+          if [ "$POLL_OUTCOME" = "failure" ]; then
+            STATE="stalled"
+            if [ "$PULL_RESULT" = "failed" ] && [ -n "$PULL_REASON" ]; then
+              REASON="$PULL_REASON"
+            else
+              REASON="$POLL_REASON"
+            fi
+          elif [ "$POLL_OUTCOME" = "success" ] && [ -z "$POLL_REASON" ]; then
+            STATE="resolved"
+            REASON=""
+          else
+            # The ambiguous "not checked" case — genuinely unknown, never
+            # reported as either stalled or resolved.
+            echo "not checked: poll outcome ambiguous (outcome=$POLL_OUTCOME, reason=$POLL_REASON) — leaving any open deploy-stalled issue as-is"
+            exit 0
+          fi
+
+          if [ -n "$LIVE_COMMIT" ] && git cat-file -e "$LIVE_COMMIT" 2>/dev/null; then
+            git log --merges --oneline "$LIVE_COMMIT"..HEAD > merges.txt
+          else
+            : > merges.txt
+          fi
+          node -e "
+            const fs = require('fs');
+            const lines = fs.readFileSync('merges.txt', 'utf8').split('\n').filter(Boolean);
+            const out = lines.map((line) => {
+              const i = line.indexOf(' ');
+              return i === -1 ? { sha: line, subject: '' } : { sha: line.slice(0, i), subject: line.slice(i + 1) };
+            });
+            fs.writeFileSync('unshipped.json', JSON.stringify(out));
+          "
+
+          node scripts/ops/deploy-stalled-issue.js \
+            --state "$STATE" \
+            --reason "$REASON" \
+            --box-command "journalctl -u gatetest-pull-deploy -n 100 --no-pager" \
+            --source "deploy-box.yml poll-pull-deploy" \
+            --unshipped-file unshipped.json
 
   verify:
     # Runs after `deploy` (workflow_dispatch) or `poll-pull-deploy` (push),

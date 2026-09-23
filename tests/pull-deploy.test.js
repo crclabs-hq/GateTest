@@ -551,3 +551,24 @@ test('install-pull-deploy.sh installs the onfailure unit and chmods the onfailur
   assert.match(src, /gatetest-pull-deploy-onfailure\.service/);
   assert.match(src, /pull-deploy-onfailure\.sh/);
 });
+
+// ── issue #706 part 2: the "Production deploy stalled" issue ───────────────
+
+test('deploy-box.yml poll-pull-deploy job reports to the "Production deploy stalled" issue', () => {
+  let yaml;
+  try { yaml = require(path.join(ROOT, 'node_modules', 'js-yaml')); } catch { yaml = require('js-yaml'); }
+  const wf = yaml.load(fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'deploy-box.yml'), 'utf8'));
+  const job = wf.jobs['poll-pull-deploy'];
+  assert.equal(job.permissions.issues, 'write', 'needs issues: write to manage the stalled-deploy issue');
+  const checkout = job.steps.find((s) => /actions\/checkout@/.test(s.uses || ''));
+  assert.equal(checkout.with['fetch-depth'], 0, 'full history so unshipped merges can be listed');
+  const report = job.steps.find((s) => /deploy-stalled-issue\.js/.test(s.run || ''));
+  assert.ok(report, 'a step runs deploy-stalled-issue.js');
+  assert.equal(String(report.if), 'always()', 'reported whether the poll succeeded or failed');
+  assert.match(report.run, /--state "\$STATE"/);
+  assert.match(report.run, /STATE="stalled"/);
+  assert.match(report.run, /STATE="resolved"/);
+  assert.match(report.run, /not checked: poll outcome ambiguous/, 'the ambiguous "not checked" case is never reported as resolved');
+  assert.match(report.run, /--source "deploy-box\.yml poll-pull-deploy"/);
+  assert.ok(!/\|\|\s*true\b/.test(report.run), 'no swallowed-error pattern (bash-safety pipe-true)');
+});
