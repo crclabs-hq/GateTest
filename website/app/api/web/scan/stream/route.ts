@@ -88,6 +88,13 @@ function translateFinding(check: { name: string; severity?: string; message?: st
     module = "tlsSecurity"; title = "HTTPS / TLS issue"; body = check.message || "";
   } else if (name.startsWith("cookie-")) {
     module = "cookieSecurity"; title = "Cookie hardening missing"; body = check.message || "";
+  } else if (name.startsWith("cross-browser:")) {
+    // Issue #681 item 2: crossBrowser (src/modules/cross-browser.js) already
+    // follows the #659 rule — evidence (engine version + error text) in the
+    // message, or not-checked with a reason — but with no branch here the
+    // finding fell into the generic "general" fallback, which mangles the
+    // title via a naive `.split(":")`. Mirrors the non-streaming route.
+    module = "crossBrowser"; title = "Cross-browser rendering difference"; body = check.message || "";
   } else if (name.startsWith("runtime-errors:page-error") || name.startsWith("runtime-errors:initial-status")) {
     module = "runtimeErrors"; title = "JavaScript error on page load"; body = check.message || "";
   } else if (name.startsWith("runtime-errors:console-error")) {
@@ -222,28 +229,26 @@ export async function POST(req: NextRequest) {
           };
         };
 
-        // ONE shared fetch for the whole suite (issue #643): webHeaders,
-        // seo, accessibility and cookieSecurity all read this instead of
-        // each re-fetching the page, so `/api/scan/url` and this hosted
-        // scan can eventually agree on the same header/HTML check
-        // functions (src/modules/{web-headers,seo,accessibility,
-        // cookie-security}.js export the pure check fns for exactly that).
-        // A failed fetch here is not fatal — the runner still executes;
-        // the modules that need `config.livePage` report themselves
-        // `notChecked` when it's absent rather than fabricating a pass.
-        let livePage: { url: string; status: number; headers: Headers; html: string } | null = null;
-        try {
-          const pageController = new AbortController();
-          const pageTimer = setTimeout(() => pageController.abort(), 15000);
-          const pageRes = await fetch(targetUrl, {
-            signal: pageController.signal,
-            redirect: "follow",
-            headers: { "User-Agent": "GateTest/1.0 Web Scanner (gatetest.io)" },
-          });
-          clearTimeout(pageTimer);
-          const html = await pageRes.text().catch(() => "");
-          livePage = { url: pageRes.url || targetUrl, status: pageRes.status, headers: pageRes.headers, html };
-        } catch { /* error-ok — livePage stays null; affected modules report not-checked with a reason */ }
+        // ONE shared fetch for the whole suite (issue #643), and ONE shared
+        // definition (issue #681 item 1) of how it's wired onto the engine —
+        // `website/app/lib/live-scan-config.js`, used by both this route and
+        // the non-streaming `/api/web/scan` so the two routes cannot
+        // silently disagree about which modules a given URL scan checks.
+        // webHeaders, seo, accessibility and cookieSecurity all read the
+        // fetch result via `config.livePage` instead of each re-fetching the
+        // page. A failed fetch here is not fatal — the runner still
+        // executes; the modules that need `config.livePage` report
+        // themselves `notChecked` when it's absent rather than fabricating
+        // a pass.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { fetchLivePage, applyLiveScanConfig } = require("@/app/lib/live-scan-config") as {
+          fetchLivePage: (targetUrl: string, opts?: { timeoutMs?: number }) => Promise<{ url: string; status: number; headers: Headers; html: string } | null>;
+          applyLiveScanConfig: (
+            gt: { config: ({ set?: (k: string, v: unknown) => void; data?: Record<string, unknown> } & Record<string, unknown>) | undefined | null },
+            args: { targetUrl: string; livePage?: { url: string; status: number; headers: Headers; html: string } | null; sanitizedAuth?: { headers?: Record<string, string>; cookie?: string } | null }
+          ) => void;
+        };
+        const livePage = await fetchLivePage(targetUrl);
         // Module-level event forwarding via the new onProgress hook
         const gt = new GateTest(workspace, {
           silent: true,
@@ -300,23 +305,7 @@ export async function POST(req: NextRequest) {
           },
         });
         gt.init();
-        if (gt.config && typeof gt.config === "object") {
-          const c = gt.config as { set?: (k: string, v: unknown) => void; data?: Record<string, unknown> } & Record<string, unknown>;
-          if (typeof c.set === "function") {
-            c.set("targetUrl", targetUrl);
-            c.set("webUrl", targetUrl);
-          } else if (c.data) {
-            c.data.targetUrl = targetUrl;
-            c.data.webUrl = targetUrl;
-          }
-          // Direct property, not `.set()` — `.set()` nests under
-          // `config.config.livePage`, but every module reads
-          // `config.livePage` directly (see src/modules/base-module.js
-          // `_isUrlOnlyScan` for why `targetUrl` above needed `.get()`
-          // instead: two different existing conventions in this engine,
-          // and `livePage` is new so it gets the simpler one).
-          if (livePage) c.livePage = livePage;
-        }
+        applyLiveScanConfig(gt, { targetUrl, livePage });
         const summary = (await gt.init().runSuite("web")) as RawSummary;
 
         const allFindings: WebFinding[] = [];

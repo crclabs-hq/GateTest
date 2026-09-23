@@ -10,6 +10,9 @@ const http = require('http');
 const { URL } = require('url');
 const dns = require('dns');
 const tls = require('tls');
+// One definition of directive-aware `unsafe-inline` classification (issue
+// #681 item 3), shared with src/modules/web-headers.js's live header check.
+const { classifyUnsafeInline } = require('../core/csp-analyzer');
 
 // One definition of what the compression probe advertises. Without an
 // Accept-Encoding header a well-behaved server answers `identity` — that is
@@ -240,9 +243,19 @@ class ServerScanner {
     mod.checks++;
     const csp = headers['content-security-policy'];
     if (csp) {
-      if (csp.includes("'unsafe-inline'")) {
-        mod.issues++;
-        mod.details.push("warning: CSP contains 'unsafe-inline'");
+      // Directive-aware (issue #681 item 3): 'unsafe-inline' in script-src
+      // (or default-src when script-src is absent) is XSS-relevant and
+      // stays a warning; 'unsafe-inline' ONLY in style-src cannot execute
+      // script, so it drops to an info note naming the directive instead
+      // of the same warning a real inline-script hole gets.
+      const unsafeInline = classifyUnsafeInline(csp);
+      if (unsafeInline) {
+        if (unsafeInline.severity === 'warning') {
+          mod.issues++;
+          mod.details.push(`warning: CSP contains 'unsafe-inline' in ${unsafeInline.directive}`);
+        } else {
+          mod.details.push(`info: CSP contains 'unsafe-inline' in ${unsafeInline.directive} only — inline styles, not inline scripts, so this is lower risk`);
+        }
       }
       if (csp.includes("'unsafe-eval'")) {
         mod.issues++;

@@ -1,5 +1,5 @@
 ﻿import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { ChatWidget } from "./components/ChatWidget";
 import { SiteHeader, SiteFooter } from "./components/SiteChrome";
@@ -10,9 +10,24 @@ import { TOTAL_MODULES } from "@/app/lib/module-count";
 // Editorial display face for headlines — gives the marketing surfaces a
 // distinctive, premium voice without restyling body copy. Exposed as a CSS
 // variable so only elements that opt in (.font-display) use it.
-const displayFont = Bricolage_Grotesque({
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
+const displayFont = localFont({
+  src: [
+    {
+      path: "../public/fonts/bricolage-grotesque-latin-600-800.woff2",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/bricolage-grotesque-latin-600-800.woff2",
+      weight: "700",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/bricolage-grotesque-latin-600-800.woff2",
+      weight: "800",
+      style: "normal",
+    },
+  ],
   variable: "--font-display",
   display: "swap",
 });
