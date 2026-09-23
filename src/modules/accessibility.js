@@ -7,6 +7,7 @@ const BaseModule = require('./base-module');
 const fs = require('fs');
 const { repoRelative } = require('../core/repo-path');
 const { isNonUserFacingPage, isSpaShell, isImageRenderer } = require('../core/scan-scope');
+const { maskSource } = require('../core/source-strip');
 
 // Named CSS colors mapped to RGB values
 const NAMED_COLORS = {
@@ -296,8 +297,30 @@ class AccessibilityModule extends BaseModule {
     // Only a FULL document owns <html lang>: fragments/partials that merely
     // mention "<html" (or Thymeleaf `<html xmlns:th>` layout stubs with no
     // <head>) inherit it from the layout that wraps them.
-    const fullDocument = /<html[\s>]/i.test(content) && /<head[\s>]/i.test(content);
-    if (fullDocument && !/<html[^>]*\blang\s*=\s*["']\w/i.test(content) && !/lang\s*=\s*\{/.test(content)) {
+    //
+    // Match on the MASKED text first (src/core/source-strip.js — the one
+    // stripper shared with base-module.js's _maskedLines / secrets.js /
+    // typescript-strictness.js, Doctrine §4): a literal "<html" sitting
+    // inside a script string, a comment, or a query like
+    // `document.querySelector("html")` / `document.documentElement` is
+    // blanked before we ever look for the tag, so mentioning it in prose
+    // can't turn a component into a document. Issue #707: a JSDoc comment
+    // reading "stamps `data-theme` on <html>... first thing in <head>" fired
+    // this on ThemeToggle.tsx, a component that never renders <html>.
+    const masked = maskSource(content, relPath);
+    const htmlTagMatch = /<html[\s>]/i.exec(masked);
+    if (!htmlTagMatch || !/<head[\s>]/i.test(masked)) return;
+
+    // The lang value (and any `{expression}` form of it) lives inside a
+    // quoted string or a JSX hole, which the mask just blanked — read the
+    // real opening tag's attributes back from the RAW source at the masked
+    // match's own offset (source-strip.js is offset-preserving) instead of
+    // re-scanning `content` from scratch, so a second, unrelated "<html"
+    // elsewhere in the file can't supply the answer.
+    const tagEndsAt = content.indexOf('>', htmlTagMatch.index);
+    const rawTag = content.slice(htmlTagMatch.index, tagEndsAt === -1 ? content.length : tagEndsAt + 1);
+    const hasLang = /\blang\s*=\s*["']\w/i.test(rawTag) || /lang\s*=\s*\{/.test(rawTag);
+    if (!hasLang) {
       result.addCheck(`a11y:html-lang:${relPath}`, false, {
         file: relPath,
         message: 'Missing lang attribute on <html> element',
