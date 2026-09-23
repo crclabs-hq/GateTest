@@ -44,18 +44,73 @@ class LinksModule extends BaseModule {
     super('links', 'Broken Link Detection');
   }
 
+  /** One definition (Doctrine §4) of "did a prior module in this suite
+   *  already produce a real result?" — `config._allResults` is the
+   *  runner's array of completed TestResult instances for every module
+   *  that ran before this one (see GateTestRunner._runModule); sequential
+   *  suite order (src/core/config.js) puts `liveCrawler` before `links`
+   *  for exactly this reason (#681 item 4). */
+  _priorResult(config, moduleName) {
+    const all = config && config._allResults;
+    if (!Array.isArray(all)) return null;
+    return all.find((r) => r && r.module === moduleName) || null;
+  }
+
+  /** liveCrawler always emits `crawl:pages-scanned` once it actually
+   *  crawls (as opposed to an early "no URL configured" return, which
+   *  never reaches that check) — its presence is how we tell "the crawler
+   *  ran and produced real link data" from "the crawler didn't run at
+   *  all this scan" without re-deriving the crawl ourselves. */
+  _crawlSummary(crawlResult) {
+    const checks = Array.isArray(crawlResult && crawlResult.checks) ? crawlResult.checks : [];
+    const scanned = checks.find((c) => c.name === 'crawl:pages-scanned');
+    if (!scanned) return null;
+    const pagesMatch = /Crawled (\d+) page/.exec(scanned.message || '');
+    return {
+      pagesScanned: pagesMatch ? Number(pagesMatch[1]) : null,
+      broken: checks.find((c) => c.name === 'crawl:broken-links') || null,
+    };
+  }
+
+  /** Live mode, crawler data available: consume liveCrawler's already-
+   *  computed broken-link result instead of re-crawling (#681 item 4) —
+   *  the crawler already checked every link on every page it visited, so
+   *  reporting `links` as not-checked here was dishonest about coverage,
+   *  not just conservative. */
+  _runLiveFromCrawl(result, summary) {
+    const pagesNote = summary.pagesScanned ? ` (from the live crawl of ${summary.pagesScanned} page(s) on this scan)` : ' (from the live crawl on this scan)';
+    if (summary.broken) {
+      result.addCheck('links:live-broken-links', false, {
+        severity: summary.broken.severity || 'error',
+        message: `${summary.broken.message}${pagesNote}`,
+        details: summary.broken.details,
+        suggestion: summary.broken.suggestion || 'Fix or remove broken links.',
+      });
+    } else {
+      result.addCheck('links:live-clean', true, {
+        message: `No broken links found${pagesNote}`,
+      });
+    }
+  }
+
   async run(result, config) {
     const projectRoot = config.projectRoot;
 
     if (config && config.livePage) {
+      const crawlResult = this._priorResult(config, 'liveCrawler');
+      const crawlSummary = crawlResult && this._crawlSummary(crawlResult);
+      if (crawlSummary) {
+        this._runLiveFromCrawl(result, crawlSummary);
+        return;
+      }
       // The shared single-fetch `config.livePage` gives one page's HTML —
       // crawling the site's own links (same-origin anchors, HEAD checks,
-      // a request cap) is a live-crawl feature this module does not yet
-      // have; `liveCrawler` covers broken-link detection on the deployed
-      // site elsewhere in the `web` suite. Reporting a pass here (as the
-      // old "no template files" branch would, since there IS no
-      // projectRoot to walk) would fabricate a check that never ran.
-      this._notChecked(result, 'this module resolves link targets against files on disk — checking a live page\'s links needs its own crawl (same-origin anchors + HEAD requests), which this scan does not yet run here; see the liveCrawler module for deployed-site link checks');
+      // a request cap) needs `liveCrawler`'s own crawl, which either
+      // didn't run this scan or didn't produce a real result (not-checked
+      // itself, or not configured). Reporting a pass here (as the old "no
+      // template files" branch would, since there IS no projectRoot to
+      // walk) would fabricate a check that never ran.
+      this._notChecked(result, 'this module resolves link targets against files on disk — checking a live page\'s links needs the liveCrawler module\'s own crawl (same-origin anchors + HEAD requests), and liveCrawler did not produce a crawl result on this scan; see the liveCrawler module for deployed-site link checks');
       return;
     }
 
