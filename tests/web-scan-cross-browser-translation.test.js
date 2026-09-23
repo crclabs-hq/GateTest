@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * Issue #681 item 2 — a cross-browser failure claim reached a customer
- * report under module `general` instead of `crossBrowser`:
+ * Issue #681 item 2 / #695 — a cross-browser failure claim reached a
+ * customer report under module `general` instead of `crossBrowser`:
  *
  *   "https://tallrig.com fails to load in firefox but loads fine in
  *   chromium"
@@ -11,18 +11,25 @@
  * (engine version + runtime error text in the finding's own `message`, or
  * `_notChecked` with a reason when no engine could run — see
  * tests/cross-browser.test.js). The actual producer of the customer-facing
- * `WebFinding` shape is `translateFinding()` in each hosted web-scan
- * route, and NEITHER route's copy had a branch for the `cross-browser:`
- * check-name prefix — every `cross-browser:*` check fell through to the
- * generic `else` branch, which (a) mislabels `module` as `"general"` and
- * (b) mangles the title via a naive `message.split(":")` (the message's
- * own `https://` colon gets treated as a field separator).
+ * `WebFinding` shape is `translateFinding()`.
  *
- * The routes are Next.js server routes not practical to execute directly
- * in `node --test` (same rationale as the other web-scan-*.test.js files
- * in this repo) — this is a source-text contract test, plus a direct
- * behavioral proof that cross-browser.js's own evidence-rich message
- * would in fact be preserved verbatim once module routing is fixed.
+ * #687 gave the two WEB routes (`/api/web/scan`, `/api/web/scan/stream`) a
+ * `cross-browser:` branch but left each of the four hosted scan routes
+ * carrying its OWN copy of `translateFinding()` — so the two WP routes
+ * (`/api/wp/scan`, `/api/wp/scan/stream`) never got the fix: a
+ * cross-browser finding on a WordPress scan still fell into the generic
+ * "general" bucket and had its evidence-rich message mangled by a naive
+ * `message.split(":")` (the message's own `https://` colon gets treated as
+ * a field separator).
+ *
+ * #695 collapses all four copies into ONE shared, plain-.js module —
+ * `website/app/lib/scan-finding-translate.js` — imported by all four
+ * routes. Unlike the routes themselves (Next.js server routes not
+ * practical to execute directly in `node --test`), this module is a
+ * genuine standalone function, so this file tests it directly rather than
+ * via source-text pattern matching, then proves by source-text contract
+ * that every route actually imports it instead of re-inlining its own
+ * copy.
  */
 
 const { describe, it } = require('node:test');
@@ -30,74 +37,104 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 
+const { translateFinding } = require('../website/app/lib/scan-finding-translate.js');
+
 function read(rel) {
   return fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
 }
 
-for (const rel of ['website/app/api/web/scan/route.ts', 'website/app/api/web/scan/stream/route.ts']) {
-  describe(`${rel} — translateFinding routes cross-browser findings correctly (item 2)`, () => {
-    const src = read(rel);
+const ROUTES = [
+  'website/app/api/web/scan/route.ts',
+  'website/app/api/web/scan/stream/route.ts',
+  'website/app/api/wp/scan/route.ts',
+  'website/app/api/wp/scan/stream/route.ts',
+];
 
-    /** Slice out ONLY this branch's own body — from its `startsWith` test
-     *  up to (not including) the next `} else if (` — so assertions about
-     *  what this branch does/doesn't contain can't accidentally match a
-     *  sibling branch (e.g. the generic fallback's colon-split) that
-     *  happens to land inside a fixed-size window. */
-    function crossBrowserBranch() {
-      const idx = src.indexOf('name.startsWith("cross-browser:")');
-      assert.ok(idx > -1, 'no cross-browser: branch found');
-      const nextBranch = src.indexOf('} else if (', idx);
-      assert.ok(nextBranch > idx, 'could not find the end of the cross-browser: branch');
-      return src.slice(idx, nextBranch);
-    }
+// Reproduces the exact shape cross-browser.js emits (see
+// tests/cross-browser.test.js for the full module-level proof).
+const FIXTURE_MESSAGE =
+  'https://tallrig.com fails to load in firefox but loads fine in chromium (v141.0.7390.37). ' +
+  'Evidence: firefox v141.0.5790.13: net::ERR_CONNECTION_REFUSED at https://tallrig.com/';
 
-    it('has a dedicated branch for the cross-browser: check-name prefix', () => {
-      assert.match(src, /name\.startsWith\("cross-browser:"\)/);
+describe('scan-finding-translate.js — translateFinding routes cross-browser findings correctly (item 2)', () => {
+  it('maps a cross-browser: check to module "crossBrowser", never "general"', () => {
+    const finding = translateFinding({
+      name: 'cross-browser:navigation-broken',
+      severity: 'error',
+      message: FIXTURE_MESSAGE,
     });
-
-    it('the cross-browser: branch assigns module = "crossBrowser", never "general"', () => {
-      assert.match(crossBrowserBranch(), /module = "crossBrowser"/);
-    });
-
-    it('the cross-browser: branch preserves the full evidence-rich message as body, never truncating it', () => {
-      const block = crossBrowserBranch();
-      // Must NOT re-derive title/body from a naive colon-split — that's
-      // exactly what the generic fallback branch does, and is why the
-      // evidence used to be lost.
-      assert.match(block, /body = check\.message \|\| ""/);
-      // The generic fallback branch's actual code (not just prose mentioning
-      // it) re-derives `title` this way — the branch under test must not.
-      assert.ok(!/title = \(check\.message \|\| name\)\.split/.test(block), 'cross-browser branch must not use the generic colon-split fallback');
-    });
-
-    it('the cross-browser: branch appears before the generic fallback else', () => {
-      const branchIdx = src.indexOf('name.startsWith("cross-browser:")');
-      const fallbackIdx = src.lastIndexOf('} else {');
-      assert.ok(branchIdx > -1 && fallbackIdx > -1 && branchIdx < fallbackIdx);
-    });
+    assert.ok(finding, 'error-severity cross-browser check must produce a finding');
+    assert.equal(finding.module, 'crossBrowser');
   });
-}
 
-describe('cross-browser.js — the evidence this fix must not lose (control pair)', () => {
-  it('a navigation-broken finding message already carries engine name + version + error text (#659)', () => {
-    // Reproduces the exact shape cross-browser.js emits (see
-    // tests/cross-browser.test.js for the full module-level proof) so this
-    // file's routing-branch tests above are checked against something
-    // realistic, not a strawman.
-    const message =
-      'https://tallrig.com fails to load in firefox but loads fine in chromium (v141.0.7390.37). ' +
-      'Evidence: firefox v141.0.5790.13: net::ERR_CONNECTION_REFUSED at https://tallrig.com/';
-    const check = { name: 'cross-browser:navigation-broken', severity: 'error', message };
-
-    // Simulates exactly what the fixed translateFinding branch does:
-    // module = "crossBrowser"; body = check.message || "";
-    const body = check.message || '';
-    assert.equal(body, message);
-    assert.match(body, /firefox v141\.0\.5790\.13/);
-    assert.match(body, /ERR_CONNECTION_REFUSED/);
+  it('preserves the full evidence-rich message as body, never truncating it via the generic colon-split fallback', () => {
+    const finding = translateFinding({
+      name: 'cross-browser:navigation-broken',
+      severity: 'error',
+      message: FIXTURE_MESSAGE,
+    });
+    assert.equal(finding.body, FIXTURE_MESSAGE);
+    assert.match(finding.body, /firefox v141\.0\.5790\.13/);
+    assert.match(finding.body, /ERR_CONNECTION_REFUSED/);
     // The OLD generic-fallback title logic is what used to eat this —
-    // prove it really would have (the regression this test guards against).
-    const oldFallbackTitle = message.split(':').slice(0, 2).join(':');
-    assert.notEqual(oldFallbackTitle, message, 'sanity: the old fallback really did mangle this message');
+    // prove it really would have (the regression this fix guards against).
+    const oldFallbackTitle = FIXTURE_MESSAGE.split(':').slice(0, 2).join(':');
+    assert.notEqual(oldFallbackTitle, FIXTURE_MESSAGE, 'sanity: the old fallback really did mangle this message');
+  });
+
+  it('a warning-severity cross-browser finding is preserved the same way', () => {
+    const finding = translateFinding({
+      name: 'cross-browser:rendering-diff',
+      severity: 'warning',
+      message: 'Rendering diff evidence text',
+    });
+    assert.ok(finding);
+    assert.equal(finding.module, 'crossBrowser');
+    assert.equal(finding.severity, 'warning');
+    assert.equal(finding.body, 'Rendering diff evidence text');
+  });
+
+  it('an info-severity cross-browser check is dropped (not customer-facing), same as every other module', () => {
+    const finding = translateFinding({
+      name: 'cross-browser:probed',
+      severity: 'info',
+      message: 'probed 3 engines',
+    });
+    assert.equal(finding, null);
+  });
+});
+
+describe('all four hosted scan routes import translateFinding from the ONE shared module (Doctrine #4, issue #695)', () => {
+  for (const rel of ROUTES) {
+    it(`${rel} imports translateFinding from @/app/lib/scan-finding-translate`, () => {
+      const src = read(rel);
+      assert.match(src, /require\("@\/app\/lib\/scan-finding-translate"\)/);
+    });
+
+    it(`${rel} no longer carries its own inline translateFinding definition or cross-browser: branch`, () => {
+      const src = read(rel);
+      assert.ok(
+        !/function translateFinding\(/.test(src),
+        'route must not carry its own translateFinding definition — that is exactly the drift #695 closes'
+      );
+      assert.ok(
+        !/name\.startsWith\("cross-browser:"\)/.test(src),
+        'route must not re-inline the cross-browser: branch — it lives only in scan-finding-translate.js'
+      );
+    });
+  }
+});
+
+describe('cross-browser finding maps through the wp routes exactly as through the web routes (issue #695 acceptance test)', () => {
+  it('the fixture cross-browser finding maps to module crossBrowser with its evidence, identically for every route', () => {
+    const check = { name: 'cross-browser:navigation-broken', severity: 'error', message: FIXTURE_MESSAGE };
+    // All four routes (proven above, by source-text contract, to import
+    // the SAME function) now produce this exact result — there is
+    // structurally only one behavior possible, and this is it.
+    const finding = translateFinding(check);
+    assert.ok(finding);
+    assert.equal(finding.module, 'crossBrowser');
+    assert.equal(finding.body, FIXTURE_MESSAGE);
+    assert.equal(finding.title, 'Cross-browser rendering difference');
   });
 });

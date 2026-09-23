@@ -19,7 +19,7 @@
  * commits stale with /billing returning 404.
  */
 
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const { runReadinessProbe } = require('../../src/core/readiness-probe');
 
 const C = {
@@ -43,6 +43,16 @@ function localHead() {
   }
 }
 
+/**
+ * `deployAdapter(args)` -> trimmed stdout or throws — the adapter the
+ * deploy/fresh drift check (issue #683) uses to compare the live commit
+ * against origin/main. Actions checks out full history (fetch-depth: 0),
+ * so this always has something to compare against.
+ */
+function deployAdapter(args) {
+  return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+}
+
 (async () => {
   const baseUrl = arg('--base', 'https://gatetest.io');
   let expectedCommit = arg('--expect-commit', null);
@@ -56,7 +66,7 @@ function localHead() {
 
   let report;
   try {
-    report = await runReadinessProbe({ baseUrl, expectedCommit });
+    report = await runReadinessProbe({ baseUrl, expectedCommit, deployAdapter });
   } catch (err) {
     console.error(`readiness probe could not run: ${err.message}`);
     process.exit(2);

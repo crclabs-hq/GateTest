@@ -38,39 +38,51 @@ function read(rel) {
 }
 
 describe('web-scan/stream route — module:end says not-checked, not clean (item 1)', () => {
+  // Issue #699 extracted this route's inline module:end logic into the ONE
+  // shared `buildModuleEndEvent()` helper (also used by /api/wp/scan/stream)
+  // — the detailed toJSON()/notChecked-detection assertions that used to
+  // read this route's source now live against that shared file, in
+  // wp-scan-not-checked-stream.test.js. This block keeps the control that
+  // the route still actually calls the helper in its module:end branch.
   const src = read('website/app/api/web/scan/stream/route.ts');
+  const helperSrc = read('website/app/lib/scan-stream-events.js');
 
   it('reads the real TestResult#toJSON() shape instead of undefined properties off the live instance', () => {
-    assert.match(src, /raw\.toJSON\s*\(\s*\)/);
-    assert.match(src, /typeof raw\.toJSON === "function"/);
+    assert.match(helperSrc, /raw\.toJSON\s*\(\s*\)/);
+    assert.match(helperSrc, /typeof raw\.toJSON === 'function'/);
   });
 
   it('a module whose checks carry notChecked emits status "not-checked", never "checked"', () => {
-    assert.match(src, /notCheckedCheck\.message \|\| "not checked"/);
-    assert.match(src, /status: "not-checked"/);
-    assert.match(src, /status: "checked"/);
+    assert.match(helperSrc, /notCheckedCheck\.message \|\| 'not checked'/);
+    assert.match(helperSrc, /status: 'not-checked'/);
+    assert.match(helperSrc, /status: 'checked'/);
   });
 
   it('the not-checked branch returns before the clean-tick branch runs', () => {
+    const fnIdx = helperSrc.indexOf('function buildModuleEndEvent');
+    const notCheckedIdx = helperSrc.indexOf("status: 'not-checked'", fnIdx);
+    const checkedIdx = helperSrc.indexOf("status: 'checked'", fnIdx);
+    assert.ok(notCheckedIdx > -1 && checkedIdx > -1 && notCheckedIdx < checkedIdx);
+    // A `return` must separate them so a not-checked module never also
+    // produces the checked-branch event.
+    assert.match(helperSrc.slice(notCheckedIdx, checkedIdx), /return \{/);
+  });
+
+  it('the route delegates to the shared helper instead of carrying its own copy', () => {
+    assert.match(src, /require\("@\/app\/lib\/scan-stream-events"\)/);
     const idx = src.indexOf('if (event === "module:end")');
     assert.ok(idx > -1, 'module:end handler not found');
-    const body = src.slice(idx, idx + 2500);
-    const notCheckedIdx = body.indexOf('status: "not-checked"');
-    const checkedIdx = body.indexOf('status: "checked"');
-    assert.ok(notCheckedIdx > -1 && checkedIdx > -1 && notCheckedIdx < checkedIdx);
-    // A `return;` must separate them so a not-checked module never also
-    // sends the checked-branch event.
-    assert.match(body.slice(notCheckedIdx, checkedIdx), /return;/);
+    assert.match(src.slice(idx, idx + 700), /send\(event,\s*buildModuleEndEvent\(payload\)\)/);
   });
 });
 
 describe('web-scan/stream route — not-checked reason is module-scoped, not runtime-scoped (item 2)', () => {
-  const src = read('website/app/api/web/scan/stream/route.ts');
+  const helperSrc = read('website/app/lib/scan-stream-events.js');
 
   it('the module:end not-checked reason reads the check message, never the runtime gate', () => {
-    const idx = src.indexOf('if (event === "module:end")');
-    const notCheckedIdx = src.indexOf('status: "not-checked"', idx);
-    const block = src.slice(Math.max(0, notCheckedIdx - 400), notCheckedIdx + 900);
+    const fnIdx = helperSrc.indexOf('function buildModuleEndEvent');
+    const notCheckedIdx = helperSrc.indexOf("status: 'not-checked'", fnIdx);
+    const block = helperSrc.slice(Math.max(0, notCheckedIdx - 400), notCheckedIdx + 1400);
     assert.match(block, /notCheckedCheck\.message/);
     assert.ok(!/runtimeGate|gateRuntimeScan/.test(block), 'module-level reason must not reference the runtime dispatch gate');
   });

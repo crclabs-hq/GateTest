@@ -76,6 +76,12 @@ COPY --from=engine-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 # as its command).
 COPY --chown=nextjs:nodejs scripts/sandbox-worker.js ./scripts/
 
+# Dispatches `docker run <image> --project /repo --suite quick` (CLI-flag
+# arguments) to the bundled scan engine instead of the default website
+# server; anything else execs unchanged. See docker-entrypoint.sh.
+COPY --chown=nextjs:nodejs docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 USER nextjs
 
 ENV NODE_ENV=production
@@ -90,4 +96,5 @@ HEALTHCHECK --interval=10s --timeout=10s --start-period=30s --retries=6 \
 
 EXPOSE 3000
 WORKDIR /app/website
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "server.js"]

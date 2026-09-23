@@ -87,6 +87,9 @@ that payment happens; it's free the moment you add it to a repo.
 - AI-powered code review that reasons about the change, not just pattern
   matches
 - Auto-fix pull requests on the paid fix tiers — review the diff, merge
+  (needs an `ANTHROPIC_API_KEY` secret on the repo or org; optional —
+  without it GateTest still posts the free scan results, it just doesn't
+  open a fix PR, and it tells you how to add the secret when it would have)
 
 ### How it works
 1. **Install** — add GateTest to the repos you want covered.

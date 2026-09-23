@@ -8,7 +8,7 @@
 //   VS Code Marketplace   item page 200, gallery flags "validated, public"
 //   Open VSX              open-vsx.org/api/GateTestHQ/gatetest 200 at 1.1.3 — the registry
 //                         Cursor, Windsurf, VSCodium, Gitpod and Eclipse Theia read
-//   npm @gatetest/cli     1.61.0 (bare `npx @gatetest/cli` resolves only from 1.61.1 — use -p)
+//   npm @gatetest/cli     1.61.1 — bare `npx @gatetest/cli` resolves (the `cli` bin)
 //   GitHub Action         github.com/marketplace/actions/gatetest-quality-gate 200
 //   npm @gatetest/mcp-server 1.1.3 — linked via /mcp, which owns the install copy
 //   gatetest.io/web, /wp  200
@@ -78,7 +78,7 @@ export const SURFACES: Surface[] = [
     where: "In your terminal",
     title: "CLI on npm",
     pitch: "One command scans any folder and prints a verdict, the exact lines, and the fix for each. Open source, MIT.",
-    snippet: "npx -p @gatetest/cli gatetest --suite quick",
+    snippet: "npx --yes @gatetest/cli --suite quick",
     cta: { label: "@gatetest/cli on npm", href: NPM_CLI_URL, external: true },
     free: "Free forever. Runs offline.",
   },
