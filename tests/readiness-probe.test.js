@@ -305,6 +305,46 @@ describe('readiness probe — deploy/fresh compares against origin/main (issue #
     assert.match(stepNamed(withoutDeployedAt, 'deploy/fresh').detail, /last deploy time unknown/);
   });
 
+  // issue #706 part 4: "last deploy attempt: failed, <reason>, at <time>" —
+  // the box's OWN pull-deploy.sh status (lastPullDeploy, #706 part 1),
+  // printed only when that specific attempt failed.
+  it('prints "last deploy attempt: failed, <reason>, at <time>" when lastPullDeploy reports a failure', async () => {
+    const report = await run({
+      ...HEALTHY,
+      '/api/platform-status': {
+        status: 200,
+        body: JSON.stringify({
+          commit: 'abc123def4567', version: '1.61.1',
+          lastPullDeploy: { result: 'failed', reason: 'git fetch failed: fatal: could not read Username', at: '2026-09-23T02:28:00Z' },
+        }),
+      },
+    }, { deployAdapter: stubDeployAdapter({ mainSha: 'abc123def4567' }) });
+    assert.match(
+      stepNamed(report, 'deploy/fresh').detail,
+      /last deploy attempt: failed, git fetch failed: fatal: could not read Username, at 2026-09-23T02:28:00Z/,
+    );
+  });
+
+  it('says nothing extra when lastPullDeploy is healthy or unknown', async () => {
+    const deployed = await run({
+      ...HEALTHY,
+      '/api/platform-status': {
+        status: 200,
+        body: JSON.stringify({ commit: 'abc123def4567', version: '1.61.1', lastPullDeploy: { result: 'deployed', reason: '' } }),
+      },
+    }, { deployAdapter: stubDeployAdapter({ mainSha: 'abc123def4567' }) });
+    assert.doesNotMatch(stepNamed(deployed, 'deploy/fresh').detail, /last deploy attempt/);
+
+    const unknown = await run({
+      ...HEALTHY,
+      '/api/platform-status': {
+        status: 200,
+        body: JSON.stringify({ commit: 'abc123def4567', version: '1.61.1', lastPullDeploy: { result: 'unknown', reason: 'status file not readable' } }),
+      },
+    }, { deployAdapter: stubDeployAdapter({ mainSha: 'abc123def4567' }) });
+    assert.doesNotMatch(stepNamed(unknown, 'deploy/fresh').detail, /last deploy attempt/);
+  });
+
   it('falls back to the age-only signal when no adapter is available at all', async () => {
     // No deployAdapter passed — this is the pre-#683 behaviour, still
     // exercised so a caller without a git checkout (e.g. a laptop run
