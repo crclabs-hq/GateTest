@@ -298,24 +298,30 @@ body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-/* === CARDS === */
-
+/* === CARDS ===
+   Aligned onto the v2 tokens (issue #686 phase 2) so every page still using
+   the plain `.card` class (rather than the <Card> component from
+   website/app/components/v2/) gets the same look, and the same min-width: 0
+   overflow fix .v2-card carries — see the comment on .v2-card below for why
+   that fix exists. This is now byte-identical to .v2-card on purpose: the
+   two names can merge once every page has moved to the <Card> component. */
 .card {
-  background: var(--surface-solid);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: var(--shadow-sm);
+  background: var(--v2-bg-alt);
+  border: 1px solid var(--v2-line-strong);
+  border-radius: var(--v2-radius-lg);
+  min-width: 0;
+  transition: border-color var(--v2-motion-fast) ease;
 }
 
 .card:hover {
-  border-color: var(--border-strong);
+  border-color: var(--v2-accent);
 }
 
 .card-highlight {
-  background: var(--surface-solid);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-lg);
+  background: var(--v2-bg-alt);
+  border: 1px solid var(--v2-accent);
+  border-radius: var(--v2-radius-lg);
+  min-width: 0;
   box-shadow: none;
 }
 
@@ -369,14 +375,19 @@ body {
   border-radius: 50%;
 }
 
-/* === BUTTONS — solid, no gradients === */
-
+/* === BUTTONS — solid, no gradients ===
+   Aligned onto the v2 tokens (issue #686 phase 2): .btn-cta/.btn-secondary
+   now match <button className="v2-btn v2-btn-primary"> / "v2-btn" in
+   look and hover behaviour, for the many pages still using the class names
+   directly rather than the v2 components. This also removed the one literal
+   hex colour in this file (`.btn-cta:hover` used to hard-code #1f2937 for a
+   dark hover state that never adapted to light mode). */
 .btn-primary {
   background: var(--accent);
   color: white;
   font-weight: 600;
-  border-radius: 6px;
-  transition: background 0.15s ease;
+  border-radius: var(--v2-radius-sm);
+  transition: background var(--v2-motion-fast) ease;
   display: inline-block;
 }
 
@@ -389,30 +400,30 @@ body {
 }
 
 .btn-cta {
-  background: var(--foreground);
-  color: white;
+  background: var(--v2-fg);
+  color: var(--v2-bg);
   font-weight: 600;
-  border-radius: 6px;
-  transition: background 0.15s ease;
+  border-radius: var(--v2-radius-sm);
+  transition: opacity var(--v2-motion-fast) ease;
   display: inline-block;
 }
 
 .btn-cta:hover {
-  background: #1f2937;
+  opacity: 0.88;
 }
 
 .btn-secondary {
   background: transparent;
-  border: 1px solid var(--border-strong);
-  color: var(--foreground);
+  border: 1px solid var(--v2-line-strong);
+  color: var(--v2-fg);
   font-weight: 600;
-  border-radius: 6px;
-  transition: border-color 0.15s ease;
+  border-radius: var(--v2-radius-sm);
+  transition: border-color var(--v2-motion-fast) ease;
   display: inline-block;
 }
 
 .btn-secondary:hover {
-  border-color: var(--foreground);
+  border-color: var(--v2-fg);
 }
 
 /* === BADGE === */

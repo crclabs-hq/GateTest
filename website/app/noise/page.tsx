@@ -81,34 +81,34 @@ export default async function NoisePage() {
               <h2 className={`${label} text-accent`}>
                 Silenced rate — last {read.windowDays} days, {agg.scans} scans
               </h2>
-              <div className="overflow-x-auto rounded-xl border border-border">
-                <table className="w-full min-w-[720px] text-sm">
+              <div className="overflow-x-auto">
+                <table className="v2-table min-w-[720px]">
                   <thead>
-                    <tr className="border-b border-border bg-surface-light text-left text-muted">
-                      <th className="px-4 py-3 font-medium">Rule</th>
-                      <th className="px-4 py-3 font-medium text-right">Scans</th>
-                      <th className="px-4 py-3 font-medium text-right">Fired</th>
-                      <th className="px-4 py-3 font-medium text-right">Silenced</th>
-                      <th className="px-4 py-3 font-medium text-right">Silenced rate</th>
-                      <th className="px-4 py-3 font-medium text-right">Scans that silenced it</th>
+                    <tr>
+                      <th>Rule</th>
+                      <th className="text-right">Scans</th>
+                      <th className="text-right">Fired</th>
+                      <th className="text-right">Silenced</th>
+                      <th className="text-right">Silenced rate</th>
+                      <th className="text-right">Scans that silenced it</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ranked.map((r) => (
-                      <tr key={r.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-3 font-mono text-foreground">{r.id}</td>
-                        <td className="px-4 py-3 font-mono text-right tabular-nums text-foreground-secondary">{r.scans}</td>
-                        <td className="px-4 py-3 font-mono text-right tabular-nums text-foreground-secondary">{r.fired}</td>
-                        <td className="px-4 py-3 font-mono text-right tabular-nums text-foreground-secondary">{r.silenced}</td>
-                        <td className={`px-4 py-3 font-mono text-right tabular-nums ${r.silencedRate > 0.2 ? "text-danger" : "text-success"}`}>
+                      <tr key={r.id}>
+                        <td className="v2-mono">{r.id}</td>
+                        <td className="v2-mono text-right">{r.scans}</td>
+                        <td className="v2-mono text-right">{r.fired}</td>
+                        <td className="v2-mono text-right">{r.silenced}</td>
+                        <td className={`v2-mono text-right ${r.silencedRate > 0.2 ? "text-[var(--v2-bad)]" : "text-[var(--v2-ok)]"}`}>
                           {pct(r.silencedRate)}
                         </td>
-                        <td className="px-4 py-3 font-mono text-right tabular-nums text-foreground-secondary">{pct(r.silencedScanRate)}</td>
+                        <td className="v2-mono text-right">{pct(r.silencedScanRate)}</td>
                       </tr>
                     ))}
                     {ranked.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-4 py-6 text-muted">
+                        <td colSpan={6} className="text-[var(--v2-muted)]">
                           No rule has reached {agg.minScans} scans yet; {thin.length} rule(s) are below the line.
                         </td>
                       </tr>

@@ -66,18 +66,16 @@ const h2hGenerated = new Date(headToHead.generatedAt);
 const h2hMeasured = headToHead.repos.length;
 const h2hCorpus = headToHead.corpusSize;
 const cellClass: Record<string, string> = {
-  clean: "text-success",
-  measured: "text-foreground",
-  failed: "text-warning",
-  unavailable: "text-muted italic",
-  "not-measured": "text-muted italic",
-  "not-run": "text-muted italic",
+  clean: "text-[var(--v2-ok)]",
+  measured: "text-[var(--v2-fg)]",
+  failed: "text-[var(--v2-warn)]",
+  unavailable: "text-[var(--v2-muted)] italic",
+  "not-measured": "text-[var(--v2-muted)] italic",
+  "not-run": "text-[var(--v2-muted)] italic",
 };
 
-const label = "text-xs font-mono uppercase tracking-[0.13em] text-accent mb-4";
-const headRow = "border-b border-border bg-surface-light text-left text-muted";
-const bodyRow = "border-b border-border last:border-0";
-const numCell = "px-4 py-3 font-mono text-right tabular-nums";
+const label = "v2-kicker text-[var(--v2-accent)] mb-4";
+const numCell = "v2-mono text-right";
 
 export default function PrecisionPage() {
   return (
@@ -112,29 +110,29 @@ export default function PrecisionPage() {
       <Section>
         <section>
           <h2 className={label}>Precision — clean code must pass</h2>
-          <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full min-w-[640px] text-sm">
+          <div className="overflow-x-auto">
+            <table className="v2-table min-w-[640px]">
               <thead>
-                <tr className={headRow}>
-                  <th className="px-4 py-3 font-medium">Repository</th>
-                  <th className="px-4 py-3 font-medium">Commit</th>
-                  <th className="px-4 py-3 font-medium text-right">Blocking</th>
-                  <th className="px-4 py-3 font-medium text-right">Ceiling</th>
-                  <th className="px-4 py-3 font-medium">Why it is in the corpus</th>
+                <tr>
+                  <th>Repository</th>
+                  <th>Commit</th>
+                  <th className="text-right">Blocking</th>
+                  <th className="text-right">Ceiling</th>
+                  <th>Why it is in the corpus</th>
                 </tr>
               </thead>
               <tbody>
                 {precisionRows.map((r) => (
-                  <tr key={r.name} className={bodyRow}>
-                    <td className="px-4 py-3 font-medium text-foreground">{r.name}</td>
-                    <td className="px-4 py-3 font-mono text-muted">
-                      <a href={commitUrl(r)} className="hover:text-accent transition-colors" rel="noopener">
+                  <tr key={r.name}>
+                    <td className="font-medium">{r.name}</td>
+                    <td className="v2-mono text-[var(--v2-muted)]">
+                      <a href={commitUrl(r)} className="hover:text-[var(--v2-accent)] transition-colors" rel="noopener">
                         {r.sha.slice(0, 8)}
                       </a>
                     </td>
-                    <td className={`${numCell} ${r.blocking === 0 ? "text-success" : "text-foreground"}`}>{r.blocking}</td>
-                    <td className={`${numCell} text-muted`}>{r.ceiling}</td>
-                    <td className="px-4 py-3 text-foreground-secondary max-w-[38ch]">{r.why}</td>
+                    <td className={`${numCell} ${r.blocking === 0 ? "text-[var(--v2-ok)]" : "text-[var(--v2-fg)]"}`}>{r.blocking}</td>
+                    <td className={`${numCell} text-[var(--v2-muted)]`}>{r.ceiling}</td>
+                    <td className="max-w-[38ch]">{r.why}</td>
                   </tr>
                 ))}
               </tbody>
@@ -148,27 +146,27 @@ export default function PrecisionPage() {
             Precision alone is satisfied by a scanner that reports nothing. So a deliberately vulnerable
             application is held to a <em>floor</em>: if it ever stops failing, the gate goes red.
           </p>
-          <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full min-w-[520px] text-sm">
+          <div className="overflow-x-auto">
+            <table className="v2-table min-w-[520px]">
               <thead>
-                <tr className={headRow}>
-                  <th className="px-4 py-3 font-medium">Repository</th>
-                  <th className="px-4 py-3 font-medium">Commit</th>
-                  <th className="px-4 py-3 font-medium text-right">Blocking</th>
-                  <th className="px-4 py-3 font-medium text-right">Floor</th>
+                <tr>
+                  <th>Repository</th>
+                  <th>Commit</th>
+                  <th className="text-right">Blocking</th>
+                  <th className="text-right">Floor</th>
                 </tr>
               </thead>
               <tbody>
                 {recallRows.map((r) => (
-                  <tr key={r.name} className={bodyRow}>
-                    <td className="px-4 py-3 font-medium text-foreground">{r.name}</td>
-                    <td className="px-4 py-3 font-mono text-muted">
-                      <a href={commitUrl(r)} className="hover:text-accent transition-colors" rel="noopener">
+                  <tr key={r.name}>
+                    <td className="font-medium">{r.name}</td>
+                    <td className="v2-mono text-[var(--v2-muted)]">
+                      <a href={commitUrl(r)} className="hover:text-[var(--v2-accent)] transition-colors" rel="noopener">
                         {r.sha.slice(0, 8)}
                       </a>
                     </td>
-                    <td className={`${numCell} text-danger`}>{r.blocking}</td>
-                    <td className={`${numCell} text-muted`}>{r.floor}</td>
+                    <td className={`${numCell} text-[var(--v2-bad)]`}>{r.blocking}</td>
+                    <td className={`${numCell} text-[var(--v2-muted)]`}>{r.floor}</td>
                   </tr>
                 ))}
               </tbody>
@@ -196,38 +194,38 @@ export default function PrecisionPage() {
             {h2hMeasured} of {h2hCorpus} corpus repositories measured on{" "}
             {h2hGenerated.toISOString().slice(0, 10)} with GateTest <code className="font-mono">--suite {headToHead.suite}</code>.
           </p>
-          <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full min-w-[960px] text-sm">
+          <div className="overflow-x-auto">
+            <table className="v2-table min-w-[960px]">
               <thead>
-                <tr className={headRow}>
-                  <th className="px-4 py-3 font-medium">Repository</th>
-                  <th className="px-4 py-3 font-medium">Language</th>
+                <tr>
+                  <th>Repository</th>
+                  <th>Language</th>
                   {h2h.columns.map((c) => (
-                    <th key={c.key} className="px-4 py-3 font-medium">
+                    <th key={c.key}>
                       {c.label}
-                      {c.version ? <span className="ml-2 font-mono text-[11px] text-muted">v{c.version}</span> : null}
+                      {c.version ? <span className="ml-2 v2-mono text-[11px] text-[var(--v2-muted)]">v{c.version}</span> : null}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {h2h.rows.map((r) => (
-                  <tr key={r.name} className={bodyRow}>
-                    <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
+                  <tr key={r.name}>
+                    <td className="font-medium whitespace-nowrap">
                       {r.name}{" "}
                       <a
                         href={`${r.url.replace(/\.git$/, "")}/commit/${r.sha}`}
-                        className="ml-1 font-mono text-[11px] text-muted hover:text-accent transition-colors"
+                        className="ml-1 v2-mono text-[11px] text-[var(--v2-muted)] hover:text-[var(--v2-accent)] transition-colors"
                         rel="noopener"
                       >
                         {r.sha.slice(0, 8)}
                       </a>
                     </td>
-                    <td className="px-4 py-3 text-foreground-secondary whitespace-nowrap">{r.language}</td>
+                    <td className="whitespace-nowrap">{r.language}</td>
                     {r.cells.map((cell, i) => (
-                      <td key={h2h.columns[i].key} className={`px-4 py-3 align-top ${cellClass[cell.kind] ?? "text-foreground"}`}>
-                        <span className="font-mono tabular-nums">{cell.text}</span>
-                        {cell.detail ? <span className="ml-2 text-[11px] text-muted">{cell.detail}</span> : null}
+                      <td key={h2h.columns[i].key} className={`align-top ${cellClass[cell.kind] ?? "text-[var(--v2-fg)]"}`}>
+                        <span className="v2-mono">{cell.text}</span>
+                        {cell.detail ? <span className="ml-2 text-[11px] text-[var(--v2-muted)]">{cell.detail}</span> : null}
                       </td>
                     ))}
                   </tr>
@@ -235,7 +233,7 @@ export default function PrecisionPage() {
               </tbody>
             </table>
           </div>
-          <p className="mt-4 text-sm text-muted max-w-[66ch] leading-relaxed">
+          <p className="mt-4 text-sm text-[var(--v2-muted)] max-w-[66ch] leading-relaxed">
             Generated {h2hGenerated.toISOString().slice(0, 10)} by{" "}
             <code className="font-mono">{headToHead.source}</code> on engine v{headToHead.engineVersion}. Every tool
             saw the same bytes; a run that hit the time box is written as timed out with the seconds it used, and a
@@ -255,30 +253,30 @@ export default function PrecisionPage() {
           </p>
           {calibration ? (
             <>
-              <div className="overflow-x-auto rounded-xl border border-border">
-                <table className="w-full min-w-[520px] text-sm">
+              <div className="overflow-x-auto">
+                <table className="v2-table min-w-[520px]">
                   <thead>
-                    <tr className={headRow}>
-                      <th className="px-4 py-3 font-medium">Block at confidence ≥</th>
-                      <th className="px-4 py-3 font-medium text-right">Blocking on clean repos</th>
-                      <th className="px-4 py-3 font-medium text-right">Still caught on NodeGoat</th>
+                    <tr>
+                      <th>Block at confidence ≥</th>
+                      <th className="text-right">Blocking on clean repos</th>
+                      <th className="text-right">Still caught on NodeGoat</th>
                     </tr>
                   </thead>
                   <tbody>
                     {calibration.sweep.map((s) => (
-                      <tr key={s.threshold} className={`${bodyRow} ${s.shipped ? "bg-accent/10" : ""}`}>
-                        <td className="px-4 py-3 font-mono tabular-nums text-foreground">
+                      <tr key={s.threshold} className={s.shipped ? "bg-[var(--v2-accent)]/10" : ""}>
+                        <td className="v2-mono">
                           {s.threshold.toFixed(2)}
-                          {s.shipped && <span className="ml-2 text-[11px] uppercase tracking-[0.08em] text-accent">shipped</span>}
+                          {s.shipped && <span className="ml-2 text-[11px] uppercase tracking-[0.08em] text-[var(--v2-accent)]">shipped</span>}
                         </td>
-                        <td className={`${numCell} text-foreground-secondary`}>{s.precisionBlocking}</td>
-                        <td className={`${numCell} text-danger`}>{s.recallBlocking}</td>
+                        <td className={numCell}>{s.precisionBlocking}</td>
+                        <td className={`${numCell} text-[var(--v2-bad)]`}>{s.recallBlocking}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <p className="mt-4 text-sm text-muted max-w-[66ch] leading-relaxed">
+              <p className="mt-4 text-sm text-[var(--v2-muted)] max-w-[66ch] leading-relaxed">
                 Confidence is not a continuum: this run produced only{" "}
                 {calibration.bands.length} distinct values (
                 {calibration.bands.map((b) => b.confidence.toFixed(2)).join(", ")}). The shipped threshold

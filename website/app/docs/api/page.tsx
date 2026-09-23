@@ -95,9 +95,9 @@ const result = await res.json();
 if (result.totalIssues > 0) process.exit(1);`;
 
 // Code samples are what the terminal shows, so they stay dark panels.
-const CODE = "rounded-xl bg-panel text-panel-foreground border border-panel-border p-4 text-xs font-mono overflow-x-auto";
-const H2 = "font-display text-2xl font-bold text-foreground mb-3";
-const H3 = "text-lg font-semibold text-foreground mb-2";
+const CODE = "term text-xs overflow-x-auto p-4";
+const H2 = "v2-h2 !text-2xl mb-3";
+const H3 = "text-lg font-semibold text-[var(--v2-fg)] mb-2";
 
 export default function ApiDocs() {
   return (
@@ -122,7 +122,7 @@ export default function ApiDocs() {
             with <code className="font-mono text-sm">gt_live_</code> and are issued from
             the admin console. Only the hash is stored — keep the plaintext safe.
           </p>
-          <div className="card p-4 text-xs text-muted">
+          <div className="v2-callout text-xs">
             Request a key: email <a className="text-accent hover:underline" href="mailto:support@gatetest.io">support@gatetest.io</a>
             {" "}with your platform name and expected scan volume.
           </div>
@@ -139,40 +139,40 @@ export default function ApiDocs() {
           </p>
 
           <h3 className={H3}>Request body</h3>
-          <div className="card overflow-x-auto mb-6">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto mb-6">
+            <table className="v2-table">
               <thead>
-                <tr className="border-b border-border section-alt">
-                  <th className="text-left px-4 py-2 font-medium">Field</th>
-                  <th className="text-left px-4 py-2 font-medium">Type</th>
-                  <th className="text-left px-4 py-2 font-medium">Required</th>
-                  <th className="text-left px-4 py-2 font-medium">Notes</th>
+                <tr>
+                  <th>Field</th>
+                  <th>Type</th>
+                  <th>Required</th>
+                  <th>Notes</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2 font-mono text-xs">repo_url</td>
-                  <td className="px-4 py-2 text-xs">string</td>
-                  <td className="px-4 py-2 text-xs">mode A</td>
-                  <td className="px-4 py-2 text-xs text-muted">github.com URL — GateTest reads the repo via API</td>
-                </tr>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2 font-mono text-xs">files</td>
-                  <td className="px-4 py-2 text-xs">{`{path, content}[]`}</td>
-                  <td className="px-4 py-2 text-xs">mode B</td>
-                  <td className="px-4 py-2 text-xs text-muted">Direct upload — send file contents inline (max 100 files, 500 KB each)</td>
-                </tr>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2 font-mono text-xs">project</td>
-                  <td className="px-4 py-2 text-xs">string</td>
-                  <td className="px-4 py-2 text-xs">no</td>
-                  <td className="px-4 py-2 text-xs text-muted">Label for direct uploads (e.g. &quot;zoobicon&quot;)</td>
+                <tr>
+                  <td className="v2-mono text-xs">repo_url</td>
+                  <td className="text-xs">string</td>
+                  <td className="text-xs">mode A</td>
+                  <td className="text-xs text-[var(--v2-muted)]">github.com URL — GateTest reads the repo via API</td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-2 font-mono text-xs">tier</td>
-                  <td className="px-4 py-2 text-xs">string</td>
-                  <td className="px-4 py-2 text-xs">no</td>
-                  <td className="px-4 py-2 text-xs text-muted">
+                  <td className="v2-mono text-xs">files</td>
+                  <td className="text-xs">{`{path, content}[]`}</td>
+                  <td className="text-xs">mode B</td>
+                  <td className="text-xs text-[var(--v2-muted)]">Direct upload — send file contents inline (max 100 files, 500 KB each)</td>
+                </tr>
+                <tr>
+                  <td className="v2-mono text-xs">project</td>
+                  <td className="text-xs">string</td>
+                  <td className="text-xs">no</td>
+                  <td className="text-xs text-[var(--v2-muted)]">Label for direct uploads (e.g. &quot;zoobicon&quot;)</td>
+                </tr>
+                <tr>
+                  <td className="v2-mono text-xs">tier</td>
+                  <td className="text-xs">string</td>
+                  <td className="text-xs">no</td>
+                  <td className="text-xs text-[var(--v2-muted)]">
                     <code className="font-mono">quick</code> (default, 4 modules) or{" "}
                     <code className="font-mono">full</code> (the in-memory engine&apos;s full tier, ~23 modules — the deep {FULL_SUITE_MODULES}-module CLI-engine suite runs on paid website scans and the CLI/Action). Key must be
                     entitled.
@@ -205,31 +205,31 @@ export default function ApiDocs() {
 
         <section className="mb-12">
           <h2 className={H2}>Module statuses</h2>
-          <div className="card overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="v2-table">
               <thead>
-                <tr className="border-b border-border section-alt">
-                  <th className="text-left px-4 py-2 font-medium">Status</th>
-                  <th className="text-left px-4 py-2 font-medium">Meaning</th>
+                <tr>
+                  <th>Status</th>
+                  <th>Meaning</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2 font-mono text-xs text-success">passed</td>
-                  <td className="px-4 py-2 text-xs text-muted">
+                <tr>
+                  <td className="v2-mono text-xs text-[var(--v2-ok)]">passed</td>
+                  <td className="text-xs text-[var(--v2-muted)]">
                     Module ran, performed at least 1 check, found 0 issues.
                   </td>
                 </tr>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2 font-mono text-xs text-danger">failed</td>
-                  <td className="px-4 py-2 text-xs text-muted">
+                <tr>
+                  <td className="v2-mono text-xs text-[var(--v2-bad)]">failed</td>
+                  <td className="text-xs text-[var(--v2-muted)]">
                     Module found ≥ 1 issue (see <code>details</code>) or threw during
                     execution.
                   </td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-2 font-mono text-xs text-muted">skipped</td>
-                  <td className="px-4 py-2 text-xs text-muted">
+                  <td className="v2-mono text-xs text-[var(--v2-muted)]">skipped</td>
+                  <td className="text-xs text-[var(--v2-muted)]">
                     Module could not run honestly (e.g. missing config, nothing to
                     inspect). <code>skipped</code> field explains why. Never treated as a
                     pass.
@@ -242,42 +242,42 @@ export default function ApiDocs() {
 
         <section className="mb-12">
           <h2 className={H2}>Errors</h2>
-          <div className="card overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="v2-table">
               <thead>
-                <tr className="border-b border-border section-alt">
-                  <th className="text-left px-4 py-2 font-medium">HTTP</th>
-                  <th className="text-left px-4 py-2 font-medium">Reason</th>
+                <tr>
+                  <th>HTTP</th>
+                  <th>Reason</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2 font-mono text-xs">400</td>
-                  <td className="px-4 py-2 text-xs text-muted">Missing or malformed body / repo_url / tier.</td>
+                <tr>
+                  <td className="v2-mono text-xs">400</td>
+                  <td className="text-xs text-[var(--v2-muted)]">Missing or malformed body / repo_url / tier.</td>
                 </tr>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2 font-mono text-xs">401</td>
-                  <td className="px-4 py-2 text-xs text-muted">Missing or invalid API key.</td>
+                <tr>
+                  <td className="v2-mono text-xs">401</td>
+                  <td className="text-xs text-[var(--v2-muted)]">Missing or invalid API key.</td>
                 </tr>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2 font-mono text-xs">403</td>
-                  <td className="px-4 py-2 text-xs text-muted">Key revoked, or tier not entitled on this key.</td>
+                <tr>
+                  <td className="v2-mono text-xs">403</td>
+                  <td className="text-xs text-[var(--v2-muted)]">Key revoked, or tier not entitled on this key.</td>
                 </tr>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2 font-mono text-xs">429</td>
-                  <td className="px-4 py-2 text-xs text-muted">
+                <tr>
+                  <td className="v2-mono text-xs">429</td>
+                  <td className="text-xs text-[var(--v2-muted)]">
                     Rate limit exceeded. Response body includes{" "}
                     <code className="font-mono">rate_limit_per_hour</code>. Respect{" "}
                     <code className="font-mono">Retry-After</code>.
                   </td>
                 </tr>
-                <tr className="border-b border-border">
-                  <td className="px-4 py-2 font-mono text-xs">500</td>
-                  <td className="px-4 py-2 text-xs text-muted">Scan crashed — retry with the same idempotency key is safe.</td>
+                <tr>
+                  <td className="v2-mono text-xs">500</td>
+                  <td className="text-xs text-[var(--v2-muted)]">Scan crashed — retry with the same idempotency key is safe.</td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-2 font-mono text-xs">502</td>
-                  <td className="px-4 py-2 text-xs text-muted">
+                  <td className="v2-mono text-xs">502</td>
+                  <td className="text-xs text-[var(--v2-muted)]">
                     Could not access the GitHub repo. Usually means private repo without
                     a GateTest GitHub App install.
                   </td>

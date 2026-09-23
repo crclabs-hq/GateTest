@@ -171,18 +171,18 @@ export default function BadgePage() {
       </Section>
 
       <Section alt narrow title="Badge API">
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+          <table className="v2-table">
             <thead>
-              <tr className="border-b border-border">
-                <th className="text-left px-5 py-3 text-xs text-muted font-mono uppercase tracking-widest">Parameter</th>
-                <th className="text-left px-5 py-3 text-xs text-muted font-mono uppercase tracking-widest">Description</th>
+              <tr>
+                <th>Parameter</th>
+                <th>Description</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody>
               <tr>
-                <td className="px-5 py-3 font-mono text-xs text-accent">repo</td>
-                <td className="px-5 py-3 text-xs text-muted">GitHub repo in <code className="font-mono">owner/name</code> format (required). Shows <code className="font-mono">not scanned</code> until a scan is on record.</td>
+                <td className="v2-mono text-xs text-[var(--v2-accent)]">repo</td>
+                <td className="text-xs text-[var(--v2-muted)]">GitHub repo in <code className="font-mono">owner/name</code> format (required). Shows <code className="font-mono">not scanned</code> until a scan is on record.</td>
               </tr>
             </tbody>
           </table>
