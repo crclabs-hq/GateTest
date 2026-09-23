@@ -179,6 +179,26 @@ const SEQUENTIAL_RUN = 8;
 const IDENTIFIER_KEYED_TYPES = new Set(['API Key', 'Password/Secret', 'Token']);
 
 /**
+ * RFC 6749's own vocabulary is not a credential (#682, Gluecron):
+ *
+ *   scripts/doctor.ts:124
+ *       const badRefresh = await jpost("/oauth/token",
+ *         { grant_type: "refresh_token", refresh_token: "<a real-looking test value>" })
+ *
+ * `refresh_token`, `authorization_code`, `client_credentials`, `password`,
+ * `bearer`, `code` and `token` are the well-known enum values OAuth defines
+ * for a `grant_type` / `token_type` / `response_type` field — the STRING
+ * naming the flow, never a secret that authenticates anything. A line that
+ * names one of those three fields and whose matched value IS one of those
+ * seven words, in any case, is a protocol constant beside the credential the
+ * line is actually about — not the credential itself.
+ */
+const OAUTH_ENUM_VALUES = new Set([
+  'refresh_token', 'authorization_code', 'client_credentials', 'password', 'bearer', 'code', 'token',
+]);
+const OAUTH_FIELD_RE = /\b(?:grant_type|token_type|response_type)\s*[:=]/i;
+
+/**
  * A value that NAMES something is not a credential (corpus, 2026-09-14):
  *
  *   django/django  docs/_ext/djangodocs.py:290
@@ -449,6 +469,28 @@ class SecretsModule extends BaseModule {
     if (isCredentialShaped(value)) return false;
     if (FILENAME_VALUE_RE.test(value)) return true;
     return LABEL_VALUE_RE.test(value) && LABEL_CREDENTIAL_WORD_RE.test(value);
+  }
+
+  /**
+   * True when an identifier-keyed match's value is a well-known OAuth
+   * grant-type / token-type / response-type enum constant on a line that
+   * names one of those fields. See OAUTH_ENUM_VALUES for the defect (#682).
+   *
+   * Checked against the LINE, not just the match, because the base regex
+   * keys off whichever property on the object literal happens to end in
+   * `token`/`bearer`/`secret`/`password` (`refresh_token: "…"` — the base
+   * regex cannot see that `grant_type` sits earlier in the same statement),
+   * so the OAuth-field test has to look at the statement, not the match.
+   *
+   * @param {string} scanLine - the neutralised line the pattern ran on
+   * @param {RegExpExecArray} m - the identifier-keyed match
+   * @returns {boolean}
+   */
+  _isOAuthEnumValue(scanLine, m) {
+    const q = m[0].match(/['"]([^'"]*)$/);
+    if (!q) return false;
+    if (!OAUTH_ENUM_VALUES.has(q[1].toLowerCase())) return false;
+    return OAUTH_FIELD_RE.test(scanLine);
   }
 
   /**
@@ -853,6 +895,7 @@ class SecretsModule extends BaseModule {
                 // matches never reach here: an AKIA key in a comment is still
                 // a key.
                 if (this._isLabelValue(m[0])) continue;
+                if (this._isOAuthEnumValue(scanLine, m)) continue;
                 if (DOCTEST_LINE_RE.test(line)) continue;
                 if (masked && this._inDocContext(lines, masked, i, python)) continue;
               } else if (masked) {
