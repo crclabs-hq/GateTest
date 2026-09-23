@@ -5,8 +5,7 @@ import Link from "next/link";
 import { consumeSseStream } from "@/app/components/url-scan-flow-sse";
 import { totalModuleCount } from "@/app/components/howitworks/modules-data";
 import { SITE_URL, badgeUrl } from "@/app/lib/site-url";
-import PageHero from "../components/site/PageHero";
-import Section from "../components/site/Section";
+import { Hero, Section } from "../components/v2";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import { SAMPLE_REPORT_URL } from "@/app/lib/sample-report";
 
@@ -571,12 +570,14 @@ export default function PlaygroundPage() {
 
   return (
     <main>
-      <PageHero
-        align="center"
-        eyebrow="Live · Free · No account needed"
-        title={<>Scan any <span className="text-accent">GitHub repo</span></>}
-        lede={<>Paste a URL. Watch {QUICK_MODULES.length} battle-tested modules run in real time — and see the full {totalModuleCount()}-module catalogue light up alongside them.</>}
-        actions={
+      <Section wrap={false}>
+        <div className="v2-wrap">
+        <Hero
+          align="center"
+          kicker="Live · Free · No account needed"
+          title={<>Scan any <span className="text-[var(--v2-accent)]">GitHub repo</span></>}
+          lede={<>Paste a URL. Watch {QUICK_MODULES.length} battle-tested modules run in real time — and see the full {totalModuleCount()}-module catalogue light up alongside them.</>}
+          actions={
           <div className="w-full max-w-3xl mx-auto space-y-4 text-left">
             <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
               {/* The field has no visible label by design (hero search box), so the
@@ -632,7 +633,9 @@ export default function PlaygroundPage() {
             </div>
           </div>
         }
-      />
+        />
+        </div>
+      </Section>
 
       <Section>
         <div className="max-w-5xl mx-auto space-y-12">

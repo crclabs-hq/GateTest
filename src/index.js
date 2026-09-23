@@ -156,7 +156,20 @@ class GateTest {
     // get red squiggles on the PR diff with zero configuration. Can be
     // forced on via options.githubAnnotations for non-Actions hosts that
     // also consume workflow commands.
-    if (this.options.githubAnnotations || process.env.GITHUB_ACTIONS === 'true') {
+    //
+    // Both write raw `::group::`/`::notice::`/`::error ...::` workflow
+    // commands straight to process.stdout.write — never gated on `silent`
+    // before this fix, unlike ConsoleReporter above. A caller running under
+    // GITHUB_ACTIONS=true with silent:true (bin/gatetest.js's --format json
+    // for --suite/--module/--crawl, or any embedder — MCP server, website —
+    // that wants a quiet run) got these annotation lines interleaved with
+    // its own output: `gatetest --crawl --format json` under Actions CI
+    // printed `::notice ...` INSIDE what was supposed to be one JSON
+    // document on stdout, breaking JSON.parse for every consumer (issue
+    // #677). `silent` already means "no reporter output on stdout" for
+    // ConsoleReporter; these two are stdout reporters too and now honour
+    // the same contract.
+    if (!this.options.silent && (this.options.githubAnnotations || process.env.GITHUB_ACTIONS === 'true')) {
       new GithubAnnotationsReporter(runner);
       // Same gating — CiSummaryReporter emits a collapsible timing table
       // and a top-line ::notice:: summary so the PR shows the verdict

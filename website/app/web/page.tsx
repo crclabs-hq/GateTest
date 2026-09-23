@@ -9,8 +9,7 @@ import Link from "next/link";
 import { UrlScanFlow } from "@/app/components/UrlScanFlow";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import siteStats from "../data/site-stats.json";
-import PageHero from "../components/site/PageHero";
-import Section from "../components/site/Section";
+import { Hero, Section, Card } from "../components/v2";
 
 export const metadata = {
   title: "GateTest — Live Website Health Check, Security + Runtime Audit",
@@ -21,59 +20,65 @@ export const metadata = {
 export default function WebLanding() {
   return (
     <main>
-      <PageHero
-        align="center"
-        eyebrow="For any website"
-        title={<>What&apos;s actually wrong<br /><span className="text-accent">with your website?</span></>}
-        lede={<>
-          Most scanners only check what your server <em>says</em> it does.
-          We probe your live site — security headers, TLS, cookies,
-          accessibility, SEO, broken links, page weight — and tell you what
-          is actually wrong. One 0-100 score. Plain-English fixes. The
-          real-browser pass (JavaScript errors, broken hydration, CSP
-          violations) is rolling out: when it can&apos;t run, the report says
-          so instead of pretending.
-        </>}
-        actions={
-          <UrlScanFlow
-            suite="web"
-            endpoint="/api/web/scan"
-            streamEndpoint="/api/web/scan/stream"
-            recommendEndpoint="/api/scan/recommend"
+      <Section wrap={false}>
+        <div className="v2-wrap">
+          <Hero
+            align="center"
+            kicker="For any website"
+            title={<>What&apos;s actually wrong with your website?</>}
+            lede={<>
+              Most scanners only check what your server <em>says</em> it does.
+              We probe your live site — security headers, TLS, cookies,
+              accessibility, SEO, broken links, page weight — and tell you what
+              is actually wrong. One 0-100 score. Plain-English fixes. The
+              real-browser pass (JavaScript errors, broken hydration, CSP
+              violations) is rolling out: when it can&apos;t run, the report says
+              so instead of pretending.
+            </>}
+            actions={
+              <UrlScanFlow
+                suite="web"
+                endpoint="/api/web/scan"
+                streamEndpoint="/api/web/scan/stream"
+                recommendEndpoint="/api/scan/recommend"
+              />
+            }
           />
-        }
-      />
+        </div>
+      </Section>
 
-      <Section
-        title="What we look for"
-        lede={<>We don&apos;t just check what your server <em>claims</em>. Live probes run against your site on every scan; the real-Chromium checks below are marked while that pass is still rolling out.</>}
-      >
+      <Section>
+        <div className="v2-kicker mb-3">what we look for</div>
+        <h2 className="v2-h2 max-w-2xl mb-10">
+          We don&apos;t just check what your server <em>claims</em>. Live probes run against your site on every scan; the real-Chromium checks below are marked while that pass is still rolling out.
+        </h2>
         <div className="grid sm:grid-cols-2 gap-6">
           {PAINKILLERS.map(({ title, pain, what, browserPass }) => (
-            <div key={title} className="card p-6">
-              <h3 className="font-display font-bold text-lg mb-2 text-foreground">
+            <Card key={title}>
+              <h3 className="font-semibold text-lg mb-2 text-[var(--v2-fg)]">
                 {title}
                 {browserPass && (
-                  <span className="ml-2 align-middle inline-block rounded-full border border-warning/40 bg-warning/5 px-2 py-0.5 text-[11px] font-semibold text-warning">
+                  <span className="ml-2 align-middle inline-block v2-kicker rounded-full border border-[var(--v2-warn)]/40 px-2 py-0.5 !text-[11px] font-semibold text-[var(--v2-warn)]">
                     browser pass · rolling out
                   </span>
                 )}
               </h3>
-              <p className="text-sm text-danger mb-3">
+              <p className="text-sm text-[var(--v2-bad)] mb-3">
                 <span className="font-semibold">Why it matters: </span>
                 {pain}
               </p>
-              <p className="text-sm text-muted">
-                <span className="font-semibold text-foreground">What we check: </span>
+              <p className="text-sm text-[var(--v2-muted)]">
+                <span className="font-semibold text-[var(--v2-fg)]">What we check: </span>
                 {what}
               </p>
-            </div>
+            </Card>
           ))}
         </div>
       </Section>
 
-      <Section alt narrow title="Cluster-first, noise-last">
-        <p className="text-base sm:text-lg text-foreground-secondary leading-relaxed">
+      <Section tight>
+        <h2 className="v2-h2 mb-6">Cluster-first, noise-last</h2>
+        <p className="text-base sm:text-lg text-[var(--v2-muted)] leading-relaxed max-w-3xl">
           A typical site scan returns 800-1000 raw findings — mostly the
           same root cause repeated across pages. We collapse them into
           ~20 root-cause clusters ranked highest-signal first, score the
@@ -83,39 +88,39 @@ export default function WebLanding() {
         </p>
       </Section>
 
-      <Section title="Honest pricing" lede="Pay per scan. No subscription required for the one-shot.">
+      <Section>
+        <div className="v2-kicker mb-3">pay per scan. no subscription required for the one-shot</div>
+        <h2 className="v2-h2 mb-10">Honest pricing</h2>
         <div className="grid sm:grid-cols-2 gap-6 max-w-3xl">
           {TIERS.map((tier) => (
-            <div key={tier.name} className={`p-6 ${tier.highlighted ? "card-highlight" : "card"}`}>
-              <h3 className="font-display font-bold text-xl mb-1 text-foreground">{tier.name}</h3>
+            <Card key={tier.name} className={tier.highlighted ? "!border-[var(--v2-accent)]" : ""}>
+              <h3 className="font-semibold text-xl mb-1 text-[var(--v2-fg)]">{tier.name}</h3>
               <div className="flex items-baseline gap-1 mb-1">
-                <span className="font-display text-3xl font-bold text-foreground">{tier.price}</span>
-                <span className="text-sm text-muted">/ {tier.cadence}</span>
+                <span className="v2-mono text-3xl font-medium text-[var(--v2-fg)]">{tier.price}</span>
+                <span className="text-sm text-[var(--v2-muted)]">/ {tier.cadence}</span>
               </div>
-              <ul className="space-y-2 text-sm mt-4 text-foreground-secondary">
+              <ul className="space-y-2 text-sm mt-4 text-[var(--v2-muted)]">
                 {tier.includes.map((line) => (
                   <li key={line} className="flex items-start gap-2">
-                    <span className="text-accent" aria-hidden>✓</span>
+                    <span className="text-[var(--v2-accent)]" aria-hidden>✓</span>
                     <span>{line}</span>
                   </li>
                 ))}
               </ul>
-            </div>
+            </Card>
           ))}
         </div>
       </Section>
 
-      <Section alt narrow>
+      <Section tight>
         <div className="text-center">
-          <h2 className="font-display text-3xl font-bold text-foreground mb-6">Ready when you are.</h2>
-          <Link href="#top" className="btn-cta inline-block px-8 py-4 text-lg font-semibold rounded-xl">
-            Scan my site
-          </Link>
-          <p className="text-xs text-muted mt-6">
-            Same engine as the developer <Link href="/" className="text-accent hover:underline">GateTest</Link> CLI —
+          <h2 className="v2-h2 mb-6">Ready when you are.</h2>
+          <Link href="#top" className="v2-btn v2-btn-primary">Scan my site</Link>
+          <p className="text-xs text-[var(--v2-muted)] mt-6">
+            Same engine as the developer <Link href="/" className="text-[var(--v2-accent)] hover:underline">GateTest</Link> CLI —
             this scan runs its {siteStats.suites.web}-module live-site suite (header, TLS, cookie, accessibility,
             SEO and link probes; the headless-browser runtime pass is rolling out) out of the {TOTAL_MODULES}-module engine. WordPress
-            owner? <Link href="/wp" className="text-accent hover:underline">WordPress-specific scan here</Link>.
+            owner? <Link href="/wp" className="text-[var(--v2-accent)] hover:underline">WordPress-specific scan here</Link>.
           </p>
         </div>
       </Section>
