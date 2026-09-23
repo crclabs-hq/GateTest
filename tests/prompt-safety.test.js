@@ -952,3 +952,49 @@ describe('PromptSafetyModule — workspace subpath + generic-SDK wrapper resolut
   });
 });
 
+// #680 item 2 (Gluecron): `prompt-safety:no-max-tokens:anthropic-py` fired
+// beside the JS `anthropic` finding on the same line of a .ts file. The
+// `-py` kinds' call-shape regex has no brace requirement, so it also matches
+// a JS/TS object-literal call — every `-py` kind must only run on `.py`
+// files, and every other kind only on JS/TS.
+describe('PromptSafetyModule — a .ts file gets one finding, not one per language kind (#680)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ps-onekind-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('a .ts anthropic.messages.create call with no max_tokens produces exactly one finding', async () => {
+    write(tmp, 'src/ai-client.ts', [
+      'import Anthropic from "@anthropic-ai/sdk";',
+      'const anthropic = new Anthropic();',
+      'async function run() {',
+      '  return anthropic.messages.create({ model: "claude-sonnet-5", messages: [] });',
+      '}',
+      'export { run };',
+      '',
+    ].join('\n'));
+
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.name.startsWith('prompt-safety:no-max-tokens:'));
+    assert.strictEqual(hits.length, 1, hits.map((h) => h.name).join());
+    assert.ok(hits[0].name.includes(':anthropic:'), hits[0].name);
+    assert.ok(!hits.some((h) => h.name.includes(':anthropic-py:')), hits.map((h) => h.name).join());
+  });
+
+  it('a .py anthropic call without max_tokens still fires the Python kind (control)', async () => {
+    write(tmp, 'src/a.py', [
+      'from anthropic import Anthropic',
+      'anthropic = Anthropic()',
+      'resp = anthropic.messages.create(',
+      '    model="claude-sonnet-5",',
+      '    messages=[{"role": "user", "content": "hi"}],',
+      ')',
+      '',
+    ].join('\n'));
+
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.name.startsWith('prompt-safety:no-max-tokens:'));
+    assert.strictEqual(hits.length, 1, hits.map((h) => h.name).join());
+    assert.ok(hits[0].name.includes(':anthropic-py:'), hits[0].name);
+  });
+});
+

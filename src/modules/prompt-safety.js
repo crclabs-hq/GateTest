@@ -905,7 +905,16 @@ class PromptSafetyModule extends BaseModule {
       { re: /(?<!new\s)\bChat(?:OpenAI|Anthropic|Bedrock|GoogleGenerativeAI|VertexAI|Groq|MistralAI)\s*\(([\s\S]*?)\)/g,
         kind: 'langchain-py', cap: /max_(?:output_)?tokens\s*=|max(?:Output)?Tokens\s*:/, bodyGroup: 1 },
     ];
+    // #680 item 2: a `-py` kind's call shape is loose enough (parens, no
+    // brace requirement) that it also matches the JS/TS shape of the same
+    // call — `anthropic.messages.create({...})` in a .ts file satisfied both
+    // the `anthropic` (JS) and `anthropic-py` patterns, firing twice on one
+    // line. Each kind only makes sense for the language it names, so gate on
+    // the file extension: `-py` kinds run only on `.py`, everything else
+    // only on JS/TS (the only other kind SCAN_EXTS admits).
+    const isPyFile = path.extname(rel).toLowerCase() === '.py';
     for (const { re, kind, cap, identifierGroup, bodyGroup } of patterns) {
+      if (kind.endsWith('-py') !== isPyFile) continue;
       let m;
       while ((m = re.exec(content)) !== null) {
         const body = m[bodyGroup];
