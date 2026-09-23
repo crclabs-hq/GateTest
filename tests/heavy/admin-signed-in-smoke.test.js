@@ -102,7 +102,18 @@ function findFreePort() {
 function fetchWithTimeout(url, opts = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
+  return fetch(url, {
+    ...opts,
+    signal: controller.signal,
+    // Every request closes its own socket instead of joining Node's global
+    // fetch (undici) keep-alive pool. 28 requests to the same origin left a
+    // pooled connection open past the last test, which kept this file's
+    // event loop alive well past run-tests.js's per-file timeout even
+    // though every assertion had already passed (measured: 28/28 tests
+    // green, file still cancelled as "still running"). No dependency needed
+    // — plain HTTP/1.1 `Connection: close` is honoured by Next's server.
+    headers: { ...opts.headers, Connection: 'close' },
+  }).finally(() => clearTimeout(timer));
 }
 
 async function waitForServer(url, deadline) {
@@ -161,24 +172,42 @@ before(async () => {
   assert.ok(cookie && cookie.includes('='), 'login did not return a session cookie');
 });
 
-after(() => {
+after(async () => {
   if (!serverProc || serverProc.killed) return;
-  // `spawn(..., { shell: true })` on Windows makes `serverProc` the cmd.exe
-  // wrapper, not the `next start` process it launches — killing just the
-  // wrapper leaves the real server (and the port) alive, which then keeps
-  // this file's event loop alive past its run-tests.js file timeout (the
-  // very first run of this test measured that: 28/29 passed, the 29th
-  // failure was "still running at the file timeout", not a real assertion).
-  // `taskkill /T` kills the whole process tree; POSIX gets a plain kill.
-  if (process.platform === 'win32') {
-    try {
-      execFileSync('taskkill', ['/pid', String(serverProc.pid), '/T', '/F'], { stdio: 'ignore' });
-    } catch {
-      // error-ok — process may have already exited
+  // Killing is not enough on its own — a fire-and-forget kill let this test
+  // file finish all 28 assertions green and STILL get cancelled by
+  // run-tests.js as "still running at the file timeout": the child (and, on
+  // Windows, the cmd.exe wrapper `spawn(..., {shell:true})` actually tracks
+  // instead of the real `next start` process under it) hadn't exited yet,
+  // and Node's `node --test` process doesn't exit until every handle it
+  // opened — including the pipes to that child's stdio — has actually
+  // closed. So this waits for the real exit instead of just requesting it.
+  await new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    serverProc.once('exit', done);
+    serverProc.once('close', done);
+
+    if (process.platform === 'win32') {
+      // `taskkill /T` kills the whole process tree (the cmd.exe wrapper AND
+      // the `next start` process it launched), not just the tracked pid.
+      try {
+        execFileSync('taskkill', ['/pid', String(serverProc.pid), '/T', '/F'], { stdio: 'ignore' });
+      } catch {
+        // error-ok — process may have already exited
+      }
+    } else {
+      serverProc.kill('SIGKILL');
     }
-  } else {
-    serverProc.kill('SIGKILL');
-  }
+
+    // Belt: if neither event fires (a defunct/already-reaped child on some
+    // platform), don't hang the suite forever waiting for it.
+    setTimeout(done, 5000).unref();
+  });
 });
 
 function authedHeaders() {

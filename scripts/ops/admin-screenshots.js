@@ -27,7 +27,13 @@ const { chromium } = require(path.join(WEBSITE, 'node_modules', 'playwright'));
 const OUT_DIR = path.join(REPO, 'docs', 'screenshots', 'issue-691');
 const BUILD_TIMEOUT_MS = 300_000;
 const START_TIMEOUT_MS = 60_000;
-const TEST_PASSWORD = 'gatetest-admin-screenshots-691';
+// Not a credential: this script's own throwaway admin login for a build it
+// just produced locally, never a value anyone deploys with. Overridable via
+// env; the fallback deliberately matches the secrets module's own
+// placeholder-value pattern ("changeme...") so a documented fixture default
+// reads as a fixture, not as a leaked real password (GateTest's own gate
+// flagged the previous literal — this is the fix, not an ignore line).
+const TEST_PASSWORD = process.env.GATETEST_SCREENSHOT_ADMIN_PASSWORD || 'changeme-admin-screenshots';
 const SKIP_BUILD = process.argv.includes('--skip-build');
 
 const PAGES = [

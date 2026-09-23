@@ -24,7 +24,11 @@ export type AdminThemeChoice = "system" | "light" | "dark";
  * (falls back to "system", i.e. no `data-theme` attribute at all).
  */
 export function getAdminThemeScript(): string {
-  return `(function(){try{var k=${JSON.stringify(ADMIN_THEME_STORAGE_KEY)};var v=localStorage.getItem(k);if(v==="light"||v==="dark"){document.documentElement.setAttribute("data-theme",v);}}catch(e){}})();`;
+  // The empty catch inside the returned string below is TEXT — part of the
+  // browser-injected pre-hydration script, not real code in this file —
+  // deliberately empty for the reason in this function's own doc comment
+  // above (localStorage can throw; the page must still render either way).
+  return `(function(){try{var k=${JSON.stringify(ADMIN_THEME_STORAGE_KEY)};var v=localStorage.getItem(k);if(v==="light"||v==="dark"){document.documentElement.setAttribute("data-theme",v);}}catch(e){}})();`; // error-ok — string literal, not real code
 }
 
 /** Read the stored choice — never throws. */
