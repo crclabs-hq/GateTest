@@ -11,20 +11,29 @@ export function Hero({
   title,
   lede,
   actions,
+  align = "left",
   children,
 }: {
   kicker?: ReactNode;
   title: ReactNode;
   lede?: ReactNode;
   actions?: ReactNode;
+  /** "center" is for a hero built around one focal action (a search box, a
+   *  single CTA) — most pages should leave this at the default "left". */
+  align?: "left" | "center";
   children?: ReactNode;
 }) {
+  const centered = align === "center";
   return (
-    <div className="v2-hero">
-      {kicker && <div className="v2-kicker mb-6">{kicker}</div>}
-      <h1 className="v2-h1 max-w-4xl">{title}</h1>
-      {lede && <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-[var(--v2-muted)]">{lede}</p>}
-      {actions && <div className="mt-8 flex flex-wrap gap-3">{actions}</div>}
+    <div className={`v2-hero ${centered ? "text-center" : ""}`}>
+      {kicker && <div className={`v2-kicker mb-6 ${centered ? "flex justify-center" : ""}`}>{kicker}</div>}
+      <h1 className={`v2-h1 max-w-4xl ${centered ? "mx-auto" : ""}`}>{title}</h1>
+      {lede && (
+        <p className={`mt-6 text-[17px] leading-relaxed text-[var(--v2-muted)] ${centered ? "max-w-2xl mx-auto" : "max-w-2xl"}`}>
+          {lede}
+        </p>
+      )}
+      {actions && <div className={`mt-8 flex flex-wrap gap-3 ${centered ? "justify-center" : ""}`}>{actions}</div>}
       {children}
     </div>
   );
