@@ -33,6 +33,12 @@ import { NextRequest } from "next/server";
 import { resolveFullReportAccess } from "@/app/lib/full-report-auth";
 import { gateRuntimeScan } from "@/app/lib/web-runtime-gate";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
+const { buildModuleEndEvent } = require("@/app/lib/scan-stream-events") as {
+  buildModuleEndEvent: (payload: unknown) =>
+    | { module: string; status: "checked"; errors?: number; warnings?: number; info?: number; duration?: number }
+    | { module: string; status: "not-checked"; reason: string; duration?: number };
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { resolveAndValidateUrl } = require("@/app/lib/ssrf-guard") as {
   resolveAndValidateUrl: (input: string) => Promise<{ ok: true; url: URL } | { ok: false; reason: string }>;
 };
@@ -262,45 +268,12 @@ export async function POST(req: NextRequest) {
               return;
             }
             if (event === "module:end") {
-              // `payload` is the runner's live TestResult instance, not its
-              // toJSON() shape — reading `.errors`/`.warnings` straight off
-              // it (the old code) always read `undefined`, so every module
-              // ticked "clean" in the live list no matter what it actually
-              // found or whether it ran at all (issue #648 item 1: the
-              // stream contradicted the final card). `.toJSON()` is the one
-              // place that has real numbers AND the raw `checks` array with
-              // each check's own `notChecked` flag — the exact shape
-              // `deriveModuleCoverage()` below reads off `summary.results`.
-              const raw = payload as { toJSON?: () => RawResult };
-              const p: RawResult = typeof raw.toJSON === "function" ? raw.toJSON() : (payload as RawResult);
-              const moduleName = p.module || p.name || "unknown";
-              const checks = Array.isArray(p.checks) ? p.checks : [];
-              const notCheckedCheck = checks.find((c) => c && c.notChecked === true);
-              if (notCheckedCheck) {
-                send(event, {
-                  module: moduleName,
-                  status: "not-checked",
-                  // Issue #648 item 2: this reason is the module's OWN
-                  // `_notChecked()` message (BaseModule) — never
-                  // web-runtime-gate.js's dispatch-reason vocabulary
-                  // ("not-configured" etc). Those describe a separate
-                  // decision (whether the real-browser runtime pass was
-                  // dispatched to the platform worker), not why THIS
-                  // module — a file-scanner with no live-URL mode yet —
-                  // never looked at anything on this scan.
-                  reason: notCheckedCheck.message || "not checked",
-                  duration: p.duration,
-                });
-                return;
-              }
-              send(event, {
-                module: moduleName,
-                status: "checked",
-                errors: p.errors,
-                warnings: p.warnings,
-                info: p.infoFindings,
-                duration: p.duration,
-              });
+              // Issue #648 items 1-2, extracted for issue #699 into the ONE
+              // shared definition (Doctrine #4) both stream routes build
+              // this event from — see scan-stream-events.js for the full
+              // explanation of why `.toJSON()` and each check's own
+              // `notChecked` flag matter here.
+              send(event, buildModuleEndEvent(payload));
             }
           },
         });
