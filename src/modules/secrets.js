@@ -260,6 +260,58 @@ function isCredentialShaped(value) {
 }
 
 /**
+ * Words that mark an env-var NAME as secret-bearing for the Fallback Secret
+ * rule (#682, Gluecron) — matched as a whole `_`/`-`/camelCase SEGMENT, never
+ * a substring (Doctrine §5). `WEBAUTHN_RP_NAME` contains the raw substring
+ * "auth" (WEB-AUTH-N) the way `.git` is a substring of `.github`; segmenting
+ * on word boundaries and comparing whole segments is what tells
+ * `AUTH_SECRET` (segment "secret") apart from `WEBAUTHN_RP_NAME` (segments
+ * "webauthn", "rp", "name" — a display-name field, not a credential).
+ * `auth` alone is deliberately NOT in this list: a var named bare `AUTH`
+ * could as easily be a mode flag as a secret, and every case this module
+ * actually needs (`AUTH_SECRET`, `AUTH_TOKEN`) already carries a word that
+ * IS on the list.
+ */
+const SECRET_BEARING_NAME_WORDS = new Set([
+  'secret', 'token', 'key', 'password', 'pass', 'private', 'credential', 'credentials', 'passphrase', 'dsn', 'apikey',
+]);
+
+/** Split an identifier into lowercase `_`/`-`/camelCase segments. */
+function nameSegments(name) {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .split(/[_-]+/)
+    .map((s) => s.toLowerCase())
+    .filter(Boolean);
+}
+
+/** True when `name` has a whole segment that reads as secret-bearing. */
+function isSecretBearingName(name) {
+  return nameSegments(name).some((seg) => SECRET_BEARING_NAME_WORDS.has(seg));
+}
+
+/**
+ * A fallback value with its own embedded credential is secret-bearing
+ * whatever the variable is called — `DATABASE_URL ?? 'postgres://u:p@h'`
+ * names no SECRET/TOKEN/KEY word but the literal is a live connection string.
+ */
+const URL_WITH_CREDENTIAL_RE = /^[a-z][a-z0-9+.-]*:\/\/[^:@/?#]+:[^@/?#]+@/i;
+
+/**
+ * A TRIVIAL fallback value is not a secret even on a secret-bearing name: a
+ * bare hostname/domain, or a single plain word short of credential shape —
+ * `WEBAUTHN_RP_NAME || "gluecron"` is a display name, not a password, and
+ * `SUPPORT_HOST || "mail.example.com"` is a location. Anything with a digit,
+ * a symbol, mixed case, or more than one word survives this and is judged
+ * the normal way (placeholder / prose / reference checks below).
+ */
+const BARE_HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
+function isTrivialFallbackValue(value) {
+  if (BARE_HOSTNAME_RE.test(value)) return true;
+  return /^[A-Za-z]+$/.test(value) && value.length < CREDENTIAL_SHAPE_MIN_LENGTH;
+}
+
+/**
  * A doctest line is documentation whatever file it sits in:
  *
  *   django/django  django/template/base.py:746
@@ -664,9 +716,12 @@ class SecretsModule extends BaseModule {
    *
    * Narrow on purpose, so the blanket-skip this replaces keeps protecting
    * against its original false positive:
-   *   - the NAME must read as a credential (a `process.env.PORT ?? '3000'`
-   *     fallback is configuration, not a secret);
+   *   - the NAME must read as SECRET-BEARING (a `process.env.PORT ?? '3000'`
+   *     fallback is configuration, not a secret) — OR the value itself
+   *     carries a URL credential, whatever the name is;
    *   - a bare read with no literal fallback returns null;
+   *   - the value must be non-trivial: not a bare hostname, not a plain
+   *     product/display-name word (`WEBAUTHN_RP_NAME || "gluecron"`, #682) —
    *   - the literal runs through the same placeholder / prose / reference
    *     suppressions as every other value, so `?? 'changeme'` stays quiet.
    *
@@ -675,18 +730,21 @@ class SecretsModule extends BaseModule {
    */
   _envFallbackSecret(line) {
     // The name may sit on either side: the assigned identifier, or the env
-    // key itself. Either reading as credential-shaped is enough.
-    const NAME = /(?:secret|password|passwd|pwd|token|api[_-]?key|apikey|credential|passphrase|private[_-]?key|auth)/i;
+    // key itself. Either reading as secret-bearing is enough.
     const assigned = line.match(/(?:const|let|var|final|static)?\s*([A-Za-z_$][\w$]*)\s*[:=]\s*(?![=])/);
     const envKey = line.match(/process\.env(?:\.([A-Za-z_$][\w$]*)|\[\s*['"]([^'"]+)['"]\s*\])/);
     const names = [assigned && assigned[1], envKey && (envKey[1] || envKey[2])].filter(Boolean);
-    if (!names.some((n) => NAME.test(n))) return null;
 
     // `||` / `??` fallback, or a template-literal default. Require 6+ chars:
     // shorter values are flags and sentinels, not credentials.
     const fb = line.match(/(?:\|\||\?\?)\s*(['"])([^'"]{6,})\1/);
     if (!fb) return null;
     const value = fb[2];
+
+    const nameLooksSecretBearing = names.some((n) => isSecretBearingName(n));
+    const valueCarriesUrlCredential = URL_WITH_CREDENTIAL_RE.test(value);
+    if (!nameLooksSecretBearing && !valueCarriesUrlCredential) return null;
+    if (isTrivialFallbackValue(value)) return null;
 
     // Reuse the module's own suppressions. They take the full regex-match
     // shape (identifier through value), so hand them a synthetic one rather

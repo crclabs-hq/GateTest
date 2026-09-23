@@ -68,3 +68,38 @@ describe('secrets — corpus7 item 1: OAuth enum values are not Token findings',
     assert.ok(found.some((f) => f.id === 'secrets:src/client.ts'), 'no OAuth field context — the enum guard must not apply');
   });
 });
+
+// -----------------------------------------------------------------------------
+// Item 2 — a Fallback Secret needs a secret-bearing NAME and a real value
+// -----------------------------------------------------------------------------
+describe('secrets — corpus7 item 2: Fallback Secret needs a secret-bearing name and value', () => {
+  it('silent: a display-name fallback whose var name only contains "auth" as a substring', async () => {
+    const found = fileFindings(await scan({
+      'src/lib/config.ts': 'export const rpName = process.env.WEBAUTHN_RP_NAME || "gluecron";\n',
+    }));
+    assert.deepStrictEqual(found.map((f) => f.id), [], 'WEBAUTHN_RP_NAME is a display name, not a secret-bearing var');
+  });
+
+  it('silent: a secret-bearing name with a trivial (bare hostname) fallback', async () => {
+    const found = fileFindings(await scan({
+      'src/lib/config.ts': 'export const dsnHost = process.env.SENTRY_DSN_HOST ?? "sentry.example.com";\n',
+    }));
+    assert.deepStrictEqual(found.map((f) => f.id), [], 'a bare hostname fallback is a location, not a credential');
+  });
+
+  it('fires: a real hardcoded fallback on AUTH_SECRET', async () => {
+    const found = fileFindings(await scan({
+      'src/lib/config.ts': 'export const authSecret = process.env.AUTH_SECRET ?? "s3cr3t";\n',
+    }));
+    assert.ok(found.some((f) => f.id === 'secrets:src/lib/config.ts'), 'AUTH_SECRET has a secret-bearing segment and a non-trivial value');
+    const detail = found.find((f) => f.id === 'secrets:src/lib/config.ts').details.find((d) => d.type === 'Fallback Secret');
+    assert.ok(detail, 'reported as a Fallback Secret');
+  });
+
+  it('fires: a URL fallback carrying its own credential, whatever the var is called', async () => {
+    const found = fileFindings(await scan({
+      'src/lib/config.ts': 'export const dbUrl = process.env.STORE_LOCATION ?? "postgres://user:realpass@host/db";\n',
+    }));
+    assert.ok(found.some((f) => f.id === 'secrets:src/lib/config.ts'), 'a URL fallback with userinfo is a credential regardless of the var name');
+  });
+});
