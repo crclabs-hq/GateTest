@@ -102,8 +102,8 @@ export default function HomeEverywhere() {
               ? { href: s.cta.href, target: "_blank", rel: "noopener noreferrer" }
               : { href: s.cta.href };
             return (
-              <li key={s.id} className="group relative flex">
-                <div className="relative flex flex-col w-full rounded-2xl border border-border bg-foreground/[0.02] p-6 transition-colors duration-200 group-hover:border-foreground/20">
+              <li key={s.id} className="group relative flex min-w-0">
+                <div className="relative flex flex-col w-full min-w-0 rounded-2xl border border-border bg-foreground/[0.02] p-6 transition-colors duration-200 group-hover:border-foreground/20">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-9 h-9 text-teal-400">{ICONS[s.id]}</div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-muted">{s.where}</span>

@@ -6,13 +6,13 @@
  * a page never has to know which file a primitive lives in.
  */
 export { Rail, STAGES } from "./Rail";
-export { Numbers, type NumberItem } from "./Numbers";
+export { Numbers } from "./Numbers";
 export { Faq } from "./Faq";
 export { Pricing } from "./Pricing";
 export { Artifacts } from "./Artifacts";
 export { Section } from "./Section";
 export { Card } from "./Card";
-export { Terminal, type TerminalLine } from "./Terminal";
+export { Terminal } from "./Terminal";
 export { Stat } from "./Stat";
 export { Callout } from "./Callout";
 export { Hero } from "./Hero";

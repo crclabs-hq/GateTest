@@ -48,12 +48,16 @@ export function Rail() {
     };
   }, []);
 
-  const fill = STAGES.length > 1 ? (active / (STAGES.length - 1)) * 100 : 0;
+  const fill = STAGES.length > 1 ? active / (STAGES.length - 1) : 0;
 
   return (
     <nav className="v2-rail" aria-label="Stages of a push">
       <div className="v2-rail-line" aria-hidden="true">
-        <div className="v2-rail-fill" style={{ height: `${fill}%` }} />
+        {/* transform, not height: a scroll-driven height change is a layout
+            property and forces a reflow on every scroll frame (measured
+            jank on iPad Safari, issue #678 defect 1 follow-up). scaleY is
+            compositor-only. */}
+        <div className="v2-rail-fill" style={{ transform: `scaleY(${fill})` }} />
       </div>
       {STAGES.map((s, i) => (
         <a
