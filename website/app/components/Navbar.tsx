@@ -16,10 +16,22 @@ import { NAV_GROUPS, NAV_LINKS, NAV_ACTIONS, type NavItem } from "./site-nav";
 
 const LINK = "text-sm text-muted hover:text-foreground transition-colors";
 
-function ItemLink({ item, onClick, className = "" }: { item: NavItem; onClick?: () => void; className?: string }) {
+function ItemLink({
+  item,
+  onClick,
+  className = "",
+  current = false,
+}: {
+  item: NavItem;
+  onClick?: () => void;
+  className?: string;
+  current?: boolean;
+}) {
   const inner = (
     <>
-      <span className="block font-medium text-foreground">{item.label}{item.external ? " ↗" : ""}</span>
+      <span className={`block font-medium ${current ? "text-accent" : "text-foreground"}`}>
+        {item.label}{item.external ? " ↗" : ""}
+      </span>
       {item.desc && <span className="block text-xs text-muted mt-0.5">{item.desc}</span>}
     </>
   );
@@ -27,7 +39,7 @@ function ItemLink({ item, onClick, className = "" }: { item: NavItem; onClick?: 
   return item.external ? (
     <a href={item.href} className={cls} onClick={onClick} rel="noopener noreferrer">{inner}</a>
   ) : (
-    <Link href={item.href} className={cls} onClick={onClick}>{inner}</Link>
+    <Link href={item.href} className={cls} onClick={onClick} aria-current={current ? "page" : undefined}>{inner}</Link>
   );
 }
 
@@ -68,16 +80,19 @@ export default function Navbar() {
           {NAV_GROUPS.map((g) => {
             const id = `menu-${g.label.toLowerCase()}`;
             const isOpen = open === g.label;
+            const hasCurrent = g.items.some((item) => !item.external && item.href === pathname);
             return (
               <div key={g.label} className="relative" onMouseEnter={() => setOpen(g.label)} onMouseLeave={() => setOpen((o) => (o === g.label ? null : o))}>
                 <button
                   type="button"
-                  className={`${LINK} px-3 py-2 rounded-md inline-flex items-center gap-1 ${isOpen ? "text-foreground" : ""}`}
+                  className={`${LINK} px-3 py-2 rounded-md inline-flex items-center gap-1 ${isOpen || hasCurrent ? "text-foreground" : ""}`}
                   aria-expanded={isOpen}
                   aria-controls={id}
+                  aria-current={hasCurrent ? "true" : undefined}
                   onClick={() => setOpen(isOpen ? null : g.label)}
                 >
                   {g.label}
+                  {hasCurrent && <span className="w-1.5 h-1.5 rounded-full bg-accent" aria-hidden="true" />}
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
                 <div
@@ -86,14 +101,14 @@ export default function Navbar() {
                   className="absolute left-0 top-full pt-2"
                 >
                   <div className="w-[34rem] grid grid-cols-2 gap-1 p-2 rounded-xl border border-border bg-[var(--surface-solid)] shadow-[var(--shadow-lg)]">
-                    {g.items.map((item) => <ItemLink key={item.href} item={item} />)}
+                    {g.items.map((item) => <ItemLink key={item.href} item={item} current={!item.external && item.href === pathname} />)}
                   </div>
                 </div>
               </div>
             );
           })}
           {NAV_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className={`${LINK} px-3 py-2 rounded-md ${pathname === l.href ? "text-foreground" : ""}`}>{l.label}</Link>
+            <Link key={l.href} href={l.href} className={`${LINK} px-3 py-2 rounded-md ${pathname === l.href ? "text-foreground font-medium" : ""}`} aria-current={pathname === l.href ? "page" : undefined}>{l.label}</Link>
           ))}
         </nav>
 
@@ -127,12 +142,28 @@ export default function Navbar() {
           {NAV_GROUPS.map((g) => (
             <div key={g.label} className="py-2">
               <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted">{g.label}</p>
-              {g.items.map((item) => <ItemLink key={item.href} item={item} onClick={() => setDrawer(false)} className="py-3" />)}
+              {g.items.map((item) => (
+                <ItemLink
+                  key={item.href}
+                  item={item}
+                  onClick={() => setDrawer(false)}
+                  className="py-3"
+                  current={!item.external && item.href === pathname}
+                />
+              ))}
             </div>
           ))}
           <div className="py-2 border-t border-border">
             {NAV_LINKS.map((l) => (
-              <Link key={l.href} href={l.href} className="block px-3 py-3 font-medium text-foreground" onClick={() => setDrawer(false)}>{l.label}</Link>
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`block px-3 py-3 font-medium ${pathname === l.href ? "text-accent" : "text-foreground"}`}
+                aria-current={pathname === l.href ? "page" : undefined}
+                onClick={() => setDrawer(false)}
+              >
+                {l.label}
+              </Link>
             ))}
             <Link href={NAV_ACTIONS.signIn.href} className="block px-3 py-3 font-medium text-foreground" onClick={() => setDrawer(false)}>{NAV_ACTIONS.signIn.label}</Link>
           </div>

@@ -73,6 +73,49 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+
+  /* v2 status colours need more luminance to read on a dark surface —
+     see the light-mode block below for why these differ from --success/
+     --danger/--warning rather than aliasing them. */
+  --v2-ok: #34d399;
+  --v2-warn: #fbbf24;
+  --v2-bad: #f87171;
+}
+
+/* === V2 DESIGN SYSTEM TOKENS (site-wide) ===============================
+   Lifted out of website/app/preview/preview.css (issue #686 phase 1) — the
+   owner's call, 2026-09-23: "much better, we need the same on all the other
+   pages." These are additive: --background/--foreground/--accent/--success/
+   --danger/--warning/--border/--radius-*/--shadow-* above stay live and
+   unchanged until every page has migrated onto the v2 primitives
+   (website/app/components/v2/), then the duplicated old names get removed.
+   Both themes are defined here; :root is the light source, the dark block
+   above overrides only what actually needs different luminance. */
+:root {
+  --v2-bg: var(--background);
+  --v2-bg-alt: var(--background-alt);
+  --v2-fg: var(--foreground);
+  --v2-muted: var(--muted);
+  --v2-line: var(--border);
+  --v2-line-strong: var(--border-strong);
+  --v2-accent: var(--accent-light);
+  /* Same hex as --success/--danger/--warning at the root — the light theme
+     already tuned these for a white surface. Dark overrides above. */
+  --v2-ok: var(--success);
+  --v2-warn: var(--warning);
+  --v2-bad: var(--danger);
+  --v2-mono: var(--font-mono);
+
+  /* Radius scale (the 2026-09-22 "restrained engineering" pass: 6-12px,
+     never the old --radius-xl pill shapes on v2 surfaces). */
+  --v2-radius-sm: 6px;
+  --v2-radius: 8px;
+  --v2-radius-lg: 12px;
+
+  /* Motion: fast for hover/focus state changes, base for reveal-on-scroll
+     and rail transitions. prefers-reduced-motion zeroes both out below. */
+  --v2-motion-fast: 0.15s;
+  --v2-motion-base: 0.3s;
 }
 
 @theme inline {
@@ -652,3 +695,285 @@ html {
   outline: 2px solid var(--accent, #0d9488);
   outline-offset: 2px;
 }
+
+/* ===================================================================== */
+/* V2 PRIMITIVES — SHARED CLASSES (issue #686 phase 1)                   */
+/* Lifted from website/app/preview/preview.css, unscoped so every public */
+/* page can use them (the old rules were locked behind ".gt-v2 …").      */
+/* website/app/components/v2/* is the JS side of this system; these      */
+/* classes are its CSS side. Both themes work because every value below  */
+/* is a token, never a literal hex. */
+/* ===================================================================== */
+
+.v2-wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+@media (min-width: 1024px) {
+  .v2-wrap { padding-left: 88px; }
+}
+/* A narrower wrap for pages that are not the pipeline-rail homepage layout
+   (no fixed left rail eating the gutter). */
+.v2-wrap-narrow {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.v2-mono { font-family: var(--v2-mono); font-variant-numeric: tabular-nums; }
+.v2-h1 {
+  font-size: clamp(2.4rem, 5.2vw, 4.25rem);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+}
+.v2-h2 {
+  font-size: clamp(1.6rem, 2.6vw, 2.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+}
+.v2-kicker {
+  font-family: var(--v2-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--v2-muted);
+}
+.v2-section {
+  padding: 96px 0;
+  border-top: 1px solid var(--v2-line);
+}
+.v2-section:first-of-type { border-top: 0; }
+/* A tighter section for pages that are mostly text (legal, glossary) rather
+   than full-bleed marketing sections. */
+.v2-section-tight {
+  padding: 56px 0;
+  border-top: 1px solid var(--v2-line);
+}
+.v2-section-tight:first-of-type { border-top: 0; }
+
+/* ── The rail: the page is the pipeline ──────────────────────────────── */
+.v2-rail {
+  position: fixed;
+  left: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  flex-direction: column;
+  gap: 0;
+  z-index: 20;
+}
+@media (min-width: 1024px) { .v2-rail { display: flex; } }
+.v2-rail-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  color: var(--v2-muted);
+  font-family: var(--v2-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: color var(--v2-motion-base) ease;
+}
+.v2-rail-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid var(--v2-line-strong);
+  background: var(--v2-bg);
+  transition: background var(--v2-motion-base) ease, border-color var(--v2-motion-base) ease, box-shadow var(--v2-motion-base) ease;
+}
+.v2-rail-stage[data-state="done"] .v2-rail-dot { background: var(--v2-ok); border-color: var(--v2-ok); }
+.v2-rail-stage[data-state="active"] { color: var(--v2-fg); }
+.v2-rail-stage[data-state="active"] .v2-rail-dot {
+  background: var(--v2-accent);
+  border-color: var(--v2-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--v2-accent) 15%, transparent);
+}
+.v2-rail-line {
+  position: absolute;
+  left: 4.5px;
+  top: 28px;
+  width: 1px;
+  height: calc(100% - 56px);
+  background: var(--v2-line-strong);
+}
+.v2-rail-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 0%;
+  background: var(--v2-ok);
+  transition: height var(--v2-motion-base) ease;
+}
+
+/* ── GitHub-styled panels ───────────────────────────────────────────── */
+.gh {
+  border: 1px solid var(--v2-line-strong);
+  border-radius: var(--v2-radius);
+  background: var(--v2-bg-alt);
+  overflow: hidden;
+}
+.gh-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--v2-line);
+  font-size: 13px;
+  color: var(--v2-muted);
+}
+.gh-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--v2-line);
+  font-size: 13.5px;
+}
+.gh-row:first-child { border-top: 0; }
+.gh-dot { width: 8px; height: 8px; border-radius: 999px; flex: none; }
+.gh-dot[data-s="pending"] { background: var(--v2-warn); animation: v2-pulse 1.2s ease-in-out infinite; }
+.gh-dot[data-s="failure"] { background: var(--v2-bad); }
+.gh-dot[data-s="success"] { background: var(--v2-ok); }
+.gh-comment { padding: 12px 14px; font-size: 13.5px; line-height: 1.55; }
+.gh-comment code, .gh-diff { font-family: var(--v2-mono); font-size: 12.5px; }
+.gh-diff { line-height: 1.6; white-space: pre; overflow-x: auto; padding: 10px 14px; max-width: 100%; }
+.gh-diff .del { color: var(--v2-bad); }
+.gh-diff .add { color: var(--v2-ok); }
+.gh-label {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--v2-line-strong);
+  color: var(--v2-muted);
+}
+
+/* ── Terminal ───────────────────────────────────────────────────────── */
+/* max-width + overflow-x live on the block itself (not just its parent),
+   so no page — however it lays this out — can scroll sideways at 375px. */
+.term {
+  border: 1px solid var(--v2-line-strong);
+  border-radius: var(--v2-radius);
+  background: #07090b;
+  font-family: var(--v2-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  max-width: 100%;
+}
+.term-head {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--v2-line);
+  color: rgba(255, 255, 255, 0.55);
+}
+.term-body { padding: 12px 14px; min-height: 17.5em; white-space: pre; overflow-x: auto; color: rgba(255, 255, 255, 0.82); max-width: 100%; }
+.term .bad { color: var(--v2-bad); }
+.term .dim { color: rgba(255, 255, 255, 0.45); }
+.term .caret::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 1.1em;
+  vertical-align: -0.2em;
+  background: rgba(255, 255, 255, 0.8);
+  animation: v2-blink 1s steps(1) infinite;
+}
+
+/* ── Cards, stat tiles, callouts (new primitives, phase 1) ───────────── */
+.v2-card {
+  border: 1px solid var(--v2-line-strong);
+  border-radius: var(--v2-radius-lg);
+  background: var(--v2-bg-alt);
+  padding: 24px;
+  transition: border-color var(--v2-motion-fast) ease;
+}
+.v2-card:hover { border-color: var(--v2-accent); }
+
+.v2-stat {
+  border-top: 1px solid var(--v2-line-strong);
+  padding-top: 16px;
+}
+.v2-stat-value {
+  font-family: var(--v2-mono);
+  font-size: 2.6rem;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.v2-stat-label { margin-top: 12px; font-size: 14px; }
+.v2-stat-source { margin-top: 4px; }
+
+.v2-callout {
+  border: 1px solid var(--v2-line-strong);
+  border-left: 3px solid var(--v2-accent);
+  border-radius: var(--v2-radius-sm);
+  background: var(--v2-bg-alt);
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.v2-callout[data-tone="warn"] { border-left-color: var(--v2-warn); }
+.v2-callout[data-tone="bad"] { border-left-color: var(--v2-bad); }
+.v2-callout[data-tone="ok"] { border-left-color: var(--v2-ok); }
+
+.v2-hero { padding: 64px 0 32px; }
+@media (min-width: 1024px) { .v2-hero { padding: 96px 0 48px; } }
+
+/* ── Motion ─────────────────────────────────────────────────────────── */
+@keyframes v2-blink { 50% { opacity: 0; } }
+@keyframes v2-pulse { 50% { opacity: 0.35; } }
+@keyframes v2-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.v2-in { animation: v2-in 0.35s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .v2-in, .gh-dot, .term .caret::after { animation: none !important; }
+  .v2-rail-dot, .v2-rail-fill, .v2-rail-stage { transition: none !important; }
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────── */
+.v2-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.v2-table th {
+  text-align: left;
+  font-family: var(--v2-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--v2-muted);
+  font-weight: 500;
+  padding: 0 12px 10px 0;
+  border-bottom: 1px solid var(--v2-line-strong);
+}
+.v2-table td {
+  padding: 12px 12px 12px 0;
+  border-bottom: 1px solid var(--v2-line);
+  vertical-align: top;
+}
+.v2-table tr:hover td { background: color-mix(in srgb, var(--v2-fg) 2%, transparent); }
+
+/* ── Buttons ────────────────────────────────────────────────────────── */
+.v2-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--v2-radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid var(--v2-line-strong);
+  color: var(--v2-fg);
+  transition: border-color var(--v2-motion-fast) ease, background var(--v2-motion-fast) ease;
+}
+.v2-btn:hover { border-color: var(--v2-fg); }
+.v2-btn-primary { background: var(--v2-fg); color: var(--v2-bg); border-color: var(--v2-fg); }
+.v2-btn-primary:hover { opacity: 0.88; }
