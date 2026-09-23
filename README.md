@@ -42,7 +42,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write   # the PR summary comment, inline suggestions, auto-repair PRs
+      # Optional: powers the PR summary comment, inline suggestions and
+      # auto-repair PRs. Without it the gate still runs and blocks on
+      # findings — the comment and suggestions are skipped, with a warning
+      # in the log, and no PR opens even if auto-fix finds something to fix.
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: crclabs-hq/GateTest@v1
@@ -50,6 +54,8 @@ jobs:
           suite: full
           auto-fix: ${{ github.event_name == 'pull_request' }}
         env:
+          # Optional: unlocks auto-fix and AI review. Without it the gate
+          # still runs and blocks on findings — CI just doesn't open a fix PR.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
