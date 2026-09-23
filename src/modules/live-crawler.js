@@ -188,8 +188,20 @@ class LiveCrawlerModule extends BaseModule {
     collectors.maxPages = maxPages;
     collectors.crawlElapsedMs = Date.now() - runStartedAt;
 
-    this._emitChecks(result, baseUrl, collectors);
-    this._emitAuthWallCheck(result, collectors, auth);
+    // Every warning-severity check this run raises is ALSO collected here,
+    // in parallel with the addCheck() calls that make it count in the
+    // recap's "N warnings" — so the report/JSON/--feedback can never show a
+    // count with nothing behind it (issue #703: a crawl printed
+    // "1 warnings" in the recap while the report said ALL CLEAR and the
+    // warning's text appeared nowhere — duplicate-titles, missing-meta,
+    // missing-canonical, slow-pages, anchor-missing-target and the
+    // no-session auth-wall check all fed the count but never the report).
+    // crawl:page-timeouts is deliberately excluded — it already has its own
+    // "Page Timeouts" report section and JSON finding type, so adding it
+    // here too would double-print the same finding.
+    const warnings = [];
+    this._emitChecks(result, baseUrl, collectors, warnings);
+    this._emitAuthWallCheck(result, collectors, auth, warnings);
 
     // A crawl that was cut short by its own budget has none to spare on
     // aux probes — every extra second spent here eats into the margin
@@ -198,10 +210,10 @@ class LiveCrawlerModule extends BaseModule {
     if (!collectors.budgetExhausted) {
       if (crawlConfig.checkSitemap !== false) await this._checkAuxUrl(result, baseUrl, '/sitemap.xml', timeout,
         'crawl:sitemap-missing', 'warning', 'No /sitemap.xml found',
-        'Generate a sitemap.xml. Most frameworks have a plugin for this.', auth);
+        'Generate a sitemap.xml. Most frameworks have a plugin for this.', auth, warnings);
       if (crawlConfig.checkRobotsTxt !== false) await this._checkAuxUrl(result, baseUrl, '/robots.txt', timeout,
         'crawl:robots-missing', 'info', 'No /robots.txt found',
-        'Add a /robots.txt even if it just says "User-agent: *\\nAllow: /" — signals intentionality.', auth);
+        'Add a /robots.txt even if it just says "User-agent: *\\nAllow: /" — signals intentionality.', auth, warnings);
       if (crawlConfig.checkFavicon !== false) await this._checkFavicon(result, baseUrl, timeout, auth, collectors.pages);
     }
 
@@ -221,10 +233,34 @@ class LiveCrawlerModule extends BaseModule {
       budgetExhausted: collectors.budgetExhausted,
       maxPages: collectors.maxPages,
       crawlElapsedMs: collectors.crawlElapsedMs,
+      warnings,
     });
   }
 
-  _emitChecks(result, baseUrl, c) {
+  /**
+   * One representative "page URL" for a warning, read from the SAME item
+   * shapes the collectors above already push (`{url}`, `{page}`, `{from}`,
+   * or duplicate-titles' `{urls: [...]}`) — never a second, hand-typed
+   * notion of where a finding happened (doctrine #4).
+   */
+  _itemUrl(item) {
+    if (!item) return null;
+    if (typeof item === 'string') return item;
+    if (item.url) return item.url;
+    if (item.page) return item.page;
+    if (item.from) return item.from;
+    if (Array.isArray(item.urls)) return item.urls.join(', ');
+    return null;
+  }
+
+  /** Record one report-visible warning entry alongside the addCheck() call that already made it count (issue #703). */
+  _pushWarning(warnings, key, message, list) {
+    if (!warnings) return;
+    const urls = (list || []).map((item) => this._itemUrl(item)).filter(Boolean);
+    warnings.push({ module: this.name, key, url: urls.length ? urls.join(', ') : null, message });
+  }
+
+  _emitChecks(result, baseUrl, c, warnings) {
     result.addCheck('crawl:pages-scanned', true, {
       message: `Crawled ${c.pages.length} page(s) from ${baseUrl}`,
     });
@@ -291,16 +327,16 @@ class LiveCrawlerModule extends BaseModule {
       'Audit <link rel="stylesheet"> URLs and CDN endpoints for 404s.');
     this._emitListCheck(result, c.missingMetaDescription, 'crawl:missing-meta-description', 'warning',
       'page(s) missing meta description — Google generates poor snippet text for these pages',
-      'Add <meta name="description" content="..."> to each page. Ideal length 150-160 characters.');
+      'Add <meta name="description" content="..."> to each page. Ideal length 150-160 characters.', warnings);
     this._emitListCheck(result, c.missingCanonical, 'crawl:missing-canonical', 'warning',
       'page(s) missing <link rel="canonical"> — risks duplicate-content SEO penalties',
-      'Add <link rel="canonical" href="..."> pointing at the page\'s preferred URL.');
+      'Add <link rel="canonical" href="..."> pointing at the page\'s preferred URL.', warnings);
     this._emitListCheck(result, c.slowPages, 'crawl:slow-pages', 'warning',
       'page(s) slower than threshold — real users bounce on slow TTFB',
-      'Investigate slow endpoints. Common causes: cold-start backends, unindexed DB queries, blocking 3rd-party scripts.');
+      'Investigate slow endpoints. Common causes: cold-start backends, unindexed DB queries, blocking 3rd-party scripts.', warnings);
     this._emitListCheck(result, c.anchorMissingId, 'crawl:anchor-missing-target', 'warning',
       'broken anchor link(s) — clicking does nothing for users',
-      'Either remove the anchor or add the corresponding id="..." attribute to the target element.');
+      'Either remove the anchor or add the corresponding id="..." attribute to the target element.', warnings);
 
     const titleCounts = new Map();
     for (const t of c.titlesByUrl.values()) {
@@ -316,12 +352,14 @@ class LiveCrawlerModule extends BaseModule {
       }
     }
     if (duplicateTitles.length > 0) {
+      const message = `${duplicateTitles.length} title(s) used by multiple pages — confuses users + dilutes SEO`;
       result.addCheck('crawl:duplicate-titles', false, {
         severity: 'warning',
-        message: `${duplicateTitles.length} title(s) used by multiple pages — confuses users + dilutes SEO`,
+        message,
         details: duplicateTitles.slice(0, 20),
         suggestion: 'Each page should have a unique <title> describing that page specifically.',
       });
+      this._pushWarning(warnings, 'crawl:duplicate-titles', message, duplicateTitles);
     }
 
     if (c.redirects.length > 0) {
@@ -349,22 +387,26 @@ class LiveCrawlerModule extends BaseModule {
       // above already discloses the shortfall; only add crawl:no-pages on
       // top of it if truly nothing was fetched before the budget ran out.
       if (c.pages.length === 0) {
+        const message = 'Crawl finished without fetching any pages — nothing was verified, so this is NOT a clean result';
         result.addCheck('crawl:no-pages', false, {
           severity: 'warning',
-          message: 'Crawl finished without fetching any pages — nothing was verified, so this is NOT a clean result',
+          message,
           suggestion: 'Check the start URL is reachable and that the page budget is above zero.',
         });
+        this._pushWarning(warnings, 'crawl:no-pages', message);
       }
     } else if (nothingWrong && c.pages.length > 0) {
       result.addCheck('crawl:clean', true, {
         message: `Site is clean — ${c.pages.length} pages, 0 errors, 0 broken links, 0 broken images`,
       });
     } else if (nothingWrong) {
+      const message = 'Crawl finished without fetching any pages — nothing was verified, so this is NOT a clean result';
       result.addCheck('crawl:no-pages', false, {
         severity: 'warning',
-        message: 'Crawl finished without fetching any pages — nothing was verified, so this is NOT a clean result',
+        message,
         suggestion: 'Check the start URL is reachable and that the page budget is above zero.',
       });
+      this._pushWarning(warnings, 'crawl:no-pages', message);
     }
   }
 
@@ -374,17 +416,19 @@ class LiveCrawlerModule extends BaseModule {
    * were never actually tested — the exact failure mode that makes agents
    * bypass the crawler instead of using it.
    */
-  _emitAuthWallCheck(result, c, auth) {
+  _emitAuthWallCheck(result, c, auth, warnings) {
     const loginRedirects = c.redirects.filter(r => isLoginUrl(r.to) && !isLoginUrl(r.from));
     if (loginRedirects.length === 0) return;
 
     if (!auth.enabled) {
+      const message = `${loginRedirects.length} page(s) redirected to a login screen — the crawler has no session, so pages behind auth were NOT tested`;
       result.addCheck('crawl:auth-wall', false, {
         severity: 'warning',
-        message: `${loginRedirects.length} page(s) redirected to a login screen — the crawler has no session, so pages behind auth were NOT tested`,
+        message,
         details: loginRedirects.slice(0, 20),
         suggestion: 'Give the crawler a session: --crawl-header "Authorization: Bearer $TOKEN", --crawl-cookie "session=...", or --crawl-storage-state state.json (config: modules.liveCrawler.headers / cookie / storageState; values support ${ENV_VAR}).',
       });
+      this._pushWarning(warnings, 'crawl:auth-wall', message, loginRedirects);
     } else {
       result.addCheck('crawl:auth-rejected', false, {
         severity: 'error',
@@ -395,26 +439,32 @@ class LiveCrawlerModule extends BaseModule {
     }
   }
 
-  _emitListCheck(result, list, key, severity, messageSuffix, suggestion) {
+  _emitListCheck(result, list, key, severity, messageSuffix, suggestion, warnings) {
     if (list.length === 0) return;
+    const message = `${list.length} ${messageSuffix}`;
     result.addCheck(key, false, {
       severity,
-      message: `${list.length} ${messageSuffix}`,
+      message,
       details: list.slice(0, 30),
       suggestion,
     });
+    if (severity === 'warning') this._pushWarning(warnings, key, message, list);
   }
 
-  async _checkAuxUrl(result, baseUrl, urlPath, timeout, key, severity, baseMessage, suggestion, auth) {
+  async _checkAuxUrl(result, baseUrl, urlPath, timeout, key, severity, baseMessage, suggestion, auth, warnings) {
     try {
       const auxUrl = new URL(urlPath, baseUrl).href;
       const r = await checkUrl(auxUrl, timeout, authHeadersFor(auxUrl, auth));
       if (r.status >= 400) {
+        const message = `${baseMessage} (HTTP ${r.status})`;
         result.addCheck(key, false, {
           severity,
-          message: `${baseMessage} (HTTP ${r.status})`,
+          message,
           suggestion,
         });
+        if (severity === 'warning' && warnings) {
+          warnings.push({ module: this.name, key, url: auxUrl, message });
+        }
       }
     } catch (err) {
       // A probe that could not complete is "not checked", not "present":
