@@ -88,6 +88,13 @@ function translateFinding(check: { name: string; severity?: string; message?: st
     module = "tlsSecurity"; title = "HTTPS / TLS issue"; body = check.message || "";
   } else if (name.startsWith("cookie-")) {
     module = "cookieSecurity"; title = "Cookie hardening missing"; body = check.message || "";
+  } else if (name.startsWith("cross-browser:")) {
+    // Issue #681 item 2: crossBrowser (src/modules/cross-browser.js) already
+    // follows the #659 rule — evidence (engine version + error text) in the
+    // message, or not-checked with a reason — but with no branch here the
+    // finding fell into the generic "general" fallback, which mangles the
+    // title via a naive `.split(":")`. Mirrors the non-streaming route.
+    module = "crossBrowser"; title = "Cross-browser rendering difference"; body = check.message || "";
   } else if (name.startsWith("runtime-errors:page-error") || name.startsWith("runtime-errors:initial-status")) {
     module = "runtimeErrors"; title = "JavaScript error on page load"; body = check.message || "";
   } else if (name.startsWith("runtime-errors:console-error")) {
