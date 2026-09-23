@@ -78,22 +78,22 @@ export default function CheckoutPage() {
   const tierInfo = tier ? TIERS[tier] : undefined;
 
   return (
-    <div className="flex-1 flex items-center justify-center bg-background px-6 py-16 sm:py-24">
-      <div className="max-w-md w-full text-center">
+    <div className="flex-1 flex items-center justify-center bg-[var(--v2-bg)] px-6 py-16 sm:py-24">
+      <div className="v2-wrap-narrow max-w-md w-full text-center">
         {tierInfo && (
           <>
-            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-1">{tierInfo.name}</h1>
-            <p className="text-lg font-semibold mb-2">
+            <h1 className="v2-h1 !text-2xl sm:!text-3xl mb-1">{tierInfo.name}</h1>
+            <p className="text-lg font-semibold mb-2 v2-mono">
               {formatPrice(tierInfo.priceInCents, tierInfo.recurring)}
             </p>
-            <p className="text-muted text-sm mb-8">{tierInfo.description}</p>
+            <p className="text-[var(--v2-muted)] text-sm mb-8">{tierInfo.description}</p>
           </>
         )}
 
         {phase === "redirecting" && (
           <div className="flex items-center justify-center gap-3">
-            <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-muted">Taking you to secure checkout…</span>
+            <div className="w-5 h-5 border-2 border-[var(--v2-accent)] border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-[var(--v2-muted)]">Taking you to secure checkout…</span>
           </div>
         )}
 
@@ -104,7 +104,7 @@ export default function CheckoutPage() {
               if (repoUrl.trim()) startCheckout(tier, repoUrl.trim());
             }}
           >
-            <label htmlFor="repo-url" className="block text-sm text-muted mb-2 text-left">
+            <label htmlFor="repo-url" className="block text-sm text-[var(--v2-muted)] mb-2 text-left">
               {URL_TIERS.has(tier) ? "Which website should we scan?" : "Which repository should we scan?"}
             </label>
             <input
@@ -114,16 +114,16 @@ export default function CheckoutPage() {
               value={repoUrl}
               onChange={(e) => setRepoUrl(e.target.value)}
               placeholder={URL_TIERS.has(tier) ? "https://yoursite.com" : "https://github.com/owner/repo"}
-              className="w-full px-4 py-3 rounded-xl border border-border bg-transparent text-sm mb-4"
+              className="w-full px-4 py-3 rounded-[var(--v2-radius-sm)] border border-[var(--v2-line-strong)] bg-transparent text-sm mb-4 text-[var(--v2-fg)]"
             />
-            <button type="submit" className="btn-cta w-full py-3.5 text-sm rounded-xl font-semibold">
+            <button type="submit" className="v2-btn v2-btn-primary w-full justify-center">
               Continue to checkout
             </button>
-            <p className="mt-4 text-xs text-muted leading-relaxed">
+            <p className="mt-4 text-xs text-[var(--v2-muted)] leading-relaxed">
               By continuing you agree to the{" "}
-              <Link href="/legal/terms" className="text-accent-light hover:underline">Terms of Service</Link>,{" "}
-              <Link href="/legal/privacy" className="text-accent-light hover:underline">Privacy Policy</Link> and{" "}
-              <Link href="/legal/refunds" className="text-accent-light hover:underline">Refund Policy</Link>.
+              <Link href="/legal/terms" className="text-[var(--v2-accent)] hover:underline">Terms of Service</Link>,{" "}
+              <Link href="/legal/privacy" className="text-[var(--v2-accent)] hover:underline">Privacy Policy</Link> and{" "}
+              <Link href="/legal/refunds" className="text-[var(--v2-accent)] hover:underline">Refund Policy</Link>.
               Payment is taken securely by Stripe; card details never touch our servers.
             </p>
           </form>
@@ -131,18 +131,18 @@ export default function CheckoutPage() {
 
         {phase === "error" && (
           <div>
-            <p className="text-sm text-red-500 mb-6">{error}</p>
+            <p className="text-sm text-[var(--v2-bad)] mb-6">{error}</p>
             {tierInfo ? (
               <button
                 onClick={() => startCheckout(tier, repoUrl)}
-                className="btn-cta w-full py-3.5 text-sm rounded-xl font-semibold"
+                className="v2-btn v2-btn-primary w-full justify-center"
               >
                 Try again
               </button>
             ) : (
               <Link
                 href="/#pricing"
-                className="btn-cta w-full py-3.5 text-sm block text-center rounded-xl font-semibold"
+                className="v2-btn v2-btn-primary w-full justify-center"
               >
                 See plans &amp; pricing
               </Link>
@@ -151,7 +151,7 @@ export default function CheckoutPage() {
         )}
 
         <div className="mt-6">
-          <Link href="/" className="text-sm text-muted hover:text-foreground">
+          <Link href="/" className="text-sm text-[var(--v2-muted)] hover:text-[var(--v2-fg)]">
             &larr; Back to GateTest
           </Link>
         </div>

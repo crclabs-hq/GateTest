@@ -74,29 +74,29 @@ export default function CheckoutSuccess() {
   if (state.kind === "subscription") {
     const isMcp = state.tier === "mcp";
     return (
-      <div className="flex-1 bg-background flex items-center justify-center px-6 py-16 sm:py-24">
-        <div className="max-w-lg text-center">
-          <div className="w-12 h-12 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center mx-auto mb-4">
-            <span className="text-accent-light text-xl">&#10003;</span>
+      <div className="flex-1 bg-[var(--v2-bg)] flex items-center justify-center px-6 py-16 sm:py-24">
+        <div className="v2-wrap-narrow max-w-lg text-center">
+          <div className="w-12 h-12 rounded-full bg-[var(--v2-accent)]/10 border border-[var(--v2-accent)]/30 flex items-center justify-center mx-auto mb-4">
+            <span className="text-[var(--v2-accent)] text-xl">&#10003;</span>
           </div>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-3">{isMcp ? "You're on GateTest MCP." : "Continuous is live for your org."}</h1>
+          <h1 className="v2-h1 !text-2xl sm:!text-3xl mb-3">{isMcp ? "You're on GateTest MCP." : "Continuous is live for your org."}</h1>
           {isMcp ? (
-            <p className="text-muted mb-6">
+            <p className="text-[var(--v2-muted)] mb-6">
               Your <code>gtmcp_</code> API key is being emailed to the address you used at checkout — usually within a minute.
               Paste it as <code>GATETEST_API_KEY</code> and the hosted tools light up in your AI client. No email in five minutes?
               Write to <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with your receipt and we&apos;ll resend it.
             </p>
           ) : (
-            <p className="text-muted mb-6">
+            <p className="text-[var(--v2-muted)] mb-6">
               Every push to any repository under your org is now covered — unlimited deterministic scans, with AI review escalating pushes to the full suite while your monthly allowance lasts. Pushes reach us through the GateTest GitHub App; results post as commit statuses and PR comments.
               The App is in private beta, so if the install button does not complete for your organisation yet, email <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with your receipt and we will connect your org by hand.
             </p>
           )}
           <div className="flex flex-wrap gap-3 justify-center">
-            <a href={isMcp ? "/mcp" : "/github/setup"} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-accent text-white">
+            <a href={isMcp ? "/mcp" : "/github/setup"} className="v2-btn v2-btn-primary">
               {isMcp ? "Set up the hosted MCP tools" : "Install the GitHub App"}
             </a>
-            <a href="/billing" className="px-5 py-2.5 rounded-xl text-sm font-bold border border-border">Manage billing</a>
+            <a href="/billing" className="v2-btn">Manage billing</a>
           </div>
         </div>
       </div>
@@ -105,28 +105,28 @@ export default function CheckoutSuccess() {
 
   if (state.kind === "error") {
     return (
-      <div className="flex-1 bg-background flex items-center justify-center px-6 py-16 sm:py-24">
-        <div className="max-w-lg text-center">
-          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-3">Payment received — but we lost the thread.</h1>
-          <p className="text-muted mb-6">
+      <div className="flex-1 bg-[var(--v2-bg)] flex items-center justify-center px-6 py-16 sm:py-24">
+        <div className="v2-wrap-narrow max-w-lg text-center">
+          <h1 className="v2-h1 !text-2xl sm:!text-3xl mb-3">Payment received — but we lost the thread.</h1>
+          <p className="text-[var(--v2-muted)] mb-6">
             {state.message} Your card was charged only once and the scan is still yours. Email{" "}
             <a className="underline" href={`mailto:${SUPPORT_EMAIL}?subject=Checkout%20session%20${encodeURIComponent(state.sessionId || "unknown")}`}>{SUPPORT_EMAIL}</a>{" "}
             with your Stripe receipt and we will start it by hand.
           </p>
-          <Link href="/" className="px-5 py-2.5 rounded-xl text-sm font-bold border border-border">Back to GateTest</Link>
+          <Link href="/" className="v2-btn">Back to GateTest</Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-background flex items-center justify-center px-6 py-16 sm:py-24">
+    <div className="flex-1 bg-[var(--v2-bg)] flex items-center justify-center px-6 py-16 sm:py-24">
       <div className="text-center">
-        <div className="w-12 h-12 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center mx-auto mb-4 animate-pulse">
-          <span className="text-accent-light text-xl">&#9679;</span>
+        <div className="w-12 h-12 rounded-full bg-[var(--v2-accent)]/10 border border-[var(--v2-accent)]/30 flex items-center justify-center mx-auto mb-4 animate-pulse">
+          <span className="text-[var(--v2-accent)] text-xl">&#9679;</span>
         </div>
-        <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-2">Starting your scan...</h1>
-        <p className="text-muted">Connecting to your repository. This hands off within {HANDOFF_TIMEOUT_MS / 1000} seconds.</p>
+        <h1 className="v2-h1 !text-2xl sm:!text-3xl mb-2">Starting your scan...</h1>
+        <p className="text-[var(--v2-muted)]">Connecting to your repository. This hands off within {HANDOFF_TIMEOUT_MS / 1000} seconds.</p>
       </div>
     </div>
   );
