@@ -742,8 +742,18 @@ html {
 /* is a token, never a literal hex. */
 /* ===================================================================== */
 
+/* min-width: 0 on both wraps: a page's top-level element is a flex item of
+   the root layout's column flex container (app/layout.tsx), and a flex
+   item's automatic min-width is its content's min-content size, not 0 — a
+   single wide-but-unbreakable descendant (a multi-column table, in the
+   /trust regression this shipped with) can silently force the WHOLE PAGE
+   wider than the viewport at 375px even though that descendant has its own
+   overflow-x: auto. min-width: 0 makes the wrap respect the viewport
+   instead of its content's intrinsic size. */
 .v2-wrap {
+  width: 100%;
   max-width: 1120px;
+  min-width: 0;
   margin: 0 auto;
   padding-left: 24px;
   padding-right: 24px;
@@ -754,7 +764,9 @@ html {
 /* A narrower, prose-width wrap for text-heavy pages (docs, legal, glossary)
    — no fixed left rail to clear, and a shorter line length reads better. */
 .v2-wrap-narrow {
+  width: 100%;
   max-width: 760px;
+  min-width: 0;
   margin: 0 auto;
   padding-left: 24px;
   padding-right: 24px;

@@ -167,7 +167,16 @@ export default function RootLayout({
         {/* One header and one footer for the whole site — pages never render
             their own (tests/site-shell.test.js). */}
         <SiteHeader />
-        <div className="flex-1 flex flex-col">{children}</div>
+        {/* min-w-0 matters here: this div is a flex item of an implicit
+            column flex context, and a flex item's default min-width is
+            "auto" — its content's min-content size — not 0. A page with any
+            wide-but-unbreakable content deep inside (a 4-column table, a
+            long unbroken token) can silently force this whole column wider
+            than the viewport at 375px even though the page's own overflow-x
+            guards are correct, because those guards only stop this element
+            from growing past ITS OWN min-content, not past the viewport.
+            min-w-0 makes it respect the actual available width instead. */}
+        <div className="flex-1 flex flex-col min-w-0">{children}</div>
         <SiteFooter />
         <ChatWidget />
       </body>
