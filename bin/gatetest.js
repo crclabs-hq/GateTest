@@ -766,7 +766,17 @@ async function main() {
           groups: ServerScanner.toJsonGroups(result),
           summary: summaryText,
         };
-        process.stdout.write(`${JSON.stringify(doc)}\n`, () => process.exit(exitCode));
+        // Never process.exit() right after a stdout write: a piped stdout is
+        // asynchronous on POSIX (synchronous only on Windows — see Node's own
+        // docs on process.stdout), so a forced exit can race the write and
+        // hand the consumer a truncated or empty document even from inside
+        // the write's own callback (reproduced in CI on Linux, not on
+        // Windows). Setting exitCode and returning lets the event loop drain
+        // naturally — nothing else is scheduled once a --server scan is
+        // done, so the process exits on its own right after the write
+        // actually completes.
+        process.stdout.write(`${JSON.stringify(doc)}\n`);
+        process.exitCode = exitCode;
         return;
       }
 
@@ -1531,7 +1541,15 @@ async function runCrawl(gatetest, url, maxPages, authConfig = {}, jsonMode = fal
       exitCode,
       findings: buildCrawlFindings(data),
     };
-    process.stdout.write(`${JSON.stringify(doc)}\n`, () => process.exit(exitCode));
+    // Never process.exit() right after a stdout write — see the matching
+    // comment on the --server JSON path above. A piped stdout is
+    // asynchronous on POSIX, so a forced exit (even from inside the write's
+    // own callback) can race the write and hand the consumer a truncated or
+    // empty document; reproduced in CI on Linux against this exact code
+    // path, not on Windows. Setting exitCode and returning lets the event
+    // loop drain naturally instead.
+    process.stdout.write(`${JSON.stringify(doc)}\n`);
+    process.exitCode = exitCode;
     return;
   }
 

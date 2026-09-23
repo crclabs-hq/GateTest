@@ -163,4 +163,59 @@ describe('gatetest --crawl --format json (issue #677 item 1)', () => {
       fs.rmSync(projectRoot, { recursive: true, force: true });
     }
   });
+
+  // ==========================================================================
+  // Regression — a JSON document large enough to exceed a pipe's buffer
+  // (64KB on Linux) must still arrive complete on stdout.
+  //
+  // CI on Linux failed here: `process.stdout.write(doc, () => process.exit
+  // (code))` calls exit from inside the write's own callback, but a piped
+  // stdout is asynchronous on POSIX (synchronous only on Windows — this is
+  // documented Node.js behaviour, not a bug in the write itself), so the
+  // parent sometimes saw an EMPTY stream. This reproduces the failure mode
+  // with a document over 64KB; the fix (bin/gatetest.js) never calls
+  // process.exit() after a stdout write — it sets process.exitCode and lets
+  // the event loop drain, which cannot race the write on ANY platform. This
+  // test can't force the Linux-only async pipe timing on a Windows dev
+  // machine, but it does prove the document survives a large write intact,
+  // and CI on Linux exercises the exact race this was written for.
+  // ==========================================================================
+  it('a JSON document over 64KB (many broken images) still arrives complete on stdout', async () => {
+    const BROKEN_IMAGE_COUNT = 800; // ~120 bytes/finding once serialized => well over 64KB
+    const server = await startServer((req, res) => {
+      if (req.url === '/') {
+        const imgTags = Array.from({ length: BROKEN_IMAGE_COUNT }, (_, i) => `<img src="/img/${i}.png">`).join('');
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(`<html><head><title>Home</title></head><body>plenty of visible text on this page to avoid the blank-page check${imgTags}</body></html>`);
+        return;
+      }
+      res.writeHead(404);
+      res.end();
+    });
+    const url = `http://127.0.0.1:${server.address().port}/`;
+    const fs = require('fs');
+    const os = require('os');
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-crawl-json-large-'));
+
+    try {
+      const result = await runCli(
+        ['--crawl', url, '--project', projectRoot, '--crawl-max', '1', '--format', 'json'],
+        { timeoutMs: 60000 },
+      );
+      const stdoutBytes = Buffer.byteLength(result.stdout, 'utf8');
+      assert.ok(stdoutBytes > 65536, `expected stdout to exceed the 64KB pipe buffer, got ${stdoutBytes} bytes`);
+
+      let doc;
+      assert.doesNotThrow(() => { doc = JSON.parse(result.stdout); },
+        `a large document must still parse as exactly one complete JSON document (${stdoutBytes} bytes).\n` +
+        `stdout tail:\n${result.stdout.slice(-300)}`);
+      assert.equal(doc.findings.length, BROKEN_IMAGE_COUNT,
+        'every broken-image finding must survive the write, not just the ones that fit before a truncation point');
+      assert.equal(doc.exitCode, 1, 'broken images are hard findings and must fail the gate');
+      assert.equal(result.code, 1);
+    } finally {
+      server.close();
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
 });
