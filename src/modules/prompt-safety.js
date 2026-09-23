@@ -34,6 +34,7 @@
 const fs = require('fs');
 const path = require('path');
 const { repoRelative } = require('../core/repo-path');
+const { workspacePackageMap } = require('../core/workspaces');
 const BaseModule = require('./base-module');
 
 // Recommendation text comes from the engine's own model policy, so a future
@@ -190,6 +191,7 @@ const CAP_FIELD_NAME = {
   gateway: '`max_tokens` in the JSON body', gemini: '`generationConfig.maxOutputTokens`', 'gemini-py': '`max_output_tokens`',
   bedrock: '`max_tokens` / `maxTokens` / `max_gen_len` in the body', 'ai-sdk': '`maxOutputTokens`',
   langchain: '`maxTokens`', 'langchain-py': '`max_tokens=`',
+  'generic-sdk': '`maxTokens` / `max_tokens`',
 };
 const DEPRECATED_MODELS = MODEL_LIFECYCLE.map(([id]) => id);
 const RETIREMENT_DATES = new Map(MODEL_LIFECYCLE);
@@ -470,6 +472,121 @@ function _findClientIdentifierOrigin(content, identifier, depth = 0) {
 }
 
 /**
+ * Split a bare specifier into its package name and subpath:
+ * `@scope/pkg/sub/path` -> `{ pkgName: '@scope/pkg', subpath: 'sub/path' }`;
+ * `pkg/sub` -> `{ pkgName: 'pkg', subpath: 'sub' }`; `pkg` (or `@scope/pkg`
+ * alone) -> `subpath: ''`.
+ */
+function _splitPackageSpecifier(source) {
+  const parts = source.split('/');
+  if (source.startsWith('@')) {
+    if (parts.length < 2) return { pkgName: source, subpath: '' };
+    return { pkgName: parts.slice(0, 2).join('/'), subpath: parts.slice(2).join('/') };
+  }
+  return { pkgName: parts[0], subpath: parts.slice(1).join('/') };
+}
+
+/**
+ * Resolve a `./<subpath>` export target from a package's `exports` map.
+ * Handles the string form directly, an `import`/`default` condition object
+ * (in that preference order — matches how a bundler/Node resolves an ESM
+ * import), and a single `*` pattern key (`./*`, `./foo/*`) whose captured
+ * remainder substitutes into the target. Returns the raw target string
+ * (still relative to the package dir) or null when nothing matches.
+ */
+function _matchExportsEntry(exportsMap, subpath) {
+  if (!exportsMap || typeof exportsMap !== 'object') return null;
+  const wantKey = `./${subpath}`;
+
+  const resolveValue = (val, wildcard) => {
+    if (typeof val === 'string') return wildcard != null ? val.replace(/\*/g, wildcard) : val;
+    if (val && typeof val === 'object') {
+      for (const cond of ['import', 'default']) {
+        if (typeof val[cond] === 'string') {
+          return wildcard != null ? val[cond].replace(/\*/g, wildcard) : val[cond];
+        }
+      }
+    }
+    return null;
+  };
+
+  if (Object.prototype.hasOwnProperty.call(exportsMap, wantKey)) {
+    const resolved = resolveValue(exportsMap[wantKey], null);
+    if (resolved) return resolved;
+  }
+
+  for (const key of Object.keys(exportsMap)) {
+    const starIdx = key.indexOf('*');
+    if (starIdx === -1) continue;
+    const prefix = key.slice(0, starIdx);
+    const suffix = key.slice(starIdx + 1);
+    if (wantKey.startsWith(prefix) && wantKey.endsWith(suffix) && wantKey.length >= prefix.length + suffix.length) {
+      const wildcard = wantKey.slice(prefix.length, wantKey.length - suffix.length);
+      const resolved = resolveValue(exportsMap[key], wildcard);
+      if (resolved) return resolved;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve a scoped or unscoped workspace package subpath (`@scope/pkg/sub`)
+ * straight from source, without relying on a `node_modules` symlink that a
+ * fixture or a fresh mid-CI clone may not have on disk.
+ *
+ * #680 (Tallrig): call sites import `@vapron/ai-gateway/client`, a Bun
+ * workspace package (`workspaces` in the root `package.json`, same field
+ * Bun reads) whose `/client` subpath resolves through its own `exports` map.
+ * `_resolveClientModule`'s only bare-specifier path was `require.resolve`,
+ * which needs that symlink to exist — it never engaged, so every call site
+ * behind the gateway read as an unbounded-output bug although the gateway
+ * caps every request.
+ *
+ * The package name maps to its folder via the root `workspaces` globs
+ * (`package.json`, `pnpm-workspace.yaml`, or Bun — `readWorkspacePatterns`
+ * reads the same `package.json` `workspaces` field Bun does, so no separate
+ * Bun-specific parsing is needed). The subpath then resolves through that
+ * package's own `exports` map (`_matchExportsEntry`), falling back to
+ * `<pkg>/src/<sub>.ts` and `<pkg>/<sub>.ts` when there's no `exports` field,
+ * or no matching entry in it, for the internal workspace packages that don't
+ * bother declaring one.
+ */
+function _resolveWorkspaceSubpath(source, projectRoot) {
+  const { pkgName, subpath } = _splitPackageSpecifier(source);
+  if (!subpath) return null;
+
+  let pkgDir;
+  try {
+    pkgDir = workspacePackageMap(projectRoot).get(pkgName);
+  } catch {
+    return null;
+  }
+  if (!pkgDir) return null;
+
+  let manifest = null;
+  try {
+    manifest = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf-8'));
+  } catch { /* error-ok — no manifest, or invalid JSON: fall through to the filesystem fallbacks */ }
+
+  if (manifest && manifest.exports) {
+    const target = _matchExportsEntry(manifest.exports, subpath);
+    if (target) {
+      const resolved = path.resolve(pkgDir, target);
+      try {
+        if (fs.statSync(resolved).isFile()) return resolved;
+      } catch { /* error-ok — exports names a path that isn't actually on disk; fall through */ }
+    }
+  }
+
+  for (const candidate of [path.join(pkgDir, 'src', `${subpath}.ts`), path.join(pkgDir, `${subpath}.ts`)]) {
+    try {
+      if (fs.statSync(candidate).isFile()) return candidate;
+    } catch { /* error-ok — try the next fallback */ }
+  }
+  return null;
+}
+
+/**
  * Is `source` an in-repo module — a relative import or a workspace package —
  * rather than a vendor SDK? Returns the resolved absolute file path, or null
  * when `source` is a vendor SDK, or resolves outside the project, or cannot
@@ -481,6 +598,8 @@ function _resolveClientModule(source, fromFile, projectRoot) {
   if (source.startsWith('.') || source.startsWith('/')) {
     return _resolveRelativeModule(source, fromFile);
   }
+  const workspaceResolved = _resolveWorkspaceSubpath(source, projectRoot);
+  if (workspaceResolved) return workspaceResolved;
   // Bare specifier: only "in-repo" when it actually resolves to a file that
   // lives inside this project — a workspace package — not some other
   // unrecognised external dependency.
@@ -760,8 +879,24 @@ class PromptSafetyModule extends BaseModule {
       { re: /\bInvokeModel(?:WithResponseStream)?Command\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
         kind: 'bedrock', cap: /max_tokens|maxTokens|max_gen_len|maxTokenCount|max_tokens_to_sample/, bodyGroup: 1 },
       // Vercel AI SDK: generateText / streamText / generateObject / streamObject({ maxTokens | maxOutputTokens })
-      { re: /\b(?:generateText|streamText|generateObject|streamObject)\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
+      // `(?<![.\w$])` keeps this to the bare, top-level-imported-function
+      // shape (`generateText({...})`) — a method call on a receiver
+      // (`gatewayClient.generateObject({...})`) belongs to the generic-SDK
+      // kind below, which (unlike this one) has a call-site identifier to
+      // trace for the #669/#680 wrapper-aware downgrade. Without this
+      // exclusion the same call matched both kinds and produced two findings.
+      { re: /(?<![.\w$])(?:generateText|streamText|generateObject|streamObject)\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
         kind: 'ai-sdk', cap: /max(?:Output)?Tokens\s*:/, bodyGroup: 1 },
+      // #680: the generic SDK kind — a customer's own in-repo gateway client
+      // (imported under whatever name they gave it, e.g. `gatewayClient`)
+      // exposing the same method names the Vercel AI SDK and various
+      // provider SDKs converged on (`generateObject`, `generateText`,
+      // `complete`). Unlike the bare-function `ai-sdk` kind above, this is a
+      // method call on an identifier — exactly the shape #669's wrapper-aware
+      // downgrade already knows how to trace, so it carries an
+      // `identifierGroup` the same way the vendor-SDK kinds do.
+      { re: /(?<![\w/@-])([A-Za-z_$][\w$]*)\.(?:generateObject|generateText|complete)\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
+        kind: 'generic-sdk', cap: /max_?(?:output_?)?tokens\s*[:=]/i, identifierGroup: 1, bodyGroup: 2 },
       // LangChain: new ChatOpenAI({ maxTokens }) / ChatAnthropic({ maxTokens }) / ChatBedrock / ChatGoogleGenerativeAI
       { re: /\bnew\s+Chat(?:OpenAI|Anthropic|Bedrock|GoogleGenerativeAI|VertexAI|Groq|Mistral)\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
         kind: 'langchain', cap: /max_?[tT]okens|maxOutputTokens/, bodyGroup: 1 },
@@ -787,11 +922,13 @@ class PromptSafetyModule extends BaseModule {
         let message = `${kind} call sets no output cap (${CAP_FIELD_NAME[kind] || 'max_tokens'}) — an attacker crafting a long prompt can run up your bill indefinitely`;
         let suggestion = `Always set ${CAP_FIELD_NAME[kind] || 'max_tokens'} to the smallest value that fits your use case. This also caps worst-case latency.`;
 
-        // #669: this call site is only a real cost-DoS bug if the client it
-        // calls isn't already capping output elsewhere. Only meaningful when
-        // we know the identifier (openai/anthropic kinds) and have a real
-        // file + project root to resolve imports against (tests that call
-        // _scanLlmCalls directly, without a file, skip this — same as before).
+        // #669/#680: this call site is only a real cost-DoS bug if the client
+        // it calls isn't already capping output elsewhere. Only meaningful
+        // when we know the identifier — every kind the rule fires on that
+        // carries an `identifierGroup` (the vendor-SDK kinds, JS and Python,
+        // plus the generic-SDK kind) — and have a real file + project root to
+        // resolve imports against (tests that call _scanLlmCalls directly,
+        // without a file, skip this — same as before).
         if (identifierGroup && file && projectRoot) {
           const identifier = m[identifierGroup];
           const source = _findClientIdentifierOrigin(content, identifier);

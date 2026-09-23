@@ -850,3 +850,105 @@ describe('PromptSafetyModule — wrapper cap resolves through ?? and an imported
     assert.strictEqual(hit.severity, 'error', 'a direct vendor-SDK caller with no wrapper must stay an error');
   });
 });
+
+// #680 item 1 (Tallrig): call sites import `@vapron/ai-gateway/client` — a
+// Bun workspace package whose `/client` subpath resolves through its own
+// `exports` map — using the generic SDK method names (`generateObject`,
+// `generateText`, `complete`) on the imported client, not the two
+// vendor-SDK kinds. Two gaps: the origin finder never resolved a workspace
+// package subpath at all, and even when it did, the wrapper-aware downgrade
+// only ran for the vendor-SDK kinds.
+describe('PromptSafetyModule — workspace subpath + generic-SDK wrapper resolution (#680)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ps-wssub-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const noMaxTokens = (r) => r.checks.filter((c) => c.name.startsWith('prompt-safety:no-max-tokens:'));
+
+  function writeMonorepo(tmpRoot) {
+    write(tmpRoot, 'package.json', JSON.stringify({ name: 'root', private: true, workspaces: ['services/*'] }, null, 2));
+    write(tmpRoot, 'services/gateway/package.json', JSON.stringify({
+      name: '@acme/gateway',
+      exports: {
+        './client': { import: './src/client.ts', default: './src/client.ts' },
+        './nocap': { import: './src/nocap-client.ts', default: './src/nocap-client.ts' },
+      },
+    }, null, 2));
+    write(tmpRoot, 'services/gateway/src/types.ts', [
+      'export const DEFAULT_MAX_OUTPUT_TOKENS = 4096;',
+      '',
+    ].join('\n'));
+    write(tmpRoot, 'services/gateway/src/client.ts', [
+      'import { DEFAULT_MAX_OUTPUT_TOKENS } from "./types";',
+      'export const gatewayClient = {',
+      '  generateObject(input) { return send({ maxTokens: input.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS, ...input }); },',
+      '  generateText(input) { return send({ maxTokens: input.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS, ...input }); },',
+      '  complete(input) { return send({ maxTokens: input.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS, ...input }); },',
+      '};',
+      '',
+    ].join('\n'));
+    write(tmpRoot, 'services/gateway/src/nocap-client.ts', [
+      'export const nocapClient = {',
+      '  generateObject(input) { return send(input); },',
+      '};',
+      '',
+    ].join('\n'));
+  }
+
+  it('a static import of a scoped workspace subpath resolves through exports and downgrades to info', async () => {
+    writeMonorepo(tmp);
+    write(tmp, 'apps/api/src/deploy-summariser.ts', [
+      'import { gatewayClient } from "@acme/gateway/client";',
+      'async function run() {',
+      '  return gatewayClient.generateObject({ model: "x", input: [] });',
+      '}',
+      'export { run };',
+      '',
+    ].join('\n'));
+
+    const r = await run(tmp);
+    const hits = noMaxTokens(r);
+    assert.strictEqual(hits.length, 1, hits.map((h) => h.name).join());
+    assert.strictEqual(hits[0].severity, 'info', 'a workspace-subpath wrapper that caps by default must downgrade to info');
+    assert.match(hits[0].message, /cap applied in services[/\\]gateway[/\\]src[/\\]client\.ts/);
+    assert.match(hits[0].message, /default 4096 from services[/\\]gateway[/\\]src[/\\]types\.ts/);
+  });
+
+  it('a dynamic import of the same subpath, using a generic-SDK method name, also downgrades to info', async () => {
+    writeMonorepo(tmp);
+    write(tmp, 'apps/api/src/deploy-dynamic.ts', [
+      'async function run() {',
+      '  const { gatewayClient } = await import("@acme/gateway/client");',
+      '  return gatewayClient.generateText({ model: "x", input: [] });',
+      '}',
+      'export { run };',
+      '',
+    ].join('\n'));
+
+    const r = await run(tmp);
+    const hits = noMaxTokens(r);
+    assert.strictEqual(hits.length, 1, hits.map((h) => h.name).join());
+    assert.strictEqual(hits[0].severity, 'info', 'a dynamic-import generic-SDK caller must resolve the workspace wrapper too');
+    assert.match(hits[0].message, /cap applied in services[/\\]gateway[/\\]src[/\\]client\.ts/);
+    assert.match(hits[0].message, /default 4096 from services[/\\]gateway[/\\]src[/\\]types\.ts/);
+  });
+
+  it('a workspace subpath whose client sets no default keeps the caller an error and names the wrapper', async () => {
+    writeMonorepo(tmp);
+    write(tmp, 'apps/api/src/nocap-caller.ts', [
+      'import { nocapClient } from "@acme/gateway/nocap";',
+      'async function run() {',
+      '  return nocapClient.generateObject({ model: "x" });',
+      '}',
+      'export { run };',
+      '',
+    ].join('\n'));
+
+    const r = await run(tmp);
+    const hits = noMaxTokens(r);
+    assert.strictEqual(hits.length, 1, hits.map((h) => h.name).join());
+    assert.strictEqual(hits[0].severity, 'error', 'a workspace wrapper that sets no default must not downgrade the caller');
+    assert.match(hits[0].message, /services[/\\]gateway[/\\]src[/\\]nocap-client\.ts/, 'message must name the wrapper');
+  });
+});
+
