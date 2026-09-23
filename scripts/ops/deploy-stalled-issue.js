@@ -115,11 +115,15 @@ async function resolveRepoOwnerLogin({ owner, repo, token, fetchImpl, githubApi 
   try {
     const repoRes = await fetchImpl(`${githubApi}/repos/${owner}/${repo}`, { headers: authHeaders(token) });
     if (repoRes.status !== 200) return null;
-    const repoData = await repoRes.json().catch(() => null);
+    const repoData = await repoRes.json().catch((err) => {
+      log(`resolveRepoOwnerLogin: repo response not JSON — ${err && err.message ? err.message : err}`);
+      return null;
+    });
     if (repoData && repoData.owner && repoData.owner.type === 'User' && repoData.owner.login) {
       return repoData.owner.login;
     }
-  } catch {
+  } catch (err) {
+    log(`resolveRepoOwnerLogin: repo lookup failed — ${err && err.message ? err.message : err}`);
     return null;
   }
 
@@ -129,11 +133,15 @@ async function resolveRepoOwnerLogin({ owner, repo, token, fetchImpl, githubApi 
       { headers: authHeaders(token) },
     );
     if (collabRes.status !== 200) return null;
-    const collaborators = await collabRes.json().catch(() => null);
+    const collaborators = await collabRes.json().catch((err) => {
+      log(`resolveRepoOwnerLogin: collaborators response not JSON — ${err && err.message ? err.message : err}`);
+      return null;
+    });
     if (!Array.isArray(collaborators)) return null;
     const admin = collaborators.find((c) => c && (c.role_name === 'admin' || (c.permissions && c.permissions.admin)));
     return admin && admin.login ? admin.login : null;
-  } catch {
+  } catch (err) {
+    log(`resolveRepoOwnerLogin: collaborator lookup failed — ${err && err.message ? err.message : err}`);
     return null;
   }
 }

@@ -105,6 +105,27 @@ describe('pull-deploy-status', () => {
     assert.equal(out.firstFailedAt, null);
   });
 
+  it('an appended (multi-line) status file — as an OnFailure append leaves it — reads the LAST line only', () => {
+    const file = '/var/lib/gatetest/pull-deploy-status.json';
+    const oldLine = JSON.stringify({
+      at: '2020-01-01T00:00:00Z', before: 'x', after: 'x', result: 'up-to-date', reason: '',
+      consecutiveFailures: 0, firstFailedAt: '',
+    });
+    const appendedFailure = JSON.stringify({
+      at: '2026-09-23T02:00:00Z', before: '', after: '', result: 'failed', reason: 'killed',
+      consecutiveFailures: 2, firstFailedAt: '2026-09-23T02:00:00Z',
+    });
+    const _fs = makeFakeFs(new Map([[file, `${oldLine}\n${appendedFailure}\n`]]));
+    const out = readLastPullDeploy({ _fs, filePath: file });
+    // Must reflect the LAST line's state (the appended failure), not the
+    // FIRST line's "up-to-date" that parsing the whole file or a `head -n1`
+    // read would have produced.
+    assert.equal(out.result, 'failed');
+    assert.equal(out.reason, 'killed');
+    assert.equal(out.consecutiveFailures, 2);
+    assert.equal(out.firstFailedAt, '2026-09-23T02:00:00Z');
+  });
+
   it('file absent -> honest "unknown", never throws', () => {
     const _fs = makeFakeFs(new Map());
     const out = readLastPullDeploy({ _fs, filePath: '/var/lib/gatetest/pull-deploy-status.json' });

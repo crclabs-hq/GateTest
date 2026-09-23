@@ -145,8 +145,20 @@ function run(box, tmp, extra = {}) {
   return { r, statusFile, lockFile };
 }
 
+// The status file is one JSON object per line, written fresh each tick — but
+// pull-deploy-onfailure.sh appends rather than replaces, so a killed run
+// between two ordinary ticks can leave more than one line behind. Read the
+// LAST non-empty line only, same as pull-deploy-status.js and pull-deploy.sh's
+// own `tail -n1` — parsing the whole file broke on exactly that appended shape
+// ("Unexpected non-whitespace character after JSON at position ... line 2").
 function readStatus(statusFile) {
-  return JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+  const raw = fs.readFileSync(statusFile, 'utf8');
+  const lastLine = raw
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .pop();
+  return JSON.parse(lastLine);
 }
 
 // ── up to date: one fetch, no build ─────────────────────────────────────────
