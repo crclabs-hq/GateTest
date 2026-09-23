@@ -45,6 +45,12 @@ on:
 
 permissions:
   contents: read
+  # issues: write is for the "Production deploy stalled" issue only (issue
+  # #706 part 2) — opened/commented/closed when deploy/fresh reports
+  # CRITICAL, the same signal .github/workflows/deploy-box.yml's
+  # poll-pull-deploy job reports from the push side. Every other step in
+  # this workflow needs no write access at all.
+  issues: write
 
 jobs:
   probe:
@@ -123,3 +129,62 @@ jobs:
           name: readiness-report
           path: readiness.json
           retention-days: 14
+
+      # issue #706 part 2: the SAME "Production deploy stalled" issue
+      # .github/workflows/deploy-box.yml's poll-pull-deploy job manages, from
+      # a second source that runs on a schedule instead of only on push — a
+      # push-only signal misses a box that stops deploying between pushes.
+      # Fires only on deploy/fresh CRITICAL (not WARNING — "a bit behind" is
+      # normal between deploys, per the comment on that step in
+      # src/core/readiness-probe.js); resolves/closes on the first run that
+      # sees deploy/fresh pass or fail only as a WARNING. Best-effort: a
+      # problem managing the issue never fails this job — that verdict is
+      # already decided by "Production runs main (deploy drift)" above.
+      - name: Report deploy/fresh CRITICAL to the "Production deploy stalled" issue
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            let report = null;
+            try { report = JSON.parse(fs.readFileSync('readiness.json', 'utf8')); } catch { /* probe itself failed to run — nothing to report */ }
+            const step = report && Array.isArray(report.steps) ? report.steps.find((s) => s.name === 'deploy/fresh') : null;
+            const critical = !!(step && step.ok === false && step.severity === 'critical');
+            fs.writeFileSync('deploy-fresh-state.json', JSON.stringify({
+              critical,
+              reason: step ? step.detail : '',
+              commit: (step && step.commit) || null,
+            }));
+          "
+          CRITICAL=$(node -e "console.log(JSON.parse(require('fs').readFileSync('deploy-fresh-state.json', 'utf8')).critical)")
+
+          if [ "$CRITICAL" != "true" ]; then
+            node scripts/ops/deploy-stalled-issue.js --state resolved --source "readiness-probe.yml (deploy/fresh)"
+            exit 0
+          fi
+
+          REASON=$(node -e "console.log(JSON.parse(require('fs').readFileSync('deploy-fresh-state.json', 'utf8')).reason)")
+          LIVE_COMMIT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('deploy-fresh-state.json', 'utf8')).commit || '')")
+
+          if [ -n "$LIVE_COMMIT" ] && git cat-file -e "$LIVE_COMMIT" 2>/dev/null; then
+            git log --merges --oneline "$LIVE_COMMIT"..HEAD > merges.txt
+          else
+            : > merges.txt
+          fi
+          node -e "
+            const fs = require('fs');
+            const lines = fs.readFileSync('merges.txt', 'utf8').split('\n').filter(Boolean);
+            const out = lines.map((line) => {
+              const i = line.indexOf(' ');
+              return i === -1 ? { sha: line, subject: '' } : { sha: line.slice(0, i), subject: line.slice(i + 1) };
+            });
+            fs.writeFileSync('unshipped.json', JSON.stringify(out));
+          "
+
+          node scripts/ops/deploy-stalled-issue.js \
+            --state stalled \
+            --reason "$REASON" \
+            --box-command "journalctl -u gatetest-pull-deploy -n 100 --no-pager" \
+            --source "readiness-probe.yml (deploy/fresh)" \
+            --unshipped-file unshipped.json
