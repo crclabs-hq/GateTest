@@ -17,10 +17,10 @@ const { spawn } = require('node:child_process');
 
 const GATETEST_BIN = path.join(__dirname, '..', 'bin', 'gatetest.js');
 
-function runCli(args, { timeoutMs = 20000 } = {}) {
+function runCli(args, { timeoutMs = 20000, env } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [GATETEST_BIN, ...args], {
-      env: { ...process.env, GATETEST_NO_TELEMETRY: '1' },
+      env: { ...process.env, GATETEST_NO_TELEMETRY: '1', ...(env || {}) },
     });
     let stdout = '';
     let stderr = '';
@@ -93,6 +93,33 @@ describe('gatetest --server --format json (issue #677 item 1)', () => {
     }
   });
 
+  // ==========================================================================
+  // Regression — under GitHub Actions, ServerScanner never touches
+  // GateTestRunner/its reporters, so this documents that `--server` was
+  // never actually at risk from the annotation-emitter bug below (unlike
+  // `--crawl`, which runs through gatetest.runModule()) — a guard proving it
+  // stays that way, not a reproduction of a real failure.
+  // ==========================================================================
+  it('stdout is still exactly one JSON document under GITHUB_ACTIONS=true', async () => {
+    const server = await startServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><body>ok</body></html>');
+    });
+    const url = `http://127.0.0.1:${server.address().port}/`;
+
+    try {
+      const result = await runCli(['--server', url, '--format', 'json'], {
+        env: { GITHUB_ACTIONS: 'true', CI: 'true' },
+      });
+      let doc;
+      assert.doesNotThrow(() => { doc = JSON.parse(result.stdout); },
+        `stdout must be exactly one JSON document under GITHUB_ACTIONS=true.\nstdout:\n${result.stdout}`);
+      assert.equal(doc.target, url);
+    } finally {
+      server.close();
+    }
+  });
+
   it('without the flag, text output is unchanged (not JSON, still shows the new wording)', async () => {
     const server = await startServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -137,6 +164,54 @@ describe('gatetest --crawl --format json (issue #677 item 1)', () => {
       // Progress and the human report went to stderr, not stdout.
       assert.match(result.stderr, /Crawling/);
       assert.equal(result.code, 0);
+    } finally {
+      server.close();
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  // ==========================================================================
+  // Regression — CI failure on #697: under GitHub Actions, `gatetest
+  // --crawl --format json` printed `::notice ...` / `::group::` / `::endgroup::`
+  // workflow-command annotation lines on stdout, interleaved with the JSON
+  // document, because GithubAnnotationsReporter and CiSummaryReporter
+  // (auto-attached whenever GITHUB_ACTIONS=true — src/index.js) write
+  // straight to process.stdout.write and were never gated on `silent`, only
+  // ConsoleReporter was. Locally there is no GITHUB_ACTIONS env, so this
+  // never showed up outside CI. Fix: src/index.js now skips attaching both
+  // reporters when `silent` is set (the same contract ConsoleReporter
+  // already honoured), and jsonMode always constructs GateTest with
+  // `silent: true`. This test sets GITHUB_ACTIONS=true/CI=true so the
+  // annotation path is actually exercised on any OS, and would have failed
+  // to parse before the fix.
+  // ==========================================================================
+  it('stdout is still exactly one JSON document under GITHUB_ACTIONS=true (annotation reporters must not leak onto it)', async () => {
+    const server = await startServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><head><title>Home</title></head><body>a perfectly ordinary home page with plenty of visible text</body></html>');
+    });
+    const url = `http://127.0.0.1:${server.address().port}/`;
+    const fs = require('fs');
+    const os = require('os');
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-crawl-json-actions-'));
+
+    try {
+      const result = await runCli(
+        ['--crawl', url, '--project', projectRoot, '--crawl-max', '3', '--format', 'json'],
+        { env: { GITHUB_ACTIONS: 'true', CI: 'true' } },
+      );
+      assert.ok(!/::notice|::group|::endgroup|::error|::warning/.test(result.stdout),
+        `stdout must never carry a workflow-command annotation line.\nstdout:\n${result.stdout}`);
+      let doc;
+      assert.doesNotThrow(() => { doc = JSON.parse(result.stdout); },
+        `stdout must be exactly one JSON document under GITHUB_ACTIONS=true.\nstdout:\n${result.stdout}`);
+      assert.equal(doc.url, url);
+      assert.equal(doc.result, 'ALL CLEAR');
+      // The fix suppresses these reporters entirely in silent mode (the same
+      // contract ConsoleReporter already had) rather than rerouting them —
+      // stderr must not carry them either.
+      assert.ok(!/::notice|::group|::endgroup|::error|::warning/.test(result.stderr),
+        `annotation reporters are suppressed in silent mode, not redirected.\nstderr:\n${result.stderr}`);
     } finally {
       server.close();
       fs.rmSync(projectRoot, { recursive: true, force: true });
