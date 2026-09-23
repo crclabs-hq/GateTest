@@ -203,11 +203,115 @@ describe('web suite — live-URL mode via config.livePage (real work where cheap
     assert.ok(nc && nc.passed === false && nc.notChecked === true);
   });
 
-  it('links: livePage present -> honestly not-checked (live crawl not implemented here)', async () => {
+  it('links: livePage present, no liveCrawler result available -> honestly not-checked (#681 item 4)', async () => {
     const mod = new LinksModule();
     const r = makeResult();
     await mod.run(r, { livePage: { url: 'https://x.example.com', headers: new Headers(), html: '<a href="/about">About</a>' } });
     const nc = r.checks.find((c) => c.name === 'links:not-checked');
     assert.ok(nc && nc.passed === false && nc.notChecked === true);
+  });
+});
+
+describe('web suite — links consumes liveCrawler\'s result in live mode instead of not-checked (#681 item 4)', () => {
+  function crawlResult(checks) {
+    return { module: 'liveCrawler', checks };
+  }
+
+  it('a completed crawl with broken links -> links reports the SAME broken-link data, never not-checked', async () => {
+    const mod = new LinksModule();
+    const r = makeResult();
+    const config = {
+      livePage: { url: 'https://x.example.com', headers: new Headers(), html: '' },
+      _allResults: [
+        crawlResult([
+          { name: 'crawl:pages-scanned', passed: true, message: 'Crawled 4 page(s) from https://x.example.com' },
+          {
+            name: 'crawl:broken-links', passed: false, severity: 'error',
+            message: '13 broken link(s) found', details: [{ url: '/dead' }],
+            suggestion: 'Fix or remove broken links',
+          },
+        ]),
+      ],
+    };
+    await mod.run(r, config);
+    assert.ok(!r.checks.find((c) => c.notChecked === true), 'must not report not-checked when crawler data is available');
+    const found = r.checks.find((c) => c.name === 'links:live-broken-links');
+    assert.ok(found, `expected links:live-broken-links, got: ${r.checks.map((c) => c.name).join(', ')}`);
+    assert.equal(found.passed, false);
+    assert.equal(found.severity, 'error');
+    assert.match(found.message, /13 broken link\(s\) found/);
+    assert.match(found.message, /4 page\(s\)/);
+    assert.deepEqual(found.details, [{ url: '/dead' }]);
+  });
+
+  it('a completed crawl with zero broken links -> links reports a genuine clean pass, never not-checked', async () => {
+    const mod = new LinksModule();
+    const r = makeResult();
+    const config = {
+      livePage: { url: 'https://x.example.com', headers: new Headers(), html: '' },
+      _allResults: [
+        crawlResult([
+          { name: 'crawl:pages-scanned', passed: true, message: 'Crawled 4 page(s) from https://x.example.com' },
+        ]),
+      ],
+    };
+    await mod.run(r, config);
+    assert.ok(!r.checks.find((c) => c.notChecked === true));
+    const clean = r.checks.find((c) => c.name === 'links:live-clean');
+    assert.ok(clean, `expected links:live-clean, got: ${r.checks.map((c) => c.name).join(', ')}`);
+    assert.equal(clean.passed, true);
+    assert.match(clean.message, /No broken links found/);
+    assert.match(clean.message, /4 page\(s\)/);
+  });
+
+  it('liveCrawler present in _allResults but never actually crawled (e.g. "no URL configured") -> links stays honestly not-checked', async () => {
+    const mod = new LinksModule();
+    const r = makeResult();
+    const config = {
+      livePage: { url: 'https://x.example.com', headers: new Headers(), html: '' },
+      _allResults: [
+        crawlResult([
+          { name: 'crawl:config', passed: true, message: 'No live URL configured — set modules.liveCrawler.url in .gatetest/config.json' },
+        ]),
+      ],
+    };
+    await mod.run(r, config);
+    const nc = r.checks.find((c) => c.name === 'links:not-checked');
+    assert.ok(nc && nc.passed === false && nc.notChecked === true, 'a crawler that never actually crawled must not fake links coverage');
+  });
+
+  it('liveCrawler not present in _allResults at all -> links stays honestly not-checked', async () => {
+    const mod = new LinksModule();
+    const r = makeResult();
+    const config = {
+      livePage: { url: 'https://x.example.com', headers: new Headers(), html: '' },
+      _allResults: [{ module: 'webHeaders', checks: [] }],
+    };
+    await mod.run(r, config);
+    const nc = r.checks.find((c) => c.name === 'links:not-checked');
+    assert.ok(nc && nc.passed === false && nc.notChecked === true);
+  });
+
+  it('deriveModuleCoverage counts links as checked when the crawler backed it, matching LIVE_URL_MODULES', () => {
+    // eslint-disable-next-line global-require
+    const { deriveModuleCoverage, LIVE_URL_MODULES } = require('../website/app/lib/health-score.js');
+    assert.ok(LIVE_URL_MODULES.includes('links'), 'links must be in LIVE_URL_MODULES once it has a real live-URL mode');
+    const coverage = deriveModuleCoverage([
+      { module: 'links', checks: [{ name: 'links:live-clean', passed: true }] },
+    ]);
+    assert.deepEqual(coverage.notChecked, []);
+  });
+
+  it('the web and wp suites run liveCrawler BEFORE links, so config._allResults has crawl data by the time links runs', () => {
+    // eslint-disable-next-line global-require
+    const { GateTestConfig } = require('../src/core/config.js');
+    const cfg = new GateTestConfig(process.cwd());
+    for (const suiteName of ['web', 'wp']) {
+      const suite = cfg.getSuite(suiteName);
+      const crawlerIdx = suite.indexOf('liveCrawler');
+      const linksIdx = suite.indexOf('links');
+      assert.ok(crawlerIdx > -1 && linksIdx > -1, `${suiteName} suite must include both liveCrawler and links`);
+      assert.ok(crawlerIdx < linksIdx, `${suiteName} suite must run liveCrawler before links (got liveCrawler@${crawlerIdx}, links@${linksIdx})`);
+    }
   });
 });
