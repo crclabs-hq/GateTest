@@ -25,7 +25,7 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const lib = require('../website/app/lib/public-status.js');
 const {
-  COMPONENT_NAMES, STATES, OVERALLS, QUEUE_STALE_SECONDS, UNKNOWN_DETAIL,
+  COMPONENT_NAMES, STATES, OVERALLS, QUEUE_STALE_SECONDS, WORKER_STALE_SECONDS, UNKNOWN_DETAIL,
   summarisePublicStatus, validateIncidents, recentIncidents, redactIfLeaky, formatAge,
 } = lib;
 
@@ -147,6 +147,24 @@ describe('Scan worker — heartbeat inferred from the queue', () => {
 
   it('worker reading errored → unknown', () => {
     assert.strictEqual(byName(summarisePublicStatus(healthy({ worker: { error: true } })), 'Scan worker').state, 'unknown');
+  });
+
+  it('issue #678 defect 4: an empty queue with NO activity for 12 days reads unknown, never a confident operational', () => {
+    const twelveDaysAgo = new Date(NOW - 12 * 24 * 60 * 60 * 1000).toISOString();
+    const stale = healthy({
+      queue: { queued: 0, running: 0, dead: 0, oldest_queued_age_s: null },
+      worker: { lastActivityAt: twelveDaysAgo },
+    });
+    const c = byName(summarisePublicStatus(stale), 'Scan worker');
+    assert.strictEqual(c.state, 'unknown');
+    assert.match(c.detail, /cannot tell a quiet period from a stopped worker/);
+    // Control: just under the ceiling, with an otherwise-empty queue, still reads operational.
+    const justUnderCeiling = new Date(NOW - (WORKER_STALE_SECONDS - 60) * 1000).toISOString();
+    const stillIdle = healthy({
+      queue: { queued: 0, running: 0, dead: 0, oldest_queued_age_s: null },
+      worker: { lastActivityAt: justUnderCeiling },
+    });
+    assert.strictEqual(byName(summarisePublicStatus(stillIdle), 'Scan worker').state, 'operational');
   });
 });
 
