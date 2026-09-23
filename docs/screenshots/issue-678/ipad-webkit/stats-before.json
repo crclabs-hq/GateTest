@@ -1,0 +1,24 @@
+{
+  "ipad-pro-11/preview": {
+    "frames": 59,
+    "avgMs": 45.186440677966104,
+    "maxMs": 67,
+    "longFrames25": 59,
+    "longFrames50": 15,
+    "styled": {
+      "bg": "rgb(11, 18, 16)",
+      "theme": "dark"
+    }
+  },
+  "iphone-13/preview": {
+    "frames": 74,
+    "avgMs": 35.63513513513514,
+    "maxMs": 69,
+    "longFrames25": 72,
+    "longFrames50": 5,
+    "styled": {
+      "bg": "rgb(11, 18, 16)",
+      "theme": "dark"
+    }
+  }
+}
