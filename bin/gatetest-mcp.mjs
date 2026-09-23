@@ -2563,6 +2563,11 @@ export function startServer() {
 }
 
 if (isMain || startedByProxyBin) {
+  // A stdio server that starts silently is indistinguishable from a broken
+  // one — there is no other signal a user gets that it is alive and ready
+  // for a client to connect. One line, stderr only (stdout is the JSON-RPC
+  // stream and must stay clean).
+  process.stderr.write(`GateTest MCP server listening on stdio, ${TOOLS.length} tools\n`);
   await startServer();
 }
 
