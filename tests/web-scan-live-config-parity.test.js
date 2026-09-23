@@ -1,0 +1,168 @@
+'use strict';
+
+/**
+ * Issue #681 item 1 — `/api/web/scan` (JSON) and `/api/web/scan/stream`
+ * (SSE) must build the SAME module config for a given URL, including the
+ * shared live-page fetch (`config.livePage`, #643/#645). Before this fix
+ * each route carried its own copy of the fetch + config-wiring code; a
+ * live scan of tallrig.com on 2026-09-22 showed the non-streaming route
+ * reporting 6 of 20 web-suite modules not-checked (webHeaders,
+ * tlsSecurity, cookieSecurity, accessibility, seo, links) where the design
+ * intent was only 2 (tlsSecurity needs a raw socket; links needs its own
+ * crawl — see issue #681 item 4 for links' new crawl-backed live mode).
+ *
+ * Both routes now call `website/app/lib/live-scan-config.js` — one
+ * definition, imported (Doctrine #4) — so they cannot silently diverge.
+ * The route handlers themselves are Next.js server routes not practical to
+ * execute directly in `node --test` (same rationale as
+ * web-scan-not-checked-stream.test.js / web-scan-auth.test.js): this file
+ * unit-tests the shared helper directly, then proves — by actually running
+ * the real modules against a config built the ONE way both routes now
+ * build it — that the resulting not-checked set for a fixture page is
+ * exactly what the design intends, and identical regardless of which
+ * route's shape (JSON vs SSE) the config came from.
+ */
+
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
+
+const { fetchLivePage, applyLiveScanConfig } = require('../website/app/lib/live-scan-config.js');
+const { deriveModuleCoverage } = require('../website/app/lib/health-score.js');
+
+const WebHeadersModule = require('../src/modules/web-headers');
+const TlsSecurityModule = require('../src/modules/tls-security');
+const CookieSecurityModule = require('../src/modules/cookie-security');
+const AccessibilityModule = require('../src/modules/accessibility');
+const SeoModule = require('../src/modules/seo');
+const LinksModule = require('../src/modules/links');
+
+function read(rel) {
+  return fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+}
+
+function makeResult(moduleName) {
+  return {
+    module: moduleName,
+    checks: [],
+    addCheck(name, passed, details = {}) { this.checks.push({ name, passed, ...details }); },
+  };
+}
+
+describe('live-scan-config.js — fetchLivePage', () => {
+  it('returns a livePage shape on a successful fetch', async () => {
+    const fakeFetch = async () => ({
+      url: 'https://example.com/',
+      status: 200,
+      headers: new Headers({ 'content-type': 'text/html' }),
+      text: async () => '<html><head><title>x</title></head></html>',
+    });
+    const page = await fetchLivePage('https://example.com', { fetchImpl: fakeFetch });
+    assert.equal(page.status, 200);
+    assert.equal(page.url, 'https://example.com/');
+    assert.match(page.html, /<title>x<\/title>/);
+  });
+
+  it('resolves to null (never throws) when the fetch fails', async () => {
+    const fakeFetch = async () => { throw new Error('network down'); };
+    const page = await fetchLivePage('https://example.com', { fetchImpl: fakeFetch });
+    assert.equal(page, null);
+  });
+});
+
+describe('live-scan-config.js — applyLiveScanConfig', () => {
+  it('sets targetUrl/webUrl via cfg.set() and livePage as a direct property', () => {
+    const calls = [];
+    const gt = { config: { set: (k, v) => calls.push([k, v]) } };
+    const livePage = { url: 'https://x.example.com', status: 200, headers: new Headers(), html: '' };
+    applyLiveScanConfig(gt, { targetUrl: 'https://x.example.com', livePage });
+    assert.deepEqual(calls, [['targetUrl', 'https://x.example.com'], ['webUrl', 'https://x.example.com']]);
+    assert.equal(gt.config.livePage, livePage);
+  });
+
+  it('threads authed-crawl headers/cookie into modules.liveCrawler config', () => {
+    const calls = [];
+    const gt = { config: { set: (k, v) => calls.push([k, v]) } };
+    applyLiveScanConfig(gt, {
+      targetUrl: 'https://x.example.com',
+      livePage: null,
+      sanitizedAuth: { headers: { Authorization: 'Bearer t' }, cookie: 'session=1' },
+    });
+    assert.ok(calls.some(([k, v]) => k === 'modules.liveCrawler.headers' && v.Authorization === 'Bearer t'));
+    assert.ok(calls.some(([k, v]) => k === 'modules.liveCrawler.cookie' && v === 'session=1'));
+  });
+
+  it('does nothing destructive when gt.config is absent', () => {
+    assert.doesNotThrow(() => applyLiveScanConfig({}, { targetUrl: 'https://x.example.com', livePage: null }));
+    assert.doesNotThrow(() => applyLiveScanConfig(null, { targetUrl: 'https://x.example.com', livePage: null }));
+  });
+});
+
+describe('web scan routes — both call the one shared live-scan-config helper (Doctrine #4)', () => {
+  for (const rel of ['website/app/api/web/scan/route.ts', 'website/app/api/web/scan/stream/route.ts']) {
+    it(`${rel} imports fetchLivePage + applyLiveScanConfig from the shared module`, () => {
+      const src = read(rel);
+      assert.match(src, /require\("@\/app\/lib\/live-scan-config"\)/);
+      assert.match(src, /fetchLivePage\(targetUrl\)/);
+      assert.match(src, /applyLiveScanConfig\(gt,\s*\{/);
+    });
+
+    it(`${rel} no longer carries its own inline page-fetch AbortController block`, () => {
+      const src = read(rel);
+      // The old duplicated fetch each route carried built its OWN
+      // AbortController + 15s timer inline; that logic now lives ONLY in
+      // live-scan-config.js. A route re-introducing it would be exactly
+      // the drift this fix closes.
+      assert.ok(!/const pageController = new AbortController\(\)/.test(src), 'route must not re-inline the live-page fetch');
+    });
+  }
+});
+
+describe('web suite — a fixture page produces the SAME not-checked set no matter which route built the config (item 1)', () => {
+  const FIXTURE_LIVE_PAGE = {
+    url: 'https://fixture.example.com/',
+    status: 200,
+    headers: new Headers({
+      'strict-transport-security': 'max-age=31536000; includeSubDomains',
+      'x-frame-options': 'DENY',
+      'x-content-type-options': 'nosniff',
+      'content-security-policy': "default-src 'self'; script-src 'self' 'nonce-abc123'",
+    }),
+    html: '<html><head><title>Fixture</title><meta name="description" content="A fixture page for tests"></head><body><h1>Fixture</h1></body></html>',
+  };
+
+  it('matches the design intent: only tlsSecurity and links (no crawler data) are not-checked', async () => {
+    const gt = { config: {} };
+    applyLiveScanConfig(gt, { targetUrl: 'https://fixture.example.com', livePage: FIXTURE_LIVE_PAGE });
+    const config = { ...gt.config, getModuleConfig: () => ({}) };
+
+    const MODULES = [
+      ['webHeaders', WebHeadersModule],
+      ['tlsSecurity', TlsSecurityModule],
+      ['cookieSecurity', CookieSecurityModule],
+      ['accessibility', AccessibilityModule],
+      ['seo', SeoModule],
+      ['links', LinksModule],
+    ];
+    const results = [];
+    for (const [name, Mod] of MODULES) {
+      const result = makeResult(name);
+      await new Mod().run(result, config);
+      results.push(result);
+    }
+
+    const coverage = deriveModuleCoverage(results);
+    assert.deepEqual(coverage.notChecked.map((n) => n.module).sort(), ['links', 'tlsSecurity']);
+  });
+
+  it('two independently-built configs (simulating each route) agree byte-for-byte on livePage + targetUrl', () => {
+    const gtA = { config: {} };
+    const gtB = { config: {} };
+    applyLiveScanConfig(gtA, { targetUrl: 'https://fixture.example.com', livePage: FIXTURE_LIVE_PAGE });
+    applyLiveScanConfig(gtB, { targetUrl: 'https://fixture.example.com', livePage: FIXTURE_LIVE_PAGE });
+    assert.equal(gtA.config.livePage, gtB.config.livePage);
+    assert.equal(gtA.config.targetUrl, gtB.config.targetUrl);
+    assert.equal(gtA.config.webUrl, gtB.config.webUrl);
+  });
+});

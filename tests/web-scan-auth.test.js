@@ -116,9 +116,18 @@ describe('web-scan route — authed-scan contract (source text)', () => {
     assert.match(src, /\[\\r\\n\]/);
   });
 
-  it('threads auth into modules.liveCrawler config', () => {
-    assert.match(src, /modules\.liveCrawler\.headers/);
-    assert.match(src, /modules\.liveCrawler\.cookie/);
+  it('threads auth into modules.liveCrawler config (via the shared live-scan-config helper, issue #681 item 1)', () => {
+    // The route no longer inlines this wiring itself — it calls
+    // applyLiveScanConfig(gt, { ..., sanitizedAuth }), and that shared
+    // helper (website/app/lib/live-scan-config.js) is what sets
+    // modules.liveCrawler.headers/cookie. Covered directly by
+    // web-scan-live-config-parity.test.js's "threads authed-crawl
+    // headers/cookie" test.
+    assert.match(src, /applyLiveScanConfig\(gt,\s*\{\s*targetUrl,\s*livePage,\s*sanitizedAuth\s*\}\)/);
+    const helperSrc = fs.readFileSync(
+      path.join(__dirname, '../website/app/lib/live-scan-config.js'), 'utf8');
+    assert.match(helperSrc, /modules\.liveCrawler\.headers/);
+    assert.match(helperSrc, /modules\.liveCrawler\.cookie/);
   });
 
   it('passes session to the live probe as authHeaders', () => {
