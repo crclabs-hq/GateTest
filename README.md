@@ -283,17 +283,20 @@ There is no licence server and no account; nothing expires.
 
 Every release tag and every push to `main` publishes an image to GitHub Container
 Registry: `ghcr.io/crclabs-hq/gatetest` (`1.61.1`, `1.61`, `1`, `latest` for
-releases; `main` and `sha-<short>` for main). It is the gatetest.io website plus
-the sandbox worker, with the scan engine bundled in at `/app` — the image
-`docker compose up` runs, not a CLI wrapper. Its default command serves the site
-on port 3000:
+releases; `main` and `sha-<short>` for main). It is primarily the gatetest.io
+website plus the sandbox worker — the image `docker compose up` runs — but the
+scan engine ships in the same image at `/app`, so `docker run` with CLI-flag
+arguments (anything starting with `-`) runs a scan instead: no npm install, no
+second image. With no arguments it falls through to its default command, which
+serves the site on port 3000:
 
 ```bash
-# Self-host the site + API (needs the env from docs/ops/docker.md; /api/health answers without it):
-docker run --rm -p 3000:3000 --env-file .env.local ghcr.io/crclabs-hq/gatetest
+# Run the bundled CLI against a repo on the host, no npm install — CLI-flag
+# arguments dispatch to the scan engine, not the website:
+docker run --rm -v "$PWD:/repo" ghcr.io/crclabs-hq/gatetest:1.61.1 --project /repo --suite quick
 
-# Run the bundled CLI against a repo on the host, no npm install:
-docker run --rm -v "$PWD":/repo -w /repo ghcr.io/crclabs-hq/gatetest node /app/bin/gatetest.js --suite quick
+# Self-host the site + API instead (needs the env from docs/ops/docker.md; /api/health answers without it):
+docker run --rm -p 3000:3000 --env-file .env.local ghcr.io/crclabs-hq/gatetest
 
 # Pin a release instead of the moving tags:
 docker pull ghcr.io/crclabs-hq/gatetest:1.61.1
