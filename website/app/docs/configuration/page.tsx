@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import PageHero from "../../components/site/PageHero";
-import Section from "../../components/site/Section";
+import { Hero, Section, Callout } from "../../components/v2";
 
 export const metadata: Metadata = {
   title: "Configuration & suppression — GateTest",
@@ -43,25 +42,31 @@ git add .gatetest/baseline.json && git commit -m "chore: baseline GateTest"
 # From now on the gate blocks only on findings that aren't in it
 gatetest --suite full`;
 
-// Config files and terminal output stay dark panels — that is what the user sees.
-const CODE = "rounded-xl bg-panel text-panel-foreground border border-panel-border p-4 text-sm overflow-x-auto";
-const H2 = "font-display text-2xl font-bold text-foreground mb-3";
+// Config files and terminal output stay dark panels (globals.css .term) —
+// that is what the user sees in their own terminal.
+const CODE = "term text-sm overflow-x-auto p-4";
+const H2 = "v2-h2 !text-2xl mb-3";
 
 export default function ConfigurationDocs() {
   return (
     <main>
-      <PageHero
-        eyebrow="Docs · Configuration"
-        title={<>Configuration &amp; suppression</>}
-        lede={<>
-          Every scanner gets something wrong eventually. The question is whether
-          you can tell it so without turning the gate off. Each control below
-          narrows what <em>blocks</em> &mdash; none of them hide a finding from
-          you.
-        </>}
-      />
+      <Section wrap={false}>
+        <div className="v2-wrap">
+          <Hero
+            kicker="Docs · Configuration"
+            title={<>Configuration &amp; suppression</>}
+            lede={<>
+              Every scanner gets something wrong eventually. The question is whether
+              you can tell it so without turning the gate off. Each control below
+              narrows what <em>blocks</em> &mdash; none of them hide a finding from
+              you.
+            </>}
+          />
+        </div>
+      </Section>
 
-      <Section narrow>
+      <Section tight wrap={false}>
+        <div className="v2-wrap-narrow">
         {/* .gatetestignore */}
         <section className="mb-12">
           <h2 className={H2}>
@@ -76,33 +81,33 @@ export default function ConfigurationDocs() {
             <code className="font-mono">{ignoreExample}</code>
           </pre>
           <div className="overflow-x-auto mb-4">
-            <table className="w-full text-sm">
+            <table className="v2-table">
               <thead>
-                <tr className="text-left border-b border-border">
-                  <th className="py-2 pr-4 font-semibold">Form</th>
-                  <th className="py-2 font-semibold">Suppresses</th>
+                <tr>
+                  <th>Form</th>
+                  <th>Suppresses</th>
                 </tr>
               </thead>
-              <tbody className="text-muted">
-                <tr className="border-b border-border">
-                  <td className="py-2 pr-4 font-mono text-xs">module:rule</td>
-                  <td className="py-2">one rule in one module</td>
-                </tr>
-                <tr className="border-b border-border">
-                  <td className="py-2 pr-4 font-mono text-xs">module:* or module</td>
-                  <td className="py-2">an entire module</td>
-                </tr>
-                <tr className="border-b border-border">
-                  <td className="py-2 pr-4 font-mono text-xs">*:rule</td>
-                  <td className="py-2">that rule across all modules</td>
-                </tr>
-                <tr className="border-b border-border">
-                  <td className="py-2 pr-4 font-mono text-xs">module:rule@glob</td>
-                  <td className="py-2">that rule, only in matching files</td>
+              <tbody>
+                <tr>
+                  <td className="v2-mono text-xs">module:rule</td>
+                  <td>one rule in one module</td>
                 </tr>
                 <tr>
-                  <td className="py-2 pr-4 font-mono text-xs">path/glob/**</td>
-                  <td className="py-2">any finding whose file matches</td>
+                  <td className="v2-mono text-xs">module:* or module</td>
+                  <td>an entire module</td>
+                </tr>
+                <tr>
+                  <td className="v2-mono text-xs">*:rule</td>
+                  <td>that rule across all modules</td>
+                </tr>
+                <tr>
+                  <td className="v2-mono text-xs">module:rule@glob</td>
+                  <td>that rule, only in matching files</td>
+                </tr>
+                <tr>
+                  <td className="v2-mono text-xs">path/glob/**</td>
+                  <td>any finding whose file matches</td>
                 </tr>
               </tbody>
             </table>
@@ -113,22 +118,26 @@ export default function ConfigurationDocs() {
             run, crossing <code className="font-mono text-xs">/</code>) and{" "}
             <code className="font-mono text-xs">?</code> (one character).
           </p>
-          <div className="card p-4 text-sm text-muted mt-4">
-            <strong className="text-foreground">Suppressed is not hidden.</strong>{" "}
-            A suppressed finding is removed from the gate decision and from every
-            failure count, but still reported in a{" "}
-            <code className="font-mono text-xs">suppressedChecks</code> list. The
-            distinction matters: &ldquo;we don&apos;t block on this&rdquo; is a
-            decision you can revisit, &ldquo;we pretend it isn&apos;t
-            there&rdquo; isn&apos;t.
+          <div className="mt-4">
+            <Callout>
+              <strong className="text-[var(--v2-fg)]">Suppressed is not hidden.</strong>{" "}
+              A suppressed finding is removed from the gate decision and from every
+              failure count, but still reported in a{" "}
+              <code className="font-mono text-xs">suppressedChecks</code> list. The
+              distinction matters: &ldquo;we don&apos;t block on this&rdquo; is a
+              decision you can revisit, &ldquo;we pretend it isn&apos;t
+              there&rdquo; isn&apos;t.
+            </Callout>
           </div>
-          <div className="card p-4 text-sm text-muted mt-3">
-            A <strong className="text-foreground">path-scoped</strong> entry like{" "}
-            <code className="font-mono text-xs">vendor/**</code> says
-            &ldquo;this isn&apos;t our code,&rdquo; so it says nothing about
-            whether a module is accurate. Only module-scoped entries feed the
-            auto-softening below &mdash; excluding a fixture directory should not
-            teach the engine to distrust a module that was right.
+          <div className="mt-3">
+            <Callout>
+              A <strong className="text-[var(--v2-fg)]">path-scoped</strong> entry like{" "}
+              <code className="font-mono text-xs">vendor/**</code> says
+              &ldquo;this isn&apos;t our code,&rdquo; so it says nothing about
+              whether a module is accurate. Only module-scoped entries feed the
+              auto-softening below &mdash; excluding a fixture directory should not
+              teach the engine to distrust a module that was right.
+            </Callout>
           </div>
         </section>
 
@@ -265,50 +274,45 @@ export default function ConfigurationDocs() {
         <section className="mb-12">
           <h2 className={H2}>Which one should I use?</h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="v2-table">
               <thead>
-                <tr className="text-left border-b border-border">
-                  <th className="py-2 pr-4 font-semibold">Situation</th>
-                  <th className="py-2 font-semibold">Reach for</th>
+                <tr>
+                  <th>Situation</th>
+                  <th>Reach for</th>
                 </tr>
               </thead>
-              <tbody className="text-muted">
-                <tr className="border-b border-border">
-                  <td className="py-2 pr-4">This finding is simply wrong here</td>
-                  <td className="py-2 font-mono text-xs">.gatetestignore</td>
+              <tbody>
+                <tr>
+                  <td>This finding is simply wrong here</td>
+                  <td className="v2-mono text-xs">.gatetestignore</td>
                 </tr>
-                <tr className="border-b border-border">
-                  <td className="py-2 pr-4">
-                    Turning it on over years of existing code
-                  </td>
-                  <td className="py-2 font-mono text-xs">gatetest --baseline</td>
+                <tr>
+                  <td>Turning it on over years of existing code</td>
+                  <td className="v2-mono text-xs">gatetest --baseline</td>
                 </tr>
-                <tr className="border-b border-border">
-                  <td className="py-2 pr-4">
-                    A whole module is wrong for our stack
-                  </td>
-                  <td className="py-2 font-mono text-xs">
+                <tr>
+                  <td>A whole module is wrong for our stack</td>
+                  <td className="v2-mono text-xs">
                     .gatetestignore (module) or a severity override
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-2 pr-4">
-                    I want to see everything before deciding
-                  </td>
-                  <td className="py-2 font-mono text-xs">--report-only, then --noise</td>
+                  <td>I want to see everything before deciding</td>
+                  <td className="v2-mono text-xs">--report-only, then --noise</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </section>
 
-        <div className="card p-5 text-sm text-muted">
+        <Callout>
           Still fighting a false positive? That&apos;s a GateTest bug, not your
           problem to work around forever &mdash; tell us which module and rule at{" "}
-          <a className="text-accent hover:underline" href="mailto:support@gatetest.io">
+          <a className="text-[var(--v2-accent)] hover:underline" href="mailto:support@gatetest.io">
             support@gatetest.io
           </a>{" "}
           and it gets fixed in the engine.
+        </Callout>
         </div>
       </Section>
     </main>

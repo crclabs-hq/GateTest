@@ -3,9 +3,8 @@ import Link from "next/link";
 import { contentMetadata, breadcrumbSchema, jsonLd } from "../lib/seo/schema";
 import { getSlugForModuleName } from "../components/howitworks/module-slugs";
 import changelog from "../data/changelog.json";
-import PageHero from "../components/site/PageHero";
-import Section from "../components/site/Section";
 import StatTiles from "../components/site/StatTiles";
+import { Hero, Section } from "../components/v2";
 
 // Every entry on this page comes from website/app/data/changelog.json, which
 // scripts/generate-changelog.js writes from the main branch's first-parent
@@ -145,24 +144,26 @@ export default function ChangelogPage() {
         }}
       />
 
-      <PageHero
-        eyebrow="Generated"
-        title="Every change, in the order it merged"
-        lede={
-          <>
-            This is the main branch of the engine, read back as a list. Each entry is a commit that
-            reached <code className="font-mono text-foreground text-[0.92em]">main</code>: the pull request
-            it came from, the part of the product it touched most, and the scan modules it changed. It is
-            written by a script from the repository history, so it cannot describe a change that did not
-            ship or omit one that did.
-          </>
-        }
-        actions={
-          <Link href="/precision" className="btn-secondary px-5 py-2.5 text-sm">
-            Precision benchmark &rarr;
-          </Link>
-        }
-      />
+      <Section wrap={false}>
+        <div className="v2-wrap">
+          <Hero
+            kicker="Generated"
+            title="Every change, in the order it merged"
+            lede={
+              <>
+                This is the main branch of the engine, read back as a list. Each entry is a commit that
+                reached <code className="font-mono text-[var(--v2-fg)] text-[0.92em]">main</code>: the pull request
+                it came from, the part of the product it touched most, and the scan modules it changed. It is
+                written by a script from the repository history, so it cannot describe a change that did not
+                ship or omit one that did.
+              </>
+            }
+            actions={
+              <Link href="/precision" className="v2-btn">Precision benchmark &rarr;</Link>
+            }
+          />
+        </div>
+      </Section>
 
       <Section>
         <StatTiles

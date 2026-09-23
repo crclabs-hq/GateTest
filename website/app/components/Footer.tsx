@@ -30,6 +30,7 @@ export default function Footer() {
                   /enterprise are pages in their own right. /#features has no
                   page of its own, so it stays an anchor. */}
               <li><Link href="/#features" className="text-sm text-muted hover:text-foreground transition-colors">Features</Link></li>
+              <li><Link href="/developers" className="text-sm text-muted hover:text-foreground transition-colors">Docs</Link></li>
               <li><Link href="/modules" className="text-sm text-muted hover:text-foreground transition-colors">Modules</Link></li>
               <li><Link href="/pricing" className="text-sm text-muted hover:text-foreground transition-colors">Pricing</Link></li>
               <li><Link href="/enterprise" className="text-sm text-muted hover:text-foreground transition-colors">Enterprise</Link></li>
