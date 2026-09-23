@@ -144,3 +144,50 @@ describe('secrets — corpus7 item 3: commented-out fallback secrets never block
     assert.ok(check.details.some((d) => d.type === 'Fallback Secret'));
   });
 });
+
+// -----------------------------------------------------------------------------
+// Item 4 — an HTML-escaped placeholder inside JSX display text is documentation
+// -----------------------------------------------------------------------------
+describe('secrets — corpus7 item 4: JSX-escaped placeholders are not Database URLs', () => {
+  it('silent: &lt;password&gt; inside a JSX <code> element', async () => {
+    const found = fileFindings(await scan({
+      'src/routes/admin-database.tsx': [
+        'export function AdminDatabase() {',
+        '  return (',
+        '    <code>DATABASE_URL=postgres://gluecron:&lt;password&gt;@postgres:5432/gluecron</code>',
+        '  );',
+        '}',
+        '',
+      ].join('\n'),
+    }));
+    assert.deepStrictEqual(found.map((f) => f.id), [], 'an HTML-escaped placeholder in JSX display text is documentation');
+  });
+
+  it('silent: the literal <password> placeholder form', async () => {
+    const found = fileFindings(await scan({
+      'src/setup.md': 'Set `DATABASE_URL=postgres://gluecron:<password>@postgres:5432/gluecron` in your .env\n',
+    }));
+    assert.deepStrictEqual(found.map((f) => f.id), [], 'the plain <placeholder> convention already reads as documentation');
+  });
+
+  it('fires: a real postgres URL with credentials inside JSX display text', async () => {
+    const found = fileFindings(await scan({
+      'src/routes/admin-database.tsx': [
+        'export function AdminDatabase() {',
+        '  return (',
+        '    <code>DATABASE_URL=postgres://gluecron:realpass123@postgres:5432/gluecron</code>',
+        '  );',
+        '}',
+        '',
+      ].join('\n'),
+    }));
+    assert.ok(found.some((f) => f.id === 'secrets:src/routes/admin-database.tsx'), 'a real leaked credential inside JSX text must still fire');
+  });
+
+  it('fires: a real postgres URL with credentials in plain code', async () => {
+    const found = fileFindings(await scan({
+      'src/db.ts': 'const url = "postgres://user:realpass@host";\n',
+    }));
+    assert.ok(found.some((f) => f.id === 'secrets:src/db.ts'), 'a real credential in ordinary code must still fire');
+  });
+});

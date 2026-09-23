@@ -70,6 +70,22 @@ const PLACEHOLDER_HOST_RE = /^(?:host|hostname|server|db[-_]?host|your[-_]?host|
 const PLACEHOLDER_CREDENTIAL_RE = /^(?:user|username|pass|password|passwd|pwd)$/i;
 
 /**
+ * Is column `col` of `line` JSX DISPLAY TEXT — plain text rendered between a
+ * tag's `>` and the next `{` expression hole, not a JS string or comment?
+ * Same heuristic feature-flag.js (`jsxTextContext`) and money-float.js
+ * (`inside JSX children`) already use: `src/core/source-strip.js` treats JSX
+ * text as ordinary code (there is no JS string/comment syntax around it — see
+ * claude-compliance.js's `kind === 'code'` comment), so only the file
+ * extension plus a nearby unclosed `>` can tell JSX text from real code.
+ *
+ * `src/routes/admin-database.tsx:172` (#682) renders
+ * `DATABASE_URL=postgres://gluecron:&lt;password&gt;@postgres:543…` inside a
+ * `<code>` element as documentation — the `>` of `<code>` sits before the
+ * match with no `{` in between.
+ */
+const JSX_FILE_RE = /\.[jt]sx$/i;
+
+/**
  * Keys a vendor DESIGNS to ship in a client bundle are public by contract,
  * not leaked. Stripe publishable keys announce it in the prefix. Algolia
  * DocSearch keys do not \u2014 they are 32 hex chars like any other Algolia key \u2014
@@ -450,14 +466,30 @@ class SecretsModule extends BaseModule {
   }
 
   /**
+   * See JSX_FILE_RE. `col` is the raw-line index of the match (`line.indexOf`
+   * for a scanLine-neutralised match, since JSX text is never touched by the
+   * comparison-literal or env-read rewrites).
+   *
+   * @param {string} line - the raw source line
+   * @param {number} col - column of the match on `line`, or -1 when unknown
+   * @param {string} ext - lowercased file extension, e.g. `.tsx`
+   * @returns {boolean}
+   */
+  _isJsxDisplayText(line, col, ext) {
+    if (col < 0 || !JSX_FILE_RE.test(ext)) return false;
+    return />[^{]*$/.test(line.slice(0, col));
+  }
+
+  /**
    * True when a Database-URL match carries no credential worth reporting.
    * See the DB_URL_PARTS_RE comment for the measured shapes and the lines
    * that stay reported.
    *
    * @param {string} url - the matched URL, e.g. `postgres://u:p@h:5432/db`
+   * @param {boolean} [isJsxText] - is this match sitting in JSX display text?
    * @returns {boolean}
    */
-  _databaseUrlIsPlaceholder(url) {
+  _databaseUrlIsPlaceholder(url, isJsxText = false) {
     const parts = url.match(DB_URL_PARTS_RE);
     if (!parts) return false;
     const [, user = '', password = '', host = ''] = parts;
@@ -466,7 +498,14 @@ class SecretsModule extends BaseModule {
       // `user@host` with no password is still no credential.
       return loopback || PLACEHOLDER_HOST_RE.test(host);
     }
-    if (PLACEHOLDER_VALUE_RE.test(password)) return true;
+    // JSX escapes a literal `<` as `&lt;` in display text, so the
+    // `<password>` fill-this-in convention PLACEHOLDER_VALUE_RE already
+    // recognises is written `&lt;password&gt;` inside a <code> element
+    // (#682). Decoding only in JSX display text keeps a real credential that
+    // happened to contain the literal substring "&lt;" elsewhere from being
+    // waved through by this rule.
+    const decodedPassword = isJsxText ? password.replace(/&lt;/gi, '<').replace(/&gt;/gi, '>') : password;
+    if (PLACEHOLDER_VALUE_RE.test(decodedPassword)) return true;
     if (PLACEHOLDER_CREDENTIAL_RE.test(password)) return true;
     // `postgres:postgres@127.0.0.1` — the image default on the dev machine.
     return loopback && user.toLowerCase() === password.toLowerCase();
@@ -961,8 +1000,12 @@ class SecretsModule extends BaseModule {
               // See _looksLikeReference for the exact test.
               if (this._looksLikeReference(m[0])) continue;
               // A connection string with no credential in it, or a
-              // template one. See _databaseUrlIsPlaceholder.
-              if (pattern.type === 'Database URL' && this._databaseUrlIsPlaceholder(m[0])) continue;
+              // template one. See _databaseUrlIsPlaceholder. The JSX-text
+              // check re-finds the column on the RAW line (scanLine may have
+              // been rewritten by the comparison/env-read neutralisers),
+              // mirroring _inRegexLiteral just below.
+              if (pattern.type === 'Database URL'
+                && this._databaseUrlIsPlaceholder(m[0], this._isJsxDisplayText(line, line.indexOf(m[0]), ext))) continue;
               // `DYNAMIC_TOKEN = 'DYNAMIC_TOKEN'`, `'jwtSecret' in options`.
               if (this._isSelfReferentialValue(scanLine, m)) continue;
               // Stripe `pk_live_…`, an Algolia DocSearch key in its block.
