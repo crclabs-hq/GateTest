@@ -50,7 +50,12 @@ export async function GET() {
   const admin = await requireAdmin();
   if (typeof admin !== "string") return admin;
 
-  const sql = getDb();
+  let sql: ReturnType<typeof getDb>;
+  try {
+    sql = getDb();
+  } catch {
+    return NextResponse.json({ error: "database not configured" }, { status: 503 });
+  }
   try {
     const rows = (await sql`
       SELECT id, key_prefix, name, customer_email, tier_allowed,

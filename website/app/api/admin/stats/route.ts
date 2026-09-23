@@ -49,7 +49,29 @@ export async function GET() {
   }
 
   try {
-    const sql = getDb();
+    let sql: ReturnType<typeof getDb>;
+    try {
+      sql = getDb();
+    } catch {
+      // DATABASE_URL unset — same empty-state shape as "tables not
+      // initialized yet" below, so the dashboard renders instead of 500ing
+      // on a config gap that isn't actually a query failure.
+      return NextResponse.json({
+        scans: [],
+        customers: [],
+        stats: {
+          total_scans: 0,
+          completed_scans: 0,
+          failed_scans: 0,
+          total_revenue: 0,
+          avg_score: 0,
+          avg_duration_ms: 0,
+          total_customers: 0,
+          marketplace_active_installs: 0,
+        },
+        note: "DATABASE_URL not set.",
+      });
+    }
 
     // Recent scans (last 50)
     const recentScans = await sql`

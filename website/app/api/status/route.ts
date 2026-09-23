@@ -33,7 +33,11 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 // Vars whose absence BREAKS a core user flow (scan / auth / payment).
-const REQUIRED: Array<{ name: string; why: string }> = [
+// Exported so the admin Overview dashboard's secrets checklist (#691) can
+// build a full present/missing list by name without a second hand-typed
+// copy (Doctrine #4) — the readiness JSON body only ever names the MISSING
+// ones, by design, to keep the public response focused on problems.
+export const REQUIRED: Array<{ name: string; why: string }> = [
   { name: "ANTHROPIC_API_KEY", why: "AI review, auto-fix, and the watch cron all throw without it" },
   { name: "DATABASE_URL", why: "no scan results, sessions, customers, or API keys persist" },
   { name: "SESSION_SECRET", why: "customer + admin login (OAuth) fails to encrypt sessions" },
@@ -45,7 +49,7 @@ const REQUIRED: Array<{ name: string; why: string }> = [
 ];
 
 // Vars whose absence DEGRADES a feature but doesn't break the core flow.
-const IMPORTANT: Array<{ name: string; why: string }> = [
+export const IMPORTANT: Array<{ name: string; why: string }> = [
   { name: "STRIPE_WEBHOOK_SECRET", why: "Stripe webhooks can't be verified (subscription lifecycle)" },
   { name: "GITHUB_CLIENT_ID", why: "customer 'Sign in with GitHub' disabled" },
   { name: "GITHUB_CLIENT_SECRET", why: "pairs with GITHUB_CLIENT_ID" },
