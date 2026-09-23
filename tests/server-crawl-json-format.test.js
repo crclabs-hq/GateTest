@@ -133,7 +133,19 @@ describe('gatetest --crawl --format json (issue #677 item 1)', () => {
       assert.equal(doc.pagesScanned, 1);
       assert.equal(doc.result, 'ALL CLEAR');
       assert.equal(doc.exitCode, 0);
-      assert.deepEqual(doc.findings, []);
+      // ALL CLEAR means no HARD findings — but this fixture page has no
+      // <meta name="description"> and no <link rel="canonical">, so the
+      // crawl DOES raise two non-blocking warnings. Issue #703: those used
+      // to be counted in the recap and then never appear anywhere,
+      // including here in the JSON `findings` array. They must show up now,
+      // still with severity 'warning' (never blocking the ALL CLEAR verdict
+      // or the exit code above).
+      assert.ok(Array.isArray(doc.findings) && doc.findings.length > 0,
+        `expected the missing-meta-description/canonical warnings in findings.\n${JSON.stringify(doc.findings)}`);
+      assert.ok(doc.findings.every((f) => f.severity === 'warning'),
+        `an ALL CLEAR crawl must carry only warning-severity findings.\n${JSON.stringify(doc.findings)}`);
+      assert.ok(doc.findings.some((f) => /meta description/i.test(f.message)));
+      assert.ok(doc.findings.some((f) => /canonical/i.test(f.message)));
       // Progress and the human report went to stderr, not stdout.
       assert.match(result.stderr, /Crawling/);
       assert.equal(result.code, 0);
