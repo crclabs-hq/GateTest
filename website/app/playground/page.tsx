@@ -7,6 +7,7 @@ import { totalModuleCount } from "@/app/components/howitworks/modules-data";
 import { SITE_URL, badgeUrl } from "@/app/lib/site-url";
 import { Hero, Section } from "../components/v2";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { SAMPLE_REPORT_URL } from "@/app/lib/sample-report";
 
 // One definition of the honesty formatting shared with the two API routes
 // (Doctrine #4) — the server-time headline (N3/F3) so a 0.1s engine number is
@@ -856,6 +857,18 @@ export default function PlaygroundPage() {
                   </div>
                   <p className="text-xs text-muted">
                     One-time payment · Never auto-renews · Results in minutes
+                  </p>
+                  <p className="text-xs text-muted">
+                    Not sure what a full report looks like?{" "}
+                    <a
+                      href={SAMPLE_REPORT_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-foreground transition-colors"
+                    >
+                      See our own repository&apos;s current full-scan findings
+                    </a>
+                    .
                   </p>
                 </div>
 
