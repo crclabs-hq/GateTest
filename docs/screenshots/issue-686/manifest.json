@@ -1,0 +1,450 @@
+[
+  {
+    "page": "/stack",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "stack.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/stack",
+    "theme": "light",
+    "viewport": "375",
+    "file": "stack.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/stack",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "stack.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/stack",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "stack.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/glossary",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "glossary.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/glossary",
+    "theme": "light",
+    "viewport": "375",
+    "file": "glossary.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/glossary",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "glossary.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/glossary",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "glossary.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/blog",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "blog.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/blog",
+    "theme": "light",
+    "viewport": "375",
+    "file": "blog.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/blog",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "blog.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/blog",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "blog.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "for.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for",
+    "theme": "light",
+    "viewport": "375",
+    "file": "for.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "for.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "for.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for/nextjs",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "for-nextjs.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for/nextjs",
+    "theme": "light",
+    "viewport": "375",
+    "file": "for-nextjs.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for/nextjs",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "for-nextjs.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for/nextjs",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "for-nextjs.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for/nodejs",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "for-nodejs.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for/nodejs",
+    "theme": "light",
+    "viewport": "375",
+    "file": "for-nodejs.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for/nodejs",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "for-nodejs.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for/nodejs",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "for-nodejs.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for/typescript",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "for-typescript.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for/typescript",
+    "theme": "light",
+    "viewport": "375",
+    "file": "for-typescript.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for/typescript",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "for-typescript.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/for/typescript",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "for-typescript.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/find",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "find.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/find",
+    "theme": "light",
+    "viewport": "375",
+    "file": "find.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/find",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "find.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/find",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "find.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/fixes",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "fixes.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/fixes",
+    "theme": "light",
+    "viewport": "375",
+    "file": "fixes.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/fixes",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "fixes.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/fixes",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "fixes.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/pipeline-trace",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "pipeline-trace.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/pipeline-trace",
+    "theme": "light",
+    "viewport": "375",
+    "file": "pipeline-trace.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/pipeline-trace",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "pipeline-trace.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/pipeline-trace",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "pipeline-trace.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/wp",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "wp.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/wp",
+    "theme": "light",
+    "viewport": "375",
+    "file": "wp.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/wp",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "wp.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/wp",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "wp.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/github/installed",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "github-installed.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/github/installed",
+    "theme": "light",
+    "viewport": "375",
+    "file": "github-installed.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/github/installed",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "github-installed.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/github/installed",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "github-installed.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/github/setup",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "github-setup.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/github/setup",
+    "theme": "light",
+    "viewport": "375",
+    "file": "github-setup.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/github/setup",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "github-setup.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/github/setup",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "github-setup.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/scan/url",
+    "theme": "light",
+    "viewport": "1440",
+    "file": "scan-url.light.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/scan/url",
+    "theme": "light",
+    "viewport": "375",
+    "file": "scan-url.light.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/scan/url",
+    "theme": "dark",
+    "viewport": "1440",
+    "file": "scan-url.dark.1440.png",
+    "overflowX": null,
+    "consoleErrors": []
+  },
+  {
+    "page": "/scan/url",
+    "theme": "dark",
+    "viewport": "375",
+    "file": "scan-url.dark.375.png",
+    "overflowX": null,
+    "consoleErrors": []
+  }
+]
