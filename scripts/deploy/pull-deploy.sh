@@ -166,8 +166,25 @@ echo "[pull-deploy] deploying from origin/main (never this box's stale copy — 
 # is already reset to $AFTER by deploy-on-box.sh's sync phase by the time the
 # restart runs, so this reads from the just-deployed tree, not the box's
 # previous copy.
-set +e
+# --- Never leave production frozen: blue/green needs the templated unit and
+# --- the active-port file on this box (docs/deploy/PULL-DEPLOY.md "Blue/green",
+# --- owner-run install). If either is missing, say so and deploy in place —
+# --- the old behaviour with its brief 502 — rather than abort every tick
+# --- until someone notices the live commit has stopped moving.
+RESTART_MODE="blue-green"
 if [ "${PULL_DEPLOY_INPLACE:-0}" = "1" ]; then
+  RESTART_MODE="in-place"
+  echo "[pull-deploy] PULL_DEPLOY_INPLACE=1 — restarting in place"
+elif ! systemctl cat "${PULL_DEPLOY_UNIT_TEMPLATE:-gatetest-web@}.service" >/dev/null 2>&1; then
+  RESTART_MODE="in-place"
+  echo "[pull-deploy] WARNING: blue/green not installed on this box (no ${PULL_DEPLOY_UNIT_TEMPLATE:-gatetest-web@}.service template) — deploying in place; run scripts/deploy/install-pull-deploy.sh to enable zero-downtime deploys"
+elif [ ! -r "${PULL_DEPLOY_ACTIVE_PORT_FILE:-/var/lib/gatetest/pull-deploy-active-port}" ]; then
+  RESTART_MODE="in-place"
+  echo "[pull-deploy] WARNING: blue/green installed but no active-port file at ${PULL_DEPLOY_ACTIVE_PORT_FILE:-/var/lib/gatetest/pull-deploy-active-port} — deploying in place; finish the bootstrap step in docs/deploy/PULL-DEPLOY.md"
+fi
+
+set +e
+if [ "$RESTART_MODE" = "in-place" ]; then
   git show origin/main:scripts/deploy/deploy-on-box.sh | GATETEST_APP_DIR="$APP_DIR" PULL_DEPLOY_INPLACE=1 bash -s
 else
   git show origin/main:scripts/deploy/deploy-on-box.sh | \

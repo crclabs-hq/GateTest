@@ -61,6 +61,9 @@ const path = require('path');
 const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { CSP_UNSAFE_EVAL_TOKEN } = require('../core/reliability/url-prober');
+// One definition of directive-aware `unsafe-inline` classification (issue
+// #681 item 3), shared with src/scanners/server-scanner.js.
+const { classifyUnsafeInline } = require('../core/csp-analyzer');
 
 // A line whose first non-whitespace characters are a comment marker. Used
 // to skip lines like `// NO 'unsafe-eval'` before the CSP token check runs
@@ -164,11 +167,24 @@ function liveHeaderChecks(headers) {
         suggestion: 'Refactor away from eval, or use a strict-dynamic + nonce CSP instead.',
       });
     }
-    if (/unsafe-inline/i.test(csp)) {
+    // Directive-aware (issue #681 item 3): 'unsafe-inline' in script-src (or
+    // default-src when script-src is absent) can execute injected script —
+    // stays a warning. 'unsafe-inline' ONLY in style-src cannot execute
+    // script, so a site that deliberately keeps it there for inline style
+    // assets (while locking script-src down with a nonce) gets an info
+    // note naming the directive instead of the same warning.
+    const unsafeInline = classifyUnsafeInline(csp);
+    if (unsafeInline && unsafeInline.severity === 'warning') {
       findings.push({
         id: 'live-csp-unsafe-inline', severity: 'warning',
-        message: 'Content-Security-Policy contains `unsafe-inline` — inline <script>/onclick= XSS payloads execute as if CSP weren\'t there',
+        message: `Content-Security-Policy contains \`unsafe-inline\` in ${unsafeInline.directive} — inline <script>/onclick= XSS payloads execute as if CSP weren't there`,
         suggestion: 'Replace with a per-request nonce (script-src \'nonce-{nonce}\') or strict-dynamic.',
+      });
+    } else if (unsafeInline) {
+      findings.push({
+        id: 'live-csp-unsafe-inline-style-only', severity: 'info',
+        message: `Content-Security-Policy contains \`unsafe-inline\` in ${unsafeInline.directive} only — inline styles cannot execute script, so this is lower risk than an inline-script hole`,
+        suggestion: 'If practical, replace with a per-request nonce (style-src \'nonce-{nonce}\') to close even this smaller surface.',
       });
     }
   }
