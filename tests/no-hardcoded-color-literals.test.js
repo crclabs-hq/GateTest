@@ -143,7 +143,13 @@ function scopeFiles() {
 function stripComments(rel, src) {
   if (!/\.(tsx?|jsx?)$/.test(rel)) return src;
   return src
-    .replace(/^[ \t]*\{?\/\*[\s\S]*?\*\/\}?/gm, (m) => m.replace(/[^\n]/g, ' '))
+    // `﻿?` — a leading UTF-8 BOM (several files under website/app carry
+    // one, doctrine says never strip it from the file itself) sits before
+    // `^`'s first match on line 1; without tolerating it here, a file whose
+    // very first line is `<BOM>/**` never matches this block-comment opener
+    // at all, so its whole doc comment — issue numbers included — stays
+    // unstripped and gets scanned as code (sample-report.ts, page.tsx).
+    .replace(/^﻿?[ \t]*\{?\/\*[\s\S]*?\*\/\}?/gm, (m) => m.replace(/[^\n]/g, ' '))
     .replace(/^[ \t]*\/\/[^\n]*/gm, (m) => m.replace(/[^\n]/g, ' '))
     .replace(/([;{}(,])[ \t]*\/\/[^\n]*/g, (_, pre) => pre)
     .replace(/([;{}(,])[ \t]*\/\*[\s\S]*?\*\//g, (_, pre) => pre);
@@ -245,5 +251,17 @@ describe('no hard-coded colour literals outside the v2 token system', () => {
     const stripped = stripComments(rel, realLiteralNearAComment);
     assert.strictEqual((stripped.match(COLOR_RE) || []).length, 1,
       'a real literal on a code line must still be flagged even next to a comment mentioning an issue number');
+  });
+
+  it('NEGATIVE CONTROL: a leading UTF-8 BOM does not stop the block-comment opener from matching', () => {
+    // Several real files under website/app (sample-report.ts, page.tsx)
+    // start with a BOM immediately followed by `/**` — `^` still matches at
+    // offset 0 there, but the old regex required `/*` right after `^`, so
+    // the BOM byte made the opener miss the comment entirely and its issue
+    // number ("#678") got scanned as code. Reproduces that exact shape.
+    const rel = '__control__.tsx';
+    const bomDocComment = '﻿/**\n * issue #678 gap 6\n */\nexport const x = 1;\n';
+    assert.strictEqual(stripComments(rel, bomDocComment).match(COLOR_RE), null,
+      'a BOM-prefixed doc comment mentioning an issue number must not be flagged');
   });
 });
