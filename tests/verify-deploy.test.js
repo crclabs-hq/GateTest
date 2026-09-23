@@ -420,3 +420,20 @@ test('readiness-probe.yml parses and fails on production drift against origin/ma
   const probeIdx = steps.findIndex((s) => s.name === 'Probe production');
   assert.ok(steps.indexOf(drift) > probeIdx, 'runs after the main probe');
 });
+
+// issue #706 part 2 — the readiness probe reports a CRITICAL deploy/fresh to
+// the same "Production deploy stalled" issue deploy-box.yml's poll job
+// manages, so a box that stops deploying between pushes is still caught.
+test('readiness-probe.yml reports deploy/fresh CRITICAL to the "Production deploy stalled" issue', () => {
+  const wf = loadYaml('.github/workflows/readiness-probe.yml');
+  assert.equal(wf.permissions.issues, 'write', 'needs issues: write to manage the stalled-deploy issue');
+  const steps = wf.jobs.probe.steps;
+  const report = steps.find((s) => /deploy-stalled-issue\.js/.test(s.run || ''));
+  assert.ok(report, 'a step runs deploy-stalled-issue.js');
+  assert.equal(String(report.if), 'always()', 'reported even when the probe or the drift check already failed');
+  assert.match(report.run, /--state stalled/);
+  assert.match(report.run, /--state resolved/);
+  assert.match(report.run, /severity === 'critical'/, 'only CRITICAL deploy\\/fresh opens/updates the issue, not WARNING');
+  assert.match(report.run, /--source "readiness-probe\.yml \(deploy\/fresh\)"/);
+  assert.ok(!/\|\|\s*true\b/.test(report.run), 'no swallowed-error pattern (bash-safety pipe-true)');
+});

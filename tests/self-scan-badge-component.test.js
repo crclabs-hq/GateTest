@@ -187,10 +187,13 @@ describe('HomeSelfScan.tsx — file-level invariants', () => {
   const COMPONENTS = path.resolve(__dirname, '..', 'website', 'app', 'components');
   const tsx = fs.readFileSync(path.join(COMPONENTS, 'HomeSelfScan.tsx'), 'utf-8');
 
-  it('is the badge the home page renders (SelfScanBadge.tsx is gone, not merely unreferenced)', () => {
-    const page = fs.readFileSync(path.resolve(__dirname, '..', 'website', 'app', 'page.tsx'), 'utf-8');
-    assert.match(page, /import HomeSelfScan from "\.\/components\/HomeSelfScan"/);
-    assert.match(page, /<HomeSelfScan \/>/);
+  it('SelfScanBadge.tsx is gone, not merely unreferenced', () => {
+    // HomeSelfScan stopped being rendered on the homepage at issue #686
+    // phase 3 (2026-09-23, the v2 promotion) — it is not currently mounted
+    // anywhere and is kept only as a file-level fixture for the invariants
+    // below; see the PR for the follow-up. The invariant this test still
+    // protects — that there is exactly one self-scan badge definition, not
+    // two — does not depend on where (or whether) it is mounted.
     assert.ok(!fs.existsSync(path.join(COMPONENTS, 'SelfScanBadge.tsx')), 'two badges would be two definitions of the same status');
   });
 

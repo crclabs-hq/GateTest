@@ -90,7 +90,7 @@ export default function AdminFeedbackPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-8">
+    <main className="gt-admin-page">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-baseline justify-between gap-4">
           <div>

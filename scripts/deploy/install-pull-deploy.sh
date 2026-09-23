@@ -25,21 +25,23 @@ fi
 APP_DIR="${GATETEST_APP_DIR:-/opt/gatetest}"
 UNIT_DIR="$APP_DIR/scripts/deploy/systemd"
 SERVICE="$UNIT_DIR/gatetest-pull-deploy.service"
+ONFAILURE_SERVICE="$UNIT_DIR/gatetest-pull-deploy-onfailure.service"
 TIMER="$UNIT_DIR/gatetest-pull-deploy.timer"
 WEB_TEMPLATE="$UNIT_DIR/gatetest-web@.service"
 SCRIPT="$APP_DIR/scripts/deploy/pull-deploy.sh"
+ONFAILURE_SCRIPT="$APP_DIR/scripts/deploy/pull-deploy-onfailure.sh"
 BLUE_GREEN_SCRIPT="$APP_DIR/scripts/deploy/blue-green-restart.sh"
 SWITCH_SCRIPT="$APP_DIR/scripts/deploy/switch-proxy.sh"
 
-for f in "$SERVICE" "$TIMER" "$WEB_TEMPLATE" "$SCRIPT" "$BLUE_GREEN_SCRIPT" "$SWITCH_SCRIPT"; do
+for f in "$SERVICE" "$ONFAILURE_SERVICE" "$TIMER" "$WEB_TEMPLATE" "$SCRIPT" "$ONFAILURE_SCRIPT" "$BLUE_GREEN_SCRIPT" "$SWITCH_SCRIPT"; do
   if [ ! -f "$f" ]; then
     echo "install-pull-deploy: expected file not found: $f — run this from a checkout at GATETEST_APP_DIR (default /opt/gatetest)." >&2
     exit 1
   fi
 done
 
-chmod 755 "$SCRIPT" "$BLUE_GREEN_SCRIPT" "$SWITCH_SCRIPT"
-cp "$SERVICE" "$TIMER" "$WEB_TEMPLATE" /etc/systemd/system/
+chmod 755 "$SCRIPT" "$ONFAILURE_SCRIPT" "$BLUE_GREEN_SCRIPT" "$SWITCH_SCRIPT"
+cp "$SERVICE" "$ONFAILURE_SERVICE" "$TIMER" "$WEB_TEMPLATE" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now gatetest-pull-deploy.timer
 
