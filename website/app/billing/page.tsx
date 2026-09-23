@@ -39,17 +39,17 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center bg-background px-6 py-16 sm:py-24">
-      <div className="max-w-md w-full text-center">
-        <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-2">Manage your subscription</h1>
-        <p className="text-muted text-sm mb-8">
+    <div className="flex-1 flex items-center justify-center bg-[var(--v2-bg)] px-6 py-16 sm:py-24">
+      <div className="v2-wrap-narrow max-w-md w-full text-center">
+        <h1 className="v2-h1 !text-2xl sm:!text-3xl mb-2">Manage your subscription</h1>
+        <p className="text-[var(--v2-muted)] text-sm mb-8">
           Enter the email you used at checkout. We&rsquo;ll send you a secure link to
           update your payment method, view invoices, change plan, or cancel.
         </p>
 
         {(phase === "form" || phase === "sending" || phase === "error") && (
           <form onSubmit={requestLink}>
-            <label htmlFor="billing-email" className="block text-sm text-muted mb-2 text-left">
+            <label htmlFor="billing-email" className="block text-sm text-[var(--v2-muted)] mb-2 text-left">
               Email used at checkout
             </label>
             <input
@@ -60,13 +60,13 @@ export default function BillingPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
-              className="w-full px-4 py-3 rounded-xl border border-border bg-transparent text-sm mb-4"
+              className="w-full px-4 py-3 rounded-[var(--v2-radius-sm)] border border-[var(--v2-line-strong)] bg-transparent text-sm mb-4 text-[var(--v2-fg)]"
             />
-            {phase === "error" && <p className="text-sm text-red-500 mb-4">{message}</p>}
+            {phase === "error" && <p className="text-sm text-[var(--v2-bad)] mb-4">{message}</p>}
             <button
               type="submit"
               disabled={phase === "sending"}
-              className="btn-cta w-full py-3.5 text-sm rounded-xl font-semibold disabled:opacity-60"
+              className="v2-btn v2-btn-primary w-full justify-center disabled:opacity-60"
             >
               {phase === "sending" ? "Sending…" : "Email me a secure link"}
             </button>
@@ -78,14 +78,14 @@ export default function BillingPage() {
             <p className="text-sm mb-6">{message}</p>
             <button
               onClick={() => { setPhase("form"); setMessage(""); }}
-              className="text-sm text-muted underline"
+              className="text-sm text-[var(--v2-muted)] underline"
             >
               Use a different email
             </button>
           </div>
         )}
 
-        <p className="text-xs text-muted mt-10">
+        <p className="text-xs text-[var(--v2-muted)] mt-10">
           Trouble managing your plan?{" "}
           <a href="mailto:support@gatetest.io" className="underline">support@gatetest.io</a>
           {" · "}

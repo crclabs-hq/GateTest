@@ -218,21 +218,21 @@ ${LOCAL_SERVER_CONFIG}`}
           and scan history need the $29/mo key.
         </>}
       >
-        <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+          <table className="v2-table">
             <thead>
-              <tr className="section-alt border-b border-border">
-                <th className="text-left px-4 py-3 text-muted font-semibold">Tool</th>
-                <th className="text-left px-4 py-3 text-muted font-semibold">What it does</th>
-                <th className="text-center px-4 py-3 text-muted font-semibold">Access</th>
+              <tr>
+                <th>Tool</th>
+                <th>What it does</th>
+                <th className="text-center">Access</th>
               </tr>
             </thead>
             <tbody>
               {ALL_TOOLS.map((tool, i) => (
-                <tr key={i} className={`border-b border-border ${i % 2 === 0 ? "" : "section-alt"}`}>
-                  <td className="px-4 py-3 font-mono text-foreground whitespace-nowrap">{tool.name}</td>
-                  <td className="px-4 py-3 text-muted">{tool.desc}</td>
-                  <td className="px-4 py-3 text-center">
+                <tr key={i}>
+                  <td className="v2-mono whitespace-nowrap">{tool.name}</td>
+                  <td>{tool.desc}</td>
+                  <td className="text-center">
                     {tool.paid ? (
                       <span className={`inline-flex items-center gap-1 bg-sky-500/10 ${EYES} border border-sky-500/30 rounded-full px-2.5 py-0.5 text-xs font-semibold`}>
                         <LockIcon /> $29/mo
