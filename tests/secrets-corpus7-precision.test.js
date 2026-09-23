@@ -103,3 +103,44 @@ describe('secrets — corpus7 item 2: Fallback Secret needs a secret-bearing nam
     assert.ok(found.some((f) => f.id === 'secrets:src/lib/config.ts'), 'a URL fallback with userinfo is a credential regardless of the var name');
   });
 });
+
+// -----------------------------------------------------------------------------
+// Item 3 — a commented-out Fallback Secret is dead code, at most an info note
+// -----------------------------------------------------------------------------
+describe('secrets — corpus7 item 3: commented-out fallback secrets never block', () => {
+  it('info only: a `//`-commented default password fallback', async () => {
+    const found = fileFindings(await scan({
+      'src/lib/intelligence.ts': '//   const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? \'layova-admin\';\n',
+    }));
+    assert.ok(found.length > 0, 'still on the record');
+    assert.ok(found.every((f) => f.severity === 'info'), 'never an error or warning');
+    assert.ok(!found.some((f) => f.id === 'secrets:src/lib/intelligence.ts' && (f.details || []).some((d) => d.type === 'Fallback Secret')),
+      'not folded into the blocking finding for the file');
+  });
+
+  it('info only: a `*` JSDoc-commented default password fallback', async () => {
+    const found = fileFindings(await scan({
+      'src/lib/intelligence.ts': ' *   const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? \'layova-admin\';\n',
+    }));
+    assert.ok(found.length > 0, 'still on the record');
+    assert.ok(found.every((f) => f.severity === 'info'), 'never an error or warning');
+  });
+
+  it('info only: a `/* ... */`-commented default password fallback', async () => {
+    const found = fileFindings(await scan({
+      'src/lib/intelligence.ts': '/* const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? \'layova-admin\'; */\n',
+    }));
+    assert.ok(found.length > 0, 'still on the record');
+    assert.ok(found.every((f) => f.severity === 'info'), 'never an error or warning');
+  });
+
+  it('fires as an error: the exact same fallback, uncommented', async () => {
+    const found = fileFindings(await scan({
+      'src/lib/intelligence.ts': 'const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? \'layova-admin\';\n',
+    }));
+    const check = found.find((f) => f.id === 'secrets:src/lib/intelligence.ts');
+    assert.ok(check, 'live code still fires');
+    assert.equal(check.severity, 'error');
+    assert.ok(check.details.some((d) => d.type === 'Fallback Secret'));
+  });
+});

@@ -851,6 +851,18 @@ class SecretsModule extends BaseModule {
         const prevLine = i > 0 ? lines[i - 1] : '';
         if (/\bsecrets-ok\b/.test(line) || /\bsecrets-ok\b/.test(prevLine)) continue;
 
+        // A full-line comment can never assign a live credential — the code
+        // beside it does not run. Judged here, BEFORE the env-fallback check
+        // below, because that check used to run before this line's own
+        // comment test further down: a commented-out
+        // `//   const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'layova-admin';`
+        // (Gluecron src/lib/intelligence.ts:543-544, #682) still blocked the
+        // gate on dead code. `/*` joins `//` / `*` / `#` here so an inline
+        // block comment opening a line is caught the same way.
+        const trimmed = line.trimStart();
+        const isFullLineComment = trimmed.startsWith('//') || trimmed.startsWith('*')
+          || trimmed.startsWith('#') || trimmed.startsWith('/*');
+
         // Comparison operands are removed, not used to skip the whole line.
         // `if (password === 'REJECTED_VALUE')` really is a sentinel and must
         // stay quiet — but a blanket skip on `===` also hid every credential
@@ -870,7 +882,18 @@ class SecretsModule extends BaseModule {
         // `continue`, so that entire class was unreachable by design.
         if (/process\.env\b/.test(line)) {
           const fallback = this._envFallbackSecret(line);
-          if (fallback) {
+          if (fallback && isFullLineComment) {
+            // Dead code, not a live default — on the record (Doctrine §6),
+            // never blocking. "a commented default password is still worth
+            // removing" is the whole message; it never rises to an error.
+            result.addCheck(`secrets:commented-fallback:${relPath}:${i + 1}`, false, {
+              severity: 'info',
+              file: relPath,
+              line: i + 1,
+              message: 'A commented-out default secret/password fallback is still worth removing, even though the code beside it never runs',
+              details: [{ type: 'Fallback Secret', line: i + 1, preview: line.substring(0, 80).trim() + (line.length > 80 ? '...' : '') }],
+            });
+          } else if (fallback) {
             found.push({
               type: 'Fallback Secret',
               line: i + 1,
@@ -896,8 +919,7 @@ class SecretsModule extends BaseModule {
         }
 
         // Skip comment lines
-        const trimmed = line.trimStart();
-        if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('#')) continue;
+        if (isFullLineComment) continue;
 
         for (const pattern of this.patterns) {
           // Reset regex lastIndex for global regexes
