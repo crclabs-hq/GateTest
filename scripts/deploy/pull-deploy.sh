@@ -47,19 +47,32 @@ prev_status_field() {
   # rather than replaces, so a file left by a killed run can have more than
   # one JSON object in it — the newest one is always the one that matters,
   # same as website/app/lib/pull-deploy-status.js reads on the API side.
+  # The pipeline runs inside an `if` condition: under `set -eo pipefail` a key that is
+  # absent makes grep exit 1, a bare command substitution inherits that status,
+  # and the assignment would end the whole script before it had written any
+  # status at all (a status file from before #706 has no firstFailedAt; the
+  # OnFailure append writes consecutiveFailures as null). An absent key is
+  # an empty string, never a fatal error.
   [ -r "$STATUS_FILE" ] || { printf ''; return 0; }
-  tail -n1 "$STATUS_FILE" 2>/dev/null | grep -o "\"$1\":\"[^\"]*\"" | head -n1 | sed -E "s/.*:\"([^\"]*)\"/\1/"
+  local v=""
+  if v="$(tail -n1 "$STATUS_FILE" 2>/dev/null | grep -o "\"$1\":\"[^\"]*\"" | head -n1 | sed -E "s/.*:\"([^\"]*)\"/\1/")"; then printf "%s" "$v"; fi
 }
 prev_status_int_field() {
   # An unquoted integer field, e.g. "consecutiveFailures":3 -> 3. Same
   # last-line-only reasoning as prev_status_field above.
   [ -r "$STATUS_FILE" ] || { printf ''; return 0; }
-  tail -n1 "$STATUS_FILE" 2>/dev/null | grep -o "\"$1\":[0-9]\+" | head -n1 | sed -E "s/.*:([0-9]+)/\1/"
+  local v=""
+  if v="$(tail -n1 "$STATUS_FILE" 2>/dev/null | grep -o "\"$1\":[0-9]\+" | head -n1 | sed -E "s/.*:([0-9]+)/\1/")"; then printf "%s" "$v"; fi
 }
 PREV_RESULT="$(prev_status_field result)"
 PREV_CONSECUTIVE_FAILURES="$(prev_status_int_field consecutiveFailures)"
 PREV_FIRST_FAILED_AT="$(prev_status_field firstFailedAt)"
-[ -n "$PREV_CONSECUTIVE_FAILURES" ] || PREV_CONSECUTIVE_FAILURES=0
+if [ -z "$PREV_CONSECUTIVE_FAILURES" ]; then
+  # No integer count on the last line. A "failed" line without one is the
+  # OnFailure append (consecutiveFailures:null): that killed run WAS a
+  # failure, so it counts as one; anything else starts from zero.
+  if [ "$PREV_RESULT" = "failed" ]; then PREV_CONSECUTIVE_FAILURES=1; else PREV_CONSECUTIVE_FAILURES=0; fi
+fi
 
 # Box 161 hosts other products; anyone who can land a commit on THIS repo's
 # main effectively gets root on the box the moment this timer runs it. Branch
