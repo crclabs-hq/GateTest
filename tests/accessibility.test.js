@@ -244,3 +244,37 @@ describe('AccessibilityModule — image renderers and focus rules', () => {
     assert.ok(!f.some((c) => c.name.startsWith('a11y:focus-outline:')), JSON.stringify(f.map((c) => c.name)));
   });
 });
+
+describe('AccessibilityModule — html-lang masking (issue #707)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-a11y-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  const w = (rel, c) => { const f = path.join(tmp, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, c); };
+  const run = async () => { const r = makeResult(); await new AccessibilityModule().run(r, { projectRoot: tmp, getModuleConfig() { return {}; }, get() { return null; } }); return r.checks.filter((c) => !c.passed); };
+
+  it('NEGATIVE: a literal "<html" / "<head" inside a JSDoc comment and a template-literal string does not fire (issue #707: ThemeToggle.tsx)', async () => {
+    w('components/ThemeToggle.tsx', [
+      '/**',
+      ' * Stamps `data-theme` on <html> and is persisted so it survives a reload.',
+      ' * Rendered as the first thing in <head> via a pre-hydration script.',
+      ' */',
+      "const THEME_INIT_SCRIPT = `document.documentElement.setAttribute('data-theme', t)`;",
+      "const sel = document.querySelector('html');",
+      'export function ThemeToggle() { return <div>toggle</div>; }',
+    ].join('\n'));
+    const f = await run();
+    assert.ok(!f.some((c) => c.name.startsWith('a11y:html-lang:')), JSON.stringify(f.map((c) => c.name)));
+  });
+
+  it('POSITIVE: a layout with a real <html> and no lang still fires', async () => {
+    w('app/layout.tsx', 'export default function RootLayout({ children }) { return (<html><head><title>t</title></head><body>{children}</body></html>); }');
+    const f = await run();
+    assert.ok(f.some((c) => c.name === 'a11y:html-lang:app/layout.tsx'), JSON.stringify(f.map((c) => c.name)));
+  });
+
+  it('NEGATIVE: the same layout with lang="en" on the real <html> does not fire', async () => {
+    w('app/layout.tsx', 'export default function RootLayout({ children }) { return (<html lang="en"><head><title>t</title></head><body>{children}</body></html>); }');
+    const f = await run();
+    assert.ok(!f.some((c) => c.name.startsWith('a11y:html-lang:')), JSON.stringify(f.map((c) => c.name)));
+  });
+});
