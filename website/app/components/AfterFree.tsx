@@ -1,5 +1,7 @@
-﻿import { TOTAL_MODULES } from "@/app/lib/module-count";
+﻿import Link from "next/link";
+import { TOTAL_MODULES } from "@/app/lib/module-count";
 import { TIERS } from "@/app/lib/checkout-tiers";
+import { SAMPLE_REPORT_URL } from "@/app/lib/sample-report";
 
 /**
  * <AfterFree> — "what happens after the free tier."
@@ -66,6 +68,19 @@ export default function AfterFree() {
             </p>
           </div>
         </div>
+
+        <p className="text-center text-xs text-muted mt-8">
+          See a full report instead of taking our word for it:{" "}
+          <Link
+            href={SAMPLE_REPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent hover:underline"
+          >
+            our own repository&apos;s current full-scan findings
+          </Link>
+          , uploaded by the same CI job on every push to main.
+        </p>
       </div>
     </section>
   );
