@@ -180,3 +180,53 @@ Tallrig 404s (KI #111, needs TALLRIG_API_TOKEN on box 161).
   one-time `sudo scripts/deploy/install-pull-deploy.sh` on the box.
 - Bot-authored PRs (github-actions) trigger no CI; a human-account empty
   commit starts it.
+
+## 9. Exact state at 2026-09-23 17:15Z — resume here from any account
+
+Written for the three owner accounts (ccantynz, ccantyusa, ccanty48co) so any session continues without re-discovery. The launch board artifact is private to the account that made it; this file and the repo are the shared truth. The GateTest session on the desktop is addressed as "Gatetest" in ListAgents; Tallrig's session as "Tallrig (fork)"; Gluecron holds cross-session messages for approval, so use ccantynz-alt/Gluecron.com#140 for anything that must reach them.
+
+### What is live (production = main, verified by platform-status)
+- gatetest.io serves main. The box unfroze at 14:39Z on 23 Sep after 16 hours stuck on 7026fbec. Every merge since deploys within about eight minutes.
+- Live today: homepage v2 defect fixes and iPad scroll fix (#688), the site-wide v2 design system with the system/light/dark toggle (#696), every restyled public page (#712, #705), self-hosted font so builds never touch the network (#689), pull-deploy fallback to in-place when blue/green is not installed (#685), the readiness probe comparing live to main (#700), the Tallrig push-event receiver at /api/integrations/tallrig/events (#674), and the rule-precision rounds #654 through #692 verified by Tallrig on their tree (438 → 237 blocking findings, prompt-safety 21 → 3 errors).
+- The v2 homepage is still served at /preview, not at /. The swap is the last step of #686 and a builder holds three unpushed commits for it (see "Builders" below).
+
+### Open PRs (all should merge with auto-merge; Craig's rule: always push and merge)
+- #710 deploy pipeline fails loud (closes #706): CI red on two no-op catch blocks in scripts/ops/deploy-stalled-issue.js and a status-file reader that parses the whole file; a builder holds the fix unpushed on branch fix-710.
+- #702 admin shell with both themes (closes #691 and #690): CI red on a test password literal in scripts/ops/admin-screenshots.js, the colour-literal test miscounting the admin token file, and a smoke test leaking a handle in teardown; a builder holds the fixes unpushed.
+- #717 public-api-key rule needs client-flow evidence (closes #713): green, arm auto-merge if it is not.
+- Draft PR for the /stack cross-sell (Refs #715) is being written by the marketer brief; it needs Gluecron's block and Craig's approval, never auto-merge.
+
+### Open issues (after the 23 Sep clean-up: 9 → 5)
+- #706, #691, #690, #713 close with the PRs above. #715 is the cross-platform copy decision (see below). #532 is the automated owner list, regenerated from docs/ops/blocking-on-craig.json (#714 added the seven owner items found this week).
+
+### Decisions Craig made on 23 Sep (do not re-ask)
+- Homepage v2: ship it and carry the design to every page (#686). Done except the / swap.
+- Light and dark for customers and admin (#690): shipped for customers in #696; admin side in #702.
+- Always push and merge: arm auto-merge on every PR; merge green PRs at once (admin path when only "behind" and no file overlap); never merge red checks.
+- Cross-platform copy: each platform is complete on its own; GateTest is an optional audit layer; copy naming Gluecron or Tallrig ships only after that platform supplies its own sentence and Craig approves the paragraph (#715). Tallrig's block is on #715 verbatim; Gluecron's is pending on ccantynz-alt/Gluecron.com#140. A marketer role exists at .claude/agents/marketer.md with these rules.
+- A clean board: issues closed when done, duplicates folded into #532, the launch board shows open work first with shipped rows folded.
+
+### Owner-only items (the box and accounts), in the order that unblocks most
+1. Box 161 env: rotate the refused GitHub token; set GOOGLE_CLIENT_SECRET, TALLRIG_API_TOKEN, GATETEST_DAILY_API_BUDGET_USD, GATETEST_ADMIN_PASSWORD (admin login fails until set), a fresh CRON_SECRET (also in the repo secret and the cron workflow); restart gatetest-web.
+2. Blue/green install from docs/deploy/PULL-DEPLOY.md "Blue/green" (removes the 502 blip on every merge). Until then #685's fallback keeps deploys working.
+3. Tallrig console: pushEvents.register with target https://gatetest.io/api/integrations/tallrig/events; set TALLRIG_PUSH_SECRET and TALLRIG_PUSH_KEY_ID on the box; then tell the GateTest session so Tallrig fires the cross-test.
+4. GitHub, signed in: Marketplace listing (logo, EU declarations, webhook secret, Request publish); retire duplicate App gatetesthq; repo secrets GATETEST_ADMIN_PASSWORD and GATETEST_APP_PRIVATE_KEY.
+5. CLAUDE.md doctrine: the proxy in front of gatetest.io is Coolify's Traefik on box 161 (verified by Tallrig), not the Tallrig gateway.
+6. DNS (DMARC p=reject, MCP registry TXT); box-158 secret rotations; WordPress.org submit; Cursor/Windsurf checks.
+
+### Builders (worktrees under .claude/worktrees/, resumable by agent id from the desktop session that spawned them)
+- a099e9eb2d1f82d70: homepage swap (#686 phase 3), three commits unpushed on worktree-agent-a099e9eb2d1f82d70.
+- a9fb7f049b8c400ca: #710 CI fixes on branch fix-710, unpushed.
+- ada7b464b8d3245ff: #702 CI fixes, twelve commits unpushed.
+- a1f6bc9cc749738b6: marketer draft for #715, starting.
+If a new session cannot resume them, the branches above are the state; start a fresh builder from the worktree's branch, never from scratch.
+
+### Cross-platform loop (docs/HANDOFF.md sections 3 and 5 still apply)
+- Tallrig owes nothing; we owe them merge shas as PRs land and the buyer re-walk request in both themes once / shows the v2 page. Their clean build fd8298b1 crawled all clear from our seat.
+- Gluecron: briefed on #140 with the deadline, the handoff, our nine-finding verdict on their repo (four real, four our false positives now fixed in #694), and the copy asks. No reply as of 17:15Z on 23 Sep.
+
+### Traps added this week
+- Restarts of the desktop session stop background builders; their worktrees survive. Check `git status` and `git log origin/main..HEAD` in each before assuming work landed.
+- GitHub's PR head can lag a push by a minute; confirm with `git ls-remote`.
+- The Turbopack build fails inside worktrees because website/node_modules is a junction outside the root; use `npx next build --webpack` there.
+- A merge into main puts every other PR "behind"; branch protection is strict, so each merge restarts the others' CI. Merge green PRs with the admin path when files do not overlap.

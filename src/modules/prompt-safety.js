@@ -122,6 +122,31 @@ const LLM_CALL_EVIDENCE_RE = new RegExp([
 const PUBLIC_ENV_PREFIX = /\b(NEXT_PUBLIC_|VITE_|REACT_APP_|EXPO_PUBLIC_|PUBLIC_)/;
 const KEYISH_SUFFIX = /(?:API_KEY|APIKEY|SECRET|TOKEN|PRIVATE_KEY)\b/;
 
+// #713 (Tallrig round five, item 2): a real `process.env.NEXT_PUBLIC_*` /
+// `import.meta.env.VITE_*` read is flagged unconditionally below — the
+// bundler inlines that literal wherever the read sits, regardless of what
+// the surrounding code does with it. This tells the two shapes apart.
+const ENV_READ_BEFORE_RE = /(?:process\s*\.\s*env|import\s*\.\s*meta\s*\.\s*env)\s*(?:\?\s*\.)?\s*\.\s*$/;
+
+// Evidence that a bare PUBLIC_*-shaped identifier (not a live env read)
+// actually flows toward a client or an outbound request: assigned into
+// something that reads as client-side config, interpolated into a URL or
+// header, or passed to a request call. A rejecting `secret === CONST`
+// equality check is deliberately NOT in this list — see #713.
+const CLIENT_SINK_RE = /\b(?:window|globalThis)\s*(?:\?\s*\.)?\s*\.\s*[\w$.]*\s*=(?!=)|(?:client|public)[A-Za-z0-9_]*Config\b\s*[:=]|\bheaders\s*[:=]|\bAuthorization\b|\bfetch\s*\(|\baxios(?:\s*\.\s*\w+)?\s*\(|\.request\s*\(|\bnew\s+Request\s*\(|\bhttp\.request\s*\(|\bXMLHttpRequest\b/i;
+
+// "Exported from a client bundle path" — the other #713 fire condition.
+// Matched against the repo-relative path when the identifier's own line
+// also carries an `export`.
+const CLIENT_BUNDLE_PATH_RE = /(?:^|\/)(?:client|frontend|browser|web|public|components|pages)(?:\/|$)/i;
+
+// How many lines of slack around an identifier's own line count toward
+// "passed to a request" / "assigned into client config" — a `fetch(...)`
+// call or a `headers: {...}` object is routinely written across several
+// lines, so a same-line-only check would miss the exact shape #713's own
+// control pair describes.
+const CLIENT_SINK_WINDOW = 4;
+
 // Hints that a variable is carrying user-supplied input. Treat these as
 // untrusted when interpolated into a prompt-shaped string.
 const USER_INPUT_HINTS = [
@@ -746,20 +771,31 @@ class PromptSafetyModule extends BaseModule {
       // as a sample file's contents), not a live reference. Found via
       // self-scan: prompt-safety flagging its own test fixtures as real
       // findings (same class as tls-security/redos/cronExpression).
+      //
+      // #713 (Tallrig round five, item 2): the identifier match alone used
+      // to be enough, which fired on `PUBLIC_DEFAULT_SECRET` in a boot
+      // guard (`apps/api/src/secrets/secret-key-guard.ts`) that only ever
+      // compares it against an incoming secret and rejects — the constant
+      // is never read out of a client-bundled env var and never sent
+      // anywhere. A real `process.env`/`import.meta.env` read is still
+      // flagged unconditionally (`ENV_READ_BEFORE_RE`); a bare identifier
+      // with the same shape now needs positive evidence it flows toward a
+      // client (`_publicIdentifierFlowsToClient`).
       const pubMatches = [...line.matchAll(/[A-Z][A-Z0-9_]*/g)];
       for (const pm of pubMatches) {
         const tok = pm[0];
-        if (PUBLIC_ENV_PREFIX.test(tok) && KEYISH_SUFFIX.test(tok) && isCode(i, pm.index)) {
-          issues += this._flag(result, `prompt-safety:public-api-key:${rel}:${i + 1}`, {
-            severity: isTest ? 'warning' : 'error',
-            file: rel,
-            line: i + 1,
-            match: tok,
-            message: `\`${tok}\` — client-bundled env vars are shipped to every user's browser; the API key is effectively public`,
-            suggestion: 'Move the key to a server-only env var (no public prefix) and call the LLM from a server route / edge function.',
-          });
-          break;
-        }
+        if (!(PUBLIC_ENV_PREFIX.test(tok) && KEYISH_SUFFIX.test(tok) && isCode(i, pm.index))) continue;
+        const isEnvRead = ENV_READ_BEFORE_RE.test(line.slice(0, pm.index));
+        if (!isEnvRead && !this._publicIdentifierFlowsToClient(tok, lines, isCode, rel)) continue;
+        issues += this._flag(result, `prompt-safety:public-api-key:${rel}:${i + 1}`, {
+          severity: isTest ? 'warning' : 'error',
+          file: rel,
+          line: i + 1,
+          match: tok,
+          message: `\`${tok}\` — client-bundled env vars are shipped to every user's browser; the API key is effectively public`,
+          suggestion: 'Move the key to a server-only env var (no public prefix) and call the LLM from a server route / edge function.',
+        });
+        break;
       }
 
       // 2. Deprecated / unsafe model strings
@@ -832,6 +868,49 @@ class PromptSafetyModule extends BaseModule {
   _codeGuard(rel, content, lines) {
     const masked = this._maskedLines(content, rel);
     return (i, idx) => !this._insideLiteral(masked, lines, i, idx);
+  }
+
+  /**
+   * #713: does a bare `PUBLIC_*_KEY` / `PUBLIC_*_SECRET`-shaped identifier
+   * — one NOT read straight out of `process.env` / `import.meta.env`, which
+   * is flagged unconditionally by the caller — ever flow toward a client or
+   * an outbound request anywhere in this file?
+   *
+   * Walks every code occurrence of the identifier and, for each, looks at a
+   * small window of surrounding lines (`CLIENT_SINK_WINDOW`, since a
+   * `fetch(...)`/`headers: {...}` shape is routinely written across several
+   * lines) for `CLIENT_SINK_RE` — an assignment into something that reads as
+   * client config, a header/`Authorization` field, or a request call — or,
+   * when the file's own path reads as a client bundle path, an `export` of
+   * the identifier. An equality check (`===`/`!==`/`.includes(`/
+   * `.startsWith(`) or a rejecting `return`/`throw` never matches either of
+   * those, which is the point: the secret-key-guard shape from #713 (compare
+   * against an incoming secret, reject if it's the public default) has no
+   * occurrence that qualifies, so it stops firing; the control pair
+   * (`const PUBLIC_API_KEY = "..."` passed to
+   * `fetch(url, { headers: { Authorization: PUBLIC_API_KEY } })`) does, so
+   * it keeps firing.
+   */
+  _publicIdentifierFlowsToClient(tok, lines, isCode, rel) {
+    const wordRe = new RegExp(`\\b${tok}\\b`, 'g');
+    const isClientPath = CLIENT_BUNDLE_PATH_RE.test(rel.replace(/\\/g, '/'));
+    for (let j = 0; j < lines.length; j += 1) {
+      const line = lines[j];
+      wordRe.lastIndex = 0;
+      let m;
+      let onThisLine = false;
+      while ((m = wordRe.exec(line))) {
+        if (isCode(j, m.index)) { onThisLine = true; break; }
+      }
+      if (!onThisLine) continue;
+
+      const windowStart = Math.max(0, j - CLIENT_SINK_WINDOW);
+      const windowEnd = Math.min(lines.length, j + CLIENT_SINK_WINDOW + 1);
+      const windowText = lines.slice(windowStart, windowEnd).join('\n');
+      if (CLIENT_SINK_RE.test(windowText)) return true;
+      if (isClientPath && /\bexport\b/.test(windowText)) return true;
+    }
+    return false;
   }
 
   _scanLlmCalls(content, lines, rel, result, isTest = false, isCode = () => true, file = null, projectRoot = null) {
