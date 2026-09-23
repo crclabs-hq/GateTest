@@ -338,10 +338,10 @@ test('install-pull-deploy.sh installs the blue/green template + scripts idempote
   try {
     const appDir = path.join(tmp, 'opt-gatetest');
     fs.mkdirSync(path.join(appDir, 'scripts', 'deploy', 'systemd'), { recursive: true });
-    for (const f of ['pull-deploy.sh', 'blue-green-restart.sh', 'switch-proxy.sh', 'install-pull-deploy.sh']) {
+    for (const f of ['pull-deploy.sh', 'pull-deploy-onfailure.sh', 'blue-green-restart.sh', 'switch-proxy.sh', 'install-pull-deploy.sh']) {
       fs.copyFileSync(path.join(ROOT, 'scripts', 'deploy', f), path.join(appDir, 'scripts', 'deploy', f));
     }
-    for (const f of ['gatetest-pull-deploy.service', 'gatetest-pull-deploy.timer', 'gatetest-web@.service']) {
+    for (const f of ['gatetest-pull-deploy.service', 'gatetest-pull-deploy-onfailure.service', 'gatetest-pull-deploy.timer', 'gatetest-web@.service']) {
       fs.copyFileSync(path.join(ROOT, 'scripts', 'deploy', 'systemd', f), path.join(appDir, 'scripts', 'deploy', 'systemd', f));
     }
 
