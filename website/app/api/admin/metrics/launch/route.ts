@@ -29,8 +29,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const days = Number(req.nextUrl.searchParams.get("days") || "") || 14;
+  let sql: ReturnType<typeof getDb>;
   try {
-    const metrics = await getLaunchMetrics(getDb(), { days });
+    sql = getDb();
+  } catch {
+    return NextResponse.json({ ok: false, error: "database not configured" }, { status: 503 });
+  }
+  try {
+    const metrics = await getLaunchMetrics(sql, { days });
     return NextResponse.json({ ok: true, generated_at: new Date().toISOString(), ...metrics });
   } catch (err) {
     return NextResponse.json(
