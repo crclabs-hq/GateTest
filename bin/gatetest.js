@@ -31,7 +31,7 @@ const {
   USAGE_EXIT_CODE,
 } = require('../src/core/cli-args');
 const { buildJsonOutput, scanExitCode } = require('../src/core/json-output');
-const { crawlReportPaths } = require('../src/modules/live-crawler-report');
+const { crawlReportPaths, crawlExitCode } = require('../src/modules/live-crawler-report');
 
 /**
  * `--project <path>` must name an existing directory, or the run is a usage
@@ -1389,21 +1389,62 @@ function crawlTimeoutMessage(summary) {
   return `No crawl report: module timed out after ${match[1]}ms — no data was collected for this run.`;
 }
 
-/** Print this run's own crawl report (or say plainly why there isn't one). Shared by runCrawl/runCrawlLoop. */
+/** This run's own crawl JSON data (the same file generateFeedbackReport writes the .md report from), or null if absent/mismatched. */
+function readOwnCrawlJsonData(jsonPath, url) {
+  if (!fs.existsSync(jsonPath)) return null;
+  try {
+    const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+    if (!data || data.baseUrl !== url) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Print this run's own crawl report (or say plainly why there isn't one).
+ * Shared by runCrawl/runCrawlLoop.
+ *
+ * Checks for an actual report FIRST, ahead of the runner's timeout verdict:
+ * an outer wall-clock race can mark the module "failed" moments after its
+ * (abandoned, still-running) run() call already finished writing a clean
+ * report to disk (issue #677 item 2) — a genuine report on disk, keyed to
+ * THIS run's pid+origin and carrying THIS run's own URL, is never stale by
+ * construction, so there is nothing to lose by trusting it over the
+ * runner's crash flag. Only when no such report exists do we explain why,
+ * via the timeout message when the module truly never got that far.
+ */
 function printOwnCrawlReport(gatetest, url) {
   const { mdPath } = crawlReportPaths(gatetest.projectRoot, url);
-  const timeoutMessage = crawlTimeoutMessage(gatetest._lastCrawlSummary);
-  if (timeoutMessage) {
-    console.log(`\n[GateTest] ${timeoutMessage}\n`);
-    return null;
-  }
   const report = readOwnCrawlReport(mdPath, url);
-  if (!report) {
-    console.log(`\n[GateTest] No crawl report was produced for ${url} this run.\n`);
-    return null;
+  if (report) {
+    console.log('\n' + report);
+    return report;
   }
-  console.log('\n' + report);
-  return report;
+  const timeoutMessage = crawlTimeoutMessage(gatetest._lastCrawlSummary);
+  console.log(`\n[GateTest] ${timeoutMessage || `No crawl report was produced for ${url} this run.`}\n`);
+  return null;
+}
+
+/**
+ * The --crawl exit code — derived ONLY from the findings this run's own
+ * report carries (crawlExitCode, src/modules/live-crawler-report.js), never
+ * from the runner's generic module status. That status can diverge from the
+ * report: the runner's outer wall-clock race can mark the module "failed"
+ * moments after generateFeedbackReport already wrote a clean report to disk
+ * (issue #677 item 2, reproduced once on a 40-page crawl of tallrig.com —
+ * the report said ALL CLEAR, the process still exited 1 with nothing in the
+ * report explaining why). When this run produced no valid report at all
+ * (the module never got that far before its own timeout), there is
+ * genuinely nothing to derive a findings-based verdict from, so the
+ * runner's own gate status is the only signal left.
+ */
+function crawlExitCodeForRun(gatetest, url) {
+  const { jsonPath } = crawlReportPaths(gatetest.projectRoot, url);
+  const data = readOwnCrawlJsonData(jsonPath, url);
+  if (data) return crawlExitCode(data);
+  const summary = gatetest._lastCrawlSummary;
+  return summary && summary.gateStatus === 'PASSED' ? 0 : 1;
 }
 
 async function runCrawl(gatetest, url, maxPages, authConfig = {}) {
@@ -1424,7 +1465,7 @@ async function runCrawl(gatetest, url, maxPages, authConfig = {}) {
 
   printOwnCrawlReport(gatetest, url);
 
-  process.exit(summary.gateStatus === 'PASSED' ? 0 : 1);
+  process.exit(crawlExitCodeForRun(gatetest, url));
 }
 
 async function runCrawlLoop(gatetest, url, maxPages, authConfig = {}) {

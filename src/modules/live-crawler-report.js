@@ -37,6 +37,87 @@ function originSlug(baseUrl) {
   }
 }
 
+/**
+ * How much of the crawl's "in scope" pages may go unchecked before the exit
+ * code fails the gate (issue #677 item 2). A single stalled page out of forty
+ * should not fail a CI build on an otherwise-clean site; the site being
+ * mostly unreachable should. Documented here because bin/gatetest.js's
+ * `--crawl` exit code and this module's own "not checked" report line both
+ * read the SAME number — one definition, so the exit code can never diverge
+ * from what the report prints (doctrine #4).
+ */
+const NOT_CHECKED_BLOCK_SHARE = 0.2; // 20%
+
+/** How many pages this crawl never actually verified — timed out, or never attempted before the wall-clock budget ran out. */
+function notCheckedCount(data) {
+  const timedOut = (data.timedOutPages || []).length;
+  const budgetSkipped = data.budgetExhausted
+    ? Math.max(0, (data.maxPages || 0) - (data.pagesScanned || 0) - timedOut)
+    : 0;
+  return timedOut + budgetSkipped;
+}
+
+/** Why those pages were not checked, in the order the reasons apply. Null when nothing was skipped. */
+function notCheckedReason(data) {
+  const reasons = [];
+  if ((data.timedOutPages || []).length > 0) reasons.push('timed out');
+  if (data.budgetExhausted) reasons.push('crawl budget exhausted');
+  return reasons.length ? reasons.join('; ') : null;
+}
+
+/** The one "N pages not checked (reason)" line — shared by the markdown report and the JSON document. Null when everything was checked. */
+function notCheckedLine(data) {
+  const count = notCheckedCount(data);
+  if (count === 0) return null;
+  return `${count} page${count === 1 ? '' : 's'} not checked (${notCheckedReason(data) || 'unknown'})`;
+}
+
+/** Total hard (error-severity) findings — the ones that always fail the crawl regardless of the not-checked share. */
+function hardFindingCount(data) {
+  return (data.errors || []).length
+    + (data.brokenLinks || []).length
+    + (data.brokenImages || []).length
+    + (data.brokenScripts || []).length
+    + (data.brokenStylesheets || []).length;
+}
+
+/** The one-word verdict the markdown heading and the JSON `result` field both show. */
+function crawlResultLabel(data) {
+  const clean = hardFindingCount(data) === 0
+    && (data.timedOutPages || []).length === 0
+    && !data.budgetExhausted
+    && (data.pagesScanned || 0) > 0;
+  return clean ? 'ALL CLEAR' : 'ISSUES FOUND';
+}
+
+/**
+ * The crawl's own findings decide the exit code — never the runner's generic
+ * module-crashed/timed-out status, which can diverge from what this report
+ * actually shows (issue #677 item 2: a 40-page crawl printed ALL CLEAR and
+ * still exited 1 because an unrelated wall-clock race marked the module
+ * "failed" — via the runner's outer timeout race — after this report had
+ * already been written clean to disk).
+ *
+ * Hard findings (broken links/images/scripts/stylesheets, page errors)
+ * always fail. Otherwise the crawl fails only when the NOT-CHECKED share —
+ * pages timed out or never attempted because the wall-clock budget ran
+ * out — exceeds NOT_CHECKED_BLOCK_SHARE. Fewer skipped pages than that
+ * still prints the not-checked line, but does not fail the gate. A crawl
+ * that verified zero pages and found no errors either can never claim
+ * clean off zero observations.
+ */
+function crawlExitCode(data) {
+  if (hardFindingCount(data) > 0) return 1;
+
+  const notChecked = notCheckedCount(data);
+  const pagesScanned = data.pagesScanned || 0;
+  if (pagesScanned === 0 && notChecked === 0) return 1;
+
+  const totalInScope = data.budgetExhausted ? (data.maxPages || 0) : pagesScanned + notChecked;
+  const share = totalInScope > 0 ? notChecked / totalInScope : 0;
+  return share > NOT_CHECKED_BLOCK_SHARE ? 1 : 0;
+}
+
 function generateFeedbackReport(config, data) {
   const { reportDir, mdPath, jsonPath, latestMdPath, latestJsonPath } =
     crawlReportPaths(config.projectRoot, data.baseUrl);
@@ -45,9 +126,13 @@ function generateFeedbackReport(config, data) {
   }
 
   const timedOutPages = data.timedOutPages || [];
+  const brokenScripts = data.brokenScripts || [];
+  const brokenStylesheets = data.brokenStylesheets || [];
   const pagesAttempted = data.pagesScanned + timedOutPages.length;
   const budgetExhausted = !!data.budgetExhausted;
   const elapsedS = ((data.crawlElapsedMs || 0) / 1000).toFixed(1);
+  const resultLabel = crawlResultLabel(data);
+  const notChecked = notCheckedLine(data);
 
   const lines = [];
   lines.push('# GateTest Live Crawl Report');
@@ -59,12 +144,14 @@ function generateFeedbackReport(config, data) {
   // outer race discarding it and printing "no data was collected" (#640).
   if (budgetExhausted) pagesLine += ` — crawl budget exhausted: ${data.pagesScanned} of ${data.maxPages} pages fetched in ${elapsedS}s`;
   lines.push(pagesLine);
+  // The exact "N pages not checked (reason)" line — the same number
+  // bin/gatetest.js's --crawl exit code reads via crawlExitCode() (issue
+  // #677 item 2), so the report and the exit code can never disagree.
+  if (notChecked) lines.push(`# Not checked: ${notChecked}`);
   lines.push(`# Generated: ${new Date().toISOString()}`);
   lines.push('');
 
-  if (data.errors.length === 0 && data.brokenLinks.length === 0
-      && data.brokenImages.length === 0 && timedOutPages.length === 0
-      && !budgetExhausted) {
+  if (resultLabel === 'ALL CLEAR') {
     lines.push('## RESULT: ALL CLEAR');
     lines.push('No errors, broken links, or broken images found.');
   } else {
@@ -111,6 +198,22 @@ function generateFeedbackReport(config, data) {
       lines.push('');
     }
 
+    if (brokenScripts.length > 0) {
+      lines.push(`### Broken Scripts (${brokenScripts.length})`);
+      for (const s of brokenScripts) {
+        lines.push(`- [${s.status}] ${s.script} (found on ${s.page})`);
+      }
+      lines.push('');
+    }
+
+    if (brokenStylesheets.length > 0) {
+      lines.push(`### Broken Stylesheets (${brokenStylesheets.length})`);
+      for (const s of brokenStylesheets) {
+        lines.push(`- [${s.status}] ${s.stylesheet} (found on ${s.page})`);
+      }
+      lines.push('');
+    }
+
     lines.push('## ACTION REQUIRED');
     lines.push('Fix all issues listed above and run `gatetest --module liveCrawler` again.');
     lines.push('Do not deploy until this report shows ALL CLEAR.');
@@ -131,4 +234,13 @@ function generateFeedbackReport(config, data) {
   return { mdPath, jsonPath };
 }
 
-module.exports = { generateFeedbackReport, crawlReportPaths };
+module.exports = {
+  generateFeedbackReport,
+  crawlReportPaths,
+  crawlExitCode,
+  crawlResultLabel,
+  notCheckedLine,
+  notCheckedCount,
+  hardFindingCount,
+  NOT_CHECKED_BLOCK_SHARE,
+};
