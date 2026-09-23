@@ -10,6 +10,7 @@
 
 import Link from "next/link";
 import { MODULE_CATEGORIES, totalModuleCount } from "./howitworks/modules-data";
+import siteStats from "../data/site-stats.json";
 
 // One glyph per category id — decorative, keeps the grid scannable.
 const ICONS: Record<string, string> = {
@@ -43,6 +44,17 @@ export default function HomeModuleBreakdown() {
           <p className="text-muted text-lg max-w-3xl mx-auto">
             One command runs all {TOTAL} — deterministic, zero AI tokens, under a
             minute. One verdict at the end. Here&apos;s what&apos;s inside the gate.
+          </p>
+          {/* One number, one definition, one source (issue #678): every count
+              below is read from site-stats.json, generated from
+              src/core/config.js at build time — never hand-typed. This line
+              exists because the same page used to show "85/85", "42/42" and
+              "88 of 121" with nothing explaining they are three different
+              measurements of the same 121-module engine. */}
+          <p className="text-muted text-sm max-w-2xl mx-auto mt-4">
+            {TOTAL} modules in the engine · {siteStats.suites.quick} run in the quick CI gate on
+            this repo · {siteStats.suites.full} run in a full scan · {siteStats.modules.displayGreen}{" "}
+            green on our own repo&apos;s nightly full-suite self-scan
           </p>
         </div>
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Pricing from "../components/Pricing";
+import AfterFree from "../components/AfterFree";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
@@ -115,6 +116,8 @@ export default function PricingPage() {
         {/* The one and only pricing surface — the same component the homepage
             renders at /#pricing, so the two can never disagree. */}
         <Pricing />
+
+        <AfterFree />
 
         {/* Deep links into the pages a buyer reads before deciding. Also the
             fix for the modules catalogue being reachable only from a homepage
