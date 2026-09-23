@@ -75,43 +75,14 @@ const SHRINKING_ALLOWLIST = {
   'lib/badge-svg.ts': 30, // README badge SVG bytes — the badge's own fixed palette
   'lib/release-notifier.js': 15, // outbound HTML email
   'lib/ciso-report-generator.js': 11, // generated PDF/HTML report bytes, not a themed page
-  'lib/scan-finding-translate.js': 9,
-  'lib/health-score.js': 8,
-  'lib/scan-grade.js': 8,
-  'lib/scan-worker.js': 8,
-  'lib/auth-unavailable.ts': 8,
-  'lib/gluecron-client.ts': 6,
-  'lib/scan-queue-store.js': 6,
-  'lib/live-scan-config.js': 4,
-  'lib/repo-snapshot.js': 4,
-  'lib/website-scanner.ts': 2,
-  'lib/html-extract.ts': 1,
-  'lib/scan-executor.ts': 1,
-  'lib/engine-build.js': 1,
-  'lib/events-push.js': 1,
-  'lib/tallrig-push-event-store.js': 1,
-  'lib/tallrig-push-events.js': 1,
-  'lib/tallrig-push-signature.js': 1,
-  'lib/web-runtime-gate.js': 1,
+  'lib/auth-unavailable.ts': 8, // static HTML error page served with no Next runtime (auth misconfigured) — can't read a CSS var it never loads
+  'lib/scan-grade.js': 6, // colour-by-grade values returned as JSON/SVG fill data, not JSX
   'how-it-works/opengraph-image.tsx': 15, // OG image PNG generation (Next ImageResponse) — its own fixed canvas, not a themed page
-  'opengraph-image.tsx': 8,
-  'api/score/route.ts': 12,
+  'opengraph-image.tsx': 8, // same — the site-wide OG image generator
+  'api/score/route.ts': 12, // badge/score SVG bytes served to third parties
   'api/badge/route.ts': 11,
   'api/badge/[repo]/route.ts': 11,
-  'api/web/scan/stream/route.ts': 11,
-  'api/web/scan/route.ts': 8,
-  'api/wp/scan/stream/route.ts': 6,
-  'badge/[owner]/[repo]/route.ts': 6,
-  'api/playground/scan/stream/route.ts': 5,
-  'api/wp/scan/route.ts': 5,
-  'api/v1/scans/[id]/route.ts': 4,
-  'api/playground/scan/route.ts': 2,
-  'api/scan/preview/route.ts': 2,
-  'api/admin/integrations/tallrig/route.ts': 1,
-  'api/integrations/tallrig/events/route.ts': 1,
-  'api/platform-status/route.ts': 1,
-  'api/scan/worker/tick/route.ts': 1,
-  'api/v1/scans/route.ts': 1,
+  'badge/[owner]/[repo]/route.ts': 4,
   'badge/page.tsx': 8, // the badge-preview grid's own fixed per-grade SVG palette (A green … F red), same category as lib/badge-svg.ts
 
   // --- Admin shell (website/app/admin/**) — issue #691's scope, not #686's.
@@ -119,7 +90,6 @@ const SHRINKING_ALLOWLIST = {
   //     tokens this branch's theme system defines. ---
   'admin/learning/page.tsx': 8,
   'admin/tabs/NuclearScanTab.tsx': 2,
-  'admin/integrations/tallrig/page.tsx': 1,
   'admin/tabs/FixResultCard.tsx': 1,
   'admin/tabs/PlatformSiblings.tsx': 1,
   'admin/tabs/RepoScanTab.tsx': 1,
@@ -131,28 +101,17 @@ const SHRINKING_ALLOWLIST = {
   //     off the accent token (globals.css says so for /status; the same
   //     idiom appears on a few scan-progress widgets). Each will drop to 0
   //     (or leave this list) the session that page family is restyled. ---
-  'playground/page.tsx': 16,
-  'components/howitworks/ArchitectureDiagram.tsx': 16,
+  'components/howitworks/ArchitectureDiagram.tsx': 16, // hand-rolled SVG diagram on /how-it-works
   'scan/status/page.tsx': 11,
-  'components/UrlScanFlow.tsx': 10,
-  'components/url-scan-flow-cards.tsx': 6,
-  'components/url-scan-flow-types.ts': 5,
+  'playground/page.tsx': 7,
   'components/LiveScanTerminal.tsx': 4,
-  'components/Footer.tsx': 3,
   'components/HomeSelfScan.tsx': 3,
-  'developers/page.tsx': 2,
-  'layout.tsx': 2,
+  'components/Footer.tsx': 2,
   'preview/_components/LiveRun.tsx': 2,
   'components/Hero.tsx': 1,
   'components/HeroScanTabs.tsx': 1,
-  'components/site/StatTiles.tsx': 1,
-  'components/ThemeToggle.tsx': 1,
-  'components/url-scan-flow-export.tsx': 1,
-  'components/url-scan-flow-progress.tsx': 1,
-  'developers/CopyButton.tsx': 1,
   'for/typescript/page.tsx': 1,
-  'for/[country]/layout.tsx': 1,
-  'scan/url/page.tsx': 1,
+  'layout.tsx': 1,
 };
 
 function walk(dir, out) {
@@ -173,16 +132,35 @@ function scopeFiles() {
     .sort();
 }
 
+// Comments are prose, not rendered style — and this repo's comments
+// constantly reference issue/PR numbers ("#686", "#696", "#690"), which are
+// indistinguishable from a 3-digit hex colour by pattern alone (every digit
+// 0-9 is also a valid hex digit). Strip comment bodies before scanning, the
+// same way tests/public-copy-vendor-neutral.test.js does, replacing their
+// text with spaces (not deleting the lines) so reported line numbers stay
+// accurate. Only applied to .ts/.tsx/.jsx — the two in-scope .css files are
+// both in EXCLUDE, so this never needs to run on real CSS syntax.
+function stripComments(rel, src) {
+  if (!/\.(tsx?|jsx?)$/.test(rel)) return src;
+  return src
+    .replace(/^[ \t]*\{?\/\*[\s\S]*?\*\/\}?/gm, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/^[ \t]*\/\/[^\n]*/gm, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/([;{}(,])[ \t]*\/\/[^\n]*/g, (_, pre) => pre)
+    .replace(/([;{}(,])[ \t]*\/\*[\s\S]*?\*\//g, (_, pre) => pre);
+}
+
+function scannable(rel) {
+  return stripComments(rel, fs.readFileSync(path.join(APP_DIR, rel), 'utf8'));
+}
+
 function countMatches(rel) {
-  const src = fs.readFileSync(path.join(APP_DIR, rel), 'utf8');
-  const matches = src.match(COLOR_RE);
+  const matches = scannable(rel).match(COLOR_RE);
   return matches ? matches.length : 0;
 }
 
 function firstLines(rel, limit = 5) {
-  const src = fs.readFileSync(path.join(APP_DIR, rel), 'utf8');
   const out = [];
-  src.split('\n').forEach((line, i) => {
+  scannable(rel).split('\n').forEach((line, i) => {
     if (out.length >= limit) return;
     if (COLOR_RE_TEST.test(line)) out.push(`${rel}:${i + 1}: ${line.trim().slice(0, 100)}`);
   });
@@ -251,5 +229,21 @@ describe('no hard-coded colour literals outside the v2 token system', () => {
     for (const c of cases) {
       assert.ok(!COLOR_RE_TEST.test(c), `matcher must NOT flag: ${c}`);
     }
+  });
+
+  it('NEGATIVE CONTROL: issue/PR numbers in comments are not flagged (every digit is also a hex digit)', () => {
+    // "#686", "#696", "#690" etc. are exactly 3 digits — indistinguishable
+    // from a hex colour like #059 by pattern alone. This repo's comments
+    // reference issue numbers constantly, so the guard strips comments
+    // before scanning (see stripComments) rather than trying to out-clever
+    // the regex.
+    const rel = '__control__.tsx';
+    const commentOnly = '// see issue #686 and PR #696, coordinated with #690\n/* also #678 */\n';
+    assert.strictEqual(stripComments(rel, commentOnly).match(COLOR_RE), null,
+      'a comment-only issue/PR reference must not be flagged');
+    const realLiteralNearAComment = '// issue #686\nconst bg = "#059669"; // not a token\n';
+    const stripped = stripComments(rel, realLiteralNearAComment);
+    assert.strictEqual((stripped.match(COLOR_RE) || []).length, 1,
+      'a real literal on a code line must still be flagged even next to a comment mentioning an issue number');
   });
 });
