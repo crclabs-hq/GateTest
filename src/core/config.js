@@ -388,13 +388,18 @@ const DEFAULT_CONFIG = {
       'cookieSecurity',
       'accessibility',
       'seo',
-      'links',
       'performance',
       // liveCrawler: HTTP-only by default on Vercel (Playwright unavailable);
       // catches 404/500 + broken images + redirect chains + mixed-content
       // across the customer's site. Falls back to "no URL configured" if
-      // targetUrl isn't set.
+      // targetUrl isn't set. Runs BEFORE `links` (#681 item 4) — on a live
+      // scan `links` reads liveCrawler's already-crawled link results via
+      // `config._allResults` instead of declaring itself not-checked.
       'liveCrawler',
+      // links: on a repo scan, resolves link targets against files on
+      // disk. On a live-URL scan it consumes liveCrawler's broken-link
+      // result (must run after liveCrawler in this list — #681 item 4).
+      'links',
       'runtimeErrors',
       // explorer: clicks every button + form + dropdown via Playwright,
       // catches "button doesn't fire" and post-click JS errors. Skips
@@ -455,9 +460,9 @@ const DEFAULT_CONFIG = {
       'cookieSecurity',
       'accessibility',
       'seo',
-      'links',
       'performance',
-      'liveCrawler',     // 404 / 500 / broken-image / redirect-chain on the live URL
+      'liveCrawler',     // 404 / 500 / broken-image / redirect-chain on the live URL; runs BEFORE `links` (#681 item 4)
+      'links',           // repo scan: file-based link check; live scan: consumes liveCrawler's result via config._allResults
       'runtimeErrors',   // live JS errors / CSP violations (needs Crontech worker)
       'explorer',        // "button doesn't fire" detection (needs Crontech worker)
       'visualRegression', // full-page screenshot diff vs stored baseline (needs Crontech worker)

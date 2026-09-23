@@ -118,8 +118,8 @@ describe('deriveFreeCheckNames — free-safe check-name breakdown (item 4 ground
     assert.deepEqual(deriveFreeCheckNames(results, LIVE_URL_MODULES), []);
   });
 
-  it('LIVE_URL_MODULES is exactly the four modules that gained a live-URL mode in #645', () => {
-    assert.deepEqual([...LIVE_URL_MODULES].sort(), ['accessibility', 'cookieSecurity', 'seo', 'webHeaders']);
+  it('LIVE_URL_MODULES is the four #645 modules plus links (#681 item 4)', () => {
+    assert.deepEqual([...LIVE_URL_MODULES].sort(), ['accessibility', 'cookieSecurity', 'links', 'seo', 'webHeaders']);
   });
 
   it('non-array / missing results are safe (no throw, empty output)', () => {
