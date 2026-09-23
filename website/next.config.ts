@@ -77,6 +77,12 @@ const nextConfig: NextConfig = {
         destination: `${siteOrigin.origin}/:path*`,
         permanent: true,
       },
+      // /preview reviewed the v2 homepage in isolation before launch
+      // (issue #636); the owner approved it 2026-09-23 and it is now
+      // promoted to / (issue #686 phase 3, website/app/page.tsx). Kept as a
+      // permanent redirect rather than deleted outright — the link was
+      // shared and bookmarked during the review period.
+      { source: "/preview", destination: "/", permanent: true },
       ...GUESSED_URLS,
     ];
   },
