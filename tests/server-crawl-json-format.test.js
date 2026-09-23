@@ -296,7 +296,12 @@ describe('gatetest --crawl --format json (issue #677 item 1)', () => {
       assert.doesNotThrow(() => { doc = JSON.parse(result.stdout); },
         `a large document must still parse as exactly one complete JSON document (${stdoutBytes} bytes).\n` +
         `stdout tail:\n${result.stdout.slice(-300)}`);
-      assert.equal(doc.findings.length, BROKEN_IMAGE_COUNT,
+      // Issue #703: this fixture's page also has no meta description/canonical
+      // and the site has no /sitemap.xml, so `findings` now also carries those
+      // non-blocking warnings alongside the 800 broken images — filter to the
+      // type this test is actually about before checking none were truncated.
+      const brokenImageFindings = doc.findings.filter((f) => f.type === 'broken-image');
+      assert.equal(brokenImageFindings.length, BROKEN_IMAGE_COUNT,
         'every broken-image finding must survive the write, not just the ones that fit before a truncation point');
       assert.equal(doc.exitCode, 1, 'broken images are hard findings and must fail the gate');
       assert.equal(result.code, 1);
