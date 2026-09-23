@@ -70,6 +70,22 @@ const PLACEHOLDER_HOST_RE = /^(?:host|hostname|server|db[-_]?host|your[-_]?host|
 const PLACEHOLDER_CREDENTIAL_RE = /^(?:user|username|pass|password|passwd|pwd)$/i;
 
 /**
+ * Is column `col` of `line` JSX DISPLAY TEXT — plain text rendered between a
+ * tag's `>` and the next `{` expression hole, not a JS string or comment?
+ * Same heuristic feature-flag.js (`jsxTextContext`) and money-float.js
+ * (`inside JSX children`) already use: `src/core/source-strip.js` treats JSX
+ * text as ordinary code (there is no JS string/comment syntax around it — see
+ * claude-compliance.js's `kind === 'code'` comment), so only the file
+ * extension plus a nearby unclosed `>` can tell JSX text from real code.
+ *
+ * `src/routes/admin-database.tsx:172` (#682) renders
+ * `DATABASE_URL=postgres://gluecron:&lt;password&gt;@postgres:543…` inside a
+ * `<code>` element as documentation — the `>` of `<code>` sits before the
+ * match with no `{` in between.
+ */
+const JSX_FILE_RE = /\.[jt]sx$/i;
+
+/**
  * Keys a vendor DESIGNS to ship in a client bundle are public by contract,
  * not leaked. Stripe publishable keys announce it in the prefix. Algolia
  * DocSearch keys do not \u2014 they are 32 hex chars like any other Algolia key \u2014
@@ -179,6 +195,26 @@ const SEQUENTIAL_RUN = 8;
 const IDENTIFIER_KEYED_TYPES = new Set(['API Key', 'Password/Secret', 'Token']);
 
 /**
+ * RFC 6749's own vocabulary is not a credential (#682, Gluecron):
+ *
+ *   scripts/doctor.ts:124
+ *       const badRefresh = await jpost("/oauth/token",
+ *         { grant_type: "refresh_token", refresh_token: "<a real-looking test value>" })
+ *
+ * `refresh_token`, `authorization_code`, `client_credentials`, `password`,
+ * `bearer`, `code` and `token` are the well-known enum values OAuth defines
+ * for a `grant_type` / `token_type` / `response_type` field — the STRING
+ * naming the flow, never a secret that authenticates anything. A line that
+ * names one of those three fields and whose matched value IS one of those
+ * seven words, in any case, is a protocol constant beside the credential the
+ * line is actually about — not the credential itself.
+ */
+const OAUTH_ENUM_VALUES = new Set([
+  'refresh_token', 'authorization_code', 'client_credentials', 'password', 'bearer', 'code', 'token',
+]);
+const OAUTH_FIELD_RE = /\b(?:grant_type|token_type|response_type)\s*[:=]/i;
+
+/**
  * A value that NAMES something is not a credential (corpus, 2026-09-14):
  *
  *   django/django  docs/_ext/djangodocs.py:290
@@ -237,6 +273,58 @@ function isCredentialShaped(value) {
     && shannonEntropy(value) >= CREDENTIAL_SHAPE_MIN_ENTROPY
     && /[A-Za-z]/.test(value)
     && /[0-9+/=]/.test(value);
+}
+
+/**
+ * Words that mark an env-var NAME as secret-bearing for the Fallback Secret
+ * rule (#682, Gluecron) — matched as a whole `_`/`-`/camelCase SEGMENT, never
+ * a substring (Doctrine §5). `WEBAUTHN_RP_NAME` contains the raw substring
+ * "auth" (WEB-AUTH-N) the way `.git` is a substring of `.github`; segmenting
+ * on word boundaries and comparing whole segments is what tells
+ * `AUTH_SECRET` (segment "secret") apart from `WEBAUTHN_RP_NAME` (segments
+ * "webauthn", "rp", "name" — a display-name field, not a credential).
+ * `auth` alone is deliberately NOT in this list: a var named bare `AUTH`
+ * could as easily be a mode flag as a secret, and every case this module
+ * actually needs (`AUTH_SECRET`, `AUTH_TOKEN`) already carries a word that
+ * IS on the list.
+ */
+const SECRET_BEARING_NAME_WORDS = new Set([
+  'secret', 'token', 'key', 'password', 'pass', 'private', 'credential', 'credentials', 'passphrase', 'dsn', 'apikey',
+]);
+
+/** Split an identifier into lowercase `_`/`-`/camelCase segments. */
+function nameSegments(name) {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .split(/[_-]+/)
+    .map((s) => s.toLowerCase())
+    .filter(Boolean);
+}
+
+/** True when `name` has a whole segment that reads as secret-bearing. */
+function isSecretBearingName(name) {
+  return nameSegments(name).some((seg) => SECRET_BEARING_NAME_WORDS.has(seg));
+}
+
+/**
+ * A fallback value with its own embedded credential is secret-bearing
+ * whatever the variable is called — `DATABASE_URL ?? 'postgres://u:p@h'`
+ * names no SECRET/TOKEN/KEY word but the literal is a live connection string.
+ */
+const URL_WITH_CREDENTIAL_RE = /^[a-z][a-z0-9+.-]*:\/\/[^:@/?#]+:[^@/?#]+@/i;
+
+/**
+ * A TRIVIAL fallback value is not a secret even on a secret-bearing name: a
+ * bare hostname/domain, or a single plain word short of credential shape —
+ * `WEBAUTHN_RP_NAME || "gluecron"` is a display name, not a password, and
+ * `SUPPORT_HOST || "mail.example.com"` is a location. Anything with a digit,
+ * a symbol, mixed case, or more than one word survives this and is judged
+ * the normal way (placeholder / prose / reference checks below).
+ */
+const BARE_HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
+function isTrivialFallbackValue(value) {
+  if (BARE_HOSTNAME_RE.test(value)) return true;
+  return /^[A-Za-z]+$/.test(value) && value.length < CREDENTIAL_SHAPE_MIN_LENGTH;
 }
 
 /**
@@ -378,14 +466,30 @@ class SecretsModule extends BaseModule {
   }
 
   /**
+   * See JSX_FILE_RE. `col` is the raw-line index of the match (`line.indexOf`
+   * for a scanLine-neutralised match, since JSX text is never touched by the
+   * comparison-literal or env-read rewrites).
+   *
+   * @param {string} line - the raw source line
+   * @param {number} col - column of the match on `line`, or -1 when unknown
+   * @param {string} ext - lowercased file extension, e.g. `.tsx`
+   * @returns {boolean}
+   */
+  _isJsxDisplayText(line, col, ext) {
+    if (col < 0 || !JSX_FILE_RE.test(ext)) return false;
+    return />[^{]*$/.test(line.slice(0, col));
+  }
+
+  /**
    * True when a Database-URL match carries no credential worth reporting.
    * See the DB_URL_PARTS_RE comment for the measured shapes and the lines
    * that stay reported.
    *
    * @param {string} url - the matched URL, e.g. `postgres://u:p@h:5432/db`
+   * @param {boolean} [isJsxText] - is this match sitting in JSX display text?
    * @returns {boolean}
    */
-  _databaseUrlIsPlaceholder(url) {
+  _databaseUrlIsPlaceholder(url, isJsxText = false) {
     const parts = url.match(DB_URL_PARTS_RE);
     if (!parts) return false;
     const [, user = '', password = '', host = ''] = parts;
@@ -394,7 +498,14 @@ class SecretsModule extends BaseModule {
       // `user@host` with no password is still no credential.
       return loopback || PLACEHOLDER_HOST_RE.test(host);
     }
-    if (PLACEHOLDER_VALUE_RE.test(password)) return true;
+    // JSX escapes a literal `<` as `&lt;` in display text, so the
+    // `<password>` fill-this-in convention PLACEHOLDER_VALUE_RE already
+    // recognises is written `&lt;password&gt;` inside a <code> element
+    // (#682). Decoding only in JSX display text keeps a real credential that
+    // happened to contain the literal substring "&lt;" elsewhere from being
+    // waved through by this rule.
+    const decodedPassword = isJsxText ? password.replace(/&lt;/gi, '<').replace(/&gt;/gi, '>') : password;
+    if (PLACEHOLDER_VALUE_RE.test(decodedPassword)) return true;
     if (PLACEHOLDER_CREDENTIAL_RE.test(password)) return true;
     // `postgres:postgres@127.0.0.1` — the image default on the dev machine.
     return loopback && user.toLowerCase() === password.toLowerCase();
@@ -449,6 +560,28 @@ class SecretsModule extends BaseModule {
     if (isCredentialShaped(value)) return false;
     if (FILENAME_VALUE_RE.test(value)) return true;
     return LABEL_VALUE_RE.test(value) && LABEL_CREDENTIAL_WORD_RE.test(value);
+  }
+
+  /**
+   * True when an identifier-keyed match's value is a well-known OAuth
+   * grant-type / token-type / response-type enum constant on a line that
+   * names one of those fields. See OAUTH_ENUM_VALUES for the defect (#682).
+   *
+   * Checked against the LINE, not just the match, because the base regex
+   * keys off whichever property on the object literal happens to end in
+   * `token`/`bearer`/`secret`/`password` (`refresh_token: "…"` — the base
+   * regex cannot see that `grant_type` sits earlier in the same statement),
+   * so the OAuth-field test has to look at the statement, not the match.
+   *
+   * @param {string} scanLine - the neutralised line the pattern ran on
+   * @param {RegExpExecArray} m - the identifier-keyed match
+   * @returns {boolean}
+   */
+  _isOAuthEnumValue(scanLine, m) {
+    const q = m[0].match(/['"]([^'"]*)$/);
+    if (!q) return false;
+    if (!OAUTH_ENUM_VALUES.has(q[1].toLowerCase())) return false;
+    return OAUTH_FIELD_RE.test(scanLine);
   }
 
   /**
@@ -622,9 +755,12 @@ class SecretsModule extends BaseModule {
    *
    * Narrow on purpose, so the blanket-skip this replaces keeps protecting
    * against its original false positive:
-   *   - the NAME must read as a credential (a `process.env.PORT ?? '3000'`
-   *     fallback is configuration, not a secret);
+   *   - the NAME must read as SECRET-BEARING (a `process.env.PORT ?? '3000'`
+   *     fallback is configuration, not a secret) — OR the value itself
+   *     carries a URL credential, whatever the name is;
    *   - a bare read with no literal fallback returns null;
+   *   - the value must be non-trivial: not a bare hostname, not a plain
+   *     product/display-name word (`WEBAUTHN_RP_NAME || "gluecron"`, #682) —
    *   - the literal runs through the same placeholder / prose / reference
    *     suppressions as every other value, so `?? 'changeme'` stays quiet.
    *
@@ -633,18 +769,21 @@ class SecretsModule extends BaseModule {
    */
   _envFallbackSecret(line) {
     // The name may sit on either side: the assigned identifier, or the env
-    // key itself. Either reading as credential-shaped is enough.
-    const NAME = /(?:secret|password|passwd|pwd|token|api[_-]?key|apikey|credential|passphrase|private[_-]?key|auth)/i;
+    // key itself. Either reading as secret-bearing is enough.
     const assigned = line.match(/(?:const|let|var|final|static)?\s*([A-Za-z_$][\w$]*)\s*[:=]\s*(?![=])/);
     const envKey = line.match(/process\.env(?:\.([A-Za-z_$][\w$]*)|\[\s*['"]([^'"]+)['"]\s*\])/);
     const names = [assigned && assigned[1], envKey && (envKey[1] || envKey[2])].filter(Boolean);
-    if (!names.some((n) => NAME.test(n))) return null;
 
     // `||` / `??` fallback, or a template-literal default. Require 6+ chars:
     // shorter values are flags and sentinels, not credentials.
     const fb = line.match(/(?:\|\||\?\?)\s*(['"])([^'"]{6,})\1/);
     if (!fb) return null;
     const value = fb[2];
+
+    const nameLooksSecretBearing = names.some((n) => isSecretBearingName(n));
+    const valueCarriesUrlCredential = URL_WITH_CREDENTIAL_RE.test(value);
+    if (!nameLooksSecretBearing && !valueCarriesUrlCredential) return null;
+    if (isTrivialFallbackValue(value)) return null;
 
     // Reuse the module's own suppressions. They take the full regex-match
     // shape (identifier through value), so hand them a synthetic one rather
@@ -751,6 +890,18 @@ class SecretsModule extends BaseModule {
         const prevLine = i > 0 ? lines[i - 1] : '';
         if (/\bsecrets-ok\b/.test(line) || /\bsecrets-ok\b/.test(prevLine)) continue;
 
+        // A full-line comment can never assign a live credential — the code
+        // beside it does not run. Judged here, BEFORE the env-fallback check
+        // below, because that check used to run before this line's own
+        // comment test further down: a commented-out
+        // `//   const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'layova-admin';`
+        // (Gluecron src/lib/intelligence.ts:543-544, #682) still blocked the
+        // gate on dead code. `/*` joins `//` / `*` / `#` here so an inline
+        // block comment opening a line is caught the same way.
+        const trimmed = line.trimStart();
+        const isFullLineComment = trimmed.startsWith('//') || trimmed.startsWith('*')
+          || trimmed.startsWith('#') || trimmed.startsWith('/*');
+
         // Comparison operands are removed, not used to skip the whole line.
         // `if (password === 'REJECTED_VALUE')` really is a sentinel and must
         // stay quiet — but a blanket skip on `===` also hid every credential
@@ -770,7 +921,18 @@ class SecretsModule extends BaseModule {
         // `continue`, so that entire class was unreachable by design.
         if (/process\.env\b/.test(line)) {
           const fallback = this._envFallbackSecret(line);
-          if (fallback) {
+          if (fallback && isFullLineComment) {
+            // Dead code, not a live default — on the record (Doctrine §6),
+            // never blocking. "a commented default password is still worth
+            // removing" is the whole message; it never rises to an error.
+            result.addCheck(`secrets:commented-fallback:${relPath}:${i + 1}`, false, {
+              severity: 'info',
+              file: relPath,
+              line: i + 1,
+              message: 'A commented-out default secret/password fallback is still worth removing, even though the code beside it never runs',
+              details: [{ type: 'Fallback Secret', line: i + 1, preview: line.substring(0, 80).trim() + (line.length > 80 ? '...' : '') }],
+            });
+          } else if (fallback) {
             found.push({
               type: 'Fallback Secret',
               line: i + 1,
@@ -796,8 +958,7 @@ class SecretsModule extends BaseModule {
         }
 
         // Skip comment lines
-        const trimmed = line.trimStart();
-        if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('#')) continue;
+        if (isFullLineComment) continue;
 
         for (const pattern of this.patterns) {
           // Reset regex lastIndex for global regexes
@@ -839,8 +1000,12 @@ class SecretsModule extends BaseModule {
               // See _looksLikeReference for the exact test.
               if (this._looksLikeReference(m[0])) continue;
               // A connection string with no credential in it, or a
-              // template one. See _databaseUrlIsPlaceholder.
-              if (pattern.type === 'Database URL' && this._databaseUrlIsPlaceholder(m[0])) continue;
+              // template one. See _databaseUrlIsPlaceholder. The JSX-text
+              // check re-finds the column on the RAW line (scanLine may have
+              // been rewritten by the comparison/env-read neutralisers),
+              // mirroring _inRegexLiteral just below.
+              if (pattern.type === 'Database URL'
+                && this._databaseUrlIsPlaceholder(m[0], this._isJsxDisplayText(line, line.indexOf(m[0]), ext))) continue;
               // `DYNAMIC_TOKEN = 'DYNAMIC_TOKEN'`, `'jwtSecret' in options`.
               if (this._isSelfReferentialValue(scanLine, m)) continue;
               // Stripe `pk_live_…`, an Algolia DocSearch key in its block.
@@ -853,6 +1018,7 @@ class SecretsModule extends BaseModule {
                 // matches never reach here: an AKIA key in a comment is still
                 // a key.
                 if (this._isLabelValue(m[0])) continue;
+                if (this._isOAuthEnumValue(scanLine, m)) continue;
                 if (DOCTEST_LINE_RE.test(line)) continue;
                 if (masked && this._inDocContext(lines, masked, i, python)) continue;
               } else if (masked) {
