@@ -18,6 +18,8 @@
  *   8. HomeCode — install snippets (npx, GitHub Action, CLI cheat-sheet)
  *   9. HomeProof — ROI vs the fragmented stack, real-scan proof, staying-power
  *  10. Pricing — 4 tiers + Continuous subscription card
+ *  10b. AfterFree — what a free scan keeps, what a paid run adds, what
+ *       happens at the 48h share-link limit (issue #678 gap 5)
  *  11. PentestComingSoon — Live Security Scan waitlist (email capture)
  *  12. HomeFaq — HN-skeptic FAQ
  *  13. HomeStack — full-weight Gluecron + Tallrig stack marketing
@@ -44,6 +46,7 @@ import BeforeAfterDemo from "./components/BeforeAfterDemo";
 import HomeSelfScan from "./components/HomeSelfScan";
 import HomeCode from "./components/HomeCode";
 import Pricing from "./components/Pricing";
+import AfterFree from "./components/AfterFree";
 import PentestComingSoon from "./components/PentestComingSoon";
 import HomeFaq from "./components/HomeFaq";
 import HomeStack from "./components/HomeStack";
@@ -73,6 +76,7 @@ export default function Home() {
         <HomeSelfScan />
         <HomeCode />
         <Pricing />
+        <AfterFree />
         <PentestComingSoon />
         <HomeFaq />
         <HomeTrust />
