@@ -714,10 +714,10 @@ html {
 @media (min-width: 1024px) {
   .v2-wrap { padding-left: 88px; }
 }
-/* A narrower wrap for pages that are not the pipeline-rail homepage layout
-   (no fixed left rail eating the gutter). */
+/* A narrower, prose-width wrap for text-heavy pages (docs, legal, glossary)
+   — no fixed left rail to clear, and a shorter line length reads better. */
 .v2-wrap-narrow {
-  max-width: 1120px;
+  max-width: 760px;
   margin: 0 auto;
   padding-left: 24px;
   padding-right: 24px;
