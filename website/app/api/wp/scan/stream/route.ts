@@ -8,9 +8,16 @@
  *
  * Event types:
  *   event: start          { targetUrl, scanId, suite }
- *   event: module:start   { module, name }
- *   event: module:end     { module, name, errors, warnings, info, duration }
- *   event: module:skip    { module, name, reason }
+ *   event: module:start   { module }
+ *   event: module:end     { module, status: "checked", errors, warnings, info, duration }
+ *                      or  { module, status: "not-checked", reason, duration }
+ *                          `status`/`reason` are issue #648 items 1+2, extended
+ *                          to this route by issue #699: a module whose own
+ *                          `_notChecked` check fired emits `not-checked` here
+ *                          — never a clean tick — via the same
+ *                          `buildModuleEndEvent()` helper `/api/web/scan/stream`
+ *                          uses (`website/app/lib/scan-stream-events.js`).
+ *   event: module:skip    { module, skipped }
  *   event: complete       <full ScanResult JSON>
  *   event: error          { error }
  *
@@ -26,6 +33,12 @@
 import { NextRequest } from "next/server";
 import { resolveFullReportAccess } from "@/app/lib/full-report-auth";
 import { gateRuntimeScan } from "@/app/lib/web-runtime-gate";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { buildModuleEndEvent } = require("@/app/lib/scan-stream-events") as {
+  buildModuleEndEvent: (payload: unknown) =>
+    | { module: string; status: "checked"; errors?: number; warnings?: number; info?: number; duration?: number }
+    | { module: string; status: "not-checked"; reason: string; duration?: number };
+};
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { resolveAndValidateUrl } = require("@/app/lib/ssrf-guard") as {
   resolveAndValidateUrl: (input: string) => Promise<{ ok: true; url: URL } | { ok: false; reason: string }>;
@@ -173,16 +186,17 @@ export async function POST(req: NextRequest) {
             // Forward only the lightweight per-module events to the SSE
             // stream. Full suite:end carries the entire summary which we
             // process locally below.
-            if (event === "module:start" || event === "module:end" || event === "module:skip") {
-              const p = payload as { module?: string; name?: string; errors?: number; warnings?: number; info?: number; duration?: number; skipped?: string };
-              send(event, {
-                module: p.module || p.name || "unknown",
-                errors: p.errors,
-                warnings: p.warnings,
-                info: p.info,
-                duration: p.duration,
-                skipped: p.skipped,
-              });
+            if (event === "module:start" || event === "module:skip") {
+              const p = payload as { module?: string; name?: string; skipped?: string };
+              send(event, { module: p.module || p.name || "unknown", skipped: p.skipped });
+              return;
+            }
+            if (event === "module:end") {
+              // Issue #648 items 1-2, extended to this route by issue #699:
+              // the ONE shared definition (Doctrine #4) both stream routes
+              // build this event from — see scan-stream-events.js for why
+              // `.toJSON()` and each check's own `notChecked` flag matter.
+              send(event, buildModuleEndEvent(payload));
             }
           },
         });
