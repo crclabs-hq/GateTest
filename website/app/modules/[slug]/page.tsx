@@ -156,7 +156,7 @@ export default async function ModulePage({ params }: PageParams) {
     aggregateRating: undefined, // not faked
   };
 
-  const h2 = "font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground";
+  const h2 = "v2-h2 !text-2xl sm:!text-3xl";
 
   return (
     <main>
@@ -169,16 +169,16 @@ export default async function ModulePage({ params }: PageParams) {
             <Link href="/modules" className="hover:text-foreground transition-colors">Modules</Link>
             <span aria-hidden="true">/</span>
             <Link href={`/modules#${mod.category.id}`} className="hover:text-foreground transition-colors">{mod.category.title}</Link>
-            {comingSoon && <span className="text-warning">· Coming soon</span>}
+            {comingSoon && <span className="text-[var(--v2-warn)]">· Coming soon</span>}
           </>
         }
         title={pretty}
         lede={mod.description}
         actions={
           comingSoon ? (
-            <p className="text-sm text-muted leading-relaxed">Not yet included in any purchasable tier. {comingSoon.reason}</p>
+            <p className="text-sm text-[var(--v2-muted)] leading-relaxed">Not yet included in any purchasable tier. {comingSoon.reason}</p>
           ) : (
-            <p className="text-sm text-muted leading-relaxed">
+            <p className="text-sm text-[var(--v2-muted)] leading-relaxed">
               One of {totalModules} modules in the GateTest scan suite. Catches the issue before it reaches code review, and on paid tiers opens a pull request with the fix already written.
             </p>
           )
@@ -196,13 +196,13 @@ export default async function ModulePage({ params }: PageParams) {
         </div>
       </PageHero>
 
-      <div className="mx-auto max-w-4xl px-6 py-16 sm:py-20">
+      <div className="v2-wrap-narrow py-16 sm:py-20">
         {/* Category context */}
         <section className="mb-12">
           <h2 className={`${h2} mb-4`}>Why we catch it</h2>
-          <p className="text-foreground-secondary leading-relaxed mb-3">{mod.category.blurb}</p>
-          <p className="text-foreground-secondary leading-relaxed">
-            The <span className="text-accent font-medium">{pretty}</span> module sits in this category alongside {related.length} related modules. Together they form one of the layers of a GateTest scan — checks fire in parallel, findings cluster by root cause, and on paid tiers the AI auto-fix loop reads each finding, writes the fix, validates against the scanner, and opens a PR.
+          <p className="text-[var(--v2-muted)] leading-relaxed mb-3">{mod.category.blurb}</p>
+          <p className="text-[var(--v2-muted)] leading-relaxed">
+            The <span className="text-[var(--v2-accent)] font-medium">{pretty}</span> module sits in this category alongside {related.length} related modules. Together they form one of the layers of a GateTest scan — checks fire in parallel, findings cluster by root cause, and on paid tiers the AI auto-fix loop reads each finding, writes the fix, validates against the scanner, and opens a PR.
           </p>
         </section>
 
@@ -210,37 +210,37 @@ export default async function ModulePage({ params }: PageParams) {
         <section className="mb-12">
           <h2 className={`${h2} mb-4`}>How GateTest covers {pretty.toLowerCase()}</h2>
           {comingSoon ? (
-            <ul className="space-y-3 text-foreground-secondary leading-relaxed">
+            <ul className="space-y-3 text-[var(--v2-muted)] leading-relaxed">
               <li className="flex items-start gap-2">
-                <span className="text-warning mt-1" aria-hidden="true">&#9679;</span>
-                <span><strong className="text-foreground">Not yet purchasable.</strong> {comingSoon.reason} It&apos;s registered in the engine today so it&apos;s discoverable, but no tier includes it yet.</span>
+                <span className="text-[var(--v2-warn)] mt-1" aria-hidden="true">&#9679;</span>
+                <span><strong className="text-[var(--v2-fg)]">Not yet purchasable.</strong> {comingSoon.reason} It&apos;s registered in the engine today so it&apos;s discoverable, but no tier includes it yet.</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-warning mt-1" aria-hidden="true">&#9679;</span>
-                <span><strong className="text-foreground">Requires explicit authorization when it ships.</strong> Live probes only ever run against a target you&apos;ve proven you own — a three-layer consent check gates every run.</span>
+                <span className="text-[var(--v2-warn)] mt-1" aria-hidden="true">&#9679;</span>
+                <span><strong className="text-[var(--v2-fg)]">Requires explicit authorization when it ships.</strong> Live probes only ever run against a target you&apos;ve proven you own — a three-layer consent check gates every run.</span>
               </li>
             </ul>
           ) : (
-            <ul className="space-y-3 text-foreground-secondary leading-relaxed">
+            <ul className="space-y-3 text-[var(--v2-muted)] leading-relaxed">
               <li className="flex items-start gap-2">
-                <span className="text-accent mt-1" aria-hidden="true">&#10003;</span>
-                <span><strong className="text-foreground">{avail.lead}</strong> {avail.tiers} No additional configuration.</span>
+                <span className="text-[var(--v2-accent)] mt-1" aria-hidden="true">&#10003;</span>
+                <span><strong className="text-[var(--v2-fg)]">{avail.lead}</strong> {avail.tiers} No additional configuration.</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-accent mt-1" aria-hidden="true">&#10003;</span>
-                <span><strong className="text-foreground">Free CLI.</strong> <code className="text-foreground text-sm bg-surface-light border border-border px-1.5 py-0.5 rounded">npm i -g @gatetest/cli && {avail.cli}</code>{avail.kind === "live" ? " against a site you own." : " against any local repo."} No paywall on the scanning itself.</span>
+                <span className="text-[var(--v2-accent)] mt-1" aria-hidden="true">&#10003;</span>
+                <span><strong className="text-[var(--v2-fg)]">Free CLI.</strong> <code className="text-[var(--v2-fg)] text-sm bg-[var(--v2-bg-alt)] border border-[var(--v2-line-strong)] px-1.5 py-0.5 rounded">npm i -g @gatetest/cli && {avail.cli}</code>{avail.kind === "live" ? " against a site you own." : " against any local repo."} No paywall on the scanning itself.</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-accent mt-1" aria-hidden="true">&#10003;</span>
-                <span><strong className="text-foreground">AI auto-fix PR.</strong> {repoFix
+                <span className="text-[var(--v2-accent)] mt-1" aria-hidden="true">&#10003;</span>
+                <span><strong className="text-[var(--v2-fg)]">AI auto-fix PR.</strong> {repoFix
                   ? "Scan + Fix tier opens a pull request with the fix, a regression test, and a pair-review by a second AI reviewer. Forensic Scan tier adds per-finding diagnosis and cross-finding attack-chain correlation."
                   : avail.kind === "live"
                     ? "Live-URL findings come with plain-English fix instructions. Auto-fix pull requests are for repository findings on the Scan + Fix and Forensic tiers."
                     : "On the GitHub Action, with your own ANTHROPIC_API_KEY, --auto-pr opens the fix PR from the same fix engine that powers Scan + Fix and Forensic."}</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-accent mt-1" aria-hidden="true">&#10003;</span>
-                <span><strong className="text-foreground">Honest confidence rating.</strong> Findings come with high / medium / low confidence so noisy patterns don&apos;t block the gate. The confidence-calibrator trainer reads customer suppressions and tightens rules over time.</span>
+                <span className="text-[var(--v2-accent)] mt-1" aria-hidden="true">&#10003;</span>
+                <span><strong className="text-[var(--v2-fg)]">Honest confidence rating.</strong> Findings come with high / medium / low confidence so noisy patterns don&apos;t block the gate. The confidence-calibrator trainer reads customer suppressions and tightens rules over time.</span>
               </li>
             </ul>
           )}
@@ -248,30 +248,30 @@ export default async function ModulePage({ params }: PageParams) {
 
         {/* CTA */}
         {comingSoon ? (
-          <section className="mb-12 rounded-2xl border border-amber-400/30 bg-amber-500/5 px-6 py-8 text-center">
+          <section className="mb-12 v2-callout text-center py-8" data-tone="warn">
             <h2 className={`${h2} mb-3`}>{pretty} is coming soon</h2>
-            <p className="text-foreground-secondary mb-6">{comingSoon.reason} Want early access when it ships?</p>
+            <p className="text-[var(--v2-muted)] mb-6">{comingSoon.reason} Want early access when it ships?</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a
                 href={`mailto:support@gatetest.io?subject=${encodeURIComponent(`Early access: ${pretty}`)}`}
-                className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm"
+                className="v2-btn v2-btn-primary"
               >
                 Request early access
               </a>
-              <Link href="/modules" className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm">
+              <Link href="/modules" className="v2-btn">
                 See all {totalModules} modules
               </Link>
             </div>
           </section>
         ) : (
-          <section className="mb-12 rounded-2xl border border-accent/20 bg-accent/5 px-6 py-8 text-center">
+          <section className="mb-12 v2-callout text-center py-8">
             <h2 className={`${h2} mb-3`}>Scan your repo for {pretty.toLowerCase()}</h2>
-            <p className="text-foreground-secondary mb-6">Free preview of the headline findings. Pay per scan, not per seat — one-time scans never auto-renew.</p>
+            <p className="text-[var(--v2-muted)] mb-6">Free preview of the headline findings. Pay per scan, not per seat — one-time scans never auto-renew.</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link href="/#pricing" className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm">
+              <Link href="/#pricing" className="v2-btn v2-btn-primary">
                 Run a scan &mdash; from $29
               </Link>
-              <Link href="/modules" className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm">
+              <Link href="/modules" className="v2-btn">
                 See all {totalModules} modules
               </Link>
             </div>
@@ -283,9 +283,9 @@ export default async function ModulePage({ params }: PageParams) {
           <h2 className={`${h2} mb-6`}>Frequently asked questions</h2>
           <div className="space-y-4">
             {faqs.map((f) => (
-              <div key={f.q} className="card p-5">
-                <h3 className="text-foreground font-semibold mb-2 leading-snug">{f.q}</h3>
-                <p className="text-foreground-secondary text-sm leading-relaxed">{f.a}</p>
+              <div key={f.q} className="v2-card">
+                <h3 className="text-[var(--v2-fg)] font-semibold mb-2 leading-snug">{f.q}</h3>
+                <p className="text-[var(--v2-muted)] text-sm leading-relaxed">{f.a}</p>
               </div>
             ))}
           </div>
@@ -297,9 +297,9 @@ export default async function ModulePage({ params }: PageParams) {
             <h2 className={`${h2} mb-6`}>Related modules in {mod.category.title}</h2>
             <div className="grid sm:grid-cols-2 gap-3">
               {related.map((r) => (
-                <Link key={r.slug} href={`/modules/${r.slug}`} className="card block p-4">
-                  <div className="text-foreground font-semibold mb-1">{prettify(r.name)}</div>
-                  <div className="text-foreground-secondary text-sm leading-snug">{r.description.slice(0, 120)}{r.description.length > 120 ? "…" : ""}</div>
+                <Link key={r.slug} href={`/modules/${r.slug}`} className="v2-card block">
+                  <div className="text-[var(--v2-fg)] font-semibold mb-1">{prettify(r.name)}</div>
+                  <div className="text-[var(--v2-muted)] text-sm leading-snug">{r.description.slice(0, 120)}{r.description.length > 120 ? "…" : ""}</div>
                 </Link>
               ))}
             </div>
@@ -307,14 +307,14 @@ export default async function ModulePage({ params }: PageParams) {
         )}
 
         {/* Cross-links to comparisons */}
-        <section className="rounded-2xl border border-border bg-surface-light p-6">
-          <h2 className="text-sm uppercase tracking-wider text-muted font-semibold mb-3">Comparing GateTest to another tool?</h2>
+        <section className="v2-card">
+          <h2 className="v2-kicker font-semibold mb-3">Comparing GateTest to another tool?</h2>
           <div className="flex flex-wrap gap-2">
             {COMPARISONS.map((c) => (
               <Link
                 key={c}
                 href={`/compare/${c}`}
-                className="px-3 py-1.5 rounded-full bg-background border border-border text-sm text-foreground-secondary hover:text-foreground hover:border-border-strong transition-colors"
+                className="px-3 py-1.5 rounded-full bg-[var(--v2-bg)] border border-[var(--v2-line-strong)] text-sm text-[var(--v2-muted)] hover:text-[var(--v2-fg)] hover:border-[var(--v2-accent)] transition-colors"
               >
                 vs. {c.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
               </Link>
