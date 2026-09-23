@@ -87,11 +87,11 @@ describe('distribution surfaces: every listed channel points somewhere real', ()
   });
 
   it('the CLI snippet uses the form that resolves on the published package', () => {
-    // Bare `npx @gatetest/cli` only resolves from 1.61.1; npm serves 1.61.0.
-    // Check the snippets a visitor copies, not the comments that explain why.
+    // Bare `npx @gatetest/cli` resolves from 1.61.1 onward (the `cli` bin) —
+    // npm serves 1.61.1 today, so the snippet a visitor copies uses the bare
+    // form rather than the older `-p` workaround.
     const snippets = [...SRC.matchAll(/snippet:\s*"([^"]+)"/g)].map((m) => m[1]);
-    assert.ok(snippets.some((s) => /npx -p @gatetest\/cli gatetest/.test(s)), 'the CLI snippet uses -p');
-    for (const s of snippets) assert.ok(!/npx @gatetest\/cli\b/.test(s), `bare npx @gatetest/cli is not on npm yet: ${s}`);
+    assert.ok(snippets.some((s) => /npx --yes @gatetest\/cli\b/.test(s)), 'the CLI snippet uses bare npx');
   });
 
   it('the module count is imported where it is rendered, never typed', () => {

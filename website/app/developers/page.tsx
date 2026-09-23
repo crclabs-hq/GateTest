@@ -1,6 +1,10 @@
-"use client";
+// Server Component on purpose (#679 item 5): /docs redirects here, and a
+// crawler or `curl` following that redirect must find the install snippets
+// — the CLI command, the Action YAML, the MCP config — in the FIRST HTML
+// response, not only after client-side JS runs. Only the copy-to-clipboard
+// button (CopyButton.tsx) needs the browser, so it is the one piece split
+// into its own "use client" file.
 
-import { useState } from "react";
 import Link from "next/link";
 // Version + module count come from the generated stats, never typed here.
 // This demo line read "v1.59.0 — 121 modules" while the CLI printed v1.61.0.
@@ -8,47 +12,43 @@ import siteStats from "../data/site-stats.json";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 import StatTiles from "../components/site/StatTiles";
+import CopyButton from "./CopyButton";
 
 const INSTALL_CMD = "curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integrations/scripts/install.sh | bash";
 // install.sh drops the CI workflow, hook and marker — it does NOT put a
 // `gatetest` binary on PATH. The local-scan card therefore installs the CLI
-// from npm first (bare `npx @gatetest/cli` does not resolve on the published
-// 1.61.0; `npm i -g` and `npx -p` both do).
+// from npm first.
 const CLI_INSTALL_CMD = "npm install -g @gatetest/cli";
 const SCAN_CMD = "gatetest scan --suite quick --diff";
 
-type CopyState = "idle" | "copied" | "failed";
+// The same recommended workflow as README.md's "GitHub Action — recommended
+// for most users" section, comments included (#679 item 2): both optional
+// pieces — the secret and the write scope — say what happens without them,
+// on the lines they annotate, not only in prose underneath.
+const ACTION_YAML = `name: GateTest Quality Gate
+on: [push, pull_request]
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # optional: without it, the PR summary comment and inline suggestions
+      # are skipped (warning in the log) — the gate itself still runs and blocks
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: crclabs-hq/GateTest@v1
+        with:
+          suite: full
+          auto-fix: \${{ github.event_name == 'pull_request' }}
+        env:
+          # optional: without it, the gate still runs and blocks on findings —
+          # only auto-fix and AI review are skipped
+          ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}`;
 
-function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
-  const [state, setState] = useState<CopyState>("idle");
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(text);
-      setState("copied");
-      setTimeout(() => setState("idle"), 2000);
-    } catch (_err) {
-      setState("failed");
-      setTimeout(() => setState("idle"), 2000);
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      className="shrink-0 flex items-center gap-1.5 text-xs text-panel-muted hover:text-accent-light transition-colors"
-    >
-      {state === "copied" ? (
-        <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>Copied</>
-      ) : state === "failed" ? (
-        <>&#x2715; Failed</>
-      ) : (
-        <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>{label}</>
-      )}
-    </button>
-  );
-}
+// The website names no specific MCP client (tests/public-copy-vendor-neutral
+// .test.js) — the generic mcpServers config block works with any of them.
+const MCP_CONFIG = `{ "mcpServers": { "gatetest": { "command": "npx", "args": ["-y", "@gatetest/mcp-server"] } } }`;
 
 const CATCHES = [
   { title: "Money in floats", desc: "parseFloat() on billing amounts — sub-cent drift becomes fraud at scale. Finds it across JS + Python with safe-harbour for decimal.js / big.js.", tag: "moneyFloat" },
@@ -216,6 +216,41 @@ export default function DevelopersPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="The exact CI workflow, and the MCP config" lede="Copy-paste — the same files README.md ships, comments included.">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="card p-6 space-y-4">
+            <p className="text-sm text-foreground-secondary">
+              The composite Action, recommended for most users. Both optional
+              pieces say what happens without them, on the line each is on.
+            </p>
+            <div className={PANEL}>
+              <div className={PANEL_HEAD}>
+                <span className="text-xs font-mono text-panel-muted">.github/workflows/gatetest.yml</span>
+                <span className="ml-auto"><CopyButton text={ACTION_YAML} label="Copy YAML" /></span>
+              </div>
+              <pre className="p-4 text-xs font-mono leading-relaxed overflow-x-auto whitespace-pre">
+                <code>{ACTION_YAML}</code>
+              </pre>
+            </div>
+          </div>
+
+          <div className="card p-6 space-y-4">
+            <p className="text-sm text-foreground-secondary">
+              Give your AI client the scanner, test runner and fix verifier as
+              tools — free, runs on your machine and your own keys.
+            </p>
+            <div className={`${CMD_ROW} text-accent-light items-start`}>
+              <span className="break-all">{MCP_CONFIG}</span>
+              <CopyButton text={MCP_CONFIG} />
+            </div>
+            <p className="text-xs text-muted">
+              Full tool list and the exact config line for your specific
+              client: <Link href="/mcp" className="text-accent hover:underline">/mcp</Link>.
+            </p>
           </div>
         </div>
       </Section>

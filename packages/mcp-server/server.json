@@ -1,6 +1,6 @@
 {
   "name": "ai.gatetest.www/gatetest",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Give Claude eyes (screenshot live pages), ears (Sentry/Datadog/Rollbar errors + runtime checks), hands (verify fixes worked), and root-cause tools (source-map trace resolution, git regression blame), and debug tools (run tests, stream logs, query your DB, call APIs). 24 tools, 121-module engine. Scan, fix, screenshot, and prove the fix worked — all inside your AI assistant.",
   "license": "MIT",
   "homepage": "https://gatetest.io",
@@ -27,7 +27,7 @@
     {
       "registryType": "npm",
       "identifier": "@gatetest/mcp-server",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "transport": {
         "type": "stdio",
         "command": "npx",
