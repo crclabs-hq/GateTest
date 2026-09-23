@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
  * Three-state theme control (issue #690, owner 23 Sep): system, light, dark.
  * "system" removes any stored choice and lets globals.css's
  * `@media (prefers-color-scheme: dark)` block decide. An explicit choice
- * stamps `data-theme` on <html> and is persisted so it survives a reload —
+ * stamps `data-theme` on the document element and is persisted so it survives a reload —
  * the actual first-paint value comes from the inline script in
  * app/layout.tsx (THEME_INIT_SCRIPT), not from this component, which only
  * runs after hydration. localStorage is wrapped in try/catch everywhere:
@@ -110,7 +110,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
 
 /**
  * Inline, pre-hydration script — read the stored choice and stamp
- * data-theme on <html> before first paint, so there is never a flash of
+ * data-theme on the document element before first paint, so there is never a flash of
  * the wrong theme. Rendered via dangerouslySetInnerHTML as the first thing
  * in <head> (app/layout.tsx). Deliberately does nothing for "system": the
  * CSS media query already handles that case with no JS required, and a
