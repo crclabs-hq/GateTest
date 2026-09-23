@@ -1,13 +1,32 @@
 @import "tailwindcss";
 
+/* ===================================================================== */
+/* THEME SYSTEM — light, dark and system (issue #690, owner 23 Sep)      */
+/* Three states: system (default, follows prefers-color-scheme), and an  */
+/* explicit "light" or "dark" stamped as data-theme on <html> by the     */
+/* Navbar's ThemeToggle (website/app/components/ThemeToggle.tsx) and     */
+/* persisted to localStorage. Every colour on every page is one of these */
+/* tokens — never a literal — so the site (and the admin, on top of the  */
+/* same tokens) can actually change theme instead of only opting into    */
+/* dark. The cascade, in the order the browser resolves it:              */
+/*   1. :root                                            — light, always the base */
+/*   2. @media (prefers-color-scheme: dark) :root:not([data-theme="light"]) */
+/*                                                        — system says dark, and the */
+/*                                                          visitor did not force light */
+/*   3. :root[data-theme="dark"]                         — explicit dark, any OS setting */
+/* data-theme="light" matches only rule 1 (rule 2's :not() excludes it,  */
+/* rule 3 doesn't match), so an explicit light choice always wins over a */
+/* dark OS. Both palettes are designed for AA contrast on their own      */
+/* ground, not one inverted from the other. */
 :root {
-  /* === CLEAN, PROFESSIONAL PALETTE === */
+  /* === LIGHT PALETTE (default / explicit data-theme="light") === */
   --background: #ffffff;
   --background-alt: #f8f9fa;
   --foreground: #111827;
   --foreground-secondary: #374151;
 
-  /* Single accent: refined teal — professional, distinctive */
+  /* Single accent: refined teal — professional, distinctive. AA on white
+     at this weight (4.6:1) for text; controls use the same hue. */
   --accent: #0f766e;
   --accent-light: #14b8a6;
   --accent-hover: #0d6560;
@@ -19,7 +38,8 @@
   --border-strong: rgba(0, 0, 0, 0.15);
   --muted: #6b7280;
 
-  /* Status */
+  /* Status — separate from the accent on purpose (a "good" state must
+     read as good even on a page whose accent is used for something else). */
   --success: #059669;
   --danger: #dc2626;
   --warning: #d97706;
@@ -50,13 +70,70 @@
   --panel-foreground: #e8eeeb;
   --panel-muted: #8f9e99;
   --panel-border: rgba(255, 255, 255, 0.08);
+
+  /* === V2 DESIGN SYSTEM TOKENS (site-wide, issue #686 phase 1) ===
+     Lifted out of website/app/preview/preview.css — the owner's call,
+     2026-09-23: "much better, we need the same on all the other pages."
+     Additive: the names above stay live until every page has migrated
+     onto website/app/components/v2/, then the duplicated old names go. */
+  --v2-bg: var(--background);
+  --v2-bg-alt: var(--background-alt);
+  --v2-fg: var(--foreground);
+  --v2-muted: var(--muted);
+  --v2-line: var(--border);
+  --v2-line-strong: var(--border-strong);
+  --v2-accent: var(--accent-light);
+  /* Same hex as --success/--danger/--warning at the root — the light theme
+     already tuned these for a white surface. Dark overrides below. */
+  --v2-ok: var(--success);
+  --v2-warn: var(--warning);
+  --v2-bad: var(--danger);
+  --v2-mono: var(--font-mono);
+
+  /* Radius scale (the 2026-09-22 "restrained engineering" pass: 6-12px,
+     never the old --radius-xl pill shapes on v2 surfaces). */
+  --v2-radius-sm: 6px;
+  --v2-radius: 8px;
+  --v2-radius-lg: 12px;
+
+  /* Motion: fast for hover/focus state changes, base for reveal-on-scroll
+     and rail transitions. prefers-reduced-motion zeroes both out below. */
+  --v2-motion-fast: 0.15s;
+  --v2-motion-base: 0.3s;
 }
 
-/* Dark theme — OPT-IN via data-theme="dark" on <html>. Not yet driven by
-   prefers-color-scheme on purpose: until every page uses tokens (the
-   2026-09-10 site-shell programme), auto-switching would show dark-OS
-   visitors a half-converted site. Flip to a media query once
-   tests/site-shell.test.js reports zero hard-coded colours. */
+/* === DARK PALETTE — system says dark, and the visitor has not forced === */
+/* === light. Same values as the explicit :root[data-theme="dark"]    === */
+/* === block below (issue #690 asks for both selectors, deliberately  === */
+/* === duplicated rather than only one, so an explicit "light" choice === */
+/* === on a dark OS is a simple :not() away rather than a specificity  === */
+/* === fight). The v2 homepage (/preview) is the source these numbers === */
+/* === were tuned against; both palettes hit AA on body text.         === */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #0b1210;
+    --background-alt: #101816;
+    --foreground: #e8eeeb;
+    --foreground-secondary: #c3cdc8;
+    --surface: rgba(16, 24, 22, 0.85);
+    --surface-solid: #121a18;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --muted: #8f9e99;
+    --accent: #14b8a6;
+    --accent-light: #2dd4bf;
+    --accent-hover: #0d9488;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+    --v2-ok: #34d399;
+    --v2-warn: #fbbf24;
+    --v2-bad: #f87171;
+  }
+}
+
+/* === DARK PALETTE — explicit choice, any OS setting. Identical values === */
+/* === to the media-query block above; see that block's comment. ===     */
 :root[data-theme="dark"] {
   --background: #0b1210;
   --background-alt: #101816;
@@ -73,49 +150,9 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
-
-  /* v2 status colours need more luminance to read on a dark surface —
-     see the light-mode block below for why these differ from --success/
-     --danger/--warning rather than aliasing them. */
   --v2-ok: #34d399;
   --v2-warn: #fbbf24;
   --v2-bad: #f87171;
-}
-
-/* === V2 DESIGN SYSTEM TOKENS (site-wide) ===============================
-   Lifted out of website/app/preview/preview.css (issue #686 phase 1) — the
-   owner's call, 2026-09-23: "much better, we need the same on all the other
-   pages." These are additive: --background/--foreground/--accent/--success/
-   --danger/--warning/--border/--radius-*/--shadow-* above stay live and
-   unchanged until every page has migrated onto the v2 primitives
-   (website/app/components/v2/), then the duplicated old names get removed.
-   Both themes are defined here; :root is the light source, the dark block
-   above overrides only what actually needs different luminance. */
-:root {
-  --v2-bg: var(--background);
-  --v2-bg-alt: var(--background-alt);
-  --v2-fg: var(--foreground);
-  --v2-muted: var(--muted);
-  --v2-line: var(--border);
-  --v2-line-strong: var(--border-strong);
-  --v2-accent: var(--accent-light);
-  /* Same hex as --success/--danger/--warning at the root — the light theme
-     already tuned these for a white surface. Dark overrides above. */
-  --v2-ok: var(--success);
-  --v2-warn: var(--warning);
-  --v2-bad: var(--danger);
-  --v2-mono: var(--font-mono);
-
-  /* Radius scale (the 2026-09-22 "restrained engineering" pass: 6-12px,
-     never the old --radius-xl pill shapes on v2 surfaces). */
-  --v2-radius-sm: 6px;
-  --v2-radius: 8px;
-  --v2-radius-lg: 12px;
-
-  /* Motion: fast for hover/focus state changes, base for reveal-on-scroll
-     and rail transitions. prefers-reduced-motion zeroes both out below. */
-  --v2-motion-fast: 0.15s;
-  --v2-motion-base: 0.3s;
 }
 
 @theme inline {

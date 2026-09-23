@@ -6,6 +6,7 @@ import { SiteHeader, SiteFooter } from "./components/SiteChrome";
 import { organizationSchema, webSiteSchema, jsonLd } from "./lib/seo/schema";
 import { SITE_URL } from "./lib/site-url";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { THEME_INIT_SCRIPT } from "./components/ThemeToggle";
 
 // Editorial display face for headlines — gives the marketing surfaces a
 // distinctive, premium voice without restyling body copy. Exposed as a CSS
@@ -97,6 +98,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`h-full antialiased ${displayFont.variable}`}>
       <head>
+        {/* Theme system (issue #690): read the stored light/dark choice and
+            stamp data-theme on <html> before first paint. Must be the first
+            thing in <head> and a plain synchronous script (not next/script,
+            which defers) — otherwise a stored explicit theme flashes the
+            other one for a frame. "system" needs no JS: globals.css's
+            prefers-color-scheme media query handles it on its own. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="min-h-full flex flex-col">

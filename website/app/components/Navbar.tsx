@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_GROUPS, NAV_LINKS, NAV_ACTIONS, type NavItem } from "./site-nav";
+import { ThemeToggle } from "./ThemeToggle";
 
 /**
  * The site header. Rendered ONCE from the root layout via SiteChrome — pages
@@ -113,6 +114,7 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden lg:flex items-center gap-2">
+          <ThemeToggle />
           <Link href={NAV_ACTIONS.signIn.href} className={`${LINK} px-3 py-2`}>{NAV_ACTIONS.signIn.label}</Link>
           <Link href={NAV_ACTIONS.install.href} className="px-3.5 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:border-accent/50 transition-colors whitespace-nowrap">
             {NAV_ACTIONS.install.label}
@@ -170,6 +172,10 @@ export default function Navbar() {
           <div className="grid gap-2 p-3">
             <Link href={NAV_ACTIONS.install.href} className="block text-center px-4 py-3 rounded-lg border border-border font-medium text-foreground" onClick={() => setDrawer(false)}>{NAV_ACTIONS.install.label}</Link>
             <Link href={NAV_ACTIONS.primary.href} className="btn-cta block text-center px-4 py-3 rounded-lg font-semibold" onClick={() => setDrawer(false)}>{NAV_ACTIONS.primary.label} →</Link>
+          </div>
+          <div className="flex items-center justify-between px-3 py-3 border-t border-border">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">Theme</span>
+            <ThemeToggle />
           </div>
         </nav>
       </div>
