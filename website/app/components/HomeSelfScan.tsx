@@ -25,6 +25,10 @@ const selfScanStatus = require("@/app/lib/self-scan-status") as {
     commitShaShort: string | null;
     ariaLabel: string;
   };
+  // One definition, imported: the live badge and this fallback must name the
+  // same suite the same way (tests/module-count-sync.test.js does not catch
+  // small non-3-digit counts like "42/42" going unlabeled — this is that fix).
+  SELF_SCAN_SUITE_LABEL: string;
 };
 
 interface LatestStatus {
@@ -65,7 +69,7 @@ export default function HomeSelfScan() {
     ? (() => {
         const passed = data?.gateStatus === "PASSED";
         const metricLine =
-          `${data?.modulesPassedCount}/${data?.modulesTotalCount} modules (quick suite, the CI gate) · ` +
+          `${data?.modulesPassedCount}/${data?.modulesTotalCount} modules (${selfScanStatus.SELF_SCAN_SUITE_LABEL}) · ` +
           `${data?.errorCount} blocking errors · measured ${measuredDate}`;
         return {
           variant: (passed ? "passed" : "blocked") as "passed" | "blocked",

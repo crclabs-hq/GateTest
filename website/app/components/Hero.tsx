@@ -106,7 +106,7 @@ export default function Hero() {
       crossFileTaint@src/handler.js`}
               </pre>
               <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-2.5 border-t border-white/[0.08] font-mono text-[11px] text-white/45">
-                <span>67 checks · 42 modules · quick suite</span>
+                <span>67 checks · {siteStats.suites.quick} modules · quick suite</span>
                 <span>SARIF, JUnit, JSON via --format</span>
               </div>
             </div>
