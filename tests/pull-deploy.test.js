@@ -411,3 +411,32 @@ test('deploy-box.yml only attempts the SSH deploy on workflow_dispatch, and poll
   assert.match(pollJob, /scripts\/ops\/verify-deploy\.js/);
   assert.match(pollJob, /within 15 min/);
 });
+
+// Production froze at one commit for ten hours on 2026-09-22/23: the box ran
+// a deploy script whose only non-flag path was blue/green, which aborts when
+// the templated unit or the active-port file is absent. A deploy script must
+// never turn "not yet installed" into "never deploys again" — it says why and
+// restarts in place instead. Static assertions: the real path needs flock and
+// a Linux box (see SKIP_REAL_RUN above); CI runs the real tests.
+const fallbackSrc = fs.readFileSync(SCRIPT_PATH, 'utf8').replace(/\r\n/g, '\n');
+
+test('pull-deploy.sh falls back to in-place when blue/green is not installed: checks for the templated unit', () => {
+  assert.match(fallbackSrc, /systemctl cat "\$\{PULL_DEPLOY_UNIT_TEMPLATE:-gatetest-web@\}\.service"/);
+  assert.match(fallbackSrc, /blue\/green not installed on this box/);
+});
+
+test('pull-deploy.sh falls back to in-place when blue/green is not installed: checks for the active-port file', () => {
+  assert.match(fallbackSrc, /PULL_DEPLOY_ACTIVE_PORT_FILE:-\/var\/lib\/gatetest\/pull-deploy-active-port/);
+  assert.match(fallbackSrc, /no active-port file/);
+});
+
+test('pull-deploy.sh: every fallback branch selects the same in-place restart PULL_DEPLOY_INPLACE=1 selects', () => {
+  const inPlaceAssignments = (fallbackSrc.match(/RESTART_MODE="in-place"/g) || []).length;
+  assert.equal(inPlaceAssignments, 3, 'flag, missing template, missing active-port file');
+  assert.match(fallbackSrc, /if \[ "\$RESTART_MODE" = "in-place" \]; then\n\s*git show origin\/main:scripts\/deploy\/deploy-on-box\.sh \| GATETEST_APP_DIR="\$APP_DIR" PULL_DEPLOY_INPLACE=1 bash -s/);
+});
+
+test('pull-deploy.sh: blue/green is still the default when nothing is missing', () => {
+  assert.match(fallbackSrc, /RESTART_MODE="blue-green"\n/);
+  assert.match(fallbackSrc, /GATETEST_RESTART_CMD="\$APP_DIR\/scripts\/deploy\/blue-green-restart\.sh"/);
+});
