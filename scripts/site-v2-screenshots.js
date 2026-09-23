@@ -182,15 +182,39 @@ async function main() {
     server.kill();
     // On Windows, `npx next start` spawns a detached child process tree;
     // a plain kill() on the npx wrapper can leave `next-server` listening.
-    // Give it a moment, then force-kill by port owner if still alive.
-    await new Promise((r) => setTimeout(r, 1000));
+    // Give it a moment, then force-kill by port owner if still alive. Each
+    // attempt backs off exponentially with jitter (base 500ms, capped at
+    // 4s) instead of a single constant 1s wait, so a slow-to-exit process
+    // on a loaded box gets more time before the next probe, and multiple
+    // concurrent runs of this script don't all re-check the port in lockstep.
     if (process.platform === 'win32') {
-      try {
-        const out = spawnSync('netstat', ['-ano'], { encoding: 'utf8' }).stdout || '';
-        const line = out.split('\n').find((l) => l.includes(`:${PORT}`) && l.includes('LISTENING'));
-        const pid = line && line.trim().split(/\s+/).pop();
-        if (pid && /^\d+$/.test(pid)) spawnSync('taskkill', ['/PID', pid, '/F', '/T']);
-      } catch { /* best-effort cleanup */ }
+      const maxAttempts = 3;
+      const failedAttempts = [];
+      let freed = false;
+      for (let attempt = 0; attempt < maxAttempts && !freed; attempt++) {
+        const delay = Math.min(4000, 500 * 2 ** attempt) + Math.random() * 250;
+        await new Promise((r) => setTimeout(r, delay));
+        try {
+          const out = spawnSync('netstat', ['-ano'], { encoding: 'utf8' }).stdout || '';
+          const line = out.split('\n').find((l) => l.includes(`:${PORT}`) && l.includes('LISTENING'));
+          const pid = line && line.trim().split(/\s+/).pop();
+          if (!pid || !/^\d+$/.test(pid)) { freed = true; break; }
+          spawnSync('taskkill', ['/PID', pid, '/F', '/T']);
+          freed = true;
+        } catch (err) {
+          // Record the failed attempt instead of swallowing it — only the
+          // last attempt's error is thrown below, but every attempt is
+          // visible in the log so a run that eventually succeeds isn't
+          // silent about the retries it took.
+          failedAttempts.push(err);
+          console.log(`[cleanup] attempt ${attempt + 1}/${maxAttempts} to free port ${PORT} failed: ${err}`);
+        }
+      }
+      if (!freed && failedAttempts.length > 0) {
+        throw failedAttempts[failedAttempts.length - 1];
+      }
+    } else {
+      await new Promise((r) => setTimeout(r, 1000));
     }
     if (serverOutput.includes('Error')) {
       console.log('--- server output (contained "Error") ---');
