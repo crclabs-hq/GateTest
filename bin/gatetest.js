@@ -31,7 +31,7 @@ const {
   USAGE_EXIT_CODE,
 } = require('../src/core/cli-args');
 const { buildJsonOutput, scanExitCode } = require('../src/core/json-output');
-const { crawlReportPaths } = require('../src/modules/live-crawler-report');
+const { crawlReportPaths, crawlExitCode, crawlResultLabel, buildCrawlFindings } = require('../src/modules/live-crawler-report');
 
 /**
  * `--project <path>` must name an existing directory, or the run is a usage
@@ -241,8 +241,30 @@ const HELP = `
     --doctor-quick     Same but skips the live AI provider API ping (offline mode)
     --version, -v      Show version
 
-    --server <url>     Scan a live server: SSL, headers, DNS, performance
-    --crawl <url>      Crawl a live website and test every page
+    --server <url>     Scan a live server: SSL, headers, DNS, performance.
+                       Exit code follows severity: errors fail the gate,
+                       warnings alone do not unless --strict is also given.
+                       With --format json (or --json), prints ONE JSON
+                       document on stdout and nothing else there — progress
+                       and the human report go to stderr instead. Shape:
+                         { target, startedAt, durationMs, exitCode,
+                           groups: [ { name, checks: [ { name, passed,
+                                       severity, message } ] } ],
+                           summary }
+                       Default (no flag): unchanged text output.
+    --crawl <url>      Crawl a live website and test every page. The exit
+                       code comes only from this run's own report: broken
+                       links/images/scripts/stylesheets and page errors
+                       always fail; a page that timed out or was skipped by
+                       the crawl budget only fails once the not-checked
+                       share of pages exceeds 20% (the report always says
+                       "N pages not checked (reason)" either way).
+                       With --format json (or --json), prints ONE JSON
+                       document on stdout and nothing else there — progress
+                       and the human report go to stderr instead. Shape:
+                         { url, pagesScanned, generatedAt, result, exitCode,
+                           findings: [ { type, severity, message, url } ] }
+                       Default (no flag): unchanged text output.
     --crawl-loop <url> Crawl, report failures, wait for fixes, repeat until clean
     --crawl-max <n>    Max pages to crawl (default: 100)
     --crawl-page-timeout <ms>  Per-page fetch budget (default: 15000). A
@@ -625,7 +647,8 @@ async function main() {
   // Live site crawl
   if (args.crawl) {
     await runCrawl(gatetest, args.crawl, args.crawlMax || 100,
-      { ...crawlAuthFromArgs(args), ...(args.crawlPageTimeout ? { pageTimeout: args.crawlPageTimeout } : {}) });
+      { ...crawlAuthFromArgs(args), ...(args.crawlPageTimeout ? { pageTimeout: args.crawlPageTimeout } : {}) },
+      jsonMode);
     return;
   }
 
@@ -708,20 +731,58 @@ async function main() {
     const ServerScanner = require('../src/scanners/server-scanner');
     const scanner = new ServerScanner();
     const url = args.server.startsWith('http') ? args.server : `https://${args.server}`;
-    console.log(`\n  GATETEST — Server Scan\n  Target: ${url}\n`);
+    // --format json: stdout is the one JSON document, so progress and the
+    // human-readable report go to stderr instead (same convention as the
+    // suite scan's jsonMode, and as --crawl above).
+    const log = jsonMode ? console.error : console.log;
+    log(`\n  GATETEST — Server Scan\n  Target: ${url}\n`);
 
     try {
+      const startedAt = new Date().toISOString();
       const result = await scanner.scan(url);
       for (const mod of result.modules) {
         const icon = mod.status === 'passed' ? '\x1b[32m✓\x1b[0m' : mod.status === 'warning' ? '\x1b[33m!\x1b[0m' : '\x1b[31m✗\x1b[0m';
-        console.log(`  ${icon} ${mod.label || mod.name} — ${mod.checks} checks, ${mod.issues} issues`);
+        log(`  ${icon} ${mod.label || mod.name} — ${mod.checks} checks, ${mod.issues} issues`);
         for (const d of (mod.details || [])) {
           const color = d.startsWith('error') ? '\x1b[31m' : d.startsWith('warning') ? '\x1b[33m' : d.startsWith('pass') ? '\x1b[32m' : '\x1b[90m';
-          console.log(`      ${color}${d}\x1b[0m`);
+          log(`      ${color}${d}\x1b[0m`);
         }
       }
-      console.log(`\n  ${result.totalIssues === 0 ? '\x1b[32mSERVER: CLEAN\x1b[0m' : `\x1b[33mSERVER: ${result.totalIssues} ISSUES\x1b[0m`} — ${result.totalChecks} checks, ${result.duration}ms\n`);
-      process.exit(result.totalIssues === 0 ? 0 : 1);
+      // Severity-based gate (issue #677 item 3): `result.totalIssues`
+      // conflated errors and warnings into one count, so a single warning
+      // (e.g. a CSP 'unsafe-inline' warning) failed the gate the same way
+      // an SSL failure would. ServerScanner.exitCode/summaryLabel are the
+      // one definition of the severity split, shared with the test suite.
+      const exitCode = ServerScanner.exitCode(result, { strict: args.strict === true });
+      const { errors } = ServerScanner.countSeverities(result);
+      const summaryText = `SERVER: ${ServerScanner.summaryLabel(result)} — ${result.totalChecks} checks, ${result.duration}ms`;
+
+      if (jsonMode) {
+        const doc = {
+          target: url,
+          startedAt,
+          durationMs: result.duration,
+          exitCode,
+          groups: ServerScanner.toJsonGroups(result),
+          summary: summaryText,
+        };
+        // Never process.exit() right after a stdout write: a piped stdout is
+        // asynchronous on POSIX (synchronous only on Windows — see Node's own
+        // docs on process.stdout), so a forced exit can race the write and
+        // hand the consumer a truncated or empty document even from inside
+        // the write's own callback (reproduced in CI on Linux, not on
+        // Windows). Setting exitCode and returning lets the event loop drain
+        // naturally — nothing else is scheduled once a --server scan is
+        // done, so the process exits on its own right after the write
+        // actually completes.
+        process.stdout.write(`${JSON.stringify(doc)}\n`);
+        process.exitCode = exitCode;
+        return;
+      }
+
+      const summaryColor = exitCode === 0 ? '\x1b[32m' : (errors > 0 ? '\x1b[31m' : '\x1b[33m');
+      console.log(`\n  ${summaryColor}${summaryText}\x1b[0m\n`);
+      process.exit(exitCode);
     } catch (err) {
       console.error(`\n  \x1b[31mError: ${err.message}\x1b[0m\n`);
       process.exit(1);
@@ -1389,24 +1450,66 @@ function crawlTimeoutMessage(summary) {
   return `No crawl report: module timed out after ${match[1]}ms — no data was collected for this run.`;
 }
 
-/** Print this run's own crawl report (or say plainly why there isn't one). Shared by runCrawl/runCrawlLoop. */
-function printOwnCrawlReport(gatetest, url) {
-  const { mdPath } = crawlReportPaths(gatetest.projectRoot, url);
-  const timeoutMessage = crawlTimeoutMessage(gatetest._lastCrawlSummary);
-  if (timeoutMessage) {
-    console.log(`\n[GateTest] ${timeoutMessage}\n`);
+/** This run's own crawl JSON data (the same file generateFeedbackReport writes the .md report from), or null if absent/mismatched. */
+function readOwnCrawlJsonData(jsonPath, url) {
+  if (!fs.existsSync(jsonPath)) return null;
+  try {
+    const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+    if (!data || data.baseUrl !== url) return null;
+    return data;
+  } catch {
     return null;
   }
-  const report = readOwnCrawlReport(mdPath, url);
-  if (!report) {
-    console.log(`\n[GateTest] No crawl report was produced for ${url} this run.\n`);
-    return null;
-  }
-  console.log('\n' + report);
-  return report;
 }
 
-async function runCrawl(gatetest, url, maxPages, authConfig = {}) {
+/**
+ * Print this run's own crawl report (or say plainly why there isn't one).
+ * Shared by runCrawl/runCrawlLoop.
+ *
+ * Checks for an actual report FIRST, ahead of the runner's timeout verdict:
+ * an outer wall-clock race can mark the module "failed" moments after its
+ * (abandoned, still-running) run() call already finished writing a clean
+ * report to disk (issue #677 item 2) — a genuine report on disk, keyed to
+ * THIS run's pid+origin and carrying THIS run's own URL, is never stale by
+ * construction, so there is nothing to lose by trusting it over the
+ * runner's crash flag. Only when no such report exists do we explain why,
+ * via the timeout message when the module truly never got that far.
+ */
+function printOwnCrawlReport(gatetest, url) {
+  const { mdPath } = crawlReportPaths(gatetest.projectRoot, url);
+  const report = readOwnCrawlReport(mdPath, url);
+  if (report) {
+    console.log('\n' + report);
+    return report;
+  }
+  const timeoutMessage = crawlTimeoutMessage(gatetest._lastCrawlSummary);
+  console.log(`\n[GateTest] ${timeoutMessage || `No crawl report was produced for ${url} this run.`}\n`);
+  return null;
+}
+
+/**
+ * This run's own crawl data — the real report if `generateFeedbackReport`
+ * wrote one for this exact pid+origin+URL, or an honest "nothing was
+ * verified" fallback when the module's run() never got that far (its own
+ * outer wall-clock timeout fired first). Both the exit code and the
+ * `--format json` document are built from this SAME object, so they can
+ * never disagree (issue #677 item 2, reproduced once on a 40-page crawl of
+ * tallrig.com — the report said ALL CLEAR, the process still exited 1 with
+ * nothing anywhere explaining why, because the exit code used to come from
+ * the runner's generic module status instead of the report's findings).
+ */
+function crawlDataForRun(gatetest, url, maxPages) {
+  const { jsonPath } = crawlReportPaths(gatetest.projectRoot, url);
+  const data = readOwnCrawlJsonData(jsonPath, url);
+  if (data) return data;
+  return {
+    baseUrl: url, pagesScanned: 0, maxPages,
+    errors: [], brokenLinks: [], brokenImages: [], brokenScripts: [], brokenStylesheets: [],
+    timedOutPages: [], budgetExhausted: false,
+  };
+}
+
+async function runCrawl(gatetest, url, maxPages, authConfig = {}, jsonMode = false) {
   // Inject crawl URL into config — merged over any .gatetest config so
   // file-based crawl settings (headers, cookie, thresholds) still apply
   gatetest.config.config.modules.liveCrawler = {
@@ -1418,13 +1521,40 @@ async function runCrawl(gatetest, url, maxPages, authConfig = {}) {
     ...authConfig,
   };
 
-  console.log(`\n[GateTest] Crawling ${url} (max ${maxPages} pages)...\n`);
+  // --format json: stdout is the one JSON document, so progress goes to
+  // stderr instead (same convention as the suite scan's jsonMode, and as
+  // --server below).
+  const log = jsonMode ? console.error : console.log;
+  log(`\n[GateTest] Crawling ${url} (max ${maxPages} pages)...\n`);
   const summary = await gatetest.runModule('liveCrawler');
   gatetest._lastCrawlSummary = summary;
 
-  printOwnCrawlReport(gatetest, url);
+  const data = crawlDataForRun(gatetest, url, maxPages);
+  const exitCode = crawlExitCode(data);
 
-  process.exit(summary.gateStatus === 'PASSED' ? 0 : 1);
+  if (jsonMode) {
+    const doc = {
+      url: data.baseUrl || url,
+      pagesScanned: data.pagesScanned || 0,
+      generatedAt: new Date().toISOString(),
+      result: crawlResultLabel(data),
+      exitCode,
+      findings: buildCrawlFindings(data),
+    };
+    // Never process.exit() right after a stdout write — see the matching
+    // comment on the --server JSON path above. A piped stdout is
+    // asynchronous on POSIX, so a forced exit (even from inside the write's
+    // own callback) can race the write and hand the consumer a truncated or
+    // empty document; reproduced in CI on Linux against this exact code
+    // path, not on Windows. Setting exitCode and returning lets the event
+    // loop drain naturally instead.
+    process.stdout.write(`${JSON.stringify(doc)}\n`);
+    process.exitCode = exitCode;
+    return;
+  }
+
+  printOwnCrawlReport(gatetest, url);
+  process.exit(exitCode);
 }
 
 async function runCrawlLoop(gatetest, url, maxPages, authConfig = {}) {

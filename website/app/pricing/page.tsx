@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Hero, Section, Card, Pricing as V2Pricing } from "../components/v2";
+import AfterFree from "../components/AfterFree";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import { breadcrumbSchema, contentMetadata, jsonLd } from "../lib/seo/schema";
 
@@ -118,6 +119,8 @@ export default function PricingPage() {
         <Section tight>
           <V2Pricing />
         </Section>
+
+        <AfterFree />
 
         {/* Deep links into the pages a buyer reads before deciding. Also the
             fix for the modules catalogue being reachable only from a homepage

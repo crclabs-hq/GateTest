@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export interface TerminalLine {
+interface TerminalLine {
   text: string;
   /** "bad" (red) or "dim" (muted) — matches the .term line classes. */
   tone?: "bad" | "dim";

@@ -78,6 +78,12 @@ const SECTIONS_1: LegalSection[] = [
         "The scan's metadata: repository URL, commit, tier, timing.",
       ] },
       { p: "**Source code does not persist.** Not in the database, not in logs, not in error reports, and not in the AI provider beyond its fixed retention window. If you ask us for a copy of your code after a scan, we cannot provide one, because we do not have it." },
+      { h3: "How long, who can read it, and how to delete it" },
+      { list: [
+        "**Retention.** Findings, verdicts and scan metadata are kept until you ask us to delete them — there is no automatic expiry today (tracked under [Known limitations](#known-limitations)).",
+        "**Who can read it.** Engineering staff, for support and debugging, through the operator console (a single shared credential, held only in server environment configuration, never shipped to the client) or direct database access. There is no per-person access review today; that gap is listed under [Known limitations](#known-limitations), not hidden.",
+        `**How to delete it.** E-mail ${F.SUPPORT_EMAIL} and ask us to delete your account, findings, or both. We complete deletion requests within 30 days; the [Privacy Policy](/legal/privacy) describes the same right in full.`,
+      ] },
     ],
   },
   {
