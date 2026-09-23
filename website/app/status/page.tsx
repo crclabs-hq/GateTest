@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { contentMetadata, breadcrumbSchema, jsonLd } from "../lib/seo/schema";
 import incidentsData from "../data/incidents.json";
-import PageHero from "../components/site/PageHero";
-import Section from "../components/site/Section";
+import { Hero, Section, Card } from "../components/v2";
 import { getPublicStatus, PUBLIC_STATUS_TTL_SECONDS } from "../lib/public-status-collect";
 import type { ComponentState, OverallState, PublicStatus } from "../lib/public-status-collect";
 
@@ -109,25 +108,24 @@ export default async function StatusPage() {
         }}
       />
 
-      <PageHero
-        eyebrow="Live"
-        title="GateTest status"
-        lede={
-          <>
-            Whether each surface is up right now, and what happened recently. Every state on this page
-            is read from a probe that already runs against production — nothing is typed by hand, and a
-            surface we cannot verify says so instead of showing green.
-          </>
-        }
-        actions={
-          <a
-            href="/api/status/public"
-            className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm"
-          >
-            JSON &rarr;
-          </a>
-        }
-      />
+      <Section wrap={false}>
+        <div className="v2-wrap">
+          <Hero
+            kicker="Live"
+            title="GateTest status"
+            lede={
+              <>
+                Whether each surface is up right now, and what happened recently. Every state on this page
+                is read from a probe that already runs against production — nothing is typed by hand, and a
+                surface we cannot verify says so instead of showing green.
+              </>
+            }
+            actions={
+              <a href="/api/status/public" className="v2-btn">JSON &rarr;</a>
+            }
+          />
+        </div>
+      </Section>
 
       <Section>
         {/* Overall banner */}
@@ -177,18 +175,18 @@ export default async function StatusPage() {
             Running build
           </h2>
           <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="card p-4">
-              <dt className="text-xs text-muted">Version</dt>
-              <dd className="mt-1 font-mono text-sm text-foreground tabular-nums">v{status.version}</dd>
-            </div>
-            <div className="card p-4">
-              <dt className="text-xs text-muted">Commit</dt>
-              <dd className="mt-1 font-mono text-sm text-foreground">{status.commit}</dd>
-            </div>
-            <div className="card p-4">
-              <dt className="text-xs text-muted">Built</dt>
-              <dd className="mt-1 font-mono text-sm text-foreground tabular-nums">{formatWhen(status.builtAt)}</dd>
-            </div>
+            <Card as="div">
+              <dt className="text-xs text-[var(--v2-muted)]">Version</dt>
+              <dd className="mt-1 v2-mono text-sm text-[var(--v2-fg)] tabular-nums">v{status.version}</dd>
+            </Card>
+            <Card as="div">
+              <dt className="text-xs text-[var(--v2-muted)]">Commit</dt>
+              <dd className="mt-1 v2-mono text-sm text-[var(--v2-fg)]">{status.commit}</dd>
+            </Card>
+            <Card as="div">
+              <dt className="text-xs text-[var(--v2-muted)]">Built</dt>
+              <dd className="mt-1 v2-mono text-sm text-[var(--v2-fg)] tabular-nums">{formatWhen(status.builtAt)}</dd>
+            </Card>
           </dl>
         </section>
 
@@ -202,20 +200,20 @@ export default async function StatusPage() {
           ) : (
             <ol className="space-y-4">
               {incidents.map((inc) => (
-                <li key={`${inc.date}-${inc.title}`} className="card p-5">
+                <Card key={`${inc.date}-${inc.title}`} as="li">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
-                    <h3 className="font-medium text-foreground">{inc.title}</h3>
-                    <time dateTime={inc.date} className="font-mono text-xs text-muted tabular-nums">
+                    <h3 className="font-medium text-[var(--v2-fg)]">{inc.title}</h3>
+                    <time dateTime={inc.date} className="v2-mono text-xs text-[var(--v2-muted)] tabular-nums">
                       {inc.date.slice(0, 10)}
                     </time>
                   </div>
-                  <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
+                  <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--v2-muted)]">
                     <span>{IMPACT_LABEL[inc.impact] ?? "Impact unknown"}</span>
                     <span>{inc.resolved ? "Resolved" : "Ongoing"}</span>
                     {inc.components.length > 0 && <span>Affected: {inc.components.join(", ")}</span>}
                   </p>
-                  <p className="mt-3 text-sm text-foreground-secondary leading-relaxed">{inc.summary}</p>
-                </li>
+                  <p className="mt-3 text-sm text-[var(--v2-muted)] leading-relaxed">{inc.summary}</p>
+                </Card>
               ))}
             </ol>
           )}
@@ -230,10 +228,10 @@ export default async function StatusPage() {
           </p>
           <p>
             Something wrong that this page does not show?{" "}
-            <Link href="/trust" className="text-accent hover:underline">
+            <Link href="/trust" className="text-[var(--v2-accent)] hover:underline">
               Trust &amp; security &rarr;
             </Link>{" "}
-            <Link href="/changelog" className="text-accent hover:underline">
+            <Link href="/changelog" className="text-[var(--v2-accent)] hover:underline">
               What shipped recently &rarr;
             </Link>
           </p>
