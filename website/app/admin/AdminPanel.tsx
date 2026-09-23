@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { StatCard, AdminTabs, type TabDef } from "./ui";
+import { OverviewDashboard } from "./OverviewDashboard";
 import type { DbData } from "./tabs/types";
 import { RepoScanTab } from "./tabs/RepoScanTab";
 import { ServerScanTab } from "./tabs/ServerScanTab";
@@ -150,56 +150,19 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
 
   const stats = dbData?.stats;
 
+  // adminLogin is shown by the admin shell's sidebar (AdminShell.tsx) now —
+  // this component used to render its own header with the same "Signed in
+  // as" line plus links to four sections; both are redundant once every
+  // page moved into the shell (issue #691), so the parameter stays (kept
+  // for API stability / tests) but this component itself is chrome-free.
+  void adminLogin;
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-base font-[var(--font-mono)]">G</span>
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900">GateTest Admin</h1>
-              <p className="text-xs text-gray-500">
-                Signed in as <span className="font-mono text-emerald-600 font-medium">{adminLogin}</span>
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <a
-              href="/admin/triage"
-              className="text-xs px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors font-medium"
-            >
-              Triage
-            </a>
-            <a
-              href="/admin/feedback"
-              className="text-xs px-3 py-2 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors font-medium"
-            >
-              Feedback
-            </a>
-            <a
-              href="/admin/pipeline-trace"
-              className="text-xs px-3 py-2 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors font-medium"
-            >
-              Pipeline
-            </a>
-            <a
-              href="/admin/health"
-              className="text-xs px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors font-medium"
-            >
-              Self-Test
-            </a>
-            <Link href="/" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
-              &larr; Site
-            </Link>
-          </div>
-        </div>
-      </div>
-
+    <div>
       <div className="relative max-w-6xl mx-auto px-6 py-6">
+        {/* Real dashboard — issue #691 item 2 */}
+        <OverviewDashboard />
+
         {/* Stats bar */}
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

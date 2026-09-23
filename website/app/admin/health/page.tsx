@@ -222,7 +222,7 @@ export default function HealthPage() {
   const ready = report?.ready === true;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="gt-admin-page">
       <div className="max-w-3xl mx-auto px-6 py-12">
         {/* Header */}
         <div className="mb-8">

@@ -184,7 +184,7 @@ export default function TriageDashboard() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 text-gray-900">
+    <main className="gt-admin-page">
       <nav className="border-b border-gray-200 bg-white px-4 sm:px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
