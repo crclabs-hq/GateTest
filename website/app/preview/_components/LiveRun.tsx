@@ -80,8 +80,12 @@ export function LiveRun() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1.05fr_1fr] items-start">
-      {/* Terminal */}
-      <div className="term" aria-label="Terminal output of a quick-suite scan">
+      {/* Terminal. min-w-0: below `lg` this grid has one implicit column, so
+          without an explicit min-width this item's automatic minimum size is
+          its own content's rather than the track's — at 375px that pushed
+          both this and the GitHub panel past the viewport (issue #678
+          defect 3, same shape as the live homepage's Hero.tsx). */}
+      <div className="term min-w-0" aria-label="Terminal output of a quick-suite scan">
         <div className="term-head">
           <span>gatetest --suite quick</span>
           <span className={lines >= TERMINAL.length ? "bad" : "dim"}>{lines >= TERMINAL.length ? "exit 1" : "running"}</span>
@@ -95,7 +99,7 @@ export function LiveRun() {
       </div>
 
       {/* GitHub side */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 min-w-0">
         <div className="gh">
           <div className="gh-head">
             <span className="v2-mono">your-org/your-repo</span>

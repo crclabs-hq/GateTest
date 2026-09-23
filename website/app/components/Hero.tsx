@@ -45,7 +45,13 @@ export default function Hero() {
         <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-10 items-center">
 
           {/* ── LEFT: editorial headline + live CTA ───────────────────── */}
-          <div className="max-w-2xl">
+          {/* min-w-0: below `lg` this is a single-column CSS grid, so without
+              an explicit min-width the item's automatic minimum size is its
+              own content's, and — with no cap — the RIGHT column's unbroken
+              terminal text (below) grows the shared column past the viewport,
+              carrying this paragraph off-screen with it at 375px
+              (issue #678 defect 3). */}
+          <div className="max-w-2xl min-w-0">
             <div className="inline-flex items-center gap-2.5 text-[13px] font-mono text-gray-600 mb-7 fade-up">
               <span className="relative flex h-2 w-2" aria-hidden="true">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
@@ -81,10 +87,10 @@ export default function Hero() {
           {/* ── RIGHT: real scanner output. Captured 2026-09-22 from
               `gatetest --suite quick --project reliability-corpus/known-bad/sqli-string-concat`
               (exit 1). Trimmed to the lines that decide the gate; nothing invented. */}
-          <div className="relative fade-up">
+          <div className="relative fade-up min-w-0">
             <div className="product-card p-0 overflow-hidden">
               <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-white/[0.08]">
-                <span className="font-mono text-[12px] text-white/60 truncate">
+                <span className="font-mono text-[12px] text-white/60 truncate min-w-0">
                   $ npx -p @gatetest/cli gatetest --suite quick
                 </span>
                 <span className="font-mono text-[11px] text-red-300/90 shrink-0">exit 1</span>

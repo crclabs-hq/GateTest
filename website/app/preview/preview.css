@@ -162,6 +162,11 @@
   font-family: var(--v2-mono);
   font-size: 12.5px;
   line-height: 1.6;
+  /* Belt-and-suspenders on top of the grid item's own min-w-0 (LiveRun.tsx):
+     this box never grows past its container, whatever lays it out (issue
+     #678 defect 3 — the page body scrolled sideways at 375px). */
+  max-width: 100%;
+  min-width: 0;
 }
 .gt-v2 .term-head {
   display: flex;
