@@ -1,8 +1,9 @@
 ﻿import Link from "next/link";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
+import { Card, Stat, Callout } from "../components/v2";
 import siteStats from "../data/site-stats.json";
-import { PLATFORM_NAME, PLATFORM_SITE_URL } from "../lib/platform-config";
+import { PLATFORM_NAME, PLATFORM_HOST, PLATFORM_SITE_URL } from "../lib/platform-config";
 
 // gatetest.io/stack — "One team, three products" page.
 //
@@ -129,25 +130,143 @@ export default function StackPage() {
         </div>
       </Section>
 
-      <Section narrow title="How they fit together (if you use more than one)">
+      <Section title="Each product, on its own">
+        <p className="text-sm text-foreground-secondary leading-relaxed mb-8 max-w-2xl">
+          Every product below is complete without the other two. Buy one, buy all three,
+          or pair one with tools you already run — nothing here needs a sibling product
+          to work.
+        </p>
+        <div className="grid lg:grid-cols-3 gap-6">
+          <Card className="p-6 flex flex-col">
+            <h3 className="font-display font-bold text-lg text-foreground mb-2">GateTest</h3>
+            <p className="text-sm font-semibold text-foreground mb-3">
+              CI quality gate for AI-written code.
+            </p>
+            <p className="text-sm text-foreground-secondary leading-relaxed mb-4">
+              Scans your repository or your live URL with the same {siteStats.modules.total}-module
+              engine — security, performance, accessibility, SEO, supply chain, AI safety. Fails
+              the job only on findings outside your committed baseline.
+            </p>
+            <Stat
+              value="B · 85/100"
+              label="Free scan on expressjs/express, graded by an independent buyer walk"
+              source="Verified by Tallrig's buyer-walk report, 22 Sep 2026"
+            />
+            <ul className="text-xs text-foreground-secondary space-y-1.5 my-4">
+              <li>
+                Quick suite on a real 77-package customer monorepo: 69 minutes cut to under
+                ten (9 m 55 s) after one engine fix
+              </li>
+              <li>
+                A real customer tree: 438 blocking findings down to 237 in a day, catching two
+                genuine bugs the customer fixed
+              </li>
+            </ul>
+            <p className="text-sm text-foreground-secondary mb-4">
+              From $29 per scan &mdash; no subscription required.
+            </p>
+            <p className="text-xs text-foreground-secondary italic mb-6">
+              Runs on GitHub or any CI you already use.
+            </p>
+            <div className="mt-auto">
+              <Link href="/playground" className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm">
+                Scan a repo free <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+          </Card>
+
+          <Card className="p-6 flex flex-col">
+            <h3 className="font-display font-bold text-lg text-foreground mb-2">Gluecron</h3>
+            <p className="text-sm font-semibold text-foreground mb-3">
+              Git hosting with the gate on every push.
+            </p>
+            <p className="text-sm text-foreground-secondary leading-relaxed mb-4">
+              A git host built for agents. [GLUECRON: pending their words &mdash; full pitch]
+            </p>
+            <p className="text-sm text-foreground-secondary mb-4">
+              [GLUECRON: pending their words &mdash; one verifiable proof point]
+            </p>
+            <p className="text-sm text-foreground-secondary mb-4">
+              [GLUECRON: pending their words &mdash; price model]
+            </p>
+            <p className="text-xs text-foreground-secondary italic mb-6">
+              Its own CI gate runs on every push &mdash; nothing external required.
+            </p>
+            <div className="mt-auto">
+              <a
+                href="https://gluecron.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm"
+              >
+                Visit Gluecron <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          </Card>
+
+          <Card className="p-6 flex flex-col">
+            <h3 className="font-display font-bold text-lg text-foreground mb-2">{PLATFORM_NAME}</h3>
+            <p className="text-sm font-semibold text-foreground mb-3">
+              The developer platform for the next decade.
+            </p>
+            <p className="text-sm text-foreground-secondary leading-relaxed mb-4">
+              Deploy your services and scheduled jobs, run managed Postgres, send email, and
+              register and serve your domains from one dashboard, on infrastructure {PLATFORM_NAME}{" "}
+              owns and operates. One bill, one place.
+            </p>
+            <p className="text-sm text-foreground-secondary mb-4">
+              {PLATFORM_HOST} states its own initial JavaScript weight, measured and stamped at
+              build time &mdash; 110 KB on 23 September 2026. Check it in your browser&apos;s
+              network panel.
+            </p>
+            <p className="text-sm text-foreground-secondary mb-4">
+              Free with no card, Pro from $20/mo, Scale from $99/mo, Enterprise by conversation
+              &mdash; every product on one bill with metered overage.
+            </p>
+            <p className="text-xs text-foreground-secondary italic mb-6">
+              A new release has to answer its health check before any traffic moves to it, and
+              the last good release keeps serving until it does.
+            </p>
+            <div className="mt-auto">
+              <a
+                href={PLATFORM_SITE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm"
+              >
+                Visit {PLATFORM_NAME} <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          </Card>
+        </div>
+      </Section>
+
+      <Section alt narrow title="Better together (optional)">
         <ul className="text-sm text-foreground-secondary space-y-4">
-          <li className="card p-5">
-            <span className="font-semibold text-foreground">Code on Gluecron, audited by GateTest:</span>{" "}
-            push triggers a scan; failing scans block the merge. Same gate story as a GitHub repo,
-            but on a git host that AI agents actually understand.
-          </li>
-          <li className="card p-5">
-            <span className="font-semibold text-foreground">Scheduled jobs on {PLATFORM_NAME}, audited by GateTest:</span>{" "}
-            the cron / background work that powers your product gets the same QA treatment as your
-            request-path code. GateTest scans the job definition; {PLATFORM_NAME} runs it at the edge.
-          </li>
-          <li className="card p-5">
+          <Card as="li" className="p-5">
+            <span className="font-semibold text-foreground">Add GateTest to Gluecron:</span>{" "}
+            a push to a Gluecron repo lands on the same Signal Bus queue GateTest already scans
+            from for GitHub &mdash; the same checks on the diff, wherever the code lives.
+          </Card>
+          <Card as="li" className="p-5">
+            <span className="font-semibold text-foreground">Add GateTest to {PLATFORM_NAME}:</span>{" "}
+            GateTest checks the change before it is pushed; {PLATFORM_NAME}&apos;s gate checks the
+            release before it goes live. Add GateTest and a bad change is stopped at the first
+            door, with the same verdict you would have seen at the second.
+          </Card>
+          <Card as="li" className="p-5">
             <span className="font-semibold text-foreground">All three:</span>{" "}
-            code on Gluecron, gated by GateTest at push-time, scheduled jobs running on {PLATFORM_NAME}.
-            End-to-end coverage with three independent tools, three independent bills, three
-            independent failure modes.
-          </li>
+            two independent gates &mdash; one on the diff, one on the deploy &mdash; from one team,
+            in front of a git host built for the same agents writing the code.
+          </Card>
         </ul>
+        <div className="mt-6">
+          <Callout tone="accent">
+            Not built yet: there is no single login or shared console across GateTest, Gluecron
+            and {PLATFORM_NAME}. Each keeps its own sign-in, its own dashboard and its own bill
+            today.
+          </Callout>
+        </div>
       </Section>
     </main>
   );
