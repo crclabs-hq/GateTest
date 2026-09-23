@@ -440,3 +440,114 @@ test('pull-deploy.sh: blue/green is still the default when nothing is missing', 
   assert.match(fallbackSrc, /RESTART_MODE="blue-green"\n/);
   assert.match(fallbackSrc, /GATETEST_RESTART_CMD="\$APP_DIR\/scripts\/deploy\/blue-green-restart\.sh"/);
 });
+
+// ── issue #706 part 3: consecutiveFailures / firstFailedAt, named fetch failures, OnFailure ──
+
+test('a failed git fetch is named from its own stderr, status "failed", consecutiveFailures starts at 1', { skip: SKIP_REAL_RUN }, () => {
+  const { tmp, box, origin, originUrl } = makeBoxAtV1();
+  try {
+    // Corrupt origin so `git fetch` genuinely fails on the network step —
+    // the origin URL itself still matches PULL_DEPLOY_EXPECTED_ORIGIN, so
+    // provenance check (a) passes and this exercises the fetch, not that.
+    fs.rmSync(origin, { recursive: true, force: true });
+    const { r, statusFile } = run(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl });
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /git fetch failed:/);
+    const status = readStatus(statusFile);
+    assert.equal(status.result, 'failed');
+    assert.match(status.reason, /^git fetch failed: /);
+    assert.equal(status.consecutiveFailures, 1);
+    assert.notEqual(status.firstFailedAt, '');
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('consecutiveFailures increments across ticks, firstFailedAt stays fixed, and a later success resets both', { skip: SKIP_REAL_RUN }, () => {
+  const { tmp, box, origin, originUrl } = makeBoxAtV1();
+  try {
+    fs.rmSync(origin, { recursive: true, force: true });
+
+    const first = run(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl });
+    assert.notEqual(first.r.status, 0);
+    const s1 = readStatus(first.statusFile);
+    assert.equal(s1.consecutiveFailures, 1);
+    assert.notEqual(s1.firstFailedAt, '');
+
+    const second = run(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl });
+    assert.notEqual(second.r.status, 0);
+    const s2 = readStatus(second.statusFile);
+    assert.equal(s2.consecutiveFailures, 2);
+    assert.equal(s2.firstFailedAt, s1.firstFailedAt, 'firstFailedAt must not move while the streak continues');
+
+    // Recreate origin as a bare clone of the box's own (unchanged) HEAD, so
+    // the next tick's fetch succeeds and there is genuinely nothing to
+    // deploy — the success path that must reset both fields.
+    git(tmp, 'clone', '-q', '--bare', box, origin);
+    const third = run(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl });
+    assert.equal(third.r.status, 0, third.r.stdout + third.r.stderr);
+    const s3 = readStatus(third.statusFile);
+    assert.equal(s3.result, 'up-to-date');
+    assert.equal(s3.consecutiveFailures, 0);
+    assert.equal(s3.firstFailedAt, '');
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('pull-deploy.sh reads the LAST line of a multi-line status file (as an OnFailure append leaves it) to continue the failure streak', { skip: SKIP_REAL_RUN }, () => {
+  const { tmp, box, origin, originUrl } = makeBoxAtV1();
+  try {
+    fs.rmSync(origin, { recursive: true, force: true });
+    const { env, statusFile } = envFor(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl });
+    // Simulate pull-deploy-onfailure.sh having appended a SECOND line onto
+    // an older, otherwise-unrelated first line — the shape a killed run
+    // between two ordinary ticks leaves behind.
+    fs.mkdirSync(path.dirname(statusFile), { recursive: true });
+    const oldLine = JSON.stringify({ at: '2020-01-01T00:00:00Z', before: 'x', after: 'x', result: 'up-to-date', reason: '', consecutiveFailures: 0, firstFailedAt: '' });
+    const appendedFailure = JSON.stringify({ at: '2026-09-23T02:00:00Z', before: '', after: '', result: 'failed', reason: 'killed', consecutiveFailures: null, firstFailedAt: '2026-09-23T02:00:00Z' });
+    fs.writeFileSync(statusFile, oldLine + '\n' + appendedFailure + '\n');
+
+    const r = spawnSync('bash', [SCRIPT_PATH], { cwd: box, encoding: 'utf8', env });
+    assert.notEqual(r.status, 0);
+    const status = readStatus(statusFile);
+    assert.equal(status.result, 'failed');
+    // Must have continued the streak the LAST line recorded (consecutiveFailures
+    // going to 2, firstFailedAt fixed at the appended line's timestamp) — not
+    // the FIRST line's "up-to-date", which `head -n1` would have read.
+    assert.equal(status.consecutiveFailures, 2);
+    assert.equal(status.firstFailedAt, '2026-09-23T02:00:00Z');
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('gatetest-pull-deploy.service declares OnFailure pointing at the onfailure unit', () => {
+  const unit = fs.readFileSync(path.join(ROOT, 'scripts', 'deploy', 'systemd', 'gatetest-pull-deploy.service'), 'utf8');
+  assert.match(unit, /^OnFailure=gatetest-pull-deploy-onfailure\.service$/m);
+});
+
+test('gatetest-pull-deploy-onfailure.service is a tiny oneshot that runs the onfailure script', () => {
+  const unit = fs.readFileSync(path.join(ROOT, 'scripts', 'deploy', 'systemd', 'gatetest-pull-deploy-onfailure.service'), 'utf8');
+  assert.match(unit, /^Type=oneshot$/m);
+  assert.match(unit, /pull-deploy-onfailure\.sh$/m);
+});
+
+test('pull-deploy-onfailure.sh appends (never overwrites) a "failed" record to the status file', { skip: !HAVE_BASH && 'bash not available' }, () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-onfailure-'));
+  try {
+    const statusFile = path.join(tmp, 'status.json');
+    fs.writeFileSync(
+      statusFile,
+      JSON.stringify({ at: '2026-01-01T00:00:00Z', before: 'a', after: 'a', result: 'up-to-date', reason: '' }) + '\n',
+    );
+    const script = path.join(ROOT, 'scripts', 'deploy', 'pull-deploy-onfailure.sh');
+    const r = spawnSync('bash', [script], { encoding: 'utf8', env: { ...process.env, PULL_DEPLOY_STATUS_FILE: statusFile } });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const lines = fs.readFileSync(statusFile, 'utf8').trim().split('\n');
+    assert.equal(lines.length, 2, 'must APPEND a second line, never overwrite the first');
+    const last = JSON.parse(lines[lines.length - 1]);
+    assert.equal(last.result, 'failed');
+    assert.match(last.reason, /killed before it could record its own status/);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('install-pull-deploy.sh installs the onfailure unit and chmods the onfailure script', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'scripts', 'deploy', 'install-pull-deploy.sh'), 'utf8');
+  assert.match(src, /gatetest-pull-deploy-onfailure\.service/);
+  assert.match(src, /pull-deploy-onfailure\.sh/);
+});

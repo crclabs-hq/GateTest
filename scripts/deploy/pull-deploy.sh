@@ -32,6 +32,35 @@ APP_DIR="${GATETEST_APP_DIR:-/opt/gatetest}"
 LOCK_FILE="${PULL_DEPLOY_LOCK:-/var/lock/gatetest-pull-deploy.lock}"
 STATUS_FILE="${PULL_DEPLOY_STATUS_FILE:-/var/lib/gatetest/pull-deploy-status.json}"
 
+# --- issue #706 part 3: read the PREVIOUS status before this run overwrites
+# --- it, so a run of consecutive failures can be counted without a database
+# --- — just the one file this script already owns. Field extraction is a
+# --- grep+sed pair rather than a jq dependency: nothing else in this script
+# --- (or deploy-on-box.sh) assumes jq is installed on the box, and the JSON
+# --- this file holds is always the flat, single-line shape write_status()
+# --- below produces, never nested.
+prev_status_field() {
+  # A quoted-string field, e.g. "result":"failed" -> failed. Empty (not an
+  # error) when the file is absent, unreadable, or the key isn't present —
+  # a first-ever run on a fresh box has no prior status to read. Reads only
+  # the LAST line: pull-deploy-onfailure.sh (issue #706 part 3) APPENDS
+  # rather than replaces, so a file left by a killed run can have more than
+  # one JSON object in it — the newest one is always the one that matters,
+  # same as website/app/lib/pull-deploy-status.js reads on the API side.
+  [ -r "$STATUS_FILE" ] || { printf ''; return 0; }
+  tail -n1 "$STATUS_FILE" 2>/dev/null | grep -o "\"$1\":\"[^\"]*\"" | head -n1 | sed -E "s/.*:\"([^\"]*)\"/\1/"
+}
+prev_status_int_field() {
+  # An unquoted integer field, e.g. "consecutiveFailures":3 -> 3. Same
+  # last-line-only reasoning as prev_status_field above.
+  [ -r "$STATUS_FILE" ] || { printf ''; return 0; }
+  tail -n1 "$STATUS_FILE" 2>/dev/null | grep -o "\"$1\":[0-9]\+" | head -n1 | sed -E "s/.*:([0-9]+)/\1/"
+}
+PREV_RESULT="$(prev_status_field result)"
+PREV_CONSECUTIVE_FAILURES="$(prev_status_int_field consecutiveFailures)"
+PREV_FIRST_FAILED_AT="$(prev_status_field firstFailedAt)"
+[ -n "$PREV_CONSECUTIVE_FAILURES" ] || PREV_CONSECUTIVE_FAILURES=0
+
 # Box 161 hosts other products; anyone who can land a commit on THIS repo's
 # main effectively gets root on the box the moment this timer runs it. Branch
 # protection (four required checks, no force-push) is what stands between a
@@ -71,8 +100,27 @@ write_status() {
   tmp="$STATUS_FILE.tmp.$$"
   local escaped_reason
   escaped_reason="$(printf '%s' "$REASON" | sed 's/\\/\\\\/g; s/"/\\"/g')"
-  if ! printf '{"at":"%s","before":"%s","after":"%s","result":"%s","reason":"%s"}\n' \
-    "$(date -u +%FT%TZ)" "$BEFORE" "$AFTER" "$RESULT" "$escaped_reason" > "$tmp" 2>/dev/null; then
+
+  # issue #706 part 3: consecutiveFailures / firstFailedAt. A failure extends
+  # the streak the PREVIOUS status file recorded (only when that run was ALSO
+  # a failure — any success resets it); a non-failure result always resets
+  # both to zero/empty, so a single good tick clears a run of prior trouble.
+  local consecutive_failures="" first_failed_at=""
+  if [ "$RESULT" = "failed" ]; then
+    if [ "$PREV_RESULT" = "failed" ] && [ -n "$PREV_FIRST_FAILED_AT" ]; then
+      consecutive_failures=$((PREV_CONSECUTIVE_FAILURES + 1))
+      first_failed_at="$PREV_FIRST_FAILED_AT"
+    else
+      consecutive_failures=1
+      first_failed_at="$(date -u +%FT%TZ)"
+    fi
+  else
+    consecutive_failures=0
+    first_failed_at=""
+  fi
+
+  if ! printf '{"at":"%s","before":"%s","after":"%s","result":"%s","reason":"%s","consecutiveFailures":%s,"firstFailedAt":"%s"}\n' \
+    "$(date -u +%FT%TZ)" "$BEFORE" "$AFTER" "$RESULT" "$escaped_reason" "$consecutive_failures" "$first_failed_at" > "$tmp" 2>/dev/null; then
     echo "[pull-deploy] WARNING: could not write $tmp — status not recorded" >&2
     rm -f "$tmp" 2>/dev/null
     return 0
@@ -124,7 +172,23 @@ if ! flock -n 200; then
   exit 0
 fi
 
-git fetch origin main
+# GIT_TERMINAL_PROMPT=0: a revoked token or an interactive credential helper
+# must never hang this unattended tick waiting on stdin — it must fail fast
+# with something on stderr instead. That stderr is exactly what names the
+# failure below (issue #706 part 3): before this, a failed fetch propagated
+# through `set -e` with no call to fail()/write_status, so the status file
+# kept reporting whatever the PREVIOUS tick had written while fetches were
+# silently failing tick after tick.
+FETCH_LOG="$STATUS_FILE.fetch-log.$$"
+FETCH_RC=0
+GIT_TERMINAL_PROMPT=0 git fetch origin main 2>"$FETCH_LOG" || FETCH_RC=$?
+cat "$FETCH_LOG" >&2 2>/dev/null || true
+if [ "$FETCH_RC" -ne 0 ]; then
+  FETCH_FIRST_LINE="$(head -n1 "$FETCH_LOG" 2>/dev/null || true)"
+  rm -f "$FETCH_LOG" 2>/dev/null
+  fail "git fetch failed: ${FETCH_FIRST_LINE:-git fetch exited $FETCH_RC with no output on stderr}"
+fi
+rm -f "$FETCH_LOG" 2>/dev/null
 
 BEFORE="$(git rev-parse HEAD)"
 AFTER="$(git rev-parse origin/main)"

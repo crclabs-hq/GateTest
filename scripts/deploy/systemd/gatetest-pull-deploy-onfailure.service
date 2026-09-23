@@ -1,0 +1,15 @@
+[Unit]
+Description=Record a killed gatetest-pull-deploy.service run (OnFailure safety net, issue #706)
+
+[Service]
+Type=oneshot
+# Invoked through bash rather than exec'd directly — same reasoning as every
+# other unit here (gatetest-tick.service, gatetest-pull-deploy.service): this
+# repo is authored on Windows where core.filemode is off, and `git reset
+# --hard` restores the mode from the index, so the executable bit cannot be
+# relied on to survive a deploy.
+#
+# Deliberately tiny: one job, append one line to the same status file
+# gatetest-pull-deploy.service already writes. No EnvironmentFile, no
+# network, no secrets — see scripts/deploy/pull-deploy-onfailure.sh.
+ExecStart=/bin/bash /opt/gatetest/scripts/deploy/pull-deploy-onfailure.sh
