@@ -76,6 +76,30 @@ class ServerScanner {
     return `${plural(warnings, 'warning')}, ${plural(errors, 'error')}`;
   }
 
+  /**
+   * `--server --format json` groups (issue #677 item 1) — one `checks`
+   * entry per `details` line, the ONE place a check's severity actually
+   * lives (see countSeverities above). Each module's `details` strings are
+   * always `<severity>: <message>`, written by the individual `_check*`
+   * methods below.
+   */
+  static toJsonGroups(result) {
+    return (result.modules || []).map((mod) => ({
+      name: mod.name,
+      checks: (mod.details || []).map((d, i) => {
+        const m = /^(error|warning|pass|info):\s*(.*)$/.exec(d);
+        const type = m ? m[1] : 'info';
+        const message = m ? m[2] : d;
+        return {
+          name: `${mod.name}.${i + 1}`,
+          passed: type !== 'error' && type !== 'warning',
+          severity: type === 'pass' ? 'info' : type,
+          message,
+        };
+      }),
+    }));
+  }
+
   async scan(url) {
     const parsed = new URL(url);
     const results = {

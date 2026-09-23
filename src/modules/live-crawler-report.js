@@ -118,6 +118,44 @@ function crawlExitCode(data) {
   return share > NOT_CHECKED_BLOCK_SHARE ? 1 : 0;
 }
 
+/**
+ * The uniform `findings` array for `--crawl --format json` (issue #677
+ * item 1) — one shape covering every collector this module fills, built
+ * from the SAME `data` object the markdown report and crawlExitCode() both
+ * read, so the JSON document can never show something the human report and
+ * the exit code disagree about.
+ */
+function buildCrawlFindings(data) {
+  const findings = [];
+  for (const e of data.errors || []) {
+    findings.push({ type: e.type || 'error', severity: 'error', message: e.message || null, url: e.url || null });
+  }
+  for (const l of data.brokenLinks || []) {
+    findings.push({ type: 'broken-link', severity: 'error', message: `[${l.status}] ${l.link}`, url: l.page || null });
+  }
+  for (const i of data.brokenImages || []) {
+    findings.push({ type: 'broken-image', severity: 'error', message: `[${i.status}] ${i.image}`, url: i.page || null });
+  }
+  for (const s of data.brokenScripts || []) {
+    findings.push({ type: 'broken-script', severity: 'error', message: `[${s.status}] ${s.script}`, url: s.page || null });
+  }
+  for (const s of data.brokenStylesheets || []) {
+    findings.push({ type: 'broken-stylesheet', severity: 'error', message: `[${s.status}] ${s.stylesheet}`, url: s.page || null });
+  }
+  for (const t of data.timedOutPages || []) {
+    findings.push({ type: 'timeout', severity: 'warning', message: t.message || `timed out after ${t.elapsedMs}ms`, url: t.url || null });
+  }
+  if (data.budgetExhausted) {
+    findings.push({
+      type: 'budget-exhausted',
+      severity: 'info',
+      message: `${data.pagesScanned || 0} of ${data.maxPages || 0} pages fetched before the crawl budget ran out`,
+      url: null,
+    });
+  }
+  return findings;
+}
+
 function generateFeedbackReport(config, data) {
   const { reportDir, mdPath, jsonPath, latestMdPath, latestJsonPath } =
     crawlReportPaths(config.projectRoot, data.baseUrl);
@@ -239,6 +277,7 @@ module.exports = {
   crawlReportPaths,
   crawlExitCode,
   crawlResultLabel,
+  buildCrawlFindings,
   notCheckedLine,
   notCheckedCount,
   hardFindingCount,

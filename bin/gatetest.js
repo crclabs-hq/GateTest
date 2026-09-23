@@ -31,7 +31,7 @@ const {
   USAGE_EXIT_CODE,
 } = require('../src/core/cli-args');
 const { buildJsonOutput, scanExitCode } = require('../src/core/json-output');
-const { crawlReportPaths, crawlExitCode } = require('../src/modules/live-crawler-report');
+const { crawlReportPaths, crawlExitCode, crawlResultLabel, buildCrawlFindings } = require('../src/modules/live-crawler-report');
 
 /**
  * `--project <path>` must name an existing directory, or the run is a usage
@@ -244,6 +244,14 @@ const HELP = `
     --server <url>     Scan a live server: SSL, headers, DNS, performance.
                        Exit code follows severity: errors fail the gate,
                        warnings alone do not unless --strict is also given.
+                       With --format json (or --json), prints ONE JSON
+                       document on stdout and nothing else there — progress
+                       and the human report go to stderr instead. Shape:
+                         { target, startedAt, durationMs, exitCode,
+                           groups: [ { name, checks: [ { name, passed,
+                                       severity, message } ] } ],
+                           summary }
+                       Default (no flag): unchanged text output.
     --crawl <url>      Crawl a live website and test every page. The exit
                        code comes only from this run's own report: broken
                        links/images/scripts/stylesheets and page errors
@@ -251,6 +259,12 @@ const HELP = `
                        the crawl budget only fails once the not-checked
                        share of pages exceeds 20% (the report always says
                        "N pages not checked (reason)" either way).
+                       With --format json (or --json), prints ONE JSON
+                       document on stdout and nothing else there — progress
+                       and the human report go to stderr instead. Shape:
+                         { url, pagesScanned, generatedAt, result, exitCode,
+                           findings: [ { type, severity, message, url } ] }
+                       Default (no flag): unchanged text output.
     --crawl-loop <url> Crawl, report failures, wait for fixes, repeat until clean
     --crawl-max <n>    Max pages to crawl (default: 100)
     --crawl-page-timeout <ms>  Per-page fetch budget (default: 15000). A
@@ -633,7 +647,8 @@ async function main() {
   // Live site crawl
   if (args.crawl) {
     await runCrawl(gatetest, args.crawl, args.crawlMax || 100,
-      { ...crawlAuthFromArgs(args), ...(args.crawlPageTimeout ? { pageTimeout: args.crawlPageTimeout } : {}) });
+      { ...crawlAuthFromArgs(args), ...(args.crawlPageTimeout ? { pageTimeout: args.crawlPageTimeout } : {}) },
+      jsonMode);
     return;
   }
 
@@ -716,16 +731,21 @@ async function main() {
     const ServerScanner = require('../src/scanners/server-scanner');
     const scanner = new ServerScanner();
     const url = args.server.startsWith('http') ? args.server : `https://${args.server}`;
-    console.log(`\n  GATETEST — Server Scan\n  Target: ${url}\n`);
+    // --format json: stdout is the one JSON document, so progress and the
+    // human-readable report go to stderr instead (same convention as the
+    // suite scan's jsonMode, and as --crawl above).
+    const log = jsonMode ? console.error : console.log;
+    log(`\n  GATETEST — Server Scan\n  Target: ${url}\n`);
 
     try {
+      const startedAt = new Date().toISOString();
       const result = await scanner.scan(url);
       for (const mod of result.modules) {
         const icon = mod.status === 'passed' ? '\x1b[32m✓\x1b[0m' : mod.status === 'warning' ? '\x1b[33m!\x1b[0m' : '\x1b[31m✗\x1b[0m';
-        console.log(`  ${icon} ${mod.label || mod.name} — ${mod.checks} checks, ${mod.issues} issues`);
+        log(`  ${icon} ${mod.label || mod.name} — ${mod.checks} checks, ${mod.issues} issues`);
         for (const d of (mod.details || [])) {
           const color = d.startsWith('error') ? '\x1b[31m' : d.startsWith('warning') ? '\x1b[33m' : d.startsWith('pass') ? '\x1b[32m' : '\x1b[90m';
-          console.log(`      ${color}${d}\x1b[0m`);
+          log(`      ${color}${d}\x1b[0m`);
         }
       }
       // Severity-based gate (issue #677 item 3): `result.totalIssues`
@@ -735,8 +755,23 @@ async function main() {
       // one definition of the severity split, shared with the test suite.
       const exitCode = ServerScanner.exitCode(result, { strict: args.strict === true });
       const { errors } = ServerScanner.countSeverities(result);
+      const summaryText = `SERVER: ${ServerScanner.summaryLabel(result)} — ${result.totalChecks} checks, ${result.duration}ms`;
+
+      if (jsonMode) {
+        const doc = {
+          target: url,
+          startedAt,
+          durationMs: result.duration,
+          exitCode,
+          groups: ServerScanner.toJsonGroups(result),
+          summary: summaryText,
+        };
+        process.stdout.write(`${JSON.stringify(doc)}\n`, () => process.exit(exitCode));
+        return;
+      }
+
       const summaryColor = exitCode === 0 ? '\x1b[32m' : (errors > 0 ? '\x1b[31m' : '\x1b[33m');
-      console.log(`\n  ${summaryColor}SERVER: ${ServerScanner.summaryLabel(result)}\x1b[0m — ${result.totalChecks} checks, ${result.duration}ms\n`);
+      console.log(`\n  ${summaryColor}${summaryText}\x1b[0m\n`);
       process.exit(exitCode);
     } catch (err) {
       console.error(`\n  \x1b[31mError: ${err.message}\x1b[0m\n`);
@@ -1443,27 +1478,28 @@ function printOwnCrawlReport(gatetest, url) {
 }
 
 /**
- * The --crawl exit code — derived ONLY from the findings this run's own
- * report carries (crawlExitCode, src/modules/live-crawler-report.js), never
- * from the runner's generic module status. That status can diverge from the
- * report: the runner's outer wall-clock race can mark the module "failed"
- * moments after generateFeedbackReport already wrote a clean report to disk
- * (issue #677 item 2, reproduced once on a 40-page crawl of tallrig.com —
- * the report said ALL CLEAR, the process still exited 1 with nothing in the
- * report explaining why). When this run produced no valid report at all
- * (the module never got that far before its own timeout), there is
- * genuinely nothing to derive a findings-based verdict from, so the
- * runner's own gate status is the only signal left.
+ * This run's own crawl data — the real report if `generateFeedbackReport`
+ * wrote one for this exact pid+origin+URL, or an honest "nothing was
+ * verified" fallback when the module's run() never got that far (its own
+ * outer wall-clock timeout fired first). Both the exit code and the
+ * `--format json` document are built from this SAME object, so they can
+ * never disagree (issue #677 item 2, reproduced once on a 40-page crawl of
+ * tallrig.com — the report said ALL CLEAR, the process still exited 1 with
+ * nothing anywhere explaining why, because the exit code used to come from
+ * the runner's generic module status instead of the report's findings).
  */
-function crawlExitCodeForRun(gatetest, url) {
+function crawlDataForRun(gatetest, url, maxPages) {
   const { jsonPath } = crawlReportPaths(gatetest.projectRoot, url);
   const data = readOwnCrawlJsonData(jsonPath, url);
-  if (data) return crawlExitCode(data);
-  const summary = gatetest._lastCrawlSummary;
-  return summary && summary.gateStatus === 'PASSED' ? 0 : 1;
+  if (data) return data;
+  return {
+    baseUrl: url, pagesScanned: 0, maxPages,
+    errors: [], brokenLinks: [], brokenImages: [], brokenScripts: [], brokenStylesheets: [],
+    timedOutPages: [], budgetExhausted: false,
+  };
 }
 
-async function runCrawl(gatetest, url, maxPages, authConfig = {}) {
+async function runCrawl(gatetest, url, maxPages, authConfig = {}, jsonMode = false) {
   // Inject crawl URL into config — merged over any .gatetest config so
   // file-based crawl settings (headers, cookie, thresholds) still apply
   gatetest.config.config.modules.liveCrawler = {
@@ -1475,13 +1511,32 @@ async function runCrawl(gatetest, url, maxPages, authConfig = {}) {
     ...authConfig,
   };
 
-  console.log(`\n[GateTest] Crawling ${url} (max ${maxPages} pages)...\n`);
+  // --format json: stdout is the one JSON document, so progress goes to
+  // stderr instead (same convention as the suite scan's jsonMode, and as
+  // --server below).
+  const log = jsonMode ? console.error : console.log;
+  log(`\n[GateTest] Crawling ${url} (max ${maxPages} pages)...\n`);
   const summary = await gatetest.runModule('liveCrawler');
   gatetest._lastCrawlSummary = summary;
 
-  printOwnCrawlReport(gatetest, url);
+  const data = crawlDataForRun(gatetest, url, maxPages);
+  const exitCode = crawlExitCode(data);
 
-  process.exit(crawlExitCodeForRun(gatetest, url));
+  if (jsonMode) {
+    const doc = {
+      url: data.baseUrl || url,
+      pagesScanned: data.pagesScanned || 0,
+      generatedAt: new Date().toISOString(),
+      result: crawlResultLabel(data),
+      exitCode,
+      findings: buildCrawlFindings(data),
+    };
+    process.stdout.write(`${JSON.stringify(doc)}\n`, () => process.exit(exitCode));
+    return;
+  }
+
+  printOwnCrawlReport(gatetest, url);
+  process.exit(exitCode);
 }
 
 async function runCrawlLoop(gatetest, url, maxPages, authConfig = {}) {
