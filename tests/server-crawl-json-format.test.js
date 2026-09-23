@@ -17,10 +17,10 @@ const { spawn } = require('node:child_process');
 
 const GATETEST_BIN = path.join(__dirname, '..', 'bin', 'gatetest.js');
 
-function runCli(args, { timeoutMs = 20000 } = {}) {
+function runCli(args, { timeoutMs = 20000, env } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [GATETEST_BIN, ...args], {
-      env: { ...process.env, GATETEST_NO_TELEMETRY: '1' },
+      env: { ...process.env, GATETEST_NO_TELEMETRY: '1', ...(env || {}) },
     });
     let stdout = '';
     let stderr = '';
@@ -93,6 +93,33 @@ describe('gatetest --server --format json (issue #677 item 1)', () => {
     }
   });
 
+  // ==========================================================================
+  // Regression — under GitHub Actions, ServerScanner never touches
+  // GateTestRunner/its reporters, so this documents that `--server` was
+  // never actually at risk from the annotation-emitter bug below (unlike
+  // `--crawl`, which runs through gatetest.runModule()) — a guard proving it
+  // stays that way, not a reproduction of a real failure.
+  // ==========================================================================
+  it('stdout is still exactly one JSON document under GITHUB_ACTIONS=true', async () => {
+    const server = await startServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><body>ok</body></html>');
+    });
+    const url = `http://127.0.0.1:${server.address().port}/`;
+
+    try {
+      const result = await runCli(['--server', url, '--format', 'json'], {
+        env: { GITHUB_ACTIONS: 'true', CI: 'true' },
+      });
+      let doc;
+      assert.doesNotThrow(() => { doc = JSON.parse(result.stdout); },
+        `stdout must be exactly one JSON document under GITHUB_ACTIONS=true.\nstdout:\n${result.stdout}`);
+      assert.equal(doc.target, url);
+    } finally {
+      server.close();
+    }
+  });
+
   it('without the flag, text output is unchanged (not JSON, still shows the new wording)', async () => {
     const server = await startServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -155,6 +182,54 @@ describe('gatetest --crawl --format json (issue #677 item 1)', () => {
     }
   });
 
+  // ==========================================================================
+  // Regression — CI failure on #697: under GitHub Actions, `gatetest
+  // --crawl --format json` printed `::notice ...` / `::group::` / `::endgroup::`
+  // workflow-command annotation lines on stdout, interleaved with the JSON
+  // document, because GithubAnnotationsReporter and CiSummaryReporter
+  // (auto-attached whenever GITHUB_ACTIONS=true — src/index.js) write
+  // straight to process.stdout.write and were never gated on `silent`, only
+  // ConsoleReporter was. Locally there is no GITHUB_ACTIONS env, so this
+  // never showed up outside CI. Fix: src/index.js now skips attaching both
+  // reporters when `silent` is set (the same contract ConsoleReporter
+  // already honoured), and jsonMode always constructs GateTest with
+  // `silent: true`. This test sets GITHUB_ACTIONS=true/CI=true so the
+  // annotation path is actually exercised on any OS, and would have failed
+  // to parse before the fix.
+  // ==========================================================================
+  it('stdout is still exactly one JSON document under GITHUB_ACTIONS=true (annotation reporters must not leak onto it)', async () => {
+    const server = await startServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><head><title>Home</title></head><body>a perfectly ordinary home page with plenty of visible text</body></html>');
+    });
+    const url = `http://127.0.0.1:${server.address().port}/`;
+    const fs = require('fs');
+    const os = require('os');
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-crawl-json-actions-'));
+
+    try {
+      const result = await runCli(
+        ['--crawl', url, '--project', projectRoot, '--crawl-max', '3', '--format', 'json'],
+        { env: { GITHUB_ACTIONS: 'true', CI: 'true' } },
+      );
+      assert.ok(!/::notice|::group|::endgroup|::error|::warning/.test(result.stdout),
+        `stdout must never carry a workflow-command annotation line.\nstdout:\n${result.stdout}`);
+      let doc;
+      assert.doesNotThrow(() => { doc = JSON.parse(result.stdout); },
+        `stdout must be exactly one JSON document under GITHUB_ACTIONS=true.\nstdout:\n${result.stdout}`);
+      assert.equal(doc.url, url);
+      assert.equal(doc.result, 'ALL CLEAR');
+      // The fix suppresses these reporters entirely in silent mode (the same
+      // contract ConsoleReporter already had) rather than rerouting them —
+      // stderr must not carry them either.
+      assert.ok(!/::notice|::group|::endgroup|::error|::warning/.test(result.stderr),
+        `annotation reporters are suppressed in silent mode, not redirected.\nstderr:\n${result.stderr}`);
+    } finally {
+      server.close();
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   it('without the flag, text output is unchanged (not JSON, still shows the markdown report)', async () => {
     const server = await startServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -170,6 +245,61 @@ describe('gatetest --crawl --format json (issue #677 item 1)', () => {
       assert.throws(() => JSON.parse(result.stdout), 'plain text output must not parse as JSON');
       assert.match(result.stdout, /ALL CLEAR/);
       assert.equal(result.code, 0);
+    } finally {
+      server.close();
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  // ==========================================================================
+  // Regression — a JSON document large enough to exceed a pipe's buffer
+  // (64KB on Linux) must still arrive complete on stdout.
+  //
+  // CI on Linux failed here: `process.stdout.write(doc, () => process.exit
+  // (code))` calls exit from inside the write's own callback, but a piped
+  // stdout is asynchronous on POSIX (synchronous only on Windows — this is
+  // documented Node.js behaviour, not a bug in the write itself), so the
+  // parent sometimes saw an EMPTY stream. This reproduces the failure mode
+  // with a document over 64KB; the fix (bin/gatetest.js) never calls
+  // process.exit() after a stdout write — it sets process.exitCode and lets
+  // the event loop drain, which cannot race the write on ANY platform. This
+  // test can't force the Linux-only async pipe timing on a Windows dev
+  // machine, but it does prove the document survives a large write intact,
+  // and CI on Linux exercises the exact race this was written for.
+  // ==========================================================================
+  it('a JSON document over 64KB (many broken images) still arrives complete on stdout', async () => {
+    const BROKEN_IMAGE_COUNT = 800; // ~120 bytes/finding once serialized => well over 64KB
+    const server = await startServer((req, res) => {
+      if (req.url === '/') {
+        const imgTags = Array.from({ length: BROKEN_IMAGE_COUNT }, (_, i) => `<img src="/img/${i}.png">`).join('');
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(`<html><head><title>Home</title></head><body>plenty of visible text on this page to avoid the blank-page check${imgTags}</body></html>`);
+        return;
+      }
+      res.writeHead(404);
+      res.end();
+    });
+    const url = `http://127.0.0.1:${server.address().port}/`;
+    const fs = require('fs');
+    const os = require('os');
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-crawl-json-large-'));
+
+    try {
+      const result = await runCli(
+        ['--crawl', url, '--project', projectRoot, '--crawl-max', '1', '--format', 'json'],
+        { timeoutMs: 60000 },
+      );
+      const stdoutBytes = Buffer.byteLength(result.stdout, 'utf8');
+      assert.ok(stdoutBytes > 65536, `expected stdout to exceed the 64KB pipe buffer, got ${stdoutBytes} bytes`);
+
+      let doc;
+      assert.doesNotThrow(() => { doc = JSON.parse(result.stdout); },
+        `a large document must still parse as exactly one complete JSON document (${stdoutBytes} bytes).\n` +
+        `stdout tail:\n${result.stdout.slice(-300)}`);
+      assert.equal(doc.findings.length, BROKEN_IMAGE_COUNT,
+        'every broken-image finding must survive the write, not just the ones that fit before a truncation point');
+      assert.equal(doc.exitCode, 1, 'broken images are hard findings and must fail the gate');
+      assert.equal(result.code, 1);
     } finally {
       server.close();
       fs.rmSync(projectRoot, { recursive: true, force: true });

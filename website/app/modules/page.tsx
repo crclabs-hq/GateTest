@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getModulesByCategory, getTotalModuleCount } from "../components/howitworks/module-slugs";
 import { SITE_URL } from "@/app/lib/site-url";
-import PageHero from "../components/site/PageHero";
-import Section from "../components/site/Section";
+import { Hero, Section, Card } from "../components/v2";
 
 export const metadata: Metadata = {
   title: `${getTotalModuleCount()} GateTest modules — one config, every QA check in 2026`,
@@ -52,37 +51,38 @@ export default function ModulesIndexPage() {
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }} />
 
-      <PageHero
-        eyebrow={`All ${total} modules`}
-        title={<>One scan. {total} modules. Every QA check unified.</>}
-        lede={
-          <>
-            GateTest runs {total} distinct checks against your codebase — security, infrastructure, accessibility, performance, code quality, AI-app safety, and more. Each module is the GateTest equivalent of a separate tool: Snyk, SonarQube, Semgrep, ESLint, hadolint, kube-score, axe, Lighthouse, and 20 more. One config, one bill.
-          </>
-        }
-        actions={
-          <>
-            <Link href="/#pricing" className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm">
-              See pricing &rarr;
-            </Link>
-            <Link href="/compare/snyk" className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm">
-              Compare to Snyk
-            </Link>
-          </>
-        }
-      />
+      <Section wrap={false}>
+        <div className="v2-wrap">
+          <Hero
+            kicker={`All ${total} modules`}
+            title={<>One scan. {total} modules. Every QA check unified.</>}
+            lede={
+              <>
+                GateTest runs {total} distinct checks against your codebase — security, infrastructure, accessibility, performance, code quality, AI-app safety, and more. Each module is the GateTest equivalent of a separate tool: Snyk, SonarQube, Semgrep, ESLint, hadolint, kube-score, axe, Lighthouse, and 20 more. One config, one bill.
+              </>
+            }
+            actions={
+              <>
+                <Link href="/#pricing" className="v2-btn v2-btn-primary">See pricing</Link>
+                <Link href="/compare/snyk" className="v2-btn">Compare to Snyk</Link>
+              </>
+            }
+          />
+        </div>
+      </Section>
 
-      <Section
-        lede="Click any module to see what it catches, example findings, pricing tiers it's included on, and how the AI auto-fix loop handles it."
-      >
+      <Section>
+        <p className="max-w-2xl text-[15px] leading-relaxed text-[var(--v2-muted)] mb-10">
+          Click any module to see what it catches, example findings, pricing tiers it&apos;s included on, and how the AI auto-fix loop handles it.
+        </p>
         <nav aria-label="Contents" className="flex flex-wrap gap-2 mb-14">
           {categories.map((cat) => (
             <a
               key={cat.id}
               href={`#${cat.id}`}
-              className="text-xs px-3 py-1.5 rounded-full border border-border bg-surface-light text-foreground-secondary hover:text-foreground hover:border-border-strong transition-colors"
+              className="v2-kicker !text-xs px-3 py-1.5 rounded-full border border-[var(--v2-line-strong)] hover:text-[var(--v2-fg)] hover:border-[var(--v2-fg)] transition-colors"
             >
-              {cat.title} <span className="text-muted ml-1">{cat.modules.length}</span>
+              {cat.title} <span className="ml-1">{cat.modules.length}</span>
             </a>
           ))}
         </nav>
@@ -92,32 +92,34 @@ export default function ModulesIndexPage() {
             <section key={cat.id} id={cat.id} className="scroll-mt-24">
               <div className="mb-6">
                 <div className="flex flex-wrap items-center gap-3 mb-2">
-                  <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{cat.title}</h2>
+                  <h2 className="v2-h2 !text-2xl sm:!text-3xl">{cat.title}</h2>
                   {cat.comingSoon && (
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border border-amber-400/40 bg-amber-400/10 text-warning font-mono">
+                    <span className="v2-kicker !text-[10px] uppercase px-2 py-0.5 rounded-full border border-[var(--v2-warn)]/40 text-[var(--v2-warn)]">
                       Coming soon
                     </span>
                   )}
                 </div>
-                <p className="text-foreground-secondary leading-relaxed max-w-3xl">{cat.blurb}</p>
+                <p className="text-[var(--v2-muted)] leading-relaxed max-w-3xl">{cat.blurb}</p>
                 {cat.comingSoon && (
-                  <p className="text-xs text-warning mt-2">{cat.comingSoon.reason}</p>
+                  <p className="text-xs text-[var(--v2-warn)] mt-2">{cat.comingSoon.reason}</p>
                 )}
-                <p className="text-xs text-muted mt-2">{cat.modules.length} module{cat.modules.length === 1 ? "" : "s"} in this category</p>
+                <p className="v2-kicker mt-2">{cat.modules.length} module{cat.modules.length === 1 ? "" : "s"} in this category</p>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {cat.modules.map((mod) => (
-                  <Link key={mod.slug} href={`/modules/${mod.slug}`} className="card block p-5">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="text-foreground font-semibold">{prettify(mod.name)}</div>
-                      {cat.comingSoon && (
-                        <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full border border-amber-400/40 bg-amber-400/10 text-warning font-mono">
-                          Soon
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs font-mono text-accent mb-2">{mod.name}</div>
-                    <div className="text-foreground-secondary text-sm leading-snug">{mod.description.slice(0, 130)}{mod.description.length > 130 ? "…" : ""}</div>
+                  <Link key={mod.slug} href={`/modules/${mod.slug}`}>
+                    <Card>
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="text-[var(--v2-fg)] font-semibold">{prettify(mod.name)}</div>
+                        {cat.comingSoon && (
+                          <span className="v2-kicker !text-[9px] uppercase px-1.5 py-0.5 rounded-full border border-[var(--v2-warn)]/40 text-[var(--v2-warn)]">
+                            Soon
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs v2-mono text-[var(--v2-accent)] mb-2">{mod.name}</div>
+                      <div className="text-[var(--v2-muted)] text-sm leading-snug">{mod.description.slice(0, 130)}{mod.description.length > 130 ? "…" : ""}</div>
+                    </Card>
                   </Link>
                 ))}
               </div>
@@ -125,20 +127,16 @@ export default function ModulesIndexPage() {
           ))}
         </div>
 
-        <section className="mt-20 rounded-2xl border border-accent/20 bg-accent/5 px-6 py-10 sm:p-12 text-center">
-          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-4">
+        <section className="mt-20 v2-card !border-[var(--v2-accent)] px-6 py-10 sm:p-12 text-center">
+          <h2 className="v2-h2 mb-4">
             {total} checks. One scan. From $29.
           </h2>
-          <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
+          <p className="text-[var(--v2-muted)] mb-8 max-w-xl mx-auto">
             Per-scan pricing, not per seat — one-time scans never auto-renew. AI auto-fix PR on the Scan + Fix and Forensic Scan tiers.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/#pricing" className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm">
-              See pricing &rarr;
-            </Link>
-            <Link href="/compare/snyk" className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm">
-              Compare to Snyk
-            </Link>
+            <Link href="/#pricing" className="v2-btn v2-btn-primary">See pricing</Link>
+            <Link href="/compare/snyk" className="v2-btn">Compare to Snyk</Link>
           </div>
         </section>
       </Section>
