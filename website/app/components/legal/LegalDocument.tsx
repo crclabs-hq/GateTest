@@ -42,7 +42,7 @@ export const LEGAL_NAV: { href: string; label: string }[] = [
   { href: "/trust", label: "Security & Trust" },
 ];
 
-const LINK = "text-accent-light hover:underline";
+const LINK = "text-[var(--v2-accent)] hover:underline";
 
 /** Minimal inline markup: **bold**, `code`, [text](href). No HTML. */
 export function inline(text: string): ReactNode[] {
@@ -83,7 +83,7 @@ function fmt(iso: string): string {
 
 function Block({ b }: { b: LegalBlock }) {
   if ("p" in b) return <p className="mt-2 first:mt-0">{inline(b.p)}</p>;
-  if ("h3" in b) return <h3 className="mt-4 font-semibold text-foreground">{inline(b.h3)}</h3>;
+  if ("h3" in b) return <h3 className="mt-4 font-semibold text-[var(--v2-fg)]">{inline(b.h3)}</h3>;
   if ("list" in b) {
     return (
       <ul className="mt-2 list-disc pl-5 space-y-1">
@@ -93,18 +93,16 @@ function Block({ b }: { b: LegalBlock }) {
   }
   return (
     <div className="mt-3 overflow-x-auto">
-      <table className="w-full text-xs border-collapse">
+      <table className="v2-table">
         <thead>
           <tr>
-            {b.table.headers.map((h, i) => (
-              <th key={i} className="text-left font-semibold text-foreground border-b border-border-strong py-2 pr-3">{h}</th>
-            ))}
+            {b.table.headers.map((h, i) => <th key={i}>{h}</th>)}
           </tr>
         </thead>
         <tbody>
           {b.table.rows.map((r, i) => (
-            <tr key={i} className="border-b border-border align-top">
-              {r.map((c, j) => <td key={j} className="py-2 pr-3">{inline(c)}</td>)}
+            <tr key={i}>
+              {r.map((c, j) => <td key={j}>{inline(c)}</td>)}
             </tr>
           ))}
         </tbody>
@@ -115,44 +113,42 @@ function Block({ b }: { b: LegalBlock }) {
 
 export default function LegalDocument({ doc, current }: { doc: LegalDoc; current: string }) {
   return (
-    <div className="px-6 py-12 sm:py-16">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">{doc.title}</h1>
-        <p className="text-sm text-muted mb-1">Effective date: {fmt(doc.effective)}</p>
-        {doc.updated && doc.updated !== doc.effective && (
-          <p className="text-sm text-muted mb-1">Last updated: {fmt(doc.updated)}</p>
-        )}
-        {doc.intro && <p className="text-sm text-muted mt-4 mb-6 leading-relaxed">{inline(doc.intro)}</p>}
+    <div className="v2-wrap-narrow py-12 sm:py-16">
+      <h1 className="v2-h1 !text-3xl sm:!text-4xl mb-2">{doc.title}</h1>
+      <p className="v2-kicker mb-1">Effective date: {fmt(doc.effective)}</p>
+      {doc.updated && doc.updated !== doc.effective && (
+        <p className="v2-kicker mb-1">Last updated: {fmt(doc.updated)}</p>
+      )}
+      {doc.intro && <p className="text-sm text-[var(--v2-muted)] mt-4 mb-6 leading-relaxed">{inline(doc.intro)}</p>}
 
-        <nav aria-label="Contents" className="mb-8 border border-border rounded p-4 text-xs">
-          <p className="font-semibold text-foreground mb-2">Contents</p>
-          <ol className="columns-1 sm:columns-2 gap-x-6 space-y-1 list-decimal pl-5 text-muted">
-            {doc.sections.map((s) => (
-              <li key={s.id}><a href={`#${s.id}`} className="hover:text-foreground">{s.heading}</a></li>
-            ))}
-          </ol>
-        </nav>
-
-        <div className="space-y-8 text-sm text-muted leading-relaxed">
-          {doc.sections.map((s, i) => (
-            <section key={s.id} id={s.id} className="scroll-mt-24">
-              <h2 className="text-lg font-semibold text-foreground mb-2">
-                <a href={`#${s.id}`} className="hover:underline">{i + 1}. {s.heading}</a>
-              </h2>
-              {s.body.map((b, j) => <Block key={j} b={b} />)}
-            </section>
+      <nav aria-label="Contents" className="mb-8 v2-callout">
+        <p className="font-semibold text-[var(--v2-fg)] mb-2">Contents</p>
+        <ol className="columns-1 sm:columns-2 gap-x-6 space-y-1 list-decimal pl-5 text-[var(--v2-muted)]">
+          {doc.sections.map((s) => (
+            <li key={s.id}><a href={`#${s.id}`} className="hover:text-[var(--v2-fg)]">{s.heading}</a></li>
           ))}
-        </div>
+        </ol>
+      </nav>
 
-        <nav aria-label="Legal documents" className="mt-12 pt-6 border-t border-border text-xs text-muted">
-          <p className="mb-2">Related policies</p>
-          <ul className="flex flex-wrap gap-x-4 gap-y-1">
-            {LEGAL_NAV.filter((n) => n.href !== current).map((n) => (
-              <li key={n.href}><Link href={n.href} className={LINK}>{n.label}</Link></li>
-            ))}
-          </ul>
-        </nav>
+      <div className="space-y-8 text-sm text-[var(--v2-muted)] leading-relaxed">
+        {doc.sections.map((s, i) => (
+          <section key={s.id} id={s.id} className="scroll-mt-24">
+            <h2 className="text-lg font-semibold text-[var(--v2-fg)] mb-2">
+              <a href={`#${s.id}`} className="hover:underline">{i + 1}. {s.heading}</a>
+            </h2>
+            {s.body.map((b, j) => <Block key={j} b={b} />)}
+          </section>
+        ))}
       </div>
+
+      <nav aria-label="Legal documents" className="mt-12 pt-6 border-t border-[var(--v2-line)] text-xs text-[var(--v2-muted)]">
+        <p className="mb-2">Related policies</p>
+        <ul className="flex flex-wrap gap-x-4 gap-y-1">
+          {LEGAL_NAV.filter((n) => n.href !== current).map((n) => (
+            <li key={n.href}><Link href={n.href} className={LINK}>{n.label}</Link></li>
+          ))}
+        </ul>
+      </nav>
     </div>
   );
 }
