@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export interface NumberItem {
+interface NumberItem {
   value: number;
   /** Text after the number, e.g. "+" or "%". */
   suffix?: string;
