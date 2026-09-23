@@ -9,9 +9,8 @@ import Link from "next/link";
 // Version + module count come from the generated stats, never typed here.
 // This demo line read "v1.59.0 — 121 modules" while the CLI printed v1.61.0.
 import siteStats from "../data/site-stats.json";
-import PageHero from "../components/site/PageHero";
-import Section from "../components/site/Section";
-import StatTiles from "../components/site/StatTiles";
+import { defaultStats } from "../components/site/StatTiles";
+import { Hero, Section, Card, Terminal } from "../components/v2";
 import CopyButton from "./CopyButton";
 
 const INSTALL_CMD = "curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integrations/scripts/install.sh | bash";
@@ -84,195 +83,192 @@ const TERMINAL_LINES = [
   { t: "sum",  text: "  3 issues · 2 errors · 1 warning · 8.3s" },
 ];
 
-const T_CLR: Record<string, string> = {
-  cmd:  "text-panel-foreground font-semibold",
-  info: "text-panel-muted",
-  pass: "text-emerald-400",
-  fail: "text-red-400",
-  err:  "text-red-300",
-  warn: "text-amber-300",
-  dim:  "text-panel-muted",
-  sum:  "text-panel-foreground font-semibold",
-  sep:  "block h-3",
+// Colour by v2 status token, not a Tailwind palette shade, so the terminal
+// reads correctly in both themes without its own overrides.
+const T_STYLE: Record<string, { color?: string; fontWeight?: number }> = {
+  cmd:  { color: "var(--v2-fg)", fontWeight: 600 },
+  info: { color: "var(--v2-muted)" },
+  pass: { color: "var(--v2-ok)" },
+  fail: { color: "var(--v2-bad)" },
+  err:  { color: "var(--v2-bad)" },
+  warn: { color: "var(--v2-warn)" },
+  dim:  {}, // .term-body's own dimmed default colour
+  sum:  { color: "var(--v2-fg)", fontWeight: 600 },
 };
 
-const PANEL = "rounded-xl bg-panel text-panel-foreground border border-panel-border overflow-hidden";
-const PANEL_HEAD = "flex items-center gap-1.5 px-4 py-3 border-b border-panel-border bg-panel-alt";
-const CMD_ROW = "rounded-lg bg-panel border border-panel-border px-4 py-3 font-mono text-xs flex items-center justify-between gap-3";
-
-function TerminalDots() {
-  return (
-    <>
-      <div className="w-3 h-3 rounded-full bg-danger/80" />
-      <div className="w-3 h-3 rounded-full bg-warning/80" />
-      <div className="w-3 h-3 rounded-full bg-success/80" />
-    </>
-  );
-}
+const CMD_ROW = "rounded-[var(--v2-radius-sm)] bg-[var(--v2-bg-alt)] border border-[var(--v2-line-strong)] px-4 py-3 font-mono text-xs flex items-center justify-between gap-3";
 
 export default function DevelopersPage() {
   const modules = siteStats.modules.total;
+  const stats = defaultStats();
   return (
     <main>
-      <PageHero
-        eyebrow={`${modules} modules · 6 tiers · pay per scan or subscribe`}
-        title={<>The QA gate<br />your CI is <span className="text-accent">missing.</span></>}
-        lede="GateTest catches the bug patterns that slip through code review — race conditions, money stored in floats, secrets past rotation, async-iteration footguns, CI supply-chain vectors. One gate. Real findings. Auto-fix PR on every failure."
-        actions={
-          <>
-            <Link href="/scan/preview" className="btn-cta px-6 py-3 text-sm font-semibold rounded-xl">Free preview scan →</Link>
-            <Link href="/github/setup" className="btn-secondary px-6 py-3 text-sm font-semibold rounded-xl">Install on GitHub</Link>
-          </>
-        }
-      >
-        <div className={`${PANEL} shadow-lg`}>
-          <div className={PANEL_HEAD}>
-            <TerminalDots />
-            <span className="ml-3 text-xs text-panel-muted font-mono">terminal</span>
-          </div>
-          <div className="p-5 font-mono text-xs space-y-1 overflow-x-auto">
-            {TERMINAL_LINES.map((l, i) =>
-              l.t === "sep" ? <div key={i} className="h-2" /> : (
-                <div key={i} className={`whitespace-pre ${T_CLR[l.t]}`}>{l.text}</div>
-              )
-            )}
-          </div>
+      <Section wrap={false}>
+        <div className="v2-wrap">
+          <Hero
+            kicker={`${modules} modules · 6 tiers · pay per scan or subscribe`}
+            title={<>The QA gate your CI is missing.</>}
+            lede="GateTest catches the bug patterns that slip through code review — race conditions, money stored in floats, secrets past rotation, async-iteration footguns, CI supply-chain vectors. One gate. Real findings. Auto-fix PR on every failure."
+            actions={
+              <>
+                <Link href="/scan/preview" className="v2-btn v2-btn-primary">Free preview scan</Link>
+                <Link href="/github/setup" className="v2-btn">Install on GitHub</Link>
+              </>
+            }
+          >
+            <div className="mt-10 max-w-2xl">
+              <Terminal label="gatetest scan --suite quick --diff" status={<span style={{ color: "var(--v2-bad)" }}>2 issues</span>}>
+                {TERMINAL_LINES.map((l, i) =>
+                  l.t === "sep" ? <div key={i} className="h-2" /> : (
+                    <div key={i} style={T_STYLE[l.t]}>{l.text}</div>
+                  )
+                )}
+              </Terminal>
+            </div>
+          </Hero>
         </div>
-      </PageHero>
-
-      <Section>
-        <StatTiles />
       </Section>
 
-      <Section alt title="What it catches" lede="The patterns code review misses because they're invisible in a diff.">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {CATCHES.map((c) => (
-            <div key={c.tag} className="card p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="font-semibold text-sm text-foreground">{c.title}</span>
-                <span className="ml-auto text-[10px] font-mono text-accent">{c.tag}</span>
-              </div>
-              <p className="text-xs text-muted leading-relaxed">{c.desc}</p>
+      <Section tight>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-10">
+          {stats.map((s) => (
+            <div key={s.label} className="v2-stat">
+              <div className="v2-stat-value v2-mono">{s.value}</div>
+              <div className="v2-stat-label">{s.label}</div>
+              {s.note && <div className="v2-stat-source v2-kicker">{s.note}</div>}
             </div>
           ))}
         </div>
-        <p className="mt-6 text-xs text-muted text-center">
+      </Section>
+
+      <Section>
+        <div className="v2-kicker mb-3">what it catches</div>
+        <h2 className="v2-h2 max-w-2xl">The patterns code review misses because they&apos;re invisible in a diff.</h2>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {CATCHES.map((c) => (
+            <Card key={c.tag}>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="font-semibold text-sm text-[var(--v2-fg)]">{c.title}</span>
+                <span className="ml-auto v2-mono text-[10px] text-[var(--v2-accent)]">{c.tag}</span>
+              </div>
+              <p className="text-xs text-[var(--v2-muted)] leading-relaxed">{c.desc}</p>
+            </Card>
+          ))}
+        </div>
+        <p className="mt-6 v2-kicker">
           + {modules - CATCHES.length} more modules across security, CI/CD, TypeScript, async patterns, and runtime correctness.
         </p>
       </Section>
 
-      <Section title="Try it on your own repo" lede="10 seconds, no signup.">
+      <Section>
+        <div className="v2-kicker mb-3">10 seconds, no signup</div>
+        <h2 className="v2-h2 mb-10">Try it on your own repo</h2>
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="card p-6 space-y-5">
+          <Card className="space-y-5">
             <div>
-              <p className="text-sm text-foreground-secondary mb-3">
+              <p className="text-sm text-[var(--v2-muted)] mb-3">
                 Public repos: paste your GitHub URL into the free preview scan.
               </p>
-              <Link href="/scan/preview" className="btn-cta inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl">
-                Open free preview →
-              </Link>
+              <Link href="/scan/preview" className="v2-btn v2-btn-primary">Open free preview</Link>
             </div>
-            <div className="border-t border-border pt-5">
-              <p className="text-sm text-foreground-secondary mb-3">
+            <div className="border-t border-[var(--v2-line)] pt-5">
+              <p className="text-sm text-[var(--v2-muted)] mb-3">
                 Any repo (public or private): install the CLI once, then scan locally.
               </p>
               <div className="space-y-2">
-                <div className={`${CMD_ROW} text-emerald-300`}>
-                  <span className="break-all"><span className="text-panel-muted">$ </span>{CLI_INSTALL_CMD}</span>
+                <div className={CMD_ROW} style={{ color: "var(--v2-ok)" }}>
+                  <span className="break-all"><span className="text-[var(--v2-muted)]">$ </span>{CLI_INSTALL_CMD}</span>
                   <CopyButton text={CLI_INSTALL_CMD} label="Copy" />
                 </div>
-                <div className={`${CMD_ROW} text-accent-light`}>
-                  <span><span className="text-panel-muted">$ </span>{SCAN_CMD}</span>
+                <div className={CMD_ROW} style={{ color: "var(--v2-accent)" }}>
+                  <span><span className="text-[var(--v2-muted)]">$ </span>{SCAN_CMD}</span>
                   <CopyButton text={SCAN_CMD} label="Copy" />
                 </div>
               </div>
-              <p className="mt-2 text-xs text-muted">
+              <p className="mt-2 v2-kicker">
                 Requires Node 20+. Scans in memory — code never leaves your machine.
               </p>
             </div>
-          </div>
+          </Card>
 
-          <div className="card p-6 space-y-5">
+          <Card className="space-y-5">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-mono text-muted">add to CI — 30 seconds</span>
-              <span className="text-xs font-mono text-accent">drops workflow + pre-push hook</span>
+              <span className="v2-kicker">add to CI — 30 seconds</span>
+              <span className="v2-mono text-xs text-[var(--v2-accent)]">drops workflow + pre-push hook</span>
             </div>
-            <p className="text-sm text-foreground-secondary">
+            <p className="text-sm text-[var(--v2-muted)]">
               One command adds a GitHub Actions workflow, pre-push hook, and protection marker. Works on any public or private repo.
             </p>
-            <div className={`${CMD_ROW} text-emerald-300 items-start`}>
+            <div className={CMD_ROW} style={{ color: "var(--v2-ok)", alignItems: "flex-start" }}>
               <span className="break-all">{INSTALL_CMD}</span>
               <CopyButton text={INSTALL_CMD} />
             </div>
-            <div className="grid sm:grid-cols-3 gap-3 text-xs text-muted">
+            <div className="grid sm:grid-cols-3 gap-3 v2-kicker">
               {[
                 { label: "Workflow added", desc: ".github/workflows/gatetest-gate.yml — runs quick scan on every PR" },
                 { label: "Pre-push hook", desc: ".husky/pre-push — advisory output before you push, CI is the gate" },
                 { label: "Protection marker", desc: ".gatetest.json — tells AI coding agents this repo is protected" },
               ].map((item) => (
-                <div key={item.label} className="rounded-lg section-alt border border-border p-3">
-                  <div className="font-semibold text-foreground mb-1">{item.label}</div>
+                <div key={item.label} className="rounded-[var(--v2-radius-sm)] border border-[var(--v2-line)] p-3">
+                  <div className="font-semibold text-[var(--v2-fg)] mb-1 normal-case">{item.label}</div>
                   <div>{item.desc}</div>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         </div>
       </Section>
 
-      <Section title="The exact CI workflow, and the MCP config" lede="Copy-paste — the same files README.md ships, comments included.">
+      <Section>
+        <div className="v2-kicker mb-3">copy-paste — the same files README.md ships, comments included</div>
+        <h2 className="v2-h2 mb-10">The exact CI workflow, and the MCP config</h2>
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="card p-6 space-y-4">
-            <p className="text-sm text-foreground-secondary">
+          <Card className="space-y-4">
+            <p className="text-sm text-[var(--v2-muted)]">
               The composite Action, recommended for most users. Both optional
               pieces say what happens without them, on the line each is on.
             </p>
-            <div className={PANEL}>
-              <div className={PANEL_HEAD}>
-                <span className="text-xs font-mono text-panel-muted">.github/workflows/gatetest.yml</span>
-                <span className="ml-auto"><CopyButton text={ACTION_YAML} label="Copy YAML" /></span>
-              </div>
-              <pre className="p-4 text-xs font-mono leading-relaxed overflow-x-auto whitespace-pre">
-                <code>{ACTION_YAML}</code>
-              </pre>
-            </div>
-          </div>
+            <Terminal
+              label=".github/workflows/gatetest.yml"
+              status={<CopyButton text={ACTION_YAML} label="Copy YAML" />}
+            >
+              <code>{ACTION_YAML}</code>
+            </Terminal>
+          </Card>
 
-          <div className="card p-6 space-y-4">
-            <p className="text-sm text-foreground-secondary">
+          <Card className="space-y-4">
+            <p className="text-sm text-[var(--v2-muted)]">
               Give your AI client the scanner, test runner and fix verifier as
               tools — free, runs on your machine and your own keys.
             </p>
-            <div className={`${CMD_ROW} text-accent-light items-start`}>
+            <div className={CMD_ROW} style={{ color: "var(--v2-accent)", alignItems: "flex-start" }}>
               <span className="break-all">{MCP_CONFIG}</span>
               <CopyButton text={MCP_CONFIG} />
             </div>
-            <p className="text-xs text-muted">
+            <p className="v2-kicker">
               Full tool list and the exact config line for your specific
-              client: <Link href="/mcp" className="text-accent hover:underline">/mcp</Link>.
+              client: <Link href="/mcp" className="text-[var(--v2-accent)] hover:underline">/mcp</Link>.
             </p>
-          </div>
+          </Card>
         </div>
       </Section>
 
-      <Section alt>
-        <div className="card p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+      <Section>
+        <Card className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
           <div className="flex-1">
-            <h3 className="font-display font-semibold text-foreground mb-1">Private repos — install the GitHub App</h3>
-            <p className="text-sm text-muted">
+            <h3 className="font-semibold text-[var(--v2-fg)] mb-1">Private repos — install the GitHub App</h3>
+            <p className="text-sm text-[var(--v2-muted)]">
               One click. Auto-scans every push and PR. Results posted as commit statuses and PR comments.
               The App is in private beta today — the curl | bash workflow above and the GitHub Action on the Marketplace run the same gate in your own CI now.
             </p>
           </div>
-          <Link href="/github/setup" className="btn-secondary shrink-0 px-5 py-2.5 text-sm font-semibold rounded-xl whitespace-nowrap">
-            Install GitHub App →
-          </Link>
-        </div>
-        <div className="text-center mt-12">
-          <Link href="/precision" className="text-sm text-accent hover:underline">
+          <Link href="/github/setup" className="v2-btn shrink-0 whitespace-nowrap">Install GitHub App</Link>
+        </Card>
+        <p className="text-center mt-12">
+          <Link href="/precision" className="text-sm text-[var(--v2-accent)] hover:underline">
             Measured on real repositories — see the precision numbers →
           </Link>
-        </div>
+        </p>
       </Section>
     </main>
   );

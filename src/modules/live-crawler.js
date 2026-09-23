@@ -211,6 +211,11 @@ class LiveCrawlerModule extends BaseModule {
       errors: collectors.errors,
       brokenLinks: collectors.brokenLinks,
       brokenImages: collectors.brokenImages,
+      // Included so the report — and the exit code derived from it
+      // (crawlExitCode, issue #677 item 2) — cover every error-severity
+      // finding this module can raise, not just links/images.
+      brokenScripts: collectors.brokenScripts,
+      brokenStylesheets: collectors.brokenStylesheets,
       redirects: collectors.redirects,
       timedOutPages: collectors.timedOutPages,
       budgetExhausted: collectors.budgetExhausted,
