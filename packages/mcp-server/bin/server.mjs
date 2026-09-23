@@ -20,6 +20,44 @@
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+
+// `--help` / `--version` must exit before anything below resolves or starts
+// the real server: a stdio MCP server that never printed a version or a
+// usage line is indistinguishable from a broken one when a human runs it by
+// hand (39s of silence, then a silent `exit 0` on EOF — precisely what
+// GateTest issue #679 reported). Both print to STDOUT (this is the one
+// window where that's correct — the JSON-RPC transport is never attached in
+// this branch) and exit 0 without importing @gatetest/cli at all.
+const flags = process.argv.slice(2);
+if (flags.includes('--version') || flags.includes('-v')) {
+  const pkgPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
+  const { version } = JSON.parse(readFileSync(pkgPath, 'utf8'));
+  process.stdout.write(`${version}\n`);
+  process.exit(0);
+}
+if (flags.includes('--help') || flags.includes('-h')) {
+  process.stdout.write(`GateTest MCP server — stdio transport for AI coding agents.
+
+This process speaks JSON-RPC over stdio; it is meant to be launched by an
+MCP client, not run interactively. Add it to one with:
+
+  claude mcp add gatetest -- npx -y @gatetest/mcp-server
+
+Or in an MCP client's config file:
+
+  { "mcpServers": { "gatetest": { "command": "npx", "args": ["-y", "@gatetest/mcp-server"] } } }
+
+Usage:
+  npx -y @gatetest/mcp-server            Start the server (stdio, no output until a client connects)
+  npx -y @gatetest/mcp-server --help     Show this help and exit
+  npx -y @gatetest/mcp-server --version  Print the version and exit
+
+Tool list and setup: https://gatetest.io/mcp
+`);
+  process.exit(0);
+}
 
 // Use import.meta.resolve so Node's module resolution finds @gatetest/cli
 // correctly whether npm hoists it (global install) or nests it (local install).

@@ -42,7 +42,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write   # the PR summary comment, inline suggestions, auto-repair PRs
+      # Optional: powers the PR summary comment, inline suggestions and
+      # auto-repair PRs. Without it the gate still runs and blocks on
+      # findings — the comment and suggestions are skipped, with a warning
+      # in the log, and no PR opens even if auto-fix finds something to fix.
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: crclabs-hq/GateTest@v1
@@ -50,6 +54,8 @@ jobs:
           suite: full
           auto-fix: ${{ github.event_name == 'pull_request' }}
         env:
+          # Optional: unlocks auto-fix and AI review. Without it the gate
+          # still runs and blocks on findings — CI just doesn't open a fix PR.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
@@ -76,10 +82,7 @@ npm install -g @gatetest/cli
 gatetest --suite quick
 
 # Or run against the current directory with no install:
-npx -p @gatetest/cli gatetest --suite quick
-# (bare `npx @gatetest/cli --suite quick` needs the `cli` bin, which ships in
-#  1.61.1 — the release on npm today, 1.61.0, answers "could not determine
-#  executable to run"; the -p form works on every version)
+npx --yes @gatetest/cli --suite quick
 
 # Or clone and run from source:
 git clone https://github.com/crclabs-hq/GateTest
@@ -216,8 +219,7 @@ On any other CI — Jenkins, Buildkite, Bitbucket, Drone — the CLI is the whol
 integration:
 
 ```bash
-npx -p @gatetest/cli gatetest --suite full --junit --sarif
-# (bare `npx @gatetest/cli …` works once 1.61.1 is on npm; -p works on every version)
+npx --yes @gatetest/cli --suite full --junit --sarif
 ```
 
 Onboarding an existing codebase? Pair this with **baseline mode** above so the gate
@@ -287,17 +289,20 @@ There is no licence server and no account; nothing expires.
 
 Every release tag and every push to `main` publishes an image to GitHub Container
 Registry: `ghcr.io/crclabs-hq/gatetest` (`1.61.1`, `1.61`, `1`, `latest` for
-releases; `main` and `sha-<short>` for main). It is the gatetest.io website plus
-the sandbox worker, with the scan engine bundled in at `/app` — the image
-`docker compose up` runs, not a CLI wrapper. Its default command serves the site
-on port 3000:
+releases; `main` and `sha-<short>` for main). It is primarily the gatetest.io
+website plus the sandbox worker — the image `docker compose up` runs — but the
+scan engine ships in the same image at `/app`, so `docker run` with CLI-flag
+arguments (anything starting with `-`) runs a scan instead: no npm install, no
+second image. With no arguments it falls through to its default command, which
+serves the site on port 3000:
 
 ```bash
-# Self-host the site + API (needs the env from docs/ops/docker.md; /api/health answers without it):
-docker run --rm -p 3000:3000 --env-file .env.local ghcr.io/crclabs-hq/gatetest
+# Run the bundled CLI against a repo on the host, no npm install — CLI-flag
+# arguments dispatch to the scan engine, not the website:
+docker run --rm -v "$PWD:/repo" ghcr.io/crclabs-hq/gatetest:1.61.1 --project /repo --suite quick
 
-# Run the bundled CLI against a repo on the host, no npm install:
-docker run --rm -v "$PWD":/repo -w /repo ghcr.io/crclabs-hq/gatetest node /app/bin/gatetest.js --suite quick
+# Self-host the site + API instead (needs the env from docs/ops/docker.md; /api/health answers without it):
+docker run --rm -p 3000:3000 --env-file .env.local ghcr.io/crclabs-hq/gatetest
 
 # Pin a release instead of the moving tags:
 docker pull ghcr.io/crclabs-hq/gatetest:1.61.1
