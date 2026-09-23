@@ -54,147 +54,15 @@ interface WpFinding {
   ruleKey: string;
 }
 
-/**
- * Translate a raw module-finding message into customer-facing copy.
- * Maps module rule keys to plain-English title + body. Falls back to
- * the raw message if no mapping exists (so new modules surface
- * something rather than silently dropping their findings).
- */
-function translateFinding(check: {
-  name: string;
-  severity?: string;
-  message?: string;
-}): WpFinding | null {
-  const sev = (check.severity || "info").toLowerCase();
-  if (sev !== "error" && sev !== "warning" && sev !== "info") return null;
-  if (sev === "info" || check.message?.startsWith("wp-exposed-files: probed")) {
-    // Drop module-summary chatter from the customer report
-    return null;
-  }
-
-  // Module-prefix-based titling — keeps WP findings clear of the generic
-  // module noise.
-  const name = check.name;
-  let title = check.message || name;
-  let body = check.message || "";
-  let module = "general";
-
-  if (name.startsWith("wp-exposed-files:found:")) {
-    const file = name.replace("wp-exposed-files:found:", "");
-    module = "wpExposedFiles";
-    title = `Sensitive file exposed: ${file}`;
-    body =
-      `Anyone on the internet can read \`${file}\` by visiting it directly. ` +
-      `Most attackers scan for these specific files within minutes of a new domain going live.` +
-      `\n\nWhat to do: log in to your hosting control panel (cPanel / Plesk / SSH) and delete the file. ` +
-      `If it's needed for development, move it OUTSIDE the public webroot.`;
-  } else if (name.startsWith("wp-version-leak:")) {
-    module = "wpVersionLeak";
-    title = "WordPress version is publicly visible";
-    body =
-      (check.message || "") +
-      `\n\nWhy this matters: when an attacker knows your exact WordPress version, ` +
-      `they can match it against the public CVE database and find known exploits in minutes. ` +
-      `Hiding the version doesn't fix the underlying CVE, but it does mean you're not the easy target.`;
-  } else if (name === "wp-xmlrpc:pingback-available") {
-    module = "wpXmlrpcExposed";
-    title = "Your site can be used as a DDoS weapon";
-    body =
-      (check.message || "") +
-      `\n\nThis is the worst-case xmlrpc.php configuration: pingback.ping is enabled, ` +
-      `which lets a third party tell your server to make HTTP requests to ANY other site. ` +
-      `Attackers chain dozens of WordPress sites with this flaw to overwhelm a single target.`;
-  } else if (name === "wp-xmlrpc:exposed") {
-    module = "wpXmlrpcExposed";
-    title = "XML-RPC is enabled (legacy login interface)";
-    body = check.message || "";
-  } else if (name.startsWith("web-headers:")) {
-    module = "webHeaders";
-    title = "Missing security header";
-    body =
-      (check.message || "") +
-      `\n\nFix: add the header in your nginx config, .htaccess, or via a security plugin (e.g. Really Simple SSL).`;
-  } else if (name.startsWith("tls-")) {
-    module = "tlsSecurity";
-    title = "HTTPS / TLS misconfiguration";
-    body = check.message || "";
-  } else if (name.startsWith("cookie-")) {
-    module = "cookieSecurity";
-    title = "Cookie hardening missing";
-    body = check.message || "";
-  } else if (name.startsWith("accessibility:") || name.includes("a11y")) {
-    module = "accessibility";
-    title = "Accessibility issue";
-    body = check.message || "";
-  } else if (name.startsWith("seo:")) {
-    module = "seo";
-    title = "SEO issue";
-    body = check.message || "";
-  } else if (name.startsWith("links:") || name.startsWith("broken-link")) {
-    module = "links";
-    title = "Broken link / image";
-    body = check.message || "";
-  } else if (name === "crawl:broken-links" || name === "crawl:broken-images") {
-    module = "liveCrawler";
-    title = name === "crawl:broken-images" ? "Broken image(s) on your site" : "Broken link(s) on your site";
-    body = (check.message || "") + `\n\nVisitors clicking these get a 404 — bad for conversion and SEO.`;
-  } else if (name === "crawl:broken-scripts") {
-    module = "liveCrawler";
-    title = "Broken JavaScript bundle";
-    body = (check.message || "") + `\n\nWhen a JS file 404s, the features depending on it silently break for real users.`;
-  } else if (name === "crawl:broken-stylesheets") {
-    module = "liveCrawler";
-    title = "Broken stylesheet";
-    body = (check.message || "") + `\n\nVisitors see unstyled HTML until the file falls back — or permanently if the file never loads.`;
-  } else if (name === "crawl:missing-meta-description") {
-    module = "liveCrawler";
-    title = "Pages missing meta description";
-    body = (check.message || "") + `\n\nGoogle's snippet text uses your meta description. Without one, click-through rate suffers.`;
-  } else if (name === "crawl:missing-canonical") {
-    module = "liveCrawler";
-    title = "Pages missing canonical link";
-    body = (check.message || "") + `\n\nWithout a canonical, multiple URLs are indexed as separate pages — diluting SEO authority.`;
-  } else if (name === "crawl:slow-pages") {
-    module = "liveCrawler";
-    title = "Slow-loading pages";
-    body = (check.message || "") + `\n\nReal users bounce when TTFB exceeds ~2.5 seconds.`;
-  } else if (name === "crawl:anchor-missing-target") {
-    module = "liveCrawler";
-    title = "Anchor links pointing at non-existent targets";
-    body = (check.message || "") + `\n\nA visitor clicks the link and nothing happens.`;
-  } else if (name === "crawl:duplicate-titles") {
-    module = "liveCrawler";
-    title = "Duplicate page titles";
-    body = (check.message || "") + `\n\nBrowser tabs become indistinguishable and Google de-prioritises duplicated content.`;
-  } else if (name === "crawl:sitemap-missing") {
-    module = "liveCrawler"; title = "No sitemap.xml found"; body = check.message || "";
-  } else if (name === "crawl:robots-missing") {
-    module = "liveCrawler"; title = "No robots.txt found"; body = check.message || "";
-  } else if (name === "crawl:favicon-missing") {
-    module = "liveCrawler"; title = "No favicon found"; body = check.message || "";
-  } else if (name.startsWith("crawl:error:")) {
-    module = "liveCrawler";
-    const errType = name.replace("crawl:error:", "");
-    title = `Site issue detected: ${errType.replace(/-/g, " ")}`;
-    body = check.message || "";
-  } else if (name.startsWith("performance:")) {
-    module = "performance";
-    title = "Performance issue";
-    body = check.message || "";
-  } else {
-    // Unmapped finding — surface raw but lightly cleaned
-    title = (check.message || name).split(":").slice(0, 2).join(":");
-    body = check.message || `Raw finding key: ${name}`;
-  }
-
-  return {
-    severity: sev as "error" | "warning" | "info",
-    title,
-    body,
-    module,
-    ruleKey: name,
-  };
-}
+// Doctrine #4 (one definition, imported) / issue #695: translateFinding
+// used to be a per-route copy (with its own WordPress-specific branches
+// and missing the #687 cross-browser branch); it now lives in
+// scan-finding-translate.js and is imported by all four hosted scan
+// routes (web + wp, JSON + stream), WP branches included.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { translateFinding } = require("@/app/lib/scan-finding-translate") as {
+  translateFinding: (check: { name: string; severity?: string; message?: string }) => WpFinding | null;
+};
 
 export async function POST(req: NextRequest) {
   const _rlWpScan = await _wpScanLimiter.guard(req);
@@ -290,20 +158,35 @@ export async function POST(req: NextRequest) {
 
   let summary: { results?: Array<{ module?: string; name?: string; checks?: Array<{ name: string; severity?: string; passed: boolean; message?: string }>; errors?: number; warnings?: number; info?: number; duration?: number; skipped?: string }>; gateStatus?: string; totalErrors?: number; totalWarnings?: number };
 
+  // ONE shared fetch (issue #643) and ONE shared definition (issue #681
+  // item 1 / #695) of how it's wired onto the engine —
+  // `website/app/lib/live-scan-config.js` — now used by ALL FOUR hosted
+  // scan routes, not just the two web ones. Before this fix this route
+  // built its own config wiring by hand and never fetched the page once
+  // for webHeaders/seo/accessibility/cookieSecurity to read via
+  // `config.livePage`, so those modules reported not-checked on a wp scan
+  // where the equivalent web scan of the same URL had them checked.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { fetchLivePage, applyLiveScanConfig } = require("@/app/lib/live-scan-config") as {
+    fetchLivePage: (targetUrl: string, opts?: { timeoutMs?: number }) => Promise<{ url: string; status: number; headers: Headers; html: string } | null>;
+    applyLiveScanConfig: (
+      gt: { config: ({ set?: (k: string, v: unknown) => void; data?: Record<string, unknown> } & Record<string, unknown>) | undefined | null },
+      args: { targetUrl: string; livePage?: { url: string; status: number; headers: Headers; html: string } | null }
+    ) => void;
+  };
+  const livePage = await fetchLivePage(targetUrl);
+
   try {
     const gt = new GateTest(workspace, { silent: true });
     gt.init();
-    // Inject the target URL into the runtime config the WP modules read.
-    // The CLI's GateTestConfig has a `data` object that modules pull from.
-    if (gt.config && typeof gt.config === "object") {
-      // Different config implementations expose data differently; try both.
-      if (typeof (gt.config as { set?: (k: string, v: unknown) => void }).set === "function") {
-        (gt.config as { set: (k: string, v: unknown) => void }).set("targetUrl", targetUrl);
-        (gt.config as { set: (k: string, v: unknown) => void }).set("wpUrl", targetUrl);
-      } else if ((gt.config as { data?: Record<string, unknown> }).data) {
-        (gt.config as { data: Record<string, unknown> }).data.targetUrl = targetUrl;
-        (gt.config as { data: Record<string, unknown> }).data.wpUrl = targetUrl;
-      }
+    applyLiveScanConfig(gt, { targetUrl, livePage });
+    // wpUrl is a WP-module-only fallback (src/modules/wp-*.js reads
+    // config.targetUrl first, config.wpUrl second) kept for back-compat;
+    // applyLiveScanConfig itself only knows about targetUrl/webUrl/livePage.
+    if (gt.config && typeof (gt.config as { set?: (k: string, v: unknown) => void }).set === "function") {
+      (gt.config as { set: (k: string, v: unknown) => void }).set("wpUrl", targetUrl);
+    } else if (gt.config && (gt.config as { data?: Record<string, unknown> }).data) {
+      (gt.config as { data: Record<string, unknown> }).data.wpUrl = targetUrl;
     }
     summary = (await gt.init().runSuite("wp")) as typeof summary;
   } catch (err) {
