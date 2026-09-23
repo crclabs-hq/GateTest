@@ -943,6 +943,15 @@ html {
   border-radius: var(--v2-radius-lg);
   background: var(--v2-bg-alt);
   padding: 24px;
+  /* min-width: 0 — a Card is almost always a flex or grid item (a card
+     grid), and a flex/grid item's default min-width is "auto" (its
+     content's min-content size), not 0. A card holding a wide-but-
+     scrollable block (a <Terminal>, a code sample) can otherwise force
+     itself, and the whole grid row, wider than the viewport at 375px even
+     though that block has its own overflow-x: auto — the same class of bug
+     .v2-wrap/.v2-wrap-narrow were fixed for. See the /developers regression
+     this shipped with (the new "exact CI workflow" section's YAML block). */
+  min-width: 0;
   transition: border-color var(--v2-motion-fast) ease;
 }
 .v2-card:hover { border-color: var(--v2-accent); }
