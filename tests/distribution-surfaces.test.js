@@ -101,10 +101,16 @@ describe('distribution surfaces: every listed channel points somewhere real', ()
     assert.ok(!/\b1[0-9]{2}[- ]module/.test(SRC), 'a typed three-digit module count');
   });
 
-  it('the nav and the homepage import from the one definition', () => {
+  it('the nav imports from the one definition; the promoted v2 homepage (#686 phase 3) summarises where it runs in its own Runs table', () => {
+    // HomeEverywhere (and its SURFACES-derived heading, checked above) is no
+    // longer rendered on the homepage as of the v2 promotion — it is kept as
+    // a file-level fixture for the two `it`s above and listed as a PR
+    // follow-up. The new homepage's own "where it runs" section (Runs.tsx)
+    // is a separate, hand-written table rather than a SURFACES import; that
+    // predates this change (shipped with #712) and is not this test's claim.
     const nav = fs.readFileSync(path.join(ROOT, 'website', 'app', 'components', 'site-nav.ts'), 'utf8');
     assert.match(nav, /from "\.\.\/lib\/distribution"/);
     const page = fs.readFileSync(path.join(ROOT, 'website', 'app', 'page.tsx'), 'utf8');
-    assert.match(page, /<HomeEverywhere \/>/);
+    assert.match(page, /<Runs \/>/);
   });
 });
