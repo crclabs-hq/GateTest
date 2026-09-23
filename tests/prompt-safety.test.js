@@ -135,6 +135,42 @@ describe('PromptSafetyModule — browser-exposed API keys', () => {
       undefined,
     );
   });
+
+  // #713 (Tallrig round five, item 2): the rule used to key on nothing but
+  // the `PUBLIC_`-prefixed, keyish-suffixed identifier shape, which fired on
+  // `apps/api/src/secrets/secret-key-guard.ts` — a boot guard whose
+  // `PUBLIC_DEFAULT_SECRET` constant is only ever compared against an
+  // incoming secret and rejected, never read from a client-bundled env var
+  // and never sent anywhere. Control pair from the issue.
+  it('does NOT flag a PUBLIC_*-shaped constant only ever compared against and rejected (#713)', async () => {
+    write(tmp, 'apps/api/src/secrets/secret-key-guard.ts', [
+      'import OpenAI from "openai";',
+      'export const PUBLIC_DEFAULT_SECRET = "vapron-default-key-change-me";',
+      'export function checkSecret(secret) {',
+      '  if (secret === PUBLIC_DEFAULT_SECRET) return { ok: false, reason: "SESSION_SECRET is the public default value" };',
+      '  return { ok: true };',
+      '}',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    assert.strictEqual(
+      r.checks.find((c) => c.name.startsWith('prompt-safety:public-api-key:')),
+      undefined,
+    );
+  });
+
+  it('DOES flag a PUBLIC_*-shaped constant passed to a request header (#713 control pair)', async () => {
+    write(tmp, 'src/gateway.js', [
+      'import OpenAI from "openai";',
+      'const PUBLIC_API_KEY = "sk-live-abc123";',
+      'fetch(url, { headers: { Authorization: PUBLIC_API_KEY } });',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name.startsWith('prompt-safety:public-api-key:'));
+    assert.ok(hit, 'expected public-api-key finding');
+    assert.strictEqual(hit.match, 'PUBLIC_API_KEY');
+  });
 });
 
 describe('PromptSafetyModule — max_tokens', () => {
