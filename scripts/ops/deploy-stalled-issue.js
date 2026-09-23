@@ -2,35 +2,24 @@
 'use strict';
 
 /**
- * deploy-stalled-issue — the "Production deploy stalled" GitHub issue
- * (issue #706 part 2).
+ * deploy-stalled-issue — upserts the one "Production deploy stalled" GitHub
+ * issue (issue #706 part 2).
  *
- * Why this exists: production sat on one commit for 16 hours while main
- * moved ten merges ahead. `.github/workflows/deploy-box.yml`'s poll job
- * failed nine times in a row from 02:13Z and nothing told anyone — a red
- * job nobody opens the Actions tab for is not a signal (the same lesson
- * `deploy-drift` learned in that same workflow's `verify` job, which this
- * deliberately does NOT replace: `deploy-drift` answers "is the live
- * commit behind main"; this answers "is the box's OWN pull-deploy.sh
- * reporting failure", using the reason it already wrote to its status file
- * — a narrower, more specific signal that survives even when the live
- * commit still looks fresh).
+ * Why: production sat on one commit for 16 hours while main moved ten merges
+ * ahead; deploy-box.yml's poll job failed nine times and nothing told anyone.
+ * `deploy-drift` (same workflow, verify job) answers "is the live commit
+ * behind main"; this answers "is the box's OWN pull-deploy.sh reporting
+ * failure", from the reason it wrote to its status file — a narrower signal
+ * that survives even when the live commit still looks fresh.
  *
- * Same shape as scripts/post-tracking-issues.js: idempotent upsert against
- * one issue (marker in an HTML comment, never a second one opened), plain
- * REST calls with an injectable `fetchImpl` so tests never touch the
- * network, and a thin CLI at the bottom using the real `fetch` + env vars
- * when run directly from a workflow step. Every entry point is best-effort
- * — a problem managing the ISSUE must never fail the workflow step that
- * already knows the deploy state; that verdict comes from elsewhere
- * (poll-pull-deploy's own exit code, the readiness probe's exit code).
+ * Shape: same as scripts/post-tracking-issues.js — idempotent upsert on one
+ * issue (HTML-comment marker, never a second issue), plain REST with an
+ * injectable `fetchImpl` so tests never touch the network, thin CLI at the
+ * bottom. Every entry point is best-effort: a problem managing the ISSUE never
+ * fails the workflow step that already knows the deploy state.
  *
- * Called from:
- *   - .github/workflows/deploy-box.yml, poll-pull-deploy job (on the box
- *     missing a merge, and again once it catches up)
- *   - .github/workflows/readiness-probe.yml, when deploy/fresh is CRITICAL
- *     (#700) — the same signal reaching the same issue from a second source
- *     that runs on a schedule rather than only on push.
+ * Called from deploy-box.yml (poll-pull-deploy: missed merge, then catch-up)
+ * and readiness-probe.yml (deploy/fresh CRITICAL, #700).
  */
 
 const GITHUB_API = 'https://api.github.com';

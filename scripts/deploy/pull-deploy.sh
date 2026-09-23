@@ -195,9 +195,14 @@ fi
 FETCH_LOG="$STATUS_FILE.fetch-log.$$"
 FETCH_RC=0
 GIT_TERMINAL_PROMPT=0 git fetch origin main 2>"$FETCH_LOG" || FETCH_RC=$?
-cat "$FETCH_LOG" >&2 2>/dev/null || true
+# Show git's own stderr on ours. Inside an `if` so a failure to print it is
+# reported, never swallowed (bashSafety pipe-true / devnull-swallow).
+if [ -s "$FETCH_LOG" ]; then
+  if ! cat "$FETCH_LOG" >&2; then echo "[pull-deploy] WARNING: could not print $FETCH_LOG" >&2; fi
+fi
 if [ "$FETCH_RC" -ne 0 ]; then
-  FETCH_FIRST_LINE="$(head -n1 "$FETCH_LOG" 2>/dev/null || true)"
+  FETCH_FIRST_LINE=""
+  if ! FETCH_FIRST_LINE="$(head -n1 "$FETCH_LOG" 2>/dev/null)"; then FETCH_FIRST_LINE=""; fi
   rm -f "$FETCH_LOG" 2>/dev/null
   fail "git fetch failed: ${FETCH_FIRST_LINE:-git fetch exited $FETCH_RC with no output on stderr}"
 fi

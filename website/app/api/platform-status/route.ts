@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import buildInfo from "@/app/data/build-info.json";
 import { siblingUrlMap } from "@/app/lib/platform-siblings";
 
-// CommonJS interop — helper is .js using require-style exports.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const tallrigPushEventStore = require("@/app/lib/tallrig-push-event-store");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pullDeployStatus = require("@/app/lib/pull-deploy-status");
+// Both helpers are CommonJS .js modules (shared with scripts/ outside the
+// Next app); a namespace import gives the bundler interop without an inline
+// lint disable.
+import * as tallrigPushEventStore from "@/app/lib/tallrig-push-event-store";
+import * as pullDeployStatus from "@/app/lib/pull-deploy-status";
 
 // Build-time stamp (website `prebuild` runs scripts/generate-build-info.js).
 // Env still wins if a deploy platform injects its own; otherwise the real git
@@ -42,16 +42,12 @@ export async function GET() {
   }
 
   // The box's own deploy status (issue #706) — scripts/deploy/pull-deploy.sh
-  // writes this on every tick. readLastPullDeploy() never throws (a missing
-  // or unreadable file is reported as `result: "unknown"`), but the try/catch
-  // stays for the same reason as lastTallrigDeploy above: a store this route
-  // doesn't own must never turn a healthy response into a 500.
-  let lastPullDeploy = { result: "unknown", reason: "status file not readable" };
-  try {
-    lastPullDeploy = pullDeployStatus.readLastPullDeploy();
-  } catch {
-    // not checked — see comment above.
-  }
+  // writes this on every tick. readLastPullDeploy() is contracted never to
+  // throw (a missing, unreadable or malformed file comes back as
+  // `result: "unknown"` with the reason; tests/pull-deploy-status.test.js
+  // proves each case), so no catch is needed here — a catch that could only
+  // hold a comment would hide a broken contract instead of handling it.
+  const lastPullDeploy = pullDeployStatus.readLastPullDeploy();
 
   return NextResponse.json(
     {
