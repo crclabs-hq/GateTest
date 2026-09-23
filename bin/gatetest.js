@@ -241,8 +241,16 @@ const HELP = `
     --doctor-quick     Same but skips the live AI provider API ping (offline mode)
     --version, -v      Show version
 
-    --server <url>     Scan a live server: SSL, headers, DNS, performance
-    --crawl <url>      Crawl a live website and test every page
+    --server <url>     Scan a live server: SSL, headers, DNS, performance.
+                       Exit code follows severity: errors fail the gate,
+                       warnings alone do not unless --strict is also given.
+    --crawl <url>      Crawl a live website and test every page. The exit
+                       code comes only from this run's own report: broken
+                       links/images/scripts/stylesheets and page errors
+                       always fail; a page that timed out or was skipped by
+                       the crawl budget only fails once the not-checked
+                       share of pages exceeds 20% (the report always says
+                       "N pages not checked (reason)" either way).
     --crawl-loop <url> Crawl, report failures, wait for fixes, repeat until clean
     --crawl-max <n>    Max pages to crawl (default: 100)
     --crawl-page-timeout <ms>  Per-page fetch budget (default: 15000). A
@@ -720,8 +728,16 @@ async function main() {
           console.log(`      ${color}${d}\x1b[0m`);
         }
       }
-      console.log(`\n  ${result.totalIssues === 0 ? '\x1b[32mSERVER: CLEAN\x1b[0m' : `\x1b[33mSERVER: ${result.totalIssues} ISSUES\x1b[0m`} — ${result.totalChecks} checks, ${result.duration}ms\n`);
-      process.exit(result.totalIssues === 0 ? 0 : 1);
+      // Severity-based gate (issue #677 item 3): `result.totalIssues`
+      // conflated errors and warnings into one count, so a single warning
+      // (e.g. a CSP 'unsafe-inline' warning) failed the gate the same way
+      // an SSL failure would. ServerScanner.exitCode/summaryLabel are the
+      // one definition of the severity split, shared with the test suite.
+      const exitCode = ServerScanner.exitCode(result, { strict: args.strict === true });
+      const { errors } = ServerScanner.countSeverities(result);
+      const summaryColor = exitCode === 0 ? '\x1b[32m' : (errors > 0 ? '\x1b[31m' : '\x1b[33m');
+      console.log(`\n  ${summaryColor}SERVER: ${ServerScanner.summaryLabel(result)}\x1b[0m — ${result.totalChecks} checks, ${result.duration}ms\n`);
+      process.exit(exitCode);
     } catch (err) {
       console.error(`\n  \x1b[31mError: ${err.message}\x1b[0m\n`);
       process.exit(1);
