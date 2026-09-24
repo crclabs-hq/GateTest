@@ -533,7 +533,11 @@ test('consecutiveFailures increments across ticks, firstFailedAt stays fixed, an
     // the next tick's fetch succeeds and there is genuinely nothing to
     // deploy — the success path that must reset both fields.
     git(tmp, 'clone', '-q', '--bare', box, origin);
-    const third = run(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl });
+    // A build exists on this box, so "nothing to deploy" is genuinely nothing
+    // to do (an unbuilt box would rebuild instead — its own test above).
+    const buildMarker = path.join(tmp, 'BUILD_ID');
+    fs.writeFileSync(buildMarker, 'test-build\n');
+    const third = run(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl, PULL_DEPLOY_BUILD_MARKER: buildMarker });
     assert.equal(third.r.status, 0, third.r.stdout + third.r.stderr);
     const s3 = readStatus(third.statusFile);
     assert.equal(s3.result, 'up-to-date');
