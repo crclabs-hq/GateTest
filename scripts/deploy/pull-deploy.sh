@@ -212,12 +212,24 @@ BEFORE="$(git rev-parse HEAD)"
 AFTER="$(git rev-parse origin/main)"
 CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
+# "Up to date" means up to date AND built. On 2026-09-23 a wiped .next left
+# the box serving a bare 500 on every static route for 36 hours while this
+# branch reported nothing to do on every tick (#723). The build marker is the
+# one file `next build` writes last; its absence means no usable build.
+BUILD_MARKER="${PULL_DEPLOY_BUILD_MARKER:-$APP_DIR/website/.next/BUILD_ID}"
+REBUILT=0
+FORCE_BUILD_ARGS=()
 if [ "$BEFORE" = "$AFTER" ] && [ "$CURRENT_BRANCH" = "main" ]; then
-  RESULT="up-to-date"
-  REASON=""
-  echo "[pull-deploy] up to date at $AFTER"
-  write_status
-  exit 0
+  if [ -f "$BUILD_MARKER" ]; then
+    RESULT="up-to-date"
+    REASON=""
+    echo "[pull-deploy] up to date at $AFTER"
+    write_status
+    exit 0
+  fi
+  echo "[pull-deploy] up to date at $AFTER but no production build on disk ($BUILD_MARKER missing) — rebuilding"
+  REBUILT=1
+  FORCE_BUILD_ARGS=(--force-build)
 fi
 
 # --- Provenance check (b): origin/main must be a fast-forward of what is ---
@@ -267,13 +279,13 @@ fi
 
 set +e
 if [ "$RESTART_MODE" = "in-place" ]; then
-  git show origin/main:scripts/deploy/deploy-on-box.sh | GATETEST_APP_DIR="$APP_DIR" PULL_DEPLOY_INPLACE=1 bash -s
+  git show origin/main:scripts/deploy/deploy-on-box.sh | GATETEST_APP_DIR="$APP_DIR" PULL_DEPLOY_INPLACE=1 bash -s -- ${FORCE_BUILD_ARGS[@]+"${FORCE_BUILD_ARGS[@]}"}
 else
   git show origin/main:scripts/deploy/deploy-on-box.sh | \
     GATETEST_APP_DIR="$APP_DIR" \
     GATETEST_RESTART_CMD="$APP_DIR/scripts/deploy/blue-green-restart.sh" \
     PULL_DEPLOY_EXPECTED_COMMIT="$AFTER" \
-    bash -s
+    bash -s -- ${FORCE_BUILD_ARGS[@]+"${FORCE_BUILD_ARGS[@]}"}
 fi
 DEPLOY_RC=$?
 set -e
@@ -281,6 +293,7 @@ set -e
 if [ "$DEPLOY_RC" -eq 0 ]; then
   RESULT="deployed"
   REASON=""
+  [ "$REBUILT" = "1" ] && REASON="rebuilt: build output was missing at $BUILD_MARKER"
 else
   RESULT="failed"
   REASON="deploy-on-box.sh exited $DEPLOY_RC"

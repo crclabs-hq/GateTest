@@ -46,6 +46,7 @@ set -euo pipefail
 {
   echo "GATETEST_APP_DIR=\${GATETEST_APP_DIR:-}"
   echo "DEPLOY_RECOVER=\${DEPLOY_RECOVER:-<unset>}"
+  echo "ARGS=$*"
 } > "$STUB_RECORD_FILE"
 if [ "\${STUB_EXIT:-0}" != "0" ]; then
   exit "\${STUB_EXIT}"
@@ -167,9 +168,13 @@ test('up to date: no deploy runs, exits 0, status "up-to-date"', { skip: SKIP_RE
   const { tmp, box, originUrl } = makeBoxAtV1();
   try {
     const recordFile = path.join(tmp, 'stub-record.txt');
+    // A production build exists on this box (the marker next build writes last).
+    const buildMarker = path.join(tmp, 'BUILD_ID');
+    fs.writeFileSync(buildMarker, 'test-build\n');
     const { r, statusFile } = run(box, tmp, {
       PULL_DEPLOY_EXPECTED_ORIGIN: originUrl,
       STUB_RECORD_FILE: recordFile,
+      PULL_DEPLOY_BUILD_MARKER: buildMarker,
     });
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /up to date at/);
@@ -213,9 +218,13 @@ test('up to date with the deploy script\'s own dirty files present (build-info.j
     assert.notEqual(dirty, '', 'the self-dirtied files must actually be dirty for this test to mean anything');
 
     const recordFile = path.join(tmp, 'stub-record.txt');
+    // A production build exists on this box (the marker next build writes last).
+    const buildMarker = path.join(tmp, 'BUILD_ID');
+    fs.writeFileSync(buildMarker, 'test-build\n');
     const { r, statusFile } = run(box, tmp, {
       PULL_DEPLOY_EXPECTED_ORIGIN: originUrl,
       STUB_RECORD_FILE: recordFile,
+      PULL_DEPLOY_BUILD_MARKER: buildMarker,
     });
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /up to date at/);
@@ -223,6 +232,36 @@ test('up to date with the deploy script\'s own dirty files present (build-info.j
     assert.equal(readStatus(statusFile).result, 'up-to-date');
     // The dirty files are untouched — pull-deploy's fast path must not reset or clean anything.
     assert.notEqual(git(box, 'status', '--porcelain'), '', 'the up-to-date path must not touch the working tree');
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+// ── up to date but UNBUILT: not "nothing to do" (#723) ─────────────────────
+
+test('up to date but no production build on disk: runs origin\'s deploy script with --force-build, status "deployed", reason names the missing build', { skip: SKIP_REAL_RUN }, () => {
+  const { tmp, box, origin, originUrl } = makeBoxAtV1();
+  try {
+    // Box already at origin's tip (so BEFORE == AFTER) with NEW_STUB as the
+    // deploy script on origin/main — exactly the 2026-09-23 box: checkout
+    // current, .next gone.
+    const tip = advanceOriginLinear(tmp, origin);
+    git(box, 'fetch', '-q', 'origin');
+    git(box, 'reset', '-q', '--hard', 'origin/main');
+    assert.equal(git(box, 'rev-parse', 'HEAD'), tip);
+    const recordFile = path.join(tmp, 'stub-record.txt');
+    const missingMarker = path.join(tmp, 'BUILD_ID'); // never created
+    const { r, statusFile } = run(box, tmp, {
+      PULL_DEPLOY_EXPECTED_ORIGIN: originUrl,
+      STUB_RECORD_FILE: recordFile,
+      PULL_DEPLOY_BUILD_MARKER: missingMarker,
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /no production build on disk .* rebuilding/);
+    assert.equal(fs.existsSync(recordFile), true, 'the deploy script must run when the box is current but unbuilt');
+    const record = fs.readFileSync(recordFile, 'utf8');
+    assert.match(record, /^ARGS=--force-build$/m, 'the deploy script must be told to build despite BEFORE == AFTER');
+    const status = readStatus(statusFile);
+    assert.equal(status.result, 'deployed');
+    assert.match(status.reason, /rebuilt: build output was missing/);
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
