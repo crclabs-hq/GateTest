@@ -100,8 +100,16 @@ AFTER=$(git rev-parse HEAD)
 # --- end of sync phase --- (tests/deploy-recover.test.js runs the script up to this line)
 
 if [ "$BEFORE" = "$AFTER" ]; then
-  echo "[deploy] already at $AFTER — nothing to do (use --force-build to rebuild anyway)"
-  [ "${1:-}" = "--force-build" ] || exit 0
+  if [ "${1:-}" = "--force-build" ]; then
+    echo "[deploy] already at $AFTER — rebuilding on request (--force-build)"
+  elif [ ! -f website/.next/BUILD_ID ]; then
+    # #723: a current checkout with no build on disk is not "nothing to do" —
+    # the running process is serving without its files.
+    echo "[deploy] already at $AFTER but no production build on disk (website/.next/BUILD_ID missing) — rebuilding"
+  else
+    echo "[deploy] already at $AFTER — nothing to do (use --force-build to rebuild anyway)"
+    exit 0
+  fi
 fi
 
 echo "[deploy] $BEFORE -> $AFTER"
