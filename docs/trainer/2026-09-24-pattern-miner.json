@@ -1,0 +1,121 @@
+{
+  "generatedAt": "2026-09-24T08:12:19.805Z",
+  "inputs": {
+    "sessionFixCount": 242,
+    "fixAttemptCount": 0,
+    "mcpEventCount": 0
+  },
+  "topModulesByFixCount": [
+    {
+      "module": "website",
+      "count": 20
+    },
+    {
+      "module": "deploy",
+      "count": 13
+    },
+    {
+      "module": "recall",
+      "count": 8
+    },
+    {
+      "module": "precision",
+      "count": 8
+    },
+    {
+      "module": "(unattributed)",
+      "count": 7
+    },
+    {
+      "module": "secrets",
+      "count": 7
+    },
+    {
+      "module": "free-scan",
+      "count": 6
+    },
+    {
+      "module": "wp-plugin",
+      "count": 6
+    },
+    {
+      "module": "prompt-safety",
+      "count": 5
+    },
+    {
+      "module": "web-scan",
+      "count": 5
+    }
+  ],
+  "topRuleKeysByAttempts": [],
+  "recurringSubjects": [],
+  "underTestedModules": [
+    {
+      "module": "wp-plugin",
+      "fixes": 6,
+      "tests": 0,
+      "testPerFix": 0
+    }
+  ],
+  "layerStats": {
+    "layers": {
+      "ast": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "rule": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "recipe": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "claude": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "null": {
+        "attempts": 0,
+        "successes": 0
+      }
+    },
+    "total": 0,
+    "claudeShare": 0,
+    "deterministicShare": 0
+  },
+  "mcpUsage": {
+    "totalCalls": 0,
+    "tools": [],
+    "neverCalled": [
+      "scan_local",
+      "scan_url",
+      "check_health",
+      "list_modules",
+      "get_badge"
+    ],
+    "highFailTools": []
+  },
+  "recommendations": [
+    {
+      "kind": "investigate-module",
+      "module": "website",
+      "reason": "20 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "deploy",
+      "reason": "13 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "recall",
+      "reason": "8 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "wp-plugin",
+      "reason": "6 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    }
+  ]
+}
