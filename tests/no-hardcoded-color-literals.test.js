@@ -13,14 +13,22 @@
 // colour literal outside globals.css' test #690 asks for"). This is that
 // follow-up, added while doing #686 phase 2.
 //
-// Scope: everything under website/app EXCEPT the three files/dirs that are
-// allowed to define the palette itself:
+// Scope: everything under website/app EXCEPT the four files/dirs that are
+// allowed to define a palette themselves:
 //   - globals.css        — the token definitions (the whole point: SOMEWHERE
 //                           has to spell out #0f766e once)
 //   - preview/preview.css — pre-#696 file kept only as a historical shim
 //   - components/v2/      — the v2 primitives read tokens via CSS vars, but
 //                           the token *values* still have to live somewhere;
 //                           excluded for the same reason as globals.css
+//   - admin/admin.css     — issue #691's own token-definition file: the
+//                           #690 contract lets the admin shell define its own
+//                           `--gt-admin-*` tokens until #686 lifts the shared
+//                           v2 tokens into globals.css, at which point this
+//                           file collapses into a `var(--*)` reference and
+//                           drops out of this exclusion in the same commit.
+//                           Same reason as globals.css — a token file has to
+//                           spell out its values exactly once, somewhere.
 //
 // A NEW literal anywhere else fails the suite. Pre-existing ones are pinned
 // in SHRINKING_ALLOWLIST by their current count — the count for any listed
@@ -45,6 +53,7 @@ const EXCLUDE = [
   /^globals\.css$/,
   /^preview\/preview\.css$/,
   /^components\/v2\//,
+  /^admin\/admin\.css$/,
 ];
 const SCAN_EXT = /\.(tsx?|jsx?|css)$/;
 
@@ -89,6 +98,7 @@ const SHRINKING_ALLOWLIST = {
   //     Left untouched here on purpose; #691 restyles admin onto the same v2
   //     tokens this branch's theme system defines. ---
   'admin/learning/page.tsx': 8,
+  'admin/hn-launch/page.tsx': 2, // deliberate: inline #000/#fff, not a token gap — see the code comment at its <main> tag for why (admin.css's .gt-admin-page background loses the cascade to a plain utility class here; this page's terminal look is meant to stay black regardless of theme anyway)
   'admin/tabs/NuclearScanTab.tsx': 2,
   'admin/tabs/FixResultCard.tsx': 1,
   'admin/tabs/PlatformSiblings.tsx': 1,
@@ -138,10 +148,18 @@ function scopeFiles() {
 // 0-9 is also a valid hex digit). Strip comment bodies before scanning, the
 // same way tests/public-copy-vendor-neutral.test.js does, replacing their
 // text with spaces (not deleting the lines) so reported line numbers stay
-// accurate. Only applied to .ts/.tsx/.jsx — the two in-scope .css files are
-// both in EXCLUDE, so this never needs to run on real CSS syntax.
+// accurate.
+//
+// Applies to .ts/.tsx/.jsx/.css alike: CSS's `/* ... */` block comment is the
+// same syntax the block-comment regex below already matches, so a `.css`
+// token file's own doc comment (admin/admin.css's issue-number references,
+// #691/#690/#686) needs the same treatment as a TS docblock's. Every .css
+// file currently reaching this function is in EXCLUDE (admin.css included)
+// and never gets here in practice today — this is defence for the day a
+// non-excluded CSS file needs scanning, not dead code for its own sake; the
+// control test below exercises it directly since exclusion alone can't.
 function stripComments(rel, src) {
-  if (!/\.(tsx?|jsx?)$/.test(rel)) return src;
+  if (!/\.(tsx?|jsx?|css)$/.test(rel)) return src;
   return src
     // `﻿?` — a leading UTF-8 BOM (several files under website/app carry
     // one, doctrine says never strip it from the file itself) sits before
@@ -263,5 +281,20 @@ describe('no hard-coded colour literals outside the v2 token system', () => {
     const bomDocComment = '﻿/**\n * issue #678 gap 6\n */\nexport const x = 1;\n';
     assert.strictEqual(stripComments(rel, bomDocComment).match(COLOR_RE), null,
       'a BOM-prefixed doc comment mentioning an issue number must not be flagged');
+  });
+
+  it('NEGATIVE CONTROL: a CSS file\'s own block comment is stripped the same way a TS docblock is', () => {
+    // A token-definition file (admin/admin.css is the real example — in
+    // EXCLUDE, so it never reaches stripComments in practice) has an issue
+    // number in its header comment AND real colour literals in its :root
+    // block. Both must be handled correctly: the comment's issue number
+    // disappears, the real token values do not.
+    const rel = '__control__.css';
+    const cssWithIssueRefAndTokens =
+      '/**\n * Token file — see issue #123 for the contract.\n */\n:root {\n  --accent: #0f766e;\n  --bg: #ffffff;\n}\n';
+    const stripped = stripComments(rel, cssWithIssueRefAndTokens);
+    assert.ok(!/#123/.test(stripped), 'an issue number in a CSS comment must be stripped');
+    assert.strictEqual((stripped.match(COLOR_RE) || []).length, 2,
+      'the two real colour literals inside :root must still be counted after the comment is stripped');
   });
 });

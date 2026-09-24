@@ -249,6 +249,20 @@ async function checkDeployFreshness(fetchFn, base, expectedCommit, deployAdapter
   const deployedAt = data.deployedAt ? String(data.deployedAt) : null;
   const lastDeployPart = deployedAt ? `; last deploy ${deployedAt}` : '; last deploy time unknown';
 
+  // issue #706 part 4: the box's OWN pull-deploy.sh status
+  // (/api/platform-status `lastPullDeploy`, part 1) — a signal that can be
+  // present even when the drift/age checks below look fine, because a box
+  // that has stopped deploying can still be serving a recent-looking build
+  // from before it stalled. Only printed when the last attempt actually
+  // failed; a healthy or unknown status adds nothing here (the admin
+  // overview and the "Production deploy stalled" issue, #706 parts 2 and 4,
+  // are where "unknown" itself is worth surfacing).
+  const lastPullDeploy = data.lastPullDeploy && typeof data.lastPullDeploy === 'object' ? data.lastPullDeploy : null;
+  const pullDeployPart =
+    lastPullDeploy && lastPullDeploy.result === 'failed'
+      ? `; last deploy attempt: failed, ${lastPullDeploy.reason || 'no reason recorded'}, at ${lastPullDeploy.at || 'unknown time'}`
+      : '';
+
   const drift = checkDeployDrift(deployAdapter, commit);
   if (!drift) {
     // No adapter available (e.g. running outside a checkout) — fall back
@@ -257,25 +271,25 @@ async function checkDeployFreshness(fetchFn, base, expectedCommit, deployAdapter
     // available when origin/main can't be resolved.
     if (age !== null && age >= STALE_BUILD_CRITICAL_DAYS) {
       return fail(
-        'deploy/fresh', `live build is ${age.toFixed(1)} days old (commit ${commit.slice(0, 12)}, built ${data.builtAt})${lastDeployPart}`, CRITICAL,
+        'deploy/fresh', `live build is ${age.toFixed(1)} days old (commit ${commit.slice(0, 12)}, built ${data.builtAt})${lastDeployPart}${pullDeployPart}`, CRITICAL,
         'Deploys have stopped reaching production. Check that BOX_SSH_KEY / BOX_SSH_HOST are set on the repo so .github/workflows/deploy-box.yml can actually ship, then compare /api/platform-status `commit` against `git rev-parse HEAD`.',
         { commit, ageDays: age },
       );
     }
     if (age !== null && age >= STALE_BUILD_WARN_DAYS) {
       return fail(
-        'deploy/fresh', `live build is ${age.toFixed(1)} days old (commit ${commit.slice(0, 12)})${lastDeployPart}`, WARNING,
+        'deploy/fresh', `live build is ${age.toFixed(1)} days old (commit ${commit.slice(0, 12)})${lastDeployPart}${pullDeployPart}`, WARNING,
         'Not yet critical, but nothing has shipped in a while — confirm that is deliberate and not a broken deploy path.',
         { commit, ageDays: age },
       );
     }
-    return ok('deploy/fresh', `commit ${commit.slice(0, 12)}${versionPart}${agePart}${lastDeployPart}`, { commit, ageDays: age });
+    return ok('deploy/fresh', `commit ${commit.slice(0, 12)}${versionPart}${agePart}${lastDeployPart}${pullDeployPart}`, { commit, ageDays: age });
   }
 
   if (drift.notAncestor) {
     return fail(
       'deploy/fresh',
-      `live commit ${commit.slice(0, 12)} is not an ancestor of origin/main (${drift.mainSha.slice(0, 12)}) — cannot count commits behind${agePart}${lastDeployPart}`,
+      `live commit ${commit.slice(0, 12)} is not an ancestor of origin/main (${drift.mainSha.slice(0, 12)}) — cannot count commits behind${agePart}${lastDeployPart}${pullDeployPart}`,
       WARNING,
       'This looks like a hotfix applied directly to production, or a rollback — not ordinary lag. If it is a deliberate hotfix, confirm it gets merged back to main; if it is a rollback, confirm that was intentional.',
       { commit, mainSha: drift.mainSha },
@@ -285,7 +299,7 @@ async function checkDeployFreshness(fetchFn, base, expectedCommit, deployAdapter
   if (drift.behind === null) {
     return fail(
       'deploy/fresh',
-      `commit ${commit.slice(0, 12)}${versionPart} — could not determine how many commits behind origin/main it is${agePart}${lastDeployPart}`,
+      `commit ${commit.slice(0, 12)}${versionPart} — could not determine how many commits behind origin/main it is${agePart}${lastDeployPart}${pullDeployPart}`,
       WARNING,
       'The comparison against origin/main failed. Check that the checkout has full history (fetch-depth: 0) and that origin/main resolves.',
       { commit, mainSha: drift.mainSha },
@@ -301,7 +315,7 @@ async function checkDeployFreshness(fetchFn, base, expectedCommit, deployAdapter
   const unshippedList = drift.unshipped.map((c) => `${c.sha.slice(0, 12)} ${c.subject}`).join('; ');
 
   if (behind === 0) {
-    return ok('deploy/fresh', `commit ${commit.slice(0, 12)}${versionPart} matches origin/main${agePart}${lastDeployPart}`, { commit, behind: 0 });
+    return ok('deploy/fresh', `commit ${commit.slice(0, 12)}${versionPart} matches origin/main${agePart}${lastDeployPart}${pullDeployPart}`, { commit, behind: 0 });
   }
 
   const plural = behind === 1 ? '' : 's';
@@ -309,7 +323,7 @@ async function checkDeployFreshness(fetchFn, base, expectedCommit, deployAdapter
   if (isCritical) {
     return fail(
       'deploy/fresh',
-      `production is ${behind} commit${plural} behind main (${oldestFact})${agePart}${lastDeployPart}`,
+      `production is ${behind} commit${plural} behind main (${oldestFact})${agePart}${lastDeployPart}${pullDeployPart}`,
       CRITICAL,
       `Deploys have stopped reaching production. Unshipped merges: ${unshippedList}. Check the deploy pipeline and redeploy.`,
       { commit, behind, mainSha: drift.mainSha },
@@ -318,12 +332,12 @@ async function checkDeployFreshness(fetchFn, base, expectedCommit, deployAdapter
 
   const isFresh = behind <= DRIFT_PASS_MAX_BEHIND && oldestAgeMinutes !== null && oldestAgeMinutes < DRIFT_PASS_MAX_MINUTES;
   if (isFresh) {
-    return ok('deploy/fresh', `commit ${commit.slice(0, 12)}${versionPart}, ${behind} commit${plural} behind main (within grace)${agePart}${lastDeployPart}`, { commit, behind, mainSha: drift.mainSha });
+    return ok('deploy/fresh', `commit ${commit.slice(0, 12)}${versionPart}, ${behind} commit${plural} behind main (within grace)${agePart}${lastDeployPart}${pullDeployPart}`, { commit, behind, mainSha: drift.mainSha });
   }
 
   return fail(
     'deploy/fresh',
-    `production is ${behind} commit${plural} behind main (${oldestFact})${agePart}${lastDeployPart}`,
+    `production is ${behind} commit${plural} behind main (${oldestFact})${agePart}${lastDeployPart}${pullDeployPart}`,
     WARNING,
     `Not yet critical, but production has fallen behind. Unshipped merges: ${unshippedList}. Confirm the deploy pipeline is still running.`,
     { commit, behind, mainSha: drift.mainSha },

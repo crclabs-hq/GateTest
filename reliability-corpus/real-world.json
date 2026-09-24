@@ -53,14 +53,14 @@
       "url": "https://github.com/honojs/hono.git",
       "sha": "eebdf7be39abf0a872671835ccce0c4f03ea497a",
       "why": "every crossFileTaint finding here was false: c.req.query() read as SQL, RegExp.exec() as command exec; 2026-09-05 importCycle type-only elision: the four import cycles it blocked on read every binding inside function bodies — deferred, now a warning — ceiling ratchets down",
-      "maxBlocking": 17
+      "maxBlocking": 14
     },
     {
       "name": "zod",
       "url": "https://github.com/colinhacks/zod.git",
       "sha": "7a00236683c79000dbab0d92f6faf0b7fba39f59",
       "why": "monorepo with a docs site and benchmarks; was the worst case at 50, of which 33 were errorSwallow — 23 in benchmark harnesses, 7 the parsing library's coerce-then-check idiom (2026-09-04)",
-      "maxBlocking": 3
+      "maxBlocking": 2
     },
     {
       "name": "django",
@@ -74,7 +74,7 @@
       "url": "https://github.com/rails/rails.git",
       "sha": "1ec64ce82451c52d7407fa665ea5f95291430c23",
       "why": "Ruby at scale — instance_eval in the routes loader, backtick-quoted words in error messages that a naive shell-interp rule read as commands",
-      "maxBlocking": 41
+      "maxBlocking": 36
     },
     {
       "name": "spring-petclinic",
@@ -109,7 +109,7 @@
       "url": "https://github.com/jasontaylordev/CleanArchitecture.git",
       "sha": "3a06afb9258c1f5a9d8e7103bd1479246fa4166a",
       "why": "C# + Angular + React — first contact 39 blocking, 26 of them SEO/a11y rules on the two SPA index.html shells; what remains is real: strict:false, a committed .env, unlabeled inputs, log-and-eat catches in a React component",
-      "maxBlocking": 11
+      "maxBlocking": 4
     },
     {
       "name": "ktor",

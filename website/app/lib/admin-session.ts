@@ -7,6 +7,7 @@
  */
 
 import crypto from "crypto";
+import { ADMIN_COOKIE_NAME } from "./admin-auth";
 
 export const SESSION_COOKIE_NAME = "gatetest_admin_session";
 export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 days
@@ -157,4 +158,44 @@ export function getAdminUser(
  */
 export function generateState(): string {
   return b64urlEncode(crypto.randomBytes(24));
+}
+
+const PASSWORD_HMAC_PAYLOAD = "gatetest-admin-v1";
+
+/** Constant-time check of the password-cookie value against the current env var. */
+function checkPasswordCookie(value: string | undefined): boolean {
+  const pw = process.env.GATETEST_ADMIN_PASSWORD || "";
+  if (!pw || !value) return false;
+  const expected = crypto.createHmac("sha256", pw).update(PASSWORD_HMAC_PAYLOAD).digest("hex");
+  const a = Buffer.from(value);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The one definition of "who is signed in as admin" (Doctrine #4) — GitHub
+ * OAuth session cookie checked first, then the password cookie. Every
+ * /admin/* route and page had re-implemented this same two-method check
+ * (repos/route.ts's own comment calls it out: "copied verbatim from
+ * /api/admin/repos/route.ts"); the admin shell layout needs the same answer
+ * to decide whether to render its chrome, so it gets a shared home instead
+ * of a fourth copy.
+ */
+export function getAdminLoginFromCookies(cookieStore: {
+  get(name: string): { value: string } | undefined;
+}): string | null {
+  const oauthStatus = getAdminConfig();
+  if (oauthStatus.ok && oauthStatus.config) {
+    const login = getAdminUser(cookieStore.get(SESSION_COOKIE_NAME)?.value, oauthStatus.config);
+    if (login) return login;
+  }
+  if (checkPasswordCookie(cookieStore.get(ADMIN_COOKIE_NAME)?.value)) {
+    return "admin";
+  }
+  return null;
 }

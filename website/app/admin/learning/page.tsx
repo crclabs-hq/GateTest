@@ -148,7 +148,7 @@ export default function LearningDashboard() {
   const totalDissent = (data?.kindsBreakdown || []).reduce((s, k) => s + (k.n || 0), 0);
 
   return (
-    <div className="min-h-screen bg-background px-6 py-12">
+    <div className="gt-admin-page">
       <div className="max-w-6xl mx-auto">
         <div className="mb-6 flex items-start justify-between flex-wrap gap-3">
           <div>

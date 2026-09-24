@@ -2,6 +2,12 @@
 Description=GateTest pull-based deploy — the box deploys itself; nothing inbound
 After=network-online.target gatetest-web.service
 Wants=network-online.target
+# issue #706 part 3: a run pull-deploy.sh's own fail()/write_status never got
+# to explain — TimeoutStartSec below expiring on a hung build, an OOM kill,
+# `systemctl stop` — still needs the status file to say something happened.
+# systemd runs this tiny unit on ANY failure of this one (exit code, signal,
+# or timeout alike); see scripts/deploy/pull-deploy-onfailure.sh.
+OnFailure=gatetest-pull-deploy-onfailure.service
 
 [Service]
 Type=oneshot

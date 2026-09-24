@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import buildInfo from "@/app/data/build-info.json";
 import { siblingUrlMap } from "@/app/lib/platform-siblings";
 
-// CommonJS interop — helper is .js using require-style exports.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const tallrigPushEventStore = require("@/app/lib/tallrig-push-event-store");
+// Both helpers are CommonJS .js modules (shared with scripts/ outside the
+// Next app); a namespace import gives the bundler interop without an inline
+// lint disable.
+import * as tallrigPushEventStore from "@/app/lib/tallrig-push-event-store";
+import * as pullDeployStatus from "@/app/lib/pull-deploy-status";
 
 // Build-time stamp (website `prebuild` runs scripts/generate-build-info.js).
 // Env still wins if a deploy platform injects its own; otherwise the real git
@@ -39,6 +41,14 @@ export async function GET() {
     // still accurate, so it ships without the field rather than failing.
   }
 
+  // The box's own deploy status (issue #706) — scripts/deploy/pull-deploy.sh
+  // writes this on every tick. readLastPullDeploy() is contracted never to
+  // throw (a missing, unreadable or malformed file comes back as
+  // `result: "unknown"` with the reason; tests/pull-deploy-status.test.js
+  // proves each case), so no catch is needed here — a catch that could only
+  // hold a comment would hide a broken contract instead of handling it.
+  const lastPullDeploy = pullDeployStatus.readLastPullDeploy();
+
   return NextResponse.json(
     {
       product: PRODUCT,
@@ -49,6 +59,7 @@ export async function GET() {
       timestamp: new Date().toISOString(),
       siblings: siblingUrlMap(),
       lastTallrigDeploy,
+      lastPullDeploy,
     },
     {
       headers: {

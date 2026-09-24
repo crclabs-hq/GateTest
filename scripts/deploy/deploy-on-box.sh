@@ -203,8 +203,16 @@ fi
 
 # Post-deploy smoke: the endpoints that burned us when the box served a stale build.
 sleep 3
-for probe in "https://gatetest.io/api/status" "https://gatetest.io/icon.png"; do
+SMOKE_FAILED=0
+for probe in "https://gatetest.io/" "https://gatetest.io/pricing" "https://gatetest.io/api/status" "https://gatetest.io/icon.png"; do
   code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$probe" || echo 000)
   echo "[deploy] smoke $probe -> $code"
+  [ "$code" = "200" ] || SMOKE_FAILED=1
 done
+if [ "$SMOKE_FAILED" = "1" ]; then
+  # #723: the health endpoints passed while / served a bare 500; a deploy whose
+  # front door does not answer 200 is a failed deploy and must say so.
+  echo "[deploy] ERROR: post-deploy smoke failed — a probed route did not return 200 (see the lines above)" >&2
+  exit 3
+fi
 echo "[deploy] done — verify /api/status shows ready:true"
