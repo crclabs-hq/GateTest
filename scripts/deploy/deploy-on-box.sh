@@ -155,6 +155,13 @@ npm install --no-audit --no-fund
 # still reporting the OLD commit: the deploy looks like it never happened, and
 # the production-drift check in deploy-box.yml is reading that same field.
 # (CLAUDE.md quality bar #12; docs/deploy/VAPRON-DEPLOY.md §1.)
+# Stale dev-server output breaks the production build's type check: a
+# `next dev` run on the box leaves .next/dev/types/validator.ts naming routes
+# that may no longer exist (2026-09-23: app/preview/* after #719), and
+# `next build` type-checks it. Every build failed the same way for a day
+# while the running process served without its files. Clear the dev and
+# typegen output before building; the production build recreates .next/types.
+rm -rf website/.next/dev website/.next/types
 (cd website && npm install --no-audit --no-fund && npm run build)
 
 # Restart the service.

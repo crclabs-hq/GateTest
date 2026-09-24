@@ -180,6 +180,23 @@ Tallrig 404s (KI #111, needs TALLRIG_API_TOKEN on box 161).
   one-time `sudo scripts/deploy/install-pull-deploy.sh` on the box.
 - Bot-authored PRs (github-actions) trigger no CI; a human-account empty
   commit starts it.
+- "Up to date" is not "built". On 23–24 Sep the box's checkout matched main
+  while website/.next had no BUILD_ID; pull-deploy.sh reported up-to-date and
+  deploy-on-box.sh exited early on every tick for 36 hours while the running
+  process served a bare 500 on every static route (API routes stayed 200, so
+  every health signal was green). Verify a deploy by fetching / from outside:
+  200, a real body, the expected commit. Never by /api/health. PR #727 makes
+  an unbuilt box rebuild itself; PR #724 gates the switch on / and /pricing.
+- A `next dev` run on the box leaves .next/dev/types/validator.ts naming
+  routes that may no longer exist; `next build` type-checks it and fails
+  (TS2307 on app/preview/* after #719). Delete website/.next before building;
+  deploy-on-box.sh now clears .next/dev and .next/types itself (#727).
+- On this Windows desktop the deploy shell tests spawn `bash`; the default
+  PATH finds WSL's bash, which mangles Windows paths. Put
+  C:\Program Files\Git\bin first; the real-run cases still skip for lack
+  of flock, so CI on ubuntu is the proof for scripts/deploy changes. New
+  worktrees come out CRLF (core.autocrlf): set it false and re-checkout
+  before running bash on them.
 
 ## 9. Exact state at 2026-09-23 17:15Z — resume here from any account
 
@@ -230,3 +247,32 @@ If a new session cannot resume them, the branches above are the state; start a f
 - GitHub's PR head can lag a push by a minute; confirm with `git ls-remote`.
 - The Turbopack build fails inside worktrees because website/node_modules is a junction outside the root; use `npx next build --webpack` there.
 - A merge into main puts every other PR "behind"; branch protection is strict, so each merge restarts the others' CI. Merge green PRs with the admin path when files do not overlap.
+
+## 10. Exact state at 2026-09-24 18:00Z — the launch-day outage and what changed
+
+- **Outage.** gatetest.io / and /preview served a bare 500 from 23 Sep 17:47Z (first
+  readiness-probe red) to the moment the box was rebuilt; from 17:51Z on 24 Sep the whole
+  site was 502 for a few minutes after a restart with no build on disk. Root cause: the
+  box's production build failed on every tick since #719 (stale .next/dev/types naming the
+  removed /preview route), a killed hung build had already emptied .next, and both deploy
+  scripts treated "HEAD == origin/main" as nothing to do. Not memory: the kernel OOM kills
+  on the box are jarvis-audit's, and 4.9 GB was free.
+- **Fix on the box (owner, one command):** delete website/.next, `npm run build`,
+  `systemctl restart gatetest-web`, then GET / must be 200 on main's commit.
+- **Code:** #724 merged (blue/green switch requires the new instance to serve / and
+  /pricing 200 with a 1 KB+ body; in-place smoke includes / and fails loudly). #727
+  (unbuilt box rebuilds with --force-build and records "rebuilt: build output was
+  missing"; deploy-on-box.sh clears .next/dev and .next/types before every build).
+  Still open on #723: the readiness probe must open the stalled-deploy issue on a
+  surface failure, not only on lag.
+- **Also today:** #725 — the heavy suite on main has been red since #702
+  (admin-signed-in-smoke times out at 120 s, non-blocking, so nobody saw it).
+  Marketplace preflight says DO NOT SUBMIT while / is 500; it clears itself when
+  the homepage is back. Tallrig is holding the free-scan re-walk (their F1–F5) until the
+  fix sha is live; Gluecron's G1 closed on our proof crawl.
+- **Domains:** gatetest.ai is not registrable at list price (Name.com/Porkbun show
+  "make offer"); Craig bought gatestest.ai, gatetest.dev and gatetest.app — all three
+  need DNS to box 161 and a permanent 301 to gatetest.io in the Traefik dynamic file.
+- **Handoff copies:** this file (repo), the Claude doc "Cross-platform testing loop —
+  handoff" (resume table kept current), and the shared memory dir on the desktop
+  (keyed by project path, so all three accounts see it).
