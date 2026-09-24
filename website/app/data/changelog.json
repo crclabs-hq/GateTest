@@ -1,8 +1,8 @@
 {
   "source": "scripts/generate-changelog.js",
-  "generatedAt": "2026-09-23T08:48:35.369Z",
+  "generatedAt": "2026-09-24T08:40:57.271Z",
   "ref": "origin/main",
-  "head": "605c108a1a39e0d81f68b0ed50ef00bf7fa69992",
+  "head": "2f967c23f4b141886110ef61ad1d29566893b28d",
   "currentVersion": "1.61.1",
   "limit": 150,
   "areas": [
@@ -17,6 +17,18 @@
     "other"
   ],
   "entries": [
+    {"sha":"2f967c23f4b141886110ef61ad1d29566893b28d","short":"2f967c2","date":"2026-09-23","pr":724,"title":"deploy: gate the blue/green switch on the new build serving / and /pricing (#723)","area":"tooling","areas":{"tooling":2,"tests":1},"files":3,"modules":[],"version":null},
+    {"sha":"896fdb99f3c35401012a78eb66fec1ef3c38c6c6","short":"896fdb9","date":"2026-09-23","pr":711,"title":"chore(stats): refresh website testing statistics 2026-09-23","area":"website","areas":{"website":3,"corpus":1},"files":4,"modules":[],"version":null},
+    {"sha":"94d41ef0dfb23d51d6d678deb5784082aaa3d2b3","short":"94d41ef","date":"2026-09-23","pr":710,"title":"Deploy pipeline: expose box status, open a stalled-deploy issue, retry-proof pull-deploy.sh","area":"tests","areas":{"tests":6,"tooling":6,"website":3,"ci":2,"engine":1},"files":18,"modules":[],"version":null},
+    {"sha":"e2af2ab48fbf39764dbaeed8b8db421000f55d75","short":"e2af2ab","date":"2026-09-23","pr":719,"title":"Promote v2 homepage from /preview to / (issue #686 phase 3)","area":"website","areas":{"website":11,"docs":5,"tests":3},"files":19,"modules":[],"version":null},
+    {"sha":"e361df4f99d61b9d336d95b5d0beea797b78c291","short":"e361df4","date":"2026-09-23","pr":702,"title":"Admin: shell with nav, real Overview dashboard, both themes, signed-in smoke test","area":"website","areas":{"website":28,"docs":18,"tests":3,"tooling":1},"files":50,"modules":[],"version":null},
+    {"sha":"7608f5120cd5ab1cb9ad4444d2b0878ab139b0e4","short":"7608f51","date":"2026-09-23","pr":718,"title":"docs(handoff): exact state at 2026-09-23 17:15Z for all three owner accounts","area":"docs","areas":{"docs":1},"files":1,"modules":[],"version":null},
+    {"sha":"63386126c8039c793f25bc763f35bfcd82054e3d","short":"6338612","date":"2026-09-23","pr":717,"title":"fix: public-api-key rule requires client-flow evidence, not just PUBLIC_ prefix","area":"engine","areas":{"engine":1,"tests":1},"files":2,"modules":["promptSafety"],"version":null},
+    {"sha":"5f8310c554cbd8051a9042450a7766c73cdb6915","short":"5f8310c","date":"2026-09-23","pr":716,"title":"agents: add the marketer role (copy with a claims register; owner approves)","area":"docs","areas":{"docs":1},"files":1,"modules":[],"version":null},
+    {"sha":"08851ed00606a7a45e24d42f855a7ca62039e7fe","short":"08851ed","date":"2026-09-23","pr":714,"title":"ops: add seven owner-only items to the Blocking-on-Craig tracker, fold in #627","area":"docs","areas":{"docs":1},"files":1,"modules":[],"version":null},
+    {"sha":"5a1ada0a489591d8ebbcf4abd3f5dc1fdfca1f7a","short":"5a1ada0","date":"2026-09-23","pr":705,"title":"design(v2): site-wide v2 restyle, phase 2 continued","area":"docs","areas":{"docs":145},"files":145,"modules":[],"version":null},
+    {"sha":"3614f268368350831a2353cf388b182e45d98139","short":"3614f26","date":"2026-09-23","pr":712,"title":"design(v2): site-wide restyle, part 2a","area":"website","areas":{"website":24,"tests":1},"files":25,"modules":[],"version":null},
+    {"sha":"3c578117d745df8ec4b0af8328d1ae77a09afc72","short":"3c57811","date":"2026-09-23","pr":704,"title":"fix(crawl): make every counted warning on a crawl visible","area":"engine","areas":{"engine":2,"tests":2},"files":4,"modules":["liveCrawler"],"version":null},
     {"sha":"605c108a1a39e0d81f68b0ed50ef00bf7fa69992","short":"605c108","date":"2026-09-23","pr":709,"title":"fix(accessibility): mask strings/comments before html-lang tag match","area":"engine","areas":{"engine":1,"tests":1},"files":2,"modules":["accessibility"],"version":null},
     {"sha":"3e61aa0801658f8f4563f9a4260d590ed0679bc2","short":"3e61aa0","date":"2026-09-23","pr":697,"title":"CLI --server/--crawl: fix --format json, crawl exit code, and warning-only server gate (#677)","area":"engine","areas":{"engine":5,"tests":3},"files":8,"modules":["liveCrawler"],"version":null},
     {"sha":"89905dfc118eb5cc05e869e24ec89d31720069d1","short":"89905df","date":"2026-09-23","pr":696,"title":"design(v2): site-wide v2 design system, phase 1 + partial phase 2, plus theme system","area":"website","areas":{"website":34,"tests":1,"tooling":1},"files":36,"modules":[],"version":null},
@@ -154,18 +166,6 @@
     {"sha":"b377092703c1581fa0734b5f5f196c6471ee465f","short":"b377092","date":"2026-09-13","pr":null,"title":"fix(publish): install the workspaces and website before the suite; release only after a successful publish","area":"ci","areas":{"ci":1,"tests":1},"files":2,"modules":[],"version":null},
     {"sha":"793d8d849c9db76373932da636ac039459caaf11","short":"793d8d8","date":"2026-09-13","pr":475,"title":"Flywheel trainer report — 2026-09-13","area":"docs","areas":{"docs":64,"website":23,"tests":8,"engine":2,"tooling":2,"integrations":1},"files":100,"modules":["secrets"],"version":null},
     {"sha":"748b4b93e54853cde6c12a23aff53f8624445350","short":"748b4b9","date":"2026-09-13","pr":476,"title":"Refresh website testing statistics — 2026-09-13","area":"website","areas":{"website":23,"tests":7,"engine":2,"tooling":2,"integrations":1},"files":35,"modules":["secrets"],"version":null},
-    {"sha":"273d50024a2597212b7119905969f5b617f7d682","short":"273d500","date":"2026-09-13","pr":478,"title":"fix(preview): the free preview runs the real engine — a config-only .npmrc no longer blocks","area":"website","areas":{"website":20,"tests":7,"engine":2,"tooling":2,"integrations":1},"files":32,"modules":["secrets"],"version":null},
-    {"sha":"a92d0e42938144ea22fd9daa5885d501008db209","short":"a92d0e4","date":"2026-09-13","pr":479,"title":"chore(platform): Vapron hostnames and name read from one config — the Tallrig rename becomes an env change","area":"website","areas":{"website":16,"tests":2,"integrations":1,"tooling":1},"files":20,"modules":[],"version":null},
-    {"sha":"3d54e508c485a1239d4c34f4393d8b06b8dde6df","short":"3d54e50","date":"2026-09-11","pr":null,"title":"fix(mail): Vapron transport uses the documented endpoint and either key name","area":"website","areas":{"website":2,"tests":1,"tooling":1},"files":4,"modules":[],"version":null},
-    {"sha":"39433b4634534085afa5a0cfcea704b863499530","short":"39433b4","date":"2026-09-11","pr":null,"title":"feat(mail): one transport for every e-mail — Resend stays live, the Vapron platform API is selectable with MAIL_PROVIDER=vapron","area":"website","areas":{"website":2,"tests":2,"tooling":1},"files":5,"modules":[],"version":null},
-    {"sha":"8f5d6a834e9ca367708c5e142cecc1135008452a","short":"8f5d6a8","date":"2026-09-11","pr":null,"title":"docs(bible): deployment doctrine — gatetest.io runs on Vapron (Craig 2026-09-11), with the cutover status of what the code still does","area":"docs","areas":{"docs":1},"files":1,"modules":[],"version":null},
-    {"sha":"018cfdb94cc5ab1cecb88306a40bfed01eed4bfb","short":"018cfdb","date":"2026-09-11","pr":null,"title":"docs(bible): e-mail moved to gatetest.io — mailboxes admin@/support@/billing@, sender watchdog@gatetest.io (Craig 2026-09-11)","area":"docs","areas":{"docs":1},"files":1,"modules":[],"version":null},
-    {"sha":"c40f041de7b44ef99d49837b8489dd27db23f126","short":"c40f041","date":"2026-09-11","pr":null,"title":"test(site-url): the support-address guard now pins gatetest.io — the preconditions it waited for are met","area":"tests","areas":{"tests":1},"files":1,"modules":[],"version":null},
-    {"sha":"a0b3c1cc0e3d614254c271f4afd76465d65da073","short":"a0b3c1c","date":"2026-09-11","pr":null,"title":"fix(contact): every contact address moved from the dead hello@gatetest.ai to support@gatetest.io","area":"website","areas":{"website":22,"engine":1},"files":23,"modules":[],"version":null},
-    {"sha":"eac276dcf1264b283596267703faefca90a8326f","short":"eac276d","date":"2026-09-11","pr":null,"title":"fix(mail): send from watchdog@gatetest.io now that the domain is verified in Resend (Craig 2026-09-11)","area":"website","areas":{"website":1},"files":1,"modules":[],"version":null},
-    {"sha":"ccc10fd85e1009c13ab50c9e9bb5359fbe6bf110","short":"ccc10fd","date":"2026-09-10","pr":null,"title":"fix(seo): Organization JSON-LD said 'no subscription' — the site sells two","area":"website","areas":{"website":1},"files":1,"modules":[],"version":null},
-    {"sha":"77d27e6dcad735ff4b8c5d289d5117182be9f997","short":"77d27e6","date":"2026-09-10","pr":null,"title":"fix(copy): the site described a product we do not ship — every claim checked against the engine","area":"website","areas":{"website":66,"docs":2,"tests":1},"files":69,"modules":[],"version":null},
-    {"sha":"543e359488a619bc85b3065c3cfd3a1646e210e5","short":"543e359","date":"2026-09-10","pr":null,"title":"feat(site): retire the Hall of Scans (Craig 2026-09-10) — /scans redirects to /precision, every reference removed","area":"website","areas":{"website":6},"files":6,"modules":[],"version":null},
-    {"sha":"861a0ebc9a687c65f11eb46f77cd1a5dcf836001","short":"861a0eb","date":"2026-09-10","pr":null,"title":"feat(nav): Solutions → Gluecron links straight to gluecron.com (Craig 2026-09-10)","area":"website","areas":{"website":1},"files":1,"modules":[],"version":null}
+    {"sha":"273d50024a2597212b7119905969f5b617f7d682","short":"273d500","date":"2026-09-13","pr":478,"title":"fix(preview): the free preview runs the real engine — a config-only .npmrc no longer blocks","area":"website","areas":{"website":20,"tests":7,"engine":2,"tooling":2,"integrations":1},"files":32,"modules":["secrets"],"version":null}
   ]
 }
