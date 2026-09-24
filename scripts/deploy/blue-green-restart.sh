@@ -56,6 +56,13 @@
 #   PULL_DEPLOY_SMOKE_URL         public URL polled after the switch          (default: https://<PUBLIC_HOST>/api/platform-status)
 #   PULL_DEPLOY_SMOKE_DURATION_S  how many 1-second polls                     (default: 30)
 #   PULL_DEPLOY_SMOKE_INTERVAL_S  seconds between polls                       (default: 1)
+#   PULL_DEPLOY_ROUTE_CHECKS      space-separated routes the NEW instance must
+#                                 answer 200 with a body of at least
+#                                 PULL_DEPLOY_ROUTE_MIN_BYTES before the proxy
+#                                 is switched (default: "/ /pricing"; #723 —
+#                                 the health endpoints passed while / served a
+#                                 bare 500 for 22 hours on 2026-09-23)
+#   PULL_DEPLOY_ROUTE_MIN_BYTES   smallest body that counts as a rendered page (default: 1024)
 set -euo pipefail
 
 APP_DIR="${GATETEST_APP_DIR:-/opt/gatetest}"
@@ -91,6 +98,8 @@ PUBLIC_HOST="${PULL_DEPLOY_PUBLIC_HOST:-gatetest.io}"
 SMOKE_URL="${PULL_DEPLOY_SMOKE_URL:-https://${PUBLIC_HOST}/api/platform-status}"
 SMOKE_DURATION_S="${PULL_DEPLOY_SMOKE_DURATION_S:-30}"
 SMOKE_INTERVAL_S="${PULL_DEPLOY_SMOKE_INTERVAL_S:-1}"
+ROUTE_CHECKS="${PULL_DEPLOY_ROUTE_CHECKS:-/ /pricing}"
+ROUTE_MIN_BYTES="${PULL_DEPLOY_ROUTE_MIN_BYTES:-1024}"
 
 EXPECTED_COMMIT="${PULL_DEPLOY_EXPECTED_COMMIT:-}"
 if [ -z "$EXPECTED_COMMIT" ]; then
@@ -171,6 +180,24 @@ if [ "$HEALTHY" -ne 1 ]; then
   exit 1
 fi
 log "$NEW_UNIT is healthy at commit $EXPECTED_COMMIT"
+
+# --- the front door must render on the NEW instance before it is switched ---
+# --- in. A health endpoint proves the process is up; it does not prove the ---
+# --- build can serve a page (#723). Each route: HTTP 200 and a body of at ---
+# --- least ROUTE_MIN_BYTES, read directly from the new port. ---
+ROUTE_BODY="$(mktemp)"
+for route in $ROUTE_CHECKS; do
+  ROUTE_CODE="$(curl -s -m 15 -o "$ROUTE_BODY" -w '%{http_code}' "http://${HOST}:${NEW_PORT}${route}" || echo 000)"
+  ROUTE_BYTES="$(wc -c < "$ROUTE_BODY" 2>/dev/null | tr -d ' ' || echo 0)"
+  if [ "$ROUTE_CODE" != "200" ] || [ "${ROUTE_BYTES:-0}" -lt "$ROUTE_MIN_BYTES" ]; then
+    err "new instance on port $NEW_PORT answered ${route} with HTTP ${ROUTE_CODE} and ${ROUTE_BYTES:-0} bytes (need 200 and >= ${ROUTE_MIN_BYTES}) — build cannot serve its front door; aborting, $ACTIVE_UNIT stays live"
+    rm -f "$ROUTE_BODY"
+    cleanup_new
+    exit 1
+  fi
+  log "route ${route} on port $NEW_PORT: 200, ${ROUTE_BYTES} bytes"
+done
+rm -f "$ROUTE_BODY"
 
 # --- switch the reverse proxy upstream to the new port, verified through ---
 # --- the real public front door. The old instance is deliberately still ---
