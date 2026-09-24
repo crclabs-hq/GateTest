@@ -57,6 +57,16 @@ case "$URL" in
   *:\${CURL_PREV_PORT:-__none__}/*)
     echo "{\\"commit\\":\\"\${CURL_PREV_COMMIT:-oldsha}\\"}"
     ;;
+  *:\${CURL_NEW_PORT:-__none__}/|*:\${CURL_NEW_PORT:-__none__}/pricing)
+    # The #723 route gate: honours -o <file> and -w '%{http_code}' like curl.
+    OUT=""; PREV=""
+    for a in "$@"; do
+      if [ "$PREV" = "-o" ]; then OUT="$a"; fi
+      PREV="$a"
+    done
+    if [ -n "$OUT" ]; then head -c "\${CURL_ROUTE_BYTES:-2048}" /dev/zero | tr '\\0' 'x' > "$OUT"; fi
+    printf '%s' "\${CURL_ROUTE_CODE:-200}"
+    ;;
   *:\${CURL_NEW_PORT:-__none__}/*)
     COUNT_FILE="\${CURL_HEALTH_COUNT_FILE:?}"
     N=$(cat "$COUNT_FILE" 2>/dev/null || echo 0)
@@ -489,4 +499,32 @@ test('switch-proxy.sh: missing Traefik file exits non-zero with a clear message'
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Traefik dynamic file not found/);
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+// --- #723: the front door must render on the new instance before the switch ---
+
+test('route gate: a new build whose / answers 500 is never switched in, and the new unit is stopped', { skip: SKIP }, () => {
+  const { result, files } = run({ CURL_ROUTE_CODE: '500' }, { initialActivePort: '3000' });
+  assert.notEqual(result.status, 0, 'script must fail');
+  assert.match(result.stderr, /answered \/ with HTTP 500/);
+  assert.ok(!fs.existsSync(files.switchRecord) || fs.readFileSync(files.switchRecord, 'utf8').trim() === '', 'proxy switch must not run');
+  const sys = fs.readFileSync(files.systemctlRecord, 'utf8');
+  assert.match(sys, /stop gatetest-web@3001/, 'the unhealthy new instance is stopped');
+  assert.doesNotMatch(sys, /stop gatetest-web@3000/, 'the live instance stays up');
+});
+
+test('route gate: a 200 with a tiny body is a failure too (a bare error page is not a rendered homepage)', { skip: SKIP }, () => {
+  const { result, files } = run({ CURL_ROUTE_CODE: '200', CURL_ROUTE_BYTES: '21' }, { initialActivePort: '3000' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /21 bytes \(need 200 and >= 1024\)/);
+  assert.ok(!fs.existsSync(files.switchRecord) || fs.readFileSync(files.switchRecord, 'utf8').trim() === '');
+});
+
+test('route gate: both default routes are read from the new port before the switch on the happy path', { skip: SKIP }, () => {
+  const { result, files } = run({}, { initialActivePort: '3000' });
+  assert.equal(result.status, 0, result.stderr);
+  const calls = fs.readFileSync(files.curlRecord, 'utf8');
+  assert.match(calls, /:3001\/\n/, 'GET / on the new port');
+  assert.match(calls, /:3001\/pricing\n/, 'GET /pricing on the new port');
+  assert.match(result.stdout, /route \/ on port 3001: 200, 2048 bytes/);
 });
