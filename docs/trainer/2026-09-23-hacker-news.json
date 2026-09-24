@@ -1,0 +1,314 @@
+{
+  "generatedAt": "2026-09-23T08:20:38.190Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 19,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 8,
+      "SonarQube": 3,
+      "Semgrep": 5,
+      "CodeQL": 3,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 0
+    },
+    "painPointsFound": 1
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49813059",
+        "author": "mrheosuper",
+        "type": "comment",
+        "title": null,
+        "text": "They should have spent money on auto-pluggin charger, some kind of snake robot. Much cooler and environment friendlier",
+        "url": "https://news.ycombinator.com/item?id=49813059",
+        "points": null,
+        "numComments": null,
+        "storyId": 49773646,
+        "createdAt": "2026-09-23T08:14:55Z",
+        "createdAtUnix": 1790151295,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49811439",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "Not a chance I'm installing my insurance companies app.",
+        "url": "https://news.ycombinator.com/item?id=49811439",
+        "points": null,
+        "numComments": null,
+        "storyId": 49806496,
+        "createdAt": "2026-09-23T03:50:52Z",
+        "createdAtUnix": 1790135452,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49811200",
+        "author": "skyzoidbroczky",
+        "type": "comment",
+        "title": null,
+        "text": "Any vpn company who market itself as aiming for the anonymity of its user is essentially selling snake oil to its customers. The fact that this company pretends to be more respective of the privacy of its user because it is in America is a vast joke, companies in America are expect to collaborate with the security services, even monopolies don't escape from it.",
+        "url": "https://news.ycombinator.com/item?id=49811200",
+        "points": null,
+        "numComments": null,
+        "storyId": 49807003,
+        "createdAt": "2026-09-23T03:12:45Z",
+        "createdAtUnix": 1790133165,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49810106",
+        "author": "guerrilla",
+        "type": "comment",
+        "title": null,
+        "text": "This is why I quit. You're all (excepting the parent) absolutely delusional. Computer security is literally snake oil. We know how to do things right but we refuse to because it's too expensive.",
+        "url": "https://news.ycombinator.com/item?id=49810106",
+        "points": null,
+        "numComments": null,
+        "storyId": 49805278,
+        "createdAt": "2026-09-23T00:31:31Z",
+        "createdAtUnix": 1790123491,
+        "intent": "criticism"
+      },
+      {
+        "objectId": "49809911",
+        "author": "ImPostingOnHN",
+        "type": "comment",
+        "title": null,
+        "text": "People merely speaking their mind does not constitute getting in the way.I'm sorry that you personally don't like that mathematicians are \"bitching\" about OpenAI snaking their work out from under them, and would like to silence them. But if we're going for consistency's sake, maybe consider taking your own advice here before giving it to others.In the meantime, OpenAI can do whatever they want, mathematically-speaking. Nobody is in their way. If there isn't further meaningful progress from them, that would seem to strengthen the work-product-theft hypothesis.",
+        "url": "https://news.ycombinator.com/item?id=49809911",
+        "points": null,
+        "numComments": null,
+        "storyId": 49791997,
+        "createdAt": "2026-09-23T00:03:18Z",
+        "createdAtUnix": 1790121798,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49803536",
+        "author": "shykes",
+        "type": "comment",
+        "title": null,
+        "text": "Yes the blind spots are a hard psychological barrier...I actually think that for a lot of software, AI can really help with that blind spot, even beyond regressions, in ways that don't replace human testers but are complementary.For starters, not all software is used directly by humans. A good chunk was already consumed by APIs, and now an even larger chunk will be consumed by AIs. In those cases, it's very possible that AIs will be better at QA than humans, even for original problem discovery. After all, they are the users.Even for human-facing CLIs (the kind of software I develop these days), it's trivially easy for AIs to interact with the software, and in my experience the newer models are shockingly good at understanding the principles and conventions of CLI usability, at least in the Unix world. I routinely run CLI changes through a gauntlet of AI agents, and their feedback is genuinely good.TLDR I think in these debates over how automatable QA really is, we often tend to forget that there is a lot of software out there, and not all software is tested the same way.",
+        "url": "https://news.ycombinator.com/item?id=49803536",
+        "points": null,
+        "numComments": null,
+        "storyId": 49792067,
+        "createdAt": "2026-09-22T16:05:23Z",
+        "createdAtUnix": 1790093123,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49800787",
+        "author": "marcobambini",
+        "type": "story",
+        "title": "Show HN: Blink – A high-performance Jev like decision model for C and WASM",
+        "text": "I was fascinated by the possibilities that a System One Model like Jev can open, so I decided to recreate it from scratch within a fully embeddable runtime.Performance is extremely good (less than 200 microseconds per decision), and memory is never allocated while scoring.I created a self-running demo of Snake, Doom, and Autopilot that runs fully in a browser thanks to the WASM version.I plan to add more experiments in the upcoming days, especially how a Blink-like decision system can fit into SQLite or Postgres.Any feedback or participation to the project is more than welcome.Repo: https:&#x2F;&#x2F;github.com&#x2F;sqliteai&#x2F;blink",
+        "url": "https://news.ycombinator.com/item?id=49800787",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 49800787,
+        "createdAt": "2026-09-22T13:16:04Z",
+        "createdAtUnix": 1790082964,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49798600",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "What could possibly go wrong with giving a digital mumbling drunk access to all of your personal information and most of your online accounts, given that it could arbitrarily decide to share&#x2F;expose all of that information with anyone at any time, given that all of it is being stored in a remote transcript&#x2F;data dump and can never really be deleted.And of course, given that it's extremely vulnerable to acting on injected instructions like \"run this shell command\" which exfiltrates your password database and installs a rootkit.(But thanks for sharing, OP, awareness is important.)",
+        "url": "https://news.ycombinator.com/item?id=49798600",
+        "points": null,
+        "numComments": null,
+        "storyId": 49798257,
+        "createdAt": "2026-09-22T09:36:46Z",
+        "createdAtUnix": 1790069806,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [
+      {
+        "objectId": "49801163",
+        "author": "bunderbunder",
+        "type": "comment",
+        "title": null,
+        "text": "Plenty of measurements exist, but the trick, as the article said, is finding good measurements.Cyclomatic complexity has been pretty solidly discredited within the maintainability research community for decades.Sonar's cognitive complexity metric is a bit better, but here's a study that found that it still only has about a 0.5 correlation with how much difficulty programmers actually had reading code as measured by multiple methods.They found that the most accurate way to measure code complexity that didn't involve something like an eye tracker or EEG is still basically just vibes - asking programmers if they thought it was hard to understand.https:&#x2F;&#x2F;www.frontiersin.org&#x2F;journals&#x2F;neuroscience&#x2F;articles&#x2F;1...Halstead Effort came in second, and scored pretty well, but here's another one where it doesn't do so well, either. And it scores the SonarQube metrics even worse, with only a 0.35 correlation: https:&#x2F;&#x2F;www.sciencedirect.com&#x2F;science&#x2F;article&#x2F;abs&#x2F;pii&#x2F;S01641...",
+        "url": "https://news.ycombinator.com/item?id=49801163",
+        "points": null,
+        "numComments": null,
+        "storyId": 49799965,
+        "createdAt": "2026-09-22T13:41:36Z",
+        "createdAtUnix": 1790084496,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49801112",
+        "author": "davedx",
+        "type": "comment",
+        "title": null,
+        "text": "> you have no way of telling apart AI slop vs. good maintainable codeSonarQube",
+        "url": "https://news.ycombinator.com/item?id=49801112",
+        "points": null,
+        "numComments": null,
+        "storyId": 49799965,
+        "createdAt": "2026-09-22T13:37:54Z",
+        "createdAtUnix": 1790084274,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49800242",
+        "author": "davedx",
+        "type": "comment",
+        "title": null,
+        "text": "There's a continuum between \"vibe coded by someone with no technical knowledge or inclination\" and \"hand written domain driven design development\". You can absolutely use coding agents AND have maintainable code. But yes, the coding agents will not magically make everything maintainable if you don't tell them to.\"Code maintainability and good architecture don’t have good measurements that we can apply\"Who has no wisdom? There are dozens of ways to measure code maintainability. Cyclomatic complexity is just one.Nothing stops you from wiring up something like SonarQube metrics to your agentic coding workflow.",
+        "url": "https://news.ycombinator.com/item?id=49800242",
+        "points": null,
+        "numComments": null,
+        "storyId": 49799965,
+        "createdAt": "2026-09-22T12:36:39Z",
+        "createdAtUnix": 1790080599,
+        "intent": "neutral"
+      }
+    ],
+    "Semgrep": [
+      {
+        "objectId": "49811458",
+        "author": "tonymet",
+        "type": "comment",
+        "title": null,
+        "text": "I agree but people will still self segregate . It’s natural .An open platform becomes a slum and an exclusive one opens up. Friendster MySpace Facebook instagram and so onIf you allow everyone you lose the community by definition.",
+        "url": "https://news.ycombinator.com/item?id=49811458",
+        "points": null,
+        "numComments": null,
+        "storyId": 49803626,
+        "createdAt": "2026-09-23T03:54:34Z",
+        "createdAtUnix": 1790135674,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49810964",
+        "author": "autoexec",
+        "type": "comment",
+        "title": null,
+        "text": "It'd be nice if companies were forced to allow interoperability, at least optionally, and had good standards for making that easier on developers no matter what platform or title. There are some valid reasons to segregate PC and console gamers (depending on the game), but that kind of social network lock-in is mainly an artificial constraint which is anti-competitive and ultimately anti-consumer. Those are the kinds of barriers the internet should be removing from our lives.",
+        "url": "https://news.ycombinator.com/item?id=49810964",
+        "points": null,
+        "numComments": null,
+        "storyId": 49803626,
+        "createdAt": "2026-09-23T02:36:52Z",
+        "createdAtUnix": 1790131012,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49804762",
+        "author": "moffkalast",
+        "type": "comment",
+        "title": null,
+        "text": "OTOH same is true for wiping clean habits, prejudices and deeply held wrong beliefs. It's said that science advances one funeral at a time.If we were managed by the colonial generation, slavery and segregation would still be the norm, only rich white men would be able to vote and a king would still have the final say.",
+        "url": "https://news.ycombinator.com/item?id=49804762",
+        "points": null,
+        "numComments": null,
+        "storyId": 49804266,
+        "createdAt": "2026-09-22T17:17:54Z",
+        "createdAtUnix": 1790097474,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49800445",
+        "author": "rayiner",
+        "type": "comment",
+        "title": null,
+        "text": "I’m just describing what I think will happen.I’d also point out that our current “revenge of the nerds” economy is an aberration. The returns to individual intelligence weren’t nearly as significant before the knowledge economy, and before the knowledge economy started geographically segregating people by IQ. Your small town in Iowa used to just have high IQ people who had nothing better to do than help run the town or operate some local business or government agency. Average people benefited from that. I suspect a lot of the malaise afflicting the Rust Belt today is that most of the smart people left, leaving the social infrastructure strained by their absence.",
+        "url": "https://news.ycombinator.com/item?id=49800445",
+        "points": null,
+        "numComments": null,
+        "storyId": 49786210,
+        "createdAt": "2026-09-22T12:53:05Z",
+        "createdAtUnix": 1790081585,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49798801",
+        "author": "Arodex",
+        "type": "comment",
+        "title": null,
+        "text": "Coddling the southern segregationist isn't what led to equal civil rights. It was a fight and it wasn't all nonviolent.",
+        "url": "https://news.ycombinator.com/item?id=49798801",
+        "points": null,
+        "numComments": null,
+        "storyId": 49793322,
+        "createdAt": "2026-09-22T10:01:14Z",
+        "createdAtUnix": 1790071274,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "49809239",
+        "author": "wolfgang42",
+        "type": "comment",
+        "title": null,
+        "text": "Note that Muni cannot legally reduce cable car service; the city charter[1] mandates a minimum level of service, due to a 1947 ballot proposition[2]. As your link notes:> Cable cars are a symbol of San Francisco, a major tourist attraction, and an indelible feature of the city’s cultural and historical landscape. [...] While SPUR doesn’t recommend changing SFMTA’s role in cable car operations, the agency may wish to explore options to generate additional revenue from the cable car system or seek supplemental support from the city’s budget, given the outsized expense of providing cable car service and the unique value this mode brings to the city as a cultural attraction. SFMTA already acknowledges the special status of cable cars by pricing them differently from other modes and by excluding cable car service from some of its passes and fare discount programs.Apart from that, I suspect the per-service-hour figure is particularly misleading for cable cars and removing one cable car from the schedule would free up significantly less than $871: there is a significant fixed overhead (from power usage and cable wear) to having the system running at all, regardless of how many cars are on it.1: https:&#x2F;&#x2F;codelibrary.amlegal.com&#x2F;codes&#x2F;san_francisco&#x2F;latest&#x2F;s... 2: https:&#x2F;&#x2F;www.cablecarmuseum.org&#x2F;60th_Anniversay.html",
+        "url": "https://news.ycombinator.com/item?id=49809239",
+        "points": null,
+        "numComments": null,
+        "storyId": 49780622,
+        "createdAt": "2026-09-22T22:36:25Z",
+        "createdAtUnix": 1790116585,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49804360",
+        "author": "91awebsi",
+        "type": "comment",
+        "title": null,
+        "text": "treepeat is a tool that finds similarities in your codebase.Find duplicate code blocks meaningful to the language (classes&#x2F;functions), not just lines.Find near-duplicates: ignore whitespace, strings, high level AST nodes such as function and names.Find structurally similar code: anonymize identifiers, constants, etc.Pull requests welcome: This is very much an proof of concept - I'm happy with it, but I haven't supported very many languages at present.Languages supported: astro, bash, css, go, html, javascript, lua, markdown (plus codeblocks), python, sql, typescript, java, kotlin, rust, yaml",
+        "url": "https://news.ycombinator.com/item?id=49804360",
+        "points": null,
+        "numComments": null,
+        "storyId": 49804359,
+        "createdAt": "2026-09-22T16:53:25Z",
+        "createdAtUnix": 1790096005,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49801155",
+        "author": "codeclimber",
+        "type": "story",
+        "title": "Time to Spend Tokens or Meditate?",
+        "text": "Time to Spend Tokens or Meditate?",
+        "url": "https://inmve.github.io/next-reset/",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 49801155,
+        "createdAt": "2026-09-22T13:40:57Z",
+        "createdAtUnix": 1790084457,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": []
+  },
+  "painPoints": [
+    {
+      "phrase": "too expensive",
+      "count": 1,
+      "examples": [
+        {
+          "objectId": "49810106",
+          "url": "https://news.ycombinator.com/item?id=49810106",
+          "snippet": "This is why I quit. You're all (excepting the parent) absolutely delusional. Computer security is literally snake oil. We know how to do things right but we refuse to because it's too expensive."
+        }
+      ]
+    }
+  ],
+  "actionItems": []
+}
