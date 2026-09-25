@@ -252,6 +252,7 @@ const repoSnapshot = require("./repo-snapshot") as {
 };
 type Snapshot = Awaited<ReturnType<typeof repoSnapshot.fetchPublicRepoSnapshot>>;
 const SNAPSHOT_TTL_MS = 120_000;
+const SNAPSHOT_FAIL_TTL_MS = 30_000;
 const SNAPSHOT_MEMO_MAX = 16;
 const snapshotMemo = new Map<string, { expires: number; promise: Promise<Snapshot> }>();
 
@@ -266,8 +267,12 @@ function publicSnapshot(owner: string, repo: string, ref: string): Promise<Snaps
   }
   const promise = repoSnapshot.fetchPublicRepoSnapshot(owner, repo, ref || "HEAD");
   snapshotMemo.set(key, { expires: now + SNAPSHOT_TTL_MS, promise });
-  // A failed download must not be memoised — the next caller should retry.
-  promise.catch(() => snapshotMemo.delete(key));
+  // A failed download is memoised only briefly: long enough that the 200
+  // fetchBlob calls of ONE scan share a single failed attempt (an archive over
+  // the snapshot cap is refused deterministically, and re-downloading 40 MB
+  // per blob is how a scan of this repository would move 8 GB), short enough
+  // that a transient network failure is retried by the next scan.
+  promise.catch(() => snapshotMemo.set(key, { expires: Date.now() + SNAPSHOT_FAIL_TTL_MS, promise }));
   return promise;
 }
 
@@ -297,6 +302,42 @@ function treeUnreadable(
 ): string {
   const cause = githubFailure ? `${githubFailure}; fallback ${fallbackFailure}` : fallbackFailure;
   return `Could not read the file tree for ${owner}/${repo}: ${cause}`;
+}
+
+/** GitHub REST headers — anonymous when `token` is empty. */
+function githubHeaders(token: string): Record<string, string> {
+  const headers: Record<string, string> = { "User-Agent": "GateTest", Accept: "application/vnd.github.v3+json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+/**
+ * Anonymous GitHub tree read — the rung between "every credential failed and
+ * the public archive failed too" and "give up", for a PUBLIC repository.
+ *
+ * 2026-09-25: the production readiness probe reported "could not read repo
+ * file tree" on every run for its canary (this repository, public). The
+ * archive rungs failed honestly — its tarball is over the 40 MB snapshot cap
+ * — and the only remaining rung was the tree API with the box's refused
+ * token (401). Nothing ever asked GitHub the question a stranger can ask for
+ * free: `GET /git/trees/{ref}?recursive=1` with no Authorization header.
+ * That call has no size cap and answers for every public repo; it is metered
+ * (60/h per IP), which is why it is tried LAST, not first. A private repo
+ * answers 404 here and the composed error still names our 401 as the cause.
+ */
+async function anonymousGithubTree(owner: string, repo: string, ref: string): Promise<FetchTreeResult> {
+  const res = await fetchWithTimeout(
+    `https://api.github.com/repos/${owner}/${repo}/git/trees/${ref}?recursive=1`,
+    { headers: githubHeaders("") },
+  );
+  if (!res.ok) throw new Error(describeGithubTreeFailure(res.status));
+  const data = (await res.json()) as { tree?: Array<{ path: string; type: string }>; truncated?: boolean };
+  const paths = (data.tree || []).filter((f) => f.type === "blob").map((f) => f.path);
+  const truncated = data.truncated === true;
+  const warning = truncated
+    ? `Repository tree exceeded GitHub's single-response limit (~100k entries) and no credential is available for the per-directory walk — enumerated ${paths.length} file(s); more exist and were not scanned.`
+    : null;
+  return { paths, truncated, warning };
 }
 
 /**
@@ -421,7 +462,20 @@ async function fetchTreeWithMetadata(
       return { paths: snap.paths, truncated: snap.truncated, warning: snap.warning };
     } catch (snapErr) {
       const snapMsg = snapErr instanceof Error ? snapErr.message : "public archive unavailable";
-      throw new Error(treeUnreadable(owner, repo, githubFailure, `${gluecronFailure}; ${snapMsg}`));
+      if (!isGitHub) throw new Error(treeUnreadable(owner, repo, githubFailure, `${gluecronFailure}; ${snapMsg}`));
+      // The archive is the wrong tool for a public repo over the snapshot cap;
+      // the tree API has no such cap and answers anonymously — see
+      // anonymousGithubTree() for why this is the last rung, not the first.
+      try {
+        const anon = await anonymousGithubTree(owner, repo, ref);
+        console.warn(
+          `[fetchTree] ${owner}/${repo}@${ref}: served from the anonymous GitHub tree API (${anon.paths.length} paths) — git-host credentials failed: ${githubFailure || "no GitHub token"}; ${gluecronFailure}; ${snapMsg}`,
+        );
+        return anon;
+      } catch (anonErr) {
+        const anonMsg = anonErr instanceof Error ? anonErr.message : "anonymous tree read failed";
+        throw new Error(treeUnreadable(owner, repo, githubFailure, `${gluecronFailure}; ${snapMsg}; anonymous tree read: ${anonMsg}`));
+      }
     }
   }
   const paths = (payload.tree || []).filter((f) => f.type === "blob").map((f) => f.path);
@@ -512,7 +566,22 @@ export async function fetchBlob(
     const snap = await publicSnapshot(owner, repo, ref || "HEAD");
     return snap.contents.get(filePath) || "";
   } catch {
-    return "";
+    // Archive over the cap (or unreachable): raw.githubusercontent.com serves
+    // a public repo's files one at a time, anonymously and outside the REST
+    // rate limit — the blob-side twin of anonymousGithubTree(). "" stays the
+    // answer for a private repo or an unreadable file: the loader's warning
+    // already says per-file reads were capped, and a missing file is never
+    // reported as a clean one.
+    if (!isGitHub) return "";
+    try {
+      const raw = await fetchWithTimeout(
+        `https://raw.githubusercontent.com/${owner}/${repo}/${ref || "HEAD"}/${filePath.split("/").map(encodeURIComponent).join("/")}`,
+        { headers: { "User-Agent": "GateTest" } },
+      );
+      return raw.ok ? await raw.text() : "";
+    } catch {
+      return "";
+    }
   }
 }
 
