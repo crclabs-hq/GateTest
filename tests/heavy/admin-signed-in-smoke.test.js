@@ -33,6 +33,7 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn, execFileSync } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 const net = require('node:net');
 
@@ -129,7 +130,40 @@ async function waitForServer(url, deadline) {
   throw new Error(`server did not become ready within the deadline: ${url}`);
 }
 
-before(async () => {
+/**
+ * Newest mtime under website/app (the sources Next builds `/` from), so an
+ * existing build can be told apart from a stale one without a rebuild.
+ */
+function newestSourceMtime(dir) {
+  let newest = 0;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name === '.next') continue;
+    const p = path.join(dir, entry.name);
+    if (entry.isDirectory()) newest = Math.max(newest, newestSourceMtime(p));
+    else newest = Math.max(newest, fs.statSync(p).mtimeMs);
+  }
+  return newest;
+}
+
+/**
+ * Build only when no fresh build exists. Node ≤22 applies --test-timeout to
+ * the whole file, hooks included, and a cold `next build` on a 2-core CI
+ * runner (or here, beside three other heavy files) takes longer than the
+ * 120 s heavy cap — so a build inside this hook cancelled all 28 tests
+ * before any ran (#725, second cause). CI builds the website once, in its
+ * own step, before the heavy suite; locally a build older than any source
+ * under website/app is rebuilt, and an up-to-date one is reused and said so.
+ */
+function ensureWebsiteBuild() {
+  const buildId = path.join(WEBSITE, '.next', 'BUILD_ID');
+  if (fs.existsSync(buildId) && !process.env.GATETEST_SMOKE_REBUILD) {
+    const builtAt = fs.statSync(buildId).mtimeMs;
+    if (builtAt >= newestSourceMtime(path.join(WEBSITE, 'app'))) {
+      process.stderr.write(`# admin-signed-in-smoke: using the existing website build (BUILD_ID ${fs.readFileSync(buildId, 'utf8').trim()}, built ${new Date(builtAt).toISOString()}); GATETEST_SMOKE_REBUILD=1 forces a rebuild\n`);
+      return;
+    }
+    process.stderr.write('# admin-signed-in-smoke: website/.next is older than website/app — rebuilding\n');
+  }
   // Turbopack's build fails in a worktree because of the node_modules
   // junction — --webpack is the documented workaround (issue #691 brief).
   execFileSync('npx', ['next', 'build', '--webpack'], {
@@ -143,6 +177,10 @@ before(async () => {
     // was misreported as a failure this way the first time this test ran.
     maxBuffer: 1024 * 1024 * 64,
   });
+}
+
+before(async () => {
+  ensureWebsiteBuild();
 
   port = await findFreePort();
   baseUrl = `http://127.0.0.1:${port}`;
