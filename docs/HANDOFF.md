@@ -448,3 +448,15 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   fix/vscode-extension-in-process-engine, integration/green-board-2026-09-13,
   worktree-agent-a3bc45a30d229a29b); the 34 older ones were deleted. Local
   worktrees: one kept (feat/build-staging-swap, 90 real uncommitted lines).
+
+### Addendum 2026-09-25 22:30Z — arena reset complete
+- Owner closed the 99 stale `arena/bug-*` PRs (script
+  `%USERPROFILE%\Downloadsrena-close-stale.ps1`; the one-liner had failed on
+  quoting). gatetest-arena: 0 open PRs, 0 `arena/bug-*` branches, main green.
+  Injector fires at :17 every two hours; the repair workflow (every 15 min,
+  GITHUB_TOKEN only) takes the next PR. First proof of the loop = a bug PR
+  closed by an `arena(fix)` squash with the `<!-- arena-repair -->` comment;
+  if instead the comment says "AI fixer key rejected", ANTHROPIC_API_KEY on the
+  arena repo is dead and rotating it is the owner's item.
+- GateTest #736, #738, #740 merged; gatetest.io/testing reads the arena
+  anonymously after the next pull-deploy.
