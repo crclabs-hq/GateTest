@@ -164,6 +164,26 @@ const HELP = `
                        block. Onboard a mature repo without eating the
                        backlog on day one. Re-run to refresh; delete the
                        file to see everything again. Respects --suite.
+    --accept-risk <finding-id> --reason "<text>" [--until YYYY-MM-DD] [--by <name>]
+                       Recorded, expiring override for ONE finding (repeatable —
+                       repeat the whole group per finding). Unlike
+                       .gatetestignore (a silent, permanent "this rule is
+                       wrong"), an accepted risk says "this finding is real,
+                       we accept it, here is why, and here is when we stop":
+                       it never blocks the gate while active, but it is
+                       ALWAYS reported — in a separate "overrides" section of
+                       every report/PR comment, as a SARIF suppression with
+                       your reason attached, never silently dropped from
+                       view. <finding-id> is the id shown in --format json
+                       (issues[].id) and the PR comment, "<module>:<check>".
+                       --reason is required — without it the override is a
+                       loud warning (exit 2 under --strict/CI) and is not
+                       applied. --until expires it: past that date the
+                       finding blocks again, with a message naming the
+                       expired override. Without --persist an override
+                       applies to this run only; --persist also writes it to
+                       .gatetest/accepted-risks.json, reviewed in PRs like
+                       any other file.
     --watch            Watch for file changes and re-scan continuously
     --format <json|text>
                        Output format for a scan (--suite / --module runs).
@@ -407,7 +427,14 @@ async function main() {
   }
   // 'scan' is an explicit alias for the default behavior. Consume it.
   const effectiveArgv = first === 'scan' ? rawArgs.slice(1) : rawArgs;
-  const args = parseArgs(effectiveArgv);
+  // Accepted-risk overrides (move 3, docs/LAUNCH_BOARD.md): `--accept-risk`
+  // and its trailing `--reason` / `--until` / `--by` / `--persist` are
+  // pulled out BEFORE the generic table-driven parser sees the rest — they
+  // are grouped/repeatable in a way FLAG_SPEC does not model. Everything
+  // else goes on to parseArgs exactly as before.
+  const { parseAcceptRiskArgs } = require('../src/core/accept-risk');
+  const acceptRiskParse = parseAcceptRiskArgs(effectiveArgv);
+  const args = parseArgs(acceptRiskParse.remainingArgv);
   // Anything the parser could not use is reported before the scan starts.
   // Advisory on a developer's machine — a stray argument from a wrapper
   // script must not cost someone their scan (Forbidden #25). But it must not
@@ -421,6 +448,17 @@ async function main() {
   const fatalArgs = argProblemsAreFatal(args) && !args.help && !args.version;
   for (const line of describeArgProblems(args, { fatal: fatalArgs })) console.error(line);
   if (fatalArgs) process.exit(USAGE_EXIT_CODE);
+  // A `--accept-risk` group with no `--reason` is never silently applied
+  // (Bible Forbidden #16) — same fatal-vs-advisory rule as every other
+  // unusable argument (argProblemsAreFatal), reused rather than a second
+  // "is this CI/--strict" check (doctrine #4).
+  const acceptRiskFatal = acceptRiskParse.errors.length > 0
+    && argProblemsAreFatal({ strict: args.strict, unknownArgs: acceptRiskParse.errors.map((arg) => ({ arg })) })
+    && !args.help && !args.version;
+  for (const err of acceptRiskParse.errors) {
+    console.error(`[GateTest] ${acceptRiskFatal ? 'Error' : 'Warning'}: ${err} — ${acceptRiskFatal ? 'refused' : 'ignored, override not applied'}.`);
+  }
+  if (acceptRiskFatal) process.exit(USAGE_EXIT_CODE);
   // --offline: one switch, recorded everywhere (src/core/offline.js). The
   // AI-backed paths need api.anthropic.com, so they are refused out loud
   // rather than run against a network that is not there.
@@ -564,7 +602,22 @@ async function main() {
   // and friends keep their own output.
   const jsonMode = args.format === 'json';
 
+  // Accepted-risk overrides: merge `.gatetest/accepted-risks.json` (reviewed
+  // in PRs like any other repo file) with any valid `--accept-risk` groups
+  // from this invocation (CLI wins on a shared id). `--persist` writes the
+  // merged set back to the file; without it, CLI overrides apply to this
+  // run only. A group with no reason was already reported above and is
+  // dropped here rather than silently applied.
+  const { loadAcceptedRisks, saveAcceptedRisks, mergeOverrides } = require('../src/core/accept-risk');
+  const validAcceptRisk = acceptRiskParse.overrides.filter((o) => o.reason);
+  const acceptRiskOverrides = mergeOverrides(loadAcceptedRisks(projectRoot), validAcceptRisk);
+  if (acceptRiskParse.persist && validAcceptRisk.length > 0) {
+    const written = saveAcceptedRisks(projectRoot, acceptRiskOverrides);
+    console.error(`[GateTest] ${validAcceptRisk.length} accepted risk(s) written to ${written}`);
+  }
+
   const gatetest = new GateTest(projectRoot, {
+    acceptRiskOverrides,
     parallel: args.parallel || false,
     stopOnFirstFailure: args['stop-first'] || false,
     autoFix: args.fix || false,

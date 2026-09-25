@@ -321,6 +321,14 @@ class ConsoleReporter {
     if (typeof softened === 'number' && softened > 0) {
       console.log(`  ${COLORS.dim}Softened: ${softened} finding(s) down-weighted from your .gatetestignore history — see ${COLORS.reset}gatetest --noise`);
     }
+    // Accepted-risk overrides (move 3, docs/LAUNCH_BOARD.md) — recorded,
+    // never silent: a run that carried one says so here even though the
+    // finding itself no longer blocks. Full detail (reason/by/until) lives
+    // in the report, not the console line (Forbidden #16 — never hidden,
+    // just not duplicated in every line of output).
+    if (Array.isArray(summary.overrides) && summary.overrides.length > 0) {
+      console.log(`  ${COLORS.dim}${summary.overrides.length} accepted risk(s) (see report)${COLORS.reset}`);
+    }
     if (infoFindings > 0) {
       console.log(`  Info:     ${COLORS.dim}${infoFindings}${COLORS.reset}`);
     }

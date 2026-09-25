@@ -96,7 +96,28 @@ function topFindings(report, limit = 10) {
   return findings;
 }
 
-function renderBody({ grade, runUrl }) {
+/**
+ * "Accepted risks" section — a recorded, expiring override (move 3,
+ * docs/LAUNCH_BOARD.md) is never silent: a reviewer reading the PR must be
+ * able to see every override that applied this run WITHOUT opening the raw
+ * JSON report, with its reason/by/until, and whether it has expired (in
+ * which case the finding is blocking again, not overridden).
+ */
+function renderOverridesSection(overrides) {
+  if (!Array.isArray(overrides) || overrides.length === 0) return [];
+  const lines = [`<details><summary>Accepted risks (${overrides.length})</summary>`, ''];
+  for (const o of overrides) {
+    const bits = [];
+    if (o.by) bits.push(`by ${o.by}`);
+    if (o.until) bits.push(o.expired ? `expired ${o.until} — now blocking` : `until ${o.until}`);
+    const meta = bits.length > 0 ? ` (${bits.join(', ')})` : '';
+    lines.push(`- \`${o.id}\`${meta} — ${o.reason || '_no reason on record_'}`);
+  }
+  lines.push('', '</details>', '');
+  return lines;
+}
+
+function renderBody({ grade, runUrl, overrides }) {
   const gradeEmoji = { A: '🟢', B: '🟢', C: '🟡', D: '🟠', F: '🔴' }[grade.grade] || '⚪';
   const lines = [
     COMMENT_MARKER,
@@ -113,6 +134,8 @@ function renderBody({ grade, runUrl }) {
     }
     lines.push('', '</details>', '');
   }
+
+  lines.push(...renderOverridesSection(overrides));
 
   lines.push(`[Full run](${runUrl}) · [gatetest.io](https://gatetest.io)`);
   return lines.join('\n');
@@ -174,7 +197,7 @@ async function main() {
     ? `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`
     : `https://github.com/${owner}/${repo}`;
 
-  const body = renderBody({ grade, runUrl });
+  const body = renderBody({ grade, runUrl, overrides: Array.isArray(report.overrides) ? report.overrides : [] });
 
   try {
     const list = await githubRequest(
@@ -219,4 +242,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { computeGrade, topFindings, renderBody };
+module.exports = { computeGrade, topFindings, renderBody, renderOverridesSection };

@@ -134,6 +134,46 @@ Suppressed findings are excluded from the gate decision and every failure count,
 - `gatetest --noise` — ranks your noisiest modules and prints the exact ignore line to copy. The same signal, aggregated across every opted-in scan, is published rule by rule at [gatetest.io/noise](https://gatetest.io/noise).
 - **Auto-softening** — a module you chronically dismiss stops blocking the gate on its own (never on thin evidence: it takes repeated dismissals at a high fire-rate).
 
+### Accepting a real risk — recorded, expiring
+
+`.gatetestignore` is for a **false positive**: "this rule is wrong about my
+repo." It is silent (no reason, no expiry) and permanent — the right tool
+when the finding shouldn't exist at all.
+
+An **accepted risk** is for the other case: the finding is real, you accept
+it anyway, and you want that decision on the record with a reason and a
+review date — not a bypass nobody can see:
+
+```bash
+gatetest --accept-risk secrets:apiKey:src/legacy-client.js:42 \
+  --reason "internal tool behind VPN, rotation ticketed for Q1" \
+  --until 2026-12-31 --by craig --persist
+```
+
+`--accept-risk <finding-id>` takes the same id `--format json` prints as
+`issues[].id` (`<module>:<check>`); repeat the whole group for more than one
+finding. `--reason` is required — without it the override is a loud warning
+(exit 2 under `--strict` or in CI) and is never applied. `--until` is the
+review date: past it, the finding **blocks again**, with a message naming
+the expired override — an accepted risk that nobody revisits is exactly the
+UNRECORDED bypass this feature exists to prevent. `--persist` writes the
+override into `.gatetest/accepted-risks.json`, an array of
+`{ id, reason, by, until, created }` committed and reviewed like any other
+file; without `--persist` the override applies to this run only.
+
+An accepted risk **never disappears from the report** the way a
+`.gatetestignore` suppression does — it stops blocking, but stays visible in
+a separate `overrides` array in the JSON report, in the PR comment's
+"Accepted risks" section, and as a SARIF `suppressions` entry (so GitHub's
+Security tab shows it dismissed *with your reason*, not silently absent).
+
+| | `.gatetestignore` | Accepted risk |
+|---|---|---|
+| The finding is | wrong (false positive) | real, accepted on purpose |
+| Reason required? | no | yes |
+| Expires? | never | optional `--until` |
+| Visible after applied? | in `suppressedChecks` only | in the report, PR comment, and SARIF |
+
 **The policy is reviewed as policy.** `.gatetest.json` and `.gatetestignore` are what
 every later PR is judged by, so a PR that changes them says so: a suppression added
 to `.gatetestignore`, a module disabled, the gate set to report-only or the block
