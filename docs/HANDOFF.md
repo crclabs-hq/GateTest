@@ -1,5 +1,10 @@
 # HANDOFF — carry on from here without delay
 
+> **Start with `docs/LAUNCH_BOARD.md`** (added 2026-09-25): the live customer-ready
+> gate, the do-not-redo list with PR numbers, and the 20 product moves with status.
+> This file is the dated history behind it. Owner-only items: issue #532.
+
+
 Same section numbers as `docs/HANDOFF.md` in Gluecron.com and Tallrig, so a
 session on any platform, under any of Craig's three accounts
 (ccantynz@gmail.com, ccantyusa@gmail.com, ccanty48co@gmail.com), reads the same
