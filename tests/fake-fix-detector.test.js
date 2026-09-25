@@ -137,6 +137,51 @@ describe('FakeFixDetectorModule', () => {
   // #666: `@ts-expect-error` directly above the `expect(...)` it enables is
   // the sanctioned use inside a test file — downgrade to info instead of
   // reporting it as a suppressed type error.
+  // Control pair for return-true-stub (2026-09-25, #729): the title says a
+  // BODY was reduced to `return true`, so the line must be the first
+  // statement after a block opener. Looking back skips removed lines, which
+  // are not in the new file.
+  it('return-true-stub: fires when `return true` replaces a function body', async () => {
+    const diff = [
+      'diff --git a/src/auth.js b/src/auth.js',
+      '--- a/src/auth.js',
+      '+++ b/src/auth.js',
+      '@@ -10,4 +10,3 @@',
+      ' function isAuthorised(user) {',
+      '-  if (!user) return false;',
+      '-  return user.roles.includes("admin");',
+      '+  return true;',
+      ' }',
+    ].join('\n');
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+    await mod.run(result, makeConfig(diff));
+    assert.ok(findFailure(result, 'return-true-stub'), 'a body replaced by `return true` must be flagged');
+  });
+
+  it('return-true-stub: stays quiet on the `return true` that ends an assert.rejects validator', async () => {
+    const diff = [
+      'diff --git a/tests/load.test.js b/tests/load.test.js',
+      '--- a/tests/load.test.js',
+      '+++ b/tests/load.test.js',
+      '@@ -40,0 +40,8 @@',
+      '+    await assert.rejects(',
+      '+      load("o", "r"),',
+      '+      (err) => {',
+      '+        assert.match(err.message, /401 Bad credentials/);',
+      '+        assert.match(err.message, /snapshot cap/);',
+      '+        return true;',
+      '+      },',
+      '+    );',
+    ].join('\n');
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+    await mod.run(result, makeConfig(diff));
+    assert.strictEqual(findFailure(result, 'return-true-stub'), undefined, 'a `return true` after other statements is a line, not a stub');
+  });
+
   it('#666: downgrades @ts-expect-error to info in a test file when the next line is an expect(...)', async () => {
     const diff = [
       'diff --git a/tests/add.test.ts b/tests/add.test.ts',
