@@ -8,6 +8,8 @@ export interface Finding {
   ruleKey: string;
   instanceCount?: number;
   highSignal?: boolean;
+  /** The Fifty, move 14: absent/'deterministic' on an older cached result. */
+  verdictSource?: "deterministic" | "model" | "mixed";
 }
 
 export interface HealthScore {
