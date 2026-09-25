@@ -10,6 +10,9 @@ const http = require('http');
 const { URL } = require('url');
 const dns = require('dns');
 const tls = require('tls');
+// One definition of directive-aware `unsafe-inline` classification (issue
+// #681 item 3), shared with src/modules/web-headers.js's live header check.
+const { classifyUnsafeInline } = require('../core/csp-analyzer');
 
 // One definition of what the compression probe advertises. Without an
 // Accept-Encoding header a well-behaved server answers `identity` — that is
@@ -29,6 +32,72 @@ class ServerScanner {
       { name: 'performance', label: 'Response Performance' },
       { name: 'availability', label: 'Availability & Redirects' },
     ];
+  }
+
+  /**
+   * Every module's `details` line is prefixed `error:` / `warning:` /
+   * `pass:` / `info:` (see the individual `_check*` methods below) — the
+   * ONE place that severity actually lives, since `mod.issues` conflates
+   * both severities into a single count. bin/gatetest.js's `--server`
+   * summary line and exit code (issue #677 item 3: warnings must never fail
+   * the gate unless `--strict`) both read this one function so the two can
+   * never disagree about how many of each there were.
+   */
+  static countSeverities(result) {
+    let errors = 0;
+    let warnings = 0;
+    for (const mod of result.modules || []) {
+      for (const d of mod.details || []) {
+        if (d.startsWith('error:')) errors++;
+        else if (d.startsWith('warning:')) warnings++;
+      }
+    }
+    return { errors, warnings };
+  }
+
+  /**
+   * The `--server` exit code (issue #677 item 3): a warning-only result
+   * (e.g. a CSP 'unsafe-inline' warning) must not fail the gate on its own
+   * — that contradicts the error/warning/info three-state policy every
+   * other severity-aware surface in this repo follows. Only errors block by
+   * default; `--strict` also blocks on warnings, the same meaning
+   * `--strict` carries on a suite scan.
+   */
+  static exitCode(result, { strict = false } = {}) {
+    const { errors, warnings } = ServerScanner.countSeverities(result);
+    return errors > 0 || (strict === true && warnings > 0) ? 1 : 0;
+  }
+
+  /** The one-line severity summary — "CLEAN" or "N warning(s), N error(s)". */
+  static summaryLabel(result) {
+    const { errors, warnings } = ServerScanner.countSeverities(result);
+    if (errors === 0 && warnings === 0) return 'CLEAN';
+    const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+    return `${plural(warnings, 'warning')}, ${plural(errors, 'error')}`;
+  }
+
+  /**
+   * `--server --format json` groups (issue #677 item 1) — one `checks`
+   * entry per `details` line, the ONE place a check's severity actually
+   * lives (see countSeverities above). Each module's `details` strings are
+   * always `<severity>: <message>`, written by the individual `_check*`
+   * methods below.
+   */
+  static toJsonGroups(result) {
+    return (result.modules || []).map((mod) => ({
+      name: mod.name,
+      checks: (mod.details || []).map((d, i) => {
+        const m = /^(error|warning|pass|info):\s*(.*)$/.exec(d);
+        const type = m ? m[1] : 'info';
+        const message = m ? m[2] : d;
+        return {
+          name: `${mod.name}.${i + 1}`,
+          passed: type !== 'error' && type !== 'warning',
+          severity: type === 'pass' ? 'info' : type,
+          message,
+        };
+      }),
+    }));
   }
 
   async scan(url) {
@@ -240,9 +309,19 @@ class ServerScanner {
     mod.checks++;
     const csp = headers['content-security-policy'];
     if (csp) {
-      if (csp.includes("'unsafe-inline'")) {
-        mod.issues++;
-        mod.details.push("warning: CSP contains 'unsafe-inline'");
+      // Directive-aware (issue #681 item 3): 'unsafe-inline' in script-src
+      // (or default-src when script-src is absent) is XSS-relevant and
+      // stays a warning; 'unsafe-inline' ONLY in style-src cannot execute
+      // script, so it drops to an info note naming the directive instead
+      // of the same warning a real inline-script hole gets.
+      const unsafeInline = classifyUnsafeInline(csp);
+      if (unsafeInline) {
+        if (unsafeInline.severity === 'warning') {
+          mod.issues++;
+          mod.details.push(`warning: CSP contains 'unsafe-inline' in ${unsafeInline.directive}`);
+        } else {
+          mod.details.push(`info: CSP contains 'unsafe-inline' in ${unsafeInline.directive} only — inline styles, not inline scripts, so this is lower risk`);
+        }
       }
       if (csp.includes("'unsafe-eval'")) {
         mod.issues++;

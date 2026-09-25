@@ -155,7 +155,6 @@ function num(v: number | string | undefined): number {
  * render a "not yet" state.
  */
 export async function buildComplianceSnapshot(): Promise<ComplianceSnapshot> {
-  const sql = getDb();
   const snapshot: ComplianceSnapshot = {
     generatedAt: new Date().toISOString(),
     retention: { auditLogYears: 7, scansDays: 90 },
@@ -171,6 +170,17 @@ export async function buildComplianceSnapshot(): Promise<ComplianceSnapshot> {
     adminAuth: { lockedAccountsNow: 0, failedAttemptsLast24Hours: 0 },
     schemaPresent: { audit_log: false, admin_auth_attempts: false, customer_memory: false },
   };
+
+  // getDb() throws SYNCHRONOUSLY when DATABASE_URL is unset — the one branch
+  // the "designed to never throw" doc comment above didn't actually cover.
+  // A config gap is not a compliance-snapshot failure; return the initialized
+  // (all-false/zero) snapshot rather than letting the route 500.
+  let sql: ReturnType<typeof getDb>;
+  try {
+    sql = getDb();
+  } catch {
+    return snapshot;
+  }
 
   snapshot.schemaPresent.audit_log = await tableExists(sql, "audit_log");
   snapshot.schemaPresent.admin_auth_attempts = await tableExists(sql, "admin_auth_attempts");

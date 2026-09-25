@@ -33,7 +33,11 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 // Vars whose absence BREAKS a core user flow (scan / auth / payment).
-const REQUIRED: Array<{ name: string; why: string }> = [
+// Exported so the admin Overview dashboard's secrets checklist (#691) can
+// build a full present/missing list by name without a second hand-typed
+// copy (Doctrine #4) — the readiness JSON body only ever names the MISSING
+// ones, by design, to keep the public response focused on problems.
+export const REQUIRED: Array<{ name: string; why: string }> = [
   { name: "ANTHROPIC_API_KEY", why: "AI review, auto-fix, and the watch cron all throw without it" },
   { name: "DATABASE_URL", why: "no scan results, sessions, customers, or API keys persist" },
   { name: "SESSION_SECRET", why: "customer + admin login (OAuth) fails to encrypt sessions" },
@@ -45,7 +49,7 @@ const REQUIRED: Array<{ name: string; why: string }> = [
 ];
 
 // Vars whose absence DEGRADES a feature but doesn't break the core flow.
-const IMPORTANT: Array<{ name: string; why: string }> = [
+export const IMPORTANT: Array<{ name: string; why: string }> = [
   { name: "STRIPE_WEBHOOK_SECRET", why: "Stripe webhooks can't be verified (subscription lifecycle)" },
   { name: "GITHUB_CLIENT_ID", why: "customer 'Sign in with GitHub' disabled" },
   { name: "GITHUB_CLIENT_SECRET", why: "pairs with GITHUB_CLIENT_ID" },
@@ -54,9 +58,9 @@ const IMPORTANT: Array<{ name: string; why: string }> = [
   { name: "GATETEST_ADMIN_PASSWORD", why: "admin console password login disabled ('Admin access is not configured')" },
   { name: "CRON_SECRET", why: "background cron jobs (watch tick, scan worker) exit early in prod" },
   { name: "RESEND_API_KEY", why: "MCP $29/mo API-key emails can't send — subscriber pays, key never arrives (webhook 500s until set)" },
-  { name: "TALLRIG_BASE_URL", why: "runtime-scan dispatch to the Tallrig worker tier disabled — /web and /wp scans ship static probes only (VAPRON_BASE_URL is the pre-rename alias)" },
-  { name: "TALLRIG_API_TOKEN", why: "pairs with TALLRIG_BASE_URL — Tallrig rejects unauthenticated dispatch (VAPRON_API_TOKEN is the pre-rename alias)" },
-  { name: "TALLRIG_DISPATCH_SECRET", why: "pairs with TALLRIG_BASE_URL — signs outbound jobs and verifies Tallrig's result callbacks (VAPRON_DISPATCH_SECRET is the pre-rename alias, CRONTECH_DISPATCH_SECRET the legacy one)" },
+  { name: "TALLRIG_BASE_URL", why: "runtime-scan dispatch to the Tallrig worker tier disabled — /web and /wp scans ship static probes only" },
+  { name: "TALLRIG_API_TOKEN", why: "pairs with TALLRIG_BASE_URL — Tallrig rejects unauthenticated dispatch" },
+  { name: "TALLRIG_DISPATCH_SECRET", why: "pairs with TALLRIG_BASE_URL — signs outbound jobs and verifies Tallrig's result callbacks" },
   { name: "GATETEST_RECIPE_STORE_TOKEN", why: "fix-recipe WRITES (PUT /api/recipes) are refused with 503 until set — the flywheel cannot learn from CLI fixes; must equal the token CLI users set as GATETEST_RECIPE_STORE_TOKEN" },
   // ── Gluecron: the PREFERRED git host (Craig 2026-08-29 — customers may use
   // GitHub, but we steer them to Gluecron). These were classified "purely
@@ -207,8 +211,8 @@ export async function GET(req: NextRequest) {
       invalid_placeholders: placeholders,
       missing_optional: optionalMissing,
       stripe: { mode: stripeMode, warning: stripeWarning },
-      // Brand each platform variable resolves from (tallrig / vapron /
-      // crontech), independent of one another — no values.
+      // Brand each platform variable resolves from (tallrig / legacy),
+      // independent of one another — no values, no pre-rename names.
       platform: platformPointing(process.env),
       environment: process.env.VERCEL_ENV || process.env.NODE_ENV || "unknown",
       // Present-count so a healthy deploy reads cleanly.

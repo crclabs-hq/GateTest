@@ -29,6 +29,10 @@ apply-*.js
 # Scan artifacts written by corpus runs — never commit these.
 reliability-corpus/**/.gatetest/
 
+# Runtime ledger for Tallrig push events (issue #672) — written by
+# website/app/lib/tallrig-push-event-store.js, never checked in.
+website/app/data/tallrig-push-events.jsonl
+
 # ...but corpus fixtures MUST ship their .env.example. The known-good case
 # modern-node-idioms uses a deliberately CRLF-encoded .env.example to guard
 # the KI #49 false positive; if that file is not committed, CI runs without it

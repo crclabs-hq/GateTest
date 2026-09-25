@@ -33,6 +33,12 @@ import { NextRequest } from "next/server";
 import { resolveFullReportAccess } from "@/app/lib/full-report-auth";
 import { gateRuntimeScan } from "@/app/lib/web-runtime-gate";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
+const { buildModuleEndEvent } = require("@/app/lib/scan-stream-events") as {
+  buildModuleEndEvent: (payload: unknown) =>
+    | { module: string; status: "checked"; errors?: number; warnings?: number; info?: number; duration?: number }
+    | { module: string; status: "not-checked"; reason: string; duration?: number };
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { resolveAndValidateUrl } = require("@/app/lib/ssrf-guard") as {
   resolveAndValidateUrl: (input: string) => Promise<{ ok: true; url: URL } | { ok: false; reason: string }>;
 };
@@ -70,72 +76,13 @@ interface WebFinding {
   ruleKey: string;
 }
 
-// Translation table — mirrors /api/web/scan/route.ts. Kept local to this
-// file to avoid an import cycle; if we end up with a third URL-scan route
-// the right move is to extract translateFinding into a shared helper.
-function translateFinding(check: { name: string; severity?: string; message?: string }): WebFinding | null {
-  const sev = (check.severity || "info").toLowerCase();
-  if (sev !== "error" && sev !== "warning" && sev !== "info") return null;
-  if (sev === "info") return null;
-  const name = check.name;
-  let title = check.message || name;
-  let body = check.message || "";
-  let module = "general";
-  if (name.startsWith("web-headers:")) {
-    module = "webHeaders"; title = "Missing or weak security header";
-    body = (check.message || "") + `\n\nFix: add the header in your reverse proxy, CDN, or app server.`;
-  } else if (name.startsWith("tls-")) {
-    module = "tlsSecurity"; title = "HTTPS / TLS issue"; body = check.message || "";
-  } else if (name.startsWith("cookie-")) {
-    module = "cookieSecurity"; title = "Cookie hardening missing"; body = check.message || "";
-  } else if (name.startsWith("runtime-errors:page-error") || name.startsWith("runtime-errors:initial-status")) {
-    module = "runtimeErrors"; title = "JavaScript error on page load"; body = check.message || "";
-  } else if (name.startsWith("runtime-errors:console-error")) {
-    module = "runtimeErrors"; title = "Console error during load"; body = check.message || "";
-  } else if (name.startsWith("runtime-errors:network")) {
-    module = "runtimeErrors"; title = "Network resource failed to load"; body = check.message || "";
-  } else if (name === "crawl:broken-links" || name === "crawl:broken-images") {
-    module = "liveCrawler";
-    title = name === "crawl:broken-images" ? "Broken image(s) on your site" : "Broken link(s) on your site";
-    body = (check.message || "") + `\n\nVisitors clicking these get a 404 — bad for conversion and SEO.`;
-  } else if (name === "crawl:broken-scripts") {
-    module = "liveCrawler"; title = "Broken JavaScript bundle";
-    body = (check.message || "") + `\n\nFeatures depending on these scripts will silently break for real users.`;
-  } else if (name === "crawl:broken-stylesheets") {
-    module = "liveCrawler"; title = "Broken stylesheet";
-    body = (check.message || "") + `\n\nVisitors see unstyled HTML.`;
-  } else if (name === "crawl:missing-meta-description") {
-    module = "liveCrawler"; title = "Pages missing meta description"; body = check.message || "";
-  } else if (name === "crawl:missing-canonical") {
-    module = "liveCrawler"; title = "Pages missing canonical link"; body = check.message || "";
-  } else if (name === "crawl:slow-pages") {
-    module = "liveCrawler"; title = "Slow-loading pages"; body = check.message || "";
-  } else if (name === "crawl:anchor-missing-target") {
-    module = "liveCrawler"; title = "Anchor links pointing at non-existent targets"; body = check.message || "";
-  } else if (name === "crawl:duplicate-titles") {
-    module = "liveCrawler"; title = "Duplicate page titles"; body = check.message || "";
-  } else if (name === "crawl:sitemap-missing") {
-    module = "liveCrawler"; title = "No sitemap.xml found"; body = check.message || "";
-  } else if (name === "crawl:robots-missing") {
-    module = "liveCrawler"; title = "No robots.txt found"; body = check.message || "";
-  } else if (name === "crawl:favicon-missing") {
-    module = "liveCrawler"; title = "No favicon found"; body = check.message || "";
-  } else if (name.startsWith("crawl:error:")) {
-    module = "liveCrawler";
-    title = `Site issue: ${name.replace("crawl:error:", "").replace(/-/g, " ")}`;
-    body = check.message || "";
-  } else if (name.startsWith("accessibility:") || name.includes("a11y")) {
-    module = "accessibility"; title = "Accessibility issue"; body = check.message || "";
-  } else if (name.startsWith("seo:")) {
-    module = "seo"; title = "SEO issue"; body = check.message || "";
-  } else if (name.startsWith("performance:")) {
-    module = "performance"; title = "Performance issue"; body = check.message || "";
-  } else {
-    title = (check.message || name).split(":").slice(0, 2).join(":");
-    body = check.message || `Raw finding: ${name}`;
-  }
-  return { severity: sev as "error" | "warning" | "info", title, body, module, ruleKey: name };
-}
+// Doctrine #4 (one definition, imported) / issue #695: translateFinding
+// used to be a per-route copy; it now lives in scan-finding-translate.js
+// and is imported by all four hosted scan routes (web + wp, JSON + stream).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { translateFinding } = require("@/app/lib/scan-finding-translate") as {
+  translateFinding: (check: { name: string; severity?: string; message?: string }) => WebFinding | null;
+};
 
 export async function POST(req: NextRequest) {
   const _rlWebScan = await _webScanStreamLimiter.guard(req);
@@ -222,28 +169,26 @@ export async function POST(req: NextRequest) {
           };
         };
 
-        // ONE shared fetch for the whole suite (issue #643): webHeaders,
-        // seo, accessibility and cookieSecurity all read this instead of
-        // each re-fetching the page, so `/api/scan/url` and this hosted
-        // scan can eventually agree on the same header/HTML check
-        // functions (src/modules/{web-headers,seo,accessibility,
-        // cookie-security}.js export the pure check fns for exactly that).
-        // A failed fetch here is not fatal — the runner still executes;
-        // the modules that need `config.livePage` report themselves
-        // `notChecked` when it's absent rather than fabricating a pass.
-        let livePage: { url: string; status: number; headers: Headers; html: string } | null = null;
-        try {
-          const pageController = new AbortController();
-          const pageTimer = setTimeout(() => pageController.abort(), 15000);
-          const pageRes = await fetch(targetUrl, {
-            signal: pageController.signal,
-            redirect: "follow",
-            headers: { "User-Agent": "GateTest/1.0 Web Scanner (gatetest.io)" },
-          });
-          clearTimeout(pageTimer);
-          const html = await pageRes.text().catch(() => "");
-          livePage = { url: pageRes.url || targetUrl, status: pageRes.status, headers: pageRes.headers, html };
-        } catch { /* error-ok — livePage stays null; affected modules report not-checked with a reason */ }
+        // ONE shared fetch for the whole suite (issue #643), and ONE shared
+        // definition (issue #681 item 1) of how it's wired onto the engine —
+        // `website/app/lib/live-scan-config.js`, used by both this route and
+        // the non-streaming `/api/web/scan` so the two routes cannot
+        // silently disagree about which modules a given URL scan checks.
+        // webHeaders, seo, accessibility and cookieSecurity all read the
+        // fetch result via `config.livePage` instead of each re-fetching the
+        // page. A failed fetch here is not fatal — the runner still
+        // executes; the modules that need `config.livePage` report
+        // themselves `notChecked` when it's absent rather than fabricating
+        // a pass.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { fetchLivePage, applyLiveScanConfig } = require("@/app/lib/live-scan-config") as {
+          fetchLivePage: (targetUrl: string, opts?: { timeoutMs?: number }) => Promise<{ url: string; status: number; headers: Headers; html: string } | null>;
+          applyLiveScanConfig: (
+            gt: { config: ({ set?: (k: string, v: unknown) => void; data?: Record<string, unknown> } & Record<string, unknown>) | undefined | null },
+            args: { targetUrl: string; livePage?: { url: string; status: number; headers: Headers; html: string } | null; sanitizedAuth?: { headers?: Record<string, string>; cookie?: string } | null }
+          ) => void;
+        };
+        const livePage = await fetchLivePage(targetUrl);
         // Module-level event forwarding via the new onProgress hook
         const gt = new GateTest(workspace, {
           silent: true,
@@ -257,66 +202,17 @@ export async function POST(req: NextRequest) {
               return;
             }
             if (event === "module:end") {
-              // `payload` is the runner's live TestResult instance, not its
-              // toJSON() shape — reading `.errors`/`.warnings` straight off
-              // it (the old code) always read `undefined`, so every module
-              // ticked "clean" in the live list no matter what it actually
-              // found or whether it ran at all (issue #648 item 1: the
-              // stream contradicted the final card). `.toJSON()` is the one
-              // place that has real numbers AND the raw `checks` array with
-              // each check's own `notChecked` flag — the exact shape
-              // `deriveModuleCoverage()` below reads off `summary.results`.
-              const raw = payload as { toJSON?: () => RawResult };
-              const p: RawResult = typeof raw.toJSON === "function" ? raw.toJSON() : (payload as RawResult);
-              const moduleName = p.module || p.name || "unknown";
-              const checks = Array.isArray(p.checks) ? p.checks : [];
-              const notCheckedCheck = checks.find((c) => c && c.notChecked === true);
-              if (notCheckedCheck) {
-                send(event, {
-                  module: moduleName,
-                  status: "not-checked",
-                  // Issue #648 item 2: this reason is the module's OWN
-                  // `_notChecked()` message (BaseModule) — never
-                  // web-runtime-gate.js's dispatch-reason vocabulary
-                  // ("not-configured" etc). Those describe a separate
-                  // decision (whether the real-browser runtime pass was
-                  // dispatched to the platform worker), not why THIS
-                  // module — a file-scanner with no live-URL mode yet —
-                  // never looked at anything on this scan.
-                  reason: notCheckedCheck.message || "not checked",
-                  duration: p.duration,
-                });
-                return;
-              }
-              send(event, {
-                module: moduleName,
-                status: "checked",
-                errors: p.errors,
-                warnings: p.warnings,
-                info: p.infoFindings,
-                duration: p.duration,
-              });
+              // Issue #648 items 1-2, extracted for issue #699 into the ONE
+              // shared definition (Doctrine #4) both stream routes build
+              // this event from — see scan-stream-events.js for the full
+              // explanation of why `.toJSON()` and each check's own
+              // `notChecked` flag matter here.
+              send(event, buildModuleEndEvent(payload));
             }
           },
         });
         gt.init();
-        if (gt.config && typeof gt.config === "object") {
-          const c = gt.config as { set?: (k: string, v: unknown) => void; data?: Record<string, unknown> } & Record<string, unknown>;
-          if (typeof c.set === "function") {
-            c.set("targetUrl", targetUrl);
-            c.set("webUrl", targetUrl);
-          } else if (c.data) {
-            c.data.targetUrl = targetUrl;
-            c.data.webUrl = targetUrl;
-          }
-          // Direct property, not `.set()` — `.set()` nests under
-          // `config.config.livePage`, but every module reads
-          // `config.livePage` directly (see src/modules/base-module.js
-          // `_isUrlOnlyScan` for why `targetUrl` above needed `.get()`
-          // instead: two different existing conventions in this engine,
-          // and `livePage` is new so it gets the simpler one).
-          if (livePage) c.livePage = livePage;
-        }
+        applyLiveScanConfig(gt, { targetUrl, livePage });
         const summary = (await gt.init().runSuite("web")) as RawSummary;
 
         const allFindings: WebFinding[] = [];

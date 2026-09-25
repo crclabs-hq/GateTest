@@ -236,7 +236,18 @@ export default function HnLaunchDashboard() {
   };
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    // Kept its own dark terminal background rather than the shared
+    // `gt-admin-page` background used elsewhere: this page's inner content
+    // (unchanged — issue #691 rule 3) is built entirely from `text-white` /
+    // `bg-gray-800`-class literals designed against a black page background,
+    // and dropping that background here made all of that text invisible
+    // against the shell's light page — a real regression caught in the
+    // 1440px screenshot pass, not a hypothetical one. Inline style, not the
+    // `bg-black` utility: admin.css's `.gt-admin-page { background:
+    // transparent }` is an equal-specificity single-class selector loaded
+    // after Tailwind's utility layer in the bundle, so it silently won the
+    // cascade over `bg-black` — measured, not assumed, via the rendered HTML.
+    <main className="gt-admin-page -m-5 p-5" style={{ background: "#000", color: "#fff" }}>
       <nav className="border-b border-white/[0.06] px-4 sm:px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">

@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-22T08:45:52.175Z",
+  "generatedAt": "2026-09-25T09:03:48.702Z",
   "source": "scripts/real-world-precision.js",
   "note": "Measured on every run against pinned commits of repositories we do not control. Ceilings only ratchet down. Do not hand-edit — run the script.",
   "engineVersion": "1.61.1",
-  "engineCommit": "3ae5ae58",
+  "engineCommit": "8b3fab9b",
   "repos": [
     {
       "name": "express",
@@ -39,15 +39,15 @@
       "why": "TypeScript HTTP client with a benchmark/ tree — a known scope trap",
       "blocking": 0,
       "ceiling": 0,
-      "softened": 4
+      "softened": 3
     },
     {
       "name": "hono",
       "url": "https://github.com/honojs/hono.git",
       "sha": "eebdf7be39abf0a872671835ccce0c4f03ea497a",
       "why": "every crossFileTaint finding here was false: c.req.query() read as SQL, RegExp.exec() as command exec; 2026-09-05 importCycle type-only elision: the four import cycles it blocked on read every binding inside function bodies — deferred, now a warning — ceiling ratchets down",
-      "blocking": 17,
-      "ceiling": 17,
+      "blocking": 14,
+      "ceiling": 14,
       "softened": 57
     },
     {
@@ -55,8 +55,8 @@
       "url": "https://github.com/colinhacks/zod.git",
       "sha": "7a00236683c79000dbab0d92f6faf0b7fba39f59",
       "why": "monorepo with a docs site and benchmarks; was the worst case at 50, of which 33 were errorSwallow — 23 in benchmark harnesses, 7 the parsing library's coerce-then-check idiom (2026-09-04)",
-      "blocking": 3,
-      "ceiling": 3,
+      "blocking": 2,
+      "ceiling": 2,
       "softened": 12
     },
     {
@@ -73,8 +73,8 @@
       "url": "https://github.com/rails/rails.git",
       "sha": "1ec64ce82451c52d7407fa665ea5f95291430c23",
       "why": "Ruby at scale — instance_eval in the routes loader, backtick-quoted words in error messages that a naive shell-interp rule read as commands",
-      "blocking": 41,
-      "ceiling": 41,
+      "blocking": 36,
+      "ceiling": 36,
       "softened": 19
     },
     {
@@ -118,8 +118,8 @@
       "url": "https://github.com/jasontaylordev/CleanArchitecture.git",
       "sha": "3a06afb9258c1f5a9d8e7103bd1479246fa4166a",
       "why": "C# + Angular + React — first contact 39 blocking, 26 of them SEO/a11y rules on the two SPA index.html shells; what remains is real: strict:false, a committed .env, unlabeled inputs, log-and-eat catches in a React component",
-      "blocking": 11,
-      "ceiling": 11,
+      "blocking": 4,
+      "ceiling": 4,
       "softened": 0
     },
     {
@@ -156,7 +156,7 @@
       "why": "pnpm monorepo with members under examples/* and www — first contact 33 blocking: build configs and a CLI told they log to console, an OG-image generator scored as a web page, an Algolia search key as a secret, ternary env fallbacks as hardcoded URLs; what remains is four <img> without alt, a real import cycle, a silent connect in a constructor and `${{ github.event.release.tag_name }}` in a shell; 2026-09-05 importCycle type-only elision: its one import cycle ran through two `import { type X }` edges — elided, never a cycle in emitted JS — ceiling ratchets down",
       "blocking": 7,
       "ceiling": 7,
-      "softened": 34
+      "softened": 30
     },
     {
       "name": "apollo-server",
@@ -174,7 +174,7 @@
       "why": "pnpm monorepo, packages/** nesting, a SQL toolkit that builds SQL by design — first contact 90 blocking: `${STORAGE_TABLE}` constants as injection, seeding loops in test/ as N+1, teardown catches as swallows, tsconfig/ and turbo.json as invalid JSON, `base.sha` as shell injection, an un-runnable test:integration as failing tests; what remains is DDL with a computed database name, three import cycles, telemetry catches and a dev-tool page without a description; 2026-09-05 importCycle type-only elision: the three import cycles it blocked on read their bindings in parameter defaults and method bodies — deferred, now a warning — ceiling ratchets down",
       "blocking": 12,
       "ceiling": 12,
-      "softened": 18
+      "softened": 20
     },
     {
       "name": "NodeGoat",
@@ -191,7 +191,7 @@
     "bands": [
       {
         "confidence": 1,
-        "precision": 175,
+        "precision": 159,
         "recall": 53,
         "rules": {
           "precision": {
@@ -206,8 +206,7 @@
             "error-swallow:empty-catch": 7,
             "n-plus-one:query-in-loop": 2,
             "race-condition:fs-toctou": 1,
-            "hardcoded-url:localhost": 4,
-            "error-swallow:log-and-eat": 13,
+            "hardcoded-url:localhost": 1,
             "visual:viewport": 5,
             "a11y:input-label": 10,
             "a11y:html-lang": 4,
@@ -309,7 +308,7 @@
       },
       {
         "confidence": 0.4,
-        "precision": 51,
+        "precision": 48,
         "recall": 0,
         "rules": {
           "precision": {
@@ -320,7 +319,6 @@
             "log-pii:sensitive-arg": 1,
             "cookie-sec:js-weak-secret": 3,
             "taint:sink:redirect": 3,
-            "error-swallow:log-and-eat": 8,
             "a11y:contrast-static": 1,
             "data:migration-drop": 2,
             "sql:drop-table": 2,
@@ -332,9 +330,14 @@
             "error-swallow:empty-catch": 1,
             "race-condition:fs-toctou": 2,
             "resource-leak:setinterval": 1,
+            "env-vars:missing-from-example:APP_ENV": 1,
+            "env-vars:missing-from-example:AUTH_GITHUB_ID": 1,
+            "env-vars:missing-from-example:AUTH_GITHUB_SECRET": 1,
             "openapi-drift:undocumented-route:GET:/": 1,
             "data:pii:PII in logs": 2,
             "error-swallow:catch-noop": 2,
+            "env-vars:missing-from-example:REACT_ROUTER_DEMO_PG_POOL_MAX": 1,
+            "env-vars:missing-from-example:PRISMA_NEXT_CONTRACT_SOURCE": 1,
             "redos:user-controlled-regex": 1,
             "money-float:arithmetic": 7
           },
@@ -381,61 +384,61 @@
     "sweep": [
       {
         "threshold": 0.5,
-        "precisionBlocking": 267,
+        "precisionBlocking": 251,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.6,
-        "precisionBlocking": 267,
+        "precisionBlocking": 251,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.65,
-        "precisionBlocking": 175,
+        "precisionBlocking": 159,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.7,
-        "precisionBlocking": 175,
+        "precisionBlocking": 159,
         "recallBlocking": 53,
         "shipped": true
       },
       {
         "threshold": 0.75,
-        "precisionBlocking": 175,
+        "precisionBlocking": 159,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.8,
-        "precisionBlocking": 175,
+        "precisionBlocking": 159,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.85,
-        "precisionBlocking": 175,
+        "precisionBlocking": 159,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.9,
-        "precisionBlocking": 175,
+        "precisionBlocking": 159,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.95,
-        "precisionBlocking": 175,
+        "precisionBlocking": 159,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 1,
-        "precisionBlocking": 175,
+        "precisionBlocking": 159,
         "recallBlocking": 53,
         "shipped": false
       }
@@ -445,9 +448,9 @@
       "above": 1
     },
     "softened": {
-      "precisionTotal": 348,
-      "precisionBlocking": 175,
-      "precisionSoftened": 173,
+      "precisionTotal": 329,
+      "precisionBlocking": 159,
+      "precisionSoftened": 170,
       "recallTotal": 53,
       "recallBlocking": 53,
       "recallLost": 0

@@ -30,6 +30,14 @@
 const { resolveAndValidateUrl } = require("../ssrf-guard");
 
 const DEFAULT_TIMEOUT_MS = 20_000;
+
+// Shared with the static source-code rule in `src/modules/web-headers.js` (Doctrine
+// #4 — one definition, imported) so the live probe and the file scanner agree on what
+// counts as the CSP `unsafe-eval` token. Quotes are required (a bare substring match
+// on "unsafe-eval" also matches the unrelated, sandboxed `wasm-unsafe-eval` directive)
+// and the negative lookbehind stops the token from being read as a suffix of
+// `wasm-unsafe-eval` even when a quote character is not directly between them.
+const CSP_UNSAFE_EVAL_TOKEN = /(?<![\w-])'unsafe-eval'/i;
 const MAX_REDIRECTS = 5;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const DEFAULT_USER_AGENT = "GateTest-Reliability/1.0 (+https://gatetest.io)";
@@ -192,7 +200,7 @@ function findingsFromResponse({ url, response, bodySnippet }) {
   // CSP unsafe directives
   const csp = headerValue(response.headers, "content-security-policy");
   if (csp) {
-    if (/'unsafe-eval'/.test(String(csp))) {
+    if (CSP_UNSAFE_EVAL_TOKEN.test(String(csp))) {
       findings.push({
         module: "webHeaders",
         severity: "error",
@@ -445,4 +453,5 @@ module.exports = {
   REQUIRED_SECURITY_HEADERS,
   INFO_DISCLOSURE_HEADERS,
   STACK_FINGERPRINT_HEADERS,
+  CSP_UNSAFE_EVAL_TOKEN,
 };

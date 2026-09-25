@@ -29,7 +29,8 @@ export default function Footer() {
               {/* Real routes, not homepage anchors — /modules, /pricing and
                   /enterprise are pages in their own right. /#features has no
                   page of its own, so it stays an anchor. */}
-              <li><Link href="/#features" className="text-sm text-muted hover:text-foreground transition-colors">Features</Link></li>
+              <li><Link href="/how-it-works" className="text-sm text-muted hover:text-foreground transition-colors">Features</Link></li>
+              <li><Link href="/developers" className="text-sm text-muted hover:text-foreground transition-colors">Docs</Link></li>
               <li><Link href="/modules" className="text-sm text-muted hover:text-foreground transition-colors">Modules</Link></li>
               <li><Link href="/pricing" className="text-sm text-muted hover:text-foreground transition-colors">Pricing</Link></li>
               <li><Link href="/enterprise" className="text-sm text-muted hover:text-foreground transition-colors">Enterprise</Link></li>
@@ -78,7 +79,7 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-sm mb-4">Company</h4>
             <ul className="space-y-2">
-              <li><Link href="/#features" className="text-sm text-muted hover:text-foreground transition-colors">About</Link></li>
+              <li><Link href="/how-it-works" className="text-sm text-muted hover:text-foreground transition-colors">About</Link></li>
               <li><Link href="/trust" className="text-sm text-muted hover:text-foreground transition-colors">Trust &amp; Security</Link></li>
               <li><a href="mailto:support@gatetest.io" className="text-sm text-muted hover:text-foreground transition-colors">Contact</a></li>
               <li><Link href="/legal/privacy" className="text-sm text-muted hover:text-foreground transition-colors">Privacy Policy</Link></li>

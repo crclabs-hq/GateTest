@@ -1,0 +1,31 @@
+[Unit]
+Description=GateTest web app — blue/green instance on port %i
+Documentation=file:///opt/gatetest/docs/deploy/PULL-DEPLOY.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/gatetest/website
+EnvironmentFile=/opt/gatetest/website/.env.local
+Environment=PORT=%i
+# Bound to the same interior address the single-instance gatetest-web.service
+# already uses — CLAUDE.md Deployment Doctrine "Cutover status" item 3: the
+# box binds 10.0.1.1, not 127.0.0.1, until that migration happens
+# separately. %i is the systemd instance name, which pull-deploy.sh's
+# blue-green-restart.sh always starts as a bare port number, so
+# `systemctl start gatetest-web@3001` serves 10.0.1.1:3001.
+ExecStart=/usr/bin/npm run start -- -p %i -H 10.0.1.1
+Restart=on-failure
+RestartSec=2
+# DEFAULT-FOR-NOW, same reasoning as gatetest-pull-deploy.service: root
+# matches every other operation on this checkout today. See
+# docs/deploy/PULL-DEPLOY.md "Recommended hardening: run as non-root".
+User=root
+StandardOutput=journal
+StandardError=journal
+
+# No NoNewPrivileges= / ProtectHome= / other systemd sandboxing here — same
+# reasoning as gatetest-pull-deploy.service: prove the build still runs
+# under a hardening profile on the box before adding one to a unit that
+# serves production traffic.

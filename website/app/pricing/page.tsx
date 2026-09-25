@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Pricing from "../components/Pricing";
-import PageHero from "../components/site/PageHero";
-import Section from "../components/site/Section";
+import { Hero, Section, Card, Pricing as V2Pricing } from "../components/v2";
+import AfterFree from "../components/AfterFree";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import { breadcrumbSchema, contentMetadata, jsonLd } from "../lib/seo/schema";
 
@@ -81,7 +80,7 @@ const NEXT_STEPS: { href: string; title: string; body: string }[] = [
 
 export default function PricingPage() {
   return (
-    <div className="bg-background">
+    <div>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -93,51 +92,54 @@ export default function PricingPage() {
 
       <main>
         {/* The shared hero sits directly under the sticky site header (no
-            top padding — the header is in-flow). The tier grid below is the
-            same <Pricing /> component the homepage renders at /#pricing. */}
-        <PageHero
-          eyebrow="Pricing"
-          title="GateTest pricing"
-          align="center"
-          lede={
-            <>
-              Four one-time scan tiers billed per run, two subscriptions, and a
-              contact-based{" "}
-              <Link href="/enterprise" className="text-accent hover:underline">
-                Enterprise
-              </Link>{" "}
-              plan. Everything is charged upfront at checkout — no seats, no
-              minimum commitment, no sales call to see a price.
-            </>
-          }
-        />
+            top padding — the header is in-flow). */}
+        <Section wrap={false}>
+          <div className="v2-wrap">
+            <Hero
+              kicker="Pricing"
+              title="GateTest pricing"
+              lede={
+                <>
+                  Four one-time scan tiers billed per run, two subscriptions, and a
+                  contact-based{" "}
+                  <Link href="/enterprise" className="text-accent hover:underline">
+                    Enterprise
+                  </Link>{" "}
+                  plan. Everything is charged upfront at checkout — no seats, no
+                  minimum commitment, no sales call to see a price.
+                </>
+              }
+            />
+          </div>
+        </Section>
 
-        {/* The one and only pricing surface — the same component the homepage
-            renders at /#pricing, so the two can never disagree. */}
-        <Pricing />
+        {/* The same tier table /preview renders, imported from the one
+            checkout-tiers.ts source — this page and /preview can never
+            disagree on a price. */}
+        <Section tight>
+          <V2Pricing />
+        </Section>
+
+        <AfterFree />
 
         {/* Deep links into the pages a buyer reads before deciding. Also the
             fix for the modules catalogue being reachable only from a homepage
             anchor. */}
-        <Section alt>
-          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-8 text-center">
-            Before you decide
-          </h2>
+        <Section tight>
+          <h2 className="v2-h2 mb-8">Before you decide</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {NEXT_STEPS.map((s) => (
-              <Link
-                key={s.href}
-                href={s.href}
-                className="card block p-5"
-              >
-                <h3 className="font-semibold text-foreground text-sm mb-1.5">
-                  {s.title}
-                </h3>
-                <p className="text-xs text-muted leading-relaxed">{s.body}</p>
+              <Link key={s.href} href={s.href}>
+                <Card className="h-full">
+                  <h3 className="font-semibold text-foreground text-sm mb-1.5">
+                    {s.title}
+                  </h3>
+                  <p className="text-xs text-muted leading-relaxed">{s.body}</p>
+                </Card>
               </Link>
             ))}
           </div>
-          <p className="text-center text-xs text-muted mt-8">
+          <p className="text-sm text-muted mt-8">
             Already subscribed?{" "}
             <Link href="/billing" className="text-accent hover:underline">
               Manage your subscription

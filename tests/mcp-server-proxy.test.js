@@ -56,8 +56,12 @@ describe('bin/gatetest-mcp.mjs — the start function the proxy relies on', () =
     // isMain OR the published-1.1.3-proxy case (startedByProxyBin): that proxy
     // only imports this file, so the import has to start the transport when
     // @gatetest/mcp-server/bin/server.mjs is the entrypoint. Either way the
-    // start goes through the one idempotent startServer().
-    assert.match(src, /if \(isMain \|\| startedByProxyBin\) \{\s*await startServer\(\);\s*\}/);
+    // start goes through the one idempotent startServer() (a stderr banner
+    // naming the tool count is allowed between the guard and the call —
+    // stdout stays untouched, see the "listening on stdio" check below).
+    assert.match(src, /if \(isMain \|\| startedByProxyBin\) \{[\s\S]*?await startServer\(\);\s*\}/);
+    assert.match(src, /process\.stderr\.write\(`GateTest MCP server listening on stdio, \$\{TOOLS\.length\} tools/,
+      'a stdio server that starts silently is indistinguishable from a broken one');
     assert.match(src, /pkg\.name === '@gatetest\/mcp-server'/, 'the auto-start must be scoped to the @gatetest/mcp-server package');
   });
 
@@ -86,8 +90,27 @@ describe('packages/mcp-server/bin/server.mjs — the proxy', () => {
     assert.match(proxySrc, /child\.on\('exit'/);
   });
 
-  it('never writes to stdout itself — stdout is the JSON-RPC stream', () => {
-    assert.doesNotMatch(proxySrc, /console\.log\(|process\.stdout\.write\(/);
+  it('--help / --version print to stdout and exit before anything else runs', () => {
+    // Both flags must be handled, print to stdout, and exit(0) — and that
+    // whole block must appear before the cli is ever resolved, so `--help`
+    // can never race a real transport onto stdout.
+    const flagBlockEnd = proxySrc.indexOf('// Use import.meta.resolve');
+    assert.ok(flagBlockEnd > 0, 'expected the flag-handling block before the cli resolution comment');
+    const flagBlock = proxySrc.slice(0, flagBlockEnd);
+    assert.match(flagBlock, /flags\.includes\('--version'\)/);
+    assert.match(flagBlock, /flags\.includes\('--help'\)/);
+    assert.match(flagBlock, /process\.stdout\.write\(/);
+    assert.match(flagBlock, /process\.exit\(0\)/);
+  });
+
+  it('never writes to stdout once the cli might be resolving or starting — stdout is the JSON-RPC stream', () => {
+    // The only stdout writes anywhere in this file live in the pre-flight
+    // --help/--version block (checked above), each followed by process.exit(0)
+    // before @gatetest/cli is ever imported or spawned. Everything from the
+    // cli-resolution comment onward — the code path a real MCP client's
+    // launch actually runs — must stay stdout-clean.
+    const afterFlags = proxySrc.slice(proxySrc.indexOf('// Use import.meta.resolve'));
+    assert.doesNotMatch(afterFlags, /console\.log\(|process\.stdout\.write\(/);
   });
 });
 

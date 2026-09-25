@@ -46,6 +46,7 @@ set -euo pipefail
 {
   echo "GATETEST_APP_DIR=\${GATETEST_APP_DIR:-}"
   echo "DEPLOY_RECOVER=\${DEPLOY_RECOVER:-<unset>}"
+  echo "ARGS=$*"
 } > "$STUB_RECORD_FILE"
 if [ "\${STUB_EXIT:-0}" != "0" ]; then
   exit "\${STUB_EXIT}"
@@ -145,8 +146,20 @@ function run(box, tmp, extra = {}) {
   return { r, statusFile, lockFile };
 }
 
+// The status file is one JSON object per line, written fresh each tick — but
+// pull-deploy-onfailure.sh appends rather than replaces, so a killed run
+// between two ordinary ticks can leave more than one line behind. Read the
+// LAST non-empty line only, same as pull-deploy-status.js and pull-deploy.sh's
+// own `tail -n1` — parsing the whole file broke on exactly that appended shape
+// ("Unexpected non-whitespace character after JSON at position ... line 2").
 function readStatus(statusFile) {
-  return JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+  const raw = fs.readFileSync(statusFile, 'utf8');
+  const lastLine = raw
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .pop();
+  return JSON.parse(lastLine);
 }
 
 // ── up to date: one fetch, no build ─────────────────────────────────────────
@@ -155,9 +168,13 @@ test('up to date: no deploy runs, exits 0, status "up-to-date"', { skip: SKIP_RE
   const { tmp, box, originUrl } = makeBoxAtV1();
   try {
     const recordFile = path.join(tmp, 'stub-record.txt');
+    // A production build exists on this box (the marker next build writes last).
+    const buildMarker = path.join(tmp, 'BUILD_ID');
+    fs.writeFileSync(buildMarker, 'test-build\n');
     const { r, statusFile } = run(box, tmp, {
       PULL_DEPLOY_EXPECTED_ORIGIN: originUrl,
       STUB_RECORD_FILE: recordFile,
+      PULL_DEPLOY_BUILD_MARKER: buildMarker,
     });
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /up to date at/);
@@ -201,9 +218,13 @@ test('up to date with the deploy script\'s own dirty files present (build-info.j
     assert.notEqual(dirty, '', 'the self-dirtied files must actually be dirty for this test to mean anything');
 
     const recordFile = path.join(tmp, 'stub-record.txt');
+    // A production build exists on this box (the marker next build writes last).
+    const buildMarker = path.join(tmp, 'BUILD_ID');
+    fs.writeFileSync(buildMarker, 'test-build\n');
     const { r, statusFile } = run(box, tmp, {
       PULL_DEPLOY_EXPECTED_ORIGIN: originUrl,
       STUB_RECORD_FILE: recordFile,
+      PULL_DEPLOY_BUILD_MARKER: buildMarker,
     });
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /up to date at/);
@@ -211,6 +232,36 @@ test('up to date with the deploy script\'s own dirty files present (build-info.j
     assert.equal(readStatus(statusFile).result, 'up-to-date');
     // The dirty files are untouched — pull-deploy's fast path must not reset or clean anything.
     assert.notEqual(git(box, 'status', '--porcelain'), '', 'the up-to-date path must not touch the working tree');
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+// ── up to date but UNBUILT: not "nothing to do" (#723) ─────────────────────
+
+test('up to date but no production build on disk: runs origin\'s deploy script with --force-build, status "deployed", reason names the missing build', { skip: SKIP_REAL_RUN }, () => {
+  const { tmp, box, origin, originUrl } = makeBoxAtV1();
+  try {
+    // Box already at origin's tip (so BEFORE == AFTER) with NEW_STUB as the
+    // deploy script on origin/main — exactly the 2026-09-23 box: checkout
+    // current, .next gone.
+    const tip = advanceOriginLinear(tmp, origin);
+    git(box, 'fetch', '-q', 'origin');
+    git(box, 'reset', '-q', '--hard', 'origin/main');
+    assert.equal(git(box, 'rev-parse', 'HEAD'), tip);
+    const recordFile = path.join(tmp, 'stub-record.txt');
+    const missingMarker = path.join(tmp, 'BUILD_ID'); // never created
+    const { r, statusFile } = run(box, tmp, {
+      PULL_DEPLOY_EXPECTED_ORIGIN: originUrl,
+      STUB_RECORD_FILE: recordFile,
+      PULL_DEPLOY_BUILD_MARKER: missingMarker,
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /no production build on disk .* rebuilding/);
+    assert.equal(fs.existsSync(recordFile), true, 'the deploy script must run when the box is current but unbuilt');
+    const record = fs.readFileSync(recordFile, 'utf8');
+    assert.match(record, /^ARGS=--force-build$/m, 'the deploy script must be told to build despite BEFORE == AFTER');
+    const status = readStatus(statusFile);
+    assert.equal(status.result, 'deployed');
+    assert.match(status.reason, /rebuilt: build output was missing/);
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
@@ -410,4 +461,169 @@ test('deploy-box.yml only attempts the SSH deploy on workflow_dispatch, and poll
   assert.match(pollJob, /if: github\.event_name == 'push'/);
   assert.match(pollJob, /scripts\/ops\/verify-deploy\.js/);
   assert.match(pollJob, /within 15 min/);
+});
+
+// Production froze at one commit for ten hours on 2026-09-22/23: the box ran
+// a deploy script whose only non-flag path was blue/green, which aborts when
+// the templated unit or the active-port file is absent. A deploy script must
+// never turn "not yet installed" into "never deploys again" — it says why and
+// restarts in place instead. Static assertions: the real path needs flock and
+// a Linux box (see SKIP_REAL_RUN above); CI runs the real tests.
+const fallbackSrc = fs.readFileSync(SCRIPT_PATH, 'utf8').replace(/\r\n/g, '\n');
+
+test('pull-deploy.sh falls back to in-place when blue/green is not installed: checks for the templated unit', () => {
+  assert.match(fallbackSrc, /systemctl cat "\$\{PULL_DEPLOY_UNIT_TEMPLATE:-gatetest-web@\}\.service"/);
+  assert.match(fallbackSrc, /blue\/green not installed on this box/);
+});
+
+test('pull-deploy.sh falls back to in-place when blue/green is not installed: checks for the active-port file', () => {
+  assert.match(fallbackSrc, /PULL_DEPLOY_ACTIVE_PORT_FILE:-\/var\/lib\/gatetest\/pull-deploy-active-port/);
+  assert.match(fallbackSrc, /no active-port file/);
+});
+
+test('pull-deploy.sh: every fallback branch selects the same in-place restart PULL_DEPLOY_INPLACE=1 selects', () => {
+  const inPlaceAssignments = (fallbackSrc.match(/RESTART_MODE="in-place"/g) || []).length;
+  assert.equal(inPlaceAssignments, 3, 'flag, missing template, missing active-port file');
+  assert.match(fallbackSrc, /if \[ "\$RESTART_MODE" = "in-place" \]; then\n\s*git show origin\/main:scripts\/deploy\/deploy-on-box\.sh \| GATETEST_APP_DIR="\$APP_DIR" PULL_DEPLOY_INPLACE=1 bash -s/);
+});
+
+test('pull-deploy.sh: blue/green is still the default when nothing is missing', () => {
+  assert.match(fallbackSrc, /RESTART_MODE="blue-green"\n/);
+  assert.match(fallbackSrc, /GATETEST_RESTART_CMD="\$APP_DIR\/scripts\/deploy\/blue-green-restart\.sh"/);
+});
+
+// ── issue #706 part 3: consecutiveFailures / firstFailedAt, named fetch failures, OnFailure ──
+
+test('a failed git fetch is named from its own stderr, status "failed", consecutiveFailures starts at 1', { skip: SKIP_REAL_RUN }, () => {
+  const { tmp, box, origin, originUrl } = makeBoxAtV1();
+  try {
+    // Corrupt origin so `git fetch` genuinely fails on the network step —
+    // the origin URL itself still matches PULL_DEPLOY_EXPECTED_ORIGIN, so
+    // provenance check (a) passes and this exercises the fetch, not that.
+    fs.rmSync(origin, { recursive: true, force: true });
+    const { r, statusFile } = run(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl });
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /git fetch failed:/);
+    const status = readStatus(statusFile);
+    assert.equal(status.result, 'failed');
+    assert.match(status.reason, /^git fetch failed: /);
+    assert.equal(status.consecutiveFailures, 1);
+    assert.notEqual(status.firstFailedAt, '');
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('consecutiveFailures increments across ticks, firstFailedAt stays fixed, and a later success resets both', { skip: SKIP_REAL_RUN }, () => {
+  const { tmp, box, origin, originUrl } = makeBoxAtV1();
+  try {
+    fs.rmSync(origin, { recursive: true, force: true });
+
+    const first = run(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl });
+    assert.notEqual(first.r.status, 0);
+    const s1 = readStatus(first.statusFile);
+    assert.equal(s1.consecutiveFailures, 1);
+    assert.notEqual(s1.firstFailedAt, '');
+
+    const second = run(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl });
+    assert.notEqual(second.r.status, 0);
+    const s2 = readStatus(second.statusFile);
+    assert.equal(s2.consecutiveFailures, 2);
+    assert.equal(s2.firstFailedAt, s1.firstFailedAt, 'firstFailedAt must not move while the streak continues');
+
+    // Recreate origin as a bare clone of the box's own (unchanged) HEAD, so
+    // the next tick's fetch succeeds and there is genuinely nothing to
+    // deploy — the success path that must reset both fields.
+    git(tmp, 'clone', '-q', '--bare', box, origin);
+    // A build exists on this box, so "nothing to deploy" is genuinely nothing
+    // to do (an unbuilt box would rebuild instead — its own test above).
+    const buildMarker = path.join(tmp, 'BUILD_ID');
+    fs.writeFileSync(buildMarker, 'test-build\n');
+    const third = run(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl, PULL_DEPLOY_BUILD_MARKER: buildMarker });
+    assert.equal(third.r.status, 0, third.r.stdout + third.r.stderr);
+    const s3 = readStatus(third.statusFile);
+    assert.equal(s3.result, 'up-to-date');
+    assert.equal(s3.consecutiveFailures, 0);
+    assert.equal(s3.firstFailedAt, '');
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('pull-deploy.sh reads the LAST line of a multi-line status file (as an OnFailure append leaves it) to continue the failure streak', { skip: SKIP_REAL_RUN }, () => {
+  const { tmp, box, origin, originUrl } = makeBoxAtV1();
+  try {
+    fs.rmSync(origin, { recursive: true, force: true });
+    const { env, statusFile } = envFor(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl });
+    // Simulate pull-deploy-onfailure.sh having appended a SECOND line onto
+    // an older, otherwise-unrelated first line — the shape a killed run
+    // between two ordinary ticks leaves behind.
+    fs.mkdirSync(path.dirname(statusFile), { recursive: true });
+    const oldLine = JSON.stringify({ at: '2020-01-01T00:00:00Z', before: 'x', after: 'x', result: 'up-to-date', reason: '', consecutiveFailures: 0, firstFailedAt: '' });
+    const appendedFailure = JSON.stringify({ at: '2026-09-23T02:00:00Z', before: '', after: '', result: 'failed', reason: 'killed', consecutiveFailures: null, firstFailedAt: '2026-09-23T02:00:00Z' });
+    fs.writeFileSync(statusFile, oldLine + '\n' + appendedFailure + '\n');
+
+    const r = spawnSync('bash', [SCRIPT_PATH], { cwd: box, encoding: 'utf8', env });
+    assert.notEqual(r.status, 0);
+    const status = readStatus(statusFile);
+    assert.equal(status.result, 'failed');
+    // Must have continued the streak the LAST line recorded (consecutiveFailures
+    // going to 2, firstFailedAt fixed at the appended line's timestamp) — not
+    // the FIRST line's "up-to-date", which `head -n1` would have read.
+    assert.equal(status.consecutiveFailures, 2);
+    assert.equal(status.firstFailedAt, '2026-09-23T02:00:00Z');
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('gatetest-pull-deploy.service declares OnFailure pointing at the onfailure unit', () => {
+  const unit = fs.readFileSync(path.join(ROOT, 'scripts', 'deploy', 'systemd', 'gatetest-pull-deploy.service'), 'utf8');
+  assert.match(unit, /^OnFailure=gatetest-pull-deploy-onfailure\.service$/m);
+});
+
+test('gatetest-pull-deploy-onfailure.service is a tiny oneshot that runs the onfailure script', () => {
+  const unit = fs.readFileSync(path.join(ROOT, 'scripts', 'deploy', 'systemd', 'gatetest-pull-deploy-onfailure.service'), 'utf8');
+  assert.match(unit, /^Type=oneshot$/m);
+  assert.match(unit, /pull-deploy-onfailure\.sh$/m);
+});
+
+test('pull-deploy-onfailure.sh appends (never overwrites) a "failed" record to the status file', { skip: !HAVE_BASH && 'bash not available' }, () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-onfailure-'));
+  try {
+    const statusFile = path.join(tmp, 'status.json');
+    fs.writeFileSync(
+      statusFile,
+      JSON.stringify({ at: '2026-01-01T00:00:00Z', before: 'a', after: 'a', result: 'up-to-date', reason: '' }) + '\n',
+    );
+    const script = path.join(ROOT, 'scripts', 'deploy', 'pull-deploy-onfailure.sh');
+    const r = spawnSync('bash', [script], { encoding: 'utf8', env: { ...process.env, PULL_DEPLOY_STATUS_FILE: statusFile } });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const lines = fs.readFileSync(statusFile, 'utf8').trim().split('\n');
+    assert.equal(lines.length, 2, 'must APPEND a second line, never overwrite the first');
+    const last = JSON.parse(lines[lines.length - 1]);
+    assert.equal(last.result, 'failed');
+    assert.match(last.reason, /killed before it could record its own status/);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('install-pull-deploy.sh installs the onfailure unit and chmods the onfailure script', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'scripts', 'deploy', 'install-pull-deploy.sh'), 'utf8');
+  assert.match(src, /gatetest-pull-deploy-onfailure\.service/);
+  assert.match(src, /pull-deploy-onfailure\.sh/);
+});
+
+// ── issue #706 part 2: the "Production deploy stalled" issue ───────────────
+
+test('deploy-box.yml poll-pull-deploy job reports to the "Production deploy stalled" issue', () => {
+  let yaml;
+  try { yaml = require(path.join(ROOT, 'node_modules', 'js-yaml')); } catch { yaml = require('js-yaml'); }
+  const wf = yaml.load(fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'deploy-box.yml'), 'utf8'));
+  const job = wf.jobs['poll-pull-deploy'];
+  assert.equal(job.permissions.issues, 'write', 'needs issues: write to manage the stalled-deploy issue');
+  const checkout = job.steps.find((s) => /actions\/checkout@/.test(s.uses || ''));
+  assert.equal(checkout.with['fetch-depth'], 0, 'full history so unshipped merges can be listed');
+  const report = job.steps.find((s) => /deploy-stalled-issue\.js/.test(s.run || ''));
+  assert.ok(report, 'a step runs deploy-stalled-issue.js');
+  assert.equal(String(report.if), 'always()', 'reported whether the poll succeeded or failed');
+  assert.match(report.run, /--state "\$STATE"/);
+  assert.match(report.run, /STATE="stalled"/);
+  assert.match(report.run, /STATE="resolved"/);
+  assert.match(report.run, /not checked: poll outcome ambiguous/, 'the ambiguous "not checked" case is never reported as resolved');
+  assert.match(report.run, /--source "deploy-box\.yml poll-pull-deploy"/);
+  assert.ok(!/\|\|\s*true\b/.test(report.run), 'no swallowed-error pattern (bash-safety pipe-true)');
 });

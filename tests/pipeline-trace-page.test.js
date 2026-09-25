@@ -7,7 +7,10 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
 const PAGE_PATH = path.join(ROOT, "website/app/admin/pipeline-trace/page.tsx");
-const ADMIN_PANEL_PATH = path.join(ROOT, "website/app/admin/AdminPanel.tsx");
+// The admin shell (issue #691) is now the one place naming every section —
+// AdminPanel.tsx used to render its own header with links to four pages;
+// that nav lives in AdminShell.tsx's sidebar instead now.
+const ADMIN_SHELL_PATH = path.join(ROOT, "website/app/admin/AdminShell.tsx");
 
 // Static-source assertions only — same approach as tests/triage-page.test.js.
 
@@ -131,8 +134,8 @@ test("pipeline-trace page: file under 600 lines", () => {
   assert.ok(lineCount < 600, `expected <600 lines, got ${lineCount}`);
 });
 
-test("AdminPanel: has a Pipeline nav link to /admin/pipeline-trace", () => {
-  const src = fs.readFileSync(ADMIN_PANEL_PATH, "utf8");
+test("AdminShell: has a Pipeline trace nav link to /admin/pipeline-trace", () => {
+  const src = fs.readFileSync(ADMIN_SHELL_PATH, "utf8");
   assert.match(src, /\/admin\/pipeline-trace/);
-  assert.match(src, /Pipeline/);
+  assert.match(src, /Pipeline trace/);
 });

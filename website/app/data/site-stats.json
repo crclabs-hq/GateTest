@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-09-22T08:30:01.150Z",
+  "generatedAt": "2026-09-25T08:47:35.062Z",
   "source": "scripts/generate-site-stats.js",
   "note": "Measured on every run. Displayed counts are rounded DOWN so the public \"N+\" claim is always an under-statement. Do not hand-edit — run the script.",
   "version": "1.61.1",
   "tests": {
-    "total": 10298,
-    "passing": 10296,
+    "total": 10831,
+    "passing": 10829,
     "failing": 0,
     "skipped": 2,
-    "displayPassing": "10,200+"
+    "displayPassing": "10,800+"
   },
   "modules": {
     "total": 121,
@@ -16,7 +16,7 @@
     "scanned": 85,
     "displayGreen": "85/85",
     "greenSource": "measured",
-    "greenMeasuredAt": "2026-09-22T08:30:01.163Z"
+    "greenMeasuredAt": "2026-09-25T08:47:35.077Z"
   },
   "suites": {
     "quick": 42,

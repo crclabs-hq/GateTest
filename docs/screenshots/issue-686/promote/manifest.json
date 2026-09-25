@@ -1,0 +1,40 @@
+{
+  "redirect": {
+    "status": 308,
+    "location": "/"
+  },
+  "manifest": [
+    {
+      "theme": "light",
+      "viewport": "1440",
+      "file": "home.light.1440.png",
+      "dataTheme": "light",
+      "overflowX": null,
+      "consoleErrors": []
+    },
+    {
+      "theme": "light",
+      "viewport": "375",
+      "file": "home.light.375.png",
+      "dataTheme": "light",
+      "overflowX": null,
+      "consoleErrors": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "1440",
+      "file": "home.dark.1440.png",
+      "dataTheme": "dark",
+      "overflowX": null,
+      "consoleErrors": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "375",
+      "file": "home.dark.375.png",
+      "dataTheme": "dark",
+      "overflowX": null,
+      "consoleErrors": []
+    }
+  ]
+}

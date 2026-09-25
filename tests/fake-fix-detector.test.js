@@ -99,6 +99,193 @@ describe('FakeFixDetectorModule', () => {
     assert.strictEqual(failure.severity, 'error');
   });
 
+  // #666: _parseDiff reported the hunk's FIRST line for every match inside
+  // it. Customer example: a finding at hunk-start line 2106 (a `return`)
+  // where the real `@ts-ignore` sits at 2116 — ten lines into the hunk.
+  // This reproduces that shape with a synthetic diff.
+  it('#666: reports the line of the matching `+` line, not the hunk start, 10 lines into the hunk', async () => {
+    const diff = [
+      'diff --git a/src/big-file.ts b/src/big-file.ts',
+      '--- a/src/big-file.ts',
+      '+++ b/src/big-file.ts',
+      '@@ -2106,12 +2106,13 @@',
+      '   return foo();',
+      '   const a = 1;',
+      '   const b = 2;',
+      '   const c = 3;',
+      '   const d = 4;',
+      '   const e = 5;',
+      '   const f = 6;',
+      '   const g = 7;',
+      '   const h = 8;',
+      '   const i = 9;',
+      '+  // @ts-ignore',
+      '   const j = 10;',
+    ].join('\n');
+
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+
+    await mod.run(result, makeConfig(diff));
+
+    const failure = findFailure(result, 'ts-ignore-added');
+    assert.ok(failure, 'expected ts-ignore-added failure');
+    assert.strictEqual(failure.line, 2116, `expected the @ts-ignore line (2116), not the hunk start (2106); got ${failure.line}`);
+  });
+
+  // #666: `@ts-expect-error` directly above the `expect(...)` it enables is
+  // the sanctioned use inside a test file — downgrade to info instead of
+  // reporting it as a suppressed type error.
+  // Control pair for return-true-stub (2026-09-25, #729): the title says a
+  // BODY was reduced to `return true`, so the line must be the first
+  // statement after a block opener. Looking back skips removed lines, which
+  // are not in the new file.
+  it('return-true-stub: fires when `return true` replaces a function body', async () => {
+    const diff = [
+      'diff --git a/src/auth.js b/src/auth.js',
+      '--- a/src/auth.js',
+      '+++ b/src/auth.js',
+      '@@ -10,4 +10,3 @@',
+      ' function isAuthorised(user) {',
+      '-  if (!user) return false;',
+      '-  return user.roles.includes("admin");',
+      '+  return true;',
+      ' }',
+    ].join('\n');
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+    await mod.run(result, makeConfig(diff));
+    assert.ok(findFailure(result, 'return-true-stub'), 'a body replaced by `return true` must be flagged');
+  });
+
+  it('return-true-stub: stays quiet on the `return true` that ends an assert.rejects validator', async () => {
+    const diff = [
+      'diff --git a/tests/load.test.js b/tests/load.test.js',
+      '--- a/tests/load.test.js',
+      '+++ b/tests/load.test.js',
+      '@@ -40,0 +40,8 @@',
+      '+    await assert.rejects(',
+      '+      load("o", "r"),',
+      '+      (err) => {',
+      '+        assert.match(err.message, /401 Bad credentials/);',
+      '+        assert.match(err.message, /snapshot cap/);',
+      '+        return true;',
+      '+      },',
+      '+    );',
+    ].join('\n');
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+    await mod.run(result, makeConfig(diff));
+    assert.strictEqual(findFailure(result, 'return-true-stub'), undefined, 'a `return true` after other statements is a line, not a stub');
+  });
+
+  it('#666: downgrades @ts-expect-error to info in a test file when the next line is an expect(...)', async () => {
+    const diff = [
+      'diff --git a/tests/add.test.ts b/tests/add.test.ts',
+      '--- a/tests/add.test.ts',
+      '+++ b/tests/add.test.ts',
+      '@@ -630,2 +630,4 @@',
+      "   it('rejects a string where a number is required', () => {",
+      '+    // @ts-expect-error',
+      "+    expect(() => add('1', 2)).toThrow();",
+      '   });',
+    ].join('\n');
+
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+
+    await mod.run(result, makeConfig(diff));
+
+    const failure = findFailure(result, 'ts-ignore-added');
+    assert.ok(failure, 'expected a ts-ignore-added check to still be recorded');
+    assert.strictEqual(failure.severity, 'info', 'sanctioned @ts-expect-error use must be downgraded to info');
+  });
+
+  // Control: the same shape OUTSIDE a test file must stay at error severity —
+  // proves the downgrade is scoped to test files, not to any expect()-like text.
+  it('#666: @ts-expect-error followed by expect(...) in a non-test file stays error', async () => {
+    const diff = [
+      'diff --git a/src/add.ts b/src/add.ts',
+      '--- a/src/add.ts',
+      '+++ b/src/add.ts',
+      '@@ -3,2 +3,4 @@',
+      '   function add(a, b) {',
+      '+    // @ts-expect-error',
+      '+    expect(a).toBeDefined();',
+      '   }',
+    ].join('\n');
+
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+
+    await mod.run(result, makeConfig(diff));
+
+    const failure = findFailure(result, 'ts-ignore-added');
+    assert.ok(failure, 'expected ts-ignore-added failure');
+    assert.strictEqual(failure.severity, 'error');
+  });
+
+  // #673: the customer's shape had NO `expect(...)` after the directive at
+  // all — `adminOps.catalog.test.ts:636` was `// @ts-expect-error` followed
+  // by a plain call, `deriveDisabledStatus(derived);`. The assertion is the
+  // compiler rejecting the call; #666's "next line must be expect(...) or a
+  // type assertion" heuristic missed it and reported it as a suppressed
+  // error. Inside a test file the directive is info unconditionally.
+  it('#673: @ts-expect-error in a test file is info even with a plain call next (no expect())', async () => {
+    const diff = [
+      'diff --git a/tests/adminOps.catalog.test.ts b/tests/adminOps.catalog.test.ts',
+      '--- a/tests/adminOps.catalog.test.ts',
+      '+++ b/tests/adminOps.catalog.test.ts',
+      '@@ -634,2 +634,4 @@',
+      "   it('rejects a raw unit state', () => {",
+      '+    // @ts-expect-error — deriveDisabledStatus takes a RawUnitState OBJECT',
+      '+    deriveDisabledStatus(derived);',
+      '   });',
+    ].join('\n');
+
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+
+    await mod.run(result, makeConfig(diff));
+
+    const failure = findFailure(result, 'ts-ignore-added');
+    assert.ok(failure, 'expected a ts-ignore-added check to still be recorded');
+    assert.strictEqual(failure.severity, 'info', '@ts-expect-error in a test file must be info unconditionally');
+  });
+
+  // #673: `@ts-ignore` HIDES an error rather than asserting one — it does not
+  // get the same unconditional downgrade as `@ts-expect-error`, but a test
+  // file is still a lower-stakes place for it than production code, so it
+  // stays a warning instead of the rule's default error.
+  it('#673: @ts-ignore in a test file stays a warning (not info, not error)', async () => {
+    const diff = [
+      'diff --git a/tests/parse.test.ts b/tests/parse.test.ts',
+      '--- a/tests/parse.test.ts',
+      '+++ b/tests/parse.test.ts',
+      '@@ -10,2 +10,3 @@',
+      "   it('parses legacy input', () => {",
+      '+    // @ts-ignore',
+      "     expect(parse(legacyInput)).toEqual(expected);",
+      '   });',
+    ].join('\n');
+
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+
+    await mod.run(result, makeConfig(diff));
+
+    const failure = findFailure(result, 'ts-ignore-added');
+    assert.ok(failure, 'expected a ts-ignore-added check to still be recorded');
+    assert.strictEqual(failure.severity, 'warning', '@ts-ignore in a test file must be a warning');
+  });
+
   it('flags if (false) dead-code guards', async () => {
     const diff = [
       'diff --git a/src/validator.js b/src/validator.js',
@@ -328,6 +515,65 @@ describe('FakeFixDetectorModule — documentation is not source', () => {
   it('still fires on the same text inside a source file', async () => {
     const r = await run(['diff --git a/src/a.ts b/src/a.ts', '--- a/src/a.ts', '+++ b/src/a.ts', '@@ -1,2 +1,2 @@', ' const x = 1;', '-const y: number = load();', '+// @ts-ignore', '+const y = load() as any;'].join('\n'));
     assert.ok(failedCheckNames(r).length > 0, 'positive control');
+  });
+});
+
+// #669: adminOps.ts:2116 was a JSDoc line describing the directive in prose
+// ("Use // @ts-expect-error when …"), not the directive itself, and the old
+// `.*@ts-...` pattern matched it anywhere on the line. The directive must
+// now be the first non-space token of the added line.
+describe('FakeFixDetectorModule — ts-ignore-added fires only on the real directive (#669)', () => {
+  async function run(diff) {
+    const mod = new FakeFixDetector();
+    const result = new TestResult('fakeFixDetector');
+    result.start();
+    await mod.run(result, makeConfig(diff));
+    return result;
+  }
+
+  it('does not fire on a JSDoc line that mentions @ts-expect-error in prose', async () => {
+    const diff = [
+      'diff --git a/src/adminOps.ts b/src/adminOps.ts',
+      '--- a/src/adminOps.ts',
+      '+++ b/src/adminOps.ts',
+      '@@ -10,2 +10,3 @@',
+      ' /**',
+      '+ * Use // @ts-expect-error when bypassing a known-bad third-party type.',
+      '  */',
+    ].join('\n');
+    const r = await run(diff);
+    assert.ok(!findFailure(r, 'ts-ignore-added'), 'a doc comment describing the directive must not fire');
+  });
+
+  it('fires when // @ts-ignore is the first token of the added line', async () => {
+    const diff = [
+      'diff --git a/src/a.ts b/src/a.ts',
+      '--- a/src/a.ts',
+      '+++ b/src/a.ts',
+      '@@ -1,2 +1,3 @@',
+      ' function parse(input) {',
+      '+  // @ts-ignore',
+      '   return JSON.parse(input)',
+      ' }',
+    ].join('\n');
+    const r = await run(diff);
+    const failure = findFailure(r, 'ts-ignore-added');
+    assert.ok(failure, 'a real directive line must fire');
+    assert.strictEqual(failure.severity, 'error');
+  });
+
+  it('does not fire when // @ts-ignore trails real code instead of leading the line', async () => {
+    const diff = [
+      'diff --git a/src/a.ts b/src/a.ts',
+      '--- a/src/a.ts',
+      '+++ b/src/a.ts',
+      '@@ -1,2 +1,2 @@',
+      ' function f() {',
+      '+  const x = 1; // @ts-ignore',
+      ' }',
+    ].join('\n');
+    const r = await run(diff);
+    assert.ok(!findFailure(r, 'ts-ignore-added'), 'a trailing comment is not a functioning TS directive and must not fire');
   });
 });
 

@@ -142,11 +142,41 @@ function resetCostReport(scanId) {
  * Is this source line entirely a comment? `//`, `#`, `*` continuation, or a
  * `/* … *\/` on one line. Used only by rules flagged `codeOnly`.
  */
+/**
+ * Is the diff line at `idx` the first statement of a block in the NEW file?
+ * Looks back past removed lines (they are not in the new file) and blank
+ * lines to the nearest surviving source line; true when that line ends with
+ * a block opener (`{` or `=>`). At the top of a hunk there is nothing to look
+ * at, so the answer is true — a rule using this must stay conservative.
+ */
+function isFirstStatementOfBlock(lines, idx) {
+  for (let j = idx - 1; j >= 0; j -= 1) {
+    if (lines[j].startsWith('-')) continue;
+    const src = lines[j].slice(1);
+    if (!src.trim()) continue;
+    return /(\{|=>)\s*$/.test(src);
+  }
+  return true;
+}
+
 function isWholeLineComment(sourceLine) {
   const t = String(sourceLine || '').trim();
   return t.startsWith('//') || t.startsWith('*') || t.startsWith('#')
     || (t.startsWith('/*') && t.endsWith('*/')) || t.startsWith('/*');
 }
+
+/**
+ * #673: `@ts-expect-error` is a compile-time ASSERTION by definition — the
+ * build fails if the error it names stops occurring. #666's heuristic
+ * (downgrade only when the next line is `expect(...)` or a type assertion)
+ * missed the customer's own shape: a bare call the directive suppresses,
+ * with no `expect(...)` at all, because the assertion IS the compiler
+ * rejecting the line — there is nothing else to assert. So inside a test
+ * file, an added `@ts-expect-error` is info unconditionally; `@ts-ignore`
+ * hides an error rather than asserting one, so it stays a warning there
+ * instead of the rule's default error. Outside a test file both are
+ * unchanged from #671/#669 — full error.
+ */
 
 /**
  * A skipped test blocks only when the commit that skipped it calls itself a
@@ -249,6 +279,11 @@ const PATTERN_RULES = [
     id: 'return-true-stub',
     direction: 'added',
     pattern: /^\+\s*return\s+true\s*;?\s*$/,
+    // The title claims a whole body was replaced, so the line must BE the
+    // body: fire only when it is the first statement after a block opener.
+    // 2026-09-25 (#729): it fired on the `return true` that ends an
+    // `assert.rejects` validator, four assertions in — a line, not a stub.
+    firstStatementOnly: true,
     severity: 'warning',
     title: 'Function reduced to `return true`',
     explanation: 'A function body was replaced with `return true`. Verify the original logic is still needed.',
@@ -304,9 +339,27 @@ const PATTERN_RULES = [
 
   // --- Type escape hatches ---
   {
+    // #669: the old pattern (`.*@ts-...`, matching anywhere on the line) fired
+    // on a doc comment that mentions the directive in PROSE — a JSDoc line
+    // like `* Use // @ts-expect-error when …` describes the directive
+    // without being one, the same "text about the pattern reads as the
+    // pattern" shape web-headers.js hit with CSP directive markers after
+    // #668. There the fix is to skip whole-line comments outright because a
+    // CSP header is never legitimately set from inside one; that does not
+    // transfer directly here because the real directive IS a `//` comment.
+    // Instead the directive must be the FIRST non-space token on the added
+    // line: `// @ts-ignore` / `// @ts-nocheck` / `// @ts-expect-error`,
+    // optionally followed by a reason. A JSDoc continuation line opens with
+    // `*` (or a block comment with `/*`), not `//`, so it can never match —
+    // the same "skip full-line comments and JSDoc blocks" idea, applied by
+    // requiring the SPECIFIC marker a real directive uses to lead the line
+    // rather than skipping every comment marker. A trailing comment after
+    // code (`const x = 1; // @ts-ignore`) also fails to match — `const` is
+    // the first token, not `//` — which matches TypeScript's own rule that
+    // the directive must be a comment on its own line, not a trailing note.
     id: 'ts-ignore-added',
     direction: 'added',
-    pattern: /^\+.*@ts-(ignore|nocheck|expect-error)/,
+    pattern: /^\+\s*\/\/\s*@ts-(?:ignore|nocheck|expect-error)\b/,
     severity: 'error',
     title: 'TypeScript error suppressed with @ts-ignore',
     explanation: 'Type errors are being suppressed rather than fixed. The underlying type issue remains.',
@@ -626,7 +679,8 @@ class FakeFixDetectorModule extends BaseModule {
         || /(?:^|\/)tests\/(?:fake-fix-detector|claude-compliance|ai-hallucination|guarded-catch|error-swallow)\.test\.js$/.test(hunk.file);
 
       // Walk added / removed lines
-      for (const line of hunk.lines) {
+      for (let idx = 0; idx < hunk.lines.length; idx += 1) {
+        const line = hunk.lines[idx];
         for (const rule of PATTERN_RULES) {
           if (rule.direction === 'added' && !line.startsWith('+')) continue;
           if (rule.direction === 'removed' && !line.startsWith('-')) continue;
@@ -643,13 +697,27 @@ class FakeFixDetectorModule extends BaseModule {
           // the source line as written.
           if (rule.codeOnly && isWholeLineComment(line.slice(1))) continue;
           if (rule.notInTests && this._isTestPath(hunk.file)) continue;
+          if (rule.firstStatementOnly && !isFirstStatementOfBlock(hunk.lines, idx)) continue;
 
           if (rule.pattern.test(line)) {
+            let severity = rule.severity;
+            // #673: inside a test file, `@ts-expect-error` is a compile-time
+            // assertion by definition — info unconditionally, regardless of
+            // what follows it. `@ts-ignore`/`@ts-nocheck` hide an error
+            // instead of asserting one, so they stay a warning there rather
+            // than the rule's default error. Non-test files are unchanged.
+            if (rule.id === 'ts-ignore-added' && this._isTestPath(hunk.file)) {
+              if (/@ts-expect-error/.test(line)) {
+                severity = 'info';
+              } else {
+                severity = 'warning';
+              }
+            }
             findings.push({
               ruleId: rule.id,
               file: hunk.file,
-              line: hunk.lineNumber,
-              severity: rule.severity,
+              line: hunk.lineNumbers[idx],
+              severity,
               title: rule.title,
               explanation: rule.explanation,
               snippet: line.trim().slice(0, 160),
@@ -663,6 +731,7 @@ class FakeFixDetectorModule extends BaseModule {
       for (const rule of PATTERN_RULES.filter(r => r.direction === 'changed')) {
         if (isDemo && rule.severity === 'error') continue; // same fixture exemption
         const removed = hunk.lines.filter(l => l.startsWith('-') && rule.pattern.test(l));
+        const addedIdx = hunk.lines.findIndex(l => l.startsWith('+') && rule.replacement.test(l));
         const added = hunk.lines.filter(l => l.startsWith('+') && rule.replacement.test(l));
         let dropped = true;
         if (rule.strictCountMustDrop) {
@@ -675,7 +744,7 @@ class FakeFixDetectorModule extends BaseModule {
           findings.push({
             ruleId: rule.id,
             file: hunk.file,
-            line: hunk.lineNumber,
+            line: addedIdx >= 0 ? hunk.lineNumbers[addedIdx] : hunk.lineNumber,
             severity: rule.severity,
             title: rule.title,
             explanation: rule.explanation,
@@ -688,11 +757,23 @@ class FakeFixDetectorModule extends BaseModule {
     return findings;
   }
 
+  /**
+   * #666: a finding used to report `hunk.lineNumber` — the FIRST line of the
+   * hunk — for every match anywhere inside it, so a `@ts-expect-error` ten
+   * lines into a hunk was reported at the hunk's opening `return` or import
+   * line. `lines` stays the raw `+`/`-`/` ` diff lines (unchanged shape, so
+   * every existing consumer — `_renderHunk`, the `===` counter, the
+   * changed-line filters — keeps working); `lineNumbers[i]` is the new-file
+   * line number for `lines[i]`, computed by walking the hunk and advancing
+   * the counter on context (` `) and added (`+`) lines, which both occupy a
+   * line in the new file, and NOT on removed (`-`) lines, which don't.
+   */
   _parseDiff(diff) {
     const hunks = [];
     const lines = diff.split(/\r?\n/);
     let currentFile = null;
     let currentHunk = null;
+    let newLineCursor = 0;
 
     for (const line of lines) {
       if (line.startsWith('diff --git ')) {
@@ -701,13 +782,18 @@ class FakeFixDetectorModule extends BaseModule {
       } else if (line.startsWith('@@')) {
         if (currentHunk) hunks.push(currentHunk);
         const match = line.match(/\+(\d+)/);
+        const start = match ? parseInt(match[1], 10) : 0;
+        newLineCursor = start;
         currentHunk = {
           file: currentFile,
-          lineNumber: match ? parseInt(match[1], 10) : 0,
+          lineNumber: start,
           lines: [],
+          lineNumbers: [],
         };
       } else if (currentHunk && (line.startsWith('+') || line.startsWith('-') || line.startsWith(' '))) {
         currentHunk.lines.push(line);
+        currentHunk.lineNumbers.push(newLineCursor);
+        if (line.startsWith('+') || line.startsWith(' ')) newLineCursor += 1;
       }
     }
     if (currentHunk) hunks.push(currentHunk);

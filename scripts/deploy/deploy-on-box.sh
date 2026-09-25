@@ -100,8 +100,16 @@ AFTER=$(git rev-parse HEAD)
 # --- end of sync phase --- (tests/deploy-recover.test.js runs the script up to this line)
 
 if [ "$BEFORE" = "$AFTER" ]; then
-  echo "[deploy] already at $AFTER — nothing to do (use --force-build to rebuild anyway)"
-  [ "${1:-}" = "--force-build" ] || exit 0
+  if [ "${1:-}" = "--force-build" ]; then
+    echo "[deploy] already at $AFTER — rebuilding on request (--force-build)"
+  elif [ ! -f website/.next/BUILD_ID ]; then
+    # #723: a current checkout with no build on disk is not "nothing to do" —
+    # the running process is serving without its files.
+    echo "[deploy] already at $AFTER but no production build on disk (website/.next/BUILD_ID missing) — rebuilding"
+  else
+    echo "[deploy] already at $AFTER — nothing to do (use --force-build to rebuild anyway)"
+    exit 0
+  fi
 fi
 
 echo "[deploy] $BEFORE -> $AFTER"
@@ -147,6 +155,13 @@ npm install --no-audit --no-fund
 # still reporting the OLD commit: the deploy looks like it never happened, and
 # the production-drift check in deploy-box.yml is reading that same field.
 # (CLAUDE.md quality bar #12; docs/deploy/VAPRON-DEPLOY.md §1.)
+# Stale dev-server output breaks the production build's type check: a
+# `next dev` run on the box leaves .next/dev/types/validator.ts naming routes
+# that may no longer exist (2026-09-23: app/preview/* after #719), and
+# `next build` type-checks it. Every build failed the same way for a day
+# while the running process served without its files. Clear the dev and
+# typegen output before building; the production build recreates .next/types.
+rm -rf website/.next/dev website/.next/types
 (cd website && npm install --no-audit --no-fund && npm run build)
 
 # Restart the service.
@@ -203,8 +218,16 @@ fi
 
 # Post-deploy smoke: the endpoints that burned us when the box served a stale build.
 sleep 3
-for probe in "https://gatetest.io/api/status" "https://gatetest.io/icon.png"; do
+SMOKE_FAILED=0
+for probe in "https://gatetest.io/" "https://gatetest.io/pricing" "https://gatetest.io/api/status" "https://gatetest.io/icon.png"; do
   code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$probe" || echo 000)
   echo "[deploy] smoke $probe -> $code"
+  [ "$code" = "200" ] || SMOKE_FAILED=1
 done
+if [ "$SMOKE_FAILED" = "1" ]; then
+  # #723: the health endpoints passed while / served a bare 500; a deploy whose
+  # front door does not answer 200 is a failed deploy and must say so.
+  echo "[deploy] ERROR: post-deploy smoke failed — a probed route did not return 200 (see the lines above)" >&2
+  exit 3
+fi
 echo "[deploy] done — verify /api/status shows ready:true"

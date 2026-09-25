@@ -32,7 +32,9 @@
  */
 
 const fs = require('fs');
+const path = require('path');
 const { repoRelative } = require('../core/repo-path');
+const { workspacePackageMap } = require('../core/workspaces');
 const BaseModule = require('./base-module');
 
 // Recommendation text comes from the engine's own model policy, so a future
@@ -120,6 +122,31 @@ const LLM_CALL_EVIDENCE_RE = new RegExp([
 const PUBLIC_ENV_PREFIX = /\b(NEXT_PUBLIC_|VITE_|REACT_APP_|EXPO_PUBLIC_|PUBLIC_)/;
 const KEYISH_SUFFIX = /(?:API_KEY|APIKEY|SECRET|TOKEN|PRIVATE_KEY)\b/;
 
+// #713 (Tallrig round five, item 2): a real `process.env.NEXT_PUBLIC_*` /
+// `import.meta.env.VITE_*` read is flagged unconditionally below — the
+// bundler inlines that literal wherever the read sits, regardless of what
+// the surrounding code does with it. This tells the two shapes apart.
+const ENV_READ_BEFORE_RE = /(?:process\s*\.\s*env|import\s*\.\s*meta\s*\.\s*env)\s*(?:\?\s*\.)?\s*\.\s*$/;
+
+// Evidence that a bare PUBLIC_*-shaped identifier (not a live env read)
+// actually flows toward a client or an outbound request: assigned into
+// something that reads as client-side config, interpolated into a URL or
+// header, or passed to a request call. A rejecting `secret === CONST`
+// equality check is deliberately NOT in this list — see #713.
+const CLIENT_SINK_RE = /\b(?:window|globalThis)\s*(?:\?\s*\.)?\s*\.\s*[\w$.]*\s*=(?!=)|(?:client|public)[A-Za-z0-9_]*Config\b\s*[:=]|\bheaders\s*[:=]|\bAuthorization\b|\bfetch\s*\(|\baxios(?:\s*\.\s*\w+)?\s*\(|\.request\s*\(|\bnew\s+Request\s*\(|\bhttp\.request\s*\(|\bXMLHttpRequest\b/i;
+
+// "Exported from a client bundle path" — the other #713 fire condition.
+// Matched against the repo-relative path when the identifier's own line
+// also carries an `export`.
+const CLIENT_BUNDLE_PATH_RE = /(?:^|\/)(?:client|frontend|browser|web|public|components|pages)(?:\/|$)/i;
+
+// How many lines of slack around an identifier's own line count toward
+// "passed to a request" / "assigned into client config" — a `fetch(...)`
+// call or a `headers: {...}` object is routinely written across several
+// lines, so a same-line-only check would miss the exact shape #713's own
+// control pair describes.
+const CLIENT_SINK_WINDOW = 4;
+
 // Hints that a variable is carrying user-supplied input. Treat these as
 // untrusted when interpolated into a prompt-shaped string.
 const USER_INPUT_HINTS = [
@@ -189,6 +216,7 @@ const CAP_FIELD_NAME = {
   gateway: '`max_tokens` in the JSON body', gemini: '`generationConfig.maxOutputTokens`', 'gemini-py': '`max_output_tokens`',
   bedrock: '`max_tokens` / `maxTokens` / `max_gen_len` in the body', 'ai-sdk': '`maxOutputTokens`',
   langchain: '`maxTokens`', 'langchain-py': '`max_tokens=`',
+  'generic-sdk': '`maxTokens` / `max_tokens`',
 };
 const DEPRECATED_MODELS = MODEL_LIFECYCLE.map(([id]) => id);
 const RETIREMENT_DATES = new Map(MODEL_LIFECYCLE);
@@ -205,6 +233,449 @@ function retirementStatus(id, now = Date.now()) {
   if (Number.isNaN(ms)) return { retired: true, days: null, on };
   const days = Math.ceil((ms - now) / 86400000);
   return { retired: days <= 0, days, on };
+}
+
+// ---------------------------------------------------------------------------
+// #669: no-max-tokens is wrapper-aware. Tallrig's gateway sets a 4096-token
+// default server-side inside an in-process client that wraps every provider
+// call — the call-site pattern below still matches (`anthropic.messages.
+// create({...})` with no `max_tokens` in the body) because the client object
+// is genuinely named `anthropic`/`openai` at the call site, but that call is
+// SAFE: the wrapper it was imported from always injects the cap before the
+// request goes out. Without this, every one of those call sites reads as an
+// unbounded-cost bug although every request is actually capped.
+//
+// The fix asks three questions, in order, about the identifier used at the
+// call site (e.g. `anthropic` in `anthropic.messages.create(...)`):
+//   1. Where was it imported from? (`_findClientIdentifierOrigin`)
+//   2. Is that source a vendor SDK (`openai`, `@anthropic-ai/sdk`, `from
+//      anthropic import ...`, ...) or an in-repo module — a relative import
+//      or a workspace package? A vendor SDK answer means this is a DIRECT
+//      caller; the existing error-severity finding is unchanged.
+//      (`_resolveClientModule`)
+//   3. Does that in-repo module — or a module it re-exports from within the
+//      same package — set a `max_tokens` / `maxTokens` / `max_output_tokens`
+//      DEFAULT on the outgoing request? If yes, downgrade this call site to
+//      info: the wrapper already caps it. If the module resolves but sets no
+//      default, the caller stays an error/warning, and the message names the
+//      wrapper instead of leaving the customer to guess why a capped-looking
+//      setup still fired. (`_wrapperSetsCap`)
+// ---------------------------------------------------------------------------
+
+// Package/module specifiers that are a vendor SDK itself, JS or Python —
+// never a customer's own wrapper. Kept separate from AI_ADJACENT_RE /
+// LLM_CALL_EVIDENCE_RE (which decide "is this file worth reading at all")
+// because this one decides "is THIS specific import a vendor package",
+// matched against a whole specifier, not searched for as a substring.
+const VENDOR_SDK_SPECIFIER_RE = /^(?:openai|anthropic|ai|replicate|ollama|cohere|cohere-ai|groq|groq-sdk|together-ai|openrouter|litellm|mistralai|vertexai|google\.generativeai|google\.genai|@anthropic-ai\/sdk|@anthropic\/sdk|@google\/generative-ai|@google\/genai|@google-cloud\/vertexai|@aws-sdk\/client-bedrock-runtime|@azure\/openai|@azure-rest\/ai-inference|@mistralai\/.*|@ai-sdk\/.*|@langchain\/.*|langchain(?:[-_.].*)?)$/i;
+
+// A wrapper module "sets a default" when the cap field is assigned a literal
+// value (almost always a number) rather than merely forwarded
+// (`max_tokens: opts.max_tokens`) or read without a fallback.
+//
+// #673: a bare literal isn't the only shape — the customer's wrapper reads
+// `max_tokens: input.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS`, falling back to
+// a named constant rather than a number written inline. `_findWrapperCapValue`
+// below finds the assignment, then resolves the RHS to a fixed number: a
+// literal directly, or an identifier (after `??`/`||`, or bare) traced to a
+// `const NAME = <number>` in the same file or an imported one — optionally
+// wrapped in `Math.min(...)`/`Math.max(...)`, which doesn't change the fact
+// that a fixed default is what the wrapper applies.
+const WRAPPER_CAP_FIELD_RE = /\b(?:max_tokens|maxTokens|max_output_tokens)\s*[:=]\s*/g;
+
+/**
+ * Capture the RHS of an assignment starting at `startIdx`, respecting
+ * `(`/`[`/`{` nesting so `Math.min(a, b)` isn't cut off at its internal
+ * comma. Stops at a top-level `,`/`;`/newline, or a closing bracket that
+ * would take the depth negative (the end of an enclosing object/call).
+ */
+function _captureAssignmentExpr(content, startIdx) {
+  let depth = 0;
+  let i = startIdx;
+  for (; i < content.length; i += 1) {
+    const ch = content[i];
+    if (ch === '(' || ch === '[' || ch === '{') depth += 1;
+    else if (ch === ')' || ch === ']' || ch === '}') {
+      if (depth === 0) break;
+      depth -= 1;
+    } else if (depth === 0 && (ch === ',' || ch === ';' || ch === '\n')) break;
+  }
+  return content.slice(startIdx, i).trim();
+}
+
+/** Split a `Math.min`/`Math.max` argument list on top-level commas only. */
+function _splitTopLevelArgs(s) {
+  const args = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < s.length; i += 1) {
+    const ch = s[i];
+    if (ch === '(' || ch === '[' || ch === '{') depth += 1;
+    else if (ch === ')' || ch === ']' || ch === '}') depth -= 1;
+    else if (ch === ',' && depth === 0) {
+      args.push(s.slice(start, i));
+      start = i + 1;
+    }
+  }
+  args.push(s.slice(start));
+  return args.map((a) => a.trim()).filter(Boolean);
+}
+
+/**
+ * Resolve a cap-field RHS expression to either a literal number or the
+ * identifier that would need tracing to one. `Math.min(...)`/`Math.max(...)`
+ * is unwrapped and each argument tried in turn. A plain forwarded value with
+ * no fallback (`opts.max_tokens`) resolves to neither — the wrapper isn't
+ * deciding a default, it's passing one through.
+ */
+function _resolveCapExpr(expr) {
+  const e = String(expr || '').trim();
+  const mathMatch = /^Math\.(?:min|max)\s*\(([\s\S]*)\)$/.exec(e);
+  if (mathMatch) {
+    for (const arg of _splitTopLevelArgs(mathMatch[1])) {
+      const resolved = _resolveCapExpr(arg);
+      if (resolved) return resolved;
+    }
+    return null;
+  }
+  // `<forwarded> ?? NAME` / `<forwarded> || NAME` — the identifier AFTER the
+  // operator is the default; whatever precedes it is the forwarded value.
+  const fallbackMatch = /(?:\?\?|\|\|)\s*([A-Za-z_$][\w$]*)\s*$/.exec(e);
+  if (fallbackMatch) return { identifier: fallbackMatch[1] };
+  if (/^\d+$/.test(e)) return { literal: Number(e) };
+  if (/^[A-Za-z_$][\w$]*$/.test(e)) return { identifier: e };
+  return null;
+}
+
+/** `const NAME = <number>` declared anywhere in this file (export or not). */
+function _findLocalNumberConst(content, name) {
+  const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`\\bconst\\s+${esc}\\s*(?::\\s*[^=\\n]+)?=\\s*(\\d+)\\b`);
+  const m = re.exec(content);
+  return m ? Number(m[1]) : null;
+}
+
+/** `export const NAME = <number>` — required for an IMPORTED constant. */
+function _findExportedNumberConst(content, name) {
+  const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`\\bexport\\s+const\\s+${esc}\\s*(?::\\s*[^=\\n]+)?=\\s*(\\d+)\\b`);
+  const m = re.exec(content);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Resolve `identifier` — the default side of a wrapper's cap assignment — to
+ * a fixed number: a `const NAME = <number>` in `fromFile` itself, or a named
+ * import of NAME whose source module (same package, relative or workspace
+ * path) declares `export const NAME = <number>`, followed through one level
+ * of re-export. Returns `{ value, file }` (the file the number actually
+ * lives in) or `null` when NAME cannot be traced to a number.
+ */
+function _resolveCapIdentifier(identifier, content, fromFile, projectRoot) {
+  const local = _findLocalNumberConst(content, identifier);
+  if (local !== null) return { value: local, file: fromFile };
+
+  const source = _findClientIdentifierOrigin(content, identifier);
+  if (!source) return null;
+  const modulePath = _resolveClientModule(source, fromFile, projectRoot);
+  if (!modulePath) return null;
+
+  let modContent;
+  try {
+    modContent = fs.readFileSync(modulePath, 'utf-8');
+  } catch {
+    return null;
+  }
+  const direct = _findExportedNumberConst(modContent, identifier);
+  if (direct !== null) return { value: direct, file: modulePath };
+
+  // One level of re-export: `export { NAME } from './real'`,
+  // `export * from './real'`, or `module.exports = require('./real')`.
+  REEXPORT_RE.lastIndex = 0;
+  let m;
+  while ((m = REEXPORT_RE.exec(modContent)) !== null) {
+    const reExportSource = m[1] || m[2];
+    if (!reExportSource || !(reExportSource.startsWith('.') || reExportSource.startsWith('/'))) continue;
+    const resolved = _resolveRelativeModule(reExportSource, modulePath);
+    if (!resolved) continue;
+    let reContent;
+    try {
+      reContent = fs.readFileSync(resolved, 'utf-8');
+    } catch {
+      continue;
+    }
+    const val = _findExportedNumberConst(reContent, identifier);
+    if (val !== null) return { value: val, file: resolved };
+  }
+  return null;
+}
+
+/**
+ * Scan `content` for every cap-field assignment and return the first one
+ * that resolves to a fixed number, plus where that number actually lives —
+ * `fromFile` itself for a literal or a same-file `const`, or the imported
+ * module for a named constant. `viaIdentifier` distinguishes "the wrapper
+ * spells the number out" from "the wrapper defers to a named constant",
+ * which the caller uses to decide whether the finding names that constant.
+ */
+function _findWrapperCapValue(content, fromFile, projectRoot) {
+  WRAPPER_CAP_FIELD_RE.lastIndex = 0;
+  let match;
+  while ((match = WRAPPER_CAP_FIELD_RE.exec(content)) !== null) {
+    const expr = _captureAssignmentExpr(content, match.index + match[0].length);
+    const resolved = _resolveCapExpr(expr);
+    if (!resolved) continue;
+    if (resolved.literal !== undefined) {
+      return { value: resolved.literal, file: fromFile, viaIdentifier: false };
+    }
+    const constResult = _resolveCapIdentifier(resolved.identifier, content, fromFile, projectRoot);
+    if (constResult) return { value: constResult.value, file: constResult.file, viaIdentifier: true };
+  }
+  return null;
+}
+
+// A module re-exporting its cap-setting internals — followed one level (or a
+// short chain, cycle-safe) so a thin `index.js` that just re-exports the real
+// client still counts as "the module sets a default".
+const REEXPORT_RE = /module\.exports\s*=\s*require\(\s*['"`]([^'"`]+)['"`]\s*\)|export\s*(?:\*|\{[^}]*\})\s*from\s*['"`]([^'"`]+)['"`]/g;
+
+const CLIENT_MODULE_EXTS = ['', '.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.py'];
+
+/**
+ * Resolve a relative/absolute specifier to a real file on disk, probing the
+ * extensions a bare `require('./client')`-style specifier could mean.
+ */
+function _resolveRelativeModule(specifier, fromFile) {
+  const base = path.resolve(path.dirname(fromFile), specifier);
+  const candidates = [];
+  for (const ext of CLIENT_MODULE_EXTS) candidates.push(`${base}${ext}`);
+  for (const ext of CLIENT_MODULE_EXTS) candidates.push(path.join(base, `index${ext}`));
+  for (const c of candidates) {
+    try {
+      if (fs.statSync(c).isFile()) return c;
+    } catch { /* error-ok — try the next candidate extension */ }
+  }
+  return null;
+}
+
+/**
+ * Where was `identifier` imported from in `content`? Covers CommonJS
+ * `require`, ESM `import`, dynamic `await import(...)` destructuring, and
+ * Python `import` — plus one indirection for `const anthropic = new
+ * Anthropic(...)`, where the call-site object is a local instance and the
+ * SDK/wrapper class name is what was actually imported.
+ */
+function _findClientIdentifierOrigin(content, identifier, depth = 0) {
+  const esc = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const directPatterns = [
+    new RegExp(`\\b(?:const|let|var)\\s+${esc}\\s*=\\s*require\\(\\s*['"\`]([^'"\`]+)['"\`]\\s*\\)`),
+    new RegExp(`\\b(?:const|let|var)\\s*\\{[^}]*\\b\\w+\\s*:\\s*${esc}\\b[^}]*\\}\\s*=\\s*require\\(\\s*['"\`]([^'"\`]+)['"\`]\\s*\\)`),
+    new RegExp(`\\b(?:const|let|var)\\s*\\{[^}]*\\b${esc}\\b[^}]*\\}\\s*=\\s*require\\(\\s*['"\`]([^'"\`]+)['"\`]\\s*\\)`),
+    new RegExp(`\\bimport\\s+${esc}\\s+from\\s+['"\`]([^'"\`]+)['"\`]`),
+    new RegExp(`\\bimport\\s*\\{[^}]*\\b${esc}\\b[^}]*\\}\\s*from\\s+['"\`]([^'"\`]+)['"\`]`),
+    new RegExp(`\\bimport\\s*\\*\\s*as\\s+${esc}\\s+from\\s+['"\`]([^'"\`]+)['"\`]`),
+    // #673: `const { gatewayClient } = await import("pkg/client")` binds the
+    // identifier to that module exactly like a static import — a caller
+    // written this way (top-level-await ESM, or a lazy-loaded wrapper)
+    // shouldn't lose wrapper-cap resolution just because the import is
+    // dynamic.
+    new RegExp(`\\b(?:const|let|var)\\s*\\{[^}]*\\b\\w+\\s*:\\s*${esc}\\b[^}]*\\}\\s*=\\s*await\\s+import\\(\\s*['"\`]([^'"\`]+)['"\`]\\s*\\)`),
+    new RegExp(`\\b(?:const|let|var)\\s*\\{[^}]*\\b${esc}\\b[^}]*\\}\\s*=\\s*await\\s+import\\(\\s*['"\`]([^'"\`]+)['"\`]\\s*\\)`),
+    new RegExp(`\\b(?:const|let|var)\\s+${esc}\\s*=\\s*await\\s+import\\(\\s*['"\`]([^'"\`]+)['"\`]\\s*\\)`),
+    new RegExp(`\\bfrom\\s+([\\w.]+)\\s+import\\s+[^\\n]*\\b${esc}\\b`),
+    new RegExp(`\\bimport\\s+([\\w.]+)\\s+as\\s+${esc}\\b`),
+  ];
+  for (const re of directPatterns) {
+    const m = re.exec(content);
+    if (m) return m[1];
+  }
+  if (depth === 0) {
+    const ctor = new RegExp(`\\b(?:const|let|var)\\s+${esc}\\s*=\\s*new\\s+([A-Za-z_$][\\w$.]*)\\s*\\(`).exec(content);
+    if (ctor) return _findClientIdentifierOrigin(content, ctor[1].split('.')[0], depth + 1);
+  }
+  return null;
+}
+
+/**
+ * Split a bare specifier into its package name and subpath:
+ * `@scope/pkg/sub/path` -> `{ pkgName: '@scope/pkg', subpath: 'sub/path' }`;
+ * `pkg/sub` -> `{ pkgName: 'pkg', subpath: 'sub' }`; `pkg` (or `@scope/pkg`
+ * alone) -> `subpath: ''`.
+ */
+function _splitPackageSpecifier(source) {
+  const parts = source.split('/');
+  if (source.startsWith('@')) {
+    if (parts.length < 2) return { pkgName: source, subpath: '' };
+    return { pkgName: parts.slice(0, 2).join('/'), subpath: parts.slice(2).join('/') };
+  }
+  return { pkgName: parts[0], subpath: parts.slice(1).join('/') };
+}
+
+/**
+ * Resolve a `./<subpath>` export target from a package's `exports` map.
+ * Handles the string form directly, an `import`/`default` condition object
+ * (in that preference order — matches how a bundler/Node resolves an ESM
+ * import), and a single `*` pattern key (`./*`, `./foo/*`) whose captured
+ * remainder substitutes into the target. Returns the raw target string
+ * (still relative to the package dir) or null when nothing matches.
+ */
+function _matchExportsEntry(exportsMap, subpath) {
+  if (!exportsMap || typeof exportsMap !== 'object') return null;
+  const wantKey = `./${subpath}`;
+
+  const resolveValue = (val, wildcard) => {
+    if (typeof val === 'string') return wildcard != null ? val.replace(/\*/g, wildcard) : val;
+    if (val && typeof val === 'object') {
+      for (const cond of ['import', 'default']) {
+        if (typeof val[cond] === 'string') {
+          return wildcard != null ? val[cond].replace(/\*/g, wildcard) : val[cond];
+        }
+      }
+    }
+    return null;
+  };
+
+  if (Object.prototype.hasOwnProperty.call(exportsMap, wantKey)) {
+    const resolved = resolveValue(exportsMap[wantKey], null);
+    if (resolved) return resolved;
+  }
+
+  for (const key of Object.keys(exportsMap)) {
+    const starIdx = key.indexOf('*');
+    if (starIdx === -1) continue;
+    const prefix = key.slice(0, starIdx);
+    const suffix = key.slice(starIdx + 1);
+    if (wantKey.startsWith(prefix) && wantKey.endsWith(suffix) && wantKey.length >= prefix.length + suffix.length) {
+      const wildcard = wantKey.slice(prefix.length, wantKey.length - suffix.length);
+      const resolved = resolveValue(exportsMap[key], wildcard);
+      if (resolved) return resolved;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve a scoped or unscoped workspace package subpath (`@scope/pkg/sub`)
+ * straight from source, without relying on a `node_modules` symlink that a
+ * fixture or a fresh mid-CI clone may not have on disk.
+ *
+ * #680 (Tallrig): call sites import `@vapron/ai-gateway/client`, a Bun
+ * workspace package (`workspaces` in the root `package.json`, same field
+ * Bun reads) whose `/client` subpath resolves through its own `exports` map.
+ * `_resolveClientModule`'s only bare-specifier path was `require.resolve`,
+ * which needs that symlink to exist — it never engaged, so every call site
+ * behind the gateway read as an unbounded-output bug although the gateway
+ * caps every request.
+ *
+ * The package name maps to its folder via the root `workspaces` globs
+ * (`package.json`, `pnpm-workspace.yaml`, or Bun — `readWorkspacePatterns`
+ * reads the same `package.json` `workspaces` field Bun does, so no separate
+ * Bun-specific parsing is needed). The subpath then resolves through that
+ * package's own `exports` map (`_matchExportsEntry`), falling back to
+ * `<pkg>/src/<sub>.ts` and `<pkg>/<sub>.ts` when there's no `exports` field,
+ * or no matching entry in it, for the internal workspace packages that don't
+ * bother declaring one.
+ */
+function _resolveWorkspaceSubpath(source, projectRoot) {
+  const { pkgName, subpath } = _splitPackageSpecifier(source);
+  if (!subpath) return null;
+
+  let pkgDir;
+  try {
+    pkgDir = workspacePackageMap(projectRoot).get(pkgName);
+  } catch {
+    return null;
+  }
+  if (!pkgDir) return null;
+
+  let manifest = null;
+  try {
+    manifest = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf-8'));
+  } catch { /* error-ok — no manifest, or invalid JSON: fall through to the filesystem fallbacks */ }
+
+  if (manifest && manifest.exports) {
+    const target = _matchExportsEntry(manifest.exports, subpath);
+    if (target) {
+      const resolved = path.resolve(pkgDir, target);
+      try {
+        if (fs.statSync(resolved).isFile()) return resolved;
+      } catch { /* error-ok — exports names a path that isn't actually on disk; fall through */ }
+    }
+  }
+
+  for (const candidate of [path.join(pkgDir, 'src', `${subpath}.ts`), path.join(pkgDir, `${subpath}.ts`)]) {
+    try {
+      if (fs.statSync(candidate).isFile()) return candidate;
+    } catch { /* error-ok — try the next fallback */ }
+  }
+  return null;
+}
+
+/**
+ * Is `source` an in-repo module — a relative import or a workspace package —
+ * rather than a vendor SDK? Returns the resolved absolute file path, or null
+ * when `source` is a vendor SDK, or resolves outside the project, or cannot
+ * be resolved at all (a TS path alias, an unrecognised bare specifier — left
+ * alone rather than guessed at).
+ */
+function _resolveClientModule(source, fromFile, projectRoot) {
+  if (!source || VENDOR_SDK_SPECIFIER_RE.test(source)) return null;
+  if (source.startsWith('.') || source.startsWith('/')) {
+    return _resolveRelativeModule(source, fromFile);
+  }
+  const workspaceResolved = _resolveWorkspaceSubpath(source, projectRoot);
+  if (workspaceResolved) return workspaceResolved;
+  // Bare specifier: only "in-repo" when it actually resolves to a file that
+  // lives inside this project — a workspace package — not some other
+  // unrecognised external dependency.
+  try {
+    const resolved = require.resolve(source, { paths: [path.dirname(fromFile)] });
+    const real = fs.realpathSync(resolved);
+    const realRoot = fs.realpathSync(projectRoot);
+    if (real === realRoot || real.startsWith(realRoot + path.sep)) return real;
+  } catch { /* error-ok — cannot resolve; not provably in-repo */ }
+  return null;
+}
+
+/**
+ * Does `filePath` — or a module it re-exports from within the same package —
+ * set a default output cap? `visited` guards against re-export cycles and
+ * bounds the chain length. `projectRoot` is threaded through to
+ * `_findWrapperCapValue` so a `??`/`||` default's identifier can be resolved
+ * against an imported constant (#673).
+ */
+function _wrapperSetsCap(filePath, projectRoot, visited) {
+  if (visited.has(filePath) || visited.size > 5) return { capped: false };
+  visited.add(filePath);
+  let content;
+  try {
+    content = fs.readFileSync(filePath, 'utf-8');
+  } catch {
+    return { capped: false };
+  }
+  const found = _findWrapperCapValue(content, filePath, projectRoot);
+  if (found) {
+    return {
+      capped: true,
+      module: filePath,
+      value: found.value,
+      constantFile: found.file,
+      viaIdentifier: found.viaIdentifier,
+    };
+  }
+
+  REEXPORT_RE.lastIndex = 0;
+  let m;
+  while ((m = REEXPORT_RE.exec(content)) !== null) {
+    const source = m[1] || m[2];
+    if (!source || !(source.startsWith('.') || source.startsWith('/'))) continue;
+    const resolved = _resolveRelativeModule(source, filePath);
+    if (resolved) {
+      const nested = _wrapperSetsCap(resolved, projectRoot, visited);
+      if (nested.capped) return nested;
+    }
+  }
+  return { capped: false };
 }
 
 class PromptSafetyModule extends BaseModule {
@@ -300,20 +771,31 @@ class PromptSafetyModule extends BaseModule {
       // as a sample file's contents), not a live reference. Found via
       // self-scan: prompt-safety flagging its own test fixtures as real
       // findings (same class as tls-security/redos/cronExpression).
+      //
+      // #713 (Tallrig round five, item 2): the identifier match alone used
+      // to be enough, which fired on `PUBLIC_DEFAULT_SECRET` in a boot
+      // guard (`apps/api/src/secrets/secret-key-guard.ts`) that only ever
+      // compares it against an incoming secret and rejects — the constant
+      // is never read out of a client-bundled env var and never sent
+      // anywhere. A real `process.env`/`import.meta.env` read is still
+      // flagged unconditionally (`ENV_READ_BEFORE_RE`); a bare identifier
+      // with the same shape now needs positive evidence it flows toward a
+      // client (`_publicIdentifierFlowsToClient`).
       const pubMatches = [...line.matchAll(/[A-Z][A-Z0-9_]*/g)];
       for (const pm of pubMatches) {
         const tok = pm[0];
-        if (PUBLIC_ENV_PREFIX.test(tok) && KEYISH_SUFFIX.test(tok) && isCode(i, pm.index)) {
-          issues += this._flag(result, `prompt-safety:public-api-key:${rel}:${i + 1}`, {
-            severity: isTest ? 'warning' : 'error',
-            file: rel,
-            line: i + 1,
-            match: tok,
-            message: `\`${tok}\` — client-bundled env vars are shipped to every user's browser; the API key is effectively public`,
-            suggestion: 'Move the key to a server-only env var (no public prefix) and call the LLM from a server route / edge function.',
-          });
-          break;
-        }
+        if (!(PUBLIC_ENV_PREFIX.test(tok) && KEYISH_SUFFIX.test(tok) && isCode(i, pm.index))) continue;
+        const isEnvRead = ENV_READ_BEFORE_RE.test(line.slice(0, pm.index));
+        if (!isEnvRead && !this._publicIdentifierFlowsToClient(tok, lines, isCode, rel)) continue;
+        issues += this._flag(result, `prompt-safety:public-api-key:${rel}:${i + 1}`, {
+          severity: isTest ? 'warning' : 'error',
+          file: rel,
+          line: i + 1,
+          match: tok,
+          message: `\`${tok}\` — client-bundled env vars are shipped to every user's browser; the API key is effectively public`,
+          suggestion: 'Move the key to a server-only env var (no public prefix) and call the LLM from a server route / edge function.',
+        });
+        break;
       }
 
       // 2. Deprecated / unsafe model strings
@@ -357,7 +839,7 @@ class PromptSafetyModule extends BaseModule {
     }
 
     // 4. LLM call without max_tokens — scan object-literal calls
-    issues += this._scanLlmCalls(content, lines, rel, result, isTest, isCode);
+    issues += this._scanLlmCalls(content, lines, rel, result, isTest, isCode, file, projectRoot);
 
     // 5. Prompt injection: string templates combining a prompt-shaped
     // literal with a user-input-hinted variable, with no delimiter
@@ -388,7 +870,50 @@ class PromptSafetyModule extends BaseModule {
     return (i, idx) => !this._insideLiteral(masked, lines, i, idx);
   }
 
-  _scanLlmCalls(content, lines, rel, result, isTest = false, isCode = () => true) {
+  /**
+   * #713: does a bare `PUBLIC_*_KEY` / `PUBLIC_*_SECRET`-shaped identifier
+   * — one NOT read straight out of `process.env` / `import.meta.env`, which
+   * is flagged unconditionally by the caller — ever flow toward a client or
+   * an outbound request anywhere in this file?
+   *
+   * Walks every code occurrence of the identifier and, for each, looks at a
+   * small window of surrounding lines (`CLIENT_SINK_WINDOW`, since a
+   * `fetch(...)`/`headers: {...}` shape is routinely written across several
+   * lines) for `CLIENT_SINK_RE` — an assignment into something that reads as
+   * client config, a header/`Authorization` field, or a request call — or,
+   * when the file's own path reads as a client bundle path, an `export` of
+   * the identifier. An equality check (`===`/`!==`/`.includes(`/
+   * `.startsWith(`) or a rejecting `return`/`throw` never matches either of
+   * those, which is the point: the secret-key-guard shape from #713 (compare
+   * against an incoming secret, reject if it's the public default) has no
+   * occurrence that qualifies, so it stops firing; the control pair
+   * (`const PUBLIC_API_KEY = "..."` passed to
+   * `fetch(url, { headers: { Authorization: PUBLIC_API_KEY } })`) does, so
+   * it keeps firing.
+   */
+  _publicIdentifierFlowsToClient(tok, lines, isCode, rel) {
+    const wordRe = new RegExp(`\\b${tok}\\b`, 'g');
+    const isClientPath = CLIENT_BUNDLE_PATH_RE.test(rel.replace(/\\/g, '/'));
+    for (let j = 0; j < lines.length; j += 1) {
+      const line = lines[j];
+      wordRe.lastIndex = 0;
+      let m;
+      let onThisLine = false;
+      while ((m = wordRe.exec(line))) {
+        if (isCode(j, m.index)) { onThisLine = true; break; }
+      }
+      if (!onThisLine) continue;
+
+      const windowStart = Math.max(0, j - CLIENT_SINK_WINDOW);
+      const windowEnd = Math.min(lines.length, j + CLIENT_SINK_WINDOW + 1);
+      const windowText = lines.slice(windowStart, windowEnd).join('\n');
+      if (CLIENT_SINK_RE.test(windowText)) return true;
+      if (isClientPath && /\bexport\b/.test(windowText)) return true;
+    }
+    return false;
+  }
+
+  _scanLlmCalls(content, lines, rel, result, isTest = false, isCode = () => true, file = null, projectRoot = null) {
     let issues = 0;
     // Match both JS/TS and Python call-expressions. The object/kwarg
     // body is captured greedily; we then check for `max_tokens`.
@@ -397,42 +922,81 @@ class PromptSafetyModule extends BaseModule {
     // Each entry: the call, the captured argument body, and the field(s)
     // that cap output for THAT provider. A body that carries any of them is
     // fine; a body that carries none is the unbounded-output bug.
+    // `identifierGroup`/`bodyGroup` name which capture group holds the
+    // call-site client identifier (e.g. `anthropic` in `anthropic.messages.
+    // create(...)`) vs the call's argument body — only 'openai'/'anthropic'
+    // (JS and Python) name a client object the #669 wrapper check can trace;
+    // the other kinds have no such identifier to trace and are unaffected.
+    //
+    // The anchor excludes a hyphen/slash/`@` neighbour (`(?<![\w/@-])` /
+    // `(?![\w-])`) so it cannot latch onto the SAME word inside an unrelated
+    // path or package name within the 80-char lookback — e.g. `require("../
+    // lib/anthropic-client")` sitting just above a real `anthropic.messages.
+    // create(...)` call (#669: an in-repo wrapper import is now a normal
+    // shape here) would otherwise win as the leftmost match, anchoring the
+    // whole match — and its reported line/isCode check — inside that string
+    // instead of at the real call two lines later.
     const patterns = [
-      { re: /(?:openai|OpenAI)[\s\S]{0,80}?chat\.completions\.create\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
-        kind: 'openai', cap: /max_(?:completion_)?tokens\s*[:=]/ },
-      { re: /(?:anthropic|Anthropic)[\s\S]{0,80}?messages\.create\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
-        kind: 'anthropic', cap: /max_tokens\s*[:=]/ },
-      { re: /(?:openai|OpenAI)[\s\S]{0,80}?chat\.completions\.create\s*\(([\s\S]*?)\)/g,
-        kind: 'openai-py', cap: /max_(?:completion_)?tokens\s*[:=]/ },
-      { re: /(?:anthropic|Anthropic)[\s\S]{0,80}?messages\.create\s*\(([\s\S]*?)\)/g,
-        kind: 'anthropic-py', cap: /max_tokens\s*[:=]/ },
+      { re: /(?<![\w/@-])(openai|OpenAI)(?![\w-])[\s\S]{0,80}?chat\.completions\.create\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
+        kind: 'openai', cap: /max_(?:completion_)?tokens\s*[:=]/, identifierGroup: 1, bodyGroup: 2 },
+      { re: /(?<![\w/@-])(anthropic|Anthropic)(?![\w-])[\s\S]{0,80}?messages\.create\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
+        kind: 'anthropic', cap: /max_tokens\s*[:=]/, identifierGroup: 1, bodyGroup: 2 },
+      { re: /(?<![\w/@-])(openai|OpenAI)(?![\w-])[\s\S]{0,80}?chat\.completions\.create\s*\(([\s\S]*?)\)/g,
+        kind: 'openai-py', cap: /max_(?:completion_)?tokens\s*[:=]/, identifierGroup: 1, bodyGroup: 2 },
+      { re: /(?<![\w/@-])(anthropic|Anthropic)(?![\w-])[\s\S]{0,80}?messages\.create\s*\(([\s\S]*?)\)/g,
+        kind: 'anthropic-py', cap: /max_tokens\s*[:=]/, identifierGroup: 1, bodyGroup: 2 },
       // Raw gateway: fetch/axios/request to the provider's REST endpoint with
       // a JSON body. The body is what the provider bills on.
       { re: /['"\x60]https?:\/\/api\.(?:openai|anthropic)\.com\/[^'"\x60]*['"\x60][\s\S]{0,500}?JSON\.stringify\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
-        kind: 'gateway', cap: /max_(?:completion_)?tokens\s*[:=]/ },
+        kind: 'gateway', cap: /max_(?:completion_)?tokens\s*[:=]/, bodyGroup: 1 },
       // Google Gemini / Vertex: generateContent({ generationConfig: { maxOutputTokens } })
       { re: /\bgenerateContent(?:Stream)?\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
-        kind: 'gemini', cap: /max_?[oO]utput_?[tT]okens\s*[:=]/ },
+        kind: 'gemini', cap: /max_?[oO]utput_?[tT]okens\s*[:=]/, bodyGroup: 1 },
       { re: /\bgenerate_content\s*\(([\s\S]*?)\)/g,
-        kind: 'gemini-py', cap: /max_output_tokens\s*[:=]/ },
+        kind: 'gemini-py', cap: /max_output_tokens\s*[:=]/, bodyGroup: 1 },
       // AWS Bedrock: InvokeModelCommand({ body: JSON.stringify({ max_tokens | maxTokens | max_gen_len | maxTokenCount }) })
       { re: /\bInvokeModel(?:WithResponseStream)?Command\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
-        kind: 'bedrock', cap: /max_tokens|maxTokens|max_gen_len|maxTokenCount|max_tokens_to_sample/ },
+        kind: 'bedrock', cap: /max_tokens|maxTokens|max_gen_len|maxTokenCount|max_tokens_to_sample/, bodyGroup: 1 },
       // Vercel AI SDK: generateText / streamText / generateObject / streamObject({ maxTokens | maxOutputTokens })
-      { re: /\b(?:generateText|streamText|generateObject|streamObject)\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
-        kind: 'ai-sdk', cap: /max(?:Output)?Tokens\s*:/ },
+      // `(?<![.\w$])` keeps this to the bare, top-level-imported-function
+      // shape (`generateText({...})`) — a method call on a receiver
+      // (`gatewayClient.generateObject({...})`) belongs to the generic-SDK
+      // kind below, which (unlike this one) has a call-site identifier to
+      // trace for the #669/#680 wrapper-aware downgrade. Without this
+      // exclusion the same call matched both kinds and produced two findings.
+      { re: /(?<![.\w$])(?:generateText|streamText|generateObject|streamObject)\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
+        kind: 'ai-sdk', cap: /max(?:Output)?Tokens\s*:/, bodyGroup: 1 },
+      // #680: the generic SDK kind — a customer's own in-repo gateway client
+      // (imported under whatever name they gave it, e.g. `gatewayClient`)
+      // exposing the same method names the Vercel AI SDK and various
+      // provider SDKs converged on (`generateObject`, `generateText`,
+      // `complete`). Unlike the bare-function `ai-sdk` kind above, this is a
+      // method call on an identifier — exactly the shape #669's wrapper-aware
+      // downgrade already knows how to trace, so it carries an
+      // `identifierGroup` the same way the vendor-SDK kinds do.
+      { re: /(?<![\w/@-])([A-Za-z_$][\w$]*)\.(?:generateObject|generateText|complete)\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
+        kind: 'generic-sdk', cap: /max_?(?:output_?)?tokens\s*[:=]/i, identifierGroup: 1, bodyGroup: 2 },
       // LangChain: new ChatOpenAI({ maxTokens }) / ChatAnthropic({ maxTokens }) / ChatBedrock / ChatGoogleGenerativeAI
       { re: /\bnew\s+Chat(?:OpenAI|Anthropic|Bedrock|GoogleGenerativeAI|VertexAI|Groq|Mistral)\s*\(\s*\{([\s\S]*?)\}\s*\)/g,
-        kind: 'langchain', cap: /max_?[tT]okens|maxOutputTokens/ },
+        kind: 'langchain', cap: /max_?[tT]okens|maxOutputTokens/, bodyGroup: 1 },
       // (?<!new\s) — the JS form is `new ChatOpenAI({…})`, matched above; the
       // Python constructor has no `new` and takes kwargs, not an object.
       { re: /(?<!new\s)\bChat(?:OpenAI|Anthropic|Bedrock|GoogleGenerativeAI|VertexAI|Groq|MistralAI)\s*\(([\s\S]*?)\)/g,
-        kind: 'langchain-py', cap: /max_(?:output_)?tokens\s*=|max(?:Output)?Tokens\s*:/ },
+        kind: 'langchain-py', cap: /max_(?:output_)?tokens\s*=|max(?:Output)?Tokens\s*:/, bodyGroup: 1 },
     ];
-    for (const { re, kind, cap } of patterns) {
+    // #680 item 2: a `-py` kind's call shape is loose enough (parens, no
+    // brace requirement) that it also matches the JS/TS shape of the same
+    // call — `anthropic.messages.create({...})` in a .ts file satisfied both
+    // the `anthropic` (JS) and `anthropic-py` patterns, firing twice on one
+    // line. Each kind only makes sense for the language it names, so gate on
+    // the file extension: `-py` kinds run only on `.py`, everything else
+    // only on JS/TS (the only other kind SCAN_EXTS admits).
+    const isPyFile = path.extname(rel).toLowerCase() === '.py';
+    for (const { re, kind, cap, identifierGroup, bodyGroup } of patterns) {
+      if (kind.endsWith('-py') !== isPyFile) continue;
       let m;
       while ((m = re.exec(content)) !== null) {
-        const body = m[1];
+        const body = m[bodyGroup];
         if (cap.test(body)) continue;
         const idx = m.index;
         const beforeMatch = content.slice(0, idx);
@@ -441,13 +1005,54 @@ class PromptSafetyModule extends BaseModule {
         // Same fixture-data guard as the other rules in this file — a real
         // API call is never itself nested inside another string literal.
         if (!isCode(lineNo - 1, idx - lineStart)) continue;
+
+        let severity = isTest ? 'warning' : 'error';
+        let message = `${kind} call sets no output cap (${CAP_FIELD_NAME[kind] || 'max_tokens'}) — an attacker crafting a long prompt can run up your bill indefinitely`;
+        let suggestion = `Always set ${CAP_FIELD_NAME[kind] || 'max_tokens'} to the smallest value that fits your use case. This also caps worst-case latency.`;
+
+        // #669/#680: this call site is only a real cost-DoS bug if the client
+        // it calls isn't already capping output elsewhere. Only meaningful
+        // when we know the identifier — every kind the rule fires on that
+        // carries an `identifierGroup` (the vendor-SDK kinds, JS and Python,
+        // plus the generic-SDK kind) — and have a real file + project root to
+        // resolve imports against (tests that call _scanLlmCalls directly,
+        // without a file, skip this — same as before).
+        if (identifierGroup && file && projectRoot) {
+          const identifier = m[identifierGroup];
+          const source = _findClientIdentifierOrigin(content, identifier);
+          const wrapperPath = _resolveClientModule(source, file, projectRoot);
+          if (wrapperPath) {
+            const capResult = _wrapperSetsCap(wrapperPath, projectRoot, new Set());
+            const wrapperRel = repoRelative(projectRoot, capResult.module || wrapperPath);
+            if (capResult.capped) {
+              severity = 'info';
+              // #673: when the wrapper's default came from a NAMED CONSTANT
+              // (`?? DEFAULT_MAX_OUTPUT_TOKENS`) rather than a literal typed
+              // right into the field, name where that constant actually
+              // lives — a bare "cap applied in client.ts" leaves the reader
+              // unable to see the value without opening a second file.
+              const constantRel = capResult.constantFile
+                ? repoRelative(projectRoot, capResult.constantFile)
+                : null;
+              const valueSuffix = capResult.viaIdentifier && constantRel
+                ? ` (default ${capResult.value} from ${constantRel})`
+                : '';
+              message = `cap applied in ${wrapperRel}${valueSuffix}`;
+              suggestion = `The in-repo client at ${wrapperRel} already sets a default output cap for every call — no per-call change needed.`;
+            } else {
+              message = `Model client call sets no output cap, and the in-repo wrapper at ${wrapperRel} it comes from sets no default either — requests are unbounded`;
+              suggestion = `Set a default output cap in ${wrapperRel}, or pass one explicitly at this call site.`;
+            }
+          }
+        }
+
         issues += this._flag(result, `prompt-safety:no-max-tokens:${kind}:${rel}:${lineNo}`, {
-          severity: isTest ? 'warning' : 'error',
+          severity,
           file: rel,
           line: lineNo,
           api: kind,
-          message: `${kind} call sets no output cap (${CAP_FIELD_NAME[kind] || 'max_tokens'}) — an attacker crafting a long prompt can run up your bill indefinitely`,
-          suggestion: `Always set ${CAP_FIELD_NAME[kind] || 'max_tokens'} to the smallest value that fits your use case. This also caps worst-case latency.`,
+          message,
+          suggestion,
         });
       }
     }

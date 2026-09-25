@@ -51,6 +51,24 @@ const WARNING = 'warning';
 const STALE_BUILD_WARN_DAYS = 2;
 const STALE_BUILD_CRITICAL_DAYS = 7;
 
+/**
+ * deploy/fresh drift thresholds (issue #683) — the live commit is compared
+ * against origin/main by ACTUAL history, not by how old the build
+ * timestamp looks. On 2026-09-23 this step passed "commit 7026fbec, 0.4d
+ * old" while origin/main was five merges ahead and the box had not
+ * deployed in ten hours — a young build can still be badly behind.
+ *
+ * pass:     live == main, or <= DRIFT_PASS_MAX_BEHIND commit(s) behind AND
+ *           the oldest unshipped commit is younger than DRIFT_PASS_MAX_MINUTES
+ * critical: >= DRIFT_CRITICAL_MIN_BEHIND commits behind, or the oldest
+ *           unshipped commit is older than DRIFT_CRITICAL_MIN_MINUTES
+ * warning:  everything in between
+ */
+const DRIFT_PASS_MAX_BEHIND = 1;
+const DRIFT_PASS_MAX_MINUTES = 20;
+const DRIFT_CRITICAL_MIN_BEHIND = 5;
+const DRIFT_CRITICAL_MIN_MINUTES = 180;
+
 /** Our own public repo — the canary target. No third party is involved. */
 const DEFAULT_CANARY_REPO = 'https://github.com/ccantynz-alt/GateTest';
 
@@ -60,6 +78,84 @@ function buildAgeDays(builtAt, now = Date.now()) {
   const t = Date.parse(builtAt);
   if (Number.isNaN(t)) return null;
   return (now - t) / 86_400_000;
+}
+
+/**
+ * A git adapter for the deploy/fresh drift check (issue #683). The
+ * adapter is `(args: string[]) => string`, injected so this stays a pure,
+ * testable module — see checkDeployDrift. Any failure is swallowed to
+ * `null`: a probe step must report a red result, never throw.
+ */
+function tryAdapter(adapter, args) {
+  try {
+    return adapter(args);
+  } catch {
+    return null;
+  }
+}
+
+function minutesSince(iso, now) {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  return (now - t) / 60_000;
+}
+
+function formatDuration(minutes) {
+  if (minutes === null) return 'an unknown time';
+  if (minutes < 1) return 'under a minute';
+  if (minutes < 60) return `${Math.round(minutes)} minute${Math.round(minutes) === 1 ? '' : 's'}`;
+  const hours = minutes / 60;
+  if (hours < 48) return `${hours.toFixed(1)} hours`;
+  return `${(hours / 24).toFixed(1)} days`;
+}
+
+/**
+ * Commits reachable from `main` but not from `live`, oldest first. `null`
+ * means the adapter could not answer (unreadable ref, no adapter) — the
+ * caller must not treat that as "zero commits behind".
+ */
+function unshippedCommits(adapter, live, main) {
+  const raw = tryAdapter(adapter, ['log', '--reverse', '--format=%H%x1f%s%x1f%cI', `${live}..${main}`]);
+  if (raw === null) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  return trimmed.split('\n').map((line) => {
+    const [sha, subject, date] = line.split('\x1f');
+    return { sha, subject, date };
+  });
+}
+
+/**
+ * Compare the live commit against origin/main by real history, instead of
+ * trusting a build timestamp (issue #683: a build can be "0.4d old" and
+ * still be five merges behind, because the box simply stopped deploying).
+ * Returns `null` when the adapter is not usable at all (no adapter,
+ * unreadable origin/main) so the caller can fall back to the age-only
+ * signal; returns `{ notAncestor: true, mainSha }` when the live commit is
+ * not in main's history at all — a hotfix or a rollback, which cannot be
+ * counted in commits and must not be reported as an ordinary lag.
+ */
+function checkDeployDrift(adapter, liveCommit) {
+  if (typeof adapter !== 'function') return null;
+  tryAdapter(adapter, ['fetch', '--quiet', 'origin', 'main']);
+  const mainSha = tryAdapter(adapter, ['rev-parse', 'origin/main']);
+  if (!mainSha) return null;
+
+  const live = String(liveCommit);
+  if (mainSha.toLowerCase().startsWith(live.toLowerCase()) || live.toLowerCase().startsWith(mainSha.toLowerCase())) {
+    return { behind: 0, unshipped: [], mainSha };
+  }
+
+  const knownCommit = tryAdapter(adapter, ['cat-file', '-e', `${live}^{commit}`]) !== null;
+  const isAncestor = knownCommit && tryAdapter(adapter, ['merge-base', '--is-ancestor', live, mainSha]) !== null;
+  if (!isAncestor) {
+    return { notAncestor: true, mainSha };
+  }
+
+  const unshipped = unshippedCommits(adapter, live, mainSha);
+  if (unshipped === null) return { behind: null, unshipped: null, mainSha };
+  return { behind: unshipped.length, unshipped, mainSha };
 }
 
 function ok(name, detail, extra = {}) {
@@ -111,7 +207,7 @@ function parseJson(body) {
  * unnoticed for 11 days and broke four customer-facing things at once; it is
  * invisible to every test and obvious to this one question.
  */
-async function checkDeployFreshness(fetchFn, base, expectedCommit) {
+async function checkDeployFreshness(fetchFn, base, expectedCommit, deployAdapter, now = Date.now()) {
   const r = await request(fetchFn, `${base}/api/platform-status`);
   if (!r.ok) return fail('deploy/reachable', `/api/platform-status unreachable: ${r.error}`, CRITICAL, 'Is the site up? Check the host and DNS.');
   if (r.status !== 200) return fail('deploy/reachable', `/api/platform-status returned HTTP ${r.status}`, CRITICAL, 'The app is not serving. Check the process and the reverse proxy.');
@@ -140,29 +236,112 @@ async function checkDeployFreshness(fetchFn, base, expectedCommit) {
   // A check named "fresh" that passes a stale deploy is worse than no check:
   // it answers the question the reader actually asked, wrongly.
   //
-  // Scheduled runs still must not demand an exact HEAD match (main moves
-  // ahead of production between deploys, and a job that is red by design
-  // trains everyone to ignore it) — but age is not a matter of opinion. A
-  // build older than the ceiling means deploys have stopped reaching
-  // production, which is exactly the failure that hid for eleven days once
-  // and ten days again.
+  // issue #683: age is not enough either — production sat five merges
+  // behind origin/main and reported "commit 7026fbec, 0.4d old" because the
+  // build genuinely WAS young when it was made; the box simply never
+  // redeployed for the ten hours after that. When the probe runs in
+  // Actions (repo checked out with full history) it compares the live
+  // commit against origin/main directly; the age fact is kept as a second
+  // signal, never the deciding one when the comparison is available.
   const age = buildAgeDays(data.builtAt);
-  if (age !== null && age >= STALE_BUILD_CRITICAL_DAYS) {
-    return fail(
-      'deploy/fresh', `live build is ${age.toFixed(1)} days old (commit ${commit.slice(0, 12)}, built ${data.builtAt})`, CRITICAL,
-      'Deploys have stopped reaching production. Check that BOX_SSH_KEY / BOX_SSH_HOST are set on the repo so .github/workflows/deploy-box.yml can actually ship, then compare /api/platform-status `commit` against `git rev-parse HEAD`.',
-      { commit, ageDays: age },
-    );
-  }
-  if (age !== null && age >= STALE_BUILD_WARN_DAYS) {
-    return fail(
-      'deploy/fresh', `live build is ${age.toFixed(1)} days old (commit ${commit.slice(0, 12)})`, WARNING,
-      'Not yet critical, but nothing has shipped in a while — confirm that is deliberate and not a broken deploy path.',
-      { commit, ageDays: age },
-    );
-  }
   const agePart = age === null ? '' : `, ${age.toFixed(1)}d old`;
-  return ok('deploy/fresh', `commit ${commit.slice(0, 12)}${data.version ? ` (v${data.version})` : ''}${agePart}`, { commit, ageDays: age });
+  const versionPart = data.version ? ` (v${data.version})` : '';
+  const deployedAt = data.deployedAt ? String(data.deployedAt) : null;
+  const lastDeployPart = deployedAt ? `; last deploy ${deployedAt}` : '; last deploy time unknown';
+
+  // issue #706 part 4: the box's OWN pull-deploy.sh status
+  // (/api/platform-status `lastPullDeploy`, part 1) — a signal that can be
+  // present even when the drift/age checks below look fine, because a box
+  // that has stopped deploying can still be serving a recent-looking build
+  // from before it stalled. Only printed when the last attempt actually
+  // failed; a healthy or unknown status adds nothing here (the admin
+  // overview and the "Production deploy stalled" issue, #706 parts 2 and 4,
+  // are where "unknown" itself is worth surfacing).
+  const lastPullDeploy = data.lastPullDeploy && typeof data.lastPullDeploy === 'object' ? data.lastPullDeploy : null;
+  const pullDeployPart =
+    lastPullDeploy && lastPullDeploy.result === 'failed'
+      ? `; last deploy attempt: failed, ${lastPullDeploy.reason || 'no reason recorded'}, at ${lastPullDeploy.at || 'unknown time'}`
+      : '';
+
+  const drift = checkDeployDrift(deployAdapter, commit);
+  if (!drift) {
+    // No adapter available (e.g. running outside a checkout) — fall back
+    // to the age-only signal this step used before #683. Age alone is not
+    // freshness (see checkDeployDrift for why), but it is the only signal
+    // available when origin/main can't be resolved.
+    if (age !== null && age >= STALE_BUILD_CRITICAL_DAYS) {
+      return fail(
+        'deploy/fresh', `live build is ${age.toFixed(1)} days old (commit ${commit.slice(0, 12)}, built ${data.builtAt})${lastDeployPart}${pullDeployPart}`, CRITICAL,
+        'Deploys have stopped reaching production. Check that BOX_SSH_KEY / BOX_SSH_HOST are set on the repo so .github/workflows/deploy-box.yml can actually ship, then compare /api/platform-status `commit` against `git rev-parse HEAD`.',
+        { commit, ageDays: age },
+      );
+    }
+    if (age !== null && age >= STALE_BUILD_WARN_DAYS) {
+      return fail(
+        'deploy/fresh', `live build is ${age.toFixed(1)} days old (commit ${commit.slice(0, 12)})${lastDeployPart}${pullDeployPart}`, WARNING,
+        'Not yet critical, but nothing has shipped in a while — confirm that is deliberate and not a broken deploy path.',
+        { commit, ageDays: age },
+      );
+    }
+    return ok('deploy/fresh', `commit ${commit.slice(0, 12)}${versionPart}${agePart}${lastDeployPart}${pullDeployPart}`, { commit, ageDays: age });
+  }
+
+  if (drift.notAncestor) {
+    return fail(
+      'deploy/fresh',
+      `live commit ${commit.slice(0, 12)} is not an ancestor of origin/main (${drift.mainSha.slice(0, 12)}) — cannot count commits behind${agePart}${lastDeployPart}${pullDeployPart}`,
+      WARNING,
+      'This looks like a hotfix applied directly to production, or a rollback — not ordinary lag. If it is a deliberate hotfix, confirm it gets merged back to main; if it is a rollback, confirm that was intentional.',
+      { commit, mainSha: drift.mainSha },
+    );
+  }
+
+  if (drift.behind === null) {
+    return fail(
+      'deploy/fresh',
+      `commit ${commit.slice(0, 12)}${versionPart} — could not determine how many commits behind origin/main it is${agePart}${lastDeployPart}${pullDeployPart}`,
+      WARNING,
+      'The comparison against origin/main failed. Check that the checkout has full history (fetch-depth: 0) and that origin/main resolves.',
+      { commit, mainSha: drift.mainSha },
+    );
+  }
+
+  const behind = drift.behind;
+  const oldest = drift.unshipped[0] || null;
+  const oldestAgeMinutes = oldest ? minutesSince(oldest.date, now) : null;
+  const oldestFact = oldest
+    ? `oldest unshipped: ${oldest.sha.slice(0, 12)} ${oldest.subject}, merged ${formatDuration(oldestAgeMinutes)} ago`
+    : null;
+  const unshippedList = drift.unshipped.map((c) => `${c.sha.slice(0, 12)} ${c.subject}`).join('; ');
+
+  if (behind === 0) {
+    return ok('deploy/fresh', `commit ${commit.slice(0, 12)}${versionPart} matches origin/main${agePart}${lastDeployPart}${pullDeployPart}`, { commit, behind: 0 });
+  }
+
+  const plural = behind === 1 ? '' : 's';
+  const isCritical = behind >= DRIFT_CRITICAL_MIN_BEHIND || (oldestAgeMinutes !== null && oldestAgeMinutes >= DRIFT_CRITICAL_MIN_MINUTES);
+  if (isCritical) {
+    return fail(
+      'deploy/fresh',
+      `production is ${behind} commit${plural} behind main (${oldestFact})${agePart}${lastDeployPart}${pullDeployPart}`,
+      CRITICAL,
+      `Deploys have stopped reaching production. Unshipped merges: ${unshippedList}. Check the deploy pipeline and redeploy.`,
+      { commit, behind, mainSha: drift.mainSha },
+    );
+  }
+
+  const isFresh = behind <= DRIFT_PASS_MAX_BEHIND && oldestAgeMinutes !== null && oldestAgeMinutes < DRIFT_PASS_MAX_MINUTES;
+  if (isFresh) {
+    return ok('deploy/fresh', `commit ${commit.slice(0, 12)}${versionPart}, ${behind} commit${plural} behind main (within grace)${agePart}${lastDeployPart}${pullDeployPart}`, { commit, behind, mainSha: drift.mainSha });
+  }
+
+  return fail(
+    'deploy/fresh',
+    `production is ${behind} commit${plural} behind main (${oldestFact})${agePart}${lastDeployPart}${pullDeployPart}`,
+    WARNING,
+    `Not yet critical, but production has fallen behind. Unshipped merges: ${unshippedList}. Confirm the deploy pipeline is still running.`,
+    { commit, behind, mainSha: drift.mainSha },
+  );
 }
 
 /** Is the deployment actually configured, by its own account? */
@@ -382,6 +561,10 @@ const DEFAULT_CRON_PATHS = ['/api/watches/tick', '/api/scan/worker/tick'];
  * @param {string} opts.baseUrl
  * @param {string} [opts.expectedCommit] — usually `git rev-parse HEAD` of main
  * @param {Function} [opts.fetchFn]
+ * @param {Function} [opts.deployAdapter] — `(args: string[]) => string` git
+ *   adapter for the deploy/fresh drift check (issue #683); omit to fall
+ *   back to the age-only signal (no origin/main comparison available)
+ * @param {number} [opts.now] — injectable clock for tests
  * @param {Array}  [opts.surfaces]
  * @param {Array}  [opts.cronPaths]
  * @returns {Promise<{ready: boolean, steps: Array, failures: Array, summary: object}>}
@@ -393,7 +576,7 @@ async function runReadinessProbe(opts = {}) {
   if (!fetchFn) throw new Error('runReadinessProbe: no fetch available');
 
   const steps = [];
-  steps.push(await checkDeployFreshness(fetchFn, base, opts.expectedCommit));
+  steps.push(await checkDeployFreshness(fetchFn, base, opts.expectedCommit, opts.deployAdapter, opts.now));
   steps.push(...await checkConfig(fetchFn, base));
   steps.push(...await checkCustomerSurfaces(fetchFn, base, opts.surfaces || DEFAULT_SURFACES));
   steps.push(...await checkSchedulerEndpoints(fetchFn, base, opts.cronPaths || DEFAULT_CRON_PATHS));
@@ -433,6 +616,10 @@ module.exports = {
   STALE_BUILD_WARN_DAYS,
   STALE_BUILD_CRITICAL_DAYS,
   buildAgeDays,
+  DRIFT_PASS_MAX_BEHIND,
+  DRIFT_PASS_MAX_MINUTES,
+  DRIFT_CRITICAL_MIN_BEHIND,
+  DRIFT_CRITICAL_MIN_MINUTES,
   CRITICAL,
   WARNING,
   // exposed for tests
@@ -441,4 +628,5 @@ module.exports = {
   _checkCustomerSurfaces: checkCustomerSurfaces,
   _checkSchedulerEndpoints: checkSchedulerEndpoints,
   _checkProductWorks: checkProductWorks,
+  _checkDeployDrift: checkDeployDrift,
 };

@@ -174,6 +174,187 @@ describe('readiness probe — build age (a 10-day-old build is not "fresh")', ()
   });
 });
 
+// ---------------------------------------------------------------------------
+// issue #683: a stale deploy that LOOKS fresh — production sat five merges
+// behind origin/main and reported "commit 7026fbec, 0.4d old" because the
+// build genuinely was young; the box just never redeployed for the ten
+// hours after. Age cannot see that. The probe runs in Actions with the
+// repo checked out, so deploy/fresh now compares the live commit against
+// origin/main via a stubbed git adapter here — no real git or network.
+// ---------------------------------------------------------------------------
+describe('readiness probe — deploy/fresh compares against origin/main (issue #683)', () => {
+  /**
+   * Stub deployAdapter(args) -> trimmed stdout, or throws.
+   * `mainSha` answers `rev-parse origin/main`; `ancestor: false` makes the
+   * cat-file/merge-base checks fail (a hotfix or rollback not reachable
+   * from main); `commits` are the unshipped commits, OLDEST FIRST, as
+   * { sha, subject, minutesAgo }.
+   */
+  function stubDeployAdapter({ mainSha, ancestor = true, commits = [] } = {}) {
+    return (args) => {
+      const cmd = args[0];
+      if (cmd === 'fetch') return '';
+      if (cmd === 'rev-parse' && args[1] === 'origin/main') return mainSha;
+      if (cmd === 'cat-file') {
+        if (!ancestor) throw new Error('unknown revision');
+        return '';
+      }
+      if (cmd === 'merge-base') {
+        if (!ancestor) throw new Error('not an ancestor');
+        return '';
+      }
+      if (cmd === 'log') {
+        return commits
+          .map((c) => `${c.sha}\x1f${c.subject}\x1f${new Date(Date.now() - c.minutesAgo * 60_000).toISOString()}`)
+          .join('\n');
+      }
+      throw new Error(`unstubbed adapter call: ${args.join(' ')}`);
+    };
+  }
+
+  it('passes when the live commit equals origin/main', async () => {
+    const report = await run(HEALTHY, {
+      deployAdapter: stubDeployAdapter({ mainSha: 'abc123def4567' }),
+    });
+    assert.strictEqual(report.ready, true);
+    const step = stepNamed(report, 'deploy/fresh');
+    assert.strictEqual(step.ok, true);
+    assert.match(step.detail, /matches origin\/main/);
+  });
+
+  it('passes when one commit behind and it merged minutes ago (grace window)', async () => {
+    const report = await run(HEALTHY, {
+      deployAdapter: stubDeployAdapter({
+        mainSha: 'fff000111222',
+        commits: [{ sha: 'fff000111222', subject: 'Bump version', minutesAgo: 5 }],
+      }),
+    });
+    assert.strictEqual(report.ready, true);
+    const step = stepNamed(report, 'deploy/fresh');
+    assert.strictEqual(step.ok, true);
+    assert.match(step.detail, /1 commit behind main \(within grace\)/);
+  });
+
+  it('warns when behind by a few commits but not yet a long outage', async () => {
+    const report = await run(HEALTHY, {
+      deployAdapter: stubDeployAdapter({
+        mainSha: 'zzz999888777',
+        commits: [
+          { sha: 'aaa111222333', subject: 'Fix typo in footer', minutesAgo: 45 },
+          { sha: 'bbb222333444', subject: 'Add pricing anchor test', minutesAgo: 20 },
+          { sha: 'zzz999888777', subject: 'Bump changelog', minutesAgo: 5 },
+        ],
+      }),
+    });
+    assert.strictEqual(report.ready, true, 'a warning must not fail the probe');
+    const step = stepNamed(report, 'deploy/fresh');
+    assert.strictEqual(step.ok, false);
+    assert.strictEqual(step.severity, 'warning');
+    assert.match(step.detail, /production is 3 commits behind main/);
+    assert.match(step.detail, /oldest unshipped: aaa111222333 Fix typo in footer, merged 45 minutes ago/);
+  });
+
+  it('is critical for the exact issue #683 scenario — a young build that is five merges behind', async () => {
+    const routes = {
+      ...HEALTHY,
+      '/api/platform-status': {
+        status: 200,
+        body: JSON.stringify({
+          commit: '7026fbecaaaa', version: '1.61.1',
+          builtAt: new Date(Date.now() - 0.4 * 86_400_000).toISOString(),
+        }),
+      },
+    };
+    const commits = [];
+    for (let i = 0; i < 5; i++) {
+      commits.push({ sha: `merge${i}00000000`, subject: `Merge PR #${500 + i}`, minutesAgo: 600 - i * 10 });
+    }
+    const report = await run(routes, {
+      deployAdapter: stubDeployAdapter({ mainSha: commits[commits.length - 1].sha, commits }),
+    });
+    assert.strictEqual(report.ready, false);
+    const step = stepNamed(report, 'deploy/fresh');
+    assert.strictEqual(step.ok, false);
+    assert.strictEqual(step.severity, 'critical');
+    assert.match(step.detail, /production is 5 commits behind main/);
+    assert.match(step.detail, /0\.4d old/, 'the age fact must still be printed as a second fact');
+    assert.match(step.fix, /Merge PR #500/, 'the operator needs the list of unshipped merges');
+  });
+
+  it('says "not an ancestor" instead of counting when live is a hotfix or rollback', async () => {
+    const report = await run(HEALTHY, {
+      deployAdapter: stubDeployAdapter({ mainSha: 'deadbeef0000', ancestor: false }),
+    });
+    assert.strictEqual(report.ready, true, 'a hotfix/rollback ambiguity is a warning, not a probe failure');
+    const step = stepNamed(report, 'deploy/fresh');
+    assert.strictEqual(step.ok, false);
+    assert.strictEqual(step.severity, 'warning');
+    assert.match(step.detail, /is not an ancestor of origin\/main/);
+    assert.match(step.fix, /hotfix/i);
+    assert.match(step.fix, /rollback/i);
+  });
+
+  it('prints the last deploy time when platform-status exposes it, else says unknown', async () => {
+    const withDeployedAt = await run({
+      ...HEALTHY,
+      '/api/platform-status': { status: 200, body: JSON.stringify({ commit: 'abc123def4567', version: '1.61.1', deployedAt: '2026-09-22T01:39:00Z' }) },
+    }, { deployAdapter: stubDeployAdapter({ mainSha: 'abc123def4567' }) });
+    assert.match(stepNamed(withDeployedAt, 'deploy/fresh').detail, /last deploy 2026-09-22T01:39:00Z/);
+
+    const withoutDeployedAt = await run(HEALTHY, { deployAdapter: stubDeployAdapter({ mainSha: 'abc123def4567' }) });
+    assert.match(stepNamed(withoutDeployedAt, 'deploy/fresh').detail, /last deploy time unknown/);
+  });
+
+  // issue #706 part 4: "last deploy attempt: failed, <reason>, at <time>" —
+  // the box's OWN pull-deploy.sh status (lastPullDeploy, #706 part 1),
+  // printed only when that specific attempt failed.
+  it('prints "last deploy attempt: failed, <reason>, at <time>" when lastPullDeploy reports a failure', async () => {
+    const report = await run({
+      ...HEALTHY,
+      '/api/platform-status': {
+        status: 200,
+        body: JSON.stringify({
+          commit: 'abc123def4567', version: '1.61.1',
+          lastPullDeploy: { result: 'failed', reason: 'git fetch failed: fatal: could not read Username', at: '2026-09-23T02:28:00Z' },
+        }),
+      },
+    }, { deployAdapter: stubDeployAdapter({ mainSha: 'abc123def4567' }) });
+    assert.match(
+      stepNamed(report, 'deploy/fresh').detail,
+      /last deploy attempt: failed, git fetch failed: fatal: could not read Username, at 2026-09-23T02:28:00Z/,
+    );
+  });
+
+  it('says nothing extra when lastPullDeploy is healthy or unknown', async () => {
+    const deployed = await run({
+      ...HEALTHY,
+      '/api/platform-status': {
+        status: 200,
+        body: JSON.stringify({ commit: 'abc123def4567', version: '1.61.1', lastPullDeploy: { result: 'deployed', reason: '' } }),
+      },
+    }, { deployAdapter: stubDeployAdapter({ mainSha: 'abc123def4567' }) });
+    assert.doesNotMatch(stepNamed(deployed, 'deploy/fresh').detail, /last deploy attempt/);
+
+    const unknown = await run({
+      ...HEALTHY,
+      '/api/platform-status': {
+        status: 200,
+        body: JSON.stringify({ commit: 'abc123def4567', version: '1.61.1', lastPullDeploy: { result: 'unknown', reason: 'status file not readable' } }),
+      },
+    }, { deployAdapter: stubDeployAdapter({ mainSha: 'abc123def4567' }) });
+    assert.doesNotMatch(stepNamed(unknown, 'deploy/fresh').detail, /last deploy attempt/);
+  });
+
+  it('falls back to the age-only signal when no adapter is available at all', async () => {
+    // No deployAdapter passed — this is the pre-#683 behaviour, still
+    // exercised so a caller without a git checkout (e.g. a laptop run
+    // against a raw URL) still gets a signal instead of a crash.
+    const report = await run(HEALTHY);
+    const step = stepNamed(report, 'deploy/fresh');
+    assert.strictEqual(step.ok, true);
+  });
+});
+
 describe('readiness probe — does the product actually work?', () => {
   it('fails when the free scan calls a known-good repo empty (the exact 2026-08-16 symptom)', async () => {
     const report = await run({

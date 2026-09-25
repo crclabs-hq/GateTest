@@ -87,11 +87,11 @@ describe('distribution surfaces: every listed channel points somewhere real', ()
   });
 
   it('the CLI snippet uses the form that resolves on the published package', () => {
-    // Bare `npx @gatetest/cli` only resolves from 1.61.1; npm serves 1.61.0.
-    // Check the snippets a visitor copies, not the comments that explain why.
+    // Bare `npx @gatetest/cli` resolves from 1.61.1 onward (the `cli` bin) —
+    // npm serves 1.61.1 today, so the snippet a visitor copies uses the bare
+    // form rather than the older `-p` workaround.
     const snippets = [...SRC.matchAll(/snippet:\s*"([^"]+)"/g)].map((m) => m[1]);
-    assert.ok(snippets.some((s) => /npx -p @gatetest\/cli gatetest/.test(s)), 'the CLI snippet uses -p');
-    for (const s of snippets) assert.ok(!/npx @gatetest\/cli\b/.test(s), `bare npx @gatetest/cli is not on npm yet: ${s}`);
+    assert.ok(snippets.some((s) => /npx --yes @gatetest\/cli\b/.test(s)), 'the CLI snippet uses bare npx');
   });
 
   it('the module count is imported where it is rendered, never typed', () => {
@@ -101,10 +101,16 @@ describe('distribution surfaces: every listed channel points somewhere real', ()
     assert.ok(!/\b1[0-9]{2}[- ]module/.test(SRC), 'a typed three-digit module count');
   });
 
-  it('the nav and the homepage import from the one definition', () => {
+  it('the nav imports from the one definition; the promoted v2 homepage (#686 phase 3) summarises where it runs in its own Runs table', () => {
+    // HomeEverywhere (and its SURFACES-derived heading, checked above) is no
+    // longer rendered on the homepage as of the v2 promotion — it is kept as
+    // a file-level fixture for the two `it`s above and listed as a PR
+    // follow-up. The new homepage's own "where it runs" section (Runs.tsx)
+    // is a separate, hand-written table rather than a SURFACES import; that
+    // predates this change (shipped with #712) and is not this test's claim.
     const nav = fs.readFileSync(path.join(ROOT, 'website', 'app', 'components', 'site-nav.ts'), 'utf8');
     assert.match(nav, /from "\.\.\/lib\/distribution"/);
     const page = fs.readFileSync(path.join(ROOT, 'website', 'app', 'page.tsx'), 'utf8');
-    assert.match(page, /<HomeEverywhere \/>/);
+    assert.match(page, /<Runs \/>/);
   });
 });

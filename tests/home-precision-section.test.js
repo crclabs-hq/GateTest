@@ -15,10 +15,17 @@ const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 describe('homepage precision + honesty sections', () => {
-  it('the homepage renders HomePrecision directly after the hero, and HomeHonest', () => {
+  it('the homepage (v2, promoted at issue #686 phase 3, 2026-09-23) renders the precision chart behind the rail\'s "gate"/"merge" stages', () => {
+    // Hero/HomePrecision/HomeHonest were the OLD homepage's precision
+    // section (see the other two `it`s below, which still test those files'
+    // own content — they are kept as fixtures even though nothing renders
+    // them today; see the PR for the follow-up). The promoted v2 homepage
+    // carries the same numbers-are-public argument through Numbers +
+    // PrecisionChart instead.
     const page = read('website/app/page.tsx');
-    assert.match(page, /<Hero \/>\s*<HomePrecision \/>/);
-    assert.match(page, /<HomeHonest \/>/);
+    assert.match(page, /<Rail \/>/);
+    assert.match(page, /<Numbers\b/);
+    assert.match(page, /<PrecisionChart \/>/);
   });
 
   it('Precision is a primary nav link', () => {

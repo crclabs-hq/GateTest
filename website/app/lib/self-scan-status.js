@@ -67,6 +67,17 @@ const crypto = require('crypto');
 const HISTORY_LIMIT = 30;
 
 /**
+ * The self-scan badge always measures the quick suite (`.github/workflows/ci.yml`,
+ * job "Run quick self-scan against the gatetest repo itself" — `gatetest --suite
+ * quick --parallel`). Every surface that shows this badge's module count must say
+ * so, one definition, imported: the 2026-09-22 buyer walk read the live badge's
+ * bare "42/42 modules" next to "121 modules" and "88 of 121" elsewhere on the
+ * homepage as contradictory, because only the fallback (committed, dated) copy
+ * spelled out which suite 42 refers to — the live path did not.
+ */
+const SELF_SCAN_SUITE_LABEL = 'quick suite, the CI gate';
+
+/**
  * Module-level mutable state. See storage strategy note above.
  * @type {null | StoredStats}
  */
@@ -365,7 +376,7 @@ function deriveBadgeState(data, fetchError) {
   const sha = typeof d.commitSha === 'string' ? d.commitSha : '';
 
   const metricLine =
-    `${d.modulesPassedCount}/${d.modulesTotalCount} modules · ` +
+    `${d.modulesPassedCount}/${d.modulesTotalCount} modules (${SELF_SCAN_SUITE_LABEL}) · ` +
     `${d.errorCount} errors · ${d.warningCount} warnings · ${ageText}`;
 
   return {
@@ -391,6 +402,7 @@ function _formatAge(minutes) {
 
 module.exports = {
   HISTORY_LIMIT,
+  SELF_SCAN_SUITE_LABEL,
   verifyInternalSignature,
   signBody,
   validateStatusPayload,

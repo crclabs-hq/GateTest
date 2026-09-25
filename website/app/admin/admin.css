@@ -1,0 +1,399 @@
+/**
+ * Admin design tokens + shell layout — issue #691 against the theme
+ * contract in #690.
+ *
+ * WHY THIS FILE EXISTS RATHER THAN globals.css:
+ * #686 owns globals.css / Navbar / Footer / components/v2 and is lifting the
+ * v2 tokens into globals as the site-wide shared palette. Until that lands,
+ * globals.css's own dark palette is opt-in only (`:root[data-theme="dark"]`,
+ * not yet driven by `prefers-color-scheme` — see the comment above it) so
+ * the admin cannot borrow it for a real three-state (system/light/dark)
+ * toggle today without regressing every other page mid-migration.
+ *
+ * So the admin gets its OWN token set here, prefixed `--gt-admin-*` so it
+ * can never collide with globals.css's `--background` / `--accent` / etc.
+ * The structure below is otherwise an exact mirror of the #690 contract:
+ *   1. light values in the bare `:root` scope
+ *   2. dark values under `@media (prefers-color-scheme: dark)`, guarded by
+ *      `:root:not([data-theme="light"])` so an explicit "light" choice wins
+ *      over the OS preference
+ *   3. dark values again under `:root[data-theme="dark"]` for an explicit
+ *      "dark" choice regardless of OS preference
+ *
+ * MIGRATION: once #686 lands shared tokens in globals.css, replace every
+ * `var(--gt-admin-*)` in this file and admin/**\/*.tsx with the shared name
+ * and delete the three blocks below — one commit, no visual change intended
+ * because the values were chosen to the same contrast targets.
+ */
+
+:root {
+  --gt-admin-bg: #f4f6f8;
+  --gt-admin-bg-alt: #ffffff;
+  --gt-admin-fg: #0f172a;
+  --gt-admin-fg-secondary: #45566e;
+  --gt-admin-muted: #64748b;
+
+  --gt-admin-accent: #0f766e;
+  --gt-admin-accent-hover: #0d6560;
+  --gt-admin-accent-fg: #ffffff;
+
+  --gt-admin-surface: #ffffff;
+  --gt-admin-border: rgba(15, 23, 42, 0.10);
+  --gt-admin-border-strong: rgba(15, 23, 42, 0.18);
+
+  --gt-admin-success: #059669;
+  --gt-admin-warning: #b45309;
+  --gt-admin-danger: #dc2626;
+
+  --gt-admin-sidebar-bg: #0f172a;
+  --gt-admin-sidebar-fg: #cbd5e1;
+  --gt-admin-sidebar-fg-active: #ffffff;
+  --gt-admin-sidebar-border: rgba(255, 255, 255, 0.08);
+  --gt-admin-sidebar-active-bg: rgba(20, 184, 166, 0.18);
+
+  --gt-admin-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --gt-admin-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+
+  --gt-admin-radius-sm: 0.375rem;
+  --gt-admin-radius-md: 0.5rem;
+  --gt-admin-radius-lg: 0.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --gt-admin-bg: #0b1210;
+    --gt-admin-bg-alt: #101816;
+    --gt-admin-fg: #e8eeeb;
+    --gt-admin-fg-secondary: #c3cdc8;
+    --gt-admin-muted: #8f9e99;
+
+    --gt-admin-accent: #2dd4bf;
+    --gt-admin-accent-hover: #14b8a6;
+    --gt-admin-accent-fg: #05201c;
+
+    --gt-admin-surface: #121a18;
+    --gt-admin-border: rgba(255, 255, 255, 0.10);
+    --gt-admin-border-strong: rgba(255, 255, 255, 0.18);
+
+    --gt-admin-success: #34d399;
+    --gt-admin-warning: #fbbf24;
+    --gt-admin-danger: #f87171;
+
+    --gt-admin-sidebar-bg: #060a09;
+    --gt-admin-sidebar-fg: #9db3ad;
+    --gt-admin-sidebar-fg-active: #ffffff;
+    --gt-admin-sidebar-border: rgba(255, 255, 255, 0.08);
+    --gt-admin-sidebar-active-bg: rgba(45, 212, 191, 0.16);
+
+    --gt-admin-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --gt-admin-shadow-md: 0 6px 16px rgba(0, 0, 0, 0.5);
+  }
+}
+
+:root[data-theme="dark"] {
+  --gt-admin-bg: #0b1210;
+  --gt-admin-bg-alt: #101816;
+  --gt-admin-fg: #e8eeeb;
+  --gt-admin-fg-secondary: #c3cdc8;
+  --gt-admin-muted: #8f9e99;
+
+  --gt-admin-accent: #2dd4bf;
+  --gt-admin-accent-hover: #14b8a6;
+  --gt-admin-accent-fg: #05201c;
+
+  --gt-admin-surface: #121a18;
+  --gt-admin-border: rgba(255, 255, 255, 0.10);
+  --gt-admin-border-strong: rgba(255, 255, 255, 0.18);
+
+  --gt-admin-success: #34d399;
+  --gt-admin-warning: #fbbf24;
+  --gt-admin-danger: #f87171;
+
+  --gt-admin-sidebar-bg: #060a09;
+  --gt-admin-sidebar-fg: #9db3ad;
+  --gt-admin-sidebar-fg-active: #ffffff;
+  --gt-admin-sidebar-border: rgba(255, 255, 255, 0.08);
+  --gt-admin-sidebar-active-bg: rgba(45, 212, 191, 0.16);
+
+  --gt-admin-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --gt-admin-shadow-md: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* === Shell layout ======================================================= */
+
+.gt-admin-root {
+  min-height: 100vh;
+  background: var(--gt-admin-bg);
+  color: var(--gt-admin-fg);
+  display: flex;
+}
+
+.gt-admin-sidebar {
+  width: 15.5rem;
+  flex-shrink: 0;
+  background: var(--gt-admin-sidebar-bg);
+  color: var(--gt-admin-sidebar-fg);
+  border-right: 1px solid var(--gt-admin-sidebar-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+.gt-admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 1.125rem 1.125rem 0.875rem;
+  font-weight: 700;
+  color: var(--gt-admin-sidebar-fg-active);
+  border-bottom: 1px solid var(--gt-admin-sidebar-border);
+  margin-bottom: 0.5rem;
+}
+
+.gt-admin-brand-mark {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--gt-admin-radius-sm);
+  background: var(--gt-admin-accent);
+  color: var(--gt-admin-accent-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.gt-admin-nav {
+  flex: 1;
+  padding: 0.25rem 0.625rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  overflow-y: auto;
+}
+
+.gt-admin-nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--gt-admin-radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--gt-admin-sidebar-fg);
+  text-decoration: none;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.gt-admin-nav-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--gt-admin-sidebar-fg-active);
+}
+
+.gt-admin-nav-link:focus-visible {
+  outline: 2px solid var(--gt-admin-accent);
+  outline-offset: 2px;
+}
+
+.gt-admin-nav-link[aria-current="page"] {
+  background: var(--gt-admin-sidebar-active-bg);
+  color: var(--gt-admin-sidebar-fg-active);
+  font-weight: 600;
+}
+
+.gt-admin-sidebar-footer {
+  padding: 0.75rem;
+  border-top: 1px solid var(--gt-admin-sidebar-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gt-admin-signout {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--gt-admin-radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--gt-admin-sidebar-fg);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--gt-admin-sidebar-border);
+  cursor: pointer;
+}
+
+.gt-admin-signout:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--gt-admin-sidebar-fg-active);
+}
+
+.gt-admin-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gt-admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 1.25rem;
+  background: var(--gt-admin-bg-alt);
+  border-bottom: 1px solid var(--gt-admin-border);
+  flex-wrap: wrap;
+}
+
+.gt-admin-topbar-facts {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: var(--gt-admin-muted);
+}
+
+.gt-admin-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.gt-admin-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: var(--gt-admin-muted);
+}
+.gt-admin-dot.ok { background: var(--gt-admin-success); }
+.gt-admin-dot.warn { background: var(--gt-admin-warning); }
+.gt-admin-dot.bad { background: var(--gt-admin-danger); }
+
+.gt-admin-content {
+  flex: 1;
+  padding: 1.25rem;
+}
+
+.gt-admin-page {
+  background: transparent;
+  color: var(--gt-admin-fg);
+  min-height: 100%;
+}
+
+/* Theme toggle — three-state segmented control */
+.gt-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.1875rem;
+  border-radius: var(--gt-admin-radius-md);
+  background: var(--gt-admin-surface);
+  border: 1px solid var(--gt-admin-border);
+}
+
+.gt-theme-toggle button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--gt-admin-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.375rem 0.5rem;
+  border-radius: var(--gt-admin-radius-sm);
+  cursor: pointer;
+}
+
+.gt-theme-toggle button:hover {
+  color: var(--gt-admin-fg);
+}
+
+.gt-theme-toggle button:focus-visible {
+  outline: 2px solid var(--gt-admin-accent);
+  outline-offset: 1px;
+}
+
+.gt-theme-toggle button[aria-pressed="true"] {
+  background: var(--gt-admin-accent);
+  color: var(--gt-admin-accent-fg);
+}
+
+/* Overview dashboard */
+.gt-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.875rem;
+}
+
+.gt-admin-card {
+  background: var(--gt-admin-surface);
+  border: 1px solid var(--gt-admin-border);
+  border-radius: var(--gt-admin-radius-lg);
+  box-shadow: var(--gt-admin-shadow-sm);
+  padding: 1rem;
+}
+
+.gt-admin-card h3 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gt-admin-muted);
+  margin: 0 0 0.625rem;
+}
+
+.gt-admin-card-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gt-admin-fg);
+}
+
+.gt-admin-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+}
+
+.gt-admin-checklist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px dashed var(--gt-admin-border);
+}
+
+.gt-admin-checklist-item:last-child { border-bottom: none; }
+
+.gt-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.125rem 0.4375rem;
+  border-radius: 999px;
+}
+
+.gt-admin-badge.ok { color: var(--gt-admin-success); background: color-mix(in srgb, var(--gt-admin-success) 14%, transparent); }
+.gt-admin-badge.warn { color: var(--gt-admin-warning); background: color-mix(in srgb, var(--gt-admin-warning) 14%, transparent); }
+.gt-admin-badge.bad { color: var(--gt-admin-danger); background: color-mix(in srgb, var(--gt-admin-danger) 14%, transparent); }
+.gt-admin-badge.muted { color: var(--gt-admin-muted); background: color-mix(in srgb, var(--gt-admin-muted) 14%, transparent); }
+
+.gt-admin-note {
+  font-size: 0.75rem;
+  color: var(--gt-admin-muted);
+  margin-top: 0.5rem;
+}

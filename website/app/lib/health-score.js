@@ -129,15 +129,19 @@ function deriveModuleCoverage(results) {
 }
 
 /**
- * The four `web`-suite modules that gained a real live-URL mode in #645
- * (driven by `config.livePage` — one shared page fetch, the exact check
- * functions the static-file path uses). `tlsSecurity` and `links` are
- * deliberately absent — they stay honestly `not-checked` on a URL-only scan
- * (no raw-socket / same-origin-crawl mode yet). One definition (Doctrine
- * §4) so the free check-name view (`deriveFreeCheckNames` below) and any
- * other caller agree on which modules have real names worth showing.
+ * The `web`-suite modules that have a real live-URL mode: four gained one
+ * in #645 (driven by `config.livePage` — one shared page fetch, the exact
+ * check functions the static-file path uses), and `links` gained one in
+ * #681 item 4 (it consumes `liveCrawler`'s already-crawled broken-link
+ * result via `config._allResults` instead of declaring itself
+ * not-checked — `liveCrawler` runs before it in the suite order for
+ * exactly this reason). `tlsSecurity` is still deliberately absent — a
+ * live-URL scan has no raw-socket TLS-protocol/cert inspection mode. One
+ * definition (Doctrine §4) so the free check-name view
+ * (`deriveFreeCheckNames` below) and any other caller agree on which
+ * modules have real names worth showing.
  */
-const LIVE_URL_MODULES = Object.freeze(['webHeaders', 'seo', 'accessibility', 'cookieSecurity']);
+const LIVE_URL_MODULES = Object.freeze(['webHeaders', 'seo', 'accessibility', 'cookieSecurity', 'links']);
 
 /**
  * Free-safe check-name breakdown for the four live-URL modules (issue #648
