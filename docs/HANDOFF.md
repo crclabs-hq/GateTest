@@ -379,3 +379,28 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
 - `.claude/worktrees/` again holds ~20 agent worktrees, all on merged branches; one
   (`agent-a099e9eb2d1f82d70`) has 5 unpushed commits from the old homepage-swap
   builder that #719 superseded. Remove after confirming nothing in them is wanted.
+
+### Addendum 2026-09-25 19:30Z — receipts, an open decision, cleanup
+- Receipts for the complaint map (rows the DavenRoe quality session owned; that
+  session is gone, so they live here): **C17** accessibility module runs WCAG 2.2
+  AA + AAA-aligned checks in-process (no pa11y; `src/modules/accessibility.js`
+  contrast thresholds 7:1 / 4.5:1), there is no `includeWarnings` switch.
+  **C20** unknown flag: exit 0 by default, exit 2 under `--strict` or `CI=true`
+  (measured on an empty dir, 2026-09-25). **C22** every scan writes
+  `.gatetest/reports/` into the scanned checkout; only `reporting.outputDir` in
+  config moves it, no CLI opt-out. **C23** the fix loop has a hard ceiling
+  (`maxAttempts`, default 3, `website/app/lib/fix-attempt-loop.js`), no
+  same-diff convergence check.
+- **Open product decision, never made anywhere in the repo or its history:**
+  should `security` (injection/XSS/auth probes) join the default `standard`
+  suite? Today it runs only in `full` and `nuclear`; a plain `gatetest` on
+  NodeGoat passes its injections. Owner declined to rule on 2026-09-25; do not
+  re-ask, decide it when the customer-facing claims are next reviewed.
+- gatetest-arena: `.github/workflows/arena-repair.yml` (scheduled, GITHUB_TOKEN
+  only) is being built on branch `fix/arena-repair-schedule`; the 12 stuck bug
+  PRs plus ~370 stale `arena/bug-*` branches since June are the cleanup after it
+  proves itself.
+- `.claude/worktrees/`: 44 merged, clean agent worktrees removed; 7 kept because
+  they hold unpushed or dirty work (`agent-a099e9eb2d1f82d70` 5 unpushed,
+  `agent-ada7b464b8d3245ff` 12 unpushed, five with dirty trees). Stale
+  `GateTest-wt-main` registration removed; `main` checks out again.
