@@ -305,6 +305,23 @@ class ConsoleReporter {
     } else {
       console.log(`  Errors:   ${COLORS.red}${summary.checks.errors}${COLORS.reset}`);
     }
+    // The Fifty, move 14 (complaints C1/C4 — "40% of AI review alerts
+    // ignored"): a model-judged finding is never weighted the same as a
+    // deterministic rule firing. Shown whenever the scan produced any
+    // model-judged findings at all, even when none of them were error-level
+    // (the operator still deserves to see the split was zero, not omitted).
+    const modelJudged = summary.checks.modelJudged || 0;
+    if (modelJudged > 0) {
+      const detBlocking = summary.checks.blockingErrorsDeterministic ?? blocking;
+      const modelBlocking = summary.checks.blockingErrorsModelJudged || 0;
+      const wouldBlock = summary.checks.modelJudgedWouldBlock || 0;
+      const policyNote = summary.modelVerdictsBlock
+        ? ''
+        : (wouldBlock > 0
+          ? `${COLORS.dim} (${wouldBlock} would block under --model-verdicts-block)${COLORS.reset}`
+          : '');
+      console.log(`  Verdicts: ${COLORS.dim}${detBlocking} deterministic blocking, ${modelBlocking} model-judged blocking${COLORS.reset}${policyNote}`);
+    }
     // Warnings get the same confident/soft disclosure errors already had.
     // The score was being computed for warnings and then discarded, so a
     // pile of 800 gave no hint how much of it was shaky (KI #77).

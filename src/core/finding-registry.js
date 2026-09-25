@@ -89,11 +89,12 @@ function normPath(p) {
  * duplicates, and rank: blocking first, then severity, then confidence.
  *
  * @param {Array<{module:string, checks?:Array}>} results   summary.results from the engine
- * @param {{ threshold?: number, includePassed?: boolean }} [opts]
+ * @param {{ threshold?: number, includePassed?: boolean, modelVerdictsBlock?: boolean }} [opts]
  * @returns {Array<Finding>}
  */
 function normalizeFindings(results, opts = {}) {
   const threshold = typeof opts.threshold === 'number' ? opts.threshold : BLOCK_THRESHOLD;
+  const modelVerdictsBlock = opts.modelVerdictsBlock === true;
   const findings = [];
   for (const r of results || []) {
     const mod = r.module || r.name || 'unknown';
@@ -107,13 +108,22 @@ function normalizeFindings(results, opts = {}) {
       const file = normPath(c.file || c.filePath || (c.details && !Array.isArray(c.details) && c.details.file) || null);
       const line = Number(c.line || (c.details && !Array.isArray(c.details) && c.details.line) || 0) || null;
       const confidence = typeof c.confidence === 'number' ? c.confidence : 1;
+      // verdictSource (the Fifty, move 14): set once, in runner.js
+      // TestResult.addCheck — this is a read, never a second definition.
+      const verdictSource = c.verdictSource || 'deterministic';
       findings.push({
         id: `${mod}:${c.name}`,
         module: mod,
         rule: ruleKeyOf(c.name, c.file),
         severity: SEVERITY_RANK[severity] === undefined ? 'info' : severity,
         confidence,
-        blocking: severity === 'error' && isBlockingFinding({ severity, confidence }, threshold),
+        verdictSource,
+        // What a stricter policy would decide — preserved even when the
+        // gate itself does not block on it (a model-judged finding by
+        // default). See `isBlockingFinding` / `gate.modelVerdictsBlock`.
+        wouldBlock: c.wouldBlock === true,
+        blocking: severity === 'error'
+          && isBlockingFinding({ severity, confidence, verdictSource }, threshold, modelVerdictsBlock),
         file,
         line,
         message: String(c.message || c.name || ''),
@@ -188,12 +198,24 @@ function rank(findings) {
 
 /** Headline numbers for reporters. Duplicates are excluded from every count. */
 function summarizeFindings(findings) {
-  const s = { total: 0, blocking: 0, softErrors: 0, warnings: 0, info: 0, duplicatesCollapsed: 0, hiddenLowConfidence: 0 };
+  const s = {
+    total: 0, blocking: 0, softErrors: 0, warnings: 0, info: 0,
+    duplicatesCollapsed: 0, hiddenLowConfidence: 0,
+    // The Fifty, move 14: model-judged findings — never in `blocking` unless
+    // the gate opted in — counted separately from `softErrors` so a model
+    // opinion held back by POLICY is never reported as "low confidence".
+    modelJudged: 0, modelJudgedWouldBlock: 0,
+  };
   for (const f of findings) {
     if (f.duplicateOf) { s.duplicatesCollapsed++; continue; }
     s.total++;
+    if (f.verdictSource === 'model') {
+      s.modelJudged++;
+      if (f.wouldBlock) s.modelJudgedWouldBlock++;
+    }
     if (f.severity === 'error') {
-      if (f.blocking) s.blocking++; else { s.softErrors++; s.hiddenLowConfidence++; }
+      if (f.blocking) s.blocking++;
+      else if (f.verdictSource !== 'model') { s.softErrors++; s.hiddenLowConfidence++; }
     } else if (f.severity === 'warning') s.warnings++;
     else s.info++;
   }

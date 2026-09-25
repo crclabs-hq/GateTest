@@ -157,6 +157,15 @@ const HELP = `
                        a report-only env/config flag is set. Use once
                        you've triaged the baseline and want the gate to
                        enforce. Wins over --report-only when both pass.
+    --model-verdicts-block
+                       A model-judged finding (one whose verdict came from
+                       asking an AI to review the code, not from a
+                       deterministic rule) never blocks the gate by default
+                       — it's reported as a warning with the block it would
+                       have caused preserved. Pass this flag (or set
+                       gate.modelVerdictsBlock in .gatetest.json, or
+                       GATETEST_MODEL_VERDICTS_BLOCK=1) to opt model-judged
+                       findings INTO blocking like a deterministic one.
     --baseline         Snapshot every CURRENT finding into
                        .gatetest/baseline.json ("clean as you code").
                        Commit the file; later runs only fail on NEW
@@ -586,6 +595,9 @@ async function main() {
     // --strict also makes an EMPTY scan (no source files under the root) a
     // failed gate — see runner.js `nothingChecked`.
     strict: args.strict === true,
+    // The Fifty, move 14 — CLI flag wins; config key / env var are read
+    // inside GateTestRunner's constructor when this is absent.
+    ...(args.modelVerdictsBlock === true ? { modelVerdictsBlock: true } : {}),
     ...(args.baseline ? { captureBaseline: true } : {}),
     ...(incrementalSince ? { incrementalSince } : {}),
     ...(typeof args.confidenceThreshold === 'number'

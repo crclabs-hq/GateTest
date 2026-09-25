@@ -89,6 +89,11 @@ const FLAG_SPEC = [
   { flags: ['--junit'], key: 'junit', type: 'boolean' },
   { flags: ['--offline'], key: 'offline', type: 'boolean' },
   { flags: ['--compliance'], key: 'compliance', type: 'boolean' },
+  // The Fifty, move 14: opt INTO letting a model-judged finding block the
+  // gate on its own (default: report-only, `wouldBlock` preserved). See
+  // `gate.modelVerdictsBlock` in `.gatetest.json` and env
+  // `GATETEST_MODEL_VERDICTS_BLOCK=1` for the other two ways to set it.
+  { flags: ['--model-verdicts-block'], key: 'modelVerdictsBlock', type: 'boolean' },
   { flags: ['--feedback'], key: 'feedback', type: 'boolean' },
   { flags: ['--monitor-heal'], key: 'monitorHeal', type: 'boolean' },
   // `--json` is `--format json` spelled the way most CLIs spell it. Same key,

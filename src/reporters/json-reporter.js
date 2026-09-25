@@ -44,6 +44,11 @@ class JsonReporter {
         duration: summary.duration,
         modules: summary.modules,
         checks: summary.checks,
+        // The Fifty, move 14: whether `gate.modelVerdictsBlock` was on for
+        // this run — a consumer reading `checks.blockingErrorsModelJudged: 0`
+        // needs this to tell "no model findings qualified" from "the policy
+        // held them back".
+        modelVerdictsBlock: summary.modelVerdictsBlock === true,
         // True when no source file was found under the root: every module
         // passed by default. A consumer reading `gateStatus: PASSED` must be
         // able to tell an inspected repo from an empty directory.

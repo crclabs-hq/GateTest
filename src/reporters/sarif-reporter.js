@@ -193,6 +193,10 @@ class SarifReporter {
     const projectLevelUri = this._resolveProjectLevelUri();
 
     const threshold = summary.confidenceThreshold;
+    // The Fifty, move 14: does a model-judged finding block on its own?
+    // Read off the summary rather than re-derived here, so SARIF's
+    // `blocking` always agrees with the gate that actually ran.
+    const modelVerdictsBlock = summary.modelVerdictsBlock === true;
 
     for (const moduleResult of summary.results) {
       for (const check of moduleResult.checks) {
@@ -278,7 +282,11 @@ class SarifReporter {
           },
           properties: {
             confidence: typeof check.confidence === 'number' ? check.confidence : null,
-            blocking: isBlockingFinding(check, threshold),
+            blocking: isBlockingFinding(check, threshold, modelVerdictsBlock),
+            // The Fifty, move 14: 'deterministic' | 'model' | 'mixed' — lets a
+            // GitHub Security tab consumer filter model-judged alerts instead
+            // of weighting them the same as a deterministic rule firing.
+            verdictSource: check.verdictSource || 'deterministic',
           },
         };
 
