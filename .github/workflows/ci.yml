@@ -68,6 +68,13 @@ jobs:
       - name: Install website dependencies
         run: cd website && npm ci
 
+      # tests/heavy/admin-signed-in-smoke.test.js starts `next start` against
+      # this build. Built here, once, because Node 22 applies --test-timeout
+      # to the whole test file, hooks included, and a cold build on this
+      # runner is longer than the 120 s cap below (#725).
+      - name: Build the website once for the signed-in smoke test
+        run: cd website && npx next build
+
       - name: Run heavy test suite
         id: heavy
         run: |

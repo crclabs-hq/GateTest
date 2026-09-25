@@ -276,3 +276,40 @@ If a new session cannot resume them, the branches above are the state; start a f
 - **Handoff copies:** this file (repo), the Claude doc "Cross-platform testing loop —
   handoff" (resume table kept current), and the shared memory dir on the desktop
   (keyed by project path, so all three accounts see it).
+
+## 11. Customer-readiness audit, 2026-09-25 — what was code, what is the owner's
+
+Asked "are we customer ready?" and answered it from the tree and the probe, not
+from memory. Main was `9d6f458`; no open PRs; fast suite 567 files green once
+`node_modules` existed (a fresh clone has none — the first run's 13 failures were
+that, not code). Production is on main (verify-deploy IN SYNC). What the
+readiness probe (run 36100584069) said was broken, and where each went:
+
+- **`surface/` — home page missing `id="pricing"`.** Code. #719 promoted the v2
+  page without the anchor; 25 links across the site pointed at `/#pricing`, plus
+  two dead `/#features` and two `/#modules`. Fixed; `tests/homepage-anchors.test.js`
+  resolves every `/#anchor` in the app against the ids the home page renders.
+- **`product/scan` — "could not read repo file tree".** Code AND owner. The canary
+  (this repo) is over the 40 MB archive cap, so the loader fell to the tree API with
+  the box's refused token and never asked anonymously. Fixed in
+  `gluecron-client.ts` (anonymous tree + raw.githubusercontent.com as last rungs,
+  failed snapshots memoised 30 s). The token itself is still the owner item
+  `box-github-token`; private-repo scans stay broken until it is rotated.
+- **`config/important` — `GOOGLE_CLIENT_SECRET`, `TALLRIG_API_TOKEN` missing.**
+  Owner only (`box-secrets`).
+- **Cron Ticks workflow 401 on every run.** Owner only (`cron-secret-repo`); Tallrig
+  Cron is the caller that should stay, the workflow is the stopgap.
+- **Heavy suite red since #702 (#725).** Code. `admin-signed-in-smoke` finished
+  28/28 and was cancelled at 120 s because SIGKILL to the `sh -c` wrapper orphaned
+  `next start`, whose pipe kept the file alive. Process-group kill + pipe destroy;
+  77 s, exit 0.
+- **Docs lying about the present:** ROADMAP rows 79/93 said production was stale
+  and gatetest.ai was down (resolved, marked); 80/82 date-stamped to today's names;
+  `docs/ops/GO_LIVE_RUNBOOK.md` bannered as superseded (Vercel steps are forbidden).
+
+**Still not customer-ready until the owner does, in this order:** box secrets
+(`box-secrets`, `box-github-token`, `admin-password-box-env`), the CRON_SECRET
+rotation, the Resend re-key (`anthropic-key-rotate` step 8 — until then no MCP key
+e-mail and no billing portal), then the Marketplace submission
+(`github-app-public`, `mp-webhook-secret`). All in `docs/ops/blocking-on-craig.json`
+and the pinned `craig-only` issue.

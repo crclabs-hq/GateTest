@@ -119,7 +119,7 @@ export default function CodeQLPage() {
             <Link href="/playground" className="btn-cta inline-flex items-center justify-center px-6 py-3 text-sm">
               Scan My Repo — From $29
             </Link>
-            <Link href="/#modules" className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm">
+            <Link href="/modules" className="btn-secondary inline-flex items-center justify-center px-6 py-3 text-sm">
               See All {TOTAL_MODULES} modules
             </Link>
           </>

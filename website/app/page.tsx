@@ -120,7 +120,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="v2-section">
+      <section id="pricing" className="v2-section">
         <div className="v2-wrap">
           <div className="v2-kicker mb-3">pay per run</div>
           <h2 className="v2-h2">Pricing</h2>

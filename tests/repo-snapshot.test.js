@@ -243,8 +243,13 @@ describe('repo-snapshot — wiring contract (KI #100/#101 must not regress)', ()
     assert.match(src, /const snap = await publicSnapshot\(owner, repo, ref\);[\s\S]*?return \{ paths: snap\.paths/);
     // blob: snapshot lookup is the terminal fallback, not `return ""`
     assert.match(src, /return snap\.contents\.get\(filePath\) \|\| ""/);
-    // a failed download is never memoised
-    assert.match(src, /promise\.catch\(\(\) => snapshotMemo\.delete\(key\)\)/);
+    // a failed download is memoised only briefly (2026-09-25: the blob rung
+    // after it would otherwise re-download an over-cap archive once per blob),
+    // and for strictly less time than a successful one
+    assert.match(src, /promise\.catch\(\(\) => snapshotMemo\.set\(key, \{ expires: Date\.now\(\) \+ SNAPSHOT_FAIL_TTL_MS, promise \}\)\)/);
+    const ttl = Number((src.match(/const SNAPSHOT_TTL_MS = ([\d_]+);/) || [])[1].replace(/_/g, ''));
+    const failTtl = Number((src.match(/const SNAPSHOT_FAIL_TTL_MS = ([\d_]+);/) || [])[1].replace(/_/g, ''));
+    assert.ok(failTtl > 0 && failTtl < ttl, `SNAPSHOT_FAIL_TTL_MS (${failTtl}) must be positive and shorter than SNAPSHOT_TTL_MS (${ttl})`);
   });
 
   it('the free preview, playground stream and paid run no longer refuse a public repo when no token exists', () => {

@@ -1,5 +1,14 @@
 # GateTest Go-Live Runbook
 
+> **SUPERSEDED 2026-09-25 — kept as a dated record, not a procedure.** This runbook
+> describes the original Vercel + Neon launch (102 modules). Production now runs on
+> box 161 behind Coolify's Traefik, deployed by the pull-deploy timer
+> (`docs/deploy/PULL-DEPLOY.md`), and is judged by `scripts/ops/readiness-probe.js`
+> (`readiness-probe.yml`, every 30 min against gatetest.io). What still needs the owner's
+> hands lives in `docs/ops/blocking-on-craig.json` and is rendered daily to the pinned
+> `craig-only` issue. Do not follow the Vercel steps below; the Bible's DEPLOYMENT
+> DOCTRINE forbids them.
+
 ## You are here
 Code is ready. 909 tests pass. 102 modules load. All the hard stuff is done.
 This runbook gets you from "code ready" to "first $29 scan paid" in 9 steps.
