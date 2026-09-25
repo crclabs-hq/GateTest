@@ -55,7 +55,7 @@ function getToken(): string {
   return process.env.GLUECRON_API_TOKEN || "";
 }
 
-function getGithubToken(): string {
+export function getGithubToken(): string {
   return process.env.GITHUB_TOKEN || process.env.GATETEST_GITHUB_TOKEN || "";
 }
 
@@ -309,6 +309,33 @@ function githubHeaders(token: string): Record<string, string> {
   const headers: Record<string, string> = { "User-Agent": "GateTest", Accept: "application/vnd.github.v3+json" };
   if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
+}
+
+/**
+ * Generic GitHub REST GET with the same bearer→anonymous retry as
+ * `attemptGithubBaseBranchSha` below (issue #651): on 401/403 from a
+ * credentialed request, retry the identical path with no Authorization
+ * header before giving up. Factored out here (#729/testing-page fix) so
+ * callers outside this module reading a PUBLIC repo — e.g. the /testing
+ * page's PR list — get the same fix without re-deriving it. A refused or
+ * stale box credential must never make a public repo look unreachable or
+ * missing; the caller is responsible for interpreting the final response
+ * (status, rate-limit headers) since that meaning is caller-specific.
+ */
+export async function githubGetWithAnonymousFallback(
+  path: string,
+  token: string,
+): Promise<{ res: Response; usedAnonymous: boolean }> {
+  const bearerRes = await fetchWithTimeout(`https://api.github.com${path}`, {
+    headers: githubHeaders(token),
+  });
+  if (!token || bearerRes.ok || (bearerRes.status !== 401 && bearerRes.status !== 403)) {
+    return { res: bearerRes, usedAnonymous: !token };
+  }
+  const anonRes = await fetchWithTimeout(`https://api.github.com${path}`, {
+    headers: githubHeaders(""),
+  });
+  return { res: anonRes, usedAnonymous: true };
 }
 
 /**
