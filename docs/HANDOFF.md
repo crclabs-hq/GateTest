@@ -404,3 +404,33 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   they hold unpushed or dirty work (`agent-a099e9eb2d1f82d70` 5 unpushed,
   `agent-ada7b464b8d3245ff` 12 unpushed, five with dirty trees). Stale
   `GateTest-wt-main` registration removed; `main` checks out again.
+
+### Addendum 2026-09-25 21:00Z — cleanup done, arena reset waiting on the owner
+- **Cleanup done (owner: "we don't want dirty files"):** 50 fully merged remote
+  branches deleted; 261 dead `arena/bug-*` branches (closed/merged PRs) deleted in
+  gatetest-arena; 50 agent worktrees removed (44 clean + 6 whose only diff was
+  line endings or work superseded by #719/#702 — their branches are kept); the
+  eleven untracked `GateTest-wt-*` folders and the 13 Sep `gt-main` scratchpad
+  worktree deleted; stale `GateTest-wt-main` registration removed so `main`
+  checks out again. Kept: `.claude/worktrees/agent-a842420db01639ab4`
+  (`feat/build-staging-swap`, 90 real uncommitted lines from 22 Sep, likely
+  superseded by #724 blue/green — owner or a builder decides).
+- **Owner decision, listed once:** 34 unmerged remote branches older than 30 days
+  (April-May `claude/*`, `audit/legal-*`, `ci/bulletproof-defaults-and-collisions`,
+  `claude/incremental-scan-since-pr`, three June `flywheel/*` pairs,
+  `jarvis-box-local-20260706-preserve`, `jarvis/fix-874`). Nothing on main needs
+  them; deleting is the owner's call.
+- **Arena (public proof repo) — root cause deeper than §12 said:** main has been
+  RED since 2026-06-04 because bug PRs #1-#4 were merged into main instead of
+  fixed; every later injection (100 open PRs, not 12) sat on that broken base.
+  gatetest-arena#364 (CI green, 17/17) restores `src/math.js`, adds the scheduled
+  repair workflow (GITHUB_TOKEN only, every 15 min, merges its own green fix,
+  fails loud on a rejected key). Auto-merge is disabled on that repo and the
+  desktop classifier refuses bulk merges/closures, so the OWNER runs:
+  `gh pr merge 364 -R crclabs-hq/gatetest-arena --squash --delete-branch`, then
+  closes the 100 stale `arena/bug-*` PRs with branch deletion (they are all
+  based on the broken main); the injector opens a fresh one within 6 h and the
+  repair loop takes it. Until then gatetest.io/testing shows a broken arena.
+- gatetest.io/testing itself renders "Arena not reachable — github-api-401"
+  because the box's GitHub token is refused; a builder is adding an anonymous
+  fallback (the repo is public) on branch `fix/testing-page-anonymous-arena`.
