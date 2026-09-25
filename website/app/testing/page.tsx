@@ -12,25 +12,23 @@
  *
  * This is the HN-launch proof asset. Every claim on the landing page
  * about "AI opens the fix PR while you sleep" is backed by this page.
+ *
+ * The fetch + classify logic lives in ./arena-fetch.ts (no JSX there), so it
+ * can be unit-tested directly. See that file's header for the 2026-09-25
+ * anonymous-fallback fix.
  */
 
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
+import {
+  ARENA_REPO,
+  fetchArenaPRs,
+  getLastGoodSnapshot,
+  describeArenaFailure,
+  type PullRequest,
+} from "./arena-fetch";
 
 export const revalidate = 60;
-
-const ARENA_REPO = process.env.ARENA_REPO || "crclabs-hq/gatetest-arena";
-
-interface PullRequest {
-  number: number;
-  title: string;
-  state: string;
-  created_at: string;
-  merged_at: string | null;
-  html_url: string;
-  user: { login: string } | null;
-  body: string | null;
-}
 
 interface Cycle {
   patternId: string | null;
@@ -41,27 +39,6 @@ interface Cycle {
   mergedAt: string | null;
   timeToFixMs: number | null;
   outcome: "fixed" | "fix-pending" | "fix-failed" | "no-fix-yet";
-}
-
-async function fetchArenaPRs(): Promise<PullRequest[] | { error: string }> {
-  const url = `https://api.github.com/repos/${ARENA_REPO}/pulls?state=all&per_page=100&sort=created&direction=desc`;
-  try {
-    const res = await fetch(url, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "User-Agent": "gatetest.io-testing-page",
-        ...(process.env.GITHUB_TOKEN
-          ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
-          : {}),
-      },
-      next: { revalidate: 60 },
-    });
-    if (res.status === 404) return { error: "arena-not-yet-created" };
-    if (!res.ok) return { error: `github-api-${res.status}` };
-    return (await res.json()) as PullRequest[];
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
-  }
 }
 
 // Extract pattern id from the injector's PR body marker.
@@ -160,11 +137,29 @@ export const metadata = {
 export default async function TestingPage() {
   const result = await fetchArenaPRs();
 
-  if (!Array.isArray(result)) {
-    return <ErrorState reason={result.error} repo={ARENA_REPO} />;
+  if (result.kind === "ok") {
+    return renderArena(result.prs, null);
   }
 
-  const cycles = buildCycles(result);
+  // A transient live failure (rate limit, network blip, GitHub 5xx) still
+  // has an honest answer if we've read this repo successfully before: the
+  // last snapshot, labeled as such, beats an error page.
+  const cached = getLastGoodSnapshot();
+  if (cached) {
+    return renderArena(cached.prs, describeArenaFailure(result));
+  }
+
+  if (result.kind === "not-found") {
+    return <ErrorState reason="arena-not-yet-created" repo={ARENA_REPO} honestlyMissing />;
+  }
+  if (result.kind === "rate-limited") {
+    return <RateLimitedState repo={ARENA_REPO} resetAt={result.resetAt} />;
+  }
+  return <ErrorState reason={result.reason} repo={ARENA_REPO} honestlyMissing={false} />;
+}
+
+function renderArena(prs: PullRequest[], staleNotice: string | null) {
+  const cycles = buildCycles(prs);
   const stats = aggregate(cycles);
 
   if (cycles.length === 0) {
@@ -193,6 +188,8 @@ export default async function TestingPage() {
           </>
         }
       />
+
+      {staleNotice && <StaleSnapshotNotice notice={staleNotice} />}
 
       <Section>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
@@ -376,7 +373,20 @@ function WarmingUpState({ repo }: { repo: string }) {
   );
 }
 
-function ErrorState({ reason, repo }: { reason: string; repo: string }) {
+// `honestlyMissing` gates the "hasn't been created yet" suggestion: it is
+// only true for a genuine 404 (no credential could see the repo either).
+// A refused/stale credential (401/403 on both the bearer and the anonymous
+// retry) or a transient GitHub error must never carry that suggestion —
+// the repo may well exist; GateTest's own read was what failed.
+function ErrorState({
+  reason,
+  repo,
+  honestlyMissing,
+}: {
+  reason: string;
+  repo: string;
+  honestlyMissing: boolean;
+}) {
   return (
     <main>
       <PageHero
@@ -393,11 +403,55 @@ function ErrorState({ reason, repo }: { reason: string; repo: string }) {
       />
       <Section narrow>
         <p className="text-sm text-muted text-center">
-          If the arena repo hasn&apos;t been created yet, see{" "}
-          <code className="font-mono">arena-scaffold/README.md</code> in the main GateTest repo for
-          setup instructions.
+          {honestlyMissing ? (
+            <>
+              If the arena repo hasn&apos;t been created yet, see{" "}
+              <code className="font-mono">arena-scaffold/README.md</code> in the main GateTest repo
+              for setup instructions.
+            </>
+          ) : (
+            <>
+              This means GitHub refused the read itself — it does not mean the repo is missing.
+              Check{" "}
+              <code className="font-mono">{repo}</code> directly on GitHub to confirm it still
+              exists.
+            </>
+          )}
         </p>
       </Section>
     </main>
+  );
+}
+
+function RateLimitedState({ repo, resetAt }: { repo: string; resetAt: number | null }) {
+  const retryText = resetAt
+    ? `Retry after ${new Date(resetAt).toISOString()}.`
+    : "Retry shortly.";
+  return (
+    <main>
+      <PageHero
+        eyebrow="Live arena"
+        align="center"
+        title="Rate limited — retry shortly"
+        lede={
+          <>
+            Reading{" "}
+            <code className="text-accent font-mono">{repo}</code> anonymously hit GitHub&apos;s
+            public API rate limit (60 unauthenticated requests/hour, per IP). {retryText}
+          </>
+        }
+      />
+    </main>
+  );
+}
+
+function StaleSnapshotNotice({ notice }: { notice: string }) {
+  return (
+    <Section narrow>
+      <p className="text-sm text-warning text-center">
+        Showing the last successful read — {notice}. This refreshes automatically once the live
+        read succeeds again.
+      </p>
+    </Section>
   );
 }
