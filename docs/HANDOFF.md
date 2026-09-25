@@ -465,3 +465,28 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   arena repo is dead and rotating it is the owner's item.
 - GateTest #736, #738, #740 merged; gatetest.io/testing reads the arena
   anonymously after the next pull-deploy.
+
+### Addendum 2026-09-25 23:15Z — five moves in PRs, arena loop under test
+- Owner lifted the two-agent cap for the launch push and set "no restrictions
+  while building out"; five sonnet builders ran at once, each in its own
+  `GateTest-wt-*` worktree with junctioned node_modules.
+- Move PRs (auto-merge armed unless noted): #747 accepted-risk overrides
+  (move 3); #748 `--report-dir` / `--no-artifacts` (move 17; SARIF/JUnit and a
+  few module writers still hardcode their path — follow-up); #750 convergence
+  guard for fix and crawl loops (move 16); #751 `verdictSource` on every finding,
+  model-judged never blocks by default (move 14); #749 security in the standard
+  suite (move 1) — NO auto-merge, owner decides; evidence: NodeGoat standard
+  BLOCKED 14→35 (injections now caught), express 0→0, self 0→0, +1 s / +9 %.
+  Four of the five touch bin/gatetest.js in different places; expect one
+  rebase as they land.
+- Arena: the owner merged bug PR #366 by hand at 22:33Z (June failure mode);
+  restored in gatetest-arena PR 371 (merged, main green at f8e293b) and bug
+  PRs are now opened as DRAFTS the merge button refuses; the repair loop marks
+  a PR ready only after its own fix passes. arena-repair.yml was invalid YAML
+  until PR 367 (multi-line bodies broke the run block) — the first real cycle
+  is draft PR #372 (clamp-swap-bounds) with the repair run dispatched 23:05Z.
+  Rule for humans: never merge an `arena(bug):` PR.
+- GitHub App listing: the three "GateTest" entries on the personal Marketplace
+  page are OAuth Apps (sign-in), not the App; production uses client id
+  Ov23lifAW5wP8PsU2P5p; the App to list is 3766251 (client Iv23lisxbZrS1IJ8c1hk)
+  under the crclabs-hq org context.
