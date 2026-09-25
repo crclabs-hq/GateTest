@@ -58,6 +58,8 @@ test('success on attempt 1 — single call, single attempt logged', async () => 
   assert.equal(result.attempts[0].attemptNumber, 1);
   assert.equal(result.attempts[0].durationMs, 100);
   assert.equal(result.finalReason, null);
+  assert.equal(result.loop.reason, 'converged');
+  assert.equal(result.loop.iterations, 1);
 });
 
 test('success on attempt 3 after 2 quality-fails — loop carries forward', async () => {
@@ -125,9 +127,39 @@ test('validation-fail on attempt 1 stops loop early — refusals do not self-hea
   assert.equal(result.attempts[0].outcome, 'validation-fail');
   assert.equal(result.attempts[0].validationReason, 'Claude refused');
   assert.match(result.finalReason, /attempt 1: validation failed/);
+  assert.equal(result.loop.reason, 'fix-rejected');
 });
 
-test('quality-fail on every attempt — total failure with full attempt log', async () => {
+test('quality-fail with a NEW issue every attempt — burns all maxAttempts (control)', async () => {
+  // Control pair for the test below: when the fix keeps introducing a
+  // DIFFERENT issue each time (real progress being attempted, just not
+  // enough of it), the convergence guard must NOT stop the loop early —
+  // maxAttempts still governs.
+  let calls = 0;
+  const result = await attemptFixWithRetries({
+    askClaude: async () => { calls++; return `attempt-${calls}-output`; },
+    validateFix: okValidation,
+    verifyFixQuality: () => ({ clean: false, newIssues: [`Line ${calls}: issue introduced`] }),
+    originalContent: 'original',
+    filePath: 'src/foo.js',
+    issues: ['issue-1'],
+    maxAttempts: 3,
+    now: makeClock(),
+  });
+
+  assert.equal(calls, 3, 'should make exactly maxAttempts calls');
+  assert.equal(result.success, false);
+  assert.equal(result.fixed, null);
+  assert.equal(result.attempts.length, 3);
+  assert.equal(result.loop.reason, 'max-iterations');
+  assert.equal(result.loop.iterations, 3);
+});
+
+test('quality-fail re-introducing the SAME issue every attempt — convergence guard stops early (C23)', async () => {
+  // The loop's own fix keeps failing the exact same way. Complaint C23:
+  // a loop that re-flags the fix it just made must stop and say why,
+  // instead of burning the rest of maxAttempts on a fix that plainly did
+  // not hold.
   let calls = 0;
   const result = await attemptFixWithRetries({
     askClaude: async () => { calls++; return `attempt-${calls}-output`; },
@@ -140,16 +172,21 @@ test('quality-fail on every attempt — total failure with full attempt log', as
     now: makeClock(),
   });
 
-  assert.equal(calls, 3, 'should make exactly maxAttempts calls');
+  assert.equal(calls, 2, 'stops after the re-flag on attempt 2, never reaching attempt 3');
   assert.equal(result.success, false);
   assert.equal(result.fixed, null);
-  assert.equal(result.attempts.length, 3);
+  assert.equal(result.attempts.length, 2);
   result.attempts.forEach((a, i) => {
     assert.equal(a.outcome, 'quality-fail');
     assert.equal(a.attemptNumber, i + 1);
     assert.deepEqual(a.qualityIssues, ['Line 1: var introduced']);
   });
-  assert.match(result.finalReason, /attempt 3: introduced 1 new issue/);
+  assert.match(result.finalReason, /no progress after iteration 2/);
+  assert.equal(result.loop.reason, 'no-progress');
+  assert.equal(result.loop.iterations, 2);
+  assert.equal(result.loop.unresolved.length, 1);
+  assert.equal(result.loop.unresolved[0].origin, 'own-fix');
+  assert.match(result.loop.unresolved[0].lastAttempt, /attempt 1 introduced/);
 });
 
 test('claude-error retries up to maxAttempts and records every error', async () => {

@@ -24,7 +24,17 @@
  *   - claude-error    : Network / API error talking to Claude. Loop
  *                       retries with the same input — no enrichment
  *                       needed, the content was never produced.
+ *
+ * Convergence guard (complaint C23 — see src/core/convergence-guard.js):
+ * every quality-fail's newIssues feed a shared convergence guard as this
+ * iteration's finding ids. If the SAME issue the loop just tried to fix
+ * (tagged `own-fix`) comes back next attempt, the guard stops the loop
+ * immediately instead of burning the rest of maxAttempts on a fix that
+ * plainly did not hold. The result always carries `loop: {reason,
+ * iterations, message, unresolved}` — one of the six canonical reasons,
+ * with a human-readable line saying why the loop stopped.
  */
+const { createConvergenceGuard, REASONS: CONVERGENCE_REASONS } = require('../../../src/core/convergence-guard');
 
 /**
  * Run up to `maxAttempts` Claude attempts on a single file.
@@ -80,6 +90,12 @@ async function attemptFixWithRetries(opts) {
   const attempts = [];
   let currentIssues = issues.slice();
   let finalReason = null;
+  // Real wall-clock, deliberately NOT the injectable `now` used for
+  // per-attempt timing above — this loop has no time/token budget of its
+  // own yet (`budgetMs` stays unset), so the guard never calls its clock,
+  // and using a separate clock keeps the deterministic attempt-timing
+  // tests below unaffected by the guard's construction.
+  const guard = createConvergenceGuard({ maxIterations: maxAttempts });
 
   for (let attemptNumber = 1; attemptNumber <= maxAttempts; attemptNumber++) {
     const startedAt = now();
@@ -118,7 +134,9 @@ async function attemptFixWithRetries(opts) {
       // Stop: a refusal / empty / truncated response is unlikely to fix
       // itself by re-asking with the same prompt. The orchestrator should
       // mark this file as needing human review rather than burn the
-      // remaining attempts.
+      // remaining attempts. An invalid response is a rejected fix — feed
+      // the guard so the loop result carries a canonical reason too.
+      guard.step({ findingIds: currentIssues, fixRejected: true });
       break;
     }
 
@@ -128,6 +146,23 @@ async function attemptFixWithRetries(opts) {
       log.qualityIssues = quality.newIssues || [];
       log.durationMs = now() - startedAt;
       attempts.push(log);
+
+      // The quality issues THIS attempt introduced are the finding set the
+      // convergence guard tracks; `fixed` tags them so a re-flag next
+      // attempt (the loop's own fix reappearing) is caught as own-fix
+      // no-progress instead of burning the rest of maxAttempts on a fix
+      // that plainly did not hold (complaint C23).
+      const findingIds = (quality.newIssues || []).map(String);
+      const guardStep = guard.step({
+        findingIds,
+        fixed: findingIds.map((id) => ({ id, change: `attempt ${attemptNumber} introduced: ${id}` })),
+      });
+
+      if (guardStep.done) {
+        finalReason = `attempt ${attemptNumber}: ${guardStep.message}`;
+        break;
+      }
+
       finalReason = `attempt ${attemptNumber}: introduced ${quality.newIssues.length} new issue(s)`;
       // Enrich for next attempt — Claude sees its own failure and is told
       // explicitly to fix THAT in addition to the original issues. This
@@ -142,19 +177,33 @@ async function attemptFixWithRetries(opts) {
     log.outcome = 'success';
     log.durationMs = now() - startedAt;
     attempts.push(log);
+    guard.step({ findingIds: [] }); // clean fix — nothing left in scope: converged
     return {
       success: true,
       fixed: fixedContent,
       attempts,
       finalReason: null,
+      loop: guard.getResult(),
     };
   }
 
+  const guardResult = guard.getResult();
   return {
     success: false,
     fixed: null,
     attempts,
     finalReason: finalReason || `exhausted ${maxAttempts} attempts`,
+    // The guard may never have been engaged (every attempt was a
+    // claude-error) — fall back to max-iterations, since that is exactly
+    // what happened: the retry cap was hit without resolving either way.
+    loop: guardResult.reason
+      ? guardResult
+      : {
+        reason: CONVERGENCE_REASONS.MAX_ITERATIONS,
+        iterations: attempts.length,
+        message: finalReason || `exhausted ${maxAttempts} attempts`,
+        unresolved: [],
+      },
   };
 }
 
