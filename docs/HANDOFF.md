@@ -313,3 +313,69 @@ rotation, the Resend re-key (`anthropic-key-rotate` step 8 — until then no MCP
 e-mail and no billing portal), then the Marketplace submission
 (`github-app-public`, `mp-webhook-secret`). All in `docs/ops/blocking-on-craig.json`
 and the pinned `craig-only` issue.
+
+## 12. Exact state at 2026-09-25 17:30Z — mandate, division of labour, what is parked
+
+Owner mandate today: this file is kept current at every state change because build
+usage is shared across three accounts (ccantynz, ccantyusa, ccanty48co); a session
+on any of them resumes from here. Also today: "nothing visible may say Vapron", box
+158 is retired (Tallrig now serves from box B: 64.177.13.38 / tailnet
+100.92.50.104 / `tallrig-b`; GateTest and Gluecron stay on 161), and every platform
+session pushes against the others ("20X mandate").
+
+### Corrections to §9 (verified live 2026-09-25 16:50Z)
+- v2 homepage IS live at `/` (#719); `/preview` 308s. §9 "swap unpushed" is stale.
+- #514 (CLI `--format json`/`--file` + VS Code in-process), #515, #516 are MERGED.
+- Production = main = 8b3fab9b, healthy. `/api/status`: ready; missing_important =
+  `GOOGLE_CLIENT_SECRET`, `TALLRIG_API_TOKEN` only. Readiness Probe red for those
+  two; Cron Ticks red (CRON_SECRET mismatch); every other scheduled workflow green.
+- Marketplace: `github.com/apps/gatetest-hq` 200; `github.com/marketplace/gatetest-hq`
+  404 (listing not submitted); `POST /api/marketplace/webhook` 503 (secret unset).
+- Owner items live in `docs/ops/blocking-on-craig.json` → issue #532 (16 items, P1:
+  anthropic-key-rotate, box-secrets, box-uncommitted-changes, cron-secret-repo,
+  admin-password-box-env, mp-webhook-secret, blue-green-install, box-github-token).
+
+### Division of labour with the other platform sessions (agreed 2026-09-25)
+- "DavenRoe Platform quality" session owns the internet complaint crawl, the
+  solved/partial/missing map (rows C1-C23), the ranked 20 moves and the
+  consolidated four-platform launch board. GateTest session owns every code change
+  in this repo, the receipt per map row (command + output), and cross-tests GateTest
+  runs against siblings. Receipts delivered: suites quick 42 / standard 46 / full 89
+  / nuclear 96 (`security` only in full and nuclear; default is standard); corpus
+  20 repos, 212 blocking, express/got/gin/vapor/apollo-server at 0; fix-PR flow
+  NOT proven (see arena). Receipts owed: C17 (pa11y WCAG2AAA + includeWarnings
+  default), C20 (unknown flag exits 0 unless --strict/CI, then 2 — #496), C22 (scan
+  writes `.gatetest/` into the checkout, no opt-out flag), C23 (fix-loop
+  convergence guard).
+- AlecRae session journeys gatetest.io as a first-hour customer and sends findings
+  in the §2 shape; GateTest owes them a full scan + journey of alecrae.com and
+  api.alecrae.com at 1440 and 390 (agent killed at the owner's stop order; restart
+  it, stub at the session scratchpad `alecrae-crosstest.md`).
+- Gluecron session builds deploy keys and `docs/VS-GITHUB-PARITY-2026-09-25.md`
+  (inside-out); GateTest owes the outside-in GitHub-parity walk of gluecron.com,
+  skipping deploy keys until their merge sha (agent killed at the stop order).
+
+### Public proof repo is broken (new; owned by code, not the owner)
+crclabs-hq/gatetest-arena has 12 injected-bug PRs open since 2026-09-20 (#352-#363).
+Every CI run on them is `action_required`: inject-bug.yml opens PRs with
+`ARENA_BOT_PAT || GITHUB_TOKEN` and the repo's only secret is ANTHROPIC_API_KEY, so
+GitHub withholds workflow approval for the bot-authored PR, the gate never runs and
+no fix PR is opened. Fix without an owner secret: a scheduled workflow (every 15 min,
+GITHUB_TOKEN) that lists open `arena/bug-*` PRs, checks out each head, runs the gate
+and the fixer, pushes the fix commit to the PR branch and comments; the fixer step
+must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
+
+### Parked and killed at the owner's stop order (PC unstable, ~17:00Z)
+- The PR carrying this section also carries the `/api/status` change: three
+  `missing_important` hints no longer name the pre-rename alias, and
+  `platformPointing()` maps every pre-rename prefix to `legacy` (`pointed_at`:
+  tallrig | legacy | mixed | unset). Env aliases stay readable silently. Trap: in the
+  main checkout any edit to route.ts or platform-config.js shows as a whole-file
+  line-ending diff; edit them in a fresh worktree from origin/main and the diff is
+  the real 16+/10-.
+- Both cross-test agents killed mid-run; no findings delivered. Restart them one at
+  a time when the machine is stable (usage doctrine: two agents max, foreground
+  scans only).
+- `.claude/worktrees/` again holds ~20 agent worktrees, all on merged branches; one
+  (`agent-a099e9eb2d1f82d70`) has 5 unpushed commits from the old homepage-swap
+  builder that #719 superseded. Remove after confirming nothing in them is wanted.
