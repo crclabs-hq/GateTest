@@ -427,3 +427,79 @@ describe('runFixBatch dryRun — the control pair (KI #112)', () => {
     assert.doesNotMatch(plan, /Tests NOT run/, 'no testsNotChecked flag → no not-run warning');
   });
 });
+
+// ── convergence guard — all-hypotheses-fail-syntax retries (C23) ──────────────
+// src/core/convergence-guard.js is the one shared definition of "when does a
+// fix loop stop, and why". When every hypothesis fails syntax with the SAME
+// error every attempt, that is the loop re-flagging its own unfixed problem —
+// it must stop and say so instead of burning the rest of maxAttempts.
+
+describe('runFixOrchestration — convergence guard on repeated syntax failure', () => {
+  const DELIMS = [
+    '=== GATETEST_HYPOTHESIS_ALPHA ===',
+    '=== GATETEST_HYPOTHESIS_BETA ===',
+    '=== GATETEST_HYPOTHESIS_GAMMA ===',
+  ];
+  function fakeClaudeSeq(responses) {
+    let n = 0;
+    return async () => responses[Math.min(n++, responses.length - 1)];
+  }
+  function brokenTriple() {
+    const broken = 'module.exports = function add(a, b { return a + b; };'; // syntax error, always the SAME text
+    return [DELIMS[0], broken, DELIMS[1], broken, DELIMS[2], broken].join('\n');
+  }
+
+  test('the SAME syntax error every attempt stops early with no-progress, never reaching maxAttempts', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-converge-'));
+    try {
+      const srcPath = writeFile(tmp, 'adder.js', 'module.exports = function add(a, b) { return a - b; };\n');
+      const result = await runFixOrchestration({
+        filePath: srcPath,
+        issues: ['add() returns the wrong value'],
+        projectRoot: tmp,
+        maxAttempts: 5,
+        apiKey: 'test-key',
+        _callClaude: fakeClaudeSeq([brokenTriple(), brokenTriple(), brokenTriple(), brokenTriple(), brokenTriple()]),
+      });
+
+      assert.equal(result.fixed, false);
+      assert.equal(result.loop.reason, 'no-progress');
+      assert.ok(result.loop.iterations < 5, 'must stop before exhausting all 5 attempts');
+      assert.match(result.loop.message, /the loop's own fix/);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('control: a DIFFERENT syntax error each attempt runs to max-iterations, not no-progress', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-converge-ctrl-'));
+    try {
+      const srcPath = writeFile(tmp, 'adder.js', 'module.exports = function add(a, b) { return a - b; };\n');
+      // Three genuinely different SyntaxError shapes (verified distinct
+      // vm.Script messages: "Unexpected token '{'" / "Unexpected token
+      // 'return'" / "Unexpected end of input") — not just different source
+      // text producing the same message, which would still read as
+      // no-progress.
+      const brokenVariants = [
+        'module.exports = function add(a, b { return a + b; };',
+        'module.exports = function add(a, b) return a + b; };',
+        'module.exports = function add(a, b) { return a + b; ',
+      ];
+      const responses = brokenVariants.map((broken) => [DELIMS[0], broken, DELIMS[1], broken, DELIMS[2], broken].join('\n'));
+      const result = await runFixOrchestration({
+        filePath: srcPath,
+        issues: ['add() returns the wrong value'],
+        projectRoot: tmp,
+        maxAttempts: 3,
+        apiKey: 'test-key',
+        _callClaude: fakeClaudeSeq(responses),
+      });
+
+      assert.equal(result.fixed, false);
+      assert.equal(result.loop.reason, 'max-iterations');
+      assert.equal(result.loop.iterations, 3);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+});
