@@ -142,6 +142,23 @@ function resetCostReport(scanId) {
  * Is this source line entirely a comment? `//`, `#`, `*` continuation, or a
  * `/* … *\/` on one line. Used only by rules flagged `codeOnly`.
  */
+/**
+ * Is the diff line at `idx` the first statement of a block in the NEW file?
+ * Looks back past removed lines (they are not in the new file) and blank
+ * lines to the nearest surviving source line; true when that line ends with
+ * a block opener (`{` or `=>`). At the top of a hunk there is nothing to look
+ * at, so the answer is true — a rule using this must stay conservative.
+ */
+function isFirstStatementOfBlock(lines, idx) {
+  for (let j = idx - 1; j >= 0; j -= 1) {
+    if (lines[j].startsWith('-')) continue;
+    const src = lines[j].slice(1);
+    if (!src.trim()) continue;
+    return /(\{|=>)\s*$/.test(src);
+  }
+  return true;
+}
+
 function isWholeLineComment(sourceLine) {
   const t = String(sourceLine || '').trim();
   return t.startsWith('//') || t.startsWith('*') || t.startsWith('#')
@@ -262,6 +279,11 @@ const PATTERN_RULES = [
     id: 'return-true-stub',
     direction: 'added',
     pattern: /^\+\s*return\s+true\s*;?\s*$/,
+    // The title claims a whole body was replaced, so the line must BE the
+    // body: fire only when it is the first statement after a block opener.
+    // 2026-09-25 (#729): it fired on the `return true` that ends an
+    // `assert.rejects` validator, four assertions in — a line, not a stub.
+    firstStatementOnly: true,
     severity: 'warning',
     title: 'Function reduced to `return true`',
     explanation: 'A function body was replaced with `return true`. Verify the original logic is still needed.',
@@ -675,6 +697,7 @@ class FakeFixDetectorModule extends BaseModule {
           // the source line as written.
           if (rule.codeOnly && isWholeLineComment(line.slice(1))) continue;
           if (rule.notInTests && this._isTestPath(hunk.file)) continue;
+          if (rule.firstStatementOnly && !isFirstStatementOfBlock(hunk.lines, idx)) continue;
 
           if (rule.pattern.test(line)) {
             let severity = rule.severity;
