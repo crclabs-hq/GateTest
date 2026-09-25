@@ -64,7 +64,11 @@ const SCAN_EXT = /\.(tsx?|jsx?|css)$/;
 // `(?<!&)` on the hex branch excludes HTML numeric character references
 // (`&#8212;`, the em dash used as a table's "not applicable" glyph) — those
 // are text, not colour.
-const COLOR_RE = /(?<!&)#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-fA-F])|rgba?\(|hsla?\(/g;
+// `(?![\w-])`, not `(?![0-9a-fA-F])`: an anchor whose first three letters
+// happen to be hex digits (`/#features` → `#fea`) is a word, not a colour.
+// 2026-09-25: two such footer anchors were pinned in the allowlist as
+// "literals" and the test broke the day they were retargeted.
+const COLOR_RE = /(?<!&)#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![\w-])|rgba?\(|hsla?\(/g;
 // Non-global twin for .test() call sites — a 'g' RegExp's `lastIndex` is
 // stateful across calls, which makes repeated `.test()` on different input
 // strings silently skip matches. `String.prototype.match` (used for
@@ -116,7 +120,6 @@ const SHRINKING_ALLOWLIST = {
   'playground/page.tsx': 7,
   'components/LiveScanTerminal.tsx': 4,
   'components/HomeSelfScan.tsx': 3,
-  'components/Footer.tsx': 2,
   'preview/_components/LiveRun.tsx': 2,
   'components/Hero.tsx': 1,
   'components/HeroScanTabs.tsx': 1,
@@ -246,6 +249,8 @@ describe('no hard-coded colour literals outside the v2 token system', () => {
       'color: var(--accent);',
       'className="text-[var(--v2-muted)]"',
       '<Link href="/pricing#tiers">',
+      '<Link href="/#features">', // three hex-looking letters, then a word — an anchor, not #fea
+      '<a href="#faq">', // same shape
       '<section id="pricing-tiers">',
       'const commit = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678";', // a full 40-char SHA, not a #-prefixed literal
       '<span className="text-muted">&#8212;</span>', // HTML numeric char reference (em dash), not a colour
