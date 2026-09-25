@@ -1,0 +1,89 @@
+# GateTest launch board — START HERE
+
+Read this before doing anything, from any of the three owner accounts
+(ccantynz, ccantyusa, ccanty48co). It is the repo record of the launch gate and
+of the 20 product moves. Every claim below was verified live or from the tree
+on the date shown; verify again before repeating it (CLAUDE.md doctrine #8).
+`docs/HANDOFF.md` holds the dated history; `docs/ops/blocking-on-craig.json`
+(rendered daily into issue #532) holds the owner-only items. Update this file
+in the same PR as any change of state (owner mandate, 2026-09-25).
+
+## 1. Customer-ready gate — verified live 2026-09-25 22:20Z, main = prod 877ec8cc
+
+| Surface | State | Evidence | What still blocks |
+|---|---|---|---|
+| Website + checkout | PASS | gatetest.io healthy; free preview on express: ok, 0 blocking; Stripe live | nothing |
+| npm CLI | PASS | `@gatetest/cli` 1.61.1 with `cli` bin, so `npx @gatetest/cli` resolves | nothing |
+| MCP server | PASS | `@gatetest/mcp-server` 1.2.0, homepage gatetest.io; proxy starts the server (#510) | nothing |
+| GitHub Action | PASS | `@v1` resolves; Marketplace Action listing 200; dogfood job green | nothing |
+| Docker | PASS | GHCR image published (#516); build workflow green | nothing |
+| VS Code | PASS | `GateTestHQ.gatetest` 1.1.3 listed; runs the real CLI (#514) | nothing |
+| WordPress | PASS | zip attached to release v1.61.1, linked from /wp | wordpress.org submission (owner) |
+| GitHub App / Marketplace App | OWNER | app page 200; `marketplace/gatetest-hq` 404; webhook 503 until secret set | listing submission + `mp-webhook-secret` (#532) |
+| Public proof repo (arena) | ARMED | main green (first since 2026-06-04), 0 stale PRs, repair workflow every 15 min | first clean cycle pending; a "key rejected" comment means the arena's API key needs rotation (owner) |
+
+Production env still missing `GOOGLE_CLIENT_SECRET`, `TALLRIG_API_TOKEN`
+(owner). `/api/status` no longer names the pre-rename brand (#733); the box env
+itself still uses the old variable names until the owner's cutover.
+
+## 2. Do NOT redo (already done, with the PR that did it)
+
+- Vendor-neutral public copy and engine output: #503, #506, #515, guard test
+  `tests/public-copy-vendor-neutral.test.js`.
+- Tallrig rename in code and docs: #504, #733; box env cutover is the owner's.
+- v2 homepage live at `/`: #719. Site-wide v2 design: #696, #705, #712.
+- Docs truth pass, `editors/vscode` deleted: #505. Handoff sections 9-12: dated.
+- Arena repaired: gatetest-arena#364 (math restored, scheduled repair). Stale PRs
+  and 261 dead branches removed 2026-09-25.
+- Testing page reads the public arena anonymously: #738.
+- Worktree and branch cleanup 2026-09-25: 50 merged branches, 34 old unmerged
+  branches, ~60 worktrees and folders removed. One worktree kept:
+  `feat/build-staging-swap` (90 real uncommitted lines).
+- Complaint-map receipts: suites quick 42 / standard 46 / full 89 / nuclear 96;
+  corpus 20 repos, 212 blocking, five repos at zero; unknown flag exits 0 unless
+  `--strict`/`CI` (then 2); fix loop `maxAttempts` = 3; accessibility module is
+  in-process WCAG 2.2 AA + AAA-aligned (no pa11y, no `includeWarnings`).
+
+## 3. The 20 moves — what a senior developer would recommend GateTest FOR
+
+Source: the 2026-09-25 internet complaint crawl (SonarQube, Snyk, CodeQL,
+Semgrep, CodeRabbit, Checkly, Lighthouse, Playwright/Cypress, G2/Capterra/HN)
+mapped to the engine. Status verified 2026-09-25 22:30Z.
+
+| # | Move | Status | Where |
+|---|---|---|---|
+| 1 | Security probes in the default suite inside a time budget; deferred line says what was skipped | IN PROGRESS | builder PR from `feat/security-in-standard-suite` |
+| 2 | Public precision scoreboard per rule, regenerated on every merge | PARTIAL | gatetest.io/precision is per repo, not per rule |
+| 3 | Recorded override `--accept-risk <id> --reason`, in report and PR comment, expiring | OPEN | `.gatetestignore` exists, no reason/expiry |
+| 4 | Time-to-verdict contract: ETA first, per-module timing, `--budget` degrades and reports | PARTIAL | per-module elapsed (#650), budget cut on typescript-strict; no ETA line |
+| 5 | Test-impact analysis: `--diff` runs only tests the import graph touches | OPEN | `--diff` scopes modules, not tests |
+| 6 | Flaky-test ledger with auto-quarantine and a flake rate on the badge | OPEN | flakyTests rule only |
+| 7 | One PR comment, updated in place, top blocking first | DONE | `scripts/post-scan-summary-comment.js` PATCHes its own comment |
+| 8 | Fix PR with proof: failing-to-passing output, tests added, fake-fix verdict, diff cap | PARTIAL | fakeFixDetector exists; end-to-end proof waits on the arena's first clean cycle |
+| 9 | Self-host parity: Docker image, GitLab template, Bitbucket pipe, GitLab login | PARTIAL | GHCR image yes (#516); GitLab/Bitbucket unverified |
+| 10 | Pricing copy answers per-token and double-billing complaints; usage receipt per run | UNVERIFIED | pricing page has tiers; receipt per run not checked |
+| 11 | Real analyzers for Go, Python, Java, Rust, measured on the corpus | OPEN | Go module is four regexes, standard suite runs no language module |
+| 12 | Root cause on every red run: classifier verdict, blame commit, replay command | PARTIAL | `gatetest replay <run-url>` exists; classifier verdict unverified |
+| 13 | Site-scan honesty defaults: WCAG2AA, warnings off, TTFB sampled alone, per-page timeout | PARTIAL | web-scan fixes #648-#665; defaults not re-audited |
+| 14 | Every finding tagged deterministic vs model-judged; model-judged never blocks by default | OPEN | no `verdictSource` field |
+| 15 | Onboarding mode: `--report-only-until <date>`, baseline wizard | PARTIAL | `--report-only`, `--baseline` exist; no date |
+| 16 | Convergence guard on fix and crawl loops; never re-flag own fix | PARTIAL | `maxAttempts` = 3; no never-re-flag check |
+| 17 | Zero writes into the scanned checkout unless asked | IN PROGRESS | builder PR from `feat/cli-report-dir-no-artifacts` (`--report-dir`, `--no-artifacts`) |
+| 18 | Weekly public head-to-head vs Semgrep, CodeQL, Sonar on the same corpus | PARTIAL | `head-to-head.yml` exists; publication cadence unverified |
+| 19 | Editor loop: published extension running the real CLI, pre-commit `--diff` under 10 s | PARTIAL | extension 1.1.3 listed (#514); 10 s bar unmeasured |
+| 20 | False-positive SLA: public form, corpus test per retraction, counter on the site | PARTIAL | corpus tests per retraction are practice (#633, #694); no public form or counter |
+
+Order of work after moves 1 and 17: 3, 14, 16, 4, 12, 2, 20, 8, then the rest.
+Each move ships as one builder PR with a control pair and a line in this table.
+
+## 4. How to check the gate again (network only, no local load)
+
+```
+curl -s https://gatetest.io/api/platform-status        # commit == origin/main, healthy
+curl -s https://gatetest.io/api/status                 # missing_important names, platform.pointed_at
+npm view @gatetest/cli version bin ; npm view @gatetest/mcp-server version
+curl -sI https://github.com/marketplace/actions/gatetest-quality-gate
+curl -sIL https://github.com/crclabs-hq/GateTest/releases/latest/download/gatetest-health-check.zip
+gh run list -R crclabs-hq/gatetest-arena --limit 5     # Inject Bug then Arena Repair, green
+gh issue view 532                                      # the owner list, regenerated daily
+```
