@@ -89,6 +89,10 @@ function topFindings(report, limit = 10) {
         module: mod.module || mod.name,
         severity: c.severity,
         message: (c.details && c.details.message) || c.name,
+        // The Fifty, move 14: a model-judged finding is labelled on the PR
+        // comment so a reviewer doesn't weigh an AI opinion the same as a
+        // deterministic rule firing.
+        verdictSource: c.verdictSource || 'deterministic',
       });
       if (findings.length >= limit) return findings;
     }
@@ -109,7 +113,8 @@ function renderBody({ grade, runUrl }) {
   if (grade.findings && grade.findings.length > 0) {
     lines.push('<details><summary>Top findings</summary>', '');
     for (const f of grade.findings) {
-      lines.push(`- **[${f.severity}]** \`${f.module}\` — ${f.message}`);
+      const modelTag = f.verdictSource === 'model' ? ' _(model-judged)_' : '';
+      lines.push(`- **[${f.severity}]** \`${f.module}\`${modelTag} — ${f.message}`);
     }
     lines.push('', '</details>', '');
   }

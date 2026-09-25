@@ -95,6 +95,27 @@ describe('topFindings', () => {
     const report = { results: [{ module: 'secrets', checks: [{ severity: 'info', passed: true, name: 'ok', details: {} }] }] };
     assert.deepStrictEqual(topFindings(report), []);
   });
+
+  // The Fifty, move 14 — verdictSource passthrough.
+  it('defaults verdictSource to deterministic when the check carries none', () => {
+    const report = {
+      results: [{ module: 'secrets', checks: [
+        { severity: 'error', passed: false, name: 'secrets:hardcoded-key', details: { message: 'API key found' } },
+      ] }],
+    };
+    const [f] = topFindings(report);
+    assert.strictEqual(f.verdictSource, 'deterministic');
+  });
+
+  it('carries an explicit model verdictSource through unchanged', () => {
+    const report = {
+      results: [{ module: 'aiReview', checks: [
+        { severity: 'error', passed: false, name: 'aiReview:bug', verdictSource: 'model', details: { message: 'Likely race condition' } },
+      ] }],
+    };
+    const [f] = topFindings(report);
+    assert.strictEqual(f.verdictSource, 'model');
+  });
 });
 
 describe('renderBody', () => {
@@ -128,5 +149,23 @@ describe('renderBody', () => {
     });
     assert.match(body, /<details>/);
     assert.match(body, /\*\*\[error\]\*\* `secrets` — API key found/);
+  });
+
+  // The Fifty, move 14 — a model-judged finding is labelled so a reviewer
+  // does not weigh an AI opinion the same as a deterministic rule firing.
+  it('labels a model-judged finding, and leaves a deterministic one unlabelled', () => {
+    const body = renderBody({
+      grade: {
+        grade: 'C', score: 65, passed: 6, total: 10, errors: 2, warnings: 0,
+        findings: [
+          { module: 'aiReview', severity: 'error', message: 'Likely race condition', verdictSource: 'model' },
+          { module: 'secrets', severity: 'error', message: 'API key found', verdictSource: 'deterministic' },
+        ],
+      },
+      runUrl: 'https://example.com',
+    });
+    assert.match(body, /\*\*\[error\]\*\* `aiReview` _\(model-judged\)_ — Likely race condition/);
+    assert.match(body, /\*\*\[error\]\*\* `secrets` — API key found/);
+    assert.doesNotMatch(body, /`secrets` _\(model-judged\)_/);
   });
 });
