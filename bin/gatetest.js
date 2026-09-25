@@ -31,7 +31,8 @@ const {
   USAGE_EXIT_CODE,
 } = require('../src/core/cli-args');
 const { buildJsonOutput, scanExitCode } = require('../src/core/json-output');
-const { crawlReportPaths, crawlExitCode, crawlResultLabel, buildCrawlFindings } = require('../src/modules/live-crawler-report');
+const { crawlReportPaths, crawlExitCode, crawlResultLabel, buildCrawlFindings, crawlFindingIds } = require('../src/modules/live-crawler-report');
+const { createConvergenceGuard, REASONS: CONVERGENCE_REASONS } = require('../src/core/convergence-guard');
 
 /**
  * `--project <path>` must name an existing directory, or the run is a usage
@@ -1567,8 +1568,15 @@ async function runCrawlLoop(gatetest, url, maxPages, authConfig = {}) {
     ...authConfig,
   };
 
-  let round = 1;
   const maxRounds = 20;
+  // Convergence guard (complaint C23, src/core/convergence-guard.js): every
+  // round's findings — the SAME array `--format json` and the exit code
+  // both read (crawlDataForRun + buildCrawlFindings), so this can never
+  // disagree with what the human report shows — feed the guard. It decides
+  // converged / no-progress / oscillating / max-iterations, so the loop
+  // always ends with a stated reason instead of a bare round counter.
+  const guard = createConvergenceGuard({ maxIterations: maxRounds });
+  let round = 1;
 
   while (round <= maxRounds) {
     console.log(`\n${'='.repeat(50)}`);
@@ -1578,11 +1586,16 @@ async function runCrawlLoop(gatetest, url, maxPages, authConfig = {}) {
 
     const summary = await gatetest.runModule('liveCrawler');
     gatetest._lastCrawlSummary = summary;
+    printOwnCrawlReport(gatetest, url);
 
-    const feedback = printOwnCrawlReport(gatetest, url);
-    if (feedback && feedback.includes('ALL CLEAR')) {
-      console.log('\n[GateTest] SITE IS CLEAN. All pages verified. Loop complete.\n');
-      process.exit(0);
+    const data = crawlDataForRun(gatetest, url, maxPages);
+    const step = guard.step({ findingIds: crawlFindingIds(data) });
+
+    if (step.done) {
+      console.log(`\n[GateTest] ${step.message}\n`);
+      // `converged` is the only reason that means the site actually came up
+      // clean — every other reason is a stated stop, not a pass.
+      process.exit(step.reason === CONVERGENCE_REASONS.CONVERGED ? 0 : 1);
     }
 
     console.log(`\n[GateTest] Issues found. Waiting for fixes...`);
@@ -1596,9 +1609,6 @@ async function runCrawlLoop(gatetest, url, maxPages, authConfig = {}) {
 
     round++;
   }
-
-  console.log(`\n[GateTest] Maximum rounds (${maxRounds}) reached. Exiting.\n`);
-  process.exit(1);
 }
 
 function showCrawlFeedback(projectRoot) {

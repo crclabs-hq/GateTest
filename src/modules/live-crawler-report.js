@@ -187,6 +187,17 @@ function buildCrawlFindings(data) {
   return findings;
 }
 
+/**
+ * Convergence-guard finding ids for a `--crawl-loop` round (complaint C23,
+ * src/core/convergence-guard.js). One id per `buildCrawlFindings()` entry —
+ * reusing that function rather than re-deriving from `data` means this can
+ * never disagree with what the human report or `--format json` list, so two
+ * rounds that raise the exact same problems always hash identically.
+ */
+function crawlFindingIds(data) {
+  return buildCrawlFindings(data).map((f) => `${f.type}|${f.url || ''}|${f.message || ''}`);
+}
+
 function generateFeedbackReport(config, data) {
   const { reportDir, mdPath, jsonPath, latestMdPath, latestJsonPath } =
     crawlReportPaths(config.projectRoot, data.baseUrl);
@@ -318,6 +329,7 @@ module.exports = {
   crawlExitCode,
   crawlResultLabel,
   buildCrawlFindings,
+  crawlFindingIds,
   notCheckedLine,
   notCheckedCount,
   hardFindingCount,
