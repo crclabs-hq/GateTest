@@ -29,6 +29,7 @@ const {
 
 const { CHEAP_MODEL } = require('./engine-models');
 const { endpoint: anthropicEndpoint, apiPath: anthropicApiPath, apiVersion: anthropicVersion } = require('./anthropic-config');
+const { createConvergenceGuard, REASONS: CONVERGENCE_REASONS } = require('./convergence-guard');
 
 const TIMEOUT_MS      = 90_000;
 const TEST_TIMEOUT_MS = 15_000;
@@ -243,6 +244,12 @@ async function runFixOrchestration(opts) {
   const tmpDir   = dryRun ? null : fs.mkdtempSync(path.join(os.tmpdir(), 'gt-hyp-'));
   let priorError = '';
   const t0 = Date.now();
+  // Convergence guard (complaint C23, src/core/convergence-guard.js): if
+  // every hypothesis keeps failing syntax with the SAME error, that is the
+  // loop re-flagging its own unfixed problem — stop and say why instead of
+  // burning maxAttempts on a retry that plainly is not converging.
+  // `maxAttempts` keeps its existing meaning: it becomes the guard's cap.
+  const guard = createConvergenceGuard({ maxIterations: maxAttempts });
 
   // ── Playback simulation — check recipe store BEFORE calling Claude ─────────
   // If a stable recipe exists for this pattern, apply it and return immediately
@@ -369,6 +376,7 @@ async function runFixOrchestration(opts) {
         // Plan only: hand the caller the winning code and the original so
         // it can print a diff. Nothing has been written — not the winner,
         // not a flywheel event, not a recipe.
+        guard.step({ findingIds: [] }); // a winning candidate: converged
         return {
           fixed:      true,
           rank:       winner.rank,
@@ -382,6 +390,7 @@ async function runFixOrchestration(opts) {
           original:   content,
           dryRun:     true,
           advisory:   testFile ? 'tests not run under --dry-run (running them would write the candidate to disk)' : null,
+          loop:       guard.getResult(),
         };
       }
 
@@ -432,6 +441,7 @@ async function runFixOrchestration(opts) {
           });
         }
 
+        guard.step({ findingIds: [] }); // a winning candidate: converged
         return {
           fixed:      true,
           rank:       winner.rank,
@@ -444,11 +454,22 @@ async function runFixOrchestration(opts) {
           original:   content,
           dryRun:     false,
           advisory:   winner.rank === 2 ? 'Some tests remain amber — review before merging' : null,
+          loop:       guard.getResult(),
         };
       }
 
-      // All three failed syntax — retry with the best error context
+      // All three failed syntax — retry with the best error context. Feed
+      // the guard the persistent failure as this iteration's finding: if
+      // the SAME error comes back next attempt (own-fix re-flag / identical
+      // set), stop now instead of spending another round on it.
       priorError = winner.syntaxError || winner.testOutput || 'all hypotheses failed syntax';
+      const guardStep = guard.step({
+        findingIds: [priorError],
+        fixed: [{ id: priorError, change: `attempt ${attempt}: ${H_NAMES[winner.index]} hypothesis` }],
+      });
+      if (guardStep.done) {
+        return { fixed: false, reason: guardStep.message, lastError: priorError, loop: guard.getResult() };
+      }
     }
   } finally {
     if (tmpDir) {
@@ -456,7 +477,15 @@ async function runFixOrchestration(opts) {
     }
   }
 
-  return { fixed: false, reason: `all ${maxAttempts} attempt(s) exhausted`, lastError: priorError };
+  const guardResult = guard.getResult();
+  return {
+    fixed: false,
+    reason: `all ${maxAttempts} attempt(s) exhausted`,
+    lastError: priorError,
+    loop: guardResult.reason
+      ? guardResult
+      : { reason: CONVERGENCE_REASONS.MAX_ITERATIONS, iterations: maxAttempts, message: `stopped: reached the max-iterations cap (${maxAttempts})`, unresolved: [] },
+  };
 }
 
 // ── Batch entry point — the contract bin/gatetest.js consumes ────────────────
