@@ -134,8 +134,10 @@ function platformCanonicalHost(env = process.env) {
  * Which brand each platform variable is currently pointed at — names only,
  * never values — so /api/status can show mid-rename whether the box has
  * been flipped. `pointed_at` is the verdict for the three dispatch vars:
- * 'tallrig' | 'vapron' | 'crontech' when all three resolve from the same
- * prefix, 'mixed' when they do not, 'unset' when none resolves.
+ * 'tallrig' when all three resolve from the current prefix, 'legacy' when
+ * all three still resolve from a pre-rename prefix, 'mixed' when they do
+ * not agree, 'unset' when none resolves. Pre-rename brand names are never
+ * emitted.
  *
  * @param {Record<string, string|undefined>} [env]
  */
@@ -143,7 +145,10 @@ function platformPointing(env = process.env) {
   const brandOf = (name) => {
     for (const prefix of ENV_PREFIXES) {
       const v = env[`${prefix}${name}`];
-      if (typeof v === 'string' && v.trim()) return prefix.slice(0, -1).toLowerCase();
+      // Customer-visible output names the current brand or "legacy" — never
+      // the pre-rename brand names (owner, 2026-09-25: nothing visible may
+      // say Vapron; env aliases stay readable silently until their sunset).
+      if (typeof v === 'string' && v.trim()) return prefix === ENV_PREFIXES[0] ? PLATFORM_ID : 'legacy';
     }
     return null;
   };

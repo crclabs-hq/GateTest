@@ -147,7 +147,7 @@ describe('platformPointing — /api/status shows which brand the box is pointed 
     assert.equal(p.status_url, 'default');
   });
   it('all three from VAPRON_ → vapron; all three from TALLRIG_ → tallrig (VAPRON_ still set does not matter)', () => {
-    assert.equal(cfg.platformPointing({ VAPRON_BASE_URL: 'u', VAPRON_API_TOKEN: 't', VAPRON_DISPATCH_SECRET: 's' }).pointed_at, 'vapron');
+    assert.equal(cfg.platformPointing({ VAPRON_BASE_URL: 'u', VAPRON_API_TOKEN: 't', VAPRON_DISPATCH_SECRET: 's' }).pointed_at, 'legacy');
     const flipped = cfg.platformPointing({ TALLRIG_BASE_URL: 'u', TALLRIG_API_TOKEN: 't', TALLRIG_DISPATCH_SECRET: 's', VAPRON_BASE_URL: 'u', VAPRON_API_TOKEN: 't', VAPRON_DISPATCH_SECRET: 's' });
     assert.equal(flipped.pointed_at, 'tallrig');
     assert.deepEqual(flipped.dispatch, { BASE_URL: 'tallrig', API_TOKEN: 'tallrig', DISPATCH_SECRET: 'tallrig' });
@@ -155,7 +155,8 @@ describe('platformPointing — /api/status shows which brand the box is pointed 
   it('a half-flipped box reads mixed, and says which var is behind', () => {
     const p = cfg.platformPointing({ TALLRIG_BASE_URL: 'u', VAPRON_API_TOKEN: 't', VAPRON_DISPATCH_SECRET: 's', TALLRIG_MAIL_URL: 'm' });
     assert.equal(p.pointed_at, 'mixed');
-    assert.deepEqual(p.dispatch, { BASE_URL: 'tallrig', API_TOKEN: 'vapron', DISPATCH_SECRET: 'vapron' });
+    assert.deepEqual(p.dispatch, { BASE_URL: 'tallrig', API_TOKEN: 'legacy', DISPATCH_SECRET: 'legacy' });
+    assert.ok(!JSON.stringify(p).toLowerCase().includes('vapron'), 'customer-visible pointing output never names the pre-rename brand');
     assert.equal(p.mail_url, 'tallrig');
   });
   it('never returns a value — only brand names', () => {
