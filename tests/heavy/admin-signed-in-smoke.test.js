@@ -150,6 +150,10 @@ before(async () => {
   serverProc = spawn('npx', ['next', 'start', '-p', String(port)], {
     cwd: WEBSITE,
     shell: true,
+    // POSIX: own process group, so teardown can kill `sh -c` AND the real
+    // `next start` under it in one signal (see `after`). Windows keeps the
+    // default: `taskkill /T` walks the tree there.
+    detached: process.platform !== 'win32',
     env: {
       ...process.env,
       GATETEST_ADMIN_PASSWORD: TEST_PASSWORD,
@@ -201,13 +205,31 @@ after(async () => {
         // error-ok — process may have already exited
       }
     } else {
-      serverProc.kill('SIGKILL');
+      // `shell: true` means serverProc.pid is `sh -c`, not `next start`.
+      // SIGKILL to that pid alone orphans the real server, which keeps its
+      // end of our stdio pipes open — and `node --test` cannot exit while a
+      // pipe handle is alive. 2026-09-24 (#725): every heavy run on main
+      // finished all 28 assertions green and was then cancelled at the
+      // 120 s file timeout for exactly this reason. Kill the whole process
+      // group (spawned `detached`, so the group id is the pid).
+      try {
+        process.kill(-serverProc.pid, 'SIGKILL');
+      } catch {
+        serverProc.kill('SIGKILL'); // error-ok — group gone; kill the leader
+      }
     }
 
     // Belt: if neither event fires (a defunct/already-reaped child on some
     // platform), don't hang the suite forever waiting for it.
     setTimeout(done, 5000).unref();
   });
+
+  // Braces: whatever survived the kill, nothing it holds may keep THIS
+  // process alive. Closing our ends of the pipes is what lets the runner
+  // read the summary line and end the file.
+  for (const stream of [serverProc.stdin, serverProc.stdout, serverProc.stderr]) {
+    if (stream && !stream.destroyed) stream.destroy();
+  }
 });
 
 function authedHeaders() {
