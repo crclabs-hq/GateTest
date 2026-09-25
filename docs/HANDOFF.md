@@ -434,3 +434,17 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
 - gatetest.io/testing itself renders "Arena not reachable — github-api-401"
   because the box's GitHub token is refused; a builder is adding an anonymous
   fallback (the repo is public) on branch `fix/testing-page-anonymous-arena`.
+
+### Addendum 2026-09-25 22:00Z — arena repaired on main; what the owner still closes
+- Owner merged gatetest-arena#364: arena main green at d492f56 (first green since
+  2026-06-04), scheduled repair workflow live. gatetest.io/testing anonymous read
+  is PR #738 (auto-merge armed).
+- 99 stale `arena/bug-*` PRs remain open on the old broken base; the owner closes
+  them with branch deletion (desktop classifier refuses bulk closure). Until then
+  the repair loop spends each 15-minute cycle on three of them.
+- GateTest remote branches are down to six: main plus five September branches that
+  are all superseded (chore/platform-hostnames-env-driven,
+  claude/aggressive-testing-repair-checks-ihovku,
+  fix/vscode-extension-in-process-engine, integration/green-board-2026-09-13,
+  worktree-agent-a3bc45a30d229a29b); the 34 older ones were deleted. Local
+  worktrees: one kept (feat/build-staging-swap, 90 real uncommitted lines).
