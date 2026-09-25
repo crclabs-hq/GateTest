@@ -10,6 +10,7 @@ const path = require('path');
 // so deriving it makes it meaningful rather than decorative.
 const PKG_VERSION = require('../../package.json').version;
 const { buildProvenance, signatureFor } = require('../core/report-provenance');
+const { resolveReportDir } = require('../core/report-paths');
 
 class JsonReporter {
   constructor(runner, config) {
@@ -23,8 +24,7 @@ class JsonReporter {
   }
 
   _onSuiteEnd(summary) {
-    const reportDir = this.config.get('reporting.outputDir') || '.gatetest/reports';
-    const absDir = path.resolve(this.config.projectRoot, reportDir);
+    const absDir = resolveReportDir(this.config);
 
     if (!fs.existsSync(absDir)) {
       fs.mkdirSync(absDir, { recursive: true });

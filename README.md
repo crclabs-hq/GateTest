@@ -285,6 +285,30 @@ API ping from `--doctor`. The console prints the mode, the summary carries
 the perimeter can be verified outside it with `gatetest verify-report` and the key.
 There is no licence server and no account; nothing expires.
 
+### Redirecting or disabling report output
+
+Every scan writes reports (`.gatetest/reports/`) and two memory stores
+(`.gatetest/memory.json`, `.gatetest/memory/`) into the scanned checkout by
+default — fine for a normal dev machine, not for a CI runner, a monorepo, or
+anyone scanning a read-only tree, where it leaves `git status` dirty with no
+way to opt out.
+
+```bash
+# Redirect everything (reports + memory) to one path instead:
+gatetest --suite full --report-dir /tmp/gatetest-out    # or GATETEST_REPORT_DIR=/tmp/gatetest-out
+
+# Or write nothing to disk at all — the console summary and --format json's
+# stdout document are unaffected, exit codes unchanged:
+gatetest --suite full --no-artifacts                    # or GATETEST_NO_ARTIFACTS=1
+```
+
+`--report-dir` wins over the env var, which wins over `.gatetest.json`'s
+`reporting.outputDir`, which wins over the default. If you keep the default
+location, add `.gatetest/` to that repo's `.gitignore` — GateTest prints a
+one-line stderr hint after the summary the first time it notices that repo's
+own `.gitignore` doesn't cover it (never in `--format json` mode, never with
+`--no-artifacts`).
+
 ### Docker
 
 Every release tag and every push to `main` publishes an image to GitHub Container
