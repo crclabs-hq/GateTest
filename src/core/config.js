@@ -33,6 +33,14 @@ const { ENV_REPORT_DIR, ENV_NO_ARTIFACTS } = require('./report-paths');
  * `gatetest --module mutation`, and in the `nuclear` suite (CI path).
  */
 const SUITE_DEFERRALS = {
+  quick: [
+    {
+      module: 'security',
+      reason: 'the OWASP injection/XSS/auth-bypass/SSRF-style scan re-reads every ' +
+        'source file several times over — too slow for the sub-10s pre-commit bar',
+      runsIn: '`gatetest --suite standard` (the CLI default), `--suite full`/`nuclear`, or `gatetest --module security`',
+    },
+  ],
   full: [
     {
       module: 'mutation',
@@ -127,6 +135,16 @@ const DEFAULT_CONFIG = {
       'codeQuality',
       'unitTests',
       'integrationTests',
+      // 'security' (move 1, launch-board complaint C16, 2026-09-25): the
+      // OWASP injection/XSS/auth-bypass/SSRF-style probes were full/nuclear
+      // only, so a plain `gatetest` on OWASP NodeGoat passed the exact
+      // injections it was built to find. `standard` is the CLI default
+      // (bin/gatetest.js), so this is the fix. `quick` (the sub-10s
+      // pre-commit suite) deliberately still excludes it — see
+      // SUITE_DEFERRALS.quick below — and the module's own file-scan time
+      // budget (src/modules/security.js) keeps it inside standard's
+      // interactive bar on a large tree.
+      'security',
       'dependencies',
       'dockerfile',
       'ciSecurity',

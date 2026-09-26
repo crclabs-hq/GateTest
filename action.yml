@@ -23,7 +23,7 @@ branding:
 
 inputs:
   suite:
-    description: 'Which GateTest suite to run: quick (42 modules) / standard (46) / full (88) / nuclear (96). Unknown values fall back to standard.'
+    description: 'Which GateTest suite to run: quick (42 modules) / standard (47) / full (88) / nuclear (96). Unknown values fall back to standard.'
     required: false
     default: 'quick'
   diff-only:
