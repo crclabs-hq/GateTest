@@ -71,7 +71,7 @@ mapped to the engine. Status verified 2026-09-25 22:30Z.
 | 17 | Zero writes into the scanned checkout unless asked | IN PROGRESS | builder PR from `feat/cli-report-dir-no-artifacts` (`--report-dir`, `--no-artifacts`) |
 | 18 | Weekly public head-to-head vs Semgrep, CodeQL, Sonar on the same corpus | PARTIAL | `head-to-head.yml` exists; publication cadence unverified |
 | 19 | Editor loop: published extension running the real CLI, pre-commit `--diff` under 10 s | PARTIAL | extension 1.1.3 listed (#514); 10 s bar unmeasured |
-| 20 | False-positive SLA: public form, corpus test per retraction, counter on the site | PARTIAL | corpus tests per retraction are practice (#633, #694); no public form or counter |
+| 20 | False-positive SLA: public form, corpus test per retraction, counter on the site | DONE | PR #763 |
 
 Order of work after moves 1 and 17: 3, 14, 16, 4, 12, 2, 20, 8, then the rest.
 Each move ships as one builder PR with a control pair and a line in this table.
