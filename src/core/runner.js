@@ -1413,7 +1413,30 @@ class GateTestRunner extends EventEmitter {
       console.error('[GateTest] finding registry failed:', err && err.message ? err.message : err);
     }
 
+    // Root cause on every red run (Launch Board move 12 / complaint C21): a
+    // BLOCKED verdict says WHY, WHICH COMMIT, and HOW TO REPLAY — one
+    // classifier (src/core/root-cause.js), never computed on a PASSED run.
+    let rootCause = null;
+    if (gateStatus === 'BLOCKED') {
+      try {
+        rootCause = require('./root-cause').buildRootCause({
+          results: resultsJson,
+          failedModules: failed.map(r => ({ module: r.module, error: String(r.error), failedChecks: r.failedChecks })),
+          diffOnly: this.options.diffOnly,
+          changedFiles: this.options.changedFiles,
+          confidenceThreshold: this._blockThreshold,
+          projectRoot: this._projectRoot,
+          suite: this.options.suite || null,
+          moduleName: this.options.moduleName || null,
+          env: process.env,
+        });
+      } catch (err) { // error-ok — root-cause is a presentation layer; a bug in it must never break a scan
+        console.error('[GateTest] root-cause classification failed:', err && err.message ? err.message : err);
+      }
+    }
+
     return {
+      rootCause,
       gateStatus,
       // KI #107: the pre-override verdict and whether admin softening was
       // applied — always present so no reporter can show "PASSED" with no

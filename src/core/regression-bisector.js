@@ -189,15 +189,22 @@ function showCommit({ cwd, hash, maxDiffBytes = 6000 }) {
  * candidate commits by how many hits they explain — the commit touching the
  * most hits is the most likely single regression cause.
  */
-function findLikelyRegressionCommit({ cwd, hits }) {
+function findLikelyRegressionCommit({ cwd, hits, deadlineMs = Infinity }) {
   if (!Array.isArray(hits) || hits.length === 0) {
     return { ok: false, reason: 'hits must be a non-empty array of { file, line }' };
   }
 
   const perHit = [];
   const tally = new Map();
+  // Bounded blame (Launch Board move 12): a caller with many hits (e.g. every
+  // blocking finding in a red run) must never turn "which commit broke this"
+  // into a multi-second `git blame` marathon. Once the deadline passes, the
+  // remaining hits are counted as `skipped` rather than blamed.
+  const deadline = Number.isFinite(deadlineMs) ? Date.now() + deadlineMs : Infinity;
+  let skipped = 0;
 
   for (const h of hits) {
+    if (Date.now() > deadline) { skipped += 1; continue; }
     const res = blameLine({ cwd, file: h.file, line: h.line });
     perHit.push({ file: h.file, line: h.line, blame: res });
     if (res.ok) {
@@ -222,7 +229,7 @@ function findLikelyRegressionCommit({ cwd, hits }) {
     }))
     .sort((a, b) => b.hitCount - a.hitCount || String(b.date).localeCompare(String(a.date)));
 
-  return { ok: true, perHit, candidates };
+  return { ok: true, perHit, candidates, skipped };
 }
 
 module.exports = {
