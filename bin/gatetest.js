@@ -33,6 +33,7 @@ const {
 const { buildJsonOutput, scanExitCode } = require('../src/core/json-output');
 const { crawlReportPaths, crawlExitCode, crawlResultLabel, buildCrawlFindings, crawlFindingIds } = require('../src/modules/live-crawler-report');
 const { createConvergenceGuard, REASONS: CONVERGENCE_REASONS } = require('../src/core/convergence-guard');
+const { resolveReportDir, ENV_REPORT_DIR, ENV_NO_ARTIFACTS } = require('../src/core/report-paths');
 
 /**
  * `--project <path>` must name an existing directory, or the run is a usage
@@ -244,6 +245,22 @@ const HELP = `
                        on outside Actions (e.g. local debugging).
     --ci-init <type>   Generate CI config: github, gitlab, circleci
     --project <path>   Set project root (default: cwd)
+    --report-dir <path>
+                       Redirect every report (JSON/HTML/SARIF/JUnit/
+                       compliance) and the two memory stores away from the
+                       default .gatetest/ inside the scanned checkout.
+                       Absolute, or relative to --project. Same as
+                       GATETEST_REPORT_DIR; this flag wins when both are
+                       set. Default: .gatetest/reports (reports) and
+                       .gatetest/ (memory), inside the scanned checkout —
+                       add ".gatetest/" to that repo's .gitignore, or use
+                       this flag / --no-artifacts, so "git status" stays
+                       clean on a CI runner, a monorepo, or a read-only tree.
+    --no-artifacts     Write nothing to disk — no reports, no scan history,
+                       no memory. The console summary still prints and
+                       --format json still emits its document on stdout;
+                       exit codes are unchanged. Same as
+                       GATETEST_NO_ARTIFACTS=1.
     --confidence-threshold <0..1>
                        Confidence threshold below which error-severity
                        findings are downgraded to "soft errors" (visible
@@ -491,6 +508,19 @@ async function main() {
   // Checked before anything below can create it: GateTestConfig, the
   // reporters and `--init` all mkdir under the root on demand.
   requireProjectDir(projectRoot);
+
+  // Complaint C22: --report-dir / --no-artifacts normalize into the env vars
+  // GateTestConfig and the memory stores read (src/core/report-paths.js) —
+  // ONE place decides precedence (flag > env > .gatetest.json > default)
+  // before GateTestConfig or any MemoryStore is constructed below. Resolved
+  // against --project, not cwd, so `--project ../other --report-dir out`
+  // lands under ../other/out, matching every other path flag on this CLI.
+  if (args.reportDir) {
+    process.env[ENV_REPORT_DIR] = path.resolve(projectRoot, args.reportDir);
+  }
+  if (args.noArtifacts) {
+    process.env[ENV_NO_ARTIFACTS] = '1';
+  }
 
   if (args.init) {
     initProject(projectRoot);
@@ -872,7 +902,7 @@ async function main() {
   // it — computed once, so the two can never disagree.
   const finish = (summary, exitCode) => {
     if (!jsonMode) process.exit(exitCode);
-    const reportDir = path.resolve(projectRoot, gatetest.config.get('reporting.outputDir') || '.gatetest/reports');
+    const reportDir = resolveReportDir(gatetest.config);
     const latest = path.join(reportDir, 'gatetest-report-latest.json');
     const doc = buildJsonOutput(summary, {
       projectRoot,
@@ -953,6 +983,14 @@ async function main() {
     printPlainSummary(summary, projectRoot);
   }
 
+  // Complaint C22 first-time hint — after the summary, never in --format
+  // json (stdout is the one JSON document), never under --no-artifacts
+  // (nothing was written), never when --report-dir moved reports outside
+  // the default `.gatetest/` (the hint is specifically about that path).
+  if (!jsonMode && process.env[ENV_NO_ARTIFACTS] !== '1' && !process.env[ENV_REPORT_DIR]) {
+    maybeNoticeGitignore(projectRoot);
+  }
+
   return finish(summary, scanExitCode(summary));
 }
 
@@ -989,6 +1027,22 @@ function maybeNoticeTelemetry() {
       '  to .gatetest.json.\x1b[0m\n'
     );
   } catch { /* best-effort notice */ } // error-ok
+}
+
+/**
+ * Complaint C22 hint — one stderr line when a scan just wrote into a git
+ * repo whose OWN .gitignore does not cover `.gatetest/`, so `git status`
+ * goes dirty every run with no signal that a flag exists to stop it.
+ * Self-clearing, unlike maybeNoticeTelemetry: once `.gatetest/` is
+ * gitignored the condition is false and the hint stops for good, so no
+ * "shown once" marker is needed. Best-effort — never throws.
+ */
+function maybeNoticeGitignore(projectRoot) {
+  try {
+    const { gatetestDirIsGitignored, isGitRepo } = require('../src/core/gitignore-hint');
+    if (!isGitRepo(projectRoot) || gatetestDirIsGitignored(projectRoot)) return;
+    console.error('hint: add .gatetest/ to .gitignore, or use --report-dir / --no-artifacts');
+  } catch { /* best-effort hint */ } // error-ok
 }
 
 /**
