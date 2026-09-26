@@ -75,10 +75,14 @@ describe('Protected integration artifacts', () => {
       path.join(ROOT, 'integrations/github-actions/gatetest-gate.yml'),
       'utf8',
     );
+    // `(?!-until\b)` excludes `--report-only-until <date>` (move 15,
+    // onboarding mode) from this ban — that flag is TIME-BOXED and governed
+    // by its own disclosure rule below, not this permanent-report-only one.
+    // Bare `--report-only` (this flag, forever, no expiry) is still forbidden.
     const offending = wf
       .split('\n')
       .map((line, i) => [i + 1, line])
-      .filter(([, line]) => /gatetest\.js/.test(line) && /--report-only\b/.test(line));
+      .filter(([, line]) => /gatetest\.js/.test(line) && /--report-only(?!-until\b)\b/.test(line));
 
     assert.deepStrictEqual(
       offending.map(([n, line]) => `${n}: ${line.trim()}`),
@@ -86,6 +90,64 @@ describe('Protected integration artifacts', () => {
       'A gate invocation runs with --report-only, which never fails the build. ' +
         'Use --diff (PRs) or --baseline (full scans) to stay adoptable without ' +
         'giving up enforcement.',
+    );
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Move 15 (onboarding mode): `--report-only-until <date>` is exempt from
+  // the ban above BECAUSE it expires on its own — but only if the template
+  // actually says so where a reviewer reads it. An uncommented
+  // `--report-only-until` is indistinguishable from `--report-only` wearing
+  // a fig leaf: a reviewer skimming the workflow has no way to tell "this
+  // turns itself off" from "this is permanently advisory" without reading
+  // this test. Control pair below proves the check can both fire and stay
+  // quiet, not just always pass on the real (currently report-only-until-free)
+  // template.
+  // ───────────────────────────────────────────────────────────────────────
+  function reportOnlyUntilLinesMissingExpiryNote(wfText) {
+    const lines = wfText.split('\n');
+    const offending = [];
+    lines.forEach((line, i) => {
+      if (!/--report-only-until\b/.test(line)) return;
+      if (/^\s*#/.test(line.trim())) return; // a comment mentioning the flag, not a real invocation
+      const context = lines.slice(Math.max(0, i - 2), i + 1).join('\n');
+      if (!/#.*expir/i.test(context)) offending.push(`${i + 1}: ${line.trim()}`);
+    });
+    return offending;
+  }
+
+  it('control: flags a bare, uncommented --report-only-until as undisclosed', () => {
+    const fixture = [
+      'jobs:',
+      '  gate:',
+      '    steps:',
+      '      - run: node bin/gatetest.js --suite full --report-only-until 2026-10-15',
+    ].join('\n');
+    assert.deepStrictEqual(reportOnlyUntilLinesMissingExpiryNote(fixture), [
+      '4: - run: node bin/gatetest.js --suite full --report-only-until 2026-10-15',
+    ]);
+  });
+
+  it('control: stays quiet when a comment above says it expires', () => {
+    const fixture = [
+      'jobs:',
+      '  gate:',
+      '    steps:',
+      '      # Onboarding window — expires 2026-10-15, then this run enforces.',
+      '      - run: node bin/gatetest.js --suite full --report-only-until 2026-10-15',
+    ].join('\n');
+    assert.deepStrictEqual(reportOnlyUntilLinesMissingExpiryNote(fixture), []);
+  });
+
+  it('the real CI gate template discloses any --report-only-until it uses', () => {
+    const wf = fs.readFileSync(
+      path.join(ROOT, 'integrations/github-actions/gatetest-gate.yml'),
+      'utf8',
+    );
+    assert.deepStrictEqual(
+      reportOnlyUntilLinesMissingExpiryNote(wf),
+      [],
+      '--report-only-until on the CI gate template must have a nearby comment saying it expires.',
     );
   });
 
