@@ -1234,6 +1234,16 @@ class GateTestRunner extends EventEmitter {
   }
 
   _buildSummary(startTime, endTime) {
+    // Issue #767: one whole-tree count of paths skipped by .gitignore /
+    // the built-in build-output name set, done ONCE per summary rather than
+    // once per module walk (BaseModule._collectFiles already applies the
+    // same matcher per-module for the actual filtering — this is reporting
+    // only, so it must not multiply the number by how many modules ran).
+    const { includeIgnoredFiles, countIgnoredFiles } = require('./gitignore');
+    const gitignoreSkipCount = (!includeIgnoredFiles() && this.config && this.config.projectRoot)
+      ? countIgnoredFiles(this.config.projectRoot)
+      : 0;
+
     const passed = this.results.filter(r => r.status === 'passed');
     const failed = this.results.filter(r => r.status === 'failed');
     const skipped = this.results.filter(r => r.status === 'skipped');
@@ -1457,6 +1467,11 @@ class GateTestRunner extends EventEmitter {
       pathFilter: this._pathFilter
         ? { include: this._pathFilter.raw.include, exclude: this._pathFilter.raw.exclude, findingsDropped: this._pathFilterDropped }
         : null,
+      // Issue #767 — three-state, never silent (Doctrine #1): null when
+      // nothing was skipped or --include-ignored was passed, a count
+      // otherwise, so the console/JSON summary can say gitignored paths
+      // were deliberately out of scope rather than leaving it unsaid.
+      gitignoreSkip: gitignoreSkipCount > 0 ? { count: gitignoreSkipCount } : null,
       confidenceThreshold: this._blockThreshold,
       incremental: this._incrementalMode
         ? { fileCount: this._incrementalFileSet ? this._incrementalFileSet.size : 0 }

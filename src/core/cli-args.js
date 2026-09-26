@@ -141,6 +141,12 @@ const FLAG_SPEC = [
   { flags: ['--crawl-page-timeout'], key: 'crawlPageTimeout', type: 'int' },
   { flags: ['--monitor-interval'], key: 'monitorInterval', type: 'int' },
   { flags: ['--confidence-threshold'], key: 'confidenceThreshold', type: 'float01' },
+
+  // Issue #767: file discovery skips a repo's .gitignore (root + nested)
+  // plus a built-in build-output name set (`.next`/`.next-*`, dist, build,
+  // out, coverage, .turbo, .cache, .nuxt, .svelte-kit, target) by default —
+  // see src/core/gitignore.js `getScanIgnoreMatcher`. This opts back in.
+  { flags: ['--include-ignored'], key: 'includeIgnored', type: 'boolean' },
 ];
 
 /** token -> spec. Built once from FLAG_SPEC so the two cannot drift. */

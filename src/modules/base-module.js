@@ -103,6 +103,15 @@ class BaseModule {
     const { WALK_EXCLUDES: defaultExcludes } = require('../core/walk-excludes');
     const allExcludes = [...defaultExcludes, ...excludes];
 
+    // Issue #767: a repo's .gitignore (root + nested) plus a built-in
+    // build-output name set are out of scope for a default scan — 300 of
+    // 600 blocking findings on a real customer monorepo were inside
+    // gitignored `apps/web/.next-build` and `.design`. `--include-ignored`
+    // (src/core/gitignore.js `includeIgnoredFiles()`) opts back in; the
+    // hard excludes above are never affected by it.
+    const { getScanIgnoreMatcher, includeIgnoredFiles } = require('../core/gitignore');
+    const ignoreMatcher = includeIgnoredFiles() ? null : getScanIgnoreMatcher(projectRoot);
+
     const walk = (dir) => {
       let entries;
       try {
@@ -114,8 +123,10 @@ class BaseModule {
         if (allExcludes.includes(entry.name)) continue;
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
+          if (ignoreMatcher && ignoreMatcher(repoRelative(projectRoot, fullPath), true)) continue;
           walk(fullPath);
         } else if (entry.isFile()) {
+          if (ignoreMatcher && ignoreMatcher(repoRelative(projectRoot, fullPath), false)) continue;
           const ext = path.extname(entry.name).toLowerCase();
           if (patterns.includes(ext) || patterns.includes('*')) {
             files.push(fullPath);

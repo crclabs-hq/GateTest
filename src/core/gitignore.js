@@ -202,9 +202,166 @@ function collectGitignoreFiles(root) {
   return out;
 }
 
+// =============================================================================
+// SCAN-SCOPE IGNORE (issue #767)
+// =============================================================================
+// A full scan of the AlecRae monorepo put 300 of 600 blocking findings inside
+// gitignored build output (`apps/web/.next-build`, `.design`) — neither
+// directory matches a HARD_SKIP_DIRS name exactly, and until now nothing in
+// the default file-collection path (`BaseModule._collectFiles`) ever
+// consulted a repo's .gitignore at all: `buildIgnoreMatcher` above existed
+// but was wired up only behind `safe-fs.js`'s opt-in `respectGitignore`,
+// which no caller passed.
+//
+// Two independent skip sources, both defeatable with `--include-ignored`
+// (unlike HARD_SKIP_DIRS, which stays non-negotiable):
+//   1. the repo's own .gitignore (root + nested, negation-aware — reusing
+//      buildIgnoreMatcher above, one definition);
+//   2. a built-in build-output NAME set that also matches by pattern
+//      (`.next-build`, not just `.next`) so a customer's untracked or
+//      differently-named build directory is still recognised even without
+//      a .gitignore entry for it.
+//
+// Untracked-but-not-ignored files are never touched by either mechanism —
+// this is pattern matching against .gitignore text, never `git status`, so
+// a fresh file the developer has not committed yet keeps scanning normally.
+
+const BUILD_OUTPUT_DIR_RE =
+  /^(?:\.next(?:-.*)?|dist|build|out|coverage|\.turbo|\.cache|\.nuxt|\.svelte-kit|target)$/;
+
+/** Is this single path SEGMENT (never a full path) a build-output dir name? */
+function isBuildOutputSegment(name) {
+  return BUILD_OUTPUT_DIR_RE.test(name);
+}
+
+// One switch, process-wide, set once from the CLI flag (bin/gatetest.js,
+// beside the --offline precedent in src/core/offline.js) before any module
+// runs. Deliberately NOT threaded through GateTestConfig/GateTestRunner
+// options: gitignore-matching happens inside BaseModule._collectFiles, which
+// every module calls directly, and several unrelated in-flight PRs already
+// touch the options object built in bin/gatetest.js and the DEFAULT_CONFIG /
+// FLAG_SPEC regions around it — a bare module-level flag avoids stacking a
+// same-line collision on top of theirs.
+let _includeIgnored = false;
+
+/** Set from `--include-ignored` (or a test) — true disables both skip sources. */
+function setIncludeIgnored(value) {
+  _includeIgnored = Boolean(value);
+}
+
+/** Whether the current process has opted out of the gitignore/build-output skip. */
+function includeIgnoredFiles() {
+  return _includeIgnored;
+}
+
+// A scan walks the same tree from every module in the suite (4 to 121 of
+// them) — rebuilding the .gitignore parse (its own bounded fs walk +
+// per-line regex compile) that many times measured real wall-clock cost on
+// AlecRae's monorepo. Cached per project root; a single CLI invocation is a
+// single process scanning a .gitignore that does not change mid-run, so no
+// invalidation beyond "new root, new cache entry" is needed.
+const _scanMatcherCache = new Map();
+
+/**
+ * The combined "is this path out of scope for a default scan" matcher:
+ * the repo's .gitignore (nested + negation, via buildIgnoreMatcher) OR the
+ * built-in build-output name set. Callers check directories at descent time
+ * (isDir=true) as well as individual files — a dir-only .gitignore rule
+ * (`.next-build/`) only matches when isDir is true (see compilePattern), so
+ * skipping the directory-level check would silently rescan everything under
+ * it via the file branch alone.
+ *
+ * @param {string} root — repo root (absolute)
+ * @returns {(relativePath: string, isDir?: boolean) => boolean}
+ */
+function getScanIgnoreMatcher(root) {
+  const cached = _scanMatcherCache.get(root);
+  if (cached) return cached;
+  const gitignoreMatches = buildIgnoreMatcher(root);
+  const matcher = function isIgnoredForScan(relativePath, isDir = false) {
+    if (gitignoreMatches(relativePath, isDir)) return true;
+    const segs = String(relativePath).replace(/\\/g, '/').split('/');
+    return segs.some(isBuildOutputSegment);
+  };
+  _scanMatcherCache.set(root, matcher);
+  return matcher;
+}
+
+/** Test-only: drop cached matchers so a fixture root can be rebuilt. */
+function clearScanIgnoreMatcherCache() {
+  _scanMatcherCache.clear();
+}
+
+/**
+ * Count every file under `root` that the default scan would skip (gitignore
+ * match or built-in build-output name), for the console/JSON summary — one
+ * real second walk, done ONCE per scan (not once per module, which would
+ * multiply the reported number by however many modules ran).
+ *
+ * @param {string} root
+ * @returns {number}
+ */
+function countIgnoredFiles(root) {
+  const matcher = getScanIgnoreMatcher(root);
+
+  let count = 0;
+  const countAllFilesUnder = (dir) => {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (HARD_SKIP_DIRS.has(e.name)) continue;
+        countAllFilesUnder(full);
+      } else if (e.isFile()) {
+        count += 1;
+      }
+    }
+  };
+
+  const walk = (dir) => {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      const rel = repoRelative(root, full);
+      if (e.isDirectory()) {
+        // Hard skips (node_modules, .git, ...) are never counted here — they
+        // are a separate, always-on mechanism, not a gitignore/build-output
+        // finding this feature surfaces.
+        if (HARD_SKIP_DIRS.has(e.name)) continue;
+        if (matcher(rel, true)) {
+          countAllFilesUnder(full);
+          continue;
+        }
+        walk(full);
+      } else if (e.isFile()) {
+        if (matcher(rel, false)) count += 1;
+      }
+    }
+  };
+  walk(root);
+  return count;
+}
+
 module.exports = {
   HARD_SKIP_DIRS,
   compilePattern,
   buildIgnoreMatcher,
   collectGitignoreFiles,
+  BUILD_OUTPUT_DIR_RE,
+  isBuildOutputSegment,
+  setIncludeIgnored,
+  includeIgnoredFiles,
+  getScanIgnoreMatcher,
+  clearScanIgnoreMatcherCache,
+  countIgnoredFiles,
 };

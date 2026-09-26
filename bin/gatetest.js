@@ -270,6 +270,15 @@ const HELP = `
                        --format json still emits its document on stdout;
                        exit codes are unchanged. Same as
                        GATETEST_NO_ARTIFACTS=1.
+    --include-ignored  Also scan paths matched by the repo's .gitignore
+                       (root + nested, negation-aware) and the built-in
+                       build-output name set (.next/.next-*, dist, build,
+                       out, coverage, .turbo, .cache, .nuxt, .svelte-kit,
+                       target). Off by default (issue #767) — a customer's
+                       committed build output is not their code, and
+                       scanning it was 300 of 600 findings on one real
+                       monorepo. Untracked-but-not-ignored files are always
+                       scanned either way.
     --confidence-threshold <0..1>
                        Confidence threshold below which error-severity
                        findings are downgraded to "soft errors" (visible
@@ -491,6 +500,12 @@ async function main() {
   // rather than run against a network that is not there.
   const { isOffline, enableOffline } = require('../src/core/offline');
   if (args.offline) enableOffline();
+  // --include-ignored (issue #767): opt back into scanning paths matched by
+  // the repo's .gitignore and the built-in build-output name set. Same
+  // process-wide-switch shape as --offline above (src/core/gitignore.js
+  // `setIncludeIgnored`), read directly by BaseModule._collectFiles.
+  const { setIncludeIgnored } = require('../src/core/gitignore');
+  setIncludeIgnored(args.includeIgnored === true);
   if (isOffline() && (args.fix || args.autoPr)) {
     console.error('[GateTest] offline mode: --fix / --auto-pr need the AI provider API and are not run. The scan continues without them.');
     args.fix = false;

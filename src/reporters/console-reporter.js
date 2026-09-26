@@ -268,6 +268,12 @@ class ConsoleReporter {
       if (pf.exclude.length) parts.push(`exclude ${pf.exclude.join(', ')}`);
       console.log(`${COLORS.dim}  Scope: .gatetest.json paths — ${parts.join('; ')}${pf.findingsDropped ? ` (${pf.findingsDropped} finding(s) outside it not shown)` : ''}${COLORS.reset}`);
     }
+    // Issue #767 — never silent about what was deliberately out of scope:
+    // gitignored paths (and the built-in build-output name set) are skipped
+    // by default, so the not-checked/deferred part of the summary says so.
+    if (summary.gitignoreSkip) {
+      console.log(`${COLORS.dim}  Not checked: ${summary.gitignoreSkip.count} gitignored path(s) skipped (--include-ignored to scan them)${COLORS.reset}`);
+    }
     console.log(`  Modules:  ${summary.modules.passed}/${summary.modules.total} passed`);
     // "86/89 passed" reads as "the whole engine ran". When a suite
     // deliberately holds a module back, saying so here is the difference
