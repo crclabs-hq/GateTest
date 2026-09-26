@@ -379,6 +379,16 @@ one-line stderr hint after the summary the first time it notices that repo's
 own `.gitignore` doesn't cover it (never in `--format json` mode, never with
 `--no-artifacts`).
 
+### Gitignored paths and build output
+
+By default, a scan skips anything matched by the repo's `.gitignore` (root +
+nested, negation-aware) plus a built-in build-output name set (`.next`/
+`.next-*`, `dist`, `build`, `out`, `coverage`, `.turbo`, `.cache`, `.nuxt`,
+`.svelte-kit`, `target`) — a customer's committed build output is not their
+code. Untracked-but-not-ignored files are always scanned. Pass
+`--include-ignored` to scan everything anyway; the summary prints how many
+paths were skipped either way.
+
 ### Docker
 
 Every release tag and every push to `main` publishes an image to GitHub Container
