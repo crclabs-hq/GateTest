@@ -35,7 +35,11 @@ type Entry = {
 };
 
 const REPO = "https://github.com/crclabs-hq/GateTest";
-const entries = changelog.entries as Entry[];
+// The JSON import is typed by inference over the current file, so a run of
+// entries with empty `modules` and `null` `version` (2026-09-26 refresh) makes
+// the inferred shape non-overlapping with Entry and TS2352 breaks the build.
+// The shape is enforced by tests/changelog-sync.test.js, not by inference.
+const entries = changelog.entries as unknown as Entry[];
 const generated = new Date(changelog.generatedAt);
 
 const AREA_LABEL: Record<string, string> = {
