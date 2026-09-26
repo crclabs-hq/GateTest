@@ -95,6 +95,12 @@ const HELP = `
                                      GATETEST_API_KEY (a gt_live_ REST key);
                                      --json for the raw report. See
                                      'gatetest usage --help'.
+    gatetest report-fp <id> --reason "<text>"
+                                     Print a prefilled GitHub issue URL
+                                     reporting a false positive. Sends
+                                     nothing. <id> is the module:rule id
+                                     .gatetestignore uses. See
+                                     'gatetest report-fp --help'.
 
   OPTIONS
     --suite <name>     Run a test suite: quick, standard, full (default: standard)
@@ -382,7 +388,7 @@ async function main() {
   //                            every existing invocation keeps working.
   const rawArgs = process.argv.slice(2);
   const first = rawArgs[0];
-  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan', 'train', 'fix', 'trace', 'blame', 'verify-report', 'usage']);
+  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan', 'train', 'fix', 'trace', 'blame', 'verify-report', 'usage', 'report-fp']);
   if (first === 'verify-report') {
     // gatetest verify-report <report.json> [--key <key>]
     // Checks the HMAC signature over the provenance block and that the
@@ -437,6 +443,14 @@ async function main() {
     // as a table or --json. Reads GATETEST_API_KEY; no key → one line, exit 2.
     const usage = require('./gatetest-usage');
     const code = await usage.main(rawArgs.slice(1));
+    process.exit(code || 0);
+  }
+  if (first === 'report-fp') {
+    // gatetest report-fp <module:rule> --reason "<text>" — prints a
+    // prefilled GitHub issue URL for a false positive; sends nothing itself
+    // (the Fifty, move 20 — false-positive SLA, entrance 1 of 2).
+    const reportFp = require('./gatetest-report-fp');
+    const code = await reportFp.main(rawArgs.slice(1));
     process.exit(code || 0);
   }
   if (first === 'fix') {
