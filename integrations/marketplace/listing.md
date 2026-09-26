@@ -52,55 +52,45 @@
 ## Short description (≤160 chars — Marketplace search card)
 
 ```
-121-module code quality gate for GitHub. Free continuous scanning on every push. Deeper AI-powered scans and auto-fix PRs available on gatetest.io.
+121-module quality gate. Free on every push: blocks on the diff, not the backlog, and says what it did not check. Deeper scans and auto-fix PRs at gatetest.io.
 ```
 
 ---
 
-## Full description (Markdown — Marketplace listing page)
+## Introductory description (≤500 chars — top of the listing page)
+
+```
+GateTest is a CI quality gate that fails on the diff, not the backlog. Every push and pull request is scanned by every deterministic module of the 121-module engine, and the gate blocks only on lines the change touched. Older findings are reported, never enforced. Every report says what was not checked. Free on every repo you install it on, no card. Model-powered review and auto-fix pull requests are sold separately at [gatetest.io](https://gatetest.io).
+```
+
+---
+
+## Detailed description (400–2000 chars, Markdown — below the introduction)
 
 ```markdown
-## One gate, 121 modules, installed in 30 seconds
+### What runs on every push, free
+Every deterministic module in the 121-module engine: hardcoded secrets, SSRF, ReDoS, TLS and cookie misconfiguration, SQL-migration safety, N+1 queries, race conditions, resource leaks, async footguns, Dockerfile / Kubernetes / Terraform hardening, CI-workflow hardening, import cycles, dead code, money-as-float, PII in logs. You get a commit status and a pull-request comment that lists findings by line and names what was not checked.
 
-GateTest scans every push to your repo and posts a pass/fail commit status —
-free, forever, no card required. It checks syntax, lint rules, and hardcoded
-secrets on every single push automatically once installed.
+### Built for people who have been burned by scanners
+- **Blocks on the diff, not the backlog.** A finding on a line you did not touch is reported, never enforced. Install on a ten-year-old repo and the next PR is judged on its own changes.
+- **Says what it did not check.** A skipped module or a file cap is written into the comment. A pass from a fallback never wears the green tick.
+- **Precision is measured on code we did not write.** Twenty pinned open-source repos across eight languages, re-run nightly, published at https://gatetest.io/precision.
+- **No model calls on the free scan.** Every verdict is a deterministic rule you can reproduce locally with `npx @gatetest/cli`.
+- **The free scan never writes to your repository.**
 
-For teams that want the full 121-module pass — security, reliability,
-infrastructure, accessibility, performance, and AI-powered code review
-with automatic fix pull requests — deeper scans are available as a separate
-purchase on [gatetest.io](https://gatetest.io). This app install is not where
-that payment happens; it's free the moment you add it to a repo.
-
-### What the free tier checks on every push
-- Syntax errors
-- Lint violations
-- Hardcoded secrets (API keys, tokens, credentials)
-- Core code-quality issues
-
-### What the full 121-module scan adds (gatetest.io, separate purchase)
-- Security: SSRF, ReDoS, TLS bypass, cookie misconfig, SQL migration safety
-- Reliability: N+1 queries, race conditions, resource leaks, async footguns
-- Infrastructure: Dockerfile, Kubernetes, Terraform/IaC, CI-workflow hardening
-- AI-generated-code specific checks: fake-fix detection, prompt-injection
-  surfaces, money-as-float bugs
-- AI-powered code review that reasons about the change, not just pattern
-  matches
-- Auto-fix pull requests on the paid fix tiers — review the diff, merge
-  (needs an `ANTHROPIC_API_KEY` secret on the repo or org; optional —
-  without it GateTest still posts the free scan results, it just doesn't
-  open a fix PR, and it tells you how to add the secret when it would have)
+### What the paid tiers add (gatetest.io, separate purchase)
+- Model-powered review that reasons about the change, plus fake-fix detection for AI-generated code.
+- Auto-fix pull requests on the fix tiers: review the diff, merge.
+- Continuous full-depth scanning on every push, one subscription for the whole org.
 
 ### How it works
-1. **Install** — add GateTest to the repos you want covered.
-2. **Push** — every push triggers the free quick gate automatically.
-3. **See results** — a commit status and PR comment show what was found.
-4. **Go deeper (optional)** — run a full 121-module scan, or subscribe to
-   continuous full-depth scanning, at [gatetest.io](https://gatetest.io).
+1. **Install** on the repos you want covered.
+2. **Push.** The scan runs on every push and pull request.
+3. **Read** the commit status and the PR comment.
+4. **Go deeper** when you want to, at [gatetest.io](https://gatetest.io).
 
 ### Privacy
-Code is scanned to produce a result; see the privacy policy for exactly what
-is retained and for how long: https://gatetest.io/legal/privacy
+Code is read to produce a result. What is retained and for how long: https://gatetest.io/legal/privacy
 ```
 
 ---
