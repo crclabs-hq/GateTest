@@ -110,6 +110,9 @@ interface WebFinding {
   body: string;
   module: string;
   ruleKey: string;
+  // The Fifty, move 14: 'deterministic' | 'model' | 'mixed' — set once in
+  // scan-finding-translate.js from the raw engine check.
+  verdictSource: "deterministic" | "model" | "mixed";
 }
 
 // Doctrine #4 (one definition, imported) / issue #695: translateFinding
@@ -117,7 +120,7 @@ interface WebFinding {
 // and is imported by all four hosted scan routes (web + wp, JSON + stream).
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { translateFinding } = require("@/app/lib/scan-finding-translate") as {
-  translateFinding: (check: { name: string; severity?: string; message?: string }) => WebFinding | null;
+  translateFinding: (check: { name: string; severity?: string; message?: string; verdictSource?: string }) => WebFinding | null;
 };
 
 /**
@@ -140,6 +143,7 @@ function translateProbeFinding(pf: {
     body: pf.message + "\n\n*Detected from the live server response — not from static config file analysis.*",
     module: pf.module,
     ruleKey: `live:${pf.rule}`,
+    verdictSource: "deterministic",
   };
 }
 
@@ -348,7 +352,7 @@ export async function POST(req: NextRequest) {
       findings: WebFinding[],
       opts?: { includeInfo?: boolean }
     ) => {
-      clusters: Array<{ ruleKey: string; severity: 'error' | 'warning' | 'info'; title: string; body: string; module: string; count: number; instances: WebFinding[]; isHighSignal: boolean }>;
+      clusters: Array<{ ruleKey: string; severity: 'error' | 'warning' | 'info'; title: string; body: string; module: string; count: number; instances: WebFinding[]; isHighSignal: boolean; verdictSource: 'deterministic' | 'model' | 'mixed' }>;
       totalIn: number;
       totalInstances: number;
       droppedInfo: number;
@@ -401,6 +405,7 @@ export async function POST(req: NextRequest) {
     ruleKey: c.ruleKey,
     instanceCount: c.count,
     highSignal: c.isHighSignal,
+    verdictSource: c.verdictSource,
   }));
 
   // The headless-browser runtime pass (live JS errors, hydration mismatches,

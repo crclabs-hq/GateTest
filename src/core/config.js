@@ -683,6 +683,14 @@ const DEFAULT_CONFIG = {
     autoFix: true,
     autoRollback: true,
     rollbackWindow: 900,  // seconds (15 minutes)
+    // The Fifty, move 14 (complaints C1/C4): a model-judged finding
+    // (verdictSource === 'model' — its verdict came from asking an AI to
+    // review the code, not a deterministic rule) never blocks the gate on
+    // its own by default. Opt in with this key, `--model-verdicts-block`,
+    // or `GATETEST_MODEL_VERDICTS_BLOCK=1` (see runner.js GateTestRunner
+    // constructor for precedence). `wouldBlock` on the finding always shows
+    // what a stricter policy would have decided.
+    modelVerdictsBlock: false,
   },
 
   // Incremental scan — used by --since <ref> / --pr to skip unchanged files.

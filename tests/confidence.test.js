@@ -9,6 +9,7 @@ const {
   DEFAULT_RULE_OVERRIDES,
   scoreFinding,
   isBlockingFinding,
+  wouldBlockFinding,
   _signals,
 } = require('../src/core/confidence');
 
@@ -328,6 +329,50 @@ test('isBlockingFinding: custom threshold raises the bar', () => {
       0.9,
     ),
     true,
+  );
+});
+
+// ─── verdictSource gate policy (the Fifty, move 14) ───────────────────────
+// Control pair: a deterministic finding blocks exactly as before; a
+// model-judged finding with the SAME severity/confidence does not, unless
+// the caller opts in via modelVerdictsBlock.
+
+test('isBlockingFinding: deterministic error still blocks with no policy flag (control)', () => {
+  assert.equal(
+    isBlockingFinding({ passed: false, severity: 'error', confidence: 1.0, verdictSource: 'deterministic' }),
+    true,
+  );
+});
+
+test('isBlockingFinding: model-judged error does NOT block by default', () => {
+  assert.equal(
+    isBlockingFinding({ passed: false, severity: 'error', confidence: 1.0, verdictSource: 'model' }),
+    false,
+  );
+});
+
+test('isBlockingFinding: model-judged error blocks when modelVerdictsBlock=true', () => {
+  assert.equal(
+    isBlockingFinding({ passed: false, severity: 'error', confidence: 1.0, verdictSource: 'model' }, BLOCK_THRESHOLD, true),
+    true,
+  );
+});
+
+test('isBlockingFinding: a low-confidence model finding never blocks even with the flag on', () => {
+  assert.equal(
+    isBlockingFinding({ passed: false, severity: 'error', confidence: 0.1, verdictSource: 'model' }, BLOCK_THRESHOLD, true),
+    false,
+  );
+});
+
+test('wouldBlockFinding ignores verdictSource — confidence-only, for the "what a stricter policy would do" disclosure', () => {
+  assert.equal(
+    wouldBlockFinding({ passed: false, severity: 'error', confidence: 1.0, verdictSource: 'model' }),
+    true,
+  );
+  assert.equal(
+    wouldBlockFinding({ passed: false, severity: 'error', confidence: 0.1, verdictSource: 'model' }),
+    false,
   );
 });
 

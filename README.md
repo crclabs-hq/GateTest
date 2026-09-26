@@ -185,6 +185,24 @@ engine.
 
 Project-wide options live in `.gatetest.json` (suites, per-module config, severity overrides) — run `gatetest --init` to scaffold one.
 
+### Deterministic vs. model-judged findings
+
+GateTest runs two kinds of checks. Most modules (secrets, syntax, lint, crossFileTaint, and the rest of the deterministic majority) are rules: given the same input they always produce the same verdict. A handful of modules (aiReview, agentic, architectureDrift, intentVerification, regressionPredictor, and the AI-engine half of fakeFixDetector) ask a model to judge the code — a different kind of evidence, and one that shouldn't be weighted the same as a rule firing.
+
+Every finding carries a `verdictSource`: `deterministic`, `model`, or `mixed`. **A model-judged finding never blocks the gate by default** — it's reported as a warning, with `wouldBlock: true` preserved on the finding so you can see what a stricter policy would have decided. Opt model-judged findings INTO blocking with:
+
+```bash
+gatetest --suite full --model-verdicts-block
+```
+
+or `.gatetest.json`:
+
+```json
+{ "gate": { "modelVerdictsBlock": true } }
+```
+
+or the environment variable `GATETEST_MODEL_VERDICTS_BLOCK=1`. Every surface shows the split: the console summary prints deterministic vs. model-judged blocking counts, the JSON report tags each finding's `verdictSource`, SARIF carries it under `properties.verdictSource` for the GitHub Security tab, and the PR comment labels model-judged findings so a reviewer knows which alerts are a rule and which are an opinion.
+
 ### Onboarding a mature repo — baseline mode
 
 Turning a scanner on against a large existing codebase usually means drowning in a backlog you didn't write. GateTest's baseline mode grandfathers everything that exists today so the gate only ever fails on **new** findings — "clean as you code."
