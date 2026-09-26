@@ -1,0 +1,58 @@
+name: False positive
+description: Report a finding that should not have fired
+title: "False positive: "
+labels: ["false-positive"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. GateTest's practice is a control-pair test
+        for every retracted false positive — the real line that should stay
+        quiet, pinned as a regression test — and a public ledger of how long
+        each one took to fix. `gatetest report-fp <module:rule> --reason "..."`
+        prefills most of this form for you.
+  - type: input
+    id: rule-id
+    attributes:
+      label: Rule id
+      description: The module:rule id from the finding (the same id .gatetestignore uses).
+      placeholder: "secrets:apiKey"
+    validations:
+      required: true
+  - type: textarea
+    id: finding-message
+    attributes:
+      label: Finding message and why it is wrong
+      description: The exact finding text, and why you believe it does not apply here.
+    validations:
+      required: true
+  - type: textarea
+    id: snippet
+    attributes:
+      label: Minimal snippet
+      description: A few lines that reproduce the finding. Trim anything you do not want to share — see the checkbox below.
+      render: text
+    validations:
+      required: false
+  - type: input
+    id: engine-version
+    attributes:
+      label: Engine version
+      description: Output of `gatetest --version`.
+      placeholder: "1.61.1"
+    validations:
+      required: true
+  - type: input
+    id: expected-verdict
+    attributes:
+      label: Expected verdict
+      description: What the finding should have said instead (e.g. "should not fire", "should be a warning, not an error").
+    validations:
+      required: false
+  - type: checkboxes
+    id: can-share
+    attributes:
+      label: Sharing the file
+      options:
+        - label: I can share the full file privately if a maintainer asks.
+          required: false
