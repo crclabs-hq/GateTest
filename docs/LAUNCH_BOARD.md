@@ -59,7 +59,7 @@ mapped to the engine. Status verified 2026-09-25 22:30Z.
 | 5 | Test-impact analysis: `--diff` runs only tests the import graph touches | OPEN | `--diff` scopes modules, not tests |
 | 6 | Flaky-test ledger with auto-quarantine and a flake rate on the badge | OPEN | flakyTests rule only |
 | 7 | One PR comment, updated in place, top blocking first | DONE | `scripts/post-scan-summary-comment.js` PATCHes its own comment |
-| 8 | Fix PR with proof: failing-to-passing output, tests added, fake-fix verdict, diff cap | PARTIAL | fakeFixDetector exists; end-to-end proof waits on the arena's first clean cycle |
+| 8 | Fix PR with proof: failing-to-passing output, tests added, fake-fix verdict, diff cap | PR #754 | unitTests now attaches file/line/details.failures[] (TAP); the collector targets the failing test's resolved implementation, never the test; `fix --apply`/`--auto-pr` re-run the failing test post-fix and report `verified: true/false`; a model that proposes rewriting the test is refused. Control pair: `tests/fix-engine-failing-tests.test.js` |
 | 9 | Self-host parity: Docker image, GitLab template, Bitbucket pipe, GitLab login | PARTIAL | GHCR image yes (#516); GitLab/Bitbucket unverified |
 | 10 | Pricing copy answers per-token and double-billing complaints; usage receipt per run | UNVERIFIED | pricing page has tiers; receipt per run not checked |
 | 11 | Real analyzers for Go, Python, Java, Rust, measured on the corpus | OPEN | Go module is four regexes, standard suite runs no language module |

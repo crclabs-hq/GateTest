@@ -1127,31 +1127,10 @@ async function runAutoPr(summary, projectRoot, args) {
     }
   };
 
-  // Collect every fixable finding from the summary
-  const { extractFileFromCheck } = require('../src/core/parse-finding');
-  const fixable = [];
-  const needsManualReview = [];
-  for (const moduleResult of summary.results || []) {
-    for (const check of moduleResult.checks || []) {
-      if (check.passed) continue;
-      if (check.severity !== 'error' && check.severity !== 'warning') continue;
-      const checkWithModule = { ...check, module: moduleResult.module || moduleResult.name };
-      const { file, line } = extractFileFromCheck(checkWithModule);
-      const entry = {
-        moduleName: moduleResult.module || moduleResult.name || 'unknown',
-        checkName: check.name || 'unnamed-check',
-        file,
-        line,
-        message: check.message || check.details?.message || check.name || '',
-        severity: check.severity,
-      };
-      if (file) {
-        fixable.push(entry);
-      } else {
-        needsManualReview.push(entry);
-      }
-    }
-  }
+  // Collect every fixable finding from the summary (one definition, shared
+  // with `fix --apply` — src/core/fix-collector.js).
+  const { collectFixableFindings } = require('../src/core/fix-collector');
+  const { fixable, needsManualReview } = collectFixableFindings(summary, projectRoot);
 
   if (fixable.length === 0 && needsManualReview.length === 0) {
     return { error: 'No actionable findings — nothing to fix automatically' };
@@ -1193,6 +1172,11 @@ async function runAutoPr(summary, projectRoot, args) {
     const absPath = require_path.isAbsolute(fix.file) ? fix.file : require_path.join(projectRoot, fix.file);
     require('fs').writeFileSync(absPath, fix.fixed, 'utf-8');
     console.log(`  [\x1b[32m✓\x1b[0m] ${fix.file} (${fix.issues.length} issue${fix.issues.length !== 1 ? 's' : ''})`);
+    if (fix.result?.testName) {
+      console.log(fix.result.verified
+        ? `      failing test ${fix.result.testName} → fixed and re-verified`
+        : `      failing test ${fix.result.testName} → fix applied but re-verification failed (test still red)`);
+    }
   }
 
   // Write generated test files
@@ -1248,7 +1232,6 @@ async function runAutoPr(summary, projectRoot, args) {
 async function runFixApply(argv, rootDir) {
   const { GateTest } = require('../src/index');
   const { runFixBatch, formatDryRunPlan } = require('../src/core/cli-fix-orchestrator');
-  const { extractFileFromCheck } = require('../src/core/parse-finding');
   const { resolveModelChoice, CHEAP_MODEL, ALLOWED_FIX_MODELS } = require('../src/core/engine-models');
 
   const localArgs = { suite: 'standard' };
@@ -1338,26 +1321,10 @@ ${Object.entries(ALLOWED_FIX_MODELS)
     return 0;
   }
 
-  // Collect every finding that has a file path
-  const fixable = [];
-  const noFile = [];
-  for (const moduleResult of summary.results || []) {
-    for (const check of moduleResult.checks || []) {
-      if (check.passed) continue;
-      if (check.severity !== 'error' && check.severity !== 'warning') continue;
-      const merged = { ...check, module: moduleResult.module || moduleResult.name };
-      const { file } = extractFileFromCheck(merged);
-      const entry = {
-        moduleName: merged.module || 'unknown',
-        checkName: check.name || 'unnamed-check',
-        file,
-        message: check.message || check.details?.message || check.name || '',
-        severity: check.severity,
-      };
-      if (file) fixable.push(entry);
-      else noFile.push(entry);
-    }
-  }
+  // Collect every finding that has a file path (one definition, shared with
+  // --auto-pr — src/core/fix-collector.js).
+  const { collectFixableFindings } = require('../src/core/fix-collector');
+  const { fixable, needsManualReview: noFile } = collectFixableFindings(summary, rootDir);
 
   if (fixable.length === 0) {
     console.log(`\n  \x1b[33m[GateTest fix]\x1b[0m No file-level findings to fix.`);
@@ -1384,7 +1351,12 @@ ${Object.entries(ALLOWED_FIX_MODELS)
   const { accepted, testFiles } = orchestration;
 
   if (accepted.length === 0) {
-    console.log('\n  \x1b[33m[GateTest fix]\x1b[0m No fixes passed the syntax gate.\n');
+    const testChangeProposed = (orchestration.failed || []).find((f) => f.reason === 'test-change proposed');
+    if (testChangeProposed) {
+      console.log(`\n  \x1b[33m[GateTest fix]\x1b[0m Refused: the model proposed changing the test, not the implementation (${testChangeProposed.file}) — nothing applied.\n`);
+    } else {
+      console.log('\n  \x1b[33m[GateTest fix]\x1b[0m No fixes passed the syntax gate.\n');
+    }
     return 1;
   }
 
@@ -1401,6 +1373,11 @@ ${Object.entries(ALLOWED_FIX_MODELS)
     const absPath = path.isAbsolute(fix.file) ? fix.file : path.join(rootDir, fix.file);
     fs.writeFileSync(absPath, fix.fixed, 'utf-8');
     console.log(`  [\x1b[32m✓\x1b[0m] ${fix.file} (${fix.issues.length} issue${fix.issues.length !== 1 ? 's' : ''} fixed)`);
+    if (fix.result?.testName) {
+      console.log(fix.result.verified
+        ? `      failing test ${fix.result.testName} → fixed and re-verified`
+        : `      failing test ${fix.result.testName} → fix applied but re-verification failed (test still red)`);
+    }
   }
 
   // Write regression tests
