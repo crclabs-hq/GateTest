@@ -62,7 +62,12 @@ class ConsoleReporter {
     const { blocking, top, hiddenCount } = triageFindings(summary.results, {
       blockThreshold: summary.confidenceThreshold,
     });
-    if (blocking.length === 0 && top.length === 0) return;
+    // Root cause (move 12): why / since / replay — computed once by the
+    // runner (src/core/root-cause.js), never on a PASSED run, and printed
+    // even when there are no individual findings to list (e.g. a config
+    // error or a budget-limited module crashed before producing any).
+    const rootCause = summary.gateStatus === 'BLOCKED' ? summary.rootCause : null;
+    if (blocking.length === 0 && top.length === 0 && !rootCause) return;
 
     const line = (f, mark) => {
       const c = f.check;
@@ -87,11 +92,20 @@ class ConsoleReporter {
     const blockingHidden = blocking.length - blockingShown.length;
 
     console.log('');
-    if (blocking.length > 0) {
+    if (blocking.length > 0 || rootCause) {
       console.log(`${COLORS.bold}  What's blocking you${COLORS.reset}${blocking.length > BLOCKING_SHOWN ? ` ${COLORS.dim}(worst ${BLOCKING_SHOWN} of ${blocking.length})${COLORS.reset}` : ''}`);
       for (const f of blockingShown) line(f, `${COLORS.red}✗${COLORS.reset}`);
       if (blockingHidden > 0) {
         console.log(`      ${COLORS.dim}…and ${blockingHidden} more blocking finding(s).${COLORS.reset}`);
+      }
+      // The fixed three-line block every BLOCKED verdict ends with (move 12):
+      // classifier verdict, the commit git blame resolves it to (or an
+      // honest "not checked"), and the exact command to reproduce it.
+      if (rootCause) {
+        console.log('');
+        console.log(`      ${COLORS.bold}why:${COLORS.reset}     ${rootCause.why}`);
+        console.log(`      ${COLORS.bold}since:${COLORS.reset}   ${rootCause.sinceText}`);
+        console.log(`      ${COLORS.bold}replay:${COLORS.reset}  ${rootCause.replay}`);
       }
       if (top.length > 0) console.log('');
     }

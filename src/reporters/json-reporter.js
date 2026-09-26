@@ -59,6 +59,11 @@ class JsonReporter {
         // either kind honestly (Forbidden #16 — never a fake pass).
         deferred: Array.isArray(summary.deferred) ? summary.deferred : [],
         budgetLimited: summary.budgetLimited === true,
+        // Root cause on every red run (move 12) — why, which commit
+        // introduced the first blocking finding (or an honest "not
+        // checked"/"unknown"), and the exact replay command. Null on a
+        // PASSED run and never fabricated.
+        rootCause: summary.rootCause || null,
       },
       results: summary.results,
       failures: summary.failedModules,
