@@ -3,6 +3,7 @@ import Link from "next/link";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import PageHero from "../../components/site/PageHero";
 import Section from "../../components/site/Section";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 const DESCRIPTION = `Next.js-aware checks from GateTest's ${TOTAL_MODULES}-module engine: App Router conventions, import cycles, TypeScript strict mode, performance budgets, security headers, NEXT_PUBLIC_* exposure, accessibility. AI-powered fixes at the Scan + Fix tier and above.`;
 
@@ -172,7 +173,7 @@ export default function NextJsPage() {
 
   return (
     <main>
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />

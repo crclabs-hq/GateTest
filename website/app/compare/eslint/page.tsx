@@ -3,6 +3,7 @@ import Link from "next/link";
 import ComparisonReviewed from "@/app/components/ComparisonReviewed";
 import PageHero from "../../components/site/PageHero";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = {
   title: "GateTest vs ESLint — what a syntax-tree linter does not check",
@@ -87,7 +88,7 @@ export default function EsLintPage() {
 
   return (
     <main>
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
