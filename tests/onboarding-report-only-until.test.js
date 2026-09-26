@@ -18,7 +18,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const { isValidIsoDate, resolveReportOnlyUntil } = require('../src/core/onboarding-mode');
-const { isoDatePlusDays } = require('../bin/gatetest-baseline');
+const { isoDatePlusDays, buildRecap } = require('../bin/gatetest-baseline');
 
 const ROOT = path.resolve(__dirname, '..');
 const BIN = path.join(ROOT, 'bin', 'gatetest.js');
@@ -98,6 +98,36 @@ describe('gatetest baseline --init — isoDatePlusDays', () => {
   it('adds calendar days in UTC, independent of local time', () => {
     assert.equal(isoDatePlusDays(14, new Date('2026-09-26T23:59:00Z')), '2026-10-10');
     assert.equal(isoDatePlusDays(0, new Date('2026-09-26T00:00:00Z')), '2026-09-26');
+  });
+});
+
+describe('gatetest baseline --init — buildRecap', () => {
+  it('shapes the config snippet, report-only-until date, and CI line from a capture result', () => {
+    const recap = buildRecap({
+      baseline: { captured: 3, byModule: { secrets: 2, lint: 1 }, path: '/repo/.gatetest/baseline.json' },
+      suite: 'standard',
+      projectRoot: '/repo',
+      untilDate: '2026-10-10',
+    });
+    assert.equal(recap.captured, 3);
+    assert.deepEqual(recap.byModule, { secrets: 2, lint: 1 });
+    assert.equal(recap.path, '/repo/.gatetest/baseline.json');
+    assert.equal(recap.reportOnlyUntil, '2026-10-10');
+    assert.deepEqual(recap.configSnippet, { reportOnlyUntil: '2026-10-10' });
+    assert.match(recap.ciLine, /--suite standard/);
+    assert.match(recap.ciLine, /--project \/repo/);
+  });
+
+  it('defaults captured/byModule to zero/empty when the capture reports neither', () => {
+    const recap = buildRecap({
+      baseline: {},
+      suite: 'quick',
+      projectRoot: process.cwd(),
+      untilDate: '2026-10-10',
+    });
+    assert.equal(recap.captured, 0);
+    assert.deepEqual(recap.byModule, {});
+    assert.match(recap.ciLine, /--project \./, 'the cwd project root renders as . in the CI line');
   });
 });
 
