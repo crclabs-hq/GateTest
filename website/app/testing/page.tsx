@@ -27,6 +27,7 @@ import {
   describeArenaFailure,
   type PullRequest,
 } from "./arena-fetch";
+import { selectProofTone } from "../lib/testing-proof-tone";
 
 export const revalidate = 60;
 
@@ -125,7 +126,27 @@ function aggregate(cycles: Cycle[]) {
       ? fixTimes[Math.floor(fixTimes.length / 2)]
       : null;
   const successRate = total > 0 ? Math.round((fixed / total) * 100) : 0;
-  return { total, fixed, failed, pending, median, successRate };
+  // The most recently merged fix, if any — GT-01's tone decision needs this,
+  // not just the historical percentage, so a page can't stay green forever
+  // on a single old win.
+  const lastFixedAt = cycles
+    .filter((c) => c.outcome === "fixed" && c.mergedAt)
+    .map((c) => c.mergedAt as string)
+    .reduce<string | null>(
+      (latest, iso) =>
+        latest === null || new Date(iso).getTime() > new Date(latest).getTime() ? iso : latest,
+      null,
+    );
+  return { total, fixed, failed, pending, median, successRate, lastFixedAt };
+}
+
+// Known cause for zero merged fixes, when the data itself makes it obvious —
+// optional per GT-01: the page stays honest even without it.
+function inferStalledReason(stats: { fixed: number; pending: number; failed: number }): string | null {
+  if (stats.fixed > 0) return null;
+  if (stats.pending > 0) return "fixes are in flight but none has merged yet";
+  if (stats.failed > 0) return "the fixer's attempts did not merge";
+  return null;
 }
 
 export const metadata = {
@@ -166,6 +187,22 @@ function renderArena(prs: PullRequest[], staleNotice: string | null) {
     return <WarmingUpState repo={ARENA_REPO} />;
   }
 
+  // GT-01: a green "AUTO-FIXED 0%" is a lie by colour even when the number is
+  // honest. This decides, from the numbers alone, whether the page may use
+  // its success tone — see website/app/lib/testing-proof-tone.ts.
+  const proofTone = selectProofTone({
+    fixed: stats.fixed,
+    total: stats.total,
+    lastFixedAt: stats.lastFixedAt,
+    reason: inferStalledReason(stats),
+  });
+  const isWarning = proofTone.tone === "warning";
+  // Zero merged fixes is a harder failure than "it used to work" — reach for
+  // the danger token there, the amber warning token for stale-but-proven.
+  const severeTone: "warn" | "bad" = stats.fixed === 0 ? "bad" : "warn";
+  const autoFixedTone: "ok" | "warn" | "bad" = isWarning ? severeTone : "ok";
+  const medianTone: "warn" | "bad" | undefined = isWarning ? severeTone : undefined;
+
   return (
     <main>
       <PageHero
@@ -190,6 +227,7 @@ function renderArena(prs: PullRequest[], staleNotice: string | null) {
       />
 
       {staleNotice && <StaleSnapshotNotice notice={staleNotice} />}
+      {isWarning && <ProofToneNotice tone={severeTone} headline={proofTone.headline} />}
 
       <Section>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
@@ -198,12 +236,13 @@ function renderArena(prs: PullRequest[], staleNotice: string | null) {
             label="Auto-fixed"
             value={`${stats.successRate}%`}
             sub={`${stats.fixed} / ${stats.total}`}
-            tone="ok"
+            tone={autoFixedTone}
           />
           <StatTile
             label="Median fix time"
             value={stats.median !== null ? formatDuration(stats.median) : "—"}
-            sub="injection → fix PR"
+            sub={stats.median !== null ? "injection → fix PR" : "no fix has landed yet"}
+            tone={medianTone}
           />
           <StatTile
             label="Pending"
@@ -244,14 +283,16 @@ function StatTile({
   label: string;
   value: string;
   sub: string;
-  tone?: "ok" | "info";
+  tone?: "ok" | "info" | "warn" | "bad";
 }) {
   const valueColor =
     tone === "ok"
       ? "text-success"
-      : tone === "info"
+      : tone === "info" || tone === "warn"
         ? "text-warning"
-        : "text-foreground";
+        : tone === "bad"
+          ? "text-danger"
+          : "text-foreground";
   return (
     <div className="card p-5 text-center">
       <div className="text-xs uppercase tracking-wider text-muted font-semibold">
@@ -452,6 +493,19 @@ function StaleSnapshotNotice({ notice }: { notice: string }) {
         Showing the last successful read — {notice}. This refreshes automatically once the live
         read succeeds again.
       </p>
+    </Section>
+  );
+}
+
+// GT-01: the honest sentence that goes with a warning-tone stat row —
+// "cycles ran, fixes did not land", and why if known. Rendered whenever
+// selectProofTone() (website/app/lib/testing-proof-tone.ts) says the page
+// may not use its success tone.
+function ProofToneNotice({ tone, headline }: { tone: "warn" | "bad"; headline: string }) {
+  const cls = tone === "bad" ? "text-danger" : "text-warning";
+  return (
+    <Section narrow>
+      <p className={`text-sm text-center font-medium ${cls}`}>{headline}</p>
     </Section>
   );
 }
