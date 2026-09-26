@@ -13,6 +13,7 @@ const path = require('path');
 const PKG_VERSION = require('../../package.json').version;
 const { buildProvenance, signatureFor } = require('../core/report-provenance');
 const { buildComplianceEvidence, renderComplianceMarkdown } = require('../core/compliance-evidence');
+const { resolveReportDir } = require('../core/report-paths');
 
 class ComplianceReporter {
   constructor(runner, config) {
@@ -22,8 +23,7 @@ class ComplianceReporter {
   }
 
   _onSuiteEnd(summary) {
-    const reportDir = this.config.get('reporting.outputDir') || '.gatetest/reports';
-    const absDir = path.resolve(this.config.projectRoot, reportDir);
+    const absDir = resolveReportDir(this.config);
     fs.mkdirSync(absDir, { recursive: true });
 
     const evidence = buildComplianceEvidence(summary);
