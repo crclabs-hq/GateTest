@@ -12,7 +12,7 @@
  * Input: the WpFinding[] shape that `translateFinding()` in
  *   wp/scan/route.ts already emits: { severity, title, body, module, ruleKey }
  * Output: clusters of { ruleKey, severity, title, body, module, count,
- *   instances, isHighSignal }
+ *   instances, isHighSignal, verdictSource }
  *
  * "High signal" is the URL-scan analogue of "root cause" from the repo
  * flow — rules that immediately tell the customer the site is dangerously
@@ -105,11 +105,16 @@ function clusterByRule(findings) {
         count: 0,
         instances: [],
         isHighSignal: isHighSignal(key),
+        // The Fifty, move 14: 'deterministic' unless an instance says
+        // otherwise; a cluster whose instances disagree is 'mixed'.
+        verdictSource: f.verdictSource || 'deterministic',
       };
       map.set(key, cluster);
     }
     cluster.count += 1;
     cluster.instances.push(f);
+    const instanceSource = f.verdictSource || 'deterministic';
+    if (cluster.verdictSource !== instanceSource) cluster.verdictSource = 'mixed';
     // If this instance has a more severe rating than the cluster's
     // first-seen severity, promote the cluster. Errors win over warnings.
     if (

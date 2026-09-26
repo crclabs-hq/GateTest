@@ -126,6 +126,36 @@ function _buildMultiHypothesisPrompt(filePath, content, issues, priorError) {
   ].join('\n');
 }
 
+/**
+ * Extra `context` (the existing prompt-prepend seam) for a failing-test
+ * finding: the failing test's own source and its assertion output, with an
+ * explicit instruction that the target file is the IMPLEMENTATION, never the
+ * test. This is the one place that assembles what the model sees for a
+ * failing-test fix (THE-FIFTY move 8) — it slots into the same `context`
+ * parameter every other finding kind can already pass to
+ * `runFixOrchestration`, rather than adding a second prompt-building path.
+ */
+function _buildFailingTestContext(testFile, projectRoot, failures) {
+  const absTestFile = path.isAbsolute(testFile) ? testFile : path.join(projectRoot, testFile);
+  let testSource = '';
+  try { testSource = fs.readFileSync(absTestFile, 'utf-8'); } catch { /* error-ok — context degrades to just the assertion text */ }
+
+  const failureLines = failures.slice(0, 5).map((f, i) => {
+    const loc = f.line ? `${f.name} (${testFile}:${f.line})` : f.name;
+    const parts = [`${i + 1}. ${loc} — ${f.message}`];
+    if (f.expected != null || f.actual != null) parts.push(`   expected: ${f.expected}  actual: ${f.actual}`);
+    return parts.join('\n');
+  });
+
+  return [
+    `This file is the IMPLEMENTATION behind a failing test — ${testFile}.`,
+    `Failing test(s):`,
+    failureLines.join('\n'),
+    testSource ? `\nFailing test file content (${testFile}) — for context only, DO NOT reproduce or modify it:\n\`\`\`\n${testSource}\n\`\`\`` : '',
+    '\nFix the implementation below so the test passes. Never return the test file\'s content as your answer.',
+  ].filter(Boolean).join('\n');
+}
+
 // ── Hypothesis parsing ────────────────────────────────────────────────────────
 
 function _parseHypotheses(responseText) {
@@ -158,6 +188,17 @@ function _validateSyntax(code, ext) {
   }
   // TypeScript/TSX — no runtime syntax validator; treat as passing
   return { passed: true };
+}
+
+// A hypothesis that declares its own test blocks and imports a test runner
+// is a rewritten TEST, not an implementation — the one thing a failing-test
+// fix must never produce (THE-FIFTY move 8). Heuristic, not a parser: real
+// implementation files essentially never combine both signals.
+const TEST_RUNNER_IMPORT_RE = /require\(\s*['"](?:node:test|jest|vitest|mocha|chai|@jest\/globals)['"]\s*\)|from\s+['"](?:node:test|vitest|@jest\/globals)['"]/;
+const TEST_BLOCK_RE = /^\s*(?:describe|it|test)\s*\(/m;
+
+function _looksLikeTestRewrite(code) {
+  return TEST_RUNNER_IMPORT_RE.test(code) && TEST_BLOCK_RE.test(code);
 }
 
 // ── Test discovery & execution ────────────────────────────────────────────────
@@ -238,7 +279,13 @@ async function runFixOrchestration(opts) {
   catch (e) { return { fixed: false, reason: `unreadable: ${e.message}` }; }
 
   const ext      = path.extname(filePath);
-  const testFile = _findTestFile(filePath, projectRoot);
+  // A failing-test finding (THE-FIFTY move 8) already KNOWS the exact test
+  // file that is red — use it instead of guessing from the impl file's name,
+  // and never let a hypothesis rewrite it (enforceNoTestEdit below).
+  const testFile = opts.testFilePath
+    ? (path.isAbsolute(opts.testFilePath) ? opts.testFilePath : path.join(projectRoot, opts.testFilePath))
+    : _findTestFile(filePath, projectRoot);
+  const enforceNoTestEdit = Boolean(opts.testFilePath);
   // Dry run creates no scratch directory either — "never writes to disk"
   // means the temp dir too, not just the project tree.
   const tmpDir   = dryRun ? null : fs.mkdtempSync(path.join(os.tmpdir(), 'gt-hyp-'));
@@ -307,10 +354,23 @@ async function runFixOrchestration(opts) {
       try   { responseText = await callClaude(apiKey, systemPrompt, userPrompt, model); }
       catch (e) { return { fixed: false, reason: `ai-provider-error: ${e.message}` }; }
 
-      const hypotheses = _parseHypotheses(responseText);
+      let hypotheses = _parseHypotheses(responseText);
       if (hypotheses.length === 0) {
         priorError = 'model returned no parseable hypotheses';
         continue;
+      }
+
+      // Failing-test mode: the target is the implementation, never the test
+      // (THE-FIFTY move 8). A hypothesis that reads like a rewritten test —
+      // it imports a test runner and declares its own test blocks — is a
+      // proposal to change the test, refused outright rather than written
+      // into the implementation file it was supposed to fix.
+      if (enforceNoTestEdit) {
+        const clean = hypotheses.filter((h) => !_looksLikeTestRewrite(h.code));
+        if (clean.length === 0) {
+          return { fixed: false, reason: 'test-change proposed', testChangeProposed: true };
+        }
+        hypotheses = clean;
       }
 
       // Write each hypothesis to an isolated temp file (skipped on a dry
@@ -397,6 +457,21 @@ async function runFixOrchestration(opts) {
       if (winner.rank <= 2) {
         fs.writeFileSync(filePath, winner.code, 'utf-8');
 
+        // Proof (THE-FIFTY move 8): re-run ONLY the failing test file, fresh,
+        // against what is now on disk — a distinct, explicit check the caller
+        // can print, separate from the ranking's internal ranking test run.
+        // Honest either way (doctrine #1): a fix that does not make the test
+        // green is still reported, never silently swallowed into `fixed: true`.
+        let verified = null;
+        let verifiedSummary = null;
+        if (enforceNoTestEdit) {
+          const verifyResult = _runTests(testFile, TEST_TIMEOUT_MS);
+          verified = verifyResult.passed;
+          verifiedSummary = verifyResult.passed
+            ? 'failing test file passed on re-run'
+            : (verifyResult.output || 'failing test file still red on re-run').slice(0, 500);
+        }
+
         // Bidirectional gate — verify the fix with negative + positive controls.
         // Advisory only: the fix ships regardless. maxCorrections:0 prevents
         // rewriting existing customer tests; only generated tests use correction.
@@ -455,6 +530,12 @@ async function runFixOrchestration(opts) {
           dryRun:     false,
           advisory:   winner.rank === 2 ? 'Some tests remain amber — review before merging' : null,
           loop:       guard.getResult(),
+          ...(enforceNoTestEdit ? {
+            verified,
+            verifiedSummary,
+            testName:     opts.failingTestName || null,
+            testFilePath: testFile,
+          } : {}),
         };
       }
 
@@ -507,10 +588,14 @@ async function runFixOrchestration(opts) {
 async function runFixBatch(findings, projectRoot, apiKey, opts = {}) {
   const { maxAttempts = MAX_ATTEMPTS, fileCap = 50, model = CHEAP_MODEL, dryRun = false } = opts;
   const byFile = new Map();
+  const failingTestByFile = new Map(); // file → { testFile, failures } (last one wins)
   for (const f of findings || []) {
     if (!f || !f.file) continue;
     if (!byFile.has(f.file)) byFile.set(f.file, []);
     byFile.get(f.file).push(`${f.moduleName || 'module'}:${f.checkName || 'check'} — ${f.message || ''}`);
+    if (f.kind === 'failing-test' && f.testFile && Array.isArray(f.failures) && f.failures.length) {
+      failingTestByFile.set(f.file, { testFile: f.testFile, failures: f.failures });
+    }
   }
 
   const files = [...byFile.keys()].slice(0, fileCap);
@@ -518,6 +603,14 @@ async function runFixBatch(findings, projectRoot, apiKey, opts = {}) {
   const failed = [];
   for (const file of files) {
     const filePath = path.isAbsolute(file) ? file : path.join(projectRoot, file);
+    const failingTest = failingTestByFile.get(file);
+    const failingTestOpts = failingTest
+      ? {
+          testFilePath: failingTest.testFile,
+          failingTestName: failingTest.failures[0]?.name || null,
+          context: _buildFailingTestContext(failingTest.testFile, projectRoot, failingTest.failures),
+        }
+      : {};
     const result = await runFixOrchestration({
       filePath,
       issues: byFile.get(file),
@@ -526,6 +619,7 @@ async function runFixBatch(findings, projectRoot, apiKey, opts = {}) {
       maxAttempts,
       model,
       dryRun,
+      ...failingTestOpts,
       ...(opts._callClaude ? { _callClaude: opts._callClaude } : {}),
     });
     if (result.fixed) {

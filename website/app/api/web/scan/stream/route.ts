@@ -64,7 +64,7 @@ interface StreamRequest {
   sessionId?: string;
 }
 
-interface RawCheck { name: string; severity?: string; passed: boolean; message?: string; notChecked?: boolean }
+interface RawCheck { name: string; severity?: string; passed: boolean; message?: string; notChecked?: boolean; verdictSource?: string }
 interface RawResult { module?: string; name?: string; checks?: RawCheck[]; errors?: number; warnings?: number; infoFindings?: number; info?: number; duration?: number; skipped?: string; toJSON?: () => RawResult }
 interface RawSummary { results?: RawResult[]; gateStatus?: string; totalErrors?: number; totalWarnings?: number }
 
@@ -74,6 +74,9 @@ interface WebFinding {
   body: string;
   module: string;
   ruleKey: string;
+  // The Fifty, move 14: 'deterministic' | 'model' | 'mixed' — set once in
+  // scan-finding-translate.js from the raw engine check.
+  verdictSource: "deterministic" | "model" | "mixed";
 }
 
 // Doctrine #4 (one definition, imported) / issue #695: translateFinding
@@ -81,7 +84,7 @@ interface WebFinding {
 // and is imported by all four hosted scan routes (web + wp, JSON + stream).
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { translateFinding } = require("@/app/lib/scan-finding-translate") as {
-  translateFinding: (check: { name: string; severity?: string; message?: string }) => WebFinding | null;
+  translateFinding: (check: { name: string; severity?: string; message?: string; verdictSource?: string }) => WebFinding | null;
 };
 
 export async function POST(req: NextRequest) {
@@ -228,7 +231,7 @@ export async function POST(req: NextRequest) {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { clusterAndRankUrlFindings } = require("@/app/lib/url-finding-clusterer") as {
           clusterAndRankUrlFindings: (findings: WebFinding[]) => {
-            clusters: Array<{ ruleKey: string; severity: 'error' | 'warning' | 'info'; title: string; body: string; module: string; count: number; isHighSignal: boolean }>;
+            clusters: Array<{ ruleKey: string; severity: 'error' | 'warning' | 'info'; title: string; body: string; module: string; count: number; isHighSignal: boolean; verdictSource: 'deterministic' | 'model' | 'mixed' }>;
             totalIn: number;
             totalInstances: number;
             droppedInfo: number;
@@ -266,6 +269,7 @@ export async function POST(req: NextRequest) {
         const findings = visible.map((c) => ({
           severity: c.severity, title: c.title, body: c.body, module: c.module,
           ruleKey: c.ruleKey, instanceCount: c.count, highSignal: c.isHighSignal,
+          verdictSource: c.verdictSource,
         }));
 
         send("complete", {

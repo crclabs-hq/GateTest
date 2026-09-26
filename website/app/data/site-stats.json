@@ -20,7 +20,7 @@
   },
   "suites": {
     "quick": 42,
-    "standard": 46,
+    "standard": 47,
     "full": 88,
     "live": 3,
     "nuclear": 96,
@@ -57,9 +57,9 @@
     ]
   },
   "flywheel": {
-    "totalFixAttempts": 79,
-    "claudeRatioPct": 65.8,
-    "accuracyPct": 39.2,
-    "recent7dFixAttempts": 79
+    "totalFixAttempts": 50691,
+    "claudeRatioPct": 66.3,
+    "accuracyPct": 39.3,
+    "recent7dFixAttempts": 7504
   }
 }

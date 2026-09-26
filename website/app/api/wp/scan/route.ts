@@ -52,6 +52,9 @@ interface WpFinding {
   body: string;
   module: string;
   ruleKey: string;
+  // The Fifty, move 14: 'deterministic' | 'model' | 'mixed' — set once in
+  // scan-finding-translate.js from the raw engine check.
+  verdictSource: "deterministic" | "model" | "mixed";
 }
 
 // Doctrine #4 (one definition, imported) / issue #695: translateFinding
@@ -61,7 +64,7 @@ interface WpFinding {
 // routes (web + wp, JSON + stream), WP branches included.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { translateFinding } = require("@/app/lib/scan-finding-translate") as {
-  translateFinding: (check: { name: string; severity?: string; message?: string }) => WpFinding | null;
+  translateFinding: (check: { name: string; severity?: string; message?: string; verdictSource?: string }) => WpFinding | null;
 };
 
 export async function POST(req: NextRequest) {
@@ -224,7 +227,7 @@ export async function POST(req: NextRequest) {
       findings: WpFinding[],
       opts?: { includeInfo?: boolean }
     ) => {
-      clusters: Array<{ ruleKey: string; severity: 'error' | 'warning' | 'info'; title: string; body: string; module: string; count: number; instances: WpFinding[]; isHighSignal: boolean }>;
+      clusters: Array<{ ruleKey: string; severity: 'error' | 'warning' | 'info'; title: string; body: string; module: string; count: number; instances: WpFinding[]; isHighSignal: boolean; verdictSource: 'deterministic' | 'model' | 'mixed' }>;
       totalIn: number;
       totalInstances: number;
       droppedInfo: number;
@@ -256,6 +259,7 @@ export async function POST(req: NextRequest) {
     ruleKey: c.ruleKey,
     instanceCount: c.count,
     highSignal: c.isHighSignal,
+    verdictSource: c.verdictSource,
   }));
 
   return NextResponse.json({

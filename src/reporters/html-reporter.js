@@ -11,6 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { resolveReportDir } = require('../core/report-paths');
 
 class HtmlReporter {
   constructor(runner, config) {
@@ -24,8 +25,7 @@ class HtmlReporter {
   }
 
   _onSuiteEnd(summary) {
-    const reportDir = this.config.get('reporting.outputDir') || '.gatetest/reports';
-    const absDir = path.resolve(this.config.projectRoot, reportDir);
+    const absDir = resolveReportDir(this.config);
 
     if (!fs.existsSync(absDir)) {
       fs.mkdirSync(absDir, { recursive: true });

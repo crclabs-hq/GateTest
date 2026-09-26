@@ -37,6 +37,7 @@
  *   body: string,
  *   module: string,
  *   ruleKey: string,
+ *   verdictSource: "deterministic" | "model" | "mixed",
  * }} ScanFinding
  */
 
@@ -46,7 +47,7 @@
  * lightly-cleaned raw message when no mapping exists, so a new module
  * surfaces something rather than silently dropping its findings.
  *
- * @param {{ name: string, severity?: string, message?: string }} check
+ * @param {{ name: string, severity?: string, message?: string, verdictSource?: string }} check
  * @returns {ScanFinding | null}
  */
 function translateFinding(check) {
@@ -250,6 +251,11 @@ function translateFinding(check) {
     body,
     module: mod,
     ruleKey: name,
+    // The Fifty, move 14: passed through from the raw engine check, which is
+    // the one place (runner.js TestResult.addCheck) that sets it.
+    verdictSource: check.verdictSource === 'model' || check.verdictSource === 'mixed'
+      ? check.verdictSource
+      : 'deterministic',
   };
 }
 
