@@ -25,6 +25,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { resolveMemoryRoot, artifactsDisabled } = require('./report-paths');
 
 const HISTORY_REL_PATH = path.join('.gatetest', 'reports', 'scan-eta-history.json');
 
@@ -32,8 +33,11 @@ const HISTORY_REL_PATH = path.join('.gatetest', 'reports', 'scan-eta-history.jso
 // bound the number of distinct module keys the file can hold.
 const MAX_MODULES = 200;
 
+// Lives under the memory root (move 17, `report-paths.js`): `<project>/.gatetest`
+// by default, or the directory `--report-dir` / GATETEST_REPORT_DIR named —
+// never a second write location inside the customer's checkout.
 function historyPath(projectRoot) {
-  return path.join(projectRoot, HISTORY_REL_PATH);
+  return path.join(resolveMemoryRoot(projectRoot), 'reports', path.basename(HISTORY_REL_PATH));
 }
 
 function emptyHistory() {
@@ -70,6 +74,7 @@ function loadHistory(projectRoot) {
  */
 function recordRun(projectRoot, { fileCount, results } = {}) {
   try {
+    if (artifactsDisabled()) return; // --no-artifacts / GATETEST_NO_ARTIFACTS=1: write nothing
     if (!projectRoot || !Array.isArray(results) || results.length === 0) return;
     const history = loadHistory(projectRoot);
     history.totalRuns = (history.totalRuns || 0) + 1;
