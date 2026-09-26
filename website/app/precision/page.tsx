@@ -4,7 +4,7 @@ import { contentMetadata, breadcrumbSchema, jsonLd } from "../lib/seo/schema";
 import precision from "../data/precision.json";
 import headToHead from "../data/head-to-head.json";
 import siteStats from "../data/site-stats.json";
-import { buildTable } from "../lib/head-to-head";
+import { buildTable, stalenessSentence } from "../lib/head-to-head";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 import RuleTable from "./RuleTable";
@@ -81,6 +81,10 @@ const h2h = buildTable(headToHead);
 const h2hGenerated = new Date(headToHead.generatedAt);
 const h2hMeasured = headToHead.repos.length;
 const h2hCorpus = headToHead.corpusSize;
+// null when the table is current; a plain-language sentence once it is
+// older than STALE_AFTER_DAYS, so a stalled weekly run never reads as a
+// fresh measurement (Doctrine #6).
+const h2hStale = stalenessSentence(headToHead);
 const cellClass: Record<string, string> = {
   clean: "text-[var(--v2-ok)]",
   measured: "text-[var(--v2-fg)]",
@@ -237,6 +241,7 @@ export default function PrecisionPage() {
             {h2hMeasured} of {h2hCorpus} corpus repositories measured on{" "}
             {h2hGenerated.toISOString().slice(0, 10)} with GateTest <code className="font-mono">--suite {headToHead.suite}</code>.
           </p>
+          {h2hStale ? <p className="text-sm text-warning max-w-[66ch] leading-relaxed mb-4">{h2hStale}</p> : null}
           <div className="overflow-x-auto">
             <table className="v2-table min-w-[960px]">
               <thead>
