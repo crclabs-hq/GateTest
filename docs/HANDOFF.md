@@ -549,3 +549,24 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
 - **Arena loop:** the fixer's AI call failed silently for three cycles (#758). After #760 lands, the next `arena-repair` run prints the status code on the console; a 401 fires the loud "key rejected" comment and the owner rotates `ANTHROPIC_API_KEY` on gatetest-arena. `CLAUDE_MODEL` in that workflow has no reader in `src/`; it is not the cause.
 - **Builders:** move 2 delivered — #765 merged (per-rule precision aggregate, /precision "By rule" table, control-pair marker in `src/core/control-pairs.js`; `precision.json` ships `rules: []` until the next nightly corpus run), follow-up #766 open (board row). Move 20 delivered (#763). Still running: move 4 (time-to-verdict, wt-eta), move 12 (root cause on red runs, wt-rootcause).
 - **10:30Z:** #762 (Gluecron walk handoff) and #765 merged onto the red main; the changelog fix from #761 is cherry-picked onto #760, #763, #764 and #766 so each goes green on its own. Merge order for the owner: #761, then any green one.
+
+### Addendum 2026-09-26 11:00Z — AlecRae cross-test delivered; GateTest's own precision on it was 8 %
+- GateTest as a customer of AlecRae (repo 4a2d60b, both hosts at the same commit):
+  2 real blocking (in-process `new Function` snippet runner, no self-serve
+  password reset), 8 warnings, 9 info, sent to the AlecRae session in the §2
+  shape; they have triaged with code checked (CSP fix already in their tree,
+  snippet runner likely dead code, reset blocked on their mail cutover). Report:
+  session scratchpad `alecrae-crosstest.md`. Not walked: inbox/compose/settings
+  (no throwaway account; a pre-made session is the owner's to create).
+- The bigger result is ours: `--suite full --parallel` produced 600 blocking
+  findings on their tree, 551 false positives (92 %), 22 min wall-clock. Filed as
+  #767 (scans ignore .gitignore — 300 findings in build output; builder on it),
+  #768 (hosted /web scan: hangs past maxDuration, no permalink, SEO on a JSON API
+  host, broken-link counts do not reproduce — wait for #751 which touches the
+  route), #769 (errorSwallow flags 69 consumed `.catch(() => null)` sentinels),
+  #770 (22-minute runtime, toolchain failure reported as product failure), and
+  umbrella #771 with all 17 classes and the control line for each. Retracted to
+  AlecRae. When the classes close, AlecRae 4a2d60b joins the precision corpus.
+- Gluecron: G12 (deploy keys undocumented) closed by them at cc450d2, verified
+  live; their deploy keys/tokens carry last_used_at + last_used_ip, GitHub's do
+  not. Write-path pass still blocked on the owner's sign-up decision.
