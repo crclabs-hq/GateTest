@@ -121,7 +121,7 @@ function renderOverridesSection(overrides) {
   return lines;
 }
 
-function renderBody({ grade, runUrl, overrides }) {
+function renderBody({ grade, runUrl, overrides, rootCause }) {
   const gradeEmoji = { A: '🟢', B: '🟢', C: '🟡', D: '🟠', F: '🔴' }[grade.grade] || '⚪';
   const lines = [
     COMMENT_MARKER,
@@ -141,6 +141,20 @@ function renderBody({ grade, runUrl, overrides }) {
   }
 
   lines.push(...renderOverridesSection(overrides));
+
+  // Root cause on every red run (move 12): why this blocked, which commit
+  // git blame resolves it to (or an honest "not checked"/"unknown"), and
+  // the exact command to reproduce it locally. Absent on a green run.
+  if (rootCause && rootCause.why) {
+    const sinceText = rootCause.since && rootCause.since.sha
+      ? `${String(rootCause.since.sha).slice(0, 8)} ${rootCause.since.subject || ''}`.trim()
+      : (rootCause.since && rootCause.since.subject) || 'unknown';
+    lines.push('<details><summary>Root cause</summary>', '');
+    lines.push(`- **why:** ${rootCause.why}`);
+    lines.push(`- **since:** ${sinceText}`);
+    lines.push(`- **replay:** \`${rootCause.replay}\``);
+    lines.push('', '</details>', '');
+  }
 
   lines.push(`[Full run](${runUrl}) · [gatetest.io](https://gatetest.io)`);
   return lines.join('\n');
@@ -197,12 +211,18 @@ async function main() {
 
   const grade = computeGrade(report);
   grade.findings = topFindings(report);
+  const rootCause = (report.summary && report.summary.rootCause) || null;
 
   const runUrl = process.env.GITHUB_SERVER_URL && process.env.GITHUB_RUN_ID
     ? `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`
     : `https://github.com/${owner}/${repo}`;
 
-  const body = renderBody({ grade, runUrl, overrides: Array.isArray(report.overrides) ? report.overrides : [] });
+  const body = renderBody({
+    grade,
+    runUrl,
+    overrides: Array.isArray(report.overrides) ? report.overrides : [],
+    rootCause,
+  });
 
   try {
     const list = await githubRequest(
