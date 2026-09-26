@@ -81,7 +81,9 @@ const longDate = (iso: string) =>
 
 function ModuleChip({ name }: { name: string }) {
   const slug = getSlugForModuleName(name);
-  const cls = "font-mono text-[11px] px-1.5 py-0.5 rounded border border-border text-muted";
+  // inline-flex + min-h-6: GT-07 tap-target fix — a bare px-1.5/py-0.5 chip
+  // measured under the WCAG 2.5.8 24px floor.
+  const cls = "inline-flex items-center min-h-6 font-mono text-[11px] px-1.5 py-0.5 rounded border border-border text-muted";
   if (!slug) return <span className={cls}>{name}</span>;
   return (
     <Link href={`/modules/${slug}`} className={`${cls} hover:border-accent/50 hover:text-accent transition-colors`}>
@@ -105,13 +107,13 @@ function EntryRow({ e }: { e: Entry }) {
           </p>
           <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted font-mono tabular-nums">
             {e.pr !== null ? (
-              <a href={`${REPO}/pull/${e.pr}`} className="hover:text-accent transition-colors" rel="noopener">
+              <a href={`${REPO}/pull/${e.pr}`} className="inline-flex items-center min-h-6 hover:text-accent transition-colors" rel="noopener">
                 #{e.pr}
               </a>
             ) : (
               <span title="Committed directly to main">direct to main</span>
             )}
-            <a href={`${REPO}/commit/${e.sha}`} className="hover:text-accent transition-colors" rel="noopener">
+            <a href={`${REPO}/commit/${e.sha}`} className="inline-flex items-center min-h-6 hover:text-accent transition-colors" rel="noopener">
               {e.short}
             </a>
             <span>{e.files} {e.files === 1 ? "file" : "files"}</span>

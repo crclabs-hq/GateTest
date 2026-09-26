@@ -29,66 +29,66 @@ export default function Footer() {
               {/* Real routes, not homepage anchors — /modules, /pricing and
                   /enterprise are pages in their own right. /#features has no
                   page of its own, so it stays an anchor. */}
-              <li><Link href="/how-it-works" className="text-sm text-muted hover:text-foreground transition-colors">Features</Link></li>
-              <li><Link href="/developers" className="text-sm text-muted hover:text-foreground transition-colors">Docs</Link></li>
-              <li><Link href="/modules" className="text-sm text-muted hover:text-foreground transition-colors">Modules</Link></li>
-              <li><Link href="/pricing" className="text-sm text-muted hover:text-foreground transition-colors">Pricing</Link></li>
-              <li><Link href="/enterprise" className="text-sm text-muted hover:text-foreground transition-colors">Enterprise</Link></li>
-              <li><Link href="/precision" className="text-sm text-muted hover:text-foreground transition-colors">Precision benchmark</Link></li>
-              <li><Link href="/changelog" className="text-sm text-muted hover:text-foreground transition-colors">Changelog</Link></li>
-              <li><Link href="/status" className="text-sm text-muted hover:text-foreground transition-colors">Status</Link></li>
-              <li><Link href="/noise" className="text-sm text-muted hover:text-foreground transition-colors">Rule noise</Link></li>
-              <li><Link href="/web" className="text-sm text-muted hover:text-foreground transition-colors">Website Scanner</Link></li>
-              <li><Link href="/wp" className="text-sm text-muted hover:text-foreground transition-colors">WordPress Scanner</Link></li>
-              <li><Link href="/billing" className="text-sm text-muted hover:text-foreground transition-colors">Manage Subscription</Link></li>
+              <li><Link href="/how-it-works" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Features</Link></li>
+              <li><Link href="/developers" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Docs</Link></li>
+              <li><Link href="/modules" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Modules</Link></li>
+              <li><Link href="/pricing" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Pricing</Link></li>
+              <li><Link href="/enterprise" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Enterprise</Link></li>
+              <li><Link href="/precision" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Precision benchmark</Link></li>
+              <li><Link href="/changelog" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Changelog</Link></li>
+              <li><Link href="/status" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Status</Link></li>
+              <li><Link href="/noise" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Rule noise</Link></li>
+              <li><Link href="/web" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Website Scanner</Link></li>
+              <li><Link href="/wp" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">WordPress Scanner</Link></li>
+              <li><Link href="/billing" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Manage Subscription</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold text-sm mb-4">Learn</h4>
             <ul className="space-y-2">
-              <li><Link href="/glossary" className="text-sm text-muted hover:text-foreground transition-colors">Glossary</Link></li>
-              <li><Link href="/use-cases" className="text-sm text-muted hover:text-foreground transition-colors">Use cases</Link></li>
-              <li><Link href="/blog" className="text-sm text-muted hover:text-foreground transition-colors">Blog</Link></li>
-              <li><Link href="/compare" className="text-sm text-muted hover:text-foreground transition-colors">Comparisons</Link></li>
-              <li><Link href="/find" className="text-sm text-muted hover:text-foreground transition-colors">CWE Top 25</Link></li>
+              <li><Link href="/glossary" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Glossary</Link></li>
+              <li><Link href="/use-cases" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Use cases</Link></li>
+              <li><Link href="/blog" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Blog</Link></li>
+              <li><Link href="/compare" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Comparisons</Link></li>
+              <li><Link href="/find" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">CWE Top 25</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold text-sm mb-4">Resources</h4>
             <ul className="space-y-2">
-              <li><a href="https://github.com/crclabs-hq/GateTest#readme" target="_blank" rel="noopener noreferrer" className="text-sm text-muted hover:text-foreground transition-colors">Documentation</a></li>
-              <li><a href="https://github.com/crclabs-hq/GateTest" target="_blank" rel="noopener noreferrer" className="text-sm text-muted hover:text-foreground transition-colors">GitHub</a></li>
-              <li><a href="https://github.com/crclabs-hq/GateTest/releases" target="_blank" rel="noopener noreferrer" className="text-sm text-muted hover:text-foreground transition-colors">Changelog</a></li>
-              <li><a href="https://github.com/crclabs-hq/GateTest/issues" target="_blank" rel="noopener noreferrer" className="text-sm text-muted hover:text-foreground transition-colors">Report Issue</a></li>
+              <li><a href="https://github.com/crclabs-hq/GateTest#readme" target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Documentation</a></li>
+              <li><a href="https://github.com/crclabs-hq/GateTest" target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">GitHub</a></li>
+              <li><a href="https://github.com/crclabs-hq/GateTest/releases" target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Changelog</a></li>
+              <li><a href="https://github.com/crclabs-hq/GateTest/issues" target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Report Issue</a></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold text-sm mb-4">Ecosystem</h4>
             <ul className="space-y-2">
-              <li><a href="https://gluecron.com" rel="noopener noreferrer" className="text-sm text-muted hover:text-foreground transition-colors">Gluecron — git hosting, gate built in</a></li>
-              <li><a href={PLATFORM_SITE_URL} rel="noopener noreferrer" className="text-sm text-muted hover:text-foreground transition-colors">{PLATFORM_NAME} — the platform that runs it</a></li>
-              <li><Link href="/stack" className="text-sm text-muted hover:text-foreground transition-colors">How the stack fits together</Link></li>
-              <li><Link href="/github/setup" className="text-sm text-muted hover:text-foreground transition-colors">GitHub App</Link></li>
-              <li><Link href="/wp" className="text-sm text-muted hover:text-foreground transition-colors">WordPress</Link></li>
+              <li><a href="https://gluecron.com" rel="noopener noreferrer" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Gluecron — git hosting, gate built in</a></li>
+              <li><a href={PLATFORM_SITE_URL} rel="noopener noreferrer" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">{PLATFORM_NAME} — the platform that runs it</a></li>
+              <li><Link href="/stack" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">How the stack fits together</Link></li>
+              <li><Link href="/github/setup" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">GitHub App</Link></li>
+              <li><Link href="/wp" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">WordPress</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold text-sm mb-4">Company</h4>
             <ul className="space-y-2">
-              <li><Link href="/how-it-works" className="text-sm text-muted hover:text-foreground transition-colors">About</Link></li>
-              <li><Link href="/trust" className="text-sm text-muted hover:text-foreground transition-colors">Trust &amp; Security</Link></li>
-              <li><a href="mailto:support@gatetest.io" className="text-sm text-muted hover:text-foreground transition-colors">Contact</a></li>
-              <li><Link href="/legal/privacy" className="text-sm text-muted hover:text-foreground transition-colors">Privacy Policy</Link></li>
-              <li><Link href="/legal/terms" className="text-sm text-muted hover:text-foreground transition-colors">Terms of Service</Link></li>
-              <li><Link href="/legal/dpa" className="text-sm text-muted hover:text-foreground transition-colors">Data Processing Addendum</Link></li>
-              <li><Link href="/legal/sub-processors" className="text-sm text-muted hover:text-foreground transition-colors">Sub-processors</Link></li>
-              <li><Link href="/legal/cookies" className="text-sm text-muted hover:text-foreground transition-colors">Cookie Policy</Link></li>
-              <li><Link href="/legal/refunds" className="text-sm text-muted hover:text-foreground transition-colors">Refund Policy</Link></li>
-              <li><Link href="/legal/acceptable-use" className="text-sm text-muted hover:text-foreground transition-colors">Acceptable Use</Link></li>
+              <li><Link href="/how-it-works" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">About</Link></li>
+              <li><Link href="/trust" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Trust &amp; Security</Link></li>
+              <li><a href="mailto:support@gatetest.io" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Contact</a></li>
+              <li><Link href="/legal/privacy" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/legal/terms" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Terms of Service</Link></li>
+              <li><Link href="/legal/dpa" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Data Processing Addendum</Link></li>
+              <li><Link href="/legal/sub-processors" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Sub-processors</Link></li>
+              <li><Link href="/legal/cookies" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Cookie Policy</Link></li>
+              <li><Link href="/legal/refunds" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Refund Policy</Link></li>
+              <li><Link href="/legal/acceptable-use" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Acceptable Use</Link></li>
             </ul>
           </div>
         </div>
