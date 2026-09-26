@@ -52,7 +52,7 @@ mapped to the engine. Status verified 2026-09-25 22:30Z.
 
 | # | Move | Status | Where |
 |---|---|---|---|
-| 1 | Security probes in the default suite inside a time budget; deferred line says what was skipped | IN PROGRESS | builder PR from `feat/security-in-standard-suite` |
+| 1 | Security probes in the default suite inside a time budget; deferred line says what was skipped | PR #749 | `feat/security-in-standard-suite` — standard 46->47, quick's omission disclosed via SUITE_DEFERRALS, soft file-scan budget added; awaiting owner review |
 | 2 | Public precision scoreboard per rule, regenerated on every merge | PARTIAL | gatetest.io/precision is per repo, not per rule |
 | 3 | Recorded override `--accept-risk <id> --reason`, in report and PR comment, expiring | OPEN | `.gatetestignore` exists, no reason/expiry |
 | 4 | Time-to-verdict contract: ETA first, per-module timing, `--budget` degrades and reports | PARTIAL | per-module elapsed (#650), budget cut on typescript-strict; no ETA line |
