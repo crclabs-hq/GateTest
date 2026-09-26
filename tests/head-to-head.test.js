@@ -36,7 +36,10 @@ const WORKFLOW_PATH = path.join(ROOT, '.github', 'workflows', 'head-to-head.yml'
 
 const h2h = require(LIB_PATH);
 const script = require(SCRIPT_PATH);
-const { validateHeadToHead, buildTable, orderRepos, limitRepos, elapsedSeconds, STATUS, TOOL_TIMEOUT_MS } = h2h;
+const {
+  validateHeadToHead, buildTable, orderRepos, limitRepos, elapsedSeconds, STATUS, TOOL_TIMEOUT_MS,
+  daysSinceGenerated, stalenessSentence, STALE_AFTER_DAYS,
+} = h2h;
 
 const SHA = 'a'.repeat(40);
 
@@ -522,6 +525,43 @@ describe('website/app/data/head-to-head.json — generated, valid, pinned to the
 });
 
 // ---------------------------------------------------------------------------
+// Staleness — a control pair: a fresh document says nothing, an old one says
+// exactly how old, in plain language, never silently rendering as current.
+// ---------------------------------------------------------------------------
+
+describe('stalenessSentence', () => {
+  it('positive control: a document older than STALE_AFTER_DAYS gets the sentence, with the true day count', () => {
+    const now = new Date('2026-09-30T00:00:00.000Z'); // generatedAt + 14 days exactly
+    const doc = fixture({ generatedAt: '2026-09-16T00:00:00.000Z' });
+    assert.strictEqual(daysSinceGenerated(doc, now), 14);
+    assert.strictEqual(stalenessSentence(doc, now), null, 'exactly STALE_AFTER_DAYS is not yet stale');
+
+    const late = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 15 days
+    assert.strictEqual(daysSinceGenerated(doc, late), 15);
+    const sentence = stalenessSentence(doc, late);
+    assert.ok(sentence, 'a 15-day-old document must get a sentence');
+    assert.match(sentence, /15 days ago/);
+    assert.match(sentence, /weekly run/);
+  });
+
+  it('negative control: a document within STALE_AFTER_DAYS gets no sentence', () => {
+    const doc = fixture({ generatedAt: '2026-09-16T00:00:00.000Z' });
+    const now = new Date('2026-09-20T00:00:00.000Z'); // 4 days later
+    assert.strictEqual(daysSinceGenerated(doc, now), 4);
+    assert.strictEqual(stalenessSentence(doc, now), null);
+  });
+
+  it('is defensive on a document with no parseable generatedAt, never throwing', () => {
+    assert.strictEqual(daysSinceGenerated({ generatedAt: 'not a date' }), null);
+    assert.strictEqual(stalenessSentence({}), null);
+  });
+
+  it('STALE_AFTER_DAYS is twice the weekly cadence plus slack for a missed run', () => {
+    assert.ok(Number.isInteger(STALE_AFTER_DAYS) && STALE_AFTER_DAYS >= 14);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The page and the workflow
 // ---------------------------------------------------------------------------
 
@@ -532,6 +572,11 @@ describe('/precision — the head-to-head section reads the file through the sha
     assert.match(src, /from "\.\.\/data\/head-to-head\.json"/);
     assert.match(src, /from "\.\.\/lib\/head-to-head"/);
     assert.match(src, /buildTable\(/);
+  });
+
+  it('imports and renders stalenessSentence so a stalled weekly run is never silent', () => {
+    assert.match(src, /stalenessSentence/);
+    assert.match(src, /h2hStale/);
   });
 
   it('has the section and its honest framing', () => {
