@@ -3,6 +3,21 @@
  * Checks headers, dependencies, OWASP patterns, CSP, CORS, and more.
  */
 
+// Soft file-scan time budget (move 1, launch-board, 2026-09-25; pattern
+// follows #650's typescript-strict:budget in src/modules/syntax.js). The six
+// checks below each walk EVERY source file in the tree independently
+// (source patterns, SQL injection, weak hashing, prototype pollution, path
+// traversal, secret scan), so their combined cost scales with repo size. On
+// a very large tree that can approach the runner's per-module wall-clock
+// timeout (DEFAULT_MODULE_TIMEOUT_MS, src/core/runner.js) — and a timeout
+// there throws, which the runner counts as the whole module FAILING and
+// reports NOTHING it had already found (Known Issue #40's crash path). That
+// is a false block, not an honest one. A shared deadline across these six
+// checks stops running further ones once the budget is spent and says
+// exactly which did not run — never a fake pass, never a false block
+// (Doctrine #1: three states, and "not checked" prints).
+const DEFAULT_SECURITY_FILE_SCAN_BUDGET_MS = 60_000;
+
 const BaseModule = require('./base-module');
 const { SESSION_MIDDLEWARE_RE } = require('../core/route-grammar');
 const { JS_SOURCE_EXTS } = require('../core/source-extensions');
@@ -293,20 +308,45 @@ class SecurityModule extends BaseModule {
     // Dependency vulnerability scan
     this._checkDependencies(projectRoot, result);
 
-    // Source code security patterns (OWASP Top 10)
-    this._checkSourcePatterns(projectRoot, result);
-
-    // SQL injection via string concatenation / template interpolation
-    this._checkSqlInjectionPatterns(projectRoot, result);
-
-    // MD5/SHA-1 used to hash a credential
-    this._checkWeakPasswordHashing(projectRoot, result);
-
-    // Prototype pollution — user-controlled key in a bracket assignment
-    this._checkPrototypePollution(projectRoot, result);
-
-    // Path traversal — user-controlled path into a filesystem call
-    this._checkPathTraversal(projectRoot, result);
+    // The six checks below each walk every source file independently — the
+    // combined cost that can approach the runner's per-module timeout on a
+    // large tree. A shared soft deadline (DEFAULT_SECURITY_FILE_SCAN_BUDGET_MS
+    // above, configurable via modules.security.fileScanTimeBudgetMs) stops
+    // starting further ones once it's spent, same as syntax.js's
+    // typescript-strict:budget — never a fake pass, never a false block.
+    const secConfig = (config && typeof config.getModuleConfig === 'function')
+      ? config.getModuleConfig('security')
+      : {};
+    const timeBudgetMs = (secConfig && secConfig.fileScanTimeBudgetMs) || DEFAULT_SECURITY_FILE_SCAN_BUDGET_MS;
+    const deadline = Date.now() + timeBudgetMs;
+    const fileScans = [
+      // Source code security patterns (OWASP Top 10)
+      ['source patterns (injection/XSS)', () => this._checkSourcePatterns(projectRoot, result)],
+      // SQL injection via string concatenation / template interpolation
+      ['SQL injection', () => this._checkSqlInjectionPatterns(projectRoot, result)],
+      // MD5/SHA-1 used to hash a credential
+      ['weak password hashing', () => this._checkWeakPasswordHashing(projectRoot, result)],
+      // Prototype pollution — user-controlled key in a bracket assignment
+      ['prototype pollution', () => this._checkPrototypePollution(projectRoot, result)],
+      // Path traversal — user-controlled path into a filesystem call
+      ['path traversal', () => this._checkPathTraversal(projectRoot, result)],
+      // Scan for hardcoded secrets, API keys, tokens, and passwords
+      ['secret scan', () => this._scanForSecrets(projectRoot, result)],
+    ];
+    const skipped = [];
+    for (const [label, fn] of fileScans) {
+      if (Date.now() > deadline) { skipped.push(label); continue; }
+      fn();
+    }
+    if (skipped.length > 0) {
+      result.addCheck('security:budget', true, {
+        severity: 'info',
+        details: skipped,
+        message: `budget cut after ${fileScans.length - skipped.length}/${fileScans.length} checks — ` +
+          `the ${Math.round(timeBudgetMs / 1000)}s security file-scan time budget was reached before: ` +
+          `${skipped.join(', ')}. Raise modules.security.fileScanTimeBudgetMs in .gatetest.json to run them.`,
+      });
+    }
 
     // Check for dangerous file permissions
     this._checkFilePermissions(projectRoot, result);
@@ -316,9 +356,6 @@ class SecurityModule extends BaseModule {
 
     // Check for .npmrc with auth tokens
     this._checkNpmAuth(projectRoot, result);
-
-    // Scan for hardcoded secrets, API keys, tokens, and passwords
-    this._scanForSecrets(projectRoot, result);
 
     // Docker security
     this._checkDockerSecurity(projectRoot, result);

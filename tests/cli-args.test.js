@@ -72,6 +72,12 @@ test('--flag=value is honoured instead of dropped', () => {
   assert.equal(args.unknownArgs, undefined);
 });
 
+// The Fifty, move 14 — opt model-judged findings INTO blocking.
+test('--model-verdicts-block parses to a boolean, defaulting to undefined (not false)', () => {
+  assert.equal(parseArgs(['--model-verdicts-block']).modelVerdictsBlock, true);
+  assert.equal(parseArgs([]).modelVerdictsBlock, undefined);
+});
+
 test('a value flag with no value is reported, not silently defaulted', () => {
   const args = parseArgs(['--suite']);
   assert.deepEqual(args.missingValues, ['--suite']);

@@ -52,20 +52,20 @@ mapped to the engine. Status verified 2026-09-25 22:30Z.
 
 | # | Move | Status | Where |
 |---|---|---|---|
-| 1 | Security probes in the default suite inside a time budget; deferred line says what was skipped | IN PROGRESS | builder PR from `feat/security-in-standard-suite` |
+| 1 | Security probes in the default suite inside a time budget; deferred line says what was skipped | PR #749 | `feat/security-in-standard-suite` — standard 46->47, quick's omission disclosed via SUITE_DEFERRALS, soft file-scan budget added; awaiting owner review |
 | 2 | Public precision scoreboard per rule, regenerated on every merge | PARTIAL | gatetest.io/precision is per repo, not per rule |
 | 3 | Recorded override `--accept-risk <id> --reason`, in report and PR comment, expiring | OPEN | `.gatetestignore` exists, no reason/expiry |
 | 4 | Time-to-verdict contract: ETA first, per-module timing, `--budget` degrades and reports | PARTIAL | per-module elapsed (#650), budget cut on typescript-strict; no ETA line |
 | 5 | Test-impact analysis: `--diff` runs only tests the import graph touches | OPEN | `--diff` scopes modules, not tests |
 | 6 | Flaky-test ledger with auto-quarantine and a flake rate on the badge | OPEN | flakyTests rule only |
 | 7 | One PR comment, updated in place, top blocking first | DONE | `scripts/post-scan-summary-comment.js` PATCHes its own comment |
-| 8 | Fix PR with proof: failing-to-passing output, tests added, fake-fix verdict, diff cap | PARTIAL | fakeFixDetector exists; end-to-end proof waits on the arena's first clean cycle |
+| 8 | Fix PR with proof: failing-to-passing output, tests added, fake-fix verdict, diff cap | PR #754 | unitTests now attaches file/line/details.failures[] (TAP); the collector targets the failing test's resolved implementation, never the test; `fix --apply`/`--auto-pr` re-run the failing test post-fix and report `verified: true/false`; a model that proposes rewriting the test is refused. Control pair: `tests/fix-engine-failing-tests.test.js` |
 | 9 | Self-host parity: Docker image, GitLab template, Bitbucket pipe, GitLab login | PARTIAL | GHCR image yes (#516); GitLab/Bitbucket unverified |
 | 10 | Pricing copy answers per-token and double-billing complaints; usage receipt per run | UNVERIFIED | pricing page has tiers; receipt per run not checked |
 | 11 | Real analyzers for Go, Python, Java, Rust, measured on the corpus | OPEN | Go module is four regexes, standard suite runs no language module |
 | 12 | Root cause on every red run: classifier verdict, blame commit, replay command | PARTIAL | `gatetest replay <run-url>` exists; classifier verdict unverified |
 | 13 | Site-scan honesty defaults: WCAG2AA, warnings off, TTFB sampled alone, per-page timeout | PARTIAL | web-scan fixes #648-#665; defaults not re-audited |
-| 14 | Every finding tagged deterministic vs model-judged; model-judged never blocks by default | OPEN | no `verdictSource` field |
+| 14 | Every finding tagged deterministic vs model-judged; model-judged never blocks by default | DONE | PR #751 |
 | 15 | Onboarding mode: `--report-only-until <date>`, baseline wizard | PARTIAL | `--report-only`, `--baseline` exist; no date |
 | 16 | Convergence guard on fix and crawl loops; never re-flag own fix | IN PROGRESS | PR #750 |
 | 17 | Zero writes into the scanned checkout unless asked | IN PROGRESS | builder PR from `feat/cli-report-dir-no-artifacts` (`--report-dir`, `--no-artifacts`) |

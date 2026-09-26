@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-25T09:03:48.702Z",
+  "generatedAt": "2026-09-26T08:47:08.891Z",
   "source": "scripts/real-world-precision.js",
   "note": "Measured on every run against pinned commits of repositories we do not control. Ceilings only ratchet down. Do not hand-edit — run the script.",
   "engineVersion": "1.61.1",
-  "engineCommit": "8b3fab9b",
+  "engineCommit": "15b90a43",
   "repos": [
     {
       "name": "express",
