@@ -43,6 +43,9 @@ itself still uses the old variable names until the owner's cutover.
   corpus 20 repos, 212 blocking, five repos at zero; unknown flag exits 0 unless
   `--strict`/`CI` (then 2); fix loop `maxAttempts` = 3; accessibility module is
   in-process WCAG 2.2 AA + AAA-aligned (no pa11y, no `includeWarnings`).
+- errorSwallow consumed-sentinel false positives (#769): #775 downgrades
+  `.catch(() => null/undefined/false)` to warning when the caller reads the
+  returned sentinel; AlecRae.com catch-noop blocking 69 -> 46.
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
