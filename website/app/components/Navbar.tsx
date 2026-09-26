@@ -15,7 +15,13 @@ import { ThemeToggle } from "./ThemeToggle";
  * Every colour is a token, so the header renders in either theme.
  */
 
-const LINK = "text-sm text-muted hover:text-foreground transition-colors";
+// Tap-target rule (WCAG 2.5.8, GT-07): every interactive element in this
+// chrome carries an explicit min-h-* / min-w-* class so its hit area is
+// verifiable from source (tests/tap-targets.test.js), not just implied by
+// padding + line-height math. min-h-6 = 24px (the WCAG 2.5.8 minimum, used
+// where the desktop-only bar already has room); min-h-11 = 44px (the AAA
+// target, used anywhere the phone drawer renders the same element).
+const LINK = "text-sm text-muted hover:text-foreground transition-colors inline-flex items-center min-h-6";
 
 function ItemLink({
   item,
@@ -36,7 +42,9 @@ function ItemLink({
       {item.desc && <span className="block text-xs text-muted mt-0.5">{item.desc}</span>}
     </>
   );
-  const cls = `block rounded-lg px-3 py-2.5 hover:bg-[var(--background-alt)] transition-colors ${className}`;
+  // Renders in both the desktop dropdown and the phone drawer — min-h-11
+  // (44px) covers the drawer case, the primary nav's <768px target.
+  const cls = `flex flex-col justify-center min-h-11 rounded-lg px-3 py-2.5 hover:bg-[var(--background-alt)] transition-colors ${className}`;
   return item.external ? (
     <a href={item.href} className={cls} onClick={onClick} rel="noopener noreferrer">{inner}</a>
   ) : (
@@ -116,10 +124,10 @@ export default function Navbar() {
         <div className="hidden lg:flex items-center gap-2">
           <ThemeToggle />
           <Link href={NAV_ACTIONS.signIn.href} className={`${LINK} px-3 py-2`}>{NAV_ACTIONS.signIn.label}</Link>
-          <Link href={NAV_ACTIONS.install.href} className="px-3.5 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:border-accent/50 transition-colors whitespace-nowrap">
+          <Link href={NAV_ACTIONS.install.href} className="inline-flex items-center min-h-6 px-3.5 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:border-accent/50 transition-colors whitespace-nowrap">
             {NAV_ACTIONS.install.label}
           </Link>
-          <Link href={NAV_ACTIONS.primary.href} className="btn-cta px-4 py-2 text-sm font-semibold rounded-lg whitespace-nowrap">
+          <Link href={NAV_ACTIONS.primary.href} className="btn-cta inline-flex items-center min-h-6 px-4 py-2 text-sm font-semibold rounded-lg whitespace-nowrap">
             {NAV_ACTIONS.primary.label} →
           </Link>
         </div>
@@ -160,18 +168,18 @@ export default function Navbar() {
               <Link
                 key={l.href}
                 href={l.href}
-                className={`block px-3 py-3 font-medium ${pathname === l.href ? "text-accent" : "text-foreground"}`}
+                className={`flex items-center min-h-11 px-3 py-3 font-medium ${pathname === l.href ? "text-accent" : "text-foreground"}`}
                 aria-current={pathname === l.href ? "page" : undefined}
                 onClick={() => setDrawer(false)}
               >
                 {l.label}
               </Link>
             ))}
-            <Link href={NAV_ACTIONS.signIn.href} className="block px-3 py-3 font-medium text-foreground" onClick={() => setDrawer(false)}>{NAV_ACTIONS.signIn.label}</Link>
+            <Link href={NAV_ACTIONS.signIn.href} className="flex items-center min-h-11 px-3 py-3 font-medium text-foreground" onClick={() => setDrawer(false)}>{NAV_ACTIONS.signIn.label}</Link>
           </div>
           <div className="grid gap-2 p-3">
-            <Link href={NAV_ACTIONS.install.href} className="block text-center px-4 py-3 rounded-lg border border-border font-medium text-foreground" onClick={() => setDrawer(false)}>{NAV_ACTIONS.install.label}</Link>
-            <Link href={NAV_ACTIONS.primary.href} className="btn-cta block text-center px-4 py-3 rounded-lg font-semibold" onClick={() => setDrawer(false)}>{NAV_ACTIONS.primary.label} →</Link>
+            <Link href={NAV_ACTIONS.install.href} className="flex items-center justify-center min-h-11 text-center px-4 py-3 rounded-lg border border-border font-medium text-foreground" onClick={() => setDrawer(false)}>{NAV_ACTIONS.install.label}</Link>
+            <Link href={NAV_ACTIONS.primary.href} className="btn-cta flex items-center justify-center min-h-11 text-center px-4 py-3 rounded-lg font-semibold" onClick={() => setDrawer(false)}>{NAV_ACTIONS.primary.label} →</Link>
           </div>
           <div className="flex items-center justify-between px-3 py-3 border-t border-border">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted">Theme</span>
