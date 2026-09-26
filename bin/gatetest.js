@@ -1016,9 +1016,12 @@ async function main() {
       parallel: Boolean(args.parallel),
     });
     console.error(
-      `[GateTest] Scanning ${inventory.fileCount} files (${inventory.inScopeCount} in scope) ` +
-      `· suite ${args.suite || 'standard'}, ${suiteModules.length} modules ` +
-      `· estimated ${formatEta(estimate)}`
+      // One pre-scan line, two contracts: issue #630's
+      // "Scanning N files in P packages across M modules" and move 4's
+      // in-scope count + ETA. tests/cli-prescan-line + tests/time-to-verdict.
+      `[GateTest] Scanning ${inventory.fileCount} files in ${inventory.packageCount} packages ` +
+      `across ${suiteModules.length} modules (${inventory.inScopeCount} in scope) ` +
+      `· suite ${args.suite || 'standard'} · estimated ${formatEta(estimate)}`
     );
   }
 
