@@ -22,6 +22,15 @@
  * Direct commits to main are entries too (pr: null). Leaving them out would
  * make the page say "everything goes through a PR" when it does not.
  *
+ * GT-04 (outside reviewer, 2026-09-26): the changelog was publishing internal
+ * handoff/board churn verbatim ("docs(handoff): ... fixer does not fix",
+ * "stale arena PRs for the owner") — copy written for the team, not customers.
+ * `isChangelogWorthy` filters those out (see below) before the file is
+ * written; the exclusion is by title pattern or by an entry touching nothing
+ * but docs, and is always overridden when the entry carries an
+ * engine/website/integrations/corpus change, so a real product change never
+ * disappears because of how its commit happened to be titled.
+ *
  * Usage:
  *   node scripts/generate-changelog.js                 # write the JSON
  *   node scripts/generate-changelog.js --dry-run       # print, don't write
@@ -93,6 +102,32 @@ function git(repo, args) {
 const MERGE_RE = /^Merge pull request #(\d+) from \S+/;
 const SQUASH_RE = /^(.*?)\s*\(#(\d+)\)$/;
 
+// Titles that are internal process notes, not product changes — never
+// customer copy, whatever area they happen to touch by title alone.
+const EXCLUDE_TITLE_RES = [
+  /^docs\(handoff\)/i,
+  /^docs\(board\)/i,
+  /^docs\(launch-board\)/i,
+  /^chore\(stats\)/i,
+  /^chore\(trainer\)/i,
+  /^merge branch/i,
+];
+
+// An entry that touches one of these areas is a real product change and
+// ships regardless of what its title says (Doctrine: the code, not the
+// commit message, is the fact).
+const SUBSTANTIVE_AREAS = ['engine', 'website', 'integrations', 'corpus'];
+
+/** Does this entry belong in the public changelog? (GT-04) */
+function isChangelogWorthy(entry) {
+  const areaKeys = Object.keys(entry.areas);
+  if (areaKeys.some((a) => SUBSTANTIVE_AREAS.includes(a))) return true;
+  if (EXCLUDE_TITLE_RES.some((re) => re.test(entry.title))) return false;
+  const onlyDocs = areaKeys.length === 1 && areaKeys[0] === 'docs';
+  if (onlyDocs) return false;
+  return true;
+}
+
 /** The PR number and title a first-parent commit carries, in either shape. */
 function describeCommit(subject, body) {
   const merge = MERGE_RE.exec(subject);
@@ -158,21 +193,27 @@ function buildEntry(repo, commit, byStem) {
 function generate(opts) {
   const byStem = moduleFileIndex();
   const commits = readCommits(opts.repo, opts.ref, opts.limit);
-  const entries = commits.map((c) => buildEntry(opts.repo, c, byStem));
+  const allEntries = commits.map((c) => buildEntry(opts.repo, c, byStem));
   // A version is a fact on the entry that changed it: compare with the
   // next-older entry (the last one has nothing older in range → no marker).
-  for (let i = 0; i < entries.length; i++) {
-    const older = entries[i + 1];
-    const bumped = older && entries[i].packageVersion && entries[i].packageVersion !== older.packageVersion;
-    entries[i].version = bumped ? entries[i].packageVersion : null;
-    delete entries[i].packageVersion;
+  // This runs over every commit, before filtering, so a bump landing on a
+  // filtered-out commit (e.g. a docs-only release note) is never lost or
+  // misattributed to the wrong surviving neighbour.
+  for (let i = 0; i < allEntries.length; i++) {
+    const older = allEntries[i + 1];
+    const bumped = older && allEntries[i].packageVersion && allEntries[i].packageVersion !== older.packageVersion;
+    allEntries[i].version = bumped ? allEntries[i].packageVersion : null;
+    delete allEntries[i].packageVersion;
   }
+  const entries = allEntries.filter(isChangelogWorthy);
   return {
     source: 'scripts/generate-changelog.js',
     generatedAt: new Date().toISOString(),
     ref: opts.ref,
     head: entries.length ? entries[0].sha : null,
-    currentVersion: entries.length ? versionAt(opts.repo, entries[0].sha) : null,
+    // The repo's actual current version, independent of filtering — the true
+    // tip of history, not just the newest entry that made the public cut.
+    currentVersion: commits.length ? versionAt(opts.repo, commits[0].sha) : null,
     limit: opts.limit,
     areas: AREAS,
     entries,
@@ -219,4 +260,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { serialize, describeCommit, areaOf, AREAS };
+module.exports = { serialize, describeCommit, areaOf, AREAS, isChangelogWorthy };
