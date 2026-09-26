@@ -841,3 +841,40 @@ describe('FakeFixDetector — catch shapes added under a test tree are fixtures'
     assert.ok(findFailure(result, 'catch-noop'), 'catch-noop must fire on product code');
   });
 });
+
+describe('FakeFixDetectorModule — AI call failures are visible on the console line', () => {
+  // 2026-09-26: three arena repair cycles printed "[AI] AI provider call failed
+  // for this hunk" and nothing else; the 401 lived only in the JSON report's
+  // explanation, so the workflow's console grep for an auth failure never fired.
+  const diff = [
+    'diff --git a/src/core/thing.js b/src/core/thing.js',
+    '--- a/src/core/thing.js',
+    '+++ b/src/core/thing.js',
+    '@@ -1,2 +1,2 @@',
+    '-  return a / b;',
+    '+  return b === 0 ? 0 : a / b;',
+  ].join('\n');
+
+  function ledger() {
+    return { spent: 0, ceiling: 10, calls: 0, hitCap: false, downgraded: false };
+  }
+
+  it('POSITIVE: an HTTP 401 from the provider is named on the finding title', async () => {
+    const mod = new FakeFixDetector();
+    mod._callClaude = async () => { throw new Error('API returned 401: invalid x-api-key\nsecond line never shown'); };
+    const findings = await mod._runAiEngine('key', diff, '', ledger());
+    const errs = findings.filter(f => f.ruleId === 'ai:call-error');
+    assert.strictEqual(errs.length, 1);
+    assert.strictEqual(errs[0].title, 'AI provider call failed for this hunk: API returned 401: invalid x-api-key');
+    assert.match(errs[0].explanation, /second line/);
+  });
+
+  it('CONTROL: a long reason is bounded so the console line stays one line', async () => {
+    const mod = new FakeFixDetector();
+    mod._callClaude = async () => { throw new Error('x'.repeat(400)); };
+    const findings = await mod._runAiEngine('key', diff, '', ledger());
+    const err = findings.find(f => f.ruleId === 'ai:call-error');
+    assert.ok(err.title.length <= 'AI provider call failed for this hunk: '.length + 160);
+    assert.ok(err.title.endsWith('...'));
+  });
+});
