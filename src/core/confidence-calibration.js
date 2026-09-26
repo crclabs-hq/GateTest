@@ -98,14 +98,21 @@ function calibrate({ repos, threshold }) {
 /**
  * The error-severity findings of one gatetest JSON report, reduced to what
  * calibration needs. `ruleIdentity` is injected so this module stays pure
- * and the identity has one home (src/core/rule-identity.js).
+ * and the identity has one home (src/core/rule-identity.js). `module` is the
+ * registry key the result was reported under (`mod.module`, e.g. "secrets")
+ * — carried through for the per-rule corpus aggregate (the Fifty, move 02),
+ * which needs to prove a rule's module is a real, loaded module.
  */
 function findingsFromReport(report, ruleIdentity) {
   const out = [];
   for (const mod of (report && report.results) || []) {
     for (const check of mod.checks || []) {
       if (check.severity !== 'error') continue;
-      out.push({ rule: ruleIdentity(check), confidence: typeof check.confidence === 'number' ? check.confidence : 1 });
+      out.push({
+        rule: ruleIdentity(check),
+        confidence: typeof check.confidence === 'number' ? check.confidence : 1,
+        module: mod.module || null,
+      });
     }
   }
   return out;

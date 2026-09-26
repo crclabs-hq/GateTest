@@ -61,8 +61,27 @@ test('every deferral states a reason and where the work runs instead', () => {
 });
 
 test('getSuiteDeferrals returns an array for suites that defer nothing', () => {
-  assert.deepEqual(config.getSuiteDeferrals('quick'), []);
+  assert.deepEqual(config.getSuiteDeferrals('standard'), []);
   assert.deepEqual(config.getSuiteDeferrals('nope-not-a-suite'), []);
+});
+
+test('quick defers security — the sub-10s pre-commit bar (move 1, launch-board, 2026-09-25)', () => {
+  const deferred = config.getSuiteDeferrals('quick').map((d) => d.module);
+  assert.ok(
+    deferred.includes('security'),
+    'quick must disclose that it does not run the OWASP security module',
+  );
+  assert.ok(
+    !config.getSuite('quick').includes('security'),
+    'suites.quick must not contain security',
+  );
+});
+
+test('security runs in standard — the CLI default suite (closes complaint C16)', () => {
+  assert.ok(
+    config.getSuite('standard').includes('security'),
+    'standard must include security so the CLI default catches OWASP-class findings',
+  );
 });
 
 test('the full suite defers mutation — the 60s interactive bar (CLAUDE.md §9)', () => {

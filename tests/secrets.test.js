@@ -173,6 +173,7 @@ describe('SecretsModule — "example" suppression is word-bounded', () => {
 // hardcoded match on these two exact strings. These tests are the control
 // pair the issue asked for: the two reported shapes stay quiet, and a real
 // hardcoded AWS-style key alongside them still fires.
+// control-pair: secrets
 describe('SecretsModule — issue #633: boot-guard placeholder and $(...) generator are not secrets', () => {
   let tmp;
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-secrets-633-')); });
