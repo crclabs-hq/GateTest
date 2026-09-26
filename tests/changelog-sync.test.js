@@ -31,8 +31,8 @@ const JSON_PATH = path.join(ROOT, 'website', 'app', 'data', 'changelog.json');
 const PAGE_PATH = path.join(ROOT, 'website', 'app', 'changelog', 'page.tsx');
 
 // A literal path, not `require(SCRIPT)`: our own deadCode rule resolves
-// imports it can read, and a computed path hid these four from it.
-const { describeCommit, areaOf, serialize, AREAS } = require('../scripts/generate-changelog.js');
+// imports it can read, and a computed path hid these five from it.
+const { describeCommit, areaOf, serialize, AREAS, isChangelogWorthy } = require('../scripts/generate-changelog.js');
 
 describe('generate-changelog — one commit, one entry, either merge shape', () => {
   it('reads the PR number and title from a merge commit body', () => {
@@ -71,6 +71,32 @@ describe('generate-changelog — one commit, one entry, either merge shape', () 
   });
 });
 
+describe('isChangelogWorthy — GT-04: internal handoff/board churn never reaches customers', () => {
+  it('excludes the specific internal-process titles, when the entry is doc-only', () => {
+    assert.equal(isChangelogWorthy({ title: 'docs(handoff): move 12 delivered (#774)', areas: { docs: 1 } }), false);
+    assert.equal(isChangelogWorthy({ title: 'docs(board): stale arena PRs for the owner', areas: { docs: 2 } }), false);
+    assert.equal(isChangelogWorthy({ title: 'docs(launch-board): 2026-09-22 snapshot', areas: { docs: 1 } }), false);
+    assert.equal(isChangelogWorthy({ title: 'chore(stats): refresh website testing statistics', areas: { docs: 1 } }), false);
+    assert.equal(isChangelogWorthy({ title: 'chore(trainer): retrain corpus weights', areas: { docs: 1 } }), false);
+    assert.equal(isChangelogWorthy({ title: 'Merge branch main into feature', areas: { other: 1 } }), false);
+  });
+  it('excludes any doc-only commit, not just the named internal titles — README churn is not a product change', () => {
+    assert.equal(isChangelogWorthy({ title: 'docs: fix typo in README', areas: { docs: 1 } }), false);
+  });
+  it('keeps engine/website/integrations/corpus changes even under an excluded-looking title (positive control)', () => {
+    assert.equal(
+      isChangelogWorthy({ title: 'docs(handoff): shipped the rate limiter fix alongside the note', areas: { docs: 1, engine: 1 } }),
+      true,
+    );
+    assert.equal(isChangelogWorthy({ title: 'chore(stats): also patched the scanner', areas: { docs: 1, engine: 1 } }), true);
+    assert.equal(isChangelogWorthy({ title: 'merge branch main — includes the pricing page', areas: { website: 2 } }), true);
+  });
+  it('keeps an ordinary product commit (negative control)', () => {
+    assert.equal(isChangelogWorthy({ title: 'Website: the pricing page', areas: { website: 2, other: 1 } }), true);
+    assert.equal(isChangelogWorthy({ title: 'secrets: tighten the JWT rule', areas: { engine: 1, tests: 1 } }), true);
+  });
+});
+
 describe('generate-changelog — a fabricated history with known answers', () => {
   let tmp;
   let out;
@@ -101,30 +127,50 @@ describe('generate-changelog — a fabricated history with known answers', () =>
     write('website/app/page.tsx', '// page\n');
     write('website/app/layout.tsx', '// layout\n');
     commit('Website: the pricing page (#8)');
-    // A direct commit, docs only.
+    // A direct commit, docs only — GT-04: doc-only churn never reaches the
+    // public changelog, whatever it's titled.
     write('README.md', '# x\n');
     commit('docs: readme');
+    // GT-04 positive fixture: a named internal-process title, doc-only —
+    // this is exactly the kind of entry the outside reviewer found live.
+    write('docs/HANDOFF.md', 'move 12 delivered\n');
+    commit('docs(handoff): move 12 delivered (#774)');
+    // GT-04 negative fixture: the same excluded-looking title, but this
+    // commit also carries a real engine change — it must still ship.
+    write('docs/HANDOFF.md', 'move 13 delivered\n');
+    write('src/modules/secrets.js', '// v3\n');
+    commit('docs(handoff): also shipped a secrets rule fix (#775)');
     execFileSync('node', [SCRIPT, '--repo', tmp, '--out', out, '--ref', 'main'], { stdio: ['ignore', 'pipe', 'pipe'] });
   });
   after(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
 
-  it('lists every first-parent commit newest first, with the merge attributed as one entry', () => {
+  it('lists every first-parent commit newest first, excluding internal-only churn, with the merge attributed as one entry', () => {
     const data = JSON.parse(fs.readFileSync(out, 'utf8'));
     assert.equal(data.source, 'scripts/generate-changelog.js');
+    // The true current version, even though the newest commit (a docs(handoff)
+    // fixture) is itself excluded from the list below.
     assert.equal(data.currentVersion, '1.1.0');
     assert.deepEqual(data.entries.map((e) => [e.pr, e.title]), [
-      [null, 'docs: readme'],
+      [775, 'docs(handoff): also shipped a secrets rule fix'],
       [8, 'Website: the pricing page'],
       [7, 'Secrets: the JWT rule no longer fires on fixtures'],
       [null, 'chore: initial'],
     ]);
+    // The public entry list is also the file's own idea of "head".
+    assert.equal(data.head, data.entries[0].sha);
     // The feature branch's own commit is not an entry — the merge is.
     assert.ok(!data.entries.some((e) => e.title === 'secrets: tighten the JWT rule'));
+    // Doc-only churn — named internal titles and plain README edits alike —
+    // never reaches the public changelog.
+    assert.ok(!data.entries.some((e) => e.title === 'docs: readme'));
+    assert.ok(!data.entries.some((e) => e.title === 'docs(handoff): move 12 delivered'));
+    // But a docs(handoff)-titled commit that also ships a real fix is kept.
+    assert.ok(data.entries.some((e) => e.title === 'docs(handoff): also shipped a secrets rule fix'));
   });
 
   it('records the area by file count, the modules through the registry, and the version bump where it happened', () => {
     const data = JSON.parse(fs.readFileSync(out, 'utf8'));
-    const [docs, site, merge, initial] = data.entries;
+    const [handoffFix, site, merge, initial] = data.entries;
     assert.equal(merge.area, 'engine');
     assert.deepEqual(merge.areas, { engine: 1, tests: 1 });
     assert.deepEqual(merge.modules, ['secrets']);
@@ -132,8 +178,11 @@ describe('generate-changelog — a fabricated history with known answers', () =>
     assert.equal(site.area, 'website');
     assert.equal(site.version, '1.1.0');
     assert.equal(merge.version, null);
-    assert.equal(docs.version, null);
-    assert.equal(docs.area, 'docs');
+    // Kept despite its docs(handoff) title because it also touched an engine
+    // file — GT-04's "keep engine/website/integrations changes" override.
+    assert.equal(handoffFix.version, null);
+    assert.equal(handoffFix.area, 'engine');
+    assert.deepEqual(handoffFix.areas, { docs: 1, engine: 1 });
     assert.equal(initial.version, null);
     for (const e of data.entries) assert.match(e.sha, /^[0-9a-f]{40}$/);
   });
