@@ -453,9 +453,12 @@ function mergeOverrides(input, callerOverrides) {
 }
 
 /**
- * Convenience: should this check block the gate?
+ * Would this check block the gate on confidence alone — the question asked
+ * before verdictSource policy is layered on. Exposed as `wouldBlockFinding`
+ * so callers can show "what a stricter policy would do" (the Fifty, move
+ * 14) without re-deriving the confidence arithmetic.
  */
-function isBlockingFinding(check, threshold) {
+function wouldBlockFinding(check, threshold) {
   if (!check) return false;
   if (check.passed === true) return false;
   if (check.severity !== 'error') return false;
@@ -464,12 +467,38 @@ function isBlockingFinding(check, threshold) {
   return c >= t;
 }
 
+/**
+ * Convenience: should this check ACTUALLY block the gate?
+ *
+ * Confidence decides whether a finding qualifies as blocking at all
+ * (`wouldBlockFinding`); verdictSource then decides whether the GATE acts on
+ * that qualification. A `model`-judged finding — one whose verdict came from
+ * asking an AI to judge the code rather than from a deterministic rule —
+ * never blocks unless the caller opts in via `modelVerdictsBlock` (config
+ * `gate.modelVerdictsBlock`, CLI `--model-verdicts-block`, env
+ * `GATETEST_MODEL_VERDICTS_BLOCK=1`). This is the customer trust fix for
+ * "40% of AI review alerts ignored" (the Fifty, move 14, complaints C1/C4):
+ * a model opinion is reported — as a warning, with `wouldBlock: true`
+ * preserved on the finding — never silently treated as equal to a
+ * deterministic rule firing.
+ *
+ * @param {object} check
+ * @param {number} [threshold]
+ * @param {boolean} [modelVerdictsBlock=false]
+ */
+function isBlockingFinding(check, threshold, modelVerdictsBlock = false) {
+  if (!wouldBlockFinding(check, threshold)) return false;
+  if (check.verdictSource === 'model' && modelVerdictsBlock !== true) return false;
+  return true;
+}
+
 module.exports = {
   DEFAULT_CONFIDENCE,
   BLOCK_THRESHOLD,
   DEFAULT_RULE_OVERRIDES,
   scoreFinding,
   isBlockingFinding,
+  wouldBlockFinding,
   // exported for testing
   _signals: {
     isDocFile,

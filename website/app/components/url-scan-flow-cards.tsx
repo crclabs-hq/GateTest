@@ -180,6 +180,14 @@ export function FindingRow({ finding, index, scanId, tier }: { finding: Finding;
                 {finding.instanceCount} occurrence{finding.instanceCount! > 1 ? "s" : ""}
               </span>
             )}
+            {(finding.verdictSource === "model" || finding.verdictSource === "mixed") && (
+              <span
+                className="text-xs font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200"
+                title="This finding's verdict came from a model reviewing the code, not a deterministic rule."
+              >
+                Model-judged
+              </span>
+            )}
             <span className="text-xs font-mono text-muted truncate">{finding.module}</span>
           </div>
           <h3 className="font-semibold text-foreground leading-snug">{finding.title}</h3>
