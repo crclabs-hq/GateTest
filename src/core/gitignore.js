@@ -234,6 +234,20 @@ function isBuildOutputSegment(name) {
   return BUILD_OUTPUT_DIR_RE.test(name);
 }
 
+// Files that are a public CONTRACT, never a secret: the env-vars rule reads
+// them for the set of declared variables (src/modules/env-vars.js, phase 1),
+// and most repos ignore `.env*` wholesale — this one does. Skipping them made
+// GateTest flag its own documented variables as "missing from .env.example"
+// on the first Action run after issue #767 landed (2026-09-26). They stay in
+// scope regardless of .gitignore; `.env` itself (real values) stays ignored.
+const ENV_CONTRACT_FILE_RE = /^\.env(?:\..+)?\.(?:example|sample|template|dist)$/;
+
+/** Is this relative path an env contract file (`.env.example`, `.env.local.sample`, ...)? */
+function isEnvContractFile(relativePath) {
+  const segs = String(relativePath).replace(/\\/g, '/').split('/');
+  return ENV_CONTRACT_FILE_RE.test(segs[segs.length - 1]);
+}
+
 // One switch, process-wide, set once from the CLI flag (bin/gatetest.js,
 // beside the --offline precedent in src/core/offline.js) before any module
 // runs. Deliberately NOT threaded through GateTestConfig/GateTestRunner
@@ -279,6 +293,7 @@ function getScanIgnoreMatcher(root) {
   if (cached) return cached;
   const gitignoreMatches = buildIgnoreMatcher(root);
   const matcher = function isIgnoredForScan(relativePath, isDir = false) {
+    if (!isDir && isEnvContractFile(relativePath)) return false;
     if (gitignoreMatches(relativePath, isDir)) return true;
     const segs = String(relativePath).replace(/\\/g, '/').split('/');
     return segs.some(isBuildOutputSegment);
@@ -361,6 +376,7 @@ module.exports = {
   isBuildOutputSegment,
   setIncludeIgnored,
   includeIgnoredFiles,
+  isEnvContractFile,
   getScanIgnoreMatcher,
   clearScanIgnoreMatcherCache,
   countIgnoredFiles,
