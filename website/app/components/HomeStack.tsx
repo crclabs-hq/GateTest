@@ -56,7 +56,7 @@ const PRODUCTS = [
     badge: "Gc",
     badgeColor: "bg-indigo-500",
     accent: "from-indigo-500/15 to-blue-500/5",
-    tagline: "Git hosting with the gate on every push.",
+    tagline: "A git host, with its own CI gate.",
     body: "A git host built for agents. [GLUECRON: pending their words — full pitch]",
     proofStat: null,
     bullets: [

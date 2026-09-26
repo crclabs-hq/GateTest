@@ -68,7 +68,7 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-sm mb-4">Ecosystem</h4>
             <ul className="space-y-2">
-              <li><a href="https://gluecron.com" rel="noopener noreferrer" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Gluecron — git hosting, gate built in</a></li>
+              <li><a href="https://gluecron.com" rel="noopener noreferrer" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">Gluecron — git hosting, with its own CI gate</a></li>
               <li><a href={PLATFORM_SITE_URL} rel="noopener noreferrer" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">{PLATFORM_NAME} — the platform that runs it</a></li>
               <li><Link href="/stack" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">How the stack fits together</Link></li>
               <li><Link href="/github/setup" className="inline-flex items-center min-h-6 text-sm text-muted hover:text-foreground transition-colors">GitHub App</Link></li>
