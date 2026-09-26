@@ -83,16 +83,16 @@ describe('calibrate — sweep, gap, softened', () => {
 describe('findingsFromReport', () => {
   it('keeps error-severity checks only, as rule identity + confidence', () => {
     const report = { results: [
-      { name: 'secrets', checks: [
+      { name: 'secrets', module: 'secrets', checks: [
         { name: 'secrets:aws:src/a.js:3', file: 'src/a.js', severity: 'error', confidence: 0.4 },
         { name: 'secrets:aws:src/b.js:9', file: 'src/b.js', severity: 'error' },
         { name: 'secrets:ok', severity: 'info', confidence: 1 },
       ] },
-      { name: 'empty', checks: [] },
+      { name: 'empty', module: 'empty', checks: [] },
     ] };
     assert.deepEqual(findingsFromReport(report, ruleIdentity), [
-      { rule: 'secrets:aws', confidence: 0.4 },
-      { rule: 'secrets:aws', confidence: 1 },
+      { rule: 'secrets:aws', confidence: 0.4, module: 'secrets' },
+      { rule: 'secrets:aws', confidence: 1, module: 'secrets' },
     ]);
     assert.deepEqual(findingsFromReport(null, ruleIdentity), []);
   });
