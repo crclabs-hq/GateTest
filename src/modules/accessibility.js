@@ -224,7 +224,17 @@ class AccessibilityModule extends BaseModule {
       const closingSlash = window.search(/\/>/);
       const snippet = closingSlash >= 0 ? window.slice(0, closingSlash + 2) : window;
 
-      const hasLabel = /aria-label\s*[={]/i.test(snippet) ||
+      // Implicit association: `<label>Text <input …/></label>` needs no
+      // aria-label/id at all — the wrapping <label> IS the accessible name.
+      // Look behind a bounded window for the nearest <label — if no </label>
+      // has closed since, the input sits inside an open label.
+      const behind = contentNoComments.slice(Math.max(0, pos - 500), pos).toLowerCase();
+      const lastLabelOpen = behind.lastIndexOf('<label');
+      const lastLabelClose = behind.lastIndexOf('</label');
+      const isNestedInLabel = lastLabelOpen !== -1 && lastLabelOpen > lastLabelClose;
+
+      const hasLabel = isNestedInLabel ||
+                       /aria-label\s*[={]/i.test(snippet) ||
                        /aria-labelledby\s*[={]/i.test(snippet) ||
                        /\bid\s*=\s*["'{]/i.test(snippet);
 
