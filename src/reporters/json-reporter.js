@@ -53,6 +53,17 @@ class JsonReporter {
         // passed by default. A consumer reading `gateStatus: PASSED` must be
         // able to tell an inspected repo from an empty directory.
         nothingChecked: summary.nothingChecked === true,
+        // Move 4 (time-to-verdict contract) — deferred always carries both
+        // SUITE_DEFERRALS and --budget cuts (runner.js `_buildSummary`), so
+        // this is the one field the PR-comment script needs to disclose
+        // either kind honestly (Forbidden #16 — never a fake pass).
+        deferred: Array.isArray(summary.deferred) ? summary.deferred : [],
+        budgetLimited: summary.budgetLimited === true,
+        // Root cause on every red run (move 12) — why, which commit
+        // introduced the first blocking finding (or an honest "not
+        // checked"/"unknown"), and the exact replay command. Null on a
+        // PASSED run and never fabricated.
+        rootCause: summary.rootCause || null,
       },
       results: summary.results,
       failures: summary.failedModules,

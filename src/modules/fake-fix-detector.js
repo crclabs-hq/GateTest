@@ -93,6 +93,14 @@ function estimateCostUsd(model, inputTokens, outputTokens) {
   );
 }
 
+// The first line of a failed call's message, bounded, so it fits on a console
+// line. `_callClaude` already formats HTTP failures as "API returned <status>:
+// <provider message>", so the status code survives onto the title.
+function callErrorReason(err) {
+  const first = String((err && err.message) || err || 'unknown error').split(/\r?\n/)[0].trim();
+  return first.length > 160 ? first.slice(0, 157) + '...' : first;
+}
+
 function initCostLedger(scanId, tier) {
   const ceiling = COST_CEILING_USD[tier] != null
     ? COST_CEILING_USD[tier]
@@ -944,12 +952,15 @@ Be ruthless. We are building a product that kills fake fixes.`;
         );
       } catch (err) {
         // One failed call shouldn't kill the whole engine. Record and continue.
+        // The reason rides on the title: the console reporter and CI logs print
+        // the title only, and an auth failure ("API returned 401") hidden in
+        // the JSON explanation went unseen for three arena cycles on 2026-09-26.
         findings.push({
           ruleId: 'ai:call-error',
           file: hunk.file,
           line: hunk.lineNumber,
           severity: 'warning',
-          title: 'AI provider call failed for this hunk',
+          title: 'AI provider call failed for this hunk: ' + callErrorReason(err),
           explanation: err.message,
           suggestion: 'Pattern engine results still apply.',
         });

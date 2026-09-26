@@ -62,7 +62,12 @@ class ConsoleReporter {
     const { blocking, top, hiddenCount } = triageFindings(summary.results, {
       blockThreshold: summary.confidenceThreshold,
     });
-    if (blocking.length === 0 && top.length === 0) return;
+    // Root cause (move 12): why / since / replay — computed once by the
+    // runner (src/core/root-cause.js), never on a PASSED run, and printed
+    // even when there are no individual findings to list (e.g. a config
+    // error or a budget-limited module crashed before producing any).
+    const rootCause = summary.gateStatus === 'BLOCKED' ? summary.rootCause : null;
+    if (blocking.length === 0 && top.length === 0 && !rootCause) return;
 
     const line = (f, mark) => {
       const c = f.check;
@@ -87,11 +92,20 @@ class ConsoleReporter {
     const blockingHidden = blocking.length - blockingShown.length;
 
     console.log('');
-    if (blocking.length > 0) {
+    if (blocking.length > 0 || rootCause) {
       console.log(`${COLORS.bold}  What's blocking you${COLORS.reset}${blocking.length > BLOCKING_SHOWN ? ` ${COLORS.dim}(worst ${BLOCKING_SHOWN} of ${blocking.length})${COLORS.reset}` : ''}`);
       for (const f of blockingShown) line(f, `${COLORS.red}✗${COLORS.reset}`);
       if (blockingHidden > 0) {
         console.log(`      ${COLORS.dim}…and ${blockingHidden} more blocking finding(s).${COLORS.reset}`);
+      }
+      // The fixed three-line block every BLOCKED verdict ends with (move 12):
+      // classifier verdict, the commit git blame resolves it to (or an
+      // honest "not checked"), and the exact command to reproduce it.
+      if (rootCause) {
+        console.log('');
+        console.log(`      ${COLORS.bold}why:${COLORS.reset}     ${rootCause.why}`);
+        console.log(`      ${COLORS.bold}since:${COLORS.reset}   ${rootCause.sinceText}`);
+        console.log(`      ${COLORS.bold}replay:${COLORS.reset}  ${rootCause.replay}`);
       }
       if (top.length > 0) console.log('');
     }
@@ -228,7 +242,13 @@ class ConsoleReporter {
     console.log(`${COLORS.bold}${COLORS.cyan}----------------------------------------${COLORS.reset}`);
 
     if (summary.gateStatus === 'PASSED') {
-      console.log(`${COLORS.bold}${COLORS.bgGreen}${COLORS.white}  GATE: PASSED  ${COLORS.reset}`);
+      // Move 4 — a budget-limited PASS must never read identically to a
+      // full, unlimited one: some of the modules that would have decided
+      // this verdict never ran (Forbidden #16 — never a fake pass).
+      const budgetNote = summary.budgetLimited
+        ? ` (budget-limited: ${summary.budgetDeferredCount} module${summary.budgetDeferredCount === 1 ? '' : 's'} deferred)`
+        : '';
+      console.log(`${COLORS.bold}${COLORS.bgGreen}${COLORS.white}  GATE: PASSED${budgetNote}  ${COLORS.reset}`);
     } else {
       console.log(`${COLORS.bold}${COLORS.bgRed}${COLORS.white}  GATE: BLOCKED  ${COLORS.reset}`);
       // First line under a red gate in CI: the command that reproduces it
@@ -359,6 +379,14 @@ class ConsoleReporter {
       console.log(`  Fixed:    ${COLORS.green}${summary.fixes.total}${COLORS.reset}`);
     }
     console.log(`  Time:     ${summary.duration}ms`);
+    // Top-5 slowest modules (move 4) — per-module timing already existed
+    // (#644/#650); this is the one-line "where did the time go" shortlist.
+    if (Array.isArray(summary.slowestModules) && summary.slowestModules.length > 0) {
+      const shortlist = summary.slowestModules
+        .map((m) => `${m.module} (${(m.durationMs / 1000).toFixed(1)}s)`)
+        .join(', ');
+      console.log(`  ${COLORS.dim}Slowest:  ${shortlist}${COLORS.reset}`);
+    }
 
     if (summary.failedModules.length > 0) {
       console.log('');
