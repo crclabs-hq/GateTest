@@ -121,15 +121,27 @@ function renderOverridesSection(overrides) {
   return lines;
 }
 
-function renderBody({ grade, runUrl, overrides }) {
+function renderBody({ grade, runUrl, overrides, deferred, budgetLimited }) {
   const gradeEmoji = { A: '🟢', B: '🟢', C: '🟡', D: '🟠', F: '🔴' }[grade.grade] || '⚪';
+  const budgetNote = budgetLimited ? ' ⏱️ budget-limited' : '';
   const lines = [
     COMMENT_MARKER,
-    `## ${gradeEmoji} GateTest — Grade ${grade.grade} (${grade.score}/100)`,
+    `## ${gradeEmoji} GateTest — Grade ${grade.grade} (${grade.score}/100)${budgetNote}`,
     '',
     `**${grade.passed}/${grade.total}** modules passed  |  **${grade.errors}** error(s)  |  **${grade.warnings}** warning(s)`,
     '',
   ];
+
+  // Move 4 (time-to-verdict contract) — every deferred module, whether
+  // SUITE_DEFERRALS or a --budget cut, is named here with why (Forbidden
+  // #16 — a scan that skipped work never gets to look exhaustive).
+  if (Array.isArray(deferred) && deferred.length > 0) {
+    lines.push('<details><summary>Deferred modules</summary>', '');
+    for (const d of deferred) {
+      lines.push(`- \`${d.module}\` — ${d.reason}. Runs in: ${d.runsIn}`);
+    }
+    lines.push('', '</details>', '');
+  }
 
   if (grade.findings && grade.findings.length > 0) {
     lines.push('<details><summary>Top findings</summary>', '');
@@ -202,7 +214,13 @@ async function main() {
     ? `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`
     : `https://github.com/${owner}/${repo}`;
 
-  const body = renderBody({ grade, runUrl, overrides: Array.isArray(report.overrides) ? report.overrides : [] });
+  const body = renderBody({
+    grade,
+    runUrl,
+    overrides: Array.isArray(report.overrides) ? report.overrides : [],
+    deferred: report?.summary?.deferred,
+    budgetLimited: report?.summary?.budgetLimited === true,
+  });
 
   try {
     const list = await githubRequest(

@@ -228,7 +228,13 @@ class ConsoleReporter {
     console.log(`${COLORS.bold}${COLORS.cyan}----------------------------------------${COLORS.reset}`);
 
     if (summary.gateStatus === 'PASSED') {
-      console.log(`${COLORS.bold}${COLORS.bgGreen}${COLORS.white}  GATE: PASSED  ${COLORS.reset}`);
+      // Move 4 — a budget-limited PASS must never read identically to a
+      // full, unlimited one: some of the modules that would have decided
+      // this verdict never ran (Forbidden #16 — never a fake pass).
+      const budgetNote = summary.budgetLimited
+        ? ` (budget-limited: ${summary.budgetDeferredCount} module${summary.budgetDeferredCount === 1 ? '' : 's'} deferred)`
+        : '';
+      console.log(`${COLORS.bold}${COLORS.bgGreen}${COLORS.white}  GATE: PASSED${budgetNote}  ${COLORS.reset}`);
     } else {
       console.log(`${COLORS.bold}${COLORS.bgRed}${COLORS.white}  GATE: BLOCKED  ${COLORS.reset}`);
       // First line under a red gate in CI: the command that reproduces it
@@ -353,6 +359,14 @@ class ConsoleReporter {
       console.log(`  Fixed:    ${COLORS.green}${summary.fixes.total}${COLORS.reset}`);
     }
     console.log(`  Time:     ${summary.duration}ms`);
+    // Top-5 slowest modules (move 4) — per-module timing already existed
+    // (#644/#650); this is the one-line "where did the time go" shortlist.
+    if (Array.isArray(summary.slowestModules) && summary.slowestModules.length > 0) {
+      const shortlist = summary.slowestModules
+        .map((m) => `${m.module} (${(m.durationMs / 1000).toFixed(1)}s)`)
+        .join(', ');
+      console.log(`  ${COLORS.dim}Slowest:  ${shortlist}${COLORS.reset}`);
+    }
 
     if (summary.failedModules.length > 0) {
       console.log('');
