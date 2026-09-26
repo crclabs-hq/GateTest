@@ -37,6 +37,12 @@
 
 const fs = require('fs');
 const path = require('path');
+// Move 15 (onboarding mode): "would this finding have blocked under real
+// enforcement" — deliberately re-derived against the REAL default
+// threshold, not `report.summary.confidenceThreshold` (that field reflects
+// whatever the gate actually ran with, which report-only inflates to
+// Infinity so nothing there ever reads as blocking).
+const { wouldBlockFinding } = require('../src/core/confidence');
 
 const GITHUB_API = 'https://api.github.com';
 const USER_AGENT = 'GateTest-Scan-Summary/1.0';
@@ -121,16 +127,38 @@ function renderOverridesSection(overrides) {
   return lines;
 }
 
-function renderBody({ grade, runUrl, overrides, deferred, budgetLimited, rootCause }) {
+function renderBody({
+  grade, runUrl, overrides, deferred, budgetLimited, rootCause,
+  enforcing, reportOnlyUntil, wouldBlock,
+}) {
   const gradeEmoji = { A: '🟢', B: '🟢', C: '🟡', D: '🟠', F: '🔴' }[grade.grade] || '⚪';
   const budgetNote = budgetLimited ? ' ⏱️ budget-limited' : '';
+  // Move 15 (onboarding mode): a report-only(-until) run must never wear
+  // the same green tick as a real pass when a finding would have blocked
+  // under enforcement — this isn't a pass, it's an unused grace period.
+  // `enforcing === false` only when the JSON report says so explicitly
+  // (older reports without the field default to enforcing, unaffected).
+  const reportOnlyActive = enforcing === false;
+  const badge = (reportOnlyActive && wouldBlock) ? '🕓' : gradeEmoji;
+  const modeNote = reportOnlyActive
+    ? (reportOnlyUntil && reportOnlyUntil.active
+        ? ` 🕓 report-only until ${reportOnlyUntil.date} (${reportOnlyUntil.daysLeft} day${reportOnlyUntil.daysLeft === 1 ? '' : 's'} left)`
+        : ' 🕓 report-only')
+    : '';
   const lines = [
     COMMENT_MARKER,
-    `## ${gradeEmoji} GateTest — Grade ${grade.grade} (${grade.score}/100)${budgetNote}`,
+    `## ${badge} GateTest — Grade ${grade.grade} (${grade.score}/100)${budgetNote}${modeNote}`,
     '',
     `**${grade.passed}/${grade.total}** modules passed  |  **${grade.errors}** error(s)  |  **${grade.warnings}** warning(s)`,
     '',
   ];
+  if (reportOnlyActive && wouldBlock) {
+    lines.push(
+      '> ⚠️ **This run did not enforce** — at least one finding above would ' +
+      'have blocked the gate under normal enforcement. Nothing here failed the build.',
+      '',
+    );
+  }
 
   // Move 4 (time-to-verdict contract) — every deferred module, whether
   // SUITE_DEFERRALS or a --budget cut, is named here with why (Forbidden
@@ -225,6 +253,15 @@ async function main() {
   grade.findings = topFindings(report);
   const rootCause = (report.summary && report.summary.rootCause) || null;
 
+  // Move 15 (onboarding mode): `enforcing === false` only when the report
+  // says so explicitly — a report from before this field existed still
+  // reads as enforcing, never as report-only by accident.
+  const enforcing = report?.summary?.enforcing !== false;
+  const reportOnlyUntil = report?.summary?.reportOnlyUntil || null;
+  const wouldBlock = !enforcing
+    && Array.isArray(report.findings)
+    && report.findings.some((f) => wouldBlockFinding({ severity: f.severity, confidence: f.confidence, passed: false }));
+
   const runUrl = process.env.GITHUB_SERVER_URL && process.env.GITHUB_RUN_ID
     ? `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`
     : `https://github.com/${owner}/${repo}`;
@@ -236,6 +273,9 @@ async function main() {
     deferred: report?.summary?.deferred,
     budgetLimited: report?.summary?.budgetLimited === true,
     rootCause,
+    enforcing,
+    reportOnlyUntil,
+    wouldBlock,
   });
 
   try {

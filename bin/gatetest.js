@@ -34,6 +34,7 @@ const { buildJsonOutput, scanExitCode } = require('../src/core/json-output');
 const { crawlReportPaths, crawlExitCode, crawlResultLabel, buildCrawlFindings, crawlFindingIds } = require('../src/modules/live-crawler-report');
 const { createConvergenceGuard, REASONS: CONVERGENCE_REASONS } = require('../src/core/convergence-guard');
 const { resolveReportDir, ENV_REPORT_DIR, ENV_NO_ARTIFACTS } = require('../src/core/report-paths');
+const { isValidIsoDate } = require('../src/core/onboarding-mode');
 
 /**
  * `--project <path>` must name an existing directory, or the run is a usage
@@ -101,6 +102,13 @@ const HELP = `
                                      nothing. <id> is the module:rule id
                                      .gatetestignore uses. See
                                      'gatetest report-fp --help'.
+    gatetest baseline --init        Onboarding wizard: scans, captures
+                                     .gatetest/baseline.json, and prints the
+                                     per-module count, the .gatetest.json
+                                     snippet for a --report-only-until grace
+                                     period, and the CI line that enforces on
+                                     NEW findings only. See
+                                     'gatetest baseline --help'.
 
   OPTIONS
     --suite <name>     Run a test suite: quick, standard, full (default: standard)
@@ -161,10 +169,23 @@ const HELP = `
                        on a fresh GateTest install so CI stays green from
                        day 1 while the team triages pre-existing findings.
                        Default for new installs; opt INTO strict mode.
-    --strict           Force blocking behaviour even when --report-only or
-                       a report-only env/config flag is set. Use once
-                       you've triaged the baseline and want the gate to
-                       enforce. Wins over --report-only when both pass.
+    --report-only-until <YYYY-MM-DD>
+                       Time-boxed --report-only (move 15, onboarding mode):
+                       report findings but never fail the gate BEFORE this
+                       UTC date; on or after it the flag is ignored and the
+                       gate enforces automatically — no second flag to
+                       remember to remove. Same as the .gatetest.json
+                       "reportOnlyUntil" key (this flag wins when both are
+                       set); --strict wins over either. The console, --format
+                       json (summary.reportOnlyUntil / summary.enforcing) and
+                       the PR comment all say which mode ran and why. An
+                       invalid date is a usage error (exit 2); 'gatetest
+                       baseline --init' prints a ready-to-paste snippet dated
+                       14 days out.
+    --strict           Force blocking behaviour even when --report-only,
+                       --report-only-until, or a report-only env/config flag
+                       is set. Use once you've triaged the baseline and want
+                       the gate to enforce. Wins over both when they conflict.
     --model-verdicts-block
                        A model-judged finding (one whose verdict came from
                        asking an AI to review the code, not from a
@@ -180,7 +201,10 @@ const HELP = `
                        findings — pre-existing ones stay visible but never
                        block. Onboard a mature repo without eating the
                        backlog on day one. Re-run to refresh; delete the
-                       file to see everything again. Respects --suite.
+                       file to see everything again. Respects --suite. For a
+                       guided first run with a printed recap (per-module
+                       count, .gatetest.json snippet, CI line), use
+                       'gatetest baseline --init' instead.
     --accept-risk <finding-id> --reason "<text>" [--until YYYY-MM-DD] [--by <name>]
                        Recorded, expiring override for ONE finding (repeatable —
                        repeat the whole group per finding). Unlike
@@ -406,7 +430,7 @@ async function main() {
   //                            every existing invocation keeps working.
   const rawArgs = process.argv.slice(2);
   const first = rawArgs[0];
-  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan', 'train', 'fix', 'trace', 'blame', 'verify-report', 'usage', 'report-fp']);
+  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan', 'train', 'fix', 'trace', 'blame', 'verify-report', 'usage', 'report-fp', 'baseline']);
   if (first === 'verify-report') {
     // gatetest verify-report <report.json> [--key <key>]
     // Checks the HMAC signature over the provenance block and that the
@@ -469,6 +493,14 @@ async function main() {
     // (the Fifty, move 20 — false-positive SLA, entrance 1 of 2).
     const reportFp = require('./gatetest-report-fp');
     const code = await reportFp.main(rawArgs.slice(1));
+    process.exit(code || 0);
+  }
+  if (first === 'baseline') {
+    // gatetest baseline --init — the onboarding wizard (LAUNCH_BOARD row 15
+    // / the Fifty, move 15): scans, captures .gatetest/baseline.json, and
+    // prints the per-module recap + the --report-only-until snippet.
+    const baselineCmd = require('./gatetest-baseline');
+    const code = await baselineCmd.main(rawArgs.slice(1));
     process.exit(code || 0);
   }
   if (first === 'fix') {
@@ -656,6 +688,20 @@ async function main() {
             : 'origin/main'))
       : undefined);
 
+  // --report-only-until <date> (move 15, onboarding mode): a malformed date
+  // on the command line is a usage error — never a silent "ignored, so the
+  // default applies" like the rest of cli-args.js's advisory-by-default
+  // problems (this one has no sensible default to fall back to: running
+  // enforcing when the operator asked for a time-boxed grace period is the
+  // exact "green that cannot turn red" / silently-wrong-mode failure the
+  // module header warns about). A malformed `.gatetest.json` value is
+  // handled separately, as a warning, inside GateTestRunner's constructor.
+  if (typeof args.reportOnlyUntil === 'string' && !isValidIsoDate(args.reportOnlyUntil)) {
+    console.error(`[GateTest] Error: --report-only-until expects an ISO date (YYYY-MM-DD), got "${args.reportOnlyUntil}".`);
+    console.error('[GateTest] Nothing was scanned.');
+    process.exit(USAGE_EXIT_CODE);
+  }
+
   // --file: narrow the scan to named files. Same wire as --diff (runner.js
   // `diffOnly` + `changedFiles`): BaseModule._collectFiles intersects with
   // the set, and the runner drops findings anchored elsewhere at the seam
@@ -729,6 +775,10 @@ async function main() {
     // --strict also makes an EMPTY scan (no source files under the root) a
     // failed gate — see runner.js `nothingChecked`.
     strict: args.strict === true,
+    // Move 15 (onboarding mode) — already validated above; the
+    // `.gatetest.json` `reportOnlyUntil` fallback is read inside
+    // GateTestRunner's constructor when this is absent.
+    ...(typeof args.reportOnlyUntil === 'string' ? { reportOnlyUntil: args.reportOnlyUntil } : {}),
     // The Fifty, move 14 — CLI flag wins; config key / env var are read
     // inside GateTestRunner's constructor when this is absent.
     ...(args.modelVerdictsBlock === true ? { modelVerdictsBlock: true } : {}),
