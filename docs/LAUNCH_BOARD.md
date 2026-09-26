@@ -63,7 +63,7 @@ mapped to the engine. Status verified 2026-09-25 22:30Z.
 | 9 | Self-host parity: Docker image, GitLab template, Bitbucket pipe, GitLab login | PARTIAL | GHCR image yes (#516); GitLab/Bitbucket unverified |
 | 10 | Pricing copy answers per-token and double-billing complaints; usage receipt per run | UNVERIFIED | pricing page has tiers; receipt per run not checked |
 | 11 | Real analyzers for Go, Python, Java, Rust, measured on the corpus | OPEN | Go module is four regexes, standard suite runs no language module |
-| 12 | Root cause on every red run: classifier verdict, blame commit, replay command | PARTIAL | `gatetest replay <run-url>` exists; classifier verdict unverified |
+| 12 | Root cause on every red run: classifier verdict, blame commit, replay command | PR #774 | `src/core/root-cause.js` — one classifier, bounded git blame, local/CI replay; on console, JSON, SARIF, PR comment |
 | 13 | Site-scan honesty defaults: WCAG2AA, warnings off, TTFB sampled alone, per-page timeout | PARTIAL | web-scan fixes #648-#665; defaults not re-audited |
 | 14 | Every finding tagged deterministic vs model-judged; model-judged never blocks by default | DONE | PR #751 |
 | 15 | Onboarding mode: `--report-only-until <date>`, baseline wizard | PARTIAL | `--report-only`, `--baseline` exist; no date |
