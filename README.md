@@ -134,6 +134,46 @@ Suppressed findings are excluded from the gate decision and every failure count,
 - `gatetest --noise` — ranks your noisiest modules and prints the exact ignore line to copy. The same signal, aggregated across every opted-in scan, is published rule by rule at [gatetest.io/noise](https://gatetest.io/noise).
 - **Auto-softening** — a module you chronically dismiss stops blocking the gate on its own (never on thin evidence: it takes repeated dismissals at a high fire-rate).
 
+### Accepting a real risk — recorded, expiring
+
+`.gatetestignore` is for a **false positive**: "this rule is wrong about my
+repo." It is silent (no reason, no expiry) and permanent — the right tool
+when the finding shouldn't exist at all.
+
+An **accepted risk** is for the other case: the finding is real, you accept
+it anyway, and you want that decision on the record with a reason and a
+review date — not a bypass nobody can see:
+
+```bash
+gatetest --accept-risk secrets:apiKey:src/legacy-client.js:42 \
+  --reason "internal tool behind VPN, rotation ticketed for Q1" \
+  --until 2026-12-31 --by craig --persist
+```
+
+`--accept-risk <finding-id>` takes the same id `--format json` prints as
+`issues[].id` (`<module>:<check>`); repeat the whole group for more than one
+finding. `--reason` is required — without it the override is a loud warning
+(exit 2 under `--strict` or in CI) and is never applied. `--until` is the
+review date: past it, the finding **blocks again**, with a message naming
+the expired override — an accepted risk that nobody revisits is exactly the
+UNRECORDED bypass this feature exists to prevent. `--persist` writes the
+override into `.gatetest/accepted-risks.json`, an array of
+`{ id, reason, by, until, created }` committed and reviewed like any other
+file; without `--persist` the override applies to this run only.
+
+An accepted risk **never disappears from the report** the way a
+`.gatetestignore` suppression does — it stops blocking, but stays visible in
+a separate `overrides` array in the JSON report, in the PR comment's
+"Accepted risks" section, and as a SARIF `suppressions` entry (so GitHub's
+Security tab shows it dismissed *with your reason*, not silently absent).
+
+| | `.gatetestignore` | Accepted risk |
+|---|---|---|
+| The finding is | wrong (false positive) | real, accepted on purpose |
+| Reason required? | no | yes |
+| Expires? | never | optional `--until` |
+| Visible after applied? | in `suppressedChecks` only | in the report, PR comment, and SARIF |
+
 **The policy is reviewed as policy.** `.gatetest.json` and `.gatetestignore` are what
 every later PR is judged by, so a PR that changes them says so: a suppression added
 to `.gatetestignore`, a module disabled, the gate set to report-only or the block
@@ -144,6 +184,24 @@ them), so two reports that disagree can be told apart by policy, not only by
 engine.
 
 Project-wide options live in `.gatetest.json` (suites, per-module config, severity overrides) — run `gatetest --init` to scaffold one.
+
+### Deterministic vs. model-judged findings
+
+GateTest runs two kinds of checks. Most modules (secrets, syntax, lint, crossFileTaint, and the rest of the deterministic majority) are rules: given the same input they always produce the same verdict. A handful of modules (aiReview, agentic, architectureDrift, intentVerification, regressionPredictor, and the AI-engine half of fakeFixDetector) ask a model to judge the code — a different kind of evidence, and one that shouldn't be weighted the same as a rule firing.
+
+Every finding carries a `verdictSource`: `deterministic`, `model`, or `mixed`. **A model-judged finding never blocks the gate by default** — it's reported as a warning, with `wouldBlock: true` preserved on the finding so you can see what a stricter policy would have decided. Opt model-judged findings INTO blocking with:
+
+```bash
+gatetest --suite full --model-verdicts-block
+```
+
+or `.gatetest.json`:
+
+```json
+{ "gate": { "modelVerdictsBlock": true } }
+```
+
+or the environment variable `GATETEST_MODEL_VERDICTS_BLOCK=1`. Every surface shows the split: the console summary prints deterministic vs. model-judged blocking counts, the JSON report tags each finding's `verdictSource`, SARIF carries it under `properties.verdictSource` for the GitHub Security tab, and the PR comment labels model-judged findings so a reviewer knows which alerts are a rule and which are an opinion.
 
 ### Onboarding a mature repo — baseline mode
 
@@ -284,6 +342,30 @@ API ping from `--doctor`. The console prints the mode, the summary carries
 `offline: true`, and the signed provenance records it — so a report produced inside
 the perimeter can be verified outside it with `gatetest verify-report` and the key.
 There is no licence server and no account; nothing expires.
+
+### Redirecting or disabling report output
+
+Every scan writes reports (`.gatetest/reports/`) and two memory stores
+(`.gatetest/memory.json`, `.gatetest/memory/`) into the scanned checkout by
+default — fine for a normal dev machine, not for a CI runner, a monorepo, or
+anyone scanning a read-only tree, where it leaves `git status` dirty with no
+way to opt out.
+
+```bash
+# Redirect everything (reports + memory) to one path instead:
+gatetest --suite full --report-dir /tmp/gatetest-out    # or GATETEST_REPORT_DIR=/tmp/gatetest-out
+
+# Or write nothing to disk at all — the console summary and --format json's
+# stdout document are unaffected, exit codes unchanged:
+gatetest --suite full --no-artifacts                    # or GATETEST_NO_ARTIFACTS=1
+```
+
+`--report-dir` wins over the env var, which wins over `.gatetest.json`'s
+`reporting.outputDir`, which wins over the default. If you keep the default
+location, add `.gatetest/` to that repo's `.gitignore` — GateTest prints a
+one-line stderr hint after the summary the first time it notices that repo's
+own `.gitignore` doesn't cover it (never in `--format json` mode, never with
+`--no-artifacts`).
 
 ### Docker
 

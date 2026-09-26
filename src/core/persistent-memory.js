@@ -21,8 +21,8 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { resolveMemoryRoot, artifactsDisabled } = require('./report-paths');
 
-const MEMORY_DIR      = '.gatetest';
 const MEMORY_FILENAME = 'memory.json';
 const SCHEMA_VERSION  = 2;
 
@@ -72,7 +72,7 @@ function createEmpty(projectRoot) {
  * Never throws.
  */
 function load(projectRoot) {
-  const filePath = path.join(projectRoot, MEMORY_DIR, MEMORY_FILENAME);
+  const filePath = path.join(resolveMemoryRoot(projectRoot), MEMORY_FILENAME);
   try {
     const raw = fs.readFileSync(filePath, 'utf-8');
     const parsed = JSON.parse(raw);
@@ -87,10 +87,13 @@ function load(projectRoot) {
 }
 
 /**
- * Save the memory file. Creates .gatetest/ if needed. Never throws.
+ * Save the memory file. Creates the memory root if needed. Never throws.
+ * No-ops entirely under --no-artifacts / GATETEST_NO_ARTIFACTS=1 (complaint
+ * C22) — same best-effort contract, just nothing written.
  */
 function save(projectRoot, data) {
-  const dir      = path.join(projectRoot, MEMORY_DIR);
+  if (artifactsDisabled()) return;
+  const dir      = resolveMemoryRoot(projectRoot);
   const filePath = path.join(dir, MEMORY_FILENAME);
   try {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });

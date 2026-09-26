@@ -24,7 +24,16 @@ const {
   BLOCK_THRESHOLD,
   scoreFinding,
   isBlockingFinding,
+  wouldBlockFinding,
 } = require('./confidence');
+
+// verdictSource classification (the Fifty, move 14) — ONE table (doctrine
+// #4) of which modules' findings are a model's judgment call rather than a
+// deterministic rule. Set once here, in `TestResult.addCheck`, the single
+// place every finding is created/normalised; every reporter reads the field
+// off the check, never this table.
+const { defaultVerdictSource } = require('./model-judged-modules');
+const VALID_VERDICT_SOURCES = new Set(['deterministic', 'model', 'mixed']);
 
 // .gatetestignore suppression + flywheel-learned confidence penalties.
 // Both loaded defensively — a missing file / memory yields a no-op so the
@@ -33,6 +42,10 @@ let _ignoreFile = null;
 try { _ignoreFile = require('./ignore-file'); } catch { _ignoreFile = null; }
 let _noiseModel = null;
 try { _noiseModel = require('./noise-model'); } catch { _noiseModel = null; }
+// Accepted-risk overrides (src/core/accept-risk.js) — a recorded, expiring
+// alternative to .gatetestignore. Loaded defensively like the two above.
+let _acceptRisk = null;
+try { _acceptRisk = require('./accept-risk'); } catch { _acceptRisk = null; }
 
 function _loadBaselineMatcher(projectRoot) {
   try {
@@ -179,11 +192,24 @@ class TestResult {
     // Baseline matcher (KI #66) — grandfathered findings suppress the same
     // way, with suppressReason 'baseline' so reporters can distinguish.
     this._baselineMatcher = options.baselineMatcher || null;
+    // Accepted-risk matcher (src/core/accept-risk.js) — a matched, unexpired
+    // finding stops blocking but is NEVER suppressed/hidden: it stays in the
+    // ranked findings list and is recorded on `check.overriddenBy` so the
+    // summary can carry it in a separate `overrides[]` array. An EXPIRED
+    // match does the opposite of a suppression — it blocks, with the
+    // override named in the message (`check.expiredOverride`).
+    this._acceptRiskMatcher = options.acceptRiskMatcher || null;
     this._projectRoot = options.projectRoot || null;
     // Per-module confidence penalty (0..1) learned from the flywheel: a module
     // that fires constantly AND gets dismissed repeatedly has its findings
     // softened below the block threshold until reviewed. 1 = no penalty.
     this._confidencePenalties = options.confidencePenalties || null;
+    // Gate policy (the Fifty, move 14): a model-judged finding never blocks
+    // unless the operator opted in. Default false everywhere this option is
+    // absent (e.g. tests that build TestResult directly) so legacy callers
+    // keep today's behaviour for deterministic findings and get the safer
+    // (non-blocking) behaviour for model ones.
+    this._modelVerdictsBlock = options.modelVerdictsBlock === true;
   }
 
   start() {
@@ -257,19 +283,39 @@ class TestResult {
       confidenceSignals = [];
     }
 
+    // verdictSource (the Fifty, move 14): a module that calls the AI client
+    // for SOME of its findings and derives others deterministically (e.g.
+    // fakeFixDetector's pattern engine vs its AI engine) passes an explicit
+    // `details.verdictSource` per finding; anything else defaults from the
+    // one module table (`model-judged-modules.js`). An invalid explicit
+    // value is never trusted silently — it falls back to the module default
+    // rather than letting a typo like 'ai' exempt a finding from the gate
+    // count it belongs in.
+    const verdictSource = VALID_VERDICT_SOURCES.has(details.verdictSource)
+      ? details.verdictSource
+      : defaultVerdictSource(this.module);
+
     const check = {
       name,
       passed,
       timestamp: Date.now(),
       ...details,
-      // These three MUST win over `...details` — `severity` may have just
-      // been demoted above, and re-applying `details.severity` here would
+      // These MUST win over `...details` — `severity` may have just been
+      // demoted above, and re-applying `details.severity` here would
       // silently undo it (the original bug: `severity` used to sit BEFORE
       // the spread, a no-op only because nothing ever mutated it after
-      // being read from `details` in the first place).
+      // being read from `details` in the first place). `verdictSource` is
+      // validated above and must win over an unvalidated caller value for
+      // the same reason.
       severity,
       confidence,
       confidenceSignals,
+      verdictSource,
+      // What a stricter policy (`--model-verdicts-block`) would decide on
+      // confidence alone — preserved even when the gate itself does not act
+      // on it, so the report always shows what a model-judged finding would
+      // do under a stricter setting (the Fifty, move 14).
+      wouldBlock: wouldBlockFinding({ severity, confidence, passed }, this._blockThreshold),
     };
     if (demotedBy) check.demotedBy = demotedBy;
 
@@ -313,6 +359,25 @@ class TestResult {
       if (this._baselineMatcher.has(this.module, name, filePath, instances)) {
         check.suppressed = true;
         check.suppressReason = 'baseline';
+      }
+    }
+
+    // Accepted-risk override (src/core/accept-risk.js) — identity is the
+    // SAME finding id every other surface uses, `${module}:${name}`
+    // (src/core/finding-registry.js `f.id`, `--format json` `issues[].id`;
+    // doctrine #4, one definition). Never suppresses: an active override
+    // only stops the finding from blocking (see blockingErrorChecks below);
+    // an expired one changes nothing about blocking and instead names
+    // itself in the message so the block is never a silent surprise
+    // (Bible Forbidden #16).
+    if (!passed && !check.suppressed && this._acceptRiskMatcher) {
+      const matched = this._acceptRiskMatcher.match(`${this.module}:${name}`);
+      if (matched && !matched.expired) {
+        check.overriddenBy = matched.override;
+      } else if (matched && matched.expired) {
+        check.expiredOverride = matched.override;
+        const who = matched.override.by ? ` by ${matched.override.by}` : '';
+        check.message = `${check.message || name} [accepted-risk override${who} expired ${matched.override.until} — now blocking]`;
       }
     }
 
@@ -361,22 +426,41 @@ class TestResult {
 
   /**
    * Errors that are CONFIDENT enough to actually block the gate.
-   * (severity === 'error' AND confidence >= blockThreshold, not suppressed)
+   * (severity === 'error' AND confidence >= blockThreshold, not suppressed,
+   * AND — the Fifty, move 14 — not a model-judged finding held back by gate
+   * policy: see `isBlockingFinding` / `gate.modelVerdictsBlock`.)
    */
   get blockingErrorChecks() {
     const t = this._blockThreshold;
-    return this.checks.filter(c => !c.suppressed && isBlockingFinding(c, t));
+    // An active (unexpired) accepted-risk override is the one thing besides
+    // suppression that keeps an otherwise-confident error off the gate — it
+    // still shows up in errorChecks/findings, just never here.
+    return this.checks.filter(c => !c.suppressed && !c.overriddenBy && isBlockingFinding(c, t, this._modelVerdictsBlock));
   }
 
   /**
    * Errors that fell below the confidence threshold — reported but
-   * don't block.
+   * don't block. Confidence-only, deliberately: a model-judged finding held
+   * back by GATE POLICY (not by low confidence) is a different reason to be
+   * non-blocking and is counted separately by `modelJudgedChecks`, so this
+   * bucket keeps meaning exactly what it always meant.
    */
   get softErrorChecks() {
     const t = this._blockThreshold;
     return this.checks.filter(c =>
-      !c.passed && !c.suppressed && c.severity === Severity.ERROR && !isBlockingFinding(c, t),
+      !c.passed && !c.suppressed && c.severity === Severity.ERROR
+        && c.verdictSource !== 'model' && !wouldBlockFinding(c, t),
     );
+  }
+
+  /**
+   * Model-judged findings (verdictSource === 'model') that failed — reported
+   * as warnings for gate purposes unless `gate.modelVerdictsBlock` is on
+   * (the Fifty, move 14). Each retains `wouldBlock` so the report can say
+   * what a stricter policy would decide.
+   */
+  get modelJudgedChecks() {
+    return this.checks.filter(c => !c.passed && !c.suppressed && c.verdictSource === 'model');
   }
 
   /** Checks that failed with severity 'warning' — reported but don't block. */
@@ -479,6 +563,10 @@ class TestResult {
       warnings: this.warningChecks.length,
       softWarnings: this.softWarningChecks.length,
       flywheelSoftened: this.flywheelSoftenedChecks.length,
+      // Model-judged findings (the Fifty, move 14) — never blocking by
+      // default; see `checks[].verdictSource` / `wouldBlock` for the detail
+      // a reporter needs per finding.
+      modelJudged: this.modelJudgedChecks.length,
       infoFindings: this.infoFindingChecks.length,
       // Suppressed findings are excluded from every count above, which is
       // right for the gate but wrong for the noise model: a module whose
@@ -530,6 +618,14 @@ class GateTestRunner extends EventEmitter {
       : (typeof options.blockThreshold === 'number'
           ? options.blockThreshold
           : this.options.confidenceThreshold);
+    // Gate policy (the Fifty, move 14): does a model-judged finding block by
+    // itself? Default false. Precedence: explicit constructor option (CLI
+    // `--model-verdicts-block` arrives here via bin/gatetest.js) > config key
+    // `gate.modelVerdictsBlock` (`.gatetest.json`) > env
+    // `GATETEST_MODEL_VERDICTS_BLOCK=1`.
+    this._modelVerdictsBlock = options.modelVerdictsBlock === true
+      || (config && typeof config.get === 'function' && config.get('gate.modelVerdictsBlock') === true)
+      || process.env.GATETEST_MODEL_VERDICTS_BLOCK === '1';
     // Shared source cache for confidence scoring across all modules
     const projectRoot = (config && config.projectRoot) || process.cwd();
     this._sourceCache = new SourceCache(projectRoot);
@@ -539,6 +635,12 @@ class GateTestRunner extends EventEmitter {
     // every TestResult so suppression and softening apply uniformly.
     this._ignoreMatcher = _loadIgnoreMatcher(projectRoot, config);
     this._confidencePenalties = _loadConfidencePenalties(projectRoot);
+    // Accepted-risk overrides (move 3, docs/LAUNCH_BOARD.md): the caller
+    // (bin/gatetest.js) already merged the `.gatetest/accepted-risks.json`
+    // file with any `--accept-risk` CLI flags — this only builds the
+    // lookup, so there is one merge, not one per module.
+    this._acceptRiskOverrides = Array.isArray(options.acceptRiskOverrides) ? options.acceptRiskOverrides : [];
+    this._acceptRiskMatcher = _acceptRisk ? _acceptRisk.buildOverrideMatcher(this._acceptRiskOverrides) : null;
     // Baseline ("only fail on NEW issues", KI #66). When capturing a fresh
     // baseline the old one must NOT suppress anything — the snapshot has to
     // see the full current state.
@@ -768,8 +870,10 @@ class GateTestRunner extends EventEmitter {
       blockThreshold: this._blockThreshold,
       ignoreMatcher: this._ignoreMatcher,
       baselineMatcher: this._baselineMatcher,
+      acceptRiskMatcher: this._acceptRiskMatcher,
       projectRoot: this._projectRoot,
       confidencePenalties: this._confidencePenalties,
+      modelVerdictsBlock: this._modelVerdictsBlock,
     });
 
     if (!mod) {
@@ -1141,8 +1245,24 @@ class GateTestRunner extends EventEmitter {
     const totalBlockingErrors = this.results.reduce(
       (sum, r) => sum + r.blockingErrorChecks.length, 0,
     );
+    // Blocking split by verdictSource (the Fifty, move 14) — "deterministic /
+    // model-judged blocking" in the console summary. Model-judged blocking
+    // is 0 unless `gate.modelVerdictsBlock` is on, since `blockingErrorChecks`
+    // already excludes model findings by default.
+    const totalDeterministicBlocking = this.results.reduce(
+      (sum, r) => sum + r.blockingErrorChecks.filter(c => c.verdictSource !== 'model').length, 0,
+    );
+    const totalModelJudgedBlocking = totalBlockingErrors - totalDeterministicBlocking;
     const totalSoftErrors = this.results.reduce(
       (sum, r) => sum + r.softErrorChecks.length, 0,
+    );
+    const totalModelJudged = this.results.reduce(
+      (sum, r) => sum + r.modelJudgedChecks.length, 0,
+    );
+    // Model-judged findings that WOULD block under a stricter policy —
+    // `wouldBlock` preserved even though the gate did not act on it.
+    const totalModelJudgedWouldBlock = this.results.reduce(
+      (sum, r) => sum + r.modelJudgedChecks.filter(c => c.wouldBlock === true).length, 0,
     );
     const totalWarnings = this.results.reduce((sum, r) => sum + r.warningChecks.length, 0);
     // Sub-counts of the warning pile — reported, never subtracted from it.
@@ -1205,6 +1325,31 @@ class GateTestRunner extends EventEmitter {
       }
     }
 
+    // Accepted-risk overrides that applied to at least one finding this run
+    // (move 3, docs/LAUNCH_BOARD.md) — active or expired, deduped by id.
+    // Never derived from `this._acceptRiskOverrides` directly: only an
+    // override that actually matched a real finding is worth reporting,
+    // same reasoning as `suppressedRules` above.
+    const acceptedRiskOverrides = [];
+    {
+      const seen = new Set();
+      for (const r of this.results) {
+        for (const c of r.checks) {
+          const applied = c.overriddenBy || c.expiredOverride;
+          if (!applied || seen.has(applied.id)) continue;
+          seen.add(applied.id);
+          acceptedRiskOverrides.push({
+            id: applied.id,
+            reason: applied.reason || null,
+            by: applied.by || null,
+            until: applied.until || null,
+            created: applied.created || null,
+            expired: Boolean(c.expiredOverride),
+          });
+        }
+      }
+    }
+
     // Baseline capture (`gatetest --baseline`) — snapshot the full current
     // failure surface so future runs only fail on NEW findings.
     let baselineInfo = null;
@@ -1255,8 +1400,14 @@ class GateTestRunner extends EventEmitter {
     let findingSummary = null;
     try {
       const registry = require('./finding-registry');
-      registry.annotateDuplicates(resultsJson, { threshold: this._blockThreshold });
-      findings = registry.normalizeFindings(resultsJson, { threshold: this._blockThreshold });
+      registry.annotateDuplicates(resultsJson, {
+        threshold: this._blockThreshold,
+        modelVerdictsBlock: this._modelVerdictsBlock,
+      });
+      findings = registry.normalizeFindings(resultsJson, {
+        threshold: this._blockThreshold,
+        modelVerdictsBlock: this._modelVerdictsBlock,
+      });
       findingSummary = registry.summarizeFindings(findings);
     } catch (err) { // error-ok — the registry is a presentation layer; a bug in it must never break a scan
       console.error('[GateTest] finding registry failed:', err && err.message ? err.message : err);
@@ -1269,6 +1420,11 @@ class GateTestRunner extends EventEmitter {
       // trace that a blocking result was overridden (Forbidden #16).
       rawGateStatus,
       adminOverride: adminOverrideActive,
+      // Gate policy (the Fifty, move 14): whether a model-judged finding is
+      // allowed to block on its own. Always present so a reporter can say
+      // "N model-judged finding(s) would block under a stricter policy"
+      // without guessing which policy actually ran.
+      modelVerdictsBlock: this._modelVerdictsBlock,
       // No source file under the root: every module passed by default.
       // Reporters print it beside the verdict; the JSON carries it so no
       // consumer can read an empty scan as a clean one. `strict` turns it
@@ -1307,6 +1463,7 @@ class GateTestRunner extends EventEmitter {
         : null,
       baseline: baselineInfo,
       suppressedRules,
+      overrides: acceptedRiskOverrides,
       modules: {
         total: this.results.length,
         passed: passed.length,
@@ -1319,7 +1476,16 @@ class GateTestRunner extends EventEmitter {
         failed: failedChecks,
         errors: totalErrors,
         blockingErrors: totalBlockingErrors,
+        // Blocking split by verdictSource (the Fifty, move 14) — the
+        // console prints these as "N deterministic, M model-judged blocking".
+        blockingErrorsDeterministic: totalDeterministicBlocking,
+        blockingErrorsModelJudged: totalModelJudgedBlocking,
         softErrors: totalSoftErrors,
+        // Model-judged findings that failed — never blocking by default
+        // (verdictSource === 'model'); `modelJudgedWouldBlock` is the subset
+        // that would block under `gate.modelVerdictsBlock`.
+        modelJudged: totalModelJudged,
+        modelJudgedWouldBlock: totalModelJudgedWouldBlock,
         warnings: totalWarnings,
         softWarnings: totalSoftWarnings,
         flywheelSoftened: totalFlywheelSoftened,

@@ -1094,6 +1094,13 @@ Be ruthless. We are building a product that kills fake fixes.`;
         explanation: f.explanation,
         suggestion: f.suggestion || 'Address the root cause instead of suppressing the symptom.',
         snippet: f.snippet,
+        // The Fifty, move 14: this module is MIXED — the 'pattern' engine is
+        // a deterministic regex/diff rule, the 'ai' engine is a Claude
+        // verdict on the same hunk. Tagged per finding rather than left to
+        // the module-name default, which would call every finding here
+        // 'deterministic' (fakeFixDetector isn't in model-judged-modules.js
+        // on purpose — see that file's comment on why).
+        verdictSource: engine === 'ai' ? 'model' : 'deterministic',
       });
     }
   }

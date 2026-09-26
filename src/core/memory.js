@@ -26,13 +26,16 @@
 const fs = require('fs');
 const path = require('path');
 const { isExcludedDir } = require('./walk-excludes');
-
-const MEMORY_DIR = '.gatetest/memory';
+const { resolveMemoryRoot, artifactsDisabled } = require('./report-paths');
 
 class MemoryStore {
   constructor(projectRoot) {
     this.projectRoot = projectRoot;
-    this.dir = path.join(projectRoot, MEMORY_DIR);
+    // Complaint C22: --report-dir / GATETEST_REPORT_DIR relocates this
+    // alongside the reports; the default stays the historical
+    // `<project>/.gatetest/memory`. See report-paths.js — the one
+    // definition, shared with persistent-memory.js and every reporter.
+    this.dir = path.join(resolveMemoryRoot(projectRoot), 'memory');
     this.files = {
       fingerprint: path.join(this.dir, 'fingerprint.json'),
       issues: path.join(this.dir, 'issues.jsonl'),
@@ -43,6 +46,7 @@ class MemoryStore {
   }
 
   _ensureDir() {
+    if (artifactsDisabled()) return;
     if (!fs.existsSync(this.dir)) {
       fs.mkdirSync(this.dir, { recursive: true });
     }
@@ -58,11 +62,13 @@ class MemoryStore {
   }
 
   _writeJson(file, data) {
+    if (artifactsDisabled()) return;
     this._ensureDir();
     fs.writeFileSync(file, JSON.stringify(data, null, 2));
   }
 
   _appendJsonl(file, obj) {
+    if (artifactsDisabled()) return;
     this._ensureDir();
     fs.appendFileSync(file, JSON.stringify(obj) + '\n');
   }

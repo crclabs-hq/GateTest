@@ -65,9 +65,9 @@ mapped to the engine. Status verified 2026-09-25 22:30Z.
 | 11 | Real analyzers for Go, Python, Java, Rust, measured on the corpus | OPEN | Go module is four regexes, standard suite runs no language module |
 | 12 | Root cause on every red run: classifier verdict, blame commit, replay command | PARTIAL | `gatetest replay <run-url>` exists; classifier verdict unverified |
 | 13 | Site-scan honesty defaults: WCAG2AA, warnings off, TTFB sampled alone, per-page timeout | PARTIAL | web-scan fixes #648-#665; defaults not re-audited |
-| 14 | Every finding tagged deterministic vs model-judged; model-judged never blocks by default | OPEN | no `verdictSource` field |
+| 14 | Every finding tagged deterministic vs model-judged; model-judged never blocks by default | DONE | PR #751 |
 | 15 | Onboarding mode: `--report-only-until <date>`, baseline wizard | PARTIAL | `--report-only`, `--baseline` exist; no date |
-| 16 | Convergence guard on fix and crawl loops; never re-flag own fix | PARTIAL | `maxAttempts` = 3; no never-re-flag check |
+| 16 | Convergence guard on fix and crawl loops; never re-flag own fix | IN PROGRESS | PR #750 |
 | 17 | Zero writes into the scanned checkout unless asked | IN PROGRESS | builder PR from `feat/cli-report-dir-no-artifacts` (`--report-dir`, `--no-artifacts`) |
 | 18 | Weekly public head-to-head vs Semgrep, CodeQL, Sonar on the same corpus | PARTIAL | `head-to-head.yml` exists; publication cadence unverified |
 | 19 | Editor loop: published extension running the real CLI, pre-commit `--diff` under 10 s | PARTIAL | extension 1.1.3 listed (#514); 10 s bar unmeasured |
