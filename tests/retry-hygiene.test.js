@@ -104,6 +104,64 @@ describe('RetryHygieneModule — unbounded loop', () => {
   });
 });
 
+// ── GT-07 (issue #771): a hop-bounded for(;;) has a visible bound the old
+// check could not see — it only knew the words attempts/tries/retries/
+// maxAttempts/MAX_<UPPER>, and separately treated ANY `break` anywhere in
+// the body (even a bare break-on-success, no counter, no delay) as proof of
+// a bound.
+describe('RetryHygieneModule — GT-07: a visible bound quiets the loop; no bound still fires (issue #771)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-rh-771-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  const unbounded = (r) => r.checks.filter((c) => !c.passed && c.name.startsWith('retry-hygiene:unbounded-loop:'));
+
+  it('NEGATIVE: an incremented hop counter compared to a bound, then thrown, is quiet', async () => {
+    write(tmp, 'src/a.ts', [
+      'async function callWithHops() {',
+      '  let hops = 0;',
+      '  const MAX = 5;',
+      '  for (;;) {',
+      '    const res = await fetch(url);',
+      '    if (res.ok) return res;',
+      '    if (hops++ > MAX) throw new Error("too many hops");',
+      '  }',
+      '}',
+      '',
+    ].join('\n'));
+    assert.strictEqual(unbounded(await run(tmp)).length, 0);
+  });
+
+  it('NEGATIVE: a Date.now() < deadline wall-clock bound is quiet', async () => {
+    write(tmp, 'src/b.ts', [
+      'async function callWithDeadline(deadline) {',
+      '  for (;;) {',
+      '    const res = await fetch(url);',
+      '    if (res.ok) return res;',
+      '    if (Date.now() < deadline) continue;',
+      '    throw new Error("deadline exceeded");',
+      '  }',
+      '}',
+      '',
+    ].join('\n'));
+    assert.strictEqual(unbounded(await run(tmp)).length, 0);
+  });
+
+  it('POSITIVE: for(;;) with a bare break-on-success — no counter, no deadline, no delay — still fires', async () => {
+    write(tmp, 'src/c.ts', [
+      'async function run() {',
+      '  for (;;) {',
+      '    try {',
+      '      await fetch(url);',
+      '      break;',
+      '    } catch {}',
+      '  }',
+      '}',
+      '',
+    ].join('\n'));
+    assert.strictEqual(unbounded(await run(tmp)).length, 1);
+  });
+});
+
 describe('RetryHygieneModule — no backoff / no jitter', () => {
   let tmp;
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-rh-nb-')); });
