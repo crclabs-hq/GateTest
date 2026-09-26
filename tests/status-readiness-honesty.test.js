@@ -126,3 +126,98 @@ describe('status: readiness must reflect validity, not presence', () => {
     assert.match(src, /name: "GATETEST_APP_ID", why:/);
   });
 });
+
+/**
+ * GT-02 (outside reviewer, 2026-09-26): an unauthenticated crawl of
+ * gatetest.io got the FULL /api/status body — the names of every missing
+ * secret, the "why" hint (including one that names the Tallrig dispatch
+ * behaviour), Stripe mode, queue depth and platform.pointed_at. That is a
+ * reconnaissance map handed to anyone who asks.
+ *
+ * The fix gates the operator-detail body behind the exact same authorisation
+ * scan/worker/tick already uses (`isAuthorisedTick`, imported from
+ * website/app/lib/scan-worker.js — not re-implemented, Doctrine #4): an admin
+ * session, or `Authorization: Bearer $CRON_SECRET`. This suite exercises the
+ * REAL isAuthorisedTick function (a plain CommonJS module, unlike route.ts
+ * which Next compiles) as the control pair, then pins the route wiring by
+ * source so the two can't drift apart.
+ */
+describe('status: operator detail requires authentication (GT-02)', () => {
+  const { isAuthorisedTick } = require('../website/app/lib/scan-worker');
+
+  // ---- CONTROL: the real authorisation function, unauthenticated ---------
+  it('no CRON_SECRET configured, no admin session → refused (fail closed)', () => {
+    assert.strictEqual(
+      isAuthorisedTick({ cronHeader: null, isAdmin: false, env: {} }),
+      false,
+    );
+  });
+
+  it('CRON_SECRET configured, wrong or missing bearer → refused', () => {
+    const env = { CRON_SECRET: 'the-real-secret' };
+    assert.strictEqual(isAuthorisedTick({ cronHeader: null, isAdmin: false, env }), false);
+    assert.strictEqual(isAuthorisedTick({ cronHeader: 'guess', isAdmin: false, env }), false);
+  });
+
+  // ---- POSITIVE CONTROL: the same function, authenticated ----------------
+  it('correct CRON_SECRET bearer → authorised', () => {
+    const env = { CRON_SECRET: 'the-real-secret' };
+    assert.strictEqual(
+      isAuthorisedTick({ cronHeader: 'the-real-secret', isAdmin: false, env }),
+      true,
+    );
+  });
+
+  it('an admin session is authorised even with no CRON_SECRET set', () => {
+    assert.strictEqual(isAuthorisedTick({ cronHeader: null, isAdmin: true, env: {} }), true);
+  });
+
+  // ---- THE WIRING: route.ts consults isAuthorisedTick before the full body
+  const fs = require('fs');
+  const path = require('path');
+  const routeSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'website', 'app', 'api', 'status', 'route.ts'),
+    'utf-8',
+  );
+
+  it('imports isAuthorisedTick from scan-worker and isAdminRequest from admin-auth — never re-implemented', () => {
+    assert.match(routeSrc, /require\("@\/app\/lib\/scan-worker"\)/);
+    assert.match(routeSrc, /isAuthorisedTick/);
+    assert.match(routeSrc, /import \{ isAdminRequest \} from "@\/app\/lib\/admin-auth"/);
+  });
+
+  it('the unauthenticated early-return body names no secret, no provider, no queue, no platform pointing', () => {
+    const block = routeSrc.match(/if \(!authed\) \{[\s\S]*?\n  \}\n/);
+    assert.ok(block, 'route.ts must have an `if (!authed)` early return');
+    const body = block[0];
+    // Positive control: the minimal, honest fields ARE present.
+    assert.match(body, /\bok:\s*true/);
+    assert.match(body, /\bhealthy\b/);
+    assert.match(body, /\bversion:/);
+    assert.match(body, /\bcommit:/);
+    assert.match(body, /\bchecked_at:/);
+    // Negative control: none of the reconnaissance fields leak into it.
+    for (const forbidden of [
+      'missing_important',
+      'missing_required',
+      'invalid_placeholders',
+      'platform:',
+      'pointed_at',
+      'queue',
+      'TALLRIG_API_TOKEN',
+      'GOOGLE_CLIENT_SECRET',
+      'stripe',
+    ]) {
+      assert.ok(!body.includes(forbidden), `unauthenticated body must not mention "${forbidden}"`);
+    }
+  });
+
+  it('the authenticated body (below the gate) still returns the full operator detail', () => {
+    const afterGate = routeSrc.slice(routeSrc.indexOf('if (!authed)'));
+    assert.match(afterGate, /missing_required:/);
+    assert.match(afterGate, /missing_important:/);
+    assert.match(afterGate, /invalid_placeholders/);
+    assert.match(afterGate, /platform: platformPointing\(process\.env\)/);
+    assert.match(afterGate, /queue,/);
+  });
+});

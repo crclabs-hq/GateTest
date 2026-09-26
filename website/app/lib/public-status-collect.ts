@@ -88,12 +88,25 @@ interface ReadinessBody {
   stripe?: { mode?: string };
 }
 
-/** Call the readiness route in-process. One definition of "configured". */
+/**
+ * Call the readiness route in-process. One definition of "configured".
+ *
+ * /api/status now gates its operator-detail body (GT-02) behind an admin
+ * session or `Authorization: Bearer $CRON_SECRET` — the same check
+ * scan/worker/tick uses. This call is server-to-server (never reaches a
+ * browser), so it carries that bearer from the server's own env when set;
+ * without it, the readiness route still answers, just with the minimal
+ * `{ ok, healthy, version, commit, checked_at }` body, and the derived
+ * component states below fall back to "unknown" rather than fabricating a
+ * detail they were not given.
+ */
 async function readReadiness(): Promise<Reading<ReadinessBody>> {
   try {
     const gate = process.env.GATETEST_STATUS_TOKEN;
     const url = siteUrl("/api/status") + (gate ? `?token=${encodeURIComponent(gate)}` : "");
-    const res = await readinessGet(new NextRequest(url));
+    const cronSecret = process.env.CRON_SECRET;
+    const headers = cronSecret ? { authorization: `Bearer ${cronSecret}` } : undefined;
+    const res = await readinessGet(new NextRequest(url, { headers }));
     // 503 is a VALID answer here — it means "not ready", which is a reading.
     if (res.status !== 200 && res.status !== 503) return failed;
     const body = (await res.json()) as ReadinessBody;
