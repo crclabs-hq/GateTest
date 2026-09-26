@@ -195,15 +195,25 @@ function hasSourceFiles(projectRoot) {
  * file reads) run once, up front — cheap next to the module runs that
  * follow, and the only way to report a real number instead of a guess.
  *
+ * `pathFilter` (move 4, the time-to-verdict contract) is the SAME
+ * `.gatetest.json` `paths` filter every module's file set is scoped to
+ * (`scan-paths.js` — one definition of "in scope for this gate"). Passing
+ * it counts `inScopeCount` in the same walk rather than a second pass, so
+ * the ETA line can say "N files (M in scope)" without lying about which M
+ * it means.
+ *
  * @param {string} projectRoot
- * @returns {{ fileCount: number, packageCount: number }}
+ * @param {{include:RegExp[], exclude:RegExp[]}|null} [pathFilter]
+ * @returns {{ fileCount: number, packageCount: number, inScopeCount: number }}
  */
-function scanInventory(projectRoot) {
+function scanInventory(projectRoot, pathFilter = null) {
   const fs = require('fs');
   const path = require('path');
   const { WALK_EXCLUDE_SET } = require('./walk-excludes');
+  const { pathInScope } = pathFilter ? require('./scan-paths') : { pathInScope: null };
 
   let fileCount = 0;
+  let inScopeCount = 0;
   const walk = (dir) => {
     let entries;
     try {
@@ -217,6 +227,12 @@ function scanInventory(projectRoot) {
         walk(path.join(dir, entry.name));
       } else if (entry.isFile()) {
         fileCount += 1;
+        if (!pathFilter) {
+          inScopeCount += 1;
+        } else {
+          const rel = path.relative(projectRoot, path.join(dir, entry.name)).split(path.sep).join('/');
+          if (pathInScope(pathFilter, rel)) inScopeCount += 1;
+        }
       }
     }
   };
@@ -232,7 +248,7 @@ function scanInventory(projectRoot) {
     if (members.length > 0) packageCount = members.length;
   } catch { /* error-ok — no workspace config: the whole tree is one package */ }
 
-  return { fileCount, packageCount };
+  return { fileCount, packageCount, inScopeCount };
 }
 
 module.exports = {
