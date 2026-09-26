@@ -302,7 +302,7 @@ class UnitTestsModule extends BaseModule {
       let expected = null;
       let actual = null;
       if (message) {
-        const cmpLine = message.split('\n').find((l) => /\s(?:!==|===|!=|==)\s/.test(l));
+        const cmpLine = message.split(/\r?\n/).find((l) => /\s(?:!==|===|!=|==)\s/.test(l));
         const cmp = cmpLine ? /^(.*?)\s(?:!==|===|!=|==)\s(.*)$/.exec(cmpLine) : null;
         if (cmp) { actual = cmp[1].trim(); expected = cmp[2].trim(); }
       }
