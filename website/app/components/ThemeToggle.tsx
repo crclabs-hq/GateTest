@@ -88,7 +88,10 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
             aria-label={o.label}
             title={o.label}
             onClick={() => choose(o.value)}
-            className={`px-2 py-1 text-xs rounded-[4px] transition-colors ${
+            // 44x44 touch area below the md breakpoint (GT-07: the crawl
+            // measured 42x24 here), a compact px-2/py-1 target from md up
+            // where the toggle only ever sits in a mouse-driven desktop bar.
+            className={`inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-0 md:min-w-0 px-2 py-1 text-xs rounded-[4px] transition-colors ${
               choice === o.value
                 ? "bg-[var(--surface-solid)] text-foreground shadow-[var(--shadow-sm)]"
                 : "text-muted hover:text-foreground"
