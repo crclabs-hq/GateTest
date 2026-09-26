@@ -195,7 +195,12 @@ export default function ConfigurationDocs() {
             <Link href="/quickstart" className="text-accent hover:underline">
               quickstart
             </Link>
-            .
+            . For a guided first run &mdash; the snapshot plus a printed
+            per-module count, a{" "}
+            <code className="font-mono text-xs">.gatetest.json</code> snippet,
+            and the CI line to enforce on new findings only &mdash; run{" "}
+            <code className="font-mono text-xs">gatetest baseline --init</code>{" "}
+            instead of the plain flag.
           </p>
         </section>
 
@@ -258,15 +263,20 @@ export default function ConfigurationDocs() {
             options your installed version actually supports.
           </p>
           <p className="text-muted text-sm leading-relaxed">
-            Two flags worth knowing while you triage:{" "}
+            Three flags worth knowing while you triage:{" "}
             <code className="font-mono text-xs">--report-only</code> surfaces
-            everything without failing the build, and{" "}
+            everything without failing the build,{" "}
             <code className="font-mono text-xs">--strict</code> forces enforcement
-            back on when you&apos;re ready. Use{" "}
-            <code className="font-mono text-xs">--report-only</code> to see the
-            shape of the problem, then baseline it and turn the gate on &mdash;
-            leaving a gate permanently in report-only is how teams end up with a
-            scanner nobody reads.
+            back on when you&apos;re ready, and{" "}
+            <code className="font-mono text-xs">
+              --report-only-until &lt;YYYY-MM-DD&gt;
+            </code>{" "}
+            is the time-boxed version of the first &mdash; advisory up to that
+            UTC date, then automatically ignored, so enforcement turns on by
+            itself with no flag to remember to remove. Leaving a gate
+            permanently in report-only is how teams end up with a scanner
+            nobody reads; a dated window fixes that without anyone having to
+            come back to flip it.
           </p>
         </section>
 
@@ -299,6 +309,10 @@ export default function ConfigurationDocs() {
                 <tr>
                   <td>I want to see everything before deciding</td>
                   <td className="v2-mono text-xs">--report-only, then --noise</td>
+                </tr>
+                <tr>
+                  <td>Onboarding CI, want enforcement to turn on by itself</td>
+                  <td className="v2-mono text-xs">--report-only-until &lt;date&gt;</td>
                 </tr>
               </tbody>
             </table>

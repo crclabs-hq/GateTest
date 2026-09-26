@@ -220,7 +220,12 @@ reported, retracted, median hours to a fix — is published at
 Turning a scanner on against a large existing codebase usually means drowning in a backlog you didn't write. GateTest's baseline mode grandfathers everything that exists today so the gate only ever fails on **new** findings — "clean as you code."
 
 ```bash
-# Snapshot every current finding into .gatetest/baseline.json — commit it:
+# Guided first run: scans, captures .gatetest/baseline.json, and prints the
+# per-module count, the .gatetest.json snippet for a grace period, and the
+# exact CI line — everything below, without piecing it together yourself.
+gatetest baseline --init
+
+# Or the plain flag, if you just want the snapshot with no recap:
 gatetest --baseline
 
 # From now on, normal runs pass on the pre-existing findings and only
@@ -228,7 +233,23 @@ gatetest --baseline
 gatetest --suite full
 ```
 
-Fix a baselined finding and it's gone for good; the count is tracked per file, so adding a *second* secret to a file that already had one baselined re-blocks the gate (you can't sneak a new problem in behind an old one). Refresh the snapshot after paying down debt with `gatetest --baseline`; delete `.gatetest/baseline.json` to see everything again.
+Fix a baselined finding and it's gone for good; the count is tracked per file, so adding a *second* secret to a file that already had one baselined re-blocks the gate (you can't sneak a new problem in behind an old one). Refresh the snapshot after paying down debt with `gatetest --baseline` (or re-run the wizard); delete `.gatetest/baseline.json` to see everything again.
+
+#### A grace period while the team triages — `--report-only-until`
+
+`--report-only` (below) is advisory forever — useful locally, a bad CI default, since nobody comes back to remove it and a gate that can never turn red is not a gate. `--report-only-until <YYYY-MM-DD>` is the time-boxed version: advisory up to (not including) that UTC date, then automatically ignored — the gate starts enforcing on its own, no second PR to flip a flag.
+
+```bash
+gatetest --suite full --report-only-until 2026-10-15
+```
+
+or `.gatetest.json` (the flag wins when both are set):
+
+```json
+{ "reportOnlyUntil": "2026-10-15" }
+```
+
+`--strict` wins over either. Every surface says which mode ran and why: the console line ("report-only until 2026-10-15 (19 days left) — findings are shown, nothing blocks"), `--format json`'s `enforcing` / `reportOnlyUntil` fields, and the PR comment, whose grade badge never wears the same green tick as a real pass when a finding would have blocked under enforcement. An invalid date is a usage error (exit 2, UTC ISO dates only); a date that has already passed prints one warning and enforces. `gatetest baseline --init` suggests a date 14 days out.
 
 ### Testing pages behind a login — authenticated crawl
 

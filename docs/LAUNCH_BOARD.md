@@ -70,7 +70,7 @@ mapped to the engine. Status verified 2026-09-25 22:30Z.
 | 12 | Root cause on every red run: classifier verdict, blame commit, replay command | PR #774 | `src/core/root-cause.js` — one classifier, bounded git blame, local/CI replay; on console, JSON, SARIF, PR comment |
 | 13 | Site-scan honesty defaults: WCAG2AA, warnings off, TTFB sampled alone, per-page timeout | PARTIAL | web-scan fixes #648-#665; defaults not re-audited |
 | 14 | Every finding tagged deterministic vs model-judged; model-judged never blocks by default | DONE | PR #751 |
-| 15 | Onboarding mode: `--report-only-until <date>`, baseline wizard | PARTIAL | `--report-only`, `--baseline` exist; no date |
+| 15 | Onboarding mode: `--report-only-until <date>`, baseline wizard | DONE | PR TBD — `--report-only-until <YYYY-MM-DD>` (CLI + `.gatetest.json` `reportOnlyUntil`, UTC ISO date, flag wins over config, `--strict` wins over either, invalid date exit 2, past date warns once and enforces); console/`--format json` (`enforcing`, `reportOnlyUntil`)/PR comment all say which mode ran, PR comment badge never wears the green tick when a finding would have blocked; `gatetest baseline --init` wizard prints per-module count + `.gatetest.json` snippet + CI line, dated 14 days out |
 | 16 | Convergence guard on fix and crawl loops; never re-flag own fix | IN PROGRESS | PR #750 |
 | 17 | Zero writes into the scanned checkout unless asked | DONE | #757 merged 2026-09-26 (from #748) — `--report-dir`, `--no-artifacts`, `GATETEST_REPORT_DIR`/`GATETEST_NO_ARTIFACTS`; nothing written into the checkout unless asked |
 | 18 | Weekly public head-to-head vs Semgrep, CodeQL, Sonar on the same corpus | PARTIAL | `head-to-head.yml` exists; publication cadence unverified |

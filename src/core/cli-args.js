@@ -82,6 +82,12 @@ const FLAG_SPEC = [
   { flags: ['--pr'], key: 'pr', type: 'boolean' },
   { flags: ['--diff'], key: 'diff', type: 'boolean' },
   { flags: ['--report-only'], key: 'reportOnly', type: 'boolean' },
+  // Move 15 (onboarding mode): time-boxed --report-only. Parsed as a plain
+  // string here — format validation (real ISO date, UTC) lives in
+  // src/core/onboarding-mode.js and is enforced as a usage error by
+  // bin/gatetest.js, not by the generic invalidValues path, because an
+  // invalid date must always be fatal (exit 2), not just under --strict/CI.
+  { flags: ['--report-only-until'], key: 'reportOnlyUntil', type: 'value' },
   { flags: ['--strict'], key: 'strict', type: 'boolean' },
   { flags: ['--baseline'], key: 'baseline', type: 'boolean' },
   { flags: ['--watch'], key: 'watch', type: 'boolean' },

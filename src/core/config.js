@@ -711,6 +711,17 @@ const DEFAULT_CONFIG = {
     modelVerdictsBlock: false,
   },
 
+  // Onboarding mode (LAUNCH_BOARD row 15 / the Fifty, move 15): time-boxed
+  // `--report-only` for a fresh install on a mature repo. `null` — no
+  // config-level onboarding window (the default). A string is read as a
+  // UTC ISO date (`YYYY-MM-DD`) by `src/core/onboarding-mode.js`; a
+  // malformed value warns and is treated as absent (never crashes a scan
+  // over a typo in a committed config file — see `GateTestRunner`'s
+  // constructor for how it merges with the `--report-only-until` CLI flag,
+  // which wins when both are set). `gatetest baseline --init` prints the
+  // exact snippet to paste here, dated 14 days out.
+  reportOnlyUntil: null,
+
   // Incremental scan — used by --since <ref> / --pr to skip unchanged files.
   // skipList: modules that must scan the whole tree (cross-file graph analysis
   //   can't be scoped to a changed-file subset without producing false negatives).
