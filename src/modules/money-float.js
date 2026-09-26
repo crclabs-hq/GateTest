@@ -276,6 +276,63 @@ function isMinorUnitsDisplay(line, mArith, opIdx) {
   return !!(target && isDisplayTargetName(target[1]));
 }
 
+// issue #771 (GT-06): JSX prose such as `<p>$19.99/month</p>` or
+// `<span>tax/fee included</span>` was read as arithmetic — a money-named
+// word ("tax") immediately followed by "/" and a non-space character is
+// exactly the shape JS_MONEY_MULDIV_RE looks for, and BaseModule's shared
+// masker (_maskedLines) only blanks JS strings/templates/comments, not JSX
+// text nodes (which carry no quotes at all). Text nodes and string literals
+// are never arithmetic, so a text run of the form `>...<` with no `{`/`}`
+// in it — a hole would be a `{expression}`, the only way real code can
+// appear between JSX tags — is always literal prose and gets blanked the
+// same way a string does, offsets preserved.
+const JSX_TEXT_NODE_RE = />([^<>{}]+)</g;
+function maskJsxTextNodes(line) {
+  return line.replace(JSX_TEXT_NODE_RE, (m, text) => `>${' '.repeat(text.length)}<`);
+}
+
+// issue #771 (GT-06): the micros/cents conversion helper itself — the code
+// whose entire job is `price * 100` (dollars to cents) or `micros /
+// 1_000_000` (micros to a float for display) — was flagged as the float-
+// unsafe arithmetic it exists to guard against. A function whose name says
+// what it converts (toCents/fromCents/toMicros/fromMicros/toMinorUnits/
+// fromMinorUnits) is the fix, not the bug; every rule in this module is
+// exempt for the lines inside its body.
+const CONVERSION_FN_NAME_RE = /toCents|fromCents|toMicros|fromMicros|toMinorUnits|fromMinorUnits/i;
+const CONVERSION_FN_OPEN_RE =
+  /\bfunction\s*\*?\s+([A-Za-z_$][\w$]*)\s*\(|\b(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)|\b([A-Za-z_$][\w$]*)\s*\([^()]*\)\s*\{/;
+
+// Walks the masked lines once and returns a boolean per line: true when that
+// line sits inside a conversion helper's body (brace-depth tracked from the
+// line that opens it), or IS a single-line arrow conversion with no braces
+// at all (`const toCents = (p) => p * 100;`).
+function computeConversionExemptLines(maskedLines) {
+  const flags = new Array(maskedLines.length).fill(false);
+  let depth = 0;
+  let activeDepth = null;
+  for (let i = 0; i < maskedLines.length; i += 1) {
+    const line = maskedLines[i];
+    let opensConversion = false;
+    if (activeDepth === null) {
+      const m = CONVERSION_FN_OPEN_RE.exec(line);
+      const name = m && (m[1] || m[2] || m[3]);
+      opensConversion = !!(name && CONVERSION_FN_NAME_RE.test(name));
+      if (opensConversion) flags[i] = true;
+    }
+    for (const ch of line) {
+      if (ch === '{') {
+        depth += 1;
+        if (opensConversion && activeDepth === null) activeDepth = depth;
+      } else if (ch === '}') {
+        if (activeDepth !== null && depth === activeDepth) activeDepth = null;
+        depth = Math.max(0, depth - 1);
+      }
+    }
+    if (activeDepth !== null) flags[i] = true;
+  }
+  return flags;
+}
+
 // Library-detection patterns. If any of these appear anywhere in
 // the file, we treat the file as safe-harbour for the float-cast
 // rules (but .toFixed is still checked, since devs sometimes use
@@ -377,16 +434,19 @@ class MoneyFloatModule extends BaseModule {
     // tests/heavy/inert-fixture-sweep.test.js). The per-line quote counter
     // that replaced it could not see a template literal or a block comment
     // that started on an earlier line; the whole-file mask can (2026-09-05).
-    const masked = this._maskedLines(text);
+    const masked = this._maskedLines(text).map(maskJsxTextNodes);
     // #666: computed once per file — see `hasMoneyContext` above for the
     // strong/weak signal tiers this corroborates the bare mul/div
     // arithmetic rule below with.
     const fileHasMoneyContext = hasMoneyContext(text);
+    // issue #771 (GT-06): lines inside a toCents/fromMicros-shaped
+    // conversion helper are the fix, not the bug — see computeConversionExemptLines.
+    const conversionExempt = computeConversionExemptLines(masked);
     let issues = 0;
 
     for (let i = 0; i < lines.length; i += 1) {
       const code = masked[i] || '';
-      if (!code.trim() || this._suppressed(lines, i)) continue;
+      if (!code.trim() || this._suppressed(lines, i) || conversionExempt[i]) continue;
       const at = { rel, line: i + 1, sev, fileHasMoneyContext };
       if (!hasLibrary) {
         issues += this._castRule(code, at, result);

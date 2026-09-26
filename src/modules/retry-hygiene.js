@@ -117,6 +117,30 @@ const LITERAL_SLEEP_RES = [
   /\bawait\s+new\s+Promise\s*\(\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>\s*setTimeout\s*\([^,]+,\s*(\d+)\s*\)\s*\)/,
 ];
 
+// issue #771 (GT-07): a hop-bounded `for (;;)` has a real, visible bound the
+// old check could not see. The old check was two blunt instruments: any
+// `break` anywhere in the body (even one that only fires on SUCCESS, with
+// no counter or delay at all — the genuinely unbounded shape) counted as
+// "bounded", and the only recognised bound vocabulary was the literal words
+// attempts/tries/retries/maxAttempts/MAX_<UPPER>.
+//
+// Two new, narrowly-scoped bound shapes replace the blanket "any break"
+// check — narrow on purpose, so a loop that merely throws on an unrelated
+// 5xx status (no counting, no deadline) still correctly fires as unbounded:
+//   - a counter that is incremented/decremented, compared against a bound,
+//     and then exits — `if (hops++ > MAX) throw` — the `++`/`--` right next
+//     to the comparison is the tell; an HTTP status code is never `++`'d.
+//   - a wall-clock deadline compare — `Date.now() < deadline`.
+const COUNTER_BOUND_EXIT_RE =
+  /\b[A-Za-z_$][\w$]*\s*(?:\+\+|--)\s*[<>]=?\s*(?:[A-Za-z_$][\w$]*|\d+)\b[^\n;]*(?:throw|break|return|continue)\b/;
+const DEADLINE_BOUND_RE = /\bDate\.now\s*\(\s*\)\s*[<>]=?\s*[A-Za-z_$][\w$]*/;
+
+function hasVisibleBound(body) {
+  return /\b(?:attempts?|tries|retries|maxAttempts|MAX_[A-Z_]*)\b/.test(body)
+    || COUNTER_BOUND_EXIT_RE.test(body)
+    || DEADLINE_BOUND_RE.test(body);
+}
+
 class RetryHygieneModule extends BaseModule {
   constructor() {
     super(
@@ -188,9 +212,7 @@ class RetryHygieneModule extends BaseModule {
       // Rule: unbounded loop — `while (true)` or `for (;;)` with an
       // HTTP call and no `break` in the body.
       const isInfinite = /\bwhile\s*\(\s*true\s*\)/.test(head) || /\bfor\s*\(\s*;\s*;\s*\)/.test(head);
-      const hasBreak = /\bbreak\b/.test(body);
-      const hasMaxAttempts = /\b(?:attempts?|tries|retries|maxAttempts|MAX_[A-Z_]*)\b/.test(body);
-      if (isInfinite && !hasBreak && !hasMaxAttempts) {
+      if (isInfinite && !hasVisibleBound(body)) {
         issues += this._flag(result, `retry-hygiene:unbounded-loop:${rel}:${block.start + 1}`, {
           severity: 'error',
           file: rel,

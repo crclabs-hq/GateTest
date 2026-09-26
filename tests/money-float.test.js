@@ -670,3 +670,50 @@ describe('MoneyFloatModule — JSX display text quoting an identifier is not a v
     assert.strictEqual(arith(await run(tmp)).length, 0);
   });
 });
+
+// ── GT-06 (issue #771): JSX prose text, and the conversion helper itself ────
+//
+// AlecRae cross-test: a pricing page renders "$19.99/month" and "tax/fee"
+// as plain JSX text (no quotes at all, so the shared masker — which only
+// blanks JS strings/templates/comments — cannot tell it apart from a real
+// `tax / fee` division), and the micros/cents conversion helpers
+// (toCents/fromMicros) were flagged for the exact arithmetic they exist to
+// perform.
+describe('MoneyFloatModule — GT-06: JSX prose text and conversion helpers are not arithmetic (issue #771)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-mf-771-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  const arith = (r) => r.checks.filter((c) => !c.passed && c.name.startsWith('money-float:arithmetic:'));
+
+  it('NEGATIVE: JSX prose ("$19.99/month", "tax/fee") inside a <p> is quiet', async () => {
+    write(tmp, 'app/Pricing.tsx', [
+      'export const Pricing = () => (',
+      '  <p>Plans include tax/fee adjustments and a $19.99/month subscription</p>',
+      ');',
+    ].join('\n'));
+    assert.strictEqual(arith(await run(tmp)).length, 0);
+  });
+
+  it('NEGATIVE: a toCents/fromMicros conversion helper doing `* 100` / `/ 1_000_000` is quiet', async () => {
+    write(tmp, 'src/money.ts', [
+      'export function toCents(price) {',
+      '  return Math.round(price * 100);',
+      '}',
+      'export function fromMicros(amount) {',
+      '  return amount / 1_000_000;',
+      '}',
+    ].join('\n'));
+    assert.strictEqual(arith(await run(tmp)).length, 0);
+  });
+
+  it('POSITIVE: the same shapes outside JSX text / a conversion helper still fire', async () => {
+    write(tmp, 'src/checkout.ts', [
+      'function computeTotal(price) {',
+      '  let total = price;',
+      '  total = price * 1.15;',
+      '  return total;',
+      '}',
+    ].join('\n'));
+    assert.strictEqual(arith(await run(tmp)).length, 1);
+  });
+});

@@ -141,6 +141,22 @@ describe('AccessibilityModule — fragment / primitive / AAA precision (2026-08-
     assert.ok(!names.some((n) => n.startsWith('a11y:input-label:') && n.includes('after.tsx')), JSON.stringify(names));
   });
 
+  // ── GT-02 (issue #771): implicit `<label>Text <input/></label>` association ──
+  //
+  // 89 hits on the AlecRae monorepo were the rule missing the implicit
+  // wrapping-label association — live DOM has the label present, but the
+  // static regex only looked forward from <input for aria-label/id, never
+  // backward for an unclosed <label that wraps it.
+
+  it('NEGATIVE: <label>Text <input/></label> (implicit wrapping) is quiet; POSITIVE: a bare unlabelled <input> still fires', async () => {
+    w('wrapped.html', '<html><head></head><body><main><label>Email <input type="email" name="email"></label></main></body></html>');
+    w('bare.html', '<html><head></head><body><main><input type="text" name="q"></main></body></html>');
+    const f = await run();
+    const names = f.map((c) => c.name);
+    assert.ok(!names.some((n) => n.startsWith('a11y:input-label:') && n.includes('wrapped.html')), JSON.stringify(names));
+    assert.ok(names.some((n) => n.startsWith('a11y:input-label:') && n.includes('bare.html')), JSON.stringify(names));
+  });
+
   it('a 4.5–7:1 contrast (passes AA, fails AAA) is a warning; below 4.5:1 stays an error', async () => {
     w('styles/a.css', '.aa { color: #767676; background-color: #ffffff; }\n.bad { color: #aaaaaa; background-color: #ffffff; }');
     const f = await run();
