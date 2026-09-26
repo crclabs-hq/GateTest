@@ -138,6 +138,13 @@ class InteractiveElementsModule extends BaseModule {
   }
 
   async run(result, config) {
+    // Issue #768 item 3: a JSON API host has no clickable buttons and no
+    // <a href> links to crawl — see BaseModule#_isJsonApiHost.
+    if (this._isJsonApiHost(config)) {
+      this._notChecked(result, 'JSON API host — HTML checks do not apply');
+      return;
+    }
+
     const moduleCfg = config.getModuleConfig('interactiveElements') || {};
     const baseUrl =
       process.env.GATETEST_INTERACTIVE_URL ||

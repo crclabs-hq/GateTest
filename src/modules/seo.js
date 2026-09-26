@@ -22,6 +22,10 @@ class SeoModule extends BaseModule {
     // via config.livePage — check the ACTUAL rendered <head> instead of
     // reading source files that don't exist for this scan.
     if (config && config.livePage) {
+      if (this._isJsonApiHost(config)) {
+        this._notChecked(result, 'JSON API host — HTML checks do not apply');
+        return;
+      }
       this._runLive(config.livePage, config, result);
       return;
     }
