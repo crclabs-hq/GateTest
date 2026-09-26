@@ -203,6 +203,18 @@ or `.gatetest.json`:
 
 or the environment variable `GATETEST_MODEL_VERDICTS_BLOCK=1`. Every surface shows the split: the console summary prints deterministic vs. model-judged blocking counts, the JSON report tags each finding's `verdictSource`, SARIF carries it under `properties.verdictSource` for the GitHub Security tab, and the PR comment labels model-judged findings so a reviewer knows which alerts are a rule and which are an opinion.
 
+### Reporting a false positive
+
+Silencing a finding hides it from your gate; reporting it is how the rule itself
+gets fixed for everyone. `gatetest report-fp <module:rule> --reason "<text>"`
+prints a prefilled GitHub issue URL — it never sends anything on its own, you
+review and submit it. The same form is at
+[`.github/ISSUE_TEMPLATE/false-positive.yml`](.github/ISSUE_TEMPLATE/false-positive.yml)
+if you'd rather open it directly. Every retraction ships with a control-pair
+test pinning the exact line that should stay quiet, and the running count —
+reported, retracted, median hours to a fix — is published at
+[gatetest.io/trust](https://gatetest.io/trust#false-positive-sla).
+
 ### Onboarding a mature repo — baseline mode
 
 Turning a scanner on against a large existing codebase usually means drowning in a backlog you didn't write. GateTest's baseline mode grandfathers everything that exists today so the gate only ever fails on **new** findings — "clean as you code."
