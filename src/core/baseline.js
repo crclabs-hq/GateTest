@@ -25,12 +25,19 @@
 const fs = require('fs');
 const path = require('path');
 const { repoRelative, toPosix } = require('./repo-path');
+const { resolveMemoryRoot } = require('./report-paths');
 
-const BASELINE_DIR = '.gatetest';
 const BASELINE_FILENAME = 'baseline.json';
 
+/**
+ * Resolved through `resolveMemoryRoot` (complaint C22 / move 17) rather than
+ * a hardcoded `<project>/.gatetest` join, so `--report-dir` /
+ * `GATETEST_REPORT_DIR` relocate the baseline file exactly like the two
+ * memory stores and every reporter — one definition of "where GateTest is
+ * allowed to write", never a second path that quietly ignores the redirect.
+ */
 function baselinePath(projectRoot) {
-  return path.join(projectRoot || process.cwd(), BASELINE_DIR, BASELINE_FILENAME);
+  return path.join(resolveMemoryRoot(projectRoot || process.cwd()), BASELINE_FILENAME);
 }
 
 /**
@@ -76,10 +83,15 @@ function instanceCount(check) {
  * Capture a baseline from runner results.
  * @param {Array<{module: string, checks: Array}>} results — TestResult-shaped
  * @param {string} projectRoot
- * @returns {{ path: string, count: number }}
+ * @returns {{ path: string, count: number, byModule: Record<string, number> }}
+ *   `byModule` — distinct findings captured per module (same unit as `count`:
+ *   one per fingerprint, not per raw instance) — the onboarding wizard
+ *   (`gatetest baseline --init`, move 15) prints this breakdown so a team
+ *   sees WHERE the grandfathered debt lives, not just the total.
  */
 function capture(results, projectRoot) {
   const fingerprints = {};
+  const byModule = {};
   let count = 0;
   for (const r of results || []) {
     for (const c of r.checks || []) {
@@ -91,6 +103,7 @@ function capture(results, projectRoot) {
       if (!fingerprints[fp]) {
         fingerprints[fp] = { severity: sev, count: instanceCount(c) };
         count += 1;
+        byModule[r.module] = (byModule[r.module] || 0) + 1;
       } else {
         fingerprints[fp].count += instanceCount(c);
       }
@@ -112,7 +125,7 @@ function capture(results, projectRoot) {
   const outPath = baselinePath(projectRoot);
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, JSON.stringify(payload, null, 2) + '\n');
-  return { path: outPath, count };
+  return { path: outPath, count, byModule };
 }
 
 /**
