@@ -98,14 +98,16 @@ class GateTest {
     // What this suite deliberately does NOT run travels with the result, so
     // no consumer (CLI, MCP, website, JSON report) can present a deferred
     // suite as if it were exhaustive. Forbidden #16 — never silently fail.
-    return this._run(modules, { deferred: this.config.getSuiteDeferrals(suiteName) });
+    // `suite` also feeds the root-cause replay command (move 12) — the exact
+    // local command that reproduces this run.
+    return this._run(modules, { deferred: this.config.getSuiteDeferrals(suiteName), suite: suiteName });
   }
 
   /**
    * Run a specific module by name.
    */
   async runModule(moduleName) {
-    return this._run([moduleName]);
+    return this._run([moduleName], { module: moduleName });
   }
 
   /**
@@ -136,6 +138,11 @@ class GateTest {
     const runner = new GateTestRunner(this.config, {
       ...this.options,
       deferredModules: runOpts.deferred || [],
+      // Carried through to the root-cause block's local replay command
+      // (move 12) — never re-derived, since this is the exact invocation
+      // that actually ran.
+      suite: runOpts.suite || null,
+      moduleName: runOpts.module || null,
     });
 
     // Register modules

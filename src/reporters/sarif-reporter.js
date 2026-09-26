@@ -357,6 +357,9 @@ class SarifReporter {
           executionSuccessful: summary.gateStatus === 'PASSED',
           startTimeUtc: summary.timestamp,
         }],
+        // Root cause on every red run (move 12) — same why/since/replay the
+        // console and PR comment carry. Absent on a PASSED run.
+        ...(summary.rootCause ? { properties: { rootCause: summary.rootCause } } : {}),
       }],
     };
   }
