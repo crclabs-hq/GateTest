@@ -348,7 +348,7 @@ function CycleRow({ cycle }: { cycle: Cycle }) {
             href={cycle.bugPr.html_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-accent hover:underline font-mono text-xs break-words"
+            className="inline-flex items-center min-h-6 text-accent hover:underline font-mono text-xs break-words"
           >
             #{cycle.bugPr.number} {cycle.bugPr.title.replace(/^arena\(bug\):\s*/, "")}
           </a>
@@ -362,7 +362,7 @@ function CycleRow({ cycle }: { cycle: Cycle }) {
               href={cycle.fixPr.html_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-accent hover:underline font-mono text-xs break-words"
+              className="inline-flex items-center min-h-6 text-accent hover:underline font-mono text-xs break-words"
             >
               #{cycle.fixPr.number} {cycle.fixPr.title.slice(0, 50)}
               {cycle.fixPr.title.length > 50 ? "…" : ""}
