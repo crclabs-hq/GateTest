@@ -5,6 +5,7 @@
  */
 import type { LegalSection } from "../components/legal/LegalDocument";
 import * as F from "../legal/_facts";
+import fpLedgerStats from "../data/fp-ledger-stats.json";
 
 const vendor = (name: string) => F.SUB_PROCESSORS.find((s) => s.name === name);
 const AI = vendor("Anthropic");
@@ -80,6 +81,15 @@ export const SECTIONS_2: LegalSection[] = [
         "Reports against third-party services we do not operate — our git-host, payment, database and AI providers each run their own programmes.",
       ] },
       { p: `A machine-readable version of this policy is published at [${SECURITY_TXT}](${SECURITY_TXT}) in the RFC 9116 format.` },
+    ],
+  },
+  {
+    id: "false-positive-sla",
+    heading: "False positives",
+    body: [
+      { p: "A finding that fires on code it should not have is a defect in the scanner, not a fact about your code. Every one we retract ships with a control-pair test — the exact line that fired it, pinned as a regression test so the same shape cannot fire again without the test failing first." },
+      { p: `**${fpLedgerStats.reportedCount} reported · ${fpLedgerStats.retractedCount} retracted · median ${fpLedgerStats.medianHoursToFix} hours to a fix.** Counted from \`docs/precision/retractions.json\`, regenerated at build time from the reported and retracted timestamps on each entry — not typed by hand.` },
+      { p: "Report one with `gatetest report-fp <module:rule> --reason \"<text>\"`, which prints a prefilled issue URL and sends nothing itself, or open the [false-positive issue form](https://github.com/crclabs-hq/GateTest/issues/new?template=false-positive.yml) directly. Open reports past 7 days without a resolution are tracked as a guard in the test suite, the same way a customer-facing SLA would be." },
     ],
   },
   {

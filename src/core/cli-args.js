@@ -137,10 +137,21 @@ const FLAG_SPEC = [
   // comma part here so every consumer sees one flat list.
   { flags: ['--file', '--files'], key: 'files', type: 'append', split: ',' },
 
+  // Whole-run wall-clock budget in seconds (move 4, time-to-verdict
+  // contract). Precedence over GATETEST_BUDGET_S is resolved by the caller
+  // (bin/gatetest.js), same pattern as every other explicit-flag-beats-env
+  // case in this file.
+  { flags: ['--budget'], key: 'budget', type: 'int' },
   { flags: ['--crawl-max'], key: 'crawlMax', type: 'int' },
   { flags: ['--crawl-page-timeout'], key: 'crawlPageTimeout', type: 'int' },
   { flags: ['--monitor-interval'], key: 'monitorInterval', type: 'int' },
   { flags: ['--confidence-threshold'], key: 'confidenceThreshold', type: 'float01' },
+
+  // Issue #767: file discovery skips a repo's .gitignore (root + nested)
+  // plus a built-in build-output name set (`.next`/`.next-*`, dist, build,
+  // out, coverage, .turbo, .cache, .nuxt, .svelte-kit, target) by default —
+  // see src/core/gitignore.js `getScanIgnoreMatcher`. This opts back in.
+  { flags: ['--include-ignored'], key: 'includeIgnored', type: 'boolean' },
 ];
 
 /** token -> spec. Built once from FLAG_SPEC so the two cannot drift. */

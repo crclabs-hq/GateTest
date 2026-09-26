@@ -74,15 +74,22 @@
  *            `error-swallow:empty-catch` / `catch-noop` and still blocks.
  *            (rule: `error-swallow:log-and-eat:<rel>:<line>`)
  *   error:   `.catch(() => {})` / `.catch(() => null)` /
- *            `.catch(() => undefined)` on a Promise chain — swallows
- *            the reason. `.catch(noop)` where `noop = () => {}` is
- *            also caught. Warning when the rejection is GUARDED — see
- *            `_catchNoopGuard`: the promise is held in a reference the
- *            file awaits / returns elsewhere (the noop only marks it
- *            handled), the next statement is a `throw` (the function is
- *            already failing with the primary cause), or the call is
- *            teardown (`close()` / `end()` / `destroy()`, or any call
- *            inside a `finally` or a teardown function).
+ *            `.catch(() => undefined)` / `.catch(() => false)` on a Promise
+ *            chain — swallows the reason. `.catch(noop)` where
+ *            `noop = () => {}` is also caught. Warning when the rejection
+ *            is GUARDED — see `_catchNoopGuard`: the promise is held in a
+ *            reference the file awaits / returns elsewhere (the noop only
+ *            marks it handled), the next statement is a `throw` (the
+ *            function is already failing with the primary cause), or the
+ *            call is teardown (`close()` / `end()` / `destroy()`, or any
+ *            call inside a `finally` or a teardown function). Since
+ *            2026-09-26 also warning when the RETURNED SENTINEL is read by
+ *            the caller — see `_consumedSentinelGuard`: `?? DEFAULT` / `||
+ *            fallback` in the same statement, a direct `if (`/`return`
+ *            operand, or an assigned target checked in a condition, nullish
+ *            chain, `return`, or call argument within the next few lines
+ *            (issue #769 — `const u = await load().catch(() => null); if
+ *            (!u) return 404;` is the checked-return idiom, not a swallow).
  *            (rule: `error-swallow:catch-noop:<rel>:<line>`)
  *   warning: `process.on('uncaughtException', ...)` /
  *            `'unhandledRejection'` handler that doesn't re-throw or
@@ -340,9 +347,19 @@ class ErrorSwallowModule extends BaseModule {
       // 2. `.catch(() => {})` / `.catch(() => null)` / `.catch(noop)`
       // Suppressed when the chain is part of a `void expression`
       // statement — the idiomatic JS fire-and-forget pattern.
-      const catchNoop = noopCatchAt(code, line, /\.catch\s*\(\s*(?:\(\s*\w*\s*\)|\w+)?\s*=>\s*(?:\{\s*\}|null|undefined|void\s+0)\s*\)/);
+      const catchNoop = noopCatchAt(code, line, /\.catch\s*\(\s*(?:\(\s*\w*\s*\)|\w+)?\s*=>\s*(?:\{\s*\}|null|undefined|false|void\s+0)\s*\)/);
       if (catchNoop && !this._isSuppressed(lines, i) && !this._isVoidFireAndForget(masked, i)) {
-        const guard = isHarness ? { guarded: false } : this._catchNoopGuard(masked, i, catchNoop);
+        // The sentinel idiom (issue #769): a catch that RETURNS a value
+        // (null/undefined/false — never a bare `{}` noop, which returns
+        // nothing meaningful) is not a swallow if the caller actually reads
+        // that value. Checked before the older stored-reference/rethrow/
+        // cleanup guards so a consumed sentinel is never mis-labelled as one
+        // of those shapes.
+        const returnsSentinel = /=>\s*(?:null|undefined|false|void\s+0)\s*\)$/.test(catchNoop[0]);
+        const sentinelGuard = (!isHarness && returnsSentinel) ? this._consumedSentinelGuard(masked, i, catchNoop) : { guarded: false };
+        const guard = isHarness
+          ? { guarded: false }
+          : (sentinelGuard.guarded ? sentinelGuard : this._catchNoopGuard(masked, i, catchNoop));
         issues += this._flag(result, `error-swallow:catch-noop:${rel}:${i + 1}`, this._catchNoopDetails({
           rel,
           line: i + 1,
@@ -506,6 +523,82 @@ class ErrorSwallowModule extends BaseModule {
   }
 
   /**
+   * Issue #769 (AlecRae cross-test, GT-17): `.catch(() => null)` /
+   * `.catch(() => undefined)` / `.catch(() => false)` return a SENTINEL —
+   * unlike a bare `.catch(() => {})`, the resolved value carries information
+   * ("this failed"). When the caller actually reads that value, the pattern
+   * is the documented idiom (`const u = await load().catch(() => null); if
+   * (!u) return 404;`), not a swallow — 69 of AlecRae's 600 blocking findings
+   * were exactly this. Three shapes, checked on the masked text:
+   *
+   *   same-statement   the call is immediately followed, in the same
+   *                     statement, by `?? DEFAULT` or `|| fallback` — the
+   *                     nullish/logical operator IS the read.
+   *                     `const v = (await get().catch(() => undefined)) ??
+   *                     DEFAULT;`
+   *   direct-operand    nothing is assigned; the call is itself the
+   *                     condition of an `if (`/`if (!` or the expression of
+   *                     a `return` — the value is consumed on the spot.
+   *   assignment        `const/let/var NAME = …catch(...)`, and NAME is read
+   *                     in a condition, a nullish/logical chain, a `return`,
+   *                     or passed as a call argument within the next few
+   *                     lines. `const u = await load().catch(() => null); if
+   *                     (!u) return res.status(404).end();`
+   *
+   * A sentinel assigned but never read again (`const r = await
+   * fetch().catch(() => null); res.json({ ok: true });`) matches none of
+   * these and keeps blocking — the value was thrown away, not consumed.
+   */
+  _consumedSentinelGuard(masked, lineIdx, match) {
+    const mline = masked[lineIdx] || '';
+    const before = mline.slice(0, match.index);
+    const rest = mline.slice(match.index + match[0].length);
+
+    // same-statement: `) ?? DEFAULT` / `) || fallback` right after the call
+    // closes (any wrapping parens from `(await x.catch(...))` close first).
+    if (/^\s*\)*\s*(?:\?\?|\|\|)\s*\S/.test(rest)) {
+      return { guarded: true, shape: 'consumed-sentinel', context: 'the following `??`/`||`' };
+    }
+
+    // direct-operand: nothing assigned — the call itself is the `if (`
+    // condition or the `return` expression.
+    const directOperand = /^\s*(?:if\s*\(\s*!?\s*|return\s+)(?:await\s+)?$/.test(before);
+    if (directOperand) {
+      const restTrim = rest.replace(/^\)*/, '');
+      if (/^\s*(?:\)\s*\{|;|\?\?|\|\||$)/.test(restTrim)) {
+        const isIf = /^\s*if\b/.test(before);
+        return { guarded: true, shape: 'consumed-sentinel', context: isIf ? 'the `if` condition' : 'the `return` expression' };
+      }
+    }
+
+    // assignment: `const/let/var NAME = …` — scan the rest of this
+    // statement plus the next few lines for a read of NAME, so the finding
+    // can cite the exact consumer line.
+    const asg = before.match(/^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/);
+    if (asg) {
+      const name = asg[1];
+      const n = `(?<![\\w$.])${name}(?![\\w$])`;
+      const condRe = new RegExp(`\\bif\\s*\\(\\s*!?\\s*${n}\\b`);
+      const nullishRe = new RegExp(`${n}\\s*(?:\\?\\.)?\\s*(?:\\?\\?|\\|\\|)`);
+      const returnRe = new RegExp(`\\breturn\\b[^;]*\\b${name}\\b`);
+      const argRe = new RegExp(`\\([^()]*\\b${name}\\b[^()]*\\)`);
+      const destructureDefaultRe = new RegExp(`=\\s*${n}\\s*[,}\\)]`);
+      const consumes = (text) => condRe.test(text) || nullishRe.test(text) || returnRe.test(text)
+        || argRe.test(text) || destructureDefaultRe.test(text);
+      if (consumes(rest)) {
+        return { guarded: true, shape: 'consumed-sentinel', context: name, consumerLine: lineIdx + 1 };
+      }
+      for (let k = lineIdx + 1; k < Math.min(masked.length, lineIdx + 7); k += 1) {
+        if (consumes(masked[k] || '')) {
+          return { guarded: true, shape: 'consumed-sentinel', context: name, consumerLine: k + 1 };
+        }
+      }
+    }
+
+    return { guarded: false };
+  }
+
+  /**
    * Is the rejection a `.catch(noop)` drops still observable, or already
    * subsumed? Measured 2026-09-05 on nest, trpc and prisma — 30 blocking
    * `catch-noop` findings, 25 of them one of three shapes. Text analysis on
@@ -589,6 +682,9 @@ class ErrorSwallowModule extends BaseModule {
         'stored-reference': `the promise is held in \`${guard.context}\`, which this file awaits or returns elsewhere — the noop handler only marks the rejection as observed`,
         rethrow: 'the next statement is a `throw`, so the function is already failing with its primary cause',
         cleanup: `this is teardown (${guard.context}) — the resource is being discarded and a failure to discard it has no consumer`,
+        'consumed-sentinel': guard.consumerLine
+          ? `the returned sentinel is read at line ${guard.consumerLine} (\`${guard.context}\`) — the checked-return idiom, not a swallow`
+          : `the returned sentinel is read by ${guard.context} in the same statement — the checked-return idiom, not a swallow`,
       }[guard.shape];
       return {
         severity: 'warning',

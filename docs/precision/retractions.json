@@ -1,0 +1,158 @@
+{
+  "$schema": "one entry per retracted false positive; run `node scripts/generate-fp-ledger-stats.js` after editing `entries` to refresh the computed fields below",
+  "entries": [
+    {
+      "rule": "promptSafety",
+      "reported": {
+        "date": "2026-09-22T07:28:21Z",
+        "issue": 633
+      },
+      "retracted": {
+        "date": "2026-09-22T13:23:58Z",
+        "pr": 654
+      },
+      "controlPairTest": "tests/prompt-safety.test.js",
+      "source": "history"
+    },
+    {
+      "rule": "crossFileTaint",
+      "reported": {
+        "date": "2026-09-22T07:28:21Z",
+        "issue": 633
+      },
+      "retracted": {
+        "date": "2026-09-22T13:23:58Z",
+        "pr": 654
+      },
+      "controlPairTest": "tests/heavy/cross-file-taint.test.js",
+      "source": "history"
+    },
+    {
+      "rule": "resourceLeak",
+      "reported": {
+        "date": "2026-09-22T07:28:21Z",
+        "issue": 633
+      },
+      "retracted": {
+        "date": "2026-09-22T13:23:58Z",
+        "pr": 654
+      },
+      "controlPairTest": "tests/resource-leak.test.js",
+      "source": "history"
+    },
+    {
+      "rule": "sqlMigrations",
+      "reported": {
+        "date": "2026-09-22T07:28:21Z",
+        "issue": 633
+      },
+      "retracted": {
+        "date": "2026-09-22T13:23:58Z",
+        "pr": 654
+      },
+      "controlPairTest": "tests/sql-migrations.test.js",
+      "source": "history"
+    },
+    {
+      "rule": "secrets",
+      "reported": {
+        "date": "2026-09-23T01:47:51Z",
+        "issue": 682
+      },
+      "retracted": {
+        "date": "2026-09-23T04:41:51Z",
+        "pr": 694
+      },
+      "controlPairTest": "tests/secrets-corpus7-precision.test.js",
+      "source": "history"
+    },
+    {
+      "rule": "ciSecurity",
+      "reported": {
+        "date": "2026-09-14T20:33:21Z",
+        "issue": null
+      },
+      "retracted": {
+        "date": "2026-09-15T03:33:50Z",
+        "pr": 497
+      },
+      "controlPairTest": "tests/ci-security.test.js",
+      "source": "history",
+      "note": "self-found via corpus/dogfood, not a public issue — reported.date is the fix PR's own creation time"
+    },
+    {
+      "rule": "cookieSecurity",
+      "reported": {
+        "date": "2026-09-14T20:33:21Z",
+        "issue": null
+      },
+      "retracted": {
+        "date": "2026-09-15T03:33:50Z",
+        "pr": 497
+      },
+      "controlPairTest": "tests/cookie-security-framework-defaults.test.js",
+      "source": "history",
+      "note": "self-found via corpus/dogfood, not a public issue — reported.date is the fix PR's own creation time"
+    },
+    {
+      "rule": "datetimeBug",
+      "reported": {
+        "date": "2026-09-14T20:33:21Z",
+        "issue": null
+      },
+      "retracted": {
+        "date": "2026-09-15T03:33:50Z",
+        "pr": 497
+      },
+      "controlPairTest": "tests/datetime-bug.test.js",
+      "source": "history",
+      "note": "self-found via corpus/dogfood, not a public issue — reported.date is the fix PR's own creation time"
+    },
+    {
+      "rule": "errorSwallow",
+      "reported": {
+        "date": "2026-09-14T20:33:21Z",
+        "issue": null
+      },
+      "retracted": {
+        "date": "2026-09-15T03:33:50Z",
+        "pr": 497
+      },
+      "controlPairTest": "tests/error-swallow-got-shapes.test.js",
+      "source": "history",
+      "note": "self-found via corpus/dogfood, not a public issue — reported.date is the fix PR's own creation time"
+    },
+    {
+      "rule": "shell",
+      "reported": {
+        "date": "2026-09-14T20:33:21Z",
+        "issue": null
+      },
+      "retracted": {
+        "date": "2026-09-15T03:33:50Z",
+        "pr": 497
+      },
+      "controlPairTest": "tests/shell-rm-force-only.test.js",
+      "source": "history",
+      "note": "self-found via corpus/dogfood, not a public issue — reported.date is the fix PR's own creation time"
+    },
+    {
+      "rule": "syntax",
+      "reported": {
+        "date": "2026-09-14T20:33:21Z",
+        "issue": null
+      },
+      "retracted": {
+        "date": "2026-09-15T03:33:50Z",
+        "pr": 497
+      },
+      "controlPairTest": "tests/syntax-template-files.test.js",
+      "source": "history",
+      "note": "self-found via corpus/dogfood, not a public issue — reported.date is the fix PR's own creation time"
+    }
+  ],
+  "generatedAt": "2026-09-26T09:18:25.354Z",
+  "reportedCount": 11,
+  "retractedCount": 11,
+  "medianHoursToFix": 7
+}

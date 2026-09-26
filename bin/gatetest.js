@@ -95,6 +95,12 @@ const HELP = `
                                      GATETEST_API_KEY (a gt_live_ REST key);
                                      --json for the raw report. See
                                      'gatetest usage --help'.
+    gatetest report-fp <id> --reason "<text>"
+                                     Print a prefilled GitHub issue URL
+                                     reporting a false positive. Sends
+                                     nothing. <id> is the module:rule id
+                                     .gatetestignore uses. See
+                                     'gatetest report-fp --help'.
 
   OPTIONS
     --suite <name>     Run a test suite: quick, standard, full (default: standard)
@@ -270,6 +276,15 @@ const HELP = `
                        --format json still emits its document on stdout;
                        exit codes are unchanged. Same as
                        GATETEST_NO_ARTIFACTS=1.
+    --include-ignored  Also scan paths matched by the repo's .gitignore
+                       (root + nested, negation-aware) and the built-in
+                       build-output name set (.next/.next-*, dist, build,
+                       out, coverage, .turbo, .cache, .nuxt, .svelte-kit,
+                       target). Off by default (issue #767) — a customer's
+                       committed build output is not their code, and
+                       scanning it was 300 of 600 findings on one real
+                       monorepo. Untracked-but-not-ignored files are always
+                       scanned either way.
     --confidence-threshold <0..1>
                        Confidence threshold below which error-severity
                        findings are downgraded to "soft errors" (visible
@@ -279,6 +294,15 @@ const HELP = `
                        in test files, fixtures, docs, and inside string
                        literals get a confidence multiplier <1 so they
                        fall below threshold by default.
+    --budget <seconds> Whole-run wall-clock budget (move 4, time-to-verdict
+                       contract). Modules not yet started when it runs out
+                       are DEFERRED — reported in the console, JSON
+                       (summary.deferred / budgetLimited) and the PR
+                       comment, same as SUITE_DEFERRALS. Never a fake pass:
+                       the exit code still reflects only the modules that
+                       ran. Under --strict, an exceeded budget is itself a
+                       usage failure (exit 2). Also settable via
+                       GATETEST_BUDGET_S; --budget wins when both are set.
     --help, -h         Show this help message
     --doctor           Audit your environment — checks every prerequisite for
                        auto-fix to work (Node version, gh CLI, ANTHROPIC_API_KEY,
@@ -382,7 +406,7 @@ async function main() {
   //                            every existing invocation keeps working.
   const rawArgs = process.argv.slice(2);
   const first = rawArgs[0];
-  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan', 'train', 'fix', 'trace', 'blame', 'verify-report', 'usage']);
+  const KNOWN_SUBCOMMANDS = new Set(['sweep', 'replay', 'scan', 'train', 'fix', 'trace', 'blame', 'verify-report', 'usage', 'report-fp']);
   if (first === 'verify-report') {
     // gatetest verify-report <report.json> [--key <key>]
     // Checks the HMAC signature over the provenance block and that the
@@ -439,6 +463,14 @@ async function main() {
     const code = await usage.main(rawArgs.slice(1));
     process.exit(code || 0);
   }
+  if (first === 'report-fp') {
+    // gatetest report-fp <module:rule> --reason "<text>" — prints a
+    // prefilled GitHub issue URL for a false positive; sends nothing itself
+    // (the Fifty, move 20 — false-positive SLA, entrance 1 of 2).
+    const reportFp = require('./gatetest-report-fp');
+    const code = await reportFp.main(rawArgs.slice(1));
+    process.exit(code || 0);
+  }
   if (first === 'fix') {
     if (require('../src/core/offline').isOffline()) {
       console.error('[GateTest] offline mode: `gatetest fix` needs the AI provider API. Unset GATETEST_OFFLINE to use it.');
@@ -491,6 +523,12 @@ async function main() {
   // rather than run against a network that is not there.
   const { isOffline, enableOffline } = require('../src/core/offline');
   if (args.offline) enableOffline();
+  // --include-ignored (issue #767): opt back into scanning paths matched by
+  // the repo's .gitignore and the built-in build-output name set. Same
+  // process-wide-switch shape as --offline above (src/core/gitignore.js
+  // `setIncludeIgnored`), read directly by BaseModule._collectFiles.
+  const { setIncludeIgnored } = require('../src/core/gitignore');
+  setIncludeIgnored(args.includeIgnored === true);
   if (isOffline() && (args.fix || args.autoPr)) {
     console.error('[GateTest] offline mode: --fix / --auto-pr need the AI provider API and are not run. The scan continues without them.');
     args.fix = false;
@@ -656,6 +694,18 @@ async function main() {
     console.error(`[GateTest] ${validAcceptRisk.length} accepted risk(s) written to ${written}`);
   }
 
+  // Whole-run wall-clock budget (move 4, time-to-verdict contract):
+  // `--budget <seconds>` wins over `GATETEST_BUDGET_S`, the same
+  // explicit-flag-beats-env precedence every other override in this file
+  // uses. Neither set means unlimited (today's behaviour, unchanged).
+  const envBudgetS = Number(process.env.GATETEST_BUDGET_S);
+  const budgetS = typeof args.budget === 'number'
+    ? args.budget
+    : (Number.isFinite(envBudgetS) ? envBudgetS : null);
+  // `budgetS === 0` is a real, valid budget (defer every module — nothing
+  // has "started yet" at t=0) — checked with `>= 0`, never plain truthiness.
+  const budgetMs = typeof budgetS === 'number' && budgetS >= 0 ? budgetS * 1000 : null;
+
   const gatetest = new GateTest(projectRoot, {
     acceptRiskOverrides,
     parallel: args.parallel || false,
@@ -687,6 +737,9 @@ async function main() {
     ...(typeof args.confidenceThreshold === 'number'
       ? { confidenceThreshold: args.confidenceThreshold }
       : {}),
+    // Whole-run wall-clock budget (move 4) — see budgetMs resolution above.
+    // `!== null`, not truthiness: `--budget 0` is a real budget of zero.
+    ...(budgetMs !== null ? { budgetMs } : {}),
   });
 
   gatetest.init();
@@ -885,20 +938,37 @@ async function main() {
     }
   }
 
-  // Progress and ETA (issue #630): a customer on a large tree saw no file
-  // count and no ETA before the CLI went quiet, so a slow-but-healthy scan
-  // read identically to a hang. Both numbers come from a real walk and the
-  // resolved suite (src/core/scan-scope.js `scanInventory`, one definition,
-  // the same exclude set every module honours) — never typed. Always
-  // stderr, unconditionally: a `--format json` run's stdout is the one
-  // JSON document, and this line must never land inside it either way.
+  // Progress and ETA (issue #630, extended for move 4 — the time-to-verdict
+  // contract): a customer on a large tree saw no file count and no ETA
+  // before the CLI went quiet, so a slow-but-healthy scan read identically
+  // to a hang. Every number comes from a real walk, the resolved suite
+  // (src/core/scan-scope.js `scanInventory`, one definition, the same
+  // exclude set every module honours) and this repo's own recorded run
+  // history (src/core/scan-history.js) — never typed. Printed within ~2s of
+  // start, before any module runs. Always stderr, unconditionally: a
+  // `--format json` run's stdout is the one JSON document, and this line
+  // must never land inside it either way.
+  let etaInventory = null;
   if (!args.module) {
     const { scanInventory } = require('../src/core/scan-scope');
-    const inventory = scanInventory(projectRoot);
+    const { readPathFilter } = require('../src/core/scan-paths');
+    const { loadHistory } = require('../src/core/scan-history');
+    const { estimateScanMs, formatEta } = require('../src/core/scan-eta');
+    const pathFilter = readPathFilter(gatetest.config);
+    const inventory = scanInventory(projectRoot, pathFilter);
+    etaInventory = inventory;
     const suiteModules = gatetest.config.getSuite(args.suite || 'standard');
+    const history = loadHistory(projectRoot);
+    const estimate = estimateScanMs({
+      fileCount: inventory.inScopeCount,
+      modules: suiteModules,
+      history,
+      parallel: Boolean(args.parallel),
+    });
     console.error(
-      `[GateTest] Scanning ${inventory.fileCount} files in ${inventory.packageCount} packages ` +
-      `across ${suiteModules.length} modules`
+      `[GateTest] Scanning ${inventory.fileCount} files (${inventory.inScopeCount} in scope) ` +
+      `· suite ${args.suite || 'standard'}, ${suiteModules.length} modules ` +
+      `· estimated ${formatEta(estimate)}`
     );
   }
 
@@ -955,6 +1025,17 @@ async function main() {
     return finish(summary, scanExitCode(summary, { baseline: true }));
   }
 
+  // Feed this run's per-module timing back into scan-history.json (move 4)
+  // so the NEXT scan's ETA line has one more real sample instead of the
+  // static cold-start table. Best-effort — recordRun never throws, and a
+  // module run (no suite, no ETA line above) has nothing to record against.
+  if (etaInventory) {
+    require('../src/core/scan-history').recordRun(projectRoot, {
+      fileCount: etaInventory.inScopeCount,
+      results: (summary.results || []).map((r) => ({ module: r.module, duration: r.duration })),
+    });
+  }
+
   // Flywheel: record this scan's anonymized finding signal (module names +
   // counts only, no code/paths) and kick a best-effort central flush. Both
   // are no-ops under GATETEST_NO_TELEMETRY / .gatetest.json telemetry:false,
@@ -1001,6 +1082,20 @@ async function main() {
   // the default `.gatetest/` (the hint is specifically about that path).
   if (!jsonMode && process.env[ENV_NO_ARTIFACTS] !== '1' && !process.env[ENV_REPORT_DIR]) {
     maybeNoticeGitignore(projectRoot);
+  }
+
+  // Move 4 — under --strict, a budget that cut modules off is a USAGE
+  // failure (exit 2, same family as a bad --project path or an unknown
+  // flag under --strict/CI), never a fake pass. Non-strict runs keep
+  // whatever the completed modules decided (runner.js already guarantees
+  // deferred modules cannot flip the verdict either way).
+  if (args.strict === true && summary.budgetLimited === true) {
+    console.error(
+      `[GateTest] Usage error: --budget ${budgetS}s was exhausted after ${summary.budgetDeferredCount} ` +
+      `module(s) were deferred, and --strict treats an incomplete budgeted run as a usage failure ` +
+      `(exit ${USAGE_EXIT_CODE}).`
+    );
+    return finish(summary, USAGE_EXIT_CODE);
   }
 
   return finish(summary, scanExitCode(summary));
