@@ -490,3 +490,29 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   page are OAuth Apps (sign-in), not the App; production uses client id
   Ov23lifAW5wP8PsU2P5p; the App to list is 3766251 (client Iv23lisxbZrS1IJ8c1hk)
   under the crclabs-hq org context.
+
+### Addendum 2026-09-26 06:10Z — first arena cycles ran; the fixer ran and did not fix
+- Loop mechanics work: injector opened #372, #375, #377 as drafts; the repair
+  workflow ran at 23:05Z, 00:52Z and 05:44Z, checked out each, ran the tests
+  (red), ran `gatetest fix` from GateTest main, re-ran the tests (still red) and
+  commented "Fixer ran but tests still fail: clamp: bounds the value". No PR was
+  fixed. The loud "AI fixer key rejected" path never fired.
+- What the fix log shows (run 36221671792, group PR #372): the scan BLOCKS on
+  `unitTests: unit-tests:run` only — the fix engine treats a failing test as
+  advice ("Fix failing tests before committing"), not as a fix target; PR #754
+  (move 8) addresses exactly this. Second line: `src/math.js:32 [AI] AI provider
+  call failed for this hunk` from `src/modules/fake-fix-detector.js:952`
+  (`ai:call-error`, severity warning). The real error text lives only in the
+  finding's `explanation` field in the JSON report; the console line carries no
+  status code, so arena-repair.yml's `grep 401|403|invalid|unauthorized` over the
+  console log cannot see an auth failure. Whoever owns the loop next: grep the
+  JSON report for `ai:call-error` explanations, and check the model id the
+  workflow sets (`CLAUDE_MODEL: claude-sonnet-4-7`) against
+  `src/core/engine-models.js` before assuming the key is fine.
+- Division: this session (Gate) stands down from GateTest code while the five
+  move builders and #754/#757 land, to avoid the 16 Sep overlap lesson; it still
+  owes the AlecRae and Gluecron cross-tests (killed at the stop order; owner's PC
+  had 0.6 GB free RAM at 20:00Z) and will run them one at a time when told the
+  machine is stable. #738 (testing page anonymous read) is live: /testing now
+  renders "Cycles 40, Auto-fixed 0 / 40" — honest, and it will stay ugly until a
+  cycle closes.
