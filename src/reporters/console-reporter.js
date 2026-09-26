@@ -276,6 +276,24 @@ class ConsoleReporter {
     if (summary.offline) {
       console.log(`${COLORS.dim}  Mode: ${OFFLINE_NOTE}${COLORS.reset}`);
     }
+    // Move 15 (onboarding mode) — say WHICH mode ran and WHY (Doctrine #6:
+    // a pass from a fallback never wears the green tick silently). An
+    // active window explains a PASSED gate that still has blocking findings
+    // underneath; an expired one explains why a gate the operator expected
+    // to stay green is now enforcing.
+    if (summary.reportOnlyUntil) {
+      const rou = summary.reportOnlyUntil;
+      if (rou.active) {
+        const days = rou.daysLeft;
+        console.log(`${COLORS.dim}  Mode: report-only until ${rou.date} (${days} day${days === 1 ? '' : 's'} left) — findings are shown, nothing blocks${COLORS.reset}`);
+      } else if (rou.overriddenByStrict) {
+        console.log(`${COLORS.dim}  Mode: report-only-until ${rou.date} is still active, but --strict forces enforcement${COLORS.reset}`);
+      } else {
+        console.log(`${COLORS.dim}  Mode: report-only-until ${rou.date} has passed — the gate is enforcing${COLORS.reset}`);
+      }
+    } else if (summary.reportOnly) {
+      console.log(`${COLORS.dim}  Mode: report-only — findings are shown, nothing blocks${COLORS.reset}`);
+    }
     // The Fifty, move 08 — never silent: if the field-data demotion list is
     // active at all, say so, even on a run where nothing it covers fired.
     if (summary.demotedRuleCount > 0) {

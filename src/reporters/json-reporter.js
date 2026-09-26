@@ -64,6 +64,14 @@ class JsonReporter {
         // checked"/"unknown"), and the exact replay command. Null on a
         // PASSED run and never fabricated.
         rootCause: summary.rootCause || null,
+        // Onboarding mode (move 15): `enforcing: false` is the one field a
+        // consumer must check before trusting `gateStatus: PASSED` as "no
+        // blocking findings" — under an active --report-only(-until) window
+        // the gate is advisory, and this says so instead of letting a green
+        // status read as identical to a real pass (Forbidden #16). Null
+        // `reportOnlyUntil` means neither the flag nor the config key was set.
+        enforcing: summary.reportOnly !== true,
+        reportOnlyUntil: summary.reportOnlyUntil || null,
       },
       results: summary.results,
       failures: summary.failedModules,
