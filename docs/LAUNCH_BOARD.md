@@ -43,6 +43,10 @@ itself still uses the old variable names until the owner's cutover.
   corpus 20 repos, 212 blocking, five repos at zero; unknown flag exits 0 unless
   `--strict`/`CI` (then 2); fix loop `maxAttempts` = 3; accessibility module is
   in-process WCAG 2.2 AA + AAA-aligned (no pa11y, no `includeWarnings`).
+- Scan honours `.gitignore` + build-output defaults, `--include-ignored` flag:
+  #776 (closes #767). `BaseModule._collectFiles` now skips gitignored paths and
+  a built-in build-output name set by default; measured on AlecRae.com
+  266→158 blocking, ~422s→159s wall time, 822 gitignored paths skipped.
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
