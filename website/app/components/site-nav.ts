@@ -28,7 +28,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Solutions",
     items: [
       { label: "GitHub", href: "/github/setup", desc: "GitHub App (private beta) or the Marketplace Action. Every push and PR gets a gate." },
-      { label: "Gluecron", href: "https://gluecron.com", desc: "Our git host, with the gate built in.", external: true },
+      { label: "Gluecron", href: "https://gluecron.com", desc: "A git host, with its own CI gate.", external: true },
       { label: "WordPress", href: "/wp", desc: "Scan a WordPress site. No code, no plugin." },
       { label: "Websites", href: "/web", desc: "Scan any URL for security, a11y and performance." },
       { label: "VS Code extension", href: VSCODE_MARKETPLACE_URL, desc: "The whole engine in your Problems panel. Free.", external: true },
@@ -38,7 +38,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Ecosystem",
     items: [
-      { label: "Gluecron", href: "https://gluecron.com", desc: "Git hosting where every push is gated.", external: true },
+      { label: "Gluecron", href: "https://gluecron.com", desc: "A git host, with its own CI gate.", external: true },
       { label: PLATFORM_NAME, href: PLATFORM_SITE_URL, desc: "The platform that runs what you ship.", external: true },
       { label: "How the stack fits", href: "/stack", desc: `GateTest gates it. Gluecron hosts it. ${PLATFORM_NAME} runs it.` },
     ],
