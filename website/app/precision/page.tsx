@@ -8,6 +8,7 @@ import { buildTable } from "../lib/head-to-head";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 import RuleTable from "./RuleTable";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 // Every number on this page comes from website/app/data/precision.json,
 // which scripts/real-world-precision.js writes from its own measurement —
@@ -96,7 +97,7 @@ const numCell = "v2-mono text-right";
 export default function PrecisionPage() {
   return (
     <main>
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: jsonLd(breadcrumbSchema([{ name: "GateTest", path: "/" }, { name: "Precision" }])),

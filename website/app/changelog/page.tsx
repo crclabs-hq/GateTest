@@ -5,6 +5,7 @@ import { getSlugForModuleName } from "../components/howitworks/module-slugs";
 import changelog from "../data/changelog.json";
 import StatTiles from "../components/site/StatTiles";
 import { Hero, Section } from "../components/v2";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 // Every entry on this page comes from website/app/data/changelog.json, which
 // scripts/generate-changelog.js writes from the main branch's first-parent
@@ -141,7 +142,7 @@ export default function ChangelogPage() {
 
   return (
     <main>
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: jsonLd(breadcrumbSchema([{ name: "GateTest", path: "/" }, { name: "Changelog" }])),

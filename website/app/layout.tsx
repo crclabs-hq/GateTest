@@ -1,5 +1,6 @@
 ﻿import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { headers } from "next/headers";
 import "./globals.css";
 import { ChatWidget } from "./components/ChatWidget";
 import { SiteHeader, SiteFooter } from "./components/SiteChrome";
@@ -105,11 +106,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // GT-10 (outside reviewer, 2026-09-26): script-src can no longer carry
+  // 'unsafe-inline' (website/proxy.ts + app/lib/csp.js), so every
+  // hand-written inline <script> below — the theme bootstrap and the
+  // JSON-LD blocks — needs the same per-request nonce Next.js already
+  // attaches to its own inline scripts. Reading `headers()` here opts the
+  // whole tree into dynamic rendering, which per-request nonces require.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="en" className={`h-full antialiased ${displayFont.variable}`}>
       <head>
@@ -119,11 +127,12 @@ export default function RootLayout({
             which defers) — otherwise a stored explicit theme flashes the
             other one for a frame. "system" needs no JS: globals.css's
             prefers-color-scheme media query handles it on its own. */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="min-h-full flex flex-col">
         <script
+          nonce={nonce}
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
@@ -172,10 +181,12 @@ export default function RootLayout({
           }}
         />
         <script
+          nonce={nonce}
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLd(organizationSchema()) }}
         />
         <script
+          nonce={nonce}
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLd(webSiteSchema()) }}
         />

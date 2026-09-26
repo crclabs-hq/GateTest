@@ -3,6 +3,7 @@ import Link from "next/link";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import PageHero from "../../components/site/PageHero";
 import Section from "../../components/site/Section";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 const DESCRIPTION =
   "Security headers, SQL injection detection, N+1 queries, resource leaks, SSRF vulnerabilities, ReDoS patterns, race conditions — GateTest covers the Node.js failure modes linters miss.";
@@ -156,7 +157,7 @@ export default function NodeJsPage() {
 
   return (
     <main>
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />

@@ -15,6 +15,7 @@ import {
 } from "../../lib/seo/schema";
 import PageHero from "../../components/site/PageHero";
 import Section from "../../components/site/Section";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 interface PageParams {
   params: Promise<{ slug: string }>;
@@ -57,9 +58,9 @@ export default async function UseCasePage({ params }: PageParams) {
 
   return (
     <main>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(articleSchema({ headline: uc.title, description: uc.shortDef, path: `/use-cases/${uc.slug}` })) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(faqSchema(uc.faqs)) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema(crumbs)) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(articleSchema({ headline: uc.title, description: uc.shortDef, path: `/use-cases/${uc.slug}` })) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(faqSchema(uc.faqs)) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema(crumbs)) }} />
 
       <div className="section-alt relative z-10 -mb-8">
         <nav aria-label="Breadcrumb" className="mx-auto max-w-7xl px-6 pt-6 flex flex-wrap items-center gap-2 text-sm text-muted">

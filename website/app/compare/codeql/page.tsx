@@ -3,6 +3,7 @@ import Link from "next/link";
 import ComparisonReviewed from "@/app/components/ComparisonReviewed";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import PageHero from "../../components/site/PageHero";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = {
   title: "GateTest vs CodeQL — minutes, not 30, in 2026",
@@ -91,7 +92,7 @@ export default function CodeQLPage() {
 
   return (
     <main>
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />

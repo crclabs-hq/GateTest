@@ -114,24 +114,13 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
           },
-          {
-            key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com", // web-headers-ok — unsafe-eval required by Stripe.js (https://stripe.com/docs/security/guide#content-security-policy)
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: https: blob:",
-              "font-src 'self' data:",
-              "worker-src 'self' blob:",
-              "connect-src 'self' https://api.stripe.com https://api.anthropic.com https://api.github.com https://github.com",
-              "frame-src https://js.stripe.com https://hooks.stripe.com",
-              "frame-ancestors 'self'",
-              "form-action 'self' https://checkout.stripe.com",
-              "base-uri 'self'",
-              "object-src 'none'",
-              "upgrade-insecure-requests",
-            ].join("; "),
-          },
+          // Content-Security-Policy is NOT set here (GT-10, outside reviewer
+          // 2026-09-26): it needs a fresh nonce every request, which a
+          // static `headers()` config can't generate. `website/proxy.ts`
+          // sets it per request from the one CSP definition in
+          // `app/lib/csp.js`; `tests/website-csp-nonce.test.js` is the
+          // control pair proving script-src never regains 'unsafe-eval' /
+          // 'unsafe-inline' in production.
           { key: "X-DNS-Prefetch-Control", value: "on" },
         ],
       },

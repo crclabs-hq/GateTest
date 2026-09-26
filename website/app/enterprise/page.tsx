@@ -5,6 +5,7 @@ import Section from "../components/site/Section";
 import { I } from "../preview/_lib/icons";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import { breadcrumbSchema, contentMetadata, jsonLd } from "../lib/seo/schema";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 /**
  * /enterprise — the contact-based Enterprise plan, as its own route.
@@ -86,7 +87,7 @@ const CONTACT =
 export default function EnterprisePage() {
   return (
     <div className="bg-background">
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: jsonLd(

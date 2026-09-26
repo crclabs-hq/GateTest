@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getModulesByCategory, getTotalModuleCount } from "../components/howitworks/module-slugs";
 import { SITE_URL } from "@/app/lib/site-url";
 import { Hero, Section, Card } from "../components/v2";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = {
   title: `${getTotalModuleCount()} GateTest modules — one config, every QA check in 2026`,
@@ -49,7 +50,7 @@ export default function ModulesIndexPage() {
 
   return (
     <main>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }} />
 
       <Section wrap={false}>
         <div className="v2-wrap">

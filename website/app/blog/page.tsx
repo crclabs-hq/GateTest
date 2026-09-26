@@ -9,6 +9,7 @@ import {
 } from "../lib/seo/schema";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = contentMetadata({
   title: "Blog — code quality & application security | GateTest",
@@ -23,8 +24,8 @@ export default function BlogIndexPage() {
 
   return (
     <main>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(collectionPageSchema({ name: "GateTest blog", description: "Deep technical writing on code quality and application security.", path: "/blog", items })) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema([{ name: "GateTest", path: "/" }, { name: "Blog" }])) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(collectionPageSchema({ name: "GateTest blog", description: "Deep technical writing on code quality and application security.", path: "/blog", items })) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema([{ name: "GateTest", path: "/" }, { name: "Blog" }])) }} />
 
       <div className="section-alt relative z-10 -mb-8">
         <nav aria-label="Breadcrumb" className="mx-auto max-w-7xl px-6 pt-6 flex flex-wrap items-center gap-2 text-sm text-muted">
