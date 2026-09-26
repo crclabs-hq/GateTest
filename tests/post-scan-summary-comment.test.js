@@ -11,7 +11,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 
-const { computeGrade, topFindings, renderBody } = require('../scripts/post-scan-summary-comment');
+const { computeGrade, topFindings, renderBody, renderOverridesSection } = require('../scripts/post-scan-summary-comment');
 
 describe('computeGrade', () => {
   it('returns grade A for a clean scan with all modules passing', () => {
@@ -128,5 +128,54 @@ describe('renderBody', () => {
     });
     assert.match(body, /<details>/);
     assert.match(body, /\*\*\[error\]\*\* `secrets` — API key found/);
+  });
+});
+
+// Accepted risks (move 3, docs/LAUNCH_BOARD.md) — the PR comment is the one
+// place a reviewer sees the verdict, so an override that applied this run
+// must be listed here too, never only in the raw JSON report.
+describe('renderOverridesSection', () => {
+  it('returns nothing when there are no overrides', () => {
+    assert.deepEqual(renderOverridesSection([]), []);
+    assert.deepEqual(renderOverridesSection(undefined), []);
+  });
+
+  it('lists id, reason, by and until for an active override', () => {
+    const lines = renderOverridesSection([
+      { id: 'secrets:apiKey', reason: 'rotated, low blast radius', by: 'craig', until: '2026-12-31', expired: false },
+    ]).join('\n');
+    assert.match(lines, /Accepted risks \(1\)/);
+    assert.match(lines, /`secrets:apiKey`/);
+    assert.match(lines, /by craig/);
+    assert.match(lines, /until 2026-12-31/);
+    assert.match(lines, /rotated, low blast radius/);
+  });
+
+  it('marks an expired override as now blocking, distinct from an active one', () => {
+    const lines = renderOverridesSection([
+      { id: 'secrets:apiKey', reason: 'was fine', by: 'craig', until: '2020-01-01', expired: true },
+    ]).join('\n');
+    assert.match(lines, /expired 2020-01-01 — now blocking/);
+  });
+});
+
+describe('renderBody — accepted risks section', () => {
+  it('includes the Accepted risks details block when overrides are present', () => {
+    const body = renderBody({
+      grade: { grade: 'B', score: 80, passed: 8, total: 10, errors: 1, warnings: 0, findings: [] },
+      runUrl: 'https://example.com',
+      overrides: [{ id: 'secrets:apiKey', reason: 'accepted for now', by: 'craig', until: '2026-12-31', expired: false }],
+    });
+    assert.match(body, /Accepted risks \(1\)/);
+    assert.match(body, /secrets:apiKey/);
+  });
+
+  it('omits the Accepted risks block when there are none', () => {
+    const body = renderBody({
+      grade: { grade: 'A', score: 100, passed: 10, total: 10, errors: 0, warnings: 0, findings: [] },
+      runUrl: 'https://example.com',
+      overrides: [],
+    });
+    assert.doesNotMatch(body, /Accepted risks/);
   });
 });

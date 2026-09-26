@@ -57,6 +57,12 @@ class JsonReporter {
       // `findingSummary.duplicatesCollapsed` / `.hiddenLowConfidence`.
       findings: Array.isArray(summary.findings) ? summary.findings : [],
       findingSummary: summary.findingSummary || null,
+      // Accepted-risk overrides that applied this run (move 3,
+      // docs/LAUNCH_BOARD.md) — never merged into `findings`/`summary.checks`:
+      // an override is reported, not hidden (Forbidden #16), and a reviewer
+      // reading this file must be able to see it without cross-referencing
+      // every finding's `overriddenBy`.
+      overrides: Array.isArray(summary.overrides) ? summary.overrides : [],
     };
     // Provenance + signature (move 21): which engine, which modules ran,
     // what was skipped, deferred or suppressed, and a digest of the

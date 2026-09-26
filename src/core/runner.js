@@ -33,6 +33,10 @@ let _ignoreFile = null;
 try { _ignoreFile = require('./ignore-file'); } catch { _ignoreFile = null; }
 let _noiseModel = null;
 try { _noiseModel = require('./noise-model'); } catch { _noiseModel = null; }
+// Accepted-risk overrides (src/core/accept-risk.js) — a recorded, expiring
+// alternative to .gatetestignore. Loaded defensively like the two above.
+let _acceptRisk = null;
+try { _acceptRisk = require('./accept-risk'); } catch { _acceptRisk = null; }
 
 function _loadBaselineMatcher(projectRoot) {
   try {
@@ -179,6 +183,13 @@ class TestResult {
     // Baseline matcher (KI #66) — grandfathered findings suppress the same
     // way, with suppressReason 'baseline' so reporters can distinguish.
     this._baselineMatcher = options.baselineMatcher || null;
+    // Accepted-risk matcher (src/core/accept-risk.js) — a matched, unexpired
+    // finding stops blocking but is NEVER suppressed/hidden: it stays in the
+    // ranked findings list and is recorded on `check.overriddenBy` so the
+    // summary can carry it in a separate `overrides[]` array. An EXPIRED
+    // match does the opposite of a suppression — it blocks, with the
+    // override named in the message (`check.expiredOverride`).
+    this._acceptRiskMatcher = options.acceptRiskMatcher || null;
     this._projectRoot = options.projectRoot || null;
     // Per-module confidence penalty (0..1) learned from the flywheel: a module
     // that fires constantly AND gets dismissed repeatedly has its findings
@@ -316,6 +327,25 @@ class TestResult {
       }
     }
 
+    // Accepted-risk override (src/core/accept-risk.js) — identity is the
+    // SAME finding id every other surface uses, `${module}:${name}`
+    // (src/core/finding-registry.js `f.id`, `--format json` `issues[].id`;
+    // doctrine #4, one definition). Never suppresses: an active override
+    // only stops the finding from blocking (see blockingErrorChecks below);
+    // an expired one changes nothing about blocking and instead names
+    // itself in the message so the block is never a silent surprise
+    // (Bible Forbidden #16).
+    if (!passed && !check.suppressed && this._acceptRiskMatcher) {
+      const matched = this._acceptRiskMatcher.match(`${this.module}:${name}`);
+      if (matched && !matched.expired) {
+        check.overriddenBy = matched.override;
+      } else if (matched && matched.expired) {
+        check.expiredOverride = matched.override;
+        const who = matched.override.by ? ` by ${matched.override.by}` : '';
+        check.message = `${check.message || name} [accepted-risk override${who} expired ${matched.override.until} — now blocking]`;
+      }
+    }
+
     this.checks.push(check);
   }
 
@@ -365,7 +395,10 @@ class TestResult {
    */
   get blockingErrorChecks() {
     const t = this._blockThreshold;
-    return this.checks.filter(c => !c.suppressed && isBlockingFinding(c, t));
+    // An active (unexpired) accepted-risk override is the one thing besides
+    // suppression that keeps an otherwise-confident error off the gate — it
+    // still shows up in errorChecks/findings, just never here.
+    return this.checks.filter(c => !c.suppressed && !c.overriddenBy && isBlockingFinding(c, t));
   }
 
   /**
@@ -539,6 +572,12 @@ class GateTestRunner extends EventEmitter {
     // every TestResult so suppression and softening apply uniformly.
     this._ignoreMatcher = _loadIgnoreMatcher(projectRoot, config);
     this._confidencePenalties = _loadConfidencePenalties(projectRoot);
+    // Accepted-risk overrides (move 3, docs/LAUNCH_BOARD.md): the caller
+    // (bin/gatetest.js) already merged the `.gatetest/accepted-risks.json`
+    // file with any `--accept-risk` CLI flags — this only builds the
+    // lookup, so there is one merge, not one per module.
+    this._acceptRiskOverrides = Array.isArray(options.acceptRiskOverrides) ? options.acceptRiskOverrides : [];
+    this._acceptRiskMatcher = _acceptRisk ? _acceptRisk.buildOverrideMatcher(this._acceptRiskOverrides) : null;
     // Baseline ("only fail on NEW issues", KI #66). When capturing a fresh
     // baseline the old one must NOT suppress anything — the snapshot has to
     // see the full current state.
@@ -768,6 +807,7 @@ class GateTestRunner extends EventEmitter {
       blockThreshold: this._blockThreshold,
       ignoreMatcher: this._ignoreMatcher,
       baselineMatcher: this._baselineMatcher,
+      acceptRiskMatcher: this._acceptRiskMatcher,
       projectRoot: this._projectRoot,
       confidencePenalties: this._confidencePenalties,
     });
@@ -1205,6 +1245,31 @@ class GateTestRunner extends EventEmitter {
       }
     }
 
+    // Accepted-risk overrides that applied to at least one finding this run
+    // (move 3, docs/LAUNCH_BOARD.md) — active or expired, deduped by id.
+    // Never derived from `this._acceptRiskOverrides` directly: only an
+    // override that actually matched a real finding is worth reporting,
+    // same reasoning as `suppressedRules` above.
+    const acceptedRiskOverrides = [];
+    {
+      const seen = new Set();
+      for (const r of this.results) {
+        for (const c of r.checks) {
+          const applied = c.overriddenBy || c.expiredOverride;
+          if (!applied || seen.has(applied.id)) continue;
+          seen.add(applied.id);
+          acceptedRiskOverrides.push({
+            id: applied.id,
+            reason: applied.reason || null,
+            by: applied.by || null,
+            until: applied.until || null,
+            created: applied.created || null,
+            expired: Boolean(c.expiredOverride),
+          });
+        }
+      }
+    }
+
     // Baseline capture (`gatetest --baseline`) — snapshot the full current
     // failure surface so future runs only fail on NEW findings.
     let baselineInfo = null;
@@ -1307,6 +1372,7 @@ class GateTestRunner extends EventEmitter {
         : null,
       baseline: baselineInfo,
       suppressedRules,
+      overrides: acceptedRiskOverrides,
       modules: {
         total: this.results.length,
         passed: passed.length,
