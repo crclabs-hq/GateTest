@@ -27,6 +27,15 @@ const SCHEMA_VERSION = 1;
 const TOOL_TIMEOUT_MS = 10 * 60 * 1000;
 const SOURCE = 'scripts/head-to-head.js';
 
+/**
+ * The workflow runs weekly (.github/workflows/head-to-head.yml, Monday
+ * 05:00 UTC). Twice that cadence, plus slack for a missed Monday, is the
+ * line between "the schedule hasn't landed yet" and "something is broken":
+ * past this the page must say so in plain language rather than let a stale
+ * table read as freshly measured (Doctrine #6).
+ */
+const STALE_AFTER_DAYS = 14;
+
 /** Craig 2026-09-16: measure these first; the rest follow in manifest order. */
 const PRIORITY = ['express', 'django', 'rails', 'flask', 'fastify', 'zod', 'gin', 'laravel'];
 
@@ -97,6 +106,37 @@ function elapsedSeconds(startNs, endNs = process.hrtime.bigint()) {
 /** Seconds as shown in a cell: "42.1 s". */
 function fmtSeconds(s) {
   return `${Number(s).toFixed(1)} s`;
+}
+
+/**
+ * Whole days between doc.generatedAt and now. null when generatedAt is
+ * missing or unparseable (validateHeadToHead already rejects that shape;
+ * this stays defensive so a bad document degrades to "no sentence" rather
+ * than throwing).
+ * @param {any} doc
+ * @param {Date} [now]
+ * @returns {number|null}
+ */
+function daysSinceGenerated(doc, now = new Date()) {
+  const generatedAt = doc && doc.generatedAt;
+  if (!isStr(generatedAt) || Number.isNaN(Date.parse(generatedAt))) return null;
+  const ms = now.getTime() - Date.parse(generatedAt);
+  return Math.floor(ms / (24 * 60 * 60 * 1000));
+}
+
+/**
+ * A plain sentence for the page when the published table is older than
+ * STALE_AFTER_DAYS days, or null when it is current enough that no reader
+ * warning is owed. Never a claim about *why* — the workflow's own run
+ * history is the place to look for that, not typed text on the page.
+ * @param {any} doc
+ * @param {Date} [now]
+ * @returns {string|null}
+ */
+function stalenessSentence(doc, now = new Date()) {
+  const days = daysSinceGenerated(doc, now);
+  if (days === null || days <= STALE_AFTER_DAYS) return null;
+  return `Last measured ${days} days ago; the weekly run is scheduled every Monday and this page updates automatically once it lands.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -363,6 +403,7 @@ module.exports = {
   SCHEMA_VERSION,
   SOURCE,
   TOOL_TIMEOUT_MS,
+  STALE_AFTER_DAYS,
   PRIORITY,
   STATUS,
   TOOL_LABELS,
@@ -373,4 +414,6 @@ module.exports = {
   fmtSeconds,
   validateHeadToHead,
   buildTable,
+  daysSinceGenerated,
+  stalenessSentence,
 };
