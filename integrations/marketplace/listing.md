@@ -113,13 +113,13 @@ gatetest.io and must not be described as purchasable through this listing.
 ### Free plan — configuration reference
 - **Plan name:** Free
 - **Type:** Free
-- **Description:** Continuous quick-scan gate on every push — syntax, lint, and hardcoded-secret detection. No card required.
+- **Description (≤255 chars):** Every push and pull request scanned by every deterministic module of the 121-module engine. Blocks only on lines the change touched and says what was not checked. No card required.
 - **Bullet points:**
-  - Runs automatically on every push
-  - Syntax + lint + hardcoded-secret detection
-  - Commit status on every PR
-  - No credit card required
-  - Deeper scans and auto-fix available separately at gatetest.io
+  - Every deterministic module of the 121-module engine, on every push and pull request
+  - Blocks on the diff, not the backlog
+  - Every report says what was not checked
+  - Commit status and PR comment on every repo you install it on
+  - Deeper scans and auto-fix pull requests sold separately at gatetest.io
 
 ---
 
