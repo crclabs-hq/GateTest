@@ -10,6 +10,7 @@ import {
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 import siteStats from "../data/site-stats.json";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = contentMetadata({
   title: "Software Quality & Security Glossary | GateTest",
@@ -31,8 +32,8 @@ export default function GlossaryIndexPage() {
 
   return (
     <main>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(collectionPageSchema({ name: "GateTest Software Quality & Security Glossary", description: "Definitions of the software quality and application-security terms developers search for.", path: "/glossary", items })) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema([{ name: "GateTest", path: "/" }, { name: "Glossary" }])) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(collectionPageSchema({ name: "GateTest Software Quality & Security Glossary", description: "Definitions of the software quality and application-security terms developers search for.", path: "/glossary", items })) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema([{ name: "GateTest", path: "/" }, { name: "Glossary" }])) }} />
 
       <div className="section-alt relative z-10 -mb-8">
         <nav aria-label="Breadcrumb" className="mx-auto max-w-7xl px-6 pt-6 flex flex-wrap items-center gap-2 text-sm text-muted">

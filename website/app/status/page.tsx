@@ -5,6 +5,7 @@ import incidentsData from "../data/incidents.json";
 import { Hero, Section, Card } from "../components/v2";
 import { getPublicStatus, PUBLIC_STATUS_TTL_SECONDS } from "../lib/public-status-collect";
 import type { ComponentState, OverallState, PublicStatus } from "../lib/public-status-collect";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { recentIncidents, INCIDENT_WINDOW_DAYS } = require("../lib/public-status") as {
@@ -101,7 +102,7 @@ export default async function StatusPage() {
 
   return (
     <main>
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: jsonLd(breadcrumbSchema([{ name: "GateTest", path: "/" }, { name: "Status" }])),

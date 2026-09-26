@@ -2,6 +2,7 @@
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 import { SITE_URL, SUPPORT_EMAIL } from "@/app/lib/site-url";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 /**
  * Public marketing page for the Triage workflow.
@@ -229,7 +230,7 @@ export default function TriagePage() {
 
   return (
     <div className="bg-background">
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />

@@ -9,6 +9,7 @@ import {
 } from "../lib/seo/schema";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = contentMetadata({
   title: "Use cases — what you can gate with GateTest",
@@ -29,8 +30,8 @@ export default function UseCasesIndexPage() {
 
   return (
     <main>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(collectionPageSchema({ name: "GateTest use cases", description: "Concrete jobs GateTest does in CI and at the pull request.", path: "/use-cases", items })) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema([{ name: "GateTest", path: "/" }, { name: "Use cases" }])) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(collectionPageSchema({ name: "GateTest use cases", description: "Concrete jobs GateTest does in CI and at the pull request.", path: "/use-cases", items })) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema([{ name: "GateTest", path: "/" }, { name: "Use cases" }])) }} />
 
       <div className="section-alt relative z-10 -mb-8">
         <nav aria-label="Breadcrumb" className="mx-auto max-w-7xl px-6 pt-6 flex flex-wrap items-center gap-2 text-sm text-muted">

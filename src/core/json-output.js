@@ -201,6 +201,12 @@ function buildJsonOutput(summary, ctx) {
     // Move 4 (time-to-verdict contract) — never let a --budget-limited
     // run's JSON read like a full one. See runner.js `_buildSummary`.
     budgetLimited: summary.budgetLimited === true,
+    // Onboarding mode (move 15) — same fields as json-reporter.js's on-disk
+    // `summary.enforcing` / `summary.reportOnlyUntil`: `enforcing: false`
+    // is the flag an editor/script must check before treating
+    // `gateStatus: "PASSED"` as "nothing would have blocked".
+    enforcing: summary.reportOnly !== true,
+    reportOnlyUntil: summary.reportOnlyUntil || null,
     slowestModules: Array.isArray(summary.slowestModules) ? summary.slowestModules : [],
     // KI #112 (issue #633): null when .gatetest.json has no unrecognised
     // root keys — never a placeholder object. See src/core/config.js

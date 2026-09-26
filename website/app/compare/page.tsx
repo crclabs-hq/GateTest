@@ -8,6 +8,7 @@ import {
 } from "../lib/seo/schema";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = contentMetadata({
   title: "GateTest vs SonarQube, Snyk, ESLint & more — comparisons",
@@ -40,8 +41,8 @@ export default function CompareIndexPage() {
 
   return (
     <main>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(collectionPageSchema({ name: "GateTest comparisons", description: "Honest comparisons of GateTest against the tools it replaces or complements.", path: "/compare", items })) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema([{ name: "GateTest", path: "/" }, { name: "Compare" }])) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(collectionPageSchema({ name: "GateTest comparisons", description: "Honest comparisons of GateTest against the tools it replaces or complements.", path: "/compare", items })) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema([{ name: "GateTest", path: "/" }, { name: "Compare" }])) }} />
 
       <PageHero
         eyebrow="Compare"

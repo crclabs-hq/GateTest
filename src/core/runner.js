@@ -35,6 +35,11 @@ const {
 const { defaultVerdictSource } = require('./model-judged-modules');
 const VALID_VERDICT_SOURCES = new Set(['deterministic', 'model', 'mixed']);
 
+// Onboarding mode (LAUNCH_BOARD row 15 / the Fifty, move 15): time-boxed
+// --report-only. See src/core/onboarding-mode.js for the one definition of
+// "is this date in the report-only window".
+const { resolveReportOnlyUntil } = require('./onboarding-mode');
+
 // .gatetestignore suppression + flywheel-learned confidence penalties.
 // Both loaded defensively — a missing file / memory yields a no-op so the
 // runner behaves exactly as before when neither is present.
@@ -613,7 +618,37 @@ class GateTestRunner extends EventEmitter {
     // path defaults to reportOnly so CI stays green from day 1; customers
     // opt INTO blocking via `block: true` input on the Action / `--strict`
     // flag on the CLI.
-    this._blockThreshold = this.options.reportOnly === true
+    //
+    // Onboarding mode (move 15): time-boxed --report-only. Precedence is the
+    // same explicit-flag-beats-config pattern as `_modelVerdictsBlock` right
+    // below — the constructor option (bin/gatetest.js's `--report-only-until`,
+    // already validated as a real ISO date before it gets here) wins over the
+    // `.gatetest.json` `reportOnlyUntil` key. `--strict` wins over an active
+    // window exactly as it wins over `--report-only` (bin/gatetest.js applies
+    // that to `options.reportOnly` directly; here it's applied to the
+    // config-file fallback path since this constructor is the one place that
+    // reads it).
+    const rawReportOnlyUntil = (options.reportOnlyUntil !== undefined && options.reportOnlyUntil !== null)
+      ? options.reportOnlyUntil
+      : (config && typeof config.get === 'function' ? config.get('reportOnlyUntil') : null);
+    this._reportOnlyUntil = resolveReportOnlyUntil(rawReportOnlyUntil, options.now);
+    // A malformed `.gatetest.json` value warns and is treated as absent —
+    // never a crash over a typo in a committed config file (a malformed CLI
+    // flag is instead a usage error, exit 2, refused by bin/gatetest.js
+    // before the runner is ever constructed).
+    if (this._reportOnlyUntil && this._reportOnlyUntil.valid === false) {
+      console.error(`[GateTest] Warning: "reportOnlyUntil" in .gatetest.json is not a valid ISO date (YYYY-MM-DD): "${this._reportOnlyUntil.raw}" — ignored.`);
+      this._reportOnlyUntil = null;
+    }
+    this._reportOnlyUntilActive = Boolean(
+      this._reportOnlyUntil && this._reportOnlyUntil.valid && this._reportOnlyUntil.active
+    ) && this.options.strict !== true;
+    // "a past date warns once and enforces" — once per run, here, since this
+    // is the one place both sources (CLI + config) converge.
+    if (this._reportOnlyUntil && this._reportOnlyUntil.valid && this._reportOnlyUntil.expired) {
+      console.error(`[GateTest] Warning: --report-only-until ${this._reportOnlyUntil.date} has passed — the gate is enforcing.`);
+    }
+    this._blockThreshold = (this.options.reportOnly === true || this._reportOnlyUntilActive)
       ? Number.POSITIVE_INFINITY
       : (typeof options.blockThreshold === 'number'
           ? options.blockThreshold
@@ -1405,7 +1440,7 @@ class GateTestRunner extends EventEmitter {
       try {
         const baseline = require('./baseline');
         const captured = baseline.capture(this.results, this._projectRoot);
-        baselineInfo = { captured: captured.count, path: captured.path };
+        baselineInfo = { captured: captured.count, path: captured.path, byModule: captured.byModule || {} };
       } catch (err) {
         baselineInfo = { error: err.message || String(err) };
       }
@@ -1528,6 +1563,25 @@ class GateTestRunner extends EventEmitter {
       // "N model-judged finding(s) would block under a stricter policy"
       // without guessing which policy actually ran.
       modelVerdictsBlock: this._modelVerdictsBlock,
+      // Onboarding mode (move 15): true when the gate is advisory THIS run —
+      // either `--report-only` or an active `--report-only-until` window
+      // (constructor resolves precedence + the --strict override). Every
+      // reporter must say so — Doctrine #6, a pass under a fallback never
+      // wears the green tick silently.
+      reportOnly: this.options.reportOnly === true || this._reportOnlyUntilActive,
+      // Full resolution of `--report-only-until` / `.gatetest.json`
+      // `reportOnlyUntil`, or null when neither was set. `active` already
+      // accounts for `--strict`; `overriddenByStrict` says so explicitly so
+      // a reporter can explain a BLOCKED gate under a still-future date.
+      reportOnlyUntil: (this._reportOnlyUntil && this._reportOnlyUntil.valid)
+        ? {
+            date: this._reportOnlyUntil.date,
+            active: this._reportOnlyUntilActive,
+            expired: this._reportOnlyUntil.expired,
+            daysLeft: this._reportOnlyUntil.daysLeft,
+            overriddenByStrict: this._reportOnlyUntil.active && !this._reportOnlyUntilActive,
+          }
+        : null,
       // No source file under the root: every module passed by default.
       // Reporters print it beside the verdict; the JSON carries it so no
       // consumer can read an empty scan as a clean one. `strict` turns it

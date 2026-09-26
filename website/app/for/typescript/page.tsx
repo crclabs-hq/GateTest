@@ -3,6 +3,7 @@ import Link from "next/link";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import PageHero from "../../components/site/PageHero";
 import Section from "../../components/site/Section";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = {
   title: "TypeScript Code Quality & Strict Mode Enforcement — GateTest",
@@ -130,7 +131,7 @@ export default function TypeScriptPage() {
 
   return (
     <main>
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />

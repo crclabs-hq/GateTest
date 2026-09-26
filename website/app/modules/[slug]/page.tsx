@@ -10,6 +10,7 @@ import {
 } from "../../components/howitworks/module-slugs";
 import PageHero from "../../components/site/PageHero";
 import { availabilityFor } from "./availability";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 interface PageParams {
   params: Promise<{ slug: string }>;
@@ -160,8 +161,8 @@ export default async function ModulePage({ params }: PageParams) {
 
   return (
     <main>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }} />
 
       <PageHero
         eyebrow={
