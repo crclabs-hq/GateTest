@@ -327,7 +327,7 @@ describe('CLI — ETA line, --budget, env precedence, --strict usage failure', (
     const res = runCli(['--suite', 'quick', '--project', dir, '--budget', '0']);
     assert.match(
       res.stderr,
-      /\[GateTest] Scanning \d+ files \(\d+ in scope\) · suite quick, \d+ modules · estimated .+/,
+      /\[GateTest] Scanning \d+ files in \d+ packages across \d+ modules \(\d+ in scope\) · suite quick · estimated .+/,
     );
   });
 
