@@ -540,3 +540,34 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   blame/history/anchors, code search, CI logs, rate-limit headers, TLS, HSTS.
 - Full report: session scratchpad `gluecron-crosstest-remote.md`. AlecRae
   cross-test (local, browser journey) running at the time of writing.
+
+### Addendum 2026-09-26 10:05Z — main went red after the flywheel merges; listing copy sharpened; four PRs waiting on the owner
+- **Merged since 09:14Z:** #757 (moves 3/14/17), #749 (security in standard; owner merged), #754 (move 8), #755/#756 (flywheel), #758 (arena handoff).
+- **Main is red at 666eabdd:** `TypeScript (website)` TS2352 in `app/changelog/page.tsx:38` — the 2026-09-26 changelog data refresh gave the JSON import a shape that no longer overlaps `Entry[]`; Docker publish and the production deploy fail with it. **Fix is PR #761** (cast through `unknown`, `tsc` exit 0, every check green) — it is only BEHIND. Admin merge and the update-branch API were both denied to the session by the auto-mode classifier, so the owner merges it: `gh pr merge 761 -R crclabs-hq/GateTest --squash --admin --delete-branch`.
+- **Also open, auto-merge armed, BEHIND:** #760 (fake-fix `ai:call-error` title carries the provider error, so the arena grep for 401 has something to match; #754 merged before this commit landed), #763 (move 20 false-positive SLA: `gatetest report-fp`, retraction ledger 11/11, /trust section), #764 (Marketplace listing copy + this addendum). Update or admin-merge in that order after #761.
+- **Marketplace listing copy (owner: "we need to sharpen up these"):** the free App scan has run the `deterministic` tier (full engine minus model-calling modules, `website/app/lib/scan-worker.js`, since 2026-08-18) and enforces on `inDiff` only (`website/app/lib/scan-executor.ts`); the old copy said "syntax, lint and secrets". New short/intro/detailed text is in `integrations/marketplace/listing.md` (#764) and paste-ready at `Downloads/gatetest-marketplace/listing-copy-paste.md`; screenshots 01–04 in the same folder. Sync tests 29/29, preflight READY TO SUBMIT.
+- **Arena loop:** the fixer's AI call failed silently for three cycles (#758). After #760 lands, the next `arena-repair` run prints the status code on the console; a 401 fires the loud "key rejected" comment and the owner rotates `ANTHROPIC_API_KEY` on gatetest-arena. `CLAUDE_MODEL` in that workflow has no reader in `src/`; it is not the cause.
+- **Builders:** move 2 delivered — #765 merged (per-rule precision aggregate, /precision "By rule" table, control-pair marker in `src/core/control-pairs.js`; `precision.json` ships `rules: []` until the next nightly corpus run), follow-up #766 open (board row). Move 20 delivered (#763). Move 4 delivered — #773 open, auto-merge armed (`src/core/scan-eta.js`, `src/core/scan-history.js`, `--budget` deferral; ETA line proven by unit tests, its accuracy not judged on a loaded machine). Move 12 delivered — #774 open, auto-merge armed (`src/core/root-cause.js`: config error / budget-limited / failing tests / new findings in changed files / elsewhere; three-line block under "What's blocking you", `summary.rootCause` in JSON/SARIF, collapsible section in the PR comment). All five move builders have reported; no agent is running.
+- **Next engine work, from the 11:00Z addendum below:** the AlecRae cross-test measured 92 % false positives on their tree (#767–#771). That is a precision defect in our rules, not their code; it outranks the remaining moves once main is green.
+- **10:30Z:** #762 (Gluecron walk handoff) and #765 merged onto the red main; the changelog fix from #761 is cherry-picked onto #760, #763, #764 and #766 so each goes green on its own. Merge order for the owner: #761, then any green one.
+
+### Addendum 2026-09-26 11:00Z — AlecRae cross-test delivered; GateTest's own precision on it was 8 %
+- GateTest as a customer of AlecRae (repo 4a2d60b, both hosts at the same commit):
+  2 real blocking (in-process `new Function` snippet runner, no self-serve
+  password reset), 8 warnings, 9 info, sent to the AlecRae session in the §2
+  shape; they have triaged with code checked (CSP fix already in their tree,
+  snippet runner likely dead code, reset blocked on their mail cutover). Report:
+  session scratchpad `alecrae-crosstest.md`. Not walked: inbox/compose/settings
+  (no throwaway account; a pre-made session is the owner's to create).
+- The bigger result is ours: `--suite full --parallel` produced 600 blocking
+  findings on their tree, 551 false positives (92 %), 22 min wall-clock. Filed as
+  #767 (scans ignore .gitignore — 300 findings in build output; builder on it),
+  #768 (hosted /web scan: hangs past maxDuration, no permalink, SEO on a JSON API
+  host, broken-link counts do not reproduce — wait for #751 which touches the
+  route), #769 (errorSwallow flags 69 consumed `.catch(() => null)` sentinels),
+  #770 (22-minute runtime, toolchain failure reported as product failure), and
+  umbrella #771 with all 17 classes and the control line for each. Retracted to
+  AlecRae. When the classes close, AlecRae 4a2d60b joins the precision corpus.
+- Gluecron: G12 (deploy keys undocumented) closed by them at cc450d2, verified
+  live; their deploy keys/tokens carry last_used_at + last_used_ip, GitHub's do
+  not. Write-path pass still blocked on the owner's sign-up decision.
