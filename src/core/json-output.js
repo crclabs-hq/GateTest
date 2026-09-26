@@ -205,6 +205,11 @@ function buildJsonOutput(summary, ctx) {
     failedModules: Array.isArray(summary.failedModules) ? summary.failedModules : [],
     report: ctx.reportPath || null,
     issues,
+    // Accepted-risk overrides that applied this run (move 3,
+    // docs/LAUNCH_BOARD.md) — a recorded, expiring alternative to
+    // .gatetestignore. Always an array, never omitted (Forbidden #16):
+    // an empty run must say "no overrides", not leave the key absent.
+    overrides: Array.isArray(summary.overrides) ? summary.overrides : [],
   };
 }
 

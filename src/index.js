@@ -144,13 +144,20 @@ class GateTest {
       runner.register(name, mod);
     }
 
-    // Attach reporters — skip ConsoleReporter in silent mode (e.g. MCP server)
+    // Attach reporters — skip ConsoleReporter in silent mode (e.g. MCP server).
+    // --no-artifacts / GATETEST_NO_ARTIFACTS=1 (complaint C22) suppresses
+    // every on-disk reporter: the console summary and --format json's stdout
+    // document are built from the in-memory summary either way, so nothing
+    // else depends on these having run.
     if (!this.options.silent) new ConsoleReporter(runner, { showAll: this.options.showAll });
-    new JsonReporter(runner, this.config);
-    new HtmlReporter(runner, this.config);
-    if (this.options.sarif) new SarifReporter(runner, this.config);
-    if (this.options.junit) new JunitReporter(runner, this.config);
-    if (this.options.compliance) new ComplianceReporter(runner, this.config);
+    const noArtifacts = Boolean(this.config.get('reporting.noArtifacts'));
+    if (!noArtifacts) {
+      new JsonReporter(runner, this.config);
+      new HtmlReporter(runner, this.config);
+    }
+    if (this.options.sarif && !noArtifacts) new SarifReporter(runner, this.config);
+    if (this.options.junit && !noArtifacts) new JunitReporter(runner, this.config);
+    if (this.options.compliance && !noArtifacts) new ComplianceReporter(runner, this.config);
     // Inline PR annotations — auto-on when running inside GitHub Actions
     // (the GITHUB_ACTIONS env var is set by every Actions runner). Customers
     // get red squiggles on the PR diff with zero configuration. Can be

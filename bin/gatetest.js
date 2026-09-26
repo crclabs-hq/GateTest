@@ -33,6 +33,7 @@ const {
 const { buildJsonOutput, scanExitCode } = require('../src/core/json-output');
 const { crawlReportPaths, crawlExitCode, crawlResultLabel, buildCrawlFindings, crawlFindingIds } = require('../src/modules/live-crawler-report');
 const { createConvergenceGuard, REASONS: CONVERGENCE_REASONS } = require('../src/core/convergence-guard');
+const { resolveReportDir, ENV_REPORT_DIR, ENV_NO_ARTIFACTS } = require('../src/core/report-paths');
 
 /**
  * `--project <path>` must name an existing directory, or the run is a usage
@@ -158,6 +159,15 @@ const HELP = `
                        a report-only env/config flag is set. Use once
                        you've triaged the baseline and want the gate to
                        enforce. Wins over --report-only when both pass.
+    --model-verdicts-block
+                       A model-judged finding (one whose verdict came from
+                       asking an AI to review the code, not from a
+                       deterministic rule) never blocks the gate by default
+                       — it's reported as a warning with the block it would
+                       have caused preserved. Pass this flag (or set
+                       gate.modelVerdictsBlock in .gatetest.json, or
+                       GATETEST_MODEL_VERDICTS_BLOCK=1) to opt model-judged
+                       findings INTO blocking like a deterministic one.
     --baseline         Snapshot every CURRENT finding into
                        .gatetest/baseline.json ("clean as you code").
                        Commit the file; later runs only fail on NEW
@@ -165,6 +175,26 @@ const HELP = `
                        block. Onboard a mature repo without eating the
                        backlog on day one. Re-run to refresh; delete the
                        file to see everything again. Respects --suite.
+    --accept-risk <finding-id> --reason "<text>" [--until YYYY-MM-DD] [--by <name>]
+                       Recorded, expiring override for ONE finding (repeatable —
+                       repeat the whole group per finding). Unlike
+                       .gatetestignore (a silent, permanent "this rule is
+                       wrong"), an accepted risk says "this finding is real,
+                       we accept it, here is why, and here is when we stop":
+                       it never blocks the gate while active, but it is
+                       ALWAYS reported — in a separate "overrides" section of
+                       every report/PR comment, as a SARIF suppression with
+                       your reason attached, never silently dropped from
+                       view. <finding-id> is the id shown in --format json
+                       (issues[].id) and the PR comment, "<module>:<check>".
+                       --reason is required — without it the override is a
+                       loud warning (exit 2 under --strict/CI) and is not
+                       applied. --until expires it: past that date the
+                       finding blocks again, with a message naming the
+                       expired override. Without --persist an override
+                       applies to this run only; --persist also writes it to
+                       .gatetest/accepted-risks.json, reviewed in PRs like
+                       any other file.
     --watch            Watch for file changes and re-scan continuously
     --format <json|text>
                        Output format for a scan (--suite / --module runs).
@@ -224,6 +254,22 @@ const HELP = `
                        on outside Actions (e.g. local debugging).
     --ci-init <type>   Generate CI config: github, gitlab, circleci
     --project <path>   Set project root (default: cwd)
+    --report-dir <path>
+                       Redirect every report (JSON/HTML/SARIF/JUnit/
+                       compliance) and the two memory stores away from the
+                       default .gatetest/ inside the scanned checkout.
+                       Absolute, or relative to --project. Same as
+                       GATETEST_REPORT_DIR; this flag wins when both are
+                       set. Default: .gatetest/reports (reports) and
+                       .gatetest/ (memory), inside the scanned checkout —
+                       add ".gatetest/" to that repo's .gitignore, or use
+                       this flag / --no-artifacts, so "git status" stays
+                       clean on a CI runner, a monorepo, or a read-only tree.
+    --no-artifacts     Write nothing to disk — no reports, no scan history,
+                       no memory. The console summary still prints and
+                       --format json still emits its document on stdout;
+                       exit codes are unchanged. Same as
+                       GATETEST_NO_ARTIFACTS=1.
     --confidence-threshold <0..1>
                        Confidence threshold below which error-severity
                        findings are downgraded to "soft errors" (visible
@@ -408,7 +454,14 @@ async function main() {
   }
   // 'scan' is an explicit alias for the default behavior. Consume it.
   const effectiveArgv = first === 'scan' ? rawArgs.slice(1) : rawArgs;
-  const args = parseArgs(effectiveArgv);
+  // Accepted-risk overrides (move 3, docs/LAUNCH_BOARD.md): `--accept-risk`
+  // and its trailing `--reason` / `--until` / `--by` / `--persist` are
+  // pulled out BEFORE the generic table-driven parser sees the rest — they
+  // are grouped/repeatable in a way FLAG_SPEC does not model. Everything
+  // else goes on to parseArgs exactly as before.
+  const { parseAcceptRiskArgs } = require('../src/core/accept-risk');
+  const acceptRiskParse = parseAcceptRiskArgs(effectiveArgv);
+  const args = parseArgs(acceptRiskParse.remainingArgv);
   // Anything the parser could not use is reported before the scan starts.
   // Advisory on a developer's machine — a stray argument from a wrapper
   // script must not cost someone their scan (Forbidden #25). But it must not
@@ -422,6 +475,17 @@ async function main() {
   const fatalArgs = argProblemsAreFatal(args) && !args.help && !args.version;
   for (const line of describeArgProblems(args, { fatal: fatalArgs })) console.error(line);
   if (fatalArgs) process.exit(USAGE_EXIT_CODE);
+  // A `--accept-risk` group with no `--reason` is never silently applied
+  // (Bible Forbidden #16) — same fatal-vs-advisory rule as every other
+  // unusable argument (argProblemsAreFatal), reused rather than a second
+  // "is this CI/--strict" check (doctrine #4).
+  const acceptRiskFatal = acceptRiskParse.errors.length > 0
+    && argProblemsAreFatal({ strict: args.strict, unknownArgs: acceptRiskParse.errors.map((arg) => ({ arg })) })
+    && !args.help && !args.version;
+  for (const err of acceptRiskParse.errors) {
+    console.error(`[GateTest] ${acceptRiskFatal ? 'Error' : 'Warning'}: ${err} — ${acceptRiskFatal ? 'refused' : 'ignored, override not applied'}.`);
+  }
+  if (acceptRiskFatal) process.exit(USAGE_EXIT_CODE);
   // --offline: one switch, recorded everywhere (src/core/offline.js). The
   // AI-backed paths need api.anthropic.com, so they are refused out loud
   // rather than run against a network that is not there.
@@ -453,6 +517,19 @@ async function main() {
   // Checked before anything below can create it: GateTestConfig, the
   // reporters and `--init` all mkdir under the root on demand.
   requireProjectDir(projectRoot);
+
+  // Complaint C22: --report-dir / --no-artifacts normalize into the env vars
+  // GateTestConfig and the memory stores read (src/core/report-paths.js) —
+  // ONE place decides precedence (flag > env > .gatetest.json > default)
+  // before GateTestConfig or any MemoryStore is constructed below. Resolved
+  // against --project, not cwd, so `--project ../other --report-dir out`
+  // lands under ../other/out, matching every other path flag on this CLI.
+  if (args.reportDir) {
+    process.env[ENV_REPORT_DIR] = path.resolve(projectRoot, args.reportDir);
+  }
+  if (args.noArtifacts) {
+    process.env[ENV_NO_ARTIFACTS] = '1';
+  }
 
   if (args.init) {
     initProject(projectRoot);
@@ -565,7 +642,22 @@ async function main() {
   // and friends keep their own output.
   const jsonMode = args.format === 'json';
 
+  // Accepted-risk overrides: merge `.gatetest/accepted-risks.json` (reviewed
+  // in PRs like any other repo file) with any valid `--accept-risk` groups
+  // from this invocation (CLI wins on a shared id). `--persist` writes the
+  // merged set back to the file; without it, CLI overrides apply to this
+  // run only. A group with no reason was already reported above and is
+  // dropped here rather than silently applied.
+  const { loadAcceptedRisks, saveAcceptedRisks, mergeOverrides } = require('../src/core/accept-risk');
+  const validAcceptRisk = acceptRiskParse.overrides.filter((o) => o.reason);
+  const acceptRiskOverrides = mergeOverrides(loadAcceptedRisks(projectRoot), validAcceptRisk);
+  if (acceptRiskParse.persist && validAcceptRisk.length > 0) {
+    const written = saveAcceptedRisks(projectRoot, acceptRiskOverrides);
+    console.error(`[GateTest] ${validAcceptRisk.length} accepted risk(s) written to ${written}`);
+  }
+
   const gatetest = new GateTest(projectRoot, {
+    acceptRiskOverrides,
     parallel: args.parallel || false,
     stopOnFirstFailure: args['stop-first'] || false,
     autoFix: args.fix || false,
@@ -587,6 +679,9 @@ async function main() {
     // --strict also makes an EMPTY scan (no source files under the root) a
     // failed gate — see runner.js `nothingChecked`.
     strict: args.strict === true,
+    // The Fifty, move 14 — CLI flag wins; config key / env var are read
+    // inside GateTestRunner's constructor when this is absent.
+    ...(args.modelVerdictsBlock === true ? { modelVerdictsBlock: true } : {}),
     ...(args.baseline ? { captureBaseline: true } : {}),
     ...(incrementalSince ? { incrementalSince } : {}),
     ...(typeof args.confidenceThreshold === 'number'
@@ -819,7 +914,7 @@ async function main() {
   // it — computed once, so the two can never disagree.
   const finish = (summary, exitCode) => {
     if (!jsonMode) process.exit(exitCode);
-    const reportDir = path.resolve(projectRoot, gatetest.config.get('reporting.outputDir') || '.gatetest/reports');
+    const reportDir = resolveReportDir(gatetest.config);
     const latest = path.join(reportDir, 'gatetest-report-latest.json');
     const doc = buildJsonOutput(summary, {
       projectRoot,
@@ -900,6 +995,14 @@ async function main() {
     printPlainSummary(summary, projectRoot);
   }
 
+  // Complaint C22 first-time hint — after the summary, never in --format
+  // json (stdout is the one JSON document), never under --no-artifacts
+  // (nothing was written), never when --report-dir moved reports outside
+  // the default `.gatetest/` (the hint is specifically about that path).
+  if (!jsonMode && process.env[ENV_NO_ARTIFACTS] !== '1' && !process.env[ENV_REPORT_DIR]) {
+    maybeNoticeGitignore(projectRoot);
+  }
+
   return finish(summary, scanExitCode(summary));
 }
 
@@ -936,6 +1039,22 @@ function maybeNoticeTelemetry() {
       '  to .gatetest.json.\x1b[0m\n'
     );
   } catch { /* best-effort notice */ } // error-ok
+}
+
+/**
+ * Complaint C22 hint — one stderr line when a scan just wrote into a git
+ * repo whose OWN .gitignore does not cover `.gatetest/`, so `git status`
+ * goes dirty every run with no signal that a flag exists to stop it.
+ * Self-clearing, unlike maybeNoticeTelemetry: once `.gatetest/` is
+ * gitignored the condition is false and the hint stops for good, so no
+ * "shown once" marker is needed. Best-effort — never throws.
+ */
+function maybeNoticeGitignore(projectRoot) {
+  try {
+    const { gatetestDirIsGitignored, isGitRepo } = require('../src/core/gitignore-hint');
+    if (!isGitRepo(projectRoot) || gatetestDirIsGitignored(projectRoot)) return;
+    console.error('hint: add .gatetest/ to .gitignore, or use --report-dir / --no-artifacts');
+  } catch { /* best-effort hint */ } // error-ok
 }
 
 /**

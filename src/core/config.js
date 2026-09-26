@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { innerHtmlAssignmentIsSafe } = require('./inner-html-safety');
+const { ENV_REPORT_DIR, ENV_NO_ARTIFACTS } = require('./report-paths');
 
 /**
  * Modules a suite deliberately does NOT run, and where they run instead.
@@ -654,6 +655,10 @@ const DEFAULT_CONFIG = {
     formats: ['json', 'html', 'console'],
     retainReports: 30,   // days
     timestamped: true,
+    // --no-artifacts / GATETEST_NO_ARTIFACTS=1 (complaint C22): suppress
+    // every on-disk report + memory write for this scan. Applied below in
+    // the constructor, alongside the outputDir env override.
+    noArtifacts: false,
   },
 
   // Scanning (continuous monitoring)
@@ -678,6 +683,14 @@ const DEFAULT_CONFIG = {
     autoFix: true,
     autoRollback: true,
     rollbackWindow: 900,  // seconds (15 minutes)
+    // The Fifty, move 14 (complaints C1/C4): a model-judged finding
+    // (verdictSource === 'model' — its verdict came from asking an AI to
+    // review the code, not a deterministic rule) never blocks the gate on
+    // its own by default. Opt in with this key, `--model-verdicts-block`,
+    // or `GATETEST_MODEL_VERDICTS_BLOCK=1` (see runner.js GateTestRunner
+    // constructor for precedence). `wouldBlock` on the finding always shows
+    // what a stricter policy would have decided.
+    modelVerdictsBlock: false,
   },
 
   // Incremental scan — used by --since <ref> / --pr to skip unchanged files.
@@ -794,6 +807,27 @@ class GateTestConfig {
     this.projectRoot = projectRoot || process.cwd();
     this.configPath = path.join(this.projectRoot, '.gatetest', 'config.json');
     this.config = this._loadConfig();
+    this._applyArtifactEnvOverrides();
+  }
+
+  /**
+   * `--report-dir` / `--no-artifacts` (bin/gatetest.js, complaint C22)
+   * normalize into GATETEST_REPORT_DIR / GATETEST_NO_ARTIFACTS BEFORE
+   * GateTest is constructed, so applying them here — after the
+   * `.gatetest.json` merge above — gives the flag/env pair precedence over
+   * both a configured `reporting.outputDir` and the hardcoded default.
+   * Every reporter reads `reporting.outputDir` / `reporting.noArtifacts` off
+   * this config and needs no separate plumbing; the two memory stores
+   * (which only ever see a bare `projectRoot`) read the same env vars
+   * directly via `src/core/report-paths.js` — one definition either way.
+   */
+  _applyArtifactEnvOverrides() {
+    if (process.env[ENV_REPORT_DIR]) {
+      this.config.reporting.outputDir = process.env[ENV_REPORT_DIR];
+    }
+    if (process.env[ENV_NO_ARTIFACTS] === '1') {
+      this.config.reporting.noArtifacts = true;
+    }
   }
 
   _loadConfig() {

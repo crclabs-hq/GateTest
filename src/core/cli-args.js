@@ -89,6 +89,16 @@ const FLAG_SPEC = [
   { flags: ['--junit'], key: 'junit', type: 'boolean' },
   { flags: ['--offline'], key: 'offline', type: 'boolean' },
   { flags: ['--compliance'], key: 'compliance', type: 'boolean' },
+  // Complaint C22: every scan wrote reports + memory into the scanned
+  // checkout with no opt-out. --no-artifacts suppresses all of it (console
+  // summary and --format json's stdout document are unaffected — see
+  // src/index.js and src/core/report-paths.js).
+  { flags: ['--no-artifacts'], key: 'noArtifacts', type: 'boolean' },
+  // The Fifty, move 14: opt INTO letting a model-judged finding block the
+  // gate on its own (default: report-only, `wouldBlock` preserved). See
+  // `gate.modelVerdictsBlock` in `.gatetest.json` and env
+  // `GATETEST_MODEL_VERDICTS_BLOCK=1` for the other two ways to set it.
+  { flags: ['--model-verdicts-block'], key: 'modelVerdictsBlock', type: 'boolean' },
   { flags: ['--feedback'], key: 'feedback', type: 'boolean' },
   { flags: ['--monitor-heal'], key: 'monitorHeal', type: 'boolean' },
   // `--json` is `--format json` spelled the way most CLIs spell it. Same key,
@@ -107,6 +117,10 @@ const FLAG_SPEC = [
   { flags: ['--suite'], key: 'suite', type: 'value' },
   { flags: ['--module'], key: 'module', type: 'value' },
   { flags: ['--project'], key: 'project', type: 'value' },
+  // Complaint C22: redirect every reporter + the two memory stores away from
+  // the scanned checkout. Absolute or relative to --project (see
+  // src/core/report-paths.js resolveReportDir/resolveMemoryRoot).
+  { flags: ['--report-dir'], key: 'reportDir', type: 'value' },
   { flags: ['--server'], key: 'server', type: 'value' },
   { flags: ['--crawl'], key: 'crawl', type: 'value' },
   { flags: ['--crawl-loop'], key: 'crawlLoop', type: 'value' },

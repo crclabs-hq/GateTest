@@ -193,6 +193,10 @@ class SarifReporter {
     const projectLevelUri = this._resolveProjectLevelUri();
 
     const threshold = summary.confidenceThreshold;
+    // The Fifty, move 14: does a model-judged finding block on its own?
+    // Read off the summary rather than re-derived here, so SARIF's
+    // `blocking` always agrees with the gate that actually ran.
+    const modelVerdictsBlock = summary.modelVerdictsBlock === true;
 
     for (const moduleResult of summary.results) {
       for (const check of moduleResult.checks) {
@@ -208,8 +212,9 @@ class SarifReporter {
         if (check.severity === 'info') continue;
 
         // The level GitHub sees is the level the GATE used: an error the
-        // confidence threshold made non-blocking ("soft") is a warning.
-        const effectiveSeverity = check.severity === 'error' && !isBlockingFinding(check, threshold)
+        // confidence threshold made non-blocking ("soft") — or one an
+        // active accepted-risk override took off the gate — is a warning.
+        const effectiveSeverity = check.severity === 'error' && (check.overriddenBy || !isBlockingFinding(check, threshold))
           ? 'warning'
           : check.severity;
         const level = this._severityToSarif(effectiveSeverity);
@@ -278,9 +283,30 @@ class SarifReporter {
           },
           properties: {
             confidence: typeof check.confidence === 'number' ? check.confidence : null,
-            blocking: isBlockingFinding(check, threshold),
+            blocking: isBlockingFinding(check, threshold, modelVerdictsBlock) && !check.overriddenBy,
+            // The Fifty, move 14: 'deterministic' | 'model' | 'mixed' — lets a
+            // GitHub Security tab consumer filter model-judged alerts instead
+            // of weighting them the same as a deterministic rule firing.
+            verdictSource: check.verdictSource || 'deterministic',
           },
         };
+
+        // Accepted-risk override (move 3, docs/LAUNCH_BOARD.md): rendered as
+        // a SARIF suppression so GitHub Code Scanning shows it dismissed
+        // WITH a reason, rather than as a live alert someone has to notice
+        // is actually accepted. `kind: 'external'` — the decision was made
+        // outside GitHub's own dismiss-in-UI flow, in this repo's own
+        // recorded-override file/flag. Never applied to an EXPIRED override
+        // — that one is meant to alarm again, which a suppression would hide.
+        if (check.overriddenBy) {
+          const o = check.overriddenBy;
+          const who = o.by ? ` (accepted by ${o.by})` : '';
+          const until = o.until ? `, until ${o.until}` : '';
+          sarifResult.suppressions = [{
+            kind: 'external',
+            justification: `Accepted risk${who}${until}: ${o.reason}`,
+          }];
+        }
 
         // Always emit a locations array — GitHub Code Scanning rejects
         // the whole upload when even one result has no location. File-less
