@@ -209,6 +209,15 @@ class InteractiveElementsModule extends BaseModule {
       linksChecked: 0,
       buttonsChecked: 0,
       brokenLinks: [],
+      // Issue #768 item 4: a page the crawler tried to NAVIGATE to (the
+      // start URL, or a discovered internal link queued for its own visit)
+      // and failed to load. Kept separate from `brokenLinks` — which is
+      // reserved for URLs that actually went through `_checkLinks`'s HTTP
+      // HEAD/GET verification — so a navigation failure to page 1 can never
+      // produce the self-contradictory "N broken link(s) found across 0
+      // page(s) — 0 links checked" (a "broken link" claimed by a module
+      // that checked zero links).
+      unreachablePages: [],
       deadButtons: [],
       hoverOnlyButtons: [],
       buttonErrors: [],
@@ -245,7 +254,10 @@ class InteractiveElementsModule extends BaseModule {
         }
 
         if (!response || response.status() >= 400) {
-          stats.brokenLinks.push({ url, status: response ? response.status() : 0, source: 'crawl-navigation' });
+          // A page the crawler could not NAVIGATE to is not "a broken link
+          // we checked" — it never reached `_checkLinks`, so it must never
+          // count toward `linksChecked`/`brokenLinks` (#768 item 4).
+          stats.unreachablePages.push({ url, status: response ? response.status() : 0 });
           continue;
         }
         stats.pagesVisited++;
@@ -565,7 +577,33 @@ class InteractiveElementsModule extends BaseModule {
       });
     }
 
-    if (stats.brokenLinks.length > 0) {
+    // #768 item 4: disclosed separately from the broken-link tally below —
+    // a page the crawler could not navigate to was never run through
+    // `_checkLinks`, so it must never inflate (or, at 0 pages visited,
+    // singlehandedly BECOME) the "N broken link(s) ... — K links checked"
+    // count.
+    if (stats.unreachablePages.length > 0) {
+      result.addCheck('interactive-elements:unreachable-pages', false, {
+        severity: 'warning',
+        message: `${stats.unreachablePages.length} page(s) could not be loaded while crawling from ${baseUrl} (navigation failed or returned an error status) — not counted as broken links, since the crawler never reached them to check anything`,
+        details: stats.unreachablePages.slice(0, 30),
+      });
+    }
+
+    // A crawl that never loaded a single page has no basis for ANY link
+    // count, broken or clean (Doctrine #1: a verdict needs evidence). This
+    // is what fixes the self-contradictory "1 broken link(s) found across 0
+    // page(s) — 0 links checked" — that shape is now structurally
+    // impossible: `brokenLinks` only ever gains entries from `_checkLinks`,
+    // which only runs on a page AFTER `pagesVisited` is incremented.
+    if (stats.pagesVisited === 0) {
+      const startStatus = stats.unreachablePages[0] && stats.unreachablePages[0].status;
+      this._notChecked(
+        result,
+        `Interactive-element crawl of ${baseUrl} did not load any page — links and buttons were NOT checked` +
+          (startStatus ? ` (the start URL returned HTTP ${startStatus})` : stats.pageErrors.length > 0 ? ` (${stats.pageErrors[0].message})` : '')
+      );
+    } else if (stats.brokenLinks.length > 0) {
       result.addCheck('interactive-elements:broken-links', false, {
         severity: 'error',
         message: `${stats.brokenLinks.length} broken link(s) found across ${stats.pagesVisited} page(s) — ${stats.linksChecked} links checked`,
@@ -625,7 +663,9 @@ class InteractiveElementsModule extends BaseModule {
 
     result.addCheck('interactive-elements:summary', true, {
       severity: 'info',
-      message: `${stats.pagesVisited} page(s) crawled from ${baseUrl}: ${stats.linksChecked} links checked (${stats.brokenLinks.length} broken), ${stats.buttonsChecked} buttons found (${stats.skippedDestructive.length} safety-skipped, ${stats.deadButtons.length} dead, ${stats.hoverOnlyButtons.length} hover-only, ${stats.buttonErrors.length} errored)`,
+      message: `${stats.pagesVisited} page(s) crawled from ${baseUrl}` +
+        (stats.unreachablePages.length > 0 ? ` (${stats.unreachablePages.length} unreachable)` : '') +
+        `: ${stats.linksChecked} links checked (${stats.brokenLinks.length} broken), ${stats.buttonsChecked} buttons found (${stats.skippedDestructive.length} safety-skipped, ${stats.deadButtons.length} dead, ${stats.hoverOnlyButtons.length} hover-only, ${stats.buttonErrors.length} errored)`,
     });
   }
 }
