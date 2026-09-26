@@ -86,6 +86,18 @@ const nextConfig: NextConfig = {
       ...GUESSED_URLS,
     ];
   },
+  async rewrites() {
+    return [
+      // /health and /healthz are the orchestrator-convention paths a load
+      // balancer or uptime checker tries by default; the real liveness
+      // route is /api/health (P2, outside reviewer 2026-09-26 — both 404'd
+      // as HTML before this). A rewrite keeps the URL in the address bar
+      // (unlike a redirect) and answers with the same JSON `/api/health`
+      // already serves, in one request.
+      { source: "/health", destination: "/api/health" },
+      { source: "/healthz", destination: "/api/health" },
+    ];
+  },
   async headers() {
     return [
       {

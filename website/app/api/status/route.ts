@@ -1,33 +1,46 @@
 /**
- * Public config-readiness probe — GET /api/status
+ * Config-readiness probe — GET /api/status
  *
- * The "why isn't the site going?" endpoint. Unlike /api/admin/health (which
- * needs an admin session + makes real network calls, so it's useless when auth
- * itself is misconfigured), this endpoint:
- *   - needs NO auth, NO session, NO network — it can't hang and works even
- *     when everything else is broken. The one exception is the queue-depth
- *     block (2026-08-18 audit advancement #11), which races the database
- *     against a 2s timeout and degrades to an error string — never a hang,
- *     never a 500;
- *   - returns ONLY booleans and variable NAMES — never a secret value, never a
+ * The "why isn't the site going?" endpoint, for operators. Unlike
+ * /api/admin/health (which needs an admin session + makes real network
+ * calls, so it's useless when auth itself is misconfigured), this endpoint
+ * for an AUTHENTICATED caller:
+ *   - needs NO session cookie, NO network beyond the queue-depth block
+ *     (2026-08-18 audit advancement #11, which races the database against a
+ *     2s timeout and degrades to an error string — never a hang, never a 500);
+ *   - returns booleans and variable NAMES — never a secret value, never a
  *     key, never a connection string.
  *
  * It answers one question: is the deployed environment configured well enough
  * for the core user flows (scan, auth, payment) to work? If `ready` is false,
- * `missing` lists exactly which required vars to set in the Vercel dashboard.
+ * `missing_required` lists exactly which required vars to set.
  *
- * Info exposure is limited to "is variable X currently set" — non-sensitive and
- * transient. If you want it locked down later, set GATETEST_STATUS_TOKEN and
- * pass ?token=... (enforced below only when that var is set).
+ * GT-02 (outside reviewer, 2026-09-26): this used to be the answer for EVERY
+ * caller, unauthenticated — a reconnaissance map of exactly which secrets a
+ * live deployment is missing, by name, with the hint of what depends on each
+ * one. Operator detail (variable names, Stripe mode, queue depth, platform
+ * pointing) now requires an admin session OR `Authorization: Bearer
+ * $CRON_SECRET` (see isAuthorisedTick, shared with scan/worker/tick). Every
+ * other caller gets `{ ok, healthy, version, commit, checked_at }` — enough
+ * to know the deploy is up and which commit is live, nothing an attacker can
+ * act on. GATETEST_STATUS_TOKEN (below) still exists as a total lock in
+ * front of BOTH bodies, for an operator who wants /api/status dark entirely.
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import buildInfo from "@/app/data/build-info.json";
+import { isAdminRequest } from "@/app/lib/admin-auth";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { findPlaceholders, inspectEnvValue } = require("@/app/lib/env-placeholder");
 // Which brand the platform variables are pointed at (Vapron → Tallrig rename,
 // Craig 2026-09-14): names only, so the readiness card shows a flipped
 // box as flipped. Requested by the platform side.
 const { platformPointing } = require("@/app/lib/platform-config");
+// Same authorisation the worker tick route uses (scan/worker/tick/route.ts)
+// — imported, not re-implemented, so "who may see operator detail" has one
+// definition (Doctrine #4).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { isAuthorisedTick } = require("@/app/lib/scan-worker");
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -130,7 +143,37 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // The route is public. Vendor-named variables are reported under a neutral
+  // GT-02 (outside reviewer, 2026-09-26, unauthenticated crawl of gatetest.io):
+  // this route used to hand ANY caller the names of missing secrets, the
+  // "why" hints, Stripe mode, queue depth and platform.pointed_at — a
+  // reconnaissance map. Operator detail below is now gated the same way the
+  // worker tick accepts a trusted caller (scan/worker/tick/route.ts): an
+  // admin session, or `Authorization: Bearer $CRON_SECRET` (the same secret
+  // the tick routes already require). Anyone else gets a minimal, honest
+  // body — no env var name, no provider, no queue count, no platform
+  // pointing ever appears in it.
+  const authHeader = req.headers.get("authorization") || "";
+  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  const cronHeader = req.headers.get("x-vercel-cron-secret") || bearer || null;
+  const authed = isAuthorisedTick({ cronHeader, isAdmin: isAdminRequest(req), env: process.env });
+
+  if (!authed) {
+    // Same REQUIRED list, same isSet() validity check as the full body below
+    // — only the verdict is exposed, never which variable or why.
+    const healthy = REQUIRED.every((v) => isSet(v.name));
+    return NextResponse.json(
+      {
+        ok: true,
+        healthy,
+        version: process.env.APP_VERSION ?? buildInfo.version ?? "dev",
+        commit: process.env.GIT_COMMIT ?? buildInfo.commit ?? "unknown",
+        checked_at: new Date().toISOString(),
+      },
+      { status: healthy ? 200 : 503 },
+    );
+  }
+
+  // Everything below is the authenticated, full operator body. Vendor-named variables are reported under a neutral
   // label so the response never says which AI provider the engine uses; the
   // entry (and its `why`) stays so the readiness probe still fails on it.
   const publicName = (name: string) => (/ANTHROPIC|OPENAI|CLAUDE/i.test(name) ? "AI_PROVIDER_API_KEY" : name);

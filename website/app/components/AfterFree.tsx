@@ -79,7 +79,7 @@ export default function AfterFree() {
           >
             our own repository&apos;s current full-scan findings
           </Link>
-          , uploaded by the same CI job on every push to main.
+           (open the latest run, then the Full Scan job), produced by the same CI job on every push to main.
         </p>
       </div>
     </section>
