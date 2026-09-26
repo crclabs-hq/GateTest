@@ -517,6 +517,30 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   renders "Cycles 40, Auto-fixed 0 / 40" — honest, and it will stay ugly until a
   cycle closes.
 
+### Addendum 2026-09-26 09:40Z — Gluecron outside-in walk delivered; invite-only blocks the write path
+- Ran from a cloud sandbox (public internet only, no local load). Headline for the
+  owner: gluecron.com sign-up is invite-only (/register needs invite_code; /signup
+  302→/register; raw "Gluecron is in build-out and invite-only for now."), so a
+  prospect cannot trial it and no write-path capability could be measured from a
+  customer's seat (push, tokens, webhooks UI, protection, CI re-run, PR review
+  actions, projects, org/teams, audit, 2FA, import, deploy keys). Sent to the
+  Gluecron session with a request for one invite code for an authenticated pass
+  against their main 8475507 (deploy keys live there since 09:25Z).
+- Gaps found without an account (all with repro, GitHub measured alongside): no
+  OpenAPI/Swagger (404); REST pagination has no Link header (offset/nextOffset in
+  body); Actions API casing drift (their #6903); no CI re-run endpoint; no SSH
+  clone tab; /pulls/N/files 404 (only ?tab=files); flagship repo 0 tags / 0
+  releases; login throttle not observed in 10 tries at 1/s; password min 8;
+  public copy names AI vendors/models (owner's no-vendor rule applies to every
+  platform).
+- Advantages, measured: anon API 1000/60 s vs GitHub 60/h; cross-repo impact on
+  every PR; AI PR-size/changelog/review included; dedicated Symbols tab; mobile
+  390 px diff keeps Unified/Split; home page 0.44-0.49 s / 85 KB vs GitHub
+  0.53-0.64 s / 576 KB. Parity confirmed on private-repo 404, README render,
+  blame/history/anchors, code search, CI logs, rate-limit headers, TLS, HSTS.
+- Full report: session scratchpad `gluecron-crosstest-remote.md`. AlecRae
+  cross-test (local, browser journey) running at the time of writing.
+
 ### Addendum 2026-09-26 10:05Z — main went red after the flywheel merges; listing copy sharpened; four PRs waiting on the owner
 - **Merged since 09:14Z:** #757 (moves 3/14/17), #749 (security in standard; owner merged), #754 (move 8), #755/#756 (flywheel), #758 (arena handoff).
 - **Main is red at 666eabdd:** `TypeScript (website)` TS2352 in `app/changelog/page.tsx:38` — the 2026-09-26 changelog data refresh gave the JSON import a shape that no longer overlaps `Entry[]`; Docker publish and the production deploy fail with it. **Fix is PR #761** (cast through `unknown`, `tsc` exit 0, every check green) — it is only BEHIND. Admin merge and the update-branch API were both denied to the session by the auto-mode classifier, so the owner merges it: `gh pr merge 761 -R crclabs-hq/GateTest --squash --admin --delete-branch`.
