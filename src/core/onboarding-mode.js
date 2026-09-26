@@ -71,4 +71,4 @@ function resolveReportOnlyUntil(raw, now = new Date()) {
   return { valid: true, date: raw, active, expired: !active, daysLeft };
 }
 
-module.exports = { ISO_DATE_RE, isValidIsoDate, resolveReportOnlyUntil };
+module.exports = { isValidIsoDate, resolveReportOnlyUntil };
