@@ -137,6 +137,11 @@ const FLAG_SPEC = [
   // comma part here so every consumer sees one flat list.
   { flags: ['--file', '--files'], key: 'files', type: 'append', split: ',' },
 
+  // Whole-run wall-clock budget in seconds (move 4, time-to-verdict
+  // contract). Precedence over GATETEST_BUDGET_S is resolved by the caller
+  // (bin/gatetest.js), same pattern as every other explicit-flag-beats-env
+  // case in this file.
+  { flags: ['--budget'], key: 'budget', type: 'int' },
   { flags: ['--crawl-max'], key: 'crawlMax', type: 'int' },
   { flags: ['--crawl-page-timeout'], key: 'crawlPageTimeout', type: 'int' },
   { flags: ['--monitor-interval'], key: 'monitorInterval', type: 'int' },

@@ -652,6 +652,14 @@ class GateTestRunner extends EventEmitter {
     // incrementalSince resolves successfully.
     this._incrementalMode = options.incrementalFiles instanceof Set;
     this._incrementalFileSet = this._incrementalMode ? options.incrementalFiles : null;
+    // Whole-run wall-clock budget (move 4, time-to-verdict contract). A
+    // module already dispatched keeps its own per-module timeout — this
+    // only stops modules that have not started yet. `null` means no budget
+    // (today's unlimited behaviour, unchanged).
+    this._budgetMs = typeof options.budgetMs === 'number' && options.budgetMs >= 0
+      ? options.budgetMs
+      : null;
+    this._budgetDeferredModules = [];
   }
 
   register(name, moduleInstance) {
@@ -728,6 +736,8 @@ class GateTestRunner extends EventEmitter {
 
   async run(moduleNames) {
     const startTime = Date.now();
+    this._runStartTime = startTime;
+    this._budgetDeferredModules = [];
     this.results = [];
 
     // Is there anything here to check? A tree with no source file passes
@@ -815,6 +825,7 @@ class GateTestRunner extends EventEmitter {
     }
 
     const modulesToRun = moduleNames || Array.from(this.modules.keys());
+    this._intendedModuleCount = modulesToRun.length;
 
     this.emit('suite:start', { modules: modulesToRun, diffOnly: this.options.diffOnly });
 
@@ -842,8 +853,23 @@ class GateTestRunner extends EventEmitter {
     return summary;
   }
 
+  /**
+   * Has the whole-run budget already run out? `false` when no budget is
+   * set. `this._budgetMs === 0` is a real, valid budget (defer everything
+   * that has not started yet) — checked with `=== null`, not truthiness,
+   * so a `--budget 0` is not silently treated as "no budget".
+   */
+  _budgetExhausted() {
+    if (this._budgetMs === null) return false;
+    return (Date.now() - this._runStartTime) >= this._budgetMs;
+  }
+
   async _runSequential(moduleNames) {
     for (const name of moduleNames) {
+      if (this._budgetExhausted()) {
+        this._budgetDeferredModules.push(name);
+        continue;
+      }
       const result = await this._runModule(name);
       this.results.push(result);
 
@@ -854,7 +880,19 @@ class GateTestRunner extends EventEmitter {
   }
 
   async _runParallel(moduleNames) {
-    const promises = moduleNames.map(name => this._runModule(name));
+    // Modules launch back-to-back rather than via one synchronous
+    // `.map()`, so a budget check between dispatches can still catch
+    // modules that have not started yet. This does not change today's
+    // unlimited behaviour (no --budget): the check is a no-op and every
+    // module still launches immediately, same as `Promise.all` did.
+    const promises = [];
+    for (const name of moduleNames) {
+      if (this._budgetExhausted()) {
+        this._budgetDeferredModules.push(name);
+        continue;
+      }
+      promises.push(this._runModule(name));
+    }
     this.results = await Promise.all(promises);
   }
 
@@ -1374,6 +1412,16 @@ class GateTestRunner extends EventEmitter {
     // unconditionally (runtime exceptions, module crashes). Soft errors
     // are visible in the report but don't fail the gate.
     const nothingChecked = this._nothingChecked === true;
+    // Whole-run budget (move 4): the exit code stays whatever the modules
+    // that DID run decided — deferred modules never entered `this.results`,
+    // so they cannot flip a BLOCKED into a PASSED or vice versa. Never a
+    // fake pass. Under --strict, exceeding the budget is instead a USAGE
+    // failure (exit 2, same family as a bad --project path or an unknown
+    // flag) — the caller (bin/gatetest.js) reads `budgetLimited` +
+    // `options.strict` to make that call; the gate verdict itself is
+    // untouched here.
+    const budgetDeferredCount = this._budgetDeferredModules.length;
+    const budgetLimited = budgetDeferredCount > 0;
     const strictEmpty = nothingChecked && this.options.strict === true;
     const rawGateStatus = (failed.length === 0 && totalBlockingErrors === 0 && !strictEmpty) ? 'PASSED' : 'BLOCKED';
 
@@ -1395,6 +1443,28 @@ class GateTestRunner extends EventEmitter {
     // already decided); reporters use `findings`/`findingSummary` to show
     // the ranked, deduped view and to say how many duplicates were folded
     // and how many low-confidence errors were held back (2026-08-18).
+    // Budget-deferred modules (move 4) reuse SUITE_DEFERRALS's exact shape —
+    // {module, reason, runsIn} — so every consumer that already renders
+    // `summary.deferred` (console, JSON, the PR comment) shows these too,
+    // with no second code path to keep honest.
+    const budgetDeferredEntries = this._budgetDeferredModules.map((module) => ({
+      module,
+      reason: `budget ${Math.round(this._budgetMs / 1000)}s exhausted after ${this.results.length} of ${this._intendedModuleCount} modules`,
+      runsIn: 'a run without --budget, or a higher one',
+    }));
+    const deferred = [...(this.options.deferredModules || []), ...budgetDeferredEntries];
+
+    // Top-5 slowest modules (move 4) — per-module timing already exists
+    // (TestResult.duration, printed since #644/#650); this is just the
+    // sorted shortlist so a customer sees where the time went without
+    // scanning the full per-module dump.
+    const slowestModules = this.results
+      .filter((r) => typeof r.duration === 'number')
+      .slice()
+      .sort((a, b) => b.duration - a.duration)
+      .slice(0, 5)
+      .map((r) => ({ module: r.module, durationMs: r.duration }));
+
     const resultsJson = this.results.map(r => r.toJSON());
     let findings = [];
     let findingSummary = null;
@@ -1456,11 +1526,18 @@ class GateTestRunner extends EventEmitter {
       projectRoot: this._projectRoot,
       findings,
       findingSummary,
-      // Modules this suite deliberately did not run, and where they run
-      // instead (src/core/config.js → SUITE_DEFERRALS). Always an array.
-      // Carried on the summary so no consumer can present a deferred suite
-      // as exhaustive — Forbidden #16.
-      deferred: this.options.deferredModules || [],
+      // Modules this suite deliberately did not run (SUITE_DEFERRALS) PLUS
+      // modules the whole-run --budget cut off before they started. Always
+      // an array. Carried on the summary so no consumer can present a
+      // deferred/budget-limited run as exhaustive — Forbidden #16.
+      deferred,
+      // Move 4 — whole-run --budget. `budgetLimited` is the one flag every
+      // consumer checks before trusting a green verdict; the PASSED case
+      // still says so out loud (console-reporter appends the note to the
+      // banner) rather than reading identically to a full, unlimited run.
+      budgetLimited,
+      budgetDeferredCount,
+      slowestModules,
       // KI #112 (issue #633): `.gatetest.json` keys nothing reads used to be
       // a stderr-only warning, invisible to `--format json` and the PR
       // comment. `null` (never emitted) when the config has none — a
