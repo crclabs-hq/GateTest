@@ -10,6 +10,7 @@ import {
 } from "../countries";
 import PageHero from "../../components/site/PageHero";
 import Section from "../../components/site/Section";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 interface PageParams {
   params: Promise<{ country: string }>;
@@ -171,11 +172,11 @@ export default async function CountryPage({ params }: PageParams) {
 
   return (
     <main>
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }}
       />
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />

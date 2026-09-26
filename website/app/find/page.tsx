@@ -5,6 +5,7 @@ import { SITE_URL } from "@/app/lib/site-url";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 import siteStats from "../data/site-stats.json";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = {
   title: "CWE Top 25 — what GateTest catches and how to fix it",
@@ -37,7 +38,7 @@ export default function CweIndexPage() {
 
   return (
     <main>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }} />
 
       <div className="section-alt relative z-10 -mb-8">
         <nav aria-label="Breadcrumb" className="mx-auto max-w-7xl px-6 pt-6 flex flex-wrap items-center gap-2 text-sm text-muted">
