@@ -5,6 +5,7 @@ import { readRuleNoiseRows } from "../lib/scan-telemetry-store";
 import { aggregateRuleNoise } from "../lib/rule-noise";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 // Every number on this page is an aggregate over the anonymized per-rule
 // counts CLI and MCP machines send to /api/telemetry/scan — rule ids and
@@ -31,7 +32,7 @@ export default async function NoisePage() {
 
   return (
     <main>
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: jsonLd(breadcrumbSchema([{ name: "GateTest", path: "/" }, { name: "Rule noise" }])),

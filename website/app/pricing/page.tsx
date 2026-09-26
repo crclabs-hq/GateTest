@@ -4,6 +4,7 @@ import { Hero, Section, Card, Pricing as V2Pricing } from "../components/v2";
 import AfterFree from "../components/AfterFree";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import { breadcrumbSchema, contentMetadata, jsonLd } from "../lib/seo/schema";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 /**
  * /pricing — the canonical pricing URL.
@@ -81,7 +82,7 @@ const NEXT_STEPS: { href: string; title: string; body: string }[] = [
 export default function PricingPage() {
   return (
     <div>
-      <script
+      <NonceScript
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: jsonLd(

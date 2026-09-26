@@ -4,6 +4,7 @@ import { REGULATIONS } from "./catalog";
 import { SITE_URL } from "@/app/lib/site-url";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
+import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = {
   title: "Compliance regulations — what GateTest catches for GDPR, HIPAA, SOC 2, CCPA, PCI DSS, ISO 27001",
@@ -36,7 +37,7 @@ export default function RegulationIndexPage() {
 
   return (
     <main>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }} />
+      <NonceScript type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }} />
 
       <div className="section-alt relative z-10 -mb-8">
         <nav aria-label="Breadcrumb" className="mx-auto max-w-7xl px-6 pt-6 flex flex-wrap items-center gap-2 text-sm text-muted">
