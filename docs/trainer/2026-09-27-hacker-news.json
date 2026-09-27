@@ -1,0 +1,190 @@
+{
+  "generatedAt": "2026-09-27T08:59:48.649Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 11,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 3,
+      "SonarQube": 0,
+      "Semgrep": 6,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49864226",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "I see, I wasn't familiar with the way WhatsApp does this. I was talking more broadly about iOS&#x2F;Android app data backups in general.> At least with the current setup, the \"easy option\" is quite safe in terms of not loosing data and very low risk that anyone apart from you and governments with lawful access ever accesses the data.The backups would still be encrypted and you could even have Apple&#x2F;Google hold onto the key (if you wanted to), but if the data was stored elsewhere then neither party could access it unilaterally.",
+        "url": "https://news.ycombinator.com/item?id=49864226",
+        "points": null,
+        "numComments": null,
+        "storyId": 49828731,
+        "createdAt": "2026-09-27T07:26:15Z",
+        "createdAtUnix": 1790493975,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49860303",
+        "author": "8note",
+        "type": "comment",
+        "title": null,
+        "text": "i think its objectionable because the agent is doing what its told to do, using the harness they built for it.like, they are purposefully giving it specific tools to go do bad behaviour with, and the starting tasks involve making it clear that the bad behaviour is ok.openai also is the one with the real agency, not its agents. they are running the code polling the model, doing the inferencing, and ultimately making those tools calls.these tests arent running themselves; openai dedicated hosts, budget, GPUs, researchers, to them. Even in a recursive self improvement situation, openai still has that physical control over resources and the choice on whether to run that improvement script or not.id describe that they have out of control researchers more than agents, but also their whole business model seems to be about being out of control. This was clear beforehand given how the datasets involve the largest scale copyright infringement ever seen. The corporation itself is whats out of control, and should be dissolved with its c suite, major investors and researchers put behind bars.hacking only when you roll snake eyes isnt a liability shield",
+        "url": "https://news.ycombinator.com/item?id=49860303",
+        "points": null,
+        "numComments": null,
+        "storyId": 49856665,
+        "createdAt": "2026-09-26T20:37:56Z",
+        "createdAtUnix": 1790455076,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49857879",
+        "author": "diego_moita",
+        "type": "comment",
+        "title": null,
+        "text": "A very long time ago, in the 90s, we really thought that computers would make people smarter. We thought computers would sharpen people's analytical skills with logic and math, would provide them better tools to write and design things, would provide them information to help them get better answers.Back then, there was a famous snake-oil salesman that coined the expression \"computers are bicycles for the mind\". He proposed an analogy: when you compare the effort humans put into personal locomotion on foot with other animals you'll notice that they spend a lot of effort to yield very little movement. But then you put them in a bicycle and things change: humans can move a lot with very little effort. Computers would do the same: increase the mind's \"productivity\".Fast forward for today and we live in a world where everybody has a computer in their pockets. Ironically this change was pioneered by that very same snake-oil seller.And when I see the consequences of it, I say to myself: \"boy, we were soooo wrong!\".Law of unintended consequences? Or it is the fact that everyone is lazy and do want to remain dumb?",
+        "url": "https://news.ycombinator.com/item?id=49857879",
+        "points": null,
+        "numComments": null,
+        "storyId": 49857442,
+        "createdAt": "2026-09-26T16:10:45Z",
+        "createdAtUnix": 1790439045,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "49864702",
+        "author": "microtonal",
+        "type": "comment",
+        "title": null,
+        "text": "I think this may be partially about perception. I have been to the US over ten times. The first time I went to the US as a teenager, I was surprised how poor the US looks outside rich neighborhoods. Crumbling infrastructure, 80 year olds still working at supermarkets because they couldn't afford a living, many overweight people, most of the food sold in supermarkets is over-processed junk, and it is a car hellhole (can't walk or cycle to many places). I have also travelled most of Europe and with a few exceptions, European cities&#x2F;villages look greener, more walkable, the people look healthier, people retire timely, etc.There is also really weird segregation, like neighborhoods where only African-American people live. We once walked into a large restaurant and people looked at us in shock. There were only black people in the restaurant and by the shock on their faces, a family of white people walking in must have been rare occurrence. They were super kind, but it also was very weird.",
+        "url": "https://news.ycombinator.com/item?id=49864702",
+        "points": null,
+        "numComments": null,
+        "storyId": 49844663,
+        "createdAt": "2026-09-27T08:53:58Z",
+        "createdAtUnix": 1790499238,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49864412",
+        "author": "noduerme",
+        "type": "comment",
+        "title": null,
+        "text": "Uh, no, that's not the case at this point in time. There were racist HOA compacts like that up to the Fair Housing Act of 1968. Pretty few people alive today have bought houses where they were given an \"explicit promise that their neighbors would always be white people\" as you said.I live ten blocks from a neighborhood in Portland called Laurelhurst. Laurelhurst sits on a hill, about 30 blocks east of downtown, and contains the largest 100-year-old mansions east of the river. At each main entrance to Laurelhurst, there are massive stone archways. The arches were built to define the points where Black people were not allowed to enter after sundown.This is not the case today.Speaking as someone whose Dad grew up in segregated Baltimore, my grandfather was a bar owner who wasn't even allowed to own or work at a bar in the white neighborhoods. They couldn't rent or buy a house in the white neighborhoods.The situation today has nothing in common with that. We own homes and businesses wherever we want to. Fold up your manufactured guilt and sympathy and take it elsewhere, we didn't need your help and we still don't.",
+        "url": "https://news.ycombinator.com/item?id=49864412",
+        "points": null,
+        "numComments": null,
+        "storyId": 49844657,
+        "createdAt": "2026-09-27T08:01:25Z",
+        "createdAtUnix": 1790496085,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49863424",
+        "author": "slim",
+        "type": "comment",
+        "title": null,
+        "text": "Segregation is orderly &#x2F;s",
+        "url": "https://news.ycombinator.com/item?id=49863424",
+        "points": null,
+        "numComments": null,
+        "storyId": 49858810,
+        "createdAt": "2026-09-27T04:43:36Z",
+        "createdAtUnix": 1790484216,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49862983",
+        "author": "Hizonner",
+        "type": "comment",
+        "title": null,
+        "text": "> Canada and Australia never had a similar problem.Greetings from Canada. I live in Montreal. We have more of a Mafia problem nowadays than New York (no RICO here), and we were comparable in the 1930s. Bootleggers, remember? Where do you think they were running the booze from? Same \"market\", same mob. Yeah, they managed to dominate everybody else. That's what I mean about \"niches\". In fact they did it worldwide, and according to Wikipedia they're prominent in Australia, too. These are transnational groups. The Mafia is also big in Sicily. Are you going to say that's because of (checks notes) Sicilian immigration? Specifically because of a huge wave around 1900?We also have Hell's Angels here. Ethnically \"white\". No immigrant identification whatsoever, totally acculturated... although I assume some of them moved here from the US. Pretty racist and anti-immigrant, actually. Cool fact: I used to live two houses away from Sonny Barger in beautiful Oakland, California. OK, it wasn't actually that cool. Those guys were really noisy. But I assure you they did not come through Ellis Island.Apparently Winnipeg has First Nations gangs (Indians to you). Kinda the opposite of immigrants.... plus a grab bag of others, some of them organized by immigrants. Yes, organized crime tends to segregate itself ethnically, so if one group gets the upper hand, you're likely to see its ethnicity as the face of the problem. But all ethnicities get to play, and they will expand into any available vacuum. If you hadn't had the Italian Mafia (worldwide), you'd have had something else (at least regionally).And it's not always ethnic. Apparently there's a gang in BC that actually calls itself the United Nations.> Tammany Hall was not a political machine in 1789.It sure was by 1854, eh, according to your own quote? That was 38 years before Ellis Island opened. Before the specific wave of immigration that you're claiming caused the problem. Goalposts. You are moving them.> Irish domination of Chicago's political machine long outlasted the Ellis Island era... and preceded it. Your own link says \"Of the 28 most influential Chicago aldermen of the 1890s, 24 were Irish.\". I don't think they teleported from Ellis Island and took over in under 8 years.",
+        "url": "https://news.ycombinator.com/item?id=49862983",
+        "points": null,
+        "numComments": null,
+        "storyId": 49858810,
+        "createdAt": "2026-09-27T03:05:25Z",
+        "createdAtUnix": 1790478325,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49861829",
+        "author": "rayiner",
+        "type": "comment",
+        "title": null,
+        "text": "The laborers are heavily segregated from the native population. I think it’s morally bankrupt to have a quasi-slave class of Bangladeshis and Pakistanis that does all the work, but is hidden from view. But that is the only way anybody has found to maintain a clean and orderly environment like Dubai while having low skill immigration from the subcontinent.",
+        "url": "https://news.ycombinator.com/item?id=49861829",
+        "points": null,
+        "numComments": null,
+        "storyId": 49858810,
+        "createdAt": "2026-09-27T00:00:10Z",
+        "createdAtUnix": 1790467210,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49855545",
+        "author": "rcxdude",
+        "type": "comment",
+        "title": null,
+        "text": "Depends. A lot of these audits are quite prescriptive and don't leave much room for actually thinking about the problem. There is often some kind of mechanism for 'this is sufficiently segregated it doesn't matter that it's utterly out of date' but then usually some awkward rules develop that prevent some things from being put into that category. More subtly you can get whether the thing even exists as a thing that the audit cares about, and that often depends on the framing (embedded software is often invisible here but it needs to not look too much like a general-purpose OS even though it often is).(Also, in my experience, what the auditors think the rules are and what is written down can often be divergent and even contradictory)",
+        "url": "https://news.ycombinator.com/item?id=49855545",
+        "points": null,
+        "numComments": null,
+        "storyId": 49848955,
+        "createdAt": "2026-09-26T11:33:24Z",
+        "createdAtUnix": 1790422404,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "49863474",
+        "author": "epihelix",
+        "type": "comment",
+        "title": null,
+        "text": "Yes, it's an absolutely terrible UI, probably the worst ever coupled to an LLM. I have no idea why those *'s pepper the code blocks (but it's not coming from the model: reload, and you'll generally see the codeblock render correctly). The interface is bloated, slow, fugly and massively over-engineered. That's the price of entry.But you don't need to get code from the chat window -- that's so 2024. There is an entire agentic coding remote sandbox built into the Enterprise M365 version. It's not talked about, or advertised, but it's there. Just ask for your code changes back in a zip.It turns out almost anything is possible with Copilot, if you spend a bit of time thinking it through and exploring its capabilities. It is a surprisingly powerful platform.",
+        "url": "https://news.ycombinator.com/item?id=49863474",
+        "points": null,
+        "numComments": null,
+        "storyId": 49844896,
+        "createdAt": "2026-09-27T04:54:55Z",
+        "createdAtUnix": 1790484895,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "49857386",
+        "author": "merelydev",
+        "type": "comment",
+        "title": null,
+        "text": "I am not talking about the advancement of AI, I am talking about the advancement of chess.Two things can be true AI drastically contribute to the advancement of chess and humans playing against each other also contribute (even if slowly) to the advancement of chess as it has always been since the invention of the game. The point is that because chess is primarily a human vs human game humans will always have the knowledge of chess, unlike with programmers who are giving it up to prompting, and programming being much more complex than chess (checkmate and win) will be stuck in 2022 because of the training data.",
+        "url": "https://news.ycombinator.com/item?id=49857386",
+        "points": null,
+        "numComments": null,
+        "storyId": 49852717,
+        "createdAt": "2026-09-26T15:17:44Z",
+        "createdAtUnix": 1790435864,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
