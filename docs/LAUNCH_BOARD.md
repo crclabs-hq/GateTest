@@ -51,7 +51,12 @@ itself still uses the old variable names until the owner's cutover.
   `--telemetry-status`: #811 (refs #801); default stays `'on'` until the owner sets
   `TELEMETRY_DEFAULT`; `npm deprecate` of 1.60.0 and earlier is owner-only.
 - Hosted web scan honesty: JSON API host skips HTML-only checks, navigation failure is not a
-  broken link: #804 (#768 items 3 and 4; items 1, 2, 5 still open).
+  broken link: #804 (#768 items 3 and 4).
+- Hosted `/api/web/scan` keeps its own clock (issue #768 items 1, 2, 5): 50 s budget
+  (`GATETEST_WEB_SCAN_BUDGET_MS`), then 200 + `partial: true` + unfinished modules
+  not-checked + `streamUrl`; every response carries an absolute `reportUrl`;
+  runtime-not-configured is explained in `notCheckedReasons`. Control pair
+  `tests/web-scan-budget.test.js`. Live-verify after deploy (never run live).
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 

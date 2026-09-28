@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { type ModuleProgress, type RuntimeBlock, MODULE_TICKER } from "./url-scan-flow-types";
+import { runtimeNotRunExplanation } from "@/app/lib/web-runtime-reasons";
 
 export function LiveModuleTicker({ modules, elapsedSec }: { modules: ModuleProgress[]; elapsedSec: number }) {
   return (
@@ -132,23 +133,6 @@ export function ProgressTicker({ suite, elapsedSec }: { suite: "web" | "wp"; ela
 }
 
 /**
- * Plain-English rendering of the reason codes web-runtime-gate.js emits.
- * The code is the only thing the server sends — no variable names, hostnames
- * or upstream error bodies reach the browser. An unknown code still gets a
- * truthful sentence rather than nothing.
- */
-export function describeRuntimeReason(reason?: string | null): string {
-  if (reason === "not-configured") return "the live-browser worker is not switched on for this deployment yet";
-  if (reason === "callback-timeout") return "the live-browser worker did not report back within the time limit";
-  if (reason === "dispatch-failed:timeout") return "the live-browser worker did not answer in time";
-  if (reason === "dispatch-failed:network") return "the live-browser worker could not be reached";
-  if (reason && reason.startsWith("dispatch-failed:")) {
-    return `the live-browser worker refused the job (HTTP ${reason.slice("dispatch-failed:".length)})`;
-  }
-  return "it could not be started this time";
-}
-
-/**
  * Shown when the runtime (headless-browser) pass did NOT run — not queued,
  * refused, or queued but never reported back.
  *
@@ -166,7 +150,7 @@ export function RuntimeUnavailable({ reason }: { reason?: string | null }) {
         </span>
         <div className="flex-1">
           <p className="font-semibold text-amber-900 leading-tight">
-            Runtime checks (real-browser errors, headers under load) were not run: {describeRuntimeReason(reason)}. Static checks ran.
+            {runtimeNotRunExplanation(reason)} Static checks ran.
           </p>
           <p className="text-sm text-amber-900/80 mt-1">
             Everything below comes from the static and network checks, and it&apos;s all real — but

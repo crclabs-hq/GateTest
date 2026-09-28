@@ -212,11 +212,18 @@ describe('web-runtime-gate — source-text contract: every surface carries the t
 
   it('the UI prints the plain-English line and maps every reason code the gate can emit', () => {
     const ui = read('website/app/components/url-scan-flow-progress.tsx');
-    assert.match(ui, /Runtime checks \(real-browser errors, headers under load\) were not run: \{describeRuntimeReason\(reason\)\}\. Static checks ran\./);
+    // Issue #768 item 5: the wording lives once, in web-runtime-reasons.js; the
+    // UI imports it (no local copy) and the gate re-exports the same codes.
+    const reasons = require('../website/app/lib/web-runtime-reasons');
+    assert.match(ui, /import \{ runtimeNotRunExplanation \} from "@\/app\/lib\/web-runtime-reasons"/);
+    assert.match(ui, /\{runtimeNotRunExplanation\(reason\)\} Static checks ran\./);
+    assert.ok(!/function describeRuntimeReason/.test(ui), 'the UI must not carry its own copy of the reason wording');
+    assert.strictEqual(gate.RUNTIME_REASONS, reasons.RUNTIME_REASONS);
     for (const code of Object.values(gate.RUNTIME_REASONS)) {
-      assert.ok(ui.includes(`"${code}"`), `UI must map reason code ${code}`);
+      assert.ok(!reasons.describeRuntimeReason(code).startsWith('it could not be started'), `reason code ${code} must have its own sentence`);
     }
-    assert.ok(ui.includes(`"${gate.DISPATCH_FAILED_PREFIX}"`), 'UI must map dispatch-failed:<status>');
+    assert.match(reasons.runtimeNotRunExplanation(`${gate.DISPATCH_FAILED_PREFIX}404`), /HTTP 404/);
+    assert.match(reasons.runtimeNotRunExplanation('not-configured'), /not switched on for this deployment/);
     assert.ok(!/\{reason\}<\/p>/.test(ui), 'the raw reason code must not be rendered verbatim');
     assert.ok(!/tallrig|vapron|crontech/i.test(ui), 'UI copy must be platform-neutral');
     assert.match(ui, /onTimeoutRef\.current\(\)/, 'the poller must give up and report callback-timeout');
