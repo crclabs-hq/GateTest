@@ -58,6 +58,7 @@ itself still uses the old variable names until the owner's cutover.
   runtime-not-configured is explained in `notCheckedReasons`. Control pair
   `tests/web-scan-budget.test.js`. Live-verify after deploy (never run live).
 - First-hour sign-in journey: server-side gate (`/dashboard` 307 to `/login?next=`), `/login` entry, `/register` `/signup` `/sign-up` 301 to `/login`, `/docs` clean 307, `GET /api` JSON, crawler flags a redirect that carries an error page: #819 (closes #810, #812; unverified live until deployed).
+- Composite readiness `GET /api/health/deep`: db / queue / ai / mail / runtime sub-checks with status, latency and reason; 503 when a required one is down, optional ones report `not-configured`; `/api/health` stays the bare liveness ping. Pure composer `website/app/lib/health-composite.js`, control pairs `tests/health-composite.test.js`, live probe `tests/heavy/health-deep-live.test.js` (closes #809; unverified live until deployed).
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
