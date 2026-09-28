@@ -47,6 +47,9 @@ itself still uses the old variable names until the owner's cutover.
   #776 (closes #767). `BaseModule._collectFiles` now skips gitignored paths and
   a built-in build-output name set by default; measured on AlecRae.com
   266→158 blocking, ~422s→159s wall time, 822 gitignored paths skipped.
+- Telemetry host guard + `GATETEST_TELEMETRY` switch + first-run field list +
+  `--telemetry-status`: #811 (refs #801); default stays `'on'` until the owner sets
+  `TELEMETRY_DEFAULT`; `npm deprecate` of 1.60.0 and earlier is owner-only.
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
