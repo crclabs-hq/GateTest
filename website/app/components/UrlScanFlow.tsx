@@ -34,38 +34,19 @@ import type {
 } from "./url-scan-flow-types";
 import { HealthScoreCard, StatCard, FindingRow, RecommendationCard, PaywallCard, ModuleChecksCard } from "./url-scan-flow-cards";
 import { explainScoreChange } from "@/app/lib/health-score";
+import { encodeShareData, decodeShareData } from "@/app/lib/web-scan-share";
 import { LiveModuleTicker, ProgressTicker, RuntimePending, RuntimeUnavailable } from "./url-scan-flow-progress";
 import { CopyForAgentButton } from "./url-scan-flow-export";
 import { ScanFeedback } from "./ScanFeedback";
 import { consumeSseStream } from "./url-scan-flow-sse";
 
 // Issue #648 item 3 — permalink + restore for /web (and /wp, which shares
-// this component) results. Reuses the EXACT client-side encoding #647
-// already shipped for the free-scan playground (`?s=` — see
-// website/app/playground/page.tsx's encodeShareData/decodeShareData/
-// pushPermalink) rather than inventing a second permalink mechanism: whole
-// result, base64url-encoded with an embedded `sharedAt` timestamp, pushed
-// to the address bar with replaceState, expiring after 48h. No server-side
-// store — same tradeoff #647 already accepted, and this route has no
-// `scanId`-keyed persistence to restore from instead.
-const SHARE_EXPIRY_MS = 48 * 60 * 60 * 1000;
-
-function encodeShareData(result: ScanResult): string {
-  const payload = { ...result, sharedAt: Date.now() };
-  return btoa(encodeURIComponent(JSON.stringify(payload))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function decodeShareData(encoded: string): ScanResult | null {
-  try {
-    const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
-    const json = decodeURIComponent(atob(base64));
-    const data = JSON.parse(json) as ScanResult;
-    if (!data.sharedAt || Date.now() - data.sharedAt > SHARE_EXPIRY_MS) return null;
-    return data;
-  } catch {
-    return null; // error-ok — a malformed or tampered `?s=` value is not a scan result
-  }
-}
+// this component) results. The `?s=` encoding (whole result, base64url, an
+// embedded `sharedAt`, 48h expiry) is defined ONCE in
+// website/app/lib/web-scan-share.js, which POST /api/web/scan also imports
+// to build its `reportUrl` (issue #768 item 2) — the link a customer copies
+// from this page and the one the API returns are the same mechanism. No
+// server-side store: there is no `scanId`-keyed persistence to restore from.
 
 /** Pushes the current result into the address bar as `?s=...` so reload
  *  and copy-link both restore it. Returns the URL, or null when the

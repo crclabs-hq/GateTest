@@ -20,6 +20,13 @@
  * Free preview returns the top 3 highest-signal clusters plus a
  * health-score verdict (0-100). Full report unlocks once payment is
  * captured.
+ *
+ * Wall-clock budget (issue #768 item 1): `maxDuration` is not enforced by
+ * `next start`, so the route keeps its own deadline (web-scan-budget.js,
+ * default 50 s, env GATETEST_WEB_SCAN_BUDGET_MS). When it fires the answer is
+ * still a 200 — `partial: true`, the modules that finished, the rest listed
+ * in `notCheckedReasons` with the budget reason, and `streamUrl` for a full
+ * crawl. Every response carries `reportUrl`, the shareable `?s=` permalink.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -37,6 +44,45 @@ const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
   };
   PRESETS: Record<string, { windowMs: number; maxRequests: number }>;
 };
+
+// One definition each (Doctrine #4): the budget/deadline, the permalink
+// encoding (shared with UrlScanFlow.tsx) and the runtime-not-run wording.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const {
+  resolveWebScanBudgetMs, perPageTimeoutMs, createDeadline, unfinishedModules, partialCoverage, partialNote,
+} = require("@/app/lib/web-scan-budget") as {
+  resolveWebScanBudgetMs: () => number;
+  perPageTimeoutMs: (budgetMs: number) => number;
+  createDeadline: (budgetMs: number) => {
+    readonly expired: boolean;
+    remainingMs: () => number;
+    raceOr: <T>(p: Promise<T>, fallback: T) => Promise<T>;
+    dispose: () => void;
+  };
+  unfinishedModules: (suite: string[], results: Array<{ module?: string; name?: string }>, budgetMs: number) => Array<{ module: string; reason: string }>;
+  partialCoverage: (
+    coverage: { totalModules: number; checkedModules: number; notChecked: Array<{ module: string; reason: string }> },
+    unfinished: Array<{ module: string; reason: string }>,
+    suiteSize: number,
+  ) => { totalModules: number; checkedModules: number; notChecked: Array<{ module: string; reason: string }> };
+  partialNote: (budgetMs: number, streamUrl: string) => string;
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { buildReportUrl } = require("@/app/lib/web-scan-share") as {
+  buildReportUrl: (result: Record<string, unknown>, origin: string) => string;
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { RUNTIME_REASONS, DISPATCH_FAILED_PREFIX, runtimeNotRunExplanation, markRuntimeNotChecked } = require("@/app/lib/web-runtime-reasons") as {
+  RUNTIME_REASONS: { BUDGET_EXHAUSTED: string };
+  DISPATCH_FAILED_PREFIX: string;
+  runtimeNotRunExplanation: (reason: string | null | undefined) => string;
+  markRuntimeNotChecked: (
+    coverage: { totalModules: number; checkedModules: number; notChecked: Array<{ module: string; reason: string }> },
+    reason: string | null | undefined,
+  ) => { totalModules: number; checkedModules: number; notChecked: Array<{ module: string; reason: string }> };
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { siteUrl } = require("@/app/lib/site-url") as { siteUrl: (path?: string) => string };
 
 const _webScanLimiter = createLimiter(PRESETS.webScan);
 
@@ -200,6 +246,13 @@ export async function POST(req: NextRequest) {
   }
   const parsed = validated.url;
 
+  // The wall-clock budget starts once the request is known to be scannable
+  // (issue #768 item 1); every await below that can hang is raced against it.
+  // Disposed on both exits below (the 500 path and the final response).
+  const budgetMs = resolveWebScanBudgetMs();
+  const perPageMs = perPageTimeoutMs(budgetMs);
+  const deadline = createDeadline(budgetMs);
+
   const targetUrl = `${parsed.protocol}//${parsed.host}`;
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -226,7 +279,7 @@ export async function POST(req: NextRequest) {
     GateTest: new (root: string, opts?: Record<string, unknown>) => {
       init: () => { runSuite: (name: string) => Promise<unknown> };
       registry: { list: () => string[] };
-      config: { set?: (key: string, value: unknown) => void; data?: Record<string, unknown> };
+      config: { set?: (key: string, value: unknown) => void; data?: Record<string, unknown>; getSuite?: (name: string) => string[] };
     };
   };
 
@@ -276,7 +329,7 @@ export async function POST(req: NextRequest) {
       : undefined;
     liveProbePromise = urlProber.probeUrl({
       url: targetUrl,
-      timeoutMs: 12_000,
+      timeoutMs: Math.min(12_000, perPageMs),
       ...(probeAuthHeaders && Object.keys(probeAuthHeaders).length > 0 ? { authHeaders: probeAuthHeaders } : {}),
     })
       .then((r) => {
@@ -288,7 +341,13 @@ export async function POST(req: NextRequest) {
     // error-ok — url-prober unavailable — continue with static-only scan
   }
 
-  let summary: { results?: Array<{ module?: string; name?: string; checks?: Array<{ name: string; severity?: string; passed: boolean; message?: string }>; errors?: number; warnings?: number; info?: number; duration?: number; skipped?: string }>; gateStatus?: string; totalErrors?: number; totalWarnings?: number };
+  let summary: { results?: Array<{ module?: string; name?: string; checks?: Array<{ name: string; severity?: string; passed: boolean; message?: string }>; errors?: number; warnings?: number; info?: number; duration?: number; skipped?: string }>; gateStatus?: string; totalErrors?: number; totalWarnings?: number; budgetLimited?: boolean };
+  // Issue #768 item 1: what the suite finished, whether it finished at all,
+  // and which modules it was meant to run — so a deadline that fires mid-suite
+  // still yields the completed modules and an honest list of the rest.
+  const finishedResults: NonNullable<typeof summary.results> = [];
+  let suiteDone = false;
+  let suiteModules: string[] = [];
 
   // ONE shared fetch (issue #643), and ONE shared definition (issue #681
   // item 1) of how it's wired onto the engine —
@@ -307,17 +366,42 @@ export async function POST(req: NextRequest) {
       args: { targetUrl: string; livePage?: { url: string; status: number; headers: Headers; html: string } | null; sanitizedAuth?: { headers?: Record<string, string>; cookie?: string } | null }
     ) => void;
   };
-  const livePage = await fetchLivePage(targetUrl);
+  // Per-page timeout is a quarter of the budget at most (never the whole of
+  // it), and the fetch is raced against the deadline as well: a dead page
+  // costs one page's timeout, and a fetch that ignores its abort signal
+  // cannot eat the budget either.
+  const livePage = await deadline.raceOr(fetchLivePage(targetUrl, { timeoutMs: perPageMs }), null);
 
   try {
-    const gt = new GateTest(workspace, { silent: true });
+    const gt = new GateTest(workspace, {
+      silent: true,
+      // Soft budget for the engine (stops STARTING modules once spent — also
+      // what stops an abandoned run after the deadline below has answered).
+      budgetMs: deadline.remainingMs(),
+      // liveCrawler paces its crawl against its own module timeout: give it
+      // 60% of the budget so the modules after it still run.
+      moduleTimeouts: { liveCrawler: Math.floor(budgetMs * 0.6) },
+      onProgress: (event: string, payload: unknown) => {
+        if (event !== "module:end" || !payload || typeof payload !== "object") return;
+        const raw = payload as { toJSON?: () => unknown };
+        finishedResults.push((typeof raw.toJSON === "function" ? raw.toJSON() : raw) as (typeof finishedResults)[number]);
+      },
+    });
     gt.init();
     // GateTestConfig.set is a real dot-path setter as of 2026-07-25 — before
     // that this whole block silently no-op'd (neither `.set` nor `.data`
     // existed) and the suite ran without a targetUrl. See config.js set().
     applyLiveScanConfig(gt, { targetUrl, livePage, sanitizedAuth });
-    summary = (await gt.init().runSuite("web")) as typeof summary;
+    if (typeof gt.config.set === "function") gt.config.set("modules.liveCrawler.pageTimeout", perPageMs);
+    suiteModules = typeof gt.config.getSuite === "function" ? gt.config.getSuite("web") : [];
+    const outcome = await deadline.raceOr<{ done: boolean; summary: typeof summary | null }>(
+      (gt.init().runSuite("web") as Promise<typeof summary>).then((done) => ({ done: true, summary: done })),
+      { done: false, summary: null },
+    );
+    suiteDone = outcome.done;
+    summary = outcome.summary ?? { results: finishedResults };
   } catch (err) {
+    deadline.dispose();
     process.exitCode = previousExitCode;
     try { fs.rmSync(workspace, { recursive: true, force: true }); } catch { /* error-ok — temp workspace cleanup; a leftover dir cannot change the scan result */ }
     const msg = err instanceof Error ? err.message : "Unexpected scan failure";
@@ -331,7 +415,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Await the concurrent live probe and fold its findings in with the static ones.
-  const liveProbeFindings = await liveProbePromise;
+  const liveProbeFindings = await deadline.raceOr(liveProbePromise, []);
   const allFindings: WebFinding[] = [];
   for (const r of summary.results || []) {
     if (!Array.isArray(r.checks)) continue;
@@ -383,31 +467,18 @@ export async function POST(req: NextRequest) {
   // independently of those modules, so a module that reports itself
   // not-checked but WAS covered by url-prober must not double-count as
   // uncovered.
-  const moduleCoverage = deriveModuleCoverage(summary.results || []);
+  let moduleCoverage = deriveModuleCoverage(summary.results || []);
+  // Issue #768 item 1: the deadline fired mid-suite (or the engine's own
+  // budget deferred modules) — the modules that never ran are not-checked
+  // with the budget reason, over the WHOLE suite as the denominator.
+  const partial = !suiteDone || summary.budgetLimited === true;
+  const unfinished = partial ? unfinishedModules(suiteModules, summary.results || [], budgetMs) : [];
+  if (partial) moduleCoverage = partialCoverage(moduleCoverage, unfinished, suiteModules.length);
   if (liveProbeOk) {
     const PROBE_COVERED = new Set(['webHeaders', 'cookieSecurity', 'tlsSecurity']);
     moduleCoverage.notChecked = moduleCoverage.notChecked.filter((n) => !PROBE_COVERED.has(n.module));
     moduleCoverage.checkedModules = Math.max(0, moduleCoverage.totalModules - moduleCoverage.notChecked.length);
   }
-  const healthScore = computeHealthScore(clusterResult.clusters, moduleCoverage);
-  // Issue #648 item 4: check NAMES for the four live-URL modules are free —
-  // only the fix guidance (findings[].body) stays behind the paywall below.
-  const moduleChecks = deriveFreeCheckNames(summary.results || [], LIVE_URL_MODULES);
-
-  const PREVIEW_LIMIT = 3;
-  const isPreview = !fullReport;
-  const visibleClusters = isPreview ? clusterResult.clusters.slice(0, PREVIEW_LIMIT) : clusterResult.clusters;
-  const findings = visibleClusters.map((c) => ({
-    severity: c.severity,
-    title: c.title,
-    body: c.body,
-    module: c.module,
-    ruleKey: c.ruleKey,
-    instanceCount: c.count,
-    highSignal: c.isHighSignal,
-    verdictSource: c.verdictSource,
-  }));
-
   // The headless-browser runtime pass (live JS errors, hydration mismatches,
   // CSP violations, network failures) needs a long-running container with
   // Chromium — the platform worker's job. web-runtime-gate.js is the ONE
@@ -431,17 +502,52 @@ export async function POST(req: NextRequest) {
       timeoutSec?: number;
     }>;
   };
-  const runtimeGate = await gateRuntimeScan({
-    scanId,
-    targetUrl,
-    suite: "web",
-    // Authed scans: forward the session so the headless-browser worker
-    // reaches the same pages the crawl did. The platform scopes it same-origin
-    // (its own live-crawler-auth). Rides the HMAC-signed body.
-    ...(sanitizedAuth ? { auth: sanitizedAuth } : {}),
-  });
+  // Issue #768 item 1: the dispatch is raced against the deadline too — and
+  // when the budget is already spent nothing is dispatched, and the reason
+  // says so rather than blaming a worker that was never asked.
+  const runtimeGate: Awaited<ReturnType<typeof gateRuntimeScan>> = deadline.expired
+    ? { status: "unavailable" as const, reason: RUNTIME_REASONS.BUDGET_EXHAUSTED, checked: false as const, jobId: null, pollUrl: null }
+    : await deadline.raceOr(
+        gateRuntimeScan({
+          scanId,
+          targetUrl,
+          suite: "web",
+          // Authed scans: forward the session so the headless-browser worker
+          // reaches the same pages the crawl did. The platform scopes it same-origin
+          // (its own live-crawler-auth). Rides the HMAC-signed body.
+          ...(sanitizedAuth ? { auth: sanitizedAuth } : {}),
+        }),
+        { status: "unavailable" as const, reason: `${DISPATCH_FAILED_PREFIX}timeout`, checked: false as const, jobId: null, pollUrl: null },
+      );
+  deadline.dispose();
+  // Issue #768 item 5: an unavailable runtime pass is a not-checked entry
+  // with its plain-English sentence, not a silent gap (see markRuntimeNotChecked).
+  if (runtimeGate.status === "unavailable") moduleCoverage = markRuntimeNotChecked(moduleCoverage, runtimeGate.reason);
 
-  return NextResponse.json({
+  const healthScore = computeHealthScore(clusterResult.clusters, moduleCoverage);
+  // Issue #648 item 4: check NAMES for the four live-URL modules are free —
+  // only the fix guidance (findings[].body) stays behind the paywall below.
+  const moduleChecks = deriveFreeCheckNames(summary.results || [], LIVE_URL_MODULES);
+  for (const u of unfinished) {
+    if (LIVE_URL_MODULES.includes(u.module)) moduleChecks.push({ module: u.module, status: "not-checked", reason: u.reason, checks: [] });
+  }
+
+  const PREVIEW_LIMIT = 3;
+  const isPreview = !fullReport;
+  const visibleClusters = isPreview ? clusterResult.clusters.slice(0, PREVIEW_LIMIT) : clusterResult.clusters;
+  const findings = visibleClusters.map((c) => ({
+    severity: c.severity,
+    title: c.title,
+    body: c.body,
+    module: c.module,
+    ruleKey: c.ruleKey,
+    instanceCount: c.count,
+    highSignal: c.isHighSignal,
+    verdictSource: c.verdictSource,
+  }));
+
+  const streamUrl = siteUrl("/api/web/scan/stream");
+  const result = {
     scanId,
     targetUrl,
     scannedAt: new Date().toISOString(),
@@ -483,6 +589,9 @@ export async function POST(req: NextRequest) {
     // The session-forwarded note is only true when a job was actually queued.
     runtime: {
       ...runtimeGate,
+      // Issue #768 item 5: the same sentence the /web page renders and the
+      // runtimeErrors not-checked entry carries, from the one definition.
+      ...(runtimeGate.status === "unavailable" ? { explanation: runtimeNotRunExplanation(runtimeGate.reason) } : {}),
       note: sanitizedAuth && runtimeGate.status === "queued"
         ? "Your session was forwarded to the runtime browser worker — authenticated coverage applies to the crawl, live probe, and runtime checks."
         : null,
@@ -495,7 +604,17 @@ export async function POST(req: NextRequest) {
           ctaUrl: "/checkout?tier=web_scan",
         }
       : null,
-  });
+    // Issue #768 item 1: same keys whether or not the budget fired, so a
+    // caller never has to branch on shape.
+    partial,
+    budgetMs,
+    partialNote: partial ? partialNote(budgetMs, streamUrl) : null,
+    streamUrl: partial ? streamUrl : null,
+  };
+  // Issue #768 item 2: the shareable link IS this result, encoded (the one
+  // `?s=` mechanism /web restores from) — built last so it encodes everything
+  // above, never itself.
+  return NextResponse.json({ ...result, reportUrl: buildReportUrl(result, siteUrl()) });
 }
 
 export async function GET() {

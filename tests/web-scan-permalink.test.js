@@ -21,18 +21,26 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const FLOW = path.join(ROOT, 'website', 'app', 'components', 'UrlScanFlow.tsx');
 const src = fs.readFileSync(FLOW, 'utf8');
+// Issue #768 item 2: the `?s=` encoding moved out of UrlScanFlow.tsx into ONE
+// shared definition that POST /api/web/scan imports too (its `reportUrl`).
+const shareSrc = fs.readFileSync(path.join(ROOT, 'website', 'app', 'lib', 'web-scan-share.js'), 'utf8');
 
 describe('UrlScanFlow — reuses #647\'s ?s= share encoding, not a second mechanism', () => {
   it('defines the same encode/decode/pushPermalink trio as the playground', () => {
-    assert.match(src, /function encodeShareData/);
-    assert.match(src, /function decodeShareData/);
+    assert.match(shareSrc, /function encodeShareData/);
+    assert.match(shareSrc, /function decodeShareData/);
     assert.match(src, /function pushPermalink/);
   });
 
+  it('the flow imports the one shared encoding instead of carrying its own copy', () => {
+    assert.match(src, /import \{ encodeShareData, decodeShareData \} from "@\/app\/lib\/web-scan-share"/);
+    assert.doesNotMatch(src, /function encodeShareData|function decodeShareData/);
+  });
+
   it('the encoding is the identical 48h base64url shape', () => {
-    assert.match(src, /SHARE_EXPIRY_MS = 48 \* 60 \* 60 \* 1000/);
-    assert.match(src, /sharedAt: Date\.now\(\)/);
-    assert.match(src, /replace\(\/\\\+\/g, "-"\)\.replace\(\/\\\/\/g, "_"\)/);
+    assert.match(shareSrc, /SHARE_EXPIRY_MS = 48 \* 60 \* 60 \* 1000/);
+    assert.match(shareSrc, /sharedAt: Date\.now\(\)/);
+    assert.match(shareSrc, /replace\(\/\\\+\/g, '-'\)\.replace\(\/\\\/\/g, '_'\)/);
   });
 
   it('pushes via history.replaceState, never a navigation (no reload, no lost state)', () => {
