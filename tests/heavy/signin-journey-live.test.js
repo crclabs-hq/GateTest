@@ -18,6 +18,22 @@ async function probe(p) {
   return { status: res.status, location: location && new URL(location, BASE).pathname + new URL(location, BASE).search, body };
 }
 
+// The runner (scripts/run-tests.js) treats a file that reports zero tests as
+// a failure, and a `{ skip }` describe reports zero named tests under
+// `node --test`. This one always-run test keeps the file honest either way:
+// it states whether the live probe is armed and against what.
+describe('sign-in journey live probe — arming', () => {
+  it('is armed by GATETEST_LIVE_URL and says so when it is not', () => {
+    if (BASE) {
+      assert.equal(skip, false);
+      assert.match(BASE, /^https?:\/\//, 'GATETEST_LIVE_URL must be an absolute http(s) origin');
+      assert.ok(!BASE.endsWith('/'), 'trailing slash is stripped');
+    } else {
+      assert.equal(skip, 'set GATETEST_LIVE_URL to probe a running site');
+    }
+  });
+});
+
 describe('sign-in journey against a running site', { skip }, () => {
   it('anonymous /dashboard -> 3xx to /login?next=/dashboard, never a 200 shell', async () => {
     const r = await probe('/dashboard');
