@@ -160,7 +160,7 @@ describe('issue #658 item 1 — not-checked reason survives past the live stream
       // Must appear after moduleCoverage is computed, not a re-derivation —
       // one definition (Doctrine #4): the SAME array `deriveModuleCoverage`
       // returned, not a second pass over `summary.results`.
-      const coverageIdx = src.indexOf('const moduleCoverage = deriveModuleCoverage(');
+      const coverageIdx = src.search(/(?:const|let) moduleCoverage = deriveModuleCoverage\(/);
       const reasonsIdx = src.indexOf('notCheckedReasons:');
       assert.ok(coverageIdx > -1 && reasonsIdx > coverageIdx);
     });
