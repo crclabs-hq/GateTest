@@ -597,3 +597,13 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
 - **Open PRs: none.** Code-scanning alert 5374 (our deadCode rule on #787: `ISO_DATE_RE` exported, never imported) closed against the code in this PR.
 - **Still running (six builders, 18:30Z addendum above):** three #771 false-positive branches, the CI/toolchain honesty branch (#771 GT-13/14 + #770), the hosted web-scan branch (#768), and the DRAFT cross-platform copy PR (#715, owner approval). Each opens its own PR with auto-merge except the draft.
 - **Owner items unchanged:** arena `ANTHROPIC_API_KEY` (or declare the arena injection-only), box 161 tick timers (16-day hosted silence), Marketplace submission (listing + Free plan copy are on main), Lighthouse after #786.
+
+### Addendum 2026-09-28 22:20Z — recall mandate from Tallrig's 24 reds
+- Tallrig relayed the owner: GateTest passed tallrig.com with 0 errors while their
+  board showed 24 reds; "make GateTest the ultimate testing and repair tool,
+  especially for WordPress users". Verified why the crawl saw nothing (only
+  liveCrawler ran; browser modules need the unset runtime token). Filed epic #807
+  with each miss mapped to existing module / gap / owner item, and board §5 (R1-R11).
+  Tallrig sends the 24 reds as a list; each platform's medic returns receipts per
+  finding. Hosted scan of tallrig.com hung twice (240 s, 180 s) — #768 item 1.
+  Crawler apex double count retracted → #806.
