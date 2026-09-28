@@ -57,6 +57,8 @@ itself still uses the old variable names until the owner's cutover.
   not-checked + `streamUrl`; every response carries an absolute `reportUrl`;
   runtime-not-configured is explained in `notCheckedReasons`. Control pair
   `tests/web-scan-budget.test.js`. Live-verify after deploy (never run live).
+- Crawler apex/canonical de-dup (closes #806), a11y component label prop and retry compare-bound
+  (refs #771 GT-02 / GT-07): #820; AlecRae accessibility blocking 92 -> 12, retryHygiene 1 -> 0.
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
@@ -118,6 +120,6 @@ DavenRoe); every red we miss is our gap. Epic: #807 (miss-by-miss mapping).
 | R6 | Blank render / hydration crash in runtimeErrors; CLI runs it when a browser exists | OPEN | #807 |
 | R7 | WordPress gap checks: dir listing, PHP notices in HTML, admin-ajax, brute-force probe, TTFB per page | OPEN | #807 |
 | R8 | WordPress repair recipes per finding; automated fix + receipt on platforms we run | OPEN | #807 |
-| R9 | Crawler apex double count / rel=canonical (retracted T-01) | OPEN | #806 |
+| R9 | Crawler apex double count / rel=canonical (retracted T-01) | IN REVIEW | #806, PR #820 |
 | R10 | Telemetry host guard + opt-in wiring (default = owner's line) | IN PROGRESS | #801 builder |
 | R11 | Report `schemaVersion` + contract test + docs/api/report-schema.md | IN PROGRESS | #803 builder |
