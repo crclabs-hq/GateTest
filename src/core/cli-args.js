@@ -139,6 +139,8 @@ const FLAG_SPEC = [
 
   { flags: ['--skip-module'], key: 'skipModules', type: 'append' },
   { flags: ['--crawl-header'], key: 'crawlHeaders', type: 'append' },
+  // estate module: extra hosts to probe (repeatable and comma-separated, like --file).
+  { flags: ['--hosts'], key: 'hosts', type: 'append', split: ',' },
   // Restrict the scan to named files. Repeatable AND comma-separated
   // (`--file a.js --file b.js` == `--file a.js,b.js`); `split` does the
   // comma part here so every consumer sees one flat list.

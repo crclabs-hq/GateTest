@@ -58,6 +58,10 @@ itself still uses the old variable names until the owner's cutover.
   runtime-not-configured is explained in `notCheckedReasons`. Control pair
   `tests/web-scan-budget.test.js`. Live-verify after deploy (never run live).
 - First-hour sign-in journey: server-side gate (`/dashboard` 307 to `/login?next=`), `/login` entry, `/register` `/signup` `/sign-up` 301 to `/login`, `/docs` clean 307, `GET /api` JSON, crawler flags a redirect that carries an error page: #819 (closes #810, #812; unverified live until deployed).
+- `estate` module (module 122, #807 R3, `src/modules/estate.js`): host discovery from list /
+  sitemap / TLS SAN / links, per-host verdict. Runs in `full`, `nuclear`, `wp`; not `quick` or
+  `standard`. An NXDOMAIN from the system resolver is only "dead" once 1.1.1.1 or 8.8.8.8 agrees
+  (the ISP resolver called five live hosts dead on 2026-09-28).
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
@@ -113,7 +117,7 @@ DavenRoe); every red we miss is our gap. Epic: #807 (miss-by-miss mapping).
 |---|---|---|---|
 | R1 | `--crawl` runs the crawl-capable set, refuses loudly otherwise | IN PROGRESS | #802 builder |
 | R2 | Hosted scan: hard budget, partial results, permalink, runtime reason | IN PROGRESS | #768 builder |
-| R3 | `estate`: every host from sitemap / cert SANs / list, per-host verdict | OPEN | #807 |
+| R3 | `estate`: every host from sitemap / cert SANs / list, per-host verdict | BUILT, module-count sync pending (branch `feat/estate-module-807`) | #807; live run on tallrig.com estate: five `*.tallrig.app` = gateway-up-app-dead, `vapron.ai` / `api.vapron.ai` = unexpected-ip |
 | R4 | `dnsPosture`: SPF/DKIM/DMARC alignment, PTR, wildcard, delegation, 0x20, legacy domain → uncontrolled IP | OPEN | #807 |
 | R5 | `deployFreshness`: served sha vs expected | OPEN | #807 |
 | R6 | Blank render / hydration crash in runtimeErrors; CLI runs it when a browser exists | OPEN | #807 |
