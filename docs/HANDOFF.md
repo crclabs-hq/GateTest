@@ -629,3 +629,42 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
 - **Owner decisions open:** telemetry default (opt-in vs flywheel data); Gluecron
   sign-up for the write-path pass; AlecRae throwaway session; npm deprecation of
   @gatetest/cli <1.61.1.
+### Addendum 2026-09-28 22:20Z — recall mandate from Tallrig's 24 reds
+- Tallrig relayed the owner: GateTest passed tallrig.com with 0 errors while their
+  board showed 24 reds; "make GateTest the ultimate testing and repair tool,
+  especially for WordPress users". Verified why the crawl saw nothing (only
+  liveCrawler ran; browser modules need the unset runtime token). Filed epic #807
+  with each miss mapped to existing module / gap / owner item, and board §5 (R1-R11).
+  Tallrig sends the 24 reds as a list; each platform's medic returns receipts per
+  finding. Hosted scan of tallrig.com hung twice (240 s, 180 s) — #768 item 1.
+  Crawler apex double count retracted → #806.
+
+### Addendum 2026-09-28 22:40Z — Tallrig's 24 reds received; hosting requirements sent; AlecRae paged gatetest.io
+- Tallrig sent the ground truth (24 reds, 17 outside-visible: 1-9, 11, 19, 24 and
+  (a)-(e)). Mapped and paged back: `estate` closes five (the *.tallrig.app 502/503
+  hosts + canary) — FIRST recall build; `dnsPosture` (wildcard, shadow zones,
+  verification stall, SOA replica, legacy vapron.ai → 149.28.119.158, expected
+  subdomains); `mailPosture` (PTR/HELO, SPF includes resolving to a compromised
+  IP); `apiHealth` honesty (health that cannot go red, no OpenAPI, 404 shape);
+  runtimeErrors blank-render (auth dashboard renders empty); RDAP lock flags.
+  Target 16/17 after four modules; performance already covers (e) once #802 lands.
+- Owner (via Tallrig): GateTest will run ON Tallrig through its customer
+  onboarding. Requirements paged: GitHub crclabs-hq/GateTest (no gluecron mirror
+  — ccantynz/GateTest is 404 there), Node 22, root `npm ci --omit=dev
+  --ignore-scripts` + website `npm ci` + `npm run build` (prebuild needs
+  scripts/, GIT_COMMIT without .git), `next start` :3000, GET /api/health,
+  Postgres 16 via DATABASE_URL, worker `scripts/sandbox-worker.js`, env NAMES
+  from docs/ops/docker.md + website/.env.example; browser runtime is Tallrig's
+  worker: `POST {TALLRIG_BASE_URL}/api/jobs/web-runtime-scan` with Bearer
+  TALLRIG_API_TOKEN + HMAC X-GateTest-Signature/Timestamp (TALLRIG_DISPATCH_SECRET),
+  results to `POST gatetest.io/api/web/scan/runtime-callback`; token scope =
+  create web-runtime-scan jobs + read status; Chromium lives in the worker and on
+  box B for the hourly CLI (`npx playwright install chromium`).
+- AlecRae paged three gatetest.io findings, all verified from outside 21:59Z and
+  filed: #810 (no /register or /signup; anonymous /login 307 → /dashboard 200
+  shell — must 3xx server-side), #812 (/docs 307 carries a 16 KB __next_error__
+  body; add a crawler check for redirects carrying error pages), #809 (health
+  endpoints are liveness pings; composite db/queue/ai/mail/runtime endpoint).
+  Owner item: a GateTest test account for AlecRae's authenticated journeys.
+- Builders still running: #801, #802, #803, #768 (items 1/2/5), fp2. Queue as slots
+  free: estate, #810, #806, fp1 residuals, fp3, fp4, #809, #812. #804 merged.
