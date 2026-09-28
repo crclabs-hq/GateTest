@@ -41,6 +41,15 @@ const { literalKindAt } = require('../core/source-strip');
 const PLACEHOLDER_VALUE_RE = /(?:changeme|placeholder|your[_-]?(?:\w+[_-])?(?:secret|key|password|token)|replace[_-]?me|(?<![a-z0-9])example(?![a-z0-9])|default[_-]?(?:secret|key|password|token)|xxx+|insert[_-]?here|todo|<[a-z0-9_. -]{2,30}>|\.{3,}|\u2026)/i;
 
 /**
+ * A bullet/asterisk RUN is a UI's own redaction, not a value someone typed \u2014
+ * `secret: "whsec_\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"` (AlecRae webhooks.ts:63/90/132/214, a masked
+ * example rendered by a settings page) cannot authenticate anything with
+ * three-plus mask characters standing in for the real bytes. Three or more
+ * so a single literal `*` (a glob, a markdown bullet) never trips it.
+ */
+const MASKED_VALUE_RE = /[\u2022*]{3,}/;
+
+/**
  * A Database-URL match is a CREDENTIAL only when it carries one.
  *
  * Measured 2026-09-05 on four third-party repos (corpus6): every blocking
@@ -490,6 +499,15 @@ class SecretsModule extends BaseModule {
    * @returns {boolean}
    */
   _databaseUrlIsPlaceholder(url, isJsxText = false) {
+    // Redis ships with no auth by default, so `redis://host:port` carrying
+    // no userinfo AT ALL (AlecRae docker-compose.yml:170/250 —
+    // `REDIS_URL: redis://redis:6379`) just names the service to talk to,
+    // whatever the host is called. Mongo/Postgres/MySQL keep the stricter
+    // rule below — those normally DO require auth, so a credential-less URL
+    // to a NAMED host stays reported there (NodeGoat's `mongodb://mongo
+    // :27017/nodegoat` recall floor). A real `redis://default:p4ssw0rd@host`
+    // still carries the `@` this test checks for and falls through to it.
+    if (/^redis:\/\//i.test(url) && !url.includes('@')) return true;
     const parts = url.match(DB_URL_PARTS_RE);
     if (!parts) return false;
     const [, user = '', password = '', host = ''] = parts;
@@ -528,6 +546,20 @@ class SecretsModule extends BaseModule {
    * `password: 'password'` is equal to its name too, but it is a weak default
    * credential, not a symbol, and it stays reported.
    *
+   * A third shape (AlecRae UpdateAvailableBanner.tsx:61) only ABBREVIATES its
+   * own identifier rather than repeating it whole:
+   *
+   *   const SERVICE_WORKER_UPDATE_TOKEN = "service-worker";
+   *
+   * — a postMessage/event-channel tag naming the topic it belongs to, not a
+   * credential. `norm(value)` ("serviceworker") is a PREFIX of
+   * `norm(identifier)` ("serviceworkerupdatetoken") rather than equal to it.
+   * Bounded to prefixes of 6+ characters so a short accidental overlap can't
+   * wave through a real value — a real secret assigned to the same constant
+   * fails this the same way `Q7v2hjwtSecret` fails the exact-equality case
+   * below (see tests/secrets-corpus6-precision.test.js): its normalized form
+   * is never a leading run of the identifier's.
+   *
    * @param {string} scanLine - the neutralised line the pattern ran on
    * @param {RegExpExecArray} m - the identifier-keyed match
    * @returns {boolean}
@@ -541,7 +573,10 @@ class SecretsModule extends BaseModule {
     if (!/[A-Z_-]/.test(value)) return false;
     const before = (scanLine.slice(0, m.index).match(/[\w$]*$/) || [''])[0];
     const norm = (s) => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
-    return norm(value) === norm(before + q[1]);
+    const normValue = norm(value);
+    const normIdent = norm(before + q[1]);
+    if (normValue === normIdent) return true;
+    return normValue.length >= 6 && normIdent.startsWith(normValue);
   }
 
   /**
@@ -886,9 +921,14 @@ class SecretsModule extends BaseModule {
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        // `// secrets-ok` on this line or the previous line suppresses
+        // `// secrets-ok` on this line or the previous line suppresses — and
+        // so does `gitleaks:allow` (AlecRae generate-oidc-signing-key.ts:24:
+        // `"-----BEGIN PRIVATE KEY-----", // gitleaks:allow — PEM scaffold`),
+        // the same marker gitleaks itself honours inline. One line owns both
+        // spellings rather than teaching the PEM rule its own private one.
         const prevLine = i > 0 ? lines[i - 1] : '';
-        if (/\bsecrets-ok\b/.test(line) || /\bsecrets-ok\b/.test(prevLine)) continue;
+        if (/\bsecrets-ok\b/.test(line) || /\bsecrets-ok\b/.test(prevLine)
+          || /\bgitleaks:allow\b/i.test(line) || /\bgitleaks:allow\b/i.test(prevLine)) continue;
 
         // A full-line comment can never assign a live credential — the code
         // beside it does not run. Judged here, BEFORE the env-fallback check
@@ -985,6 +1025,10 @@ class SecretsModule extends BaseModule {
               // AKIAIOSFODNN7EXAMPLE — and a secrets module must fail
               // toward detection, never toward silence.
               if (PLACEHOLDER_VALUE_RE.test(val)) continue;
+              // A masked display value — `secret: "whsec_••••••••"` — shows
+              // bullets/asterisks standing in for the real bytes. See
+              // MASKED_VALUE_RE.
+              if (MASKED_VALUE_RE.test(m[0])) continue;
               // A structural header (a PEM marker) matches on its own, so an
               // ellipsis beside it never reaches the value check above. On a
               // line showing a redacted example the header is a description
