@@ -334,6 +334,8 @@ const HELP = `
                        with copy-paste fix commands. Run this any time you
                        suspect something isn't working.
     --doctor-quick     Same but skips the live AI provider API ping (offline mode)
+    --telemetry-status Print whether anonymized scan telemetry is on or off, which
+                       setting decided it, and the host an upload would go to
     --version, -v      Show version
 
     --server <url>     Scan a live server: SSL, headers, DNS, performance.
@@ -630,6 +632,14 @@ async function main() {
     });
     console.log(renderDoctor(result));
     process.exit(result.summary.bad > 0 ? 1 : 0);
+  }
+
+  // Telemetry status — on/off, which switch decided, and where an upload
+  // would go. Reads only; never scans, never uploads.
+  if (args.telemetryStatus) {
+    const { telemetryStatusLines } = require('../src/core/telemetry-notice');
+    console.log(telemetryStatusLines(projectRoot).join('\n'));
+    process.exit(0);
   }
 
   // Health check — verify GitHub API access before starting scans
@@ -1184,26 +1194,13 @@ function printPlainSummary(summary, projectRoot) {
 }
 
 /**
- * Show the anonymized-telemetry notice exactly once per machine. Writes a
- * marker under ~/.gatetest so it never repeats. Best-effort — a failure to
- * read/write the marker simply means the notice may show again, never a crash.
+ * Show the anonymized-telemetry notice exactly once per machine, before the
+ * first upload. The copy and the marker live in src/core/telemetry-notice.js
+ * (shared with the MCP server); this only routes it to the console.
  */
 function maybeNoticeTelemetry() {
-  try {
-    const osMod = require('os');
-    const fsMod = require('fs');
-    const pathMod = require('path');
-    const marker = pathMod.join(osMod.homedir(), '.gatetest', '.telemetry-notice-shown');
-    if (fsMod.existsSync(marker)) return;
-    fsMod.mkdirSync(pathMod.dirname(marker), { recursive: true });
-    fsMod.writeFileSync(marker, new Date().toISOString(), 'utf-8');
-    console.log(
-      '\n  \x1b[2mGateTest sends anonymized scan stats (module names + counts only —\n' +
-      '  never your code, paths, or findings) to improve the engine.\n' +
-      '  Opt out any time: set GATETEST_NO_TELEMETRY=1 or add "telemetry": false\n' +
-      '  to .gatetest.json.\x1b[0m\n'
-    );
-  } catch { /* best-effort notice */ } // error-ok
+  const { maybeNoticeTelemetry: notice } = require('../src/core/telemetry-notice');
+  notice({ write: (text) => console.log(text) });
 }
 
 /**

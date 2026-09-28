@@ -30,6 +30,41 @@
 const DEFAULT_FETCH_TIMEOUT_MS = 15000;
 
 /**
+ * Issue #768 item 3: is the fetched root document a JSON API response, not
+ * an HTML page? `seo`/`accessibility`/`links`/`liveCrawler`/
+ * `interactiveElements` all assume a DOM — a JSON body has no `<h1>`, no
+ * `<title>`, no `<a href>` — and running them against one produces pure
+ * false positives (api.alecrae.com graded F largely on missing SEO/H1/meta
+ * that make no sense for a JSON host). Content-Type is authoritative when
+ * present; the body-shape fallback (no `<html`, starts with `{`/`[`, parses
+ * as JSON) covers a host that mislabels its own Content-Type. One
+ * definition, computed once here and read by every HTML-only module via
+ * `BaseModule#_isJsonApiHost` so they can't disagree about the same page.
+ *
+ * @param {Headers | Record<string, string> | undefined | null} headers
+ * @param {string} html — the fetched body text
+ * @returns {boolean}
+ */
+function isJsonApiResponse(headers, html) {
+  const contentType = typeof headers?.get === 'function'
+    ? headers.get('content-type')
+    : (headers && (headers['content-type'] || headers['Content-Type']));
+  if (typeof contentType === 'string' && /application\/(?:[\w.+-]+\+)?json/i.test(contentType)) {
+    return true;
+  }
+  const trimmed = typeof html === 'string' ? html.trim() : '';
+  if (!trimmed) return false;
+  if (/<html[\s>]/i.test(trimmed)) return false;
+  if (trimmed[0] !== '{' && trimmed[0] !== '[') return false;
+  try {
+    JSON.parse(trimmed);
+    return true;
+  } catch {
+    return false; // error-ok — looked JSON-shaped but wasn't; treat as HTML/unknown
+  }
+}
+
+/**
  * Fetch the target page ONCE. webHeaders, seo, accessibility and
  * cookieSecurity all read the result via `config.livePage` instead of each
  * re-fetching the page (issue #643). Never throws: a failed fetch resolves
@@ -39,7 +74,7 @@ const DEFAULT_FETCH_TIMEOUT_MS = 15000;
  * @param {string} targetUrl
  * @param {{ timeoutMs?: number, fetchImpl?: typeof fetch, headers?: Record<string, string> }} [opts]
  *   `headers`: extra request headers (the CLI's same-origin --crawl-header/--crawl-cookie session)
- * @returns {Promise<{ url: string, status: number, headers: Headers, html: string } | null>}
+ * @returns {Promise<{ url: string, status: number, headers: Headers, html: string, isJson: boolean } | null>}
  */
 async function fetchLivePage(targetUrl, opts = {}) {
   const timeoutMs = opts.timeoutMs || DEFAULT_FETCH_TIMEOUT_MS;
@@ -58,7 +93,13 @@ async function fetchLivePage(targetUrl, opts = {}) {
       clearTimeout(timer);
     }
     const html = await res.text().catch(() => '');
-    return { url: res.url || targetUrl, status: res.status, headers: res.headers, html };
+    return {
+      url: res.url || targetUrl,
+      status: res.status,
+      headers: res.headers,
+      html,
+      isJson: isJsonApiResponse(res.headers, html),
+    };
   } catch {
     // error-ok — livePage stays null; affected modules report not-checked with a reason
     return null;
@@ -102,4 +143,4 @@ function applyLiveScanConfig(gt, { targetUrl, livePage, sanitizedAuth } = {}) {
   if (livePage) cfg.livePage = livePage;
 }
 
-module.exports = { fetchLivePage, applyLiveScanConfig, DEFAULT_FETCH_TIMEOUT_MS };
+module.exports = { fetchLivePage, applyLiveScanConfig, isJsonApiResponse, DEFAULT_FETCH_TIMEOUT_MS };
