@@ -499,3 +499,25 @@ test('_crawl control pair: a fixture server with one real 404 link and three 200
     server.close();
   }
 });
+
+test('_crawl: a navigation THROW (timeout / DNS failure) is "could not fetch", never a broken link, never a checked link (#768 item 4)', async () => {
+  for (const message of ['Timeout 30000ms exceeded', 'net::ERR_NAME_NOT_RESOLVED']) {
+    const m = new InteractiveElementsModule();
+    const browser = fakeBrowserWithGoto(async () => { throw new Error(message); });
+    const stats = await m._crawl(browser, 'https://example.invalid/', { scrollSteps: 0 });
+
+    assert.equal(stats.pagesVisited, 0);
+    assert.equal(stats.linksChecked, 0, 'a navigation failure is never counted in "links checked"');
+    assert.equal(stats.brokenLinks.length, 0, 'a navigation failure is never a broken link');
+    assert.equal(stats.pageErrors.length, 1);
+
+    const checks = [];
+    const result = { addCheck: (name, passed, details) => checks.push({ name, passed, ...details }) };
+    m._report(result, stats, 'https://example.invalid/');
+    assert.ok(!checks.some((c) => c.name === 'interactive-elements:broken-links'));
+    const nc = checks.find((c) => c.name === 'interactiveElements:not-checked');
+    assert.ok(nc && nc.notChecked === true, `expected not-checked, got: ${JSON.stringify(checks)}`);
+    assert.ok(nc.message.includes(message), 'the underlying failure must be disclosed');
+    assert.ok(checks.some((c) => c.name === 'interactive-elements:page-errors'), 'and disclosed as a page load failure');
+  }
+});

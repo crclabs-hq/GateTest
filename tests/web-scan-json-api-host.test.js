@@ -183,4 +183,19 @@ describe('web suite — an HTML host is unaffected by the JSON gate (control)', 
     assert.ok(r.checks.find((c) => c.name === 'seo:title:https://good.example.com/' && c.passed === false));
     assert.ok(!r.checks.find((c) => c.notChecked === true));
   });
+
+  it('accessibility: an HTML fixture with no <html lang> still fires the real finding, not the JSON skip', async () => {
+    const mod = new AccessibilityModule();
+    const r = makeResult();
+    await mod.run(r, { livePage: { url: 'https://good.example.com/', headers: new Headers({ 'content-type': 'text/html' }), html: '<html><head><title>t</title></head><body><main><h1>Hi</h1><p>text</p></main></body></html>', isJson: false } });
+    assert.ok(!r.checks.some((c) => c.message === JSON_REASON), 'an HTML host must never get the JSON skip');
+    assert.ok(r.checks.some((c) => c.passed === false && /lang/i.test(`${c.name} ${c.message}`)), `expected a real <html lang> finding, got: ${JSON.stringify(r.checks)}`);
+  });
+
+  it('links: an HTML host is not given the JSON skip reason', async () => {
+    const mod = new LinksModule();
+    const r = makeResult();
+    await mod.run(r, { livePage: { url: 'https://good.example.com/', headers: new Headers({ 'content-type': 'text/html' }), html: '<html><body><a href="/x">x</a></body></html>', isJson: false } });
+    assert.ok(!r.checks.some((c) => c.message === JSON_REASON));
+  });
 });
