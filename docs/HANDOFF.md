@@ -598,6 +598,37 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
 - **Still running (six builders, 18:30Z addendum above):** three #771 false-positive branches, the CI/toolchain honesty branch (#771 GT-13/14 + #770), the hosted web-scan branch (#768), and the DRAFT cross-platform copy PR (#715, owner approval). Each opens its own PR with auto-merge except the draft.
 - **Owner items unchanged:** arena `ANTHROPIC_API_KEY` (or declare the arena injection-only), box 161 tick timers (16-day hosted silence), Marketplace submission (listing + Free plan copy are on main), Lighthouse after #786.
 
+## 13. Exact state at 2026-09-28 21:50Z — stranded work revived, Tallrig page answered, five builders running
+
+- **Production is behind main (owner):** since 27 Sep 17:37Z `gatetest-pull-deploy.service`
+  dies before recording its status (auto issues #796/#797); live 0baf4e93, main
+  54190186 (only bot stats merges unshipped so far). Box 161:
+  `journalctl -u gatetest-pull-deploy -n 100 --no-pager`. Readiness Probe and Cron
+  Ticks red for the known env items.
+- **Arena (owner):** 14 open bug PRs; repair runs every cycle and fails because the
+  arena's ANTHROPIC_API_KEY is the revoked 09-12 key (arena #379 fixed the model id).
+  Rotate it, or declare the arena injection-only on /testing.
+- **Stranded 26 Sep builder work found in local worktrees, none on GitHub:** fp1 was
+  already merged as #793 (0baf4e93) — residuals: a11y `label=` prop on design-system
+  inputs, retry bound `>=` compare-and-return (ssrf-guard.ts:369); web768 revived
+  as **#804** (#768 items 3+4, auto-merge armed); fp2/fp3/fp4 hold uncommitted
+  #771 class fixes (secrets/ci-security/resource-leak; taint/shell/auth/log-pii;
+  CI-steps/toolchain honesty) — fp2 being revived now, fp3/fp4 next. 25 dead
+  worktrees removed.
+- **Tallrig paged GateTest (Craig's 28 Sep directive: platforms page each other):**
+  both weaknesses verified — 1.60.0 posts telemetry to the dropped gatetest.ai
+  domain, telemetry on by default (#801); `--crawl` ignores `--module` (#802,
+  bin/gatetest.js:847); no report schema contract (#803). Answered with facts.
+  Crawl of tallrig.com: PASSED, 1 warning (duplicate title, possibly our
+  apex-vs-slash double count), only 4 checks ran (= #802). Hosted
+  `/api/web/scan` on tallrig.com hung 240 s → #768 item 1 reproduced live.
+- **Builders running (owner lifted the two-agent cap for the push):** #802
+  crawl honours modules, #801 telemetry guard + opt-in wiring (default is the
+  owner's one-line decision), #768 items 1/2/5 (budget, partial, permalink,
+  runtime reason), #803 schemaVersion + contract test, fp2 revival.
+- **Owner decisions open:** telemetry default (opt-in vs flywheel data); Gluecron
+  sign-up for the write-path pass; AlecRae throwaway session; npm deprecation of
+  @gatetest/cli <1.61.1.
 ### Addendum 2026-09-28 22:20Z — recall mandate from Tallrig's 24 reds
 - Tallrig relayed the owner: GateTest passed tallrig.com with 0 errors while their
   board showed 24 reds; "make GateTest the ultimate testing and repair tool,
@@ -607,3 +638,79 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   Tallrig sends the 24 reds as a list; each platform's medic returns receipts per
   finding. Hosted scan of tallrig.com hung twice (240 s, 180 s) — #768 item 1.
   Crawler apex double count retracted → #806.
+
+### Addendum 2026-09-28 22:40Z — Tallrig's 24 reds received; hosting requirements sent; AlecRae paged gatetest.io
+- Tallrig sent the ground truth (24 reds, 17 outside-visible: 1-9, 11, 19, 24 and
+  (a)-(e)). Mapped and paged back: `estate` closes five (the *.tallrig.app 502/503
+  hosts + canary) — FIRST recall build; `dnsPosture` (wildcard, shadow zones,
+  verification stall, SOA replica, legacy vapron.ai → 149.28.119.158, expected
+  subdomains); `mailPosture` (PTR/HELO, SPF includes resolving to a compromised
+  IP); `apiHealth` honesty (health that cannot go red, no OpenAPI, 404 shape);
+  runtimeErrors blank-render (auth dashboard renders empty); RDAP lock flags.
+  Target 16/17 after four modules; performance already covers (e) once #802 lands.
+- Owner (via Tallrig): GateTest will run ON Tallrig through its customer
+  onboarding. Requirements paged: GitHub crclabs-hq/GateTest (no gluecron mirror
+  — ccantynz/GateTest is 404 there), Node 22, root `npm ci --omit=dev
+  --ignore-scripts` + website `npm ci` + `npm run build` (prebuild needs
+  scripts/, GIT_COMMIT without .git), `next start` :3000, GET /api/health,
+  Postgres 16 via DATABASE_URL, worker `scripts/sandbox-worker.js`, env NAMES
+  from docs/ops/docker.md + website/.env.example; browser runtime is Tallrig's
+  worker: `POST {TALLRIG_BASE_URL}/api/jobs/web-runtime-scan` with Bearer
+  TALLRIG_API_TOKEN + HMAC X-GateTest-Signature/Timestamp (TALLRIG_DISPATCH_SECRET),
+  results to `POST gatetest.io/api/web/scan/runtime-callback`; token scope =
+  create web-runtime-scan jobs + read status; Chromium lives in the worker and on
+  box B for the hourly CLI (`npx playwright install chromium`).
+- AlecRae paged three gatetest.io findings, all verified from outside 21:59Z and
+  filed: #810 (no /register or /signup; anonymous /login 307 → /dashboard 200
+  shell — must 3xx server-side), #812 (/docs 307 carries a 16 KB __next_error__
+  body; add a crawler check for redirects carrying error pages), #809 (health
+  endpoints are liveness pings; composite db/queue/ai/mail/runtime endpoint).
+  Owner item: a GateTest test account for AlecRae's authenticated journeys.
+- Builders still running: #801, #802, #803, #768 (items 1/2/5), fp2. Queue as slots
+  free: estate, #810, #806, fp1 residuals, fp3, fp4, #809, #812. #804 merged.
+
+### Addendum 2026-09-28 23:40Z — five builders returned; merge queue is the bottleneck
+
+- Merged since 22:40Z: #811 (telemetry host guard + `GATETEST_TELEMETRY`; default
+  stays `'on'` until the owner sets `TELEMETRY_DEFAULT`), #817 (sync-lib export trim,
+  Autofix follow-up), #818 (#768 items 1/2/5: hosted `/api/web/scan` 50 s budget
+  `GATETEST_WEB_SCAN_BUDGET_MS`, `partial: true` on expiry, absolute `reportUrl`,
+  runtime-not-configured listed in `notCheckedReasons`).
+- Open with auto-merge armed, all green or CI-pending: #819 (#810 + #812: one
+  `requireSession()` in website/app/lib/session-gate.js, anonymous /dashboard 307 →
+  /login?next=, /login renders, /register|/signup 301 → /login, /docs|/scan|/scans are
+  config redirects with empty bodies, GET /api answers JSON, crawler check
+  `crawl:error:redirect-error-page`), #813 (report `schemaVersion`),
+  #814 (`--crawl` honours `--module`/`--suite`; live-scan-config moved to src/core with
+  #804's `isJsonApiResponse` carried across), #816 (#771 GT-04/05/10: AlecRae secrets
+  10→7, ciSecurity 1→0, resourceLeak 5→1), #820 (#806 canonical folding in the crawler,
+  a11y `<Input>` component rule 92→12 blocking on AlecRae, retry-hygiene bound
+  recogniser 1→0), and this PR #805.
+- Merge mechanics this session: branch protection wants branches up to date, so every
+  merge to main re-strands the others as BEHIND; `gh pr merge --admin` and the
+  update-branch API are denied for this session. Path that works: `git merge
+  origin/main` in the PR's worktree, resolve (so far only docs/LAUNCH_BOARD.md §2 and
+  the live-scan-config move), push; auto-merge then fires. Do this one PR at a time
+  after each merge lands.
+- Running: estate module R3 (GateTest-wt-estate, feat/estate-module-807) and fp3
+  (GateTest-wt-fp3, fix/fp-taint-shell-auth-771: auth-bypass, cross-file-taint,
+  deploy-contract, log-pii, public-discovery-routes). Queued: fp4
+  (GateTest-wt-fp4, fix/ci-steps-toolchain-honesty-771, uncommitted), #809 composite
+  health, #815 per-page crawl, dnsPosture/mailPosture/apiHealth/deployFreshness/
+  WordPress gaps per #807.
+- Live verification owed after the next deploy (prod is still behind main; box 161
+  pull-deploy service dead since 27 Sep 17:37Z, owner): curl a slow target and expect
+  ~50 s + `partial: true` (#818); `GATETEST_LIVE_URL=https://gatetest.io npm run
+  test:heavy -- signin-journey-live` (#819); page AlecRae the #819 sha for G1/G2 and
+  the #809 sha for G3 once built; page Tallrig the crawl-capable re-run once #814 is
+  live.
+- Cross-platform: Gluecron routed the mirror request to the owner (repo owner and
+  creation are his call); their pull-mirroring exists in code but prod has zero
+  `repo_mirrors` rows and the issues-importer is untested at ~2,100 commits, both
+  stay UNTESTED on the parity walk. AlecRae accepted the three findings into
+  #809/#810/#812 and wants one sha per item to re-measure from outside.
+- Design calls worth a second look (from the builder reports): #818 drops finding
+  bodies from `reportUrl` over 12,000 chars; #819 leaves /billing and /scan/status
+  without server auth and only the GitHub callback redirects to /login?error=; #820
+  folds every same-host canonical (a site-wide canonical to `/` would collapse a
+  crawl; no guard).
