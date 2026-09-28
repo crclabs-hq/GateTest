@@ -78,24 +78,67 @@ try { persistentMemory = require('./persistent-memory'); } catch { /* optional *
 // ── Consent ─────────────────────────────────────────────────────────────────
 
 /**
- * Is anonymized telemetry allowed? Off when GATETEST_NO_TELEMETRY is truthy
- * or the project's .gatetest.json sets "telemetry": false. Defaults ON
- * (opt-out model, Craig 2026-07-11).
+ * The owner's default for a machine with no switch set: 'on' (opt-out) or
+ * 'off' (opt-in). ONE definition — flipping it is this one line. Everything
+ * that reports or enforces the default (telemetryEnabled, --telemetry-status,
+ * the first-run notice, the README) reads it from here.
+ */
+const TELEMETRY_DEFAULT = 'on';
+
+function _truthy(v) {
+  return typeof v === 'string' && v !== '' && v !== '0' && v.toLowerCase() !== 'false';
+}
+
+/** '1'|'true'|'on' -> true, '0'|'false'|'off' -> false, anything else -> null. */
+function _parseSwitch(v) {
+  if (typeof v !== 'string') return null;
+  const t = v.trim().toLowerCase();
+  if (t === '1' || t === 'true' || t === 'on') return true;
+  if (t === '0' || t === 'false' || t === 'off') return false;
+  return null;
+}
+
+/**
+ * Decide whether telemetry is on, and say which switch decided. Precedence,
+ * first match wins:
+ *   1. GATETEST_NO_TELEMETRY truthy  -> off, source 'env'  (legacy alias; also
+ *      what --offline sets, so offline can never be overridden upward)
+ *   2. GATETEST_TELEMETRY=1|0        -> source 'env'
+ *   3. .gatetest.json "telemetry": true|false -> source 'project config'
+ *   4. TELEMETRY_DEFAULT             -> source 'default'
+ *
+ * @param {string} [projectRoot]
+ * @param {Record<string,string|undefined>} [env]
+ * @returns {{ enabled: boolean, source: 'env'|'project config'|'default', detail: string }}
+ */
+function resolveTelemetry(projectRoot, env = process.env) {
+  if (_truthy(env.GATETEST_NO_TELEMETRY)) {
+    return { enabled: false, source: 'env', detail: 'GATETEST_NO_TELEMETRY' };
+  }
+  const explicit = _parseSwitch(env.GATETEST_TELEMETRY);
+  if (explicit !== null) {
+    return { enabled: explicit, source: 'env', detail: 'GATETEST_TELEMETRY' };
+  }
+  if (projectRoot) {
+    try {
+      const cfgPath = path.join(projectRoot, '.gatetest.json');
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
+      if (cfg && typeof cfg.telemetry === 'boolean') {
+        return { enabled: cfg.telemetry, source: 'project config', detail: '.gatetest.json' };
+      }
+    } catch { /* no config / unreadable → default */ } // error-ok
+  }
+  return { enabled: TELEMETRY_DEFAULT === 'on', source: 'default', detail: 'nothing set' };
+}
+
+/**
+ * Is anonymized telemetry allowed? See resolveTelemetry for the precedence.
  *
  * @param {string} [projectRoot]
  * @returns {boolean}
  */
 function telemetryEnabled(projectRoot) {
-  const env = process.env.GATETEST_NO_TELEMETRY;
-  if (env && env !== '0' && env.toLowerCase() !== 'false') return false;
-  if (projectRoot) {
-    try {
-      const cfgPath = path.join(projectRoot, '.gatetest.json');
-      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
-      if (cfg && cfg.telemetry === false) return false;
-    } catch { /* no config / unreadable → default on */ } // error-ok
-  }
-  return true;
+  return resolveTelemetry(projectRoot).enabled;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -142,6 +185,24 @@ function _buildRecord(summary, { source, suite }) {
     totalWarnings: _int(summary && summary.checks && summary.checks.warnings),
     modules,
     rules: _buildRules(results),
+  };
+}
+
+/**
+ * The names of the fields one upload carries, no values — the first-run
+ * notice prints this list. Derived from a real record built by _buildRecord,
+ * so the notice can never drift from what is actually sent.
+ *
+ * @returns {{ record: string[], module: string[], rule: string[] }}
+ */
+function recordFieldNames() {
+  const sample = _buildRecord({
+    results: [{ module: 'sample', errors: 1, checks: [{ name: 'sample:rule', passed: false, severity: 'error' }] }],
+  }, { source: 'cli', suite: 'quick' });
+  return {
+    record: Object.keys(sample),
+    module: Object.keys(sample.modules[0] || {}),
+    rule: Object.keys(sample.rules[0] || {}),
   };
 }
 
@@ -211,6 +272,9 @@ function recordScanFindings(summary, opts = {}) {
 module.exports = {
   recordScanFindings,
   telemetryEnabled,
+  resolveTelemetry,
+  TELEMETRY_DEFAULT,
+  recordFieldNames,
   SCAN_FINDINGS_FILE,
   // Exposed for tests.
   _buildRecord,

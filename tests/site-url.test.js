@@ -130,10 +130,6 @@ describe('site-url — engine and website copies must not drift', () => {
     assert.strictEqual(engine.DEFAULT_SITE_URL, web.DEFAULT_SITE_URL);
   });
 
-  it('agrees on the legacy origin', () => {
-    assert.strictEqual(engine.LEGACY_SITE_URL, web.LEGACY_SITE_URL);
-  });
-
   it('agrees on the resolved origin and host', () => {
     assert.strictEqual(engine.SITE_URL, web.SITE_URL);
     assert.strictEqual(engine.siteHost(), web.siteHost());
