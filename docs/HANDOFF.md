@@ -597,3 +597,35 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
 - **Open PRs: none.** Code-scanning alert 5374 (our deadCode rule on #787: `ISO_DATE_RE` exported, never imported) closed against the code in this PR.
 - **Still running (six builders, 18:30Z addendum above):** three #771 false-positive branches, the CI/toolchain honesty branch (#771 GT-13/14 + #770), the hosted web-scan branch (#768), and the DRAFT cross-platform copy PR (#715, owner approval). Each opens its own PR with auto-merge except the draft.
 - **Owner items unchanged:** arena `ANTHROPIC_API_KEY` (or declare the arena injection-only), box 161 tick timers (16-day hosted silence), Marketplace submission (listing + Free plan copy are on main), Lighthouse after #786.
+
+## 13. Exact state at 2026-09-28 21:50Z — stranded work revived, Tallrig page answered, five builders running
+
+- **Production is behind main (owner):** since 27 Sep 17:37Z `gatetest-pull-deploy.service`
+  dies before recording its status (auto issues #796/#797); live 0baf4e93, main
+  54190186 (only bot stats merges unshipped so far). Box 161:
+  `journalctl -u gatetest-pull-deploy -n 100 --no-pager`. Readiness Probe and Cron
+  Ticks red for the known env items.
+- **Arena (owner):** 14 open bug PRs; repair runs every cycle and fails because the
+  arena's ANTHROPIC_API_KEY is the revoked 09-12 key (arena #379 fixed the model id).
+  Rotate it, or declare the arena injection-only on /testing.
+- **Stranded 26 Sep builder work found in local worktrees, none on GitHub:** fp1 was
+  already merged as #793 (0baf4e93) — residuals: a11y `label=` prop on design-system
+  inputs, retry bound `>=` compare-and-return (ssrf-guard.ts:369); web768 revived
+  as **#804** (#768 items 3+4, auto-merge armed); fp2/fp3/fp4 hold uncommitted
+  #771 class fixes (secrets/ci-security/resource-leak; taint/shell/auth/log-pii;
+  CI-steps/toolchain honesty) — fp2 being revived now, fp3/fp4 next. 25 dead
+  worktrees removed.
+- **Tallrig paged GateTest (Craig's 28 Sep directive: platforms page each other):**
+  both weaknesses verified — 1.60.0 posts telemetry to the dropped gatetest.ai
+  domain, telemetry on by default (#801); `--crawl` ignores `--module` (#802,
+  bin/gatetest.js:847); no report schema contract (#803). Answered with facts.
+  Crawl of tallrig.com: PASSED, 1 warning (duplicate title, possibly our
+  apex-vs-slash double count), only 4 checks ran (= #802). Hosted
+  `/api/web/scan` on tallrig.com hung 240 s → #768 item 1 reproduced live.
+- **Builders running (owner lifted the two-agent cap for the push):** #802
+  crawl honours modules, #801 telemetry guard + opt-in wiring (default is the
+  owner's one-line decision), #768 items 1/2/5 (budget, partial, permalink,
+  runtime reason), #803 schemaVersion + contract test, fp2 revival.
+- **Owner decisions open:** telemetry default (opt-in vs flywheel data); Gluecron
+  sign-up for the write-path pass; AlecRae throwaway session; npm deprecation of
+  @gatetest/cli <1.61.1.
