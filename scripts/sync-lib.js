@@ -149,7 +149,7 @@ function main(argv) {
   return 0;
 }
 
-module.exports = { ROOTS, plan, drift, normalise, RELATIVE_REQUIRE_RE, ALLOWED_HOST, foreignHosts, hostViolations };
+module.exports = { plan, drift, ALLOWED_HOST, foreignHosts, hostViolations };
 
 if (require.main === module) {
   process.exit(main(process.argv.slice(2)));
