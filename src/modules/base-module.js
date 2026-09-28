@@ -73,6 +73,26 @@ class BaseModule {
   }
 
   /**
+   * Issue #768 item 3: is the live page a JSON API response rather than an
+   * HTML document? `seo`, `accessibility`, `links` and the crawl-based
+   * modules (`liveCrawler`, `interactiveElements`) all assume a DOM — a
+   * JSON body has no `<h1>`, no `<title>`, no `<a href>` — and running them
+   * against a JSON API host is not a conservative pass, it's a false
+   * positive (api.alecrae.com was graded F largely on missing SEO/H1/meta
+   * that make no sense off a JSON body). One definition, computed once in
+   * `website/app/lib/live-scan-config.js#fetchLivePage` (`livePage.isJson`)
+   * and read here so every HTML-only module agrees with the others on the
+   * same page — header/TLS/cookie/CORS checks are content-type agnostic
+   * and do NOT use this guard.
+   *
+   * @param {GateTestConfig|object} config
+   * @returns {boolean}
+   */
+  _isJsonApiHost(config) {
+    return Boolean(config && config.livePage && config.livePage.isJson === true);
+  }
+
+  /**
    * Run the module's checks.
    * @param {TestResult} result - The result object to record checks against.
    * @param {GateTestConfig} config - The GateTest configuration.

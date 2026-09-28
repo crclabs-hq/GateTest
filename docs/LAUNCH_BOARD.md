@@ -47,6 +47,8 @@ itself still uses the old variable names until the owner's cutover.
   #776 (closes #767). `BaseModule._collectFiles` now skips gitignored paths and
   a built-in build-output name set by default; measured on AlecRae.com
   266→158 blocking, ~422s→159s wall time, 822 gitignored paths skipped.
+- Hosted web scan honesty: JSON API host skips HTML-only checks, navigation failure is not a
+  broken link: #804 (#768 items 3 and 4; items 1, 2, 5 still open).
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
