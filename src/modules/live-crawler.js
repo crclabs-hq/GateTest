@@ -76,6 +76,15 @@ class LiveCrawlerModule extends BaseModule {
   }
 
   async run(result, config) {
+    // Issue #768 item 3: a JSON API host has no DOM to crawl for broken
+    // links/images/anchors — running this module against one produces
+    // noise (0 links found, reported as a false "clean" crawl) rather than
+    // an honest "does not apply". See BaseModule#_isJsonApiHost.
+    if (this._isJsonApiHost(config)) {
+      this._notChecked(result, 'JSON API host — HTML checks do not apply');
+      return;
+    }
+
     const crawlConfig = config.getModuleConfig('liveCrawler') || {};
     const baseUrl = this._resolveBaseUrl(config, crawlConfig);
 

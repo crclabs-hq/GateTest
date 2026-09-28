@@ -50,6 +50,8 @@ itself still uses the old variable names until the owner's cutover.
 - Telemetry host guard + `GATETEST_TELEMETRY` switch + first-run field list +
   `--telemetry-status`: #811 (refs #801); default stays `'on'` until the owner sets
   `TELEMETRY_DEFAULT`; `npm deprecate` of 1.60.0 and earlier is owner-only.
+- Hosted web scan honesty: JSON API host skips HTML-only checks, navigation failure is not a
+  broken link: #804 (#768 items 3 and 4; items 1, 2, 5 still open).
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
@@ -94,3 +96,23 @@ curl -sIL https://github.com/crclabs-hq/GateTest/releases/latest/download/gatete
 gh run list -R crclabs-hq/gatetest-arena --limit 5     # Inject Bug then Arena Repair, green
 gh issue view 532                                      # the owner list, regenerated daily
 ```
+
+## 5. Recall against the sibling platforms (owner direction 2026-09-28)
+
+GateTest passed tallrig.com with 0 errors while Tallrig's own board showed 24 reds.
+Recall is now measured against each platform's board (Tallrig, Gluecron, AlecRae,
+DavenRoe); every red we miss is our gap. Epic: #807 (miss-by-miss mapping).
+
+| # | Build | Status | Where |
+|---|---|---|---|
+| R1 | `--crawl` runs the crawl-capable set, refuses loudly otherwise | IN PROGRESS | #802 builder |
+| R2 | Hosted scan: hard budget, partial results, permalink, runtime reason | IN PROGRESS | #768 builder |
+| R3 | `estate`: every host from sitemap / cert SANs / list, per-host verdict | OPEN | #807 |
+| R4 | `dnsPosture`: SPF/DKIM/DMARC alignment, PTR, wildcard, delegation, 0x20, legacy domain → uncontrolled IP | OPEN | #807 |
+| R5 | `deployFreshness`: served sha vs expected | OPEN | #807 |
+| R6 | Blank render / hydration crash in runtimeErrors; CLI runs it when a browser exists | OPEN | #807 |
+| R7 | WordPress gap checks: dir listing, PHP notices in HTML, admin-ajax, brute-force probe, TTFB per page | OPEN | #807 |
+| R8 | WordPress repair recipes per finding; automated fix + receipt on platforms we run | OPEN | #807 |
+| R9 | Crawler apex double count / rel=canonical (retracted T-01) | OPEN | #806 |
+| R10 | Telemetry host guard + opt-in wiring (default = owner's line) | IN PROGRESS | #801 builder |
+| R11 | Report `schemaVersion` + contract test + docs/api/report-schema.md | IN PROGRESS | #803 builder |
