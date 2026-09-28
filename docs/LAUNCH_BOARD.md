@@ -47,8 +47,16 @@ itself still uses the old variable names until the owner's cutover.
   #776 (closes #767). `BaseModule._collectFiles` now skips gitignored paths and
   a built-in build-output name set by default; measured on AlecRae.com
   266→158 blocking, ~422s→159s wall time, 822 gitignored paths skipped.
+- Telemetry host guard + `GATETEST_TELEMETRY` switch + first-run field list +
+  `--telemetry-status`: #811 (refs #801); default stays `'on'` until the owner sets
+  `TELEMETRY_DEFAULT`; `npm deprecate` of 1.60.0 and earlier is owner-only.
 - Hosted web scan honesty: JSON API host skips HTML-only checks, navigation failure is not a
-  broken link: #804 (#768 items 3 and 4; items 1, 2, 5 still open).
+  broken link: #804 (#768 items 3 and 4).
+- Hosted `/api/web/scan` keeps its own clock (issue #768 items 1, 2, 5): 50 s budget
+  (`GATETEST_WEB_SCAN_BUDGET_MS`), then 200 + `partial: true` + unfinished modules
+  not-checked + `streamUrl`; every response carries an absolute `reportUrl`;
+  runtime-not-configured is explained in `notCheckedReasons`. Control pair
+  `tests/web-scan-budget.test.js`. Live-verify after deploy (never run live).
 - First-hour sign-in journey: server-side gate (`/dashboard` 307 to `/login?next=`), `/login` entry, `/register` `/signup` `/sign-up` 301 to `/login`, `/docs` clean 307, `GET /api` JSON, crawler flags a redirect that carries an error page: #819 (closes #810, #812; unverified live until deployed).
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR

@@ -22,10 +22,38 @@ const fs   = require('fs');
 const path = require('path');
 
 const { SCAN_FINDINGS_FILE, telemetryEnabled } = require('./scan-telemetry');
-const { siteUrl } = require('./site-url');
+const { DEFAULT_SITE_URL, resolveSiteUrl } = require('./site-url');
 const { isOffline } = require('./offline');
 
-const DEFAULT_URL = process.env.GATETEST_TELEMETRY_URL || siteUrl('/api/telemetry/scan');
+const INGEST_PATH = '/api/telemetry/scan';
+
+/**
+ * The one host an upload may go to: the host of DEFAULT_SITE_URL. Not a second
+ * literal — a domain move edits site-url.js and this follows. A build that
+ * still names a dead domain is what issue #801 was: every install of it posted
+ * scan stats to a name we no longer own.
+ */
+const TELEMETRY_HOST = new URL(DEFAULT_SITE_URL).host;
+
+/**
+ * Where an upload would go, and whether it may. Refuses any host other than
+ * TELEMETRY_HOST unless GATETEST_TELEMETRY_ALLOW_HOST=1 (self-hosters who run
+ * their own ingest). Pure: takes the environment, touches nothing.
+ *
+ * @param {Record<string,string|undefined>} [env]
+ * @param {string} [override] an explicit URL (flush opts.url)
+ * @returns {{ url: string, host: string|null, allowed: boolean }}
+ */
+function resolveTelemetryTarget(env = process.env, override) {
+  const url = override || env.GATETEST_TELEMETRY_URL || `${resolveSiteUrl(env)}${INGEST_PATH}`;
+  let host = null;
+  try { host = new URL(url).host; } catch { /* unparsable → refused */ } // error-ok
+  const allow = env.GATETEST_TELEMETRY_ALLOW_HOST;
+  const allowAny = Boolean(allow) && allow !== '0' && String(allow).toLowerCase() !== 'false';
+  return { url, host, allowed: host !== null && (host === TELEMETRY_HOST || allowAny) };
+}
+
+const DEFAULT_URL = resolveTelemetryTarget().url;
 const DEFAULT_BATCH = 200;
 const MAX_BUFFER_LINES = 5000;
 const UPLOAD_TIMEOUT_MS = 4000;
@@ -61,7 +89,7 @@ function _writeLines(filePath, lines) {
  */
 async function flush(opts = {}) {
   const {
-    url = DEFAULT_URL,
+    url: urlOverride,
     filePath = SCAN_FINDINGS_FILE,
     batchSize = DEFAULT_BATCH,
     projectRoot,
@@ -71,6 +99,9 @@ async function flush(opts = {}) {
   try {
     if (isOffline()) return { uploaded: 0, remaining: 0, reason: 'offline' };
     if (!telemetryEnabled(projectRoot)) return { uploaded: 0, remaining: 0, reason: 'opted-out' };
+    const target = resolveTelemetryTarget(process.env, urlOverride);
+    if (!target.allowed) return { uploaded: 0, remaining: 0, reason: 'host-not-allowed' };
+    const url = target.url;
     if (!_fetch) return { uploaded: 0, remaining: 0, reason: 'no-fetch' };
 
     let lines = _readLines(filePath);
@@ -133,4 +164,4 @@ function flushInBackground(opts = {}) {
   } catch { /* never throw */ } // error-ok
 }
 
-module.exports = { flush, flushInBackground, DEFAULT_URL, MAX_BUFFER_LINES };
+module.exports = { flush, flushInBackground, resolveTelemetryTarget, TELEMETRY_HOST, DEFAULT_URL, MAX_BUFFER_LINES };

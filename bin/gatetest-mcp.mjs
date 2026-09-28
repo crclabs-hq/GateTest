@@ -974,6 +974,8 @@ async function handleScanLocal(args) {
           projectRoot: scanPath,
           suite: (modules && modules.length) ? 'module' : (suite || 'standard'),
         });
+        // stdout is the protocol channel — the once-only notice goes to stderr.
+        require('../src/core/telemetry-notice.js').maybeNoticeTelemetry({ write: (t) => process.stderr.write(t + '\n') });
         uploader.flushInBackground({ projectRoot: scanPath });
       }
     } catch { /* telemetry is best-effort */ } // error-ok
