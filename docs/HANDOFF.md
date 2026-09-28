@@ -675,12 +675,12 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   stays `'on'` until the owner sets `TELEMETRY_DEFAULT`), #817 (sync-lib export trim,
   Autofix follow-up), #818 (#768 items 1/2/5: hosted `/api/web/scan` 50 s budget
   `GATETEST_WEB_SCAN_BUDGET_MS`, `partial: true` on expiry, absolute `reportUrl`,
-  runtime-not-configured listed in `notCheckedReasons`), #819 (#810 + #812: one
+  runtime-not-configured listed in `notCheckedReasons`).
+- Open with auto-merge armed, all green or CI-pending: #819 (#810 + #812: one
   `requireSession()` in website/app/lib/session-gate.js, anonymous /dashboard 307 →
   /login?next=, /login renders, /register|/signup 301 → /login, /docs|/scan|/scans are
   config redirects with empty bodies, GET /api answers JSON, crawler check
-  `crawl:error:redirect-error-page`).
-- Open with auto-merge armed, all green or CI-pending: #813 (report `schemaVersion`),
+  `crawl:error:redirect-error-page`), #813 (report `schemaVersion`),
   #814 (`--crawl` honours `--module`/`--suite`; live-scan-config moved to src/core with
   #804's `isJsonApiResponse` carried across), #816 (#771 GT-04/05/10: AlecRae secrets
   10→7, ciSecurity 1→0, resourceLeak 5→1), #820 (#806 canonical folding in the crawler,
