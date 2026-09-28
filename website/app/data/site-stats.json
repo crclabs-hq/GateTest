@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27T09:13:19.255Z",
+  "generatedAt": "2026-09-28T09:42:31.192Z",
   "source": "scripts/generate-site-stats.js",
   "note": "Measured on every run. Displayed counts are rounded DOWN so the public \"N+\" claim is always an under-statement. Do not hand-edit — run the script.",
   "version": "1.61.1",
@@ -16,7 +16,7 @@
     "scanned": 85,
     "displayGreen": "85/85",
     "greenSource": "measured",
-    "greenMeasuredAt": "2026-09-27T09:13:19.268Z"
+    "greenMeasuredAt": "2026-09-28T09:42:31.206Z"
   },
   "suites": {
     "quick": 42,

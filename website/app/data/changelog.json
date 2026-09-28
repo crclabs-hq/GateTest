@@ -1,8 +1,8 @@
 {
   "source": "scripts/generate-changelog.js",
-  "generatedAt": "2026-09-27T09:29:08.733Z",
+  "generatedAt": "2026-09-28T09:59:11.847Z",
   "ref": "origin/main",
-  "head": "0baf4e935d2e6df362b174dc34da0516e5559a9d",
+  "head": "54190186baa3581110e30dc9217a1a14c9b0f1d8",
   "currentVersion": "1.61.1",
   "limit": 150,
   "areas": [
@@ -17,6 +17,8 @@
     "other"
   ],
   "entries": [
+    {"sha":"54190186baa3581110e30dc9217a1a14c9b0f1d8","short":"5419018","date":"2026-09-27","pr":795,"title":"Refresh website testing statistics — 2026-09-27","area":"website","areas":{"website":3},"files":3,"modules":[],"version":null},
+    {"sha":"58c636dad8f9f24092fded083093c7d2f7f50867","short":"58c636d","date":"2026-09-27","pr":794,"title":"Flywheel trainer report — 2026-09-27","area":"docs","areas":{"docs":16,"website":1,"tests":1},"files":18,"modules":[],"version":null},
     {"sha":"0baf4e935d2e6df362b174dc34da0516e5559a9d","short":"0baf4e9","date":"2026-09-26","pr":793,"title":"fix: three GT false-positive classes from issue #771 (a11y input-label, moneyFloat, retryHygiene)","area":"engine","areas":{"engine":3,"tests":3},"files":6,"modules":["accessibility","moneyFloat","retryHygiene"],"version":null},
     {"sha":"596b8cbf0d42a988423ff0be806aaa5cd85494dd","short":"596b8cb","date":"2026-09-26","pr":792,"title":"docs(copy): cross-platform wording — Gluecron and Tallrig stand alone, GateTest optional (#715) — OWNER APPROVAL REQUIRED","area":"website","areas":{"website":4,"docs":1},"files":5,"modules":[],"version":null},
     {"sha":"33d018ea000de14cd42c594bc786db77ce52a247","short":"33d018e","date":"2026-09-26","pr":789,"title":"chore: close code-scanning 5374 (unused export); handoff 19:00Z","area":"engine","areas":{"engine":1,"docs":1},"files":2,"modules":[],"version":null},
@@ -145,8 +147,6 @@
     {"sha":"d5dfa04f0c40c9bd19870da2a593fbefd5fc7d54","short":"d5dfa04","date":"2026-09-16","pr":570,"title":"feat(usage): `gatetest usage` CLI + /dashboard/usage meter for BYOK and metered customers","area":"website","areas":{"website":12,"tests":6,"docs":5,"engine":4,"other":3,"ci":2},"files":32,"modules":[],"version":null},
     {"sha":"a18ccc7f8ac9e24cc6df4763bbe5ccef9f00114d","short":"a18ccc7","date":"2026-09-16","pr":569,"title":"fix: dry-run never writes; scan queue keeps host + triggeredBy (KI #112, #113)","area":"website","areas":{"website":4,"tests":3,"engine":2,"docs":1},"files":10,"modules":[],"version":null},
     {"sha":"415d6d8912247d7ce58a50759798762119a0ab7e","short":"415d6d8","date":"2026-09-16","pr":563,"title":"vscode-extension: ship LICENSE, cut the .vsix 3,580 -> 339 files; publish-vscode idempotent per registry","area":"other","areas":{"other":3,"ci":1},"files":4,"modules":[],"version":null},
-    {"sha":"d77c4c6c0f8a9fc61993f93177467c9be5fa73c0","short":"d77c4c6","date":"2026-09-16","pr":561,"title":"distribution: list Open VSX as a live channel (Cursor / Windsurf / VSCodium)","area":"website","areas":{"website":3,"docs":3,"tests":1},"files":7,"modules":[],"version":null},
-    {"sha":"9a8a5dec03be2d05d691ceee01f59e5489f85967","short":"9a8a5de","date":"2026-09-16","pr":559,"title":"head-to-head: pass the dispatch input through env, not shell interpolation","area":"ci","areas":{"ci":1},"files":1,"modules":[],"version":null},
-    {"sha":"3f0733e63e3efe21434aa4d817bc2c875441a63b","short":"3f0733e","date":"2026-09-16","pr":557,"title":"publish-vscode: create the Open VSX namespace before publishing","area":"ci","areas":{"ci":1},"files":1,"modules":[],"version":null}
+    {"sha":"d77c4c6c0f8a9fc61993f93177467c9be5fa73c0","short":"d77c4c6","date":"2026-09-16","pr":561,"title":"distribution: list Open VSX as a live channel (Cursor / Windsurf / VSCodium)","area":"website","areas":{"website":3,"docs":3,"tests":1},"files":7,"modules":[],"version":null}
   ]
 }
