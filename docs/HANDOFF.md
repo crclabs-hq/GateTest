@@ -668,3 +668,49 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   Owner item: a GateTest test account for AlecRae's authenticated journeys.
 - Builders still running: #801, #802, #803, #768 (items 1/2/5), fp2. Queue as slots
   free: estate, #810, #806, fp1 residuals, fp3, fp4, #809, #812. #804 merged.
+
+### Addendum 2026-09-28 23:40Z — five builders returned; merge queue is the bottleneck
+
+- Merged since 22:40Z: #811 (telemetry host guard + `GATETEST_TELEMETRY`; default
+  stays `'on'` until the owner sets `TELEMETRY_DEFAULT`), #817 (sync-lib export trim,
+  Autofix follow-up), #818 (#768 items 1/2/5: hosted `/api/web/scan` 50 s budget
+  `GATETEST_WEB_SCAN_BUDGET_MS`, `partial: true` on expiry, absolute `reportUrl`,
+  runtime-not-configured listed in `notCheckedReasons`), #819 (#810 + #812: one
+  `requireSession()` in website/app/lib/session-gate.js, anonymous /dashboard 307 →
+  /login?next=, /login renders, /register|/signup 301 → /login, /docs|/scan|/scans are
+  config redirects with empty bodies, GET /api answers JSON, crawler check
+  `crawl:error:redirect-error-page`).
+- Open with auto-merge armed, all green or CI-pending: #813 (report `schemaVersion`),
+  #814 (`--crawl` honours `--module`/`--suite`; live-scan-config moved to src/core with
+  #804's `isJsonApiResponse` carried across), #816 (#771 GT-04/05/10: AlecRae secrets
+  10→7, ciSecurity 1→0, resourceLeak 5→1), #820 (#806 canonical folding in the crawler,
+  a11y `<Input>` component rule 92→12 blocking on AlecRae, retry-hygiene bound
+  recogniser 1→0), and this PR #805.
+- Merge mechanics this session: branch protection wants branches up to date, so every
+  merge to main re-strands the others as BEHIND; `gh pr merge --admin` and the
+  update-branch API are denied for this session. Path that works: `git merge
+  origin/main` in the PR's worktree, resolve (so far only docs/LAUNCH_BOARD.md §2 and
+  the live-scan-config move), push; auto-merge then fires. Do this one PR at a time
+  after each merge lands.
+- Running: estate module R3 (GateTest-wt-estate, feat/estate-module-807) and fp3
+  (GateTest-wt-fp3, fix/fp-taint-shell-auth-771: auth-bypass, cross-file-taint,
+  deploy-contract, log-pii, public-discovery-routes). Queued: fp4
+  (GateTest-wt-fp4, fix/ci-steps-toolchain-honesty-771, uncommitted), #809 composite
+  health, #815 per-page crawl, dnsPosture/mailPosture/apiHealth/deployFreshness/
+  WordPress gaps per #807.
+- Live verification owed after the next deploy (prod is still behind main; box 161
+  pull-deploy service dead since 27 Sep 17:37Z, owner): curl a slow target and expect
+  ~50 s + `partial: true` (#818); `GATETEST_LIVE_URL=https://gatetest.io npm run
+  test:heavy -- signin-journey-live` (#819); page AlecRae the #819 sha for G1/G2 and
+  the #809 sha for G3 once built; page Tallrig the crawl-capable re-run once #814 is
+  live.
+- Cross-platform: Gluecron routed the mirror request to the owner (repo owner and
+  creation are his call); their pull-mirroring exists in code but prod has zero
+  `repo_mirrors` rows and the issues-importer is untested at ~2,100 commits, both
+  stay UNTESTED on the parity walk. AlecRae accepted the three findings into
+  #809/#810/#812 and wants one sha per item to re-measure from outside.
+- Design calls worth a second look (from the builder reports): #818 drops finding
+  bodies from `reportUrl` over 12,000 chars; #819 leaves /billing and /scan/status
+  without server auth and only the GitHub callback redirects to /login?error=; #820
+  folds every same-host canonical (a site-wide canonical to `/` would collapse a
+  crawl; no guard).
