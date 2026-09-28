@@ -159,6 +159,13 @@ const FLAG_SPEC = [
   // out, coverage, .turbo, .cache, .nuxt, .svelte-kit, target) by default —
   // see src/core/gitignore.js `getScanIgnoreMatcher`. This opts back in.
   { flags: ['--include-ignored'], key: 'includeIgnored', type: 'boolean' },
+
+  // Issue #770: every module's elapsed already exists (TestResult.duration)
+  // but console output only ever surfaced it in the top-5 "Slowest:" line —
+  // a 4-app monorepo whose 22-minute run needed "where did the time go"
+  // had no full accounting. This prints every module's own elapsed plus a
+  // running total after the run; default output (no flag) is unchanged.
+  { flags: ['--timings'], key: 'timings', type: 'boolean' },
 ];
 
 /** token -> spec. Built once from FLAG_SPEC so the two cannot drift. */
