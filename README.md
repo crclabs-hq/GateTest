@@ -360,9 +360,16 @@ already carry this command with the run's URL filled in.
 ### Self-hosted and air-gapped
 
 The engine is an npm package with four runtime dependencies that reads your tree and
-writes to `.gatetest/`. By default the only thing that leaves the machine is the
-anonymized telemetry flush (module and rule ids with integer counts; opt out with
-`GATETEST_NO_TELEMETRY=1`); the AI-backed fix paths are opt-in and need
+writes to `.gatetest/`. The only thing that can leave the machine is the
+anonymized telemetry flush (module and rule ids with integer counts, never code,
+paths or repo names). Switch it with `GATETEST_TELEMETRY=1|0` or
+`"telemetry": true|false` in `.gatetest.json` (`GATETEST_NO_TELEMETRY=1` still
+works as an alias for off); `gatetest --telemetry-status` prints the current
+setting, which switch decided it and the host. The first run prints exactly what
+is sent, once. Uploads go only to `gatetest.io`: a `GATETEST_TELEMETRY_URL` (or a
+base-URL override) on any other host is refused unless you set
+`GATETEST_TELEMETRY_ALLOW_HOST=1`, which is how a self-hoster points it at their
+own ingest. The AI-backed fix paths are opt-in and need
 `ANTHROPIC_API_KEY`. For an air-gapped runner, make that a stated promise:
 
 ```bash
