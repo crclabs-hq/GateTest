@@ -784,6 +784,60 @@ const DEFAULT_CONFIG = {
 };
 
 /**
+ * Which modules can run against a live site under `gatetest --crawl <url>`
+ * (issue #802) — the ONE definition. `--crawl` with `--module X` / `--suite S`
+ * runs the members of the selection that are listed here, against the crawl
+ * target, and reports the rest as "not crawl-capable, skipped" (and in
+ * `summary.deferred`). Before this list existed `--module` beside `--crawl`
+ * was silently ignored: a customer crawl of a 40-page site ran ONE module.
+ *
+ * Every entry is a subset of the hosted /web scan's module list
+ * (`suites.web`, in the same order — liveCrawler first, because `links`
+ * reads its result) and is one that produces real findings from a URL with
+ * no Playwright and no project files:
+ *   - liveCrawler: the crawl itself (always runs under --crawl)
+ *   - webHeaders, cookieSecurity, accessibility, seo: read `config.livePage`
+ *     (the crawl target's page, fetched once — src/core/live-scan-config.js)
+ *   - links: consumes liveCrawler's crawled-link result
+ *   - apiHealth: pure-HTTP endpoint checks against the crawl target
+ * NOT listed, on purpose: tlsSecurity (needs a raw socket — reports
+ * not-checked on a live page), performance (reads build output on disk), and
+ * the browser-driven modules in `suites.web` (runtimeErrors, explorer,
+ * visualRegression, interactiveElements, performanceBudget, mobileRendering,
+ * formTesting, consoleErrors, designSystemCompliance, crossBrowser) — they
+ * need Playwright / the Crontech worker and would report an info "skipped"
+ * pass, which is not a check. To add a module: implement its live mode
+ * (`config.livePage` or `config.get('targetUrl')`), add its name here in web
+ * suite order, and tests/crawl-honours-modules.test.js proves it is a member
+ * of `suites.web`.
+ */
+const CRAWL_CAPABLE_MODULES = [
+  'webHeaders',
+  'cookieSecurity',
+  'accessibility',
+  'seo',
+  'liveCrawler',
+  'links',
+  'apiHealth',
+];
+
+/**
+ * Split a requested module list into what a crawl can run and what it
+ * cannot. `capable` keeps `CRAWL_CAPABLE_MODULES` order (liveCrawler before
+ * links); `skipped` keeps the caller's order. Pure.
+ *
+ * @param {string[]} requested
+ * @returns {{ capable: string[], skipped: string[] }}
+ */
+function partitionCrawlSelection(requested) {
+  const want = new Set(requested || []);
+  return {
+    capable: CRAWL_CAPABLE_MODULES.filter((m) => want.has(m)),
+    skipped: (requested || []).filter((m) => !CRAWL_CAPABLE_MODULES.includes(m)),
+  };
+}
+
+/**
  * Top-level `.gatetest.json` keys the product actually consumes.
  *
  * `_deepMerge` accepts ANY key, so an unrecognised one lands in the config
@@ -1040,4 +1094,4 @@ class GateTestConfig {
   }
 }
 
-module.exports = { GateTestConfig, DEFAULT_CONFIG, SUITE_DEFERRALS };
+module.exports = { GateTestConfig, DEFAULT_CONFIG, SUITE_DEFERRALS, CRAWL_CAPABLE_MODULES, partitionCrawlSelection };
