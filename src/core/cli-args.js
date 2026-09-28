@@ -74,6 +74,7 @@ const FLAG_SPEC = [
   { flags: ['--health'], key: 'health', type: 'boolean' },
   { flags: ['--doctor'], key: 'doctor', type: 'boolean' },
   { flags: ['--doctor-quick'], key: 'doctorQuick', type: 'boolean', also: ['doctor'] },
+  { flags: ['--telemetry-status'], key: 'telemetryStatus', type: 'boolean' },
   { flags: ['--parallel'], key: 'parallel', type: 'boolean' },
   { flags: ['--github-annotations'], key: 'githubAnnotations', type: 'boolean' },
   { flags: ['--stop-first'], key: 'stop-first', type: 'boolean' },

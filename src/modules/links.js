@@ -97,6 +97,10 @@ class LinksModule extends BaseModule {
     const projectRoot = config.projectRoot;
 
     if (config && config.livePage) {
+      if (this._isJsonApiHost(config)) {
+        this._notChecked(result, 'JSON API host — HTML checks do not apply');
+        return;
+      }
       const crawlResult = this._priorResult(config, 'liveCrawler');
       const crawlSummary = crawlResult && this._crawlSummary(crawlResult);
       if (crawlSummary) {
