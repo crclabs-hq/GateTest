@@ -7,6 +7,20 @@ const { extractTitle } = require('../core/html-extract');
 
 const UA = 'GateTest/1.0 (Quality Assurance Crawler)';
 
+// Enough to see the `<html id="__next_error__">` root of a Next.js error
+// shell, small enough that a hostile redirect body cannot balloon memory.
+const REDIRECT_BODY_CAP = 64 * 1024;
+const REDIRECT_ERROR_PAGE_MARKER = /id\s*=\s*["']__next_error__["']/;
+
+function collectBody(res, cap) {
+  return new Promise((resolve) => {
+    let body = '';
+    res.on('data', (chunk) => { if (body.length < cap) body += chunk; });
+    res.on('end', () => resolve(body));
+    res.on('error', () => resolve(body));
+  });
+}
+
 function fetchPage(url, timeout, extraHeaders, _originHost) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
@@ -66,12 +80,22 @@ function fetchPage(url, timeout, extraHeaders, _originHost) {
         // never leak session material to a third-party redirect target.
         const redirectHeaders =
           redirectOrigin === parsedUrl.origin ? extraHeaders : undefined;
-        fetchPage(redirectUrl, timeout, redirectHeaders, originHost).then(redirectResult => {
-          resolve({
-            ...redirectResult,
-            redirected: true,
-            redirectStatus: res.statusCode,
-            originalUrl: url,
+        // A redirect is supposed to carry no page. Read this hop's body
+        // (capped) so a 3xx that ships a rendered framework error page —
+        // Next.js `<html id="__next_error__">` — is disclosed instead of
+        // silently followed (#812: /docs answered 307 with a 16 KB one).
+        collectBody(res, REDIRECT_BODY_CAP).then((hopBody) => {
+          const hopIsErrorPage = REDIRECT_ERROR_PAGE_MARKER.test(hopBody);
+          return fetchPage(redirectUrl, timeout, redirectHeaders, originHost).then(redirectResult => {
+            resolve({
+              ...redirectResult,
+              redirected: true,
+              redirectStatus: res.statusCode,
+              originalUrl: url,
+              ...(hopIsErrorPage || redirectResult.redirectCarriesErrorPage
+                ? { redirectCarriesErrorPage: true }
+                : {}),
+            });
           });
         }).catch(reject);
         return;
@@ -256,6 +280,7 @@ function getSuggestion(errorType) {
     'runtime-error': 'Unhandled runtime error — add error boundaries and fix root cause',
     'mixed-content': 'HTTP resources on HTTPS page — update all resource URLs to HTTPS',
     'fetch-error': 'Page could not be loaded — check if the server is running',
+    'redirect-error-page': 'A redirect answered with a rendered error page — the route throws before it redirects; make it a next.config redirect or fix the exception',
   };
   return suggestions[errorType] || 'Investigate and fix the issue';
 }

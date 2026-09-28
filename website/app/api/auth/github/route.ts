@@ -5,12 +5,13 @@
  * After consent, GitHub redirects to /api/auth/callback.
  */
 
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { getOAuthConfig, generateState } from "../../../lib/customer-session";
 import { authUnavailable } from "../../../lib/auth-unavailable";
+import { safeNext } from "../../../lib/session-gate";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const status = getOAuthConfig();
   if (!status.ok || !status.config) {
     // See lib/auth-unavailable.ts — a human clicked a button, so answer with
@@ -29,6 +30,20 @@ export async function GET() {
     maxAge: 600, // 10 minutes
     path: "/",
   });
+
+  // Where to land after the callback: the page the visitor was sent here
+  // from (/login?next=…). Same-origin paths only — see safeNext().
+  const next = safeNext(request.nextUrl.searchParams.get("next"));
+  if (next) {
+    cookieStore.set("gh_oauth_next", next, {
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 600,
+      path: "/",
+    });
+  } else {
+    cookieStore.delete("gh_oauth_next");
+  }
 
   const params = new URLSearchParams({
     client_id: clientId,
