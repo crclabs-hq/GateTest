@@ -58,6 +58,7 @@ itself still uses the old variable names until the owner's cutover.
   runtime-not-configured is explained in `notCheckedReasons`. Control pair
   `tests/web-scan-budget.test.js`. Live-verify after deploy (never run live).
 - First-hour sign-in journey: server-side gate (`/dashboard` 307 to `/login?next=`), `/login` entry, `/register` `/signup` `/sign-up` 301 to `/login`, `/docs` clean 307, `GET /api` JSON, crawler flags a redirect that carries an error page: #819 (closes #810, #812; unverified live until deployed).
+- CI-step and toolchain honesty (refs #771 GT-13, GT-14a, GT-14b; #770): best-effort `|| true` shapes (chmod/chown/touch, a same-file function that prints its own verdict, a plumbing-named YAML step) are warnings; ESLint skips gitignored / build-output dirs; a build failure before any test ran is "not checked"; `--timings`: #825. Measured on AlecRae.com @ d9f61aa: bashSafety 18→9 blocking (45→45 total), ESLint 4254→298 errors.
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
