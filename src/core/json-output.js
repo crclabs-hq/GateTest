@@ -32,6 +32,7 @@ const path = require('path');
 const { repoRelative, toPosix } = require('./repo-path');
 
 const PKG_VERSION = require('../../package.json').version;
+const { REPORT_SCHEMA_VERSION } = require('./report-schema');
 
 /** The severities an issue may carry — pinned so a consumer can switch on them. */
 const SEVERITIES = ['error', 'warning', 'info'];
@@ -170,6 +171,8 @@ function buildJsonOutput(summary, ctx) {
   const scope = ctx.module ? `module ${ctx.module}` : `${ctx.suite || 'standard'} scan`;
 
   return {
+    // Same version the on-disk report carries (docs/api/report-schema.md).
+    schemaVersion: REPORT_SCHEMA_VERSION,
     version: ctx.version || PKG_VERSION,
     generatedAt: new Date().toISOString(),
     suite: ctx.module ? null : (ctx.suite || 'standard'),

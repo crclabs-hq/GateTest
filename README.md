@@ -376,6 +376,13 @@ API ping from `--doctor`. The console prints the mode, the summary carries
 the perimeter can be verified outside it with `gatetest verify-report` and the key.
 There is no licence server and no account; nothing expires.
 
+### The JSON report is a versioned contract
+
+Every JSON report carries a top-level `schemaVersion`; the stable fields, the
+version rules and the deprecation policy are in
+[`docs/api/report-schema.md`](docs/api/report-schema.md), pinned by
+`tests/report-schema-contract.test.js`.
+
 ### Redirecting or disabling report output
 
 Every scan writes reports (`.gatetest/reports/`) and two memory stores

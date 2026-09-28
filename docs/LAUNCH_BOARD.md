@@ -47,6 +47,9 @@ itself still uses the old variable names until the owner's cutover.
   #776 (closes #767). `BaseModule._collectFiles` now skips gitignored paths and
   a built-in build-output name set by default; measured on AlecRae.com
   266→158 blocking, ~422s→159s wall time, 822 gitignored paths skipped.
+- JSON report is a versioned contract: top-level `schemaVersion: 1` (also SARIF
+  `runs[0].properties`, JUnit `<testsuites>`), pinned fields in
+  `docs/api/report-schema.md` + `tests/report-schema-contract.test.js` (closes #803).
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
