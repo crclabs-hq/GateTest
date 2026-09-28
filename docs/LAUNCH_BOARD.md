@@ -49,6 +49,7 @@ itself still uses the old variable names until the owner's cutover.
   266→158 blocking, ~422s→159s wall time, 822 gitignored paths skipped.
 - Hosted web scan honesty: JSON API host skips HTML-only checks, navigation failure is not a
   broken link: #804 (#768 items 3 and 4; items 1, 2, 5 still open).
+- First-hour sign-in journey: server-side gate (`/dashboard` 307 to `/login?next=`), `/login` entry, `/register` `/signup` `/sign-up` 301 to `/login`, `/docs` clean 307, `GET /api` JSON, crawler flags a redirect that carries an error page: #819 (closes #810, #812; unverified live until deployed).
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
