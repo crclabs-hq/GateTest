@@ -59,6 +59,7 @@ itself still uses the old variable names until the owner's cutover.
   `tests/web-scan-budget.test.js`. Live-verify after deploy (never run live).
 - Crawler apex/canonical de-dup (closes #806), a11y component label prop and retry compare-bound
   (refs #771 GT-02 / GT-07): #820; AlecRae accessibility blocking 92 -> 12, retryHygiene 1 -> 0.
+- First-hour sign-in journey: server-side gate (`/dashboard` 307 to `/login?next=`), `/login` entry, `/register` `/signup` `/sign-up` 301 to `/login`, `/docs` clean 307, `GET /api` JSON, crawler flags a redirect that carries an error page: #819 (closes #810, #812; unverified live until deployed).
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 

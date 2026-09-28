@@ -101,6 +101,11 @@ async function crawlWithHttp(ctx) {
         redirects.push({ from: url, to: pageResult.finalUrl, status: pageResult.redirectStatus });
       }
 
+      if (pageResult.redirectCarriesErrorPage) {
+        errors.push({ url, status: pageResult.redirectStatus, type: 'redirect-error-page',
+          message: `redirect carries an error page (HTTP ${pageResult.redirectStatus} with an __next_error__ body)` });
+      }
+
       if (!pageResult.contentType?.includes('text/html')) continue;
       if (!pageResult.body) continue;
 

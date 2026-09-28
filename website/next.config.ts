@@ -45,12 +45,34 @@ const GUESSED_URLS: Array<{ source: string; destination: string; permanent: bool
   { source: "/contact", destination: "/#faq", permanent: false },
   { source: "/terms", destination: "/legal/terms", permanent: true },
   { source: "/privacy", destination: "/legal/privacy", permanent: true },
-  { source: "/login", destination: "/dashboard", permanent: false },
   // /account never existed; the weekly-digest email's unsubscribe link
   // (website/app/lib/weekly-digest.js) points at /account/notifications and
   // already-sent mails carry it. Subscriptions are managed on /billing.
   { source: "/account", destination: "/dashboard", permanent: false },
   { source: "/account/notifications", destination: "/billing", permanent: false },
+];
+
+// Sign-in with GitHub IS sign-up (#810), so the URLs a prospect types to
+// register all go to /login. `statusCode: 301`, not `permanent: true`, because
+// Next sends `permanent: true` as 308 and the ask was a 301.
+const SIGNUP_URLS = ["/register", "/signup", "/sign-up"].map((source) => ({
+  source,
+  destination: "/login",
+  statusCode: 301,
+}));
+
+// Redirect-only routes live here, not in a page.tsx that calls redirect().
+// A statically prerendered page that redirects is served as its 307 PLUS the
+// rendered Next.js error shell (`<html id="__next_error__">`, 16,518 bytes for
+// /docs — #812), which crawlers and monitors read as an error page. A config
+// redirect is the same 307 with an empty body. Same targets as the pages they
+// replaced: /docs has no index of its own (live-site audit 2026-09-10), /scan
+// was a primary CTA target with no page, and the Hall of Scans was retired
+// 2026-09-10 (current numbers live on /precision).
+const REDIRECT_ONLY_ROUTES: Array<{ source: string; destination: string; permanent: boolean }> = [
+  { source: "/docs", destination: "/developers", permanent: false },
+  { source: "/scan", destination: "/playground", permanent: false },
+  { source: "/scans", destination: "/precision", permanent: false },
 ];
 
 const nextConfig: NextConfig = {
@@ -84,6 +106,8 @@ const nextConfig: NextConfig = {
       // shared and bookmarked during the review period.
       { source: "/preview", destination: "/", permanent: true },
       ...GUESSED_URLS,
+      ...SIGNUP_URLS,
+      ...REDIRECT_ONLY_ROUTES,
     ];
   },
   async rewrites() {
