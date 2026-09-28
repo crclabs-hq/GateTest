@@ -129,6 +129,45 @@ class LintModule extends BaseModule {
     return 'npx eslint';
   }
 
+  /**
+   * Top-level directories under `projectRoot` that the default scan treats
+   * as out of scope — the repo's own .gitignore plus the built-in
+   * build-output name set, ONE definition shared with `_collectFiles`
+   * (src/core/gitignore.js `getScanIgnoreMatcher`). Issue #771 GT-14a:
+   * `_runEslint` used to hand ESLint the bare directory (`eslintBin . ...`),
+   * so a gitignored `dist/bundle.js` full of pre-existing lint errors was
+   * scanned and counted toward the gate regardless of what #776 taught
+   * `_collectFiles` to skip. Returned as directory-level patterns (not a
+   * full file list) so a large repo doesn't blow past the shell's argument
+   * length passing every source file individually — each hit here also
+   * stops the walk from descending, matching `_collectFiles`'s own pruning.
+   */
+  _ignoredDirPatterns(projectRoot) {
+    const { getScanIgnoreMatcher, includeIgnoredFiles } = require('../core/gitignore');
+    const { WALK_EXCLUDES: defaultExcludes } = require('../core/walk-excludes');
+    // Hard excludes (node_modules, .git, dist, build, ...) apply
+    // unconditionally, same as `_collectFiles`; the gitignore/build-output
+    // matcher is the part `--include-ignored` opts back into.
+    const matcher = includeIgnoredFiles() ? null : getScanIgnoreMatcher(projectRoot);
+    const patterns = [];
+    const walk = (dir) => {
+      let entries;
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const full = path.join(dir, entry.name);
+        const rel = repoRelative(projectRoot, full);
+        if (defaultExcludes.includes(entry.name) || (matcher && matcher(rel, true))) {
+          patterns.push(rel.replace(/\\/g, '/'));
+          continue; // out of scope — do not descend, everything under it is too
+        }
+        walk(full);
+      }
+    };
+    walk(projectRoot);
+    return patterns;
+  }
+
   _runEslint(projectRoot, result) {
     // Run without --max-warnings so the gate only blocks on actual errors.
     // Warnings still surface in the report (with their own severity)
@@ -142,8 +181,13 @@ class LintModule extends BaseModule {
     const eslintBin = this._resolveEslintBin(projectRoot);
     const cacheLocation = path.join(projectRoot, '.gatetest', '.eslintcache');
     try { fs.mkdirSync(path.dirname(cacheLocation), { recursive: true }); } catch { /* error-ok — best-effort — eslint still runs without a cache dir */ }
+    // GT-14a (#771): exclude gitignored / build-output directories so ESLint
+    // never counts errors it can find only because a bundler wrote them —
+    // the same scope `_collectFiles` already honours (issue #767 / #776).
+    const ignoreFlags = this._ignoredDirPatterns(projectRoot)
+      .map((rel) => `--ignore-pattern "${rel}/**"`).join(' ');
     const { exitCode, stdout, stderr, timedOut } = this._exec(
-      `${eslintBin} . --format json --cache --cache-location "${cacheLocation}"`,
+      `${eslintBin} . --format json --cache --cache-location "${cacheLocation}"${ignoreFlags ? ' ' + ignoreFlags : ''}`,
       { cwd: projectRoot, timeout: 180000 }
     );
 
