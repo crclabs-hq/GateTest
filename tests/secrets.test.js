@@ -262,3 +262,67 @@ describe('SecretsModule — test-tree detection is the canonical predicate', () 
     assert.strictEqual(await severityOf('src/contest.js'), 'error');
   });
 });
+
+// Issue #771 (AlecRae.com cross-test, GT-05): four control pairs — the idiom
+// goes quiet, the real bad sibling beside it still fires.
+describe('SecretsModule — GT-05 false positives (issue #771)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-secrets-771-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  async function scan(filename, source) {
+    const f = path.join(tmp, filename);
+    fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(f, source);
+    const mod = new SecretsModule();
+    const result = makeResult();
+    await mod.run(result, { projectRoot: tmp });
+    return result.checks.filter((c) => !c.passed && c.name.startsWith('secrets:') && c.file === filename);
+  }
+
+  describe('(a) a bullet/asterisk-masked value is a UI redaction, never a live secret', () => {
+    it('QUIET: webhooks.ts:63 `secret: "whsec_••••••••"` (masked example)', async () => {
+      const found = await scan('src/webhooks.ts', 'export const cfg = {\n  secret: "whsec_••••••••",\n};\n');
+      assert.deepStrictEqual(found, []);
+    });
+    it('FIRES: whsec_ followed by 32 real base64 chars', async () => {
+      const found = await scan('src/webhooks.ts', 'export const cfg = {\n  secret: "whsec_aGVsbG93b3JsZGJhc2U2NHNlY3JldHZhbHVlMTIzNA==",\n};\n');
+      assert.strictEqual(found.length, 1);
+    });
+  });
+
+  describe('(b) a *_TOKEN constant that only abbreviates its own identifier is not a credential', () => {
+    it('QUIET: UpdateAvailableBanner.tsx:61 `SERVICE_WORKER_UPDATE_TOKEN = "service-worker"`', async () => {
+      const found = await scan('src/UpdateAvailableBanner.tsx', 'const SERVICE_WORKER_UPDATE_TOKEN = "service-worker";\n');
+      assert.deepStrictEqual(found, []);
+    });
+    it('FIRES: a real high-entropy value under the same *_TOKEN name', async () => {
+      const found = await scan('src/UpdateAvailableBanner.tsx', 'const SERVICE_WORKER_UPDATE_TOKEN = "sw9f8e7d6c5b4a3b2c1d0e";\n');
+      assert.strictEqual(found.length, 1);
+    });
+  });
+
+  describe('(c) `gitleaks:allow` on a PEM line is honoured the same way `secrets-ok` is', () => {
+    it('QUIET: generate-oidc-signing-key.ts:24 `"-----BEGIN PRIVATE KEY-----", // gitleaks:allow — PEM scaffold`', async () => {
+      const found = await scan('src/generate-oidc-signing-key.ts',
+        'const lines = [\n  "-----BEGIN PRIVATE KEY-----", // gitleaks:allow — PEM scaffold\n];\n');
+      assert.deepStrictEqual(found, []);
+    });
+    it('FIRES: the same PEM header with no allow marker', async () => {
+      const found = await scan('src/generate-oidc-signing-key.ts',
+        'const lines = [\n  "-----BEGIN PRIVATE KEY-----",\n];\n');
+      assert.strictEqual(found.length, 1);
+    });
+  });
+
+  describe('(d) a credential-free redis:// URL names a service, not a leak', () => {
+    it('QUIET: docker-compose.yml `REDIS_URL: redis://redis:6379` — no user:pass@', async () => {
+      const found = await scan('docker-compose.yml', 'services:\n  cache:\n    environment:\n      REDIS_URL: redis://redis:6379\n');
+      assert.deepStrictEqual(found, []);
+    });
+    it('FIRES: redis://default:p4ssw0rd@host — a real credential', async () => {
+      const found = await scan('docker-compose.yml', 'services:\n  cache:\n    environment:\n      REDIS_URL: redis://default:p4ssw0rd@host:6379\n');
+      assert.strictEqual(found.length, 1);
+    });
+  });
+});
