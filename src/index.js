@@ -111,6 +111,20 @@ class GateTest {
   }
 
   /**
+   * Run an explicit module list under one summary (`gatetest --crawl` with a
+   * selection, #802). `deferred` is the same {module, reason, runsIn} shape
+   * `summary.deferred` carries for suites, so what a caller deliberately did
+   * not run reaches every consumer the way a suite's deferrals do.
+   */
+  async runModules(moduleNames, opts = {}) {
+    return this._run(moduleNames, {
+      deferred: opts.deferred || [],
+      suite: opts.suite || null,
+      module: opts.module || null,
+    });
+  }
+
+  /**
    * Run all registered modules.
    */
   async runAll() {

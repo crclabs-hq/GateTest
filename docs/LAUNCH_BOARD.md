@@ -47,6 +47,7 @@ itself still uses the old variable names until the owner's cutover.
   #776 (closes #767). `BaseModule._collectFiles` now skips gitignored paths and
   a built-in build-output name set by default; measured on AlecRae.com
   266→158 blocking, ~422s→159s wall time, 822 gitignored paths skipped.
+- `--crawl` honours `--module` / `--suite` (closes #802): crawl-capable members run against the site, the rest are named on one "not crawl-capable, skipped" line and in `summary.deferred`; none capable is exit 2 under `--strict`/CI. One list: `CRAWL_CAPABLE_MODULES` in `src/core/config.js`. Bare `--crawl` unchanged (liveCrawler only); `--crawl --suite web` is the hosted /web set.
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
