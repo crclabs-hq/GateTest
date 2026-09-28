@@ -110,6 +110,12 @@ for (const h of Object.values(HOSTS)) {
 // one. Matched on the text after `echo`; a redirect or pipe means it did not
 // reach stdout.
 const SECRET_VAR_RE = /\$[{(]?[A-Za-z0-9_]*?(?:SECRET|TOKEN|PASSWORD|PASSWD|API_KEY|PRIVATE_KEY|ACCESS_KEY|CREDENTIALS?)[A-Za-z0-9_]*\b/i;
+// A `>`/`>>` redirect to a real file path never reaches CI logs, so it's
+// quiet (AlecRae GT-10: `echo "$SECRET" > file` — writing to a file is not
+// logging). `> /dev/stdout`, `> /dev/stderr` and a bare fd dup (`>&2`,
+// `1>&2`) route straight back to the console, so those still count as
+// echoed — only a genuine file-path target silences the line.
+const REDIRECTED_TO_FILE_RE = /\d?>{1,2}\s*(?!&)(?!\/dev\/std(?:out|err)\b)\S/;
 
 class CiSecurityModule extends BaseModule {
   constructor() {
@@ -500,8 +506,10 @@ class CiSecurityModule extends BaseModule {
       // redirected / piped never reaches stdout.
       const echoed = /\becho\b(.*)$/.exec(l);
       const captured = echoed && (/(?:[<$]\(|`)\s*$/.test(l.slice(0, echoed.index)) || this._groupRedirected(block, k));
-      const secretEnv = echoed && !captured && SECRET_VAR_RE.test(echoed[1]) && !/[|>]/.test(echoed[1]);
-      if (/\becho\b.*\$\{\{\s*secrets\./.test(l) || secretEnv) {
+      const secretEnv = echoed && !captured && SECRET_VAR_RE.test(echoed[1])
+        && !/\|/.test(echoed[1]) && !REDIRECTED_TO_FILE_RE.test(echoed[1]);
+      const toFile = echoed && REDIRECTED_TO_FILE_RE.test(echoed[1]);
+      if ((/\becho\b.*\$\{\{\s*secrets\./.test(l) && !toFile) || secretEnv) {
         issues += this._flag(result, `ci-security:secret-echo:${rel}:${lineNo}`, {
           severity: 'error',
           file: rel,
