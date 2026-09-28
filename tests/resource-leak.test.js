@@ -178,6 +178,138 @@ describe('ResourceLeakModule — setInterval', () => {
 });
 
 /**
+ * Issue #771 (AlecRae.com cross-test, GT-04): two control pairs — the idiom
+ * goes quiet, the real bad sibling beside it still fires.
+ */
+describe('ResourceLeakModule — GT-04 false positives (issue #771)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-rl-771-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  describe('(a) a `.unref()`-ed interval handle does not keep the event loop alive', () => {
+    it('QUIET: `const timer = setInterval(...); timer.unref();`', async () => {
+      write(tmp, 'src/heartbeat.js', [
+        'function pollOnce() {',
+        '  const timer = setInterval(() => tick(), 500);',
+        '  timer.unref();',
+        '}',
+        '',
+      ].join('\n'));
+      const r = await run(tmp);
+      const leaks = r.checks.filter((c) => c.passed === false);
+      assert.deepStrictEqual(leaks, []);
+    });
+
+    it('FIRES: `setInterval(fn, 1000)` whose handle is discarded and never cleared', async () => {
+      write(tmp, 'src/heartbeat.js', [
+        'function pollOnce() {',
+        '  setInterval(() => tick(), 1000);',
+        '}',
+        '',
+      ].join('\n'));
+      const r = await run(tmp);
+      const hit = r.checks.find((c) => c.name.startsWith('resource-leak:setinterval:'));
+      assert.ok(hit);
+      assert.strictEqual(hit.severity, 'error');
+    });
+  });
+
+  describe('(a2) AlecRae shapes: chained `.unref()` and a ternary-assigned handle unref-ed later', () => {
+    it('QUIET: multi-line `setInterval(() => {...}, 60_000).unref();` (rate-limit.ts:38)', async () => {
+      write(tmp, 'src/rate-limit.ts', [
+        'const store = new Map();',
+        'setInterval(() => {',
+        '  for (const [k] of store) store.delete(k);',
+        '}, 60_000).unref();',
+        '',
+      ].join('\n'));
+      const r = await run(tmp);
+      assert.deepStrictEqual(r.checks.filter((c) => c.passed === false), []);
+    });
+
+    it('FIRES: the same multi-line `setInterval(...)` with no `.unref()` and no clear', async () => {
+      write(tmp, 'src/rate-limit.ts', [
+        'const store = new Map();',
+        'setInterval(() => {',
+        '  for (const [k] of store) store.delete(k);',
+        '}, 60_000);',
+        '',
+      ].join('\n'));
+      const r = await run(tmp);
+      const hit = r.checks.find((c) => c.name.startsWith('resource-leak:setinterval:'));
+      assert.ok(hit);
+      assert.strictEqual(hit.severity, 'error');
+    });
+
+    it('QUIET: `const h = cond ? setInterval(...) : null;` then `h?.unref();` (server.ts:1095)', async () => {
+      write(tmp, 'src/server.ts', [
+        'const dlqInterval = isRedisConfigured()',
+        '  ? setInterval(() => {',
+        '      processDLQ();',
+        '    }, 900000)',
+        '  : null;',
+        'dlqInterval?.unref();',
+        '',
+      ].join('\n'));
+      const r = await run(tmp);
+      assert.deepStrictEqual(r.checks.filter((c) => c.passed === false), []);
+    });
+
+    it('FIRES: the same ternary-assigned interval never unref-ed or cleared', async () => {
+      write(tmp, 'src/server.ts', [
+        'const dlqInterval = isRedisConfigured()',
+        '  ? setInterval(() => {',
+        '      processDLQ();',
+        '    }, 900000)',
+        '  : null;',
+        '',
+      ].join('\n'));
+      const r = await run(tmp);
+      assert.ok(r.checks.find((c) => c.name.startsWith('resource-leak:setinterval:')));
+    });
+  });
+
+  describe('(b) a TypeScript `interface` member named like a timer is a type, not a resource', () => {
+    it('QUIET: `interface Scheduler { setInterval(fn: () => void, ms: number): NodeJS.Timeout; }`', async () => {
+      write(tmp, 'src/scheduler.ts', [
+        'interface Scheduler {',
+        '  setInterval(fn: () => void, ms: number): NodeJS.Timeout;',
+        '}',
+        '',
+      ].join('\n'));
+      const r = await run(tmp);
+      const leaks = r.checks.filter((c) => c.passed === false);
+      assert.deepStrictEqual(leaks, []);
+    });
+
+    it('QUIET: AlecRae UpdateAvailableBanner.tsx:159 `setInterval(handler: () => void, ms: number): number;` and a `timer: NodeJS.Timeout` member', async () => {
+      write(tmp, 'src/banner.ts', [
+        'interface VersionWatchWindow {',
+        '  setInterval(handler: () => void, ms: number): number;',
+        '  timer: NodeJS.Timeout;',
+        '}',
+        '',
+      ].join('\n'));
+      const r = await run(tmp);
+      assert.deepStrictEqual(r.checks.filter((c) => c.passed === false), []);
+    });
+
+    it('FIRES: the same call shape actually invoked in a function body', async () => {
+      write(tmp, 'src/scheduler.ts', [
+        'function pollOnce() {',
+        '  setInterval(() => tick(), 500);',
+        '}',
+        '',
+      ].join('\n'));
+      const r = await run(tmp);
+      const hit = r.checks.find((c) => c.name.startsWith('resource-leak:setinterval:'));
+      assert.ok(hit);
+      assert.strictEqual(hit.severity, 'error');
+    });
+  });
+});
+
+/**
  * Issue #633 (Tallrig false-positive report, 2026-09-22): 19/19 findings
  * from this module were setInterval calls inside process-lifetime daemon
  * entrypoints (start/startServer/main/etc.) — intervals that are meant to

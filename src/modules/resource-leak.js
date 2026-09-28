@@ -208,6 +208,7 @@ class ResourceLeakModule extends BaseModule {
 
       // --- setInterval — captured but not cleared ---
       const siAssigned = SETINTERVAL_ASSIGNED_RE.exec(line);
+      if (siAssigned && this._isInsideInterfaceDeclaration(lines, i)) continue;
       if (siAssigned) {
         const varName = siAssigned[1];
         const cleared = this._isIntervalCleared(lines, i, varName);
@@ -232,8 +233,14 @@ class ResourceLeakModule extends BaseModule {
 
       // --- setInterval — bare call, return value discarded ---
       const siBare = SETINTERVAL_BARE_RE.exec(line);
-      // Reject when the line already had an assignment (handled above)
-      if (siBare && !SETINTERVAL_ASSIGNED_RE.test(line) && !/=\s*setInterval/.test(line)) {
+      // Reject when the line already had an assignment (handled above), or
+      // when `setInterval(...)` is a TS `interface`/method-signature member
+      // named like a timer — a type declaration never runs, so it cannot
+      // leak a handle (AlecRae issue #771 GT-04: `interface Scheduler {
+      // setInterval(fn: () => void, ms: number): NodeJS.Timeout; }`).
+      if (siBare && !SETINTERVAL_ASSIGNED_RE.test(line) && !/=\s*setInterval/.test(line)
+        && !this._isInsideInterfaceDeclaration(lines, i)
+        && !this._isUnrefdInterval(lines, i)) {
         const entrypoint = this._isProcessEntrypoint(lines, i);
         issues += this._flag(result, `resource-leak:setinterval:${rel}:${i + 1}`, {
           severity: (isTestFile || entrypoint) ? 'info' : 'error',
@@ -281,9 +288,63 @@ class ResourceLeakModule extends BaseModule {
   _isIntervalCleared(lines, startLine, varName) {
     const escaped = this._escapeRegex(varName);
     const clearRe = new RegExp(`\\bclearInterval\\s*\\(\\s*${escaped}\\b`);
+    // `handle.unref()` detaches the interval from keeping the event loop
+    // alive — the documented idiom for a background timer that must not
+    // block process exit (AlecRae issue #771 GT-04). It is not a leak the
+    // way a still-`ref`'d, never-cleared interval is, so it counts as
+    // cleanup the same way `clearInterval` does.
+    const unrefRe = new RegExp(`\\b${escaped}\\s*\\??\\.\\s*unref\\s*\\(`);
     const end = Math.min(lines.length, startLine + 200);
     for (let i = startLine; i < end; i += 1) {
-      if (clearRe.test(lines[i])) return true;
+      if (clearRe.test(lines[i]) || unrefRe.test(lines[i])) return true;
+    }
+    return false;
+  }
+
+  // A `setInterval(...)` shape inside a TS `interface Foo { … }` body is a
+  // METHOD SIGNATURE — `setInterval(fn: () => void, ms: number):
+  // NodeJS.Timeout;` — never a call. It cannot leak a handle because it
+  // never runs. Reuses the same brace-walk as `_enclosingFunctionName`.
+  _isInsideInterfaceDeclaration(lines, index) {
+    const braceLine = this._findEnclosingBraceLine(lines, index);
+    if (braceLine === -1) return false;
+    return /\binterface\s+[A-Za-z_$][\w$]*/.test(lines[braceLine]);
+  }
+
+  // `setInterval(...)` whose handle is `.unref()`'d without a same-line
+  // assignment, in the two shapes AlecRae ships (issue #771 GT-04):
+  //   setInterval(() => { ... }, 60_000).unref();      // chained on the call
+  //   const h = cond ? setInterval(...) : null; h?.unref();  // ternary-assigned
+  // An unref'd interval no longer keeps the event loop alive, so it cannot
+  // block shutdown. A bare, never-unref'd, never-cleared call still fires.
+  _isUnrefdInterval(lines, index) {
+    const start = lines[index].search(/setInterval\s*\(/);
+    if (start === -1) return false;
+    // Chained: walk the parens (masked lines, so string parens are blanked)
+    // to the call's closing `)` and look at what follows it.
+    let depth = 0;
+    for (let i = index; i < Math.min(lines.length, index + 200); i += 1) {
+      const text = lines[i] || '';
+      for (let c = i === index ? start : 0; c < text.length; c += 1) {
+        if (text[c] === '(') depth += 1;
+        else if (text[c] === ')') {
+          depth -= 1;
+          if (depth === 0) {
+            const rest = text.slice(c + 1) + ' ' + (lines[i + 1] || '');
+            if (/^\s*\??\.\s*unref\s*\(/.test(rest)) return true;
+            i = lines.length;
+            break;
+          }
+        }
+      }
+    }
+    // Ternary-assigned: `const h = cond ? setInterval(...) : null;` split over
+    // lines, the handle unref'd (or cleared) further down.
+    if (/^\s*[?:]\s*setInterval/.test(lines[index])) {
+      for (let k = index - 1; k >= Math.max(0, index - 3); k -= 1) {
+        const m = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/.exec(lines[k] || '');
+        if (m) return this._isIntervalCleared(lines, index, m[1]);
+      }
     }
     return false;
   }
