@@ -49,6 +49,7 @@ itself still uses the old variable names until the owner's cutover.
   266→158 blocking, ~422s→159s wall time, 822 gitignored paths skipped.
 - Hosted web scan honesty: JSON API host skips HTML-only checks, navigation failure is not a
   broken link: #804 (#768 items 3 and 4; items 1, 2, 5 still open).
+- #771 GT-04/05/10 false positives (unref'd setInterval and TS interface member, masked/abbreviated/gitleaks:allow/credential-free-redis secrets, echo redirected to a file): AlecRae blocking secrets 10→7, ciSecurity 1→0, resourceLeak 5→1; classes still open in #771: GT-02,03,06-09,11-14.
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
