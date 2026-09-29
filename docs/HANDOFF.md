@@ -757,3 +757,46 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   land, dnsPosture/mailPosture/apiHealth/deployFreshness/WordPress gaps per #807.
 - Local hygiene: 24 stale worktree shells under C:\dev\crclabs-hq removed (held only
   node_modules junctions); remaining GateTest-wt-* folders map one-to-one to open PRs.
+
+### Addendum 2026-09-29 01:50Z — eleven merges tonight; Tallrig's missing-title receipt is a release gap
+
+- Merged since 00:30Z: #821 (fp3, #771 GT-03/09/11/12), #825 (fp4, GT-13/14a/14b + `--timings`
+  #770; AlecRae bashSafety 18→9), #827 (per-page crawl, closes #815: webHeaders/
+  cookieSecurity/accessibility/seo audit every crawled HTML page, findings carry `url` and
+  a folded `pages[]`, crawl JSON gains `pageChecks`; `--crawl-check-pages`, default 25),
+  #828 (#807 R4/R5/R12: apiHealth NOT CHECKED when nothing confirms an API, deploy/fresh
+  NOT CHECKED without an expected commit, DNS/mail posture needs `v=DMARC1` + `p=` and a
+  real SPF qualifier, resolver failure ≠ "no record"), #830 (deploy-contract skips the
+  value of curl `-o`/`--output` and wget `-O`), #823, #824.
+- Open, auto-merge armed and up to date at 01:45Z: #813 (report `schemaVersion`; its
+  pre-existing SARIF test asserted no run-level properties on PASSED — now asserts
+  rootCause absent + gatetestSchemaVersion present), #826 (`GET /api/health/deep`),
+  #831 (an expired deadline reports 0 ms remaining; removes the timing flake that
+  reddened #830's sweep once). DRAFT #822 estate unchanged: owner decides who runs the
+  121→122 count sweep and whether estate may confirm NXDOMAIN via 1.1.1.1/8.8.8.8.
+- Tallrig receipt 01:28Z: their first self-crawl (@gatetest/cli 1.61.1 on box B,
+  `--crawl http://127.0.0.1:3200 --crawl-max 100 --strict`) → 38 blocking
+  `crawl:error:missing-title`, all false: pages carry `<title data-sm="…">`. Fixed on
+  main since 22 Sep (#641, commit 11dde4e2, one extractor in src/core/html-extract.js);
+  the published 1.61.1 predates it. Told Tallrig to crawl from a main checkout meanwhile;
+  their medic ignores that rule on the 1.61.1 build only.
+- RELEASE ASK (owner): main is 753 commits past v1.61.1 (300+ false-positive fixes,
+  crawler fixes, telemetry guard, everything above). Cut 1.62.0: `npm version 1.62.0
+  --no-git-tag-version`, commit, `git tag v1.62.0`, `git push origin v1.62.0`;
+  .github/workflows/publish.yml verifies tag == package.json version and publishes via
+  the Trusted Publisher, then creates the GitHub Release. packages/mcp-server is 1.2.1
+  in tree (npm has 1.2.0) and needs its own publish. Not done: a public release is the
+  owner's call. After it lands, deprecate ≤1.61.1 on npm (owner) and page Tallrig +
+  AlecRae to re-run.
+- New issue #829: website/app/api/scan/{server,nuclear}/route.ts duplicate the old DNS
+  posture claims #828 removed from ServerScanner (admin-only; needs tsc).
+- Corpus ratchet still owed on main now that #816/#820/#821/#825/#828/#830 landed:
+  `node scripts/real-world-precision.js --ratchet --write-json` then commit
+  reliability-corpus/real-world.json + website/app/data/precision.json (heavy; run when
+  the machine is quiet).
+- Box hygiene: worktrees now map to #813 (schema), #826 (health), #831 (budgetfix), #822
+  (estate) plus this branch; two folders (GateTest-wt-heavyfix, GateTest-wt-dcflag) are
+  unregistered shells a lingering shell keeps locked — delete when free.
+- Unchanged owner items: box 161 pull-deploy killed mid-build every run (journalctl on
+  161), prod 24+ commits behind main so none of tonight's fixes are live; AlecRae holds
+  G1/G2/G3 re-measures until gatetest.io serves 2091f19a and #826's sha.
