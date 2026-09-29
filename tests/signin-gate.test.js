@@ -27,7 +27,7 @@ const { DEFAULT_SITE_URL } = require('../website/app/lib/site-url.js');
 // The app's own signing helper is TypeScript. Node 22.18+ / 24 load it
 // directly; on an older Node the cookie tests skip loudly rather than fake it.
 let customerSession = null;
-try { customerSession = require('../website/app/lib/customer-session.ts'); } catch { /* skipped below */ }
+try { customerSession = require('../website/app/lib/customer-session.ts'); } catch { /* error-ok — this Node cannot load .ts; the cookie tests skip loudly via `ts` below */ }
 const SECRET = 'signin-gate-test-secret-not-a-real-credential-0123456789';
 const ts = { skip: customerSession ? false : 'this Node cannot load .ts (needs 22.18+)' };
 
