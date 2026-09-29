@@ -151,6 +151,9 @@ const FLAG_SPEC = [
   { flags: ['--budget'], key: 'budget', type: 'int' },
   { flags: ['--crawl-max'], key: 'crawlMax', type: 'int' },
   { flags: ['--crawl-page-timeout'], key: 'crawlPageTimeout', type: 'int' },
+  // How many crawled pages the page-level modules audit under --crawl
+  // (#815). Default DEFAULT_CRAWL_CHECK_PAGES (src/core/config.js).
+  { flags: ['--crawl-check-pages'], key: 'crawlCheckPages', type: 'int' },
   { flags: ['--monitor-interval'], key: 'monitorInterval', type: 'int' },
   { flags: ['--confidence-threshold'], key: 'confidenceThreshold', type: 'float01' },
 

@@ -27,7 +27,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 
-const { CRAWL_CAPABLE_MODULES, partitionCrawlSelection, DEFAULT_CONFIG } = require('../src/core/config');
+const { CRAWL_CAPABLE_MODULES, CRAWL_PAGE_MODULES, partitionCrawlSelection, DEFAULT_CONFIG } = require('../src/core/config');
 const { ModuleRegistry } = require('../src/core/registry');
 
 const GATETEST_BIN = path.join(__dirname, '..', 'bin', 'gatetest.js');
@@ -87,6 +87,17 @@ describe('CRAWL_CAPABLE_MODULES: one definition (issue #802)', () => {
     assert.ok(web.indexOf('liveCrawler') < web.indexOf('links'));
   });
 
+  it('CRAWL_PAGE_MODULES (#815) is a subset of CRAWL_CAPABLE_MODULES, in its order', () => {
+    let last = -1;
+    for (const name of CRAWL_PAGE_MODULES) {
+      const at = CRAWL_CAPABLE_MODULES.indexOf(name);
+      assert.ok(at > -1, `${name} is page-level but not crawl-capable`);
+      assert.ok(at > last, `${name} is out of CRAWL_CAPABLE_MODULES order`);
+      last = at;
+    }
+    assert.ok(!CRAWL_PAGE_MODULES.includes('liveCrawler') && !CRAWL_PAGE_MODULES.includes('links'));
+  });
+
   it('partitionCrawlSelection splits capable from skipped and keeps a stranger out of capable', () => {
     assert.deepEqual(partitionCrawlSelection(['seo']), { capable: ['seo'], skipped: [] });
     assert.deepEqual(partitionCrawlSelection(['unitTests', 'seo', 'lint']), { capable: ['seo'], skipped: ['unitTests', 'lint'] });
@@ -132,7 +143,7 @@ describe('gatetest --crawl honours --module / --suite (issue #802, CLI level)', 
     assert.match(r.stdout, /\[RUN\] liveCrawler/);
     assert.match(r.stdout, /\[RUN\] seo \[FAIL\]/, r.stdout);
     assert.match(r.stdout, /seo:description:/, 'the missing meta description finding reaches the output');
-    assert.match(r.stdout, /ran against .*: seo \(\d+ findings?\)/);
+    assert.match(r.stdout, /ran against .*: seo \(\d+ findings? on 1 of 1 crawled page\)/, r.stdout);
     assert.equal(r.code, 1, r.stdout);
   });
 
@@ -140,7 +151,7 @@ describe('gatetest --crawl honours --module / --suite (issue #802, CLI level)', 
     const r = await runCli([...base(clean.url), '--module', 'seo']);
     assert.match(r.stdout, /\[RUN\] seo \[PASS\]/, r.stdout);
     // Warnings (missing Open Graph tags) are findings but do not block.
-    assert.match(r.stdout, /ran against .*: seo \(\d+ findings?\)/);
+    assert.match(r.stdout, /ran against .*: seo \(\d+ findings? on 1 of 1 crawled page\)/, r.stdout);
     assert.equal(r.code, 0, `${r.stdout}\n${r.stderr}`);
   });
 
