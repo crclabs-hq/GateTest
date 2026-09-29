@@ -389,3 +389,78 @@ module.exports = function (app, adminHandler) {
     assert.ok(r.errors.some((c) => c.id === 'auth-bypass:src/routes.ts'), JSON.stringify(r.findings));
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GT-11 (#771, AlecRae.com crawl): public-by-design discovery endpoints —
+// the customer's apps/api/src/server.ts registers `GET /` and `GET /v1`
+// (a capability index), `GET /openapi.yaml` and `ROUTE /v1/uptime`, and the
+// rule reported the file as "4 unprotected routes" at error severity. These
+// answer without a session by convention (load balancers, crawlers, API
+// clients probing a schema or version, a human discovering the API by
+// hand), not by oversight. The canonical list lives in
+// src/core/public-discovery-routes.js and is WHOLE-PATH matched, so a path
+// that merely contains one of these words as part of something bigger
+// (`/api/admin/users`, `/api/versions/1`, `/v1/users`) is not exempted.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('authBypass — public discovery endpoints are not unprotected routes (GT-11)', () => {
+  it('NEGATIVE: the customer line — GET /, GET /v1, GET /openapi.yaml, ROUTE /v1/uptime produce no finding', async () => {
+    const r = await scan({ 'src/server.ts': `
+const app = new Hono();
+app.get("/health", liveness);
+app.get("/", capabilityIndex);
+app.get("/v1", capabilityIndex);
+app.get("/openapi.yaml", (c) => c.text(openapiYaml, 200, { "content-type": "application/yaml" }));
+app.route("/v1/uptime", uptimeRoutes);
+export default app;
+` });
+    assert.equal(r.findings.length, 0, JSON.stringify(r.findings));
+  });
+
+  it('NEGATIVE: /.well-known/security.txt, /healthz, /status, /robots.txt, /openapi.json, /api/version produce no finding', async () => {
+    const r = await scan({ 'src/routes.js': `
+const router = require('express').Router();
+router.get('/.well-known/security.txt', (req, res) => res.send('...'));
+router.get('/healthz', (req, res) => res.json({ ok: true }));
+router.get('/status', (req, res) => res.json({ ok: true }));
+router.get('/robots.txt', (req, res) => res.type('text').send('User-agent: *'));
+router.get('/openapi.json', (req, res) => res.json(spec));
+router.get('/api/version', (req, res) => res.json({ version: '1.0.0' }));
+module.exports = router;
+` });
+    assert.equal(r.findings.length, 0, JSON.stringify(r.findings));
+  });
+
+  it('POSITIVE: GET /v1/users beside the public front door still fires (sensitive path under the same prefix)', async () => {
+    const r = await scan({ 'src/server.ts': `
+const app = new Hono();
+app.get("/", capabilityIndex);
+app.get("/v1", capabilityIndex);
+app.get("/v1/users", (c) => c.json(listUsers()));
+export default app;
+` });
+    assert.equal(r.errors.length, 1, JSON.stringify(r.findings));
+    assert.match(r.errors[0].meta.message, /1 unprotected route/);
+    assert.match(r.errors[0].meta.message, /GET \/v1\/users/);
+  });
+
+  it('POSITIVE: /api/admin/users without an auth middleware still fires', async () => {
+    const r = await scan({ 'src/routes.js': `
+const router = require('express').Router();
+router.get('/api/admin/users', (req, res) => res.json(db.users.all()));
+module.exports = router;
+` });
+    assert.equal(r.errors.length, 1, JSON.stringify(r.findings));
+    assert.match(r.errors[0].meta.message, /GET \/api\/admin\/users/);
+  });
+
+  it('POSITIVE: a path that merely CONTAINS "version" or "status" as part of a bigger segment still fires', async () => {
+    const r = await scan({ 'src/routes.js': `
+const router = require('express').Router();
+router.post('/api/versions/1/publish', (req, res) => res.json(publish(req.body)));
+module.exports = router;
+` });
+    assert.equal(r.errors.length, 1, JSON.stringify(r.findings));
+    assert.match(r.errors[0].meta.message, /POST \/api\/versions\/1\/publish/);
+  });
+});

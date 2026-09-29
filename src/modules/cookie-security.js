@@ -214,7 +214,11 @@ class CookieSecurityModule extends BaseModule {
     // response headers via config.livePage — Set-Cookie flags (HttpOnly /
     // Secure / SameSite) are visible there without any source to read.
     if (config && config.livePage) {
-      this._runLive(config.livePage, result);
+      // Under --crawl the crawler hands over every page it fetched (#815):
+      // each response's Set-Cookie flags are audited, findings folded per page.
+      const pages = this._crawledPages(config);
+      if (pages) this._runLiveCrawl(pages, config.livePage, result);
+      else this._runLive(config.livePage, result);
       return;
     }
 
@@ -281,6 +285,39 @@ class CookieSecurityModule extends BaseModule {
   /** Live-URL mode: `livePage` is `{ url, status, headers, html }` from ONE
    *  shared fetch the route already made (config.livePage). */
   _runLive(livePage, result) {
+    const issues = this._auditLivePage(livePage, result);
+    result.addCheck('cookie-sec:live-summary', true, {
+      severity: 'info',
+      message: issues === 0
+        ? 'Live cookie check: no Set-Cookie flag issues found (or the response set no cookies)'
+        : `Live cookie check: ${issues} issue(s) found on the fetched response`,
+    });
+  }
+
+  /**
+   * Every page the crawl fetched (#815), each response's Set-Cookie flags
+   * audited by `_auditLivePage` and folded per finding by
+   * `BaseModule#_foldLivePages`. A page the engine kept no headers for (the
+   * browser crawl) is not audited; if none has any, the entry page's own
+   * fetch is audited as before.
+   */
+  _runLiveCrawl(pages, livePage, result) {
+    const withHeaders = pages.filter((p) => p.headers);
+    if (withHeaders.length === 0) {
+      this._runLive(livePage, result);
+      return;
+    }
+    const issues = this._foldLivePages(withHeaders, result, (page, sink) => this._auditLivePage(page, sink));
+    result.addCheck('cookie-sec:live-summary', true, {
+      severity: 'info',
+      message: issues === 0
+        ? `Live cookie check: no Set-Cookie flag issues found on ${withHeaders.length} crawled page(s)`
+        : `Live cookie check: ${issues} distinct issue(s) found across ${withHeaders.length} crawled page(s)`,
+    });
+  }
+
+  /** The checks themselves, against one live response. Returns the issue count. */
+  _auditLivePage(livePage, result) {
     const findings = liveCookieChecks(livePage && livePage.headers);
     for (const f of findings) {
       result.addCheck(`cookie-sec:${f.id}`, false, {
@@ -289,12 +326,7 @@ class CookieSecurityModule extends BaseModule {
         suggestion: f.suggestion,
       });
     }
-    result.addCheck('cookie-sec:live-summary', true, {
-      severity: 'info',
-      message: findings.length === 0
-        ? 'Live cookie check: no Set-Cookie flag issues found (or the response set no cookies)'
-        : `Live cookie check: ${findings.length} issue(s) found on the fetched response`,
-    });
+    return findings.length;
   }
 
   /**

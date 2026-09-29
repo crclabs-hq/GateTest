@@ -50,7 +50,7 @@ function fetchPage(url, timeout, extraHeaders, _originHost) {
           // hop as terminal rather than let a broken redirect reject/hang.
           resolve({
             url, finalUrl: url, status: res.statusCode, statusText: res.statusMessage,
-            contentType: res.headers['content-type'] || '', body: '',
+            contentType: res.headers['content-type'] || '', headers: res.headers, body: '',
             redirected: false, responseMs: Date.now() - startedAt,
           });
           res.resume();
@@ -68,7 +68,7 @@ function fetchPage(url, timeout, extraHeaders, _originHost) {
           // accounts.google.com, reported as a broken link on gluecron.com).
           resolve({
             url, finalUrl: redirectUrl, status: res.statusCode, statusText: res.statusMessage,
-            contentType: res.headers['content-type'] || '', body: '',
+            contentType: res.headers['content-type'] || '', headers: res.headers, body: '',
             redirected: true, redirectStatus: res.statusCode, originalUrl: url,
             offSiteRedirect: true, responseMs: Date.now() - startedAt,
           });
@@ -110,6 +110,9 @@ function fetchPage(url, timeout, extraHeaders, _originHost) {
           status: res.statusCode,
           statusText: res.statusMessage,
           contentType: res.headers['content-type'] || '',
+          // The response headers, kept with the page so the page-level
+          // modules can audit every crawled page's headers/cookies (#815).
+          headers: res.headers,
           body,
           redirected: false,
           responseMs: Date.now() - startedAt,
@@ -186,6 +189,59 @@ function isResourceHintLinkTag(linkTag) {
   return false;
 }
 
+// One definition of "which URL is this" for the crawl (#806). `new URL()`
+// already gives an empty path its `/` and drops a default port, but the
+// queue was seeded with the raw target string (`https://tallrig.com`) while
+// every discovered link was resolved (`https://tallrig.com/`), so the apex
+// was fetched twice and its title reported as a duplicate. Every URL that
+// enters `visited`, the queue or a link list goes through here: empty path
+// becomes `/`, default ports and the fragment are dropped.
+function normaliseCrawlUrl(url) {
+  try {
+    const u = new URL(url);
+    u.hash = '';
+    return u.href;
+  } catch { return url; }
+}
+
+// The href of the page's own <link rel="canonical">, whatever the attribute
+// order, or null. Commented-out and templated markup is ignored.
+function extractCanonicalHref(html) {
+  const navigableHtml = stripNonNavigableRegions(html || '');
+  const linkRe = /<link\b[^>]*>/gi;
+  let m;
+  while ((m = linkRe.exec(navigableHtml)) !== null) {
+    const rel = m[0].match(/\brel\s*=\s*["']([^"']+)["']/i);
+    if (!rel || !rel[1].toLowerCase().split(/\s+/).includes('canonical')) continue;
+    const href = m[0].match(/\bhref\s*=\s*["']([^"']+)["']/i);
+    if (href && href[1].trim()) return href[1].trim();
+  }
+  return null;
+}
+
+// What a crawled page is, once its canonical is honoured (#806). Returns the
+// normalised canonical URL when it is a DIFFERENT page on the same host —
+// the page is then an alias that both engines skip recording (the canonical
+// is queued and recorded once, so pages, titles and links de-duplicate under
+// it) — or null when the page stands for itself: no canonical, self-
+// canonical, cross-host canonical (a syndicated copy is not this site's
+// duplicate), unparseable, or a canonical cycle (the target was itself an
+// alias, so honouring it would drop both).
+function aliasTarget({ url, canonicalHref, aliasOf }) {
+  if (!canonicalHref) return null;
+  let target;
+  let self;
+  try {
+    self = new URL(url);
+    target = new URL(canonicalHref, url);
+  } catch { return null; }
+  if (target.host !== self.host || target.protocol !== self.protocol) return null;
+  const key = normaliseCrawlUrl(target.href);
+  if (key === normaliseCrawlUrl(self.href)) return null;
+  if (aliasOf.has(key)) return null;
+  return key;
+}
+
 function extractLinks(html, baseUrl, pageUrl) {
   const internal = [];
   const external = [];
@@ -199,7 +255,7 @@ function extractLinks(html, baseUrl, pageUrl) {
         href.startsWith('javascript:') || href.startsWith('data:')) continue;
 
     try {
-      const resolved = new URL(href, pageUrl).href;
+      const resolved = normaliseCrawlUrl(new URL(href, pageUrl).href);
       if (resolved.startsWith(baseUrl)) {
         internal.push({ href: resolved, source: pageUrl });
       } else if (href.startsWith('http')) {
@@ -288,4 +344,5 @@ function getSuggestion(errorType) {
 module.exports = {
   fetchPage, checkUrl, extractLinks, extractImages, getSuggestion,
   extractTitle, extractDeclaredIconHref,
+  normaliseCrawlUrl, extractCanonicalHref, aliasTarget,
 };

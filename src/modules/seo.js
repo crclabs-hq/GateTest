@@ -26,6 +26,13 @@ class SeoModule extends BaseModule {
         this._notChecked(result, 'JSON API host — HTML checks do not apply');
         return;
       }
+      // Under --crawl the crawler hands over every page it fetched (#815):
+      // each is audited by the same checks, findings folded per page.
+      const pages = this._crawledPages(config);
+      if (pages) {
+        this._runLiveCrawl(pages, config, result);
+        return;
+      }
       this._runLive(config.livePage, config, result);
       return;
     }
@@ -178,30 +185,8 @@ class SeoModule extends BaseModule {
    * (a live scan has no repository layout to check for those files).
    */
   _runLive(livePage, config, result) {
-    const html = (livePage && livePage.html) || '';
-    const label = (livePage && livePage.url) || 'fetched page';
-    if (!html) {
-      this._notChecked(result, 'the shared page fetch for this scan returned no HTML body to audit');
-      return;
-    }
-    if (isSpaShell(html)) {
-      result.addCheck('seo:live-summary', true, {
-        severity: 'info',
-        message: 'Page is a client-rendered SPA shell — no server-rendered metadata to audit',
-      });
-      return;
-    }
-    const seoConfig = (config && typeof config.getModuleConfig === 'function')
-      ? (config.getModuleConfig('seo') || {})
-      : {};
     const before = result.checks.length;
-    this._checkTitle(label, html, seoConfig, result);
-    this._checkMetaDescription(label, html, seoConfig, result);
-    this._checkOpenGraph(label, html, result);
-    this._checkTwitterCards(label, html, result);
-    this._checkCanonical(label, html, result);
-    this._checkStructuredData(label, html, result);
-    this._checkHeadingSeo(label, html, result);
+    if (!this._auditLivePage(livePage, config, result)) return;
     const issues = result.checks.slice(before).filter((c) => !c.passed).length;
     result.addCheck('seo:live-summary', true, {
       severity: 'info',
@@ -209,6 +194,49 @@ class SeoModule extends BaseModule {
         ? 'Live SEO check: no issues found on the fetched page'
         : `Live SEO check: ${issues} issue(s) found on the fetched page`,
     });
+  }
+
+  /**
+   * Every page the crawl fetched (#815), audited by `_auditLivePage` and
+   * folded per finding by `BaseModule#_foldLivePages`: a missing title on
+   * /pricing cites /pricing; a site-wide miss is one finding listing pages.
+   */
+  _runLiveCrawl(pages, config, result) {
+    const issues = this._foldLivePages(pages, result, (page, sink) => this._auditLivePage(page, config, sink));
+    result.addCheck('seo:live-summary', true, {
+      severity: 'info',
+      message: issues === 0
+        ? `Live SEO check: no issues found on ${pages.length} crawled page(s)`
+        : `Live SEO check: ${issues} distinct issue(s) found across ${pages.length} crawled page(s)`,
+    });
+  }
+
+  /** The checks themselves, against one live page. False when the page could not be audited (no body, SPA shell). */
+  _auditLivePage(livePage, config, result) {
+    const html = (livePage && livePage.html) || '';
+    const label = (livePage && livePage.url) || 'fetched page';
+    if (!html) {
+      this._notChecked(result, 'the shared page fetch for this scan returned no HTML body to audit');
+      return false;
+    }
+    if (isSpaShell(html)) {
+      result.addCheck('seo:live-summary', true, {
+        severity: 'info',
+        message: 'Page is a client-rendered SPA shell — no server-rendered metadata to audit',
+      });
+      return false;
+    }
+    const seoConfig = (config && typeof config.getModuleConfig === 'function')
+      ? (config.getModuleConfig('seo') || {})
+      : {};
+    this._checkTitle(label, html, seoConfig, result);
+    this._checkMetaDescription(label, html, seoConfig, result);
+    this._checkOpenGraph(label, html, result);
+    this._checkTwitterCards(label, html, result);
+    this._checkCanonical(label, html, result);
+    this._checkStructuredData(label, html, result);
+    this._checkHeadingSeo(label, html, result);
+    return true;
   }
 
   // #653: a bare `/<title>([^<]*)<\/title>/i` requires an attribute-free

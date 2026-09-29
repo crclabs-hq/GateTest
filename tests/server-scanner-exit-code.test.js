@@ -12,11 +12,11 @@
  * server-scanner.js) are the one definition of the severity split; this
  * file tests them directly against both synthetic results (every
  * combination the policy cares about) and a REAL result fragment from
- * `_checkDNS('127.0.0.1')` — a loopback "hostname" reliably produces
- * exactly one warning (no DMARC record) and zero errors from real,
- * deterministic, network-free-in-practice code (DNS resolution of an IP
- * literal as a hostname is ENOTFOUND everywhere, no external network
- * needed), without requiring a trusted TLS certificate to exercise the SSL
+ * `_checkDNS` over an injected resolver (issue #807 R4: an IP literal is
+ * NOT CHECKED now, so the fragment is a name whose `_dmarc` lookup is
+ * ENOTFOUND) — exactly one warning (no DMARC record) and zero errors from
+ * real, deterministic, network-free code, without requiring a trusted TLS
+ * certificate to exercise the SSL
  * module cleanly (self-signed/loopback HTTPS is out of scope here — the
  * `--server` flag always forces the SSL check, so a genuinely zero-error,
  * warning-only run of the FULL CLI would need a trusted cert, which this
@@ -109,9 +109,21 @@ describe('ServerScanner severity policy (issue #677 item 3)', () => {
 // against a loopback "hostname", not a hand-built fixture.
 // ============================================================================
 describe('ServerScanner severity policy against a REAL result fragment', () => {
-  it('_checkDNS("127.0.0.1") genuinely produces exactly one warning (no DMARC record) and zero errors', async () => {
+  it('_checkDNS with a resolver that proves DMARC absent genuinely produces exactly one warning and zero errors', async () => {
+    // Issue #807 R4: an IP literal is now NOT CHECKED (no warning at all), so
+    // the one-warning fragment comes from the real _checkDNS over an injected
+    // callback resolver — A record present, SPF -all, `_dmarc` ENOTFOUND.
+    // Still real module output, still no network.
+    const notFound = Object.assign(new Error('ENOTFOUND'), { code: 'ENOTFOUND' });
+    const resolver = {
+      resolve4: (name, cb) => cb(null, ['203.0.113.10']),
+      resolve6: (name, cb) => cb(notFound),
+      resolveMx: (name, cb) => cb(notFound),
+      resolveTxt: (name, cb) => (name.startsWith('_dmarc.') ? cb(notFound) : cb(null, [['v=spf1 -all']])),
+      lookup: (name, opts, cb) => cb(notFound),
+    };
     const scanner = new ServerScanner();
-    const dnsMod = await scanner._checkDNS('127.0.0.1');
+    const dnsMod = await scanner._checkDNS('example.test', resolver);
     const result = fakeResult([{ name: 'dns', ...dnsMod }]);
 
     assert.deepEqual(ServerScanner.countSeverities(result), { errors: 0, warnings: 1 },

@@ -47,21 +47,41 @@ itself still uses the old variable names until the owner's cutover.
   #776 (closes #767). `BaseModule._collectFiles` now skips gitignored paths and
   a built-in build-output name set by default; measured on AlecRae.com
   266→158 blocking, ~422s→159s wall time, 822 gitignored paths skipped.
+- JSON report is a versioned contract: top-level `schemaVersion: 1` (also SARIF
+  `runs[0].properties`, JUnit `<testsuites>`), pinned fields in
+  `docs/api/report-schema.md` + `tests/report-schema-contract.test.js` (closes #803).
+- `--crawl` honours `--module` / `--suite` (closes #802): crawl-capable members run against the site, the rest are named on one "not crawl-capable, skipped" line and in `summary.deferred`; none capable is exit 2 under `--strict`/CI. One list: `CRAWL_CAPABLE_MODULES` in `src/core/config.js`. Bare `--crawl` unchanged (liveCrawler only); `--crawl --suite web` is the hosted /web set.
 - Telemetry host guard + `GATETEST_TELEMETRY` switch + first-run field list +
   `--telemetry-status`: #811 (refs #801); default stays `'on'` until the owner sets
   `TELEMETRY_DEFAULT`; `npm deprecate` of 1.60.0 and earlier is owner-only.
 - Hosted web scan honesty: JSON API host skips HTML-only checks, navigation failure is not a
   broken link: #804 (#768 items 3 and 4).
+- #771 GT-03 / GT-09 / GT-11 / GT-12 false positives closed against the AlecRae line
+  (crossFileTaint query-string and verify-guarded redirects, deployScriptValidator
+  upload-artifact paths, authBypass `GET /` / `/v1` / `/openapi.yaml` / `/v1/uptime`,
+  logPii + dataIntegrity operator CLIs under `scripts/`): PR `fix/fp-taint-shell-auth-771`.
+  Measured on AlecRae.com: crossFileTaint 3→0, deployScriptValidator 2→1 (the k8s
+  `/api/health` probe that 404s live stays), authBypass 1 error→0, logPii 1→0,
+  dataIntegrity PII-in-logs 11→6 (five `apps/api/scripts/*.ts` gone, nothing added).
+  One definition each: `src/core/public-discovery-routes.js`, `src/core/operator-cli.js`.
 - Hosted `/api/web/scan` keeps its own clock (issue #768 items 1, 2, 5): 50 s budget
   (`GATETEST_WEB_SCAN_BUDGET_MS`), then 200 + `partial: true` + unfinished modules
   not-checked + `streamUrl`; every response carries an absolute `reportUrl`;
   runtime-not-configured is explained in `notCheckedReasons`. Control pair
   `tests/web-scan-budget.test.js`. Live-verify after deploy (never run live).
+- Crawler apex/canonical de-dup (closes #806), a11y component label prop and retry compare-bound
+  (refs #771 GT-02 / GT-07): #820; AlecRae accessibility blocking 92 -> 12, retryHygiene 1 -> 0.
+- #771 GT-04/05/10 false positives (unref'd setInterval and TS interface member, masked/abbreviated/gitleaks:allow/credential-free-redis secrets, echo redirected to a file): AlecRae blocking secrets 10→7, ciSecurity 1→0, resourceLeak 5→1; classes still open in #771: GT-02,03,06-09,11-14.
 - First-hour sign-in journey: server-side gate (`/dashboard` 307 to `/login?next=`), `/login` entry, `/register` `/signup` `/sign-up` 301 to `/login`, `/docs` clean 307, `GET /api` JSON, crawler flags a redirect that carries an error page: #819 (closes #810, #812; unverified live until deployed).
 - `estate` module (module 122, #807 R3, `src/modules/estate.js`): host discovery from list /
   sitemap / TLS SAN / links, per-host verdict. Runs in `full`, `nuclear`, `wp`; not `quick` or
   `standard`. An NXDOMAIN from the system resolver is only "dead" once 1.1.1.1 or 8.8.8.8 agrees
   (the ISP resolver called five live hosts dead on 2026-09-28).
+- Composite readiness `GET /api/health/deep`: db / queue / ai / mail / runtime sub-checks with status, latency and reason; 503 when a required one is down, optional ones report `not-configured`; `/api/health` stays the bare liveness ping. Pure composer `website/app/lib/health-composite.js`, control pairs `tests/health-composite.test.js`, live probe `tests/heavy/health-deep-live.test.js` (closes #809; unverified live until deployed).
+- #807 honesty gaps, three-state verdicts (refs #807 R4/R5/R12): `apiHealth` NOT CHECKED when nothing was confirmed (the tallrig.com "26 checked — 0 broken" false green), `deploy/fresh` NOT CHECKED with nothing to compare the served sha against, `--server` DNS/mail posture stops passing apex `_dmarc` text / any-TXT DMARC / `+all` SPF and reads resolver failures as NOT CHECKED: #828. Local fixtures only; live tallrig.com re-run is the owner's after deploy.
+- CI-step and toolchain honesty (refs #771 GT-13, GT-14a, GT-14b; #770): best-effort `|| true` shapes (chmod/chown/touch, a same-file function that prints its own verdict, a plumbing-named YAML step) are warnings; ESLint skips gitignored / build-output dirs; a build failure before any test ran is "not checked"; `--timings`: #825. Measured on AlecRae.com @ d9f61aa: bashSafety 18→9 blocking (45→45 total), ESLint 4254→298 errors.
+- deployContract reads past `curl -o` / `--output` / `wget -O` and their value (refs #771; the item dropped from #821 for having no test): `-o $OUT` in a health-named workflow no longer blocks on `deploy-contract:/`, and the real URL after `-o /tmp/file` is now checked. Control pair `tests/deploy-contract-output-flag.test.js`, all three cases fail on the previous module.
+- Per-page crawl (closes #815): under `--crawl --module/--suite`, webHeaders, cookieSecurity, accessibility and seo audit every crawled HTML page (`--crawl-check-pages`, default 25; pages past the cap are named on the "N pages not checked" line and in JSON `pageChecks`); each finding cites its page URL, identical findings across pages fold to one finding with `pages: [...]`. One page store (`liveCrawler` result `crawledPages`), one fold (`BaseModule#_foldLivePages`). Hosted `/web` scan unchanged (single entry page) until it sets `modules.liveCrawler.checkPages`. Control pair `tests/crawl-per-page.test.js`.
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 
@@ -120,9 +140,13 @@ DavenRoe); every red we miss is our gap. Epic: #807 (miss-by-miss mapping).
 | R3 | `estate`: every host from sitemap / cert SANs / list, per-host verdict | BUILT, module-count sync pending (branch `feat/estate-module-807`) | #807; live run on tallrig.com estate: five `*.tallrig.app` = gateway-up-app-dead, `vapron.ai` / `api.vapron.ai` = unexpected-ip |
 | R4 | `dnsPosture`: SPF/DKIM/DMARC alignment, PTR, wildcard, delegation, 0x20, legacy domain → uncontrolled IP | OPEN | #807 |
 | R5 | `deployFreshness`: served sha vs expected | OPEN | #807 |
+| R3 | `estate`: every host from sitemap / cert SANs / list, per-host verdict | OPEN | #807 |
+| R4 | `dnsPosture` / `mailPosture`: SPF/DMARC honesty in `--server` (apex `_dmarc` text, any-TXT DMARC, `+all` SPF no longer pass; resolver failure = NOT CHECKED) — PR #828. PTR/HELO, wildcard, delegation, 0x20, legacy domain → uncontrolled IP need a new module (count frozen; estate #822 covers the last) | PARTIAL | #828, #807 |
+| R5 | `deployFreshness`: served sha vs expected — `deploy/fresh` says NOT CHECKED with nothing to compare against, "matches expected" / "age only" when it can — PR #828 | IN REVIEW | #828 |
 | R6 | Blank render / hydration crash in runtimeErrors; CLI runs it when a browser exists | OPEN | #807 |
 | R7 | WordPress gap checks: dir listing, PHP notices in HTML, admin-ajax, brute-force probe, TTFB per page | OPEN | #807 |
 | R8 | WordPress repair recipes per finding; automated fix + receipt on platforms we run | OPEN | #807 |
-| R9 | Crawler apex double count / rel=canonical (retracted T-01) | OPEN | #806 |
+| R9 | Crawler apex double count / rel=canonical (retracted T-01) | IN REVIEW | #806, PR #820 |
 | R10 | Telemetry host guard + opt-in wiring (default = owner's line) | IN PROGRESS | #801 builder |
 | R11 | Report `schemaVersion` + contract test + docs/api/report-schema.md | IN PROGRESS | #803 builder |
+| R12 | `apiHealth` honesty: "0 broken" only over confirmed endpoints, NOT CHECKED when every probe was a guess (names the missing spec / endpoints / homepage links), page-path form POSTs not "API returned HTML", 4xx HTML on a confirmed API route fires | IN REVIEW | #828 |

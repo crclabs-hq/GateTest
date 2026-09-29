@@ -327,6 +327,11 @@ const HELP = `
                        ran. Under --strict, an exceeded budget is itself a
                        usage failure (exit 2). Also settable via
                        GATETEST_BUDGET_S; --budget wins when both are set.
+    --timings          Print every module's own elapsed plus a running total
+                       after the run (issue #770). Default output already
+                       shows each module's elapsed inline and a top-5
+                       "Slowest:" line; this adds the full accounting for a
+                       "where did the time go" run. Off by default.
     --help, -h         Show this help message
     --doctor           Audit your environment — checks every prerequisite for
                        auto-fix to work (Node version, gh CLI, ANTHROPIC_API_KEY,
@@ -360,13 +365,34 @@ const HELP = `
                        document on stdout and nothing else there — progress
                        and the human report go to stderr instead. Shape:
                          { url, pagesScanned, generatedAt, result, exitCode,
-                           findings: [ { type, severity, message, url } ] }
+                           findings: [ { type, severity, message, url, pages? } ],
+                           pageChecks?: { crawled, checked, notChecked, cap } }
                        Default (no flag): unchanged text output.
+                       --crawl alone runs the crawl (liveCrawler) only.
+                       --crawl <url> --module X / --suite S also runs the
+                       crawl-capable members of the selection against the
+                       site: ${require('../src/core/config').CRAWL_CAPABLE_MODULES.join(', ')}
+                       (webHeaders, cookieSecurity, accessibility and seo
+                       audit EVERY crawled HTML page, up to
+                       --crawl-check-pages, each finding citing its page —
+                       one finding listing N pages when N pages share it;
+                       links reads the crawl's own result).
+                       --suite web gives the hosted /web scan's set. Members
+                       that cannot run on a live site are named on one line,
+                       "not crawl-capable, skipped: a, b", and listed in the
+                       summary. A selection with no crawl-capable member is
+                       a usage error (exit 2) under --strict or in CI, a
+                       warning otherwise. To add a module, list it in
+                       CRAWL_CAPABLE_MODULES (src/core/config.js).
     --crawl-loop <url> Crawl, report failures, wait for fixes, repeat until clean
     --crawl-max <n>    Max pages to crawl (default: 100)
     --crawl-page-timeout <ms>  Per-page fetch budget (default: 15000). A
                        stalled page costs at most this much, not the whole
                        crawl's wall-clock ceiling.
+    --crawl-check-pages <n>  How many crawled pages the page-level modules
+                       audit (default: 25). Pages past the cap are named
+                       on the "N pages not checked" line, never silently
+                       skipped. Only with --module / --suite beside --crawl.
     --crawl-header "Name: value"   Send a header on same-origin requests so the
                        crawler can reach pages behind auth (repeatable;
                        values support \${ENV_VAR} expansion)
@@ -735,7 +761,8 @@ async function main() {
   // reach stdout during the run — a module's console.log, a reporter's
   // notice, the telemetry notice — is routed to stderr until the document
   // is written. Only the scan flow honours it; --list, --report, --crawl
-  // and friends keep their own output.
+  // and friends keep their own output. (--module / --suite ARE honoured beside
+  // --crawl — see crawlSelectionFromArgs, #802.)
   const jsonMode = args.format === 'json';
 
   // Accepted-risk overrides: merge `.gatetest/accepted-risks.json` (reviewed
@@ -777,6 +804,9 @@ async function main() {
     // ranked shortlist: 813 streamed warnings reads as noise and the
     // developer stops running the tool.
     showAll: args.all || false,
+    // Issue #770 — every module's elapsed plus a running total, printed
+    // once after the run. Default output (no flag) is unchanged.
+    timings: args.timings || false,
     junit: args.junit || false,
     compliance: args.compliance || false,
     githubAnnotations: args.githubAnnotations || false,
@@ -863,9 +893,16 @@ async function main() {
 
   // Live site crawl
   if (args.crawl) {
+    // --module / --suite beside --crawl are honoured (or refused) here,
+    // never silently ignored (#802).
+    const selection = crawlSelectionFromArgs(args, gatetest);
     await runCrawl(gatetest, args.crawl, args.crawlMax || 100,
-      { ...crawlAuthFromArgs(args), ...(args.crawlPageTimeout ? { pageTimeout: args.crawlPageTimeout } : {}) },
-      jsonMode);
+      {
+        ...crawlAuthFromArgs(args),
+        ...(args.crawlPageTimeout ? { pageTimeout: args.crawlPageTimeout } : {}),
+        ...(args.crawlCheckPages ? { checkPages: args.crawlCheckPages } : {}),
+      },
+      jsonMode, selection);
     return;
   }
 
@@ -1759,7 +1796,68 @@ function crawlDataForRun(gatetest, url, maxPages) {
   };
 }
 
-async function runCrawl(gatetest, url, maxPages, authConfig = {}, jsonMode = false) {
+/**
+ * Point the crawl-capable modules at the crawl target the way the hosted /web
+ * scan does: targetUrl/webUrl plus the entry page fetched once as
+ * `config.livePage` (src/core/live-scan-config.js, the one definition). The
+ * fetch carries the same-origin --crawl-header/--crawl-cookie session. A
+ * failed fetch leaves livePage null and each module reports itself
+ * not-checked with its own reason; it never fabricates a pass.
+ */
+async function wireCrawlTarget(gatetest, url, authConfig) {
+  const { fetchLivePage, applyLiveScanConfig } = require('../src/core/live-scan-config');
+  const { resolveAuth, authHeadersFor } = require('../src/modules/live-crawler-auth');
+  const headers = authHeadersFor(url, resolveAuth(authConfig, url));
+  const livePage = await fetchLivePage(url, { ...(headers ? { headers } : {}), timeoutMs: authConfig.pageTimeout });
+  applyLiveScanConfig(gatetest, { targetUrl: url, livePage });
+}
+
+/**
+ * What `--module` / `--suite` mean beside `--crawl` (#802). The selection's
+ * crawl-capable members (CRAWL_CAPABLE_MODULES, src/core/config.js, the one
+ * list) run against the crawl target; the rest are reported as skipped. A
+ * selection with NO crawl-capable member is ignored: a usage error (exit 2)
+ * under --strict / in CI, a loud warning otherwise. Never silent.
+ * No selection gives `{ requestedBy: null }`: today's crawl, unchanged.
+ */
+function crawlSelectionFromArgs(args, gatetest) {
+  const requestedBy = args.module ? `--module ${args.module}` : (args.suite ? `--suite ${args.suite}` : null);
+  if (!requestedBy) return { requestedBy: null, modules: [], skipped: [] };
+  const { CRAWL_CAPABLE_MODULES, partitionCrawlSelection } = require('../src/core/config');
+  const requested = args.module ? [args.module] : gatetest.config.getSuite(args.suite);
+  const { capable, skipped } = partitionCrawlSelection(requested);
+  if (capable.length === 0) {
+    const why = `${requestedBy} is ignored with --crawl: ${skipped.join(', ')} cannot run against a crawled site ` +
+      `(crawl-capable: ${CRAWL_CAPABLE_MODULES.join(', ')}).`;
+    if (argProblemsAreFatal({ strict: args.strict, unknownArgs: [{ arg: requestedBy }] })) {
+      console.error(`[GateTest] Error: ${why} Refused under --strict and in CI (exit ${USAGE_EXIT_CODE}). Nothing was crawled.`);
+      process.exit(USAGE_EXIT_CODE);
+    }
+    console.error(`[GateTest] Warning: ${why} Running the crawl alone.`);
+  }
+  return { requestedBy, modules: capable, skipped };
+}
+
+/**
+ * The crawl's own "which pages did the page-level modules get" counts
+ * (`crawl:page-checks`, LiveCrawlerModule#_retainPagesForChecks — the one
+ * computation), read back from the run's summary. Null when no page-level
+ * module ran (bare --crawl, or a selection without one).
+ */
+function crawlPageChecks(summary) {
+  const crawl = (summary && summary.results || []).find((r) => r && r.module === 'liveCrawler');
+  const check = crawl && (crawl.checks || []).find((c) => c && c.name === 'crawl:page-checks');
+  return check && check.details ? check.details : null;
+}
+
+async function runCrawl(gatetest, url, maxPages, crawlOptions = {}, jsonMode = false, selection = { requestedBy: null, modules: [], skipped: [] }) {
+  const { CRAWL_PAGE_MODULES, DEFAULT_CRAWL_CHECK_PAGES } = require('../src/core/config');
+  const { checkPages: requestedCheckPages, ...authConfig } = crawlOptions;
+  // Per-page checks (#815): only when the selection has a page-level
+  // module does the crawler keep its pages for them, capped by
+  // --crawl-check-pages. A bare --crawl keeps nothing (unchanged).
+  const pageModules = selection.modules.filter((m) => CRAWL_PAGE_MODULES.includes(m));
+  const checkPages = pageModules.length > 0 ? (requestedCheckPages || DEFAULT_CRAWL_CHECK_PAGES) : undefined;
   // Inject crawl URL into config — merged over any .gatetest config so
   // file-based crawl settings (headers, cookie, thresholds) still apply
   gatetest.config.config.modules.liveCrawler = {
@@ -1769,6 +1867,7 @@ async function runCrawl(gatetest, url, maxPages, authConfig = {}, jsonMode = fal
     timeout: 10000,
     checkExternal: true,
     ...authConfig,
+    ...(checkPages ? { checkPages } : {}),
   };
 
   // --format json: stdout is the one JSON document, so progress goes to
@@ -1776,11 +1875,45 @@ async function runCrawl(gatetest, url, maxPages, authConfig = {}, jsonMode = fal
   // --server below).
   const log = jsonMode ? console.error : console.log;
   log(`\n[GateTest] Crawling ${url} (max ${maxPages} pages)...\n`);
-  const summary = await gatetest.runModule('liveCrawler');
+  // The crawl always runs; the selection's other crawl-capable modules run
+  // after it, against the same target (`links` reads the crawl's result).
+  const extraModules = selection.modules.filter((m) => m !== 'liveCrawler');
+  let summary;
+  if (extraModules.length === 0 && selection.skipped.length === 0) {
+    summary = await gatetest.runModule('liveCrawler');
+  } else {
+    if (extraModules.length > 0) await wireCrawlTarget(gatetest, url, authConfig);
+    summary = await gatetest.runModules(['liveCrawler', ...extraModules], {
+      module: 'liveCrawler',
+      deferred: selection.skipped.map((module) => ({
+        module,
+        reason: `not crawl-capable (${selection.requestedBy} with --crawl)`,
+        runsIn: `gatetest ${selection.requestedBy} on the project, without --crawl`,
+      })),
+    });
+  }
   gatetest._lastCrawlSummary = summary;
 
   const data = crawlDataForRun(gatetest, url, maxPages);
-  const exitCode = crawlExitCode(data);
+  // The crawl's verdict comes from its own report (#677). Every OTHER module
+  // the selection added decides for itself: a blocking finding or a crash
+  // fails the run. liveCrawler is excluded so its runner-level status can
+  // never override the report.
+  const moduleFindings = (summary.findings || []).filter((f) => f.module !== 'liveCrawler' && !f.duplicateOf && f.severity !== 'info');
+  const moduleFailed = moduleFindings.some((f) => f.blocking)
+    || (summary.failedModules || []).some((f) => f.module !== 'liveCrawler');
+  const exitCode = crawlExitCode(data) || (moduleFailed ? 1 : 0);
+  if (selection.skipped.length > 0) log(`[GateTest] not crawl-capable, skipped: ${selection.skipped.join(', ')}`);
+  // Where the page-level findings came from (#815): "on K of M crawled
+  // pages", and how many pages were NOT checked and why — never silent.
+  const pageChecks = crawlPageChecks(summary);
+  const pagesNote = pageChecks
+    ? ` on ${pageChecks.checked} of ${pageChecks.crawled} crawled page${pageChecks.crawled === 1 ? '' : 's'}`
+      + (pageChecks.notChecked > 0
+        ? `; ${pageChecks.notChecked} page${pageChecks.notChecked === 1 ? '' : 's'} not checked (--crawl-check-pages ${pageChecks.cap}${pageChecks.oversize > 0 ? ', per-page size cap' : ''})`
+        : '')
+    : '';
+  if (extraModules.length > 0) log(`[GateTest] ran against ${url}: ${extraModules.join(', ')} (${moduleFindings.length} finding${moduleFindings.length === 1 ? '' : 's'}${pagesNote})`);
 
   if (jsonMode) {
     const doc = {
@@ -1789,7 +1922,21 @@ async function runCrawl(gatetest, url, maxPages, authConfig = {}, jsonMode = fal
       generatedAt: new Date().toISOString(),
       result: crawlResultLabel(data),
       exitCode,
-      findings: buildCrawlFindings(data),
+      findings: [
+        ...buildCrawlFindings(data),
+        // A page-level finding cites the crawled page it was found on
+        // (#815) — `file` is that page's URL — and lists every page it was
+        // folded from; a finding with no page of its own cites the target.
+        ...moduleFindings.map((f) => ({
+          type: f.id,
+          severity: f.severity,
+          message: f.message || null,
+          url: typeof f.file === 'string' && /^https?:\/\//i.test(f.file) ? f.file : url,
+          ...(Array.isArray(f.pages) ? { pages: f.pages } : {}),
+        })),
+      ],
+      ...(selection.requestedBy ? { modules: { ran: ['liveCrawler', ...extraModules], notCrawlCapable: selection.skipped } } : {}),
+      ...(pageChecks ? { pageChecks: { crawled: pageChecks.crawled, checked: pageChecks.checked, notChecked: pageChecks.notChecked, cap: pageChecks.cap } } : {}),
     };
     // Never process.exit() right after a stdout write — see the matching
     // comment on the --server JSON path above. A piped stdout is
