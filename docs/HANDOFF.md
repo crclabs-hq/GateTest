@@ -833,3 +833,60 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   38 false `missing-title` findings are the customer-visible cost of not releasing.
 - Local: worktrees left = GateTest-wt-estate (#822) and two locked empty shells
   (GateTest-wt-dcflag, GateTest-wt-budgetfix) to delete when free. No builders running.
+
+### Addendum 2026-09-29 07:00Z — sign-in rebuilt on the owner's directive; estate sweep done; Gluecron OAuth in build
+
+- Owner directive 06:00Z: customers sign in with (1) their Gluecron account, (2) Google,
+  (3) username + password; the home-page header says "Install Gluecron", not "Install
+  GitHub App" — dogfood and market our own products.
+- MERGED #837 (email + password): routes under /api/auth/password/{register,verify,login,
+  forgot,reset,change}, pages /login/password (+/register, /forgot, /reset, /account/
+  password), scrypt via node:crypto (no native addon), single-use 1 h tokens (sha256
+  stored), DB-backed throttle (10 failures / 15 min per email+IP), same-origin CSRF on
+  every POST, enumeration-safe answers, verify link confirms the address but never
+  signs in, a new verify link retires older ones (pre-hijack window closed), mail
+  HTML colour-free. Schema additive via ensureSchema (IF NOT EXISTS), applied on first
+  request or POST /api/db/init. One definition split across password-auth-core.js
+  (flows) and password-auth-policy.js (hash/policy/tokens/copy). Unverified live: mail
+  delivery, production schema apply, browser round trip → `GATETEST_LIVE_URL=… npm run
+  test:heavy -- password-auth-live` after deploy.
+- IN FLIGHT #836 (auto-merge armed, up to date): /login renders every configured
+  provider server-side from website/app/lib/sign-in-providers.js (GitHub, Google,
+  GitLab), Google/GitLab initiate+callback carry `next` and land errors on /login,
+  "Sign in with Gluecron — coming soon" muted line, password link on
+  (PASSWORD_AUTH_ENABLED = true after the #837 merge), header NAV_ACTIONS.install →
+  "Install Gluecron" https://gluecron.com (new tab), hero keeps "Install the GitHub App"
+  and adds "Install Gluecron" beside it.
+- MERGED #839 "Sign in with Gluecron": /api/auth/gluecron + /callback, PKCE S256, scope
+  read:user, metadata discovery with fixed fallbacks, identity from userinfo,
+  email_verified required, three glc_oauth_* cookies documented; the button appears
+  once GLUECRON_OAUTH_CLIENT_ID is on the box. Gluecron's userinfo went LIVE at 8ebdabf
+  (owner merged #5839, 07:30Z); redirect URIs match exactly, one per origin. Gluecron facts
+  (their session, 06:40Z): OAuth 2.0 authorization-code provider LIVE at gluecron.com
+  (/.well-known/oauth-authorization-server; /oauth/authorize, /oauth/token, /oauth/
+  revoke; PKCE S256 only; scope read:user for sign-in; client_secret_basic/post or
+  public+PKCE). Userinfo GET /oauth/userinfo (sub, login, name, email,
+  email_verified) is NOT live: ccantynz/Gluecron.com#5839 waits on the owner's merge.
+  gluecron.com/install is the self-host installer script, not a page — the CTA goes
+  to https://gluecron.com/. "Gluecron" capital G in prose.
+- OWNER checklist for this leg: (a) DONE Gluecron #5839; (b) create the OAuth app at
+  gluecron.com/settings/applications/new, redirect URI
+  https://gatetest.io/api/auth/gluecron/callback, put GLUECRON_OAUTH_CLIENT_ID /
+  GLUECRON_OAUTH_CLIENT_SECRET on box 161; (c) GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET on
+  box 161 + callback URL registered in the Google console (Google sign-in is built and
+  hidden until then); (d) Gluecron sign-ups are invite-only — the header CTA sends
+  visitors to an invite wall until the flag is flipped.
+- #822 estate: the 121→122 count sweep ran with the owner's explicit allow (81 claims /
+  47 files, suites full 89 / nuclear 97 / wp 31, catalogue + animation entries,
+  CLAUDE.md VERSION entry), estate.js split into estate.js + estate-helpers.js under
+  the 500-line ceiling, country-page MODULE_COUNT pin fixed; PR ready, auto-merge armed,
+  current with main. Ships with public-resolver NXDOMAIN confirmation ON (owner did not
+  object; `modules.estate.resolvers: []` turns it off).
+- Ops answer recorded (owner asked "Slack or Marco?"): neither fired — the GitHub
+  issue #796 "Production deploy stalled" did, on 27 Sep 17:37Z, and sat unread. Marco
+  lives on the failing box and cannot be the only watcher; Slack in GateTest is a
+  customer feature. Route #796-style issues to the owner's phone (GitHub mobile) and
+  let Marco consume them from anywhere but 161.
+- Still owner-only: box 161 journal + recovery deploy (must run INSIDE the ssh shell,
+  not in PowerShell — attempted locally twice), 1.62.0 release, prod is now 40+
+  commits behind main.
