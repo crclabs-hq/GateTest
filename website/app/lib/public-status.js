@@ -489,6 +489,8 @@ module.exports = {
   recentIncidents,
   formatAge,
   redactIfLeaky,
-  // exposed for tests
+  // exposed for tests and for /api/health/deep, whose queue sub-check reuses
+  // the hosted-scans and scan-worker mappers so the staleness ceilings have
+  // one home
   _mappers: { mapWebsite, mapHostedScans, mapScanWorker, mapWebhooks, mapApi, mapMcp, mapPayments },
 };
