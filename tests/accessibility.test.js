@@ -333,3 +333,67 @@ describe('AccessibilityModule — html-lang masking (issue #707)', () => {
     assert.ok(!f.some((c) => c.name.startsWith('a11y:html-lang:')), JSON.stringify(f.map((c) => c.name)));
   });
 });
+
+// ── #842 DR-b: every per-element finding names its line ─────────────────
+//
+// DavenRoe @1dea3658 (2026-09-29): 1,534 accessibility findings, every one
+// `line: null` — the checks matched by regex over the whole file and never
+// turned the match offset into a line, so nothing could be annotated inline
+// or fixed surgically. Control pair: an unlabelled <input> on line 7 reports
+// line 7; a clean input reports nothing.
+describe('AccessibilityModule — findings carry the element line (#842 DR-b)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-a11y-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  const w = (rel, c) => { const f = path.join(tmp, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, c); };
+  const run = async () => { const r = makeResult(); await new AccessibilityModule().run(r, { projectRoot: tmp, getModuleConfig() { return {}; }, get() { return null; } }); return r.checks.filter((c) => !c.passed); };
+
+  it('POSITIVE: an unlabelled <input> on line 7 reports line 7 (and its column); NEGATIVE: a labelled one on line 7 reports nothing', async () => {
+    const page = (input) => [
+      '<html lang="en">',
+      '<head><title>t</title></head>',
+      '<body>',
+      '<main>',
+      '  <h1>Form</h1>',
+      '  <form>',
+      `    ${input}`,
+      '  </form>',
+      '</main>',
+      '</body>',
+      '</html>',
+    ].join('\n');
+    w('pages/bad.html', page('<input type="text" name="q">'));
+    w('pages/good.html', page('<input type="text" id="q" aria-label="Search">'));
+    const f = (await run()).filter((c) => c.name.startsWith('a11y:input-label:'));
+    assert.strictEqual(f.length, 1, JSON.stringify(f));
+    assert.strictEqual(f[0].file, 'pages/bad.html');
+    assert.strictEqual(f[0].line, 7);
+    assert.strictEqual(f[0].column, 5);
+  });
+
+  it('img-alt, invalid-role, tabindex and heading-skip findings name the element line — on a CRLF file too', async () => {
+    w('pages/p.html', [
+      '<html lang="en"><head><title>t</title></head>',
+      '<body><main>',
+      '<h1>Top</h1>',
+      '<img src="a.png">',
+      '<div role="banana">x</div>',
+      '<button tabindex="3">b</button>',
+      '<h3>Skipped</h3>',
+      '</main></body></html>',
+    ].join('\r\n'));
+    const f = await run();
+    const at = (rule) => f.find((c) => c.name === `a11y:${rule}:pages/p.html`);
+    assert.strictEqual(at('img-alt').line, 4, JSON.stringify(f));
+    assert.strictEqual(at('invalid-role').line, 5);
+    assert.strictEqual(at('tabindex-positive').line, 6);
+    assert.strictEqual(at('heading-hierarchy').line, 7);
+  });
+
+  it('NEGATIVE: an <input> inside a JSX comment `{/* … */}` is not "unlabelled"', async () => {
+    w('app/form.tsx', 'export const F = () => (\n  <form>\n    {/* <input type="text" /> */}\n  </form>\n);\n');
+    const f = (await run()).filter((c) => c.name.startsWith('a11y:input-label:'));
+    assert.strictEqual(f.length, 0, JSON.stringify(f));
+  });
+});
+

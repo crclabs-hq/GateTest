@@ -8,6 +8,7 @@ const fs = require('fs');
 const { repoRelative } = require('../core/repo-path');
 const { isNonUserFacingPage, isSpaShell, isImageRenderer } = require('../core/scan-scope');
 const { maskSource } = require('../core/source-strip');
+const { lineLocator } = require('../core/line-at');
 
 // Named CSS colors mapped to RGB values
 const NAMED_COLORS = {
@@ -99,15 +100,19 @@ class AccessibilityModule extends BaseModule {
         // landmarks to audit in the file (the live a11y probe covers the
         // rendered page). CleanArchitecture's two shells were told they had
         // no <main> and no <h1> (2026-09-05).
-        this._checkLanguageAttribute(relPath, content, result);
+        // Every per-element finding carries the line (and column) of the
+        // element it names (#842 DR-b): the checks match by regex over the
+        // whole file, and the match offset is turned into a line here.
+        const at = lineLocator(content);
+        this._checkLanguageAttribute(relPath, content, result, at);
         if (isSpaShell(content)) continue;
 
-        this._checkImages(relPath, content, result);
-        this._checkFormLabels(relPath, content, result);
-        this._checkHeadingHierarchy(relPath, content, result);
-        this._checkAriaUsage(relPath, content, result);
+        this._checkImages(relPath, content, result, at);
+        this._checkFormLabels(relPath, content, result, { file, projectRoot, at });
+        this._checkHeadingHierarchy(relPath, content, result, at);
+        this._checkAriaUsage(relPath, content, result, at);
         this._checkLandmarks(relPath, content, result);
-        this._checkFocusManagement(relPath, content, result);
+        this._checkFocusManagement(relPath, content, result, at);
         this._checkReducedMotion(relPath, content, result);
       }
     }
@@ -117,7 +122,7 @@ class AccessibilityModule extends BaseModule {
     for (const file of cssFiles) {
       const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
-      this._checkCssFocus(relPath, content, result);
+      this._checkCssFocus(relPath, content, result, lineLocator(content));
       this._checkCssReducedMotion(relPath, content, result);
     }
 
@@ -191,12 +196,13 @@ class AccessibilityModule extends BaseModule {
     return true;
   }
 
-  _checkImages(relPath, content, result) {
+  _checkImages(relPath, content, result, at) {
     // Find <img> tags without alt attribute
     const imgRegex = /<img\b([^>]*?)>/gi;
     let match;
     while ((match = imgRegex.exec(content)) !== null) {
       const attrs = match[1];
+      const where = at ? at(match.index) : {};
       // The `[^>]*?` stops at the FIRST `>`, which is not always this tag's own.
       // In JSX a tag can be split across expression boundaries — the badge page
       // renders a copy-paste HTML snippet as
@@ -217,6 +223,7 @@ class AccessibilityModule extends BaseModule {
         result.addCheck(`a11y:img-alt:${relPath}`, false, {
           ...(FRAGMENT_PATH_RE.test(relPath.replace(/\\/g, '/')) ? { severity: 'warning' } : {}),
           file: relPath,
+          ...where,
           message: 'Image missing alt attribute',
           suggestion: 'Add alt="description" for informative images or alt="" for decorative',
         });
@@ -224,7 +231,13 @@ class AccessibilityModule extends BaseModule {
     }
   }
 
-  _checkFormLabels(relPath, content, result) {
+  /**
+   * `ctx` is present on the static-file path only: `{ file, projectRoot, at }`.
+   * With it, every finding carries its line/column (#842 DR-b). Without it
+   * (a fetched live page) there is no line — a line in served HTML is not a
+   * line anyone can annotate.
+   */
+  _checkFormLabels(relPath, content, result, ctx) {
     // Find <input> without associated <label> or aria-label.
     // JSX attributes can contain `>` inside arrow functions (e.g. onChange={() => ...}),
     // so we look ahead up to 600 chars after <input to find label-related attributes
@@ -234,8 +247,10 @@ class AccessibilityModule extends BaseModule {
     // primitive. Checking it produces one guaranteed false positive per
     // design system (shadcn/ui, Radix wrappers; 2026-08-18 audit).
     if (/(^|\/)(components?\/ui|ui\/primitives?|primitives?)\/(input|textarea|select|checkbox|radio|switch|form)[^/]*$/i.test(relPath.replace(/\\/g, '/'))) return;
-    // Strip HTML comments so a commented-out <input> is not "unlabelled".
-    const contentNoComments = content.replace(/<!--[\s\S]*?-->/g, (m) => ' '.repeat(m.length));
+    // Strip HTML and JSX comments so a commented-out <input> is not
+    // "unlabelled" (offsets preserved: the blank is the comment's length).
+    const contentNoComments = content.replace(/<!--[\s\S]*?-->|\{\s*\/\*[\s\S]*?\*\/\s*\}/g, (m) => ' '.repeat(m.length));
+    const at = ctx && ctx.at;
     const inputStart = /<input\b/gi;
     let startMatch;
     while ((startMatch = inputStart.exec(contentNoComments)) !== null) {
@@ -279,36 +294,40 @@ class AccessibilityModule extends BaseModule {
                        /aria-labelledby\s*[={]/i.test(snippet) ||
                        /\bid\s*=\s*["'{]/i.test(snippet);
 
-      if (!hasLabel) {
-        result.addCheck(`a11y:input-label:${relPath}`, false, {
-          // A component we cannot open is "not verified", not "proven bad".
-          ...(isComponent || FRAGMENT_PATH_RE.test(relPath.replace(/\\/g, '/')) ? { severity: 'warning' } : {}),
-          file: relPath,
-          message: isComponent
-            ? `<${startMatch[0].slice(1)} /> has no label, aria-label or aria-labelledby prop — cannot verify that this component labels itself (unknown component)`
-            : `Input (type="${type}") missing accessible label`,
-          suggestion: isComponent
-            ? 'Pass label=, aria-label= or aria-labelledby= to the component, or wrap it in a <label>'
-            : 'Add aria-label, aria-labelledby, or an associated <label> element',
-        });
-      }
+      if (hasLabel) continue;
+      const where = at ? at(pos) : {};
+
+      const details = {
+        // A component we cannot open is "not verified", not "proven bad".
+        ...(isComponent || FRAGMENT_PATH_RE.test(relPath.replace(/\\/g, '/')) ? { severity: 'warning' } : {}),
+        file: relPath,
+        ...where,
+        message: isComponent
+          ? `<${startMatch[0].slice(1)} /> has no label, aria-label or aria-labelledby prop — cannot verify that this component labels itself (unknown component)`
+          : `Input (type="${type}") missing accessible label`,
+        suggestion: isComponent
+          ? 'Pass label=, aria-label= or aria-labelledby= to the component, or wrap it in a <label>'
+          : 'Add aria-label, aria-labelledby, or an associated <label> element',
+      };
+      result.addCheck(`a11y:input-label:${relPath}`, false, details);
     }
   }
 
-  _checkHeadingHierarchy(relPath, content, result) {
+  _checkHeadingHierarchy(relPath, content, result, at) {
     const headingRegex = /<h([1-6])\b/gi;
     const headings = [];
     let match;
     while ((match = headingRegex.exec(content)) !== null) {
-      headings.push(parseInt(match[1]));
+      headings.push({ level: parseInt(match[1]), index: match.index });
     }
 
     for (let i = 1; i < headings.length; i++) {
-      if (headings[i] > headings[i - 1] + 1) {
+      if (headings[i].level > headings[i - 1].level + 1) {
         result.addCheck(`a11y:heading-hierarchy:${relPath}`, false, {
-        severity: 'warning',
+          severity: 'warning',
           file: relPath,
-          message: `Heading level skipped: h${headings[i - 1]} to h${headings[i]}`,
+          ...(at ? at(headings[i].index) : {}),
+          message: `Heading level skipped: h${headings[i - 1].level} to h${headings[i].level}`,
           suggestion: 'Use sequential heading levels (h1 > h2 > h3) without skipping',
         });
         break;
@@ -316,7 +335,7 @@ class AccessibilityModule extends BaseModule {
     }
   }
 
-  _checkAriaUsage(relPath, content, result) {
+  _checkAriaUsage(relPath, content, result, at) {
     // Check for invalid ARIA roles.
     // No space before = so we don't match TypeScript type declarations like
     // `type Role = "user"` which the case-insensitive flag would otherwise
@@ -342,6 +361,7 @@ class AccessibilityModule extends BaseModule {
       if (!validRoles.has(match[1].toLowerCase())) {
         result.addCheck(`a11y:invalid-role:${relPath}`, false, {
           file: relPath,
+          ...(at ? at(match.index) : {}),
           message: `Invalid ARIA role: "${match[1]}"`,
           suggestion: 'Use a valid WAI-ARIA role',
         });
@@ -349,7 +369,7 @@ class AccessibilityModule extends BaseModule {
     }
   }
 
-  _checkLanguageAttribute(relPath, content, result) {
+  _checkLanguageAttribute(relPath, content, result, at) {
     // Only a FULL document owns <html lang>: fragments/partials that merely
     // mention "<html" (or Thymeleaf `<html xmlns:th>` layout stubs with no
     // <head>) inherit it from the layout that wraps them.
@@ -379,6 +399,7 @@ class AccessibilityModule extends BaseModule {
     if (!hasLang) {
       result.addCheck(`a11y:html-lang:${relPath}`, false, {
         file: relPath,
+        ...(at ? at(htmlTagMatch.index) : {}),
         message: 'Missing lang attribute on <html> element',
         suggestion: 'Add lang="en" (or appropriate language) to <html>',
       });
@@ -404,7 +425,7 @@ class AccessibilityModule extends BaseModule {
     }
   }
 
-  _checkFocusManagement(relPath, content, result) {
+  _checkFocusManagement(relPath, content, result, at) {
     // Check for tabindex > 0 (anti-pattern)
     const tabindexRegex = /tabindex\s*=\s*["'](\d+)["']/gi;
     let match;
@@ -413,6 +434,7 @@ class AccessibilityModule extends BaseModule {
       if (value > 0) {
         result.addCheck(`a11y:tabindex-positive:${relPath}`, false, {
           file: relPath,
+          ...(at ? at(match.index) : {}),
           message: `Positive tabindex="${value}" creates confusing tab order`,
           suggestion: 'Use tabindex="0" or tabindex="-1" instead',
         });
@@ -449,7 +471,7 @@ class AccessibilityModule extends BaseModule {
    * `input:focus` and replaces it with a border + box-shadow. Both were
    * reported. A `:focus-visible` anywhere in the file still exempts it.
    */
-  _checkCssFocus(relPath, content, result) {
+  _checkCssFocus(relPath, content, result, at) {
     if (content.includes(':focus-visible')) return;
     const ruleRe = /([^{}]+)\{([^{}]*)\}/g;
     let m;
@@ -461,6 +483,8 @@ class AccessibilityModule extends BaseModule {
       if (/\b(?:box-shadow|border(?:-[a-z]+)?|background(?:-color)?|text-decoration|outline\s*:\s*(?!none|0\b)[^;]+)\s*:?/.test(body.replace(/\boutline\s*:\s*(?:none|0)(?:px)?[^;]*;?/, ''))) continue;
       result.addCheck(`a11y:focus-outline:${relPath}`, false, {
         file: relPath,
+        // The selector's own line, past any blank lines the rule regex swallowed.
+        ...(at ? at(m.index + (selector.length - selector.trimStart().length)) : {}),
         message: 'Focus outline removed without alternative',
         suggestion: 'Use :focus-visible instead of :focus, or provide custom focus indicators',
       });
@@ -566,6 +590,7 @@ class AccessibilityModule extends BaseModule {
     for (const file of cssFiles) {
       const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
+      const at = lineLocator(content);
 
       // Extract CSS rule blocks (match selector { declarations })
       const ruleRegex = /([^{}]+)\{([^{}]*)\}/g;
@@ -574,6 +599,7 @@ class AccessibilityModule extends BaseModule {
       while ((ruleMatch = ruleRegex.exec(content)) !== null) {
         const selector = ruleMatch[1].trim();
         const declarations = ruleMatch[2];
+        const where = at(ruleMatch.index + (ruleMatch[1].length - ruleMatch[1].trimStart().length));
 
         // Extract color and background-color from declarations
         const colorMatch = declarations.match(
@@ -603,6 +629,7 @@ class AccessibilityModule extends BaseModule {
             false,
             {
               file: relPath,
+              ...where,
               selector,
               foreground: colorMatch[1].trim(),
               background: bgMatch[1].trim(),
@@ -623,6 +650,7 @@ class AccessibilityModule extends BaseModule {
             {
               severity: 'warning',
               file: relPath,
+              ...where,
               selector,
               foreground: colorMatch[1].trim(),
               background: bgMatch[1].trim(),
