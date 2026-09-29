@@ -50,10 +50,10 @@ function code(src) {
 
 describe('route, gating and navigation', () => {
   it('the page, client panel, api helpers and logic all exist (anti-vacuity)', () => {
-    for (const f of ['page.tsx', ...PANEL_TSX, 'Modal.tsx', 'errors.ts', 'api.ts', 'logic.js', 'audit-logic.js', 'secrets.css']) {
+    for (const f of ['page.tsx', ...PANEL_TSX, 'Modal.tsx', 'errors.ts', 'useStepUp.ts', 'api.ts', 'logic.js', 'audit-logic.js', 'secrets.css']) {
       assert.ok(fs.existsSync(rel(f)), `missing website/app/admin/secrets/${f}`);
     }
-    assert.ok(panelFiles().length >= 16);
+    assert.ok(panelFiles().length >= 17);
   });
 
   it('every panel file stays well under the 500-line per-file ceiling', () => {

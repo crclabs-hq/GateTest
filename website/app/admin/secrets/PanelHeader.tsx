@@ -1,16 +1,18 @@
 "use client";
 
 /**
- * /admin/secrets — the panel's title bar, status cards (store, env file,
- * step-up) and the "not applied yet" notice. Presentational only; the panel
- * owns the state.
+ * /admin/secrets — the panel's title bar, loading and load-error screens,
+ * status cards (store, env file, step-up), the notice list and the "not
+ * applied yet" notice. Presentational only; the panel owns the state.
  */
 
 import type { ReactNode } from "react";
 import type { SecretsList } from "./api";
-import { applyStateCopy } from "./logic";
+import { applyStateCopy, errorCopy } from "./logic";
 
-export const FIX_DOC = "docs/ops/secrets-panel.md";
+const FIX_DOC = "docs/ops/secrets-panel.md";
+
+export type Notice = { id: number; tone: "ok" | "attention" | "neutral"; text: string };
 
 export function Mark({ shape, ink }: { shape: "dot" | "ring"; ink: "accent" | "ink" | "muted" }) {
   return <span className={`gs-mark ${shape} ${ink}`} aria-hidden="true" />;
@@ -27,6 +29,52 @@ export function Header({ children }: { children?: ReactNode }) {
         </p>
       </div>
       {children ? <div className="gs-head-actions">{children}</div> : null}
+    </div>
+  );
+}
+
+export function LoadingScreen() {
+  return (
+    <div className="gs-wrap">
+      <Header />
+      <p className="gs-loading" role="status">
+        Loading secrets…
+      </p>
+    </div>
+  );
+}
+
+export function LoadErrorScreen({ status, code, onRetry }: { status: number; code: string; onRetry: () => void }) {
+  const storeDown = code === "store_unavailable" || status === 503;
+  return (
+    <div className="gs-wrap">
+      <Header />
+      <div className="gs-empty" role="alert">
+        <p className="gs-strong gs-ink-ink">{storeDown ? "Secrets store unavailable" : "Could not load secrets"}</p>
+        <p>{errorCopy(code, status)}</p>
+        {storeDown ? (
+          <p className="gs-small">
+            Owner fix: set the master key on the box, then reload. Steps in <code className="gs-mono">{FIX_DOC}</code>.
+          </p>
+        ) : null}
+        <p>
+          <button type="button" className="gs-btn" onClick={onRetry}>
+            Try again
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function NoticeList({ notices }: { notices: Notice[] }) {
+  return (
+    <div className="gs-notices" role="status" aria-live="polite">
+      {notices.map((n) => (
+        <p key={n.id} className={`gs-notice${n.tone === "attention" ? " attention" : n.tone === "neutral" ? " neutral" : ""}`}>
+          {n.text}
+        </p>
+      ))}
     </div>
   );
 }

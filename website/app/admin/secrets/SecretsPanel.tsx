@@ -27,16 +27,23 @@ import {
 import {
   applyResultCopy,
   clockTime,
-  errorCopy,
   groupByTier,
   livenessMark,
   namesToDrop,
-  runWithStepUp,
   shortFingerprint,
   warningCopy,
 } from "./logic";
-import { messageFor, type Guarded } from "./errors";
-import { FIX_DOC, Header, PendingApplyNotice, StatusCards } from "./PanelHeader";
+import { messageFor } from "./errors";
+import { useStepUp } from "./useStepUp";
+import {
+  Header,
+  LoadErrorScreen,
+  LoadingScreen,
+  NoticeList,
+  PendingApplyNotice,
+  StatusCards,
+  type Notice,
+} from "./PanelHeader";
 import { SecretsTable } from "./SecretsTable";
 import { SetSecretDialog } from "./SetSecretDialog";
 import { RevealDialog } from "./RevealDialog";
@@ -44,8 +51,6 @@ import { DeleteDialog } from "./DeleteDialog";
 import { StepUpDialog } from "./StepUpDialog";
 import { AuditDrawer } from "./AuditDrawer";
 import { DropKeysDialog } from "./DropKeysDialog";
-
-type Notice = { id: number; tone: "ok" | "attention" | "neutral"; text: string };
 
 type DialogState =
   | { kind: "set"; mode: "set" | "replace" | "add"; name: string }
@@ -64,13 +69,13 @@ export default function SecretsPanel() {
   const [dialog, setDialog] = useState<DialogState>(null);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
-  const [stepUpOpen, setStepUpOpen] = useState(false);
   const [freshUntil, setFreshUntil] = useState<string | null>(null);
   // Names an apply refused to drop (would_drop_keys), awaiting the owner's confirm.
   const [dropNames, setDropNames] = useState<string[] | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const stepUpResolver = useRef<((ok: boolean) => void) | null>(null);
   const noticeId = useRef(0);
+  const stepUp = useStepUp();
+  const guarded = stepUp.guarded;
 
   const refresh = useCallback(async () => {
     setLoad(await fetchLoadState());
@@ -87,34 +92,6 @@ export default function SecretsPanel() {
       clearInterval(t);
     };
   }, []);
-
-  // Any pending step-up promise is resolved "cancelled" if the page goes away.
-  useEffect(
-    () => () => {
-      stepUpResolver.current?.(false);
-      stepUpResolver.current = null;
-    },
-    [],
-  );
-
-  const requestStepUp = useCallback(
-    () =>
-      new Promise<boolean>((resolve) => {
-        stepUpResolver.current?.(false);
-        stepUpResolver.current = resolve;
-        setStepUpOpen(true);
-      }),
-    [],
-  );
-
-  const guarded: Guarded = useCallback(<T,>(fn: () => Promise<T>) => runWithStepUp(fn, requestStepUp), [requestStepUp]);
-
-  function finishStepUp(ok: boolean) {
-    setStepUpOpen(false);
-    const resolve = stepUpResolver.current;
-    stepUpResolver.current = null;
-    resolve?.(ok);
-  }
 
   function pushNotices(list: Omit<Notice, "id">[]) {
     setNotices(list.map((n) => ({ ...n, id: ++noticeId.current })));
@@ -207,39 +184,8 @@ export default function SecretsPanel() {
   const freshLabel = freshUntil && Date.parse(freshUntil) > now ? `Fresh until ${clockTime(freshUntil)}` : null;
 
   // ---- top-level states ---------------------------------------------------
-  if (load.phase === "loading") {
-    return (
-      <div className="gs-wrap">
-        <Header />
-        <p className="gs-loading" role="status">
-          Loading secrets…
-        </p>
-      </div>
-    );
-  }
-
-  if (load.phase === "error") {
-    const storeDown = load.code === "store_unavailable" || load.status === 503;
-    return (
-      <div className="gs-wrap">
-        <Header />
-        <div className="gs-empty" role="alert">
-          <p className="gs-strong gs-ink-ink">{storeDown ? "Secrets store unavailable" : "Could not load secrets"}</p>
-          <p>{errorCopy(load.code, load.status)}</p>
-          {storeDown ? (
-            <p className="gs-small">
-              Owner fix: set the master key on the box, then reload. Steps in <code className="gs-mono">{FIX_DOC}</code>.
-            </p>
-          ) : null}
-          <p>
-            <button type="button" className="gs-btn" onClick={() => void refresh()}>
-              Try again
-            </button>
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (load.phase === "loading") return <LoadingScreen />;
+  if (load.phase === "error") return <LoadErrorScreen status={load.status} code={load.code} onRetry={() => void refresh()} />;
 
   const data = load.data;
   const groups = groupByTier(data.items);
@@ -270,13 +216,7 @@ export default function SecretsPanel() {
         <PendingApplyNotice storeReady={storeReady} applying={busy === "apply"} onApply={() => void onApply()} />
       ) : null}
 
-      <div className="gs-notices" role="status" aria-live="polite">
-        {notices.map((n) => (
-          <p key={n.id} className={`gs-notice${n.tone === "attention" ? " attention" : n.tone === "neutral" ? " neutral" : ""}`}>
-            {n.text}
-          </p>
-        ))}
-      </div>
+      <NoticeList notices={notices} />
 
       <SecretsTable
         groups={groups}
@@ -317,13 +257,13 @@ export default function SecretsPanel() {
           }}
         />
       ) : null}
-      {stepUpOpen ? (
+      {stepUp.open ? (
         <StepUpDialog
-          onClose={() => finishStepUp(false)}
+          onClose={() => stepUp.finish(false)}
           onSuccess={(until) => {
             setFreshUntil(until);
             setNow(Date.now());
-            finishStepUp(true);
+            stepUp.finish(true);
           }}
         />
       ) : null}

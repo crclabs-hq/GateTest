@@ -102,11 +102,11 @@ describe('a. would_drop_keys is recoverable', () => {
 
 describe('b. out_of_sync is pending, not a failure', () => {
   it('the real listing state for "store changed, not applied" reads as neutral pending copy', () => {
-    const text = renderEnv([{ name: 'A_TOKEN', value: 'old-value-1234' }], { now: Date.UTC(2026, 8, 30, 9) });
+    const text = renderEnv([{ name: 'A_TOKEN', value: 'old-value-1234' }], { now: Date.parse('2026-09-30T09:00:00Z') });
     const fakeFs = { readFileSync: () => text };
     const state = applyStateOf([{ name: 'A_TOKEN', fingerprint: fingerprint('new-value-5678') }], '/var/lib/x/platform.env', fakeFs);
     assert.equal(state.reason, 'out_of_sync', 'control: the backend really reports out_of_sync here');
-    const copy = logic.applyStateCopy(state, Date.UTC(2026, 8, 30, 12));
+    const copy = logic.applyStateCopy(state, Date.parse('2026-09-30T12:00:00Z'));
     assert.equal(copy.pending, true);
     assert.equal(copy.ok, false);
     assert.doesNotMatch(copy.text, /Could not write/);
@@ -118,7 +118,7 @@ describe('b. out_of_sync is pending, not a failure', () => {
     const copy = logic.applyStateCopy({ applied: false, reason: 'EACCES', lastAppliedAt: null });
     assert.equal(copy.pending, false);
     assert.match(copy.text, /^Could not write the env file: .*permission denied/);
-    assert.equal(logic.applyStateCopy({ applied: true, lastAppliedAt: '2026-09-30T09:00:00Z' }, Date.UTC(2026, 8, 30, 12)).pending, false);
+    assert.equal(logic.applyStateCopy({ applied: true, lastAppliedAt: '2026-09-30T09:00:00Z' }, Date.parse('2026-09-30T12:00:00Z')).pending, false);
   });
 
   it('the panel renders a neutral notice with Apply for out_of_sync, and the status card drops the problem weight', () => {
