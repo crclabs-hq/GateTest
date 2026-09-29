@@ -9,6 +9,7 @@ const https = require('https');
 const http = require('http');
 const { URL } = require('url');
 const dns = require('dns');
+const net = require('net');
 const tls = require('tls');
 // One definition of directive-aware `unsafe-inline` classification (issue
 // #681 item 3), shared with src/modules/web-headers.js's live header check.
@@ -348,84 +349,149 @@ class ServerScanner {
     return mod;
   }
 
-  async _checkDNS(hostname) {
+  /**
+   * DNS & e-mail posture (issue #807 R4: `dnsPosture` / `mailPosture`).
+   *
+   * Three states per record, never two. A resolver that answered
+   * ENOTFOUND / ENODATA has PROVED the record absent; a resolver that timed
+   * out, SERVFAILed or refused has proved nothing, and the old code printed
+   * "warning: No DMARC record" for both — a false claim on every flaky
+   * lookup. Now a resolver failure reads NOT CHECKED with the code.
+   *
+   * Two claims removed because they were not true: "DMARC reference found"
+   * fired on the APEX TXT containing the substring `_dmarc` or `v=DMARC1`,
+   * but DMARC policy lives only at `_dmarc.<domain>` — text at the apex is
+   * not a policy; and "DMARC record found" fired on ANY TXT at `_dmarc.`,
+   * `v=DMARC1` or not, `p=none` or not. SPF likewise "found" a record that
+   * ended `+all` (authorises the whole internet) as a pass.
+   *
+   * `resolver` is injectable for tests; production passes node's `dns`.
+   */
+  async _checkDNS(hostname, resolver = dns) {
     const mod = { status: 'passed', checks: 0, issues: 0, details: [] };
 
-    // Check A/AAAA records (with OS resolver fallback)
-    mod.checks++;
-    try {
-      const addresses = await new Promise((resolve, reject) => {
-        dns.resolve4(hostname, (err, addrs) => err ? reject(err) : resolve(addrs));
+    if (net.isIP(hostname)) {
+      mod.checks++;
+      mod.details.push(`info: NOT CHECKED — ${hostname} is an IP literal; A/AAAA/MX/SPF/DMARC apply to domain names`);
+      return mod;
+    }
+
+    await this._checkAddressRecords(mod, hostname, resolver);
+    await this._checkMailRecords(mod, hostname, resolver);
+    return mod;
+  }
+
+  /** One lookup → `{ ok, value }`, `{ absent: true }` or `{ failed: code }`. */
+  _resolve(resolver, method, ...args) {
+    return new Promise((resolve) => {
+      resolver[method](...args, (err, value) => {
+        if (!err) return resolve({ ok: true, value });
+        const code = err.code || 'UNKNOWN';
+        if (code === 'ENOTFOUND' || code === 'ENODATA') return resolve({ absent: true, code });
+        return resolve({ failed: code });
       });
-      mod.details.push(`pass: ${addresses.length} A record(s) → ${addresses.join(', ')}`);
-    } catch {
-      // Fallback to OS resolver (follows CNAMEs, matches nslookup behaviour)
-      try {
-        const lookup = await new Promise((resolve, reject) => {
-          dns.lookup(hostname, { family: 4 }, (err, addr) => err ? reject(err) : resolve(addr));
-        });
-        mod.details.push(`pass: Resolves to ${lookup} (via CNAME chain)`);
-      } catch {
+    });
+  }
+
+  async _checkAddressRecords(mod, hostname, resolver) {
+    // A records, with the OS resolver as the fallback (follows CNAMEs,
+    // matches nslookup behaviour).
+    mod.checks++;
+    const a = await this._resolve(resolver, 'resolve4', hostname);
+    if (a.ok) {
+      mod.details.push(`pass: ${a.value.length} A record(s) → ${a.value.join(', ')}`);
+    } else {
+      const lookup = await this._resolve(resolver, 'lookup', hostname, { family: 4 });
+      if (lookup.ok) {
+        mod.details.push(`pass: Resolves to ${lookup.value} (via CNAME chain)`);
+      } else if (lookup.absent && (a.absent || a.failed)) {
         mod.issues++;
         mod.details.push('error: Hostname does not resolve');
-      }
-    }
-
-    // Check AAAA (IPv6)
-    mod.checks++;
-    try {
-      await new Promise((resolve, reject) => {
-        dns.resolve6(hostname, (err, addrs) => err ? reject(err) : resolve(addrs));
-      });
-      mod.details.push('pass: IPv6 (AAAA) record found');
-    } catch {
-      mod.details.push('info: No IPv6 (AAAA) record');
-    }
-
-    // Check MX records
-    mod.checks++;
-    try {
-      const mx = await new Promise((resolve, reject) => {
-        dns.resolveMx(hostname, (err, addrs) => err ? reject(err) : resolve(addrs));
-      });
-      mod.details.push(`pass: ${mx.length} MX record(s) found`);
-    } catch {
-      mod.details.push('info: No MX records (not an email domain)');
-    }
-
-    // Check TXT for SPF
-    mod.checks++;
-    try {
-      const txt = await new Promise((resolve, reject) => {
-        dns.resolveTxt(hostname, (err, records) => err ? reject(err) : resolve(records));
-      });
-      const flat = txt.map(r => r.join('')).join('\n');
-      if (flat.includes('v=spf1')) {
-        mod.details.push('pass: SPF record found');
       } else {
-        mod.issues++;
-        mod.details.push('warning: No SPF record — email spoofing risk');
+        mod.details.push(`info: NOT CHECKED — A lookup failed at the resolver (${a.failed || lookup.failed}), not proven absent`);
       }
-      if (flat.includes('v=DMARC1') || flat.includes('_dmarc')) {
-        mod.details.push('pass: DMARC reference found');
-      }
-    } catch {
-      mod.details.push('info: No TXT records');
     }
 
-    // Check DMARC specifically
     mod.checks++;
-    try {
-      await new Promise((resolve, reject) => {
-        dns.resolveTxt(`_dmarc.${hostname}`, (err, records) => err ? reject(err) : resolve(records));
-      });
-      mod.details.push('pass: DMARC record found');
-    } catch {
+    const aaaa = await this._resolve(resolver, 'resolve6', hostname);
+    if (aaaa.ok) mod.details.push('pass: IPv6 (AAAA) record found');
+    else if (aaaa.absent) mod.details.push('info: No IPv6 (AAAA) record');
+    else mod.details.push(`info: NOT CHECKED — AAAA lookup failed at the resolver (${aaaa.failed})`);
+  }
+
+  async _checkMailRecords(mod, hostname, resolver) {
+    mod.checks++;
+    const mx = await this._resolve(resolver, 'resolveMx', hostname);
+    if (mx.ok) mod.details.push(`pass: ${mx.value.length} MX record(s) found`);
+    else if (mx.absent) mod.details.push('info: No MX records (not an email domain)');
+    else mod.details.push(`info: NOT CHECKED — MX lookup failed at the resolver (${mx.failed})`);
+
+    // SPF lives in the apex TXT set; DMARC policy lives ONLY at _dmarc.<domain>.
+    mod.checks++;
+    const txt = await this._resolve(resolver, 'resolveTxt', hostname);
+    if (txt.ok || txt.absent) {
+      const records = txt.ok ? txt.value.map((r) => r.join('')) : [];
+      this._judgeSpf(mod, records);
+    } else {
+      mod.details.push(`info: NOT CHECKED — SPF: TXT lookup failed at the resolver (${txt.failed})`);
+    }
+
+    mod.checks++;
+    const dmarc = await this._resolve(resolver, 'resolveTxt', `_dmarc.${hostname}`);
+    if (dmarc.ok) {
+      this._judgeDmarc(mod, dmarc.value.map((r) => r.join('')));
+    } else if (dmarc.absent) {
       mod.issues++;
       mod.details.push('warning: No DMARC record — email authentication not configured');
+    } else {
+      mod.details.push(`info: NOT CHECKED — DMARC: _dmarc TXT lookup failed at the resolver (${dmarc.failed})`);
     }
+  }
 
-    return mod;
+  _judgeSpf(mod, records) {
+    const spf = records.filter((r) => /^v=spf1(\s|$)/i.test(r.trim()));
+    if (spf.length === 0) {
+      mod.issues++;
+      mod.details.push('warning: No SPF record — email spoofing risk');
+      return;
+    }
+    if (spf.length > 1) {
+      mod.issues++;
+      mod.details.push(`warning: ${spf.length} SPF records — RFC 7208 allows one; receivers treat this as a permanent error`);
+      return;
+    }
+    const terms = spf[0].trim().split(/\s+/).slice(1);
+    const all = terms.find((t) => /^[-~+?]?all$/i.test(t));
+    const redirect = terms.find((t) => /^redirect=/i.test(t));
+    if (!all && !redirect) {
+      mod.issues++;
+      mod.details.push('warning: SPF record has no "all" mechanism — unlisted senders are treated as neutral, spoofing not prevented');
+    } else if ((all && /^[+?]/.test(all)) || all === 'all') {
+      mod.issues++;
+      mod.details.push(`warning: SPF record ends in ${all} — authorises every sender, spoofing not prevented`);
+    } else {
+      mod.details.push(`pass: SPF record found (${all || redirect})`);
+    }
+  }
+
+  _judgeDmarc(mod, records) {
+    const policy = records.find((r) => /^v=DMARC1(\s|;|$)/i.test(r.trim()));
+    if (!policy) {
+      mod.issues++;
+      mod.details.push('warning: TXT present at _dmarc but none is a DMARC record (v=DMARC1) — email authentication not configured');
+      return;
+    }
+    const p = /(?:^|;)\s*p\s*=\s*([a-z]+)/i.exec(policy);
+    const value = p ? p[1].toLowerCase() : null;
+    if (value === 'reject' || value === 'quarantine') {
+      mod.details.push(`pass: DMARC record found (p=${value})`);
+    } else if (value === 'none') {
+      mod.issues++;
+      mod.details.push('warning: DMARC p=none — monitoring only, spoofed mail is still delivered');
+    } else {
+      mod.issues++;
+      mod.details.push('warning: DMARC record has no valid p= policy — receivers ignore it');
+    }
   }
 
   async _checkPerformance(url) {

@@ -164,6 +164,15 @@ function ok(name, detail, extra = {}) {
 function fail(name, detail, severity, fix, extra = {}) {
   return { name, ok: false, detail, severity, fix, ...extra };
 }
+/**
+ * The third state (Doctrine #1): the step had nothing to compare against.
+ * `ok: false` so it can never be read as a pass; WARNING so it never fails
+ * readiness on its own; `notChecked: true` so every renderer can pull it
+ * out of the pass/fail count and print it as its own bucket.
+ */
+function notChecked(name, detail, fix, extra = {}) {
+  return { name, ok: false, notChecked: true, detail, severity: WARNING, fix, ...extra };
+}
 
 /**
  * One HTTP call with a timeout that never throws — a network blip must be a
@@ -230,6 +239,7 @@ async function checkDeployFreshness(fetchFn, base, expectedCommit, deployAdapter
       { commit, expectedCommit },
     );
   }
+  const expectedMatched = Boolean(expectedCommit);
   // A commit stamp only proves we can TELL fresh from stale — it does not
   // prove fresh. On 2026-08-16 this step printed a green "deploy/fresh" for a
   // build that was ten days old, because it only asserted the stamp existed.
@@ -283,7 +293,23 @@ async function checkDeployFreshness(fetchFn, base, expectedCommit, deployAdapter
         { commit, ageDays: age },
       );
     }
-    return ok('deploy/fresh', `commit ${commit.slice(0, 12)}${versionPart}${agePart}${lastDeployPart}${pullDeployPart}`, { commit, ageDays: age });
+    // issue #807 R5 (served sha vs expected): with no expected commit, no
+    // origin/main and no build time there is NOTHING to compare the served
+    // sha against, and this step used to print a green "deploy/fresh" from
+    // the commit stamp alone — the exact claim the 2026-08-16 note above
+    // says is worse than no check. Say so instead.
+    if (expectedMatched) {
+      return ok('deploy/fresh', `commit ${commit.slice(0, 12)}${versionPart} matches expected ${expectedCommit.slice(0, 12)}${agePart}${lastDeployPart}${pullDeployPart}`, { commit, expectedCommit, ageDays: age });
+    }
+    if (age === null) {
+      return notChecked(
+        'deploy/fresh',
+        `commit ${commit.slice(0, 12)}${versionPart} — NOT CHECKED: no expected commit, no origin/main to compare against, and /api/platform-status carries no builtAt${lastDeployPart}${pullDeployPart}`,
+        'Pass --expect <sha> or set GITHUB_SHA, run inside a checkout that can resolve origin/main, or build with `npm run build` so prebuild stamps builtAt. Until one of these exists this step cannot tell a fresh deploy from a stale one.',
+        { commit },
+      );
+    }
+    return ok('deploy/fresh', `commit ${commit.slice(0, 12)}${versionPart}${agePart} (age only — no expected commit or origin/main to compare against)${lastDeployPart}${pullDeployPart}`, { commit, ageDays: age });
   }
 
   if (drift.notAncestor) {
@@ -584,7 +610,10 @@ async function runReadinessProbe(opts = {}) {
     steps.push(await checkProductWorks(fetchFn, base, opts.canaryRepo || DEFAULT_CANARY_REPO));
   }
 
-  const failures = steps.filter((s) => !s.ok);
+  // A not-checked step is neither a pass nor a failure (Doctrine #1) — it is
+  // its own bucket, counted and printed, never folded into either side.
+  const unchecked = steps.filter((s) => s.notChecked === true);
+  const failures = steps.filter((s) => !s.ok && s.notChecked !== true);
   const critical = failures.filter((s) => s.severity === CRITICAL);
   return {
     ready: critical.length === 0,
@@ -592,8 +621,9 @@ async function runReadinessProbe(opts = {}) {
     failures,
     summary: {
       total: steps.length,
-      passed: steps.length - failures.length,
+      passed: steps.length - failures.length - unchecked.length,
       failed: failures.length,
+      notChecked: unchecked.length,
       critical: critical.length,
       warnings: failures.length - critical.length,
       // The headline. This probe has sat red for 100 consecutive runs over

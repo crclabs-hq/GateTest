@@ -17,16 +17,18 @@ test('module exports a class with the expected name', () => {
   assert.ok(m.description && m.description.length > 0);
 });
 
-test('run() returns gracefully when no URL is configured', async () => {
+test('run() reports NOT CHECKED (not a pass) when no URL is configured — issue #807', async () => {
   const m = new ApiHealthModule();
   const checks = [];
   const result = { addCheck: (name, passed, details) => checks.push({ name, passed, details }) };
   const config = { getModuleConfig: () => ({}), get: () => undefined };
   await m.run(result, config);
   assert.equal(checks.length, 1);
-  assert.equal(checks[0].name, 'api-health:config');
-  assert.equal(checks[0].passed, true);
+  assert.equal(checks[0].name, 'apiHealth:not-checked');
+  assert.equal(checks[0].passed, false, 'a module that could not look must not wear a green tick');
+  assert.equal(checks[0].details.notChecked, true);
   assert.equal(checks[0].details.severity, 'info');
+  assert.match(checks[0].details.message, /no target URL/);
 });
 
 test('module registers in the built-in modules map by name "apiHealth"', () => {
@@ -77,11 +79,14 @@ test('groupByEndpoint collapses multiple per-param rows into one entry per metho
   assert.ok(login.sources.has('common-paths'));
 });
 
-test('looksLikeApiEndpoint is true for /api/ paths, POST methods, and openapi source; false for a plain GET page', () => {
+test('looksLikeApiEndpoint is true for /api/ paths and spec/explicit sources; false for a page path, whatever the method (issue #807)', () => {
   assert.equal(looksLikeApiEndpoint('https://example.com/api/users', 'GET', new Set(['common-paths'])), true);
-  assert.equal(looksLikeApiEndpoint('https://example.com/anything', 'POST', new Set(['html-form'])), true);
   assert.equal(looksLikeApiEndpoint('https://example.com/users/{id}', 'GET', new Set(['openapi'])), true);
+  assert.equal(looksLikeApiEndpoint('https://example.com/anything', 'POST', new Set(['explicit-config'])), true);
   assert.equal(looksLikeApiEndpoint('https://example.com/search', 'GET', new Set(['html-link'])), false);
+  // A form harvested from the homepage that POSTs to a page path is a page,
+  // not an API — it answers HTML by design.
+  assert.equal(looksLikeApiEndpoint('https://example.com/contact', 'POST', new Set(['html-form'])), false);
 });
 
 // ── End-to-end tests via a fake runner (LiveProbeRunner blocks localhost,
@@ -94,8 +99,11 @@ function makeFakeRunner(responder) {
     aborted: false,
     calls,
     async probe({ method, url, body }) {
-      calls.push({ method, url, body });
-      return responder(method, url, body);
+      // The module fetches the homepage as the bare origin it was given
+      // (`https://example.com`); responders key on the canonical form.
+      const canonical = new URL(url).toString();
+      calls.push({ method, url: canonical, body });
+      return responder(method, canonical, body);
     },
     summary() {
       return { totalRequests: calls.length, aborted: false, abortReason: null, durationMs: 12, hostsTouched: ['example.com'] };
@@ -197,6 +205,9 @@ test('run() does NOT flag an untrusted common-paths guess (e.g. /graphql on a no
 
   const wrongType = checks.find((c) => c.name === 'api-health:wrong-content-type');
   assert.equal(wrongType, undefined, 'an untrusted common-paths guess getting the site\'s normal page back must not be flagged');
+  // ...and a catch-all page answering every guess confirms no route either.
+  const nc = checks.find((c) => c.name === 'apiHealth:not-checked');
+  assert.ok(nc, 'nothing confirmed => not-checked, not a green "0 broken"');
 });
 
 test('run() flags a 2xx endpoint claiming application/json with an unparsable body', async () => {
@@ -270,9 +281,11 @@ test('run() substitutes OpenAPI path parameters instead of sending a literal "{i
   assert.equal(broken.passed, true, 'the substituted path-param endpoint must not be reported broken');
 });
 
-test('run() does not flag an untrusted (common-paths) 404 as broken', async () => {
-  // No explicit endpoints/openapi — everything comes from the curated
-  // common-paths guess list, none of which are confirmed to exist.
+test('run() reports NOT CHECKED when every probe was a common-paths guess that 404\'d — the tallrig.com false green (issue #807)', async () => {
+  // No explicit endpoints/openapi, a homepage with no forms or links —
+  // everything comes from the curated common-paths guess list and the site
+  // says "no such route" to all of it. Before this fix the module printed
+  // "26 endpoint(s) checked — 0 broken": a health check that could not go red.
   const runner = makeFakeRunner((method, url) => {
     if (url === 'https://example.com/') return htmlResult(200, '<html></html>');
     return htmlResult(404, 'not found');
@@ -287,6 +300,110 @@ test('run() does not flag an untrusted (common-paths) 404 as broken', async () =
   };
   await m.run(result, config);
 
+  assert.equal(checks.find((c) => c.name === 'api-health:broken-endpoints'), undefined,
+    'no "0 broken" line when nothing real was checked');
+  const nc = checks.find((c) => c.name === 'apiHealth:not-checked');
+  assert.ok(nc, 'expected apiHealth:not-checked');
+  assert.equal(nc.passed, false);
+  assert.equal(nc.details.notChecked, true);
+  assert.match(nc.details.message, /no OpenAPI spec/);
+  assert.match(nc.details.message, /no explicit endpoints/);
+  assert.match(nc.details.message, /no API-shaped forms or links on the homepage/);
+  assert.match(nc.details.message, /\d+ guessed common path\(s\) probed, none answered as a live route/);
+  const summary = checks.find((c) => c.name === 'api-health:summary');
+  assert.match(summary.details.message, /0 confirmed live/);
+});
+
+test('CONTROL — a guessed path that answers like a live route IS confirmed and gets a real "0 broken" verdict', async () => {
+  const runner = makeFakeRunner((method, url) => {
+    if (url === 'https://example.com/') return htmlResult(200, '<html></html>');
+    // Exactly /api/users (bare and query-filled), not the /api/users/1 guess.
+    if (/^https:\/\/example\.com\/api\/users(\?|$)/.test(url)) return jsonResult(200, { users: [] });
+    return htmlResult(404, 'not found');
+  });
+
+  const m = new ApiHealthModule();
+  const checks = [];
+  const result = { addCheck: (name, passed, details) => checks.push({ name, passed, details }) };
+  const config = {
+    getModuleConfig: () => ({ url: 'https://example.com', runner, maxEndpoints: 50 }),
+    get: () => undefined,
+  };
+  await m.run(result, config);
+
+  assert.equal(checks.find((c) => c.name === 'apiHealth:not-checked'), undefined);
   const broken = checks.find((c) => c.name === 'api-health:broken-endpoints');
-  assert.equal(broken.passed, true, 'speculative common-paths guesses 404ing is expected, not a finding');
+  assert.equal(broken.passed, true);
+  assert.match(broken.details.message, /^1 confirmed endpoint\(s\) checked — 0 broken \(\d+ guessed path\(s\) answered "no such route" and are not counted\)$/);
+});
+
+test('CONTROL — a real failure still fires when nothing else was confirmed: a guessed path answering 5xx is broken, not not-checked', async () => {
+  const runner = makeFakeRunner((method, url) => {
+    if (url === 'https://example.com/') return htmlResult(200, '<html></html>');
+    if (url.startsWith('https://example.com/api/search')) return jsonResult(500, { error: 'boom' });
+    return htmlResult(404, 'not found');
+  });
+
+  const m = new ApiHealthModule();
+  const checks = [];
+  const result = { addCheck: (name, passed, details) => checks.push({ name, passed, details }) };
+  const config = {
+    getModuleConfig: () => ({ url: 'https://example.com', runner, maxEndpoints: 50 }),
+    get: () => undefined,
+  };
+  await m.run(result, config);
+
+  assert.equal(checks.find((c) => c.name === 'apiHealth:not-checked'), undefined);
+  const broken = checks.find((c) => c.name === 'api-health:broken-endpoints');
+  assert.equal(broken.passed, false);
+  assert.ok(broken.details.details.some((d) => d.url.endsWith('/api/search') && d.status === 500));
+});
+
+test('run() does NOT flag a homepage form that POSTs to a page path and answers HTML (issue #807 false claim)', async () => {
+  const runner = makeFakeRunner((method, url) => {
+    if (url === 'https://example.com/') return htmlResult(200, '<form action="/contact" method="post"><input name="email"></form>');
+    if (url === 'https://example.com/contact') return htmlResult(200, '<html>thanks</html>');
+    return htmlResult(404, 'not found');
+  });
+
+  const m = new ApiHealthModule();
+  const checks = [];
+  const result = { addCheck: (name, passed, details) => checks.push({ name, passed, details }) };
+  const config = {
+    getModuleConfig: () => ({ url: 'https://example.com', runner, maxEndpoints: 50 }),
+    get: () => undefined,
+  };
+  await m.run(result, config);
+
+  assert.ok(runner.calls.some((c) => c.method === 'POST' && c.url === 'https://example.com/contact'), 'the form must have been probed');
+  assert.equal(checks.find((c) => c.name === 'api-health:wrong-content-type'), undefined,
+    'a page-path form answering HTML is a page, not an API returning HTML');
+  const broken = checks.find((c) => c.name === 'api-health:broken-endpoints');
+  assert.equal(broken.passed, true, 'the form route was confirmed from the site\'s own HTML');
+});
+
+test('run() flags a trusted API route answering 401 with an HTML page (404 shape, issue #807); a JSON 401 stays quiet', async () => {
+  const runner = makeFakeRunner((method, url) => {
+    if (url === 'https://example.com/') return htmlResult(200, '<html></html>');
+    if (url.endsWith('/api/private-html')) return htmlResult(401, '<html>login</html>');
+    if (url.endsWith('/api/private-json')) return jsonResult(401, { error: 'unauthorised' });
+    return htmlResult(404, 'not found');
+  });
+
+  const m = new ApiHealthModule();
+  const checks = [];
+  const result = { addCheck: (name, passed, details) => checks.push({ name, passed, details }) };
+  const config = {
+    getModuleConfig: () => ({
+      url: 'https://example.com', runner, maxEndpoints: 50,
+      endpoints: [{ path: '/api/private-html', method: 'GET' }, { path: '/api/private-json', method: 'GET' }],
+    }),
+    get: () => undefined,
+  };
+  await m.run(result, config);
+
+  const wrongType = checks.find((c) => c.name === 'api-health:wrong-content-type');
+  assert.ok(wrongType, 'expected a wrong-content-type finding');
+  assert.ok(wrongType.details.details.some((d) => d.url.endsWith('/api/private-html') && d.status === 401));
+  assert.ok(!wrongType.details.details.some((d) => d.url.endsWith('/api/private-json')), 'a JSON 401 is the correct shape');
 });
