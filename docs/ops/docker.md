@@ -26,6 +26,7 @@ self-hosting the site and for the CI job that proves it still builds.
 cp website/.env.example .env.local          # then fill in the values below
 GIT_COMMIT=$(git rev-parse HEAD) docker compose up --build
 curl -s http://localhost:3000/api/health     # {"ok":true}
+curl -s http://localhost:3000/api/health/deep   # db / queue / ai / mail / runtime verdict; 503 when a required one is down
 curl -s http://localhost:3000/api/status     # which required vars are still missing
 curl -s http://localhost:3000/api/platform-status   # the commit the image was built from
 ```
