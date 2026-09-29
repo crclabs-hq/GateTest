@@ -31,12 +31,13 @@ const ROUTES = [
   ['website/app/api/auth/github/route.ts', 'GitHub'],
   ['website/app/api/auth/gitlab/route.ts', 'GitLab'],
   ['website/app/api/auth/google/route.ts', 'Google'],
+  ['website/app/api/auth/gluecron/route.ts', 'Gluecron'],
 ];
 
 describe('sign-in providers — never offer a button that 503s', () => {
-  it('the availability endpoint exists and reports all three providers', () => {
+  it('the availability endpoint exists and reports all four providers', () => {
     const src = read(PROVIDERS_ROUTE);
-    for (const key of ['github', 'gitlab', 'google']) {
+    for (const key of ['github', 'gitlab', 'google', 'gluecron']) {
       assert.ok(
         new RegExp(`${key}:\\s*get`).test(src),
         `${PROVIDERS_ROUTE} must report '${key}' from its OAuth config helper`,

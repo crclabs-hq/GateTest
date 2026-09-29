@@ -220,6 +220,9 @@ GateTest/
 | `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret — pairs with GITHUB_CLIENT_ID |
 | `GOOGLE_CLIENT_ID` | Google OAuth Client ID — enables customer "Continue with Google" sign-in at `/dashboard` via `/api/auth/google` |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth Client secret — pairs with GOOGLE_CLIENT_ID; redirect URI `{NEXT_PUBLIC_BASE_URL}/api/auth/google/callback` must be registered in Google Cloud Console |
+| `GLUECRON_OAUTH_CLIENT_ID` | Gluecron OAuth app client ID — enables customer "Sign in with Gluecron" on `/login` via `/api/auth/gluecron` (PKCE S256, scope `read:user`). Register the app at gluecron.com/settings/applications/new with redirect URI `{NEXT_PUBLIC_BASE_URL}/api/auth/gluecron/callback`. The button is absent until this is set |
+| `GLUECRON_OAUTH_CLIENT_SECRET` | Optional — with it the token exchange uses client_secret_post + PKCE; without it GateTest is a public client with PKCE only (both accepted by Gluecron) |
+| `GLUECRON_OAUTH_BASE_URL` | Optional — where Gluecron's OAuth server lives. Falls back to `GLUECRON_BASE_URL`, then `https://gluecron.com`. Endpoints are discovered from `/.well-known/oauth-authorization-server` once per process (5 s), fixed URLs if unreachable (`website/app/lib/gluecron-oauth.js`) |
 | `SESSION_SECRET` | Random 40+ char secret — AES-256-GCM encrypts customer session cookies |
 | `SLACK_WEBHOOK_URL` | Default Slack Incoming Webhook URL — scan results posted here when no per-request webhook provided |
 | `SLACK_SIGNING_SECRET` | Slack App Basic Information → Signing Secret — verifies `/gatetest` slash command requests |

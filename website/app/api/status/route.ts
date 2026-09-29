@@ -84,6 +84,7 @@ export const IMPORTANT: Array<{ name: string; why: string }> = [
   { name: "GLUECRON_EMITTER_SECRET", why: "the Gluecron push ingress (POST /api/events/push) fails closed with 503 — every push from our PREFERRED git host is rejected, so no scan is ever queued for a Gluecron customer" },
   { name: "GLUECRON_BASE_URL", why: "Gluecron API base URL (defaults to https://gluecron.com) — set it explicitly when pointing at a non-default deployment" },
   { name: "GLUECRON_API_TOKEN", why: "no Gluecron PAT means repo reads fall back to a GitHub token, and private Gluecron repos cannot be scanned at all" },
+  { name: "GLUECRON_OAUTH_CLIENT_ID", why: "customer 'Sign in with Gluecron' button is absent from /login until set (the OAuth app is registered at gluecron.com/settings/applications with redirect URI {NEXT_PUBLIC_BASE_URL}/api/auth/gluecron/callback)" },
   // ── The GitHub App credentials. Previously listed ONLY in the extras array
   // handed to findPlaceholders, so they could be reported as fake while no
   // classified list contained them — nothing could act on the finding.
@@ -98,6 +99,10 @@ export const IMPORTANT: Array<{ name: string; why: string }> = [
 const OPTIONAL = [
   "SLACK_WEBHOOK_URL",
   "GITLAB_CLIENT_ID", "GITLAB_CLIENT_SECRET",
+  // Gluecron sign-in works as a public client (PKCE only) without these two;
+  // the secret adds client_secret_post, the base URL re-points the OAuth
+  // server away from GLUECRON_BASE_URL / https://gluecron.com.
+  "GLUECRON_OAUTH_CLIENT_SECRET", "GLUECRON_OAUTH_BASE_URL",
   "SENTRY_AUTH_TOKEN", "DATADOG_API_KEY", "ROLLBAR_READ_TOKEN",
   "GATETEST_FIX_MODEL", "CONTINUOUS_AI_BUDGET_USD",
 ];
