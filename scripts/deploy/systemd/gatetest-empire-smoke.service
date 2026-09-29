@@ -10,6 +10,11 @@ Type=oneshot
 # authored on Windows where core.filemode is off, and `git reset --hard`
 # restores the mode from the index. Same reasoning as gatetest-tick.service.
 ExecStart=/bin/bash /opt/gatetest/scripts/deploy/empire-smoke.sh
+# Admin secrets panel (docs/ops/secrets-panel.md): no helper unit may read or
+# write the rendered secrets. Every unit here runs as root, so ownership alone
+# cannot keep it out — this mount-namespace rule does. The web instances are
+# unaffected: systemd itself (PID 1) reads their EnvironmentFile.
+InaccessiblePaths=-/var/lib/gatetest/unit-env
 
 # Deliberately NO EnvironmentFile. Every probe is a public GET, DNS lookup or
 # TLS handshake, so this unit needs no secrets — and an `EnvironmentFile=-`

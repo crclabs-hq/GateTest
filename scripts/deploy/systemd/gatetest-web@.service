@@ -9,6 +9,14 @@ Type=simple
 WorkingDirectory=/opt/gatetest/website
 EnvironmentFile=/opt/gatetest/website/.env.local
 Environment=PORT=%i
+# Admin secrets panel (docs/ops/secrets-panel.md). MUST stay the LAST
+# EnvironmentFile= line: systemd reads these files in order and a later
+# assignment of the same name wins, so a value stored in /admin/secrets beats
+# a leftover line for that name in .env.local (and `next start` never
+# overrides a variable already in process.env). The leading "-" is deliberate
+# on this long-running service: the file does not exist until the first
+# apply, and a missing store file must not stop the site from starting.
+EnvironmentFile=-/var/lib/gatetest/unit-env/platform.env
 # Bound to the same interior address the single-instance gatetest-web.service
 # already uses — CLAUDE.md Deployment Doctrine "Cutover status" item 3: the
 # box binds 10.0.1.1, not 127.0.0.1, until that migration happens

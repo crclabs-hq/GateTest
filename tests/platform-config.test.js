@@ -115,7 +115,9 @@ describe('platform-config — every consumer imports it; no guarded file pins a 
   });
 
   it('/api/status lists TALLRIG_* as canonical and counts VAPRON_*/CRONTECH_* as "set" for each dispatch variable', () => {
-    const src = read('website/app/api/status/route.ts');
+    // The catalogue /api/status answers from (moved out of the route 2026-09-30).
+    const src = read('website/app/lib/env-catalogue.js');
+    assert.match(read('website/app/api/status/route.ts'), /require\("@\/app\/lib\/env-catalogue"\)/);
     assert.match(src, /TALLRIG_BASE_URL: \["VAPRON_BASE_URL", "CRONTECH_BASE_URL"\]/);
     assert.match(src, /TALLRIG_API_TOKEN: \["VAPRON_API_TOKEN", "CRONTECH_API_TOKEN"\]/);
     assert.match(src, /TALLRIG_DISPATCH_SECRET: \["VAPRON_DISPATCH_SECRET", "CRONTECH_DISPATCH_SECRET"\]/);

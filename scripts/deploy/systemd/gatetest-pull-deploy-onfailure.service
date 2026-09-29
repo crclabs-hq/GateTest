@@ -13,3 +13,8 @@ Type=oneshot
 # gatetest-pull-deploy.service already writes. No EnvironmentFile, no
 # network, no secrets — see scripts/deploy/pull-deploy-onfailure.sh.
 ExecStart=/bin/bash /opt/gatetest/scripts/deploy/pull-deploy-onfailure.sh
+# Admin secrets panel (docs/ops/secrets-panel.md): no helper unit may read or
+# write the rendered secrets. Every unit here runs as root, so ownership alone
+# cannot keep it out — this mount-namespace rule does. The web instances are
+# unaffected: systemd itself (PID 1) reads their EnvironmentFile.
+InaccessiblePaths=-/var/lib/gatetest/unit-env
