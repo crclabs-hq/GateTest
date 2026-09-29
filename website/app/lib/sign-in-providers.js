@@ -7,7 +7,7 @@
  * is a button. The page decides server-side from the OAuth config getters in
  * customer-session.ts (no client fetch of /api/auth/providers), passes the
  * booleans here, and renders what comes back. A provider whose credentials
- * are unset is not rendered at all: the initiate route would answer a
+ * are unset is not rendered as a button: the initiate route would answer a
  * "not available" page, and a sign-in button that cannot sign you in is the
  * defect /api/auth/providers was written to stop.
  *
@@ -17,19 +17,23 @@
 
 /**
  * Sign-in routes that take `?next=` (a same-origin path, validated by
- * safeNext() on the way in and again in the callback).
+ * safeNext() on the way in and again in the callback). Gluecron first: it is
+ * the host we steer customers to, so when it is configured it takes the
+ * primary button.
  */
 const OAUTH_PROVIDERS = [
+  { id: 'gluecron', label: 'Sign in with Gluecron', initiate: '/api/auth/gluecron' },
   { id: 'github', label: 'Sign in with GitHub', initiate: '/api/auth/github' },
   { id: 'google', label: 'Continue with Google', initiate: '/api/auth/google' },
   { id: 'gitlab', label: 'Sign in with GitLab', initiate: '/api/auth/gitlab' },
 ];
 
 /**
- * Entries that are not built yet. Rendered as muted text with no href, so the
- * page is honest about what exists. Gluecron OAuth waits on Gluecron's
- * answer; it is never gated on an env var, because an env var cannot make an
- * unbuilt flow work.
+ * Entries rendered as muted text with no href when they cannot be offered,
+ * so the page is honest about what exists. Gluecron's flow is built
+ * (app/api/auth/gluecron); it is a button once the deployment holds the
+ * OAuth client id, and this line otherwise — the copy never names the
+ * variable, because the page is read by customers, not operators.
  */
 const COMING_SOON = [
   { id: 'gluecron', label: 'Sign in with Gluecron', note: 'coming soon' },
@@ -56,7 +60,9 @@ function signInProviders({ available = {}, next = null, passwordAuth = false } =
   for (const p of OAUTH_PROVIDERS) {
     if (available[p.id] === true) out.push({ id: p.id, label: p.label, href: withNext(p.initiate, next) });
   }
-  for (const c of COMING_SOON) out.push({ id: c.id, label: c.label, note: c.note });
+  for (const c of COMING_SOON) {
+    if (available[c.id] !== true) out.push({ id: c.id, label: c.label, note: c.note });
+  }
   if (passwordAuth) {
     out.push({ id: 'password', label: 'Email and password', href: withNext('/login/password', next) });
   } else {
@@ -68,8 +74,8 @@ function signInProviders({ available = {}, next = null, passwordAuth = false } =
 /**
  * Codes the OAuth callbacks redirect to /login?error=<code> with, and the
  * sentence the page shows for each. GitHub's are the original four (#819);
- * Google and GitLab carry a prefix so the copy can name the provider that
- * failed. Anything else falls back to a generic line.
+ * Google, GitLab and Gluecron carry a prefix so the copy can name the
+ * provider that failed. Anything else falls back to a generic line.
  */
 const ERROR_COPY = {
   invalid_state: 'The sign-in request expired or did not match this browser. Start again.',
@@ -84,6 +90,11 @@ const ERROR_COPY = {
   gitlab_token_failed: 'GitLab did not return an access token. Start again.',
   gitlab_user_failed: 'GitLab did not return your profile. Start again.',
   gitlab_not_configured: 'GitLab sign-in is not configured on this deployment.',
+  gluecron_invalid_state: 'The Gluecron sign-in request expired or did not match this browser. Start again.',
+  gluecron_token_failed: 'Gluecron did not return an access token. Start again.',
+  gluecron_user_failed: 'Gluecron did not return your profile. Start again.',
+  gluecron_email_unverified: 'Gluecron has not verified the email address on that account yet. Verify it on Gluecron, then start again.',
+  gluecron_not_configured: 'Gluecron sign-in is not configured on this deployment.',
 };
 
 const GENERIC_ERROR = 'Sign-in did not complete. Start again.';

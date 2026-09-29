@@ -97,8 +97,9 @@ const SUB_PROCESSORS = [
  *  advertising or cross-site tracking cookies. @type {CookieFact[]} */
 const COOKIES = [
   { name: 'gatetest_customer', kind: 'cookie', purpose: 'Your signed-in session. Encrypted (AES-256-GCM) and signed; HttpOnly; SameSite=Lax; Secure.', duration: `${SESSION_DAYS} days`, essential: true },
-  { name: 'gh_oauth_state / gl_oauth_state / goog_oauth_state', kind: 'cookie', purpose: 'One-time anti-forgery token while you sign in with GitHub, GitLab or Google.', duration: `${OAUTH_STATE_MINUTES} minutes`, essential: true },
-  { name: 'gh_oauth_next / gl_oauth_next / goog_oauth_next', kind: 'cookie', purpose: 'The page on this site to return you to after sign-in. A same-origin path only; never set when you came straight to /login.', duration: `${OAUTH_STATE_MINUTES} minutes`, essential: true },
+  { name: 'gh_oauth_state / gl_oauth_state / goog_oauth_state / glc_oauth_state', kind: 'cookie', purpose: 'One-time anti-forgery token while you sign in with GitHub, GitLab, Google or Gluecron.', duration: `${OAUTH_STATE_MINUTES} minutes`, essential: true },
+  { name: 'glc_oauth_pkce', kind: 'cookie', purpose: 'One-time code verifier (PKCE) while you sign in with Gluecron. Sent only to Gluecron, once, to finish the sign-in; readable by no script.', duration: `${OAUTH_STATE_MINUTES} minutes`, essential: true },
+  { name: 'gh_oauth_next / gl_oauth_next / goog_oauth_next / glc_oauth_next', kind: 'cookie', purpose: 'The page on this site to return you to after sign-in. A same-origin path only; never set when you came straight to /login.', duration: `${OAUTH_STATE_MINUTES} minutes`, essential: true },
   { name: 'gt_admin, gatetest_admin_session', kind: 'cookie', purpose: 'Operator console sessions. Only set for GateTest staff.', duration: `${ADMIN_COOKIE_HOURS} hours / 7 days`, essential: true },
   { name: 'gatetest-chat-history-v1', kind: 'localStorage', purpose: 'Keeps your on-site support chat transcript in your own browser. Never sent to us as a whole.', duration: 'Until you clear site data', essential: false },
   { name: 'Sentry session replay', kind: 'localStorage', purpose: 'Our error-monitoring provider may store a short buffer to reconstruct what happened before an error.', duration: 'Session', essential: false },
