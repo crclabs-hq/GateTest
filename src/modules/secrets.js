@@ -210,6 +210,31 @@ const SEQUENTIAL_RUN = 8;
 const IDENTIFIER_KEYED_TYPES = new Set(['API Key', 'Password/Secret', 'Token']);
 
 /**
+ * What may sit between an identifier-keyed NAME and its quoted value: `:` or
+ * `=`, or a type annotation and then `=`.
+ *
+ * The annotation arm exists because the typed shape was invisible:
+ *
+ *   DavenRoe  backend/app/core/config.py:12
+ *       secret_key: str = "…"             (pydantic Settings)
+ *   TypeScript
+ *       const apiToken: string = "…";
+ *
+ * A type is a dotted name, optionally subscripted (`Optional[str]`), optionally
+ * a `|` union (`str | None`). It cannot contain a quote, `:`, `=` or `(`, so
+ * the match still begins at the keyword and still cannot reach past the value
+ * into another field — the property tests/secrets-value-extraction.test.js
+ * guards.
+ */
+const TYPE_NAME = String.raw`[A-Za-z_][\w.]*(?:\[[\w.,\s|]*\])?`;
+const IDENT_ASSIGN = String.raw`(?:\s*:\s*${TYPE_NAME}(?:\s*\|\s*${TYPE_NAME})*\s*=(?!=)|\s*[:=])\s*['"][^'"]{8,}`;
+
+/** An identifier-keyed pattern: `name` (a regex source) followed by IDENT_ASSIGN. */
+function identifierKeyed(name) {
+  return new RegExp(`(?:${name})${IDENT_ASSIGN}`, 'gi');
+}
+
+/**
  * RFC 6749's own vocabulary is not a credential (#682, Gluecron):
  *
  *   scripts/doctor.ts:124
@@ -380,9 +405,14 @@ class SecretsModule extends BaseModule {
   constructor() {
     super('secrets', 'Secret & Credential Detection');
     this.patterns = [
-      { regex: /(?:api[_-]?key|apikey)\s*[:=]\s*['"][^'"]{8,}/gi, type: 'API Key' },
-      { regex: /(?:secret|password|passwd|pwd)\s*[:=]\s*['"][^'"]{8,}/gi, type: 'Password/Secret' },
-      { regex: /(?:token|bearer)\s*[:=]\s*['"][^'"]{8,}/gi, type: 'Token' },
+      { regex: identifierKeyed('api[_-]?key|apikey'), type: 'API Key' },
+      // `(?:[_-]?key)?` so the compound name is seen: `SECRET_KEY = "…"`
+      // (Django settings.py) and `const secretKey = "…"` were quiet while
+      // `SECRET = "…"` fired. No `token` suffix: `secret_token` already
+      // matches the Token rule, and a second rule on the same name would
+      // count one value twice.
+      { regex: identifierKeyed('(?:secret|password|passwd|pwd)(?:[_-]?key)?'), type: 'Password/Secret' },
+      { regex: identifierKeyed('token|bearer'), type: 'Token' },
       { regex: /(?:aws|amazon).{0,20}(?:key|secret|token).{0,20}['"][A-Za-z0-9/+=]{20,}/gi, type: 'AWS Credential' },
       // The header ALONE is not a key. A setup runbook writes
       // `-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END...` in a table to

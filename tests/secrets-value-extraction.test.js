@@ -17,9 +17,10 @@
 // by accident. Two structural properties do it, and both are easy to break
 // while editing patterns:
 //
-//   1. Every identifier-keyed regex requires the keyword to be IMMEDIATELY
-//      followed by `\s*[:=]`, so a match can never begin before the keyword
-//      and can never span a preceding field.
+//   1. Every identifier-keyed regex begins at the keyword and allows only
+//      `\s*[:=]` or a quote-free type annotation (`: str =`, IDENT_ASSIGN in
+//      secrets.js) before the value, so a match can never begin before the
+//      keyword and can never span a preceding field.
 //   2. Value-based suppression reads `m[0]` — the match — not the line.
 //      `_looksLikeReference` documents this invariant explicitly: "match is
 //      the secrets regex hit, which always begins at the identifier, so the
