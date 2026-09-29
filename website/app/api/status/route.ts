@@ -31,7 +31,7 @@ import { NextRequest, NextResponse } from "next/server";
 import buildInfo from "@/app/data/build-info.json";
 import { isAdminRequest } from "@/app/lib/admin-auth";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { findPlaceholders, inspectEnvValue } = require("@/app/lib/env-placeholder");
+const { findPlaceholders } = require("@/app/lib/env-placeholder");
 // Which brand the platform variables are pointed at (Vapron → Tallrig rename,
 // Craig 2026-09-14): names only, so the readiness card shows a flipped
 // box as flipped. Requested by the platform side.
@@ -45,97 +45,32 @@ const { isAuthorisedTick } = require("@/app/lib/scan-worker");
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Vars whose absence BREAKS a core user flow (scan / auth / payment).
-// Exported so the admin Overview dashboard's secrets checklist (#691) can
-// build a full present/missing list by name without a second hand-typed
-// copy (Doctrine #4) — the readiness JSON body only ever names the MISSING
-// ones, by design, to keep the public response focused on problems.
-export const REQUIRED: Array<{ name: string; why: string }> = [
-  { name: "ANTHROPIC_API_KEY", why: "AI review, auto-fix, and the watch cron all throw without it" },
-  { name: "DATABASE_URL", why: "no scan results, sessions, customers, or API keys persist" },
-  { name: "SESSION_SECRET", why: "customer + admin login (OAuth) fails to encrypt sessions" },
-  { name: "STRIPE_SECRET_KEY", why: "checkout / payment cannot be created" },
-  // No NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: checkout is Stripe-hosted (a
-  // server-created session + redirect); nothing loads Stripe.js, so nothing
-  // reads the publishable key (envVars, 2026-09-13).
-  { name: "NEXT_PUBLIC_BASE_URL", why: "redirect + callback URLs resolve wrong" },
-];
-
-// Vars whose absence DEGRADES a feature but doesn't break the core flow.
-export const IMPORTANT: Array<{ name: string; why: string }> = [
-  { name: "STRIPE_WEBHOOK_SECRET", why: "Stripe webhooks can't be verified (subscription lifecycle)" },
-  { name: "GITHUB_CLIENT_ID", why: "customer 'Sign in with GitHub' disabled" },
-  { name: "GITHUB_CLIENT_SECRET", why: "pairs with GITHUB_CLIENT_ID" },
-  { name: "GOOGLE_CLIENT_ID", why: "customer 'Continue with Google' returns 503 (login modal button dead)" },
-  { name: "GOOGLE_CLIENT_SECRET", why: "pairs with GOOGLE_CLIENT_ID — needed for the Google token exchange" },
-  { name: "GATETEST_ADMIN_PASSWORD", why: "admin console password login disabled ('Admin access is not configured')" },
-  { name: "CRON_SECRET", why: "background cron jobs (watch tick, scan worker) exit early in prod" },
-  { name: "RESEND_API_KEY", why: "MCP $29/mo API-key emails can't send — subscriber pays, key never arrives (webhook 500s until set)" },
-  { name: "TALLRIG_BASE_URL", why: "runtime-scan dispatch to the Tallrig worker tier disabled — /web and /wp scans ship static probes only" },
-  { name: "TALLRIG_API_TOKEN", why: "pairs with TALLRIG_BASE_URL — Tallrig rejects unauthenticated dispatch" },
-  { name: "TALLRIG_DISPATCH_SECRET", why: "pairs with TALLRIG_BASE_URL — signs outbound jobs and verifies Tallrig's result callbacks" },
-  { name: "GATETEST_RECIPE_STORE_TOKEN", why: "fix-recipe WRITES (PUT /api/recipes) are refused with 503 until set — the flywheel cannot learn from CLI fixes; must equal the token CLI users set as GATETEST_RECIPE_STORE_TOKEN" },
-  // ── Gluecron: the PREFERRED git host (Craig 2026-08-29 — customers may use
-  // GitHub, but we steer them to Gluecron). These were classified "purely
-  // optional" while GitHub was the only door, which is no longer true: this
-  // is now the host we actively want customers on, so its ingress going dark
-  // has to be visible here. Confirmed dead in production on 2026-08-29 —
-  // POST /api/events/push returned 503 and nothing in this probe said so.
-  { name: "GLUECRON_EMITTER_SECRET", why: "the Gluecron push ingress (POST /api/events/push) fails closed with 503 — every push from our PREFERRED git host is rejected, so no scan is ever queued for a Gluecron customer" },
-  { name: "GLUECRON_BASE_URL", why: "Gluecron API base URL (defaults to https://gluecron.com) — set it explicitly when pointing at a non-default deployment" },
-  { name: "GLUECRON_API_TOKEN", why: "no Gluecron PAT means repo reads fall back to a GitHub token, and private Gluecron repos cannot be scanned at all" },
-  { name: "GLUECRON_OAUTH_CLIENT_ID", why: "customer 'Sign in with Gluecron' button is absent from /login until set (the OAuth app is registered at gluecron.com/settings/applications with redirect URI {NEXT_PUBLIC_BASE_URL}/api/auth/gluecron/callback)" },
-  // ── The GitHub App credentials. Previously listed ONLY in the extras array
-  // handed to findPlaceholders, so they could be reported as fake while no
-  // classified list contained them — nothing could act on the finding.
-  // IMPORTANT, not REQUIRED, and deliberately so: a Gluecron-only deployment
-  // legitimately has no GitHub App, and flipping `ready` false there would be
-  // the same over-correction this file just fixed in the other direction.
-  { name: "GATETEST_APP_ID", why: "GitHub App JWT cannot be minted — commit statuses, PR comments, and the App-installed fix path all fail" },
-  { name: "GATETEST_PRIVATE_KEY", why: "pairs with GATETEST_APP_ID. Confirmed dead in production 2026-08-31: the pasted documentation example was still in place, GitHub returned 401 Bad credentials, and EVERY private-repo scan 502'd on both hosts" },
-];
-
-// Purely optional integrations.
-const OPTIONAL = [
-  "SLACK_WEBHOOK_URL",
-  "GITLAB_CLIENT_ID", "GITLAB_CLIENT_SECRET",
-  // Gluecron sign-in works as a public client (PKCE only) without these two;
-  // the secret adds client_secret_post, the base URL re-points the OAuth
-  // server away from GLUECRON_BASE_URL / https://gluecron.com.
-  "GLUECRON_OAUTH_CLIENT_SECRET", "GLUECRON_OAUTH_BASE_URL",
-  "SENTRY_AUTH_TOKEN", "DATADOG_API_KEY", "ROLLBAR_READ_TOKEN",
-  "GATETEST_FIX_MODEL", "CONTINUOUS_AI_BUDGET_USD",
-];
-
-// Older env names still honored by the code that reads the canonical var
-// (vapron-dispatch.js reads TALLRIG_* → VAPRON_* → CRONTECH_* through
-// platform-config). A var counts as set when either the canonical name or
-// any alias is set — otherwise this probe would report "missing" for a
-// deployment that actually works. TALLRIG_* is canonical since the rename
-// (Craig 2026-09-14); VAPRON_* is the pre-rename name a not-yet-flipped box
-// still carries, CRONTECH_* the one before that.
-const ALIASES: Record<string, string[]> = {
-  TALLRIG_BASE_URL: ["VAPRON_BASE_URL", "CRONTECH_BASE_URL"],
-  TALLRIG_API_TOKEN: ["VAPRON_API_TOKEN", "CRONTECH_API_TOKEN"],
-  TALLRIG_DISPATCH_SECRET: ["VAPRON_DISPATCH_SECRET", "CRONTECH_DISPATCH_SECRET"],
+// The catalogue — REQUIRED / IMPORTANT / OPTIONAL / ALIASES and isSet() —
+// lives in app/lib/env-catalogue.js since 2026-09-30, so plain CommonJS (the
+// admin secrets panel, the test suite, the catalogue drift test) can read the
+// same definition this route answers from (Doctrine #4). REQUIRED and
+// IMPORTANT stay exported here because the admin Overview dashboard's
+// secrets checklist (#691) imports them from this module.
+const catalogue = require("@/app/lib/env-catalogue") as {
+  REQUIRED: Array<{ name: string; why: string }>;
+  IMPORTANT: Array<{ name: string; why: string }>;
+  OPTIONAL: string[];
+  isSet: (name: string, env: Record<string, string | undefined>) => boolean;
 };
 
-// A variable holding documentation filler is NOT set. It is worse than unset:
-// unset fails loudly at the first call, filler sails past every presence check
-// and fails at the credential exchange, where nothing is watching.
-//
-// This probe already DETECTED the fake GATETEST_PRIVATE_KEY and listed it under
-// invalid_placeholders — and then computed `ready` from presence alone, so it
-// answered `ready: true` / HTTP 200 for weeks while GitHub App auth returned
-// 401 and every private-repo scan 502'd. The detection was never wired to the
-// verdict. Fixing the verdict, not adding another field nobody reads.
+// Vars whose absence BREAKS a core user flow (scan / auth / payment).
+export const REQUIRED: Array<{ name: string; why: string }> = catalogue.REQUIRED;
+// Vars whose absence DEGRADES a feature but doesn't break the core flow.
+export const IMPORTANT: Array<{ name: string; why: string }> = catalogue.IMPORTANT;
+// Purely optional integrations.
+const OPTIONAL: string[] = catalogue.OPTIONAL;
+
+// A variable holding documentation filler is NOT set — catalogue.isSet()
+// counts a value only when inspectEnvValue() says it is real, so `ready` is
+// never a presence check again (the 2026-08-31 GATETEST_PRIVATE_KEY incident;
+// see app/lib/env-catalogue.js).
 function isSet(name: string): boolean {
-  const candidates = [name, ...(ALIASES[name] ?? [])];
-  return candidates.some((n) => {
-    const v = process.env[n];
-    if (typeof v !== "string" || v.trim().length === 0) return false;
-    return inspectEnvValue(n, v).ok;
-  });
+  return catalogue.isSet(name, process.env as Record<string, string | undefined>);
 }
 
 export async function GET(req: NextRequest) {

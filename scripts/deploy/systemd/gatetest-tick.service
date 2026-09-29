@@ -11,3 +11,8 @@ Type=oneshot
 # deploy would have silently stripped +x, leaving the unit failing with
 # EACCES. The index is now 100755 as well; this is the belt to that braces.
 ExecStart=/bin/bash /opt/gatetest/scripts/deploy/tick.sh /api/scan/worker/tick
+# Admin secrets panel (docs/ops/secrets-panel.md): no helper unit may read or
+# write the rendered secrets. Every unit here runs as root, so ownership alone
+# cannot keep it out — this mount-namespace rule does. The web instances are
+# unaffected: systemd itself (PID 1) reads their EnvironmentFile.
+InaccessiblePaths=-/var/lib/gatetest/unit-env

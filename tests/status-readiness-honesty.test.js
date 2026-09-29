@@ -90,32 +90,40 @@ describe('status: readiness must reflect validity, not presence', () => {
 
   // ---- THE WIRING ITSELF -------------------------------------------------
 
+  // The catalogue and isSet() moved to website/app/lib/env-catalogue.js
+  // (2026-09-30) so plain CommonJS can import them; the route delegates.
+  const fs = require('fs');
+  const path = require('path');
+  const catalogueSrc = () => fs.readFileSync(
+    path.join(__dirname, '..', 'website', 'app', 'lib', 'env-catalogue.js'),
+    'utf-8',
+  );
+  const statusRouteSrc = () => fs.readFileSync(
+    path.join(__dirname, '..', 'website', 'app', 'api', 'status', 'route.ts'),
+    'utf-8',
+  );
+
   it('the route computes isSet through the placeholder detector', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const src = fs.readFileSync(
-      path.join(__dirname, '..', 'website', 'app', 'api', 'status', 'route.ts'),
-      'utf-8',
-    );
     assert.match(
-      src,
+      catalogueSrc(),
       /function isSet\([\s\S]*?inspectEnvValue\(/,
       'isSet() must consult inspectEnvValue — without it, `ready` is a presence check again',
     );
     assert.match(
-      src,
-      /inspectEnvValue/,
-      'route must import inspectEnvValue, not only findPlaceholders',
+      statusRouteSrc(),
+      /function isSet\(name: string\): boolean \{\s*return catalogue\.isSet\(/,
+      'the route must answer from the catalogue isSet(), not a local presence check',
     );
   });
 
+  it('the real catalogue isSet() refuses filler and accepts a real-shaped value (control pair)', () => {
+    const { isSet: realIsSet } = require('../website/app/lib/env-catalogue');
+    assert.strictEqual(realIsSet('SESSION_SECRET', { SESSION_SECRET: 'changeme' }), false);
+    assert.strictEqual(realIsSet('STRIPE_SECRET_KEY', { STRIPE_SECRET_KEY: 'sk_live_' + 'a1b2c3d4e5f6g7h8i9j0' }), true);
+  });
+
   it('the GitHub App credentials are classified, not just placeholder-scanned', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const src = fs.readFileSync(
-      path.join(__dirname, '..', 'website', 'app', 'api', 'status', 'route.ts'),
-      'utf-8',
-    );
+    const src = catalogueSrc();
     // They must appear in a classified list (with a `why`), otherwise a fake
     // value is reported by findPlaceholders and acted on by nothing.
     assert.match(
