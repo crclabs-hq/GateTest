@@ -27,6 +27,8 @@ export interface RuntimeBlock {
    * "callback-timeout". Mapped to plain English in RuntimeUnavailable.
    */
   reason?: string | null;
+  /** Issue #768 item 5 — the same plain-English sentence, from the JSON route. */
+  explanation?: string;
   /** True only once a signed runtime callback has landed. Queued is a promise, not a result. */
   checked?: boolean;
   pollUrl?: string | null;
@@ -88,6 +90,12 @@ export interface ScanResult {
    *  an older cached/shared result (pre-fix) still renders — falls back to
    *  the bare names in `notCheckedModules` above. */
   notCheckedReasons?: Array<{ module: string; reason: string }>;
+  /** Issue #768 — present on POST /api/web/scan responses: absolute,
+   *  shareable link to this result (the `?s=` permalink). */
+  reportUrl?: string;
+  /** Issue #768 — true when the JSON route hit its wall-clock budget; the
+   *  unfinished modules are in `notCheckedReasons`. */
+  partial?: boolean;
   /** Free check-name breakdown for the four live-URL modules (item 4).
    *  Optional so an older cached/shared result still renders. */
   moduleChecks?: ModuleCheckSummary[];

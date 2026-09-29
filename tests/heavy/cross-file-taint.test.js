@@ -517,6 +517,160 @@ function handleRedirect(req, res) {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GT-03 (#771, AlecRae.com scan): three redirect findings, all not open
+// redirects. apps/api/src/routes/connect.ts:164/227 put the tainted value in
+// the QUERY STRING of a fixed-prefix template literal; tracking.ts:193 is
+// gated twenty lines earlier by `if (!verifyTrackedUrl(emailId, targetUrl,
+// sig)) return 400` — outside the three-line context window the #633
+// sanitiser check reads, and under a name that list never had.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('CrossFileTaintModule — CONTROL PAIR (#771 GT-03): tainted value only in the query string of a fixed-prefix redirect', () => {
+  it('quiet: the customer line — `${webUrl}/onboarding?connected=gmail&email=${encodeURIComponent(tokens.email)}`', async () => {
+    const result = await run({
+      'connect.ts': `
+connect.get("/gmail/callback", async (c) => {
+  const code = c.req.query("code");
+  const tokens = await exchangeGoogleCode(code);
+  kickOffInitialSync(account.id, "Gmail", tokens.email);
+  const webUrl = process.env["WEB_URL"] ?? "https://mail.example.com";
+  return c.redirect(\`\${webUrl}/onboarding?connected=gmail&email=\${encodeURIComponent(tokens.email)}\`);
+});
+`,
+    });
+    const errors = result.errors().filter((e) => e.sink === 'redirect');
+    assert.strictEqual(errors.length, 0, `a query-string parameter cannot change the redirect host: ${JSON.stringify(errors)}`);
+  });
+
+  it('quiet: a literal host on the sink line — res.redirect(`https://example.com/${path}`)', async () => {
+    const result = await run({
+      'handler.js': `
+function go(req, res) {
+  const path = req.query.p;
+  res.redirect(\`https://example.com/\${path}\`);
+}
+`,
+    });
+    const errors = result.errors().filter((e) => e.sink === 'redirect');
+    assert.strictEqual(errors.length, 0, `the browser can only ever be sent to example.com: ${JSON.stringify(errors)}`);
+  });
+
+  it('STILL FIRES: the tainted value sits BEFORE the `?` (in the path), same template shape', async () => {
+    const result = await run({
+      'connect.ts': `
+connect.get("/go", async (c) => {
+  const code = c.req.query("code");
+  const tokens = await exchangeGoogleCode(code);
+  const webUrl = process.env["WEB_URL"] ?? "https://mail.example.com";
+  return c.redirect(\`\${webUrl}/\${tokens.next}?connected=gmail\`);
+});
+`,
+    });
+    const errors = result.errors().filter((e) => e.sink === 'redirect');
+    assert.ok(errors.length > 0, 'a tainted path segment can still be `//evil.example` and must fire');
+  });
+
+  it('STILL FIRES: the host itself is templated — `https://${host}.example.com/`', async () => {
+    const result = await run({
+      'handler.js': `
+function go(req, res) {
+  const host = req.query.h;
+  res.redirect(\`https://\${host}.example.com/\`);
+}
+`,
+    });
+    const errors = result.errors().filter((e) => e.sink === 'redirect');
+    assert.ok(errors.length > 0, 'a templated host is attacker-chosen and must fire');
+  });
+});
+
+describe('CrossFileTaintModule — CONTROL PAIR (#771 GT-03): a negated verify-guard earlier in the same handler', () => {
+  it('quiet: the customer line — `if (!verifyTrackedUrl(emailId, targetUrl, sig)) return 400` twenty lines above c.redirect(targetUrl)', async () => {
+    const result = await run({
+      'tracking.ts': `
+tracking.get("/:emailId/click", async (c) => {
+  const emailId = c.req.param("emailId");
+  const targetUrl = c.req.query("url");
+  if (!targetUrl) {
+    return c.text("Missing url parameter", 400);
+  }
+  // The signature is over (emailId, url) and only this server can produce it.
+  if (!verifyTrackedUrl(emailId, targetUrl, c.req.query(SIGNATURE_PARAM))) {
+    return c.text("Invalid or missing link signature", 400);
+  }
+  try {
+    const parsed = new URL(targetUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return c.text("Invalid URL protocol", 400);
+    }
+  } catch {
+    return c.text("Invalid URL", 400);
+  }
+  recordEvent(emailId, "email.clicked", {
+    url: targetUrl,
+    userAgent,
+  }).catch(() => { /* fire-and-forget */ });
+  return c.redirect(targetUrl, 302);
+});
+`,
+    });
+    const errors = result.errors().filter((e) => e.sink === 'redirect');
+    assert.strictEqual(errors.length, 0, `an HMAC-verified target is not an open redirect: ${JSON.stringify(errors)}`);
+  });
+
+  it('STILL FIRES: the guard verifies a DIFFERENT variable than the one redirected to', async () => {
+    const result = await run({
+      'tracking.ts': `
+tracking.get("/:emailId/click", async (c) => {
+  const emailId = c.req.param("emailId");
+  const targetUrl = c.req.query("url");
+  if (!verifyTrackedUrl(emailId, c.req.query(SIGNATURE_PARAM))) {
+    return c.text("Invalid or missing link signature", 400);
+  }
+  return c.redirect(targetUrl, 302);
+});
+`,
+    });
+    const errors = result.errors().filter((e) => e.sink === 'redirect');
+    assert.ok(errors.length > 0, 'a guard that never sees the target proves nothing about it');
+  });
+
+  it('STILL FIRES: the guard lives in a DIFFERENT handler above the one that redirects', async () => {
+    const result = await run({
+      'tracking.ts': `
+tracking.get("/:emailId/open", async (c) => {
+  const targetUrl = c.req.query("url");
+  if (!verifyTrackedUrl(c.req.param("emailId"), targetUrl, c.req.query("sig"))) {
+    return c.text("bad", 400);
+  }
+  return c.text("ok");
+});
+tracking.get("/:emailId/click", async (c) => {
+  const targetUrl = c.req.query("url");
+  return c.redirect(targetUrl, 302);
+});
+`,
+    });
+    const errors = result.errors().filter((e) => e.sink === 'redirect');
+    assert.ok(errors.length > 0, 'the backward walk must stop at the enclosing route registration');
+  });
+
+  it('STILL FIRES: the guard is only quoted in a comment', async () => {
+    const result = await run({
+      'tracking.ts': `
+tracking.get("/:emailId/click", async (c) => {
+  const targetUrl = c.req.query("url");
+  // TODO: if (!verifyTrackedUrl(emailId, targetUrl, sig)) return c.text("bad", 400);
+  return c.redirect(targetUrl, 302);
+});
+`,
+    });
+    const errors = result.errors().filter((e) => e.sink === 'redirect');
+    assert.ok(errors.length > 0, 'a guard in a comment is not a guard');
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Cross-file taint — test paths downgrade to warning
 // ---------------------------------------------------------------------------

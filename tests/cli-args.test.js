@@ -126,6 +126,14 @@ test('booleans, values, appends and aliases all parse', () => {
   assert.equal(args.unknownArgs, undefined);
 });
 
+// Issue #770 — `--timings` prints every module's elapsed plus a running
+// total (console-reporter.test.js has the output control pair); this is
+// just the flag parsing itself, alongside the other booleans above.
+test('--timings parses as a boolean, off by default', () => {
+  assert.equal(parseArgs(['--suite', 'quick']).timings, undefined);
+  assert.equal(parseArgs(['--timings']).timings, true);
+});
+
 test('--stop-first keeps its non-camelCase key', () => {
   // The original chain wrote args['stop-first'], not args.stopFirst. Callers
   // in bin/gatetest.js read that exact key.

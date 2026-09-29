@@ -126,6 +126,10 @@ function normalizeFindings(results, opts = {}) {
           && isBlockingFinding({ severity, confidence, verdictSource }, threshold, modelVerdictsBlock),
         file,
         line,
+        // Per-page crawl attribution (#815): every crawled page URL this
+        // one finding was folded from (`BaseModule#_foldLivePages`);
+        // `file` is the first of them. Absent on every other finding.
+        ...(Array.isArray(c.pages) && c.pages.length > 0 ? { pages: c.pages.slice() } : {}),
         message: String(c.message || c.name || ''),
         suggestion: c.suggestion || c.fix || null,
         // Verified code quote (AI findings pass an evidence gate before

@@ -111,6 +111,57 @@ describe('UnitTestsModule — an environment that cannot run the suite is not a 
   });
 });
 
+// GT-14b (issue #771): AlecRae.com's esbuild pinned an ES2024 target this
+// scan box's Node did not support — the suite never got the chance to run a
+// single test, and unit-tests.js reported "Unit tests failed" for it anyway.
+// Control pair: a "Transform failed" toolchain error before any test ran is
+// a warning ("not checked"), never `unit-tests:run` blocking; a genuine TAP
+// `not ok` failure still blocks exactly as before.
+describe('UnitTestsModule — GT-14b (#771): a toolchain/build failure is "not checked", not a test failure', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ut-toolchain-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('NEGATIVE: esbuild-shaped "Transform failed" before any test ran is a warning, not "tests failed"', async () => {
+    fs.writeFileSync(path.join(tmp, 'toolchain-fail.js'),
+      "throw new Error('Transform failed with 1 error: ES2024 not supported');\n");
+    fs.writeFileSync(path.join(tmp, 'package.json'), JSON.stringify({
+      name: 'x', scripts: { test: 'node toolchain-fail.js' },
+    }));
+
+    const mod = new UnitTestsModule();
+    const result = makeResult();
+    await mod.run(result, { projectRoot: tmp, getModuleConfig() { return {}; } });
+
+    const run = result.checks.find((c) => c.name === 'unit-tests:run');
+    assert.strictEqual(run, undefined, `must not report unit-tests:run blocking, got: ${JSON.stringify(result.checks)}`);
+    const nc = result.checks.find((c) => c.name === 'unit-tests:toolchain-not-checked');
+    assert.ok(nc, `expected unit-tests:toolchain-not-checked, got: ${JSON.stringify(result.checks.map((c) => c.name))}`);
+    assert.strictEqual(nc.passed, false);
+    assert.strictEqual(nc.severity, 'warning');
+    assert.match(nc.message, /^tests could not run: .*Transform failed.*; not checked$/);
+  });
+
+  it('POSITIVE: a genuine TAP failure ("not ok") still blocks exactly as today', async () => {
+    fs.writeFileSync(path.join(tmp, 'tap-fail.js'),
+      "console.log('TAP version 13');\nconsole.log('not ok 1 - adds');\nprocess.exit(1);\n");
+    fs.writeFileSync(path.join(tmp, 'package.json'), JSON.stringify({
+      name: 'x', scripts: { test: 'node tap-fail.js' },
+    }));
+
+    const mod = new UnitTestsModule();
+    const result = makeResult();
+    await mod.run(result, { projectRoot: tmp, getModuleConfig() { return {}; } });
+
+    const run = result.checks.find((c) => c.name === 'unit-tests:run');
+    assert.ok(run, `expected unit-tests:run, got: ${JSON.stringify(result.checks.map((c) => c.name))}`);
+    assert.strictEqual(run.passed, false);
+    assert.strictEqual(run.severity, 'error');
+    const nc = result.checks.find((c) => c.name === 'unit-tests:toolchain-not-checked');
+    assert.strictEqual(nc, undefined, 'a genuine failure must never be reclassified as not-checked');
+  });
+});
+
 // A Gradle daemon outlives the module's timeout kill and keeps writing into
 // the checkout (ktor on CI, 2026-09-05). The build must run in the child.
 describe('UnitTestsModule — Gradle runs without a daemon', () => {

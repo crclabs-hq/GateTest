@@ -13,6 +13,7 @@ import {
   CUSTOMER_COOKIE_NAME,
   CUSTOMER_MAX_AGE_SECONDS,
 } from "../../../lib/customer-session";
+import { safeNext } from "../../../lib/session-gate";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -25,14 +26,17 @@ export async function GET(req: NextRequest) {
 
   // Clear state cookie
   cookieStore.delete("gh_oauth_state");
+  // Where /login?next=… wanted to go; re-validated here, the cookie is client-held.
+  const landing = safeNext(cookieStore.get("gh_oauth_next")?.value) ?? "/dashboard";
+  cookieStore.delete("gh_oauth_next");
 
   if (!code || !state || state !== storedState) {
-    return NextResponse.redirect(`${baseUrl}/dashboard?error=invalid_state`);
+    return NextResponse.redirect(`${baseUrl}/login?error=invalid_state`);
   }
 
   const status = getOAuthConfig();
   if (!status.ok || !status.config) {
-    return NextResponse.redirect(`${baseUrl}/dashboard?error=not_configured`);
+    return NextResponse.redirect(`${baseUrl}/login?error=not_configured`);
   }
 
   const { clientId, clientSecret, sessionSecret } = status.config;
@@ -55,10 +59,10 @@ export async function GET(req: NextRequest) {
     const tokenData = await tokenRes.json();
     accessToken = tokenData.access_token;
     if (!accessToken) {
-      return NextResponse.redirect(`${baseUrl}/dashboard?error=token_failed`);
+      return NextResponse.redirect(`${baseUrl}/login?error=token_failed`);
     }
   } catch {
-    return NextResponse.redirect(`${baseUrl}/dashboard?error=token_failed`);
+    return NextResponse.redirect(`${baseUrl}/login?error=token_failed`);
   }
 
   // Fetch user profile
@@ -86,10 +90,10 @@ export async function GET(req: NextRequest) {
     }
 
     if (!login) {
-      return NextResponse.redirect(`${baseUrl}/dashboard?error=user_failed`);
+      return NextResponse.redirect(`${baseUrl}/login?error=user_failed`);
     }
   } catch {
-    return NextResponse.redirect(`${baseUrl}/dashboard?error=user_failed`);
+    return NextResponse.redirect(`${baseUrl}/login?error=user_failed`);
   }
 
   // Create session — include the OAuth access token so server-side
@@ -100,7 +104,7 @@ export async function GET(req: NextRequest) {
   const token = signCustomerSession(login, email, sessionSecret, accessToken);
   const isProduction = process.env.NODE_ENV === "production";
 
-  const response = NextResponse.redirect(`${baseUrl}/dashboard`);
+  const response = NextResponse.redirect(`${baseUrl}${landing}`);
   response.headers.set(
     "Set-Cookie",
     [

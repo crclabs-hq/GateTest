@@ -664,8 +664,7 @@ MCP server: `bin/gatetest-mcp.mjs`, 24 tools (run_tests / stream_logs / query_db
 flywheel — anonymized module+count signal, and since 2026-09-05 per-rule
 `fired` / `silenced` counts (rule IDS only, `src/core/rule-identity.js`), to
 `~/.gatetest/telemetry/scan-findings.jsonl` + best-effort upload to
-`POST /api/telemetry/scan` (opt-out: `GATETEST_NO_TELEMETRY=1` or `.gatetest.json
-{telemetry:false}`; NEVER code/paths/findings/repo names). The silenced rate is
+`POST /api/telemetry/scan` (switches: `GATETEST_TELEMETRY=1|0` or `.gatetest.json` `telemetry:true|false`, `GATETEST_NO_TELEMETRY=1` = alias for off; default is `TELEMETRY_DEFAULT` in `scan-telemetry.js`, the owner's one-line choice; uploads only to gatetest.io unless `GATETEST_TELEMETRY_ALLOW_HOST=1`; first-run notice + `--telemetry-status` in `src/core/telemetry-notice.js`; NEVER code/paths/findings/repo names). The silenced rate is
 published rule by rule at `/noise` (the Fifty, move 07). **False-positive
 control:** repo-root `.gatetestignore` suppresses findings (`module:rule` | `module`
 | `*:rule` | `module:rule@glob` | `path/**`); `gatetest --noise` shows noisy modules;

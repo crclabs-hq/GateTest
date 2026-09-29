@@ -107,10 +107,10 @@ describe('scan-telemetry — recordScanFindings write + opt-out', () => {
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 
-  it('telemetryEnabled defaults ON with no env and no config', () => {
+  it('telemetryEnabled follows TELEMETRY_DEFAULT with no env and no config', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-defon-'));
     try {
-      assert.equal(scanTelemetry.telemetryEnabled(dir), true);
+      assert.equal(scanTelemetry.telemetryEnabled(dir), scanTelemetry.TELEMETRY_DEFAULT === 'on');
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 });
