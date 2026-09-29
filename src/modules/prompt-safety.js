@@ -37,15 +37,6 @@ const { repoRelative } = require('../core/repo-path');
 const { workspacePackageMap } = require('../core/workspaces');
 const BaseModule = require('./base-module');
 
-// Recommendation text comes from the engine's own model policy, so a future
-// model upgrade doesn't leave us advising customers to migrate ONTO a model we
-// ourselves have already moved off. Falls back to a literal if the core module
-// isn't resolvable (e.g. a trimmed install).
-let RECOMMENDED_MODEL = 'claude-sonnet-5';
-try {
-  ({ CHEAP_MODEL: RECOMMENDED_MODEL } = require('../core/engine-models'));
-} catch { /* error-ok — keep the literal default */ }
-
 // Paths that define detection patterns — scanning them would produce FPs
 // because the pattern strings match the very rules they implement.
 const MODULE_SOURCE_RE = /(?:^|\/)src[\\/]modules[\\/]/;
@@ -819,7 +810,11 @@ class PromptSafetyModule extends BaseModule {
             retiresOn: status.on,
             daysUntilRetirement: status.days,
             message,
-            suggestion: `Upgrade to a current model (e.g. \`${RECOMMENDED_MODEL}\`, or the latest GPT-4o-class model).`,
+            // Names nothing beyond the id the customer wrote: what GateTest
+            // emits never names an AI vendor or a model family (owner rule).
+            suggestion: status.retired
+              ? `Model id \`${m}\` was retired${status.on ? ` on ${status.on}` : ''}; replace it with a current id from your provider's model list and pin it in one config value.`
+              : `Model id \`${m}\` retires on ${status.on}; replace it with a current id from your provider's model list before then and pin it in one config value.`,
           });
           break;
         }

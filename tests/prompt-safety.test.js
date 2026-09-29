@@ -1067,3 +1067,30 @@ describe('PromptSafetyModule — a retired model is an error; a current one is n
     assert.strictEqual(h[0].severity, 'warning');
   });
 });
+
+// Owner rule: nothing GateTest emits names an AI vendor or model family
+// beyond the id the customer wrote. The old suggestion named a recommended
+// model id and a competitor's model family.
+describe('PromptSafetyModule — deprecated-model copy names no vendor or model beyond the customer id (#842)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ps-neutral-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const VENDOR_RE = /gpt|claude|openai|anthropic|gemini|llama|mistral/i;
+
+  for (const [rel, id] of [['app/core/config.py', 'claude-sonnet-4-20250514'], ['src/a.js', 'gpt-3.5-turbo-0301'], ['tests/test_ai.py', 'claude-2.1']]) {
+    it(`${rel}: message and suggestion for ${id} are neutral once the id itself is removed`, async () => {
+      write(tmp, rel, rel.endsWith('.py')
+        ? ['import anthropic', `MODEL = "${id}"`, ''].join('\n')
+        : ['import OpenAI from "openai";', `const model = "${id}";`, ''].join('\n'));
+      const r = await run(tmp);
+      const h = r.checks.filter((c) => !c.passed && c.name.startsWith('prompt-safety:deprecated-model:'));
+      assert.strictEqual(h.length, 1, JSON.stringify(h));
+      for (const field of ['message', 'suggestion']) {
+        const text = String(h[0][field]).split(id).join('');
+        assert.ok(!VENDOR_RE.test(text), `${field} names a vendor or model: ${h[0][field]}`);
+      }
+      assert.match(h[0].suggestion, /provider's model list/);
+    });
+  }
+});
