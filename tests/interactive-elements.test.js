@@ -387,3 +387,137 @@ test('_checkLinks does not flag a link whose HEAD 404s but whose GET succeeds', 
     server.close();
   }
 });
+
+/**
+ * Issue #768 item 4 — "1 broken link(s) found across 0 page(s) — 0 links
+ * checked" is self-contradictory: a "broken link" claimed by a module that
+ * checked zero links. Root cause: a failed NAVIGATION to the crawl's own
+ * start page was pushed into the same `brokenLinks` bucket `_checkLinks`
+ * uses for links it actually verified, with `pagesVisited` never
+ * incremented. The fix separates "could not load this page" (a navigation
+ * failure) from "checked this link and it was broken" — the two are now in
+ * different buckets (`unreachablePages` vs `brokenLinks`), so the summary
+ * can never claim a broken-link count with a zero denominator.
+ */
+function startBrokenLinkFixtureServer() {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      if (req.url === '/dead') {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('ok');
+    });
+    server.listen(0, '127.0.0.1', () => resolve(server));
+  });
+}
+
+/** A fake Playwright browser/context/page: `goto` is scripted per call,
+ *  `evaluate` always answers the one `_discover` call this test cares about
+ *  (scroll's own evaluate calls discard their return value). No real
+ *  browser binary is launched — this sandbox has none (see the mobile
+ *  rendering tests' note above). */
+function fakeBrowserWithGoto(gotoImpl, discovered) {
+  const fakePage = {
+    goto: gotoImpl,
+    evaluate: async () => discovered || { links: [], buttons: [] },
+    waitForTimeout: async () => {},
+    close: async () => {},
+  };
+  const fakeContext = {
+    newPage: async () => fakePage,
+    close: async () => {},
+  };
+  return { newContext: async () => fakeContext };
+}
+
+test('_crawl: a start-URL navigation failure is NOT counted as a broken link, and 0 pages visited is honestly not-checked', async () => {
+  const m = new InteractiveElementsModule();
+  const browser = fakeBrowserWithGoto(async () => ({ status: () => 503 }));
+  const stats = await m._crawl(browser, 'https://example.com/', { scrollSteps: 0 });
+
+  assert.equal(stats.pagesVisited, 0);
+  assert.equal(stats.linksChecked, 0);
+  assert.equal(stats.brokenLinks.length, 0, 'a navigation failure to the start page is not a "checked link"');
+  assert.equal(stats.unreachablePages.length, 1);
+  assert.equal(stats.unreachablePages[0].status, 503);
+
+  const checks = [];
+  const result = { addCheck: (name, passed, details) => checks.push({ name, passed, ...details }) };
+  m._report(result, stats, 'https://example.com/');
+
+  // The self-contradictory shape must be structurally impossible now.
+  const brokenLinksCheck = checks.find((c) => c.name === 'interactive-elements:broken-links');
+  assert.ok(!brokenLinksCheck, 'must not emit a broken-links verdict with 0 pages visited');
+  assert.ok(!checks.some((c) => /broken link\(s\) found across 0 page/.test(c.message || '')), 'the self-contradictory sentence must never be rendered');
+
+  const notChecked = checks.find((c) => c.name === 'interactiveElements:not-checked');
+  assert.ok(notChecked && notChecked.notChecked === true, `expected a not-checked verdict, got: ${JSON.stringify(checks)}`);
+  assert.match(notChecked.message, /did not load any page/);
+  assert.match(notChecked.message, /HTTP 503/);
+
+  const unreachable = checks.find((c) => c.name === 'interactive-elements:unreachable-pages');
+  assert.ok(unreachable, 'the navigation failure must still be disclosed, just not as a broken link');
+  assert.match(unreachable.message, /not counted as broken links/);
+});
+
+test('_crawl control pair: a fixture server with one real 404 link and three 200 links -> counts agree exactly', async () => {
+  const server = await startBrokenLinkFixtureServer();
+  try {
+    const { port } = server.address();
+    const base = `http://127.0.0.1:${port}/`;
+    const discovered = {
+      links: [
+        { href: '/a', absoluteUrl: `http://127.0.0.1:${port}/a`, internal: true, text: 'a' },
+        { href: '/b', absoluteUrl: `http://127.0.0.1:${port}/b`, internal: true, text: 'b' },
+        { href: '/c', absoluteUrl: `http://127.0.0.1:${port}/c`, internal: true, text: 'c' },
+        { href: '/dead', absoluteUrl: `http://127.0.0.1:${port}/dead`, internal: true, text: 'dead' },
+      ],
+      buttons: [],
+    };
+    const m = new InteractiveElementsModule();
+    // The start page itself navigates fine (status 200); its own discovered
+    // links are the one real 404 + three real 200s the fixture serves.
+    const browser = fakeBrowserWithGoto(async () => ({ status: () => 200 }), discovered);
+    const stats = await m._crawl(browser, base, { maxPages: 1, scrollSteps: 0 });
+
+    assert.equal(stats.pagesVisited, 1);
+    assert.equal(stats.unreachablePages.length, 0);
+    assert.equal(stats.linksChecked, 4, 'all four discovered links were checked');
+    assert.equal(stats.brokenLinks.length, 1, 'exactly the one real 404 counts as broken');
+    assert.equal(stats.brokenLinks[0].url, `http://127.0.0.1:${port}/dead`);
+
+    const checks = [];
+    const result = { addCheck: (name, passed, details) => checks.push({ name, passed, ...details }) };
+    m._report(result, stats, base);
+    const brokenLinksCheck = checks.find((c) => c.name === 'interactive-elements:broken-links');
+    assert.ok(brokenLinksCheck && brokenLinksCheck.passed === false);
+    assert.equal(brokenLinksCheck.message, '1 broken link(s) found across 1 page(s) — 4 links checked');
+  } finally {
+    server.close();
+  }
+});
+
+test('_crawl: a navigation THROW (timeout / DNS failure) is "could not fetch", never a broken link, never a checked link (#768 item 4)', async () => {
+  for (const message of ['Timeout 30000ms exceeded', 'net::ERR_NAME_NOT_RESOLVED']) {
+    const m = new InteractiveElementsModule();
+    const browser = fakeBrowserWithGoto(async () => { throw new Error(message); });
+    const stats = await m._crawl(browser, 'https://example.invalid/', { scrollSteps: 0 });
+
+    assert.equal(stats.pagesVisited, 0);
+    assert.equal(stats.linksChecked, 0, 'a navigation failure is never counted in "links checked"');
+    assert.equal(stats.brokenLinks.length, 0, 'a navigation failure is never a broken link');
+    assert.equal(stats.pageErrors.length, 1);
+
+    const checks = [];
+    const result = { addCheck: (name, passed, details) => checks.push({ name, passed, ...details }) };
+    m._report(result, stats, 'https://example.invalid/');
+    assert.ok(!checks.some((c) => c.name === 'interactive-elements:broken-links'));
+    const nc = checks.find((c) => c.name === 'interactiveElements:not-checked');
+    assert.ok(nc && nc.notChecked === true, `expected not-checked, got: ${JSON.stringify(checks)}`);
+    assert.ok(nc.message.includes(message), 'the underlying failure must be disclosed');
+    assert.ok(checks.some((c) => c.name === 'interactive-elements:page-errors'), 'and disclosed as a page load failure');
+  }
+});

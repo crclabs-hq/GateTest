@@ -7,6 +7,20 @@ const { extractTitle } = require('../core/html-extract');
 
 const UA = 'GateTest/1.0 (Quality Assurance Crawler)';
 
+// Enough to see the `<html id="__next_error__">` root of a Next.js error
+// shell, small enough that a hostile redirect body cannot balloon memory.
+const REDIRECT_BODY_CAP = 64 * 1024;
+const REDIRECT_ERROR_PAGE_MARKER = /id\s*=\s*["']__next_error__["']/;
+
+function collectBody(res, cap) {
+  return new Promise((resolve) => {
+    let body = '';
+    res.on('data', (chunk) => { if (body.length < cap) body += chunk; });
+    res.on('end', () => resolve(body));
+    res.on('error', () => resolve(body));
+  });
+}
+
 function fetchPage(url, timeout, extraHeaders, _originHost) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
@@ -36,7 +50,7 @@ function fetchPage(url, timeout, extraHeaders, _originHost) {
           // hop as terminal rather than let a broken redirect reject/hang.
           resolve({
             url, finalUrl: url, status: res.statusCode, statusText: res.statusMessage,
-            contentType: res.headers['content-type'] || '', body: '',
+            contentType: res.headers['content-type'] || '', headers: res.headers, body: '',
             redirected: false, responseMs: Date.now() - startedAt,
           });
           res.resume();
@@ -54,7 +68,7 @@ function fetchPage(url, timeout, extraHeaders, _originHost) {
           // accounts.google.com, reported as a broken link on gluecron.com).
           resolve({
             url, finalUrl: redirectUrl, status: res.statusCode, statusText: res.statusMessage,
-            contentType: res.headers['content-type'] || '', body: '',
+            contentType: res.headers['content-type'] || '', headers: res.headers, body: '',
             redirected: true, redirectStatus: res.statusCode, originalUrl: url,
             offSiteRedirect: true, responseMs: Date.now() - startedAt,
           });
@@ -66,12 +80,22 @@ function fetchPage(url, timeout, extraHeaders, _originHost) {
         // never leak session material to a third-party redirect target.
         const redirectHeaders =
           redirectOrigin === parsedUrl.origin ? extraHeaders : undefined;
-        fetchPage(redirectUrl, timeout, redirectHeaders, originHost).then(redirectResult => {
-          resolve({
-            ...redirectResult,
-            redirected: true,
-            redirectStatus: res.statusCode,
-            originalUrl: url,
+        // A redirect is supposed to carry no page. Read this hop's body
+        // (capped) so a 3xx that ships a rendered framework error page —
+        // Next.js `<html id="__next_error__">` — is disclosed instead of
+        // silently followed (#812: /docs answered 307 with a 16 KB one).
+        collectBody(res, REDIRECT_BODY_CAP).then((hopBody) => {
+          const hopIsErrorPage = REDIRECT_ERROR_PAGE_MARKER.test(hopBody);
+          return fetchPage(redirectUrl, timeout, redirectHeaders, originHost).then(redirectResult => {
+            resolve({
+              ...redirectResult,
+              redirected: true,
+              redirectStatus: res.statusCode,
+              originalUrl: url,
+              ...(hopIsErrorPage || redirectResult.redirectCarriesErrorPage
+                ? { redirectCarriesErrorPage: true }
+                : {}),
+            });
           });
         }).catch(reject);
         return;
@@ -86,6 +110,9 @@ function fetchPage(url, timeout, extraHeaders, _originHost) {
           status: res.statusCode,
           statusText: res.statusMessage,
           contentType: res.headers['content-type'] || '',
+          // The response headers, kept with the page so the page-level
+          // modules can audit every crawled page's headers/cookies (#815).
+          headers: res.headers,
           body,
           redirected: false,
           responseMs: Date.now() - startedAt,
@@ -162,6 +189,59 @@ function isResourceHintLinkTag(linkTag) {
   return false;
 }
 
+// One definition of "which URL is this" for the crawl (#806). `new URL()`
+// already gives an empty path its `/` and drops a default port, but the
+// queue was seeded with the raw target string (`https://tallrig.com`) while
+// every discovered link was resolved (`https://tallrig.com/`), so the apex
+// was fetched twice and its title reported as a duplicate. Every URL that
+// enters `visited`, the queue or a link list goes through here: empty path
+// becomes `/`, default ports and the fragment are dropped.
+function normaliseCrawlUrl(url) {
+  try {
+    const u = new URL(url);
+    u.hash = '';
+    return u.href;
+  } catch { return url; }
+}
+
+// The href of the page's own <link rel="canonical">, whatever the attribute
+// order, or null. Commented-out and templated markup is ignored.
+function extractCanonicalHref(html) {
+  const navigableHtml = stripNonNavigableRegions(html || '');
+  const linkRe = /<link\b[^>]*>/gi;
+  let m;
+  while ((m = linkRe.exec(navigableHtml)) !== null) {
+    const rel = m[0].match(/\brel\s*=\s*["']([^"']+)["']/i);
+    if (!rel || !rel[1].toLowerCase().split(/\s+/).includes('canonical')) continue;
+    const href = m[0].match(/\bhref\s*=\s*["']([^"']+)["']/i);
+    if (href && href[1].trim()) return href[1].trim();
+  }
+  return null;
+}
+
+// What a crawled page is, once its canonical is honoured (#806). Returns the
+// normalised canonical URL when it is a DIFFERENT page on the same host —
+// the page is then an alias that both engines skip recording (the canonical
+// is queued and recorded once, so pages, titles and links de-duplicate under
+// it) — or null when the page stands for itself: no canonical, self-
+// canonical, cross-host canonical (a syndicated copy is not this site's
+// duplicate), unparseable, or a canonical cycle (the target was itself an
+// alias, so honouring it would drop both).
+function aliasTarget({ url, canonicalHref, aliasOf }) {
+  if (!canonicalHref) return null;
+  let target;
+  let self;
+  try {
+    self = new URL(url);
+    target = new URL(canonicalHref, url);
+  } catch { return null; }
+  if (target.host !== self.host || target.protocol !== self.protocol) return null;
+  const key = normaliseCrawlUrl(target.href);
+  if (key === normaliseCrawlUrl(self.href)) return null;
+  if (aliasOf.has(key)) return null;
+  return key;
+}
+
 function extractLinks(html, baseUrl, pageUrl) {
   const internal = [];
   const external = [];
@@ -175,7 +255,7 @@ function extractLinks(html, baseUrl, pageUrl) {
         href.startsWith('javascript:') || href.startsWith('data:')) continue;
 
     try {
-      const resolved = new URL(href, pageUrl).href;
+      const resolved = normaliseCrawlUrl(new URL(href, pageUrl).href);
       if (resolved.startsWith(baseUrl)) {
         internal.push({ href: resolved, source: pageUrl });
       } else if (href.startsWith('http')) {
@@ -256,6 +336,7 @@ function getSuggestion(errorType) {
     'runtime-error': 'Unhandled runtime error — add error boundaries and fix root cause',
     'mixed-content': 'HTTP resources on HTTPS page — update all resource URLs to HTTPS',
     'fetch-error': 'Page could not be loaded — check if the server is running',
+    'redirect-error-page': 'A redirect answered with a rendered error page — the route throws before it redirects; make it a next.config redirect or fix the exception',
   };
   return suggestions[errorType] || 'Investigate and fix the issue';
 }
@@ -263,4 +344,5 @@ function getSuggestion(errorType) {
 module.exports = {
   fetchPage, checkUrl, extractLinks, extractImages, getSuggestion,
   extractTitle, extractDeclaredIconHref,
+  normaliseCrawlUrl, extractCanonicalHref, aliasTarget,
 };

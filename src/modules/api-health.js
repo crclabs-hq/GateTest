@@ -44,6 +44,17 @@
  * compare against, which is `trpcContract`'s / `openapiDrift`'s job on
  * the static side. This module only proves the endpoint answers, answers
  * fast enough, and answers with the content-type it should.
+ *
+ * Three-state verdict (issue #807, Doctrine #1). Against tallrig.com this
+ * module printed "26 endpoint(s) checked — 0 broken" when every one of the
+ * 26 was a common-paths GUESS that 404'd: nothing real had been verified,
+ * and the green line read as a health check that had passed. A health
+ * check that cannot go red is not a health check. Now an endpoint counts
+ * as CONFIRMED only when it came from a spec / explicit config / the site's
+ * own HTML, or a guessed path answered like a live route (anything but
+ * 404/410 or the site's catch-all HTML page); with zero confirmed
+ * endpoints the module reports `apiHealth:not-checked` and says which
+ * discovery sources were missing, and the same for no URL at all.
  */
 
 'use strict';
@@ -87,9 +98,14 @@ function groupByEndpoint(discovered) {
   return Array.from(map.values());
 }
 
+// "API-shaped" means the ROUTE promises JSON: a spec or explicit config said
+// so, or the path says so. A non-GET method alone does not — a contact /
+// newsletter form harvested from the homepage POSTs to a page path and
+// legitimately answers with an HTML page, so flagging it as "returned HTML
+// instead of JSON" was a false claim (issue #807; the old rule treated every
+// non-GET method as an API).
 function looksLikeApiEndpoint(url, method, sources) {
-  if (method !== 'GET') return true;
-  if (sources.has('openapi')) return true;
+  if (sources.has('openapi') || sources.has('explicit-config')) return true;
   let pathname = '';
   try {
     pathname = new URL(url).pathname.toLowerCase();
@@ -97,6 +113,36 @@ function looksLikeApiEndpoint(url, method, sources) {
     return false;
   }
   return /\/api\/|\/graphql|\.json$|\/wp-json\//.test(pathname);
+}
+
+// Did the response prove a route LIVES at this URL? Trusted sources already
+// proved it (a 404 there is a regression, reported separately). A guessed
+// path only counts when the answer is not "no such route" — 404 / 410 — and
+// not the site's normal 200 catch-all HTML page (SPA shells and custom error
+// pages answer every unknown path that way).
+function confirmsRoute(res, trusted, contentType) {
+  if (trusted) return true;
+  if (!res.ok) return false;
+  if (res.status === 404 || res.status === 410) return false;
+  if (res.status < 400 && /text\/html/i.test(contentType)) return false;
+  return true;
+}
+
+// Which discovery sources were actually available — the not-checked reason
+// names the missing ones so the operator knows what to configure.
+function describeDiscovery(prov, guessed) {
+  const missing = [];
+  if (!prov.openapi) missing.push('no OpenAPI spec (modules.apiHealth.openApiSpec)');
+  if (!prov.explicit) missing.push('no explicit endpoints (modules.apiHealth.endpoints)');
+  if (!prov.homeFetched) {
+    missing.push(`the homepage could not be fetched for forms/links${prov.homeStatus ? ` (HTTP ${prov.homeStatus})` : ''}`);
+  } else if (prov.htmlDiscovered === 0) {
+    missing.push('no API-shaped forms or links on the homepage');
+  }
+  const probed = guessed > 0
+    ? `${guessed} guessed common path(s) probed, none answered as a live route`
+    : 'no common path answered as a live route';
+  return `${missing.join('; ')}; ${probed}`;
 }
 
 class ApiHealthModule extends BaseModule {
@@ -116,10 +162,7 @@ class ApiHealthModule extends BaseModule {
       config.get('targetUrl');
 
     if (!baseUrl) {
-      result.addCheck('api-health:config', true, {
-        severity: 'info',
-        message: 'No target URL configured — set GATETEST_API_HEALTH_URL or modules.apiHealth.url in .gatetest/config.json',
-      });
+      this._notChecked(result, 'this module probes a live site and no target URL was configured — set GATETEST_API_HEALTH_URL or modules.apiHealth.url in .gatetest/config.json');
       return;
     }
 
@@ -128,19 +171,17 @@ class ApiHealthModule extends BaseModule {
     const slowMs = typeof moduleCfg.slowMs === 'number' ? moduleCfg.slowMs : DEFAULT_SLOW_MS;
     const criticalMs = typeof moduleCfg.criticalMs === 'number' ? moduleCfg.criticalMs : DEFAULT_CRITICAL_MS;
 
-    const discovered = await this._discover(runner, baseUrl, moduleCfg);
+    const { discovered, provenance } = await this._discover(runner, baseUrl, moduleCfg);
     const endpoints = groupByEndpoint(discovered).slice(0, maxEndpoints);
 
     if (endpoints.length === 0) {
-      result.addCheck('api-health:no-endpoints', true, {
-        severity: 'info',
-        message: `No API-shaped endpoints discovered at ${baseUrl}`,
-      });
+      this._notChecked(result, `no endpoints to probe at ${baseUrl}: ${describeDiscovery(provenance, 0)}`);
       return;
     }
 
     const stats = {
       endpointsChecked: 0,
+      confirmed: new Set(),
       brokenEndpoints: [],
       slowEndpoints: [],
       wrongContentType: [],
@@ -152,17 +193,20 @@ class ApiHealthModule extends BaseModule {
       if (runner.aborted) break;
     }
 
-    this._report(result, stats, baseUrl, runner.summary());
+    this._report(result, stats, baseUrl, runner.summary(), provenance);
   }
 
   async _discover(runner, baseUrl, moduleCfg) {
     const lists = [discoverFromCommonPaths(baseUrl)];
+    const provenance = { openapi: false, explicit: false, homeFetched: false, htmlDiscovered: 0 };
 
     if (moduleCfg.openApiSpec) {
+      provenance.openapi = true;
       lists.push(discoverFromOpenApi(moduleCfg.openApiSpec, baseUrl));
     }
 
-    if (Array.isArray(moduleCfg.endpoints)) {
+    if (Array.isArray(moduleCfg.endpoints) && moduleCfg.endpoints.length > 0) {
+      provenance.explicit = true;
       lists.push(
         moduleCfg.endpoints.map((e) => ({
           url: new URL(e.path || e.url, baseUrl).toString(),
@@ -180,13 +224,17 @@ class ApiHealthModule extends BaseModule {
     try {
       const home = await runner.probe({ method: 'GET', url: baseUrl });
       if (home.ok && typeof home.body === 'string') {
-        lists.push(discoverFromHtml(home.body, baseUrl));
+        provenance.homeFetched = home.status < 400;
+        provenance.homeStatus = home.status;
+        const fromHtml = discoverFromHtml(home.body, baseUrl);
+        provenance.htmlDiscovered = fromHtml.length;
+        lists.push(fromHtml);
       }
     } catch {
       /* error-ok — homepage fetch failure just means we fall back to common-paths only */
     }
 
-    return mergeDiscoveries(...lists);
+    return { discovered: mergeDiscoveries(...lists), provenance };
   }
 
   async _checkEndpoint(runner, ep, { slowMs, criticalMs, stats }) {
@@ -240,6 +288,9 @@ class ApiHealthModule extends BaseModule {
   }
 
   _analyze(res, ep, { slowMs, criticalMs, stats, apiShaped, trusted, variant }) {
+    const contentType = (res.headers && res.headers['content-type']) || '';
+    if (confirmsRoute(res, trusted, contentType)) stats.confirmed.add(`${ep.method}|${ep.url}`);
+
     if (!res.ok) {
       if (res.blocked) return; // internal/metadata host — not a customer-facing finding
       stats.brokenEndpoints.push({
@@ -260,16 +311,22 @@ class ApiHealthModule extends BaseModule {
       stats.slowEndpoints.push({ url: ep.url, method: ep.method, variant, timeMs: res.timeMs, severity: 'warning' });
     }
 
-    const contentType = (res.headers && res.headers['content-type']) || '';
     // Untrusted (common-paths-guess) endpoints that don't really exist on
     // this stack commonly get served the site's normal 200-status catch-
     // all page instead of a proper 404 (SPA routing, custom error pages).
     // That's expected for a guessed path — e.g. hitting /wp-json/... on a
     // site that isn't WordPress — and must not be reported as a bug;
-    // confirmed as a real false positive against vapron.ai's /graphql,
-    // /wp-login.php, /wp-json/wp/v2/users during this module's proof run.
-    if (apiShaped && trusted && res.status < 400 && /text\/html/i.test(contentType)) {
-      stats.wrongContentType.push({ url: ep.url, method: ep.method, variant, contentType });
+    // confirmed as a real false positive against a sibling platform's
+    // /graphql, /wp-login.php, /wp-json/wp/v2/users during this module's
+    // proof run.
+    //
+    // A 4xx counts too (issue #807 "404 shape"): a confirmed API route that
+    // answers 400/401/403/422 with an HTML page is the framework's error
+    // page or a login redirect standing in for the JSON error the client
+    // expects. 404 is excluded here only because a trusted route 404ing is
+    // already reported as broken above, and a 5xx likewise.
+    if (apiShaped && trusted && res.status < 500 && res.status !== 404 && /text\/html/i.test(contentType)) {
+      stats.wrongContentType.push({ url: ep.url, method: ep.method, variant, status: res.status, contentType });
     } else if (/application\/json/i.test(contentType) && res.status < 300 && res.body) {
       try {
         JSON.parse(res.body);
@@ -279,7 +336,21 @@ class ApiHealthModule extends BaseModule {
     }
   }
 
-  _report(result, stats, baseUrl, runnerSummary) {
+  _report(result, stats, baseUrl, runnerSummary, provenance) {
+    const confirmed = stats.confirmed.size;
+    const guessed = stats.endpointsChecked - confirmed;
+    const findings = stats.brokenEndpoints.length + stats.wrongContentType.length
+      + stats.malformedJson.length + stats.slowEndpoints.length;
+
+    // Nothing confirmed and nothing found: every probe was a guess that the
+    // site answered "no such route". That is not "0 broken" — it is a scan
+    // that had nothing real to look at, and must say so.
+    if (confirmed === 0 && findings === 0) {
+      this._notChecked(result, `no API endpoint confirmed at ${baseUrl}: ${describeDiscovery(provenance, guessed)}`);
+      this._summary(result, stats, baseUrl, runnerSummary, confirmed);
+      return;
+    }
+
     if (stats.brokenEndpoints.length > 0) {
       result.addCheck('api-health:broken-endpoints', false, {
         severity: 'error',
@@ -288,9 +359,10 @@ class ApiHealthModule extends BaseModule {
         suggestion: 'Fix the 5xx / missing route, or confirm the endpoint was intentionally removed',
       });
     } else {
+      const guessedPart = guessed > 0 ? ` (${guessed} guessed path(s) answered "no such route" and are not counted)` : '';
       result.addCheck('api-health:broken-endpoints', true, {
         severity: 'info',
-        message: `${stats.endpointsChecked} endpoint(s) checked — 0 broken`,
+        message: `${confirmed} confirmed endpoint(s) checked — 0 broken${guessedPart}`,
       });
     }
 
@@ -321,9 +393,13 @@ class ApiHealthModule extends BaseModule {
       });
     }
 
+    this._summary(result, stats, baseUrl, runnerSummary, confirmed);
+  }
+
+  _summary(result, stats, baseUrl, runnerSummary, confirmed) {
     result.addCheck('api-health:summary', true, {
       severity: 'info',
-      message: `${stats.endpointsChecked} endpoint(s) checked at ${baseUrl}: ${stats.brokenEndpoints.length} broken, ${stats.slowEndpoints.length} slow, ${stats.wrongContentType.length} wrong-content-type, ${stats.malformedJson.length} malformed-json (${runnerSummary.totalRequests} requests sent${runnerSummary.aborted ? `, aborted: ${runnerSummary.abortReason}` : ''})`,
+      message: `${stats.endpointsChecked} endpoint(s) probed at ${baseUrl}, ${confirmed} confirmed live: ${stats.brokenEndpoints.length} broken, ${stats.slowEndpoints.length} slow, ${stats.wrongContentType.length} wrong-content-type, ${stats.malformedJson.length} malformed-json (${runnerSummary.totalRequests} requests sent${runnerSummary.aborted ? `, aborted: ${runnerSummary.abortReason}` : ''})`,
     });
   }
 }

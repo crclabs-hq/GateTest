@@ -40,12 +40,14 @@
  */
 
 const { platformEnv } = require('./platform-config');
-
-const RUNTIME_REASONS = Object.freeze({
-  NOT_CONFIGURED: 'not-configured',
-  CALLBACK_TIMEOUT: 'callback-timeout',
-});
-const DISPATCH_FAILED_PREFIX = 'dispatch-failed:';
+// The codes and their plain-English wording live together in one pure file
+// (issue #768 item 5) so the browser UI can import them without this module.
+const {
+  RUNTIME_REASONS,
+  DISPATCH_FAILED_PREFIX,
+  describeRuntimeReason,
+  runtimeNotRunExplanation,
+} = require('./web-runtime-reasons');
 
 /** Seconds the platform worker is given to finish the browser pass. */
 const RUNTIME_DEADLINE_SEC = 60;
@@ -189,4 +191,6 @@ module.exports = {
   dispatchFailureReason,
   callbackTimedOut,
   gateRuntimeScan,
+  describeRuntimeReason,
+  runtimeNotRunExplanation,
 };

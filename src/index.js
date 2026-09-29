@@ -111,6 +111,20 @@ class GateTest {
   }
 
   /**
+   * Run an explicit module list under one summary (`gatetest --crawl` with a
+   * selection, #802). `deferred` is the same {module, reason, runsIn} shape
+   * `summary.deferred` carries for suites, so what a caller deliberately did
+   * not run reaches every consumer the way a suite's deferrals do.
+   */
+  async runModules(moduleNames, opts = {}) {
+    return this._run(moduleNames, {
+      deferred: opts.deferred || [],
+      suite: opts.suite || null,
+      module: opts.module || null,
+    });
+  }
+
+  /**
    * Run all registered modules.
    */
   async runAll() {
@@ -156,7 +170,7 @@ class GateTest {
     // every on-disk reporter: the console summary and --format json's stdout
     // document are built from the in-memory summary either way, so nothing
     // else depends on these having run.
-    if (!this.options.silent) new ConsoleReporter(runner, { showAll: this.options.showAll });
+    if (!this.options.silent) new ConsoleReporter(runner, { showAll: this.options.showAll, timings: this.options.timings });
     const noArtifacts = Boolean(this.config.get('reporting.noArtifacts'));
     if (!noArtifacts) {
       new JsonReporter(runner, this.config);
