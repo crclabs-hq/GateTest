@@ -316,7 +316,7 @@ function isAuthorisedTick({ cronHeader, isAdmin, env }) {
  * @param {string}   [args.tier]                          defaults to 'deterministic' — the FULL engine with the
  *                                                          Anthropic-calling modules skipped. Until 2026-08-18 this
  *                                                          defaulted to 'quick' (4 in-memory modules on ≤50 files),
- *                                                          which made "121 modules on every push" false in production.
+ *                                                          which made "122 modules on every push" false in production.
  * @param {Record<string,string|undefined>} [args.env]     injected for tests (default process.env) — read only to
  *                                                          decide whether an `api`-host bare-URL row's browser-runtime
  *                                                          pass is configured (KI #111/#113 Phase 2).

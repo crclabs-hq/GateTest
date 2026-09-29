@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 // Version + module count come from the generated stats, never typed here.
-// This demo line read "v1.59.0 — 121 modules" while the CLI printed v1.61.0.
+// This demo line read "v1.59.0 — 122 modules" while the CLI printed v1.61.0.
 import siteStats from "../data/site-stats.json";
 import { defaultStats } from "../components/site/StatTiles";
 import { Hero, Section, Card, Terminal } from "../components/v2";

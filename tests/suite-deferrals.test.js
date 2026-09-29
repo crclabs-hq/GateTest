@@ -96,7 +96,7 @@ test('the full suite defers mutation — the 60s interactive bar (CLAUDE.md §9)
   );
   // The README has always sold the $99 Full Scan as 88 modules with mutation
   // + chaos running via the Action instead. The code now matches the copy.
-  assert.equal(config.getSuite('full').length, 88, 'suites.full is the 88 modules the README advertises');
+  assert.equal(config.getSuite('full').length, 89, 'suites.full is the 89 modules the README advertises (88 + estate, #807 R3)');
 });
 
 test('mutation still runs in the nuclear suite (the CI/Action path)', () => {

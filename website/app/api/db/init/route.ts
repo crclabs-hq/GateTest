@@ -16,6 +16,11 @@ import { getDb } from "../../../lib/db";
 // Single source of truth for the scan_queue schema + its migrations.
 // Same require-style as /api/webhook's `queueStore` import — the store is CJS.
 const { ensureScanQueueTable } = require("@/app/lib/scan-queue-store");
+// Email + password sign-in: customers.password_hash / email_verified_at /
+// password_updated_at, auth_tokens, auth_login_failures. Same delegation
+// rule as scan_queue — the store owns the DDL and its ADD COLUMN IF NOT
+// EXISTS repairs, this route only calls it.
+const { ensureSchema: ensurePasswordAuthSchema } = require("@/app/lib/password-auth-store");
 
 function checkPwCookie(v: string | undefined): boolean {
   const pw = process.env.GATETEST_ADMIN_PASSWORD || "";
@@ -138,6 +143,7 @@ export async function POST(req: NextRequest) {
     // table, which is what makes calling this route a real fix for an
     // existing database rather than a no-op.
     await ensureScanQueueTable(sql);
+    await ensurePasswordAuthSchema(sql);
 
     await sql`CREATE INDEX IF NOT EXISTS idx_scans_session ON scans(session_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_scans_email ON scans(customer_email)`;
@@ -190,8 +196,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      tables: ["scans", "customers", "api_keys", "api_calls", "installations", "scan_queue", "watches", "heal_history"],
-      indexes: 17,
+      tables: ["scans", "customers", "api_keys", "api_calls", "installations", "scan_queue", "auth_tokens", "auth_login_failures", "watches", "heal_history"],
+      indexes: 20,
       message: "Schema initialized (idempotent — safe to run multiple times)",
     });
   } catch (err) {

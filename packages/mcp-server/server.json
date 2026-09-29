@@ -1,7 +1,7 @@
 {
   "name": "ai.gatetest.www/gatetest",
   "version": "1.2.1",
-  "description": "Give Claude eyes (screenshot live pages), ears (Sentry/Datadog/Rollbar errors + runtime checks), hands (verify fixes worked), and root-cause tools (source-map trace resolution, git regression blame), and debug tools (run tests, stream logs, query your DB, call APIs). 24 tools, 121-module engine. Scan, fix, screenshot, and prove the fix worked — all inside your AI assistant.",
+  "description": "Give Claude eyes (screenshot live pages), ears (Sentry/Datadog/Rollbar errors + runtime checks), hands (verify fixes worked), and root-cause tools (source-map trace resolution, git regression blame), and debug tools (run tests, stream logs, query your DB, call APIs). 24 tools, 122-module engine. Scan, fix, screenshot, and prove the fix worked — all inside your AI assistant.",
   "license": "MIT",
   "homepage": "https://gatetest.io",
   "repository": "https://github.com/crclabs-hq/gatetest",
@@ -39,7 +39,7 @@
       "environmentVariables": [
         {
           "name": "GATETEST_API_KEY",
-          "description": "Premium MCP subscription key ($29/mo at gatetest.io/mcp). Unlocks full 121-module scans, AI fix, Eyes (screenshot), Ears (production errors), Hands (verify_fix). Free tools work without a key: check_health, list_modules, get_badge, scan_url, scan_local (quick suite only).",
+          "description": "Premium MCP subscription key ($29/mo at gatetest.io/mcp). Unlocks full 122-module scans, AI fix, Eyes (screenshot), Ears (production errors), Hands (verify_fix). Free tools work without a key: check_health, list_modules, get_badge, scan_url, scan_local (quick suite only).",
           "isRequired": false,
           "isSecret": true,
           "format": "string"

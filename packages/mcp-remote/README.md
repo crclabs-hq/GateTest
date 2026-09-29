@@ -44,7 +44,7 @@ MCP client    ──HTTPS──▶ your reverse proxy ──▶ Bun + Hono (this
 | Tool | Access | Proxies |
 |---|---|---|
 | `check_health` | free | `/api/v1/health` |
-| `list_modules` | free | (embedded engine list, 121 modules) |
+| `list_modules` | free | (embedded engine list, 122 modules) |
 | `get_badge` | free | `/badge/:owner/:repo` |
 | `scan_url` | free | `POST /api/web/scan` |
 | `scan_repo` | free | `POST /api/playground/scan` |

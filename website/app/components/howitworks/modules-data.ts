@@ -2,7 +2,7 @@
  * Module catalogue grouped by category for the /how-it-works page.
  *
  * Source of truth: `node bin/gatetest.js --list` against src/core/registry.js
- * at v1.43.0 (121 modules). Descriptions match the registered module
+ * at v1.43.0 (122 modules). Descriptions match the registered module
  * `description` field (kept short for card display).
  *
  * Examples are honest representative findings each module emits, drawn from
@@ -111,6 +111,7 @@ export const MODULE_CATEGORIES: ModuleCategory[] = [
       { name: "crossBrowser", description: "Runs the same page load across Chromium, Firefox, and WebKit and diffs navigation success, runtime errors, and rendering against Chromium as the reference engine.", example: "Firefox throws a CSP error Chromium doesn't — engine-specific bug" },
       { name: "chaos", description: "Chaos & Resilience Testing — slow network, API failure, offline, missing resources, server timeouts. Runs via the GitHub Action where a headless browser is available; the website-only Forensic scan does not include it.", example: "App freezes on 3G simulation — no loading state shown" },
       { name: "webHeaders", description: "CSP/HSTS/XFO/CORS misconfig across Next.js, Vercel, Netlify, nginx, Apache, Caddy and server source in any language.", example: "CSP missing — defaults to inline-everything" },
+      { name: "estate", description: "Every host the target owns — list, sitemap, TLS SAN, links — each given an outside-in verdict.", example: "api.example.com: gateway-up-app-dead (502)" },
       { name: "cacheHeaders", description: "Cache Headers & CDN Configuration.", example: "/api/user has Cache-Control: public — PII cacheable at CDN" },
     ],
   },

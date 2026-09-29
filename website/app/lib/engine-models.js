@@ -4,7 +4,7 @@
  * tiers." Craig 2026-07-10 — "Upgrade everything to Sonnet 5"; user-selectable
  * model + BYOK.)
  *
- * The 121-module deterministic scan uses ZERO Claude tokens — the model choice
+ * The 122-module deterministic scan uses ZERO Claude tokens — the model choice
  * here only affects the AI layer (auto-fix, per-finding diagnosis, pair-review,
  * cross-finding correlation, executive summary). We put the most capable model
  * where the price funds it, and keep the cheaper model on free/high-volume paths.
