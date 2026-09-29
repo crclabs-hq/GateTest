@@ -22,6 +22,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/admin/learning", label: "Learning" },
   { href: "/admin/pipeline-trace", label: "Pipeline trace" },
   { href: "/admin/integrations/tallrig", label: "Integrations" },
+  { href: "/admin/secrets", label: "Secrets" },
   { href: "/admin/hn-launch", label: "Launch" },
 ];
 
