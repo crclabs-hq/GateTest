@@ -99,10 +99,21 @@ function stripStringsAndComments(src) {
       for (; j < n; j += 1) {
         const d = src.charCodeAt(j);
         if (d === 92) { j += 1; continue; }
-        if (d === q) break;
+        if (d === q || d === 10) break;
       }
       emitCode(i); parts.push(src[i]); copyFrom = i + 1;
       if (j >= n) { parts.push(mask(src.slice(i + 1, n))); copyFrom = n; i = n; continue; }
+      // A '…' / "…" literal cannot hold a raw newline, so one that reaches
+      // the line end is unterminated and ends there — the same rule the
+      // Python stripper applies. Before this an apostrophe in JSX text
+      // (`DavenRoe's cookie use`, CookiePolicy.jsx:341) opened a "string"
+      // that ran to the next quote two lines down and inverted every mask
+      // below it: real string literals read as code, code read as strings,
+      // and a CRITICAL "CSRF protection disabled" fired on prose (#842 DR-1).
+      if (src.charCodeAt(j) === 10) {
+        parts.push(mask(src.slice(i + 1, j))); copyFrom = j; i = j; lastSig = '\n';
+        continue;
+      }
       parts.push(mask(src.slice(i + 1, j))); parts.push(src[j]); copyFrom = j + 1; i = j + 1; lastSig = src[j];
       continue;
     }

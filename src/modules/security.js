@@ -571,7 +571,19 @@ class SecurityModule extends BaseModule {
       },
       // Reads string content (`app.disable('csrf')`), so it runs on the raw
       // line; the match start is still required to be code.
-      { regex: /disable.*csrf|csrf.*disable/gi, name: 'CSRF protection disabled', severity: 'critical', readsStrings: true },
+      // Code SHAPES of a disablement, not the two words on one line:
+      // `disable.*csrf|csrf.*disable` fired CRITICAL on the sentence
+      // "Cannot be disabled. Examples: login tokens, CSRF protection." in a
+      // JSX string (DavenRoe CookiePolicy.jsx:380, #842 DR-1). Prose in JSX
+      // text has no quotes for the mask to blank, so the rule itself must
+      // not read as English: a config key set to false, a `csrf()` builder
+      // `.disable()`d, a Django `csrf_exempt`, or `disable('csrf')`.
+      {
+        regex: /\bdisable\s*\(\s*['"]csrf['"]\s*\)|\w*csrf\w*\s*[:=]+\s*false\b|\w*csrf\w*\s*\(\s*false\s*\)|\bcsrf\w*\s*\(\s*\)\s*\.\s*disable\s*\(|\bcsrf\s*\(\s*(?:[\w.]*::disable|\w+\s*->\s*\w+\s*\.\s*disable\s*\(\s*\))\s*\)|\bcsrf_exempt\b|\bcsrf\w*\s*:\s*\{\s*enabled\s*:\s*false\b/gi,
+        name: 'CSRF protection disabled',
+        severity: 'critical',
+        readsStrings: true,
+      },
       // NoSQL injection: a $where clause built from dynamic input executes
       // attacker-controlled JavaScript on the MongoDB server (NodeGoat A1;
       // 2026-08-18 audit advancement #6 — this class was a recall miss).

@@ -164,3 +164,22 @@ describe('maskSource — which stripper a file gets is decided once (2026-09-05)
     assert.strictEqual(maskSource('const s = "v"; // c', 'a.go'), 'const s = " "; ' + ' '.repeat(4));
   });
 });
+
+// A '…' / "…" literal cannot hold a raw newline, so one that reaches the line
+// end is unterminated and ends there. Before 2026-09-29 the JS stripper ran
+// it on to the next matching quote: an apostrophe in JSX text (DavenRoe
+// CookiePolicy.jsx:341, `DavenRoe's cookie use`) opened a "string" that closed
+// two lines later and inverted every mask below it — string literals read as
+// code, code read as strings, and security's CSRF rule fired on prose (#842).
+describe('source-strip — a quoted string ends at the line', () => {
+  it("an apostrophe in JSX text does not open a string that runs to the next line's quote (#842 DR-1)", () => {
+    const prose = 'Cannot be disabled. Examples: login tokens, CSRF protection.';
+    const src = `<p>DavenRoe's cookie use is minimal</p>\nconst d = { desc: '${prose}' };\n`;
+    const out = strip(src).split('\n');
+    assert.ok(/^<p>DavenRoe' +$/.test(out[0]), out[0]);
+    assert.strictEqual(out[1], `const d = { desc: '${' '.repeat(prose.length)}' };`);
+  });
+  it('a double-quoted string is the same; the newline after it is code again', () => {
+    assert.strictEqual(strip('x = "open\ny = "z"\n'), 'x = "    \ny = " "\n');
+  });
+});
