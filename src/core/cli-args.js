@@ -151,6 +151,9 @@ const FLAG_SPEC = [
   { flags: ['--budget'], key: 'budget', type: 'int' },
   { flags: ['--crawl-max'], key: 'crawlMax', type: 'int' },
   { flags: ['--crawl-page-timeout'], key: 'crawlPageTimeout', type: 'int' },
+  // How many crawled pages the page-level modules audit under --crawl
+  // (#815). Default DEFAULT_CRAWL_CHECK_PAGES (src/core/config.js).
+  { flags: ['--crawl-check-pages'], key: 'crawlCheckPages', type: 'int' },
   { flags: ['--monitor-interval'], key: 'monitorInterval', type: 'int' },
   { flags: ['--confidence-threshold'], key: 'confidenceThreshold', type: 'float01' },
 
@@ -159,6 +162,13 @@ const FLAG_SPEC = [
   // out, coverage, .turbo, .cache, .nuxt, .svelte-kit, target) by default —
   // see src/core/gitignore.js `getScanIgnoreMatcher`. This opts back in.
   { flags: ['--include-ignored'], key: 'includeIgnored', type: 'boolean' },
+
+  // Issue #770: every module's elapsed already exists (TestResult.duration)
+  // but console output only ever surfaced it in the top-5 "Slowest:" line —
+  // a 4-app monorepo whose 22-minute run needed "where did the time go"
+  // had no full accounting. This prints every module's own elapsed plus a
+  // running total after the run; default output (no flag) is unchanged.
+  { flags: ['--timings'], key: 'timings', type: 'boolean' },
 ];
 
 /** token -> spec. Built once from FLAG_SPEC so the two cannot drift. */

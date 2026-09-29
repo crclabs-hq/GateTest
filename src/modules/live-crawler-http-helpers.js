@@ -50,7 +50,7 @@ function fetchPage(url, timeout, extraHeaders, _originHost) {
           // hop as terminal rather than let a broken redirect reject/hang.
           resolve({
             url, finalUrl: url, status: res.statusCode, statusText: res.statusMessage,
-            contentType: res.headers['content-type'] || '', body: '',
+            contentType: res.headers['content-type'] || '', headers: res.headers, body: '',
             redirected: false, responseMs: Date.now() - startedAt,
           });
           res.resume();
@@ -68,7 +68,7 @@ function fetchPage(url, timeout, extraHeaders, _originHost) {
           // accounts.google.com, reported as a broken link on gluecron.com).
           resolve({
             url, finalUrl: redirectUrl, status: res.statusCode, statusText: res.statusMessage,
-            contentType: res.headers['content-type'] || '', body: '',
+            contentType: res.headers['content-type'] || '', headers: res.headers, body: '',
             redirected: true, redirectStatus: res.statusCode, originalUrl: url,
             offSiteRedirect: true, responseMs: Date.now() - startedAt,
           });
@@ -110,6 +110,9 @@ function fetchPage(url, timeout, extraHeaders, _originHost) {
           status: res.statusCode,
           statusText: res.statusMessage,
           contentType: res.headers['content-type'] || '',
+          // The response headers, kept with the page so the page-level
+          // modules can audit every crawled page's headers/cookies (#815).
+          headers: res.headers,
           body,
           redirected: false,
           responseMs: Date.now() - startedAt,
