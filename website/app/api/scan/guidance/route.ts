@@ -36,6 +36,13 @@ const { checkServerSpend, recordServerSpend } = require("@/app/lib/server-spend-
   recordServerSpend: (opts: { sql?: unknown; route: string; model: string; inputTokens: number; outputTokens: number; now?: Date; isCustomerKey?: boolean }) => Promise<{ recorded: boolean; reason?: string }>;
 };
 
+// Input bounds (issue count, field lengths, AI calls per request) — one
+// definition, node-tested in tests/scan-public-routes.test.js.
+const { cleanGuidanceIssues, MAX_AI_ISSUES } = require("@/app/lib/guidance-input") as {
+  cleanGuidanceIssues: (raw: unknown) => IssueInput[];
+  MAX_AI_ISSUES: number;
+};
+
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
 
 interface IssueInput {
@@ -272,13 +279,19 @@ Rules:
 // MCP layer and not here, calling this route directly bypasses the $29/mo tier.
 // Closing it means threading an internal service token through mcp-remote-core —
 // a paid-tier change, so Boss Rule, not a unilateral fix.
+// Spend controls: cleanGuidanceIssues bounds each request (at most 50 issues,
+// 2,000-character fields, MAX_AI_ISSUES model calls — its cost is capped
+// before the ceiling is asked), the per-IP limiter bounds how many requests,
+// and checkServerSpend is the daily server-key ceiling
+// (GATETEST_DAILY_API_BUDGET_USD; unset = no ceiling, so it must be set on
+// the box for Meter 3 to hold).
 export async function POST(req: NextRequest) {
-  let body: { issues?: IssueInput[] };
+  let body: { issues?: unknown };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const issues = body.issues || [];
+  const issues = cleanGuidanceIssues(body && typeof body === "object" ? body.issues : undefined);
   if (issues.length === 0) return NextResponse.json({ guidance: [] });
 
   // Up to 20 Claude calls per request on OUR key with no limiter was free
@@ -326,7 +339,7 @@ export async function POST(req: NextRequest) {
     };
 
     claudeResults = await Promise.allSettled(
-      unmatched.slice(0, 20).map((issue) => askClaudeGuidance(issue, onUsage)) // cap at 20 to control cost
+      unmatched.slice(0, MAX_AI_ISSUES).map((issue) => askClaudeGuidance(issue, onUsage)) // cap to control cost
     );
 
     if (totalInputTokens > 0 || totalOutputTokens > 0) {
