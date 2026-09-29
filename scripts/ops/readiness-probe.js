@@ -85,16 +85,19 @@ function deployAdapter(args) {
     if (s.ok) {
       console.log(`  ${C.green}✓${C.reset} ${s.name.padEnd(34)} ${C.dim}${s.detail}${C.reset}`);
     } else {
-      const mark = s.severity === 'critical' ? `${C.red}✗${C.reset}` : `${C.yellow}!${C.reset}`;
+      // `?` is the third state (Doctrine #1): the step had nothing to compare
+      // against — neither a pass nor a failure, and printed as such.
+      const mark = s.notChecked ? `${C.yellow}?${C.reset}` : s.severity === 'critical' ? `${C.red}✗${C.reset}` : `${C.yellow}!${C.reset}`;
       console.log(`  ${mark} ${s.name.padEnd(34)} ${s.detail}`);
       if (s.fix) console.log(`      ${C.dim}→ ${s.fix}${C.reset}`);
     }
   }
 
-  const { passed, total, critical, productBroken, brokenAreas } = report.summary;
+  const { passed, total, critical, productBroken, brokenAreas, notChecked } = report.summary;
+  const notCheckedPart = notChecked ? `, ${notChecked} not checked` : '';
   console.log('');
   if (report.ready) {
-    console.log(`  ${C.green}${C.bold}READY${C.reset}  ${passed}/${total} steps passed\n`);
+    console.log(`  ${C.green}${C.bold}READY${C.reset}  ${passed}/${total} steps passed${notCheckedPart}\n`);
   } else {
     // "10/11 passed" is technically true and practically useless — it reads
     // as "almost fine" whether the one failure is an unset optional key or a
