@@ -33,6 +33,7 @@ const { repoRelative } = require('../core/repo-path');
 const BaseModule    = require('./base-module');
 const { makeAutoFix } = require('../core/ai-fix-engine');
 const { isIllustrationPath } = require('../core/scan-scope');
+const { isPublicDiscoveryRoute } = require('../core/public-discovery-routes');
 
 // ─── auth signal patterns ──────────────────────────────────────────────────
 
@@ -126,6 +127,14 @@ const SENSITIVE_PATH_RE = /\b(admin|internal|private|account|settings|billing|us
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE', 'ALL', 'ROUTE']);
 
 function isPublicRoute(routePath) {
+  // GT-11 (#771): `/`, `/v1`, `/v1/uptime`, `/openapi.yaml`, `/.well-known/*`,
+  // `/healthz`, `/api/version` — public-by-design discovery endpoints, one
+  // definition in src/core/public-discovery-routes.js (whole-path matched,
+  // so `/api/admin/users`, `/v1/users` and `/api/versions/1` are never
+  // caught by this branch). Checked ahead of the substring keyword list
+  // below, which is looser by design for the rest of this module's
+  // exemptions.
+  if (isPublicDiscoveryRoute(routePath)) return true;
   return PUBLIC_ROUTE_KEYWORDS.some(kw => routePath.toLowerCase().includes(kw));
 }
 

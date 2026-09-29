@@ -56,6 +56,14 @@ itself still uses the old variable names until the owner's cutover.
   `TELEMETRY_DEFAULT`; `npm deprecate` of 1.60.0 and earlier is owner-only.
 - Hosted web scan honesty: JSON API host skips HTML-only checks, navigation failure is not a
   broken link: #804 (#768 items 3 and 4).
+- #771 GT-03 / GT-09 / GT-11 / GT-12 false positives closed against the AlecRae line
+  (crossFileTaint query-string and verify-guarded redirects, deployScriptValidator
+  upload-artifact paths, authBypass `GET /` / `/v1` / `/openapi.yaml` / `/v1/uptime`,
+  logPii + dataIntegrity operator CLIs under `scripts/`): PR `fix/fp-taint-shell-auth-771`.
+  Measured on AlecRae.com: crossFileTaint 3→0, deployScriptValidator 2→1 (the k8s
+  `/api/health` probe that 404s live stays), authBypass 1 error→0, logPii 1→0,
+  dataIntegrity PII-in-logs 11→6 (five `apps/api/scripts/*.ts` gone, nothing added).
+  One definition each: `src/core/public-discovery-routes.js`, `src/core/operator-cli.js`.
 - Hosted `/api/web/scan` keeps its own clock (issue #768 items 1, 2, 5): 50 s budget
   (`GATETEST_WEB_SCAN_BUDGET_MS`), then 200 + `partial: true` + unfinished modules
   not-checked + `streamUrl`; every response carries an absolute `reportUrl`;
