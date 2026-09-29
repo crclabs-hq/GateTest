@@ -537,12 +537,28 @@ describe('DataIntegrityModule — operator CLIs printing what they were told to 
     assert.deepStrictEqual(found.map((f) => f.name), ['data:pii:PII in logs:subscripts/report.js']);
   });
 
-  it('POSITIVE: the localStorage rule is untouched by the exemption even inside scripts/', async () => {
-    // The exemption is scoped to the "PII in logs" rule only — a CLI that
-    // writes a token into localStorage is not printing to a terminal.
+  it('NEGATIVE (#842 DR-6): a dev tool seeding a token into the browser it drives is not shipped', async () => {
+    // Previously pinned the other way ("a CLI that writes a token into
+    // localStorage is not printing to a terminal"). A Node script has no
+    // localStorage at all; the only way it reaches one is by driving a
+    // browser — DavenRoe frontend/scripts/inspect.mjs seeds a mock token
+    // into its Playwright context so gated routes render. That file never
+    // ships, and the finding said it did. The role of the file decides, in
+    // one place (src/core/operator-cli.js), for every PII rule.
     const found = await scanFiles({
       'scripts/bootstrap.js': 'localStorage.setItem("session", token);\n',
     });
-    assert.deepStrictEqual(found.map((f) => f.name), ['data:pii:Sensitive data in localStorage:scripts/bootstrap.js']);
+    assert.deepStrictEqual(found.map((f) => f.name), []);
+  });
+
+  it('POSITIVE: the same localStorage line in application code, and in a SHIPPED public/scripts/ file, still fires', async () => {
+    const found = await scanFiles({
+      'src/auth/session.js': 'localStorage.setItem("session", token);\n',
+      'public/scripts/app.js': 'localStorage.setItem("session", token);\n',
+    });
+    assert.deepStrictEqual(found.map((f) => f.name).sort(), [
+      'data:pii:Sensitive data in localStorage:public/scripts/app.js',
+      'data:pii:Sensitive data in localStorage:src/auth/session.js',
+    ]);
   });
 });
