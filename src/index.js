@@ -170,7 +170,7 @@ class GateTest {
     // every on-disk reporter: the console summary and --format json's stdout
     // document are built from the in-memory summary either way, so nothing
     // else depends on these having run.
-    if (!this.options.silent) new ConsoleReporter(runner, { showAll: this.options.showAll });
+    if (!this.options.silent) new ConsoleReporter(runner, { showAll: this.options.showAll, timings: this.options.timings });
     const noArtifacts = Boolean(this.config.get('reporting.noArtifacts'));
     if (!noArtifacts) {
       new JsonReporter(runner, this.config);

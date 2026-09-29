@@ -327,6 +327,11 @@ const HELP = `
                        ran. Under --strict, an exceeded budget is itself a
                        usage failure (exit 2). Also settable via
                        GATETEST_BUDGET_S; --budget wins when both are set.
+    --timings          Print every module's own elapsed plus a running total
+                       after the run (issue #770). Default output already
+                       shows each module's elapsed inline and a top-5
+                       "Slowest:" line; this adds the full accounting for a
+                       "where did the time go" run. Off by default.
     --help, -h         Show this help message
     --doctor           Audit your environment — checks every prerequisite for
                        auto-fix to work (Node version, gh CLI, ANTHROPIC_API_KEY,
@@ -797,6 +802,9 @@ async function main() {
     // ranked shortlist: 813 streamed warnings reads as noise and the
     // developer stops running the tool.
     showAll: args.all || false,
+    // Issue #770 — every module's elapsed plus a running total, printed
+    // once after the run. Default output (no flag) is unchanged.
+    timings: args.timings || false,
     junit: args.junit || false,
     compliance: args.compliance || false,
     githubAnnotations: args.githubAnnotations || false,
