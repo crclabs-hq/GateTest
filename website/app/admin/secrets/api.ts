@@ -8,10 +8,10 @@
  * only thing interpolated into a path is the secret's NAME.
  */
 
-export type Tier = "required" | "important" | "optional" | "custom";
-export type SecretState = "set" | "missing" | "placeholder";
-export type SecretSource = "store" | "env" | "both" | "none";
-export type Liveness = "alive" | "dead" | "cannot-tell" | "unchecked";
+type Tier = "required" | "important" | "optional" | "custom";
+type SecretState = "set" | "missing" | "placeholder";
+type SecretSource = "store" | "env" | "both" | "none";
+type Liveness = "alive" | "dead" | "cannot-tell" | "unchecked";
 
 export interface SecretItem {
   name: string;
@@ -29,7 +29,7 @@ export interface SecretItem {
   reserved: boolean;
 }
 
-export interface ApplyState {
+interface ApplyState {
   lastAppliedAt: string | null;
   applied: boolean;
   reason?: string;
@@ -44,9 +44,11 @@ export interface SecretsList {
   items: SecretItem[];
 }
 
-export interface ApplyOutcome {
+interface ApplyOutcome {
   applied: boolean;
   reason?: string;
+  /** With reason "would_drop_keys": the names the env file holds that the store no longer has. */
+  dropped?: string[];
 }
 
 export interface SetResult {
@@ -61,7 +63,7 @@ export interface DeleteResult {
   apply: ApplyOutcome;
 }
 
-export interface VerifyResult {
+interface VerifyResult {
   liveness: Liveness;
   checkedAt: string;
 }
@@ -71,18 +73,23 @@ export interface ApplyResult {
   reason?: string;
   path: string;
   count: number;
+  /** With reason "would_drop_keys": the names a retry must list in `allowRemoving`. */
+  dropped?: string[];
 }
 
 export interface AuditEntry {
   at: string;
   actor: string;
   action: string;
-  name: string;
-  ip: string;
+  name: string | null;
+  ip: string | null;
   outcome: string;
 }
 
-export interface StepUpResult {
+/** Whether the hash chain over the WHOLE trail still verifies; brokenAt is 0-based, oldest first. */
+export type AuditChain = { ok: true; count: number } | { ok: false; brokenAt?: number; reason?: string };
+
+interface StepUpResult {
   ok: boolean;
   freshUntil: string;
 }
@@ -154,12 +161,18 @@ export function verifySecret(name: string): Promise<VerifyResult> {
   return call<VerifyResult>(`${secretPath(name)}/verify`, { method: "POST" });
 }
 
-export function applySecrets(): Promise<ApplyResult> {
-  return call<ApplyResult>(`${BASE}/apply`, { method: "POST" });
+/**
+ * Re-render the env file. `allowRemoving` names the keys the owner confirmed
+ * may leave the file (the answer to a `would_drop_keys` refusal); a plain
+ * apply sends no body.
+ */
+export function applySecrets(allowRemoving?: readonly string[]): Promise<ApplyResult> {
+  const body = allowRemoving && allowRemoving.length > 0 ? { allowRemoving: [...allowRemoving] } : undefined;
+  return call<ApplyResult>(`${BASE}/apply`, { method: "POST", body });
 }
 
-export function listAudit(limit = 50): Promise<{ entries: AuditEntry[] }> {
-  return call<{ entries: AuditEntry[] }>(`${BASE}/audit?limit=${Math.max(1, Math.min(50, Math.floor(limit)))}`);
+export function listAudit(limit = 50): Promise<{ entries: AuditEntry[]; chain?: AuditChain }> {
+  return call<{ entries: AuditEntry[]; chain?: AuditChain }>(`${BASE}/audit?limit=${Math.max(1, Math.min(50, Math.floor(limit)))}`);
 }
 
 export function stepUp(password: string): Promise<StepUpResult> {

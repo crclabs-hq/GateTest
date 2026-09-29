@@ -3,8 +3,9 @@
  *
  * Everything the panel DECIDES lives here (grouping, state/liveness marks,
  * error-code copy, apply copy, the step-up retry, the reveal timer, the
- * value generator) so `node --test` can assert it without a browser or a
- * TS loader. The React component only renders what these return.
+ * value generator, the apply-refusal names) so `node --test` can assert it
+ * without a browser or a TS loader; the audit drawer's own rules sit beside
+ * it in ./audit-logic.js. The React components only render what these return.
  *
  * Plain CommonJS on purpose, same reason as app/legal/_facts.js: importable
  * by the Next page AND require()-able by node:test.
@@ -219,20 +220,23 @@ function errorCopy(code, status) {
 }
 
 /**
- * The header's apply line.
+ * The header's apply line. `pending` is the NORMAL "the store changed and the
+ * env file has not been rewritten yet" state (listing reason `out_of_sync`):
+ * neutral, answered by an Apply action, never worded as a failure.
  *
  * @param {{ lastAppliedAt?: string | null, applied?: boolean, reason?: string } | undefined} s
  * @param {number} [now]
- * @returns {{ ok: boolean, text: string }}
+ * @returns {{ ok: boolean, pending: boolean, text: string }}
  */
 function applyStateCopy(s, now) {
-  if (!s) return { ok: false, text: 'Not applied yet' };
-  if (s.applied === false && s.reason) return { ok: false, text: `Could not write the env file: ${applyReasonCopy(s.reason)}` };
-  if (s.lastAppliedAt) {
-    const rel = relativeTime(s.lastAppliedAt, now);
-    return { ok: true, text: `Last applied ${rel || s.lastAppliedAt}` };
+  if (!s) return { ok: false, pending: false, text: 'Not applied yet' };
+  const last = s.lastAppliedAt ? relativeTime(s.lastAppliedAt, now) || s.lastAppliedAt : '';
+  if (s.applied === false && s.reason === 'out_of_sync') {
+    return { ok: false, pending: true, text: last ? `Changes not applied yet (last applied ${last})` : 'Changes not applied yet' };
   }
-  return { ok: false, text: 'Not applied yet' };
+  if (s.applied === false && s.reason) return { ok: false, pending: false, text: `Could not write the env file: ${applyReasonCopy(s.reason)}` };
+  if (s.lastAppliedAt) return { ok: true, pending: false, text: `Last applied ${last}` };
+  return { ok: false, pending: false, text: 'Not applied yet' };
 }
 
 /** @param {string} reason */
@@ -245,6 +249,12 @@ function applyReasonCopy(reason) {
       return 'the env file already matched, so nothing needed writing';
     case 'store_unavailable':
       return 'the store is not available';
+    case 'would_drop_keys':
+      return 'the env file holds names the store no longer has, and Apply never removes a name without asking';
+    case 'out_of_sync':
+      return 'the store changed since the env file was last written';
+    case 'readback_mismatch':
+      return 'the file read back differently from what was written, so the previous file was kept';
     case 'permission_denied':
     case 'EACCES':
       return 'the service cannot write the env file (permission denied)';
@@ -266,6 +276,41 @@ function applyResultCopy(apply) {
     ok: false,
     text: `Saved to the store, but the env file was not written: ${apply.reason ? applyReasonCopy(apply.reason) : 'no reason given'}.`,
   };
+}
+
+/**
+ * The names an apply answer is waiting on the owner to confirm removing:
+ * `would_drop_keys` means the env file holds names the store no longer has,
+ * and the server removes them only when a retry lists them in `allowRemoving`.
+ * Any other answer (applied, or a different reason) returns [].
+ *
+ * @param {{ applied?: boolean, reason?: string, dropped?: unknown } | undefined} r
+ * @returns {string[]}
+ */
+function namesToDrop(r) {
+  if (!r || r.applied || r.reason !== 'would_drop_keys' || !Array.isArray(r.dropped)) return [];
+  return r.dropped.filter((n) => typeof n === 'string' && n.length > 0);
+}
+
+const LIVENESS_OUTCOMES = ['alive', 'dead', 'cannot-tell', 'unchecked'];
+
+/**
+ * How an audit row's outcome is inked. A verify row's outcome is the vendor's
+ * liveness answer, not a success-or-failure, so it takes the same mark as the
+ * table's Liveness column; any other row is ok (accent) or a failure (ink,
+ * semibold).
+ *
+ * @param {{ action?: string, outcome?: string } | undefined} entry
+ * @returns {{ ink: 'accent' | 'ink' | 'muted', strong: boolean, label: string }}
+ */
+function auditOutcomeMark(entry) {
+  const outcome = entry && typeof entry.outcome === 'string' ? entry.outcome : '';
+  if (entry && entry.action === 'verify' && LIVENESS_OUTCOMES.includes(outcome)) {
+    const m = livenessMark(outcome);
+    return { ink: m.ink, strong: m.strong, label: m.label };
+  }
+  if (outcome === 'ok' || outcome === 'success') return { ink: 'accent', strong: false, label: outcome };
+  return { ink: 'ink', strong: true, label: outcome || 'unknown' };
 }
 
 /**
@@ -367,6 +412,8 @@ module.exports = {
   applyStateCopy,
   applyReasonCopy,
   applyResultCopy,
+  namesToDrop,
+  auditOutcomeMark,
   warningCopy,
   runWithStepUp,
   scheduleRevealClear,

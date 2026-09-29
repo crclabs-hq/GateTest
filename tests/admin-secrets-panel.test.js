@@ -20,6 +20,7 @@ const { describe, it, mock } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const DIR = path.join(ROOT, 'website', 'app', 'admin', 'secrets');
@@ -35,6 +36,10 @@ function panelFiles() {
     .map((f) => rel(f));
 }
 
+// The dialogs, one file each since the split (GateTest's per-file ceiling).
+const DIALOG_FILES = ['SetSecretDialog.tsx', 'RevealDialog.tsx', 'DeleteDialog.tsx', 'StepUpDialog.tsx', 'DropKeysDialog.tsx'];
+const PANEL_TSX = ['SecretsPanel.tsx', 'PanelHeader.tsx', 'SecretsTable.tsx', 'AuditDrawer.tsx', ...DIALOG_FILES];
+
 // Strip comments so a doc comment that NAMES a forbidden thing ("never
 // console.log", "no localStorage") cannot fail the guard, while code can.
 function code(src) {
@@ -45,10 +50,17 @@ function code(src) {
 
 describe('route, gating and navigation', () => {
   it('the page, client panel, api helpers and logic all exist (anti-vacuity)', () => {
-    for (const f of ['page.tsx', 'SecretsPanel.tsx', 'SecretDialogs.tsx', 'Modal.tsx', 'api.ts', 'logic.js', 'secrets.css']) {
+    for (const f of ['page.tsx', ...PANEL_TSX, 'Modal.tsx', 'errors.ts', 'api.ts', 'logic.js', 'audit-logic.js', 'secrets.css']) {
       assert.ok(fs.existsSync(rel(f)), `missing website/app/admin/secrets/${f}`);
     }
-    assert.ok(panelFiles().length >= 7);
+    assert.ok(panelFiles().length >= 16);
+  });
+
+  it('every panel file stays well under the 500-line per-file ceiling', () => {
+    for (const f of panelFiles()) {
+      const lines = read(f).split('\n').length;
+      assert.ok(lines <= 450,`${path.basename(f)} is ${lines} lines; split it before it reaches the 500-line ceiling`);
+    }
   });
 
   it('page.tsx is a server component gated by the shared admin-session helper before mounting the panel', () => {
@@ -100,8 +112,9 @@ describe('api.ts matches the backend contract exactly', () => {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
     }).outputText;
     const mod = { exports: {} };
-    // eslint-disable-next-line no-new-func
-    new Function('module', 'exports', 'fetch', out)(mod, mod.exports, fetchImpl);
+    // Compiled as a function body in this realm, with the recording fetch
+    // passed in as a parameter so it shadows the global one.
+    vm.compileFunction(out, ['module', 'exports', 'fetch'], { filename: 'api.ts' })(mod, mod.exports, fetchImpl);
     return mod.exports;
   }
 
@@ -166,7 +179,7 @@ describe('value hygiene', () => {
   });
 
   it('every <input> is password-type with autocomplete and spellcheck off, except the name/confirm text fields', () => {
-    const src = read(rel('SecretDialogs.tsx'));
+    const src = PANEL_TSX.map((f) => read(rel(f))).join('\n');
     const inputs = src.match(/<input\b[\s\S]*?\/>/g) || [];
     assert.ok(inputs.length >= 5, `expected the dialogs' inputs, found ${inputs.length}`);
     let valueInputs = 0;
@@ -191,11 +204,15 @@ describe('value hygiene', () => {
   });
 
   it('value state is cleared on success and on unmount', () => {
-    const src = read(rel('SecretDialogs.tsx'));
-    assert.match(src, /useEffect\(\(\) => \(\) => setValue\(""\), \[\]\)/, 'set dialog clears on unmount');
-    assert.match(src, /await guarded\(\(\) => setSecret\(n, value\)\);\s*setValue\(""\)/, 'set dialog clears on success');
-    assert.match(src, /scheduleRevealClear\(\(\) => \{\s*setValue\(null\)/, 'reveal clears on the timer');
-    assert.match(src, /return \(\) => \{[\s\S]*?cancelClear\?\.\(\);[\s\S]*?setValue\(null\);/, 'reveal clears on unmount');
+    const set = read(rel('SetSecretDialog.tsx'));
+    assert.match(set, /useEffect\(\(\) => \(\) => setValue\(""\), \[\]\)/, 'set dialog clears on unmount');
+    assert.match(set, /await guarded\(\(\) => setSecret\(n, value\)\);\s*setValue\(""\)/, 'set dialog clears on success');
+    const reveal = read(rel('RevealDialog.tsx'));
+    assert.match(reveal, /scheduleRevealClear\(\(\) => \{\s*setValue\(null\)/, 'reveal clears on the timer');
+    assert.match(reveal, /return \(\) => \{[\s\S]*?cancelClear\?\.\(\);[\s\S]*?setValue\(null\);/, 'reveal clears on unmount');
+    for (const f of PANEL_TSX.filter((x) => x !== 'SetSecretDialog.tsx' && x !== 'RevealDialog.tsx')) {
+      assert.doesNotMatch(code(read(rel(f))), /\bsetValue\b|\brevealSecret\b/, `${f} must not hold or fetch a value`);
+    }
     const panel = code(read(rel('SecretsPanel.tsx')));
     assert.doesNotMatch(panel, /\bvalue\s*:\s*string/, 'the panel itself never holds a value');
   });
@@ -365,7 +382,7 @@ describe('reveal clears after 30 seconds', () => {
   });
 
   it('the reveal dialog uses the helper with REVEAL_MS and masks by default', () => {
-    const src = read(rel('SecretDialogs.tsx'));
+    const src = read(rel('RevealDialog.tsx'));
     assert.match(src, /scheduleRevealClear\([\s\S]*?, REVEAL_MS\)/);
     assert.match(src, /const \[showValue, setShowValue\] = useState\(false\)/);
     assert.match(src, /navigator\.clipboard\.writeText\(value\)/);

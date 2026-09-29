@@ -5,11 +5,12 @@
  *
  * Layout after Tallrig's platform-secrets page: a status header (store,
  * apply, "Apply to service"), a table grouped by tier, per-row actions, and
- * an audit drawer. Everything the panel decides lives in ./logic.js; this
- * file only renders it.
+ * an audit drawer. Everything the panel decides lives in ./logic.js and
+ * ./audit-logic.js; this file holds the state and wires the pieces together.
  *
  * Values never live in this component — only in the dialog that needs one
- * (SecretDialogs.tsx), and only for as long as that dialog is open.
+ * (SetSecretDialog.tsx, RevealDialog.tsx), and only for as long as that
+ * dialog is open.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,28 +19,31 @@ import {
   applySecrets,
   listSecrets,
   verifySecret,
-  type SecretItem,
+  type ApplyResult,
   type SecretsList,
   type SetResult,
   type DeleteResult,
 } from "./api";
 import {
   applyResultCopy,
-  applyStateCopy,
   clockTime,
   errorCopy,
   groupByTier,
-  livenessDetail,
   livenessMark,
-  relativeTime,
+  namesToDrop,
   runWithStepUp,
-  shadowCopy,
   shortFingerprint,
-  sourceLabel,
-  stateMark,
   warningCopy,
 } from "./logic";
-import { AuditDrawer, DeleteDialog, RevealDialog, SetSecretDialog, StepUpDialog, type Guarded } from "./SecretDialogs";
+import { messageFor, type Guarded } from "./errors";
+import { FIX_DOC, Header, PendingApplyNotice, StatusCards } from "./PanelHeader";
+import { SecretsTable } from "./SecretsTable";
+import { SetSecretDialog } from "./SetSecretDialog";
+import { RevealDialog } from "./RevealDialog";
+import { DeleteDialog } from "./DeleteDialog";
+import { StepUpDialog } from "./StepUpDialog";
+import { AuditDrawer } from "./AuditDrawer";
+import { DropKeysDialog } from "./DropKeysDialog";
 
 type Notice = { id: number; tone: "ok" | "attention" | "neutral"; text: string };
 
@@ -55,13 +59,6 @@ type LoadState =
   | { phase: "ready"; data: SecretsList }
   | { phase: "error"; status: number; code: string };
 
-const COLUMNS = 7;
-const FIX_DOC = "docs/ops/secrets-panel.md";
-
-function Mark({ shape, ink }: { shape: "dot" | "ring"; ink: "accent" | "ink" | "muted" }) {
-  return <span className={`gs-mark ${shape} ${ink}`} aria-hidden="true" />;
-}
-
 export default function SecretsPanel() {
   const [load, setLoad] = useState<LoadState>({ phase: "loading" });
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -69,6 +66,8 @@ export default function SecretsPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [stepUpOpen, setStepUpOpen] = useState(false);
   const [freshUntil, setFreshUntil] = useState<string | null>(null);
+  // Names an apply refused to drop (would_drop_keys), awaiting the owner's confirm.
+  const [dropNames, setDropNames] = useState<string[] | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const stepUpResolver = useRef<((ok: boolean) => void) | null>(null);
   const noticeId = useRef(0);
@@ -133,6 +132,7 @@ export default function SecretsPanel() {
       if (text) out.push({ tone: "neutral", text });
     }
     pushNotices(out);
+    askToDrop(result.apply);
     void refresh();
   }
 
@@ -146,7 +146,14 @@ export default function SecretsPanel() {
         text: apply.ok ? apply.text : apply.text.replace(/^Saved to the store, but/, "Deleted, but"),
       },
     ]);
+    askToDrop(result.apply);
     void refresh();
+  }
+
+  /** would_drop_keys: list the names and let the owner confirm removing them. */
+  function askToDrop(apply: { applied?: boolean; reason?: string; dropped?: string[] } | undefined) {
+    const names = namesToDrop(apply);
+    if (names.length > 0) setDropNames(names);
   }
 
   async function onVerify(name: string) {
@@ -157,29 +164,41 @@ export default function SecretsPanel() {
       pushNotices([{ tone: r.liveness === "dead" ? "attention" : "neutral", text: `${name}: ${mark.label.toLowerCase()} (checked just now).` }]);
       void refresh();
     } catch (err) {
-      pushNotices([{ tone: "attention", text: `${name}: ${errMessage(err)}` }]);
+      pushNotices([{ tone: "attention", text: `${name}: ${messageFor(err)}` }]);
     } finally {
       setBusy(null);
     }
   }
 
+  function onApplyAnswer(r: ApplyResult) {
+    const drop = namesToDrop(r);
+    if (r.applied) {
+      pushNotices([
+        {
+          tone: "ok",
+          text: `Applied ${r.count} secret${r.count === 1 ? "" : "s"} to ${r.path} — the service restarts automatically when the env file changes.`,
+        },
+      ]);
+    } else if (drop.length > 0) {
+      setDropNames(drop);
+      pushNotices([
+        {
+          tone: "neutral",
+          text: `Not applied yet: the env file holds ${drop.length === 1 ? "a name" : `${drop.length} names`} the store no longer has. Confirm removing ${drop.length === 1 ? "it" : "them"} to apply.`,
+        },
+      ]);
+    } else {
+      pushNotices([{ tone: "attention", text: applyResultCopy({ applied: false, reason: r.reason }).text.replace(/^Saved to the store, but the/, "The") }]);
+    }
+    void refresh();
+  }
+
   async function onApply() {
     setBusy("apply");
     try {
-      const r = await guarded(() => applySecrets());
-      if (r.applied) {
-        pushNotices([
-          {
-            tone: "ok",
-            text: `Applied ${r.count} secret${r.count === 1 ? "" : "s"} to ${r.path} — the service restarts automatically when the env file changes.`,
-          },
-        ]);
-      } else {
-        pushNotices([{ tone: "attention", text: applyResultCopy({ applied: false, reason: r.reason }).text.replace(/^Saved to the store, but the/, "The") }]);
-      }
-      void refresh();
+      onApplyAnswer(await guarded(() => applySecrets()));
     } catch (err) {
-      pushNotices([{ tone: "attention", text: errMessage(err) }]);
+      pushNotices([{ tone: "attention", text: messageFor(err) }]);
     } finally {
       setBusy(null);
     }
@@ -224,7 +243,6 @@ export default function SecretsPanel() {
 
   const data = load.data;
   const groups = groupByTier(data.items);
-  const applyLine = applyStateCopy(data.applyState, now);
   const storeReady = data.storeReady;
 
   return (
@@ -246,54 +264,11 @@ export default function SecretsPanel() {
         </button>
       </Header>
 
-      <section className="gs-status" aria-label="Status">
-        <div className="gs-status-card">
-          <h2>Store</h2>
-          {storeReady ? (
-            <p className="gs-status-line">
-              <Mark shape="dot" ink="accent" /> Ready
-              {data.keyVersion !== null && data.keyVersion !== undefined ? (
-                <span className="gs-small">· key v{String(data.keyVersion)}</span>
-              ) : null}
-            </p>
-          ) : (
-            <>
-              <p className="gs-status-line gs-strong">
-                <Mark shape="dot" ink="ink" /> Master key not configured
-              </p>
-              {data.storeError ? <p className="gs-status-fix">{data.storeError}</p> : null}
-              <p className="gs-status-fix">
-                Owner fix: set the master key on the box and restart — see <code>{FIX_DOC}</code>.
-              </p>
-            </>
-          )}
-        </div>
-        <div className="gs-status-card">
-          <h2>Env file</h2>
-          <p className={`gs-status-line${applyLine.ok ? "" : " gs-strong"}`}>
-            <Mark shape={applyLine.ok ? "dot" : "ring"} ink={applyLine.ok ? "accent" : "ink"} /> {applyLine.text}
-          </p>
-          {data.unitEnvPath ? (
-            <p className="gs-status-fix">
-              Writes <code>{data.unitEnvPath}</code>
-            </p>
-          ) : null}
-        </div>
-        <div className="gs-status-card">
-          <h2>Step-up</h2>
-          <p className="gs-status-line">
-            {freshLabel ? (
-              <>
-                <Mark shape="dot" ink="accent" /> {freshLabel}
-              </>
-            ) : (
-              <>
-                <Mark shape="ring" ink="muted" /> Password asked on the next change or reveal
-              </>
-            )}
-          </p>
-        </div>
-      </section>
+      <StatusCards data={data} now={now} freshLabel={freshLabel} />
+
+      {data.applyState?.applied === false && data.applyState.reason === "out_of_sync" ? (
+        <PendingApplyNotice storeReady={storeReady} applying={busy === "apply"} onApply={() => void onApply()} />
+      ) : null}
 
       <div className="gs-notices" role="status" aria-live="polite">
         {notices.map((n) => (
@@ -303,54 +278,16 @@ export default function SecretsPanel() {
         ))}
       </div>
 
-      {groups.length === 0 ? (
-        <div className="gs-empty">
-          <p>No secrets are declared yet.</p>
-          <p className="gs-small">Add a custom secret, or declare required ones in the server&apos;s secrets catalogue.</p>
-        </div>
-      ) : (
-        <div className="gs-table-wrap">
-          <table className="gs-table">
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">State</th>
-                <th scope="col">Source</th>
-                <th scope="col">Fingerprint</th>
-                <th scope="col">Updated</th>
-                <th scope="col">Liveness</th>
-                <th scope="col">
-                  <span className="gs-sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            {groups.map((g) => (
-              <tbody key={g.tier}>
-                <tr className="gs-tier-row">
-                  <th scope="colgroup" colSpan={COLUMNS}>
-                    {g.label} <span className="gs-small">({g.items.length})</span>
-                  </th>
-                </tr>
-                {g.items.map((item) => (
-                  <SecretRow
-                    key={item.name}
-                    item={item}
-                    now={now}
-                    storeReady={storeReady}
-                    verifying={busy === `verify:${item.name}`}
-                    onSet={() =>
-                      setDialog({ kind: "set", mode: item.state === "set" ? "replace" : "set", name: item.name })
-                    }
-                    onReveal={() => setDialog({ kind: "reveal", name: item.name })}
-                    onDelete={() => setDialog({ kind: "delete", name: item.name })}
-                    onVerify={() => void onVerify(item.name)}
-                  />
-                ))}
-              </tbody>
-            ))}
-          </table>
-        </div>
-      )}
+      <SecretsTable
+        groups={groups}
+        now={now}
+        storeReady={storeReady}
+        verifyingName={busy?.startsWith("verify:") ? busy.slice("verify:".length) : null}
+        onSet={(item) => setDialog({ kind: "set", mode: item.state === "set" ? "replace" : "set", name: item.name })}
+        onReveal={(name) => setDialog({ kind: "reveal", name })}
+        onDelete={(name) => setDialog({ kind: "delete", name })}
+        onVerify={(name) => void onVerify(name)}
+      />
 
       {dialog?.kind === "set" ? (
         <SetSecretDialog
@@ -368,6 +305,18 @@ export default function SecretsPanel() {
         <DeleteDialog name={dialog.name} guarded={guarded} onClose={() => setDialog(null)} onDeleted={onDeleted} />
       ) : null}
       {dialog?.kind === "audit" ? <AuditDrawer onClose={() => setDialog(null)} /> : null}
+      {dropNames && dropNames.length > 0 ? (
+        <DropKeysDialog
+          names={dropNames}
+          guarded={guarded}
+          onClose={() => setDropNames(null)}
+          onApplied={(r) => {
+            // Close, unless the retry names further keys (then it reopens with those).
+            setDropNames(null);
+            onApplyAnswer(r);
+          }}
+        />
+      ) : null}
       {stepUpOpen ? (
         <StepUpDialog
           onClose={() => finishStepUp(false)}
@@ -389,127 +338,4 @@ async function fetchLoadState(): Promise<LoadState> {
     if (err instanceof SecretsApiError) return { phase: "error", status: err.status, code: err.code };
     return { phase: "error", status: 0, code: "network" };
   }
-}
-
-function errMessage(err: unknown): string {
-  if (err instanceof SecretsApiError) return errorCopy(err.code, err.status);
-  return errorCopy("network");
-}
-
-function Header({ children }: { children?: React.ReactNode }) {
-  return (
-    <div className="gs-head">
-      <div>
-        <h1 className="gs-title">Secrets</h1>
-        <p className="gs-sub">
-          Infrastructure secrets for this service. Values are typed here by the owner, encrypted at rest, written to the
-          service env file on Apply, and never shown back — only an 8-character fingerprint.
-        </p>
-      </div>
-      {children ? <div className="gs-head-actions">{children}</div> : null}
-    </div>
-  );
-}
-
-function SecretRow({
-  item,
-  now,
-  storeReady,
-  verifying,
-  onSet,
-  onReveal,
-  onDelete,
-  onVerify,
-}: {
-  item: SecretItem;
-  now: number;
-  storeReady: boolean;
-  verifying: boolean;
-  onSet: () => void;
-  onReveal: () => void;
-  onDelete: () => void;
-  onVerify: () => void;
-}) {
-  const mark = stateMark(item.state);
-  const live = livenessMark(item.liveness);
-  const fp = shortFingerprint(item.fingerprint);
-  const inStore = item.source === "store" || item.source === "both";
-  const updated = item.updatedAt ? relativeTime(item.updatedAt, now) : "";
-
-  return (
-    <>
-      <tr className="gs-row">
-        <td data-label="Name">
-          <div className="gs-name">{item.name}</div>
-          {item.why ? <div className="gs-why">{item.why}</div> : null}
-        </td>
-        <td data-label="State">
-          <span className={`gs-cell-line${mark.strong ? " gs-strong gs-ink-ink" : ""}`}>
-            <Mark shape={mark.shape} ink={mark.ink} />
-            {mark.label}
-          </span>
-        </td>
-        <td data-label="Source">{sourceLabel(item.source)}</td>
-        <td data-label="Fingerprint">
-          {fp ? (
-            <span>
-              <span className="gs-sr-only">fingerprint </span>
-              <span className="gs-small" aria-hidden="true">
-                fingerprint{" "}
-              </span>
-              <span className="gs-fp">{fp}</span>
-            </span>
-          ) : (
-            <span className="gs-small">—</span>
-          )}
-        </td>
-        <td data-label="Updated">
-          {item.updatedAt ? (
-            <span>
-              <time dateTime={item.updatedAt} title={item.updatedAt}>
-                {updated || item.updatedAt}
-              </time>
-              {item.updatedBy ? <span className="gs-small"> by {item.updatedBy}</span> : null}
-            </span>
-          ) : (
-            <span className="gs-small">—</span>
-          )}
-        </td>
-        <td data-label="Liveness">
-          <span className={`gs-ink-${live.ink}${live.strong ? " gs-strong" : ""}`}>{live.label}</span>
-          <div className="gs-small">{livenessDetail(item.liveness, item.lastVerifiedAt, now)}</div>
-        </td>
-        <td data-label="Actions">
-          {item.reserved ? (
-            <span className="gs-reserved">Reserved — set in the box env file only</span>
-          ) : (
-            <div className="gs-actions">
-              <button type="button" className="gs-btn small" disabled={!storeReady} onClick={onSet}>
-                {item.state === "set" ? "Replace" : "Set"}
-              </button>
-              <button type="button" className="gs-btn small" disabled={verifying || item.state !== "set"} onClick={onVerify}>
-                {verifying ? "Verifying…" : "Verify"}
-              </button>
-              <button type="button" className="gs-btn small" disabled={!storeReady || !inStore} onClick={onReveal}>
-                Reveal
-              </button>
-              <button type="button" className="gs-btn small destructive" disabled={!storeReady || !inStore} onClick={onDelete}>
-                Delete
-              </button>
-            </div>
-          )}
-        </td>
-      </tr>
-      {item.shadowed ? (
-        <tr className="gs-callout-row">
-          <td colSpan={COLUMNS}>
-            <p className="gs-callout">
-              <Mark shape="ring" ink="ink" />
-              {shadowCopy(item.shadowWinner)}
-            </p>
-          </td>
-        </tr>
-      ) : null}
-    </>
-  );
 }
