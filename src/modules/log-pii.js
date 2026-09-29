@@ -63,6 +63,14 @@
  * Suppressions:
  *   - `// log-safe` / `# log-safe` on same or preceding line.
  *   - Test / spec / fixture paths downgrade error → warning.
+ *   - Operator CLIs (`bin/`, `scripts/`, `cli/`, or a shebang `#!` first
+ *     line) are skipped entirely (issue #771, GT-12): a CLI that prints an
+ *     argument the operator just typed on the same terminal —
+ *     `console.log(token)` in `bin/rotate-api-key.js` echoing the `--token`
+ *     it was invoked with — is not the log-aggregation leak this module
+ *     exists to catch. The identical `console.log(token)` in application
+ *     code under `src/` still fires; the exemption is the FILE's role
+ *     (an interactive, human-operated tool), not the identifier.
  *
  * Competitors:
  *   - ESLint has nothing.
@@ -80,6 +88,7 @@ const BaseModule = require('./base-module');
 const fs = require('fs');
 const path = require('path');
 const { repoRelative } = require('../core/repo-path');
+const { isOperatorCliFile } = require('../core/operator-cli');
 
 const JS_EXTS = new Set([
   '.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts',
@@ -147,6 +156,11 @@ class LogPiiModule extends BaseModule {
         continue;
       }
       if (text.length > 5 * 1024 * 1024) continue;
+      // GT-12 (#771): an operator CLI printing what it was told to print
+      // (or the one-time value it just generated for the human at the
+      // keyboard) is not a log-stack leak. One definition, shared with
+      // dataIntegrity's "PII in logs" rule: src/core/operator-cli.js.
+      if (isOperatorCliFile(rel, text)) continue;
 
       const ext = path.extname(abs).toLowerCase();
       if (JS_EXTS.has(ext)) {

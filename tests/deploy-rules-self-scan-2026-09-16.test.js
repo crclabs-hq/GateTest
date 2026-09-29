@@ -137,6 +137,62 @@ describe('deployScriptValidator: `body_path:` is a file, `path:` is a probe', ()
   });
 });
 
+describe('deployScriptValidator: an upload-artifact file path is not a probe (#771 GT-09)', () => {
+  // AlecRae.com .github/workflows/ci.yml:408 — `path: /tmp/e2e-api.log`
+  // under `actions/upload-artifact@v4` was reported as health-check URL
+  // `/tmp/e2e-api` with no matching route. The `.log` never made it into
+  // the match; the `/tmp/` root was not consulted. Both now refuse it.
+  test('the customer line — `path: /tmp/e2e-api.log` under upload-artifact is not harvested; a real probe beside it still is', async () => {
+    const tmp = makeTmp();
+    write(tmp, '.github/workflows/ci.yml', [
+      'jobs:',
+      '  e2e:',
+      '    steps:',
+      '      - name: Upload API log artifact',
+      '        if: always()',
+      '        uses: actions/upload-artifact@v4',
+      '        with:',
+      '          name: e2e-api-log',
+      '          path: /tmp/e2e-api.log',
+      '          if-no-files-found: ignore',
+      '      - uses: actions/upload-artifact@v4',
+      '        with:',
+      '          path: /home/runner/work/report',
+      '',
+    ].join('\n'));
+    write(tmp, 'k8s/deploy.yaml', 'livenessProbe:\n  httpGet:\n    path: /nope-probe\n    port: 3000\n');
+    write(tmp, 'app/api/health/route.ts', NEXT_HEALTH_ROUTE);
+    const r = makeResult();
+    await new DeployScriptValidator().run(r, { projectRoot: tmp });
+    const failing = r.checks.filter((c) => !c.passed).map((c) => c.name);
+    assert.ok(!failing.some((n) => n.includes('e2e-api')), 'a .log file path is not a probe: ' + failing.join(', '));
+    assert.ok(!failing.some((n) => n.includes('/home/runner')), 'a path under a filesystem root is not a probe: ' + failing.join(', '));
+    assert.ok(failing.includes('deploy-script-validator:mismatch:/nope-probe'), 'a real probe path with no route still fires: ' + failing.join(', '));
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  test('a k8s probe path with a matching route stays consistent; one carrying a file extension is refused even in a manifest', async () => {
+    const tmp = makeTmp();
+    write(tmp, 'k8s/deploy.yaml', [
+      'readinessProbe:',
+      '  httpGet:',
+      '    path: /api/health',
+      '    port: 3000',
+      'volumeMounts:',
+      '  - name: cfg',
+      '    path: /config/app.json',
+      '',
+    ].join('\n'));
+    write(tmp, 'app/api/health/route.ts', NEXT_HEALTH_ROUTE);
+    const r = makeResult();
+    await new DeployScriptValidator().run(r, { projectRoot: tmp });
+    const failing = r.checks.filter((c) => !c.passed).map((c) => c.name);
+    assert.deepStrictEqual(failing, [], 'nothing should fire: ' + failing.join(', '));
+    assert.ok(r.checks.some((c) => c.name === 'deploy-script-validator:consistent'), 'the /api/health probe is still harvested and matched');
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+});
+
 describe('deployScriptValidator: test-fixture files are not deploy config (self-scan 2026-09-16)', () => {
   // Control pair: tests/deploy-rules-self-scan-2026-09-16.test.js:128 itself
   // writes `path: /nope-probe` as fixture YAML content for the test above —
