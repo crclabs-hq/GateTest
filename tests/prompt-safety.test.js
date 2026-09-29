@@ -359,7 +359,7 @@ describe('PromptSafetyModule — deprecated models', () => {
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ps-dep-')); });
   afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
 
-  it('warns on claude-2.0', async () => {
+  it('errors on claude-2.0 - retired 2025-07-21, every call 404s (#842)', async () => {
     write(tmp, 'src/a.js', [
       'const Anthropic = require("@anthropic-ai/sdk");',
       'const client = new Anthropic();',
@@ -369,7 +369,7 @@ describe('PromptSafetyModule — deprecated models', () => {
     const r = await run(tmp);
     const hit = r.checks.find((c) => c.name.startsWith('prompt-safety:deprecated-model:'));
     assert.ok(hit, 'expected deprecated-model finding');
-    assert.strictEqual(hit.severity, 'warning');
+    assert.strictEqual(hit.severity, 'error');
   });
 
   it('warns on text-davinci-003', async () => {
@@ -1034,3 +1034,63 @@ describe('PromptSafetyModule — a .ts file gets one finding, not one per langua
   });
 });
 
+
+// #842 (DavenRoe backend/app/core/config.py:29): a RETIRED model id is an
+// error, not a warning — every call through it returns 404, so the feature is
+// down. A test fixture naming one stays a warning; a current id is nothing.
+describe('PromptSafetyModule — a retired model is an error; a current one is nothing (#842)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ps-retired-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const config = (model) => ['class Settings(BaseSettings):', '    anthropic_api_key: str = ""', `    anthropic_model: str = "${model}"`, ''].join('\n');
+  const hits = (r) => r.checks.filter((c) => !c.passed && c.name.startsWith('prompt-safety:deprecated-model:'));
+
+  it('POSITIVE: a retired default model in app config is an error', async () => {
+    write(tmp, 'app/core/config.py', config('claude-sonnet-4-20250514'));
+    const h = hits(await run(tmp));
+    assert.strictEqual(h.length, 1, JSON.stringify(h));
+    assert.strictEqual(h[0].severity, 'error');
+    assert.strictEqual(h[0].line, 3);
+    assert.match(h[0].message, /retired/);
+  });
+
+  it('NEGATIVE: a current model id is not a finding', async () => {
+    write(tmp, 'app/core/config.py', config('claude-sonnet-5'));
+    assert.deepStrictEqual(hits(await run(tmp)), []);
+  });
+
+  it('a retired id inside a test file stays a warning — the fixture does not serve traffic', async () => {
+    write(tmp, 'tests/test_ai.py', config('claude-sonnet-4-20250514'));
+    const h = hits(await run(tmp));
+    assert.strictEqual(h.length, 1, JSON.stringify(h));
+    assert.strictEqual(h[0].severity, 'warning');
+  });
+});
+
+// Owner rule: nothing GateTest emits names an AI vendor or model family
+// beyond the id the customer wrote. The old suggestion named a recommended
+// model id and a competitor's model family.
+describe('PromptSafetyModule — deprecated-model copy names no vendor or model beyond the customer id (#842)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ps-neutral-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const VENDOR_RE = /gpt|claude|openai|anthropic|gemini|llama|mistral/i;
+
+  for (const [rel, id] of [['app/core/config.py', 'claude-sonnet-4-20250514'], ['src/a.js', 'gpt-3.5-turbo-0301'], ['tests/test_ai.py', 'claude-2.1']]) {
+    it(`${rel}: message and suggestion for ${id} are neutral once the id itself is removed`, async () => {
+      write(tmp, rel, rel.endsWith('.py')
+        ? ['import anthropic', `MODEL = "${id}"`, ''].join('\n')
+        : ['import OpenAI from "openai";', `const model = "${id}";`, ''].join('\n'));
+      const r = await run(tmp);
+      const h = r.checks.filter((c) => !c.passed && c.name.startsWith('prompt-safety:deprecated-model:'));
+      assert.strictEqual(h.length, 1, JSON.stringify(h));
+      for (const field of ['message', 'suggestion']) {
+        const text = String(h[0][field]).split(id).join('');
+        assert.ok(!VENDOR_RE.test(text), `${field} names a vendor or model: ${h[0][field]}`);
+      }
+      assert.match(h[0].suggestion, /provider's model list/);
+    });
+  }
+});

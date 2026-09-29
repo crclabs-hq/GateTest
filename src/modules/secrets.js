@@ -903,6 +903,7 @@ class SecretsModule extends BaseModule {
         result.addCheck(`secrets:${relPath}`, false, {
           severity: this._isTestPath(relUnix) ? 'warning' : 'error',
           file: relPath,
+          line: 1,
           message: 'Private key material is committed in this file',
           details: [{ type: 'Private Key', line: 1, preview: path.basename(file) }],
           suggestion: 'Remove the key from the repository, rotate it, and add the file pattern to .gitignore',
@@ -1142,6 +1143,10 @@ class SecretsModule extends BaseModule {
         result.addCheck(`secrets:${relPath}`, false, {
           severity,
           file: relPath,
+          // One finding per file, but it names a line: the first match is
+          // where an inline annotation or a surgical fix goes; every match
+          // keeps its own line in `details` (#842 DR-b).
+          line: found[0].line,
           message,
           details,
           // An explicit confidence wins over the signal-based score, so this

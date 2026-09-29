@@ -5,9 +5,11 @@
 
 const BaseModule = require('./base-module');
 const fs = require('fs');
+const path = require('path');
 const { repoRelative } = require('../core/repo-path');
 const { isNonUserFacingPage, isSpaShell, isImageRenderer } = require('../core/scan-scope');
 const { maskSource } = require('../core/source-strip');
+const { lineLocator } = require('../core/line-at');
 
 // Named CSS colors mapped to RGB values
 const NAMED_COLORS = {
@@ -80,6 +82,11 @@ class AccessibilityModule extends BaseModule {
       // don't hurt our launch. Static test fixtures under public/ are also
       // excluded (logos.html is a logo grid for screenshots, not a user page).
       const INTERNAL_PATH_RE = /(?:^|\/)(?:website\/app\/admin\/|website\/app\/dashboard\/|website\/public\/)/;
+      // Per-run state for the input-label rule (#842 DR-c): literal <input>
+      // findings wait here until every file has been read, so a component
+      // defined in the repo can be reported ONCE, at its definition, with
+      // its call sites — not once per call site.
+      const collapse = { literal: [], components: new Map(), defCache: new Map() };
       for (const file of htmlFiles) {
         const relPath = repoRelative(projectRoot, file);
         const normalised = relPath.replace(/\\/g, '/');
@@ -99,17 +106,22 @@ class AccessibilityModule extends BaseModule {
         // landmarks to audit in the file (the live a11y probe covers the
         // rendered page). CleanArchitecture's two shells were told they had
         // no <main> and no <h1> (2026-09-05).
-        this._checkLanguageAttribute(relPath, content, result);
+        // Every per-element finding carries the line (and column) of the
+        // element it names (#842 DR-b): the checks match by regex over the
+        // whole file, and the match offset is turned into a line here.
+        const at = lineLocator(content);
+        this._checkLanguageAttribute(relPath, content, result, at);
         if (isSpaShell(content)) continue;
 
-        this._checkImages(relPath, content, result);
-        this._checkFormLabels(relPath, content, result);
-        this._checkHeadingHierarchy(relPath, content, result);
-        this._checkAriaUsage(relPath, content, result);
+        this._checkImages(relPath, content, result, at);
+        this._checkFormLabels(relPath, content, result, { file, projectRoot, at, collapse });
+        this._checkHeadingHierarchy(relPath, content, result, at);
+        this._checkAriaUsage(relPath, content, result, at);
         this._checkLandmarks(relPath, content, result);
-        this._checkFocusManagement(relPath, content, result);
+        this._checkFocusManagement(relPath, content, result, at);
         this._checkReducedMotion(relPath, content, result);
       }
+      this._emitFormLabelFindings(result, collapse);
     }
 
     // Check CSS for contrast and focus styles
@@ -117,7 +129,7 @@ class AccessibilityModule extends BaseModule {
     for (const file of cssFiles) {
       const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
-      this._checkCssFocus(relPath, content, result);
+      this._checkCssFocus(relPath, content, result, lineLocator(content));
       this._checkCssReducedMotion(relPath, content, result);
     }
 
@@ -191,12 +203,13 @@ class AccessibilityModule extends BaseModule {
     return true;
   }
 
-  _checkImages(relPath, content, result) {
+  _checkImages(relPath, content, result, at) {
     // Find <img> tags without alt attribute
     const imgRegex = /<img\b([^>]*?)>/gi;
     let match;
     while ((match = imgRegex.exec(content)) !== null) {
       const attrs = match[1];
+      const where = at ? at(match.index) : {};
       // The `[^>]*?` stops at the FIRST `>`, which is not always this tag's own.
       // In JSX a tag can be split across expression boundaries — the badge page
       // renders a copy-paste HTML snippet as
@@ -217,6 +230,7 @@ class AccessibilityModule extends BaseModule {
         result.addCheck(`a11y:img-alt:${relPath}`, false, {
           ...(FRAGMENT_PATH_RE.test(relPath.replace(/\\/g, '/')) ? { severity: 'warning' } : {}),
           file: relPath,
+          ...where,
           message: 'Image missing alt attribute',
           suggestion: 'Add alt="description" for informative images or alt="" for decorative',
         });
@@ -224,7 +238,17 @@ class AccessibilityModule extends BaseModule {
     }
   }
 
-  _checkFormLabels(relPath, content, result) {
+  /**
+   * `ctx` is present on the static-file path only: `{ file, projectRoot, at,
+   * collapse }`. With it, every finding carries its line/column, a literal
+   * <input> finding is parked in `collapse.literal` and a call site of a
+   * component the repo defines is parked in `collapse.components`, both
+   * emitted by `_emitFormLabelFindings` once every file has been read
+   * (#842 DR-b/DR-c). Without it (a fetched live page) findings are
+   * emitted as they are found, with no line — a line in served HTML is not
+   * a line anyone can annotate.
+   */
+  _checkFormLabels(relPath, content, result, ctx) {
     // Find <input> without associated <label> or aria-label.
     // JSX attributes can contain `>` inside arrow functions (e.g. onChange={() => ...}),
     // so we look ahead up to 600 chars after <input to find label-related attributes
@@ -234,8 +258,14 @@ class AccessibilityModule extends BaseModule {
     // primitive. Checking it produces one guaranteed false positive per
     // design system (shadcn/ui, Radix wrappers; 2026-08-18 audit).
     if (/(^|\/)(components?\/ui|ui\/primitives?|primitives?)\/(input|textarea|select|checkbox|radio|switch|form)[^/]*$/i.test(relPath.replace(/\\/g, '/'))) return;
-    // Strip HTML comments so a commented-out <input> is not "unlabelled".
-    const contentNoComments = content.replace(/<!--[\s\S]*?-->/g, (m) => ' '.repeat(m.length));
+    // Strip HTML and JSX comments so a commented-out <input> is not
+    // "unlabelled" (offsets preserved: the blank is the comment's length).
+    const contentNoComments = content.replace(/<!--[\s\S]*?-->|\{\s*\/\*[\s\S]*?\*\/\s*\}/g, (m) => ' '.repeat(m.length));
+    const at = ctx && ctx.at;
+    const collapse = ctx && ctx.collapse;
+    // Uppercase-initial definitions in this file, in order, so a literal
+    // <input> can be tied to the component that renders it (DR-c).
+    const defs = collapse ? this._componentDefs(contentNoComments) : [];
     const inputStart = /<input\b/gi;
     let startMatch;
     while ((startMatch = inputStart.exec(contentNoComments)) !== null) {
@@ -279,36 +309,163 @@ class AccessibilityModule extends BaseModule {
                        /aria-labelledby\s*[={]/i.test(snippet) ||
                        /\bid\s*=\s*["'{]/i.test(snippet);
 
-      if (!hasLabel) {
-        result.addCheck(`a11y:input-label:${relPath}`, false, {
-          // A component we cannot open is "not verified", not "proven bad".
-          ...(isComponent || FRAGMENT_PATH_RE.test(relPath.replace(/\\/g, '/')) ? { severity: 'warning' } : {}),
-          file: relPath,
-          message: isComponent
-            ? `<${startMatch[0].slice(1)} /> has no label, aria-label or aria-labelledby prop — cannot verify that this component labels itself (unknown component)`
-            : `Input (type="${type}") missing accessible label`,
-          suggestion: isComponent
-            ? 'Pass label=, aria-label= or aria-labelledby= to the component, or wrap it in a <label>'
-            : 'Add aria-label, aria-labelledby, or an associated <label> element',
-        });
+      if (hasLabel) continue;
+      const where = at ? at(pos) : {};
+
+      // A component the REPO defines, whose definition file renders the
+      // actual <input>, is one root cause however many times it is used
+      // (#842 DR-c: DavenRoe's `Input` wrappers, 27 call sites). Record
+      // the call site against the definition and report there, once.
+      if (isComponent && collapse) {
+        const name = startMatch[0].slice(1);
+        const def = this._resolveComponent(name, content, ctx);
+        if (def && def.rendersInput) {
+          const key = `${def.rel}#${name}`;
+          let entry = collapse.components.get(key);
+          if (!entry) {
+            entry = { name, defRel: def.rel, defLine: def.line, callSites: [] };
+            collapse.components.set(key, entry);
+          }
+          entry.callSites.push(where.line ? `${relPath}:${where.line}` : relPath);
+          continue;
+        }
       }
+
+      const details = {
+        // A component we cannot open is "not verified", not "proven bad".
+        ...(isComponent || FRAGMENT_PATH_RE.test(relPath.replace(/\\/g, '/')) ? { severity: 'warning' } : {}),
+        file: relPath,
+        ...where,
+        message: isComponent
+          ? `<${startMatch[0].slice(1)} /> has no label, aria-label or aria-labelledby prop — cannot verify that this component labels itself (unknown component)`
+          : `Input (type="${type}") missing accessible label`,
+        suggestion: isComponent
+          ? 'Pass label=, aria-label= or aria-labelledby= to the component, or wrap it in a <label>'
+          : 'Add aria-label, aria-labelledby, or an associated <label> element',
+      };
+      if (collapse && !isComponent) {
+        // The enclosing uppercase-initial definition, if any, is the
+        // component this <input> belongs to.
+        let owner = null;
+        for (const d of defs) { if (d.index < pos) owner = d; else break; }
+        collapse.literal.push({ name: `a11y:input-label:${relPath}`, key: owner ? `${relPath}#${owner.name}` : null, details });
+        continue;
+      }
+      result.addCheck(`a11y:input-label:${relPath}`, false, details);
     }
   }
 
-  _checkHeadingHierarchy(relPath, content, result) {
+  /**
+   * Uppercase-initial function / const / class definitions in a file, with
+   * the offset of each, in source order.
+   */
+  _componentDefs(content) {
+    const re = /(?:^|\n)[ \t]*(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\s+([A-Z]\w*)\s*[(<]|(?:const|let|var)\s+([A-Z]\w*)\s*(?::[^=\n]+)?=|class\s+([A-Z]\w*)\b)/g;
+    const defs = [];
+    let m;
+    while ((m = re.exec(content)) !== null) {
+      const name = m[1] || m[2] || m[3];
+      defs.push({ name, index: m.index + m[0].indexOf(name) });
+    }
+    return defs;
+  }
+
+  /**
+   * Where is `<Name …>` defined — in this file, or in a relative import the
+   * repo contains? Answers `{ rel, line, rendersInput }` or null when the
+   * definition is not in the repo (a package, an alias we cannot follow), in
+   * which case the call site is judged as an unknown component, as before.
+   * `rendersInput` is whether the definition file contains a literal
+   * `<input` — the element the finding is really about.
+   */
+  _resolveComponent(name, content, ctx) {
+    const { file, projectRoot, collapse } = ctx;
+    const defRe = new RegExp(`(?:^|\\n)[ \\t]*(?:export\\s+)?(?:default\\s+)?(?:async\\s+)?(?:function\\s+${name}\\s*[(<]|(?:const|let|var)\\s+${name}\\s*(?::[^=\\n]+)?=|class\\s+${name}\\b)`);
+    const locate = (abs, text) => {
+      const m = defRe.exec(text);
+      const first = /<input\b/.exec(text);
+      const idx = m ? m.index + m[0].indexOf(name) : (first ? first.index : 0);
+      return { rel: repoRelative(projectRoot, abs), line: lineLocator(text)(idx).line, rendersInput: Boolean(first) };
+    };
+    if (defRe.test(content)) return locate(file, content);
+
+    const importRe = /import\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\})?\s*from\s*['"]([^'"]+)['"]/g;
+    let m;
+    while ((m = importRe.exec(content)) !== null) {
+      const named = (m[2] || '').split(',').map((s) => s.trim().split(/\s+as\s+/).pop()).filter(Boolean);
+      if (m[1] !== name && !named.includes(name)) continue;
+      const spec = m[3];
+      if (!spec.startsWith('.')) return null;
+      const base = path.resolve(path.dirname(file), spec);
+      const candidates = [base];
+      for (const ext of ['.jsx', '.tsx', '.js', '.ts', '.vue', '.svelte']) candidates.push(base + ext, path.join(base, 'index' + ext));
+      for (const abs of candidates) {
+        let text = collapse.defCache.get(abs);
+        if (text === undefined) {
+          try { text = fs.statSync(abs).isFile() ? fs.readFileSync(abs, 'utf-8') : null; } catch { text = null; }
+          collapse.defCache.set(abs, text);
+        }
+        if (typeof text === 'string') return locate(abs, text);
+      }
+      return null;
+    }
+    return null;
+  }
+
+  /**
+   * Emit the parked input-label findings. A literal <input> inside a
+   * component that is used unlabelled elsewhere carries its call sites; a
+   * component whose own <input> raised nothing (it labels itself from a
+   * prop the callers did not pass) gets ONE warning at its definition.
+   * Either way the definition is the one finding and counts once.
+   */
+  _emitFormLabelFindings(result, collapse) {
+    const cite = (entry) => {
+      const n = entry.callSites.length;
+      const shown = entry.callSites.slice(0, 5).join(', ');
+      return `rendered at ${n} call site${n === 1 ? '' : 's'}: ${shown}${n > 5 ? ` (+${n - 5} more)` : ''}`;
+    };
+    const attached = new Set();
+    for (const f of collapse.literal) {
+      const entry = f.key && collapse.components.get(f.key);
+      if (entry) {
+        attached.add(f.key);
+        f.details.message += ` — inside <${entry.name} /> (defined at line ${entry.defLine}), ${cite(entry)}`;
+        f.details.component = { name: entry.name, line: entry.defLine };
+        f.details.callSites = entry.callSites.slice(0, 5);
+        f.details.callSiteCount = entry.callSites.length;
+      }
+      result.addCheck(f.name, false, f.details);
+    }
+    for (const [key, entry] of collapse.components) {
+      if (attached.has(key)) continue;
+      result.addCheck(`a11y:input-label:${entry.defRel}`, false, {
+        severity: 'warning',
+        file: entry.defRel,
+        line: entry.defLine,
+        message: `<${entry.name} /> renders an <input> and is used without a label, aria-label or aria-labelledby prop — cannot verify that it labels itself; ${cite(entry)}`,
+        suggestion: 'Pass label=, aria-label= or aria-labelledby= at each call site, or label the <input> inside the component',
+        callSites: entry.callSites.slice(0, 5),
+        callSiteCount: entry.callSites.length,
+      });
+    }
+  }
+
+  _checkHeadingHierarchy(relPath, content, result, at) {
     const headingRegex = /<h([1-6])\b/gi;
     const headings = [];
     let match;
     while ((match = headingRegex.exec(content)) !== null) {
-      headings.push(parseInt(match[1]));
+      headings.push({ level: parseInt(match[1]), index: match.index });
     }
 
     for (let i = 1; i < headings.length; i++) {
-      if (headings[i] > headings[i - 1] + 1) {
+      if (headings[i].level > headings[i - 1].level + 1) {
         result.addCheck(`a11y:heading-hierarchy:${relPath}`, false, {
-        severity: 'warning',
+          severity: 'warning',
           file: relPath,
-          message: `Heading level skipped: h${headings[i - 1]} to h${headings[i]}`,
+          ...(at ? at(headings[i].index) : {}),
+          message: `Heading level skipped: h${headings[i - 1].level} to h${headings[i].level}`,
           suggestion: 'Use sequential heading levels (h1 > h2 > h3) without skipping',
         });
         break;
@@ -316,7 +473,7 @@ class AccessibilityModule extends BaseModule {
     }
   }
 
-  _checkAriaUsage(relPath, content, result) {
+  _checkAriaUsage(relPath, content, result, at) {
     // Check for invalid ARIA roles.
     // No space before = so we don't match TypeScript type declarations like
     // `type Role = "user"` which the case-insensitive flag would otherwise
@@ -342,6 +499,7 @@ class AccessibilityModule extends BaseModule {
       if (!validRoles.has(match[1].toLowerCase())) {
         result.addCheck(`a11y:invalid-role:${relPath}`, false, {
           file: relPath,
+          ...(at ? at(match.index) : {}),
           message: `Invalid ARIA role: "${match[1]}"`,
           suggestion: 'Use a valid WAI-ARIA role',
         });
@@ -349,7 +507,7 @@ class AccessibilityModule extends BaseModule {
     }
   }
 
-  _checkLanguageAttribute(relPath, content, result) {
+  _checkLanguageAttribute(relPath, content, result, at) {
     // Only a FULL document owns <html lang>: fragments/partials that merely
     // mention "<html" (or Thymeleaf `<html xmlns:th>` layout stubs with no
     // <head>) inherit it from the layout that wraps them.
@@ -379,6 +537,7 @@ class AccessibilityModule extends BaseModule {
     if (!hasLang) {
       result.addCheck(`a11y:html-lang:${relPath}`, false, {
         file: relPath,
+        ...(at ? at(htmlTagMatch.index) : {}),
         message: 'Missing lang attribute on <html> element',
         suggestion: 'Add lang="en" (or appropriate language) to <html>',
       });
@@ -404,7 +563,7 @@ class AccessibilityModule extends BaseModule {
     }
   }
 
-  _checkFocusManagement(relPath, content, result) {
+  _checkFocusManagement(relPath, content, result, at) {
     // Check for tabindex > 0 (anti-pattern)
     const tabindexRegex = /tabindex\s*=\s*["'](\d+)["']/gi;
     let match;
@@ -413,6 +572,7 @@ class AccessibilityModule extends BaseModule {
       if (value > 0) {
         result.addCheck(`a11y:tabindex-positive:${relPath}`, false, {
           file: relPath,
+          ...(at ? at(match.index) : {}),
           message: `Positive tabindex="${value}" creates confusing tab order`,
           suggestion: 'Use tabindex="0" or tabindex="-1" instead',
         });
@@ -449,7 +609,7 @@ class AccessibilityModule extends BaseModule {
    * `input:focus` and replaces it with a border + box-shadow. Both were
    * reported. A `:focus-visible` anywhere in the file still exempts it.
    */
-  _checkCssFocus(relPath, content, result) {
+  _checkCssFocus(relPath, content, result, at) {
     if (content.includes(':focus-visible')) return;
     const ruleRe = /([^{}]+)\{([^{}]*)\}/g;
     let m;
@@ -461,6 +621,8 @@ class AccessibilityModule extends BaseModule {
       if (/\b(?:box-shadow|border(?:-[a-z]+)?|background(?:-color)?|text-decoration|outline\s*:\s*(?!none|0\b)[^;]+)\s*:?/.test(body.replace(/\boutline\s*:\s*(?:none|0)(?:px)?[^;]*;?/, ''))) continue;
       result.addCheck(`a11y:focus-outline:${relPath}`, false, {
         file: relPath,
+        // The selector's own line, past any blank lines the rule regex swallowed.
+        ...(at ? at(m.index + (selector.length - selector.trimStart().length)) : {}),
         message: 'Focus outline removed without alternative',
         suggestion: 'Use :focus-visible instead of :focus, or provide custom focus indicators',
       });
@@ -566,6 +728,7 @@ class AccessibilityModule extends BaseModule {
     for (const file of cssFiles) {
       const relPath = repoRelative(projectRoot, file);
       const content = fs.readFileSync(file, 'utf-8');
+      const at = lineLocator(content);
 
       // Extract CSS rule blocks (match selector { declarations })
       const ruleRegex = /([^{}]+)\{([^{}]*)\}/g;
@@ -574,6 +737,7 @@ class AccessibilityModule extends BaseModule {
       while ((ruleMatch = ruleRegex.exec(content)) !== null) {
         const selector = ruleMatch[1].trim();
         const declarations = ruleMatch[2];
+        const where = at(ruleMatch.index + (ruleMatch[1].length - ruleMatch[1].trimStart().length));
 
         // Extract color and background-color from declarations
         const colorMatch = declarations.match(
@@ -603,6 +767,7 @@ class AccessibilityModule extends BaseModule {
             false,
             {
               file: relPath,
+              ...where,
               selector,
               foreground: colorMatch[1].trim(),
               background: bgMatch[1].trim(),
@@ -623,6 +788,7 @@ class AccessibilityModule extends BaseModule {
             {
               severity: 'warning',
               file: relPath,
+              ...where,
               selector,
               foreground: colorMatch[1].trim(),
               background: bgMatch[1].trim(),

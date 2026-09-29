@@ -333,3 +333,157 @@ describe('AccessibilityModule — html-lang masking (issue #707)', () => {
     assert.ok(!f.some((c) => c.name.startsWith('a11y:html-lang:')), JSON.stringify(f.map((c) => c.name)));
   });
 });
+
+// ── #842 DR-b: every per-element finding names its line ─────────────────
+//
+// DavenRoe @1dea3658 (2026-09-29): 1,534 accessibility findings, every one
+// `line: null` — the checks matched by regex over the whole file and never
+// turned the match offset into a line, so nothing could be annotated inline
+// or fixed surgically. Control pair: an unlabelled <input> on line 7 reports
+// line 7; a clean input reports nothing.
+describe('AccessibilityModule — findings carry the element line (#842 DR-b)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-a11y-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  const w = (rel, c) => { const f = path.join(tmp, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, c); };
+  const run = async () => { const r = makeResult(); await new AccessibilityModule().run(r, { projectRoot: tmp, getModuleConfig() { return {}; }, get() { return null; } }); return r.checks.filter((c) => !c.passed); };
+
+  it('POSITIVE: an unlabelled <input> on line 7 reports line 7 (and its column); NEGATIVE: a labelled one on line 7 reports nothing', async () => {
+    const page = (input) => [
+      '<html lang="en">',
+      '<head><title>t</title></head>',
+      '<body>',
+      '<main>',
+      '  <h1>Form</h1>',
+      '  <form>',
+      `    ${input}`,
+      '  </form>',
+      '</main>',
+      '</body>',
+      '</html>',
+    ].join('\n');
+    w('pages/bad.html', page('<input type="text" name="q">'));
+    w('pages/good.html', page('<input type="text" id="q" aria-label="Search">'));
+    const f = (await run()).filter((c) => c.name.startsWith('a11y:input-label:'));
+    assert.strictEqual(f.length, 1, JSON.stringify(f));
+    assert.strictEqual(f[0].file, 'pages/bad.html');
+    assert.strictEqual(f[0].line, 7);
+    assert.strictEqual(f[0].column, 5);
+  });
+
+  it('img-alt, invalid-role, tabindex and heading-skip findings name the element line — on a CRLF file too', async () => {
+    w('pages/p.html', [
+      '<html lang="en"><head><title>t</title></head>',
+      '<body><main>',
+      '<h1>Top</h1>',
+      '<img src="a.png">',
+      '<div role="banana">x</div>',
+      '<button tabindex="3">b</button>',
+      '<h3>Skipped</h3>',
+      '</main></body></html>',
+    ].join('\r\n'));
+    const f = await run();
+    const at = (rule) => f.find((c) => c.name === `a11y:${rule}:pages/p.html`);
+    assert.strictEqual(at('img-alt').line, 4, JSON.stringify(f));
+    assert.strictEqual(at('invalid-role').line, 5);
+    assert.strictEqual(at('tabindex-positive').line, 6);
+    assert.strictEqual(at('heading-hierarchy').line, 7);
+  });
+
+  it('NEGATIVE: an <input> inside a JSX comment `{/* … */}` is not "unlabelled"', async () => {
+    w('app/form.tsx', 'export const F = () => (\n  <form>\n    {/* <input type="text" /> */}\n  </form>\n);\n');
+    const f = (await run()).filter((c) => c.name.startsWith('a11y:input-label:'));
+    assert.strictEqual(f.length, 0, JSON.stringify(f));
+  });
+});
+
+// ── #842 DR-c: one finding per root cause, not per call site ─────────────
+//
+// A component the repo defines (`function Input(…) { return <input … /> }`;
+// the rule sees `<Input` call sites, #820 — `<Field>` is not an element it
+// judges at all)
+// used at N call sites is ONE unlabelled element, reported once at its
+// definition with the call sites named. Literal <input> elements stay one
+// finding each. Control pair: shared component with 3 call sites → 1 finding
+// + count 3; three literal inputs → 3 findings.
+describe('AccessibilityModule — repo-defined components collapse to their definition (#842 DR-c)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-a11y-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  const w = (rel, c) => { const f = path.join(tmp, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, c); };
+  const run = async () => { const r = makeResult(); await new AccessibilityModule().run(r, { projectRoot: tmp, getModuleConfig() { return {}; }, get() { return null; } }); return r.checks.filter((c) => !c.passed && c.name.startsWith('a11y:input-label:')); };
+
+  it('POSITIVE: a same-file component with 3 call sites → 1 finding at its <input>, count 3; NEGATIVE: three literal inputs → 3 findings', async () => {
+    w('src/pages/Settings.jsx', [
+      'function Input({ value, onChange }) {',
+      '  return <input value={value} onChange={onChange} />;',
+      '}',
+      'export default function Settings() {',
+      '  return (',
+      '    <form>',
+      '      <Input value={a} onChange={setA} />',
+      '      <Input value={b} onChange={setB} />',
+      '      <Input value={c} onChange={setC} />',
+      '    </form>',
+      '  );',
+      '}',
+    ].join('\n'));
+    w('src/pages/Literal.jsx', [
+      'export default function Literal() {',
+      '  return (',
+      '    <form>',
+      '      <input type="text" />',
+      '      <input type="number" />',
+      '      <input type="email" />',
+      '    </form>',
+      '  );',
+      '}',
+    ].join('\n'));
+    const f = await run();
+    const settings = f.filter((c) => c.file === 'src/pages/Settings.jsx');
+    assert.strictEqual(settings.length, 1, JSON.stringify(f));
+    assert.strictEqual(settings[0].severity, undefined, 'the element is a real unlabelled <input>: error');
+    assert.strictEqual(settings[0].line, 2);
+    assert.strictEqual(settings[0].callSiteCount, 3);
+    assert.deepStrictEqual(settings[0].component, { name: 'Input', line: 1 });
+    assert.match(settings[0].message, /rendered at 3 call sites: src\/pages\/Settings\.jsx:7, src\/pages\/Settings\.jsx:8, src\/pages\/Settings\.jsx:9/);
+    const literal = f.filter((c) => c.file === 'src/pages/Literal.jsx');
+    assert.deepStrictEqual(literal.map((c) => c.line), [4, 5, 6], JSON.stringify(literal));
+    assert.ok(literal.every((c) => c.callSiteCount === undefined));
+  });
+
+  it('POSITIVE: a component imported from ./components is reported once, in its own file, with the call sites across pages (at most five named)', async () => {
+    w('src/components/Input.jsx', 'export default function Input({ value }) {\n  return <input value={value} />;\n}\n');
+    for (let i = 1; i <= 7; i++) {
+      w(`src/pages/P${i}.jsx`, `import Input from '../components/Input';\nexport default () => <form><Input value={v} /></form>;\n`);
+    }
+    const f = await run();
+    assert.strictEqual(f.length, 1, JSON.stringify(f));
+    assert.strictEqual(f[0].file, 'src/components/Input.jsx');
+    assert.strictEqual(f[0].line, 2);
+    assert.strictEqual(f[0].callSiteCount, 7);
+    assert.strictEqual(f[0].callSites.length, 5);
+    assert.match(f[0].message, /rendered at 7 call sites: .* \(\+2 more\)$/);
+  });
+
+  it('a repo component whose own <input> labels itself from a prop nobody passes → ONE warning at the definition, not N', async () => {
+    w('src/components/Input.jsx', 'export function Input({ label, value }) {\n  return <input aria-label={label} value={value} />;\n}\n');
+    w('src/pages/A.jsx', "import { Input } from '../components/Input';\nexport default () => <form><Input value={a} /><Input value={b} /></form>;\n");
+    w('src/pages/B.jsx', "import { Input } from '../components/Input';\nexport default () => <form><Input value={c} /></form>;\n");
+    const f = await run();
+    assert.strictEqual(f.length, 1, JSON.stringify(f));
+    assert.strictEqual(f[0].file, 'src/components/Input.jsx');
+    assert.strictEqual(f[0].line, 1);
+    assert.strictEqual(f[0].severity, 'warning');
+    assert.strictEqual(f[0].callSiteCount, 3);
+    assert.match(f[0].message, /cannot verify/);
+  });
+
+  it('NEGATIVE: a component from a package (no definition in the repo) still warns at each call site, as before', async () => {
+    w('src/pages/A.jsx', "import { Input } from '@acme/ui';\nexport default () => <form><Input value={a} /><Input value={b} /></form>;\n");
+    const f = await run();
+    assert.strictEqual(f.length, 2, JSON.stringify(f));
+    assert.ok(f.every((c) => c.severity === 'warning' && /unknown component/.test(c.message)));
+    assert.deepStrictEqual(f.map((c) => c.line), [2, 2]);
+  });
+});
