@@ -1,16 +1,17 @@
 /**
  * Customer GitLab OAuth — initiate login.
  *
- * GET /api/auth/gitlab → redirect to GitLab OAuth consent screen.
+ * GET /api/auth/gitlab?next=<path> → redirect to GitLab OAuth consent screen.
  * After consent, GitLab redirects to /api/auth/gitlab/callback.
  */
 
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { getGitLabOAuthConfig, generateState } from "../../../lib/customer-session";
 import { authUnavailable } from "../../../lib/auth-unavailable";
+import { safeNext } from "../../../lib/session-gate";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const status = getGitLabOAuthConfig();
   if (!status.ok || !status.config) {
     // Was a JSON body that also listed our unset env var names to an
@@ -28,6 +29,20 @@ export async function GET() {
     maxAge: 600,
     path: "/",
   });
+
+  // Where to land after the callback (/login?next=…). Same-origin paths only —
+  // see safeNext(). Same shape as the GitHub route (#819).
+  const next = safeNext(request.nextUrl.searchParams.get("next"));
+  if (next) {
+    cookieStore.set("gl_oauth_next", next, {
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 600,
+      path: "/",
+    });
+  } else {
+    cookieStore.delete("gl_oauth_next");
+  }
 
   const params = new URLSearchParams({
     client_id: clientId,

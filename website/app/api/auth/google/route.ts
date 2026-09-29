@@ -1,16 +1,17 @@
 /**
  * Customer Google OAuth — initiate login.
  *
- * GET /api/auth/google → redirect to Google OAuth consent screen.
+ * GET /api/auth/google?next=<path> → redirect to Google OAuth consent screen.
  * After consent, Google redirects to /api/auth/google/callback.
  */
 
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { getGoogleOAuthConfig, generateState } from "../../../lib/customer-session";
 import { authUnavailable } from "../../../lib/auth-unavailable";
+import { safeNext } from "../../../lib/session-gate";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const status = getGoogleOAuthConfig();
   if (!status.ok || !status.config) {
     // Was a JSON body that also listed our unset env var names to an
@@ -28,6 +29,21 @@ export async function GET() {
     maxAge: 600,
     path: "/",
   });
+
+  // Where to land after the callback: the page the visitor was sent here
+  // from (/login?next=…). Same-origin paths only — see safeNext(). Same
+  // shape as the GitHub route (#819).
+  const next = safeNext(request.nextUrl.searchParams.get("next"));
+  if (next) {
+    cookieStore.set("goog_oauth_next", next, {
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 600,
+      path: "/",
+    });
+  } else {
+    cookieStore.delete("goog_oauth_next");
+  }
 
   const params = new URLSearchParams({
     client_id: clientId,
