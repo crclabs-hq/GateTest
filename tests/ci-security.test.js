@@ -852,6 +852,29 @@ describe('CiSecurityModule — secret-echo: captured echo output is not stdout',
     wf(['echo "$PGPASSWORD"', 'echo token=$NPM_TOKEN']);
     assert.strictEqual(hits(await run(tmp)).length, 2);
   });
+
+  it('GT-10 NEGATIVE (issue #771): echo "$SECRET" > file / >> file is quiet — writing to a file is not logging', async () => {
+    wf(['echo "$NPM_TOKEN" > /tmp/token.log', 'echo "$NPM_TOKEN" >> /tmp/token.log']);
+    assert.deepStrictEqual(hits(await run(tmp)), []);
+  });
+
+  it("GT-10 control pair: AlecRae mobile-android.yml:78 `echo '${{ secrets.X }}' > file` is quiet, the same expansion echoed to stdout fires", async () => {
+    wf(["echo '${{ secrets.ANDROID_KEYSTORE }}' > /tmp/ks.b64"]);
+    assert.deepStrictEqual(hits(await run(tmp)), []);
+    wf(["echo '${{ secrets.ANDROID_KEYSTORE }}'", "echo '${{ secrets.ANDROID_KEYSTORE }}' > /dev/stdout"]);
+    assert.strictEqual(hits(await run(tmp)).length, 2);
+  });
+
+  it('GT-10 POSITIVE: echo "$SECRET" with no redirect, or redirected to /dev/stdout, /dev/stderr or a bare fd dup, still fires', async () => {
+    wf([
+      'echo "$NPM_TOKEN"',
+      'echo "$NPM_TOKEN" > /dev/stdout',
+      'echo "$NPM_TOKEN" > /dev/stderr',
+      'echo "$NPM_TOKEN" >&2',
+      'echo "$NPM_TOKEN" 1>&2',
+    ]);
+    assert.strictEqual(hits(await run(tmp)).length, 5);
+  });
 });
 
 describe('CiSecurityModule — an echo inside a redirected `{ … }` group never reaches stdout (2026-09-05)', () => {

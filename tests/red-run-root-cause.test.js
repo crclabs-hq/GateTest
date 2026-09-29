@@ -376,7 +376,9 @@ describe('JSON / SARIF / PR-comment surfaces carry the same three fields', () =>
     assert.deepStrictEqual(blockedSarif.runs[0].properties.rootCause, rootCause);
 
     const passedSarif = reporter._buildSarif({ results: [], confidenceThreshold: 0.7, gateStatus: 'PASSED', timestamp: new Date().toISOString(), rootCause: null });
-    assert.strictEqual(passedSarif.runs[0].properties, undefined);
+    // #803: run-level properties always carry gatetestSchemaVersion; rootCause is the field that is absent on PASSED
+    assert.strictEqual(passedSarif.runs[0].properties.rootCause, undefined);
+    assert.ok(Number.isInteger(passedSarif.runs[0].properties.gatetestSchemaVersion));
     fs.rmSync(tmp, { recursive: true, force: true });
   });
 

@@ -221,3 +221,73 @@ describe('LogPiiModule — test path downgrade', () => {
     assert.strictEqual(hit.severity, 'info');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GT-12 (#771, AlecRae.com crawl): an operator CLI printing an argument it was
+// given — `console.log(token)` in `bin/rotate-api-key.js` echoing the
+// `--token` it was just invoked with on the terminal — is not a plaintext
+// credential leaked to a log-aggregation stack. The identical line in
+// application code under `src/` still fires; the exemption is the FILE's
+// role (bin/, scripts/, cli/, or a shebang), not the identifier.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('LogPiiModule — operator CLIs are not logging PII to a log stack (GT-12)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-lp-cli-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('silent: bin/ CLI echoing the sensitive argument it was given', async () => {
+    write(tmp, 'bin/rotate-api-key.js', '#!/usr/bin/env node\nconst { token } = require(\'yargs\').argv;\nconsole.log(token);\n');
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.passed === false && c.name && c.name.startsWith('log-pii:'));
+    assert.deepStrictEqual(hits, [], `an operator CLI echoing its own argument must not be reported: ${JSON.stringify(hits)}`);
+  });
+
+  it('silent: the customer line — apps/api/scripts/create-admin-user.ts printing the one-time password it just generated', async () => {
+    write(tmp, 'apps/api/scripts/create-admin-user.ts', [
+      'const password = generatePassword();',
+      'console.log("ONE-TIME PASSWORD (change it after first login, then enrol a passkey):");',
+      'console.log(`  ${password}`);',
+      '',
+    ].join('\n'));
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.passed === false && c.name && c.name.startsWith('log-pii:'));
+    assert.deepStrictEqual(hits, [], `an operator script under a nested scripts/ segment must not be reported: ${JSON.stringify(hits)}`);
+  });
+
+  it('silent: scripts/ CLI dumping the whole parsed-args object', async () => {
+    write(tmp, 'scripts/seed-user.js', 'const req = parseArgs();\nconsole.log(req);\n');
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.passed === false && c.name && c.name.startsWith('log-pii:'));
+    assert.deepStrictEqual(hits, [], `an operator script under scripts/ must not be reported: ${JSON.stringify(hits)}`);
+  });
+
+  it('silent: a shebang file outside bin/scripts/cli is still an operator CLI', async () => {
+    write(tmp, 'tools/admin-tool.js', '#!/usr/bin/env node\nconsole.log(password);\n');
+    const r = await run(tmp);
+    const hits = r.checks.filter((c) => c.passed === false && c.name && c.name.startsWith('log-pii:'));
+    assert.deepStrictEqual(hits, [], `a shebang file must be treated as an operator CLI regardless of directory: ${JSON.stringify(hits)}`);
+  });
+
+  it('STILL FIRES: the identical console.log(token) in application code under src/', async () => {
+    write(tmp, 'src/auth.js', 'console.log(token);\n');
+    const r = await run(tmp);
+    const hit = r.checks.find((c) => c.name && c.name.startsWith('log-pii:sensitive-arg:'));
+    assert.ok(hit, 'application code logging a sensitive identifier must still be reported');
+    assert.strictEqual(hit.severity, 'error');
+  });
+
+  it('STILL FIRES: logger.info(user) in application code under src/ (object-dump)', async () => {
+    write(tmp, 'src/auth.js', 'logger.info(user);\n');
+    const r = await run(tmp);
+    assert.ok(r.checks.find((c) => c.name && c.name.startsWith('log-pii:object-dump:')));
+  });
+
+  it('a "subscripts/" directory does not have a "scripts" segment and still fires', async () => {
+    // Segment match, not substring (doctrine #5) — a directory that merely
+    // CONTAINS the word "scripts" is not the scripts/ operator-tools tree.
+    write(tmp, 'subscripts/report.js', 'console.log(password);\n');
+    const r = await run(tmp);
+    assert.ok(r.checks.find((c) => c.name && c.name.startsWith('log-pii:sensitive-arg:')));
+  });
+});

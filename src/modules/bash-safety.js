@@ -49,6 +49,54 @@ const TOLERANT_EXIT = new Set([
   'npm ls', 'docker inspect', 'docker ps',
 ]);
 
+/**
+ * A YAML step whose `name:`/`id:` says it is CI plumbing, never the
+ * product's own test/build/gate — AlecRae.com's standalone-deploy.yml
+ * (issue #771, GT-13) posts its gate result to a flywheel endpoint under a
+ * "report" step with `|| true`: `|| true` on an "Upload coverage" / "Post PR
+ * comment" / "Report result" step is a warning, not a blocked build.
+ * Control pair below: `name: "Upload coverage"` / `run: npx codecov ||
+ * true` is a warning; an unnamed `run: npm test || true` still fires as an
+ * error. The shell shapes that made up most of GT-13's count are
+ * METADATA_ONLY_CMDS and `_selfReportingFunction` below.
+ */
+const BEST_EFFORT_STEP_RE = /upload|artifact|cache|comment|notify|coverage|report|lint-annot|summary|telemetry|badge/i;
+
+/**
+ * Commands that run the product's own tests, build, or the gate itself —
+ * these stay blocking even when the step's `name:`/`id:` also matches
+ * BEST_EFFORT_STEP_RE (a step named "Test and report failures" is still the
+ * gate; the NAME does not override what the line actually runs). Checked
+ * against the masked line so a quoted string can't earn the downgrade.
+ */
+const GATE_COMMAND_RE = /\b(?:npm|yarn|pnpm)\s+(?:run\s+)?(?:test|build)\b|\b(?:jest|vitest|mocha|ava|pytest|tox|rspec)\b|\bgo\s+test\b|\bcargo\s+(?:test|build)\b|\bmake\s+(?:test|build)\b|\btsc\b|\bnext\s+build\b|\bwebpack\b|\bgatetest\b/i;
+
+/**
+ * Commands that only touch a file's METADATA — permission bits, owner,
+ * mtime. Whether `chmod 644 "$STATUS_FILE" 2>/dev/null || true` succeeds or
+ * not, the file's contents and every later line of the script are the same;
+ * the one consumer that needs the permission (another service reading the
+ * file) fails on its own, visibly, at read time. AlecRae.com (issue #771,
+ * GT-13) carried this exact line in three deploy-status scripts and each
+ * was a blocking finding. Worth a warning — the customer is still told —
+ * never a blocked build. The list is deliberately metadata-only: `cp`,
+ * `mkdir`, `rm` and `exec N>` change what the script goes on to read
+ * (`exec 9>"$LOCK" || true` + `flock -n 9` skips a deploy for good when the
+ * lock dir is missing — the same script, kept blocking as the control).
+ */
+const METADATA_ONLY_CMDS = new Set(['chmod', 'chown', 'chgrp', 'touch']);
+
+/**
+ * `^name() {` / `^function name {` — a function defined in THIS script.
+ * `_selfReportingFunction` reads its body to decide whether `name … ||
+ * true` is a swallow or the author keeping `set -e` from aborting a check
+ * that has already printed its own verdict (AlecRae.com health-check.sh:
+ * `check_tcp … || true` where `check_tcp` calls `check_fail` on the miss).
+ */
+const FUNCTION_DEF_RE = /^\s*(?:function\s+([A-Za-z_][\w-]*)\s*(?:\(\s*\))?|([A-Za-z_][\w-]*)\s*\(\s*\))\s*\{?\s*$/;
+/** A body line that puts the outcome in front of the reader. */
+const REPORTS_OUTCOME_RE = /\b(?:echo|printf|logger)\b|\blog(?:_\w+)?\b|\b\w+_(?:fail|failed|warn|error|pass|ok)\b|>&2/;
+
 const RULES = [
   {
     code: 'pipe-true',
@@ -211,13 +259,33 @@ class BashSafetyModule extends BaseModule {
         // `message: null` findings (2026-08-18 audit residue).
         const inspected = rule.swallowGuard && this._capturedForInspection(lines, idx, mode);
         const tested = !inspected && rule.swallowGuard && this._outcomeTestedBelow(lines, idx, mode);
+        // GT-13 (issue #771): a `|| true` on a best-effort CI step (upload,
+        // artifact, cache, comment, notify, coverage, report, telemetry,
+        // badge...) is a warning, not a blocked build — UNLESS the guarded
+        // line is itself the command that runs tests/build/the gate, which
+        // always stays blocking regardless of the step's name.
+        const bestEffort = !inspected && !tested && rule.swallowGuard && mode === 'yaml'
+          && !GATE_COMMAND_RE.test(codeLine)
+          && this._isBestEffortStep(lines, idx);
+        // GT-13 (issue #771), the two shell shapes from AlecRae's scripts:
+        // a metadata-only command (chmod/chown/chgrp/touch) whose failure
+        // changes nothing the script goes on to do, and a function defined
+        // in this file that prints its own verdict before returning non-zero.
+        const guardedHead = rule.swallowGuard && !inspected && !tested && !bestEffort
+          ? guardedCommandHead(codeLine) : null;
+        const metadataOnly = guardedHead !== null && METADATA_ONLY_CMDS.has(guardedHead);
+        const selfReporting = guardedHead !== null && !metadataOnly && this._selfReportingFunction(lines, guardedHead);
+        const downgraded = inspected || tested || bestEffort || metadataOnly || selfReporting;
         result.addCheck(`bash-safety:${rule.code}:${rel}:${lineNum}`, false, {
-          severity: inspected || tested ? 'warning' : rule.severity,
+          severity: downgraded ? 'warning' : rule.severity,
           file: rel,
           line: lineNum,
           message: rule.message(rawLine)
             + (inspected ? ' — the captured output is read below; make sure an empty result on failure is not treated as success' : '')
-            + (tested ? ' — the outcome is tested on the next line; make sure that test covers the failure, not only the happy path' : ''),
+            + (tested ? ' — the outcome is tested on the next line; make sure that test covers the failure, not only the happy path' : '')
+            + (bestEffort ? ' — step name/id marks this as best-effort CI plumbing (upload/artifact/cache/coverage/notify/report/...); it does not gate the build' : '')
+            + (metadataOnly ? ` — ${guardedHead} only changes file metadata; a failure leaves the script's data and control flow unchanged, so this is best-effort, not a swallowed error` : '')
+            + (selfReporting ? ` — ${guardedHead} is defined in this file and prints its own verdict before returning non-zero; the "|| true" keeps set -e from aborting the remaining checks` : ''),
           fix: `${rel}:${lineNum} — ${rule.message(rawLine)}\nFix: handle the error explicitly or add "# gatetest:swallow-ok reason=\\"<reason>\\"" if intentional.`,
         });
       }
@@ -312,6 +380,94 @@ class BashSafetyModule extends BaseModule {
       if (!code) continue;
       seen++;
       if (OUTCOME_TEST_RE.test(code)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * The YAML `run:` key line that owns line `idx` — `idx` itself when it IS
+   * the `run:` line (single-line `run: cmd` or the `run: |` header), or the
+   * `run:` line above when `idx` is a content line inside its block scalar.
+   * Mirrors `_isInRunBlock`'s upward walk but returns the line index instead
+   * of a boolean, so callers can inspect the step that OWNS the block.
+   */
+  _runKeyLineIndex(lines, idx) {
+    const cur = lines[idx] || '';
+    if (!cur.trim()) return null;
+    if (RUN_KEY_RE.test(cur)) return idx;
+    let minIndent = cur.match(/^\s*/)[0].length;
+    for (let i = idx - 1; i >= 0; i--) {
+      const l = lines[i];
+      if (!l.trim()) continue;
+      const indent = l.match(/^\s*/)[0].length;
+      if (indent >= minIndent) continue;
+      minIndent = indent;
+      if (RUN_KEY_RE.test(l)) return /^\s*(?:-\s+)?run:\s*[|>]/.test(l) ? i : null;
+      if (YAML_STRUCTURAL_RE.test(l)) return null;
+    }
+    return null;
+  }
+
+  /**
+   * The `name:`/`id:` text of the YAML step that owns the run: line at
+   * `idx` — walked back to the step's own `- ` boundary in the `steps:`
+   * list. A step is:
+   *   - name: Upload coverage
+   *     id: cov
+   *     run: npx codecov || true
+   * `name:`/`id:` are siblings of `run:` at the step's field indent; a
+   * shallower line or the step's own `- ` opener ends the search. Returns
+   * '' when `run:` itself opens the step (`- run: cmd` — nothing can
+   * precede it in the same step) or when idx isn't inside a run: block.
+   */
+  _stepLabel(lines, idx) {
+    const runIdx = this._runKeyLineIndex(lines, idx);
+    if (runIdx === null) return '';
+    const cur = lines[runIdx];
+    if (/^\s*-\s+/.test(cur)) return ''; // run: opens the step — no name/id before it
+    const fieldIndent = cur.match(/^(\s*)/)[0].length;
+    let label = '';
+    for (let i = runIdx - 1; i >= 0; i--) {
+      const l = lines[i];
+      if (!l.trim()) continue;
+      const d = l.match(/^(\s*)-\s+/);
+      const indent = d ? d[0].length : l.match(/^(\s*)/)[0].length;
+      if (indent > fieldIndent) continue;  // content of an earlier multi-line field
+      if (indent < fieldIndent) break;     // stepped out of this step entirely
+      const m = l.match(/^\s*(?:-\s+)?(?:name|id)\s*:\s*(.+)$/);
+      if (m) label += ` ${m[1].trim().replace(/^['"]|['"]$/g, '')}`;
+      if (d) break; // this line opened the step — nothing further back is ours
+    }
+    return label.trim();
+  }
+
+  _isBestEffortStep(lines, idx) {
+    return BEST_EFFORT_STEP_RE.test(this._stepLabel(lines, idx));
+  }
+
+  /**
+   * `head` is a function defined in this file whose body reports its own
+   * outcome (echo, printf, log_…, check_fail, `>&2`) — so `head … || true` is
+   * the author keeping `set -e` alive after a check that has already told
+   * the reader it failed, not a failure hidden from them. A function whose
+   * body only runs commands (`deploy() { ssh box git pull; }`) reports
+   * nothing, and `deploy || true` stays the swallow it is. The body is read
+   * up to the closing `}` at the definition's own indent; a definition
+   * without a body in this file (sourced from elsewhere) is not trusted.
+   */
+  _selfReportingFunction(lines, head) {
+    if (!/^[A-Za-z_][\w-]*$/.test(head)) return false;
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(FUNCTION_DEF_RE);
+      if (!m || (m[1] || m[2]) !== head) continue;
+      const defIndent = lines[i].match(/^\s*/)[0].length;
+      for (let j = i + 1; j < lines.length; j++) {
+        const l = lines[j];
+        if (!l.trim()) continue;
+        if (l.match(/^\s*/)[0].length <= defIndent && /^\s*\}/.test(l)) return false;
+        if (REPORTS_OUTCOME_RE.test(stripShellLiterals(l))) return true;
+      }
+      return false;
     }
     return false;
   }

@@ -204,6 +204,59 @@ const SANITISE_RES = [
   /\bcreateHmac\s*\(|\btimingSafeEqual\s*\(|\bcreateHash\s*\(|verifySignature|verifyHmac|checkSignature/i,
 ];
 
+// GT-03 (#771): a redirect whose HOST is a literal — `res.redirect(
+// `https://example.com/${path}`)` — cannot be an open redirect no matter what
+// the interpolated path segment is: the browser can only ever be sent to
+// `example.com`, a destination the file's own author chose, never one an
+// attacker supplies. Matched on the SINK LINE alone (not the context window
+// `_hasSanitiser` also reads) because the fixed host has to sit in the same
+// call as the redirect for this to hold. Only the scheme+host is required to
+// be literal — immediately after it, `/`, the closing quote/backtick, or
+// end-of-string ends the literal-host run; a `${` there instead means the
+// host ITSELF is templated (`https://${host}.example.com/`) and this must
+// NOT match. Negative control: `res.redirect(req.query.next)` has no literal
+// host at all and still fires.
+const FIXED_HOST_REDIRECT_RE =
+  /\b(?:res|ctx|c)\.redirect\s*\(\s*[`'"]https?:\/\/[A-Za-z0-9.-]+(?::\d+)?(?:[/'"`]|$)/;
+
+// GT-03 (#771), the two shapes AlecRae.com actually had:
+//
+// 1. apps/api/src/routes/connect.ts:164 —
+//      c.redirect(`${webUrl}/onboarding?connected=gmail&email=${encodeURIComponent(tokens.email)}`)
+//    The tainted value sits in the QUERY STRING of a template literal whose
+//    host/path come first. A query parameter cannot change where the
+//    browser goes — `https://h/onboarding?email=//evil.example` still lands
+//    on `h`. So: parse the template argument; if every hole that references
+//    a tainted variable begins AFTER the first literal `?` (outside any
+//    hole), the redirect is not open. A tainted hole before the `?`
+//    (`${webUrl}` if webUrl were tainted, or `/${path}?x=1`) still fires.
+//
+// 2. apps/api/src/routes/tracking.ts:193 — `c.redirect(targetUrl, 302)`,
+//    gated twenty lines earlier by
+//      if (!verifyTrackedUrl(emailId, targetUrl, sig)) return c.text(..., 400);
+//    An HMAC-signed link: only the server can produce the signature, so the
+//    target can only be a URL the server itself put in the message. The
+//    existing #633 sanitiser list only looked three lines up and only for
+//    `verifySignature|verifyHmac|checkSignature` by name. Now: walk back
+//    through the enclosing handler for a NEGATED GUARD — `if (!verify…(…,
+//    <target>, …))` / `if (!isValid…(<target>))` / `if (!check…(<target>))`
+//    — whose body returns or throws. The guard must name the tainted
+//    target as an argument, and the walk stops at the enclosing route
+//    registration / function head, so a check in a different handler
+//    proves nothing. Negative control: `res.redirect(req.query.next)` with
+//    no guard, and a guard on a DIFFERENT variable, both still fire.
+const REDIRECT_TEMPLATE_ARG_RE = /\b(?:res|ctx|c)\.redirect\s*\(\s*`/;
+const REDIRECT_VERIFY_GUARD_RE =
+  /\bif\s*\(\s*!\s*(?:await\s+)?(?:[\w$]+\s*\.\s*)*(?:verif|validat|check|assert|isValid|isSafe|isAllowed|isTrusted)[\w$]*\s*\(([^)]*)\)/i;
+const GUARD_EXIT_RE = /\b(?:return|throw)\b/;
+// Where the backward walk for the guard stops: the enclosing route
+// registration or function head. `.catch(() => {` / `.then(` are not
+// handler heads and do not stop it (tracking.ts has a fire-and-forget
+// `.catch` between the guard and the redirect).
+const HANDLER_HEAD_RE =
+  /\.\s*(?:get|post|put|patch|delete|all|use|route|on|head|options)\s*\(|^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\b|^\s*(?:export\s+)?(?:const|let|var)\s+[\w$]+\s*=\s*(?:async\s+)?(?:\([^)]*\)|[\w$]+)\s*=>/;
+const GUARD_WALK_LIMIT = 80;
+
 const SUPPRESS_TAINT_OK_RE = /\/\/\s*taint-ok\b/;
 
 // Parameterised-ORM imports — when one of these is imported in the file,
@@ -641,6 +694,13 @@ class CrossFileTaintModule extends BaseModule {
       for (const sink of SINKS) {
         if (!sink.re.test(sinkSafeLine)) continue;
         if (sink.not && sink.not.test(sinkSafeLine)) continue;
+        // GT-03 (#771): a redirect whose tainted value can only land in the
+        // query string, or whose target was verified by a negated guard
+        // earlier in the same handler, is not an open redirect.
+        if (sink.name === 'redirect') {
+          const refs = Array.from(tainted).filter((v) => this._lineReferencesVar(sinkSafeLine, v));
+          if (refs.length > 0 && this._redirectCannotBeOpen(raw, masked, i, refs)) continue;
+        }
         // Is a tainted var present on this line?
         for (const v of tainted) {
           if (this._lineReferencesVar(sinkSafeLine, v)) {
@@ -783,6 +843,75 @@ class CrossFileTaintModule extends BaseModule {
     // Match the variable as a whole word (not as part of a longer identifier)
     const re = new RegExp(`\\b${varName}\\b`);
     return re.test(line);
+  }
+
+  // GT-03 (#771): see REDIRECT_TEMPLATE_ARG_RE / REDIRECT_VERIFY_GUARD_RE.
+  // `refs` are the tainted variables referenced on the sink line. Either
+  // shape on its own is enough; each must hold for EVERY tainted ref.
+  _redirectCannotBeOpen(rawLine, masked, lineIdx, refs) {
+    // Literal host on the sink line (FIXED_HOST_REDIRECT_RE). Judged on the
+    // RAW line: `_stripComments` cuts at the first `//`, which is the one
+    // inside `https://`. A commented-out redirect never reaches here — sink
+    // detection runs on the masked line.
+    if (FIXED_HOST_REDIRECT_RE.test(rawLine)) return true;
+    if (this._redirectTaintOnlyInQuery(rawLine, refs)) return true;
+    return refs.every((v) => this._redirectTargetVerified(masked, lineIdx, v));
+  }
+
+  // Shape 1: `c.redirect(\`${webUrl}/onboarding?x=${encodeURIComponent(t)}\`)`.
+  // Walks the template literal on the RAW line (the masked line has its
+  // literal text blanked, and the `?` we need IS literal text), tracking
+  // `${…}` depth so a `?` inside a hole does not count as the query start.
+  _redirectTaintOnlyInQuery(rawLine, refs) {
+    const m = REDIRECT_TEMPLATE_ARG_RE.exec(rawLine);
+    if (!m) return false;
+    let depth = 0;
+    let queryIdx = -1;
+    let holeStart = -1;
+    let hole = '';
+    const holes = [];
+    for (let idx = m.index + m[0].length; idx < rawLine.length; idx += 1) {
+      const ch = rawLine[idx];
+      if (depth === 0) {
+        if (ch === '\\') { idx += 1; continue; }
+        if (ch === '`') break;
+        if (ch === '$' && rawLine[idx + 1] === '{') {
+          depth = 1; holeStart = idx; hole = ''; idx += 1; continue;
+        }
+        if (ch === '?' && queryIdx === -1) queryIdx = idx;
+        continue;
+      }
+      if (ch === '{') depth += 1;
+      else if (ch === '}') {
+        depth -= 1;
+        if (depth === 0) { holes.push({ start: holeStart, text: hole }); continue; }
+      }
+      hole += ch;
+    }
+    if (queryIdx === -1) return false;
+    const taintedHoles = holes.filter((h) => refs.some((v) => this._lineReferencesVar(h.text, v)));
+    if (taintedHoles.length === 0) return false;
+    return taintedHoles.every((h) => h.start > queryIdx);
+  }
+
+  // Shape 2: `if (!verifyTrackedUrl(emailId, targetUrl, sig)) return …;`
+  // somewhere above the sink, inside the same handler. Reads the MASKED
+  // lines so a guard quoted in a string or a comment does not count.
+  _redirectTargetVerified(masked, lineIdx, varName) {
+    const floor = Math.max(0, lineIdx - GUARD_WALK_LIMIT);
+    for (let j = lineIdx - 1; j >= floor; j -= 1) {
+      const line = masked[j] || '';
+      if (HANDLER_HEAD_RE.test(line)) return false;
+      const g = REDIRECT_VERIFY_GUARD_RE.exec(line);
+      if (!g) continue;
+      if (!this._lineReferencesVar(g[1], varName)) continue;
+      // The guard has to leave the handler: `return`/`throw` on the guard
+      // line itself or on one of the next two lines (the usual
+      // `if (!ok) {\n  return res.status(400)…` layout).
+      const body = [line, masked[j + 1] || '', masked[j + 2] || ''].join('\n');
+      if (GUARD_EXIT_RE.test(body)) return true;
+    }
+    return false;
   }
 
   _hasSanitiser(rawLine, contextLines) {

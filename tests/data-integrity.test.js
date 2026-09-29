@@ -470,3 +470,79 @@ describe('data-integrity — migration trees are found by the shared convention'
     assert.ok(checks.some((c) => c.name === 'data:idempotent:migrations/app/20260520T1317_init/migration.sql'), 'the .sql beside it still fires');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GT-12 (#771, AlecRae.com scan): five "PII in logs" errors were operator CLI
+// scripts under apps/api/scripts/ printing the email address they were asked
+// to act on (`console.log(\`provisioning ${email}\`)` in
+// provision-alecrae-workspace.ts, seed-e2e.ts, ...). A human ran the script
+// with that address on the command line; the script confirming it is not a
+// log-stack leak. The identical line in application code still fires. One
+// definition shared with logPii: src/core/operator-cli.js.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('DataIntegrityModule — operator CLIs printing what they were told to print are not PII in logs (GT-12)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-di-cli-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  async function scanFiles(files) {
+    for (const [rel, source] of Object.entries(files)) {
+      const abs = path.join(tmp, rel);
+      fs.mkdirSync(path.dirname(abs), { recursive: true });
+      fs.writeFileSync(abs, source);
+    }
+    fs.writeFileSync(path.join(tmp, 'package.json'), '{"name":"t","version":"1.0.0"}\n');
+    const result = makeResult();
+    await new DataIntegrityModule().run(result, { projectRoot: tmp });
+    return result.checks.filter((c) => !c.passed && c.name.startsWith('data:pii'));
+  }
+
+  it('NEGATIVE: the customer line — a scripts/ CLI echoing the email it was invoked for', async () => {
+    const found = await scanFiles({
+      'apps/api/scripts/provision-workspace.ts': [
+        'const email = process.argv[2];',
+        'console.log(`provisioning workspace for ${email}`);',
+        '',
+      ].join('\n'),
+      'bin/create-admin-user.js': [
+        '#!/usr/bin/env node',
+        'const password = generatePassword();',
+        'console.log("ONE-TIME PASSWORD (change it after first login):");',
+        'console.log(`  ${password}`);',
+        '',
+      ].join('\n'),
+    });
+    assert.deepStrictEqual(found.map((f) => f.name), []);
+  });
+
+  it('NEGATIVE: a shebang file outside bin/scripts/cli is still an operator CLI', async () => {
+    const found = await scanFiles({
+      'tools/admin-tool.js': '#!/usr/bin/env node\nconsole.log("resetting", email);\n',
+    });
+    assert.deepStrictEqual(found.map((f) => f.name), []);
+  });
+
+  it('POSITIVE: the identical console.log(email) in application code still fires', async () => {
+    const found = await scanFiles({
+      'src/auth/login.js': 'console.log(`login attempt for ${email}`);\n',
+    });
+    assert.deepStrictEqual(found.map((f) => [f.name, f.line]), [['data:pii:PII in logs:src/auth/login.js', 1]]);
+  });
+
+  it('POSITIVE: a "subscripts/" directory has no "scripts" segment and still fires', async () => {
+    const found = await scanFiles({
+      'subscripts/report.js': 'console.log(user.password);\n',
+    });
+    assert.deepStrictEqual(found.map((f) => f.name), ['data:pii:PII in logs:subscripts/report.js']);
+  });
+
+  it('POSITIVE: the localStorage rule is untouched by the exemption even inside scripts/', async () => {
+    // The exemption is scoped to the "PII in logs" rule only — a CLI that
+    // writes a token into localStorage is not printing to a terminal.
+    const found = await scanFiles({
+      'scripts/bootstrap.js': 'localStorage.setItem("session", token);\n',
+    });
+    assert.deepStrictEqual(found.map((f) => f.name), ['data:pii:Sensitive data in localStorage:scripts/bootstrap.js']);
+  });
+});

@@ -157,6 +157,45 @@ describe('AccessibilityModule — fragment / primitive / AAA precision (2026-08-
     assert.ok(names.some((n) => n.startsWith('a11y:input-label:') && n.includes('bare.html')), JSON.stringify(names));
   });
 
+  // ── GT-02 residual (issue #771): design-system components with a label PROP ──
+  //
+  // AlecRae apps/web/app/(auth)/login/page.tsx: `<Input label="Email address" … />`.
+  // `<input\b` is matched case-insensitively, so the component was judged as
+  // the DOM element and blocked; 92 findings, mostly this shape.
+  it('NEGATIVE: <Input label/aria-label/aria-labelledby/placeholder+title /> is labelled; unknown <Input /> warns; raw <input> unchanged', async () => {
+    w('app/login.tsx', [
+      'export const L = () => (',
+      '  <form>',
+      '    <Input label="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />',
+      '    <Input aria-label="Search" />',
+      '    <Input aria-labelledby="pw-heading" type="password" />',
+      '    <Input placeholder="Code" title="Verification code" />',
+      '  </form>',
+      ');',
+    ].join('\n'));
+    w('app/unknown.tsx', 'export const U = () => <form><Input /></form>;');
+    w('app/placeholder-only.tsx', 'export const P = () => <form><Input placeholder="Code" /></form>;');
+    w('app/raw.tsx', 'export const R = () => <form><input type="text" /></form>;');
+    w('app/raw-labelled.tsx', 'export const R = () => <form><label htmlFor="q">Q</label><input id="q" type="text" /></form>;');
+    w('app/raw-label-attr.tsx', 'export const R = () => <form><input label="Email" type="text" /></form>;');
+    const f = (await run()).filter((c) => c.name.startsWith('a11y:input-label:'));
+    const on = (file) => f.filter((c) => c.name.endsWith(file));
+    assert.strictEqual(on('login.tsx').length, 0, JSON.stringify(f));
+    assert.strictEqual(on('raw-labelled.tsx').length, 0, JSON.stringify(f));
+    const unknown = on('unknown.tsx');
+    assert.strictEqual(unknown.length, 1, JSON.stringify(f));
+    assert.strictEqual(unknown[0].severity, 'warning', 'an unknown component is not a blocking error');
+    assert.match(unknown[0].message, /cannot verify/);
+    assert.strictEqual(on('placeholder-only.tsx').length, 1, 'placeholder alone (no title) is not a label');
+    // POSITIVE CONTROL: the DOM element is judged as before — error severity, original message.
+    const raw = on('raw.tsx');
+    assert.strictEqual(raw.length, 1, JSON.stringify(f));
+    assert.strictEqual(raw[0].severity, undefined);
+    assert.strictEqual(raw[0].message, 'Input (type="text") missing accessible label');
+    // A lowercase <input label="…"> gains nothing from the component-only prop rule.
+    assert.strictEqual(on('raw-label-attr.tsx').length, 1, JSON.stringify(f));
+  });
+
   it('a 4.5–7:1 contrast (passes AA, fails AAA) is a warning; below 4.5:1 stays an error', async () => {
     w('styles/a.css', '.aa { color: #767676; background-color: #ffffff; }\n.bad { color: #aaaaaa; background-color: #ffffff; }');
     const f = await run();

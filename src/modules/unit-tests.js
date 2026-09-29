@@ -6,7 +6,7 @@
 const BaseModule = require('./base-module');
 const fs = require('fs');
 const path = require('path');
-const { looksLikeMissingToolchain } = require('../core/toolchain-signals');
+const { looksLikeMissingToolchain, looksLikeToolchainBuildFailure, firstToolchainErrorLine } = require('../core/toolchain-signals');
 const { repoRelative } = require('../core/repo-path');
 
 class UnitTestsModule extends BaseModule {
@@ -115,6 +115,25 @@ class UnitTestsModule extends BaseModule {
       // gives the check a real file/line, and details.failures[] gives the
       // fix pipeline the test name, assertion message and expected/actual.
       const failures = this._parseTestFailures(out, projectRoot);
+
+      // GT-14b (#771): a build/transform tool (esbuild/tsc/babel/node
+      // itself) that broke BEFORE any test ran is not the product's test
+      // failure — three-state honesty says "not checked", not "failed".
+      // A genuine parsed failure (TAP `not ok`, jest/mocha stack frame)
+      // always wins: `failures.length` is checked first so a real failure
+      // that happens to also print an unrelated toolchain warning stays
+      // blocking exactly as today (control pair: `not ok 1 - adds` blocks;
+      // `throw new Error('Transform failed with 1 error...')` does not).
+      if (failures.length === 0 && looksLikeToolchainBuildFailure(out)) {
+        result.addCheck('unit-tests:toolchain-not-checked', false, {
+          severity: 'warning',
+          message: `tests could not run: ${firstToolchainErrorLine(out)}; not checked`,
+          suggestion: 'Fix the toolchain/build error (esbuild/tsc/babel/Node version mismatch) so the suite can actually execute, then re-scan.',
+        });
+        this._checkCoverage(projectRoot, config, result);
+        return;
+      }
+
       const primary = failures[0] || null;
       result.addCheck('unit-tests:run', false, {
         severity: 'error',

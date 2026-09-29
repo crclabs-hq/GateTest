@@ -360,9 +360,16 @@ already carry this command with the run's URL filled in.
 ### Self-hosted and air-gapped
 
 The engine is an npm package with four runtime dependencies that reads your tree and
-writes to `.gatetest/`. By default the only thing that leaves the machine is the
-anonymized telemetry flush (module and rule ids with integer counts; opt out with
-`GATETEST_NO_TELEMETRY=1`); the AI-backed fix paths are opt-in and need
+writes to `.gatetest/`. The only thing that can leave the machine is the
+anonymized telemetry flush (module and rule ids with integer counts, never code,
+paths or repo names). Switch it with `GATETEST_TELEMETRY=1|0` or
+`"telemetry": true|false` in `.gatetest.json` (`GATETEST_NO_TELEMETRY=1` still
+works as an alias for off); `gatetest --telemetry-status` prints the current
+setting, which switch decided it and the host. The first run prints exactly what
+is sent, once. Uploads go only to `gatetest.io`: a `GATETEST_TELEMETRY_URL` (or a
+base-URL override) on any other host is refused unless you set
+`GATETEST_TELEMETRY_ALLOW_HOST=1`, which is how a self-hoster points it at their
+own ingest. The AI-backed fix paths are opt-in and need
 `ANTHROPIC_API_KEY`. For an air-gapped runner, make that a stated promise:
 
 ```bash
@@ -375,6 +382,13 @@ API ping from `--doctor`. The console prints the mode, the summary carries
 `offline: true`, and the signed provenance records it — so a report produced inside
 the perimeter can be verified outside it with `gatetest verify-report` and the key.
 There is no licence server and no account; nothing expires.
+
+### The JSON report is a versioned contract
+
+Every JSON report carries a top-level `schemaVersion`; the stable fields, the
+version rules and the deprecation policy are in
+[`docs/api/report-schema.md`](docs/api/report-schema.md), pinned by
+`tests/report-schema-contract.test.js`.
 
 ### Redirecting or disabling report output
 

@@ -246,6 +246,136 @@ describe('bash-safety — every line of a multi-line `run: |` block is scanned (
   });
 });
 
+describe('bash-safety — GT-13 (#771): `|| true` on a best-effort CI step is a warning, never blocking', () => {
+  // AlecRae.com's CI had 18 blocking findings shaped like this: a step whose
+  // name says it is best-effort infra (upload/artifact/cache/coverage/...)
+  // is not the product's gate. Control pair from the issue: `npx codecov ||
+  // true` under "Upload coverage" is quiet/warning; an unnamed `npm test ||
+  // true` still fires as an error no matter what.
+  const coverageStep = [
+    'jobs:', '  ci:', '    steps:',
+    '      - name: Upload coverage',
+    '        run: npx codecov || true',
+    '',
+  ].join('\n');
+
+  it('NEGATIVE: "Upload coverage" / `npx codecov || true` is a warning, with the reason', async () => {
+    const f = await scan({ '.github/workflows/ci.yml': coverageStep });
+    const hit = pipeTrue(f);
+    assert.ok(hit, names(f));
+    assert.equal(hit.severity, 'warning');
+    assert.match(hit.message, /best-effort CI plumbing/);
+  });
+
+  it('POSITIVE: `npm test || true` still fires as an error, unnamed', async () => {
+    const yml = ['jobs:', '  ci:', '    steps:', '      - run: npm test || true', ''].join('\n');
+    const f = await scan({ '.github/workflows/ci.yml': yml });
+    const hit = pipeTrue(f);
+    assert.ok(hit, names(f));
+    assert.equal(hit.severity, 'error');
+  });
+
+  it('POSITIVE: the NAME does not override what the line runs — "Test and report" running npm test still gates', async () => {
+    const yml = [
+      'jobs:', '  ci:', '    steps:',
+      '      - name: Test and report',
+      '        run: npm test || true',
+      '',
+    ].join('\n');
+    const f = await scan({ '.github/workflows/ci.yml': yml });
+    const hit = pipeTrue(f);
+    assert.ok(hit, names(f));
+    assert.equal(hit.severity, 'error');
+  });
+
+  it('NEGATIVE: an `id:` naming the step best-effort also downgrades', async () => {
+    const yml = [
+      'jobs:', '  ci:', '    steps:',
+      '      - id: notify-slack',
+      '        run: curl -X POST slack.example/webhook || true',
+      '',
+    ].join('\n');
+    const f = await scan({ '.github/workflows/ci.yml': yml });
+    const hit = pipeTrue(f);
+    assert.ok(hit, names(f));
+    assert.equal(hit.severity, 'warning');
+  });
+});
+
+describe('bash-safety — GT-13 (#771): the two shell shapes from AlecRae\'s own scripts', () => {
+  // The 18 blocking findings the issue counted were mostly NOT in YAML: they
+  // were `chmod 644 "$STATUS_FILE" 2>/dev/null || true` in three deploy-status
+  // scripts (pipe-true + devnull-swallow, six findings) and `check_tcp … ||
+  // true` in health-check.sh, where check_tcp itself calls check_fail on the
+  // miss. Both stay REPORTED (warning); the controls that must stay blocking
+  // are from the same scripts: `exec 9>"$LOCK_FILE" 2>/dev/null || true` in
+  // auto-deploy.sh (the deploy then silently never runs) and `cp
+  // "$MIG"/*.sql "$PROBE/" 2>/dev/null || true` in check-schema-drift.sh.
+  const devnull = (f) => f.find((c) => c.name.startsWith('bash-safety:devnull-swallow:'));
+
+  it('NEGATIVE: `chmod 644 "$STATUS_FILE" 2>/dev/null || true` is a warning on both rules, with the reason', async () => {
+    const f = await scan({ 'scripts/check-deploy-drift.sh': 'set -e\nmv "$tmp" "$STATUS_FILE"\nchmod 644 "$STATUS_FILE" 2>/dev/null || true\n' });
+    const p = pipeTrue(f); const d = devnull(f);
+    assert.ok(p && d, names(f));
+    assert.equal(p.severity, 'warning');
+    assert.equal(d.severity, 'warning');
+    assert.match(p.message, /chmod only changes file metadata/);
+  });
+
+  it('POSITIVE: `exec 9>"$LOCK_FILE" 2>/dev/null || true` (lock never taken, deploy silently skipped) stays an error', async () => {
+    const f = await scan({ 'scripts/auto-deploy.sh': 'set -e\nexec 9>"$LOCK_FILE" 2>/dev/null || true\nif ! flock -n 9; then exit 0; fi\n' });
+    const p = pipeTrue(f); const d = devnull(f);
+    assert.ok(p && d, names(f));
+    assert.equal(p.severity, 'error');
+    assert.equal(d.severity, 'error');
+  });
+
+  it('POSITIVE: `cp "$MIG"/*.sql "$PROBE/" 2>/dev/null || true` (the probe then diffs against nothing) stays an error', async () => {
+    const f = await scan({ 'scripts/check-schema-drift.sh': 'set -e\ncp "$MIG"/*.sql "$PROBE/" 2>/dev/null || true\n' });
+    const p = pipeTrue(f);
+    assert.ok(p, names(f));
+    assert.equal(p.severity, 'error');
+  });
+
+  const healthCheck = [
+    '#!/usr/bin/env bash', 'set -e',
+    'check_fail() { echo "  FAIL: $1" >&2; FAILED=1; }',
+    'check_tcp() {',
+    '    local host="$1" port="$2" name="$3"',
+    '    if timeout 3 bash -c "echo >/dev/tcp/${host}/${port}" 2>/dev/null; then',
+    '        return 0',
+    '    else',
+    '        check_fail "${name} — ${host}:${port} is not reachable"',
+    '        return 1',
+    '    fi',
+    '}',
+    'check_tcp "$MTA_HOST" 25 "MTA (SMTP/25)" || true',
+    '',
+  ].join('\n');
+
+  it('NEGATIVE: `check_tcp … || true` where check_tcp prints its own verdict is a warning', async () => {
+    const f = await scan({ 'infrastructure/scripts/health-check.sh': healthCheck });
+    const p = pipeTrue(f);
+    assert.ok(p, names(f));
+    assert.equal(p.severity, 'warning');
+    assert.match(p.message, /check_tcp is defined in this file and prints its own verdict/);
+  });
+
+  it('POSITIVE: a same-file function that reports nothing (`deploy() { ssh box git pull; }`) stays an error', async () => {
+    const f = await scan({ 'scripts/deploy.sh': 'set -e\ndeploy() {\n    ssh box "cd /opt/app && git pull"\n}\ndeploy || true\n' });
+    const p = pipeTrue(f);
+    assert.ok(p, names(f));
+    assert.equal(p.severity, 'error');
+  });
+
+  it('POSITIVE: a function that is only CALLED here (defined in a sourced file) stays an error', async () => {
+    const f = await scan({ 'scripts/probe.sh': 'set -e\nsource ./lib.sh\ncheck_tcp "$HOST" 25 || true\n' });
+    const p = pipeTrue(f);
+    assert.ok(p, names(f));
+    assert.equal(p.severity, 'error');
+  });
+});
+
 describe('bash-safety — `VAR=$(cmd || true)` is the capture shape too (2026-09-05)', () => {
   // ktor switch-base-branch.sh:133 — the `|| true` sits INSIDE the
   // substitution; the exit status is traded for the output exactly as in

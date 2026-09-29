@@ -3,18 +3,18 @@
  * The canonical public origin — the ONE place that decides what domain
  * GateTest calls itself.
  *
- * Before this file existed the string 'https://gatetest.ai' appeared in 148
+ * Before this file existed the old origin appeared as a literal in 148
  * places across website/app: SEO canonicals, Open Graph URLs, Stripe success
  * and cancel URLs, the GitHub OAuth redirect, badge embed snippets, e-mail
  * footers. Fourteen of those repeated the same
- * `process.env.NEXT_PUBLIC_BASE_URL || 'https://gatetest.ai'` fallback by
+ * `process.env.NEXT_PUBLIC_BASE_URL || '<old origin>'` fallback by
  * hand, which meant a domain move was a 148-site find-and-replace where
  * missing one silently pointed a customer at a domain we no longer own.
  *
  * Now it is one environment variable.
  *
  * ── The rule ────────────────────────────────────────────────────────────────
- * Never write a gatetest.ai literal in runtime code. Import `siteUrl()`.
+ * Never write an origin literal in runtime code. Import `siteUrl()`.
  * `tests/site-url.test.js` fails the suite if new literals appear in the
  * files that matter.
  *
@@ -30,15 +30,12 @@
 /**
  * The default public origin.
  *
- * Moved gatetest.ai -> gatetest.io on 2026-07-30. The .ai domain entered
+ * Moved from the old .ai domain to gatetest.io on 2026-07-30. The .ai domain entered
  * registry redemption on 2026-07-29 and returns NXDOMAIN, so anything still
  * defaulting to it is defaulting to a dead name. The .io domain is registered
  * to the same account, healthy, and expires 2027-04-08.
  */
 const DEFAULT_SITE_URL = 'https://gatetest.io';
-
-/** The origin we moved away from. Named so 301 handling can reference it. */
-const LEGACY_SITE_URL = 'https://gatetest.ai';
 
 /**
  * Normalise an origin: add https:// if the scheme is missing, drop any
@@ -97,15 +94,15 @@ function resolveSiteUrl(env) {
     || DEFAULT_SITE_URL;
 }
 
-/** The resolved public origin, e.g. 'https://gatetest.ai'. No trailing slash. */
+/** The resolved public origin, e.g. 'https://gatetest.io'. No trailing slash. */
 const SITE_URL = resolveSiteUrl();
 
 /**
  * Build an absolute URL onto the public origin.
  *
- *   siteUrl()                  -> 'https://gatetest.ai'
- *   siteUrl('/checkout')       -> 'https://gatetest.ai/checkout'
- *   siteUrl('api/badge')       -> 'https://gatetest.ai/api/badge'
+ *   siteUrl()                  -> 'https://gatetest.io'
+ *   siteUrl('/checkout')       -> 'https://gatetest.io/checkout'
+ *   siteUrl('api/badge')       -> 'https://gatetest.io/api/badge'
  *
  * @param {string} [path]
  * @returns {string}
@@ -184,7 +181,6 @@ function badgeUrl(path = '') {
 
 module.exports = {
   DEFAULT_SITE_URL,
-  LEGACY_SITE_URL,
   SITE_URL,
   BADGE_ORIGIN,
   SUPPORT_EMAIL,

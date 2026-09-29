@@ -14,6 +14,7 @@ const { siteUrl } = require('../core/site-url');
 // SARIF SPEC version and must stay fixed.)
 const PKG_VERSION = require('../../package.json').version;
 const { isBlockingFinding } = require('../core/confidence');
+const { REPORT_SCHEMA_VERSION } = require('../core/report-schema');
 const { getComplianceMapping, hasExplicitMapping } = require('../core/compliance-mappings');
 
 // Module → CWE / security-severity mapping. The OWASP category is NOT here:
@@ -358,8 +359,12 @@ class SarifReporter {
           startTimeUtc: summary.timestamp,
         }],
         // Root cause on every red run (move 12) — same why/since/replay the
-        // console and PR comment carry. Absent on a PASSED run.
-        ...(summary.rootCause ? { properties: { rootCause: summary.rootCause } } : {}),
+        // console and PR comment carry; rootCause is absent on a PASSED run.
+        // `gatetestSchemaVersion` is always present (#803): the version the JSON report carries.
+        properties: {
+          gatetestSchemaVersion: REPORT_SCHEMA_VERSION,
+          ...(summary.rootCause ? { rootCause: summary.rootCause } : {}),
+        },
       }],
     };
   }

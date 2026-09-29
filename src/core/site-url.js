@@ -10,7 +10,7 @@
  * Playwright bot user-agent strings.
  *
  * ── The rule ────────────────────────────────────────────────────────────────
- * Never write a gatetest.ai / gatetest.io literal in engine code. Import
+ * Never write an origin literal in engine code. Import
  * `siteUrl()`. `tests/site-url.test.js` fails the suite if literals reappear
  * in the files where a wrong origin reaches a customer.
  *
@@ -28,15 +28,12 @@
 /**
  * The default public origin.
  *
- * Moved gatetest.ai -> gatetest.io on 2026-07-30. The .ai domain entered
+ * Moved from the old .ai domain to gatetest.io on 2026-07-30. The .ai domain entered
  * registry redemption on 2026-07-29 and returns NXDOMAIN; .io is registered
  * to the same account and healthy. Anything still defaulting to .ai is
  * defaulting to a dead name.
  */
 const DEFAULT_SITE_URL = 'https://gatetest.io';
-
-/** The origin we moved away from. Kept named so 301 handling can reference it. */
-const LEGACY_SITE_URL = 'https://gatetest.ai';
 
 /**
  * Normalise an origin: add https:// when the scheme is missing, drop any
@@ -196,7 +193,6 @@ function badgeUrl(path = '') {
 
 module.exports = {
   DEFAULT_SITE_URL,
-  LEGACY_SITE_URL,
   SITE_URL,
   BADGE_ORIGIN,
   SUPPORT_EMAIL,

@@ -17,11 +17,12 @@
 
 const BaseModule = require('./base-module');
 const { URL } = require('url');
-const { checkUrl, getSuggestion, extractDeclaredIconHref } = require('./live-crawler-http-helpers');
+const { checkUrl, getSuggestion, extractDeclaredIconHref, normaliseCrawlUrl } = require('./live-crawler-http-helpers');
 const { crawlWithBrowser } = require('./live-crawler-browser-engine');
 const { crawlWithHttp } = require('./live-crawler-http-engine');
 const { generateFeedbackReport } = require('./live-crawler-report');
 const { resolveAuth, authHeadersFor, isLoginUrl } = require('./live-crawler-auth');
+const { retainPagesForChecks } = require('../core/live-scan-config');
 
 // One definition of the per-page fetch budget, imported by both engines
 // (live-crawler-http-engine.js, live-crawler-browser-engine.js) and this
@@ -76,6 +77,15 @@ class LiveCrawlerModule extends BaseModule {
   }
 
   async run(result, config) {
+    // Issue #768 item 3: a JSON API host has no DOM to crawl for broken
+    // links/images/anchors — running this module against one produces
+    // noise (0 links found, reported as a false "clean" crawl) rather than
+    // an honest "does not apply". See BaseModule#_isJsonApiHost.
+    if (this._isJsonApiHost(config)) {
+      this._notChecked(result, 'JSON API host — HTML checks do not apply');
+      return;
+    }
+
     const crawlConfig = config.getModuleConfig('liveCrawler') || {};
     const baseUrl = this._resolveBaseUrl(config, crawlConfig);
 
@@ -119,7 +129,8 @@ class LiveCrawlerModule extends BaseModule {
 
     const collectors = {
       visited: new Set(),
-      queue: [baseUrl],
+      queue: [normaliseCrawlUrl(baseUrl)],
+      aliasOf: new Map(),
       pages: [],
       errors: [],
       brokenLinks: [],
@@ -202,6 +213,7 @@ class LiveCrawlerModule extends BaseModule {
     const warnings = [];
     this._emitChecks(result, baseUrl, collectors, warnings);
     this._emitAuthWallCheck(result, collectors, auth, warnings);
+    this._retainPagesForChecks(result, collectors.pages, crawlConfig.checkPages);
 
     // A crawl that was cut short by its own budget has none to spare on
     // aux probes — every extra second spent here eats into the margin
@@ -234,6 +246,32 @@ class LiveCrawlerModule extends BaseModule {
       maxPages: collectors.maxPages,
       crawlElapsedMs: collectors.crawlElapsedMs,
       warnings,
+    });
+  }
+
+  /**
+   * Per-page checks (#815): when `modules.liveCrawler.checkPages` is set
+   * (the CLI does so under `--crawl` with a page-level module, default 25,
+   * `--crawl-check-pages`), the crawl hands the pages it fetched to the
+   * page-level modules that run after it, on this result — the one page
+   * store, read through `BaseModule#_crawledPages`. Not serialised: the
+   * report carries the counts (`crawl:page-checks`), never the bodies.
+   * Unset (bare `--crawl`, the hosted scan) keeps today's single entry page.
+   */
+  _retainPagesForChecks(result, pages, checkPages) {
+    if (!(checkPages > 0)) return;
+    const kept = retainPagesForChecks(pages, checkPages);
+    result.crawledPages = kept.pages;
+    const skipped = [];
+    if (kept.capped > 0) skipped.push(`${kept.capped} over the --crawl-check-pages ${checkPages} cap`);
+    if (kept.oversize > 0) skipped.push(`${kept.oversize} over the per-page size cap`);
+    const notChecked = kept.capped + kept.oversize;
+    result.addCheck('crawl:page-checks', true, {
+      severity: 'info',
+      message: notChecked === 0
+        ? `${kept.checked} of ${kept.crawled} crawled HTML page(s) handed to the page-level modules`
+        : `${kept.checked} of ${kept.crawled} crawled HTML page(s) handed to the page-level modules — ${notChecked} page(s) not checked (${skipped.join('; ')})`,
+      details: { crawled: kept.crawled, checked: kept.checked, notChecked, cap: checkPages, capped: kept.capped, oversize: kept.oversize },
     });
   }
 

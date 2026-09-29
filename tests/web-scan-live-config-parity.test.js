@@ -111,7 +111,8 @@ describe('all four hosted scan routes call the one shared live-scan-config helpe
     it(`${rel} imports fetchLivePage + applyLiveScanConfig from the shared module`, () => {
       const src = read(rel);
       assert.match(src, /require\("@\/app\/lib\/live-scan-config"\)/);
-      assert.match(src, /fetchLivePage\(targetUrl\)/);
+      // The JSON route passes a per-page timeout (issue #768 item 1); the stream route does not.
+      assert.match(src, /fetchLivePage\(targetUrl[,)]/);
       assert.match(src, /applyLiveScanConfig\(gt,\s*\{/);
     });
 
