@@ -168,3 +168,40 @@ describe('ConsoleReporter — field-silence demotion line (the Fifty, move 08)',
     assert.doesNotMatch(output, /demoted by field silence data/);
   });
 });
+
+// Issue #770 — per-module elapsed only ever surfaced in the top-5
+// "Slowest:" line; `--timings` prints every module's own elapsed plus a
+// running total, and default output (no flag) is unchanged.
+describe('ConsoleReporter — --timings prints every module\'s elapsed and a running total (#770)', () => {
+  const summaryWithResults = {
+    gateStatus: 'PASSED', modules: { passed: 3, total: 3 },
+    checks: { total: 3, passed: 3, failed: 0, errors: 0, blockingErrors: 0, softErrors: 0, warnings: 0, infoFindings: 0 },
+    fixes: { total: 0 }, duration: 6000, failedModules: [],
+    results: [
+      { module: 'lint', duration: 1000 },
+      { module: 'unitTests', duration: 2000 },
+      { module: 'ciSecurity', duration: 3000 },
+    ],
+  };
+
+  it('NEGATIVE: default output (no --timings) never prints the Timings block', () => {
+    const output = captureLog(() => {
+      const runner = new EventEmitter();
+      new ConsoleReporter(runner);
+      runner.emit('suite:end', summaryWithResults);
+    });
+    assert.doesNotMatch(output, /Timings \(--timings\)/);
+  });
+
+  it('POSITIVE: --timings prints every module in order with a running total', () => {
+    const output = captureLog(() => {
+      const runner = new EventEmitter();
+      new ConsoleReporter(runner, { timings: true });
+      runner.emit('suite:end', summaryWithResults);
+    });
+    assert.match(output, /Timings \(--timings\)/);
+    assert.match(output, /lint\s+1\.0s\s+total\s+1\.0s/);
+    assert.match(output, /unitTests\s+2\.0s\s+total\s+3\.0s/);
+    assert.match(output, /ciSecurity\s+3\.0s\s+total\s+6\.0s/);
+  });
+});
