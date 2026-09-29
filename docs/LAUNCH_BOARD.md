@@ -70,6 +70,7 @@ itself still uses the old variable names until the owner's cutover.
   (refs #771 GT-02 / GT-07): #820; AlecRae accessibility blocking 92 -> 12, retryHygiene 1 -> 0.
 - #771 GT-04/05/10 false positives (unref'd setInterval and TS interface member, masked/abbreviated/gitleaks:allow/credential-free-redis secrets, echo redirected to a file): AlecRae blocking secrets 10→7, ciSecurity 1→0, resourceLeak 5→1; classes still open in #771: GT-02,03,06-09,11-14.
 - First-hour sign-in journey: server-side gate (`/dashboard` 307 to `/login?next=`), `/login` entry, `/register` `/signup` `/sign-up` 301 to `/login`, `/docs` clean 307, `GET /api` JSON, crawler flags a redirect that carries an error page: #819 (closes #810, #812; unverified live until deployed).
+- #807 honesty gaps, three-state verdicts (refs #807 R4/R5/R12): `apiHealth` NOT CHECKED when nothing was confirmed (the tallrig.com "26 checked — 0 broken" false green), `deploy/fresh` NOT CHECKED with nothing to compare the served sha against, `--server` DNS/mail posture stops passing apex `_dmarc` text / any-TXT DMARC / `+all` SPF and reads resolver failures as NOT CHECKED: #828. Local fixtures only; live tallrig.com re-run is the owner's after deploy.
 - CI-step and toolchain honesty (refs #771 GT-13, GT-14a, GT-14b; #770): best-effort `|| true` shapes (chmod/chown/touch, a same-file function that prints its own verdict, a plumbing-named YAML step) are warnings; ESLint skips gitignored / build-output dirs; a build failure before any test ran is "not checked"; `--timings`: #825. Measured on AlecRae.com @ d9f61aa: bashSafety 18→9 blocking (45→45 total), ESLint 4254→298 errors.
 - Per-page crawl (closes #815): under `--crawl --module/--suite`, webHeaders, cookieSecurity, accessibility and seo audit every crawled HTML page (`--crawl-check-pages`, default 25; pages past the cap are named on the "N pages not checked" line and in JSON `pageChecks`); each finding cites its page URL, identical findings across pages fold to one finding with `pages: [...]`. One page store (`liveCrawler` result `crawledPages`), one fold (`BaseModule#_foldLivePages`). Hosted `/web` scan unchanged (single entry page) until it sets `modules.liveCrawler.checkPages`. Control pair `tests/crawl-per-page.test.js`.
 
@@ -128,11 +129,12 @@ DavenRoe); every red we miss is our gap. Epic: #807 (miss-by-miss mapping).
 | R1 | `--crawl` runs the crawl-capable set, refuses loudly otherwise | IN PROGRESS | #802 builder |
 | R2 | Hosted scan: hard budget, partial results, permalink, runtime reason | IN PROGRESS | #768 builder |
 | R3 | `estate`: every host from sitemap / cert SANs / list, per-host verdict | OPEN | #807 |
-| R4 | `dnsPosture`: SPF/DKIM/DMARC alignment, PTR, wildcard, delegation, 0x20, legacy domain → uncontrolled IP | OPEN | #807 |
-| R5 | `deployFreshness`: served sha vs expected | OPEN | #807 |
+| R4 | `dnsPosture` / `mailPosture`: SPF/DMARC honesty in `--server` (apex `_dmarc` text, any-TXT DMARC, `+all` SPF no longer pass; resolver failure = NOT CHECKED) — PR #828. PTR/HELO, wildcard, delegation, 0x20, legacy domain → uncontrolled IP need a new module (count frozen; estate #822 covers the last) | PARTIAL | #828, #807 |
+| R5 | `deployFreshness`: served sha vs expected — `deploy/fresh` says NOT CHECKED with nothing to compare against, "matches expected" / "age only" when it can — PR #828 | IN REVIEW | #828 |
 | R6 | Blank render / hydration crash in runtimeErrors; CLI runs it when a browser exists | OPEN | #807 |
 | R7 | WordPress gap checks: dir listing, PHP notices in HTML, admin-ajax, brute-force probe, TTFB per page | OPEN | #807 |
 | R8 | WordPress repair recipes per finding; automated fix + receipt on platforms we run | OPEN | #807 |
 | R9 | Crawler apex double count / rel=canonical (retracted T-01) | IN REVIEW | #806, PR #820 |
 | R10 | Telemetry host guard + opt-in wiring (default = owner's line) | IN PROGRESS | #801 builder |
 | R11 | Report `schemaVersion` + contract test + docs/api/report-schema.md | IN PROGRESS | #803 builder |
+| R12 | `apiHealth` honesty: "0 broken" only over confirmed endpoints, NOT CHECKED when every probe was a guess (names the missing spec / endpoints / homepage links), page-path form POSTs not "API returned HTML", 4xx HTML on a confirmed API route fires | IN REVIEW | #828 |

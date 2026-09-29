@@ -60,9 +60,13 @@ describe('readiness probe — a healthy deployment', () => {
     assert.ok(report.summary.total >= 10, 'the probe must actually check things');
   });
 
-  it('accepts a matching expected commit', async () => {
+  it('accepts a matching expected commit and says what it matched (issue #807 R5)', async () => {
     const report = await run(HEALTHY, { expectedCommit: 'abc123def4567' });
     assert.strictEqual(report.ready, true);
+    const step = stepNamed(report, 'deploy/fresh');
+    assert.strictEqual(step.ok, true);
+    assert.strictEqual(step.notChecked, undefined);
+    assert.match(step.detail, /matches expected abc123def456/);
   });
 });
 
@@ -168,9 +172,37 @@ describe('readiness probe — build age (a 10-day-old build is not "fresh")', ()
     assert.match(stepNamed(report, 'deploy/fresh').detail, /0\.2d old/);
   });
 
-  it('does not invent an age when the build carries no timestamp', async () => {
-    const report = await run(HEALTHY); // no builtAt at all
-    assert.strictEqual(stepNamed(report, 'deploy/fresh').ok, true);
+  it('passes on age alone but says so when there is no expected commit or origin/main', async () => {
+    const report = await run(stamped(0.2));
+    const step = stepNamed(report, 'deploy/fresh');
+    assert.strictEqual(step.ok, true);
+    assert.match(step.detail, /age only — no expected commit or origin\/main to compare against/);
+  });
+
+  // issue #807 R5 — served sha vs expected. With no expected commit, no
+  // origin/main and no builtAt the step used to print a green "deploy/fresh"
+  // from the commit stamp alone: nothing had been compared to anything.
+  it('reports NOT CHECKED — not a pass — when there is nothing to compare the served sha against', async () => {
+    const report = await run(HEALTHY); // no builtAt, no expectedCommit, no deployAdapter
+    const step = stepNamed(report, 'deploy/fresh');
+    assert.strictEqual(step.ok, false, 'a step that compared nothing must not wear the green tick');
+    assert.strictEqual(step.notChecked, true);
+    assert.strictEqual(step.severity, 'warning', 'not-checked never fails readiness on its own');
+    assert.match(step.detail, /NOT CHECKED: no expected commit, no origin\/main to compare against, and \/api\/platform-status carries no builtAt/);
+    assert.match(step.fix, /--expect <sha>|GITHUB_SHA/);
+    assert.strictEqual(report.ready, true);
+    assert.strictEqual(report.summary.notChecked, 1);
+    assert.strictEqual(report.summary.failed, 0, 'not-checked is its own bucket, not a failure');
+    assert.ok(!report.failures.some((s) => s.name === 'deploy/fresh'));
+  });
+
+  it('CONTROL — the same stampless build with a WRONG expected commit still fails critical', async () => {
+    const report = await run(HEALTHY, { expectedCommit: '770654bbcae6' });
+    const step = stepNamed(report, 'deploy/fresh');
+    assert.strictEqual(step.ok, false);
+    assert.strictEqual(step.notChecked, undefined);
+    assert.strictEqual(step.severity, 'critical');
+    assert.strictEqual(report.ready, false);
   });
 });
 
@@ -349,9 +381,16 @@ describe('readiness probe — deploy/fresh compares against origin/main (issue #
     // No deployAdapter passed — this is the pre-#683 behaviour, still
     // exercised so a caller without a git checkout (e.g. a laptop run
     // against a raw URL) still gets a signal instead of a crash.
-    const report = await run(HEALTHY);
+    const report = await run({
+      ...HEALTHY,
+      '/api/platform-status': {
+        status: 200,
+        body: JSON.stringify({ commit: 'abc123def4567', builtAt: new Date(Date.now() - 0.2 * 86_400_000).toISOString() }),
+      },
+    });
     const step = stepNamed(report, 'deploy/fresh');
     assert.strictEqual(step.ok, true);
+    assert.match(step.detail, /age only/, 'the pass must say it rests on age alone (issue #807 R5)');
   });
 });
 
