@@ -38,6 +38,20 @@ const EXACT_PLACEHOLDERS = new Set([
 ]);
 
 /**
+ * Filler SHAPES inside a committed literal — the secrets rule's list
+ * (src/modules/secrets.js reads it; one definition with the env detector
+ * above, issue #842 DR-6). Substring-matched, case-insensitive, against the
+ * value a credential pattern captured: `changeme` / `change-me-in-production`
+ * / `replace_me` / `your-api-key-here` / `placeholder` / a standalone
+ * `example` or `dummy` / `TODO` / `xxx` / `<paste-key>` / an elision `...`.
+ * `example` and `dummy` are bounded so a high-entropy value that merely
+ * CONTAINS the substring — AWS's canonical `AKIAIOSFODNN7EXAMPLE` — is never
+ * swallowed; a secrets module must fail toward detection, never silence.
+ * Three dots or more, never one or two: a JWT is `header.payload.signature`.
+ */
+const PLACEHOLDER_VALUE_RE = /(?:change[_-]?me|placeholder|your[_-]?(?:\w+[_-])?(?:secret|key|password|token)|replace[_-]?me|(?<![a-z0-9])(?:example|dummy)(?![a-z0-9])|default[_-]?(?:secret|key|password|token)|xxx+|insert[_-]?here|todo|<[a-z0-9_. -]{2,30}>|\.{3,}|…)/i;
+
+/**
  * Substrings that only ever appear in documentation examples. Kept narrow on
  * purpose: a false positive here tells someone their WORKING credential is
  * broken, which is its own outage.
@@ -139,4 +153,4 @@ function findPlaceholders(names, env) {
   return bad;
 }
 
-module.exports = { inspectEnvValue, findPlaceholders, EXACT_PLACEHOLDERS, DOC_MARKERS };
+module.exports = { inspectEnvValue, findPlaceholders, EXACT_PLACEHOLDERS, DOC_MARKERS, PLACEHOLDER_VALUE_RE };

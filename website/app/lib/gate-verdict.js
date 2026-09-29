@@ -123,7 +123,8 @@ function countBlocking(scanResult) {
   }
 
   const gateStatus = scanResult.engineMeta && scanResult.engineMeta.gateStatus;
-  if (gateStatus === 'PASSED' || gateStatus === 'BLOCKED') {
+  // REPORT_ONLY (engine #842 DR-a): the gate was not applied; nothing blocked.
+  if (gateStatus === 'PASSED' || gateStatus === 'BLOCKED' || gateStatus === 'REPORT_ONLY') {
     const blocking = gateStatus === 'BLOCKED' ? 1 : 0;
     return { source: 'engine', attributed: false, blocking, blockingInChange: blocking, blockingPreExisting: 0, softErrors: 0 };
   }

@@ -30,6 +30,7 @@ const { siteUrl } = require('./core/site-url');
 // of webhook-supplied owner/repo/branch text. Deliberately not importing
 // execSync, so reaching for it is a visible change rather than a one-liner.
 const { execFileSync } = require('child_process');
+const { blocksGate } = require('./core/report-schema');
 
 const PORT = process.env.PORT || 3333;
 const APP_ID = process.env.GATETEST_APP_ID;
@@ -196,9 +197,11 @@ async function handlePush(event, token) {
   await githubApi('POST', `/repos/${owner}/${name}/statuses/${sha}`, token, {
     state: result.passed ? 'success' : 'failure',
     context: 'GateTest',
-    description: result.passed
-      ? `All clear — ${result.checksPassed} checks passed`
-      : `${result.issuesFound} issues found (${result.checksPassed}/${result.checksTotal} passed)`,
+    description: result.reportOnly
+      ? `Report only — ${result.issuesFound} issues found, gate not applied`
+      : result.passed
+        ? `All clear — ${result.checksPassed} checks passed`
+        : `${result.issuesFound} issues found (${result.checksPassed}/${result.checksTotal} passed)`,
   });
 
   console.log(`[GateTest] ${owner}/${name}: ${result.passed ? 'PASSED' : 'BLOCKED'} — ${result.issuesFound} issues`);
@@ -287,7 +290,10 @@ async function cloneAndScan(owner, name, branch, token) {
       // (see console-reporter.js for the same fix on the CLI output).
       const infoFindings = report.summary.checks.infoFindings || 0;
       return {
-        passed: report.gatetest.gateStatus === 'PASSED',
+        // REPORT_ONLY (#842 DR-a) is not a failure — the customer asked for
+        // advisory mode — but the status text must not read as clean.
+        passed: !blocksGate(report.gatetest.gateStatus),
+        reportOnly: report.gatetest.gateStatus === 'REPORT_ONLY',
         issuesFound: report.summary.checks.failed - infoFindings,
         checksPassed: report.summary.checks.passed,
         checksTotal: report.summary.checks.total - infoFindings,

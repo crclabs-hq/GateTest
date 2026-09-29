@@ -262,11 +262,12 @@ test('runner uses BLOCK_THRESHOLD when no override given', async () => {
   assert.equal(summary.confidenceThreshold, BLOCK_THRESHOLD);
 });
 
-// ─── reportOnly mode — gate PASSES regardless of error count/confidence ───
+// ─── reportOnly mode — gate is NOT APPLIED regardless of error count/confidence ───
+// (#842 DR-a: the verdict is REPORT_ONLY, never PASSED — nothing was decided.)
 // The new-customer install path: pre-existing findings shouldn't block CI
 // on day 1. Customers opt INTO blocking via --strict / `block: true`.
 
-test('reportOnly: 5 confident errors → gate PASSED', async () => {
+test('reportOnly: 5 confident errors → gate REPORT_ONLY (not PASSED), exit stays 0', async () => {
   const runner = makeRunner({ reportOnly: true });
   runner.register('m', fakeModule([
     { name: 'e1', confidence: 1.0 },
@@ -276,8 +277,9 @@ test('reportOnly: 5 confident errors → gate PASSED', async () => {
     { name: 'e5', confidence: 0.85 },
   ]));
   const summary = await runner.run(['m']);
-  assert.equal(summary.gateStatus, 'PASSED',
-    'report-only mode must downgrade every error to soft, gate PASSED');
+  assert.equal(summary.gateStatus, 'REPORT_ONLY',
+    'report-only mode must downgrade every error to soft and say the gate was not applied');
+  assert.equal(require('../src/core/json-output').scanExitCode(summary), 0, 'the flag asks for exit 0');
   // Confidence threshold should be Infinity (or equivalent) so no
   // finding can satisfy the >= comparison.
   assert.equal(summary.confidenceThreshold, Number.POSITIVE_INFINITY);
@@ -291,7 +293,7 @@ test('reportOnly: errors still appear in the report (visibility preserved)', asy
   const summary = await runner.run(['m']);
   // Gate passes, but the error is still counted + reported (nested
   // under summary.checks per the established summary shape).
-  assert.equal(summary.gateStatus, 'PASSED');
+  assert.equal(summary.gateStatus, 'REPORT_ONLY');
   assert.equal(summary.checks.errors, 1, 'error must still be visible in summary');
   assert.equal(summary.checks.blockingErrors, 0, 'no errors block in report-only');
   assert.ok(summary.checks.softErrors >= 1, 'errors land in the soft bucket');

@@ -31,6 +31,7 @@ const MAX_MODULES_PER_RECORD = 200; // sanity cap — the engine has 120
 const MAX_RULES_PER_RECORD = 400;
 const MAX_RULE_LEN = 120;
 const { ruleIdentity } = require('./rule-identity');
+const { GATE_STATUSES } = require('./report-schema');
 
 /**
  * A rule id is a code identifier (`secrets:aws-key`), never a path or text.
@@ -179,7 +180,8 @@ function _buildRecord(summary, { source, suite }) {
     ts:         new Date().toISOString(),
     source:     _sanitiseModuleName(source) || 'unknown', // cli | website | mcp | action
     suite:      _sanitiseModuleName(suite) || _sanitiseModuleName(summary && summary.suite) || 'unknown',
-    gateStatus: summary && summary.gateStatus === 'PASSED' ? 'PASSED' : 'BLOCKED',
+    // PASSED / BLOCKED / REPORT_ONLY (src/core/report-schema.js); anything else is BLOCKED, never a fake pass.
+    gateStatus: summary && GATE_STATUSES.includes(summary.gateStatus) ? summary.gateStatus : 'BLOCKED',
     durationMs: _int(summary && summary.duration),
     totalErrors:   _int(summary && summary.checks && summary.checks.errors),
     totalWarnings: _int(summary && summary.checks && summary.checks.warnings),

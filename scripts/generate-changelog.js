@@ -95,8 +95,11 @@ function parseArgs(argv) {
 }
 
 // No shell, fixed argv — nothing is interpolated into a command line.
-function git(repo, args) {
-  return execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024 });
+function git(repo, args, env = null) {
+  return execFileSync('git', args, {
+    cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024,
+    ...(env ? { env: { ...process.env, ...env } } : {}),
+  });
 }
 
 const MERGE_RE = /^Merge pull request #(\d+) from \S+/;
@@ -141,8 +144,12 @@ function describeCommit(subject, body) {
 }
 
 function readCommits(repo, ref, limit) {
-  const raw = git(repo, ['log', '--first-parent', `--max-count=${limit}`, '--date=short',
-    '--format=%H%x1f%ad%x1f%s%x1f%b%x1e', ref]);
+  // The date each entry LANDED on main (committer date), in UTC. `%ad` with
+  // `--date=short` printed each commit in its own author timezone, so a
+  // bot's squash at 04:32 +0000 read 09-29 below a merge at 23:17 -0700
+  // that read 09-28 — entries out of history order and a red main (#841).
+  const raw = git(repo, ['log', '--first-parent', `--max-count=${limit}`, '--date=format-local:%Y-%m-%d',
+    '--format=%H%x1f%cd%x1f%s%x1f%b%x1e', ref], { TZ: 'UTC' });
   return raw.split('\x1e').map((s) => s.replace(/^\n/, '')).filter((s) => s.trim())
     .map((rec) => {
       const [sha, date, subject, body = ''] = rec.split('\x1f');

@@ -85,6 +85,15 @@ function plainSummaryLines(summary, ctx = {}, { color = true } = {}) {
     return lines;
   }
 
+  // REPORT_ONLY (#842 DR-a): the gate was not applied, so neither "you're
+  // good" nor "blocking" is true. Count what was found and say so.
+  if (summary.gateStatus === 'REPORT_ONLY') {
+    const errors = (summary.checks && summary.checks.errors) || 0;
+    lines.push(`  ${c.y}${c.bold}Report only — ${errors} error${errors === 1 ? '' : 's'} found, gate not applied.${c.off}`);
+    lines.push(`  ${c.dim}Findings are listed above. Drop --report-only (or pass --strict) to enforce.${c.off}`, '');
+    return lines;
+  }
+
   if (summary.gateStatus === 'PASSED') {
     lines.push(`  ${c.g}${c.bold}✓ You're good.${c.off} Nothing${baselined > 0 ? ' NEW' : ''} is blocking this commit.`);
     if (soft || warnings) {

@@ -14,7 +14,7 @@ const { siteUrl } = require('../core/site-url');
 // SARIF SPEC version and must stay fixed.)
 const PKG_VERSION = require('../../package.json').version;
 const { isBlockingFinding } = require('../core/confidence');
-const { REPORT_SCHEMA_VERSION } = require('../core/report-schema');
+const { REPORT_SCHEMA_VERSION, blocksGate } = require('../core/report-schema');
 const { getComplianceMapping, hasExplicitMapping } = require('../core/compliance-mappings');
 
 // Module → CWE / security-severity mapping. The OWASP category is NOT here:
@@ -355,7 +355,8 @@ class SarifReporter {
         },
         results,
         invocations: [{
-          executionSuccessful: summary.gateStatus === 'PASSED',
+          // REPORT_ONLY (#842 DR-a) ran to completion with exit 0; only BLOCKED is a failed invocation.
+          executionSuccessful: !blocksGate(summary.gateStatus),
           startTimeUtc: summary.timestamp,
         }],
         // Root cause on every red run (move 12) — same why/since/replay the

@@ -231,8 +231,9 @@ const HELP = `
                        "json" prints ONE JSON document on stdout and nothing
                        else there — progress, warnings and notices go to
                        stderr — so an editor or script can JSON.parse it.
-                       The exit code is unchanged: 0 gate passed, 1 gate
-                       blocked, 2 usage error. Shape:
+                       The exit code is unchanged: 0 gate passed (or
+                       --report-only: gateStatus REPORT_ONLY, gate not
+                       applied), 1 gate blocked, 2 usage error. Shape:
                          { version, generatedAt, suite, module, project,
                            files, passed, gateStatus, exitCode, summary,
                            counts: { errors, warnings, notes, blocking,
