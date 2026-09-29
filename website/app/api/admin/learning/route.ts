@@ -12,16 +12,9 @@
  * Auth: same admin-cookie pattern as every /api/admin/* route.
  */
 
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import crypto from "crypto";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { getDb } from "@/app/lib/db";
-import {
-  getAdminConfig,
-  getAdminUser,
-  SESSION_COOKIE_NAME,
-} from "@/app/lib/admin-session";
-import { ADMIN_COOKIE_NAME } from "@/app/lib/admin-auth";
  
 const dissentStore = require("@/app/lib/dissent-store.js") as {
   ensureDissentTable: (sql: unknown) => Promise<void>;
@@ -37,34 +30,9 @@ const moduleConfidence = require("@/app/lib/module-confidence.js") as {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function isAuthenticatedAdmin(): Promise<boolean> {
-  const store = await cookies();
-  const adminStatus = getAdminConfig();
-  if (adminStatus.ok && adminStatus.config) {
-    const sessionCookie = store.get(SESSION_COOKIE_NAME)?.value;
-    if (getAdminUser(sessionCookie, adminStatus.config)) return true;
-  }
-  const adminPassword = process.env.GATETEST_ADMIN_PASSWORD || "";
-  if (adminPassword) {
-    const passwordCookie = store.get(ADMIN_COOKIE_NAME)?.value || "";
-    const expected = crypto
-      .createHmac("sha256", adminPassword)
-      .update("gatetest-admin-v1")
-      .digest("hex");
-    if (
-      passwordCookie &&
-      passwordCookie.length === expected.length &&
-      crypto.timingSafeEqual(Buffer.from(passwordCookie), Buffer.from(expected))
-    )
-      return true;
-  }
-  return false;
-}
-
-export async function GET() {
-  if (!(await isAuthenticatedAdmin())) {
-    return NextResponse.json({ ok: false, error: "unauthorised" }, { status: 401 });
-  }
+export async function GET(req: NextRequest) {
+  const refused = requireAdminRoute(req);
+  if (refused) return refused;
 
   let sql;
   try {

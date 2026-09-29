@@ -1,7 +1,7 @@
 /**
  * SSH Auto-Heal Agent — connects to servers and fixes issues autonomously.
  *
- * POST /api/heal/ssh — admin-only (gt_admin cookie or X-Admin-Token header).
+ * POST /api/heal/ssh — admin-only, same-origin (requireAdminRoute).
  * Body: {
  *   // Issues from nuclear scan to fix
  *   issues: Array<{ category: string, title: string, detail: string }>
@@ -22,7 +22,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminRequest } from "@/app/lib/admin-auth";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { platformServicePrefix } from "@/app/lib/platform-config";
 
 // systemd unit prefix on the box (`<prefix>-web`, `<prefix>-api`). The
@@ -163,9 +163,8 @@ function execSSH(conn: any, cmd: string, timeout = 15000): Promise<string> {
 export async function POST(req: NextRequest) {
   // This route runs sudo playbooks on the production server and holds its SSH
   // credentials — it must never be reachable anonymously.
-  if (!isAdminRequest(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const refused = requireAdminRoute(req, { mutating: true });
+  if (refused) return refused;
 
   let body: {
     issues?: IssueInput[];

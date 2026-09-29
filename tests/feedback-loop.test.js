@@ -383,13 +383,10 @@ describe('POST /api/feedback — route shape', () => {
 describe('GET /api/admin/feedback — route shape', () => {
   const src = read('website/app/api/admin/feedback/route.ts');
 
-  it('rejects unauthenticated callers with 401 using the canonical admin check', () => {
-    assert.match(src, /export\s+async\s+function\s+GET/);
-    assert.match(src, /from\s+["']@\/app\/lib\/admin-session["']/);
-    assert.match(src, /from\s+["']@\/app\/lib\/admin-auth["']/);
-    assert.match(src, /isAuthenticatedAdmin/);
-    assert.match(src, /timingSafeEqual/);
-    assert.match(src, /\{ error: "Unauthorized" \}, \{ status: 401 \}/);
+  it('rejects unauthenticated callers with 401 using the shared admin gate', () => {
+    assert.match(src, /export\s+async\s+function\s+GET\(req: NextRequest\)/);
+    assert.match(src, /import \{ requireAdminRoute \} from "@\/app\/lib\/admin-guard"/);
+    assert.match(src, /const refused = requireAdminRoute\(req\);\s*if \(refused\) return refused;/);
   });
 
   it('returns the last 200 rows and 7 / 30-day counts per surface', () => {

@@ -47,12 +47,13 @@ test('compliance-status: verifies recent chain (200-row probe)', () => {
   assert.match(src, /windowSize/);
 });
 
-test('compliance route: file exists, admin-only via cookie auth', () => {
+test('compliance route: file exists, admin-only via the shared gate', () => {
   assert.ok(fs.existsSync(ROUTE_PATH));
   const src = fs.readFileSync(ROUTE_PATH, 'utf8');
-  assert.match(src, /SESSION_COOKIE_NAME/);
-  assert.match(src, /ADMIN_COOKIE_NAME/);
-  assert.match(src, /Unauthorized/);
+  // requireAdminRoute: OAuth admin session or gt_admin cookie → else 401
+  // (behaviour pinned in tests/admin-route-guard.test.js).
+  assert.match(src, /import \{ requireAdminRoute \} from "@\/app\/lib\/admin-guard"/);
+  assert.match(src, /const refused = requireAdminRoute\(req\);\s*if \(refused\) return refused;/);
   assert.match(src, /buildComplianceSnapshot\(\)/);
 });
 

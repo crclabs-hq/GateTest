@@ -6,23 +6,16 @@
  * and 30 days. Rendered by /admin/feedback and linked from every issue the
  * escalation opens.
  *
- * Auth: gatetest_admin cookie — same two-method check as every other
- * /api/admin/* route. Returns 401 if not authenticated.
+ * Auth: requireAdminRoute (app/lib/admin-guard.ts) — the one admin gate
+ * every /api/admin/* route uses. Returns 401 if not authenticated.
  *
  *   200 { ok: true, rows: [...], counts: { d7: [...], d30: [...] }, generatedAt }
  *   401 { error: "Unauthorized" }
  *   503 { ok: false, error }  — DATABASE_URL unset
  */
 
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import crypto from "crypto";
-import {
-  getAdminConfig,
-  getAdminUser,
-  SESSION_COOKIE_NAME,
-} from "@/app/lib/admin-session";
-import { ADMIN_COOKIE_NAME } from "@/app/lib/admin-auth";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { getDb } from "@/app/lib/db";
 
 type Sql = ReturnType<typeof getDb>;
@@ -37,39 +30,9 @@ export const runtime = "nodejs";
 
 const RECENT_ROWS = 200;
 
-// ----------------------------------------------------------------------------
-// Auth — copied verbatim from /api/admin/repos/route.ts so every admin
-// surface uses the same canonical check.
-// ----------------------------------------------------------------------------
-
-async function isAuthenticatedAdmin(): Promise<boolean> {
-  const store = await cookies();
-  const adminStatus = getAdminConfig();
-  if (adminStatus.ok && adminStatus.config) {
-    const sessionCookie = store.get(SESSION_COOKIE_NAME)?.value;
-    if (getAdminUser(sessionCookie, adminStatus.config)) return true;
-  }
-  const adminPassword = process.env.GATETEST_ADMIN_PASSWORD || "";
-  if (adminPassword) {
-    const passwordCookie = store.get(ADMIN_COOKIE_NAME)?.value || "";
-    const expected = crypto
-      .createHmac("sha256", adminPassword)
-      .update("gatetest-admin-v1")
-      .digest("hex");
-    if (
-      passwordCookie &&
-      passwordCookie.length === expected.length &&
-      crypto.timingSafeEqual(Buffer.from(passwordCookie), Buffer.from(expected))
-    )
-      return true;
-  }
-  return false;
-}
-
-export async function GET() {
-  if (!(await isAuthenticatedAdmin())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET(req: NextRequest) {
+  const refused = requireAdminRoute(req);
+  if (refused) return refused;
   if (!process.env.DATABASE_URL) {
     return NextResponse.json(
       { ok: false, error: "persistence unavailable (DATABASE_URL unset)" },

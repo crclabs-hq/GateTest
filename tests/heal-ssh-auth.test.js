@@ -19,15 +19,14 @@ test("heal/ssh route: file exists", () => {
   assert.ok(fs.existsSync(ROUTE), `expected route at ${ROUTE}`);
 });
 
-test("heal/ssh route: imports isAdminRequest from admin-auth", () => {
+test("heal/ssh route: imports the shared admin gate", () => {
   const src = fs.readFileSync(ROUTE, "utf8");
-  assert.match(src, /import[^;]+isAdminRequest[^;]+admin-auth/);
+  assert.match(src, /import \{ requireAdminRoute \} from "@\/app\/lib\/admin-guard"/);
 });
 
-test("heal/ssh route: admin-only — calls isAdminRequest and returns 401 on failure", () => {
+test("heal/ssh route: admin-only and same-origin — requireAdminRoute is the first statement", () => {
   const src = fs.readFileSync(ROUTE, "utf8");
-  assert.match(src, /isAdminRequest\s*\(/);
-  assert.match(src, /status:\s*401/);
+  assert.match(src, /export async function POST\(req: NextRequest\) \{[\s\S]*?const refused = requireAdminRoute\(req, \{ mutating: true \}\);\s*if \(refused\) return refused;/);
 });
 
 test("heal/ssh route: SSH target and credentials come from env only, never the request body", () => {
