@@ -28,6 +28,38 @@ function looksLikeMissingToolchain(out) {
 }
 
 /**
+ * A BUILD/TRANSFORM tool broke before any test could run — esbuild, tsc,
+ * babel or node itself choking on the suite's own files or config. Distinct
+ * from MISSING_TOOLCHAIN_RE (a binary or dependency that was never
+ * installed): the toolchain here IS present, it just can't process what it
+ * was given. AlecRae.com (issue #771, GT-14b) pinned an esbuild ES2024
+ * target this scan box's Node did not support, and unitTests reported "Unit
+ * tests failed" for a suite that never got the chance to run a single test.
+ * Checked only AFTER `looksLikeMissingToolchain` and only when no genuine
+ * test failure (TAP `not ok`, jest/mocha stack frame) was parsed out of the
+ * same output — a real failure always wins.
+ */
+const TOOLCHAIN_BUILD_FAILURE_RE = /Transform failed with \d+ error|ERR_UNKNOWN_FILE_EXTENSION|Unsupported ES target|SyntaxError:\s*Unexpected token|\bEACCES\b/i;
+
+/** @param {string} out combined stdout + stderr */
+function looksLikeToolchainBuildFailure(out) {
+  return TOOLCHAIN_BUILD_FAILURE_RE.test(String(out || ''));
+}
+
+/**
+ * The first output line that actually names the toolchain failure (the line
+ * TOOLCHAIN_BUILD_FAILURE_RE matched), falling back to the first non-blank
+ * line — used for the three-state "tests could not run: <first error line>;
+ * not checked" wording so the customer sees the real signal, not line one of
+ * a stack trace (`[eval]:1`) that says nothing.
+ */
+function firstToolchainErrorLine(out) {
+  const lines = String(out || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const hit = lines.find((l) => TOOLCHAIN_BUILD_FAILURE_RE.test(l));
+  return (hit || lines[0] || 'unknown error').slice(0, 200);
+}
+
+/**
  * A Node project whose dependencies were never installed cannot run its
  * scripts at all; say so before trying (a fresh clone in CI, or here).
  */
@@ -42,4 +74,4 @@ function nodeDepsMissing(projectRoot) {
   return !fs.existsSync(path.join(projectRoot, 'node_modules'));
 }
 
-module.exports = { looksLikeMissingToolchain, nodeDepsMissing };
+module.exports = { looksLikeMissingToolchain, nodeDepsMissing, looksLikeToolchainBuildFailure, firstToolchainErrorLine };

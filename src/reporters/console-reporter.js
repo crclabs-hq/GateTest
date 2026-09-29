@@ -23,10 +23,17 @@ class ConsoleReporter {
    *   and the developer closes the terminal. Default output is now a ranked
    *   shortlist at the end. Nothing is dropped silently — the count of what
    *   is not shown, and the flag to see it, are printed every time.
+   * @param {boolean} [opts.timings=false] — print every module's own
+   *   elapsed plus a running total after the run (`gatetest --timings`,
+   *   issue #770). Off by default: existing output already carries this per
+   *   module inline and in the top-5 "Slowest:" line; this adds the full
+   *   accounting for a "where did the 22 minutes go" run without changing
+   *   anything else.
    */
   constructor(runner, opts = {}) {
     this.runner = runner;
     this.showAll = Boolean(opts.showAll);
+    this.timings = Boolean(opts.timings);
     this._attach();
   }
 
@@ -404,6 +411,24 @@ class ConsoleReporter {
         .map((m) => `${m.module} (${(m.durationMs / 1000).toFixed(1)}s)`)
         .join(', ');
       console.log(`  ${COLORS.dim}Slowest:  ${shortlist}${COLORS.reset}`);
+    }
+
+    // --timings (issue #770): every module's own elapsed, in run order, plus
+    // a running total — the full accounting the top-5 "Slowest:" line above
+    // deliberately doesn't give. Off by default; default output above is
+    // unchanged whether or not this prints.
+    if (this.timings && Array.isArray(summary.results) && summary.results.length > 0) {
+      console.log('');
+      console.log(`  ${COLORS.dim}Timings (--timings):${COLORS.reset}`);
+      let runningMs = 0;
+      for (const r of summary.results) {
+        if (typeof r.duration !== 'number') continue;
+        runningMs += r.duration;
+        const name = String(r.module).padEnd(28);
+        const own = `${(r.duration / 1000).toFixed(1)}s`.padStart(7);
+        const total = `${(runningMs / 1000).toFixed(1)}s`.padStart(7);
+        console.log(`    ${COLORS.dim}${name} ${own}   total ${total}${COLORS.reset}`);
+      }
     }
 
     if (summary.failedModules.length > 0) {
