@@ -101,6 +101,14 @@ const JS_ALWAYS_FALSE_RE = new RegExp(`${JS_STATEMENT_IF}(?:false|0|!\\s*true|!\
 const JSX_TAG_END_RE = /(?<!=)>\s*$/;
 const JSX_TEXT_START_RE = /^\s*(?!<|\{|\}|\))\S/;
 
+// Python: the empty-async-generator idiom —
+//     if False:
+//         yield  # pragma: no cover
+// is how a coroutine is declared an AsyncIterator that yields nothing
+// (DavenRoe csv_adapter.py:435, source.py:198; #842 DR-3). The branch is
+// dead ON PURPOSE; `if False:` guarding a real body is still the bug.
+const PY_BARE_YIELD_RE = /^\s*yield\s*(?:#.*)?$/;
+
 // JS/TS: `const FEATURE_X = true;` — stale flag collapsed into a compile-
 // time constant. We restrict to `const` (not `let` / `var`) because the
 // `let hasErrored = false; ... hasErrored = true;` initializer pattern is
@@ -319,8 +327,9 @@ class FeatureFlagModule extends BaseModule {
         issues += 1;
       }
 
-      // Rule 5: `if False:` / `if 0:` / `if not True:`
-      if (PY_ALWAYS_FALSE_RE.test(codeLine)) {
+      // Rule 5: `if False:` / `if 0:` / `if not True:` — unless the body is
+      // the bare `yield` of the empty-generator idiom (PY_BARE_YIELD_RE).
+      if (PY_ALWAYS_FALSE_RE.test(codeLine) && !this._isEmptyGeneratorIdiom(lines, i)) {
         result.addCheck(`feature-flag:py-always-false-if:${rel}:${i + 1}`, false, {
           severity: warnSev,
           message: 'Always-false conditional — dead branch. The body never executes.',
@@ -350,6 +359,23 @@ class FeatureFlagModule extends BaseModule {
   _suppressed(lines, i) {
     return (lines[i] && SUPPRESS_RE.test(lines[i])) ||
       (i > 0 && lines[i - 1] && SUPPRESS_RE.test(lines[i - 1]));
+  }
+
+  /**
+   * Is the `if False:` on line `i` the empty-generator idiom — a body that
+   * is ONE bare `yield` (a trailing `# pragma: no cover` allowed), with the
+   * next non-blank line dedented back out of the branch? A `yield` followed
+   * by anything else at the body's indent is a real dead branch and fires.
+   */
+  _isEmptyGeneratorIdiom(lines, i) {
+    const indent = (s) => (s.match(/^\s*/) || [''])[0].length;
+    const ifIndent = indent(lines[i]);
+    let j = i + 1;
+    while (j < lines.length && !lines[j].trim()) j += 1;
+    if (j >= lines.length || indent(lines[j]) <= ifIndent || !PY_BARE_YIELD_RE.test(lines[j])) return false;
+    let k = j + 1;
+    while (k < lines.length && !lines[k].trim()) k += 1;
+    return k >= lines.length || indent(lines[k]) <= ifIndent;
   }
 
   // Walks the line left-to-right and blanks out string-literal contents

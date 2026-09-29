@@ -363,3 +363,45 @@ describe('FeatureFlagModule — JSX prose is not a conditional (#842 DR-2)', () 
     assert.deepStrictEqual(ids(await run(tmp)), [2, 3, 4]);
   });
 });
+
+// #842 DR-3 (DavenRoe csv_adapter.py:435,460, source.py:198,205): the
+// empty-async-generator idiom `if False:` / `yield  # pragma: no cover` is how
+// a coroutine is typed as an AsyncIterator that yields nothing — dead on purpose.
+describe('FeatureFlagModule — Python empty-generator idiom (#842 DR-3)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ff-gen-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const ids = (r) => r.checks.filter((c) => !c.passed && c.name.startsWith('feature-flag:py-always-false-if:')).map((c) => c.line);
+
+  it('NEGATIVE: a bare `yield` body (with or without the pragma comment) is quiet', async () => {
+    write(tmp, 'src/adapter.py', [
+      'async def pull_accounts(self) -> AsyncIterator[PulledAccount]:',
+      '    if False:',
+      '        yield  # pragma: no cover',
+      '',
+      'async def pull_bills(self) -> AsyncIterator[PulledBill]:',
+      '    """Default empty."""',
+      '    if False:',
+      '        yield',
+      '    return',
+      '',
+    ].join('\n'));
+    assert.deepStrictEqual(ids(await run(tmp)), []);
+  });
+
+  it('POSITIVE: `if False:` guarding real statements, or a yield followed by more body, still fires', async () => {
+    write(tmp, 'src/adapter.py', [
+      'def f():',
+      '    if False:',
+      '        do_thing()',
+      '',
+      'def g():',
+      '    if False:',
+      '        yield',
+      '        cleanup()',
+      '',
+    ].join('\n'));
+    assert.deepStrictEqual(ids(await run(tmp)), [2, 6]);
+  });
+});
