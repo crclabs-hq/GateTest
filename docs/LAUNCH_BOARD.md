@@ -70,6 +70,7 @@ itself still uses the old variable names until the owner's cutover.
   (refs #771 GT-02 / GT-07): #820; AlecRae accessibility blocking 92 -> 12, retryHygiene 1 -> 0.
 - #771 GT-04/05/10 false positives (unref'd setInterval and TS interface member, masked/abbreviated/gitleaks:allow/credential-free-redis secrets, echo redirected to a file): AlecRae blocking secrets 10→7, ciSecurity 1→0, resourceLeak 5→1; classes still open in #771: GT-02,03,06-09,11-14.
 - First-hour sign-in journey: server-side gate (`/dashboard` 307 to `/login?next=`), `/login` entry, `/register` `/signup` `/sign-up` 301 to `/login`, `/docs` clean 307, `GET /api` JSON, crawler flags a redirect that carries an error page: #819 (closes #810, #812; unverified live until deployed).
+- Per-page crawl (closes #815): under `--crawl --module/--suite`, webHeaders, cookieSecurity, accessibility and seo audit every crawled HTML page (`--crawl-check-pages`, default 25; pages past the cap are named on the "N pages not checked" line and in JSON `pageChecks`); each finding cites its page URL, identical findings across pages fold to one finding with `pages: [...]`. One page store (`liveCrawler` result `crawledPages`), one fold (`BaseModule#_foldLivePages`). Hosted `/web` scan unchanged (single entry page) until it sets `modules.liveCrawler.checkPages`. Control pair `tests/crawl-per-page.test.js`.
 
 ## 3. The 20 moves — what a senior developer would recommend GateTest FOR
 

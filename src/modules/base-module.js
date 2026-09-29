@@ -93,6 +93,90 @@ class BaseModule {
   }
 
   /**
+   * One definition (Doctrine §4) of "did a prior module in this run already
+   * produce a result?" — `config._allResults` is the runner's array of
+   * completed TestResult instances for every module that ran before this
+   * one (GateTestRunner._runModule). Sequential suite order
+   * (src/core/config.js) puts `liveCrawler` before `links` and before the
+   * page-level modules for exactly this reason (#681 item 4, #815).
+   *
+   * @param {GateTestConfig|object} config
+   * @param {string} moduleName
+   * @returns {import('../core/runner').TestResult|null}
+   */
+  _priorResult(config, moduleName) {
+    const all = config && config._allResults;
+    if (!Array.isArray(all)) return null;
+    return all.find((r) => r && r.module === moduleName) || null;
+  }
+
+  /**
+   * The pages the crawl handed to the page-level modules (#815,
+   * `LiveCrawlerModule#_retainPagesForChecks` — the one page store), each
+   * in `config.livePage`'s shape, or null when no crawl result carries any
+   * (the hosted scan, a bare `--crawl`, a parallel run where the crawl has
+   * not finished): the caller then audits `config.livePage` alone.
+   *
+   * @param {GateTestConfig|object} config
+   * @returns {Array<{ url: string, status: number, headers: unknown, html: string, isJson: boolean }>|null}
+   */
+  _crawledPages(config) {
+    const crawl = this._priorResult(config, 'liveCrawler');
+    const pages = crawl && Array.isArray(crawl.crawledPages) ? crawl.crawledPages : null;
+    return pages && pages.length > 0 ? pages : null;
+  }
+
+  /**
+   * Audit every crawled page with the code path the single-page live scan
+   * uses, and record each distinct finding ONCE (#815). `audit(page, sink)`
+   * records checks against `sink` exactly as it would against a
+   * TestResult; failing checks are then folded by rule — the check name
+   * with the page URL stripped, the same `ruleKeyOf` the finding registry
+   * uses — and message. A finding on one page keeps that page's check name
+   * and URL as `file`; the same finding on several pages becomes one check
+   * named by its rule, `file` the first page, `pages` all of them, the
+   * message saying how many. A passing check is one page's pass, not the
+   * site's, and is not recorded. Returns the distinct-finding count for the
+   * caller's summary line.
+   *
+   * @param {Array<{ url: string }>} pages
+   * @param {TestResult} result
+   * @param {(page: object, sink: { addCheck: Function }) => void} audit
+   * @returns {number}
+   */
+  _foldLivePages(pages, result, audit) {
+    const { ruleKeyOf } = require('../core/finding-registry');
+    const groups = new Map();
+    for (const page of pages) {
+      const sink = { checks: [], addCheck(name, passed, details = {}) { this.checks.push({ name, passed, details }); } };
+      audit(page, sink);
+      for (const c of sink.checks) {
+        if (c.passed) continue;
+        const rule = ruleKeyOf(c.name, page.url);
+        const key = `${rule}\u0000${c.details.message || ''}`;
+        let group = groups.get(key);
+        if (!group) {
+          group = { name: c.name, rule, details: c.details, pages: [] };
+          groups.set(key, group);
+        }
+        if (!group.pages.includes(page.url)) group.pages.push(page.url);
+      }
+    }
+    for (const g of groups.values()) {
+      const n = g.pages.length;
+      result.addCheck(n === 1 ? g.name : g.rule, false, {
+        ...g.details,
+        file: g.pages[0],
+        pages: g.pages,
+        message: n === 1
+          ? g.details.message
+          : `${g.details.message} — on ${n} of ${pages.length} crawled pages`,
+      });
+    }
+    return groups.size;
+  }
+
+  /**
    * Run the module's checks.
    * @param {TestResult} result - The result object to record checks against.
    * @param {GateTestConfig} config - The GateTest configuration.

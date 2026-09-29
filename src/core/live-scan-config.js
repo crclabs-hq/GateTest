@@ -143,4 +143,60 @@ function applyLiveScanConfig(gt, { targetUrl, livePage, sanitizedAuth } = {}) {
   if (livePage) cfg.livePage = livePage;
 }
 
-module.exports = { fetchLivePage, applyLiveScanConfig, isJsonApiResponse, DEFAULT_FETCH_TIMEOUT_MS };
+/**
+ * Largest page body the page-level modules audit per crawled page (#815).
+ * A body over this is not truncated — a cut-off `<head>` would fabricate
+ * "missing title" findings — it is left out and counted as not checked.
+ */
+const CRAWLED_PAGE_BODY_CAP = 2 * 1024 * 1024;
+
+/**
+ * One crawled page in the SAME shape `fetchLivePage` returns, so seo,
+ * accessibility, webHeaders and cookieSecurity audit a crawled page with the
+ * exact code path they use for the hosted scan's single fetch (#815). The
+ * URL is the one the crawl visited (what a customer links to), not the
+ * post-redirect one. `headers` is null when the engine kept none (the
+ * browser engine) — header-reading modules skip such a page rather than
+ * report every header missing.
+ *
+ * @param {{ url: string, status?: number, headers?: Record<string, string | string[]> | null, body?: string }} page
+ * @returns {{ url: string, status: number, headers: Record<string, string | string[]> | null, html: string, isJson: boolean }}
+ */
+function crawledPageToLivePage(page) {
+  const html = typeof page.body === 'string' ? page.body : '';
+  const headers = page.headers || null;
+  return { url: page.url, status: page.status || 0, headers, html, isJson: isJsonApiResponse(headers, html) };
+}
+
+/**
+ * Which of the crawl's fetched pages the page-level modules audit, and why
+ * the rest were not (#815). Only HTML pages that answered below 400 on this
+ * origin qualify; the first `cap` of those (crawl order, entry page first)
+ * are retained, every body over CRAWLED_PAGE_BODY_CAP is skipped. The
+ * counts are what the crawl's `crawl:page-checks` line and the CLI's
+ * "N pages not checked" line print — one computation, never re-derived.
+ *
+ * @param {Array<object>} pages — the crawl engine's `pages` collector
+ * @param {number} cap — `--crawl-check-pages`
+ * @returns {{ pages: Array<ReturnType<typeof crawledPageToLivePage>>, crawled: number, checked: number, capped: number, oversize: number }}
+ */
+function retainPagesForChecks(pages, cap) {
+  const limit = Number.isFinite(cap) && cap > 0 ? Math.floor(cap) : 0;
+  const html = (pages || []).filter((p) => p && p.url && typeof p.body === 'string' && p.body
+    && !p.offSiteRedirect && (p.status || 0) < 400
+    && (!p.contentType || /text\/html/i.test(p.contentType)));
+  const retained = [];
+  let oversize = 0;
+  let capped = 0;
+  for (const p of html) {
+    if (retained.length >= limit) { capped++; continue; }
+    if (p.body.length > CRAWLED_PAGE_BODY_CAP) { oversize++; continue; }
+    retained.push(crawledPageToLivePage(p));
+  }
+  return { pages: retained, crawled: html.length, checked: retained.length, capped, oversize };
+}
+
+module.exports = {
+  fetchLivePage, applyLiveScanConfig, isJsonApiResponse, DEFAULT_FETCH_TIMEOUT_MS,
+  crawledPageToLivePage, retainPagesForChecks, CRAWLED_PAGE_BODY_CAP,
+};
