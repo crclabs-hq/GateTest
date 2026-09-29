@@ -802,3 +802,34 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   G1/G2/G3 re-measures until gatetest.io serves 2091f19a (G1/G2) and c53a63aa (G3, #826
   merged 01:55Z). Their session had ended when #826 landed, so the G3 sha was NOT paged:
   whoever sees gatetest.io serve c53a63aa pages AlecRae both shas together.
+
+### Addendum 2026-09-29 03:30Z — queue drained; only the estate draft and owner items remain
+
+- Merged since 01:50Z: #826 (`GET /api/health/deep`, closes #809; sha c53a63aa — AlecRae's
+  G3 re-measure once live), #831 (expired deadline reports 0 ms), #832 (01:50Z addendum),
+  #813 (report `schemaVersion: 1`, closes #803), #833 (corpus ratchet: 20 repos green,
+  rails ceiling 36→35, precision page regenerated), #834 (crawl-run keys `findings[].url`,
+  `findings[].pages`, `pageChecks` documented as additive in docs/api/report-schema.md).
+- Open: DRAFT #822 only (estate, R3). Two owner decisions in its body: who runs the
+  121→122 module-count sweep (classifier-denied for the builder), and whether estate may
+  confirm NXDOMAIN via 1.1.1.1 / 8.8.8.8. #814 is on main now, so when the sweep is
+  done also drop the TODO(#802) in src/modules/estate.js and add `estate` to
+  `CRAWL_CAPABLE_MODULES`.
+- Tonight's totals (28 Sep 21:50Z → 29 Sep 03:30Z): 24 PRs merged (#804 #805 #808 #811
+  #813 #814 #816 #817 #818 #819 #820 #821 #823 #824 #825 #826 #827 #828 #830 #831 #832
+  #833 #834 and the arena #364 earlier), issues #809 #810 #812 #815 closed, #829 opened.
+  AlecRae false-positive classes from #771: GT-02/03/04/05/07/09/10/11/12/13/14a/14b shipped;
+  their blocking counts on AlecRae fell secrets 10→7, ciSecurity 1→0, resourceLeak 5→1,
+  accessibility 92→12, retryHygiene 1→0, crossFileTaint 3→0, authBypass 1→0, logPii 1→0,
+  bashSafety 18→9.
+- Nothing of tonight is live: production still serves 0baf4e93 (26 Sep). Owner: read the
+  box 161 journal (`journalctl -u gatetest-pull-deploy -n 200 --no-pager`), then the fix
+  shape from the 00:30Z addendum. When gatetest.io serves ≥ c53a63aa: run
+  `GATETEST_LIVE_URL=https://gatetest.io npm run test:heavy -- signin-journey-live
+  health-deep-live`, curl a slow target for `partial: true` near 50 s, page AlecRae
+  (2091f19a + c53a63aa) and Tallrig (crawl-capable re-run of tallrig.com with #814/#820/
+  #827/#828).
+- RELEASE ASK stands (01:50Z addendum): cut @gatetest/cli 1.62.0 by tag; Tallrig's
+  38 false `missing-title` findings are the customer-visible cost of not releasing.
+- Local: worktrees left = GateTest-wt-estate (#822) and two locked empty shells
+  (GateTest-wt-dcflag, GateTest-wt-budgetfix) to delete when free. No builders running.

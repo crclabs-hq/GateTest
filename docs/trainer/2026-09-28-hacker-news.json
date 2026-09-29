@@ -1,0 +1,148 @@
+{
+  "generatedAt": "2026-09-28T09:27:04.266Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 8,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 2,
+      "SonarQube": 0,
+      "Semgrep": 3,
+      "CodeQL": 2,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49874337",
+        "author": "streetfighter64",
+        "type": "comment",
+        "title": null,
+        "text": "See, this is what I don't get. I don't like watching ads, and not using sponsorblock is not gonna make me watch ads. Even if you went to the \"drink a verification can\" route, and disabled the skip button, I'd just stop watching the videos.> if everyone did this ... creators would be less incentivised to make contentYeah, I guess they'd just have to stop making videos then.> believe it or not, ads work, and sponsored bits even moreIs that... good? Most of the sponsors I have seen have been semi-shady snake oil like NordVPN and BetterHelp.",
+        "url": "https://news.ycombinator.com/item?id=49874337",
+        "points": null,
+        "numComments": null,
+        "storyId": 49842764,
+        "createdAt": "2026-09-28T06:29:11Z",
+        "createdAtUnix": 1790576951,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49869815",
+        "author": "112233",
+        "type": "comment",
+        "title": null,
+        "text": "eh, yes-ish, but only thanks to compiler writers. at one point committee went all-out enforcing their lifetime model, making bit_cast not an option. If your code accesses same data using different types, you are spelunking ruins with snake pits and lava. more and more stuff needs magic support code in std::, making no-lib code less and less possible (it used to be that with no-rtti and no-exceptions, you could use all c++ features and only needed cxa_at_exit, operator delete, and few other little things. NOT ANY MORE).On one hand, you have consteval and stuff, letting you FINALLY initialize data at compile time (hey, 20 years late but still!)on other hand, it is done in most non-debuggable way possible. try setting breakpoint or adding print to constexpr function that causes your requires clause to fail...so no, newer C++ the language is not possible to use for low level work. The dialects that compiler makers support are. We will see for how long",
+        "url": "https://news.ycombinator.com/item?id=49869815",
+        "points": null,
+        "numComments": null,
+        "storyId": 49849409,
+        "createdAt": "2026-09-27T19:08:46Z",
+        "createdAtUnix": 1790536126,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "49875467",
+        "author": "t-3",
+        "type": "comment",
+        "title": null,
+        "text": "Civil rights wasn't decided by plebiscite - it was decided by elected representatives. They saw huge crowds gathering in support, tremendous amounts of dialogue about what and how and why activists were doing and what government was doing at various levels. The activists made some people temporarily angry by blocking traffic or violating their ideas about proper societal organization, but the TV and newspaper coverage reached many more and managed to convince enough of them speak up that the representatives went along with it. Of course dialogue was a huge part of this, but that dialogue wouldn't have existed on the same scale or been nearly as effective in bringing change if activists hadn't caused a big fuss in the first place.If a child is bullied at school and suffers in silence, chances are they will continue being bullied. If they fight back or make a scene, a teacher is far more likely to take notice and possibly be convinced to correct the situation. The same principle is at play in most political movements. To get people to care, you have to make them pay attention first! You have to make them outraged, make them react, make them think, make them do something. When representatives see people in a furor they know they have to take a side, and usually the side that makes more noise wins.The US itself was founded like this - the Boston Tea Party is one of the most famous acts of civil disobedience in history. Our electoral system is a process of continual revolution, continual change and upheaval. This process is necessarily just as messy and ugly as our own society. The fact that even in the very ugly and full-of-contradictions pre-Civil Rights era USA we could have a revolution with relatively little loss of life and mostly minor disruptions to the lives of people should be celebrated rather than bemoaned. Look at what it took to be rid of monarchy and slavery and see that the way we overcame&#x2F;are still overcoming segregation and racial bias shows vast improvements and gives hope for even more civil revolutions in the future.",
+        "url": "https://news.ycombinator.com/item?id=49875467",
+        "points": null,
+        "numComments": null,
+        "storyId": 49844657,
+        "createdAt": "2026-09-28T09:23:40Z",
+        "createdAtUnix": 1790587420,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49875064",
+        "author": "Gareth321",
+        "type": "comment",
+        "title": null,
+        "text": "> How do you convince white people to have a dialogue with you when you're black in the highly segregated and extremely racist society we had 60 years ago?The vast majority of black and white people had reasonable dialogue all over the U.S. in the 60s. There were obviously places where racism prevailed to greater degrees, and I think the record reflects that dialogue was less successful there. Which is why they were forced at the federal level to desegregate. The reason that the laws were passed at the federal level was dialogue. Outreach, lobbying, fliers, marketing, campaigning. All the things which make democracy great.Remember that the reason the Civil and Voting Rights Act(s) (and their amendments) passed in the 60s was because white people - the major and predominant voting bloc - believed they were morally right. Black people didn't terrorise white people isn't submission. That would have backfired spectacularly.",
+        "url": "https://news.ycombinator.com/item?id=49875064",
+        "points": null,
+        "numComments": null,
+        "storyId": 49844657,
+        "createdAt": "2026-09-28T08:24:08Z",
+        "createdAtUnix": 1790583848,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49874927",
+        "author": "t-3",
+        "type": "comment",
+        "title": null,
+        "text": "How do you convince white people to have a dialogue with you when you're black in the highly segregated and extremely racist society we had 60 years ago? How can you make them understand what you live when there is a legal policy of separation between you? I don't think you really understand what segregation and racism being accepted facts of society (\"morally right\" in the views of many whites at the time) or lynching being not an unheard-of barbaric act but a form of popular vigilantism punishing any kind of \"miscegenation\" or \"uppity\" attitudes really means. The fact that the civil rights movement was largely peaceful was a marvel when you look at the actual facts of the time, because the oppression of non-whites and retribution activists faced was certainly not peaceful.",
+        "url": "https://news.ycombinator.com/item?id=49874927",
+        "points": null,
+        "numComments": null,
+        "storyId": 49844657,
+        "createdAt": "2026-09-28T08:03:09Z",
+        "createdAtUnix": 1790582589,
+        "intent": "question"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "49869986",
+        "author": "gchamonlive",
+        "type": "comment",
+        "title": null,
+        "text": "Volume has nothing to do with it, this is discussing code quality. But if you mind me saying so, blame this ridiculous amount of codeslop volume on greedy managers and corpocrats. Developers are artists, they usually ship shitcode when they're under pressure",
+        "url": "https://news.ycombinator.com/item?id=49869986",
+        "points": null,
+        "numComments": null,
+        "storyId": 49867486,
+        "createdAt": "2026-09-27T19:27:46Z",
+        "createdAtUnix": 1790537266,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49867202",
+        "author": "CoderLim110",
+        "type": "story",
+        "title": "Nvidia Nemotron 3: Open-weight real-time speaker diarization",
+        "text": "Nvidia Nemotron 3: Open-weight real-time speaker diarization",
+        "url": "https://huggingface.co/blog/nvidia/nemotron-diarization",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 49867202,
+        "createdAt": "2026-09-27T14:58:59Z",
+        "createdAtUnix": 1790521139,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "49865113",
+        "author": "jrflowers",
+        "type": "comment",
+        "title": null,
+        "text": "> Selective and out-of-context quoting isn't “criticism of OpenAI”, the same way that saying “checkmate” when your opponent isn't in check isn't chess.Is quoting “criticism of OpenAI” without the rest of the post a way of saying “checkmate”?",
+        "url": "https://news.ycombinator.com/item?id=49865113",
+        "points": null,
+        "numComments": null,
+        "storyId": 49863864,
+        "createdAt": "2026-09-27T09:50:16Z",
+        "createdAtUnix": 1790502616,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
