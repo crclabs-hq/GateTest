@@ -714,3 +714,46 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   without server auth and only the GitHub callback redirects to /login?error=; #820
   folds every same-host canonical (a site-wide canonical to `/` would collapse a
   crawl; no guard).
+
+### Addendum 2026-09-29 00:30Z — handoff and sign-in merged; deploy kill diagnosed from outside; estate blocked on a count sweep
+
+- Merged: #805 (this file's 23:40Z addendum), #819 (sign-in journey, closes #810 #812; sha
+  2091f19a paged to AlecRae, who holds the outside-in check until gatetest.io serves it).
+- Open, auto-merge armed, all brought up to date against main at 00:20Z: #813, #814,
+  #816, #820, #821 (fp3: #771 GT-03/09/11/12 — crossFileTaint 3→0, deployScriptValidator
+  2→1 (the survivor is a real 404 probe), authBypass 1 error→0, logPii 1→0; new
+  src/core/public-discovery-routes.js and src/core/operator-cli.js), #823 (heavy suite
+  red on main since 2091f19a: the live sign-in probe registered zero tests without
+  `GATETEST_LIVE_URL`; one always-run arming test).
+- DRAFT #822, estate module (R3, refs #807): built and tested (30/30, quick gate green,
+  live Tallrig estate run: tallrig.com ok, five *.tallrig.app hosts gateway-up-app-dead,
+  vapron.ai / api.vapron.ai unexpected-ip at 149.28.119.158). Red on
+  module-count-sync until the 121→122 sweep (about 45 shipped-copy files, catalogue
+  entry, suite sizes full 89 / nuclear 97 / wp 31, CLAUDE.md Forbidden #17, then
+  `node scripts/generate-site-stats.js --no-tests` and
+  `node scripts/generate-mcp-remote-modules.js`). The builder's sweep was denied by the
+  permission classifier ("Modify Shared Resources"); not re-attempted by anyone —
+  OWNER decides who runs it. Second owner decision in the PR body: estate confirms an
+  NXDOMAIN with 1.1.1.1 / 8.8.8.8 (hostname only, only after NXDOMAIN;
+  `modules.estate.resolvers: []` disables it). When #814 lands, drop the TODO(#802)
+  in estate.js and add estate to CRAWL_CAPABLE_MODULES.
+- Pull-deploy on box 161, corrected: the unit is NOT dead. gatetest.io/api/platform-status
+  → lastPullDeploy 2026-09-28T23:17:04Z result "failed", reason "gatetest-pull-deploy
+  .service was killed before it could record its own status (systemd OnFailure safety
+  net)". The timer fires; every run is killed mid-build (30-min TimeoutStartSec or the
+  OOM killer are the candidates). Production serves 0baf4e93 (26 Sep 18:34Z), 24
+  commits behind main at 00:20Z. AlecRae's units on the same box ran `up-to-date` at
+  21:38Z, so it is our unit, not the host. Owner: `journalctl -u gatetest-pull-deploy
+  -n 200 --no-pager` and `systemctl status gatetest-pull-deploy` on 161, then the fix
+  shape AlecRae uses: MemoryMax + LimitCORE drop-ins, hold a commit that failed to
+  build so it is not retried every 15 min, widen TimeoutStartSec for `next build`
+  under co-tenant contention.
+- Merge mechanics unchanged: admin merge and update-branch are denied for this session;
+  `git merge origin/main` in each PR worktree + push is the path; one round per merge.
+- Builders: fp4 running (GateTest-wt-fp4, fix/ci-steps-toolchain-honesty-771). Queue:
+  #809 composite health (AlecRae G3), #815 per-page crawl, deploy-contract `-o` flag
+  skip control pair (dropped from fp3, untested), corpus ratchet
+  `scripts/real-world-precision.js --ratchet --write-json` on main after #816/#820/#821
+  land, dnsPosture/mailPosture/apiHealth/deployFreshness/WordPress gaps per #807.
+- Local hygiene: 24 stale worktree shells under C:\dev\crclabs-hq removed (held only
+  node_modules junctions); remaining GateTest-wt-* folders map one-to-one to open PRs.
