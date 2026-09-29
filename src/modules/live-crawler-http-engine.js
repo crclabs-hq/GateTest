@@ -1,7 +1,10 @@
 'use strict';
 
 const { URL } = require('url');
-const { fetchPage, checkUrl, extractLinks, extractImages, extractTitle } = require('./live-crawler-http-helpers');
+const {
+  fetchPage, checkUrl, extractLinks, extractImages, extractTitle,
+  normaliseCrawlUrl, extractCanonicalHref, aliasTarget,
+} = require('./live-crawler-http-helpers');
 const { authHeadersFor } = require('./live-crawler-auth');
 
 const ERROR_PATTERNS = [
@@ -26,6 +29,8 @@ async function crawlWithHttp(ctx) {
     slowPages, slowThresholdMs, anchorMissingId, titlesByUrl,
     timedOutPages, offSiteRedirects, crawlDeadlineTs,
     auth,
+    // #806: canonical alias URL -> the canonical it was folded into
+    aliasOf = new Map(),
   } = ctx;
 
   let budgetExhausted = false;
@@ -46,7 +51,8 @@ async function crawlWithHttp(ctx) {
       break;
     }
 
-    const url = queue.shift();
+    const rawUrl = queue.shift();
+    const url = rawUrl && normaliseCrawlUrl(rawUrl);
     if (!url || visited.has(url)) continue;
     visited.add(url);
 
@@ -56,6 +62,24 @@ async function crawlWithHttp(ctx) {
       // that stalls must cost at most one bounded slot in the queue, not an
       // unbounded share of the module's overall wall-clock ceiling.
       const pageResult = await fetchPage(url, pageTimeout, authHeadersFor(url, auth));
+
+      // #806: a page whose <link rel="canonical"> names a DIFFERENT page on
+      // this host is that page's alias (`/index.html`, `/?utm=…`, a trailing-
+      // slash twin). It is not recorded as a page of its own — pages, titles
+      // and per-page findings de-duplicate under the canonical, which is
+      // queued next and recorded once. The alias's links are still followed.
+      if (pageResult.status < 400 && pageResult.body && pageResult.contentType?.includes('text/html')) {
+        const canonical = aliasTarget({ url, canonicalHref: extractCanonicalHref(pageResult.body), aliasOf });
+        if (canonical) {
+          aliasOf.set(url, canonical);
+          if (!visited.has(canonical) && !queue.includes(canonical)) queue.unshift(canonical);
+          for (const link of extractLinks(pageResult.body, baseUrl, url).internal) {
+            if (!visited.has(link.href) && !queue.includes(link.href)) queue.push(link.href);
+          }
+          continue;
+        }
+      }
+
       pages.push(pageResult);
 
       if (pageResult.offSiteRedirect) {
