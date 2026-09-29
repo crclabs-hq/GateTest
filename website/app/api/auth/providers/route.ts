@@ -1,7 +1,7 @@
 /**
  * Which sign-in providers are actually usable right now.
  *
- * GET /api/auth/providers → { github: true, gitlab: false, google: false }
+ * GET /api/auth/providers → { github: true, gitlab: false, google: false, gluecron: false }
  *
  * ── Why this exists ─────────────────────────────────────────────────────────
  * AuthModal rendered all three provider buttons unconditionally while the
@@ -22,6 +22,7 @@ import {
   getOAuthConfig,
   getGitLabOAuthConfig,
   getGoogleOAuthConfig,
+  getGluecronOAuthConfig,
 } from "@/app/lib/customer-session";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,7 @@ export async function GET() {
       github: getOAuthConfig().ok,
       gitlab: getGitLabOAuthConfig().ok,
       google: getGoogleOAuthConfig().ok,
+      gluecron: getGluecronOAuthConfig().ok,
     },
     { headers: { "cache-control": "no-store" } },
   );
