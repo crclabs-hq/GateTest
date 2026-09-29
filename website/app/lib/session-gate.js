@@ -17,7 +17,7 @@
 
 // Path prefixes only a signed-in customer may open. Admin has its own
 // password gate (admin-auth.ts) and is not listed here.
-const PROTECTED_PREFIXES = ['/dashboard', '/account/notifications'];
+const PROTECTED_PREFIXES = ['/dashboard', '/account/notifications', '/account/password'];
 
 function underPrefix(pathname, prefix) {
   return pathname === prefix || pathname.startsWith(prefix + '/');
