@@ -54,7 +54,7 @@ export function PasswordAuthShell({
   );
 }
 
-export const INPUT_CLASS =
+const INPUT_CLASS =
   "w-full rounded-lg bg-background border border-border px-4 py-2.5 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent";
 
 export function Field({

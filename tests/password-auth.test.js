@@ -100,11 +100,18 @@ describe('hashPassword / verifyPassword — scrypt, per-user salt, stored as scr
       assert.equal(await core.verifyPassword(GOOD, bad), false, String(bad));
     }
   });
-  it('the module uses node:crypto only — no bcrypt / argon2 native addon', () => {
-    const src = read('website/app/lib/password-auth-core.js');
-    assert.doesNotMatch(src, /require\(['"](bcrypt|argon2|@node-rs\/[a-z0-9]+)['"]\)/);
-    assert.match(src, /crypto\.scrypt\(/);
-    assert.match(src, /timingSafeEqual/);
+  it('the modules use node:crypto only — no bcrypt / argon2 native addon', () => {
+    const policy = read('website/app/lib/password-auth-policy.js');
+    const core = read('website/app/lib/password-auth-core.js');
+    for (const src of [policy, core]) assert.doesNotMatch(src, /require\(['"](bcrypt|argon2|@node-rs\/[a-z0-9]+)['"]\)/);
+    assert.match(policy, /crypto\.scrypt\(/);
+    assert.match(policy, /timingSafeEqual/);
+    // Split for the per-file ceiling (500): the flows re-export the policy so callers keep one import.
+    assert.match(core, /require\('\.\/password-auth-policy'\)/);
+    assert.match(core, /\.\.\.policy,/);
+    for (const f of ['password-auth-core.js', 'password-auth-policy.js']) {
+      assert.ok(read(`website/app/lib/${f}`).split(/\r?\n/).length < 500, `${f} under the per-file ceiling`);
+    }
   });
 });
 
@@ -441,6 +448,7 @@ describe('wiring — routes, pages, schema, gate', () => {
       'website/app/api/auth/password/change/route.ts',
       'website/app/lib/password-auth-http.ts',
       'website/app/lib/password-auth-core.js',
+      'website/app/lib/password-auth-policy.js',
       'website/app/lib/password-auth-store.js',
     ];
     for (const f of files) {

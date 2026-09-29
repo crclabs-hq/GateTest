@@ -24,9 +24,9 @@ import { siteUrl } from "./site-url.js";
 import { deliver, mailConfigured } from "./mail-transport.js";
 import { extractClientIp } from "@lib/rate-limit";
 
-export type Fields = Record<string, string>;
+type Fields = Record<string, string>;
 
-export interface FlowResult {
+interface FlowResult {
   ok: boolean;
   status: number;
   code: string;
@@ -102,7 +102,7 @@ export function clientIp(req: NextRequest): string {
 }
 
 /** The exact Set-Cookie the GitHub / Google callbacks issue. */
-export function sessionCookieHeader(token: string): string {
+function sessionCookieHeader(token: string): string {
   const isProduction = process.env.NODE_ENV === "production";
   return [
     `${CUSTOMER_COOKIE_NAME}=${token}`,
@@ -169,10 +169,6 @@ export function answer(
   const res = NextResponse.json(body, { status: result.status, headers: { "Cache-Control": "no-store" } });
   if (cookie) res.headers.set("Set-Cookie", cookie);
   return res;
-}
-
-export function fail(form: boolean, status: number, code: string, errorPage: string, next?: string | null): NextResponse {
-  return answer(form, { ok: false, status, code }, { ok: errorPage, error: errorPage, next });
 }
 
 export const CSRF_FAIL: FlowResult = { ok: false, status: 403, code: "csrf" };
