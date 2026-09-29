@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_GROUPS, NAV_LINKS, NAV_ACTIONS, type NavItem } from "./site-nav";
@@ -49,6 +49,30 @@ function ItemLink({
     <a href={item.href} className={cls} onClick={onClick} rel="noopener noreferrer">{inner}</a>
   ) : (
     <Link href={item.href} className={cls} onClick={onClick} aria-current={current ? "page" : undefined}>{inner}</Link>
+  );
+}
+
+/**
+ * A NAV_ACTIONS button. An `external` action (Install Gluecron, owner
+ * directive 2026-09-29) is a plain anchor in a new tab with rel="noopener";
+ * a same-site one stays a Next Link. The className is passed through
+ * verbatim so tests/tap-targets.test.js can read the sizing from source.
+ */
+function ActionLink({
+  action,
+  className,
+  onClick,
+  children,
+}: {
+  action: { label: string; href: string; external?: boolean };
+  className: string;
+  onClick?: () => void;
+  children: ReactNode;
+}) {
+  return action.external ? (
+    <a href={action.href} className={className} onClick={onClick} target="_blank" rel="noopener noreferrer">{children}</a>
+  ) : (
+    <Link href={action.href} className={className} onClick={onClick}>{children}</Link>
   );
 }
 
@@ -124,9 +148,9 @@ export default function Navbar() {
         <div className="hidden lg:flex items-center gap-2">
           <ThemeToggle />
           <Link href={NAV_ACTIONS.signIn.href} className={`${LINK} px-3 py-2`}>{NAV_ACTIONS.signIn.label}</Link>
-          <Link href={NAV_ACTIONS.install.href} className="inline-flex items-center min-h-6 px-3.5 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:border-accent/50 transition-colors whitespace-nowrap">
+          <ActionLink action={NAV_ACTIONS.install} className="inline-flex items-center min-h-6 px-3.5 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:border-accent/50 transition-colors whitespace-nowrap">
             {NAV_ACTIONS.install.label}
-          </Link>
+          </ActionLink>
           <Link href={NAV_ACTIONS.primary.href} className="btn-cta inline-flex items-center min-h-6 px-4 py-2 text-sm font-semibold rounded-lg whitespace-nowrap">
             {NAV_ACTIONS.primary.label} →
           </Link>
@@ -178,7 +202,7 @@ export default function Navbar() {
             <Link href={NAV_ACTIONS.signIn.href} className="flex items-center min-h-11 px-3 py-3 font-medium text-foreground" onClick={() => setDrawer(false)}>{NAV_ACTIONS.signIn.label}</Link>
           </div>
           <div className="grid gap-2 p-3">
-            <Link href={NAV_ACTIONS.install.href} className="flex items-center justify-center min-h-11 text-center px-4 py-3 rounded-lg border border-border font-medium text-foreground" onClick={() => setDrawer(false)}>{NAV_ACTIONS.install.label}</Link>
+            <ActionLink action={NAV_ACTIONS.install} className="flex items-center justify-center min-h-11 text-center px-4 py-3 rounded-lg border border-border font-medium text-foreground" onClick={() => setDrawer(false)}>{NAV_ACTIONS.install.label}</ActionLink>
             <Link href={NAV_ACTIONS.primary.href} className="btn-cta flex items-center justify-center min-h-11 text-center px-4 py-3 rounded-lg font-semibold" onClick={() => setDrawer(false)}>{NAV_ACTIONS.primary.label} →</Link>
           </div>
           <div className="flex items-center justify-between px-3 py-3 border-t border-border">

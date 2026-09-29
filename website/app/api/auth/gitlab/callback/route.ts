@@ -3,6 +3,8 @@
  *
  * GET /api/auth/gitlab/callback?code=...&state=...
  * Exchanges code for token, fetches GitLab user profile, creates session.
+ * Failures land on /login?error=gitlab_<code> (the page shows the copy;
+ * anonymous /dashboard is gated, so an error there was never seen).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -13,6 +15,7 @@ import {
   CUSTOMER_COOKIE_NAME,
   CUSTOMER_MAX_AGE_SECONDS,
 } from "../../../../lib/customer-session";
+import { safeNext } from "../../../../lib/session-gate";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -23,14 +26,17 @@ export async function GET(req: NextRequest) {
   const cookieStore = await cookies();
   const storedState = cookieStore.get("gl_oauth_state")?.value;
   cookieStore.delete("gl_oauth_state");
+  // Where /login?next=… wanted to go; re-validated here, the cookie is client-held.
+  const landing = safeNext(cookieStore.get("gl_oauth_next")?.value) ?? "/dashboard";
+  cookieStore.delete("gl_oauth_next");
 
   if (!code || !state || state !== storedState) {
-    return NextResponse.redirect(`${baseUrl}/dashboard?error=invalid_state`);
+    return NextResponse.redirect(`${baseUrl}/login?error=gitlab_invalid_state`);
   }
 
   const status = getGitLabOAuthConfig();
   if (!status.ok || !status.config) {
-    return NextResponse.redirect(`${baseUrl}/dashboard?error=not_configured`);
+    return NextResponse.redirect(`${baseUrl}/login?error=gitlab_not_configured`);
   }
 
   const { clientId, clientSecret, redirectUri, sessionSecret } = status.config;
@@ -52,10 +58,10 @@ export async function GET(req: NextRequest) {
     const tokenData = await tokenRes.json();
     accessToken = tokenData.access_token;
     if (!accessToken) {
-      return NextResponse.redirect(`${baseUrl}/dashboard?error=token_failed`);
+      return NextResponse.redirect(`${baseUrl}/login?error=gitlab_token_failed`);
     }
   } catch {
-    return NextResponse.redirect(`${baseUrl}/dashboard?error=token_failed`);
+    return NextResponse.redirect(`${baseUrl}/login?error=gitlab_token_failed`);
   }
 
   // Fetch GitLab user profile
@@ -70,16 +76,16 @@ export async function GET(req: NextRequest) {
     email = user.email || user.public_email || "";
 
     if (!login) {
-      return NextResponse.redirect(`${baseUrl}/dashboard?error=user_failed`);
+      return NextResponse.redirect(`${baseUrl}/login?error=gitlab_user_failed`);
     }
   } catch {
-    return NextResponse.redirect(`${baseUrl}/dashboard?error=user_failed`);
+    return NextResponse.redirect(`${baseUrl}/login?error=gitlab_user_failed`);
   }
 
   const token = signCustomerSession(login, email, sessionSecret);
   const isProduction = process.env.NODE_ENV === "production";
 
-  const response = NextResponse.redirect(`${baseUrl}/dashboard`);
+  const response = NextResponse.redirect(`${baseUrl}${landing}`);
   response.headers.set(
     "Set-Cookie",
     [

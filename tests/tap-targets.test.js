@@ -79,7 +79,7 @@ describe('Navbar.tsx — shared chrome', () => {
     assert.match(m[1], /min-h-11/, `cls = "${m[1]}"`);
   });
 
-  it('desktop Install GitHub App / Scan free buttons are sized', () => {
+  it('desktop Install (Gluecron) / Scan free buttons are sized', () => {
     assert.match(src, /className="inline-flex items-center min-h-6 px-3\.5 py-2[^"]*"/);
     assert.match(src, /className="btn-cta inline-flex items-center min-h-6 px-4 py-2[^"]*"/);
   });
