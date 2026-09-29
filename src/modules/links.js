@@ -44,17 +44,9 @@ class LinksModule extends BaseModule {
     super('links', 'Broken Link Detection');
   }
 
-  /** One definition (Doctrine §4) of "did a prior module in this suite
-   *  already produce a real result?" — `config._allResults` is the
-   *  runner's array of completed TestResult instances for every module
-   *  that ran before this one (see GateTestRunner._runModule); sequential
-   *  suite order (src/core/config.js) puts `liveCrawler` before `links`
-   *  for exactly this reason (#681 item 4). */
-  _priorResult(config, moduleName) {
-    const all = config && config._allResults;
-    if (!Array.isArray(all)) return null;
-    return all.find((r) => r && r.module === moduleName) || null;
-  }
+  // "Did a prior module in this run already produce a result?" is
+  // `BaseModule#_priorResult` (one definition, shared with the page-level
+  // modules since #815).
 
   /** liveCrawler always emits `crawl:pages-scanned` once it actually
    *  crawls (as opposed to an early "no URL configured" return, which

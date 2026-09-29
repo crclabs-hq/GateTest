@@ -57,7 +57,11 @@ class AccessibilityModule extends BaseModule {
         this._notChecked(result, 'JSON API host — HTML checks do not apply');
         return;
       }
-      this._runLive(config.livePage, result);
+      // Under --crawl the crawler hands over every page it fetched (#815):
+      // each is audited by the same checks, findings folded per page.
+      const pages = this._crawledPages(config);
+      if (pages) this._runLiveCrawl(pages, result);
+      else this._runLive(config.livePage, result);
       await this._checkLiveContrast(config, result);
       return;
     }
@@ -130,18 +134,46 @@ class AccessibilityModule extends BaseModule {
    * or from the wire.
    */
   _runLive(livePage, result) {
+    const before = result.checks.length;
+    if (!this._auditLivePage(livePage, result)) return;
+    const added = result.checks.slice(before).filter((c) => !c.passed).length;
+    result.addCheck('a11y:live-summary', true, {
+      severity: 'info',
+      message: added === 0
+        ? 'Live accessibility check: no issues found on the fetched page'
+        : `Live accessibility check: ${added} issue(s) found on the fetched page`,
+    });
+  }
+
+  /**
+   * Every page the crawl fetched (#815), audited by `_auditLivePage` and
+   * folded per finding by `BaseModule#_foldLivePages`: a missing <main> on
+   * /login cites /login; a site-wide miss is one finding listing pages.
+   */
+  _runLiveCrawl(pages, result) {
+    const issues = this._foldLivePages(pages, result, (page, sink) => this._auditLivePage(page, sink));
+    result.addCheck('a11y:live-summary', true, {
+      severity: 'info',
+      message: issues === 0
+        ? `Live accessibility check: no issues found on ${pages.length} crawled page(s)`
+        : `Live accessibility check: ${issues} distinct issue(s) found across ${pages.length} crawled page(s)`,
+    });
+  }
+
+  /** The checks themselves, against one live page. False when the page could not be fully audited (no body, image, SPA shell). */
+  _auditLivePage(livePage, result) {
     const html = (livePage && livePage.html) || '';
     const label = (livePage && livePage.url) || 'fetched page';
     if (!html) {
       this._notChecked(result, 'the shared page fetch for this scan returned no HTML body to audit');
-      return;
+      return false;
     }
     if (isImageRenderer(html)) {
       result.addCheck('a11y:live-summary', true, {
         severity: 'info',
         message: 'Fetched response does not look like an HTML page — nothing to audit',
       });
-      return;
+      return false;
     }
     this._checkLanguageAttribute(label, html, result);
     if (isSpaShell(html)) {
@@ -149,21 +181,14 @@ class AccessibilityModule extends BaseModule {
         severity: 'info',
         message: 'Page is a client-rendered SPA shell — no server-rendered content to audit beyond <html lang>',
       });
-      return;
+      return false;
     }
-    const before = result.checks.length;
     this._checkImages(label, html, result);
     this._checkFormLabels(label, html, result);
     this._checkHeadingHierarchy(label, html, result);
     this._checkAriaUsage(label, html, result);
     this._checkLandmarks(label, html, result);
-    const added = result.checks.length - before;
-    result.addCheck('a11y:live-summary', true, {
-      severity: 'info',
-      message: added === 0
-        ? 'Live accessibility check: no issues found on the fetched page'
-        : `Live accessibility check: ${added} issue(s) found on the fetched page`,
-    });
+    return true;
   }
 
   _checkImages(relPath, content, result) {

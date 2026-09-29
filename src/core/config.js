@@ -838,6 +838,20 @@ function partitionCrawlSelection(requested) {
 }
 
 /**
+ * The crawl-capable members that audit a PAGE (`config.livePage`) rather
+ * than the crawl's result or the target host (#815). Under `--crawl` these
+ * run once per crawled page — the crawler hands them every HTML page it
+ * fetched (`result.crawledPages`, capped by `--crawl-check-pages`) so a
+ * missing title on /pricing is found even when / is clean. A subset of
+ * CRAWL_CAPABLE_MODULES, in its order; tests/crawl-honours-modules.test.js
+ * proves that.
+ */
+const CRAWL_PAGE_MODULES = ['webHeaders', 'cookieSecurity', 'accessibility', 'seo'];
+
+/** Default `--crawl-check-pages`: how many crawled pages the page-level modules audit. */
+const DEFAULT_CRAWL_CHECK_PAGES = 25;
+
+/**
  * Top-level `.gatetest.json` keys the product actually consumes.
  *
  * `_deepMerge` accepts ANY key, so an unrecognised one lands in the config
@@ -1094,4 +1108,7 @@ class GateTestConfig {
   }
 }
 
-module.exports = { GateTestConfig, DEFAULT_CONFIG, SUITE_DEFERRALS, CRAWL_CAPABLE_MODULES, partitionCrawlSelection };
+module.exports = {
+  GateTestConfig, DEFAULT_CONFIG, SUITE_DEFERRALS, CRAWL_CAPABLE_MODULES, partitionCrawlSelection,
+  CRAWL_PAGE_MODULES, DEFAULT_CRAWL_CHECK_PAGES,
+};

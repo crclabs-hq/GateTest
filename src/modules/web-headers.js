@@ -250,7 +250,11 @@ class WebHeadersModule extends BaseModule {
     // _liveHeaderChecks is also what website-scanner.ts's /api/scan/url
     // path is documented to need — see that file's header comment.)
     if (config && config.livePage) {
-      this._runLive(config.livePage, result);
+      // Under --crawl the crawler hands over every page it fetched (#815):
+      // each response's headers are audited, findings folded per page.
+      const pages = this._crawledPages(config);
+      if (pages) this._runLiveCrawl(pages, config.livePage, result);
+      else this._runLive(config.livePage, result);
       return;
     }
 
@@ -301,6 +305,39 @@ class WebHeadersModule extends BaseModule {
    * WHATWG `Headers` (a `.get(name)` method) or a plain object.
    */
   _runLive(livePage, result) {
+    const issues = this._auditLivePage(livePage, result);
+    result.addCheck('web-headers:live-summary', true, {
+      severity: 'info',
+      message: issues === 0
+        ? 'Live security headers check: no issues found'
+        : `Live security headers check: ${issues} issue(s) found on the fetched response`,
+    });
+  }
+
+  /**
+   * Every page the crawl fetched (#815), each response's headers audited by
+   * `_auditLivePage` and folded per finding by `BaseModule#_foldLivePages`
+   * — a site-wide missing HSTS is one finding listing every page. A page
+   * the engine kept no headers for (the browser crawl) is not audited; if
+   * none has any, the entry page's own fetch is audited as before.
+   */
+  _runLiveCrawl(pages, livePage, result) {
+    const withHeaders = pages.filter((p) => p.headers);
+    if (withHeaders.length === 0) {
+      this._runLive(livePage, result);
+      return;
+    }
+    const issues = this._foldLivePages(withHeaders, result, (page, sink) => this._auditLivePage(page, sink));
+    result.addCheck('web-headers:live-summary', true, {
+      severity: 'info',
+      message: issues === 0
+        ? `Live security headers check: no issues found on ${withHeaders.length} crawled page(s)`
+        : `Live security headers check: ${issues} distinct issue(s) found across ${withHeaders.length} crawled page(s)`,
+    });
+  }
+
+  /** The checks themselves, against one live response. Returns the issue count. */
+  _auditLivePage(livePage, result) {
     const findings = liveHeaderChecks(livePage && livePage.headers);
     for (const f of findings) {
       result.addCheck(`web-headers:${f.id}`, false, {
@@ -309,12 +346,7 @@ class WebHeadersModule extends BaseModule {
         suggestion: f.suggestion,
       });
     }
-    result.addCheck('web-headers:live-summary', true, {
-      severity: 'info',
-      message: findings.length === 0
-        ? 'Live security headers check: no issues found'
-        : `Live security headers check: ${findings.length} issue(s) found on the fetched response`,
-    });
+    return findings.length;
   }
 
   _isHeaderFile(full, basename) {
