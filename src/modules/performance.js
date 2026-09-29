@@ -206,8 +206,11 @@ class PerformanceModule extends BaseModule {
 
       // Check for addEventListener without removeEventListener.
       // Only listeners that can ACTUALLY outlive their scope are counted — see
-      // _leakyListenerCount.
-      const addCount = this._leakyListenerCount(content);
+      // _leakyListenerCount. A service worker is exempt outright: its
+      // install / activate / fetch / push / message listeners on `self` ARE
+      // the worker and live exactly as long as it does — there is no
+      // unmount to remove them in (DavenRoe frontend/public/sw.js, #842 DR-5).
+      const addCount = this._isServiceWorker(content) ? 0 : this._leakyListenerCount(content);
       const removeCount = (content.match(/removeEventListener\s*\(/g) || []).length;
 
       if (addCount > 0 && removeCount === 0 && addCount > 2) {
@@ -267,6 +270,18 @@ class PerformanceModule extends BaseModule {
       else if (ch === ')') { depth--; if (depth === 0) return content.slice(openIdx + 1, i); }
     }
     return content.slice(openIdx + 1, end);
+  }
+
+  /**
+   * A service-worker script: a lifecycle listener registered on `self`
+   * (`self.addEventListener('install' | 'activate' | 'fetch' | 'push' |
+   * 'message' | 'sync' | 'notificationclick' …)`) or a worker-only call
+   * (`self.skipWaiting()`, `self.clients.claim()`). A page or component
+   * registering on `window` / `document` never has either.
+   */
+  _isServiceWorker(content) {
+    return /\bself\s*\.\s*addEventListener\s*\(\s*['"](?:install|activate|fetch|push|message|sync|periodicsync|notificationclick|notificationclose|pushsubscriptionchange)['"]/.test(content)
+      || /\bself\s*\.\s*(?:skipWaiting\s*\(|clients\s*\.\s*claim\s*\()/.test(content);
   }
 
   _leakyListenerCount(content) {
