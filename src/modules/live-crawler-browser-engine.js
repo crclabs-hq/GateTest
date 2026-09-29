@@ -1,6 +1,6 @@
 'use strict';
 
-const { checkUrl } = require('./live-crawler-http-helpers');
+const { checkUrl, normaliseCrawlUrl, aliasTarget } = require('./live-crawler-http-helpers');
 const { sameOrigin, parseCookiesForBrowser } = require('./live-crawler-auth');
 
 const RENDERED_ERROR_PATTERNS = [
@@ -20,6 +20,7 @@ async function crawlWithBrowser(playwright, ctx) {
     baseUrl, maxPages, timeout, pageTimeout, checkExternal,
     visited, pages, errors, brokenLinks, brokenImages, queue,
     redirects, timedOutPages, auth, crawlDeadlineTs,
+    aliasOf = new Map(), // #806: canonical alias URL -> the canonical it was folded into
   } = ctx;
 
   let budgetExhausted = false;
@@ -75,7 +76,8 @@ async function crawlWithBrowser(playwright, ctx) {
         break;
       }
 
-      const url = queue.shift();
+      const rawUrl = queue.shift();
+      const url = rawUrl && normaliseCrawlUrl(rawUrl);
       if (!url || visited.has(url)) continue;
       visited.add(url);
 
@@ -87,6 +89,19 @@ async function crawlWithBrowser(playwright, ctx) {
         const response = await page.goto(url, { timeout: pageTimeout, waitUntil: 'networkidle' });
         const status = response?.status() || 0;
         const body = await page.content();
+
+        // #806: same canonical-alias fold as the HTTP engine — one definition
+        // (aliasTarget), fed the rendered DOM's canonical link.
+        if (status < 400) {
+          const canonicalHref = await page.evaluate(() => document.querySelector('link[rel~="canonical"]')?.getAttribute('href') || null);
+          const canonical = aliasTarget({ url, canonicalHref, aliasOf });
+          if (canonical) {
+            aliasOf.set(url, canonical);
+            if (!visited.has(canonical) && !queue.includes(canonical)) queue.unshift(canonical);
+            continue;
+          }
+        }
+
         pages.push({ url, status, body });
 
         const finalUrl = page.url();
@@ -130,7 +145,8 @@ async function crawlWithBrowser(playwright, ctx) {
             .filter(href => href.startsWith(base) && !href.includes('#'));
         }, baseUrl);
         for (const link of renderedLinks) {
-          if (!visited.has(link) && !queue.includes(link)) queue.push(link);
+          const normalised = normaliseCrawlUrl(link);
+          if (!visited.has(normalised) && !queue.includes(normalised)) queue.push(normalised);
         }
 
         if (checkExternal) {

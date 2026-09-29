@@ -17,7 +17,7 @@
 
 const BaseModule = require('./base-module');
 const { URL } = require('url');
-const { checkUrl, getSuggestion, extractDeclaredIconHref } = require('./live-crawler-http-helpers');
+const { checkUrl, getSuggestion, extractDeclaredIconHref, normaliseCrawlUrl } = require('./live-crawler-http-helpers');
 const { crawlWithBrowser } = require('./live-crawler-browser-engine');
 const { crawlWithHttp } = require('./live-crawler-http-engine');
 const { generateFeedbackReport } = require('./live-crawler-report');
@@ -129,7 +129,8 @@ class LiveCrawlerModule extends BaseModule {
 
     const collectors = {
       visited: new Set(),
-      queue: [baseUrl],
+      queue: [normaliseCrawlUrl(baseUrl)],
+      aliasOf: new Map(),
       pages: [],
       errors: [],
       brokenLinks: [],
