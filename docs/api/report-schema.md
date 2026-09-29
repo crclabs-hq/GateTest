@@ -144,3 +144,21 @@ shape varies by module and is not pinned.
 Anything not listed above (for example `provenance` internals, `rootCause`
 internals, and the extra module-specific keys some checks carry) may change
 without a version bump.
+
+### Crawl runs (additive, not pinned yet)
+
+A `--crawl` run with page-level modules (`webHeaders`, `cookieSecurity`,
+`accessibility`, `seo`) adds three keys on top of the pinned shape above
+(#815). They are present only on crawl runs and never replace a pinned field:
+
+- `findings[].url` - the crawled page the finding was observed on, when
+  `file` is an absolute `http(s)` URL rather than a repo path.
+- `findings[].pages` - every crawled page the same finding was observed on
+  (site-wide findings are folded into one entry; `file`/`url` is the first
+  page). Absent on findings seen on one page.
+- `pageChecks` (top level) - `{ crawled, checked, notChecked, cap }`: how
+  many pages the crawler fetched, how many the page-level modules audited,
+  how many were left unaudited by `--crawl-check-pages`, and that cap.
+
+They will be pinned in the next `schemaVersion` bump once their shape has
+held for a release.
