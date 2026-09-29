@@ -1,0 +1,168 @@
+{
+  "generatedAt": "2026-09-28T09:27:03.385Z",
+  "inputs": {
+    "sessionFixCount": 219,
+    "fixAttemptCount": 0,
+    "mcpEventCount": 0
+  },
+  "topModulesByFixCount": [
+    {
+      "module": "website",
+      "count": 27
+    },
+    {
+      "module": "deploy",
+      "count": 11
+    },
+    {
+      "module": "cli",
+      "count": 8
+    },
+    {
+      "module": "secrets",
+      "count": 7
+    },
+    {
+      "module": "(unattributed)",
+      "count": 6
+    },
+    {
+      "module": "free-scan",
+      "count": 6
+    },
+    {
+      "module": "wp-plugin",
+      "count": 6
+    },
+    {
+      "module": "fake-fix-detector",
+      "count": 5
+    },
+    {
+      "module": "prompt-safety",
+      "count": 5
+    },
+    {
+      "module": "web-scan",
+      "count": 5
+    }
+  ],
+  "topRuleKeysByAttempts": [],
+  "recurringSubjects": [
+    {
+      "pattern": "fix(website): changelog page casts the gener",
+      "hits": 4,
+      "sampleShas": [
+        "c2d74c86440893b4ff25bd7a83ef1b9e24a5f81b",
+        "dccca5b4dac31a48fbc1f7c6fb28522293c35987",
+        "ed467cca174c3592544091fcd693799660d9a7b1",
+        "8cb7b5b02537128ba697668dcd0474f28f5aa07b"
+      ]
+    },
+    {
+      "pattern": "fix(cli): one pre-scan line honours both",
+      "hits": 3,
+      "sampleShas": [
+        "2978aa435247184520eb4e46c8b292995bede2ac",
+        "6af34faa8209013d2d5e70f9b89d6ee74c06acbc",
+        "8540f2801e8628cc41ccb5cfaaeca67d57817d10"
+      ]
+    },
+    {
+      "pattern": "fix(gitignore): env contract files stay in sco",
+      "hits": 3,
+      "sampleShas": [
+        "d47e3f842494cbc0c364dc5c00598d21b3444b55",
+        "f7d4237934df563191222dd5e1fbf25e74483fb0",
+        "c46e89a723ad5b07f1d0a3315e089aa9e958975e"
+      ]
+    }
+  ],
+  "underTestedModules": [
+    {
+      "module": "wp-plugin",
+      "fixes": 6,
+      "tests": 0,
+      "testPerFix": 0
+    }
+  ],
+  "layerStats": {
+    "layers": {
+      "ast": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "rule": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "recipe": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "claude": {
+        "attempts": 0,
+        "successes": 0
+      },
+      "null": {
+        "attempts": 0,
+        "successes": 0
+      }
+    },
+    "total": 0,
+    "claudeShare": 0,
+    "deterministicShare": 0
+  },
+  "mcpUsage": {
+    "totalCalls": 0,
+    "tools": [],
+    "neverCalled": [
+      "scan_local",
+      "scan_url",
+      "check_health",
+      "list_modules",
+      "get_badge"
+    ],
+    "highFailTools": []
+  },
+  "recommendations": [
+    {
+      "kind": "investigate-module",
+      "module": "website",
+      "reason": "27 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "deploy",
+      "reason": "11 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "investigate-module",
+      "module": "cli",
+      "reason": "8 session-fixes recorded — high-touch module, candidate for refactor or rule split"
+    },
+    {
+      "kind": "candidate-recipe",
+      "pattern": "fix(website): changelog page casts the gener",
+      "hits": 4,
+      "reason": "4 commits with this signature — convert to deterministic recipe"
+    },
+    {
+      "kind": "candidate-recipe",
+      "pattern": "fix(cli): one pre-scan line honours both",
+      "hits": 3,
+      "reason": "3 commits with this signature — convert to deterministic recipe"
+    },
+    {
+      "kind": "candidate-recipe",
+      "pattern": "fix(gitignore): env contract files stay in sco",
+      "hits": 3,
+      "reason": "3 commits with this signature — convert to deterministic recipe"
+    },
+    {
+      "kind": "regression-test-gap",
+      "module": "wp-plugin",
+      "reason": "6 fixes / 0 tests added (0/fix) — lock down the pattern with a regression test"
+    }
+  ]
+}
