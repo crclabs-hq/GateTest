@@ -799,4 +799,6 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   unregistered shells a lingering shell keeps locked — delete when free.
 - Unchanged owner items: box 161 pull-deploy killed mid-build every run (journalctl on
   161), prod 24+ commits behind main so none of tonight's fixes are live; AlecRae holds
-  G1/G2/G3 re-measures until gatetest.io serves 2091f19a and #826's sha.
+  G1/G2/G3 re-measures until gatetest.io serves 2091f19a (G1/G2) and c53a63aa (G3, #826
+  merged 01:55Z). Their session had ended when #826 landed, so the G3 sha was NOT paged:
+  whoever sees gatetest.io serve c53a63aa pages AlecRae both shas together.
