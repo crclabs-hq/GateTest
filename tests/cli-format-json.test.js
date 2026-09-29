@@ -74,7 +74,7 @@ const ISSUE_KEYS = ['id', 'module', 'ruleId', 'severity', 'message', 'file', 'li
 function assertShape(doc) {
   for (const k of REQUIRED_KEYS) assert.ok(Object.prototype.hasOwnProperty.call(doc, k), `missing top-level key "${k}"`);
   assert.equal(typeof doc.passed, 'boolean');
-  assert.ok(['PASSED', 'BLOCKED'].includes(doc.gateStatus));
+  assert.ok(['PASSED', 'BLOCKED', 'REPORT_ONLY'].includes(doc.gateStatus));
   assert.ok([0, 1].includes(doc.exitCode));
   assert.equal(typeof doc.summary, 'string');
   assert.ok(doc.summary.includes(doc.gateStatus), 'summary line names the verdict');

@@ -86,7 +86,8 @@ function sanitizeRecord(raw) {
     record: {
       source: clampStr(raw.source, MAX_SOURCE_LEN) || 'unknown',
       suite: clampStr(raw.suite, MAX_SUITE_LEN) || 'unknown',
-      gateStatus: raw.gateStatus === 'PASSED' ? 'PASSED' : 'BLOCKED',
+      // PASSED / BLOCKED / REPORT_ONLY (engine src/core/report-schema.js); anything else is BLOCKED.
+      gateStatus: raw.gateStatus === 'PASSED' || raw.gateStatus === 'REPORT_ONLY' ? raw.gateStatus : 'BLOCKED',
       durationMs: nonNegInt(raw.durationMs),
       moduleCount: modules.length,
       totalErrors: nonNegInt(raw.totalErrors),

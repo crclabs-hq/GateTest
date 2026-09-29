@@ -248,7 +248,13 @@ class ConsoleReporter {
     console.log('');
     console.log(`${COLORS.bold}${COLORS.cyan}----------------------------------------${COLORS.reset}`);
 
-    if (summary.gateStatus === 'PASSED') {
+    if (summary.gateStatus === 'REPORT_ONLY') {
+      // #842 DR-a — the gate was never applied, so neither PASSED nor
+      // BLOCKED is true. Say the count and the fact in the headline, where
+      // a skim-reader looks; the Mode line below says why.
+      const errors = (summary.checks && summary.checks.errors) || 0;
+      console.log(`${COLORS.bold}${COLORS.yellow}  REPORT ONLY — ${errors} error${errors === 1 ? '' : 's'}, gate not applied  ${COLORS.reset}`);
+    } else if (summary.gateStatus === 'PASSED') {
       // Move 4 — a budget-limited PASS must never read identically to a
       // full, unlimited one: some of the modules that would have decided
       // this verdict never ran (Forbidden #16 — never a fake pass).

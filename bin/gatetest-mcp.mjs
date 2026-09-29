@@ -839,7 +839,7 @@ const TOOLS = [
 function formatScanResult(result) {
   const lines = [];
   const blocked = result.gateStatus === 'BLOCKED';
-  const status = blocked ? '❌ BLOCKED' : '✅ PASSED';
+  const status = blocked ? '❌ BLOCKED' : (result.gateStatus === 'REPORT_ONLY' ? '⚠️ REPORT ONLY — gate not applied' : '✅ PASSED');
   lines.push(`## GateTest Scan — ${status}`);
   lines.push('');
 
@@ -1261,7 +1261,7 @@ async function handleAuditLog(args) {
     lines.push('');
     for (const r of runs) {
       const when = r.timestamp ? new Date(r.timestamp).toISOString() : '(no timestamp)';
-      const status = r.status || (r.gateStatus === 'BLOCKED' ? 'BLOCKED' : 'PASSED');
+      const status = r.status || r.gateStatus || 'PASSED';
       lines.push(`- **${when}** — ${status} — errors:${r.errors ?? '?'} warnings:${r.warnings ?? '?'} duration:${r.duration ? `${(r.duration / 1000).toFixed(1)}s` : '?'}`);
     }
     return { content: [{ type: 'text', text: lines.join('\n') }] };

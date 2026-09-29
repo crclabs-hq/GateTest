@@ -18,6 +18,31 @@
 
 const REPORT_SCHEMA_VERSION = 1;
 
+/**
+ * Every value `gatetest.gateStatus` can carry (docs/api/report-schema.md).
+ *
+ *   PASSED       the gate was applied and nothing blocked
+ *   BLOCKED      the gate was applied and something blocked (or a module crashed)
+ *   REPORT_ONLY  the gate was NOT applied — `--report-only` or an active
+ *                `--report-only-until` window; findings are reported, the
+ *                exit code is 0, and nothing here says "clean" (issue #842
+ *                DR-a: DavenRoe's report read `gateStatus: "PASSED"` above
+ *                1,974 errors). Present on a report-only run whether or not
+ *                errors were found, because the verdict was never made.
+ *
+ * Added at schema version 1 as an additive enum member: no pinned field was
+ * removed or renamed, so no version bump. A consumer that switches on
+ * `=== 'PASSED'` reads REPORT_ONLY as "not passed", which is the honest
+ * reading; one that switches on `=== 'BLOCKED'` reads it as "not blocked",
+ * which matches the exit code. Neither crashes.
+ */
+const GATE_STATUSES = Object.freeze(['PASSED', 'BLOCKED', 'REPORT_ONLY']);
+
+/** Does this verdict fail the process (exit 1)? Only BLOCKED does. */
+function blocksGate(gateStatus) {
+  return gateStatus === 'BLOCKED';
+}
+
 // Entries the report currently marks deprecated: `{ field, since, removeIn }`.
 // Empty on purpose — nothing is deprecated at schema version 1. A field that
 // leaves REPORT_CONTRACT must first appear here for one minor release.
@@ -114,4 +139,4 @@ function checkReportContract(report) {
   return { ok: missing.length === 0, missing };
 }
 
-module.exports = { REPORT_SCHEMA_VERSION, REPORT_DEPRECATED, REPORT_CONTRACT, checkReportContract };
+module.exports = { REPORT_SCHEMA_VERSION, REPORT_DEPRECATED, REPORT_CONTRACT, GATE_STATUSES, blocksGate, checkReportContract };
