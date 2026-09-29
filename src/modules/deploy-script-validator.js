@@ -38,7 +38,24 @@ const HEALTH_URL_RE_BARE   = /(?:curl|wget)\s+https?:\/\/[^\s/'"]{1,80}(\/[a-z/_
 // `body_path: /tmp/release-notes-header.md` (softprops/action-gh-release) is a
 // file, not a probe — `_path` slipped through when only [A-Za-z] was refused
 // (self-scan 2026-09-16).
-const K8S_PROBE_RE  = /(?<![A-Za-z0-9_\-.])(?:path|httpGet\.path)\s*:\s*['"]?(\/[a-z/_\-0-9]{1,60})['"]?/gi;
+//
+// GT-09 (#771): `path: /tmp/e2e-api.log` under `actions/upload-artifact`
+// (AlecRae.com .github/workflows/ci.yml:408) was harvested as the probe
+// `/tmp/e2e-api` — the `[a-z/_\-0-9]` class stops at the `.`, so the
+// FILE EXTENSION that would have given it away was thrown out of the match.
+// A probe path is a URL path; a value that carries a file extension
+// (`.log`, `.md`, `.json`, `.tgz`) or lives under a filesystem root
+// (`/tmp/`, `/var/`, `/home/`, `/opt/`, ...) is a file on disk, not a
+// route. The optional second group captures the extension so the harvest
+// loop can refuse the match; `/api/health` and `/nope-probe` carry neither
+// and still fire.
+const K8S_PROBE_RE  = /(?<![A-Za-z0-9_\-.])(?:path|httpGet\.path)\s*:\s*['"]?(\/[a-z/_\-0-9]{1,60})(\.[a-z0-9]{1,8})?['"]?/gi;
+const FILESYSTEM_ROOT_RE = /^\/(?:tmp|var|etc|home|usr|opt|root|srv|mnt|dev|proc|sys|run|bin|sbin|lib|lib64)(?:\/|$)/i;
+
+function looksLikeFilePath(urlPath, extension) {
+  if (extension) return true;
+  return FILESYSTEM_ROOT_RE.test(urlPath);
+}
 
 // Health endpoints a FRAMEWORK registers without any route in the repo:
 // Spring Boot Actuator, ASP.NET health checks, k8s conventions.
@@ -138,6 +155,8 @@ class DeployScriptValidator extends BaseModule {
 
         K8S_PROBE_RE.lastIndex = 0;
         while ((m = K8S_PROBE_RE.exec(content)) !== null) {
+          // GT-09 (#771): a file on disk is not a probe — see K8S_PROBE_RE.
+          if (looksLikeFilePath(m[1], m[2])) continue;
           const url    = m[1].split('?')[0];
           const lineNo = content.slice(0, m.index).split(/\r?\n/).length;
           if (!deployHealthUrls.has(url)) {
