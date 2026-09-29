@@ -86,8 +86,20 @@ const SUPPRESS_RE = /\bflag-ok\b/;
 // JS/TS: `if (true)` / `if (1)` / `if (!false)` / `if (!0)` possibly
 // with extra whitespace. We match the opening paren and require the
 // literal to be the SOLE expression — no `&&` / `||`.
-const JS_ALWAYS_TRUE_RE = /\bif\s*\(\s*(?:true|1|!\s*false|!\s*0)\s*\)/;
-const JS_ALWAYS_FALSE_RE = /\bif\s*\(\s*(?:false|0|!\s*true|!\s*1)\s*\)/;
+// The `if` must sit where a STATEMENT starts — line start, after `{` `}`
+// `;` `:` `)` or `else` — so the sentence "...is PHC income if (1) a named
+// individual must" in JSX text (DavenRoe USCorpTaxationsGuide.jsx:591, #842
+// DR-2) is not `if (1)`: a word precedes it, and no JS statement follows a
+// word. Prose that carries the `>` of its opening tag on an earlier line has
+// nothing else on its own line to say it is not code.
+const JS_STATEMENT_IF = /(?:^|[{};:)]|\belse)\s*if\s*\(\s*/.source;
+const JS_ALWAYS_TRUE_RE = new RegExp(`${JS_STATEMENT_IF}(?:true|1|!\\s*false|!\\s*0)\\s*\\)`);
+const JS_ALWAYS_FALSE_RE = new RegExp(`${JS_STATEMENT_IF}(?:false|0|!\\s*true|!\\s*1)\\s*\\)`);
+// A .jsx/.tsx line whose previous line ended by closing an opening tag (`>`,
+// not `=>`) and that does not itself start a tag, an expression or a block
+// is the text of that element — English, not JavaScript.
+const JSX_TAG_END_RE = /(?<!=)>\s*$/;
+const JSX_TEXT_START_RE = /^\s*(?!<|\{|\}|\))\S/;
 
 // JS/TS: `const FEATURE_X = true;` — stale flag collapsed into a compile-
 // time constant. We restrict to `const` (not `let` / `var`) because the
@@ -175,6 +187,7 @@ class FeatureFlagModule extends BaseModule {
     let issues = 0;
     let inBlock = false;
     let inTemplate = false;  // multi-line backtick template state
+    let prevCode = '';       // last non-blank stripped line (JSX text state)
 
     for (let i = 0; i < lines.length; i += 1) {
       let line = lines[i];
@@ -215,7 +228,9 @@ class FeatureFlagModule extends BaseModule {
       // the if-keyword is NOT inside a JS block (line doesn't start with `if`
       // after trim), treat as JSX text. Only applies to .jsx/.tsx files.
       const isJsxFile = /\.[jt]sx$/.test(rel);
-      const jsxTextContext = isJsxFile && />[^{]*\bif\s*\(/.test(line);
+      const jsxTextContext = isJsxFile && (/>[^{]*\bif\s*\(/.test(line)
+        || (JSX_TAG_END_RE.test(prevCode) && JSX_TEXT_START_RE.test(line)));
+      prevCode = line.trim() ? line : prevCode;
 
       // Rule 1: `if (true | 1 | !false | !0)` — always-true
       if (!jsxTextContext && JS_ALWAYS_TRUE_RE.test(line)) {
