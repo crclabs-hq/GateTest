@@ -50,6 +50,7 @@ itself still uses the old variable names until the owner's cutover.
 - JSON report is a versioned contract: top-level `schemaVersion: 1` (also SARIF
   `runs[0].properties`, JUnit `<testsuites>`), pinned fields in
   `docs/api/report-schema.md` + `tests/report-schema-contract.test.js` (closes #803).
+- `--crawl` honours `--module` / `--suite` (closes #802): crawl-capable members run against the site, the rest are named on one "not crawl-capable, skipped" line and in `summary.deferred`; none capable is exit 2 under `--strict`/CI. One list: `CRAWL_CAPABLE_MODULES` in `src/core/config.js`. Bare `--crawl` unchanged (liveCrawler only); `--crawl --suite web` is the hosted /web set.
 - Telemetry host guard + `GATETEST_TELEMETRY` switch + first-run field list +
   `--telemetry-status`: #811 (refs #801); default stays `'on'` until the owner sets
   `TELEMETRY_DEFAULT`; `npm deprecate` of 1.60.0 and earlier is owner-only.
