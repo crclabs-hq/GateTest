@@ -65,9 +65,11 @@ describe('scan-telemetry — _buildRecord shape + anonymization', () => {
     assert.ok(!/\bfile\b|\bline\b|\bmessage\b|\bchecks\b/.test(serialized), `PII-shaped key leaked: ${serialized}`);
   });
 
-  it('gateStatus normalizes to PASSED / BLOCKED only', () => {
+  it('gateStatus normalizes to PASSED / BLOCKED / REPORT_ONLY only', () => {
     const passed = scanTelemetry._buildRecord({ gateStatus: 'PASSED', results: [] }, {});
     assert.equal(passed.gateStatus, 'PASSED');
+    const reportOnly = scanTelemetry._buildRecord({ gateStatus: 'REPORT_ONLY', results: [] }, {});
+    assert.equal(reportOnly.gateStatus, 'REPORT_ONLY');
     const weird = scanTelemetry._buildRecord({ gateStatus: 'WHATEVER', results: [] }, {});
     assert.equal(weird.gateStatus, 'BLOCKED');
   });

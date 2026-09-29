@@ -25,7 +25,11 @@ The same number appears in the other formats:
 
 A pinned field is removed only one minor release after it appears in the
 report's top-level `deprecated` array as `{ "field", "since", "removeIn" }`.
-Removal or rename also bumps `schemaVersion`. Additions never bump it.
+Removal or rename also bumps `schemaVersion`. Additions never bump it -
+neither a new field nor a new value of an enumerated field such as
+`gateStatus`. A consumer comparing `gateStatus === 'PASSED'` reads a new value
+as not passed; one comparing `=== 'BLOCKED'` reads it as not blocked, which
+matches the exit code. `src/core/report-schema.js` exports `GATE_STATUSES`.
 At version 1, `deprecated` is empty.
 
 ## Stable fields
@@ -48,7 +52,11 @@ At version 1, `deprecated` is empty.
 
 - `version` - engine version that produced the report.
 - `timestamp` - ISO timestamp of the run.
-- `gateStatus` - the verdict: `PASSED` or `BLOCKED`.
+- `gateStatus` - the verdict: `PASSED`, `BLOCKED` or `REPORT_ONLY`.
+  `REPORT_ONLY` means the gate was not applied (`--report-only`, or an active
+  `--report-only-until` window): findings are reported, the exit code is 0,
+  and no verdict was made - it is present whether or not errors were found.
+  Added at version 1 as an additive enum member (see below).
 
 ### `summary`
 

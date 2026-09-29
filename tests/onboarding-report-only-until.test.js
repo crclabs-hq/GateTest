@@ -139,7 +139,8 @@ describe('CLI --report-only-until — end to end', () => {
     assert.equal(r.status, 0, r.stderr);
     const doc = JSON.parse(r.stdout);
     assert.equal(doc.enforcing, false);
-    assert.equal(doc.gateStatus, 'PASSED');
+    // #842 DR-a: the gate was not applied, so the verdict is REPORT_ONLY, not PASSED.
+    assert.equal(doc.gateStatus, 'REPORT_ONLY');
     assert.equal(doc.reportOnlyUntil.date, future);
     assert.equal(doc.reportOnlyUntil.active, true);
     // Report-only never means empty: the finding is still visible.

@@ -252,10 +252,11 @@ describe('route wiring (source level)', () => {
   });
 
   it('/api/status names the client id as IMPORTANT with a customer-visible why; secret + base URL are optional', () => {
-    const src = read('app/api/status/route.ts');
-    const important = src.slice(src.indexOf('export const IMPORTANT'), src.indexOf('const OPTIONAL'));
+    // The lists moved to app/lib/env-catalogue.js (2026-09-30); /api/status imports them.
+    const src = read('app/lib/env-catalogue.js');
+    const important = src.slice(src.indexOf('const IMPORTANT'), src.indexOf('const OPTIONAL'));
     assert.match(important, /\{ name: "GLUECRON_OAUTH_CLIENT_ID", why: "customer 'Sign in with Gluecron' button is absent from \/login until set/);
-    const optional = src.slice(src.indexOf('const OPTIONAL'), src.indexOf('const ALIASES'));
+    const optional = src.slice(src.indexOf('const OPTIONAL = '), src.indexOf('const OPTIONAL_WHY'));
     assert.match(optional, /"GLUECRON_OAUTH_CLIENT_SECRET", "GLUECRON_OAUTH_BASE_URL"/);
   });
 

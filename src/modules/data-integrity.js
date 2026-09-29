@@ -223,15 +223,6 @@ class DataIntegrityModule extends BaseModule {
       {
         regex: /console\.(log|info|debug)\s*\(.*(?:email|password|ssn|credit.?card|phone)/gi,
         type: 'PII in logs',
-        // GT-12 (#771): an operator CLI under bin/, scripts/ or cli/ (or a
-        // shebang file) printing the address it was asked to act on, or the
-        // one-time password it just generated for the human running it
-        // (AlecRae.com apps/api/scripts/create-admin-user.ts), is the tool
-        // confirming what it did — nothing reaches a log stack. Five of the
-        // AlecRae "PII in logs" errors were apps/api/scripts/*.ts. The same
-        // console.log(email) in application code still fires. One
-        // definition, shared with logPii: src/core/operator-cli.js.
-        exemptFile: (relPath, content) => isOperatorCliFile(relPath, content),
       },
       {
         regex: /JSON\.stringify\s*\(.*(?:password|secret|token)/gi,
@@ -268,6 +259,17 @@ class DataIntegrityModule extends BaseModule {
       if (/^src[\\/]modules[\\/]/.test(relPath)) continue;
 
       const content = fs.readFileSync(file, 'utf-8');
+      // GT-12 (#771) / DR-6 (#842): an operator or dev-only tool — bin/,
+      // scripts/, cli/, a shebang file, a package.json-named tools/ dir —
+      // printing the address it was asked to act on, generating a one-time
+      // password for the human running it (AlecRae.com
+      // apps/api/scripts/create-admin-user.ts), or seeding a token into the
+      // Playwright context it drives (DavenRoe frontend/scripts/inspect.mjs)
+      // is the tool doing its job. Nothing ships, nothing reaches a log
+      // stack. The same line in application code still fires. One
+      // definition, shared with logPii and hardcodedUrl:
+      // src/core/operator-cli.js.
+      if (isOperatorCliFile(relPath, content, projectRoot)) continue;
       const lines = content.split(/\r?\n/);
       // Strings, regex literals and comments blanked to spaces, offsets kept
       // (BaseModule._maskedLines — the one stripper). The PII regexes read
@@ -279,8 +281,7 @@ class DataIntegrityModule extends BaseModule {
       // comment that spans lines.
       const masked = this._maskedLines(content);
 
-      for (const { regex, type, exempt, exemptFile } of piiPatterns) {
-        if (exemptFile && exemptFile(relPath, content)) continue;
+      for (const { regex, type, exempt } of piiPatterns) {
         regex.lastIndex = 0;
         // Check each line individually so suppression comments can work.
         // Also skip if the ENTIRE file has a file-level suppression.
