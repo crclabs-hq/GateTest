@@ -13,6 +13,15 @@ const { repoRelative } = require('../core/repo-path');
 // health check of /api/health, not of "/api/health;" (self-scan 2026-09-16).
 const CURL_PATTERN  = /curl\s+(?:-[a-zA-Z0-9]+\s+)*['"]?(https?:\/\/[^\s'";)|&]+|localhost[^\s'"#;)|&]*|127\.[0-9.]+[^\s'"#;)|&]*|\$\{?[A-Z_]+\}?[^\s'"#;)|&]*)['"]?/g;
 const WGET_PATTERN  = /wget\s+(?:-[a-zA-Z0-9]+\s+)*['"]?(https?:\/\/[^\s'";)|&]+|localhost[^\s'"#;)|&]*|\$\{?[A-Z_]+\}?[^\s'"#;)|&]*)['"]?/g;
+// The value of an output flag is the file the body is written to, not the
+// URL: `curl -fsSL -o $OUT https://host/tool.tgz` in a workflow named
+// status.yml was recorded as a health check of "$OUT" -> "/", and
+// `-o /tmp/tool.tgz` hid the real URL on the same line (refs #771). Flag and
+// value are blanked before the URL patterns run. curl: `-o <file>`,
+// `-o<file>`, `-sSo <file>`, `--output <file>`, `--output=<file>`; wget:
+// `-O <file>`, `-O<file>`, `--output-document[=]<file>`.
+const CURL_OUTPUT_FLAG = /(?<=\bcurl\s[^|;&]*)(?<=\s)(?:-[a-zA-Z0-9]*o|--output)(?:=|\s*)(?:'[^']*'|"[^"]*"|[^\s'";)|&]+)/g;
+const WGET_OUTPUT_FLAG = /(?<=\bwget\s[^|;&]*)(?<=\s)(?:-[a-zA-Z0-9]*O|--output-document)(?:=|\s*)(?:'[^']*'|"[^"]*"|[^\s'";)|&]+)/g;
 const HEALTH_WORDS  = /health|ping|ready|alive|status|liveness|readiness/i;
 
 // Route detection
@@ -113,7 +122,8 @@ class DeployContractModule extends BaseModule {
 
       lines.forEach((rawLine, idx) => {
         // Strip YAML 'run: |' prefix noise
-        const line = rawLine.replace(/^\s*-?\s*run:\s*\|?\s*/, '').trim();
+        const line = rawLine.replace(/^\s*-?\s*run:\s*\|?\s*/, '').trim()
+          .replace(CURL_OUTPUT_FLAG, ' ').replace(WGET_OUTPUT_FLAG, ' ');
 
         for (const pattern of [CURL_PATTERN, WGET_PATTERN]) {
           pattern.lastIndex = 0;
