@@ -147,12 +147,14 @@ describe('wiring', () => {
     assert.doesNotMatch(read('next.config.ts'), /source: "\/login"/, 'a config redirect would shadow the page');
   });
 
-  // GitHub (#819), Google and GitLab (owner directive 2026-09-29) all carry
-  // next through a validated httpOnly cookie and land failures on /login.
+  // GitHub (#819), Google and GitLab (owner directive 2026-09-29) and
+  // Gluecron all carry next through a validated httpOnly cookie and land
+  // failures on /login.
   for (const [label, initiate, callback, cookie] of [
     ['GitHub', 'app/api/auth/github/route.ts', 'app/api/auth/callback/route.ts', 'gh_oauth_next'],
     ['Google', 'app/api/auth/google/route.ts', 'app/api/auth/google/callback/route.ts', 'goog_oauth_next'],
     ['GitLab', 'app/api/auth/gitlab/route.ts', 'app/api/auth/gitlab/callback/route.ts', 'gl_oauth_next'],
+    ['Gluecron', 'app/api/auth/gluecron/route.ts', 'app/api/auth/gluecron/callback/route.ts', 'glc_oauth_next'],
   ]) {
     it(`the ${label} OAuth round trip carries next and validates it both ways`, () => {
       const init = read(initiate);
@@ -175,7 +177,8 @@ const providersSrc = read('app/lib/sign-in-providers.js');
 // NEXT_PUBLIC_BASE_URL + SESSION_SECRET plus its own client id and secret.
 function withEnv(vars, fn) {
   const keys = ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITLAB_CLIENT_ID', 'GITLAB_CLIENT_SECRET',
-    'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'NEXT_PUBLIC_BASE_URL', 'SESSION_SECRET'];
+    'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GLUECRON_OAUTH_CLIENT_ID', 'GLUECRON_OAUTH_CLIENT_SECRET',
+    'GLUECRON_OAUTH_BASE_URL', 'GLUECRON_BASE_URL', 'NEXT_PUBLIC_BASE_URL', 'SESSION_SECRET'];
   const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
   for (const k of keys) delete process.env[k];
   Object.assign(process.env, vars);
@@ -189,6 +192,7 @@ function available() {
     github: customerSession.getOAuthConfig().ok,
     google: customerSession.getGoogleOAuthConfig().ok,
     gitlab: customerSession.getGitLabOAuthConfig().ok,
+    gluecron: customerSession.getGluecronOAuthConfig().ok,
   };
 }
 
@@ -238,14 +242,46 @@ describe('/login providers — a button iff the provider is configured', () => {
     assert.deepEqual(linksOf(list), []);
   });
 
-  it('Gluecron is a muted line with no href and is not gated on any env var', () => {
+  it('Gluecron unconfigured: a muted line with no href, and the copy names no env var', () => {
     const list = providers.signInProviders({ available: { github: true, google: true, gitlab: true } });
     const glue = list.find((e) => e.id === 'gluecron');
     assert.equal(glue.href, undefined);
     assert.equal(glue.label, 'Sign in with Gluecron');
     assert.equal(glue.note, 'coming soon');
     assert.doesNotMatch(providersSrc, /process\.env/, 'the list is pure; the page passes the getters in');
+    assert.doesNotMatch(providersSrc, /GLUECRON_OAUTH/, 'no env leak in customer copy');
     assert.doesNotMatch(read('app/login/page.tsx'), /GLUECRON_OAUTH/);
+  });
+
+  it('Gluecron configured (client id, no secret = public client + PKCE): a real button, first, carrying next', ts, () => {
+    const list = withEnv({ ...BASE, GLUECRON_OAUTH_CLIENT_ID: 'glc', GITHUB_CLIENT_ID: 'id', GITHUB_CLIENT_SECRET: 's' },
+      () => providers.signInProviders({ available: available(), next: '/dashboard/usage' }));
+    assert.deepEqual(linksOf(list), ['gluecron', 'github']);
+    assert.equal(list[0].label, 'Sign in with Gluecron');
+    assert.equal(list[0].href, '/api/auth/gluecron?next=%2Fdashboard%2Fusage');
+    assert.deepEqual(soonOf(list), ['password'], 'the coming-soon line is gone once the button is real');
+  });
+
+  it('Gluecron with a client secret is offered too; without SESSION_SECRET it is not', ts, () => {
+    const withSecret = withEnv({ ...BASE, GLUECRON_OAUTH_CLIENT_ID: 'glc', GLUECRON_OAUTH_CLIENT_SECRET: 'gs' },
+      () => providers.signInProviders({ available: available() }));
+    assert.deepEqual(linksOf(withSecret), ['gluecron']);
+    const noSession = withEnv({ NEXT_PUBLIC_BASE_URL: 'https://example.test', GLUECRON_OAUTH_CLIENT_ID: 'glc' },
+      () => providers.signInProviders({ available: available() }));
+    assert.deepEqual(linksOf(noSession), []);
+    assert.deepEqual(soonOf(noSession), ['gluecron', 'password']);
+  });
+
+  it('the Gluecron getter: redirect URI from NEXT_PUBLIC_BASE_URL, base URL from GLUECRON_OAUTH_BASE_URL > GLUECRON_BASE_URL > gluecron.com', ts, () => {
+    const cfg = withEnv({ ...BASE, GLUECRON_OAUTH_CLIENT_ID: 'glc' }, () => customerSession.getGluecronOAuthConfig());
+    assert.equal(cfg.ok, true);
+    assert.equal(cfg.config.redirectUri, 'https://example.test/api/auth/gluecron/callback');
+    assert.equal(cfg.config.gluecronBaseUrl, 'https://gluecron.com');
+    assert.equal(cfg.config.clientSecret, '');
+    const staged = withEnv({ ...BASE, GLUECRON_OAUTH_CLIENT_ID: 'glc', GLUECRON_BASE_URL: 'https://staging.gluecron.com/' }, () => customerSession.getGluecronOAuthConfig());
+    assert.equal(staged.config.gluecronBaseUrl, 'https://staging.gluecron.com');
+    const missing = withEnv({ SESSION_SECRET: SECRET }, () => customerSession.getGluecronOAuthConfig());
+    assert.deepEqual(missing.missing, ['GLUECRON_OAUTH_CLIENT_ID', 'NEXT_PUBLIC_BASE_URL']);
   });
 
   it('email + password links to /login/password only behind PASSWORD_AUTH_ENABLED', () => {
@@ -267,7 +303,7 @@ describe('/login providers — a button iff the provider is configured', () => {
   });
 
   it('every error code a callback redirects with has copy', () => {
-    for (const rel of ['app/api/auth/callback/route.ts', 'app/api/auth/google/callback/route.ts', 'app/api/auth/gitlab/callback/route.ts']) {
+    for (const rel of ['app/api/auth/callback/route.ts', 'app/api/auth/google/callback/route.ts', 'app/api/auth/gitlab/callback/route.ts', 'app/api/auth/gluecron/callback/route.ts']) {
       const codes = [...read(rel).matchAll(/\/login\?error=(\w+)`/g)].map((m) => m[1]);
       assert.ok(codes.length >= 4, `${rel} redirects with ${codes.length} codes`);
       for (const code of codes) {
@@ -277,6 +313,8 @@ describe('/login providers — a button iff the provider is configured', () => {
     }
     assert.match(providers.errorMessage('google_token_failed'), /^Google /);
     assert.match(providers.errorMessage('gitlab_user_failed'), /^GitLab /);
+    assert.match(providers.errorMessage('gluecron_user_failed'), /^Gluecron did not return your profile/);
+    assert.match(providers.errorMessage('gluecron_email_unverified'), /^Gluecron /);
     assert.equal(providers.errorMessage('nonsense'), providers.GENERIC_ERROR);
     assert.equal(providers.errorMessage(undefined), null);
   });

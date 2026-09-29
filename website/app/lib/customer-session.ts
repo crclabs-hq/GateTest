@@ -1,11 +1,12 @@
 /**
  * Customer session utilities — HMAC-signed cookies for multi-provider OAuth.
  *
- * Supports GitHub, GitLab, and Google. All providers share the same session
+ * Supports GitHub, GitLab, Google and Gluecron. All providers share the same session
  * cookie format (HMAC-SHA256 signed JWT). Session lasts 30 days.
  */
 
 import crypto from "crypto";
+import { gluecronOAuthBaseUrl } from "./gluecron-oauth.js";
 
 export const CUSTOMER_COOKIE_NAME = "gatetest_customer";
 export const CUSTOMER_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
@@ -281,4 +282,49 @@ export function getGoogleOAuthConfig(): GoogleOAuthConfigStatus {
 
   if (missing.length > 0) return { ok: false, missing };
   return { ok: true, missing: [], config: { clientId, clientSecret, redirectUri, sessionSecret } };
+}
+
+// ── Gluecron OAuth ────────────────────────────────────────────────────────────
+// Same shape as the three above, two deliberate differences: the client
+// secret is optional (PKCE + client_secret_post when set, a public client
+// with PKCE when not — both accepted by Gluecron), and the authorization
+// server's base URL is part of the config so the routes discover its
+// endpoints from one place (lib/gluecron-oauth.js).
+
+interface GluecronOAuthConfig {
+  clientId: string;
+  clientSecret: string; // "" for a public client
+  redirectUri: string;
+  sessionSecret: string;
+  gluecronBaseUrl: string;
+}
+
+interface GluecronOAuthConfigStatus {
+  ok: boolean;
+  missing: string[];
+  config?: GluecronOAuthConfig;
+}
+
+export function getGluecronOAuthConfig(): GluecronOAuthConfigStatus {
+  const clientId = process.env.GLUECRON_OAUTH_CLIENT_ID || "";
+  const clientSecret = process.env.GLUECRON_OAUTH_CLIENT_SECRET || "";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+  const redirectUri = baseUrl
+    ? `${baseUrl.replace(/\/$/, "")}/api/auth/gluecron/callback`
+    : "";
+  const sessionSecret = process.env.SESSION_SECRET || "";
+  const gluecronBaseUrl: string = gluecronOAuthBaseUrl(process.env);
+
+  const missing: string[] = [];
+  if (!clientId) missing.push("GLUECRON_OAUTH_CLIENT_ID");
+  if (!redirectUri) missing.push("NEXT_PUBLIC_BASE_URL");
+  if (!sessionSecret) missing.push("SESSION_SECRET");
+  if (!gluecronBaseUrl) missing.push("GLUECRON_OAUTH_BASE_URL");
+
+  if (missing.length > 0) return { ok: false, missing };
+  return {
+    ok: true,
+    missing: [],
+    config: { clientId, clientSecret, redirectUri, sessionSecret, gluecronBaseUrl },
+  };
 }

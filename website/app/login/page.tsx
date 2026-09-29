@@ -7,6 +7,7 @@ import {
   getOAuthConfig,
   getGitLabOAuthConfig,
   getGoogleOAuthConfig,
+  getGluecronOAuthConfig,
   verifyCustomerSession,
 } from "@/app/lib/customer-session";
 import { safeNext } from "@/app/lib/session-gate";
@@ -17,9 +18,10 @@ import { PASSWORD_AUTH_ENABLED } from "@/app/lib/auth-features";
  * /login — the sign-in entry (#810; providers per owner directive 2026-09-29).
  *
  * Anonymous: one button per provider this deployment can actually serve
- * (GitHub, Google, GitLab), decided server-side from the OAuth config getters,
- * plus honest "coming soon" lines for Gluecron and email + password until
- * those flows exist. Signed in: straight on to `next`, or /dashboard. There is
+ * (Gluecron, GitHub, Google, GitLab), decided server-side from the OAuth
+ * config getters, plus honest "coming soon" lines for Gluecron (until its
+ * client id is set) and email + password (until that flow exists). Signed
+ * in: straight on to `next`, or /dashboard. There is
  * no separate sign-up — /register, /signup and /sign-up are permanent
  * redirects here (next.config.ts), because the first sign-in with any provider
  * is how an account starts. `website/proxy.ts` sends anonymous requests for
@@ -51,11 +53,15 @@ export default async function LoginPage({
   const github = getOAuthConfig();
   const google = getGoogleOAuthConfig();
   const gitlab = getGitLabOAuthConfig();
+  const gluecron = getGluecronOAuthConfig();
 
   // Every provider signs the same cookie with SESSION_SECRET; any configured
   // one can vouch for an existing session.
   const sessionSecret =
-    github.config?.sessionSecret ?? google.config?.sessionSecret ?? gitlab.config?.sessionSecret;
+    github.config?.sessionSecret ??
+    google.config?.sessionSecret ??
+    gitlab.config?.sessionSecret ??
+    gluecron.config?.sessionSecret;
   const cookieStore = await cookies();
   if (sessionSecret) {
     const session = verifyCustomerSession(cookieStore.get(CUSTOMER_COOKIE_NAME)?.value, sessionSecret);
@@ -66,7 +72,7 @@ export default async function LoginPage({
   const errorMessage = errorCode ? ERRORS[errorCode] ?? GENERIC_ERROR : null;
 
   const entries = signInProviders({
-    available: { github: github.ok, google: google.ok, gitlab: gitlab.ok },
+    available: { github: github.ok, google: google.ok, gitlab: gitlab.ok, gluecron: gluecron.ok },
     next,
     passwordAuth: PASSWORD_AUTH_ENABLED,
   });
