@@ -795,3 +795,57 @@ describe('security — a pattern inside a string, a template or a comment is ine
     assert.deepStrictEqual(lines, [8]);
   });
 });
+
+// =============================================================================
+// #842 DR-1 (DavenRoe, 2026-09-29): "CSRF protection disabled" fired CRITICAL
+// on `desc: '…Cannot be disabled. Examples: login tokens, CSRF protection.'`
+// (CookiePolicy.jsx:380). Two causes, both fixed: an apostrophe in JSX text
+// two lines up inverted the mask (src/core/source-strip.js), and the rule
+// was two words on a line (`disable.*csrf`) rather than a code shape.
+// =============================================================================
+
+describe('security — CSRF disablement is a code shape, never prose in a JSX string or JSX text (#842 DR-1)', () => {
+  let tmp7;
+  beforeEach(() => { tmp7 = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-sec-csrf-')); });
+  afterEach(() => { fs.rmSync(tmp7, { recursive: true, force: true }); });
+
+  async function scanJsx(source) {
+    fs.mkdirSync(path.join(tmp7, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(tmp7, 'package.json'), '{"name":"t","version":"1.0.0"}\n');
+    fs.writeFileSync(path.join(tmp7, 'src', 'CookiePolicy.jsx'), source);
+    const mod = new SecurityModule();
+    const result = makeResult();
+    await mod.run(result, { projectRoot: tmp7 });
+    return result.checks.filter((c) => !c.passed && /CSRF protection disabled/.test(c.name)).map((c) => c.line);
+  }
+
+  const PROSE = [
+    'export default function CookiePolicy() {',
+    '  return (',
+    '    <div>',
+    "      <p>We have designed DavenRoe's cookie use to be minimal by default,",
+    "        and how you can control it. Contact{' '}",
+    '        <span>privacy@example.com</span>. You cannot disable CSRF checks here.</p>',
+    '      {[',
+    "        { type: 'Essential', desc: 'Required for the platform to function. Cannot be disabled. Examples: login tokens, CSRF protection.' },",
+    '      ].map((c) => <Row key={c.type} {...c} />)}',
+    '    </div>',
+    '  );',
+    '}',
+  ];
+
+  it('NEGATIVE: the DavenRoe page — an apostrophe in JSX text, the sentence in a string, "disable CSRF" in JSX text — is quiet', async () => {
+    assert.deepStrictEqual(await scanJsx(PROSE.concat('').join('\n')), []);
+  });
+
+  it('POSITIVE: a real disablement beside the same prose still fires CRITICAL, on its own line only', async () => {
+    const real = [
+      "app.disable('csrf');",
+      'const settings = { csrf: false };',
+      'csrfProtection = false;',
+      'http.csrf().disable();',
+    ];
+    const lines = await scanJsx(PROSE.concat(real, '').join('\n'));
+    assert.deepStrictEqual(lines, [13, 14, 15, 16]);
+  });
+});

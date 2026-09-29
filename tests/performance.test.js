@@ -171,3 +171,51 @@ describe('PerformanceModule — event-cleanup accepts a qualified constructor be
     assert.strictEqual(mod()._leakyListenerCount(src), 3);
   });
 });
+
+// ── event-cleanup: a service worker keeps its listeners (#842 DR-5) ────────
+//
+// DavenRoe frontend/public/sw.js: install / activate / fetch / message on
+// `self`, never removed — by design. The listeners ARE the worker and live
+// exactly as long as it does; there is no unmount to remove them in.
+describe('PerformanceModule — a service worker lifecycle listener is not a leak (#842 DR-5)', () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const mod = () => new PerformanceModule();
+  const run = (name, content) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-perf-sw-'));
+    try {
+      fs.mkdirSync(path.join(root, 'public'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'public', name), content);
+      const checks = [];
+      const result = { addCheck(n, passed, details = {}) { checks.push({ name: n, passed, ...details }); } };
+      mod()._checkMemoryLeakPatterns(root, result);
+      return checks.filter((c) => !c.passed && c.name.startsWith('perf:event-cleanup:')).map((c) => c.name);
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  };
+
+  const SW = [
+    "const CACHE_VERSION = 'app-v1';",
+    "self.addEventListener('install', () => { self.skipWaiting(); });",
+    "self.addEventListener('activate', (event) => { event.waitUntil(self.clients.claim()); });",
+    "self.addEventListener('fetch', (event) => { event.respondWith(fetch(event.request)); });",
+    "self.addEventListener('message', (event) => { if (event.data === 'SKIP_WAITING') self.skipWaiting(); });",
+  ].join('\n');
+  const PAGE = [
+    'export function mount() {',
+    "  window.addEventListener('resize', onResize);",
+    "  window.addEventListener('scroll', onScroll);",
+    "  document.addEventListener('keydown', onKey);",
+    '}',
+  ].join('\n');
+
+  it('NEGATIVE: the DavenRoe service worker produces no perf:event-cleanup', () => {
+    assert.ok(mod()._isServiceWorker(SW));
+    assert.deepStrictEqual(run('sw.js', SW), []);
+  });
+
+  it('POSITIVE: a page adding window/document listeners with no cleanup still fires', () => {
+    assert.ok(!mod()._isServiceWorker(PAGE));
+    assert.deepStrictEqual(run('page.js', PAGE), ['perf:event-cleanup:public/page.js']);
+  });
+});
