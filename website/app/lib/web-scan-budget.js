@@ -84,7 +84,10 @@ function createDeadline(budgetMs) {
   return {
     budgetMs,
     get expired() { return expired; },
-    remainingMs() { return Math.max(0, budgetMs - (Date.now() - startedAt)); },
+    // Once the timer has fired nothing remains, whatever the wall clock says:
+    // setTimeout can fire a millisecond before Date.now() catches up, which
+    // made `remainingMs()` read 1 right after expiry (flaky CI, PR #830).
+    remainingMs() { return expired ? 0 : Math.max(0, budgetMs - (Date.now() - startedAt)); },
     async raceOr(promise, fallback) {
       const guarded = Promise.resolve(promise).catch((err) => { if (!expired) throw err; return fallback; });
       const winner = await Promise.race([guarded, expiry]);
