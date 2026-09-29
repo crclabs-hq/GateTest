@@ -219,20 +219,23 @@ function errorCopy(code, status) {
 }
 
 /**
- * The header's apply line.
+ * The header's apply line. `pending` is the NORMAL "the store changed and the
+ * env file has not been rewritten yet" state (listing reason `out_of_sync`):
+ * neutral, answered by an Apply action, never worded as a failure.
  *
  * @param {{ lastAppliedAt?: string | null, applied?: boolean, reason?: string } | undefined} s
  * @param {number} [now]
- * @returns {{ ok: boolean, text: string }}
+ * @returns {{ ok: boolean, pending: boolean, text: string }}
  */
 function applyStateCopy(s, now) {
-  if (!s) return { ok: false, text: 'Not applied yet' };
-  if (s.applied === false && s.reason) return { ok: false, text: `Could not write the env file: ${applyReasonCopy(s.reason)}` };
-  if (s.lastAppliedAt) {
-    const rel = relativeTime(s.lastAppliedAt, now);
-    return { ok: true, text: `Last applied ${rel || s.lastAppliedAt}` };
+  if (!s) return { ok: false, pending: false, text: 'Not applied yet' };
+  const last = s.lastAppliedAt ? relativeTime(s.lastAppliedAt, now) || s.lastAppliedAt : '';
+  if (s.applied === false && s.reason === 'out_of_sync') {
+    return { ok: false, pending: true, text: last ? `Changes not applied yet (last applied ${last})` : 'Changes not applied yet' };
   }
-  return { ok: false, text: 'Not applied yet' };
+  if (s.applied === false && s.reason) return { ok: false, pending: false, text: `Could not write the env file: ${applyReasonCopy(s.reason)}` };
+  if (s.lastAppliedAt) return { ok: true, pending: false, text: `Last applied ${last}` };
+  return { ok: false, pending: false, text: 'Not applied yet' };
 }
 
 /** @param {string} reason */
@@ -245,6 +248,12 @@ function applyReasonCopy(reason) {
       return 'the env file already matched, so nothing needed writing';
     case 'store_unavailable':
       return 'the store is not available';
+    case 'would_drop_keys':
+      return 'the env file holds names the store no longer has, and Apply never removes a name without asking';
+    case 'out_of_sync':
+      return 'the store changed since the env file was last written';
+    case 'readback_mismatch':
+      return 'the file read back differently from what was written, so the previous file was kept';
     case 'permission_denied':
     case 'EACCES':
       return 'the service cannot write the env file (permission denied)';
@@ -266,6 +275,78 @@ function applyResultCopy(apply) {
     ok: false,
     text: `Saved to the store, but the env file was not written: ${apply.reason ? applyReasonCopy(apply.reason) : 'no reason given'}.`,
   };
+}
+
+/**
+ * The names an apply answer is waiting on the owner to confirm removing:
+ * `would_drop_keys` means the env file holds names the store no longer has,
+ * and the server removes them only when a retry lists them in `allowRemoving`.
+ * Any other answer (applied, or a different reason) returns [].
+ *
+ * @param {{ applied?: boolean, reason?: string, dropped?: unknown } | undefined} r
+ * @returns {string[]}
+ */
+function namesToDrop(r) {
+  if (!r || r.applied || r.reason !== 'would_drop_keys' || !Array.isArray(r.dropped)) return [];
+  return r.dropped.filter((n) => typeof n === 'string' && n.length > 0);
+}
+
+/**
+ * The audit drawer's chain line. Intact ONLY when the server said so
+ * explicitly; a missing or malformed `chain` is "cannot tell", never intact.
+ * `brokenAt` is the 0-based index of the first bad row, oldest first.
+ *
+ * @param {{ ok?: unknown, count?: unknown, brokenAt?: unknown } | null | undefined} chain
+ * @returns {{ state: 'intact' | 'broken' | 'unknown', shape: 'dot' | 'ring', ink: 'accent' | 'ink' | 'muted', strong: boolean, text: string }}
+ */
+function chainStatus(chain) {
+  if (chain && typeof chain === 'object' && chain.ok === true) {
+    const n = Number.isInteger(chain.count) ? chain.count : null;
+    const text = n === null ? 'Chain intact' : `Chain intact across all ${n} entr${n === 1 ? 'y' : 'ies'}`;
+    return { state: 'intact', shape: 'dot', ink: 'accent', strong: false, text };
+  }
+  if (chain && typeof chain === 'object' && chain.ok === false) {
+    const at = Number.isInteger(chain.brokenAt) && chain.brokenAt >= 0 ? chain.brokenAt + 1 : null;
+    const text = at === null ? 'Chain broken (the server did not say where)' : `Chain broken at entry ${at}, counting from the oldest`;
+    return { state: 'broken', shape: 'dot', ink: 'ink', strong: true, text };
+  }
+  return { state: 'unknown', shape: 'ring', ink: 'muted', strong: false, text: 'Chain: cannot tell (the server did not report it)' };
+}
+
+const LIVENESS_OUTCOMES = ['alive', 'dead', 'cannot-tell', 'unchecked'];
+
+/**
+ * How an audit row's outcome is inked. A verify row's outcome is the vendor's
+ * liveness answer, not a success-or-failure, so it takes the same mark as the
+ * table's Liveness column; any other row is ok (accent) or a failure (ink,
+ * semibold).
+ *
+ * @param {{ action?: string, outcome?: string } | undefined} entry
+ * @returns {{ ink: 'accent' | 'ink' | 'muted', strong: boolean, label: string }}
+ */
+function auditOutcomeMark(entry) {
+  const outcome = entry && typeof entry.outcome === 'string' ? entry.outcome : '';
+  if (entry && entry.action === 'verify' && LIVENESS_OUTCOMES.includes(outcome)) {
+    const m = livenessMark(outcome);
+    return { ink: m.ink, strong: m.strong, label: m.label };
+  }
+  if (outcome === 'ok' || outcome === 'success') return { ink: 'accent', strong: false, label: outcome };
+  return { ink: 'ink', strong: true, label: outcome || 'unknown' };
+}
+
+/**
+ * Shorten a long string (an IPv6 address, a forwarded-for chain) by cutting
+ * the MIDDLE, so both the network prefix and the host end stay readable.
+ *
+ * @param {string | null | undefined} s
+ * @param {number} [max]  longest result, ellipsis included (default 20, at least 5)
+ */
+function middleTruncate(s, max) {
+  if (typeof s !== 'string') return '';
+  const limit = Math.max(5, Math.floor(max === undefined ? 20 : max));
+  if (s.length <= limit) return s;
+  const keep = limit - 1;
+  return `${s.slice(0, Math.ceil(keep / 2))}…${s.slice(s.length - Math.floor(keep / 2))}`;
 }
 
 /**
@@ -367,6 +448,10 @@ module.exports = {
   applyStateCopy,
   applyReasonCopy,
   applyResultCopy,
+  namesToDrop,
+  chainStatus,
+  auditOutcomeMark,
+  middleTruncate,
   warningCopy,
   runWithStepUp,
   scheduleRevealClear,
