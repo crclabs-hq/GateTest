@@ -890,3 +890,48 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
 - Still owner-only: box 161 journal + recovery deploy (must run INSIDE the ssh shell,
   not in PowerShell — attempted locally twice), 1.62.0 release, prod is now 40+
   commits behind main.
+
+### Addendum 2026-09-30 — account switch (ccantynz at 80% → ccanty48co): RESUME table
+
+Nothing lives only in a worktree: every dirty worktree was snapshotted to a `wip/<branch>`
+ref on origin with a separate git index (the running agents' files were not touched).
+Briefs for every running agent: docs/handoff/briefs/ (README + admin-resume-workflow.js).
+
+| Stream | Branch (remote) | sha | Worktree | Stage | Next command |
+|---|---|---|---|---|---|
+| Corpus regression — MAIN IS RED ("real repos must not be blocked": apollo-server 2 blocking, ceiling 0, since the #843/#844/#846 merges) | fix/corpus-apollo-regression (wip/…) | wip 95c90b9b on cb26ff38 | GateTest-wt-apollo | builder mid-fix (confidence.js, test-paths.js, security.js + tests uncommitted) | re-issue job `corpus` from the brief; `node scripts/real-world-precision.js --repo apollo-server` must say 0 |
+| Admin security (auth bypass on hn-launch/seo routes, GitHub Accounts tab broken, SSH heal hits our own box, route-guard consolidation, public scan gating) | fix/admin-auth-and-heal-guard (wip/…) | 9389f31b (2 commits, items A–B) | GateTest-wt-admin-sec | items C–E + PR + review pending | re-issue job `security` |
+| Repo Scan honesty (no unasked PRs, failed scan/fix never "PASSED"/"done") | fix/admin-repo-scan-honest (wip/…) | wip 9116115a | GateTest-wt-admin-autofix | builder mid-work | re-issue job `autofix` |
+| Secrets panel UI — PR #847 | feat/admin-secrets-panel (+ wip/…) | f24536a6, wip a4d3aae1 (file split under 500 lines in progress) | GateTest-wt-secrets-ui | split + dead exports + 5 audit fixes + 13 review threads | re-issue job `secrets-ui`; backend already merged (#849) |
+| Admin redesign round (Tallrig method, Craig chose "full method" + white AND black themes with identical structure) | — | — | — | measure ✔ (docs/admin-audit/01-measure.md), benchmark ✔ (02-benchmark.md), designers → judges → synthesis → critic RUNNING, no outputs yet | copy scratchpad outputs if any, then re-run the design track (briefs/README step 3–5) |
+| Public-site clean-white redesign — PARKED (Craig: "wrong repo" mid-way; confirm target before resuming) | wip/feat/clean-white-design-system | 6d561e99 on 0ae1e2bc | GateTest-wt-design | paused | none until Craig names the repo |
+
+Merged today (29–30 Sep): #836 (/login providers + "Install Gluecron" header), #837 (email +
+password sign-in), #839 (Sign in with Gluecron, PKCE), #822 (estate module 122, count sweep
+with Craig's allow), #843 (DR-1/2/3/5 + retired model → error), #844 (a11y line numbers +
+component collapse), #846 (authBypass client calls / FastAPI deps, placeholders, dev tools,
+REPORT_ONLY), #849 (secrets store + API). DavenRoe has NOT yet been paged to re-run on
+1dea3658 — do it once main is green.
+
+Admin audit headline (docs/admin-audit/01-measure.md): ~20 places render a failure as
+success/empty/zero/"healthy" (Repo Scan "PASSED" on a 500, Customers "No customers yet" on a
+DB error, Compliance "✓ Hash chain intact" when the check throws, Overview "present" for a
+missing AI key); two navigation systems (sidebar + 9 URL-less tabs); scan tools in four
+places; no customer page, no revenue view, no search.
+
+**Waits on Craig**
+1. **Box 161 is reachable only over the tailnet: `ssh jarvis`** (the public-IP command timed out
+   today). Production still serves 0baf4e93 (26 Sep) — none of this week's merges are live
+   (login, header, Gluecron sign-in, estate, health/deep, secrets). Every pull-deploy run is
+   killed mid-build. Run: `ssh jarvis "journalctl -u gatetest-pull-deploy -n 80 --no-pager"`
+   then `ssh -t jarvis "cd /opt/gatetest && git fetch origin main && git show origin/main:scripts/deploy/deploy-on-box.sh | DEPLOY_RECOVER=1 GATETEST_APP_DIR=/opt/gatetest bash -s"`.
+2. After that deploy: secrets panel box setup per docs/ops/secrets-panel.md (master key typed
+   into the env file, install-secrets.sh, import script).
+3. Google OAuth client id/secret on the box; Gluecron OAuth app (redirect
+   https://gatetest.io/api/auth/gluecron/callback) + GLUECRON_OAUTH_CLIENT_ID/SECRET; decide
+   Gluecron open sign-ups (the header now sends visitors there).
+4. Release @gatetest/cli 1.62.0 (npm is ~750 commits behind; Tallrig's 38 false
+   missing-title findings are fixed on main only).
+5. Standing: arena API key, TALLRIG_API_TOKEN and the #532 secret bundle; route the
+   "Production deploy stalled" issue (#796) to your phone.
+6. Name the repo meant for the parked public-site white redesign.
