@@ -31,6 +31,7 @@ export interface FlowResult {
   status: number;
   code: string;
   customer?: { id: string; email: string; github_login: string | null };
+  email?: string;
   delivered?: boolean | null;
 }
 

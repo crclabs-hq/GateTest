@@ -152,8 +152,8 @@ describe('tokens — 32 random bytes, sha256 stored, single use, 1 h', () => {
     assert.notEqual(store.tokens[0].tokenHash, token, 'the token itself is never stored');
 
     const v = await core.verify({ store, token, now: T0 + 1000 });
-    assert.equal(v.ok, true);
-    assert.equal(v.customer.email, 'new@example.com');
+    assert.deepEqual([v.ok, v.code, v.email], [true, 'verified', 'new@example.com']);
+    assert.equal(v.customer, undefined, 'verify hands out no sign-in identity');
     const c = store.customers.get('new@example.com');
     assert.equal(c.password_hash, store.tokens[0].payload);
     assert.ok(c.email_verified_at);
@@ -162,6 +162,39 @@ describe('tokens — 32 random bytes, sha256 stored, single use, 1 h', () => {
     assert.deepEqual([again.ok, again.code], [false, 'token_invalid'], 'single use');
     const after = await core.login({ store, email: 'new@example.com', password: GOOD, ip: '1.1.1.1', now: T0 + 3000 });
     assert.equal(after.ok, true);
+  });
+
+  it('a new verify token kills every outstanding one: after a re-register the older link is token_invalid, the newest works', async () => {
+    const store = memoryStore(); const mail = mailbox();
+    // Someone registers the address first (with their password)...
+    await core.register({ store, mail, origin: ORIGIN, email: 'pre@example.com', password: 'attacker-chosen-secret', now: T0 });
+    const older = linkToken(mail.sent[0]);
+    // ...then the mailbox owner registers it with theirs.
+    await core.register({ store, mail, origin: ORIGIN, email: 'pre@example.com', password: GOOD, now: T0 + 1 });
+    const newest = linkToken(mail.sent[1]);
+    assert.notEqual(older, newest);
+    assert.ok(store.tokens[0].used_at, 'the older token was invalidated when the newer one was issued');
+
+    const dead = await core.verify({ store, token: older, now: T0 + 2 });
+    assert.deepEqual([dead.ok, dead.code], [false, 'token_invalid']);
+    assert.equal(store.customers.get('pre@example.com').password_hash, null, 'nothing activated');
+
+    const live = await core.verify({ store, token: newest, now: T0 + 3 });
+    assert.deepEqual([live.ok, live.code], [true, 'verified']);
+    assert.equal((await core.login({ store, email: 'pre@example.com', password: GOOD, ip: '1.1.1.1', now: T0 + 4 })).ok, true);
+    assert.equal((await core.login({ store, email: 'pre@example.com', password: 'attacker-chosen-secret', ip: '1.1.1.2', now: T0 + 5 })).code, 'bad_credentials');
+  });
+
+  it('the verify link carries next, and the unverified-login resend also retires older links', async () => {
+    const store = memoryStore(); const mail = mailbox();
+    await core.register({ store, mail, origin: ORIGIN, email: 'nx@example.com', password: GOOD, next: '/dashboard/usage', now: T0 });
+    assert.match(mail.sent[0].text, /\/api\/auth\/password\/verify\?token=[A-Za-z0-9_-]+&next=%2Fdashboard%2Fusage/);
+    store.customers.get('nx@example.com').password_hash = store.tokens[0].payload; // pending-but-stored hash
+    const r = await core.login({ store, mail, origin: ORIGIN, email: 'nx@example.com', password: GOOD, ip: '7.7.7.7', now: T0 + 1 });
+    assert.equal(r.code, 'unverified');
+    assert.equal(store.tokens.length, 2);
+    assert.ok(store.tokens[0].used_at, 'first link retired by the resend');
+    assert.equal(store.tokens[1].used_at, null);
   });
 
   it('an expired verify token is refused', async () => {
@@ -278,6 +311,7 @@ describe('no user enumeration', () => {
     assert.match(mail.sent[1].subject, /already exists/);
     assert.match(mail.sent[1].text, /\/login\/password\/forgot/);
     assert.equal(store.tokens.length, 1, 'no second verify token');
+    assert.ok(store.tokens[0].used_at, 'the original verify token was consumed by the click, not reissued');
     assert.equal(store.customers.get('own@example.com').password_hash, hashBefore);
   });
   it('a right password on an unverified address is told so and gets the link again (the password proves ownership)', async () => {
@@ -389,6 +423,18 @@ describe('wiring — routes, pages, schema, gate', () => {
     }
     assert.match(read('website/app/api/auth/password/verify/route.ts'), /export async function GET\(/);
   });
+  it('verify never sets a session cookie: it 303s to /login/password?notice=verified with next carried', () => {
+    const src = read('website/app/api/auth/password/verify/route.ts');
+    assert.doesNotMatch(src, /signInCookie|Set-Cookie|signCustomerSession/);
+    assert.match(src, /redirectTo\(PAGE, \{ notice: result\.code, next \}\)/);
+    assert.match(src, /safeNext\(req\.nextUrl\.searchParams\.get\("next"\)\)/);
+    assert.equal(core.NOTICE_COPY.verified.length > 0, true);
+    // Only login sets the cookie among the six routes.
+    for (const name of ['register', 'verify', 'forgot', 'reset', 'change']) {
+      assert.doesNotMatch(read(`website/app/api/auth/password/${name}/route.ts`), /signInCookie/, name);
+    }
+    assert.match(read('website/app/api/auth/password/login/route.ts'), /signInCookie\(/);
+  });
   it('no route or helper logs the password field, the fields object or the body', () => {
     const files = [
       ...PUBLIC.map((n) => `website/app/api/auth/password/${n}/route.ts`),
@@ -421,7 +467,7 @@ describe('wiring — routes, pages, schema, gate', () => {
     const http = read('website/app/lib/password-auth-http.ts');
     assert.match(http, /from "\.\/site-url\.js"/);
     assert.doesNotMatch(http, /NEXT_PUBLIC_BASE_URL/);
-    assert.match(read('website/app/lib/password-auth-core.js'), /\$\{origin\}\/api\/auth\/password\/verify\?token=/);
+    assert.match(read('website/app/lib/password-auth-core.js'), /`\$\{origin\}\/api\/auth\/password\/verify\?\$\{q\.toString\(\)\}`/);
   });
   it('mail goes through the one transport (mail-transport.js deliver)', () => {
     assert.match(read('website/app/lib/password-auth-http.ts'), /from "\.\/mail-transport\.js"/);

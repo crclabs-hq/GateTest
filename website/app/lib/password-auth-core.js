@@ -291,7 +291,7 @@ const NOTICE_COPY = Object.freeze({
   reset_sent: 'If an account exists for that address, a password reset link is on its way.',
   reset_ok: 'Your password has been changed. Sign in with it now.',
   changed: 'Your password has been changed.',
-  verified: 'Your email is verified and your password is active.',
+  verified: 'Your email address is confirmed and your password is active. Sign in with it now.',
 });
 
 // ─── e-mail bodies (vendor-neutral, no platform names) ───────────────────────
@@ -300,15 +300,24 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/**
+ * Colour-free HTML on purpose. Mail clients ignore CSS custom properties, so
+ * the only way to colour a mail is to inline hex — which the v2 token guard
+ * (tests/no-hardcoded-color-literals.test.js) forbids in any new file. A mail
+ * that inherits the client's own text, link and background colours reads
+ * correctly in light and dark mode and needs no palette of its own; the
+ * layout (spacing, border, weight) is all that is set here. `border: 1px
+ * solid` with no colour uses currentColor, which is valid CSS.
+ */
 function mailShell(title, lines, link, linkLabel) {
   const text = `${title}\n\n${lines.join('\n')}\n\n${link}\n\nThis link is valid for one hour and can be used once. If you did not ask for it, ignore this message.\n\n— GateTest`;
-  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#0d1117;color:#e6edf3;font:15px/1.6 ui-sans-serif,system-ui,sans-serif">
-<div style="max-width:32rem;margin:0 auto;border:1px solid #ffffff14;border-radius:12px;background:#161b22;padding:28px">
+  const html = `<!doctype html><html><body style="margin:0;padding:24px;font:15px/1.6 ui-sans-serif,system-ui,sans-serif">
+<div style="max-width:32rem;margin:0 auto;border:1px solid;border-radius:12px;padding:28px">
 <h1 style="font-size:18px;margin:0 0 12px">${escapeHtml(title)}</h1>
-${lines.map((l) => `<p style="color:#8b949e;margin:0 0 12px">${escapeHtml(l)}</p>`).join('\n')}
-<p style="margin:20px 0"><a href="${escapeHtml(link)}" style="display:inline-block;padding:11px 20px;border-radius:8px;background:#0d9488;color:#fff;text-decoration:none;font-weight:600">${escapeHtml(linkLabel)}</a></p>
-<p style="color:#8b949e;font-size:13px;margin:0 0 8px">Or paste this address into your browser:<br><span style="word-break:break-all">${escapeHtml(link)}</span></p>
-<p style="color:#8b949e;font-size:13px;margin:0">This link is valid for one hour and can be used once. If you did not ask for it, ignore this message.</p>
+${lines.map((l) => `<p style="margin:0 0 12px">${escapeHtml(l)}</p>`).join('\n')}
+<p style="margin:20px 0"><a href="${escapeHtml(link)}" style="display:inline-block;padding:11px 20px;border:2px solid;border-radius:8px;font-weight:600">${escapeHtml(linkLabel)}</a></p>
+<p style="font-size:13px;margin:0 0 8px">Or paste this address into your browser:<br><span style="word-break:break-all">${escapeHtml(link)}</span></p>
+<p style="font-size:13px;margin:0">This link is valid for one hour and can be used once. If you did not ask for it, ignore this message.</p>
 </div></body></html>`;
   return { text, html };
 }
@@ -361,15 +370,36 @@ function result(ok, status, code, extra) {
   return Object.assign({ ok, status, code }, extra || {});
 }
 
-function verifyLink(origin, token) {
-  return `${origin}/api/auth/password/verify?token=${encodeURIComponent(token)}`;
+function verifyLink(origin, token, next) {
+  const q = new URLSearchParams({ token });
+  if (next) q.set('next', next);
+  return `${origin}/api/auth/password/verify?${q.toString()}`;
+}
+
+/**
+ * Issue a verify token for a customer and mail the link. Every outstanding
+ * verify token for that customer is invalidated first (the rule reset already
+ * has), so only the NEWEST mail can ever activate a password: an earlier
+ * registration by someone else against the same address cannot be completed
+ * by a click on a later link, and the other way round.
+ */
+async function issueVerify({ store, mail, origin, customer, pendingHash, next, now }) {
+  await store.invalidateTokens(customer.id, 'verify', now);
+  const { token, tokenHash } = newToken();
+  await store.insertToken({
+    id: crypto.randomUUID(), customerId: customer.id, kind: 'verify', tokenHash,
+    payload: pendingHash, expiresAt: now + TOKEN_TTL_MS, now,
+  });
+  return mail(verifyEmail({ to: customer.email, link: verifyLink(origin, token, next) }));
 }
 function resetLink(origin, token) {
   return `${origin}/login/password/reset?token=${encodeURIComponent(token)}`;
 }
 
-/** POST /api/auth/password/register */
-async function register({ store, mail, origin, email, password, now = Date.now() }) {
+/** POST /api/auth/password/register — `next` (already safeNext-checked by the
+ *  route) rides along in the verify link so the sign-in page after the click
+ *  can carry it on. */
+async function register({ store, mail, origin, email, password, next = /** @type {string|null} */ (null), now = Date.now() }) {
   const e = normaliseEmail(email);
   if (!isValidEmail(e)) return result(false, 400, 'email_invalid');
   const v = validatePassword(password, e);
@@ -386,17 +416,18 @@ async function register({ store, mail, origin, email, password, now = Date.now()
     return result(true, 200, 'verify_sent');
   }
 
-  const { token, tokenHash } = newToken();
-  await store.insertToken({
-    id: crypto.randomUUID(), customerId: customer.id, kind: 'verify', tokenHash,
-    payload: hash, expiresAt: now + TOKEN_TTL_MS, now,
-  });
-  const sent = await mail(verifyEmail({ to: e, link: verifyLink(origin, token) }));
+  const sent = await issueVerify({ store, mail, origin, customer, pendingHash: hash, next, now });
   if (!sent || !sent.ok) return result(false, 503, 'mail_unavailable');
   return result(true, 200, 'verify_sent');
 }
 
-/** GET /api/auth/password/verify?token= */
+/**
+ * GET /api/auth/password/verify?token= — activates the pending password and
+ * marks the address verified. It does NOT sign the caller in: the click
+ * proves the mailbox, the password proves the person, and the sign-in page
+ * asks for the second one. (A click on a link somebody else requested can
+ * therefore never hand out a session.)
+ */
 async function verify({ store, token, now = Date.now() }) {
   if (!isTokenShape(token)) return result(false, 400, 'token_invalid');
   const row = await store.findToken('verify', hashToken(token));
@@ -405,7 +436,7 @@ async function verify({ store, token, now = Date.now() }) {
   }
   await store.consumeToken(row.id, now);
   await store.setPassword(row.customer_id, row.payload, { verifiedAt: now, now });
-  return result(true, 200, 'verified', { customer: { id: row.customer_id, email: row.email, github_login: row.github_login || null } });
+  return result(true, 200, 'verified', { email: row.email });
 }
 
 /** POST /api/auth/password/login */
@@ -435,12 +466,7 @@ async function login({ store, mail, origin, email, password, ip, now = Date.now(
     // The password is right, so the caller owns it: it is safe to say why
     // they cannot get in, and to send the link again.
     if (typeof mail === 'function' && origin) {
-      const { token, tokenHash } = newToken();
-      await store.insertToken({
-        id: crypto.randomUUID(), customerId: customer.id, kind: 'verify', tokenHash,
-        payload: customer.password_hash, expiresAt: now + TOKEN_TTL_MS, now,
-      });
-      await mail(verifyEmail({ to: e, link: verifyLink(origin, token) }));
+      await issueVerify({ store, mail, origin, customer, pendingHash: customer.password_hash, next: null, now });
     }
     return result(false, 403, 'unverified');
   }

@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   try {
     const result = await register({
       store: store(), mail: mail.send, origin: origin(),
-      email: fields.email, password: fields.password,
+      email: fields.email, password: fields.password, next,
     });
     return answer(form, result, pages);
   } catch (err) {
