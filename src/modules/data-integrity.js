@@ -10,6 +10,7 @@ const { JS_SOURCE_EXTS, JS_SOURCE_EXTS_NO_JSX } = require('../core/source-extens
 const fs = require('fs');
 const path = require('path');
 const { repoRelative } = require('../core/repo-path');
+const { isOperatorCliFile } = require('../core/operator-cli');
 
 class DataIntegrityModule extends BaseModule {
   constructor() {
@@ -219,7 +220,19 @@ class DataIntegrityModule extends BaseModule {
     const jsFiles = this._collectFiles(projectRoot, JS_SOURCE_EXTS);
 
     const piiPatterns = [
-      { regex: /console\.(log|info|debug)\s*\(.*(?:email|password|ssn|credit.?card|phone)/gi, type: 'PII in logs' },
+      {
+        regex: /console\.(log|info|debug)\s*\(.*(?:email|password|ssn|credit.?card|phone)/gi,
+        type: 'PII in logs',
+        // GT-12 (#771): an operator CLI under bin/, scripts/ or cli/ (or a
+        // shebang file) printing the address it was asked to act on, or the
+        // one-time password it just generated for the human running it
+        // (AlecRae.com apps/api/scripts/create-admin-user.ts), is the tool
+        // confirming what it did — nothing reaches a log stack. Five of the
+        // AlecRae "PII in logs" errors were apps/api/scripts/*.ts. The same
+        // console.log(email) in application code still fires. One
+        // definition, shared with logPii: src/core/operator-cli.js.
+        exemptFile: (relPath, content) => isOperatorCliFile(relPath, content),
+      },
       {
         regex: /JSON\.stringify\s*\(.*(?:password|secret|token)/gi,
         type: 'Sensitive data serialized',
@@ -266,7 +279,8 @@ class DataIntegrityModule extends BaseModule {
       // comment that spans lines.
       const masked = this._maskedLines(content);
 
-      for (const { regex, type, exempt } of piiPatterns) {
+      for (const { regex, type, exempt, exemptFile } of piiPatterns) {
+        if (exemptFile && exemptFile(relPath, content)) continue;
         regex.lastIndex = 0;
         // Check each line individually so suppression comments can work.
         // Also skip if the ENTIRE file has a file-level suppression.
