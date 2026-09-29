@@ -1,7 +1,7 @@
 /**
- * <HomeModuleBreakdown> — "What the 121 modules actually check."
+ * <HomeModuleBreakdown> — "What the 122 modules actually check."
  *
- * "All 121 modules" means nothing to a buyer. This groups them into human
+ * "All 122 modules" means nothing to a buyer. This groups them into human
  * categories with real counts, pulled straight from the module registry
  * (MODULE_CATEGORIES) so the numbers can NEVER drift from the engine. The
  * coming-soon Live-Security category is flagged, consistent with the pentest
@@ -50,7 +50,7 @@ export default function HomeModuleBreakdown() {
               src/core/config.js at build time — never hand-typed. This line
               exists because the same page used to show "85/85", "42/42" and
               "88 of 121" with nothing explaining they are three different
-              measurements of the same 121-module engine. */}
+              measurements of the same 122-module engine. */}
           <p className="text-muted text-sm max-w-2xl mx-auto mt-4">
             {TOTAL} modules in the engine · {siteStats.suites.quick} run in the quick CI gate on
             this repo · {siteStats.suites.full} run in a full scan · {siteStats.modules.displayGreen}{" "}

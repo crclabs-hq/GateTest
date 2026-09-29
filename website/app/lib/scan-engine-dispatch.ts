@@ -1,12 +1,12 @@
 /**
  * Engine dispatch — ONE place that decides which engine runs for a tier.
  *
- * Before 2026-08-18 only /api/scan/run bridged to the real 121-module CLI
+ * Before 2026-08-18 only /api/scan/run bridged to the real 122-module CLI
  * engine (via cli-engine-runner.js). scan-executor.runScan — the path behind
  * the worker tick (every GitHub App / Gluecron push, every Continuous
  * subscriber), the Stripe webhook (every paid one-time scan bought through
  * checkout) and /api/v1/scan — ran the 23-module in-memory `runTier` on a
- * 50-file sample. The Marketplace listing promised "121 modules on every
+ * 50-file sample. The Marketplace listing promised "122 modules on every
  * push"; the worker ran four. This module closes that gap by construction:
  * every hosted scan path calls `runEngineForTier`, so there is no second
  * place for the decision to drift.

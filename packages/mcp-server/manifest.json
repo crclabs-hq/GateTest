@@ -3,8 +3,8 @@
   "name": "gatetest",
   "display_name": "GateTest — Eyes, Ears & Hands for Claude",
   "version": "1.1.3",
-  "description": "Give Claude verified eyes (screenshots), ears (Sentry/Datadog/Rollbar errors), and hands (fixes that prove they worked). 121-module scan engine, all inside your AI assistant.",
-  "long_description": "GateTest is a 121-module code-quality and security gate delivered as an MCP server. It gives your AI assistant capabilities it can't get on its own: screenshot live pages (Eyes), pull real production errors with file:line (Ears), and verify that a fix actually worked by re-scanning and running your tests (Hands). Free tools work with no key: scan any live URL, scan any public GitHub repo, list the 121 modules, get a README badge. A $29/mo subscription unlocks the full scan, AI auto-fix, screenshots, production-error triage, and the verify loop.",
+  "description": "Give Claude verified eyes (screenshots), ears (Sentry/Datadog/Rollbar errors), and hands (fixes that prove they worked). 122-module scan engine, all inside your AI assistant.",
+  "long_description": "GateTest is a 122-module code-quality and security gate delivered as an MCP server. It gives your AI assistant capabilities it can't get on its own: screenshot live pages (Eyes), pull real production errors with file:line (Ears), and verify that a fix actually worked by re-scanning and running your tests (Hands). Free tools work with no key: scan any live URL, scan any public GitHub repo, list the 122 modules, get a README badge. A $29/mo subscription unlocks the full scan, AI auto-fix, screenshots, production-error triage, and the verify loop.",
   "author": {
     "name": "GateTest",
     "url": "https://gatetest.io"

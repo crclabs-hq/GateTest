@@ -159,7 +159,7 @@ export default function ScanStatus() {
   // Setup the in-progress module grid from the REAL registry (the hosted
   // MCP manifest is generated from src/core/registry.js). The previous list
   // hand-typed 22 names, 7 of which are not GateTest modules at all, and
-  // showed "Module 3 of 22" for a 121-module scan (2026-08-18 audit).
+  // showed "Module 3 of 22" for a 122-module scan (2026-08-18 audit).
   useEffect(() => {
     if (!params.tier) return;
     const names = params.tier === "quick"

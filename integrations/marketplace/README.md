@@ -37,7 +37,7 @@ On the **Marketplace listing** page:
 | Field | Value |
 |-------|-------|
 | **Listing name** | GateTest |
-| **Short description** | (use the verified copy in `listing.md` → "Short description": 121-module code quality gate for GitHub. Free continuous scanning on every push. Deeper AI-powered scans and auto-fix PRs available on gatetest.io.) |
+| **Short description** | (use the verified copy in `listing.md` → "Short description": 122-module code quality gate for GitHub. Free continuous scanning on every push. Deeper AI-powered scans and auto-fix PRs available on gatetest.io.) |
 | **Categories** | Code quality (primary) · Security (secondary) — per `listing.md` |
 | **Primary language** | (leave blank — GateTest is language-agnostic) |
 

@@ -1,6 +1,6 @@
 # GateTest
 
-### One gate. 121 modules. Self-healing CI.
+### One gate. 122 modules. Self-healing CI.
 
 **AI-powered code quality. Pay per scan via Stripe.**
 
@@ -20,7 +20,7 @@
 
 ## The 30-second pitch
 
-**GateTest is a single CLI plus a composite GitHub Action that runs 121 static-analysis modules against any codebase, then uses an AI fix engine to repair the findings it can.** It replaces SonarQube, Snyk, ESLint, Cypress, Lighthouse, axe, pa11y, and twenty-plus other tools with one config, one gate decision, and one report.
+**GateTest is a single CLI plus a composite GitHub Action that runs 122 static-analysis modules against any codebase, then uses an AI fix engine to repair the findings it can.** It replaces SonarQube, Snyk, ESLint, Cypress, Lighthouse, axe, pa11y, and twenty-plus other tools with one config, one gate decision, and one report.
 
 **It is different because the cost trends to zero.** Deterministic AST and rule-based layers run first — these are free and ship the fix in milliseconds. The AI layer only runs on patterns nothing else has seen. Every AI win is distilled into a reusable recipe, so the next time the same pattern appears anywhere in the network it is handled for free. The longer you run GateTest, the less of it is paid work.
 
@@ -601,7 +601,7 @@ The full Known Issues table (with severity and status) lives in [CLAUDE.md](CLAU
 
 ## Architecture
 
-**Static engine.** 121 modules, every one extending `BaseModule`. Each module is a self-contained scanner that emits checks at three severity levels (error blocks the gate, warning reports, info is informational). The runner is `EventEmitter`-based, supports parallel execution, diff-mode (`--diff` scans only git-changed files), watch mode, and five output formats (Console, JSON, HTML, SARIF for the GitHub Security tab, JUnit XML for any CI). The gate has four small runtime dependencies (`acorn`, `pngjs`, `pixelmatch`, and the MCP SDK) — `node bin/gatetest.js --list` runs anywhere Node 20+ runs.
+**Static engine.** 122 modules, every one extending `BaseModule`. Each module is a self-contained scanner that emits checks at three severity levels (error blocks the gate, warning reports, info is informational). The runner is `EventEmitter`-based, supports parallel execution, diff-mode (`--diff` scans only git-changed files), watch mode, and five output formats (Console, JSON, HTML, SARIF for the GitHub Security tab, JUnit XML for any CI). The gate has four small runtime dependencies (`acorn`, `pngjs`, `pixelmatch`, and the MCP SDK) — `node bin/gatetest.js --list` runs anywhere Node 20+ runs.
 
 **Website and payments.** [gatetest.io](https://gatetest.io) is Next.js 16 with the App Router, Tailwind 4, and Stripe in per-scan upfront-charge mode. One-time payment per scan at checkout — no subscription, no auto-renew, no hold-then-capture flow. All scan state is persisted in Stripe metadata so the request handlers stay stateless across requests — there is no shared in-memory state and no webhook is required for the critical user flow. The scan executes inside the request and reports back directly.
 

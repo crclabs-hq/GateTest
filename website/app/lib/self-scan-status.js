@@ -71,7 +71,7 @@ const HISTORY_LIMIT = 30;
  * job "Run quick self-scan against the gatetest repo itself" — `gatetest --suite
  * quick --parallel`). Every surface that shows this badge's module count must say
  * so, one definition, imported: the 2026-09-22 buyer walk read the live badge's
- * bare "42/42 modules" next to "121 modules" and "88 of 121" elsewhere on the
+ * bare "42/42 modules" next to "122 modules" and "88 of 122" elsewhere on the
  * homepage as contradictory, because only the fallback (committed, dated) copy
  * spelled out which suite 42 refers to — the live path did not.
  */

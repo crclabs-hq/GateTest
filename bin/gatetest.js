@@ -400,6 +400,8 @@ const HELP = `
     --crawl-storage-state <file>   Playwright storage-state JSON for a fully
                        logged-in browser crawl (export via
                        npx playwright codegen --save-storage=state.json <url>)
+    --hosts a.example,b.example  Extra hosts for the estate module (--module estate; URL from
+                       modules.estate.url in .gatetest.json)
     --feedback         Show the latest crawl feedback report
 
     --diagnose <url>   Full real-time diagnosis: availability, response time, cache, bottleneck, action plan
@@ -881,6 +883,12 @@ async function main() {
   if (args.feedback) {
     showCrawlFeedback(projectRoot);
     return;
+  }
+
+  // estate module: --hosts a,b joins modules.estate.hosts (config / hosts.txt still apply)
+  if (args.hosts) {
+    const estate = gatetest.config.config.modules.estate || {};
+    gatetest.config.config.modules.estate = { ...estate, hosts: [...(estate.hosts || []), ...args.hosts] };
   }
 
   // Live site crawl

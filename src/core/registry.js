@@ -62,6 +62,7 @@ const BUILT_IN_MODULES = {
   deadCode: '../modules/dead-code.js',
   secretRotation: '../modules/secret-rotation.js',
   webHeaders: '../modules/web-headers.js',
+  estate: '../modules/estate.js',
   typescriptStrictness: '../modules/typescript-strictness.js',
   undefinedRef: '../modules/undefined-ref.js',
   flakyTests: '../modules/flaky-tests.js',

@@ -73,6 +73,10 @@ itself still uses the old variable names until the owner's cutover.
   (refs #771 GT-02 / GT-07): #820; AlecRae accessibility blocking 92 -> 12, retryHygiene 1 -> 0.
 - #771 GT-04/05/10 false positives (unref'd setInterval and TS interface member, masked/abbreviated/gitleaks:allow/credential-free-redis secrets, echo redirected to a file): AlecRae blocking secrets 10→7, ciSecurity 1→0, resourceLeak 5→1; classes still open in #771: GT-02,03,06-09,11-14.
 - First-hour sign-in journey: server-side gate (`/dashboard` 307 to `/login?next=`), `/login` entry, `/register` `/signup` `/sign-up` 301 to `/login`, `/docs` clean 307, `GET /api` JSON, crawler flags a redirect that carries an error page: #819 (closes #810, #812; unverified live until deployed).
+- `estate` module (module 122, #807 R3, `src/modules/estate.js`): host discovery from list /
+  sitemap / TLS SAN / links, per-host verdict. Runs in `full`, `nuclear`, `wp`; not `quick` or
+  `standard`. An NXDOMAIN from the system resolver is only "dead" once 1.1.1.1 or 8.8.8.8 agrees
+  (the ISP resolver called five live hosts dead on 2026-09-28).
 - Composite readiness `GET /api/health/deep`: db / queue / ai / mail / runtime sub-checks with status, latency and reason; 503 when a required one is down, optional ones report `not-configured`; `/api/health` stays the bare liveness ping. Pure composer `website/app/lib/health-composite.js`, control pairs `tests/health-composite.test.js`, live probe `tests/heavy/health-deep-live.test.js` (closes #809; unverified live until deployed).
 - #807 honesty gaps, three-state verdicts (refs #807 R4/R5/R12): `apiHealth` NOT CHECKED when nothing was confirmed (the tallrig.com "26 checked — 0 broken" false green), `deploy/fresh` NOT CHECKED with nothing to compare the served sha against, `--server` DNS/mail posture stops passing apex `_dmarc` text / any-TXT DMARC / `+all` SPF and reads resolver failures as NOT CHECKED: #828. Local fixtures only; live tallrig.com re-run is the owner's after deploy.
 - CI-step and toolchain honesty (refs #771 GT-13, GT-14a, GT-14b; #770): best-effort `|| true` shapes (chmod/chown/touch, a same-file function that prints its own verdict, a plumbing-named YAML step) are warnings; ESLint skips gitignored / build-output dirs; a build failure before any test ran is "not checked"; `--timings`: #825. Measured on AlecRae.com @ d9f61aa: bashSafety 18→9 blocking (45→45 total), ESLint 4254→298 errors.
@@ -133,6 +137,9 @@ DavenRoe); every red we miss is our gap. Epic: #807 (miss-by-miss mapping).
 |---|---|---|---|
 | R1 | `--crawl` runs the crawl-capable set, refuses loudly otherwise | IN PROGRESS | #802 builder |
 | R2 | Hosted scan: hard budget, partial results, permalink, runtime reason | IN PROGRESS | #768 builder |
+| R3 | `estate`: every host from sitemap / cert SANs / list, per-host verdict | BUILT, module-count sync pending (branch `feat/estate-module-807`) | #807; live run on tallrig.com estate: five `*.tallrig.app` = gateway-up-app-dead, `vapron.ai` / `api.vapron.ai` = unexpected-ip |
+| R4 | `dnsPosture`: SPF/DKIM/DMARC alignment, PTR, wildcard, delegation, 0x20, legacy domain → uncontrolled IP | OPEN | #807 |
+| R5 | `deployFreshness`: served sha vs expected | OPEN | #807 |
 | R3 | `estate`: every host from sitemap / cert SANs / list, per-host verdict | OPEN | #807 |
 | R4 | `dnsPosture` / `mailPosture`: SPF/DMARC honesty in `--server` (apex `_dmarc` text, any-TXT DMARC, `+all` SPF no longer pass; resolver failure = NOT CHECKED) — PR #828. PTR/HELO, wildcard, delegation, 0x20, legacy domain → uncontrolled IP need a new module (count frozen; estate #822 covers the last) | PARTIAL | #828, #807 |
 | R5 | `deployFreshness`: served sha vs expected — `deploy/fresh` says NOT CHECKED with nothing to compare against, "matches expected" / "age only" when it can — PR #828 | IN REVIEW | #828 |

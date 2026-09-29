@@ -5,7 +5,7 @@
  * application-security space — the exact phrasing developers type into Google
  * AND into AI answer engines. Each entry is original prose (not copied from a
  * standards body), grounded in how the concept actually shows up in GateTest's
- * 121-module scan so the page earns its place instead of being a thin stub.
+ * 122-module scan so the page earns its place instead of being a thin stub.
  *
  * Source of truth for the /glossary URL set. `getAllGlossarySlugs()` feeds the
  * sitemap; the drift test asserts the sitemap and all-urls.js stay in lockstep.

@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-08-18",
+  "generatedAt": "2026-09-29",
   "source": "scripts/generate-mcp-remote-modules.js — generated from src/core/registry.js, do not hand-edit",
-  "count": 121,
+  "count": 122,
   "modules": [
     {
       "name": "syntax",
@@ -226,6 +226,10 @@
     {
       "name": "webHeaders",
       "description": "Web Headers — CSP/HSTS/XFO/CORS misconfig across Next.js, Vercel, Netlify, nginx, Apache, Caddy and server source in any language"
+    },
+    {
+      "name": "estate",
+      "description": "Estate — discover sibling hosts (list, sitemap, TLS SAN, links) and give each a verdict: ok, gateway-up-app-dead, dead, unexpected-ip, redirects-off-estate, auth-wall"
     },
     {
       "name": "typescriptStrictness",

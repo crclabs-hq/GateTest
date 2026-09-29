@@ -13,7 +13,7 @@ app, no external infrastructure required.
 - **Four tools exposed:**
   - `scan_local` — scan a directory with any suite or specific modules
   - `run_module` — run one module (e.g. `secrets`, `tlsSecurity`, `importCycle`)
-  - `list_modules` — list all 121 modules with descriptions
+  - `list_modules` — list all 122 modules with descriptions
   - `check_health` — verify the engine is operational
 
 ---
@@ -103,7 +103,7 @@ echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{
 | `standard` (default) | 45 modules | $29/mo | Default, balanced |
 | `full` | 88 modules | $29/mo | Pre-deploy, thorough |
 
-No suite runs all 121 registered modules — `full` is the deepest suite
+No suite runs all 122 registered modules — `full` is the deepest suite
 available via MCP. Omitting `suite` defaults to `standard`, which requires a
 key (it is not the same as `quick`).
 

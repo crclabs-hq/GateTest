@@ -12,7 +12,7 @@ GitHub Marketplace allows up to 10 screenshots. Capture at least 5. All screensh
 **What to capture:**
 - Open a pull request on a test repository where GateTest is installed and the scan passes.
 - Scroll to the **Checks** section at the bottom of the PR (below the timeline, above the merge button).
-- The GateTest check should show a green checkmark with whatever text the LIVE App check actually renders. IMPORTANT: the free App install runs the quick gate (syntax, lint, hardcoded-secrets) — NOT all 121 modules — so do not stage a "121 modules passed" subtitle. Capture the real status text the App posts (generated from real module counts in `github-callback.js`); a screenshot claiming more coverage than the free install delivers is exactly what a reviewer flags. Full 121-module scans are the separately-purchased gatetest.io flow, not this App check.
+- The GateTest check should show a green checkmark with whatever text the LIVE App check actually renders. IMPORTANT: the free App install runs the quick gate (syntax, lint, hardcoded-secrets) — NOT all 122 modules — so do not stage a "122 modules passed" subtitle. Capture the real status text the App posts (generated from real module counts in `github-callback.js`); a screenshot claiming more coverage than the free install delivers is exactly what a reviewer flags. Full 122-module scans are the separately-purchased gatetest.io flow, not this App check.
 - The merge button should be green and unblocked.
 - Frame the screenshot to show: the PR title at the top, the diff summary line, and the full checks section.
 - Include the browser chrome (URL bar showing `github.com/...`) for authenticity.
@@ -74,7 +74,7 @@ GitHub Marketplace allows up to 10 screenshots. Capture at least 5. All screensh
   - The GateTest logo and headline
   - The animated background / terminal animation (capture mid-animation if possible)
   - The primary CTA button ("Start a Scan" or "Scan Your Repo")
-  - The "121 modules" stat tiles (capture whatever stat tiles the live hero actually renders — never a number the site doesn't show)
+  - The "122 modules" stat tiles (capture whatever stat tiles the live hero actually renders — never a number the site doesn't show)
 - Use a 1280×800 viewport. If the page looks better at a larger size, crop to 1280×800 centred on the hero.
 - Dark mode only — the site is designed dark-first.
 - Ensure no localhost URLs or test content is visible in the screenshot.
@@ -85,7 +85,7 @@ GitHub Marketplace allows up to 10 screenshots. Capture at least 5. All screensh
 
 ## Screenshot 5 — Live scan results dashboard
 
-**Caption:** "Watch 121 modules scan your repo in real time"
+**Caption:** "Watch 122 modules scan your repo in real time"
 
 **What to capture:**
 - Navigate to the scan status page (`https://gatetest.io/scan/status?session_id=...`) for a completed scan.
@@ -104,12 +104,12 @@ GitHub Marketplace allows up to 10 screenshots. Capture at least 5. All screensh
 
 ## Optional screenshot 6 — Module list
 
-**Caption:** "121 modules covering security, quality, infrastructure, and more"
+**Caption:** "122 modules covering security, quality, infrastructure, and more"
 
 **What to capture:**
 - Run `node bin/gatetest.js --list` in a terminal and capture the output.
 - A modern terminal (iTerm2, Warp, or similar) with a dark theme preferred.
-- The output should show all 121 modules with their names and descriptions in a clean, readable format.
+- The output should show all 122 modules with their names and descriptions in a clean, readable format.
 - Crop to show approximately 30–40 modules at once so the list density is visible.
 
 ---
