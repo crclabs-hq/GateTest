@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { REPORT_SCHEMA_VERSION } = require('../core/report-schema');
 
 class JunitReporter {
   constructor(runner, config) {
@@ -38,7 +39,8 @@ class JunitReporter {
     const duration = (summary.duration / 1000).toFixed(3);
 
     lines.push(`<testsuites name="GateTest" tests="${totalTests}" failures="${failures}" ` +
-      `warnings="${warnings}" time="${duration}" timestamp="${summary.timestamp}">`);
+      `warnings="${warnings}" time="${duration}" timestamp="${summary.timestamp}" ` +
+      `schemaVersion="${REPORT_SCHEMA_VERSION}">`);
 
     for (const moduleResult of summary.results) {
       const modTests = moduleResult.checks.length;

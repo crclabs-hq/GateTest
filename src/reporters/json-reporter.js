@@ -11,6 +11,7 @@ const path = require('path');
 const PKG_VERSION = require('../../package.json').version;
 const { buildProvenance, signatureFor } = require('../core/report-provenance');
 const { resolveReportDir } = require('../core/report-paths');
+const { REPORT_SCHEMA_VERSION, REPORT_DEPRECATED } = require('../core/report-schema');
 
 class JsonReporter {
   constructor(runner, config) {
@@ -35,6 +36,9 @@ class JsonReporter {
     const filepath = path.join(absDir, filename);
 
     const report = {
+      // Report shape version (issue #803, docs/api/report-schema.md) — the one
+      // field a consumer checks before trusting the rest of this file.
+      schemaVersion: REPORT_SCHEMA_VERSION,
       gatetest: {
         version: PKG_VERSION,
         timestamp: summary.timestamp,
@@ -87,6 +91,9 @@ class JsonReporter {
       // reading this file must be able to see it without cross-referencing
       // every finding's `overriddenBy`.
       overrides: Array.isArray(summary.overrides) ? summary.overrides : [],
+      // Fields scheduled for removal (src/core/report-schema.js). Always an
+      // array; a field is removed only one minor after it is listed here.
+      deprecated: REPORT_DEPRECATED,
     };
     // Provenance + signature (move 21): which engine, which modules ran,
     // what was skipped, deferred or suppressed, and a digest of the
