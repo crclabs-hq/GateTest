@@ -807,8 +807,12 @@ class PromptSafetyModule extends BaseModule {
           const message = status.retired
             ? `Model \`${m}\` is retired${status.on ? ` (as of ${status.on})` : ''} — these calls return 404`
             : `Model \`${m}\` retires on ${status.on} (${status.days} day${status.days === 1 ? '' : 's'} away) — migrate before then or calls start failing`;
+          // A RETIRED id is an error outside test paths: every call through
+          // it returns 404, so the app's AI feature is down, not deprecated
+          // (DavenRoe backend/app/core/config.py:29, #842). An id still
+          // served with a retirement date ahead stays a warning.
           issues += this._flag(result, `prompt-safety:deprecated-model:${m}:${rel}:${i + 1}`, {
-            severity: 'warning',
+            severity: status.retired && !isTest ? 'error' : 'warning',
             file: rel,
             line: i + 1,
             model: m,
