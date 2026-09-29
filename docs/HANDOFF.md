@@ -857,7 +857,11 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   (PASSWORD_AUTH_ENABLED = true after the #837 merge), header NAV_ACTIONS.install →
   "Install Gluecron" https://gluecron.com (new tab), hero keeps "Install the GitHub App"
   and adds "Install Gluecron" beside it.
-- IN BUILD: "Sign in with Gluecron" (branch feat/gluecron-oauth-signin). Gluecron facts
+- MERGED #839 "Sign in with Gluecron": /api/auth/gluecron + /callback, PKCE S256, scope
+  read:user, metadata discovery with fixed fallbacks, identity from userinfo,
+  email_verified required, three glc_oauth_* cookies documented; the button appears
+  once GLUECRON_OAUTH_CLIENT_ID is on the box. Gluecron's userinfo went LIVE at 8ebdabf
+  (owner merged #5839, 07:30Z); redirect URIs match exactly, one per origin. Gluecron facts
   (their session, 06:40Z): OAuth 2.0 authorization-code provider LIVE at gluecron.com
   (/.well-known/oauth-authorization-server; /oauth/authorize, /oauth/token, /oauth/
   revoke; PKCE S256 only; scope read:user for sign-in; client_secret_basic/post or
@@ -865,7 +869,7 @@ must fail loud on a rejected key. Not built yet; the owner's PC was unstable.
   email_verified) is NOT live: ccantynz/Gluecron.com#5839 waits on the owner's merge.
   gluecron.com/install is the self-host installer script, not a page — the CTA goes
   to https://gluecron.com/. "Gluecron" capital G in prose.
-- OWNER checklist for this leg: (a) merge Gluecron #5839; (b) create the OAuth app at
+- OWNER checklist for this leg: (a) DONE Gluecron #5839; (b) create the OAuth app at
   gluecron.com/settings/applications/new, redirect URI
   https://gatetest.io/api/auth/gluecron/callback, put GLUECRON_OAUTH_CLIENT_ID /
   GLUECRON_OAUTH_CLIENT_SECRET on box 161; (c) GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET on
