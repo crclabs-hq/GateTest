@@ -66,6 +66,8 @@ itself still uses the old variable names until the owner's cutover.
   not-checked + `streamUrl`; every response carries an absolute `reportUrl`;
   runtime-not-configured is explained in `notCheckedReasons`. Control pair
   `tests/web-scan-budget.test.js`. Live-verify after deploy (never run live).
+- Crawler apex/canonical de-dup (closes #806), a11y component label prop and retry compare-bound
+  (refs #771 GT-02 / GT-07): #820; AlecRae accessibility blocking 92 -> 12, retryHygiene 1 -> 0.
 - #771 GT-04/05/10 false positives (unref'd setInterval and TS interface member, masked/abbreviated/gitleaks:allow/credential-free-redis secrets, echo redirected to a file): AlecRae blocking secrets 10→7, ciSecurity 1→0, resourceLeak 5→1; classes still open in #771: GT-02,03,06-09,11-14.
 - First-hour sign-in journey: server-side gate (`/dashboard` 307 to `/login?next=`), `/login` entry, `/register` `/signup` `/sign-up` 301 to `/login`, `/docs` clean 307, `GET /api` JSON, crawler flags a redirect that carries an error page: #819 (closes #810, #812; unverified live until deployed).
 
@@ -129,6 +131,6 @@ DavenRoe); every red we miss is our gap. Epic: #807 (miss-by-miss mapping).
 | R6 | Blank render / hydration crash in runtimeErrors; CLI runs it when a browser exists | OPEN | #807 |
 | R7 | WordPress gap checks: dir listing, PHP notices in HTML, admin-ajax, brute-force probe, TTFB per page | OPEN | #807 |
 | R8 | WordPress repair recipes per finding; automated fix + receipt on platforms we run | OPEN | #807 |
-| R9 | Crawler apex double count / rel=canonical (retracted T-01) | OPEN | #806 |
+| R9 | Crawler apex double count / rel=canonical (retracted T-01) | IN REVIEW | #806, PR #820 |
 | R10 | Telemetry host guard + opt-in wiring (default = owner's line) | IN PROGRESS | #801 builder |
 | R11 | Report `schemaVersion` + contract test + docs/api/report-schema.md | IN PROGRESS | #803 builder |

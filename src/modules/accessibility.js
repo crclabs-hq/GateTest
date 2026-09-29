@@ -237,17 +237,34 @@ class AccessibilityModule extends BaseModule {
       const lastLabelClose = behind.lastIndexOf('</label');
       const isNestedInLabel = lastLabelOpen !== -1 && lastLabelOpen > lastLabelClose;
 
-      const hasLabel = isNestedInLabel ||
+      // `<Input label="Email" />` (#771 GT-02): an UPPERCASE-initial tag is a
+      // design-system component, not the DOM element, and its label is a
+      // prop the component renders. `/<input\b/gi` matches both spellings,
+      // so the component was judged as if it were a bare `<input>` — 92
+      // blocking findings on AlecRae, mostly this shape.
+      const isComponent = /^<[A-Z][a-z]/.test(contentNoComments.slice(pos, pos + 3));
+      const hasLabelProp = isComponent && (
+        /(^|[\s{])label\s*=/.test(snippet) ||
+        /(^|[\s{])(aria-label|aria-labelledby)\s*=/.test(snippet) ||
+        (/(^|[\s{])placeholder\s*=/.test(snippet) && /(^|[\s{])title\s*=/.test(snippet))
+      );
+
+      const hasLabel = isNestedInLabel || hasLabelProp ||
                        /aria-label\s*[={]/i.test(snippet) ||
                        /aria-labelledby\s*[={]/i.test(snippet) ||
                        /\bid\s*=\s*["'{]/i.test(snippet);
 
       if (!hasLabel) {
         result.addCheck(`a11y:input-label:${relPath}`, false, {
-          ...(FRAGMENT_PATH_RE.test(relPath.replace(/\\/g, '/')) ? { severity: 'warning' } : {}),
+          // A component we cannot open is "not verified", not "proven bad".
+          ...(isComponent || FRAGMENT_PATH_RE.test(relPath.replace(/\\/g, '/')) ? { severity: 'warning' } : {}),
           file: relPath,
-          message: `Input (type="${type}") missing accessible label`,
-          suggestion: 'Add aria-label, aria-labelledby, or an associated <label> element',
+          message: isComponent
+            ? `<${startMatch[0].slice(1)} /> has no label, aria-label or aria-labelledby prop — cannot verify that this component labels itself (unknown component)`
+            : `Input (type="${type}") missing accessible label`,
+          suggestion: isComponent
+            ? 'Pass label=, aria-label= or aria-labelledby= to the component, or wrap it in a <label>'
+            : 'Add aria-label, aria-labelledby, or an associated <label> element',
         });
       }
     }
