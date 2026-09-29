@@ -22,7 +22,7 @@ const FULL_ANIMATION_MODULES = [
   "security", "seo", "links", "compatibility", "dataIntegrity",
   "documentation", "dependencies", "sbom", "dockerfile", "ciSecurity",
   "shell", "sqlMigrations", "terraform", "kubernetes", "promptSafety",
-  "deadCode", "secretRotation", "webHeaders", "typescriptStrictness",
+  "deadCode", "secretRotation", "webHeaders", "estate", "typescriptStrictness",
   "undefinedRef", "flakyTests", "errorSwallow", "nPlusOne", "retryHygiene",
   "raceCondition", "resourceLeak", "ssrf", "hardcodedUrl", "envVars",
   "asyncIteration", "homoglyph", "openapiDrift", "prSize", "prQuality",

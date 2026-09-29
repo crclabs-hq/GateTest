@@ -13,9 +13,9 @@ Inside any Claude conversation, Claude can:
 | Tool | What it does | Cost |
 | --- | --- | --- |
 | **`scan_remote_preview`** | Free preview of any public GitHub or Gluecron repo. Returns the top 5 findings + a total count. | **Free** (rate-limited: 1 per 10s per IP) |
-| **`scan_local`** | Full 121-module scan of a local directory Claude has file access to. | **Free** (runs locally on your machine) |
+| **`scan_local`** | Full 122-module scan of a local directory Claude has file access to. | **Free** (runs locally on your machine) |
 | **`run_module`** | Run one specific module against a local directory. | Free |
-| **`list_modules`** | List all 121 modules with descriptions. | Free |
+| **`list_modules`** | List all 122 modules with descriptions. | Free |
 | **`check_health`** | Verify the GateTest engine is operational. | Free |
 | **`start_paid_scan`** | Get an Apple Pay / Google Pay / Stripe Link checkout URL for a paid tier. | $29 / $99 / $199 / $399 |
 | **`check_remote_scan`** | Poll the result of a paid scan after the customer has paid. | Free |
@@ -128,7 +128,7 @@ disk.
 | --- | --- | --- |
 | Free preview | $0 | Top 5 findings, throttled |
 | Quick | $29 | 4 modules (syntax / lint / secrets / codeQuality) |
-| Full | $99 | All 121 modules, no auto-fix |
+| Full | $99 | All 122 modules, no auto-fix |
 | Scan + Fix | $199 | All 90 + AI fix loop + PR |
 | Nuclear | $399 | Everything + mutation testing + chaos pass + executive summary |
 

@@ -78,7 +78,7 @@ product, not a cosmetic follow-up.
 **This overrides the instinct to defer counts and capability copy to Craig under
 Boss Rule #8.** Factual sync — module counts, capability lists, what a tier
 includes — is expected work. Boss Rule #8 still governs genuine *brand*
-decisions: taglines, logos, positioning, pricing. "We have 121 modules, not 120"
+decisions: taglines, logos, positioning, pricing. "We have 122 modules, not 120"
 is a fact, not a brand decision.
 
 **Two things it does NOT mean:**
@@ -198,7 +198,7 @@ Every turn ends with the **sweep checklist**, in this order — the self-scan an
 3. `node scripts/run-tests.js --timeout 120000 tests/heavy/*.test.js` — heavy suite; non-blocking in CI but green before shipping
 4. `npx eslint .` — exit 0 (the root config ignores `website/`; `cd website && npx eslint` covers it)
 5. `cd website && npx tsc --noEmit && npx next build` — zero errors
-6. `node bin/gatetest.js --list` — 121 modules, matches `src/core/registry.js`
+6. `node bin/gatetest.js --list` — 122 modules, matches `src/core/registry.js`
 7. `grep -rn "TODO\|FIXME" src/ website/app/ --include="*.js" --include="*.ts" --include="*.tsx"` — none left in code you touched
 8. **If a rule's recall or scope changed:** `node scripts/real-world-precision.js` — 11/11 at ceilings. **If a module's file set or the runner changed:** `node scripts/determinism-check.js`.
 9. **Last:** `GATETEST_NO_TELEMETRY=1 node bin/gatetest.js --suite quick --parallel` — GATE: PASSED, 0 blocking, run AFTER the final edit (2026-09-05: an env var read without a `.env.example` line blocked CI's self-scan; the earlier green scan predated the edit)
@@ -355,9 +355,9 @@ curl -sSL https://raw.githubusercontent.com/crclabs-hq/gatetest/main/integration
 
 ## THE MISSION
 
-Build the most advanced, most aggressive, most beautiful QA testing platform ever made. 121 modules. One gate. One decision. AI-powered code review that no competitor can match. Pay-per-scan pricing that eliminates customer risk. A scan experience so visually stunning that customers WANT to watch it run.
+Build the most advanced, most aggressive, most beautiful QA testing platform ever made. 122 modules. One gate. One decision. AI-powered code review that no competitor can match. Pay-per-scan pricing that eliminates customer risk. A scan experience so visually stunning that customers WANT to watch it run.
 
-**The customer sees:** Their repo scanned by 121 modules in real time. Issues found. Issues fixed. Delivered.
+**The customer sees:** Their repo scanned by 122 modules in real time. Issues found. Issues fixed. Delivered.
 **The competition sees:** A force they cannot match without rebuilding from scratch.
 **Craig sees:** Recurring revenue with high margins on a moat that compounds over time.
 
@@ -566,8 +566,8 @@ When something breaks:
 | Tier | Price | Deliverable |
 |------|-------|---------|
 | Quick Scan | $29 | 4 modules (scan-only, no auto-fix) |
-| Full Scan | $99 | All 121 modules (scan-only, no auto-fix) |
-| Scan + Fix | $199 | 121 modules + auto-fix PR + pair-review + architecture annotator |
+| Full Scan | $99 | All 122 modules (scan-only, no auto-fix) |
+| Scan + Fix | $199 | 122 modules + auto-fix PR + pair-review + architecture annotator |
 | Forensic (renamed from Nuclear, Craig 2026-06-02) | $399 | Everything on the website-only scan: full deep scan, per-finding Claude diagnosis, cross-finding correlation, auto-fix PR, pair-review, executive summary, board-ready CISO report. Mutation testing + chaos / fuzz pass are NOT part of the website-only flow — they ship via the GitHub Action (`mutation: true` / `chaos: true`) because they need a CI runner to execute the customer's test suite and a headless browser. |
 | Continuous | $49/mo | **ORG-FLAT (Craig-authorized 2026-07-23): one subscription covers every repo under the same owner/org** — no per-seat, no per-repo; `findActiveByRepo` matches by host/owner prefix, exact-repo match preferred; the AI allowance is shared org-wide. Scan every push — **LIVE** (Craig green-light 2026-06-12). Stripe subscription checkout (mode=subscription, inline recurring price_data — no dashboard product needed). Unlimited deterministic scans (near-zero marginal cost); AI reviews metered by `continuous_ai_ledger` monthly allowance (default $10/mo, env `CONTINUOUS_AI_BUDGET_USD`). Fix PRs NOT included — per-scan upsell. Store: `website/app/lib/continuous-subscription-store.js` (19 tests). Lifecycle synced via `customer.subscription.updated/deleted` webhooks. |
 | MCP | $29/mo | **REPOSITIONED (Craig-authorized 2026-07-23, closes KI #39): the LOCAL stdio MCP server is now 100% free — `GATED_TOOLS` in `bin/gatetest-mcp.mjs` is empty; every tool runs on the user's own machine/keys (principle: free where it runs on your machine, paid where it runs on ours).** The $29/mo tier now sells the HOSTED remote MCP endpoint (claude.ai web/mobile, locked-down machines; `mcp-remote-core.cjs` keeps its gate) + hosted scan history, behind `GATETEST_API_KEY` (`gtmcp_` prefix, 70 chars), delivered by email after Stripe checkout — **LIVE** (Craig-authorized 2026-07-04). Free without a key: `check_health`, `list_modules`, `get_badge`, `scan_url`, `scan_repo`, `scan_local` (quick suite). `scan_repo` was fixed onto this list 2026-07-20 — it was already documented as free in the tool's own description/quick-start prompt, but `GATED_TOOLS` in `bin/gatetest-mcp.mjs` charged for it anyway; the code now matches. Store: `website/app/lib/mcp-subscription-store.js`. |
@@ -633,7 +633,9 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 ## VERSION
 
-GateTest v1.61.1 — **unreleased: npm serves `@gatetest/cli@1.61.0` (tagged v1.61.0 2026-09-13); the `v1` Action tag sits on main `e101d517`** — **121 modules** (spineHealth added 2026-07-30), **hybrid AI layer** (Craig 2026-07-07;
+**2026-09-29 — estate module (module 122; #807 R3, PR #822):** sibling-host discovery (list / sitemap / TLS SAN / links) with a per-host outside-in verdict; runs in `full` (now 89), `nuclear` (97) and `wp` (31), not in `quick` or `standard`.
+
+GateTest v1.61.1 — **unreleased: npm serves `@gatetest/cli@1.61.0` (tagged v1.61.0 2026-09-13); the `v1` Action tag sits on main `e101d517`** — **122 modules** (spineHealth added 2026-07-30), **hybrid AI layer** (Craig 2026-07-07;
 Sonnet 5 upgrade + user-selectable model + BYOK Craig 2026-07-10):
 **Fable 5** (`claude-fable-5`) on the paid fix tiers (Scan+Fix, Forensic),
 **Sonnet 5** (`claude-sonnet-5`) on free/cheap/high-volume paths, **Opus

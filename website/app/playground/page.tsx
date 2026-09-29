@@ -274,11 +274,11 @@ function ModuleCard({ mod }: { mod: ModuleResult }) {
   );
 }
 
-// One chip per module in the full 121-module catalog that ISN'T part of
+// One chip per module in the full 122-module catalog that ISN'T part of
 // the free tier — the "X/120 complete" progress bar needs something to
 // count up to, and this is the shadow-preview mechanic (same pattern the
 // $29 tier's upsell already uses) rather than either lying about running
-// 121 modules for free or showing a misleadingly small "4/4" bar.
+// 122 modules for free or showing a misleadingly small "4/4" bar.
 function LockedModuleChip({ mod, delay }: { mod: LockedModule; delay: number }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {

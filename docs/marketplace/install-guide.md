@@ -51,7 +51,7 @@ When the gate blocks and an `ANTHROPIC_API_KEY` is present, the action opens a f
 
 | Input | Default | Description |
 | --- | --- | --- |
-| `suite` | `quick` | Which suite to run: `quick` (42 modules), `standard` (47), `full` (88), `nuclear` (96). Unknown values fall back to `standard`. |
+| `suite` | `quick` | Which suite to run: `quick` (42 modules), `standard` (47), `full` (89), `nuclear` (97). Unknown values fall back to `standard`. |
 | `auto-fix` | `false` | When `true` AND the gate blocks AND `ANTHROPIC_API_KEY` is set, run the AI CI-fixer. |
 | `node-version` | `22` | Node.js version to set up on the runner. GateTest requires Node 20+. |
 | `working-directory` | `.` | Repository sub-directory to scan. Useful for monorepos. |
@@ -218,8 +218,8 @@ These are the engine suites the `suite` input accepts (sizes come from `src/core
 | --- | --- | --- | --- |
 | `quick` | 42 | Fast static checks: secrets, syntax, dependencies, lint, memory (deliberately omits `security` — too slow for the sub-10s bar; runs in `standard`/`full`/`nuclear` instead) | PR gate on every push |
 | `standard` | 47 | `quick` plus deeper code-quality, unit/integration tests, and the `security` OWASP module (injection, XSS, auth-bypass, SSRF-style probes) | Default suite (CLI default, and when an unknown suite is named) |
-| `full` | 88 | Everything that can run without a CI runner (mutation is deferred to `nuclear`) | Pre-merge to main, nightly scan |
-| `nuclear` | 96 | `full` plus mutation testing and the CI-only adversarial modules | Forensic-tier deliverables via the Action |
+| `full` | 89 | Everything that can run without a CI runner (mutation is deferred to `nuclear`) | Pre-merge to main, nightly scan |
+| `nuclear` | 97 | `full` plus mutation testing and the CI-only adversarial modules | Forensic-tier deliverables via the Action |
 
 `quick` finishes in under 15 seconds on a typical repo. `full` targets under 60 seconds.
 
@@ -260,9 +260,9 @@ The action falls back to cloning the repo at runtime when `@gatetest/cli` is not
 | Tier | Price | What ships |
 | --- | --- | --- |
 | Quick Scan | $29 | 4 critical modules, single scan |
-| Full Scan | $99 | All 121 modules, single scan |
-| Scan + Fix | $199 | 121 modules + iterative AI fix loop, pair-review of every fix, architecture annotator |
-| Forensic | $399 | 121 modules + per-finding AI diagnosis, attack-chain correlation, executive summary, CISO report; mutation testing and chaos/fuzz ship via this Action (`mutation: true` / `chaos: true`), not the website-only flow |
+| Full Scan | $99 | All 122 modules, single scan |
+| Scan + Fix | $199 | 122 modules + iterative AI fix loop, pair-review of every fix, architecture annotator |
+| Forensic | $399 | 122 modules + per-finding AI diagnosis, attack-chain correlation, executive summary, CISO report; mutation testing and chaos/fuzz ship via this Action (`mutation: true` / `chaos: true`), not the website-only flow |
 | Continuous | $49/month | Unlimited push-triggered scans across every repo in your org |
 | MCP | $29/month | Hosted remote MCP endpoint + hosted scan history (the local stdio MCP server is free) |
 

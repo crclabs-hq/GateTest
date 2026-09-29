@@ -5,7 +5,7 @@
  * Body: { repo_url: string }
  *
  * Same free, no-auth, quick-tier (4 modules) scan as the non-streaming
- * route — this does NOT run the paid 121-module catalog for free (that
+ * route — this does NOT run the paid 122-module catalog for free (that
  * would give away the $99+ product). What it adds:
  *
  *   - Real per-module completion events as the quick tier actually
@@ -17,7 +17,7 @@
  *     $29 tier's upsell mechanic (show the breadth of the product
  *     without doing the paid work for free). Lets the UI render an
  *     honest "4/120 complete, 116 locked" progress bar instead of
- *     either lying about running 121 modules or showing a misleading
+ *     either lying about running 122 modules or showing a misleading
  *     "4/4" bar that undersells the product.
  *
  * Event types:

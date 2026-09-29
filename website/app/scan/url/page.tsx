@@ -267,7 +267,7 @@ function UrlScanInner() {
 
             {/* Issue #643 / Voice rule 6 — state the limit in the same
                 breath as the claim: this is a shallow header/HTML probe,
-                not the 121-module engine, and the hosted scan is right
+                not the 122-module engine, and the hosted scan is right
                 there for anyone who wants the real thing. */}
             <p className="text-xs text-muted text-center sm:text-left">
               10 quick checks on the fetched page, not the full engine.{" "}

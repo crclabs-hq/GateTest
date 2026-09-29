@@ -7,7 +7,7 @@
 - **Hands** — `verify_fix` re-runs the gate on exactly the files you edited and returns a hard ✅/❌. No more "I think that fixed it."
 - **Root Cause** — `resolve_stack_trace` turns a minified bundle location into the original file:line via source maps. `blame_regression` finds which git commit introduced a specific line — read-only, never checks out or mutates the working tree.
 
-24 tools. 121-module engine. Stdio transport — no account, no webhook, no infra.
+24 tools. 122-module engine. Stdio transport — no account, no webhook, no infra.
 
 ## Install in 1 command
 
@@ -36,9 +36,9 @@ Works with Claude Code, Cursor, Windsurf, Continue, Cline, and any MCP-compatibl
 
 | Tool | When to use |
 |------|-------------|
-| `scan_local` | Before opening a PR — 121 modules across security, reliability, code quality |
+| `scan_local` | Before opening a PR — 122 modules across security, reliability, code quality |
 | `run_module` | One specific module (e.g. `secrets`, `tlsSecurity`, `importCycle`) |
-| `list_modules` | See all 121 modules with descriptions |
+| `list_modules` | See all 122 modules with descriptions |
 | `check_health` | Verify the engine loaded + get the full agent workflow cheat-sheet |
 | `audit_log` | Past scan history for a project path |
 | `compare_repos` | Finding patterns across scan history |
@@ -131,7 +131,7 @@ Once installed, ask your agent:
 
 `get_production_errors` returns setup instructions when no credentials are configured — no error, just a 30-second guide.
 
-## What the 121 modules cover
+## What the 122 modules cover
 
 - **Security** — secrets, TLS bypass, SSRF, cookie config, web headers, SQL injection vectors, hardcoded URLs
 - **Reliability** — race conditions, resource leaks, retry hygiene, N+1 queries, async iteration bugs
