@@ -138,16 +138,186 @@ describe('wiring', () => {
     assert.ok(fs.existsSync(path.join(WEB, 'app/login/page.tsx')));
     const page = read('app/login/page.tsx');
     assert.match(page, /redirect\(next \?\? "\/dashboard"\)/);
-    assert.match(page, /Sign in with GitHub/);
-    assert.match(page, /\/api\/auth\/github\?next=/);
+    // The provider list is the one definition in sign-in-providers.js; the
+    // page renders it server-side (no client fetch of /api/auth/providers).
+    assert.match(page, /signInProviders\(\{/);
+    assert.doesNotMatch(page, /fetch\(/);
+    assert.match(providersSrc, /Sign in with GitHub/);
+    assert.match(providersSrc, /\/api\/auth\/github/);
     assert.doesNotMatch(read('next.config.ts'), /source: "\/login"/, 'a config redirect would shadow the page');
   });
 
-  it('the OAuth round trip carries next and validates it both ways', () => {
-    assert.match(read('app/api/auth/github/route.ts'), /safeNext\(request\.nextUrl\.searchParams\.get\("next"\)\)/);
-    const cb = read('app/api/auth/callback/route.ts');
-    assert.match(cb, /safeNext\(cookieStore\.get\("gh_oauth_next"\)\?\.value\) \?\? "\/dashboard"/);
-    assert.match(cb, /\/login\?error=/, 'callback failures land where the message is shown');
+  // GitHub (#819), Google and GitLab (owner directive 2026-09-29) all carry
+  // next through a validated httpOnly cookie and land failures on /login.
+  for (const [label, initiate, callback, cookie] of [
+    ['GitHub', 'app/api/auth/github/route.ts', 'app/api/auth/callback/route.ts', 'gh_oauth_next'],
+    ['Google', 'app/api/auth/google/route.ts', 'app/api/auth/google/callback/route.ts', 'goog_oauth_next'],
+    ['GitLab', 'app/api/auth/gitlab/route.ts', 'app/api/auth/gitlab/callback/route.ts', 'gl_oauth_next'],
+  ]) {
+    it(`the ${label} OAuth round trip carries next and validates it both ways`, () => {
+      const init = read(initiate);
+      assert.match(init, /safeNext\(request\.nextUrl\.searchParams\.get\("next"\)\)/);
+      assert.match(init, new RegExp(`cookieStore\\.set\\("${cookie}", next, \\{\\s*httpOnly: true`), 'next travels in an httpOnly cookie');
+      const cb = read(callback);
+      assert.match(cb, new RegExp(`safeNext\\(cookieStore\\.get\\("${cookie}"\\)\\?\\.value\\) \\?\\? "/dashboard"`));
+      assert.match(cb, /NextResponse\.redirect\(`\$\{baseUrl\}\$\{landing\}`\)/, 'success lands on next');
+      assert.match(cb, /\/login\?error=/, 'callback failures land where the message is shown');
+      assert.doesNotMatch(cb, /\/dashboard\?error=/, 'anonymous /dashboard is gated - an error there is never seen');
+    });
+  }
+});
+
+// ── Providers on /login (owner directive 2026-09-29) ─────────────────────────
+const providers = require('../website/app/lib/sign-in-providers.js');
+const providersSrc = read('app/lib/sign-in-providers.js');
+
+// The real getters, with the environment set per case. Every provider needs
+// NEXT_PUBLIC_BASE_URL + SESSION_SECRET plus its own client id and secret.
+function withEnv(vars, fn) {
+  const keys = ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITLAB_CLIENT_ID', 'GITLAB_CLIENT_SECRET',
+    'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'NEXT_PUBLIC_BASE_URL', 'SESSION_SECRET'];
+  const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+  for (const k of keys) delete process.env[k];
+  Object.assign(process.env, vars);
+  try { return fn(); } finally {
+    for (const k of keys) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; }
+  }
+}
+
+function available() {
+  return {
+    github: customerSession.getOAuthConfig().ok,
+    google: customerSession.getGoogleOAuthConfig().ok,
+    gitlab: customerSession.getGitLabOAuthConfig().ok,
+  };
+}
+
+const BASE = { NEXT_PUBLIC_BASE_URL: 'https://example.test', SESSION_SECRET: SECRET };
+const linksOf = (list) => list.filter((e) => e.href).map((e) => e.id);
+const soonOf = (list) => list.filter((e) => !e.href).map((e) => e.id);
+
+describe('/login providers — a button iff the provider is configured', () => {
+  it('nothing configured: no buttons, only the honest coming-soon lines', ts, () => {
+    const list = withEnv({}, () => providers.signInProviders({ available: available() }));
+    assert.deepEqual(linksOf(list), []);
+    assert.deepEqual(soonOf(list), ['gluecron', 'password']);
+  });
+
+  it('GitHub only (production today)', ts, () => {
+    const list = withEnv({ ...BASE, GITHUB_CLIENT_ID: 'id', GITHUB_CLIENT_SECRET: 's' },
+      () => providers.signInProviders({ available: available(), next: '/dashboard/usage' }));
+    assert.deepEqual(linksOf(list), ['github']);
+    assert.equal(list[0].label, 'Sign in with GitHub');
+    assert.equal(list[0].href, '/api/auth/github?next=%2Fdashboard%2Fusage');
+  });
+
+  it('GitHub + Google (production once GOOGLE_CLIENT_ID/SECRET are set)', ts, () => {
+    const list = withEnv({ ...BASE, GITHUB_CLIENT_ID: 'id', GITHUB_CLIENT_SECRET: 's', GOOGLE_CLIENT_ID: 'g', GOOGLE_CLIENT_SECRET: 'gs' },
+      () => providers.signInProviders({ available: available() }));
+    assert.deepEqual(linksOf(list), ['github', 'google']);
+    assert.equal(list[1].label, 'Continue with Google');
+    assert.equal(list[1].href, '/api/auth/google');
+  });
+
+  it('all three OAuth providers, GitLab last', ts, () => {
+    const list = withEnv({ ...BASE, GITHUB_CLIENT_ID: 'id', GITHUB_CLIENT_SECRET: 's', GOOGLE_CLIENT_ID: 'g', GOOGLE_CLIENT_SECRET: 'gs', GITLAB_CLIENT_ID: 'l', GITLAB_CLIENT_SECRET: 'ls' },
+      () => providers.signInProviders({ available: available(), next: '/scan/status?id=1' }));
+    assert.deepEqual(linksOf(list), ['github', 'google', 'gitlab']);
+    assert.equal(list[2].href, '/api/auth/gitlab?next=%2Fscan%2Fstatus%3Fid%3D1');
+  });
+
+  it('a provider with only a client id (no secret) is NOT offered', ts, () => {
+    const list = withEnv({ ...BASE, GITHUB_CLIENT_ID: 'id', GITHUB_CLIENT_SECRET: 's', GOOGLE_CLIENT_ID: 'g' },
+      () => providers.signInProviders({ available: available() }));
+    assert.deepEqual(linksOf(list), ['github']);
+  });
+
+  it('no SESSION_SECRET: nothing is offered, whatever else is set', ts, () => {
+    const list = withEnv({ NEXT_PUBLIC_BASE_URL: 'https://example.test', GITHUB_CLIENT_ID: 'id', GITHUB_CLIENT_SECRET: 's', GOOGLE_CLIENT_ID: 'g', GOOGLE_CLIENT_SECRET: 'gs' },
+      () => providers.signInProviders({ available: available() }));
+    assert.deepEqual(linksOf(list), []);
+  });
+
+  it('Gluecron is a muted line with no href and is not gated on any env var', () => {
+    const list = providers.signInProviders({ available: { github: true, google: true, gitlab: true } });
+    const glue = list.find((e) => e.id === 'gluecron');
+    assert.equal(glue.href, undefined);
+    assert.equal(glue.label, 'Sign in with Gluecron');
+    assert.equal(glue.note, 'coming soon');
+    assert.doesNotMatch(providersSrc, /process\.env/, 'the list is pure; the page passes the getters in');
+    assert.doesNotMatch(read('app/login/page.tsx'), /GLUECRON_OAUTH/);
+  });
+
+  it('email + password links to /login/password only behind PASSWORD_AUTH_ENABLED', () => {
+    const off = providers.signInProviders({ available: {}, passwordAuth: false }).find((e) => e.id === 'password');
+    assert.equal(off.href, undefined);
+    assert.equal(off.label, 'Email and password');
+    const on = providers.signInProviders({ available: {}, passwordAuth: true, next: '/dashboard' }).find((e) => e.id === 'password');
+    assert.equal(on.href, '/login/password?next=%2Fdashboard');
+  });
+
+  it('PASSWORD_AUTH_ENABLED is a boolean constant, and true only once /login/password exists', () => {
+    const flags = read('app/lib/auth-features.ts');
+    const m = flags.match(/export const PASSWORD_AUTH_ENABLED = (true|false);/);
+    assert.ok(m, 'auth-features.ts must export a literal PASSWORD_AUTH_ENABLED');
+    assert.match(read('app/login/page.tsx'), /passwordAuth: PASSWORD_AUTH_ENABLED/);
+    if (m[1] === 'true') {
+      assert.ok(fs.existsSync(path.join(WEB, 'app/login/password/page.tsx')), 'flag is on but app/login/password/page.tsx is missing');
+    }
+  });
+
+  it('every error code a callback redirects with has copy', () => {
+    for (const rel of ['app/api/auth/callback/route.ts', 'app/api/auth/google/callback/route.ts', 'app/api/auth/gitlab/callback/route.ts']) {
+      const codes = [...read(rel).matchAll(/\/login\?error=(\w+)`/g)].map((m) => m[1]);
+      assert.ok(codes.length >= 4, `${rel} redirects with ${codes.length} codes`);
+      for (const code of codes) {
+        assert.equal(typeof providers.ERROR_COPY[code], 'string', `${rel}: no copy for ${code}`);
+        assert.notEqual(providers.errorMessage(code), providers.GENERIC_ERROR, `${rel}: ${code} falls through to the generic line`);
+      }
+    }
+    assert.match(providers.errorMessage('google_token_failed'), /^Google /);
+    assert.match(providers.errorMessage('gitlab_user_failed'), /^GitLab /);
+    assert.equal(providers.errorMessage('nonsense'), providers.GENERIC_ERROR);
+    assert.equal(providers.errorMessage(undefined), null);
+  });
+
+  it('copy: an account starts with any sign-in; no provider "needs" another; Gluecron spelled exactly', () => {
+    const page = read('app/login/page.tsx');
+    assert.match(page, /the first sign-in with any provider is how an account\s+starts/);
+    assert.doesNotMatch(page, /signing in with GitHub is how an account starts/);
+    for (const src of [page, providersSrc]) {
+      assert.doesNotMatch(src, /needs? Gluecron/i);
+      assert.doesNotMatch(src, /GlueCron|Glue Cron|glue cron/);
+      assert.doesNotMatch(src, /Vapron/);
+    }
+  });
+});
+
+// ── Header CTA (owner directive 2026-09-29) ──────────────────────────────────
+describe('header: Install Gluecron replaces Install GitHub App', () => {
+  const nav = read('app/components/site-nav.ts');
+  const navbar = read('app/components/Navbar.tsx');
+
+  it('NAV_ACTIONS.install is pinned to Gluecron, external', () => {
+    assert.match(nav, /install: \{ label: "Install Gluecron", href: "https:\/\/gluecron\.com", external: true \}/);
+    assert.doesNotMatch(nav, /Install GitHub App/);
+  });
+
+  it('Navbar renders an external action as a new-tab anchor with rel="noopener", desktop and drawer', () => {
+    assert.match(navbar, /action\.external \? \(\s*<a href=\{action\.href\}[^>]*target="_blank" rel="noopener noreferrer">/);
+    assert.equal((navbar.match(/<ActionLink action=\{NAV_ACTIONS\.install\}/g) || []).length, 2, 'desktop + phone drawer');
+    assert.doesNotMatch(navbar, /<Link href=\{NAV_ACTIONS\.install\.href\}/, 'a Next Link would not open a new tab');
+  });
+
+  it('no other header/nav surface still says "Install GitHub App"', () => {
+    for (const rel of ['app/components/Navbar.tsx', 'app/components/Footer.tsx', 'app/components/SiteChrome.tsx', 'app/components/site-nav.ts']) {
+      assert.doesNotMatch(read(rel), /Install GitHub App/, rel);
+    }
+  });
+
+  it('the home hero keeps the GitHub App as the primary button and adds Install Gluecron beside it', () => {
+    const home = read('app/page.tsx');
+    assert.match(home, /<a href=\{appInstallUrl\(\)\} className="v2-btn v2-btn-primary">Install the GitHub App<\/a>\s*<a href="https:\/\/gluecron\.com" className="v2-btn" target="_blank" rel="noopener noreferrer">Install Gluecron<\/a>/);
   });
 });
 

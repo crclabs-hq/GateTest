@@ -58,6 +58,7 @@ export default function Home() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <a href={appInstallUrl()} className="v2-btn v2-btn-primary">Install the GitHub App</a>
+            <a href="https://gluecron.com" className="v2-btn" target="_blank" rel="noopener noreferrer">Install Gluecron</a>
             <a href="/quickstart" className="v2-btn">Quickstart, four steps</a>
             <code className="v2-mono self-center text-[13px] text-[var(--v2-muted)]">npx -p @gatetest/cli gatetest --suite quick</code>
           </div>

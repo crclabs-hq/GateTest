@@ -52,6 +52,9 @@ export const NAV_LINKS: NavItem[] = [
 
 export const NAV_ACTIONS = {
   signIn: { label: "Sign in", href: "/dashboard" },
-  install: { label: "Install GitHub App", href: "/github/setup" },
+  // Owner directive 2026-09-29: the header sells our own git host. The
+  // GitHub App stays one click away on the home hero, /github/setup and the
+  // footer (the Marketplace listing depends on it).
+  install: { label: "Install Gluecron", href: "https://gluecron.com", external: true },
   primary: { label: "Scan free", href: "/playground" },
 } as const;
