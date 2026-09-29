@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-27T09:29:07.733Z",
+  "generatedAt": "2026-09-29T02:58:13.583Z",
   "source": "scripts/real-world-precision.js",
   "note": "Measured on every run against pinned commits of repositories we do not control. Ceilings only ratchet down. Do not hand-edit — run the script.",
   "engineVersion": "1.61.1",
-  "engineCommit": "0baf4e93",
+  "engineCommit": "b4e64c3b",
   "repos": [
     {
       "name": "express",
@@ -73,8 +73,8 @@
       "url": "https://github.com/rails/rails.git",
       "sha": "1ec64ce82451c52d7407fa665ea5f95291430c23",
       "why": "Ruby at scale — instance_eval in the routes loader, backtick-quoted words in error messages that a naive shell-interp rule read as commands",
-      "blocking": 36,
-      "ceiling": 36,
+      "blocking": 35,
+      "ceiling": 35,
       "softened": 19
     },
     {
@@ -156,7 +156,7 @@
       "why": "pnpm monorepo with members under examples/* and www — first contact 33 blocking: build configs and a CLI told they log to console, an OG-image generator scored as a web page, an Algolia search key as a secret, ternary env fallbacks as hardcoded URLs; what remains is four <img> without alt, a real import cycle, a silent connect in a constructor and `${{ github.event.release.tag_name }}` in a shell; 2026-09-05 importCycle type-only elision: its one import cycle ran through two `import { type X }` edges — elided, never a cycle in emitted JS — ceiling ratchets down",
       "blocking": 7,
       "ceiling": 7,
-      "softened": 30
+      "softened": 29
     },
     {
       "name": "apollo-server",
@@ -174,7 +174,7 @@
       "why": "pnpm monorepo, packages/** nesting, a SQL toolkit that builds SQL by design — first contact 90 blocking: `${STORAGE_TABLE}` constants as injection, seeding loops in test/ as N+1, teardown catches as swallows, tsconfig/ and turbo.json as invalid JSON, `base.sha` as shell injection, an un-runnable test:integration as failing tests; what remains is DDL with a computed database name, three import cycles, telemetry catches and a dev-tool page without a description; 2026-09-05 importCycle type-only elision: the three import cycles it blocked on read their bindings in parameter defaults and method bodies — deferred, now a warning — ceiling ratchets down",
       "blocking": 12,
       "ceiling": 12,
-      "softened": 20
+      "softened": 18
     },
     {
       "name": "NodeGoat",
@@ -497,9 +497,26 @@
       "controlPairs": 0
     },
     {
+      "rule": "quality:console.log/debug/info found",
+      "module": "codeQuality",
+      "findings": 7,
+      "onZeroCeilingRepos": 0,
+      "repos": [
+        {
+          "name": "hono",
+          "sha": "eebdf7be39abf0a872671835ccce0c4f03ea497a"
+        },
+        {
+          "name": "rails",
+          "sha": "1ec64ce82451c52d7407fa665ea5f95291430c23"
+        }
+      ],
+      "controlPairs": 0
+    },
+    {
       "rule": "secrets",
       "module": "secrets",
-      "findings": 8,
+      "findings": 7,
       "onZeroCeilingRepos": 0,
       "repos": [
         {
@@ -516,23 +533,6 @@
         }
       ],
       "controlPairs": 1
-    },
-    {
-      "rule": "quality:console.log/debug/info found",
-      "module": "codeQuality",
-      "findings": 7,
-      "onZeroCeilingRepos": 0,
-      "repos": [
-        {
-          "name": "hono",
-          "sha": "eebdf7be39abf0a872671835ccce0c4f03ea497a"
-        },
-        {
-          "name": "rails",
-          "sha": "1ec64ce82451c52d7407fa665ea5f95291430c23"
-        }
-      ],
-      "controlPairs": 0
     },
     {
       "rule": "money-float:arithmetic",
@@ -1055,19 +1055,6 @@
       "controlPairs": 0
     },
     {
-      "rule": "data:pii:PII in logs",
-      "module": "dataIntegrity",
-      "findings": 2,
-      "onZeroCeilingRepos": 0,
-      "repos": [
-        {
-          "name": "prisma",
-          "sha": "dd846dcc8f0653099d1a10c457b1603d96bfafc7"
-        }
-      ],
-      "controlPairs": 0
-    },
-    {
       "rule": "html:unclosed:html",
       "module": "syntax",
       "findings": 1,
@@ -1291,19 +1278,6 @@
     {
       "rule": "sql:add-notnull-no-default",
       "module": "sqlMigrations",
-      "findings": 1,
-      "onZeroCeilingRepos": 0,
-      "repos": [
-        {
-          "name": "trpc",
-          "sha": "66d054454a3339dd8421da9dcf0648f92816f704"
-        }
-      ],
-      "controlPairs": 0
-    },
-    {
-      "rule": "resource-leak:setinterval",
-      "module": "resourceLeak",
       "findings": 1,
       "onZeroCeilingRepos": 0,
       "repos": [
@@ -1685,7 +1659,7 @@
     "bands": [
       {
         "confidence": 1,
-        "precision": 159,
+        "precision": 158,
         "recall": 53,
         "rules": {
           "precision": {
@@ -1713,7 +1687,7 @@
             "links:javascript-href": 2,
             "ci-security:branch-pin": 6,
             "python:sql-concat": 11,
-            "secrets": 3,
+            "secrets": 2,
             "quality:eval() usage detected": 4,
             "security:eval()": 4,
             "dockerfile:curl-pipe-sh": 1,
@@ -1802,7 +1776,7 @@
       },
       {
         "confidence": 0.4,
-        "precision": 48,
+        "precision": 45,
         "recall": 0,
         "rules": {
           "precision": {
@@ -1823,12 +1797,10 @@
             "sql:set-notnull": 3,
             "error-swallow:empty-catch": 1,
             "race-condition:fs-toctou": 2,
-            "resource-leak:setinterval": 1,
             "env-vars:missing-from-example:APP_ENV": 1,
             "env-vars:missing-from-example:AUTH_GITHUB_ID": 1,
             "env-vars:missing-from-example:AUTH_GITHUB_SECRET": 1,
             "openapi-drift:undocumented-route:GET:/": 1,
-            "data:pii:PII in logs": 2,
             "error-swallow:catch-noop": 2,
             "env-vars:missing-from-example:REACT_ROUTER_DEMO_PG_POOL_MAX": 1,
             "env-vars:missing-from-example:PRISMA_NEXT_CONTRACT_SOURCE": 1,
@@ -1878,61 +1850,61 @@
     "sweep": [
       {
         "threshold": 0.5,
-        "precisionBlocking": 251,
+        "precisionBlocking": 250,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.6,
-        "precisionBlocking": 251,
+        "precisionBlocking": 250,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.65,
-        "precisionBlocking": 159,
+        "precisionBlocking": 158,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.7,
-        "precisionBlocking": 159,
+        "precisionBlocking": 158,
         "recallBlocking": 53,
         "shipped": true
       },
       {
         "threshold": 0.75,
-        "precisionBlocking": 159,
+        "precisionBlocking": 158,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.8,
-        "precisionBlocking": 159,
+        "precisionBlocking": 158,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.85,
-        "precisionBlocking": 159,
+        "precisionBlocking": 158,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.9,
-        "precisionBlocking": 159,
+        "precisionBlocking": 158,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.95,
-        "precisionBlocking": 159,
+        "precisionBlocking": 158,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 1,
-        "precisionBlocking": 159,
+        "precisionBlocking": 158,
         "recallBlocking": 53,
         "shipped": false
       }
@@ -1942,9 +1914,9 @@
       "above": 1
     },
     "softened": {
-      "precisionTotal": 329,
-      "precisionBlocking": 159,
-      "precisionSoftened": 170,
+      "precisionTotal": 325,
+      "precisionBlocking": 158,
+      "precisionSoftened": 167,
       "recallTotal": 53,
       "recallBlocking": 53,
       "recallLost": 0
