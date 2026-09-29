@@ -32,7 +32,7 @@ const path = require('path');
 const { repoRelative, toPosix } = require('./repo-path');
 
 const PKG_VERSION = require('../../package.json').version;
-const { REPORT_SCHEMA_VERSION } = require('./report-schema');
+const { REPORT_SCHEMA_VERSION, blocksGate } = require('./report-schema');
 
 /** The severities an issue may carry — pinned so a consumer can switch on them. */
 const SEVERITIES = ['error', 'warning', 'info'];
@@ -45,14 +45,16 @@ const SEVERITIES = ['error', 'warning', 'info'];
  *
  *   --baseline   capturing is setup, not a gate run: 0 unless the capture
  *                itself failed.
- *   otherwise    0 when the gate PASSED, 1 when BLOCKED.
+ *   otherwise    0 when the gate PASSED or was not applied (REPORT_ONLY —
+ *                the flag asked for exactly that), 1 when BLOCKED.
  */
 function scanExitCode(summary, { baseline = false } = {}) {
   if (baseline) {
     const b = (summary && summary.baseline) || {};
     return b.error ? 1 : 0;
   }
-  return summary && summary.gateStatus === 'PASSED' ? 0 : 1;
+  if (!summary || !summary.gateStatus) return 1;
+  return blocksGate(summary.gateStatus) ? 1 : 0;
 }
 
 function relFile(root, file) {
@@ -179,6 +181,10 @@ function buildJsonOutput(summary, ctx) {
     module: ctx.module || null,
     project: root,
     files,
+    // `passed` is true only for a PASSED verdict. Under --report-only the
+    // verdict is REPORT_ONLY (never made), so `passed` is false while
+    // `exitCode` is 0 — read `exitCode` for the process result and
+    // `gateStatus` for what the gate actually decided (#842 DR-a).
     passed: gateStatus === 'PASSED',
     gateStatus,
     // KI #107: whether GATETEST_ADMIN=1 softened a blocking result this run,

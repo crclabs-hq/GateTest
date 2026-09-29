@@ -172,3 +172,87 @@ describe('schemaVersion in the other report formats', () => {
     assert.match(xml, new RegExp(`<testsuites [^>]*schemaVersion="${REPORT_SCHEMA_VERSION}"`));
   });
 });
+
+// =============================================================================
+// gateStatus REPORT_ONLY (issue #842, DR-a)
+// =============================================================================
+// DavenRoe ran `--suite full --report-only --json` and the headline read
+// `gateStatus: "PASSED"` above 1,974 errors. The gate was never applied;
+// PASSED was a verdict nobody made. REPORT_ONLY is the additive third enum
+// member — same schemaVersion, exit code unchanged (0), present whether or
+// not errors were found, because what it records is that no verdict was
+// made. Against origin/main the first two cases fail (PASSED) and the
+// normal-run control passes — the fix is not a mute.
+// =============================================================================
+
+describe('gateStatus REPORT_ONLY — the gate was not applied (#842 DR-a)', () => {
+  const { GATE_STATUSES, blocksGate } = require('../src/core/report-schema');
+  const { scanExitCode } = require('../src/core/json-output');
+
+  function runCli(args) {
+    return spawnSync(process.execPath, [CLI, ...args], {
+      env: { ...process.env, GATETEST_NO_TELEMETRY: '1', GATETEST_ADMIN: '' },
+      encoding: 'utf8',
+      timeout: 120000,
+    });
+  }
+
+  it('the enum is additive: three members, only BLOCKED fails the process', () => {
+    assert.deepStrictEqual([...GATE_STATUSES], ['PASSED', 'BLOCKED', 'REPORT_ONLY']);
+    assert.strictEqual(REPORT_SCHEMA_VERSION, 1, 'an enum addition never bumps the version');
+    assert.strictEqual(blocksGate('BLOCKED'), true);
+    assert.strictEqual(blocksGate('PASSED'), false);
+    assert.strictEqual(blocksGate('REPORT_ONLY'), false);
+    assert.strictEqual(scanExitCode({ gateStatus: 'REPORT_ONLY' }), 0);
+    assert.strictEqual(scanExitCode({ gateStatus: 'BLOCKED' }), 1);
+  });
+
+  it('--report-only with errors → REPORT_ONLY, exit 0, errors still counted, enforcing false', () => {
+    const r = runCli(['--project', root, '--module', 'secrets', '--report-only', '--format', 'json']);
+    assert.strictEqual(r.status, 0, r.stderr);
+    const doc = JSON.parse(r.stdout);
+    assert.strictEqual(doc.gateStatus, 'REPORT_ONLY');
+    assert.strictEqual(doc.rawGateStatus, 'REPORT_ONLY', 'no verdict was overridden — none was made');
+    assert.strictEqual(doc.exitCode, 0);
+    assert.strictEqual(doc.enforcing, false);
+    assert.strictEqual(doc.passed, false, 'REPORT_ONLY is not a pass');
+    assert.ok(doc.counts.errors >= 1, 'the finding is still reported');
+    assert.match(doc.summary, /REPORT_ONLY/, 'the summary line names the verdict');
+    const onDisk = JSON.parse(fs.readFileSync(path.join(root, '.gatetest', 'reports', 'gatetest-report-latest.json'), 'utf8'));
+    assert.strictEqual(onDisk.gatetest.gateStatus, 'REPORT_ONLY');
+    assert.strictEqual(onDisk.summary.enforcing, false);
+    assert.ok(checkReportContract(onDisk).ok, 'the on-disk report still satisfies the contract');
+  });
+
+  it('--report-only with ZERO errors → still REPORT_ONLY (the gate was not applied)', () => {
+    const clean = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-schema-clean-'));
+    try {
+      fs.mkdirSync(path.join(clean, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(clean, 'package.json'), '{"name":"fx","version":"1.0.0"}\n');
+      fs.writeFileSync(path.join(clean, '.gitignore'), '.env\n*.pem\n*.key\nnode_modules\n');
+      fs.writeFileSync(path.join(clean, 'src', 'a.js'), 'module.exports = 1;\n');
+      const r = runCli(['--project', clean, '--module', 'secrets', '--report-only', '--format', 'json']);
+      assert.strictEqual(r.status, 0, r.stderr);
+      const doc = JSON.parse(r.stdout);
+      assert.strictEqual(doc.gateStatus, 'REPORT_ONLY');
+      assert.strictEqual(doc.exitCode, 0);
+    } finally {
+      fs.rmSync(clean, { recursive: true, force: true });
+    }
+  });
+
+  it('CONTROL: a normal run on the same fixture is BLOCKED with exit 1 — unchanged', () => {
+    const r = runCli(['--project', root, '--module', 'secrets', '--format', 'json']);
+    assert.strictEqual(r.status, 1);
+    const doc = JSON.parse(r.stdout);
+    assert.strictEqual(doc.gateStatus, 'BLOCKED');
+    assert.strictEqual(doc.passed, false);
+  });
+
+  it('the console headline under --report-only says the count and that the gate was not applied', () => {
+    const r = runCli(['--project', root, '--module', 'secrets', '--report-only']);
+    assert.strictEqual(r.status, 0, r.stderr);
+    assert.match(r.stdout, /REPORT ONLY — \d+ errors?, gate not applied/);
+    assert.doesNotMatch(r.stdout, /GATE: PASSED/);
+  });
+});

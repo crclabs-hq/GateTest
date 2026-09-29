@@ -69,6 +69,7 @@ const { literalKindAt } = require('../core/source-strip');
 const path = require('path');
 const { repoRelative } = require('../core/repo-path');
 const { isNonUserFacingPage } = require('../core/scan-scope');
+const { isOperatorCliFile } = require('../core/operator-cli');
 const BaseModule = require('./base-module');
 
 // Directory excludes beyond what `BaseModule._collectFiles` already skips
@@ -319,6 +320,15 @@ class HardcodedUrlModule extends BaseModule {
     // localhost findings were under `benchmarks/`, and 3 more under
     // `runtime-tests/`. Scope, not severity: these stay visible at info.
     const isTestFile = this._isTestPath(rel) || isNonUserFacingPage(rel);
+    // A dev-only tool (`frontend/scripts/doctor.mjs`, a shebang file) never
+    // ships either — the one definition is src/core/operator-cli.js (#842
+    // DR-6). Same rule as tests: scope, not severity — on record at info,
+    // never described as "the moment this ships".
+    const isDevTool = !isTestFile && isOperatorCliFile(rel, content, projectRoot);
+    const offRecord = isTestFile || isDevTool;
+    const where = isTestFile
+      ? 'in a test file — a fixture, not a leak'
+      : 'in a dev-only tool (scripts/, bin/, cli/) — never shipped';
     const lines = content.split(/\r?\n/);
     const masked = this._maskedLines(content);
     let issues = 0;
@@ -402,16 +412,16 @@ class HardcodedUrlModule extends BaseModule {
             }
           }
           issues += this._flag(result, `hardcoded-url:localhost:${rel}:${i + 1}`, {
-            severity: isTestFile ? 'info' : 'error',
+            severity: offRecord ? 'info' : 'error',
             file: rel,
             line: i + 1,
             host,
             kind: 'localhost',
-            message: isTestFile
-              ? `${rel}:${i + 1} hardcoded \`${scheme}://${host}\` in a test file — a fixture, not a leak; reported so the address is on record`
+            message: offRecord
+              ? `${rel}:${i + 1} hardcoded \`${scheme}://${host}\` ${where}; reported so the address is on record`
               : `${rel}:${i + 1} hardcoded \`${scheme}://${host}\` in source — localhost leaks break every non-developer machine the moment this ships`,
-            suggestion: isTestFile
-              ? 'Nothing to change unless the test is meant to reach a real service — then read the address from an env var so CI can point it elsewhere.'
+            suggestion: offRecord
+              ? 'Nothing to change unless this file is meant to reach a real service — then read the address from an env var so CI can point it elsewhere.'
               : 'Move the URL to a config file / env var (`process.env.API_BASE_URL`) with a documented default for local development. Guard any local-only fallback with `NODE_ENV !== "production"`.',
           });
           continue;
@@ -419,7 +429,7 @@ class HardcodedUrlModule extends BaseModule {
 
         if (PRIVATE_IP_RE.test(host)) {
           issues += this._flag(result, `hardcoded-url:private-ip:${rel}:${i + 1}`, {
-            severity: isTestFile ? 'info' : 'error',
+            severity: offRecord ? 'info' : 'error',
             file: rel,
             line: i + 1,
             host,
@@ -429,11 +439,11 @@ class HardcodedUrlModule extends BaseModule {
             // scanner's own code-scanning alerts on tests/ssrf.test.js said
             // "escaped into committed code" about 169.254.169.254, which is
             // link-local, not RFC1918, and is the test's subject (2026-09-05).
-            message: isTestFile
-              ? `${rel}:${i + 1} hardcoded private / link-local URL \`${scheme}://${host}\` in a test file — a fixture, not a leak; reported so the address is on record`
+            message: offRecord
+              ? `${rel}:${i + 1} hardcoded private / link-local URL \`${scheme}://${host}\` ${where}; reported so the address is on record`
               : `${rel}:${i + 1} hardcoded private / link-local URL \`${scheme}://${host}\` (RFC1918, 169.254/16 or loopback) — a developer's LAN address escaped into committed code`,
-            suggestion: isTestFile
-              ? 'Nothing to change unless the test really targets a live private host — then read the address from an env var.'
+            suggestion: offRecord
+              ? 'Nothing to change unless this file really targets a live private host — then read the address from an env var.'
               : 'Replace with a public hostname, a config/env var, or a service-discovery lookup. Never commit raw private IPs.',
           });
           continue;
@@ -441,23 +451,23 @@ class HardcodedUrlModule extends BaseModule {
 
         if (INTERNAL_TLD_RE.test(host) || STAGING_HOST_RE.test(host)) {
           issues += this._flag(result, `hardcoded-url:internal-tld:${rel}:${i + 1}`, {
-            severity: isTestFile ? 'info' : 'warning',
+            severity: offRecord ? 'info' : 'warning',
             file: rel,
             line: i + 1,
             host,
             kind: 'internal-tld',
-            message: isTestFile
-              ? `${rel}:${i + 1} hardcoded internal/staging URL \`${scheme}://${host}\` in a test file — a fixture, not a leak; reported so the address is on record`
+            message: offRecord
+              ? `${rel}:${i + 1} hardcoded internal/staging URL \`${scheme}://${host}\` ${where}; reported so the address is on record`
               : `${rel}:${i + 1} hardcoded internal/staging URL \`${scheme}://${host}\` — \`.internal\`/\`.local\`/staging subdomains won't resolve for external users`,
-            suggestion: isTestFile
-              ? 'Nothing to change unless the test really targets that host — then read it from an env var.'
+            suggestion: offRecord
+              ? 'Nothing to change unless this file really targets that host — then read it from an env var.'
               : 'Move the host to environment-specific config. Use env-driven base URLs so prod targets prod, staging targets staging, without code changes.',
           });
           continue;
         }
 
         // Non-TLS external URL in production code.
-        if (scheme === 'http' && !isTestFile) {
+        if (scheme === 'http' && !offRecord) {
           issues += this._flag(result, `hardcoded-url:insecure-scheme:${rel}:${i + 1}`, {
             severity: 'warning',
             file: rel,

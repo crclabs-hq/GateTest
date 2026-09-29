@@ -38,7 +38,13 @@ const { literalKindAt } = require('../core/source-strip');
 // Three dots or more, never one or two: a JWT is `header.payload.signature`
 // and a real key can contain a dot, so `\.{3,}` is the line between a
 // truncation mark and ordinary punctuation.
-const PLACEHOLDER_VALUE_RE = /(?:changeme|placeholder|your[_-]?(?:\w+[_-])?(?:secret|key|password|token)|replace[_-]?me|(?<![a-z0-9])example(?![a-z0-9])|default[_-]?(?:secret|key|password|token)|xxx+|insert[_-]?here|todo|<[a-z0-9_. -]{2,30}>|\.{3,}|\u2026)/i;
+//
+// The shape list itself lives in src/core/env-placeholder.js beside the
+// present-but-fake env detector the website reads through its
+// `env-placeholder` shim \u2014 one definition of "this value is filler" (#842
+// DR-6: `secret_key: str = "change-me-in-production"` was reported because
+// only the unhyphenated `changeme` was listed here).
+const { PLACEHOLDER_VALUE_RE } = require('../core/env-placeholder');
 
 /**
  * A bullet/asterisk RUN is a UI's own redaction, not a value someone typed \u2014

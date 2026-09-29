@@ -127,14 +127,29 @@ describe('secrets — the placeholder allow-list is single-sourced', () => {
     path.join(__dirname, '..', 'src', 'modules', 'secrets.js'), 'utf8',
   );
 
-  it('the regex literal appears exactly once', () => {
-    const copies = (src.match(/changeme\|placeholder/g) || []).length;
+  it('the regex literal appears exactly once — in src/core/env-placeholder.js, imported here', () => {
+    // #842 DR-6: the shape list moved beside the present-but-fake env
+    // detector (the website reads it through its `env-placeholder` shim), so
+    // the engine, the CLI and /api/status agree on what filler looks like.
+    const core = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'env-placeholder.js'), 'utf8');
+    const copiesInCore = (core.match(/change\[_-\]\?me\|placeholder/g) || []).length;
+    assert.strictEqual(copiesInCore, 1, 'exactly one PLACEHOLDER_VALUE_RE literal in src/core/env-placeholder.js');
+    const copiesHere = (src.match(/change(?:\[_-\]\?)?me\|placeholder/g) || []).length;
     assert.strictEqual(
-      copies, 1,
+      copiesHere, 0,
       'the placeholder allow-list has been duplicated again — the two copies ' +
       'previously diverged on the `i` flag, so CHANGEME was suppressed on one ' +
       'code path and reported on the other',
     );
+    assert.match(src, /require\('\.\.\/core\/env-placeholder'\)/, 'secrets.js imports the one definition');
+  });
+
+  it('hyphenated and underscored change-me / dummy shapes are placeholders (#842 DR-6)', async () => {
+    const quiet = await scan({
+      'config.py': 'secret_key: str = "change-me-in-production"\n',
+      'b.js': 'const apiSecret = "change_me";\nconst token = "dummy-token";\n',
+    });
+    assert.deepStrictEqual(quiet.map((f) => f.id), [], 'placeholder values reported as secrets');
   });
 
   it('is case-insensitive on every path', async () => {

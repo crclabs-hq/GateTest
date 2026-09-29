@@ -34,6 +34,8 @@ const BaseModule    = require('./base-module');
 const { makeAutoFix } = require('../core/ai-fix-engine');
 const { isIllustrationPath } = require('../core/scan-scope');
 const { isPublicDiscoveryRoute } = require('../core/public-discovery-routes');
+const { isHttpClientCall } = require('../core/http-client-calls');
+const { isPythonRouteFile, findPythonRoutes, appLevelProtectedRouters } = require('../core/python-routes');
 
 // ─── auth signal patterns ──────────────────────────────────────────────────
 
@@ -96,8 +98,10 @@ const AUTH_SIGNAL_RE = new RegExp(
 // SETTINGS GETTER, not a route; it produced "unprotected routes" in express
 // core itself (2026-08-18 audit). One regex covers Express / Hono / Koa /
 // Fastify receivers so the same route is not reported 2–3× by overlapping
-// per-framework patterns.
-const EXPRESS_ROUTE_RE = /(?:app|router|hono|fastify|server|api|route[rs]?)\s*\.\s*(get|post|put|patch|delete|all|route)\s*\(\s*['"`]([/*][^'"`,\n]*)['"`]\s*,/g;
+// per-framework patterns. The receiver is captured so the same shape on an
+// HTTP CLIENT — `api.post('/support/tickets', body)` where `api` is
+// `axios.create(...)` — can be told apart (src/core/http-client-calls.js).
+const EXPRESS_ROUTE_RE = /\b(app|router|hono|fastify|server|api|route[rs]?)\s*\.\s*(get|post|put|patch|delete|all|route)\s*\(\s*['"`]([/*][^'"`,\n]*)['"`]\s*,/g;
 
 // Next.js App Router: exported async function GET/POST/PUT/PATCH/DELETE
 const NEXTJS_EXPORT_RE = /^export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE|ALL)\s*\(/gm;
@@ -115,7 +119,7 @@ const PUBLIC_ROUTE_KEYWORDS = [
   '/webhook', '/callback', '/oauth', '/auth/callback',
   '/public/', '/static/', '/assets/', '/favicon',
   '/login', '/signup', '/register', '/logout',
-  '/verify-email', '/reset-password', '/forgot-password',
+  '/verify-email', '/reset-password', '/forgot-password', '/password-reset',
   // Public-by-design website surfaces: badges, sitemaps, robots, LLM manifests,
   // OG images, platform status, checkout creation (Stripe hosts the payment).
   '/badge', '/sitemap', '/robots', 'llms.txt', '.txt', '/og', '/opengraph',
@@ -395,11 +399,29 @@ class AuthBypassDetector extends BaseModule {
 
   async run(result, config) {
     const projectRoot = config.projectRoot;
-    const extensions  = ['.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs'];
+    // `.py` — FastAPI / Starlette / Flask registrations (issue #842, DR-4):
+    // on an SPA + API repo the endpoints are the Python half, and the auth
+    // check is a dependency (`Depends(get_current_user)`), a router-level
+    // `dependencies=[...]`, or an `app.include_router(..., dependencies=)`
+    // in another file. src/core/python-routes.js is the one grammar.
+    const extensions  = ['.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs', '.py'];
     const files = this._collectFiles(projectRoot, extensions);
 
     let routeFiles  = 0;
     let unprotected = 0;
+    // Built once per run, lazily — only when a Python route file is seen.
+    let appProtected = null;
+    const appProtectedRouters = () => {
+      if (appProtected === null) {
+        const py = [];
+        for (const f of files) {
+          if (!f.endsWith('.py')) continue;
+          try { py.push({ content: fs.readFileSync(f, 'utf-8') }); } catch { /* unreadable: not a router include */ }
+        }
+        appProtected = appLevelProtectedRouters(py);
+      }
+      return appProtected;
+    };
 
     for (const file of files) {
       // Forward slashes always — findings must not differ by host OS.
@@ -416,7 +438,7 @@ class AuthBypassDetector extends BaseModule {
       this._checkSessionIdentityShadowing(rel, content, result);
 
       // Skip files with no route definitions
-      const hasRoutes = (
+      const hasRoutes = file.endsWith('.py') ? isPythonRouteFile(content) : (
         EXPRESS_ROUTE_RE.test(content) ||
         NEXTJS_EXPORT_RE.test(content) ||
         FASTIFY_ROUTE_RE.test(content) ||
@@ -435,7 +457,9 @@ class AuthBypassDetector extends BaseModule {
       routeFiles++;
 
       const lines = content.split(/\r?\n/);
-      const issues = this._findUnauthenticatedRoutes(file, rel, content, lines);
+      const issues = file.endsWith('.py')
+        ? this._findUnauthenticatedPythonRoutes(rel, content, appProtectedRouters)
+        : this._findUnauthenticatedRoutes(file, rel, content, lines);
 
       if (issues.length === 0) continue;
       unprotected += issues.length;
@@ -553,6 +577,28 @@ class AuthBypassDetector extends BaseModule {
     return flagged;
   }
 
+  /**
+   * FastAPI / Starlette / Flask (issue #842, DR-4). A route is protected by
+   * a dependency on the endpoint, a router-level `dependencies=[...]`, a
+   * guard the handler enforces itself, or an app-level
+   * `include_router(<stem>.router, dependencies=[...])` matched by this
+   * file's basename. Suppression is `# auth-public` / `# no-auth` on or
+   * above the decorator.
+   */
+  _findUnauthenticatedPythonRoutes(rel, content, appProtectedRouters) {
+    const routes = findPythonRoutes(content);
+    if (routes.length === 0) return [];
+    const stem = rel.replace(/\\/g, '/').split('/').pop().replace(/\.py$/, '');
+    const appGuarded = appProtectedRouters().has(stem);
+    const issues = [];
+    for (const r of routes) {
+      if (r.suppressed || r.protectedBy || appGuarded) continue;
+      if (isPublicRoute(r.route)) continue;
+      issues.push({ method: r.method, route: r.route, line: r.line });
+    }
+    return issues;
+  }
+
   _findUnauthenticatedRoutes(file, rel, content, lines) {
     const issues = [];
 
@@ -628,7 +674,7 @@ class AuthBypassDetector extends BaseModule {
       re.lastIndex = 0;
       let m;
       while ((m = re.exec(content)) !== null) {
-        const [, method, routePath] = m;
+        const [, receiver, method, routePath] = m;
         if (isPublicRoute(routePath)) continue;
 
         const matchIdx = m.index;
@@ -662,6 +708,14 @@ class AuthBypassDetector extends BaseModule {
         if ((masked[lineNo - 1] || '')[col] !== lineText[col]) continue;
 
         const body = extractHandlerBody(content, matchIdx);
+
+        // `api.post('/support/tickets', body)` on an axios instance is the
+        // CLIENT asking a route, not the server defining one — 73 of 73
+        // DavenRoe errors (#842 DR-4). One definition, three signals:
+        // src/core/http-client-calls.js.
+        const callEnd = body.startsWith(receiver) ? matchIdx + body.length : -1;
+        if (isHttpClientCall({ content, masked: maskOf(content), receiver, start: matchIdx, end: callEnd })) continue;
+
         if (AUTH_SIGNAL_RE.test(body)) continue;
 
         // A handler forwarded from the enclosing function's parameters is

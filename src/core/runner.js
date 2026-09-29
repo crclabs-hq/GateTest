@@ -1468,7 +1468,16 @@ class GateTestRunner extends EventEmitter {
     const budgetDeferredCount = this._budgetDeferredModules.length;
     const budgetLimited = budgetDeferredCount > 0;
     const strictEmpty = nothingChecked && this.options.strict === true;
-    const rawGateStatus = (failed.length === 0 && totalBlockingErrors === 0 && !strictEmpty) ? 'PASSED' : 'BLOCKED';
+    // Report-only (the flag, or an active --report-only-until window) never
+    // made a verdict: the block threshold was Infinity, so
+    // `totalBlockingErrors` is 0 by construction. Saying PASSED there is
+    // the lie issue #842 DR-a reported — `gateStatus: "PASSED"` above 1,974
+    // errors. REPORT_ONLY is the third value (src/core/report-schema.js);
+    // exit code stays 0 (json-output.js `blocksGate`). A crashed module is
+    // still BLOCKED — that is GateTest failing, not a finding.
+    const reportOnlyActive = this.options.reportOnly === true || this._reportOnlyUntilActive;
+    const gateOpen = failed.length === 0 && totalBlockingErrors === 0 && !strictEmpty;
+    const rawGateStatus = !gateOpen ? 'BLOCKED' : (reportOnlyActive ? 'REPORT_ONLY' : 'PASSED');
 
     // KI #107 — admin softening, opt-in only, via `GATETEST_ADMIN=1` in the
     // environment of THIS run. `.gatetest.json`'s `admin`/`owner` keys are
@@ -1568,7 +1577,7 @@ class GateTestRunner extends EventEmitter {
       // (constructor resolves precedence + the --strict override). Every
       // reporter must say so — Doctrine #6, a pass under a fallback never
       // wears the green tick silently.
-      reportOnly: this.options.reportOnly === true || this._reportOnlyUntilActive,
+      reportOnly: reportOnlyActive,
       // Full resolution of `--report-only-until` / `.gatetest.json`
       // `reportOnlyUntil`, or null when neither was set. `active` already
       // accounts for `--strict`; `overriddenByStrict` says so explicitly so

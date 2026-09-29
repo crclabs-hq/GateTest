@@ -60,6 +60,8 @@ class HtmlReporter {
 
   _generateHtml(summary, history) {
     const passed = summary.gateStatus === 'PASSED';
+    // REPORT_ONLY (#842 DR-a): neither the green nor the red banner is true.
+    const badge = summary.gateStatus === 'REPORT_ONLY' ? 'REPORT ONLY' : (passed ? 'PASSED' : 'BLOCKED');
     const totalIssues = summary.checks.failed;
     const totalPassed = summary.checks.passed;
     // Info-severity "findings" (markdown whitespace nits, missing Stylelint
@@ -292,7 +294,7 @@ class HtmlReporter {
       <h1><span>Gate</span>Test</h1>
       <div class="topbar-time">${summary.timestamp} &middot; ${summary.duration}ms</div>
     </div>
-    <div class="badge">${passed ? 'PASSED' : 'BLOCKED'}</div>
+    <div class="badge">${badge}</div>
   </div>
 
   <div class="container">
