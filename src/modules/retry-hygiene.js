@@ -135,9 +135,42 @@ const COUNTER_BOUND_EXIT_RE =
   /\b[A-Za-z_$][\w$]*\s*(?:\+\+|--)\s*[<>]=?\s*(?:[A-Za-z_$][\w$]*|\d+)\b[^\n;]*(?:throw|break|return|continue)\b/;
 const DEADLINE_BOUND_RE = /\bDate\.now\s*\(\s*\)\s*[<>]=?\s*[A-Za-z_$][\w$]*/;
 
+// #771 GT-07 residual: the bound is often a plain comparison whose counter is
+// bumped LATER in the body — AlecRae's ssrf-guard `for (;;)`:
+//
+//   if (hops >= maxRedirects) { return err(...); }   // exits
+//   ...
+//   hops += 1;                                        // counts
+//
+// Neither the `++`-beside-the-compare shape nor the attempt vocabulary sees
+// it. So: a comparison (`>=`, `>`, `<=`, `<`) whose statement is a `return`,
+// `throw` or `break`, where one operand is a counter the body mutates
+// (`++`, `--`, `+=`, `-=`, `= x + 1`). BOTH halves are required — an HTTP
+// status compared and thrown on (`res.status >= 500`) is never mutated, and a
+// counter that is compared but never advanced bounds nothing.
+const COMPARE_EXIT_RE =
+  /([A-Za-z_$][\w$.]*)\s*(?:>=|<=|>|<)\s*([A-Za-z_$][\w$.]*|\d+)[^\n{;]*?\)\s*\{?\s*(?:return|throw|break)\b/g;
+
+function isMutated(name, body) {
+  const n = name.split('.').pop().replace(/[$]/g, (c) => `\\${c}`);
+  return new RegExp(
+    String.raw`\b${n}\s*(?:\+\+|--|[+-]=)|(?:\+\+|--)\s*${n}\b|\b${n}\s*=\s*[\w$.]+\s*[+-]\s*[\w$]+`,
+  ).test(body);
+}
+
+function hasCounterCompareBound(body) {
+  COMPARE_EXIT_RE.lastIndex = 0;
+  let m;
+  while ((m = COMPARE_EXIT_RE.exec(body)) !== null) {
+    if (isMutated(m[1], body) || (!/^\d+$/.test(m[2]) && isMutated(m[2], body))) return true;
+  }
+  return false;
+}
+
 function hasVisibleBound(body) {
   return /\b(?:attempts?|tries|retries|maxAttempts|MAX_[A-Z_]*)\b/.test(body)
     || COUNTER_BOUND_EXIT_RE.test(body)
+    || hasCounterCompareBound(body)
     || DEADLINE_BOUND_RE.test(body);
 }
 

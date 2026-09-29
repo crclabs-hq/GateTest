@@ -162,6 +162,107 @@ describe('RetryHygieneModule — GT-07: a visible bound quiets the loop; no boun
   });
 });
 
+// ── GT-07 residual (issue #771): AlecRae apps/api/src/lib/ssrf-guard.ts:369 —
+// the bound is `if (hops >= maxRedirects) return err(...)`, a comparison that
+// RETURNS rather than throws, with `hops` advanced later in the loop.
+describe('RetryHygieneModule — GT-07 residual: a compared-and-mutated counter that returns/throws/breaks is a bound', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-rh-771b-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+  const unbounded = (r) => r.checks.filter((c) => !c.passed && c.name.startsWith('retry-hygiene:unbounded-loop:'));
+
+  it('NEGATIVE: the exact ssrf-guard shape (>= then return err, `hops += 1` later) is quiet', async () => {
+    write(tmp, 'src/ssrf-guard.ts', [
+      'export async function safeFetch(rawUrl: string, options: SafeFetchOptions = {}) {',
+      '  const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS;',
+      '  let currentUrl = rawUrl;',
+      '  let hops = 0;',
+      '',
+      '  for (;;) {',
+      '    const validation = await validateUrl(currentUrl);',
+      '    if (!validation.ok) return validation;',
+      '    const response = await fetch(validation.value.href, { redirect: "manual" });',
+      '    if (!isRedirectStatus(response.status)) {',
+      '      return ok(response);',
+      '    }',
+      '    if (hops >= maxRedirects) {',
+      '      return err({ reason: "too_many_redirects", url: currentUrl });',
+      '    }',
+      '    const location = response.headers.get("location");',
+      '    currentUrl = new URL(location, validation.value).href;',
+      '    hops += 1;',
+      '  }',
+      '}',
+      '',
+    ].join('\n'));
+    assert.strictEqual(unbounded(await run(tmp)).length, 0);
+  });
+
+  it('NEGATIVE: the other counter spellings (n = n + 1, ++n, break) and the reversed compare are quiet', async () => {
+    const shapes = [
+      ['a.ts', '    if (n > limit) break;', '    n = n + 1;'],
+      ['b.ts', '    if (limit <= n) throw new Error("x");', '    ++n;'],
+    ];
+    for (const [file, cmp, bump] of shapes) {
+      write(tmp, `src/${file}`, [
+        'async function run(limit) {',
+        '  let n = 0;',
+        '  for (;;) {',
+        '    const res = await fetch(url);',
+        '    if (res.ok) return res;',
+        cmp,
+        bump,
+        '  }',
+        '}',
+        '',
+      ].join('\n'));
+    }
+    assert.strictEqual(unbounded(await run(tmp)).length, 0, JSON.stringify(unbounded(await run(tmp)).map((c) => c.file)));
+  });
+
+  it('POSITIVE CONTROL: for(;;) { await fetch(); } with no counter at all still fires', async () => {
+    write(tmp, 'src/d.ts', [
+      'async function spin() {',
+      '  for (;;) {',
+      '    await fetch(url);',
+      '  }',
+      '}',
+      '',
+    ].join('\n'));
+    assert.strictEqual(unbounded(await run(tmp)).length, 1);
+  });
+
+  it('POSITIVE CONTROL: a counter that is compared and returned on but never mutated is infinite — still fires', async () => {
+    write(tmp, 'src/e.ts', [
+      'async function stuck(maxRedirects) {',
+      '  let hops = 0;',
+      '  for (;;) {',
+      '    const res = await fetch(url);',
+      '    if (res.ok) return res;',
+      '    if (hops >= maxRedirects) {',
+      '      return null;',
+      '    }',
+      '  }',
+      '}',
+      '',
+    ].join('\n'));
+    assert.strictEqual(unbounded(await run(tmp)).length, 1);
+  });
+
+  it('POSITIVE CONTROL: an HTTP status compared and thrown on is not a counter — still fires', async () => {
+    write(tmp, 'src/f.ts', [
+      'async function poll() {',
+      '  for (;;) {',
+      '    const res = await fetch(url);',
+      '    if (res.status >= 500) throw new Error("upstream");',
+      '  }',
+      '}',
+      '',
+    ].join('\n'));
+    assert.strictEqual(unbounded(await run(tmp)).length, 1);
+  });
+});
+
 describe('RetryHygieneModule — no backoff / no jitter', () => {
   let tmp;
   beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-rh-nb-')); });
