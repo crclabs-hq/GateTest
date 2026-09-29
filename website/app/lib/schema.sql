@@ -85,6 +85,34 @@ CREATE TABLE IF NOT EXISTS heal_history (
   details JSONB
 );
 
+-- Email + password sign-in (password-auth-store.js owns these statements;
+-- they run idempotently at first use and from POST /api/db/init).
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_hash TEXT;          -- scrypt$N$r$p$salt$hash, NULL for OAuth-only
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_updated_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS auth_tokens (
+  id TEXT PRIMARY KEY,
+  customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('verify', 'reset')),
+  token_hash TEXT NOT NULL UNIQUE,   -- sha256 of the 32-byte link token; the token itself is never stored
+  payload TEXT,                      -- verify: the pending password hash, activated on click
+  expires_at TIMESTAMPTZ NOT NULL,   -- 1 h after issue
+  used_at TIMESTAMPTZ,               -- single use
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_customer_kind ON auth_tokens(customer_id, kind);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_expires ON auth_tokens(expires_at);
+
+-- Sign-in throttle: one row per failed attempt, keyed by sha256(email|ip).
+-- 10 rows inside 15 minutes → 429. A table, not a process Map: the site is multi-process.
+CREATE TABLE IF NOT EXISTS auth_login_failures (
+  id BIGSERIAL PRIMARY KEY,
+  scope_key TEXT NOT NULL,
+  attempted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_auth_login_failures_key_time ON auth_login_failures(scope_key, attempted_at);
+
 CREATE INDEX IF NOT EXISTS idx_watches_owner ON watches(owner_login);
 CREATE INDEX IF NOT EXISTS idx_watches_enabled_checked ON watches(enabled, last_checked_at);
 CREATE INDEX IF NOT EXISTS idx_heal_history_watch ON heal_history(watch_id, triggered_at DESC);
