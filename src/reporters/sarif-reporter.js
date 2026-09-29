@@ -359,8 +359,8 @@ class SarifReporter {
           startTimeUtc: summary.timestamp,
         }],
         // Root cause on every red run (move 12) — same why/since/replay the
-        // console and PR comment carry. Absent on a PASSED run.
-        // `gatetestSchemaVersion` is the version the JSON report carries.
+        // console and PR comment carry; rootCause is absent on a PASSED run.
+        // `gatetestSchemaVersion` is always present (#803): the version the JSON report carries.
         properties: {
           gatetestSchemaVersion: REPORT_SCHEMA_VERSION,
           ...(summary.rootCause ? { rootCause: summary.rootCause } : {}),
