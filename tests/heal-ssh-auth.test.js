@@ -29,11 +29,19 @@ test("heal/ssh route: admin-only and same-origin — requireAdminRoute is the fi
   assert.match(src, /export async function POST\(req: NextRequest\) \{[\s\S]*?const refused = requireAdminRoute\(req, \{ mutating: true \}\);\s*if \(refused\) return refused;/);
 });
 
+// The decisions moved to website/app/lib/ssh-heal.js (tested by behaviour in
+// tests/heal-ssh-target.test.js); the route passes process.env and the body.
+const LIB = path.join(ROOT, "website/app/lib/ssh-heal.js");
+
 test("heal/ssh route: SSH target and credentials come from env only, never the request body", () => {
   const src = fs.readFileSync(ROUTE, "utf8");
-  assert.doesNotMatch(src, /body\.host\b/, "host must not be readable from the request body");
-  assert.doesNotMatch(src, /body\.port\b/, "port must not be readable from the request body");
-  assert.doesNotMatch(src, /body\.username\b/, "username must not be readable from the request body");
-  assert.doesNotMatch(src, /body\.password\b/, "password must not be readable from the request body");
-  assert.match(src, /process\.env\.GATETEST_SSH_HOST/);
+  const lib = fs.readFileSync(LIB, "utf8");
+  for (const [name, code] of [["route", src], ["lib", lib]]) {
+    assert.doesNotMatch(code, /(?:body|input)\.host\b/, `${name}: host must not be readable from the request body`);
+    assert.doesNotMatch(code, /(?:body|input)\.port\b/, `${name}: port must not be readable from the request body`);
+    assert.doesNotMatch(code, /(?:body|input)\.username\b/, `${name}: username must not be readable from the request body`);
+    assert.doesNotMatch(code, /(?:body|input)\.password\b/, `${name}: password must not be readable from the request body`);
+  }
+  assert.match(src, /runHeal\(\{ env: process\.env, body,/);
+  assert.match(lib, /e\.GATETEST_SSH_HOST/);
 });
