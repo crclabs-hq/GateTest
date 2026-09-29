@@ -326,3 +326,26 @@ describe('SecretsModule — GT-05 false positives (issue #771)', () => {
     });
   });
 });
+
+// ── #842 DR-b: the per-file finding names the line of its first match ─────
+//
+// DavenRoe backend/app/core/config.py: "1 potential secret(s) found",
+// `line: null`. The module scans line by line and every match in `details`
+// carries its line, but the ONE check emitted per file never did.
+describe('SecretsModule — the file finding carries a line (#842 DR-b)', () => {
+  let tmp;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-secrets-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('POSITIVE: a credential on line 3 reports line 3; NEGATIVE: a clean file reports nothing', async () => {
+    fs.writeFileSync(path.join(tmp, 'config.py'), 'import os\n\naws_secret_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY1"\n');
+    fs.writeFileSync(path.join(tmp, 'clean.py'), 'import os\n\nsecret = os.environ["SECRET"]\n');
+    const mod = new SecretsModule();
+    const result = makeResult();
+    await mod.run(result, { projectRoot: tmp });
+    const f = result.checks.filter((c) => !c.passed && c.name.startsWith('secrets:') && c.file);
+    assert.strictEqual(f.length, 1, JSON.stringify(f));
+    assert.strictEqual(f[0].file, 'config.py');
+    assert.strictEqual(f[0].line, 3);
+  });
+});

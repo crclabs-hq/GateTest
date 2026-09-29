@@ -1,0 +1,74 @@
+{
+  "generatedAt": "2026-09-29T09:31:57.395Z",
+  "sourceRepoHash": "ee63efee5b68c868",
+  "corpusDir": "/home/runner/.gatetest/cross-repo-corpus",
+  "proposalsConsidered": 3,
+  "promoted": 3,
+  "skippedLowQuality": 0,
+  "skippedWriteFailed": 0,
+  "vectors": [
+    {
+      "fingerprint": "638ffc5f8af73fabe252589a",
+      "operatorClass": "mixed",
+      "fileExt": ".tsx",
+      "diffShape": {
+        "added": 5,
+        "removed": 1,
+        "fileCount": 1,
+        "hunkCount": 0
+      },
+      "tokenHisto": {
+        "ident": 0,
+        "str": 0,
+        "num": 0,
+        "op": 0,
+        "kw": 0
+      },
+      "plausibilityScore": 1,
+      "sampleSize": 4,
+      "createdAt": "2026-09-29T09:31:57.395Z"
+    },
+    {
+      "fingerprint": "afbe6d0de8af0ba6a03aec8c",
+      "operatorClass": "mixed",
+      "fileExt": ".js",
+      "diffShape": {
+        "added": 13,
+        "removed": 5,
+        "fileCount": 3,
+        "hunkCount": 0
+      },
+      "tokenHisto": {
+        "ident": 0,
+        "str": 0,
+        "num": 0,
+        "op": 0,
+        "kw": 0
+      },
+      "plausibilityScore": 1,
+      "sampleSize": 3,
+      "createdAt": "2026-09-29T09:31:57.396Z"
+    },
+    {
+      "fingerprint": "9aa55d775624703fb564296f",
+      "operatorClass": "stmt-add",
+      "fileExt": ".example",
+      "diffShape": {
+        "added": 55,
+        "removed": 0,
+        "fileCount": 3,
+        "hunkCount": 0
+      },
+      "tokenHisto": {
+        "ident": 0,
+        "str": 0,
+        "num": 0,
+        "op": 0,
+        "kw": 0
+      },
+      "plausibilityScore": 0.619,
+      "sampleSize": 3,
+      "createdAt": "2026-09-29T09:31:57.396Z"
+    }
+  ]
+}
