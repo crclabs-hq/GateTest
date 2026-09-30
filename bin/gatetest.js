@@ -168,8 +168,9 @@ const HELP = `
                        run only the project's test files that transitively
                        import a changed file (import graph). Falls back to
                        the full test set, and says why, when a change cannot
-                       be mapped (config, deleted or non-JS files, computed
-                       requires, a test script it cannot pass files to).
+                       be mapped (config, deleted or non-JS files, a test
+                       script it cannot pass files to). Tests that reach a
+                       computed require are kept and named.
     --all-tests        With --diff: run every test file, not just the ones
                        the diff touches.
     --report-only      Report findings but NEVER fail the gate. Use this
