@@ -10,47 +10,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createHmac, timingSafeEqual } from "crypto";
-import {
-  getAdminConfig,
-  getAdminUser,
-  SESSION_COOKIE_NAME,
-} from "@/app/lib/admin-session";
-import { ADMIN_COOKIE_NAME } from "@/app/lib/admin-auth";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function checkPwCookie(v: string | undefined): boolean {
-  const pw = process.env.GATETEST_ADMIN_PASSWORD || "";
-  if (!pw || !v) return false;
-  const exp = createHmac("sha256", pw).update("gatetest-admin-v1").digest("hex");
-  const a = Buffer.from(v);
-  const b = Buffer.from(exp);
-  if (a.length !== b.length) return false;
-  try {
-    return timingSafeEqual(a, b);
-  } catch {
-    return false;
-  }
-}
-
-async function isAuthenticatedAdmin(): Promise<boolean> {
-  const store = await cookies();
-  const adminStatus = getAdminConfig();
-  if (adminStatus.ok && adminStatus.config) {
-    const sessionCookie = store.get(SESSION_COOKIE_NAME)?.value;
-    if (getAdminUser(sessionCookie, adminStatus.config)) return true;
-  }
-  if (checkPwCookie(store.get(ADMIN_COOKIE_NAME)?.value)) return true;
-  return false;
-}
-
 export async function GET(req: NextRequest) {
-  if (!(await isAuthenticatedAdmin())) {
-    return NextResponse.json({ error: "unauthorised" }, { status: 401 });
-  }
+  const refused = requireAdminRoute(req);
+  if (refused) return refused;
 
   const { searchParams } = new URL(req.url);
   const repoUrl = searchParams.get("repo") || "";

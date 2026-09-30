@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 
 const { draftReply } = require("@/app/lib/hn-reply-assistant/drafter.js") as {
   draftReply: (args: {
@@ -32,16 +33,10 @@ export const maxDuration = 30;
 
 const HN_AUTHOR = "McCracken49";
 
-async function isAdminRequest(req: NextRequest): Promise<boolean> {
-  const cookie = req.cookies.get("gatetest_admin")?.value;
-  return Boolean(cookie);
-}
-
 export async function POST(req: NextRequest) {
   try {
-    if (!(await isAdminRequest(req))) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const refused = requireAdminRoute(req, { mutating: true });
+    if (refused) return refused;
     let body: unknown;
     try {
       body = await req.json();
