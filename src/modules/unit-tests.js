@@ -9,6 +9,8 @@ const path = require('path');
 const { looksLikeMissingToolchain, looksLikeToolchainBuildFailure, firstToolchainErrorLine } = require('../core/toolchain-signals');
 const { repoRelative } = require('../core/repo-path');
 const { planTestRun } = require('../core/test-impact');
+const flakyLedger = require('../core/flaky-ledger');
+const { parseTestOutcomes } = require('../core/test-outcomes');
 
 class UnitTestsModule extends BaseModule {
   constructor() {
@@ -109,11 +111,16 @@ class UnitTestsModule extends BaseModule {
 
     const out = stdout + stderr;
     if (exitCode === 0) {
+      // Green runs are recorded too: a flip is a pass next to a fail, and the
+      // pass is the half only a green run can supply. Under --diff only the
+      // selected tests ran, so only they are recorded.
+      const ledger = this._flakyLedger(projectRoot, config, out);
       result.addCheck('unit-tests:run', true, {
         message: narrowed
           ? `Selected unit tests passed (${plan.impact.selected.length} of ${plan.impact.totalTestFiles} test files; the rest were not run)`
           : 'All unit tests passed',
       });
+      this._reportFlakyLedger(result, ledger, []);
     } else if (timedOut) {
       // Never derive a verdict from a timeout (doctrine, move 18): ktor's
       // Gradle build ran for the full five minutes on CI and was reported
