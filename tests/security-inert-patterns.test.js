@@ -849,3 +849,92 @@ describe('security — CSRF disablement is a code shape, never prose in a JSX st
     assert.deepStrictEqual(lines, [13, 14, 15, 16]);
   });
 });
+
+// =============================================================================
+// Corpus regression (apollo-server @ 53ac3c13, 2026-09-29): the #842 DR-1
+// code-shape rule took `\w*csrf\w*\s*[:=]+\s*false` for "a key set to false",
+// and `[:=]+` also swallowed `===`. Two gate-BLOCKING CRITICALs at 1.0 on a
+// repository held to a zero ceiling:
+//   - packages/server/src/ApolloServer.ts:354 `: config.csrfPrevention === false`
+//     — the server COMPARING its option to choose the header list;
+//   - packages/integration-testsuite/src/httpSpecTests.ts:20
+//     `csrfPrevention: false,` — the conformance suite configuring the server
+//     under test; `*-testsuite` was not a test path, so it priced as app code.
+// Control pair: the exact apollo-server lines are quiet at the gate, and the
+// same `csrfPrevention: false` in application code still blocks.
+// =============================================================================
+
+describe('security — CSRF rule reads an assignment, not a comparison; a test suite is harness (apollo-server corpus, 2026-09-29)', () => {
+  const { scoreFinding, BLOCK_THRESHOLD } = require('../src/core/confidence');
+  let tmp8;
+  beforeEach(() => { tmp8 = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-sec-csrf-apollo-')); });
+  afterEach(() => { fs.rmSync(tmp8, { recursive: true, force: true }); });
+
+  // Every failing CSRF finding with the confidence the runner would give it
+  // (src/core/runner.js scores a module check with exactly these inputs).
+  async function scanAt(relPath, lines) {
+    const abs = path.join(tmp8, ...relPath.split('/'));
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(path.join(tmp8, 'package.json'), '{"name":"t","version":"1.0.0"}\n');
+    fs.writeFileSync(abs, lines.concat('').join('\n'));
+    const mod = new SecurityModule();
+    const result = makeResult();
+    await mod.run(result, { projectRoot: tmp8 });
+    return result.checks
+      .filter((c) => !c.passed && /CSRF protection disabled/.test(c.name))
+      .map((c) => ({
+        line: c.line,
+        confidence: scoreFinding({ filePath: c.file, ruleKey: c.name, module: 'security', message: c.message, line: c.line }).confidence,
+      }));
+  }
+  const blocking = (findings) => findings.filter((f) => f.confidence >= BLOCK_THRESHOLD).map((f) => f.line);
+
+  // packages/server/src/ApolloServer.ts:350-357, verbatim.
+  const APOLLO_SERVER = [
+    '      csrfPreventionRequestHeaders:',
+    '        config.csrfPrevention === true || config.csrfPrevention === undefined',
+    '          ? recommendedCsrfPreventionRequestHeaders',
+    '          : config.csrfPrevention === false',
+    '            ? null',
+    '            : (config.csrfPrevention.requestHeaders ??',
+    '              recommendedCsrfPreventionRequestHeaders),',
+  ];
+  // packages/integration-testsuite/src/httpSpecTests.ts:14-22, verbatim.
+  const APOLLO_SUITE = [
+    '    beforeAll(async () => {',
+    '      createServerResult = await createServer({',
+    '        // Any schema will do (the tests just run `{__typename}`).',
+    "        typeDefs: 'type Query { x: ID }',",
+    '        // The test doesn\'t know we should send apollo-require-preflight along',
+    '        // with GETs. We could override `fetchFn` to add it but this seems simple enough.',
+    '        csrfPrevention: false,',
+    '      });',
+    '    });',
+  ];
+
+  it('QUIET: ApolloServer.ts:354 `config.csrfPrevention === false` is a comparison — no finding at all', async () => {
+    assert.deepStrictEqual(await scanAt('packages/server/src/ApolloServer.ts', APOLLO_SERVER), []);
+  });
+
+  it('QUIET at the gate: httpSpecTests.ts:20 in the integration-testsuite workspace is harness — below the block threshold', async () => {
+    const findings = await scanAt('packages/integration-testsuite/src/httpSpecTests.ts', APOLLO_SUITE);
+    assert.deepStrictEqual(blocking(findings), []);
+  });
+
+  it('POSITIVE: the same `csrfPrevention: false` in application code still blocks; `==`/`!==` comparisons stay quiet', async () => {
+    const app = [
+      "import { ApolloServer } from '@apollo/server';",
+      'export const server = new ApolloServer({',
+      '  typeDefs,',
+      '  csrfPrevention: false,',
+      '});',
+      'if (opts.csrf == false) warn();',
+      'if (opts.csrf !== false) ok();',
+      'csrfProtection = false;',
+      'const settings = { csrf: false };',
+    ];
+    const findings = await scanAt('packages/server/src/index.ts', app);
+    assert.deepStrictEqual(findings.map((f) => f.line), [4, 8, 9]);
+    assert.deepStrictEqual(blocking(findings), [4, 8, 9]);
+  });
+});

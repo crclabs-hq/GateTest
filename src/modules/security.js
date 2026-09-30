@@ -578,8 +578,12 @@ class SecurityModule extends BaseModule {
       // text has no quotes for the mask to blank, so the rule itself must
       // not read as English: a config key set to false, a `csrf()` builder
       // `.disable()`d, a Django `csrf_exempt`, or `disable('csrf')`.
+      // The key-set-to-false branch is an ASSIGNMENT (`:`, `=`, Go's `:=`),
+      // never a comparison: `[:=]+` also read `config.csrfPrevention ===
+      // false` — apollo-server ApolloServer.ts:354, the branch that CHOOSES
+      // the header list — as a CRITICAL disablement (corpus, 2026-09-29).
       {
-        regex: /\bdisable\s*\(\s*['"]csrf['"]\s*\)|\w*csrf\w*\s*[:=]+\s*false\b|\w*csrf\w*\s*\(\s*false\s*\)|\bcsrf\w*\s*\(\s*\)\s*\.\s*disable\s*\(|\bcsrf\s*\(\s*(?:[\w.]*::disable|\w+\s*->\s*\w+\s*\.\s*disable\s*\(\s*\))\s*\)|\bcsrf_exempt\b|\bcsrf\w*\s*:\s*\{\s*enabled\s*:\s*false\b/gi,
+        regex: /\bdisable\s*\(\s*['"]csrf['"]\s*\)|\w*csrf\w*\s*(?::=?|=(?!=))\s*false\b|\w*csrf\w*\s*\(\s*false\s*\)|\bcsrf\w*\s*\(\s*\)\s*\.\s*disable\s*\(|\bcsrf\s*\(\s*(?:[\w.]*::disable|\w+\s*->\s*\w+\s*\.\s*disable\s*\(\s*\))\s*\)|\bcsrf_exempt\b|\bcsrf\w*\s*:\s*\{\s*enabled\s*:\s*false\b/gi,
         name: 'CSRF protection disabled',
         severity: 'critical',
         readsStrings: true,
