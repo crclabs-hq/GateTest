@@ -36,6 +36,12 @@ const { requireSession } = require("./app/lib/session-gate.js") as {
   }) => { ok: true } | { ok: false; location: string };
 };
 
+// The public origin — ONE definition (Doctrine #4). Behind box 161's proxy
+// `request.url` carries the internal host, so the gate's redirect is built
+// on the canonical origin, never on the request.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { siteUrl } = require("./app/lib/site-url.js") as { siteUrl: (path?: string) => string };
+
 export function proxy(request: NextRequest) {
   const gate = requireSession({
     pathname: request.nextUrl.pathname,
@@ -45,11 +51,14 @@ export function proxy(request: NextRequest) {
     verify: verifyCustomerSession,
   });
   if (!gate.ok) {
-    // Relative Location on purpose: behind the box's proxy `request.url`
-    // carries the internal host, and a relative target is always right.
+    // Absolute Location, on the canonical origin. A relative one made Next's
+    // proxy adapter throw `TypeError: Invalid URL` (input
+    // "/login?next=%2Fdashboard") and every anonymous visit to a protected
+    // page answered 500 instead of reaching /login (production, 30 Sep
+    // 06:51Z, the owner's own sign-in).
     return new NextResponse(null, {
       status: 307,
-      headers: { Location: gate.location, "Cache-Control": "private, no-store" },
+      headers: { Location: siteUrl(gate.location), "Cache-Control": "private, no-store" },
     });
   }
 
