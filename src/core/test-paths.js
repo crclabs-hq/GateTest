@@ -44,12 +44,22 @@ const TEST_PATH_RE =
   // sets `rejectUnauthorized: false` against its own local server four
   // times and was gate-BLOCKED on all four at confidence 1.0 (2026-09-14).
   //
+  // `test[-_]?suites?` — a test SUITE directory is the same kind of code as
+  // a tests directory: apollo-server ships its HTTP conformance suite as
+  // `packages/integration-testsuite/`, and `httpSpecTests.ts` there passes
+  // `csrfPrevention: false` to the server under test (the suite does not
+  // send the preflight header on GETs). Read as application code it was a
+  // gate-BLOCKING "CSRF protection disabled" at confidence 1.0 (corpus,
+  // 2026-09-29). Same separator rule as the branch above: `testsuite`,
+  // `test-suite`, `integration-testsuite` are harness; `testsuitebuilder.js`
+  // is a file name, not a directory segment, and stays application code.
+  //
   // `examples/` is deliberately NOT here, and neither is `docs/`. tRPC keeps
   // its real workspaces under `examples/*` — `tests/new-modules.test.js`
   // pins that trpcContract still reads a router there — and KI #77 recorded
   // why folding docs/ in would silence every module under it. Sample code
   // is a per-module judgement (claude-compliance makes it), not a harness.
-  /(?:^|\/)(?:tests?|specs?|__tests__|__mocks__|e2e|fixtures?|stories|storybook|reliability-corpus|testdata|test[-_]?resources|benchmarks?|bench|[a-z0-9]+[-_](?:tests?|specs?))(?:\/|$)|\.(?:test|spec|stories|fixture|e2e)\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts|py|rb|go|java|rs|php)$|(?:^|\/)(?:test_[^/]*|[^/]*_test|tests|conftest)\.py$/i;
+  /(?:^|\/)(?:tests?|specs?|__tests__|__mocks__|e2e|fixtures?|stories|storybook|reliability-corpus|testdata|test[-_]?resources|test[-_]?suites?|benchmarks?|bench|[a-z0-9]+[-_](?:tests?|specs?|test[-_]?suites?))(?:\/|$)|\.(?:test|spec|stories|fixture|e2e)\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts|py|rb|go|java|rs|php)$|(?:^|\/)(?:test_[^/]*|[^/]*_test|tests|conftest)\.py$/i;
 
 /**
  * Is this project-relative path test / fixture code? Normalises Windows

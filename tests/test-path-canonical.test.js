@@ -69,6 +69,13 @@ describe('BaseModule._isTestPath — canonical predicate', () => {
     'benchmark/index.ts',
     'bench/run.js',
     'packages/zod/src/v3/benchmarks/string.ts',
+    // A test SUITE directory is harness (2026-09-29): apollo-server's
+    // `packages/integration-testsuite/` workspace disables the server's CSRF
+    // prevention for its own requests and was gate-BLOCKED as app code.
+    'packages/integration-testsuite/src/httpSpecTests.ts',
+    'testsuite/run.js',
+    'src/test-suite/a.js',
+    'java/test_suites/AllTests.java',
   ];
   const NO_MATCH = [
     'src/app.js',
@@ -103,6 +110,8 @@ describe('BaseModule._isTestPath — canonical predicate', () => {
     // carrying them stays application code, and `docs/` is not a harness.
     'lib/benchmark.js',
     'src/benchmarking/timer.js',
+    'src/testsuitebuilder.js',   // a file name, not a directory segment
+    'src/mytestsuite/x.js',      // no separator before the test word
     'docs/api.js',
     // `examples/` is NOT a harness (2026-09-14, tried and reverted the same
     // day): tRPC keeps its real workspaces under `examples/*`, and

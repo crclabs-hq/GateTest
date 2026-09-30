@@ -173,6 +173,18 @@ test('scoreFinding on a test file returns ≤ 0.7', () => {
   assert.ok(confidence <= 0.7, `expected <= 0.7, got ${confidence}`);
 });
 
+// apollo-server ships its HTTP conformance suite as the workspace
+// `packages/integration-testsuite/`; `httpSpecTests.ts:20` passes
+// `csrfPrevention: false` to the server under test and was a gate-BLOCKING
+// CRITICAL at 1.0 (corpus, 2026-09-29). A test-suite directory is harness.
+// Control: the server's own source beside it keeps full confidence.
+test('scoreFinding in a *-testsuite workspace is below the block threshold; the server source beside it is not', () => {
+  const harness = scoreFinding({ filePath: 'packages/integration-testsuite/src/httpSpecTests.ts', ruleKey: 'security:CSRF protection disabled' });
+  assert.ok(harness.confidence < BLOCK_THRESHOLD, `expected < ${BLOCK_THRESHOLD}, got ${harness.confidence}`);
+  const server = scoreFinding({ filePath: 'packages/server/src/ApolloServer.ts', ruleKey: 'security:CSRF protection disabled' });
+  assert.ok(server.confidence >= BLOCK_THRESHOLD, `expected >= ${BLOCK_THRESHOLD}, got ${server.confidence}`);
+});
+
 test('scoreFinding on a fixture returns ≤ 0.5', () => {
   const { confidence } = scoreFinding({
     filePath: 'tests/fixtures/sample.json',
