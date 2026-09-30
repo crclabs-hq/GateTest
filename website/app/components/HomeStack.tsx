@@ -57,11 +57,9 @@ const PRODUCTS = [
     badgeColor: "bg-indigo-500",
     accent: "from-indigo-500/15 to-blue-500/5",
     tagline: "A git host, with its own CI gate.",
-    body: "A git host built for agents. [GLUECRON: pending their words — full pitch]",
+    body: "A git host built for agents.",
     proofStat: null,
     bullets: [
-      "[GLUECRON: pending their words — one verifiable proof point]",
-      "[GLUECRON: pending their words — price model]",
       "Its own CI gate runs on every push — nothing external required",
     ],
   },
