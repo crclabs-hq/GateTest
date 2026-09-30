@@ -21,15 +21,14 @@ test("stream route: exports GET handler", () => {
   assert.match(src, /export\s+async\s+function\s+GET\s*\(/);
 });
 
-test("stream route: admin-only — calls isAdminRequest and returns 401 on failure", () => {
+test("stream route: admin-only — the shared gate answers 401 before any stream opens", () => {
   const src = fs.readFileSync(ROUTE, "utf8");
-  assert.match(src, /isAdminRequest/);
-  assert.match(src, /401/);
+  assert.match(src, /export async function GET\(req: NextRequest\) \{\s*const refused = requireAdminRoute\(req\);\s*if \(refused\) return refused;/);
 });
 
-test("stream route: imports isAdminRequest from admin-auth", () => {
+test("stream route: imports requireAdminRoute from admin-guard", () => {
   const src = fs.readFileSync(ROUTE, "utf8");
-  assert.match(src, /import[^;]+isAdminRequest[^;]+admin-auth/);
+  assert.match(src, /import \{ requireAdminRoute \} from "@\/app\/lib\/admin-guard"/);
 });
 
 test("stream route: uses ReadableStream", () => {

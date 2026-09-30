@@ -16,7 +16,8 @@
  *   7. Return the structured drafts — client renders + tracks seen IDs
  *
  * Boss-Rule respect:
- *   - Admin-only (gatetest_admin cookie)
+ *   - Admin-only (requireAdminRoute — the gt_admin cookie or the OAuth
+ *     admin session) and same-origin: a poll spends paid API budget.
  *   - Every reply is a DRAFT with the [DRAFT — REVIEW BEFORE POSTING]
  *     banner. We never post anywhere.
  *   - Claude budget: hard cap at 5 drafts / poll. Comment volume above
@@ -25,6 +26,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 
 const {
   pollForNewComments,
@@ -75,16 +77,12 @@ const HN_AUTHOR = "McCracken49";
 const DEFAULT_LIMIT = 5;
 const HARD_LIMIT = 10;
 
-async function isAdminRequest(req: NextRequest): Promise<boolean> {
-  const cookie = req.cookies.get("gatetest_admin")?.value;
-  return Boolean(cookie);
-}
-
 export async function GET(req: NextRequest) {
   try {
-    if (!(await isAdminRequest(req))) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // A GET, but each poll drafts replies through the paid AI API — the
+    // same-origin check keeps a cross-site link from spending the budget.
+    const refused = requireAdminRoute(req, { mutating: true });
+    if (refused) return refused;
 
     const { searchParams } = new URL(req.url);
     const storyIdRaw = searchParams.get("storyId") || searchParams.get("story") || "";

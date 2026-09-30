@@ -10,45 +10,16 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import crypto from "crypto";
-import {
-  getAdminConfig,
-  getAdminUser,
-  SESSION_COOKIE_NAME,
-} from "@/app/lib/admin-session";
-import { ADMIN_COOKIE_NAME } from "@/app/lib/admin-auth";
 import { getDb } from "@/app/lib/db";
 import { generateApiKey } from "@/app/lib/api-key";
 
 export const dynamic = "force-dynamic";
 
-function checkPwCookie(v: string | undefined): boolean {
-  const pw = process.env.GATETEST_ADMIN_PASSWORD || "";
-  if (!pw || !v) return false;
-  const exp = crypto.createHmac("sha256", pw).update("gatetest-admin-v1").digest("hex");
-  const a = Buffer.from(v), b = Buffer.from(exp);
-  if (a.length !== b.length) return false;
-  try { return crypto.timingSafeEqual(a, b); } catch { return false; }
-}
-
-async function requireAdmin(): Promise<string | NextResponse> {
-  const store = await cookies();
-
-  // Auth: GitHub OAuth OR password cookie
-  const status = getAdminConfig();
-  if (status.ok && status.config) {
-    const login = getAdminUser(store.get(SESSION_COOKIE_NAME)?.value, status.config);
-    if (login) return login;
-  }
-  if (checkPwCookie(store.get(ADMIN_COOKIE_NAME)?.value)) return "admin";
-
-  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-}
-
-export async function GET() {
-  const admin = await requireAdmin();
-  if (typeof admin !== "string") return admin;
+export async function GET(req: NextRequest) {
+  const refused = requireAdminRoute(req);
+  if (refused) return refused;
 
   let sql: ReturnType<typeof getDb>;
   try {
@@ -73,8 +44,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (typeof admin !== "string") return admin;
+  const refused = requireAdminRoute(req, { mutating: true });
+  if (refused) return refused;
 
   const url = new URL(req.url);
   const revokeId = url.searchParams.get("revoke");

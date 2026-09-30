@@ -15,7 +15,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { isAdminRequest } from "@/app/lib/admin-auth";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { getDb } from "@/app/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -42,9 +42,8 @@ function toIso(v: Date | string): string {
 }
 
 export async function GET(req: NextRequest) {
-  if (!isAdminRequest(req)) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  const refused = requireAdminRoute(req);
+  if (refused) return refused;
 
   let sql: ReturnType<typeof getDb>;
   try {
