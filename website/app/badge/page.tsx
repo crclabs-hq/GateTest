@@ -184,6 +184,10 @@ export default function BadgePage() {
                 <td className="v2-mono text-xs text-[var(--v2-accent)]">repo</td>
                 <td className="text-xs text-[var(--v2-muted)]">GitHub repo in <code className="font-mono">owner/name</code> format (required). Shows <code className="font-mono">not scanned</code> until a scan is on record.</td>
               </tr>
+              <tr>
+                <td className="v2-mono text-xs text-[var(--v2-accent)]">flake</td>
+                <td className="text-xs text-[var(--v2-muted)]">The last segment. <code className="font-mono">flake 2.5%</code> is the share of your tests measured as flaky (they flip between pass and fail) once a run of your test suite has been recorded for the repo. <code className="font-mono">flake not measured</code> means no such run is on record — never a 0%.</td>
+              </tr>
             </tbody>
           </table>
         </div>

@@ -61,7 +61,14 @@ function redact(token: string): string {
   return token.length > 4 ? `***${token.slice(-4)}` : "****";
 }
 
-export async function listGitHubProfiles(): Promise<GitHubProfile[]> {
+/**
+ * List stored profiles, tokens redacted. A store failure is reported as
+ * `{ ok: false }` — never as an empty list, which the Accounts tab would
+ * show as "no accounts connected".
+ */
+export async function listGitHubProfiles(): Promise<
+  { ok: true; profiles: GitHubProfile[] } | { ok: false; reason: "store_unavailable" }
+> {
   try {
     const sql = getDb();
     await ensureSchema();
@@ -70,7 +77,7 @@ export async function listGitHubProfiles(): Promise<GitHubProfile[]> {
       FROM admin_github_profiles
       ORDER BY added_at DESC
     `) as unknown as GitHubProfileRow[];
-    return rows.map((r) => ({
+    const profiles = rows.map((r) => ({
       id: r.id,
       label: r.label,
       github_login: r.github_login,
@@ -78,8 +85,10 @@ export async function listGitHubProfiles(): Promise<GitHubProfile[]> {
       orgs: r.orgs ?? [],
       added_at: r.added_at,
     }));
+    return { ok: true, profiles };
   } catch {
-    return [];
+    // error-ok — reported to the caller as store_unavailable (503), not as "none"
+    return { ok: false, reason: "store_unavailable" };
   }
 }
 

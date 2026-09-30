@@ -935,3 +935,27 @@ places; no customer page, no revenue view, no search.
 5. Standing: arena API key, TALLRIG_API_TOKEN and the #532 secret bundle; route the
    "Production deploy stalled" issue (#796) to your phone.
 6. Name the repo meant for the parked public-site white redesign.
+
+### Addendum 2026-09-30 02:20Z — account switch to ccantyusa: RESUME HERE
+
+Session account: **ccantyusa@gmail.com** (from the session context, not guessed). Previous: ccantynz (80%, switched 29 Sep 21:09Z) → ccanty48co. Every claim below was checked against origin and production at 02:00Z on 30 Sep; the 30 Sep 00:xx RESUME table above is superseded where they differ.
+
+**Production (checked live):** gatetest.io serves 0baf4e93 built 27 Sep 14:26Z; `/` 200 with the v2 page, `/preview` 308 → `/`, `/admin` 200. `/api/platform-status.lastPullDeploy` at 01:52:38Z: `failed — gatetest-pull-deploy.service was killed before it could record its own status`. Every tick since 27 Sep 17:37Z dies the same way (mid-build; 30-minute TimeoutStartSec or OOM). Nothing merged since 27 Sep is live. Main is at f92440f2 and is RED on "real repos must not be blocked" (apollo-server 2 blocking, ceiling 0).
+
+| Stream | Branch (remote) | sha | Worktree | Stage | Next command |
+|---|---|---|---|---|---|
+| Corpus regression (unblocks every merge) | fix/corpus-apollo-regression; wip/… 95c90b9b | worktree dirty on cb26ff38 (confidence.js, test-paths.js, security.js + 3 tests, +127/−3) | GateTest-wt-apollo | **builder running since 02:05Z** (job `corpus` brief, docs/handoff/briefs/README.md) | if no PR titled "fix(corpus): apollo-server back to 0 blocking" exists, re-issue job `corpus`; `node scripts/real-world-precision.js --repo apollo-server` must say 0 |
+| Admin security A–E | fix/admin-auth-and-heal-guard | 43756ab9 = PR #851 (6 commits) | GateTest-wt-admin-sec (clean) | PR open, red only on the inherited corpus check | when main is green: `gh pr update-branch 851`, `gh pr merge 851 --auto --merge`; adversarial review not yet run |
+| Secrets panel UI | feat/admin-secrets-panel = PR #847; wip/… a4d3aae1 | 28a3331e (three builder commits pushed 02:10Z: split under 500 lines, would_drop_keys recovery, audit chain, step-up hook) | GateTest-wt-secrets-ui (clean) | **builder running since 02:20Z**: dead exports in api.ts (16 exports), eslint-disable in the test, audit fixes 4d/4e check, 13 review-thread replies | else re-issue job `secrets-ui` |
+| Repo Scan honesty | fix/admin-repo-scan-honest; wip/… 8f4c0447 (re-snapshotted 02:10Z) | worktree dirty on cb26ff38: RepoScanTab, useAutoFix, FixResultCard, ModuleResults, LiveScanTerminal + new auto-fix-logic.ts, scan-outcome.ts, tests/admin-repo-scan-honest.test.js | GateTest-wt-admin-autofix | builder mid-work, nothing committed | re-issue job `autofix` once one of the two running builders finishes (two at once on this PC) |
+| Admin redesign round | docs/admin-audit-outputs (this PR) | see this PR | GateTest-wt-audit-docs | **design track finished in the ccantynz session**: designer-a/b/c spec+mock, 05-synthesis.md (base: Designer C), mock-final.html (Overview, Scan, Customer, Secrets, Cmd-K; both themes; Geist embedded), final-src/ | render docs/admin-audit/mock-final.html at 1440 and 390 in both themes, then show Craig the ranked first wave from 05-synthesis.md §7; do NOT re-run the design track |
+| Public-site clean-white redesign | wip/feat/clean-white-design-system b7f90fba (re-snapshotted 02:10Z) | dirty on 0ae1e2bc: globals.css, layout.tsx, Navbar.tsx, ThemeToggle deleted, Geist woff2 files | GateTest-wt-design | PARKED (Craig: "wrong repo") | none until Craig names the repo |
+| Deploy: build into staging dir and swap (Refs #706, 23 Sep incident) | worktree branch feat/build-staging-swap, nothing committed | 94d41ef0 base | GateTest/.claude/worktrees/agent-a842420db01639ab4 | builder died at the 23 Sep session end, no work found | low priority while the box kills builds anyway; re-issue only after Craig's box fix, brief in HANDOFF §10 |
+
+**Bot PRs:** none open. #847 was update-branched 02:00Z. `gh pr update-branch` and `gh pr merge --auto` work from this session.
+
+**Waits on Craig (unchanged from the 30 Sep table, first item is the blocker):**
+1. Box 161 over the tailnet only — the Linux commands must run on the box, not in PowerShell: `ssh jarvis` first, then `journalctl -u gatetest-pull-deploy -n 80 --no-pager`, then `cd /opt/gatetest && git fetch origin main && git show origin/main:scripts/deploy/deploy-on-box.sh | DEPLOY_RECOVER=1 GATETEST_APP_DIR=/opt/gatetest bash -s`. Paste the journal tail to the GateTest session: the fix shape is a MemoryMax / LimitCORE drop-in and a wider TimeoutStartSec if the build is OOM- or timeout-killed.
+2–6. Secrets-panel box setup, OAuth ids, 1.62.0 release, #532 bundle, #796 to phone, name the repo for the white redesign.
+
+**Cross-platform:** Tallrig's handoff is `docs/handoff-2026-09-29` at 8ccda2720 on gluecron.com/ccantynz/tallrig; #715 /stack copy still waits on Craig's approval (draft PR #720), Tallrig mirrors on approval. DavenRoe not yet paged to re-run on 1dea3658 (do it when main is green).

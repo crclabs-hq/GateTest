@@ -148,7 +148,7 @@ export const MODULE_CATEGORIES: ModuleCategory[] = [
     modules: [
       { name: "prSize", description: "Blocks unreviewably-large pull requests (files / lines / sprawl across top-level dirs).", example: "PR touches 142 files, 3,400 lines across 6 top-level dirs" },
       { name: "prQuality", description: "Weak commit messages, missing tests, mixed deps+code.", example: "Commit message 'fix' on a 200-line change" },
-      { name: "flakyTests", description: "Committed .only/.skip, real clock/network/timers, env leaks, self-admitted flakes.", example: "describe.only( found in tests/checkout.test.ts" },
+      { name: "flakyTests", description: "Committed .only/.skip, real clock/network/timers, env leaks, self-admitted flakes. When the engine runs your tests it also records each test per run: one that flips is quarantined as a warning for 14 days, then blocks again unless fixed.", example: "describe.only( found in tests/checkout.test.ts" },
       { name: "fakeFixDetector", description: "AI-generated symptom patches — skipped tests, swallowed errors, dead code.", example: "Test changed from expect(x).toBe(2) to .toBe.any() — patching test, not bug" },
       { name: "hardcodedUrl", description: "localhost / 127.0.0.1 / RFC1918 / internal TLDs / non-TLS URLs leaking into production.", example: "A dev URL (loop-back, RFC1918, internal TLD) shipped into the production bundle" },
       { name: "openapiDrift", description: "Routes defined in code missing from openapi.yaml, and spec paths with no matching handler.", example: "GET /api/v2/orders defined in code but absent from spec" },

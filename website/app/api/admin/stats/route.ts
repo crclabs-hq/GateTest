@@ -7,15 +7,8 @@
  * Returns recent scans, customer list, and aggregate stats.
  */
 
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import {
-  getAdminConfig,
-  getAdminUser,
-  SESSION_COOKIE_NAME,
-} from "../../../lib/admin-session";
-import { ADMIN_COOKIE_NAME } from "../../../lib/admin-auth";
-import { createHmac, timingSafeEqual } from "crypto";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { getDb } from "../../../lib/db";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -23,30 +16,9 @@ const marketplacePurchaseStore = require("../../../lib/marketplace-purchase-stor
 
 export const dynamic = "force-dynamic";
 
-function checkPwCookie(v: string | undefined): boolean {
-  const pw = process.env.GATETEST_ADMIN_PASSWORD || "";
-  if (!pw || !v) return false;
-  const exp = createHmac("sha256", pw).update("gatetest-admin-v1").digest("hex");
-  const a = Buffer.from(v), b = Buffer.from(exp);
-  if (a.length !== b.length) return false;
-  try { return timingSafeEqual(a, b); } catch { return false; }
-}
-
-export async function GET() {
-  const cookieStore = await cookies();
-
-  // Auth: GitHub OAuth OR password cookie
-  const oauthStatus = getAdminConfig();
-  let adminLogin: string | null = null;
-  if (oauthStatus.ok && oauthStatus.config) {
-    adminLogin = getAdminUser(cookieStore.get(SESSION_COOKIE_NAME)?.value, oauthStatus.config);
-  }
-  if (!adminLogin && checkPwCookie(cookieStore.get(ADMIN_COOKIE_NAME)?.value)) {
-    adminLogin = "admin";
-  }
-  if (!adminLogin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET(req: NextRequest) {
+  const refused = requireAdminRoute(req);
+  if (refused) return refused;
 
   try {
     let sql: ReturnType<typeof getDb>;

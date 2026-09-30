@@ -204,7 +204,8 @@ async function checkPerformance(url: string): Promise<ModResult> {
 // auth-public — probes a caller-supplied PUBLIC host and returns findings about
 // that host only: no stored data, no AI spend. Reached credential-free by
 // /api/admin/triage's server-to-server callScan. SSRF-guarded to public IPs and
-// web ports, rate limited.
+// web ports, rate limited (_hostScanLimiter, PRESETS.webScan). Audited
+// 2026-09-29: cheap and intentionally public.
 export async function POST(req: NextRequest) {
   let body: { url?: string };
   try { body = await req.json(); } catch {

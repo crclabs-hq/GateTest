@@ -96,6 +96,7 @@ const OPTIONAL = [
   "SLACK_SIGNING_SECRET", "RESEND_FROM", "GATETEST_ADMIN_USERNAMES",
   "GATETEST_STATUS_TOKEN",
   "GATETEST_SSH_HOST", "GATETEST_SSH_PORT", "GATETEST_SSH_USER", "GATETEST_SSH_KEY", "GATETEST_SSH_PASSWORD",
+  "GATETEST_SSH_HOSTNAMES",
   "GATETEST_SECRETS_MASTER_KEY_NEXT",
 ];
 
@@ -138,6 +139,7 @@ const OPTIONAL_WHY_LIST = [
   { name: "GATETEST_SSH_USER", why: "self-heal SSH user" },
   { name: "GATETEST_SSH_KEY", why: "self-heal SSH key (preferred over the password)" },
   { name: "GATETEST_SSH_PASSWORD", why: "self-heal SSH password fallback" },
+  { name: "GATETEST_SSH_HOSTNAMES", why: "comma list of the public hostnames GATETEST_SSH_HOST serves — self-heal runs only for a scan of one of these; unset means it never runs (so scanning someone else's domain cannot run playbooks on our box)" },
   { name: "GATETEST_SECRETS_MASTER_KEY_NEXT", why: "only during a master-key rotation: new writes use it, reads accept both (docs/ops/secrets-panel.md)" },
 ];
 const OPTIONAL_WHY = Object.freeze(Object.fromEntries(OPTIONAL_WHY_LIST.map((v) => [v.name, v.why])));

@@ -1,0 +1,358 @@
+
+<!-- ============================================================ NOT IN THIS MOCK -->
+<section class="screen" id="screen-other" aria-labelledby="ot-h">
+  <div class="ph"><h1 id="ot-h">Not drawn in this mock</h1></div>
+  <section class="panel"><div class="panel-b" style="padding-top:14px">
+    <p class="id" id="ot-path" style="font-size:13px;color:var(--ink-1)">/admin</p>
+    <p class="s13 sec" id="ot-what" style="margin-top:8px"></p>
+    <div class="acts"><a class="btn sm" href="#/admin">Overview</a><a class="btn sm ghost" href="#/admin/scans/scn_01J9K3M8QF/findings">A scan</a><a class="btn sm ghost" href="#/admin/customers/cus_7QX2R4">A customer</a><a class="btn sm ghost" href="#/admin/secrets">Secrets</a></div>
+  </div></section>
+</section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ============================================================ PALETTE -->
+<div class="overlay" id="pal-overlay">
+  <div class="pal" role="dialog" aria-modal="true" aria-label="Search or jump">
+    <div class="in"><span class="muted" aria-hidden="true">&#8981;</span>
+      <input id="pal-in" role="combobox" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" aria-label="Search ids, SHAs, emails, repos, rules, keys and secrets, or type > for commands" placeholder="Search ids, SHAs, emails, repos, rules… or > for commands" autocomplete="off" spellcheck="false">
+      <kbd class="k">Esc</kbd></div>
+    <div class="list" id="pal-list" role="listbox" aria-label="Results"></div>
+    <div class="foot"><span><kbd class="k">↑</kbd> <kbd class="k">↓</kbd> move</span><span><kbd class="k">↵</kbd> open</span><span><kbd class="k">&gt;</kbd> commands</span><span class="sp"></span><button type="button" id="pal-sim">mock: search down</button></div>
+  </div>
+</div>
+
+<!-- ============================================================ DIALOG (step-up + reason) -->
+<div class="overlay" id="dlg-overlay">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-h" aria-describedby="dlg-p">
+    <h2 id="dlg-h">Title</h2>
+    <p id="dlg-p">Body</p>
+    <div id="dlg-extra"></div>
+    <label for="dlg-reason" id="dlg-reason-l">Reason (required, written to the audit trail)</label>
+    <textarea id="dlg-reason" placeholder="Why?"></textarea>
+    <div class="acts"><button type="button" class="btn" id="dlg-cancel">Cancel</button><button type="button" class="btn primary" id="dlg-ok" disabled>Confirm</button></div>
+    <p class="s12 muted" id="dlg-note">Confirm asks for the admin password again (step-up). Nothing is sent from this mock.</p>
+  </div>
+</div>
+
+<!-- ============================================================ KEYBOARD MAP -->
+<div class="overlay" id="map-overlay">
+  <div class="dlg map" role="dialog" aria-modal="true" aria-labelledby="map-h">
+    <h2 id="map-h">Keyboard</h2>
+    <dl>
+      <dt>Search or jump</dt><dd><kbd class="k">Ctrl K</kbd> <kbd class="k">/</kbd></dd>
+      <dt>Go to Overview · Scans · Findings · Watchdog</dt><dd><kbd class="k">G</kbd> then <kbd class="k">O S F W</kbd></dd>
+      <dt>Go to Customers · Health · Keys · Secrets · Audit</dt><dd><kbd class="k">G</kbd> then <kbd class="k">C H K E A</kbd></dd>
+      <dt>Rows: move · open or expand · copy id</dt><dd><kbd class="k">J</kbd> <kbd class="k">K</kbd> <kbd class="k">↵</kbd> <kbd class="k">C</kbd></dd>
+      <dt>Previous · next tab</dt><dd><kbd class="k">[</kbd> <kbd class="k">]</kbd></dd>
+      <dt>Next actions on Overview</dt><dd><kbd class="k">1</kbd>–<kbd class="k">8</kbd></dd>
+      <dt>New scan</dt><dd><kbd class="k">N</kbd></dd>
+      <dt>Theme · density</dt><dd><kbd class="k">T</kbd> <kbd class="k">D</kbd></dd>
+      <dt>Close</dt><dd><kbd class="k">Esc</kbd></dd>
+    </dl>
+    <div class="acts"><button type="button" class="btn" id="map-close">Close</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+  var root=document.documentElement;
+  function $(s,c){return (c||document).querySelector(s);}
+  function $$(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s));}
+  var SCAN="scn_01J9K3M8QF", CUS="cus_7QX2R4";
+  var SCREENS=["overview","scan","customer","secrets","other"];
+  var mq=window.matchMedia?window.matchMedia("(prefers-color-scheme: dark)"):null;
+
+  /* ---------- toast ---------- */
+  var toastTimer=null;
+  function toast(t){var el=$("#toast");el.textContent=t;el.classList.add("on");clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.classList.remove("on");},2800);}
+
+  /* ---------- theme (system | light | dark, the #690 contract) ---------- */
+  function effTheme(){var t=root.getAttribute("data-theme");if(t==="light"||t==="dark")return t;return mq&&mq.matches?"dark":"light";}
+  function syncTheme(){var e=effTheme();$$("[data-theme-set]").forEach(function(b){b.setAttribute("aria-pressed",String(b.getAttribute("data-theme-set")===e));});}
+  function setTheme(t){if(t==="system"){root.removeAttribute("data-theme");try{localStorage.removeItem("gatetest-admin-theme");}catch(e){}}else{root.setAttribute("data-theme",t);try{localStorage.setItem("gatetest-admin-theme",t);}catch(e){}}syncTheme();}
+  $$("[data-theme-set]").forEach(function(b){b.addEventListener("click",function(){setTheme(b.getAttribute("data-theme-set"));});});
+  if(mq){if(mq.addEventListener)mq.addEventListener("change",syncTheme);else if(mq.addListener)mq.addListener(syncTheme);}
+  syncTheme();
+
+  /* ---------- density ---------- */
+  function syncDensity(){var d=root.getAttribute("data-density")||"compact";$$("[data-density-set]").forEach(function(b){b.setAttribute("aria-pressed",String(b.getAttribute("data-density-set")===d));});}
+  function setDensity(d){root.setAttribute("data-density",d);try{localStorage.setItem("gatetest-admin-density",d);}catch(e){}syncDensity();}
+  $$("[data-density-set]").forEach(function(b){b.addEventListener("click",function(){setDensity(b.getAttribute("data-density-set"));});});
+  syncDensity();
+
+  /* ---------- drawer ---------- */
+  var rail=$("#rail"),scrim=$("#scrim"),menubtn=$("#menubtn");
+  function openRail(){rail.classList.add("open");scrim.classList.add("on");menubtn.setAttribute("aria-expanded","true");var a=$(".nav a",rail);if(a)a.focus();}
+  function closeRail(ret){if(!rail.classList.contains("open"))return;rail.classList.remove("open");scrim.classList.remove("on");menubtn.setAttribute("aria-expanded","false");if(ret)menubtn.focus();}
+  menubtn.addEventListener("click",function(){rail.classList.contains("open")?closeRail(true):openRail();});
+  scrim.addEventListener("click",function(){closeRail(true);});
+
+  /* ---------- router: every screen, tab and filter is a URL ---------- */
+  var OTHER={
+    scans:"One paged list of every scan (repo, site, forensic) with kind, source, status, customer and range in the query string; rows open /admin/scans/:id. Wave 1, PR 8.",
+    findings:"Queues: for review, open, regressed, accepted, false positive. Wave 2: needs the per-finding fingerprint store.",
+    watchdog:"Watches with runs and stale-versus-failing; the tick sends the cron bearer. Wave 1, PR 7.",
+    customers:"Paged customer list with search; no silent LIMIT 100. Each row opens the customer page. Wave 1, PR 10.",
+    repos:"Repo objects: scans, findings, watch, fix PRs. Wave 2.",
+    revenue:"MRR roll-forward and failed payments, from stored payment events. Wave 2: needs the payment-event store.",
+    feedback:"Feedback with a link to the scan it came from (wave 1, PR 5); reply and filters in wave 2.",
+    health:"Checks keyed by catalogue id, one ready() shared with Overview, neutral before a run. Wave 1, PR 6.",
+    deploys:"Deployed build versus main with roll back (wave 1, PR 6); deploy objects with scans per build in wave 2.",
+    keys:"Keys with last use and total calls; revoke by dialog, issue behind step-up. Wave 1, PR 10.",
+    integrations:"Git hosts, marketplace, estate siblings and estate push events, each with last event received. Wave 1, PR 5.",
+    audit:"One audit list over the existing audit-log route: actor, action, resource, filters, CSV. Wave 1, PR 11.",
+    compliance:"Controls with linked evidence, or Cannot tell; chain verify reports its own failure. Wave 1, PR 11.",
+    rules:"Precision per rule with trend and a kill line. Wave 2: needs triage verdict events.",
+    launch:"Pinned launch checklist; the forum-thread poll is one item. Wave 1 move, PR 4.",
+    "fix-prs":"Fix PR object: fingerprints fixed, outcome, came back. Wave 2.",
+    signout:"Signs out. Not drawn in this mock."
+  };
+  function parse(){
+    var h=location.hash.replace(/^#/,"");if(!h||h==="/")h="/admin";
+    var q="",i=h.indexOf("?");if(i>=0){q=h.slice(i+1);h=h.slice(0,i);}
+    var p=h.split("/").filter(Boolean);
+    var r={path:h,q:new URLSearchParams(q),screen:"other",root:p[1]||"overview",tab:null,sub:null,parts:p};
+    if(p[0]!=="admin"){r.screen="other";r.root="";}
+    else if(p.length===1){r.screen="overview";r.root="overview";}
+    else if(p[1]==="scans"&&p[2]===SCAN){r.screen="scan";r.tab=p[3]||"findings";}
+    else if(p[1]==="customers"&&p[2]===CUS){r.screen="customer";r.tab=p[3]||"timeline";}
+    else if(p[1]==="secrets"){r.screen="secrets";r.sub=p[2]||null;}
+    return r;
+  }
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  function crumb(path){var p=path.split("/").filter(Boolean);return p.map(function(s,i){var t=esc(s);return (i===p.length-1||/^(scn_|cus_)/.test(s))?"<b>/"+t+"</b>":"/"+t;}).join("");}
+  var TITLES={overview:"Overview",scan:"Scan scn_01J9K3M8QF",customer:"Sample Customer 7",secrets:"Secrets",other:"Not in this mock"};
+  var first=true,prevScreen=null;
+  function render(){
+    var r=parse();
+    SCREENS.forEach(function(s){$("#screen-"+s).classList.toggle("on",s===r.screen);});
+    $("#crumb").innerHTML=crumb(r.path);
+    var key=r.screen==="overview"?"overview":r.root;
+    $$(".nav a").forEach(function(a){if(a.getAttribute("data-root")===key)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current");});
+    if(r.screen==="scan")selectTab("scan",r.tab);
+    if(r.screen==="customer")selectTab("customer",r.tab);
+    if(r.screen==="scan")applyFilter(r.q.get("f")||"all",false);
+    if(r.screen==="other"){$("#ot-path").textContent=r.path;var k=r.parts[1]||"";$("#ot-what").textContent=OTHER[k]||(r.parts.length>2?"An entity page: header, related objects, tabs, timeline. See 05-synthesis for its wave.":"Not drawn in this mock.");}
+    document.title=TITLES[r.screen]+" · Admin";
+    closeRail(false);
+    if(!first&&r.screen!==prevScreen){window.scrollTo(0,0);var h1=$(".screen.on h1");if(h1){h1.setAttribute("tabindex","-1");h1.focus({preventScroll:true});}}
+    if(r.screen==="secrets"&&r.sub){var row=$$("#screen-secrets tbody tr[tabindex]").filter(function(tr){return tr.cells[0]&&tr.cells[0].textContent.trim()===r.sub;})[0];if(row){row.focus();row.scrollIntoView({block:"center"});}}
+    first=false;prevScreen=r.screen;
+    var k2=r.q.get("k");if(k2!==null)openPal(k2);
+  }
+  window.addEventListener("hashchange",render);
+
+  /* ---------- tabs: URL-bound, arrow keys, aria-controls ---------- */
+  var TABBASE={scan:"#/admin/scans/"+SCAN+"/",customer:"#/admin/customers/"+CUS+"/"};
+  function selectTab(group,tab){
+    var list=$('[data-tabs="'+group+'"]');var tabs=$$('[role="tab"]',list);
+    var cur=tabs.filter(function(t){return t.getAttribute("data-tab")===tab;})[0]||tabs[0];
+    tabs.forEach(function(t){var on=t===cur;t.setAttribute("aria-selected",String(on));t.tabIndex=on?0:-1;});
+    var scr=list.closest(".screen");
+    $$('[role="tabpanel"]',scr).forEach(function(p){p.classList.remove("on");});
+    var panel=document.getElementById(cur.getAttribute("aria-controls"));
+    panel.classList.add("on");panel.setAttribute("aria-labelledby",cur.id);
+    if(group==="customer"&&cur.getAttribute("data-tab")!=="timeline"){$("#cother-text").textContent="The "+cur.textContent.replace(/\d+$/,"").trim()+" tab lists the same objects as the timeline, filtered to one kind, with paging and CSV. Not drawn in this mock.";}
+  }
+  $$('[role="tablist"][data-tabs]').forEach(function(list){
+    var group=list.getAttribute("data-tabs");
+    list.addEventListener("click",function(e){var t=e.target.closest('[role="tab"]');if(t)location.hash=TABBASE[group]+t.getAttribute("data-tab");});
+    list.addEventListener("keydown",function(e){
+      var tabs=$$('[role="tab"]',list),i=tabs.indexOf(document.activeElement);if(i<0)return;
+      var n=null;if(e.key==="ArrowRight")n=(i+1)%tabs.length;else if(e.key==="ArrowLeft")n=(i-1+tabs.length)%tabs.length;else if(e.key==="Home")n=0;else if(e.key==="End")n=tabs.length-1;
+      if(n===null)return;e.preventDefault();tabs[n].focus();location.hash=TABBASE[group]+tabs[n].getAttribute("data-tab");
+    });
+  });
+  function stepTab(d){var list=$(".screen.on [role=tablist][data-tabs]");if(!list)return;var tabs=$$('[role="tab"]',list);var i=tabs.map(function(t){return t.getAttribute("aria-selected");}).indexOf("true");var n=tabs[(i+d+tabs.length)%tabs.length];location.hash=TABBASE[list.getAttribute("data-tabs")]+n.getAttribute("data-tab");setTimeout(function(){n.focus();},0);}
+
+  /* ---------- findings filter: chips are honest, counts match rows ---------- */
+  var FLABEL={all:"all","sev:blocker":"Blocker","sev:high":"High","sev:medium":"Medium","sev:low":"Low","life:new":"New on this commit","life:regressed":"Regressed"};
+  function applyFilter(f,write){
+    if(!FLABEL[f])f="all";
+    $$("#ffilters .fchip").forEach(function(c){c.setAttribute("aria-pressed",String(c.getAttribute("data-f")===f));});
+    var shown=0;
+    $$("#fbody > tr").forEach(function(tr){
+      if(tr.classList.contains("x"))return;
+      var ok=f==="all"||(f.indexOf("sev:")===0&&tr.getAttribute("data-sev")===f.slice(4))||(f.indexOf("life:")===0&&tr.getAttribute("data-life")===f.slice(5));
+      tr.hidden=!ok;if(ok)shown++;
+      var ex=tr.getAttribute("data-expand");if(ex){var x=document.getElementById(ex);if(x)x.hidden=!ok||tr.getAttribute("aria-expanded")!=="true";}
+    });
+    $("#fcount").textContent=f==="all"?"12 findings · 5 new on this commit · 1 regressed · sorted by severity":shown+" of 12 findings · filter: "+FLABEL[f];
+    if(write){var base="#/admin/scans/"+SCAN+"/findings"+(f==="all"?"":"?f="+encodeURIComponent(f));try{history.replaceState(null,"",base);}catch(e){}$("#crumb").innerHTML=crumb("/admin/scans/"+SCAN+"/findings");}
+  }
+  $$("#ffilters .fchip").forEach(function(c){c.addEventListener("click",function(){applyFilter(c.getAttribute("data-f"),true);});});
+  $$(".filters:not(#ffilters)").forEach(function(g){$$(".fchip",g).forEach(function(c){c.addEventListener("click",function(){$$(".fchip",g).forEach(function(x){x.setAttribute("aria-pressed",String(x===c));});toast("Timeline filter: not wired in this mock");});});});
+
+  /* ---------- expandable rows ---------- */
+  function toggleExpand(id){
+    var x=document.getElementById(id);if(!x)return;var open=x.hidden;x.hidden=!open;
+    $$('[data-expand="'+id+'"],[data-expand-btn="'+id+'"]').forEach(function(el){el.setAttribute("aria-expanded",String(open));});
+  }
+  $$("[data-expand-btn]").forEach(function(b){b.addEventListener("click",function(e){e.stopPropagation();toggleExpand(b.getAttribute("data-expand-btn"));});});
+  $$("tr[data-expand]").forEach(function(tr){tr.addEventListener("click",function(e){if(e.target.closest("a,button"))return;toggleExpand(tr.getAttribute("data-expand"));});});
+
+  /* ---------- rows: J/K move real focus, Enter opens, C copies ---------- */
+  function rows(){
+    var t=$$(".screen.on [role=tabpanel].on table[data-rows] tbody tr[tabindex], .screen.on > .tw table[data-rows] tbody tr[tabindex]").filter(function(r){return !r.hidden;});
+    if(t.length)return t;
+    return $$(".screen.on .nx li[tabindex]").filter(function(li){return !li.hidden;});
+  }
+  function moveRow(d){var rs=rows();if(!rs.length)return;var i=rs.indexOf(document.activeElement);i=i<0?(d>0?0:rs.length-1):Math.max(0,Math.min(rs.length-1,i+d));rs[i].focus();rs[i].scrollIntoView({block:"nearest"});}
+  function openRow(el){if(el.getAttribute("data-expand")){toggleExpand(el.getAttribute("data-expand"));return;}var a=$("a[href], button:not(.cp)",el);if(a)a.click();}
+  function copyText(t){var done=function(){toast("Copied "+t);};try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done,function(){toast("Copy blocked by the browser: "+t);});}else toast("Copy: "+t);}catch(e){toast("Copy: "+t);}}
+  $$(".cp[data-copy]").forEach(function(b){b.addEventListener("click",function(e){e.preventDefault();copyText(b.getAttribute("data-copy"));});});
+
+  /* ---------- toasts for mock-only actions ---------- */
+  document.addEventListener("click",function(e){var t=e.target.closest("[data-toast]");if(t){e.preventDefault();toast(t.getAttribute("data-toast"));}});
+
+  /* ---------- dialog: step-up + reason, focus trapped, focus returned ---------- */
+  var DLG={
+    "reveal-email":{h:"Reveal email address",p:"Shown for 30 seconds, then masked again. The reveal and your reason go to the audit trail and appear on this customer's timeline.",ok:"Reveal",done:function(){var el=$("#cu-email");el.textContent="sample-7@example.test";toast("Revealed for 30 s · audit entry written (mock)");setTimeout(function(){el.textContent="s•••••7@example.test";},30000);}},
+    "credit":{h:"Credit scans to Sample Customer 7",p:"Adds scans to the customer's balance. No money moves; refunds go through the payments dashboard.",extra:'<label for="dlg-n">Scans to credit</label><input id="dlg-n" type="number" min="1" max="50" value="3" style="display:block;width:100px;margin-top:4px;font:inherit;font-size:13px;color:var(--ink-1);background:var(--bg);border:1px solid var(--line-strong);border-radius:6px;padding:6px 8px">',ok:"Credit",done:function(){toast("3 scans credited · audit entry written (mock)");}},
+    "reveal-secret":{h:"Reveal secret value",p:"The value is fetched once, shown for 30 seconds and cleared. The reveal is written to the audit chain. This mock never holds a value.",ok:"Reveal",done:function(){toast("Values are never present in this mock");}},
+    "rotate":{h:"Set a new value",p:"Saved to the store, encrypted. It is not live until Apply to service writes the env file. Only its fingerprint is shown back.",ok:"Save",done:function(){toast("Saved to store · pending apply (mock)");}},
+    "apply":{h:"Apply to service",p:"Writes the store to the env file and restarts web and worker. Pending: WEBHOOK_SIGNING_SECRET.",ok:"Apply",done:function(){toast("Applied · units restarting (mock)");}},
+    "revoke":{h:"Revoke key gt_live_4k1…",p:"Calls with this key fail at once. Last used 29 Aug. The customer's other key keeps working.",ok:"Revoke key",done:function(){toast("Key revoked · audit entry written (mock)");}},
+    "accept":{h:"Accept this finding",p:"Accepting stops it blocking until the expiry date, and it reopens by itself if the rule's count worsens. This is a regressed blocker holding a live-mode key; a fix PR is the better answer.",ok:"Accept until 12 Oct",done:function(){toast("Accepted until 12 Oct (mock)");}},
+    "fp":{h:"Mark as false positive",p:"Counts against the precision of secrets.hardcoded-token and is sent back to the rule's owner with your reason.",ok:"Mark false positive",done:function(){toast("Marked false positive (mock)");}},
+    "rollback":{h:"Roll back to 5e02a17",p:"Swaps the blue/green slot to the previous build. The deployed build will then be 1 commit behind main, and the readiness strip will say so.",ok:"Roll back",done:function(){toast("Roll back queued (mock)");}}
+  };
+  var dlgO=$("#dlg-overlay"),dlgReason=$("#dlg-reason"),dlgOk=$("#dlg-ok"),dlgCur=null,lastFocus=null;
+  function openDlg(kind,from){var d=DLG[kind];if(!d)return;dlgCur=d;lastFocus=from||document.activeElement;$("#dlg-h").textContent=d.h;$("#dlg-p").textContent=d.p;$("#dlg-extra").innerHTML=d.extra||"";dlgOk.textContent=d.ok+" (asks for password)";dlgReason.value="";dlgOk.disabled=true;dlgO.classList.add("on");setTimeout(function(){dlgReason.focus();},0);}
+  function closeDlg(){dlgO.classList.remove("on");dlgCur=null;if(lastFocus&&lastFocus.focus)lastFocus.focus();}
+  dlgReason.addEventListener("input",function(){dlgOk.disabled=dlgReason.value.trim().length<3;});
+  dlgOk.addEventListener("click",function(){var d=dlgCur;closeDlg();if(d&&d.done)d.done();});
+  $("#dlg-cancel").addEventListener("click",closeDlg);
+  dlgO.addEventListener("click",function(e){if(e.target===dlgO)closeDlg();});
+  document.addEventListener("click",function(e){var t=e.target.closest("[data-dialog]");if(t){e.preventDefault();openDlg(t.getAttribute("data-dialog"),t);}});
+  function trap(e,box){if(e.key!=="Tab")return;var f=$$("button:not([disabled]),input,textarea,a[href]",box).filter(function(x){return x.offsetParent!==null;});if(!f.length)return;var a=f[0],z=f[f.length-1];if(e.shiftKey&&document.activeElement===a){e.preventDefault();z.focus();}else if(!e.shiftKey&&document.activeElement===z){e.preventDefault();a.focus();}}
+  dlgO.addEventListener("keydown",function(e){if(e.key==="Escape"){e.stopPropagation();closeDlg();}else trap(e,dlgO);});
+
+  /* ---------- keyboard map ---------- */
+  var mapO=$("#map-overlay"),mapFrom=null;
+  function openMap(){mapFrom=document.activeElement;mapO.classList.add("on");$("#map-close").focus();}
+  function closeMap(){mapO.classList.remove("on");if(mapFrom&&mapFrom.focus)mapFrom.focus();}
+  $("#helpbtn").addEventListener("click",openMap);$("#map-close").addEventListener("click",closeMap);
+  mapO.addEventListener("click",function(e){if(e.target===mapO)closeMap();});
+  mapO.addEventListener("keydown",function(e){if(e.key==="Escape"){e.stopPropagation();closeMap();}else trap(e,mapO);});
+
+  /* ---------- command palette: combobox, grouped objects, SHA + email resolution, empty and failed states ---------- */
+  var M=function(k){return '<svg class="mk mk-'+k+'" aria-hidden="true" focusable="false"><use href="#m-'+k+'"/></svg>';};
+  var IDX=[
+    {g:"Scans",i:"SC",t:"scn_01J9K3M8QF · acme-sample/checkout-api @ 4f1e9c2",m:"blocker",r:"Blocked · 26 h ago",h:"#/admin/scans/"+SCAN+"/findings",k:"scn_01j9k3m8qf 4f1e9c2e0b7a1d9c5e61 acme-sample checkout-api blocked",rec:1},
+    {g:"Scans",i:"SC",t:"scn_01J9J2W4AB · acme-sample/checkout-api @ c2e8a90",m:"pass",r:"Passed · 11 d ago",h:"#/admin/scans/scn_01J9J2W4AB",k:"scn_01j9j2w4ab c2e8a90 checkout-api"},
+    {g:"Scans",i:"SC",t:"scn_01J9H0PQ22 · acme-sample/web @ 0b91c7d",m:"pass",r:"Passed · 2 d ago",h:"#/admin/scans/scn_01J9H0PQ22",k:"scn_01j9h0pq22 0b91c7d web"},
+    {g:"Findings",i:"FP",t:"fp_9c1e…d204 · secrets.hardcoded-token",m:"blocker",r:"Regressed · 4f1e9c2",h:"#/admin/scans/"+SCAN+"/findings",k:"fp_9c1e7a3f0b2cd204 secrets.hardcoded-token 4f1e9c2 regressed"},
+    {g:"Findings",i:"FP",t:"fp_2b77…81ae · sql.raw-interpolation",m:"blocker",r:"New · 4f1e9c2",h:"#/admin/scans/"+SCAN+"/findings?f=sev%3Ablocker",k:"fp_2b77 sql.raw-interpolation 4f1e9c2"},
+    {g:"Customers",i:"CU",t:"cus_7QX2R4 · Sample Customer 7 · s•••••7@example.test",m:"high",r:"Team · payment failed",h:"#/admin/customers/"+CUS,k:"cus_7qx2r4 sample customer 7 sample-7@example.test sample-org-7 acme-sample",rec:1},
+    {g:"Customers",i:"CU",t:"cus_3AB9K1 · Sample Customer 3 · s•••••3@example.test",m:"",r:"Per-scan",h:"#/admin/customers/cus_3AB9K1",k:"cus_3ab9k1 sample customer 3 sample-3@example.test"},
+    {g:"Repos",i:"RP",t:"acme-sample/checkout-api",m:"blocker",r:"last gate Blocked",h:"#/admin/repos/host-1/acme-sample/checkout-api",k:"acme-sample/checkout-api repo"},
+    {g:"Repos",i:"RP",t:"acme-sample/web",m:"pass",r:"last gate Passed",h:"#/admin/repos/host-1/acme-sample/web",k:"acme-sample/web repo"},
+    {g:"Rules",i:"RL",t:"secrets.hardcoded-token",m:"",r:"precision 0.97 · 61 triaged",h:"#/admin/rules/secrets.hardcoded-token",k:"secrets.hardcoded-token rule"},
+    {g:"Rules",i:"RL",t:"docs.missing-readme-section",m:"",r:"precision 0.52 · below 0.60",h:"#/admin/rules/docs.missing-readme-section",k:"docs.missing-readme-section rule kill"},
+    {g:"Fix PRs",i:"PR",t:"#212 · acme-sample/checkout-api",m:"",r:"closed unmerged",h:"#/admin/fix-prs/fpr_212",k:"#212 fpr_212 fix pr checkout-api"},
+    {g:"Fix PRs",i:"PR",t:"#198 · acme-sample/checkout-api",m:"pass",r:"merged · came back",h:"#/admin/fix-prs/fpr_198",k:"#198 fpr_198 fix pr"},
+    {g:"Deploys",i:"DP",t:"7c41d0e · deployed 09:38 · = main",m:"pass",r:"slot blue",h:"#/admin/deploys/7c41d0e",k:"7c41d0e deploy main"},
+    {g:"Deploys",i:"DP",t:"5e02a17 · previous build",m:"",r:"ran scn_01J9K3M8QF",h:"#/admin/deploys/5e02a17",k:"5e02a17 deploy previous"},
+    {g:"Keys",i:"KY",t:"gt_live_9m3… · Sample Customer 7",m:"pass",r:"last used 26 h ago",h:"#/admin/keys/gt_live_9m3",k:"gt_live_9m3 key"},
+    {g:"Keys",i:"KY",t:"gt_live_4k1… · Sample Customer 7",m:"low",r:"unused 30 d",h:"#/admin/keys/gt_live_4k1",k:"gt_live_4k1 key unused"},
+    {g:"Secrets",i:"SE",t:"MAIL_API_KEY",m:"high",r:"missing · important",h:"#/admin/secrets/MAIL_API_KEY",k:"mail_api_key secret missing",rec:1},
+    {g:"Secrets",i:"SE",t:"GIT_HOST_APP_KEY",m:"medium",r:"alive · 212 d since rotation",h:"#/admin/secrets/GIT_HOST_APP_KEY",k:"git_host_app_key secret"},
+    {g:"Commands",i:"›",t:"Run canary scan",m:"",r:"decides the gate-path silence",act:"canary",k:"> run canary scan"},
+    {g:"Commands",i:"›",t:"New scan…",m:"",r:"repo · site · forensic",act:"newscan",k:"> new scan run"},
+    {g:"Commands",i:"›",t:"Go to Overview",m:"",r:"G O",h:"#/admin",k:"> go overview"},
+    {g:"Commands",i:"›",t:"Go to Secrets",m:"",r:"G E",h:"#/admin/secrets",k:"> go secrets"},
+    {g:"Commands",i:"›",t:"Theme: white",m:"",r:"T",act:"light",k:"> theme white light"},
+    {g:"Commands",i:"›",t:"Theme: black",m:"",r:"T",act:"dark",k:"> theme black dark"},
+    {g:"Commands",i:"›",t:"Theme: follow system",m:"",r:"",act:"system",k:"> theme system auto"},
+    {g:"Commands",i:"›",t:"Density: compact 28 px",m:"",r:"D",act:"compact",k:"> density compact"},
+    {g:"Commands",i:"›",t:"Density: comfortable 40 px",m:"",r:"D",act:"comfortable",k:"> density comfortable"}
+  ];
+  var palO=$("#pal-overlay"),palIn=$("#pal-in"),palList=$("#pal-list"),palSel=0,palHits=[],palFrom=null,palDown=false;
+  function palSearch(q){
+    var ql=q.trim().toLowerCase();
+    if(!ql)return {hits:IDX.filter(function(x){return x.rec;}).map(function(x){return Object.assign({},x,{g:"Recent"});}).concat(IDX.filter(function(x){return x.g==="Commands";}).slice(0,4)),mode:"empty"};
+    if(ql.charAt(0)===">"){var c=ql.slice(1).trim();return {hits:IDX.filter(function(x){return x.g==="Commands"&&(!c||x.k.indexOf(c)>=0);}),mode:"cmd"};}
+    if(palDown)return {hits:IDX.filter(function(x){return x.g==="Commands"&&x.k.indexOf(ql)>=0;}),mode:"failed"};
+    if(/^[0-9a-f]{7,40}$/.test(ql)){var s=IDX.filter(function(x){return (x.g==="Scans"||x.g==="Deploys"||x.g==="Findings")&&x.k.split(" ").some(function(w){return w.indexOf(ql)===0;});}).map(function(x){return Object.assign({},x,{g:"Commit "+ql.slice(0,7)});});return {hits:s,mode:"sha"};}
+    return {hits:IDX.filter(function(x){return x.k.indexOf(ql)>=0||x.t.toLowerCase().indexOf(ql)>=0;}),mode:"text"};
+  }
+  function palRender(){
+    var q=palIn.value,res=palSearch(q);palHits=res.hits;palSel=Math.min(palSel,Math.max(0,palHits.length-1));
+    var html="";
+    if(res.mode==="failed")html+='<div class="state failed" role="status"><div class="t">'+M("failed")+'Search failed</div>The object index did not answer, so objects cannot be listed. Commands still work, and any id opens by its URL.<div class="ep">GET /api/admin/search?q='+esc(encodeURIComponent(q.trim()))+' → 503 · req_31c0…9a</div></div>';
+    if(!palHits.length&&res.mode!=="failed"){html+=res.mode==="sha"?'<div class="state" role="status"><div class="t">No scan or deploy on a commit starting '+esc(q.trim().slice(0,12))+'</div>Checked scans (commit column) and deploys (build history).</div>':'<div class="state" role="status"><div class="t">No objects match “'+esc(q.trim())+'”</div>Search covers ids, SHAs, emails, repos, rules, keys and secrets. Emails match in full and are shown masked.</div>';}
+    var last=null,gi=0;
+    palHits.forEach(function(x,i){
+      if(x.g!==last){if(last!==null)html+="</div>";gi++;html+='<div role="group" aria-labelledby="pg-'+gi+'"><div class="grp" id="pg-'+gi+'">'+esc(x.g)+"</div>";last=x.g;}
+      html+='<div class="it" role="option" id="po-'+i+'" data-i="'+i+'" aria-selected="'+(i===palSel)+'"><span class="ico" aria-hidden="true">'+esc(x.i)+'</span><span class="t'+(x.g==="Commands"?"":" id")+'">'+esc(x.t)+'</span><span class="r">'+(x.m?M(x.m):"")+esc(x.r)+"</span></div>";
+    });
+    if(last!==null)html+="</div>";
+    palList.innerHTML=html;
+    palIn.setAttribute("aria-activedescendant",palHits.length?"po-"+palSel:"");
+    var s=$("#po-"+palSel);if(s)s.scrollIntoView({block:"nearest"});
+  }
+  function openPal(pre){palFrom=document.activeElement;palO.classList.add("on");palIn.value=pre||"";palSel=0;palRender();setTimeout(function(){palIn.focus();palIn.setSelectionRange(palIn.value.length,palIn.value.length);},0);}
+  function closePal(){if(!palO.classList.contains("on"))return;palO.classList.remove("on");if(/[?&]k=/.test(location.hash)){try{history.replaceState(null,"",location.hash.replace(/[?&]k=[^&]*/,"").replace(/\?$/,""));}catch(e){}}if(palFrom&&palFrom.focus&&palFrom!==document.body)palFrom.focus();}
+  function palChoose(i){var x=palHits[i];if(!x)return;closePal();
+    if(x.h){location.hash=x.h;return;}
+    if(x.act==="light"||x.act==="dark"||x.act==="system")setTheme(x.act);
+    else if(x.act==="compact"||x.act==="comfortable")setDensity(x.act);
+    else if(x.act==="canary")toast("Canary scan queued (mock)");
+    else if(x.act==="newscan")toast("New scan sheet: kind, repo or URL, tier. Not in this mock");
+  }
+  palIn.addEventListener("input",function(){palSel=0;palRender();});
+  palIn.addEventListener("keydown",function(e){var n=palHits.length;
+    if(e.key==="ArrowDown"){e.preventDefault();if(n){palSel=(palSel+1)%n;palRender();}}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(n){palSel=(palSel-1+n)%n;palRender();}}
+    else if(e.key==="Enter"){e.preventDefault();palChoose(palSel);}
+    else if(e.key==="Escape"){e.preventDefault();e.stopPropagation();closePal();}
+    else if(e.key==="Tab"){e.preventDefault();}
+  });
+  palList.addEventListener("mousedown",function(e){e.preventDefault();});
+  palList.addEventListener("click",function(e){var t=e.target.closest(".it");if(t)palChoose(+t.getAttribute("data-i"));});
+  palO.addEventListener("click",function(e){if(e.target===palO)closePal();});
+  $("#pal-sim").addEventListener("click",function(){palDown=!palDown;this.textContent=palDown?"mock: search back up":"mock: search down";palRender();palIn.focus();});
+  $("#open-pal").addEventListener("click",function(){openPal("");});
+  $$("[data-pal]").forEach(function(b){b.addEventListener("click",function(){openPal(b.getAttribute("data-pal")==="new scan"?">new scan":b.getAttribute("data-pal"));});});
+
+  var nxMore=$("#nx-more");if(nxMore)nxMore.addEventListener("click",function(){var open=nxMore.getAttribute("aria-expanded")==="true";$$("#nx li[data-more]").forEach(function(li){li.hidden=open;});nxMore.setAttribute("aria-expanded",String(!open));nxMore.textContent=open?"Show 2 more":"Show fewer";});
+
+  /* ---------- global keys ---------- */
+  var gWait=false,gTimer=null;
+  var GO={o:"#/admin",s:"#/admin/scans",f:"#/admin/findings",w:"#/admin/watchdog",c:"#/admin/customers",h:"#/admin/health",k:"#/admin/keys",e:"#/admin/secrets",a:"#/admin/audit"};
+  document.addEventListener("keydown",function(e){
+    if((e.ctrlKey||e.metaKey)&&!e.altKey&&e.key.toLowerCase()==="k"){e.preventDefault();palO.classList.contains("on")?closePal():openPal("");return;}
+    if(palO.classList.contains("on")||dlgO.classList.contains("on")||mapO.classList.contains("on"))return;
+    if(rail.classList.contains("open")&&e.key==="Tab"){trap(e,rail);return;}
+    var tg=e.target;if(/^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)||tg.isContentEditable)return;
+    if(e.ctrlKey||e.metaKey||e.altKey)return;
+    var k=e.key;
+    if(k==="Escape"){closeRail(true);return;}
+    if(gWait){gWait=false;clearTimeout(gTimer);var to=GO[k.toLowerCase()];if(to){e.preventDefault();location.hash=to;}return;}
+    if(k==="g"||k==="G"){gWait=true;gTimer=setTimeout(function(){gWait=false;},1200);return;}
+    if(k==="/"){e.preventDefault();openPal("");return;}
+    if(k==="?"){e.preventDefault();openMap();return;}
+    if(k==="n"||k==="N"){e.preventDefault();openPal(">new scan");return;}
+    if(k==="t"||k==="T"){setTheme(effTheme()==="dark"?"light":"dark");toast("Theme: "+(effTheme()==="dark"?"black":"white"));return;}
+    if(k==="d"||k==="D"){var nd=(root.getAttribute("data-density")||"compact")==="compact"?"comfortable":"compact";setDensity(nd);toast("Rows: "+(nd==="compact"?"compact 28 px":"comfortable 40 px"));return;}
+    if(k==="j"||k==="J"){e.preventDefault();moveRow(1);return;}
+    if(k==="k"||k==="K"){e.preventDefault();moveRow(-1);return;}
+    if(k==="["){stepTab(-1);return;}
+    if(k==="]"){stepTab(1);return;}
+    if(k==="Enter"&&tg.matches&&tg.matches("tr[tabindex], .nx li[tabindex]")){e.preventDefault();openRow(tg);return;}
+    if((k==="c"||k==="C")&&tg.matches&&tg.matches("tr[tabindex]")){var id=$(".id",tg);if(id)copyText(id.textContent.replace(/copy$/,"").trim());return;}
+    if(/^[1-8]$/.test(k)&&$("#screen-overview").classList.contains("on")){var li=$$("#nx li")[+k-1];if(li){if(li.hidden&&nxMore)nxMore.click();var b=$("a[href],button",li);if(b)b.click();}return;}
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

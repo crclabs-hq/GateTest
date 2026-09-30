@@ -7,7 +7,7 @@
  * to IndexNow (Bing / Yandex / Seznam / Naver in one call) + pings
  * Bing and Yandex sitemap endpoints in parallel.
  *
- * Auth: admin only. Reuses the existing admin auth pattern.
+ * Auth: admin only, same-origin — requireAdminRoute (app/lib/admin-guard.ts).
  *
  * Boss-Rule respect: this is admin-only; the public never triggers a
  * submission. The IndexNow key comes from env var (no secret in code).
@@ -16,6 +16,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { submitUrls, isValidKey } = require("@/app/lib/seo/indexnow.js") as {
@@ -40,16 +41,10 @@ const { buildAllUrls } = require("@/app/lib/seo/all-urls.js") as {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-async function isAdminRequest(req: NextRequest): Promise<boolean> {
-  const cookie = req.cookies.get("gatetest_admin")?.value;
-  return Boolean(cookie);
-}
-
 export async function POST(req: NextRequest) {
   try {
-    if (!(await isAdminRequest(req))) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const refused = requireAdminRoute(req, { mutating: true });
+    if (refused) return refused;
 
     const key = process.env.INDEXNOW_KEY;
     if (!key || !isValidKey(key)) {
