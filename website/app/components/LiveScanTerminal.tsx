@@ -133,9 +133,9 @@ export default function LiveScanTerminal({ repoUrl, tier, sessionId, onComplete,
     <div className="rounded-xl border border-white/10 overflow-hidden bg-[#0a0a12] shadow-2xl">
       {/* Terminal header */}
       <div className="px-4 py-3 flex items-center gap-2 border-b border-white/6 bg-white/[0.02]">
-        <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-        <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
-        <div className="w-3 h-3 rounded-full bg-[#28c840]" />
+        <div className="w-3 h-3 rounded-full bg-white/15" />
+        <div className="w-3 h-3 rounded-full bg-white/15" />
+        <div className="w-3 h-3 rounded-full bg-white/15" />
         <span className="ml-3 text-xs text-white/30 font-mono">
           gatetest --suite {tier} {repoUrl.replace("https://github.com/", "")}
         </span>

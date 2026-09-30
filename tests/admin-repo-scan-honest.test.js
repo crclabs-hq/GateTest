@@ -33,14 +33,15 @@ const APP = path.join(__dirname, '..', 'website', 'app');
 const read = (p) => fs.readFileSync(path.join(APP, p), 'utf8');
 
 let logic, outcome, TIERS;
-try {
+// Skip only when this Node cannot strip types at all. When it can, a require
+// failure is a real defect in the .ts files and must fail the run, not skip it.
+const canStripTypes = !!process.features.typescript;
+if (canStripTypes) {
   logic = require('../website/app/admin/tabs/auto-fix-logic.ts');
   outcome = require('../website/app/lib/scan-outcome.ts');
   ({ TIERS } = require('../website/app/lib/checkout-tiers.ts'));
-} catch {
-  // error-ok — this Node cannot strip types; the source-level tests below still run
 }
-const ts = logic && outcome && TIERS ? {} : { skip: 'runtime cannot require .ts (needs Node >= 22.18 type-stripping)' };
+const ts = canStripTypes ? {} : { skip: 'runtime cannot require .ts (needs Node >= 22.18 type-stripping)' };
 
 const issue = (file, text = `${file}:1: problem`, module = 'lint') => ({ file, issue: text, module });
 
@@ -317,6 +318,18 @@ describe('wiring (source text)', () => {
     assert.match(copy, /catch/);
     assert.match(fnBody(code(tab), 'loadGuidance'), /!res\.ok/);
     assert.match(tab, /role="alert"/);
+  });
+
+  it('a module that neither passed nor failed reads NOT CHECKED, never SKIP or PASS', () => {
+    const verdict = fnBody(code(modulesCard).replace(/^export /gm, ''), 'moduleVerdict');
+    assert.match(verdict, /NOT CHECKED/);
+    assert.doesNotMatch(code(modulesCard), /"SKIP"/);
+    assert.match(verdict, /status === "passed"\) return \{ word: "PASS"/);
+    assert.match(code(modulesCard), /moduleVerdict\(status\)/);
+  });
+
+  it('the terminal header dots are neutral (no red/yellow/green literals)', () => {
+    assert.doesNotMatch(terminal, /#ff5f57|#febc2e|#28c840/i);
   });
 
   it('the result card lists every pull request', () => {

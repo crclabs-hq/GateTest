@@ -116,7 +116,7 @@ const SHRINKING_ALLOWLIST = {
   'components/howitworks/ArchitectureDiagram.tsx': 16, // hand-rolled SVG diagram on /how-it-works
   'scan/status/page.tsx': 11,
   'playground/page.tsx': 7,
-  'components/LiveScanTerminal.tsx': 4,
+  'components/LiveScanTerminal.tsx': 1, // the terminal's own near-black panel; the three traffic-light dots are neutral now
   'components/HomeSelfScan.tsx': 3,
   'preview/_components/LiveRun.tsx': 2,
   'components/Hero.tsx': 1,
