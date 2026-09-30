@@ -11,8 +11,9 @@
  * to the pure correlator at app/lib/pipeline-trace/correlator.js,
  * and returns the verdict + a renderable markdown block.
  *
- * Auth: gatetest_admin cookie — same two-method check as every
- * other /api/admin/* route. Returns 401 if not authenticated.
+ * Auth: requireAdminRoute (app/lib/admin-guard.ts) — the one admin gate
+ * every /api/admin/* route uses; same-origin on this POST. Returns 401 if
+ * not authenticated.
  *
  * This is fundamentally different from /api/admin/triage which
  * triages bugs across source/server/browser. This one traces the
@@ -24,14 +25,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import crypto from "crypto";
-import {
-  getAdminConfig,
-  getAdminUser,
-  SESSION_COOKIE_NAME,
-} from "@/app/lib/admin-session";
-import { ADMIN_COOKIE_NAME } from "@/app/lib/admin-auth";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { getBestGitHubToken } from "@/app/lib/admin-github-profiles";
 
 export const dynamic = "force-dynamic";
@@ -93,35 +87,6 @@ const { trace, renderTraceMarkdown } = require("@/app/lib/pipeline-trace/correla
     stages: StageReport[]
   ) => string;
 };
-
-// ----------------------------------------------------------------------------
-// Auth — copied verbatim from /api/admin/repos/route.ts so every admin
-// surface uses the same canonical check.
-// ----------------------------------------------------------------------------
-
-async function isAuthenticatedAdmin(): Promise<boolean> {
-  const store = await cookies();
-  const adminStatus = getAdminConfig();
-  if (adminStatus.ok && adminStatus.config) {
-    const sessionCookie = store.get(SESSION_COOKIE_NAME)?.value;
-    if (getAdminUser(sessionCookie, adminStatus.config)) return true;
-  }
-  const adminPassword = process.env.GATETEST_ADMIN_PASSWORD || "";
-  if (adminPassword) {
-    const passwordCookie = store.get(ADMIN_COOKIE_NAME)?.value || "";
-    const expected = crypto
-      .createHmac("sha256", adminPassword)
-      .update("gatetest-admin-v1")
-      .digest("hex");
-    if (
-      passwordCookie &&
-      passwordCookie.length === expected.length &&
-      crypto.timingSafeEqual(Buffer.from(passwordCookie), Buffer.from(expected))
-    )
-      return true;
-  }
-  return false;
-}
 
 // Token selection delegated to getBestGitHubToken(owner) from admin-github-profiles.
 
@@ -679,9 +644,8 @@ async function gatherLive(liveUrl: string, now: number): Promise<StageReport> {
 // ----------------------------------------------------------------------------
 
 export async function POST(req: NextRequest) {
-  if (!(await isAuthenticatedAdmin())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const refused = requireAdminRoute(req, { mutating: true });
+  if (refused) return refused;
 
   const startedAt = Date.now();
 

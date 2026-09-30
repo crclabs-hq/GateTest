@@ -109,9 +109,12 @@ const callers = [
   },
   {
     // AdminPanel.tsx was split (2026-07-07); the batch fix engine moved here.
-    label: 'admin repo-scan tab — useAutoFix.fixIssues + retryFailedFiles',
+    // 2026-09-29: fixIssues + retryFailedFiles now share ONE batch loop
+    // (runFixBatches) and so one fetch — the test below proves both paths
+    // go through it, so neither can send a tier-less body.
+    label: 'admin repo-scan tab — useAutoFix.runFixBatches (fixIssues + retryFailedFiles)',
     file: 'website/app/admin/tabs/useAutoFix.ts',
-    expectedCount: 2,
+    expectedCount: 1,
   },
   {
     label: 'admin watchdog — WatchdogPanel.scanAndFix',
@@ -173,26 +176,28 @@ describe('tier passthrough — every /api/scan/fix caller must send tier', () =>
   });
 
   it('admin fix engine forwards the user-selected `tier` state variable to fix calls', () => {
-    // The two admin customer-batch calls (fixIssues + retryFailedFiles in
-    // tabs/useAutoFix.ts) must forward whatever tier the operator chose in
-    // the UI dropdown, not a hardcoded value — otherwise admin testing of
-    // $199 deliverables is impossible. (WatchdogPanel scans every repo at
-    // "full" and is covered by the callers table above.)
+    // The admin fix engine (tabs/useAutoFix.ts) must forward whatever tier
+    // the operator chose in the UI dropdown, not a hardcoded value —
+    // otherwise admin testing of $199 deliverables is impossible.
+    // (WatchdogPanel scans every repo at "full" and is covered by the
+    // callers table above.) Since 2026-09-29 the first run and the retry
+    // share one fetch; both entry points must reach it through
+    // runFixBatches so neither can grow its own tier-less call again.
     const full = path.join(ROOT, 'website/app/admin/tabs/useAutoFix.ts');
     const src = fs.readFileSync(full, 'utf8');
     const bodies = extractFixCallBodies(src);
-    assert.strictEqual(bodies.length, 2);
-    // Both should use the bare `tier` identifier (the React state).
-    let pluralisedCount = 0;
-    for (const body of bodies) {
-      if (/\btier\b\s*[,}]/.test(body) || /,\s*tier\s*\}/.test(body)) {
-        pluralisedCount++;
-      }
-    }
+    assert.strictEqual(bodies.length, 1);
     assert.ok(
-      pluralisedCount >= 2,
-      `Expected ≥2 admin fix-engine calls to forward the bare \`tier\` state variable, found ${pluralisedCount}. Bodies: ${JSON.stringify(bodies.map((b) => b.trim().slice(0, 120)))}`,
+      /\btier\b\s*[,}]/.test(bodies[0]) || /,\s*tier\s*\}/.test(bodies[0]),
+      `Expected the admin fix call to forward the bare \`tier\` state variable. Body: ${bodies[0].trim().slice(0, 160)}`,
     );
+    for (const entry of ['fixIssues', 'retryFailedFiles']) {
+      const at = src.indexOf(`async function ${entry}(`);
+      assert.ok(at !== -1, `useAutoFix.ts must define ${entry}`);
+      const next = src.indexOf('\n  async function ', at + 1);
+      const fnBody = src.slice(at, next === -1 ? undefined : next);
+      assert.match(fnBody, /runFixBatches\(/, `${entry} must send through runFixBatches (the one tier-forwarding fetch)`);
+    }
   });
 });
 

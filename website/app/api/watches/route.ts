@@ -9,45 +9,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getAdminConfig, getAdminUser, SESSION_COOKIE_NAME } from "../../lib/admin-session";
-import { ADMIN_COOKIE_NAME } from "../../lib/admin-auth";
-import { createHmac, timingSafeEqual } from "crypto";
+import { requireAdminRoute, adminLoginOf } from "@/app/lib/admin-guard";
 import { getDb } from "../../lib/db";
 
 export const dynamic = "force-dynamic";
 
-function checkPasswordCookie(cookieValue: string | undefined): boolean {
-  const password = process.env.GATETEST_ADMIN_PASSWORD || "";
-  if (!password || !cookieValue) return false;
-  const expected = createHmac("sha256", password).update("gatetest-admin-v1").digest("hex");
-  const a = Buffer.from(cookieValue);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  try { return timingSafeEqual(a, b); } catch { return false; }
-}
-
-async function requireAdmin(): Promise<{ login: string } | null> {
-  const cookieStore = await cookies();
-
-  // Auth method 1: GitHub OAuth session
-  const status = getAdminConfig();
-  if (status.ok && status.config) {
-    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-    const login = getAdminUser(token, status.config);
-    if (login) return { login };
-  }
-
-  // Auth method 2: Password-based cookie (GATETEST_ADMIN_PASSWORD)
-  const pwCookie = cookieStore.get(ADMIN_COOKIE_NAME)?.value;
-  if (checkPasswordCookie(pwCookie)) return { login: "admin" };
-
-  return null;
-}
-
-export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(req: NextRequest) {
+  const refused = requireAdminRoute(req);
+  if (refused) return refused;
 
   try {
     const sql = getDb();
@@ -66,8 +35,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const refused = requireAdminRoute(req, { mutating: true });
+  if (refused) return refused;
+  const admin = { login: adminLoginOf(req) };
 
   let body: { target_type?: string; target?: string; interval_minutes?: number; auto_fix_enabled?: boolean };
   try { body = await req.json(); } catch {
@@ -106,8 +76,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const refused = requireAdminRoute(req, { mutating: true });
+  if (refused) return refused;
+  const admin = { login: adminLoginOf(req) };
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -122,8 +93,9 @@ export async function DELETE(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const refused = requireAdminRoute(req, { mutating: true });
+  if (refused) return refused;
+  const admin = { login: adminLoginOf(req) };
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });

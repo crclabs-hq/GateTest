@@ -1,24 +1,29 @@
 "use client";
 
-// Per-module PASS/FAIL/SKIP result cards for the repo scan tab.
+// Per-module PASS / FAIL / NOT CHECKED result cards for the repo scan tab.
+// Anything that is neither passed nor failed (skipped, error, timed out) is
+// "not checked" — never shown as a pass (doctrine #1).
+export function moduleVerdict(status: string): { word: string; badge: string; edge: string } {
+  if (status === "passed") return { word: "PASS", badge: "ok", edge: "border-l-4 border-l-success" };
+  if (status === "failed") return { word: "FAIL", badge: "bad", edge: "border-l-4 border-l-danger" };
+  return { word: "NOT CHECKED", badge: "muted", edge: "" };
+}
+
 export function ModuleResults({ modules }: { modules: Array<Record<string, unknown>> }) {
   return (
     <>
       {modules.map((mod) => {
         const status = mod.status as string;
         const details = (mod.details as string[]) || [];
+        const verdict = moduleVerdict(status);
         return (
-          <div key={mod.name as string} className={`rounded-xl bg-white border shadow-sm p-4 ${status === "failed" ? "border-l-4 border-l-red-500 border-red-200" : status === "passed" ? "border-l-4 border-l-emerald-500 border-emerald-200" : "border-gray-200"}`}>
+          <div key={mod.name as string} className={`rounded-xl bg-white border border-gray-200 shadow-sm p-4 ${verdict.edge}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                  status === "passed" ? "bg-emerald-100 text-emerald-700" : status === "failed" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"
-                }`}>
-                  {status === "passed" ? "PASS" : status === "failed" ? "FAIL" : "SKIP"}
-                </span>
+                <span className={`gt-admin-badge ${verdict.badge}`}>{verdict.word}</span>
                 <span className="font-semibold text-sm text-gray-900">{mod.name as string}</span>
               </div>
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-gray-500">
                 {mod.checks as number} checks &middot; {mod.issues as number} issues &middot; {mod.duration as number}ms
               </div>
             </div>
