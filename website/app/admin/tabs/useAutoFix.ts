@@ -13,6 +13,7 @@
 // one fetch, which tests/tier-passthrough.test.js checks forwards `tier`.
 
 import { useRef, useState } from "react";
+import { readJsonBody } from "@/app/lib/scan-outcome";
 import {
   extractIssuesFromModules,
   type FixableIssue,
@@ -91,7 +92,7 @@ export function useAutoFix({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repoUrl, issues, tier }),
       });
-      const body: unknown = await res.json().catch(() => null);
+      const body = await readJsonBody(res);
       return readFixResponse(res.ok, res.status, body);
     } catch (err) {
       return requestFailed(err instanceof Error ? err.message : "request failed");

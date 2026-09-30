@@ -4,7 +4,7 @@ import { useState } from "react";
 import LiveScanTerminal from "@/app/components/LiveScanTerminal";
 import type { UnparseableIssue } from "@/app/lib/issue-extractor";
 import { TIERS } from "@/app/lib/checkout-tiers";
-import { repoScanTierKeys, scanTierLabel } from "@/app/lib/scan-outcome";
+import { readJsonBody, repoScanTierKeys, scanTierLabel } from "@/app/lib/scan-outcome";
 import { useAutoFix, parseIssues, parseUnparseableIssues } from "./useAutoFix";
 import { maxPullRequests } from "./auto-fix-logic";
 import { FixProgressCard, FixResultCard } from "./FixResultCard";
@@ -104,7 +104,7 @@ export function RepoScanTab({ onScanRecorded }: { onScanRecorded: () => void }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ issues: allIssues }),
       });
-      const data = await res.json().catch(() => null) as { guidance?: GuidanceItem[]; error?: string } | null;
+      const data = await readJsonBody(res) as { guidance?: GuidanceItem[]; error?: string } | null;
       if (!res.ok || !data || !Array.isArray(data.guidance)) {
         setError(`Could not generate guidance — ${data?.error || `HTTP ${res.status}`}`);
         return;

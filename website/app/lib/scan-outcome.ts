@@ -28,6 +28,20 @@ function isObject(v: unknown): v is Record<string, unknown> {
 }
 
 /**
+ * Reads a response body as JSON. An unreadable body (a gateway's HTML error
+ * page, a dropped connection) comes back as null, which every classifier in
+ * this app treats as a FAILED request with its HTTP status — it is never
+ * read as an empty success.
+ */
+export async function readJsonBody(res: { json(): Promise<unknown> }): Promise<unknown> {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * A scan passes only when the request succeeded, the body says "complete",
  * and at least one module actually ran with zero issues. Everything else is
  * either "issues" or "failed" with the reason — never a pass.

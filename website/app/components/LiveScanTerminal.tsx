@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { TIERS } from "@/app/lib/checkout-tiers";
 import {
   classifyScanResponse,
+  readJsonBody,
   gateLine,
   scanResultForCaller,
   tierScopeLine,
@@ -58,7 +59,7 @@ export default function LiveScanTerminal({ repoUrl, tier, sessionId, onComplete,
       body: JSON.stringify({ repoUrl, tier, ...(sessionId ? { sessionId } : {}) }),
     })
       .then(async (res) => {
-        const body: unknown = await res.json().catch(() => null);
+        const body = await readJsonBody(res);
         const result = classifyScanResponse(res.ok, res.status, body);
         const data = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
         const mods = Array.isArray(data.modules) ? (data.modules as Array<Record<string, unknown>>) : [];

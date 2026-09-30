@@ -237,6 +237,26 @@ describe('scan responses — a failure never prints GATE: PASSED', ts, () => {
   });
 });
 
+describe('unreadable bodies — read once, classified as failures, never swallowed', ts, () => {
+  it('readJsonBody returns the parsed body, or null when the body is not JSON', async () => {
+    assert.deepEqual(await outcome.readJsonBody({ json: async () => ({ status: 'complete' }) }), { status: 'complete' });
+    assert.equal(await outcome.readJsonBody({ json: async () => { throw new SyntaxError('Unexpected token <'); } }), null);
+  });
+
+  it('a null body from a 502 is a failed scan and a failed fix request, with the HTTP status', () => {
+    assert.equal(outcome.classifyScanResponse(false, 502, null).kind, 'failed');
+    assert.match(logic.readFixResponse(false, 502, null).reason, /HTTP 502/);
+  });
+
+  it('no touched file drops a rejected body read with .catch(() => null)', () => {
+    for (const p of ['admin/tabs/RepoScanTab.tsx', 'admin/tabs/useAutoFix.ts', 'components/LiveScanTerminal.tsx']) {
+      const src = code(read(p));
+      assert.doesNotMatch(src, /\.json\(\)\.catch\(/, `${p} swallows a body-read rejection`);
+      assert.match(src, /readJsonBody\(res\)/, `${p} must read bodies through readJsonBody`);
+    }
+  });
+});
+
 describe('tier labels — derived from checkout-tiers, never typed', ts, () => {
   it('the quick label counts the modules the quick tier names', () => {
     const n = TIERS.quick.modules.split(',').length;
