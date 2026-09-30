@@ -123,7 +123,7 @@ function isTestFile(filePath) {
   // A path that is a test path ONLY because of a fixture/mock segment
   // (`src/fixtures/x`) is priced once, by isFixtureFile below; a fixture
   // under tests/ (`tests/fixtures/x`) is still both, as it always was.
-  const TEST_PROPER_RE = /(?:^|\/)(?:tests?|specs?|__tests__|e2e|stories|storybook|reliability-corpus|testdata|test[-_]?resources|[a-z0-9]+[-_](?:tests?|specs?))(?:\/|$)|\.(?:test|spec|stories|e2e)\./i;
+  const TEST_PROPER_RE = /(?:^|\/)(?:tests?|specs?|__tests__|e2e|stories|storybook|reliability-corpus|testdata|test[-_]?resources|test[-_]?suites?|[a-z0-9]+[-_](?:tests?|specs?|test[-_]?suites?))(?:\/|$)|\.(?:test|spec|stories|e2e)\./i;
   if (!TEST_PROPER_RE.test(p) && isFixtureFile(p)) return null;
   return { multiplier: 0.6, reason: 'test file' };
 }
