@@ -4,8 +4,9 @@
  * One gate for all of them, in this order (1 and 2 are requireAdminRoute in
  * app/lib/admin-guard.ts, the gate every admin route shares):
  *   1. isAdminRequest()          — the admin password cookie (or the internal
- *      admin token); the GitHub-OAuth admin session the /admin pages also
- *      accept (getAdminLoginFromCookies) is honoured too, so a page that
+ *      admin token); the GitHub-OAuth admin session and the allowlisted,
+ *      provider-verified customer email the /admin pages also accept
+ *      (getAdminLoginFromCookies) are honoured too, so a page that
  *      renders never answers 401 on its own API. Neither is enough to write:
  *   2. csrfOk() on every mutating request — the same-origin check the password
  *      routes use (app/lib/password-auth-http.ts), imported, not re-written
@@ -57,7 +58,9 @@ export function requireAdmin(req: NextRequest, opts: { mutating?: boolean; fresh
 
 export function actorOf(req: NextRequest): { actor: string; ip: string } {
   const login = getAdminLoginFromCookies(req.cookies);
-  return { actor: login && login !== "admin" ? `github:${login}` : "admin", ip: clientIp(req.headers) };
+  // An allowlisted customer sign-in is labelled by its email (admin-session.ts).
+  const actor = !login || login === "admin" ? "admin" : login.includes("@") ? `email:${login}` : `github:${login}`;
+  return { actor, ip: clientIp(req.headers) };
 }
 
 /** The store over Postgres, or null when DATABASE_URL is not configured. */

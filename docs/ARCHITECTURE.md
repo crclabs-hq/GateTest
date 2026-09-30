@@ -241,6 +241,7 @@ GateTest/
 | `GITHUB_OAUTH_REDIRECT_URI` | Explicit override for the GitHub OAuth callback URL when it can't be derived from `NEXT_PUBLIC_BASE_URL`. |
 | `OPENAI_API_KEY` | Second-agent GPT-4o cross-check for Multi-Agent Consensus (Forensic-tier opt-in, `website/app/lib/openai-client.ts` + `multi-agent-consensus.ts`, Craig-authorized 2026-06-02). Built and tested but **not yet wired into `/api/scan/fix/route.ts`** — see Known Issue in docs/ROADMAP.md added 2026-07-20. |
 | `GATETEST_ADMIN_USERNAMES` | Comma-separated allowlist of admin usernames for `/admin` (pairs with `GATETEST_ADMIN_PASSWORD`). |
+| `GATETEST_ADMIN_EMAILS` | Comma-separated admin email addresses. A customer sign-in (Google, GitHub, Gluecron, email + password) whose provider-verified address is listed is the admin. An entry with `@` in `GATETEST_ADMIN_USERNAMES` counts the same way (`website/app/lib/admin-allowlist.ts`). |
 | `GLUECRON_API_URL` / `GLUECRON_TOKEN` | Fallback aliases for `GLUECRON_BASE_URL` / `GLUECRON_API_TOKEN` above — read by `integrations/gluecron/client.ts` (the `HostBridge` abstraction), NOT by `website/app/lib/gluecron-client.ts` (a different, similarly-named file the website route uses directly). Both files exist; don't assume one covers the other when auditing this connection — confirmed 2026-07-20 after an initial audit pass wrongly flagged these as dead by checking only the website-side file. |
 
 ---

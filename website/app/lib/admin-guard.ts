@@ -9,7 +9,9 @@
  *     cookie, or the same HMAC token in `X-Admin-Token` for server-to-server
  *     calls; or
  *   - getAdminLoginFromCookies(req.cookies) (lib/admin-session.ts) — the
- *     GitHub OAuth admin session on the allowlist, or the password cookie.
+ *     GitHub OAuth admin session on the allowlist, a customer sign-in whose
+ *     provider-verified email is on the allowlist (lib/admin-allowlist.ts),
+ *     or the password cookie.
  * Those are the same two answers the /admin pages use to decide whether to
  * render, so a page that renders never gets a 401 from its own API.
  *
@@ -55,8 +57,8 @@ export function isAdminRouteRequest(req: NextRequest): boolean {
 
 /**
  * Who the admin is, for routes that record it (e.g. watches.owner_login):
- * the GitHub login of an OAuth admin session, else "admin" (password cookie
- * or the internal token). Call only after requireAdminRoute has passed.
+ * the GitHub login of an OAuth admin session, the email of an allowlisted
+ * customer sign-in, else "admin" (password cookie or the internal token). Call only after requireAdminRoute has passed.
  */
 export function adminLoginOf(req: NextRequest): string {
   return getAdminLoginFromCookies(req.cookies) || "admin";

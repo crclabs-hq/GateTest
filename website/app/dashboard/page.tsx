@@ -33,6 +33,8 @@ interface ScanRecord {
 interface CustomerInfo {
   login: string;
   email: string;
+  /** From /api/auth/me: this session is let into /admin. */
+  admin?: boolean;
 }
 
 interface DashboardData {
@@ -135,6 +137,11 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex items-center gap-4">
+            {customer.admin && (
+              <Link href="/admin" className="text-sm text-muted hover:text-foreground">
+                Admin
+              </Link>
+            )}
             <Link href="/dashboard/usage" className="text-sm text-muted hover:text-foreground">
               Usage
             </Link>
