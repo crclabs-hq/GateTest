@@ -44,6 +44,11 @@ At version 1, `deprecated` is empty.
 - `findings` - ranked, cross-module-deduplicated findings; what to display.
 - `findingSummary` - counts over `findings` (may be `null` if the registry failed).
 - `overrides` - accepted-risk overrides that applied this run; never merged into `findings`.
+- `flaky` - tests the flaky-test ledger measured as flaky that failed this run
+  (`name`, `state`, `flips`, `runs`, `expiresAt`, ...). `state` is `quarantined`
+  (the failure is a warning, not a block), `expired` (blocking again),
+  `off` (`--no-quarantine`) or `unaccounted` (blocking: the runner's output
+  could not account for every failure). Always an array; empty when none.
 - `deprecated` - fields scheduled for removal; empty when none.
 - `provenance` - which engine, modules and policy produced this report.
 - `signature` - signature over `provenance`, or an explicit "unsigned" reason.
@@ -70,6 +75,8 @@ At version 1, `deprecated` is empty.
 - `rootCause` - why, since which commit, and how to replay a `BLOCKED` run; `null` when passed.
 - `enforcing` - false under report-only mode, where `PASSED` is advisory.
 - `reportOnlyUntil` - the report-only window, or `null`.
+- `flake` - the flake rate: `{ measured, rate, flakyTests, quarantined, expired, tests, runs, state, reason }`.
+  `measured: false` (with a `reason`) means nothing was recorded - it is never a 0%.
 
 ### `summary.modules`
 
