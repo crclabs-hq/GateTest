@@ -34,6 +34,13 @@
  * copy says what is actually true: a free scan doesn't produce a badge,
  * and getting one needs an account scan.
  *
+ * Launch move 6: a fourth segment, `flake N%`, when the scan record carries a
+ * flaky-test ledger (the engine ran the repo's tests and measured which flip —
+ * src/core/flaky-ledger.js, read through app/lib/flake-badge.js), and
+ * `flake not measured` when it does not. Never `flake 0%` for a repo whose
+ * tests were never run: hosted scans do not run a customer's test suite, so a
+ * repo only gets a number once a CI run has reported a ledger for it.
+ *
  * Cached 5 minutes (CDN + browser) — badges render on every README page
  * view; no need to hit the DB more than that.
  */
@@ -42,14 +49,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
 import { scoreToGrade, renderBadge, relativeTimeShort } from "@/app/lib/badge-svg";
 import { siteUrl } from "@/app/lib/site-url";
+import { flakeSegment } from "@/app/lib/flake-badge";
 
 export const dynamic = "force-dynamic";
+
+// The badge's fixed neutrals, spelled once (tests/no-hardcoded-color-literals.test.js
+// pins how many literals this file may carry — it may only go down).
+const GREY = "#9ca3af";
+const SLATE = "#374151";
 
 function needsAccountScanBadge(owner: string, repo: string): string {
   return renderBadge(
     [
       { text: "GateTest", bg: "#555" },
-      { text: "needs account scan", bg: "#9ca3af" },
+      { text: "needs account scan", bg: GREY },
     ],
     `GateTest: ${owner}/${repo} has no account scan on record — a free scan at ` +
       `${siteUrl('/playground')} does not appear on a badge; run an account scan for one`
@@ -90,6 +103,7 @@ export async function GET(
     }
 
     const scan = rows[0] as { score: number; results: Array<{ issues?: number }> | null; completed_at: string | null };
+    const flake = flakeSegment(scan.results);
     const grade = scoreToGrade(scan.score);
     const modules = Array.isArray(scan.results) ? scan.results : [];
     const issueCount = modules.reduce((sum, m) => sum + (m.issues || 0), 0);
@@ -100,9 +114,10 @@ export async function GET(
       [
         { text: "GateTest", bg: "#555" },
         { text: grade.letter, bg: grade.bgColor, fg: grade.color },
-        { text: issuesText, bg: "#374151" },
+        { text: issuesText, bg: SLATE },
+        { text: flake.text, bg: flake.measured ? SLATE : GREY },
       ],
-      `GateTest: ${owner}/${repo} scored ${grade.letter} (${scan.score}/100), ${issuesText} — ${siteUrl()}`
+      `GateTest: ${owner}/${repo} scored ${grade.letter} (${scan.score}/100), ${issuesText}, ${flake.text} — ${siteUrl()}`
     );
 
     return new NextResponse(svg, { headers });

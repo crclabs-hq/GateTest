@@ -403,6 +403,22 @@ class ConsoleReporter {
     if (Array.isArray(summary.overrides) && summary.overrides.length > 0) {
       console.log(`  ${COLORS.dim}${summary.overrides.length} accepted risk(s) (see report)${COLORS.reset}`);
     }
+    // Flaky tests the ledger measured (launch move 6) — a quarantined failure
+    // is a warning, so it must be named where the reader looks, with how long
+    // the quarantine lasts. Never a silent downgrade (Forbidden #16).
+    if (Array.isArray(summary.flaky) && summary.flaky.length > 0) {
+      const q = summary.flaky.filter((f) => f.state === 'quarantined');
+      const other = summary.flaky.length - q.length;
+      const parts = [];
+      if (q.length) parts.push(`${q.length} quarantined (failure is a warning, not blocking)`);
+      if (other) parts.push(`${other} flaky but blocking (quarantine expired, off, or the run could not be fully accounted for)`);
+      console.log(`  Flaky:    ${COLORS.dim}${parts.join('; ')}${COLORS.reset}`);
+      for (const f of summary.flaky.slice(0, 5)) {
+        const until = f.state === 'quarantined' && f.expiresAt ? `, quarantine ends ${String(f.expiresAt).slice(0, 10)}` : '';
+        console.log(`    ${COLORS.dim}${f.name} — flipped ${f.flips} of last ${f.runs} runs${until}${COLORS.reset}`);
+      }
+      if (summary.flaky.length > 5) console.log(`    ${COLORS.dim}... and ${summary.flaky.length - 5} more (see report)${COLORS.reset}`);
+    }
     if (infoFindings > 0) {
       console.log(`  Info:     ${COLORS.dim}${infoFindings}${COLORS.reset}`);
     }

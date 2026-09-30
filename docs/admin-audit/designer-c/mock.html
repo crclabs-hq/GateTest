@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="en" data-theme="white" data-density="comfortable">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin console — entity-first mock (Designer C)</title>
+<style>
+/* ---------- tokens: identical names, two palettes ---------- */
+:root, :root[data-theme="white"] {
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#f6f7f8;
+  --line:#e6e8eb; --line-strong:#c9cdd2;
+  --ink-1:#0b0f14; --ink-2:#4b5563; --ink-3:#8a929b; --ink-off:#b4bac2;
+  --accent:#0f766e; --accent-soft:rgba(15,118,110,.10);
+  --overlay:rgba(11,15,20,.28);
+  --shadow:0 12px 32px rgba(11,15,20,.14);
+  color-scheme:light;
+}
+:root[data-theme="black"] {
+  --bg:#000000; --surface:#0a0a0b; --surface-2:#121315;
+  --line:#232529; --line-strong:#363940;
+  --ink-1:#f2f3f5; --ink-2:#a6adb5; --ink-3:#6f767e; --ink-off:#4b5158;
+  --accent:#2dd4bf; --accent-soft:rgba(45,212,191,.12);
+  --overlay:rgba(0,0,0,.6);
+  --shadow:0 12px 32px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+:root { --row:40px; --gutter:24px; --r:8px; --r-sm:6px; }
+:root[data-density="compact"] { --row:28px; }
+
+/* ---------- base ---------- */
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink-1)}
+body{font-family:Geist, ui-sans-serif, system-ui, sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.mono,code,kbd{font-family:"Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;font-variant-numeric:tabular-nums}
+a{color:inherit;text-decoration:none}
+a.lnk{text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:3px}
+a.lnk:hover{text-decoration-color:var(--ink-1)}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+h1,h2,h3{margin:0;font-weight:600;line-height:1.2}
+h1{font-size:20px} h2{font-size:16px} h3{font-size:14px}
+p{margin:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.num{font-family:"Geist Mono", ui-monospace, monospace;font-variant-numeric:tabular-nums;text-align:right}
+.muted{color:var(--ink-3)} .sec{color:var(--ink-2)} .w6{font-weight:600} .w5{font-weight:500}
+.s12{font-size:12px} .s13{font-size:13px} .s16{font-size:16px} .s24{font-size:24px}
+hr.rule{border:0;border-top:1px solid var(--line);margin:0}
+
+/* ---------- shell ---------- */
+.app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+.rail{border-right:1px solid var(--line);background:var(--surface);position:sticky;top:0;height:100vh;overflow:auto;display:flex;flex-direction:column;padding:12px 10px}
+.brand{display:flex;align-items:center;gap:8px;padding:6px 8px 14px;font-weight:600}
+.brand .g{width:20px;height:20px;border-radius:5px;background:var(--ink-1);color:var(--bg);display:grid;place-items:center;font-size:12px;font-weight:600}
+.brand .env{margin-left:auto;font-size:11px;color:var(--ink-3);border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+.group{margin:8px 0 4px;padding:0 8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.nav a,.nav button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:0 8px;height:30px;border-radius:6px;color:var(--ink-2);font-size:13px}
+.nav a:hover,.nav button:hover{background:var(--surface-2);color:var(--ink-1)}
+.nav a[aria-current="page"],.nav button[aria-current="page"]{background:var(--surface-2);color:var(--ink-1);font-weight:500;box-shadow:inset 2px 0 0 var(--ink-1)}
+.nav .cnt{margin-left:auto;font-size:12px;color:var(--ink-3);font-family:"Geist Mono",ui-monospace,monospace}
+.nav .key{margin-left:auto;font-size:11px;color:var(--ink-off);font-family:"Geist Mono",ui-monospace,monospace}
+.rail-foot{margin-top:auto;padding:12px 8px 4px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--line)}
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;height:48px;padding:0 var(--gutter);border-bottom:1px solid var(--line);background:var(--bg)}
+.crumb{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;color:var(--ink-3);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crumb b{color:var(--ink-1);font-weight:500}
+.searchbtn{margin-left:auto;display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border:1px solid var(--line-strong);border-radius:6px;color:var(--ink-3);font-size:13px;min-width:220px}
+.searchbtn kbd{margin-left:auto;font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 5px;color:var(--ink-3);white-space:nowrap}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:6px;overflow:hidden;height:30px}
+.seg button{padding:0 10px;font-size:12px;color:var(--ink-2);border-right:1px solid var(--line-strong)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink-1);color:var(--bg)}
+.iconbtn{height:30px;width:30px;border:1px solid var(--line-strong);border-radius:6px;display:grid;place-items:center;color:var(--ink-2)}
+.menubtn{display:none}
+.content{padding:20px var(--gutter) 64px;max-width:1280px;width:100%}
+.screen{display:none} .screen.on{display:block}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:6px;border:1px solid var(--line-strong);font-size:13px;font-weight:500;color:var(--ink-1);background:var(--surface);white-space:nowrap}
+.btn:hover{border-color:var(--ink-3)}
+.btn.primary{background:var(--ink-1);color:var(--bg);border-color:var(--ink-1)}
+.btn.sm{height:26px;padding:0 9px;font-size:12px}
+.btn.ghost{border-color:transparent;color:var(--ink-2)} .btn.ghost:hover{background:var(--surface-2);color:var(--ink-1)}
+
+/* ---------- marks (shape + weight + label) ---------- */
+.mk{display:inline-block;width:10px;height:10px;flex:none;vertical-align:-1px;margin-right:6px}
+.mk-blocker{background:var(--ink-1)}
+.mk-high{width:8px;height:8px;background:var(--ink-1);transform:rotate(45deg);margin:0 7px 0 1px}
+.mk-medium{border-radius:50%;border:1.5px solid var(--ink-1);background:linear-gradient(90deg,var(--ink-1) 50%,transparent 50%)}
+.mk-low{border-radius:50%;border:1.5px solid var(--ink-3)}
+.mk-pass{border-radius:50%;background:var(--accent)}
+.mk-notrun{border-radius:50%;border:1.5px dashed var(--ink-3)}
+.sev{display:inline-flex;align-items:center;white-space:nowrap}
+.sev-blocker{font-weight:600} .sev-low{color:var(--ink-3)} .sev-notrun{color:var(--ink-3)}
+.chip{display:inline-flex;align-items:center;height:24px;padding:0 8px;border:1px solid var(--line-strong);border-radius:999px;font-size:12px;color:var(--ink-2);white-space:nowrap}
+.chip.strong{border-color:var(--ink-1);color:var(--ink-1);font-weight:600}
+.chip.dashed{border-style:dashed}
+.chip.accent{border-color:var(--accent);color:var(--accent)}
+
+/* ---------- panels + three states ---------- */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);min-width:0}
+.panel[data-state="cannot"]{border-style:dashed}
+.panel-h{display:flex;align-items:baseline;gap:10px;padding:12px 16px 10px}
+.panel-h h3{font-size:13px;font-weight:600}
+.state{margin-left:auto;font-size:12px;color:var(--ink-3);white-space:nowrap}
+.state b{font-weight:600;color:var(--ink-1)}
+.panel-b{padding:0 16px 14px}
+.fail{border-left:2px solid var(--ink-1);background:var(--surface-2);padding:10px 12px;border-radius:0 6px 6px 0;font-size:13px}
+.fail .t{font-weight:600}
+.fail .ep{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;color:var(--ink-3);margin-top:4px}
+.fail .act{margin-top:8px;display:flex;gap:6px}
+.cannot{font-size:13px;color:var(--ink-2)}
+.cannot .t{font-weight:600;color:var(--ink-1)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px}
+.kv dt{color:var(--ink-3)} .kv dd{margin:0}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))} .g3{grid-template-columns:repeat(3,minmax(0,1fr))} .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.stack>*+*{margin-top:14px}
+
+/* ---------- stat strip ---------- */
+.strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.strip>div{padding:10px 14px;border-right:1px solid var(--line);min-width:0}
+.strip>div:last-child{border-right:0}
+.strip .l{font-size:12px;color:var(--ink-3);display:flex;gap:6px;align-items:center}
+.strip .v{font-size:16px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.strip .v.mono{font-size:14px}
+.strip .d{font-size:12px;color:var(--ink-3)}
+.strip.c5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.strip>div[data-state="cannot"]{background:repeating-linear-gradient(135deg,transparent 0 6px,var(--surface-2) 6px 7px)}
+.strip>div[data-state="failed"]{box-shadow:inset 2px 0 0 var(--ink-1)}
+
+/* ---------- headline ---------- */
+.verdict{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:24px;align-items:end}
+.verdict .big{font-size:24px;font-weight:600;letter-spacing:-.01em}
+.verdict .line{font-size:14px;color:var(--ink-2);margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 14px}
+.verdict .line a{color:var(--ink-1);text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:3px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--ink-3);margin-top:6px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;vertical-align:-1px;margin-right:5px;border:1px solid var(--ink-1)}
+.legend i.solid{background:var(--ink-1)} .legend i.hatch{background:repeating-linear-gradient(135deg,var(--ink-3) 0 1px,transparent 1px 3px);border-color:var(--ink-3)}
+svg text{font-family:"Geist Mono",ui-monospace,monospace;font-size:10px;fill:var(--ink-3)}
+
+/* ---------- tables ---------- */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+th{position:sticky;top:0;z-index:1;background:var(--surface);text-align:left;font-weight:500;font-size:12px;color:var(--ink-3);height:32px;padding:0 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th.num,td.num{text-align:right}
+td{height:var(--row);padding:0 12px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--surface-2)}
+tbody tr.focus td{background:var(--surface-2);box-shadow:inset 0 1px 0 var(--accent),inset 0 -1px 0 var(--accent)}
+tbody tr.focus td:first-child{box-shadow:inset 2px 0 0 var(--accent),inset 0 1px 0 var(--accent),inset 0 -1px 0 var(--accent)}
+tbody tr.focus td:last-child{box-shadow:inset -1px 0 0 var(--accent),inset 0 1px 0 var(--accent),inset 0 -1px 0 var(--accent)}
+tr.blocker td:first-child{box-shadow:inset 2px 0 0 var(--ink-1)}
+th:first-child,td:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
+tbody tr:hover td:first-child{background:var(--surface-2)}
+th.sort::after{content:" ↓";color:var(--ink-3)}
+.id{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px}
+.id .cp{opacity:0;margin-left:6px;color:var(--ink-3);font-size:11px}
+tr:hover .id .cp, .id:hover .cp{opacity:1}
+.rowact{opacity:0;display:inline-flex;gap:4px} tr:hover .rowact{opacity:1}
+.expand td{height:auto;padding:14px 12px 16px;white-space:normal;background:var(--surface-2)}
+.expand td:first-child{box-shadow:none}
+.expand .life{position:sticky;left:12px;max-width:calc(100vw - 2*var(--gutter) - 26px)}
+.tblfoot{display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--line)}
+#tab-findings td:nth-child(5){white-space:normal;min-width:200px;max-width:340px;line-height:1.3;padding-top:6px;padding-bottom:6px}
+#tab-findings td:nth-child(2),#tab-findings td:nth-child(3){max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.spark{vertical-align:middle}
+
+/* ---------- object header ---------- */
+.obj{display:flex;flex-direction:column;gap:10px}
+.obj .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.obj .title{font-size:20px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.obj .title .id{font-size:14px;font-weight:400;color:var(--ink-2)}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:13px;color:var(--ink-2)}
+.meta b{color:var(--ink-1);font-weight:500}
+.related{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.related .lbl{font-size:12px;color:var(--ink-3);margin-right:4px}
+.rel{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px;border:1px solid var(--line);border-radius:6px;font-size:12px;background:var(--surface)}
+.rel:hover{border-color:var(--ink-3)}
+.rel .k{color:var(--ink-3);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs button{height:36px;padding:0 12px;font-size:13px;color:var(--ink-2);white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button .n{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;color:var(--ink-3);margin-left:6px}
+.tabs button[aria-selected="true"]{color:var(--ink-1);font-weight:500;border-bottom-color:var(--ink-1)}
+.tabs button[aria-selected="true"] .n{color:var(--ink-1)}
+.tabpanel{display:none;padding-top:14px} .tabpanel.on{display:block}
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+.filters .sp{flex:1}
+.fchip{height:26px;padding:0 9px;border:1px solid var(--line);border-radius:6px;font-size:12px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px;background:var(--surface)}
+.fchip[aria-pressed="true"]{border-color:var(--ink-1);color:var(--ink-1);font-weight:500}
+.fchip .n{font-family:"Geist Mono",ui-monospace,monospace;color:var(--ink-3)}
+
+/* ---------- lifecycle / timeline ---------- */
+.life{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px}
+.tl{list-style:none;margin:0;padding:0;position:relative}
+.tl::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;border-left:1px solid var(--line-strong)}
+.tl li{position:relative;padding:0 0 14px 22px;font-size:13px}
+.tl li:last-child{padding-bottom:0}
+.tl li .dot{position:absolute;left:0;top:5px;width:11px;height:11px;border-radius:50%;background:var(--surface);border:1.5px solid var(--ink-1)}
+.tl li.fill .dot{background:var(--ink-1)}
+.tl li.acc .dot{background:var(--accent);border-color:var(--accent)}
+.tl li.sq .dot{border-radius:0;background:var(--ink-1)}
+.tl li.dash .dot{border-style:dashed;border-color:var(--ink-3)}
+.tl .h{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
+.tl .h .id{color:var(--ink-1)}
+.tl .h .when{color:var(--ink-3);font-size:12px;margin-left:auto}
+.tl .b{color:var(--ink-2);margin-top:2px}
+.verdicts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.snip{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px;overflow:auto;color:var(--ink-2)}
+.snip b{color:var(--ink-1);font-weight:600}
+.snip .ln{display:inline-block;width:28px;color:var(--ink-off);user-select:none}
+
+/* customer timeline */
+.ctl{list-style:none;margin:0;padding:0}
+.ctl .day{font-size:12px;color:var(--ink-3);padding:14px 0 6px;font-weight:500}
+.ctl .day:first-child{padding-top:0}
+.ev{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:start;padding:8px 0;border-top:1px solid var(--line)}
+.ev .kind{font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.04em;border:1px solid var(--line-strong);border-radius:4px;height:20px;display:inline-grid;place-items:center;padding:0 4px;color:var(--ink-2);width:100%}
+.ev .kind.fill{background:var(--ink-1);color:var(--bg);border-color:var(--ink-1)}
+.ev .what{font-size:13px;min-width:0}
+.ev .what .id{color:var(--ink-2)}
+.ev .sub{font-size:12px;color:var(--ink-3);margin-top:1px}
+.ev .amt{font-family:"Geist Mono",ui-monospace,monospace;font-size:13px;text-align:right;white-space:nowrap}
+.ev .amt small{display:block;font-size:11px;color:var(--ink-3)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+
+/* waterfall */
+.wf{font-size:12px}
+.wf .r{display:grid;grid-template-columns:150px minmax(0,1fr) 64px 56px;gap:10px;align-items:center;height:26px}
+.wf .r.h{color:var(--ink-3);height:24px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.wf .bar{height:10px;background:var(--ink-1);border-radius:2px}
+.wf .bar.out{background:transparent;border:1px solid var(--ink-1)}
+.wf .bar.hatch{background:repeating-linear-gradient(135deg,var(--ink-3) 0 1px,transparent 1px 4px);border:1px dashed var(--ink-3)}
+.wf .track{position:relative;height:10px}
+.wf .track .bar{position:absolute;top:0}
+.wf .tick{position:absolute;top:-8px;bottom:-8px;border-left:1px dashed var(--ink-3)}
+
+/* ---------- palette ---------- */
+.overlay{position:fixed;inset:0;background:var(--overlay);z-index:50;display:none;align-items:flex-start;justify-content:center;padding:10vh 16px 0}
+.overlay.on{display:flex}
+.pal{width:640px;max-width:100%;background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
+.pal .in{display:flex;align-items:center;gap:10px;padding:0 14px;height:48px;border-bottom:1px solid var(--line)}
+.pal input{flex:1;border:0;background:transparent;font:inherit;font-size:15px;color:var(--ink-1);outline:none;min-width:0}
+.pal input::placeholder{color:var(--ink-3)}
+.pal .list{max-height:52vh;overflow:auto;padding:6px}
+.pal .grp{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding:10px 10px 4px;font-weight:500}
+.pal .it{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:0 10px;height:36px;border-radius:6px;font-size:13px;width:100%;text-align:left}
+.pal .it>span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.pal .it .id{color:var(--ink-2)}
+.pal .it .r{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.pal .it[aria-selected="true"]{background:var(--surface-2);box-shadow:inset 2px 0 0 var(--ink-1)}
+.pal .it .ico{font-family:"Geist Mono",ui-monospace,monospace;font-size:10px;color:var(--ink-3);border:1px solid var(--line);border-radius:4px;height:18px;width:20px;display:grid;place-items:center}
+.pal .foot{display:flex;gap:14px;padding:8px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3);overflow:hidden}
+.pal .foot span{white-space:nowrap}
+kbd.k{font-size:11px;border:1px solid var(--line-strong);border-radius:4px;padding:0 5px;color:var(--ink-2);background:var(--surface)}
+.help{position:fixed;right:16px;bottom:16px;z-index:40;background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;box-shadow:var(--shadow);padding:12px 14px;font-size:12px;display:none;width:260px}
+.help.on{display:block}
+.help div{display:flex;justify-content:space-between;padding:3px 0;color:var(--ink-2)}
+
+@media (prefers-reduced-motion:no-preference){.pal{animation:pop .12s ease-out}}
+@keyframes pop{from{transform:translateY(-6px)}to{transform:none}}
+
+/* ---------- responsive ---------- */
+@media (max-width:1100px){
+  .g4{grid-template-columns:repeat(2,minmax(0,1fr))} .g3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .strip{grid-template-columns:repeat(3,minmax(0,1fr))} .strip>div:nth-child(3n){border-right:0} .strip>div:nth-child(-n+3){border-bottom:1px solid var(--line)}
+  .verdict{grid-template-columns:1fr} .two{grid-template-columns:1fr} .life{grid-template-columns:1fr}
+}
+@media (max-width:900px){
+  :root{--gutter:16px}
+  .app{grid-template-columns:1fr}
+  .rail{position:fixed;left:0;top:0;bottom:0;width:260px;z-index:60;transform:translateX(-100%);transition:transform .12s ease-out;height:100vh}
+  .rail.open{transform:none;box-shadow:var(--shadow)}
+  .menubtn{display:grid}
+  .searchbtn{min-width:0;flex:1}
+  .searchbtn span.t{display:none}
+  .seg button{padding:0 8px}
+  .crumb{display:none}
+  .g2,.g3,.g4{grid-template-columns:1fr}
+  .strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .strip>div{border-right:1px solid var(--line);border-bottom:1px solid var(--line)} .strip>div:nth-child(2n){border-right:0} .strip>div:nth-last-child(-n+2){border-bottom:0}
+  .content{padding-top:14px}
+  .wf .r{grid-template-columns:96px minmax(0,1fr) 52px 44px}
+  .ev{grid-template-columns:40px minmax(0,1fr) auto}
+  .verdict .big{font-size:20px}
+  .strip.c5{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .strip.c5>div:nth-child(4){border-bottom:1px solid var(--line)}
+  .pal .it{grid-template-columns:20px minmax(0,1fr);height:auto;min-height:36px;padding:6px 10px}
+  .pal .it .r{grid-column:2}
+  .pal .foot span:last-child{display:none}
+}
+@media (max-width:480px){
+  .searchbtn kbd{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ---------------- rail (same surface in both themes) ---------------- -->
+  <aside class="rail" id="rail" aria-label="Admin sections">
+    <div class="brand"><span class="g">G</span> Admin <span class="env mono">prod · cb26ff3</span></div>
+    <nav class="nav" aria-label="Primary">
+      <button data-go="overview" aria-current="page">Overview <span class="key">G O</span></button>
+      <div class="group">Work</div>
+      <button data-go="scan">Scans <span class="cnt">84</span></button>
+      <a href="#findings">Findings <span class="cnt">7 review</span></a>
+      <a href="#watchdog">Watchdog <span class="cnt">1 stale</span></a>
+      <div class="group">People</div>
+      <button data-go="customer">Customers <span class="cnt">31</span></button>
+      <a href="#repos">Repos</a>
+      <a href="#feedback">Feedback</a>
+      <div class="group">Platform</div>
+      <a href="#health">Health &amp; incidents</a>
+      <a href="#deploys">Deploys</a>
+      <a href="#keys">Keys</a>
+      <a href="#integrations">Integrations</a>
+      <a href="#secrets">Secrets</a>
+      <div class="group">Governance</div>
+      <a href="#audit">Audit</a>
+      <a href="#compliance">Compliance</a>
+      <a href="#rules">Rules &amp; precision</a>
+      <div class="group">Pinned</div>
+      <a href="#launch">Launch checklist <span class="cnt">9/12</span></a>
+    </nav>
+    <div class="rail-foot">Signed in as <b class="sec">owner</b> · <a class="lnk" href="#signout">Sign out</a></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="iconbtn menubtn" id="menu" aria-label="Open navigation">≡</button>
+      <div class="crumb" id="crumb"><b>/admin</b></div>
+      <button class="searchbtn" id="open-pal" aria-haspopup="dialog"><span>⌕</span><span class="t">Search or jump to…</span><kbd>Ctrl K</kbd></button>
+      <div class="seg" role="group" aria-label="Theme">
+        <button data-theme-set="white" aria-pressed="true">White</button>
+        <button data-theme-set="black" aria-pressed="false">Black</button>
+      </div>
+      <button class="iconbtn" id="density" title="Density (D)" aria-label="Toggle density">≣</button>
+    </header>
+
+    <main class="content" id="content">
+
+      <!-- ====================================================== OVERVIEW -->
+      <section class="screen on" id="screen-overview" aria-labelledby="ov-h">
+        <div class="stack">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <h1 id="ov-h">Overview</h1>
+            <span class="muted s13">Sample data · all objects link</span>
+            <span style="flex:1"></span>
+            <span class="seg"><button aria-pressed="false">24h</button><button aria-pressed="true">7d</button><button aria-pressed="false">30d</button></span>
+            <button class="btn">Save view</button>
+            <button class="btn primary" data-pal="new scan">New scan</button>
+          </div>
+
+          <!-- headline: the gate verdict -->
+          <div class="panel">
+            <div class="panel-b" style="padding-top:16px">
+              <div class="verdict">
+                <div>
+                  <div class="big">Gate held this week.</div>
+                  <div class="line">
+                    <a href="#scans?verdict=blocked"><span class="mk mk-blocker"></span>14 merges blocked</a>
+                    <a href="#findings?new=1"><span class="mk mk-pass"></span>312 findings passed on new code</a>
+                    <a href="#scans?notrun=1"><span class="mk mk-notrun"></span>9 modules not run on 6 scans</a>
+                    <span class="muted">overall 1,204 findings · 3 regressed</span>
+                  </div>
+                  <div class="legend"><span><i class="solid"></i>blocked</span><span><i></i>passed</span><span><i class="hatch"></i>not run</span><span>┊ deploy</span></div>
+                </div>
+                <div>
+                  <svg viewBox="0 0 380 96" width="100%" height="96" role="img" aria-label="Scans per day, last 7 days: blocked solid, passed outlined, not run hatched, deploy tick on Thursday">
+                    <defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 4L4 0" stroke="var(--ink-3)" stroke-width="1"/></pattern></defs>
+                    <g fill="var(--ink-1)">
+                      <rect x="12" y="52" width="14" height="28"/><rect x="62" y="40" width="14" height="40"/><rect x="112" y="62" width="14" height="18"/><rect x="162" y="30" width="14" height="50"/><rect x="212" y="46" width="14" height="34"/><rect x="262" y="70" width="14" height="10"/><rect x="312" y="56" width="14" height="24"/>
+                    </g>
+                    <g fill="none" stroke="var(--ink-1)">
+                      <rect x="28" y="24" width="14" height="56"/><rect x="78" y="18" width="14" height="62"/><rect x="128" y="34" width="14" height="46"/><rect x="178" y="12" width="14" height="68"/><rect x="228" y="20" width="14" height="60"/><rect x="278" y="48" width="14" height="32"/><rect x="328" y="30" width="14" height="50"/>
+                    </g>
+                    <g fill="url(#hatch)" stroke="var(--ink-3)" stroke-dasharray="2 2">
+                      <rect x="178" y="4" width="14" height="8"/><rect x="228" y="12" width="14" height="8"/><rect x="328" y="22" width="14" height="8"/>
+                    </g>
+                    <line x1="205" y1="0" x2="205" y2="82" stroke="var(--ink-3)" stroke-dasharray="3 3"/>
+                    <text x="208" y="8">cb26ff3</text>
+                    <line x1="8" y1="80.5" x2="372" y2="80.5" stroke="var(--line-strong)"/>
+                    <text x="14" y="93">Tue</text><text x="64" y="93">Wed</text><text x="114" y="93">Thu</text><text x="164" y="93">Fri</text><text x="214" y="93">Sat</text><text x="264" y="93">Sun</text><text x="314" y="93">Mon</text>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- single-box readiness strip -->
+          <div class="strip" aria-label="Box readiness">
+            <div data-state="ok"><div class="l"><span class="mk mk-pass"></span>Units</div><div class="v">4 / 4 active</div><div class="d">web · worker · proxy · db</div></div>
+            <div data-state="ok"><div class="l"><span class="mk mk-pass"></span>Deployed</div><div class="v mono">cb26ff3 = main</div><div class="d">deployed 2h ago · slot blue</div></div>
+            <div data-state="ok"><div class="l"><span class="mk mk-pass"></span>Queue</div><div class="v">3 waiting</div><div class="d">oldest 41s</div></div>
+            <div data-state="cannot"><div class="l"><span class="mk mk-notrun"></span>Worker</div><div class="v">Cannot tell</div><div class="d">no job in 26h · heartbeat absent</div></div>
+            <div data-state="ok"><div class="l"><span class="mk mk-pass"></span>Disk</div><div class="v">61% used</div><div class="d">38 GB free</div></div>
+            <div data-state="failed"><div class="l"><span class="mk mk-blocker"></span>Billing probe</div><div class="v">Failed</div><div class="d">status 500 · 12s ago</div></div>
+          </div>
+
+          <div class="grid g3">
+            <!-- OK panel -->
+            <div class="panel" data-state="ok">
+              <div class="panel-h"><h3>Scans</h3><span class="state">OK · checked <b>12s</b> ago</span></div>
+              <div class="panel-b">
+                <div style="display:flex;gap:18px;align-items:end;flex-wrap:wrap">
+                  <div style="white-space:nowrap"><div class="s24 w6 num" style="text-align:left">12</div><div class="s12 muted">today</div></div>
+                  <div style="white-space:nowrap"><div class="s16 w6 num" style="text-align:left">84</div><div class="s12 muted">7 days</div></div>
+                  <div style="white-space:nowrap"><div class="s16 w6 num" style="text-align:left">2m 41s</div><div class="s12 muted">median</div></div>
+                  <svg class="spark" width="110" height="30" viewBox="0 0 110 30" aria-hidden="true"><polyline fill="none" stroke="var(--ink-1)" stroke-width="1.5" points="0,22 15,18 30,20 45,10 60,14 75,6 90,12 110,8"/><polyline fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 2" points="0,26 15,24 30,25 45,20 60,22 75,18 90,20 110,19"/></svg>
+                </div>
+                <dl class="kv" style="margin-top:10px"><dt>New code</dt><dd>41 blocked · 312 passed</dd><dt>Overall</dt><dd>68 blocked · 1,204 passed</dd><dt>Prev. period</dt><dd class="muted">dashed line</dd></dl>
+                <div style="margin-top:10px"><a class="lnk s13" href="#scans?range=7d">Open scans, 7 days →</a></div>
+              </div>
+            </div>
+            <!-- FAILED panel: never a zero -->
+            <div class="panel" data-state="failed">
+              <div class="panel-h"><h3>Billing</h3><span class="state"><b>Failed</b> · 12s ago</span></div>
+              <div class="panel-b">
+                <div class="fail">
+                  <div class="t">Failed — billing summary returned 500</div>
+                  <div>MRR, failed payments and refunds are unknown. No number is shown because none was read.</div>
+                  <div class="ep">GET /api/admin/overview → billing · req_8f2a…c1</div>
+                  <div class="act"><button class="btn sm">Retry</button><button class="btn sm ghost">Open request log</button></div>
+                </div>
+              </div>
+            </div>
+            <!-- CANNOT TELL panel: dashed border -->
+            <div class="panel" data-state="cannot">
+              <div class="panel-h"><h3>Marketplace webhook</h3><span class="state"><b>Cannot tell</b></span></div>
+              <div class="panel-b cannot">
+                <div class="t">No delivery in 30 days.</div>
+                <div>3 active installs are recorded, but the endpoint has not been called since 30 Aug. Either nobody bought, or the webhook is not reaching us — this panel cannot decide.</div>
+                <div style="margin-top:10px;display:flex;gap:6px"><button class="btn sm">Send test delivery</button><a class="btn sm ghost" href="#integrations/marketplace">Integration page</a></div>
+              </div>
+            </div>
+            <div class="panel" data-state="ok">
+              <div class="panel-h"><h3>Secrets</h3><span class="state">OK · checked <b>12s</b> ago</span></div>
+              <div class="panel-b">
+                <dl class="kv"><dt>Required</dt><dd>9 / 9 set · 9 verified live</dd><dt>Important</dt><dd>3 / 4 set — <span class="id">MAIL_API_KEY</span> <span class="sev sev-notrun"><span class="mk mk-notrun"></span>not set</span></dd><dt>Oldest rotation</dt><dd><span class="id">GIT_HOST_APP_KEY</span> · 212 days</dd></dl>
+                <div style="margin-top:10px"><a class="lnk s13" href="#secrets/MAIL_API_KEY">Open MAIL_API_KEY →</a></div>
+              </div>
+            </div>
+            <div class="panel" data-state="ok">
+              <div class="panel-h"><h3>Integrations</h3><span class="state">OK · checked <b>12s</b> ago</span></div>
+              <div class="panel-b">
+                <dl class="kv"><dt>Git host app</dt><dd><span class="mk mk-pass"></span>last delivery 4m ago · 0.4% failed (7d)</dd><dt>Estate push</dt><dd><span class="mk mk-pass"></span><span class="id">deploy.finished</span> 2h ago</dd><dt>Payments webhook</dt><dd><span class="mk mk-pass"></span>last event 19m ago</dd></dl>
+              </div>
+            </div>
+            <div class="panel" data-state="ok">
+              <div class="panel-h"><h3>Needs you</h3><span class="state">5 items</span></div>
+              <div class="panel-b" style="padding-top:2px">
+                <div class="tl-list" style="font-size:13px;display:grid;gap:6px">
+                  <a class="lnk" href="#findings?view=review">7 findings for review (2 blockers)</a>
+                  <a class="lnk" href="#customers?billing=failed">2 failed payments — cus_7QX2…, cus_3AB9…</a>
+                  <a class="lnk" href="#watchdog/wt_18">1 watch stale: last success 3d ago, schedule 15m</a>
+                  <a class="lnk" href="#fix-prs/fpr_212">Fix PR #212 closed without merge</a>
+                  <a class="lnk" href="#keys/gt_live_4k1">Key gt_live_4k1… unused 30 days — safe to revoke</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================= SCAN -->
+      <section class="screen" id="screen-scan" aria-labelledby="sc-h">
+        <div class="stack">
+          <div class="obj">
+            <div class="s12 muted"><a class="lnk" data-go="scan-list" href="#scans">Scans</a> / <span class="id">scn_01J9K3M8QF</span></div>
+            <div class="top">
+              <h1 id="sc-h" class="title"><span class="id">acme-sample/checkout-api</span> <span class="muted">@</span> <span class="id" title="4f1e9c2e0b7a1d9c">4f1e9c2<span class="cp">copy</span></span></h1>
+              <span class="chip strong"><span class="mk mk-blocker"></span>Blocked</span>
+              <span style="flex:1"></span>
+              <button class="btn">Re-run</button><button class="btn">Compare to base</button><button class="btn primary">Open fix PR</button>
+            </div>
+            <div class="meta">
+              <span>Repo scan · <b>Full</b> tier</span>
+              <span>branch <b class="id">main</b> · push by <b>sample-dev-2</b></span>
+              <span>started <b title="2026-09-29 09:41:12 UTC">2h ago</b> · <b>2m 41s</b></span>
+              <span>modules <b>113 run</b> · <span class="sev sev-notrun"><span class="mk mk-notrun"></span>9 not run</span></span>
+              <span>billed <b class="id">$29.00</b> · compute <b class="id">$0.38</b> · model <b class="id">$1.12</b> → margin <b class="id">$27.50</b></span>
+            </div>
+            <div class="related">
+              <span class="lbl">Related</span>
+              <button class="rel" data-go="customer"><span class="k">customer</span> Sample Customer 7</button>
+              <a class="rel" href="#repos/github/acme-sample/checkout-api"><span class="k">repo</span> acme-sample/checkout-api</a>
+              <a class="rel" href="#fix-prs/fpr_212"><span class="k">fix pr</span> #212 · closed unmerged</a>
+              <a class="rel" href="#deploys/cb26ff3"><span class="k">deploy</span> <span class="id">cb26ff3</span></a>
+              <a class="rel" href="#scans/scn_01J9J2/compare"><span class="k">base</span> <span class="id">scn_01J9J2…</span> · 3 commits earlier</a>
+            </div>
+          </div>
+
+          <div class="tabs" role="tablist" aria-label="Scan sections">
+            <button role="tab" aria-selected="true" data-tab="findings">Findings<span class="n">12</span></button>
+            <button role="tab" aria-selected="false" data-tab="notrun">What was not checked<span class="n">9</span></button>
+            <button role="tab" aria-selected="false" data-tab="trace">Trace</button>
+            <button role="tab" aria-selected="false" data-tab="fixprs">Fix PRs<span class="n">1</span></button>
+            <button role="tab" aria-selected="false" data-tab="raw">Raw</button>
+          </div>
+
+          <!-- findings -->
+          <div class="tabpanel on" id="tab-findings" role="tabpanel">
+            <div class="filters">
+              <button class="fchip" aria-pressed="true">All <span class="n">12</span></button>
+              <button class="fchip" aria-pressed="false"><span class="mk mk-blocker"></span>Blocker <span class="n">2</span></button>
+              <button class="fchip" aria-pressed="false"><span class="mk mk-high"></span>High <span class="n">3</span></button>
+              <button class="fchip" aria-pressed="false"><span class="mk mk-medium"></span>Medium <span class="n">4</span></button>
+              <button class="fchip" aria-pressed="false"><span class="mk mk-low"></span>Low <span class="n">3</span></button>
+              <span class="muted s12">·</span>
+              <button class="fchip" aria-pressed="false">New on this commit <span class="n">5</span></button>
+              <button class="fchip" aria-pressed="false">Regressed <span class="n">1</span></button>
+              <span class="sp"></span>
+              <span class="muted s12">J K move · Enter open · S verdict · C copy id</span>
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th class="sort">Severity</th><th>Rule</th><th>Location</th><th>Fingerprint</th><th>Lifecycle</th><th class="num">Precision</th><th></th></tr></thead>
+                <tbody id="findings-body">
+                  <tr class="blocker focus" data-fp="fp_9c1e">
+                    <td><span class="sev sev-blocker"><span class="mk mk-blocker"></span>Blocker</span></td>
+                    <td><a class="lnk id" href="#rules/secrets.hardcoded-token">secrets.hardcoded-token</a></td>
+                    <td class="id">src/pay/client.ts:61</td>
+                    <td><a class="lnk id" href="#findings/fp_9c1e7a…d204" title="fp_9c1e7a3f0b2c8d204">fp_9c1e…d204<span class="cp">copy</span></a></td>
+                    <td><span class="w5">Regressed</span> <span class="muted s12">· first seen 12 Sep · fixed 18 Sep · back on 4f1e9c2</span></td>
+                    <td class="num">0.97</td>
+                    <td><span class="rowact"><button class="btn sm ghost" id="toggle-life" aria-expanded="true">Lifecycle</button><button class="btn sm ghost">Verdict</button></span></td>
+                  </tr>
+                  <tr class="expand" id="life-row">
+                    <td colspan="7">
+                      <div class="life">
+                        <div>
+                          <div class="s12 muted" style="margin-bottom:8px">Lifecycle of <span class="id">fp_9c1e…d204</span> across commits on <span class="id">main</span> — one object, stable across line moves</div>
+                          <ul class="tl">
+                            <li class="fill"><div class="h"><span class="id">a91c0e4</span><span>First seen · suspect commit</span><span class="when">12 Sep · scn_01J8V…</span></div><div class="b">Introduced at <span class="id">src/pay/client.ts:42</span> by sample-dev-2 · gate <b>blocked</b> the merge; override by owner with reason “vendor sandbox key”.</div></li>
+                            <li><div class="h"><span class="id">b7d33f1</span><span>Persisting</span><span class="when">15 Sep · scn_01J8Z…</span></div><div class="b">Line moved to <span class="id">:58</span>; fingerprint unchanged (rule + path ext + pattern hash + normalised snippet).</div></li>
+                            <li class="acc"><div class="h"><span class="id">c2e8a90</span><span>Fixed</span><span class="when">18 Sep · fix PR #198 merged</span></div><div class="b">Token moved to <span class="id">PAY_SANDBOX_KEY</span>; finding absent on the next 3 scans. Time-to-merge 1d 4h.</div></li>
+                            <li class="sq"><div class="h"><span class="id">4f1e9c2</span><span class="w6">Regressed — reopened automatically</span><span class="when">today · this scan</span></div><div class="b">Same fingerprint at <span class="id">:61</span>. Accepted state was discarded because the rule’s count worsened (archive-until-escalating). Fix PR #212 was opened and closed unmerged.</div></li>
+                          </ul>
+                          <div class="verdicts">
+                            <button class="btn sm primary">Accept — reason required</button>
+                            <button class="btn sm">False positive</button>
+                            <button class="btn sm">Apply to 3 matching in org</button>
+                            <a class="btn sm ghost" href="#findings/fp_9c1e7a…d204">Open finding page →</a>
+                          </div>
+                        </div>
+                        <div>
+                          <div class="s12 muted" style="margin-bottom:8px">Snippet on <span class="id">4f1e9c2</span> (no source stored; rendered from the checkout at scan time)</div>
+                          <pre class="snip" style="margin:0"><span class="ln">59</span>const client = new PayClient({
+<span class="ln">60</span>  mode: "live",
+<span class="ln">61</span>  <b>apiKey: "sk_live_51H…"</b>,
+<span class="ln">62</span>});</pre>
+                          <dl class="kv s12" style="margin-top:10px"><dt>Rule precision</dt><dd>0.97 · 61 triaged, 2 FP</dd><dt>Fix outcome</dt><dd>#198 merged, came back after 11 days</dd><dt>Seen in org</dt><dd>3 repos, 3 fingerprints</dd></dl>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr class="blocker"><td><span class="sev sev-blocker"><span class="mk mk-blocker"></span>Blocker</span></td><td><a class="lnk id" href="#rules/sql.raw-interpolation">sql.raw-interpolation</a></td><td class="id">src/orders/repo.ts:118</td><td><a class="lnk id" href="#findings/fp_2b77">fp_2b77…81ae<span class="cp">copy</span></a></td><td>New on this commit</td><td class="num">0.91</td><td><span class="rowact"><button class="btn sm ghost">Verdict</button></span></td></tr>
+                  <tr><td><span class="sev"><span class="mk mk-high"></span>High</span></td><td><a class="lnk id" href="#rules/auth.missing-check">auth.missing-check</a></td><td class="id">src/api/admin.ts:14</td><td><a class="lnk id" href="#findings/fp_e40a">fp_e40a…c9f2<span class="cp">copy</span></a></td><td>Persisting <span class="muted s12">· 4 commits</span></td><td class="num">0.88</td><td></td></tr>
+                  <tr><td><span class="sev"><span class="mk mk-high"></span>High</span></td><td><a class="lnk id" href="#rules/deps.known-vuln">deps.known-vuln</a></td><td class="id">package-lock.json</td><td><a class="lnk id" href="#findings/fp_7d10">fp_7d10…3b5e<span class="cp">copy</span></a></td><td>New on this commit</td><td class="num">0.99</td><td></td></tr>
+                  <tr><td><span class="sev"><span class="mk mk-high"></span>High</span></td><td><a class="lnk id" href="#rules/http.no-timeout">http.no-timeout</a></td><td class="id">src/pay/client.ts:22</td><td><a class="lnk id" href="#findings/fp_a3c4">fp_a3c4…0d71<span class="cp">copy</span></a></td><td>Persisting <span class="muted s12">· 9 commits</span></td><td class="num">0.74</td><td></td></tr>
+                  <tr><td><span class="sev"><span class="mk mk-medium"></span>Medium</span></td><td><a class="lnk id" href="#rules/money.float-arith">money.float-arith</a></td><td class="id">src/orders/total.ts:40</td><td><a class="lnk id" href="#findings/fp_51f9">fp_51f9…ee02<span class="cp">copy</span></a></td><td>New on this commit</td><td class="num">0.83</td><td></td></tr>
+                  <tr><td><span class="sev"><span class="mk mk-medium"></span>Medium</span></td><td><a class="lnk id" href="#rules/log.pii-leak">log.pii-leak</a></td><td class="id">src/api/webhook.ts:77</td><td><a class="lnk id" href="#findings/fp_c8d2">fp_c8d2…4a19<span class="cp">copy</span></a></td><td>Accepted <span class="muted s12">· expires 12 Oct</span></td><td class="num">0.66</td><td></td></tr>
+                  <tr><td><span class="sev"><span class="mk mk-medium"></span>Medium</span></td><td><a class="lnk id" href="#rules/async.unawaited">async.unawaited</a></td><td class="id">src/jobs/retry.ts:9</td><td><a class="lnk id" href="#findings/fp_0e63">fp_0e63…b7c8<span class="cp">copy</span></a></td><td>New on this commit</td><td class="num">0.79</td><td></td></tr>
+                  <tr><td><span class="sev"><span class="mk mk-medium"></span>Medium</span></td><td><a class="lnk id" href="#rules/test.skipped">test.skipped</a></td><td class="id">tests/pay.test.ts:3</td><td><a class="lnk id" href="#findings/fp_9a0b">fp_9a0b…12d3<span class="cp">copy</span></a></td><td>Persisting <span class="muted s12">· 2 commits</span></td><td class="num">0.95</td><td></td></tr>
+                  <tr><td><span class="sev sev-low"><span class="mk mk-low"></span>Low</span></td><td><a class="lnk id" href="#rules/style.unused-import">style.unused-import</a></td><td class="id">src/util/fmt.ts:1</td><td><a class="lnk id" href="#findings/fp_44e1">fp_44e1…9f0a<span class="cp">copy</span></a></td><td class="muted">New on this commit</td><td class="num">0.99</td><td></td></tr>
+                  <tr><td><span class="sev sev-low"><span class="mk mk-low"></span>Low</span></td><td><a class="lnk id" href="#rules/docs.missing-readme-section">docs.missing-readme-section</a></td><td class="id">README.md</td><td><a class="lnk id" href="#findings/fp_b1d0">fp_b1d0…77c5<span class="cp">copy</span></a></td><td class="muted">Persisting · 31 commits</td><td class="num">0.52</td><td></td></tr>
+                  <tr><td><span class="sev sev-low"><span class="mk mk-low"></span>Low</span></td><td><a class="lnk id" href="#rules/ci.no-cache">ci.no-cache</a></td><td class="id">.github/workflows/ci.yml</td><td><a class="lnk id" href="#findings/fp_6f2c">fp_6f2c…a8e4<span class="cp">copy</span></a></td><td class="muted">Persisting · 12 commits</td><td class="num">0.61</td><td></td></tr>
+                </tbody>
+              </table>
+              <div class="tblfoot">12 findings · 5 new on this commit · 1 regressed · sorted by severity <span style="flex:1"></span><a class="lnk" href="#scans/scn_01J9K3M8QF/findings.csv">CSV</a> · <a class="lnk" href="#api/scans/scn_01J9K3M8QF">JSON</a></div>
+            </div>
+          </div>
+
+          <!-- what was not checked -->
+          <div class="tabpanel" id="tab-notrun" role="tabpanel">
+            <div class="grid g3" style="margin-bottom:12px">
+              <div class="panel"><div class="panel-b" style="padding-top:12px"><div class="s12 muted">Coverage by module</div><div class="s24 w6">113 / 122</div><div class="s12 muted">9 not run · 92.6%</div></div></div>
+              <div class="panel"><div class="panel-b" style="padding-top:12px"><div class="s12 muted">Coverage by risk weight</div><div class="s24 w6">71%</div><div class="s12 muted">the 9 missing modules carry 29% of weighted risk for this language mix</div></div></div>
+              <div class="panel" data-state="cannot"><div class="panel-b cannot" style="padding-top:12px"><div class="t">1 module cannot tell</div><div>Timed out after 60 s. Its result is neither pass nor fail and is not counted in the verdict.</div></div></div>
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Module</th><th>Why it did not run</th><th>What it would have caught</th><th>Weight</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td><span class="sev sev-notrun"><span class="mk mk-notrun"></span><span class="id">secrets.history-deep</span></span></td><td>Tier <b>Full</b> excludes full-history secret sweep</td><td>Keys committed then removed in earlier commits</td><td>High</td><td><button class="btn sm">Run once</button></td></tr>
+                  <tr><td><span class="sev sev-notrun"><span class="mk mk-notrun"></span><span class="id">org.branch-protection</span></span></td><td>Missing secret: no git-host token with org scope</td><td>Unprotected default branch, force-push allowed</td><td>High</td><td><a class="btn sm ghost" href="#secrets/GIT_HOST_ORG_TOKEN">Set secret</a></td></tr>
+                  <tr><td><span class="sev sev-notrun"><span class="mk mk-notrun"></span><span class="id">deps.audit-network</span></span></td><td>Needs network: egress blocked in sandbox</td><td>Newly published advisories (offline DB is 6 days old)</td><td>Medium</td><td></td></tr>
+                  <tr><td><span class="sev sev-notrun"><span class="mk mk-notrun"></span><span class="id">infra.tf-plan</span></span></td><td>Timed out after 60 s — <b>cannot tell</b></td><td>Drift between declared and provisioned resources</td><td>Medium</td><td><button class="btn sm">Retry</button></td></tr>
+                  <tr><td><span class="sev sev-notrun"><span class="mk mk-notrun"></span><span class="id">py.typing</span></span></td><td>Language absent: no Python files</td><td class="muted">—</td><td class="muted">n/a</td><td></td></tr>
+                  <tr><td><span class="sev sev-notrun"><span class="mk mk-notrun"></span><span class="id">py.secrets-env</span></span></td><td>Language absent: no Python files</td><td class="muted">—</td><td class="muted">n/a</td><td></td></tr>
+                  <tr><td><span class="sev sev-notrun"><span class="mk mk-notrun"></span><span class="id">a11y.dom-snapshot</span></span></td><td>Disabled in <span class="id">.gatetest.yml</span> (reason: “storybook only”)</td><td>Missing labels on form controls</td><td>Low</td><td></td></tr>
+                  <tr><td><span class="sev sev-notrun"><span class="mk mk-notrun"></span><span class="id">perf.bundle-size</span></span></td><td>Build artefact not found (no <span class="id">dist/</span>)</td><td>Bundle growth over budget</td><td>Low</td><td></td></tr>
+                  <tr><td><span class="sev sev-notrun"><span class="mk mk-notrun"></span><span class="id">license.header</span></span></td><td>Skipped: policy not configured for this org</td><td>Files missing licence header</td><td>Low</td><td><a class="btn sm ghost" href="#repos/github/acme-sample/checkout-api/settings">Configure</a></td></tr>
+                </tbody>
+              </table>
+              <div class="tblfoot">Registry 122 − modules_run 113 = 9 · reasons come from the runner, not inferred</div>
+            </div>
+          </div>
+
+          <!-- trace -->
+          <div class="tabpanel" id="tab-trace" role="tabpanel">
+            <div class="panel">
+              <div class="panel-h"><h3>Waterfall</h3><span class="state">OK · 2m 41s total · <b>$1.50</b> cost</span></div>
+              <div class="panel-b wf">
+                <div class="r h"><span>Stage</span><span>0 s ─────────────────────────── 161 s (┊ deploy cb26ff3 during run)</span><span class="num">Duration</span><span class="num">Cost</span></div>
+                <div class="r"><span class="id">webhook</span><div class="track"><div class="bar" style="left:0;width:1%"></div></div><span class="num">0.4s</span><span class="num">—</span></div>
+                <div class="r"><span class="id">queue wait</span><div class="track"><div class="bar out" style="left:1%;width:25%"></div></div><span class="num">41s</span><span class="num">—</span></div>
+                <div class="r"><span class="id">clone</span><div class="track"><div class="bar" style="left:26%;width:5%"></div></div><span class="num">8s</span><span class="num">$0.02</span></div>
+                <div class="r"><span class="id">modules ×113</span><div class="track"><div class="bar" style="left:31%;width:44%"></div><div class="tick" style="left:52%"></div></div><span class="num">71s</span><span class="num">$0.31</span></div>
+                <div class="r"><span class="id">infra.tf-plan</span><div class="track"><div class="bar hatch" style="left:38%;width:37%"></div></div><span class="num">60s ✕</span><span class="num">$0.05</span></div>
+                <div class="r"><span class="id">model review</span><div class="track"><div class="bar" style="left:75%;width:17%"></div></div><span class="num">27s</span><span class="num">$1.12</span></div>
+                <div class="r"><span class="id">fix PR #212</span><div class="track"><div class="bar" style="left:92%;width:5%"></div></div><span class="num">9s</span><span class="num">—</span></div>
+                <div class="r"><span class="id">check-run</span><div class="track"><div class="bar" style="left:97%;width:3%"></div></div><span class="num">4s</span><span class="num">—</span></div>
+                <div class="s12 muted" style="margin-top:8px">Drag a range on the bars to filter the log below · exit reason per bar on hover · stream shows “Reconnecting (attempt n)” instead of a live dot when the feed drops</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabpanel" id="tab-fixprs" role="tabpanel">
+            <div class="tbl-wrap"><table><thead><tr><th>Fix PR</th><th>Outcome</th><th>Fingerprints</th><th>Time to close</th><th>Came back</th></tr></thead><tbody>
+              <tr><td><a class="lnk id" href="#fix-prs/fpr_212">#212</a></td><td><span class="w5">Closed unmerged</span> <span class="muted s12">by sample-dev-2: “will fix by hand”</span></td><td class="id">fp_9c1e…, fp_2b77…</td><td class="num">3h 12m</td><td>—</td></tr>
+              <tr><td><a class="lnk id" href="#fix-prs/fpr_198">#198</a> <span class="muted s12">(earlier scan)</span></td><td><span class="mk mk-pass"></span>Merged</td><td class="id">fp_9c1e…</td><td class="num">1d 4h</td><td class="w6">Yes · 11 days later</td></tr>
+            </tbody></table></div>
+          </div>
+          <div class="tabpanel" id="tab-raw" role="tabpanel">
+            <pre class="snip" style="margin:0">{ "id": "scn_01J9K3M8QF", "kind": "repo", "tier": "full", "commit": "4f1e9c2e0b7a1d9c", "verdict": "blocked",
+  "modules_run": 113, "modules_not_run": 9, "duration_ms": 161400, "price_usd": 29.00, "compute_usd": 0.38, "model_usd": 1.12 }</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== CUSTOMER -->
+      <section class="screen" id="screen-customer" aria-labelledby="cu-h">
+        <div class="stack">
+          <div class="obj">
+            <div class="s12 muted"><a class="lnk" href="#customers">Customers</a> / <span class="id">cus_7QX2R4</span></div>
+            <div class="top">
+              <h1 id="cu-h" class="title">Sample Customer 7 <span class="id">sample-7@example.test<span class="cp">copy</span></span></h1>
+              <span class="chip">Team · $99 / mo</span>
+              <span class="chip strong">Payment failed · 2 attempts</span>
+              <span style="flex:1"></span>
+              <a class="btn" href="#payments/cus_7QX2R4">Open in payments ↗</a><button class="btn">Email</button><button class="btn primary">Credit scans…</button>
+            </div>
+            <div class="meta">
+              <span>since <b>2 Jun 2026</b></span><span>git-host login <b class="id">sample-org-7</b></span><span>installation <b class="id">inst_4471</b> · 3 repos</span><span>keys <b>2</b> · 1 unused 30d</span><span>last scan <b>2h ago</b></span>
+            </div>
+            <div class="strip c5" aria-label="Customer facts">
+              <div data-state="ok"><div class="l">Scans</div><div class="v">84</div><div class="d">21 this month</div></div>
+              <div data-state="ok"><div class="l"><span class="mk mk-blocker"></span>Gate blocks</div><div class="v">14</div><div class="d">3 overridden</div></div>
+              <div data-state="ok"><div class="l">Fix PRs</div><div class="v">6 merged · 1 closed</div><div class="d">median 1d 2h to merge</div></div>
+              <div data-state="ok"><div class="l">Margin, month</div><div class="v id">$412</div><div class="d">billed $618 · compute $52 · model $154</div></div>
+              <div data-state="cannot"><div class="l"><span class="mk mk-notrun"></span>MRR</div><div class="v">Cannot tell</div><div class="d">payments API unreachable</div></div>
+            </div>
+            <div class="related">
+              <span class="lbl">Related</span>
+              <a class="rel" href="#repos/github/acme-sample/checkout-api"><span class="k">repo</span> acme-sample/checkout-api</a>
+              <a class="rel" href="#repos/github/acme-sample/web"><span class="k">repo</span> acme-sample/web</a>
+              <a class="rel" href="#repos/github/acme-sample/infra"><span class="k">repo</span> acme-sample/infra</a>
+              <a class="rel" href="#keys/gt_live_9m3"><span class="k">key</span> <span class="id">gt_live_9m3…</span></a>
+              <a class="rel" href="#keys/gt_live_4k1"><span class="k">key</span> <span class="id">gt_live_4k1…</span> unused</a>
+            </div>
+          </div>
+
+          <div class="tabs" role="tablist" aria-label="Customer sections">
+            <button role="tab" aria-selected="true">Timeline</button>
+            <button role="tab" aria-selected="false">Scans<span class="n">84</span></button>
+            <button role="tab" aria-selected="false">Repos<span class="n">3</span></button>
+            <button role="tab" aria-selected="false">Keys<span class="n">2</span></button>
+            <button role="tab" aria-selected="false">Billing</button>
+            <button role="tab" aria-selected="false">Feedback<span class="n">2</span></button>
+          </div>
+
+          <div class="two" style="padding-top:2px">
+            <div>
+              <div class="filters">
+                <button class="fchip" aria-pressed="true">All</button>
+                <button class="fchip" aria-pressed="false">Payments</button>
+                <button class="fchip" aria-pressed="false">Scans</button>
+                <button class="fchip" aria-pressed="false">Gate blocks</button>
+                <button class="fchip" aria-pressed="false">Fix PRs</button>
+                <button class="fchip" aria-pressed="false">Keys</button>
+                <button class="fchip" aria-pressed="false">Feedback</button>
+                <span class="sp"></span><span class="muted s12">newest first · times in UTC on hover</span>
+              </div>
+              <ul class="ctl">
+                <li class="day">Today · 29 Sep</li>
+                <li class="ev"><span class="kind fill">GATE</span><div class="what"><span class="mk mk-blocker"></span><b class="w6">Merge blocked</b> on <span class="id">checkout-api</span> @ <span class="id">4f1e9c2</span><div class="sub">2 blockers, 1 regressed · <button class="lnk" data-go="scan">open scan scn_01J9K3…</button></div></div><div class="amt muted s12">2h ago</div></li>
+                <li class="ev"><span class="kind">PR</span><div class="what">Fix PR <span class="id">#212</span> closed without merge<div class="sub">by sample-dev-2 · “will fix by hand” · 2 fingerprints still open</div></div><div class="amt muted s12">2h ago</div></li>
+                <li class="ev"><span class="kind">SCAN</span><div class="what">Scan <span class="id">scn_01J9K3M8QF</span> · Full · 2m 41s<div class="sub">113 of 122 modules · billed $29.00 · margin $27.50</div></div><div class="amt">$29.00<small>billed</small></div></li>
+                <li class="ev"><span class="kind fill">PAY</span><div class="what"><b class="w6">Payment failed</b> · invoice <span class="id">in_0M8K…</span> · card declined (attempt 2 of 4)<div class="sub">next retry 1 Oct · <a class="lnk" href="#payments/in_0M8K">open invoice ↗</a></div></div><div class="amt">$99.00<small>failed</small></div></li>
+                <li class="day">Yesterday · 28 Sep</li>
+                <li class="ev"><span class="kind">SCAN</span><div class="what"><span class="mk mk-pass"></span>Scan passed · <span class="id">acme-sample/web</span> @ <span class="id">0b91c7d</span><div class="sub">122 of 122 modules · 0 new findings · 1m 58s</div></div><div class="amt">$0.00<small>plan</small></div></li>
+                <li class="ev"><span class="kind">KEY</span><div class="what">Key <span class="id">gt_live_9m3…</span> used from a new address<div class="sub">CI runner · 412 calls today · scopes scan:write</div></div><div class="amt muted s12">14h ago</div></li>
+                <li class="ev"><span class="kind">FB</span><div class="what">Feedback on <span class="id">scn_01J9H0…</span>: “<span class="id">http.no-timeout</span> is noisy on our retry wrapper”<div class="sub">unanswered · marks rule precision 0.74 for this repo</div></div><div class="amt muted s12">1d ago</div></li>
+                <li class="day">18 Sep</li>
+                <li class="ev"><span class="kind">PR</span><div class="what"><span class="mk mk-pass"></span>Fix PR <span class="id">#198</span> merged · 1d 4h to merge<div class="sub">fixed fp_9c1e…d204 (came back 29 Sep)</div></div><div class="amt muted s12">11d ago</div></li>
+                <li class="ev"><span class="kind fill">GATE</span><div class="what"><span class="mk mk-blocker"></span><b class="w6">Merge blocked</b>, then <b>overridden by owner</b> · “vendor sandbox key”<div class="sub"><span class="id">checkout-api</span> @ <span class="id">a91c0e4</span> · audit entry <a class="lnk id" href="#audit/al_88213">al_88213</a></div></div><div class="amt muted s12">17d ago</div></li>
+                <li class="day">1 Sep</li>
+                <li class="ev"><span class="kind">PAY</span><div class="what"><span class="mk mk-pass"></span>Payment succeeded · invoice <span class="id">in_0M7C…</span><div class="sub">Team plan · monthly</div></div><div class="amt">$99.00<small>paid</small></div></li>
+                <li class="ev"><span class="kind">SCAN</span><div class="what">4 scans (3 passed, 1 blocked) · collapsed<div class="sub"><a class="lnk" href="#customers/cus_7QX2R4/scans?day=2026-09-01">show all</a></div></div><div class="amt">$58.00<small>billed</small></div></li>
+              </ul>
+              <div class="tblfoot" style="border-top:1px solid var(--line);margin-top:6px">Showing 12 of 231 events · <a class="lnk" href="#customers/cus_7QX2R4/timeline?page=2">older</a></div>
+            </div>
+
+            <div class="stack" style="--gap:12px">
+              <div class="panel" data-state="cannot">
+                <div class="panel-h"><h3>Billing</h3><span class="state"><b>Cannot tell</b></span></div>
+                <div class="panel-b cannot"><div class="t">Payments API unreachable (timeout 2.5 s).</div><div>MRR, next invoice and card status are unknown. The failed-payment chip above comes from our stored webhook events, which are current to 2h ago.</div><div style="margin-top:10px;display:flex;gap:6px"><button class="btn sm">Retry</button><a class="btn sm ghost" href="#payments/cus_7QX2R4">Open in payments ↗</a></div></div>
+              </div>
+              <div class="panel" data-state="ok" style="margin-top:12px">
+                <div class="panel-h"><h3>Margin, 30 days</h3><span class="state">OK · <b>$412</b></span></div>
+                <div class="panel-b">
+                  <svg viewBox="0 0 280 60" width="100%" height="60" role="img" aria-label="Billed versus cost per week"><g fill="var(--ink-1)"><rect x="10" y="20" width="18" height="30"/><rect x="80" y="12" width="18" height="38"/><rect x="150" y="26" width="18" height="24"/><rect x="220" y="8" width="18" height="42"/></g><g fill="none" stroke="var(--ink-1)"><rect x="32" y="42" width="18" height="8"/><rect x="102" y="38" width="18" height="12"/><rect x="172" y="44" width="18" height="6"/><rect x="242" y="34" width="18" height="16"/></g><line x1="6" y1="50.5" x2="274" y2="50.5" stroke="var(--line-strong)"/><text x="10" y="59">w36</text><text x="80" y="59">w37</text><text x="150" y="59">w38</text><text x="220" y="59">w39</text></svg>
+                  <div class="legend"><span><i class="solid"></i>billed</span><span><i></i>compute + model</span></div>
+                </div>
+              </div>
+              <div class="panel" data-state="ok" style="margin-top:12px">
+                <div class="panel-h"><h3>Keys</h3><span class="state">OK</span></div>
+                <div class="panel-b">
+                  <dl class="kv"><dt><a class="lnk id" href="#keys/gt_live_9m3">gt_live_9m3…</a></dt><dd>412 calls today · last 14h ago · CI</dd><dt><a class="lnk id" href="#keys/gt_live_4k1">gt_live_4k1…</a></dt><dd class="muted">0 calls in 30 days · <button class="lnk" style="text-decoration:underline">revoke (step-up)</button></dd></dl>
+                </div>
+              </div>
+              <div class="panel" data-state="ok" style="margin-top:12px">
+                <div class="panel-h"><h3>Audit for this customer</h3><span class="state">OK · 41 entries</span></div>
+                <div class="panel-b s13"><div><span class="id muted">al_88213</span> owner overrode gate · 18 Sep</div><div><span class="id muted">al_87940</span> key issued gt_live_9m3 · 12 Sep</div><div style="margin-top:8px"><a class="lnk s13" href="#audit?resource=cus_7QX2R4">Open in audit →</a></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ------------------------------------------------------------- palette -->
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Search or jump">
+  <div class="pal">
+    <div class="in"><span class="muted">⌕</span><input id="pal-in" placeholder="Search ids, SHAs, emails, repos, rules… or type a verb" autocomplete="off" spellcheck="false"><kbd class="k">Esc</kbd></div>
+    <div class="list" id="pal-list"></div>
+    <div class="foot"><span><kbd class="k">↑↓</kbd> move</span><span><kbd class="k">↵</kbd> open</span><span><kbd class="k">G</kbd> then letter to jump</span><span style="margin-left:auto">results are objects; verbs act on the current object</span></div>
+  </div>
+</div>
+<div class="help" id="help" role="dialog" aria-label="Keyboard map">
+  <div><span>Search</span><kbd class="k">Ctrl K</kbd></div><div><span>Overview / Scans / Customers</span><kbd class="k">G O · G S · G C</kbd></div><div><span>Rows</span><kbd class="k">J K ↵ C</kbd></div><div><span>Theme / Density</span><kbd class="k">T · D</kbd></div><div><span>This map</span><kbd class="k">?</kbd></div>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  var screens={overview:'screen-overview',scan:'screen-scan',customer:'screen-customer'};
+  var crumbs={overview:'<b>/admin</b>',scan:'/admin/scans/<b>scn_01J9K3M8QF</b>','scan-list':'<b>/admin/scans</b>',customer:'/admin/customers/<b>cus_7QX2R4</b>'};
+
+  // theme
+  function setTheme(t){root.setAttribute('data-theme',t);document.querySelectorAll('[data-theme-set]').forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-theme-set')===t));});try{localStorage.setItem('mock-theme',t);}catch(e){}}
+  document.querySelectorAll('[data-theme-set]').forEach(function(b){b.addEventListener('click',function(){setTheme(b.getAttribute('data-theme-set'));});});
+  try{var st=localStorage.getItem('mock-theme');if(st)setTheme(st);}catch(e){}
+
+  // density
+  function toggleDensity(){root.setAttribute('data-density',root.getAttribute('data-density')==='compact'?'comfortable':'compact');}
+  document.getElementById('density').addEventListener('click',toggleDensity);
+
+  // screens
+  function go(name){
+    var key=name==='scan-list'?'scan':name;
+    Object.keys(screens).forEach(function(k){document.getElementById(screens[k]).classList.toggle('on',k===key);});
+    document.querySelectorAll('.nav [data-go]').forEach(function(b){ if(b.getAttribute('data-go')===key)b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current');});
+    document.getElementById('crumb').innerHTML=crumbs[name]||crumbs[key];
+    document.getElementById('rail').classList.remove('open');
+    window.scrollTo(0,0);
+  }
+  document.addEventListener('click',function(e){var t=e.target.closest('[data-go]');if(t){e.preventDefault();go(t.getAttribute('data-go'));}});
+  document.getElementById('menu').addEventListener('click',function(){document.getElementById('rail').classList.toggle('open');});
+
+  // tabs (scan page)
+  document.querySelectorAll('#screen-scan .tabs [data-tab]').forEach(function(b){b.addEventListener('click',function(){
+    document.querySelectorAll('#screen-scan .tabs [data-tab]').forEach(function(x){x.setAttribute('aria-selected','false');});
+    b.setAttribute('aria-selected','true');
+    document.querySelectorAll('#screen-scan .tabpanel').forEach(function(p){p.classList.toggle('on',p.id==='tab-'+b.getAttribute('data-tab'));});
+  });});
+  // customer tabs: visual only in the mock
+  document.querySelectorAll('#screen-customer .tabs [role=tab]').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('#screen-customer .tabs [role=tab]').forEach(function(x){x.setAttribute('aria-selected','false');});b.setAttribute('aria-selected','true');});});
+  // filter chips: toggle visual only
+  document.querySelectorAll('.fchip').forEach(function(c){c.addEventListener('click',function(){var grp=c.parentElement.querySelectorAll('.fchip');grp.forEach(function(x){x.setAttribute('aria-pressed','false');});c.setAttribute('aria-pressed','true');});});
+  // lifecycle row
+  var lt=document.getElementById('toggle-life');lt.addEventListener('click',function(){var r=document.getElementById('life-row');var open=r.style.display!=='none';r.style.display=open?'none':'';lt.setAttribute('aria-expanded',String(!open));});
+
+  // J/K row focus in the visible table
+  function rows(){var s=document.querySelector('.screen.on table tbody');return s?Array.prototype.filter.call(s.querySelectorAll('tr'),function(r){return !r.classList.contains('expand');}):[];}
+  function moveFocus(d){var rs=rows();if(!rs.length)return;var i=rs.findIndex(function(r){return r.classList.contains('focus');});rs.forEach(function(r){r.classList.remove('focus');});i=Math.max(0,Math.min(rs.length-1,(i<0?0:i+d)));rs[i].classList.add('focus');rs[i].scrollIntoView({block:'nearest'});}
+
+  // palette
+  var overlay=document.getElementById('overlay'),input=document.getElementById('pal-in'),list=document.getElementById('pal-list'),sel=0;
+  var index=[
+    {g:'Scans',ico:'SC',t:'scn_01J9K3M8QF · acme-sample/checkout-api @ 4f1e9c2',r:'■ Blocked · 2h ago',go:'scan',k:'scn_01j9k3m8qf 4f1e9c2 acme-sample checkout-api blocked'},
+    {g:'Scans',ico:'SC',t:'scn_01J9J2 · acme-sample/checkout-api @ c2e8a90',r:'● Passed · 11d ago',go:'scan',k:'scn_01j9j2 c2e8a90 checkout-api'},
+    {g:'Scans',ico:'SC',t:'scn_01J9HZ · acme-sample/web @ 0b91c7d',r:'● Passed · 1d ago',go:'scan',k:'scn_01j9hz 0b91c7d web'},
+    {g:'Findings',ico:'FP',t:'fp_9c1e…d204 · secrets.hardcoded-token',r:'Regressed · 4f1e9c2',go:'scan',k:'fp_9c1e7a3f0b2c8d204 secrets.hardcoded-token 4f1e9c2 regressed'},
+    {g:'Findings',ico:'FP',t:'fp_2b77…81ae · sql.raw-interpolation',r:'New · 4f1e9c2',go:'scan',k:'fp_2b77 sql.raw-interpolation 4f1e9c2'},
+    {g:'Customers',ico:'CU',t:'cus_7QX2R4 · Sample Customer 7 · sample-7@example.test',r:'Team · payment failed',go:'customer',k:'cus_7qx2r4 sample customer 7 sample-7@example.test acme-sample'},
+    {g:'Customers',ico:'CU',t:'cus_3AB9K1 · Sample Customer 3 · sample-3@example.test',r:'Per-scan',go:'customer',k:'cus_3ab9k1 sample customer 3 sample-3@example.test'},
+    {g:'Repos',ico:'RP',t:'acme-sample/checkout-api',r:'last gate ■ Blocked',go:'scan',k:'acme-sample/checkout-api repo'},
+    {g:'Repos',ico:'RP',t:'acme-sample/web',r:'last gate ● Passed',go:'scan',k:'acme-sample/web repo'},
+    {g:'Rules',ico:'RL',t:'secrets.hardcoded-token',r:'precision 0.97 · 61 triaged',go:'scan',k:'secrets.hardcoded-token rule'},
+    {g:'Rules',ico:'RL',t:'http.no-timeout',r:'precision 0.74 · watch list',go:'scan',k:'http.no-timeout rule'},
+    {g:'Fix PRs',ico:'PR',t:'#212 · acme-sample/checkout-api',r:'closed unmerged',go:'scan',k:'#212 fpr_212 fix pr checkout-api'},
+    {g:'Fix PRs',ico:'PR',t:'#198 · acme-sample/checkout-api',r:'merged · came back',go:'scan',k:'#198 fpr_198 fix pr'},
+    {g:'Deploys',ico:'DP',t:'cb26ff3 · deployed 2h ago · = main',r:'slot blue · 4 units',go:'overview',k:'cb26ff3 deploy main'},
+    {g:'Commits',ico:'SH',t:'4f1e9c2 · 3 scans on this commit',r:'push by sample-dev-2',go:'scan',k:'4f1e9c2 commit'},
+    {g:'Keys',ico:'KY',t:'gt_live_9m3… · Sample Customer 7',r:'412 calls today',go:'customer',k:'gt_live_9m3 key'},
+    {g:'Keys',ico:'KY',t:'gt_live_4k1… · Sample Customer 7',r:'unused 30d',go:'customer',k:'gt_live_4k1 key unused'},
+    {g:'Secrets',ico:'SE',t:'MAIL_API_KEY',r:'not set · important',go:'overview',k:'mail_api_key secret'},
+    {g:'Secrets',ico:'SE',t:'GIT_HOST_APP_KEY',r:'set · verified · 212d since rotation',go:'overview',k:'git_host_app_key secret'},
+    {g:'Actions',ico:'▶',t:'New scan…',r:'repo · site · forensic',go:'scan',k:'new scan run'},
+    {g:'Actions',ico:'▶',t:'Go to Overview',r:'G O',go:'overview',k:'go overview'},
+    {g:'Actions',ico:'▶',t:'Go to Scans',r:'G S',go:'scan-list',k:'go scans'},
+    {g:'Actions',ico:'▶',t:'Go to Customers',r:'G C',go:'customer',k:'go customers'},
+    {g:'Actions',ico:'▶',t:'Toggle theme',r:'T',act:'theme',k:'toggle theme white black'},
+    {g:'Actions',ico:'▶',t:'Toggle density',r:'D',act:'density',k:'toggle density compact comfortable'}
+  ];
+  function render(){
+    var q=input.value.trim().toLowerCase();
+    var hits=q?index.filter(function(it){return it.k.indexOf(q)>=0||it.t.toLowerCase().indexOf(q)>=0;}):index.filter(function(it){return it.g==='Actions'||it.g==='Scans'||it.g==='Customers';}).slice(0,9);
+    sel=Math.min(sel,Math.max(0,hits.length-1));
+    var html='',lastG=null;
+    if(!hits.length){html='<div class="grp">No objects match</div><div class="s13 muted" style="padding:6px 10px 12px">Nothing named or numbered like “'+q.replace(/</g,'&lt;')+'”. Search covers ids, SHAs, emails, repos, rules, keys and secrets.</div>';}
+    hits.forEach(function(it,i){ if(it.g!==lastG){html+='<div class="grp">'+it.g+(q?'':' · recent')+'</div>';lastG=it.g;} html+='<button class="it" role="option" aria-selected="'+(i===sel)+'" data-i="'+i+'"><span class="ico">'+it.ico+'</span><span><span class="id">'+it.t+'</span></span><span class="r">'+it.r+'</span></button>'; });
+    list.innerHTML=html; list._hits=hits;
+  }
+  function openPal(prefill){overlay.classList.add('on');input.value=prefill||'';sel=0;render();setTimeout(function(){input.focus();},0);}
+  function closePal(){overlay.classList.remove('on');}
+  function choose(i){var it=(list._hits||[])[i];if(!it)return;closePal();if(it.act==='theme'){setTheme(root.getAttribute('data-theme')==='white'?'black':'white');}else if(it.act==='density'){toggleDensity();}else{go(it.go);}}
+  document.getElementById('open-pal').addEventListener('click',function(){openPal('');});
+  document.querySelectorAll('[data-pal]').forEach(function(b){b.addEventListener('click',function(){openPal(b.getAttribute('data-pal'));});});
+  overlay.addEventListener('click',function(e){if(e.target===overlay)closePal();});
+  input.addEventListener('input',function(){sel=0;render();});
+  list.addEventListener('click',function(e){var t=e.target.closest('.it');if(t)choose(+t.getAttribute('data-i'));});
+  input.addEventListener('keydown',function(e){
+    var n=(list._hits||[]).length;
+    if(e.key==='ArrowDown'){e.preventDefault();sel=(sel+1)%Math.max(1,n);render();}
+    else if(e.key==='ArrowUp'){e.preventDefault();sel=(sel-1+Math.max(1,n))%Math.max(1,n);render();}
+    else if(e.key==='Enter'){e.preventDefault();choose(sel);}
+    else if(e.key==='Escape'){closePal();}
+  });
+
+  // global keys
+  var gPending=false,gTimer=null,help=document.getElementById('help');
+  document.addEventListener('keydown',function(e){
+    var typing=/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)||e.target.isContentEditable;
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();overlay.classList.contains('on')?closePal():openPal('');return;}
+    if(typing)return;
+    if(e.key==='Escape'){closePal();help.classList.remove('on');document.getElementById('rail').classList.remove('open');return;}
+    if(e.key==='/'){e.preventDefault();openPal('');return;}
+    if(e.key==='?'){help.classList.toggle('on');return;}
+    if(gPending){gPending=false;clearTimeout(gTimer);var m={o:'overview',s:'scan-list',c:'customer'}[e.key.toLowerCase()];if(m)go(m);return;}
+    var k=e.key.toLowerCase();
+    if(k==='g'){gPending=true;gTimer=setTimeout(function(){gPending=false;},900);}
+    else if(k==='t'){setTheme(root.getAttribute('data-theme')==='white'?'black':'white');}
+    else if(k==='d'){toggleDensity();}
+    else if(k==='j'){moveFocus(1);}
+    else if(k==='k'){moveFocus(-1);}
+    else if(k==='enter'){var f=document.querySelector('.screen.on tr.focus a.lnk');if(f)f.click();}
+  });
+
+  // open the palette over the Customer page when the URL asks for it (demo deep link): mock.html#customer?k=4f1e9c2
+  var h=location.hash.replace('#','');
+  if(h){var parts=h.split('?');if(screens[parts[0]]||parts[0]==='scan-list')go(parts[0]);if(parts[1]&&parts[1].indexOf('k=')===0)openPal(decodeURIComponent(parts[1].slice(2)));}
+})();
+</script>
+</body>
+</html>

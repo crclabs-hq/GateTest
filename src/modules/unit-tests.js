@@ -34,6 +34,7 @@ class UnitTestsModule extends BaseModule {
       return;
     }
 
+    this._runnerName = testCommand.name;
     result.addCheck('unit-tests:framework', true, { message: `Detected: ${testCommand.name}` });
 
     // The runner binary itself must exist before its exit code means
@@ -159,23 +160,167 @@ class UnitTestsModule extends BaseModule {
         return;
       }
 
-      const primary = failures[0] || null;
-      result.addCheck('unit-tests:run', false, {
-        severity: 'error',
-        message: primary ? `Unit test failed: ${primary.name}` : 'Unit tests failed',
-        file: primary ? primary.file : null,
-        line: primary ? primary.line : null,
-        details: {
-          message: 'Unit tests failed',
-          raw: out.split(/\r?\n/).slice(-20),
-          failures,
-        },
-        suggestion: 'Fix failing tests before committing',
-      });
+      // Flaky-test ledger (launch move 6): record this run, then decide which
+      // of its failures are measured flakes under an unexpired quarantine.
+      // Everything not provably a quarantined flake stays exactly as it was.
+      const ledger = this._flakyLedger(projectRoot, config, out);
+      const split = this._splitQuarantined(ledger, failures, projectRoot);
+
+      if (split.allQuarantined) {
+        result.addCheck('unit-tests:run', true, {
+          message: `Unit tests passed apart from ${split.quarantined.length} quarantined flaky test${split.quarantined.length === 1 ? '' : 's'} — their failures are warnings, not blocking`,
+        });
+      } else {
+        const remaining = split.blockingFailures;
+        const primary = remaining[0] || null;
+        const expiredNote = primary && split.expiredNames.has(primary.name)
+          ? ' (flaky, quarantine expired — fix the flake)'
+          : '';
+        result.addCheck('unit-tests:run', false, {
+          severity: 'error',
+          message: primary ? `Unit test failed: ${primary.name}${expiredNote}` : 'Unit tests failed',
+          file: primary ? primary.file : null,
+          line: primary ? primary.line : null,
+          details: {
+            message: 'Unit tests failed',
+            raw: out.split(/\r?\n/).slice(-20),
+            failures: remaining,
+          },
+          suggestion: 'Fix failing tests before committing',
+        });
+      }
+      this._reportFlakyLedger(result, ledger, split.entries);
     }
 
     // Check for test coverage
     this._checkCoverage(projectRoot, config, result);
+  }
+
+  /** Wall clock, overridable so a test can prove the quarantine expires. */
+  _flakyNow() { return typeof this._nowMs === 'number' ? this._nowMs : Date.now(); }
+
+  /**
+   * Record this run in the flaky-test ledger (src/core/flaky-ledger.js).
+   * Never throws: a ledger fault must not change a verdict, it just leaves the
+   * run unrecorded — and says so.
+   *
+   * @returns {{ state: 'recorded'|'off'|'unreadable'|'error', reason: string|null,
+   *             cfg: object, parsed?: object, verdicts?: Map, ambiguous?: Set, flake?: object }}
+   */
+  _flakyLedger(projectRoot, config, out) {
+    const cfg = flakyLedger.resolveFlakyConfig(config);
+    try {
+      const gate = flakyLedger.ledgerGate(projectRoot);
+      if (!gate.enabled) return { state: 'off', reason: gate.reason, cfg };
+      const parsed = parseTestOutcomes(out);
+      if (!parsed.format) {
+        return { state: 'unreadable', reason: `${this._runnerName || 'this runner'}'s output is not per-test readable (node:test only), so flakes are not measured`, cfg };
+      }
+      const rec = flakyLedger.recordRun(projectRoot, parsed, { cfg, now: this._flakyNow(), commit: this._commitOverride });
+      return { state: 'recorded', reason: null, cfg, parsed, verdicts: rec.verdicts, ambiguous: rec.ambiguous, flake: rec.flake };
+    } catch (err) {
+      return { state: 'error', reason: `the ledger could not be updated (${String(err && err.message).slice(0, 80)})`, cfg };
+    }
+  }
+
+  /**
+   * Which of this run's failures are quarantined flakes, and what still blocks.
+   * A failure is downgraded only when EVERY condition holds: the ledger judged
+   * that test flaky, its quarantine has not expired, quarantine is on, the
+   * runner's output accounted for every failure it counted, and the failure is
+   * a test failing (not a hook or a crash). Anything else blocks as before.
+   */
+  _splitQuarantined(ledger, failures, projectRoot) {
+    const none = { allQuarantined: false, quarantined: [], blockingFailures: failures, expiredNames: new Set(), entries: [] };
+    if (!ledger || ledger.state !== 'recorded') return none;
+    const { parsed, verdicts, ambiguous, cfg } = ledger;
+    const now = this._flakyNow();
+    const failingLeaves = parsed.outcomes.filter((o) => !o.ok && !o.container);
+    const quarantinedKeys = new Set();
+    const entries = [];
+    const expiredNames = new Set();
+    const byName = new Map(failures.map((f) => [f.name, f]));
+    for (const o of failingLeaves) {
+      const key = flakyLedger.testKey(o.path);
+      const v = verdicts.get(key);
+      if (!v || !v.flaky || ambiguous.has(key)) continue;
+      let state;
+      if (v.expired) state = 'expired';
+      else if (!cfg.quarantine) state = 'off';
+      else if (!parsed.complete || !o.testFailure) state = 'unaccounted';
+      else state = 'quarantined';
+      if (state === 'quarantined') quarantinedKeys.add(key);
+      if (state === 'expired') expiredNames.add(o.name);
+      const known = byName.get(o.name);
+      entries.push({
+        name: o.path.join(' > '),
+        module: this.name,
+        file: (known && known.file) || (o.file && projectRoot ? this._toRepoRelative(o.file, projectRoot) : null),
+        line: (known && known.line) || o.line || null,
+        state,
+        flips: v.flips,
+        runs: v.runs,
+        sameCommit: v.sameCommit,
+        since: v.since ? new Date(v.since).toISOString() : null,
+        expiresAt: v.expiresAt ? new Date(v.expiresAt).toISOString() : null,
+        daysLeft: v.expiresAt ? Math.max(0, Math.ceil((v.expiresAt - now) / 86400_000)) : null,
+      });
+    }
+    const isQuarantined = (o) => quarantinedKeys.has(flakyLedger.testKey(o.path));
+    const blockingLeaves = failingLeaves.filter((o) => !isQuarantined(o));
+    const allQuarantined = quarantinedKeys.size > 0 && blockingLeaves.length === 0 && parsed.complete === true;
+
+    // A failing container (a describe, a test with subtests) goes when every
+    // failing test inside it is quarantined — it failed only because they did.
+    const dropped = new Set(failingLeaves.filter(isQuarantined).map((o) => o.name));
+    for (const c of parsed.outcomes.filter((o) => !o.ok && o.container)) {
+      const inside = failingLeaves.filter((o) => o.path.length > c.path.length && c.path.every((seg, i) => o.path[i] === seg));
+      if (inside.length > 0 && inside.every(isQuarantined)) dropped.add(c.name);
+    }
+    const quarantined = entries.filter((e) => e.state === 'quarantined');
+    return {
+      allQuarantined,
+      quarantined,
+      blockingFailures: allQuarantined ? [] : failures.filter((f) => !dropped.has(f.name)),
+      expiredNames,
+      entries,
+    };
+  }
+
+  /**
+   * One warning per quarantined test, and ONE ledger check carrying the flake
+   * rate and the `flaky[]` list the reporters read. The ledger check is how
+   * "not measured" gets said out loud when nothing could be recorded.
+   */
+  _reportFlakyLedger(result, ledger, entries) {
+    for (const e of entries.filter((x) => x.state === 'quarantined')) {
+      result.addCheck('unit-tests:quarantined-flaky', false, {
+        severity: 'warning',
+        message: `quarantined flaky test (flipped ${e.flips} of last ${e.runs} runs${e.sameCommit ? ', passed and failed on one commit' : ''}): ${e.name}`,
+        file: e.file,
+        line: e.line,
+        quarantine: e,
+        suggestion: `Fix the flake — quarantine ends ${e.expiresAt ? e.expiresAt.slice(0, 10) : 'in 14 days'} (${e.daysLeft} day${e.daysLeft === 1 ? '' : 's'} left) and the failure blocks again after that. --no-quarantine turns quarantine off.`,
+      });
+    }
+    let flake;
+    let message;
+    if (ledger.state === 'recorded') {
+      flake = { ...ledger.flake, state: 'recorded', reason: null };
+      const f = ledger.flake;
+      message = f.measured
+        ? `Flake rate ${f.rate}% — ${f.flakyTests} flaky of ${f.tests} tests over ${f.runs} recorded run${f.runs === 1 ? '' : 's'}${f.quarantined ? `, ${f.quarantined} quarantined` : ''}${f.expired ? `, ${f.expired} past quarantine` : ''}`
+        : 'Flake rate not measured — the run reported no tests';
+    } else {
+      flake = { measured: false, rate: null, flakyTests: 0, quarantined: 0, expired: 0, tests: 0, runs: 0, state: ledger.state, reason: ledger.reason };
+      message = `Flake rate not measured — ${ledger.reason}`;
+    }
+    result.addCheck('unit-tests:flake-ledger', true, {
+      severity: 'info',
+      message,
+      flake,
+      flaky: entries,
+    });
   }
 
   /**

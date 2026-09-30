@@ -309,7 +309,17 @@ const HELP = `
                        --format json still emits its document on stdout;
                        exit codes are unchanged. Same as
                        GATETEST_NO_ARTIFACTS=1.
-    --include-ignored  Also scan paths matched by the repo's .gitignore
+    --no-quarantine    Block on every failing test. By default a test the
+                       engine has measured as flaky (passed and failed on
+                       one commit, or flipped 2+ times in its last 10 runs)
+                       has its failure reported as a warning for 14 days
+                       instead of blocking — listed in the report, the JSON
+                       (flaky[]) and the PR comment, and blocking again once
+                       the quarantine expires. A test that fails on every
+                       run is never quarantined. Tune with "flaky":
+                       { flips, window, quarantineDays, quarantine } in
+                       .gatetest.json.
+    --include-ignored Also scan paths matched by the repo's .gitignore
                        (root + nested, negation-aware) and the built-in
                        build-output name set (.next/.next-*, dist, build,
                        out, coverage, .turbo, .cache, .nuxt, .svelte-kit,
@@ -638,6 +648,11 @@ async function main() {
   }
   if (args.noArtifacts) {
     process.env[ENV_NO_ARTIFACTS] = '1';
+  }
+  // Launch move 6: read by src/core/flaky-ledger.js resolveFlakyConfig, the
+  // one place that decides whether a measured flake is quarantined.
+  if (args.noQuarantine) {
+    process.env.GATETEST_NO_QUARANTINE = '1';
   }
 
   if (args.init) {

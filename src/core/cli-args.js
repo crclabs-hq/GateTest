@@ -104,6 +104,11 @@ const FLAG_SPEC = [
   // summary and --format json's stdout document are unaffected — see
   // src/index.js and src/core/report-paths.js).
   { flags: ['--no-artifacts'], key: 'noArtifacts', type: 'boolean' },
+  // Launch board move 6: a measured-flaky test's failure is a quarantined
+  // warning for a while instead of a block. `--no-quarantine` keeps the
+  // measuring and blocks on every failure again (`flaky.quarantine: false` in
+  // `.gatetest.json` is the persistent form; src/core/flaky-ledger.js).
+  { flags: ['--no-quarantine'], key: 'noQuarantine', type: 'boolean' },
   // The Fifty, move 14: opt INTO letting a model-judged finding block the
   // gate on its own (default: report-only, `wouldBlock` preserved). See
   // `gate.modelVerdictsBlock` in `.gatetest.json` and env
