@@ -82,6 +82,9 @@ const FLAG_SPEC = [
   { flags: ['--auto-pr'], key: 'autoPr', type: 'boolean' },
   { flags: ['--pr'], key: 'pr', type: 'boolean' },
   { flags: ['--diff'], key: 'diff', type: 'boolean' },
+  // With --diff: run the customer's WHOLE test set instead of only the test
+  // files the import graph says the diff touches (src/core/test-impact.js).
+  { flags: ['--all-tests'], key: 'allTests', type: 'boolean' },
   { flags: ['--report-only'], key: 'reportOnly', type: 'boolean' },
   // Move 15 (onboarding mode): time-boxed --report-only. Parsed as a plain
   // string here — format validation (real ISO date, UTC) lives in

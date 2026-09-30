@@ -11,6 +11,7 @@ const { looksLikeMissingToolchain, nodeDepsMissing } = require('../core/toolchai
 const fs = require('fs');
 const path = require('path');
 const { repoRelative } = require('../core/repo-path');
+const { planTestRun } = require('../core/test-impact');
 
 // One grammar for "this line registers a route" (src/core/route-grammar.js),
 // with captures for the verb and the path. Until 2026-09-05 this module
@@ -84,7 +85,7 @@ class IntegrationTestsModule extends BaseModule {
         message: `${testInfo.testFiles.length} integration test file(s) found`,
       });
 
-      const ran = await this._runTests(projectRoot, testInfo, result);
+      const ran = await this._runTests(projectRoot, testInfo, result, config);
       if (!ran) {
         result.addCheck('integration-tests:run', false, {
           severity: 'warning',
@@ -142,7 +143,7 @@ class IntegrationTestsModule extends BaseModule {
     return { testDir, testFiles };
   }
 
-  async _runTests(projectRoot, testInfo, result) {
+  async _runTests(projectRoot, testInfo, result, config = {}) {
     const pkgPath = path.join(projectRoot, 'package.json');
     if (!fs.existsSync(pkgPath)) return false;
 
@@ -163,14 +164,43 @@ class IntegrationTestsModule extends BaseModule {
           });
           return true;
         }
-        const { exitCode, stdout, stderr, timedOut } = this._exec(`npm run ${scriptName} 2>&1`, {
+        // `--diff`: only the integration test files the import graph says the
+        // diff can touch (src/core/test-impact.js); null when not narrowed.
+        let command = `npm run ${scriptName} 2>&1`;
+        let narrowed = false;
+        const owned = new Set(testInfo.testFiles.map((f) => repoRelative(projectRoot, f)));
+        const plan = planTestRun({
+          projectRoot,
+          runnerOptions: config._runnerOptions,
+          testCommand: { name: 'npm run', command, script: pkg.scripts[scriptName] },
+          scope: (files) => files.filter((f) => owned.has(f)),
+        });
+        if (plan) {
+          result.testImpact = plan.impact;
+          result.addCheck('integration-tests:impact', true, { severity: 'info', message: plan.impact.line });
+          if (plan.command === null) {
+            result.addCheck('integration-tests:run', true, {
+              severity: 'info',
+              message: `Integration tests not executed — no integration test file imports a changed file (0 of ${plan.impact.totalTestFiles} selected)`,
+              suggestion: 'Run the full set with --all-tests (or without --diff) to include every integration test',
+            });
+            return true;
+          }
+          command = plan.command;
+          narrowed = plan.impact.mode === 'selected';
+        }
+        const { exitCode, stdout, stderr, timedOut } = this._exec(command, {
           cwd: projectRoot,
           timeout: this._testTimeoutMs,
         });
         const out = `${stdout || ''}${stderr || ''}`;
 
         if (exitCode === 0) {
-          result.addCheck('integration-tests:run', true, { message: 'Integration tests passed' });
+          result.addCheck('integration-tests:run', true, {
+            message: narrowed
+              ? `Selected integration tests passed (${plan.impact.selected.length} of ${plan.impact.totalTestFiles} test files; the rest were not run)`
+              : 'Integration tests passed',
+          });
         } else if (timedOut) {
           // A timeout is not a verdict (doctrine, move 18).
           result.addCheck('integration-tests:run', true, {

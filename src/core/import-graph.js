@@ -74,6 +74,35 @@ const SUPPRESS_RE = /\bimport-cycle-ok\b/;
 // specifier is read from the raw line at the group's own offsets (`d`).
 const REQUIRE_RE = /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/d;
 const DYNAMIC_IMPORT_RE = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/d;
+// A load whose target the graph cannot name: `require(x)`, `import(a + b)`,
+// a template literal. Read off the masked text (strings and comments blanked,
+// offsets kept) so a call quoted in a string or comment is not counted; the
+// argument is then read off the RAW text at the same offset to tell a plain
+// string literal (already an edge below) from anything computed. Consumers
+// that must be sound about "who could load this file" (test-impact
+// selection) read `dynamic` per file instead of keeping their own scan.
+const DYNAMIC_LOAD_RE = /(?<![.\w$])(?:require|import)\s*\(/g;
+const LITERAL_ARG_RE = /^\s*(['"])[^'"\\\r\n]*\1\s*[,)]/;
+
+/** @returns {Array<{line:number}>} one entry per non-literal require/import call */
+function dynamicLoads(text, maskedText) {
+  if (!/(?:require|import)\s*\(/.test(maskedText)) return [];
+  const out = [];
+  DYNAMIC_LOAD_RE.lastIndex = 0;
+  let m = DYNAMIC_LOAD_RE.exec(maskedText);
+  let line = 1;
+  let scanned = 0;
+  while (m !== null) {
+    const end = m.index + m[0].length;
+    if (!LITERAL_ARG_RE.test(text.slice(end, end + 512))) {
+      for (let i = scanned; i < m.index; i += 1) if (text.charCodeAt(i) === 10) line += 1;
+      scanned = m.index;
+      out.push({ line });
+    }
+    m = DYNAMIC_LOAD_RE.exec(maskedText);
+  }
+  return out;
+}
 // import / export-from statements are read WHOLE by ./ts-tokens (multi-line,
 // inline `type` modifiers) and classified by ./import-elision; only require(),
 // dynamic import() and path strings are still read line by line here.
@@ -325,14 +354,14 @@ function edgesForFile(absPath, fileSet, ctx = {}, full = true) {
     const st = fs.statSync(absPath);
     cacheKey = `${absPath}|${st.size}|${st.mtimeMs}|${ctx.projectRoot || ''}|${fileSet.size}|${full ? 'full' : 'cheap'}`;
     const hit = fileEdgeCache.get(cacheKey);
-    if (hit) { const copy = hit.edges.map((e) => ({ ...e })); if (hit.unchecked) copy.unchecked = hit.unchecked; if (hit.pending) copy.pending = true; if (hit.skipped) copy.skipped = hit.skipped; copy.externals = new Map(hit.externals || []); return copy; }
+    if (hit) { const copy = hit.edges.map((e) => ({ ...e })); if (hit.unchecked) copy.unchecked = hit.unchecked; if (hit.pending) copy.pending = true; if (hit.skipped) copy.skipped = hit.skipped; if (hit.dynamic) copy.dynamic = hit.dynamic; copy.externals = new Map(hit.externals || []); return copy; }
   } catch {
     cacheKey = null; // error-ok — unreadable stat, just don't cache
   }
   const out = edgesForFileUncached(absPath, fileSet, ctx, full);
   if (cacheKey) {
     if (fileEdgeCache.size >= FILE_EDGE_CACHE_MAX) fileEdgeCache.clear();
-    fileEdgeCache.set(cacheKey, { edges: out.map((e) => ({ ...e })), unchecked: out.unchecked || null, pending: !!out.pending, skipped: out.skipped || null, externals: [...(out.externals || [])] });
+    fileEdgeCache.set(cacheKey, { edges: out.map((e) => ({ ...e })), unchecked: out.unchecked || null, pending: !!out.pending, skipped: out.skipped || null, dynamic: out.dynamic || null, externals: [...(out.externals || [])] });
   }
   return out;
 }
@@ -405,7 +434,10 @@ function edgesForFileUncached(absPath, fileSet, ctx, full = true) {
   // i is raw line i. The line-level `//` stripper this replaced could not see
   // a block comment or a template literal spanning lines, so a `require('./x')`
   // quoted inside either was a coupling edge.
-  const masked = stripStringsAndComments(text).split(/\r?\n/);
+  const maskedText = stripStringsAndComments(text);
+  const masked = maskedText.split(/\r?\n/);
+  const dynamic = dynamicLoads(text, maskedText);
+  if (dynamic.length) out.dynamic = dynamic;
   const specAt = (rawLine, m) => rawLine.slice(m.indices[1][0], m.indices[1][1]);
 
   for (let i = 0; i < lines.length; i += 1) {
@@ -478,6 +510,7 @@ function edgesForFileUncached(absPath, fileSet, ctx, full = true) {
  *   elision: { scanned: number, pending: number }, files the use-scan ran on (inside a candidate cycle) / files it never needed to
  *   externals: Map<string, Map<string, {line: number, via: 'unresolved'|'workspace'|'alias', typeOnly: boolean}>>,  per file, its package imports: bare specifiers that resolve to nothing in this project, or to a workspace package / a package-shaped alias
  *   skipped: Set<string>,                      files in the walk whose text was never read (over MAX_FILE_BYTES) — nothing below is known about them
+ *   dynamic: Map<string, Array<{line: number}>>, per file, every require()/import() whose argument is not a string literal — a load the edges above cannot name
  *   rel: (abs: string) => string,
  * }}
  */
@@ -512,6 +545,7 @@ function buildImportGraph(opts = {}) {
   const elision = { scanned: 0, pending: 0 };
   const externals = new Map(); // abs → Map<bare specifier, {line, via, typeOnly}>
   const skipped = new Set();
+  const dynamic = new Map(); // abs -> [{line}] non-literal require/import calls
   for (const scc of tarjanSCC(provisional)) {
     const cyclic = scc.length >= 2 || (provisional.get(scc[0]) || EMPTY_SET).has(scc[0]);
     if (!cyclic) continue;
@@ -531,6 +565,7 @@ function buildImportGraph(opts = {}) {
     const fileEdges = perFile.get(abs);
     if (fileEdges.unchecked) unchecked[fileEdges.unchecked].push(abs);
     if (fileEdges.skipped) skipped.add(abs);
+    if (fileEdges.dynamic) dynamic.set(abs, fileEdges.dynamic);
     externals.set(abs, fileEdges.externals || new Map());
     for (const e of fileEdges) {
       const edge = { from: abs, to: e.to, kind: e.kind, line: e.line, via: e.via };
@@ -553,7 +588,7 @@ function buildImportGraph(opts = {}) {
 
   const rel = (abs) => repoRelative(projectRoot, abs);
 
-  return { files, fileSet, staticGraph, runtimeGraph, loadGraph, fullGraph, edges, staticEdgeCount, runtimeEdgeCount, unchecked, elision, externals, skipped, rel };
+  return { files, fileSet, staticGraph, runtimeGraph, loadGraph, fullGraph, edges, staticEdgeCount, runtimeEdgeCount, unchecked, elision, externals, skipped, dynamic, rel };
 }
 
 /**
