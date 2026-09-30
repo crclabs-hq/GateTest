@@ -959,3 +959,43 @@ Session account: **ccantyusa@gmail.com** (from the session context, not guessed)
 2–6. Secrets-panel box setup, OAuth ids, 1.62.0 release, #532 bundle, #796 to phone, name the repo for the white redesign.
 
 **Cross-platform:** Tallrig's handoff is `docs/handoff-2026-09-29` at 8ccda2720 on gluecron.com/ccantynz/tallrig; #715 /stack copy still waits on Craig's approval (draft PR #720), Tallrig mirrors on approval. DavenRoe not yet paged to re-run on 1dea3658 (do it when main is green).
+
+### Addendum 2026-09-30 05:10Z — RESUME HERE (written from ccantyusa; for ccantynz, ccantyusa, ccanty48co)
+
+Supersedes the 02:20Z block where they differ. Every line checked against GitHub and production at 05:05Z.
+
+**Production (live):** gatetest.io serves 0baf4e93 (built 27 Sep 14:26Z), 253 commits behind main; `lastPullDeploy.result = failed` (killed mid-build on every tick since 27 Sep). `/` 200, `/preview` 308 → `/`. **Nothing merged since 27 Sep is live.** This is launch blocker #1 and only the owner can clear it (box 161, tailnet only).
+
+**Main:** f2616fc3. No open PRs. The apollo-server corpus regression is fixed (#858); CI on f2616fc3 was still running at 05:05Z. Note: "real repos must not be blocked" is NOT a required check, so PRs merge while it is red; check it after every rule change.
+
+**Merged 30 Sep (all on main, none live yet):**
+| PR | What | sha |
+|---|---|---|
+| #847 | Infra-secrets panel UI at /admin/secrets | 28a3331e |
+| #851 | One admin gate on every route; honest Accounts tab; SSH heal only for our hostnames (review: approve, 192/192) | 9f17e6c6 |
+| #854 | docs/LAUNCH_BOARD.md re-verified: §0 blockers first, 15 statuses corrected | 7d8e823b |
+| #855 | Repo Scan never writes unasked, never shows a failure as a pass | 40f04b00 |
+| #852 | 02:20Z RESUME block + admin design round outputs in docs/admin-audit | 108d0a25 |
+| #856 | Launch move 6: flaky-test ledger, expiring quarantine, flake rate on the badge | 663e51e4 |
+| #857 | Launch move 5: `--diff` runs only the tests the import graph touches, `--all-tests` | c0cdd120 |
+| #858 | Corpus fix: CSRF rule matches assignment only; test-suite dirs are test code (apollo 2 → 0, 20/20 repos) | bd4b9eb7 |
+| #859 | Restores flaky-ledger imports the #857 update-branch merge dropped | f2616fc3 |
+| jarvis-platform #11 | Autonomous site medic: all nine medics on claude-opus-5-5 with bypass; GateTest's every 2 h, fixes → PR → auto-merge through GateTest's required checks | 9d99c6ba |
+
+**Owner steps, in order. Run them in PowerShell exactly as written — each one starts with `ssh jarvis`, which runs the rest on box 161.** (Typing `cd /opt/...` or `systemctl` straight into PowerShell fails: those paths and tools exist only on the box. The `jarvis` alias is in `~/.ssh/config`, root over Tailscale.)
+1. Read why deploys die: `ssh jarvis "journalctl -u gatetest-pull-deploy -n 80 --no-pager"` — paste the output to the GateTest session.
+2. Recover the deploy: `ssh -t jarvis "cd /opt/gatetest && git fetch origin main && git show origin/main:scripts/deploy/deploy-on-box.sh | DEPLOY_RECOVER=1 GATETEST_APP_DIR=/opt/gatetest bash -s"`. Done when `/api/platform-status` shows main's commit.
+3. Medic token: create a fine-grained GitHub token for crclabs-hq/GateTest only (Contents, Pull requests, Actions: read/write; Issues, Checks, Metadata: read), ideally from a non-admin identity because GateTest's main allows admin bypass. Then `ssh -t jarvis "nano /opt/jarvis/config/site-medic.env"`, type one line `JARVIS_REPO_TOKEN_GATETEST=<token>`, save, and `ssh jarvis "chmod 600 /opt/jarvis/config/site-medic.env"`. Never paste the value in chat.
+4. Deploy the medic: `ssh jarvis "cd /opt/jarvis && git pull origin main && npm install --production && systemctl daemon-reload && systemctl restart jarvis-orchestrator jarvis-agents"`. Do step 3 first, or it makes 12 Opus diagnose-only runs a day. Watch: `ssh jarvis "journalctl -u jarvis-orchestrator -n 50 --no-pager | grep -i medic"`; its PRs have branches `jarvis/medic-*`. Off switch: `"mode": "diagnose"` on its row in config/agents.json, or `AGENTS_MODE=off`. Details: jarvis-platform docs/SITE-MEDIC.md.
+5. Box env for sign-in and admin (after step 2): GOOGLE_CLIENT_ID/SECRET, GLUECRON_OAUTH_CLIENT_ID/SECRET (redirect https://gatetest.io/api/auth/gluecron/callback), GATETEST_ADMIN_PASSWORD, GATETEST_INTERNAL_TOKEN, TALLRIG_API_TOKEN, GATETEST_DAILY_API_BUDGET_USD in /opt/gatetest/website/.env.local (`ssh -t jarvis "nano /opt/gatetest/website/.env.local"`), then `ssh jarvis "systemctl restart gatetest-web"`.
+6. Then, from docs/LAUNCH_BOARD.md §0: Marketplace listing; release 1.62.0 (a builder can open the bump PR; the tag push is yours); rotate the retired box-158 secrets and CRON_SECRET; the arena's fixer key.
+
+**Do not press Deploy for GateTest on tallrig.com/start.** Tallrig measured that their deploy path never builds from a Dockerfile yet (it guesses the runtime from files), so GateTest would build wrong. Their /start fixes (public-repo plan without a token, reason shown, docker·node detection) are on `fix/public-repo-plan-and-docker-runtime` eb745a6bd for the stack after n; real Dockerfile deploys are a separate package they will announce when proven.
+
+**Cross-platform:** Tallrig is building its own autonomous medic on box B the same way (plan on gluecron.com/ccantynz/tallrig `docs/medic-full-automation` b6fd86f5c §7) and tells Craig directly when live. #715 /stack copy: draft #720 still waits on Gluecron's three lines (ccantynz-alt/Gluecron.com#140) and Craig's approval. DavenRoe not yet paged to re-run on current main.
+
+**Queue for the next builder (code, no owner needed):** #853 (admin follow-ups: digest route's own admin check → allowlist + constant-time compare, SSH heal exit codes, other-platform unit fallback, amber classes, route-guard test inventory); the 1.62.0 version-bump PR; refresh docs/ops/blocking-on-craig.json against LAUNCH_BOARD §0 (last edited 23 Sep); jarvis-platform config/platforms.json still lists gatetest.ai; launch move 11 (real analyzers for Go/Python/Java/Rust), R4 remainder, R6, R7, R8; #829 (admin scan routes duplicate the old DNS claims); #770 (full suite 22 min on a 4-app monorepo).
+
+**Board:** GateTest Launch Board artifact Version 109 is readable from ccantyusa; the repo file docs/LAUNCH_BOARD.md is the shared truth.
+
+**Traps learned today:** `gh pr update-branch` on a PR that shares files with one just merged can silently drop the other side's lines (#857 lost #856's ledger imports; repaired in #859) — for overlapping PRs merge main by hand in the worktree and rerun both features' tests. The corpus check is not required, so a green merge button does not mean the corpus is green.
