@@ -33,26 +33,19 @@ test("pipeline-trace route: file exists at the contracted path", () => {
   );
 });
 
-test("pipeline-trace route: enforces admin cookie check (gatetest_admin)", () => {
+test("pipeline-trace route: imports the shared admin gate", () => {
   const src = readRoute();
-  assert.match(
-    src,
-    /ADMIN_COOKIE_NAME|gatetest_admin/,
-    "must reference the gatetest_admin cookie / canonical export"
-  );
+  assert.match(src, /import \{ requireAdminRoute \} from "@\/app\/lib\/admin-guard"/);
 });
 
-test("pipeline-trace route: uses the canonical isAuthenticatedAdmin helper", () => {
+test("pipeline-trace route: the gate is the first statement, same-origin on this POST", () => {
   const src = readRoute();
-  assert.match(src, /isAuthenticatedAdmin/);
-  assert.match(src, /getAdminConfig/);
-  assert.match(src, /getAdminUser/);
+  assert.match(src, /export async function POST\(req: NextRequest\) \{\s*const refused = requireAdminRoute\(req, \{ mutating: true \}\);\s*if \(refused\) return refused;/);
 });
 
-test("pipeline-trace route: returns 401 when the admin check fails", () => {
+test("pipeline-trace route: no local copy of the admin check (401 comes from the gate)", () => {
   const src = readRoute();
-  assert.match(src, /status:\s*401/);
-  assert.match(src, /Unauthorized/);
+  assert.doesNotMatch(src, /isAuthenticatedAdmin|gatetest-admin-v1/);
 });
 
 test("pipeline-trace route: returns 400 when repoUrl is missing or invalid", () => {

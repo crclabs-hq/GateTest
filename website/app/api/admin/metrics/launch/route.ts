@@ -13,8 +13,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { getDb } from "@/app/lib/db";
-import { isAdminRequest } from "@/app/lib/admin-auth";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { getLaunchMetrics } = require("@/app/lib/launch-metrics") as {
@@ -25,9 +25,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
-  if (!isAdminRequest(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const refused = requireAdminRoute(req);
+  if (refused) return refused;
   const days = Number(req.nextUrl.searchParams.get("days") || "") || 14;
   let sql: ReturnType<typeof getDb>;
   try {

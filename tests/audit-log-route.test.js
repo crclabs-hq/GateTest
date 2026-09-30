@@ -32,10 +32,9 @@ describe('audit-log route — file structure', () => {
 describe('audit-log route — auth + degradation', () => {
   const src = read();
 
-  it('requires admin auth (401 on unauth)', () => {
-    assert.match(src, /isAdminRequest/);
-    assert.match(src, /admin auth required/);
-    assert.match(src, /status:\s*401/);
+  it('requires admin auth through the shared gate (401 on unauth — tests/admin-route-guard.test.js)', () => {
+    assert.match(src, /import \{ requireAdminRoute \} from "@\/app\/lib\/admin-guard"/);
+    assert.match(src, /const refused = requireAdminRoute\(req\);\s*if \(refused\) return refused;/);
   });
 
   it('returns 503 when DATABASE_URL is unset', () => {

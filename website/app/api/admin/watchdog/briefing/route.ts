@@ -9,15 +9,8 @@
  * by the tick's intelligence layer. Returns markdown + machine stats.
  */
 
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import {
-  getAdminConfig,
-  getAdminUser,
-  SESSION_COOKIE_NAME,
-} from "../../../../lib/admin-session";
-import { ADMIN_COOKIE_NAME } from "../../../../lib/admin-auth";
-import { createHmac, timingSafeEqual } from "crypto";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { getDb } from "../../../../lib/db";
 
 export const dynamic = "force-dynamic";
@@ -30,30 +23,9 @@ const { composeBriefing } = require("@/app/lib/watchdog-intelligence") as {
   }) => { markdown: string; stats: Record<string, number> };
 };
 
-function checkPwCookie(v: string | undefined): boolean {
-  const pw = process.env.GATETEST_ADMIN_PASSWORD || "";
-  if (!pw || !v) return false;
-  const exp = createHmac("sha256", pw).update("gatetest-admin-v1").digest("hex");
-  const a = Buffer.from(v), b = Buffer.from(exp);
-  if (a.length !== b.length) return false;
-  try { return timingSafeEqual(a, b); } catch { return false; }
-}
-
-export async function GET() {
-  const cookieStore = await cookies();
-
-  // Auth: GitHub OAuth OR password cookie — same gate as /api/admin/stats.
-  const oauthStatus = getAdminConfig();
-  let adminLogin: string | null = null;
-  if (oauthStatus.ok && oauthStatus.config) {
-    adminLogin = getAdminUser(cookieStore.get(SESSION_COOKIE_NAME)?.value, oauthStatus.config);
-  }
-  if (!adminLogin && checkPwCookie(cookieStore.get(ADMIN_COOKIE_NAME)?.value)) {
-    adminLogin = "admin";
-  }
-  if (!adminLogin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET(req: NextRequest) {
+  const refused = requireAdminRoute(req);
+  if (refused) return refused;
 
   let sql;
   try { sql = getDb(); } catch {

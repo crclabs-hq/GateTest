@@ -1,7 +1,8 @@
 /**
  * HTTP glue shared by every /api/admin/secrets/** route and /api/admin/step-up.
  *
- * One gate for all of them, in this order:
+ * One gate for all of them, in this order (1 and 2 are requireAdminRoute in
+ * app/lib/admin-guard.ts, the gate every admin route shares):
  *   1. isAdminRequest()          — the admin password cookie (or the internal
  *      admin token); the GitHub-OAuth admin session the /admin pages also
  *      accept (getAdminLoginFromCookies) is honoured too, so a page that
@@ -17,10 +18,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminRequest } from "@/app/lib/admin-auth";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { getAdminLoginFromCookies } from "@/app/lib/admin-session";
 import { clientIp } from "@/app/lib/admin-lockout";
-import { csrfOk } from "@/app/lib/password-auth-http";
 import { getDb } from "@/app/lib/db";
 import { createSecretsStore } from "./store";
 import { createPgAdapter } from "./store-pg";
@@ -42,8 +42,12 @@ export function noStoreJson(body: unknown, status = 200, headers: Record<string,
  * `mutating` adds the same-origin check; `fresh` adds the step-up check.
  */
 export function requireAdmin(req: NextRequest, opts: { mutating?: boolean; fresh?: boolean } = {}): NextResponse | null {
-  if (!isAdminRequest(req) && !getAdminLoginFromCookies(req.cookies)) return noStoreJson({ error: "unauthorized" }, 401);
-  if (opts.mutating && !csrfOk(req)) return noStoreJson({ error: "cross_origin" }, 403);
+  // Steps 1 and 2 are the one admin gate every admin route uses
+  // (lib/admin-guard.ts): 401 unauthorized / 403 cross_origin, no-store.
+  // `mutating` is passed as an explicit boolean so this gate behaves exactly
+  // as before — same-origin only when the route asks for it.
+  const refused = requireAdminRoute(req, { mutating: Boolean(opts.mutating) });
+  if (refused) return refused;
   if (opts.fresh) {
     const verdict = verifyFreshToken(req.cookies.get(FRESH_COOKIE_NAME)?.value || "", freshKey(process.env), Date.now());
     if (!verdict.ok) return noStoreJson({ error: "step_up_required", reason: verdict.reason }, 403);

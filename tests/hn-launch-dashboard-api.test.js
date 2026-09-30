@@ -14,11 +14,15 @@ const PAGE_PATH = path.join(ROOT, "website/app/admin/hn-launch/page.tsx");
 // shape — auth check present, no auto-post, correct imports, banner-
 // enforced via the drafter.
 
-test("poll route: enforces admin cookie check", () => {
+// Both routes used to pass ANY request carrying a cookie named
+// `gatetest_admin` (presence only; the real admin cookie is gt_admin). They
+// now go through the one admin gate, same-origin because they spend paid
+// API budget — tests/admin-route-guard.test.js covers the gate itself.
+test("poll route: enforces the shared admin gate, same-origin", () => {
   const src = fs.readFileSync(POLL_ROUTE_PATH, "utf8");
-  assert.match(src, /gatetest_admin/);
-  assert.match(src, /isAdminRequest/);
-  assert.match(src, /status:\s*401/);
+  assert.match(src, /import \{ requireAdminRoute \} from "@\/app\/lib\/admin-guard"/);
+  assert.match(src, /const refused = requireAdminRoute\(req, \{ mutating: true \}\);\s*if \(refused\) return refused;/);
+  assert.doesNotMatch(src, /cookies\.get\("gatetest_admin"\)/);
 });
 
 test("poll route: reads storyId + bounds per-poll Claude budget", () => {
@@ -53,9 +57,10 @@ test("poll route: does NOT contain any post-to-HN logic", () => {
   assert.doesNotMatch(src, /news\.ycombinator\.com[^\n"]{0,120}method:\s*"POST"/i);
 });
 
-test("draft route: enforces admin + uses drafter library", () => {
+test("draft route: enforces the shared admin gate + uses drafter library", () => {
   const src = fs.readFileSync(DRAFT_ROUTE_PATH, "utf8");
-  assert.match(src, /gatetest_admin/);
+  assert.match(src, /const refused = requireAdminRoute\(req, \{ mutating: true \}\);\s*if \(refused\) return refused;/);
+  assert.doesNotMatch(src, /cookies\.get\("gatetest_admin"\)/);
   assert.match(src, /draftReply/);
 });
 
