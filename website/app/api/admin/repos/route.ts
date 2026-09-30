@@ -6,47 +6,16 @@
  * list so the admin Watchdog panel can show which repos are red and queue
  * GateTest scans on them.
  *
- * Auth: same two-method check as all other /api/admin/* routes.
+ * Auth: requireAdminRoute (app/lib/admin-guard.ts), like every /api/admin/* route.
  * Token: GATETEST_GITHUB_TOKEN or GITHUB_TOKEN (read:repo + workflow scope).
  */
 
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import crypto from "crypto";
-import {
-  getAdminConfig,
-  getAdminUser,
-  SESSION_COOKIE_NAME,
-} from "@/app/lib/admin-session";
-import { ADMIN_COOKIE_NAME } from "@/app/lib/admin-auth";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { getBestGitHubToken } from "@/app/lib/admin-github-profiles";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
-
-async function isAuthenticatedAdmin(): Promise<boolean> {
-  const store = await cookies();
-  const adminStatus = getAdminConfig();
-  if (adminStatus.ok && adminStatus.config) {
-    const sessionCookie = store.get(SESSION_COOKIE_NAME)?.value;
-    if (getAdminUser(sessionCookie, adminStatus.config)) return true;
-  }
-  const adminPassword = process.env.GATETEST_ADMIN_PASSWORD || "";
-  if (adminPassword) {
-    const passwordCookie = store.get(ADMIN_COOKIE_NAME)?.value || "";
-    const expected = crypto
-      .createHmac("sha256", adminPassword)
-      .update("gatetest-admin-v1")
-      .digest("hex");
-    if (
-      passwordCookie &&
-      passwordCookie.length === expected.length &&
-      crypto.timingSafeEqual(Buffer.from(passwordCookie), Buffer.from(expected))
-    )
-      return true;
-  }
-  return false;
-}
 
 // Use getBestGitHubToken from admin-github-profiles for multi-account support.
 // Owner is unknown at this point so we get the default/first token.
@@ -88,10 +57,9 @@ interface RepoInfo {
   ciStatus: "passing" | "failing" | "pending" | "none" | "stale";
 }
 
-export async function GET() {
-  if (!(await isAuthenticatedAdmin())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET(req: NextRequest) {
+  const refused = requireAdminRoute(req);
+  if (refused) return refused;
 
   const token = await getBestGitHubToken();
   if (!token) {

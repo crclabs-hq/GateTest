@@ -25,9 +25,10 @@
  * stats/route.ts all threw/500'd on a missing DATABASE_URL before this).
  * A genuine 500 anywhere still fails the test.
  *
- * `github-profiles` uses a different auth scheme (X-Admin-Password header,
- * not the admin session cookie) — sent alongside the cookie on every
- * request so it authenticates either way without a special case.
+ * Every admin API route — github-profiles included, which used to demand
+ * the plaintext password in a header instead — authenticates with the
+ * session cookie through requireAdminRoute (website/app/lib/admin-guard.ts),
+ * so the cookie alone is sent.
  */
 
 const { describe, it, before, after } = require('node:test');
@@ -271,12 +272,7 @@ after(async () => {
 });
 
 function authedHeaders() {
-  return {
-    Cookie: cookie,
-    // github-profiles/route.ts authenticates via this header instead of the
-    // session cookie — sent unconditionally so one login covers every route.
-    'X-Admin-Password': TEST_PASSWORD,
-  };
+  return { Cookie: cookie };
 }
 
 describe('admin pages render when signed in', () => {

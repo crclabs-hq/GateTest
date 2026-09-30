@@ -20,15 +20,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import crypto from "crypto";
+import { requireAdminRoute, type AdminRefusal } from "@/app/lib/admin-guard";
 import { getDb } from "@/app/lib/db";
-import {
-  getAdminConfig,
-  getAdminUser,
-  SESSION_COOKIE_NAME,
-} from "@/app/lib/admin-session";
-import { ADMIN_COOKIE_NAME } from "@/app/lib/admin-auth";
  
 const fingerprintStore = require("@/app/lib/scan-fingerprint-store.js") as {
   hashRepoUrl: (url: string) => string;
@@ -52,30 +45,6 @@ const lookup = require("@/app/lib/cross-repo-lookup.js") as {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-async function isAuthenticatedAdmin(): Promise<boolean> {
-  const store = await cookies();
-  const adminStatus = getAdminConfig();
-  if (adminStatus.ok && adminStatus.config) {
-    const sessionCookie = store.get(SESSION_COOKIE_NAME)?.value;
-    if (getAdminUser(sessionCookie, adminStatus.config)) return true;
-  }
-  const adminPassword = process.env.GATETEST_ADMIN_PASSWORD || "";
-  if (adminPassword) {
-    const passwordCookie = store.get(ADMIN_COOKIE_NAME)?.value || "";
-    const expected = crypto
-      .createHmac("sha256", adminPassword)
-      .update("gatetest-admin-v1")
-      .digest("hex");
-    if (
-      passwordCookie &&
-      passwordCookie.length === expected.length &&
-      crypto.timingSafeEqual(Buffer.from(passwordCookie), Buffer.from(expected))
-    )
-      return true;
-  }
-  return false;
-}
 
 interface IntelligenceResponse {
   ok: boolean;
@@ -113,10 +82,9 @@ interface IntelligenceResponse {
   error?: string;
 }
 
-export async function GET(req: NextRequest): Promise<NextResponse<IntelligenceResponse>> {
-  if (!(await isAuthenticatedAdmin())) {
-    return NextResponse.json({ ok: false, error: "unauthorised" }, { status: 401 });
-  }
+export async function GET(req: NextRequest): Promise<NextResponse<IntelligenceResponse | AdminRefusal>> {
+  const refused = requireAdminRoute(req);
+  if (refused) return refused;
 
   const url = new URL(req.url);
   const repoUrl = url.searchParams.get("repoUrl");

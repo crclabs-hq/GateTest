@@ -39,6 +39,7 @@ function stripComments(src) {
 const ROUTE_DIRS = [path.join(WEB, 'app', 'api', 'admin', 'secrets'), path.join(WEB, 'app', 'api', 'admin', 'step-up')];
 const ROUTES = ROUTE_DIRS.flatMap((d) => walk(d)).filter((f) => f.endsWith('route.ts'));
 const HTTP = read(path.join(WEB, 'app', 'lib', 'secrets', 'http.ts'));
+const GUARD = read(path.join(WEB, 'app', 'lib', 'admin-guard.ts'));
 
 describe('every secrets route is admin-gated, same-origin checked when mutating, and no-store', () => {
   it('finds all seven route files (anti-vacuity)', () => {
@@ -46,8 +47,13 @@ describe('every secrets route is admin-gated, same-origin checked when mutating,
   });
 
   it('the shared guard checks the admin session first and every answer is no-store', () => {
-    assert.match(HTTP, /export function requireAdmin\([\s\S]*?if \(!isAdminRequest\(req\) && !getAdminLoginFromCookies\(req\.cookies\)\) return noStoreJson\(\{ error: "unauthorized" \}, 401\)/);
-    assert.match(HTTP, /opts\.mutating && !csrfOk\(req\)/);
+    // Steps 1-2 delegate to the one admin gate (app/lib/admin-guard.ts),
+    // with `mutating` passed through as an explicit boolean — no behaviour change.
+    assert.match(HTTP, /export function requireAdmin\([\s\S]*?const refused = requireAdminRoute\(req, \{ mutating: Boolean\(opts\.mutating\) \}\);\s*if \(refused\) return refused;/);
+    assert.match(GUARD, /return isAdminRequest\(req\) \|\| Boolean\(getAdminLoginFromCookies\(req\.cookies\)\)/);
+    assert.match(GUARD, /if \(!isAdminRouteRequest\(req\)\) return refuse\("unauthorized", 401\)/);
+    assert.match(GUARD, /if \(mutating && !csrfOk\(req\)\) return refuse\("cross_origin", 403\)/);
+    assert.match(GUARD, /"cache-control": "no-store"/);
     assert.match(HTTP, /opts\.fresh[\s\S]*?verifyFreshToken\(/);
     assert.match(HTTP, /"cache-control": "no-store"/);
     assert.match(HTTP, /NextResponse\.json\(body, \{ status, headers: \{ \.\.\.NO_STORE_HEADERS/);

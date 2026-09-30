@@ -28,7 +28,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminRequest } from "@/app/lib/admin-auth";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { recentAudit } from "@/app/lib/admin-lockout";
 
 export const dynamic = "force-dynamic";
@@ -55,9 +55,8 @@ function toCsv(entries: Array<{ ts: Date; ip: string | null; result: string; use
 }
 
 export async function GET(req: NextRequest) {
-  if (!isAdminRequest(req)) {
-    return NextResponse.json({ error: "admin auth required" }, { status: 401 });
-  }
+  const refused = requireAdminRoute(req);
+  if (refused) return refused;
 
   if (!process.env.DATABASE_URL) {
     return NextResponse.json(
