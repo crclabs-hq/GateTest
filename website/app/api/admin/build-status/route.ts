@@ -6,19 +6,16 @@
  * auth pattern as every other /api/admin/* route.
  */
 
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getAdminLoginFromCookies } from "@/app/lib/admin-session";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { getBuildStatus } from "@/app/lib/admin-build-status";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export async function GET() {
-  const cookieStore = await cookies();
-  if (!getAdminLoginFromCookies(cookieStore)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET(req: NextRequest) {
+  const refused = requireAdminRoute(req);
+  if (refused) return refused;
 
   const status = await getBuildStatus();
   return NextResponse.json(status);

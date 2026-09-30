@@ -29,15 +29,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import crypto from "crypto";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { getDb } from "@/app/lib/db";
-import {
-  getAdminConfig,
-  getAdminUser,
-  SESSION_COOKIE_NAME,
-} from "@/app/lib/admin-session";
-import { ADMIN_COOKIE_NAME } from "@/app/lib/admin-auth";
  
 const dissentStore = require("@/app/lib/dissent-store.js") as {
   DISSENT_KINDS: Record<string, string>;
@@ -56,30 +49,6 @@ const dissentStore = require("@/app/lib/dissent-store.js") as {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-async function isAuthenticatedAdmin(): Promise<boolean> {
-  const store = await cookies();
-  const adminStatus = getAdminConfig();
-  if (adminStatus.ok && adminStatus.config) {
-    const sessionCookie = store.get(SESSION_COOKIE_NAME)?.value;
-    if (getAdminUser(sessionCookie, adminStatus.config)) return true;
-  }
-  const adminPassword = process.env.GATETEST_ADMIN_PASSWORD || "";
-  if (adminPassword) {
-    const passwordCookie = store.get(ADMIN_COOKIE_NAME)?.value || "";
-    const expected = crypto
-      .createHmac("sha256", adminPassword)
-      .update("gatetest-admin-v1")
-      .digest("hex");
-    if (
-      passwordCookie &&
-      passwordCookie.length === expected.length &&
-      crypto.timingSafeEqual(Buffer.from(passwordCookie), Buffer.from(expected))
-    )
-      return true;
-  }
-  return false;
-}
 
 function normaliseKind(rawKind: unknown): string | null {
   if (typeof rawKind !== "string") return null;
@@ -103,12 +72,8 @@ interface DissentRequestBody {
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await isAuthenticatedAdmin())) {
-    return NextResponse.json(
-      { ok: false, error: "unauthorised — dissent endpoint requires auth" },
-      { status: 401 }
-    );
-  }
+  const refused = requireAdminRoute(req, { mutating: true });
+  if (refused) return refused;
 
   let input: DissentRequestBody;
   try {

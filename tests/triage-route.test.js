@@ -32,28 +32,21 @@ test("triage route: file exists at the contracted path", () => {
   );
 });
 
-test("triage route: enforces admin cookie check (gatetest_admin)", () => {
+test("triage route: imports the shared admin gate", () => {
   const src = readRoute();
-  // The admin cookie is canonically named gatetest_admin; the route must
-  // reference it via the canonical helper exports.
-  assert.match(
-    src,
-    /ADMIN_COOKIE_NAME|gatetest_admin/,
-    "must reference the gatetest_admin cookie / canonical export"
-  );
+  // The real admin cookie is gt_admin (plus the OAuth admin session);
+  // requireAdminRoute checks both — tests/admin-route-guard.test.js.
+  assert.match(src, /import \{ requireAdminRoute \} from "@\/app\/lib\/admin-guard"/);
 });
 
-test("triage route: uses the canonical isAuthenticatedAdmin helper", () => {
+test("triage route: the gate is the first statement, same-origin on this POST", () => {
   const src = readRoute();
-  assert.match(src, /isAuthenticatedAdmin/);
-  assert.match(src, /getAdminConfig/);
-  assert.match(src, /getAdminUser/);
+  assert.match(src, /export async function POST\(req: NextRequest\) \{\s*const refused = requireAdminRoute\(req, \{ mutating: true \}\);\s*if \(refused\) return refused;/);
 });
 
-test("triage route: returns 401 when the admin check fails", () => {
+test("triage route: no local copy of the admin check (401 comes from the gate)", () => {
   const src = readRoute();
-  assert.match(src, /status:\s*401/);
-  assert.match(src, /Unauthorized/);
+  assert.doesNotMatch(src, /isAuthenticatedAdmin|gatetest-admin-v1/);
 });
 
 test("triage route: returns 400 when repoUrl is missing or invalid", () => {

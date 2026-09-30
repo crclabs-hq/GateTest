@@ -164,7 +164,11 @@ async function traceRedirects(url: string, maxHops = 5): Promise<string[]> {
 
 // auth-public — same shape as /api/scan/server: DNS/TLS/header/redirect probes of
 // a caller-supplied PUBLIC url. Not the paid Forensic engine (that runs through
-// /api/scan/run behind Stripe). SSRF-guarded and rate limited.
+// /api/scan/run behind Stripe). No AI spend and nothing stored — the cost is a
+// handful of DNS lookups, six TCP connects and a few HTTP requests to the
+// target, so it stays public (the admin Forensic tab uses it too). Bounded by
+// resolveAndValidateUrl (public addresses, web ports) and the _hostScanLimiter rate limit
+// (PRESETS.webScan, 3/min per IP). Audited 2026-09-29.
 export async function POST(req: NextRequest) {
   let body: { url?: string };
   try { body = await req.json(); } catch {
