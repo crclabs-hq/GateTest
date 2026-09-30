@@ -83,3 +83,29 @@ describe('public copy — sibling platforms are never "audited/gated by GateTest
     assert.ok(Math.abs(bannedStarts[0] - siblingStarts[0]) <= WINDOW);
   });
 });
+
+// Draft placeholders must never ship. Draft #720 carried
+// "[GLUECRON: pending their words — …]" markers for lines Gluecron had not
+// supplied yet; merging it put three of them on the live /stack page on
+// 30 Sep. Any bracketed "pending their words" / "<SIBLING>: pending" marker
+// under website/app fails here.
+const PLACEHOLDER = /\[(?:GLUECRON|TALLRIG|GATETEST)\s*:[^\]]*\]|pending their words/i;
+
+describe('public copy — no draft placeholders ship (30 Sep /stack incident)', () => {
+  it('no sibling-copy placeholder anywhere under website/app', () => {
+    const hits = [];
+    for (const file of walk(APP)) {
+      const text = fs.readFileSync(file, 'utf8');
+      text.split('\n').forEach((line, i) => {
+        if (PLACEHOLDER.test(line)) hits.push(`${path.relative(ROOT, file)}:${i + 1}: ${line.trim().slice(0, 120)}`);
+      });
+    }
+    assert.deepStrictEqual(hits, [], `draft placeholder in shipped copy:\n${hits.join('\n')}`);
+  });
+
+  it('the placeholder guard is not vacuous', () => {
+    assert.ok(PLACEHOLDER.test('A git host built for agents. [GLUECRON: pending their words — full pitch]'));
+    assert.ok(PLACEHOLDER.test('[GLUECRON: pending their words &mdash; price model]'));
+    assert.ok(!PLACEHOLDER.test('A git host built for agents.'));
+  });
+});

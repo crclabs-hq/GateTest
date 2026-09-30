@@ -181,13 +181,7 @@ export default function StackPage() {
               Git hosting with the gate on every push.
             </p>
             <p className="text-sm text-foreground-secondary leading-relaxed mb-4">
-              A git host built for agents. [GLUECRON: pending their words &mdash; full pitch]
-            </p>
-            <p className="text-sm text-foreground-secondary mb-4">
-              [GLUECRON: pending their words &mdash; one verifiable proof point]
-            </p>
-            <p className="text-sm text-foreground-secondary mb-4">
-              [GLUECRON: pending their words &mdash; price model]
+              A git host built for agents.
             </p>
             <p className="text-xs text-foreground-secondary italic mb-6">
               Its own CI gate runs on every push &mdash; nothing external required.
