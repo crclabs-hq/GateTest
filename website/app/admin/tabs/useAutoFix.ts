@@ -1,97 +1,66 @@
 "use client";
 
-// The batch auto-fix engine behind the Repo Scan tab. Groups fixable issues
-// by file, sends them to /api/scan/fix in batches of 5 so each request fits
-// within the host's function timeout, and tracks per-file progress the UI
-// renders live. Extracted verbatim from AdminPanel.tsx in the god-component
-// split — the fetch bodies here are covered by tests/tier-passthrough.test.js
-// (every /api/scan/fix call MUST forward `tier`).
+// The batch fix engine behind the Repo Scan tab. Groups fixable issues by
+// file and sends them in batches of FIX_BATCH_SIZE so each request fits the
+// host's function timeout. /api/scan/fix opens one branch + PR per request,
+// so a run can open several PRs — every one is collected (./auto-fix-logic).
+//
+// It only ever runs when the operator clicks the fix button: it writes
+// branches and pull requests to the scanned repository, so a completed scan
+// never starts it (admin audit 2026-09-29).
+//
+// First fix run and "Retry failed" share one batch loop (runFixBatches) and
+// one fetch, which tests/tier-passthrough.test.js checks forwards `tier`.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { readJsonBody } from "@/app/lib/scan-outcome";
 import {
   extractIssuesFromModules,
   type FixableIssue,
   type UnparseableIssue,
   type ModuleLike,
 } from "@/app/lib/issue-extractor";
+import {
+  FIX_BATCH_SIZE,
+  applyBatchToProgress,
+  buildFileProgress,
+  emptyFixResult,
+  finalizeFixResult,
+  groupIssuesByFile,
+  mergeBatch,
+  planBatches,
+  readFixResponse,
+  requestFailed,
+  retryBase,
+  retryGroups,
+  type BatchOutcome,
+  type FileIssues,
+  type FileProgress,
+  type FixResult,
+} from "./auto-fix-logic";
 
-interface FailedFile {
-  file: string;
-  issues: string[];
-  reason: string;
-}
+export type { FixResult, FileProgress } from "./auto-fix-logic";
 
-export interface FixResult {
-  status: string;
-  prUrl?: string;
-  prNumber?: number;
-  filesFixed?: number;
-  issuesFixed?: number;
-  message?: string;
-  error?: string;
-  errors?: string[];
-  failedFiles?: FailedFile[];
-}
-
-type FileFixStatus ="pending" | "fixing" | "done" | "timeout" | "failed";
-
-export interface FileProgress {
-  file: string;
-  status: FileFixStatus;
-  error?: string;
+function toModuleLikes(mods: Array<Record<string, unknown>>): ModuleLike[] {
+  return mods.map((m) => ({
+    name: m.name as string,
+    status: m.status as string,
+    details: (m.details as string[]) || [],
+  }));
 }
 
 // Delegates to the shared helper at `website/app/lib/issue-extractor.ts`
 // so the admin Command Center and the customer scan page parse module
-// findings identically. The `failedOnly` flag is `false` here because the
-// admin tooling sometimes pre-filters mods upstream; the helper still does
-// the right thing for any module shape the caller hands it.
+// findings identically. `failedOnly: false` because the admin tooling
+// sometimes pre-filters mods upstream.
 export function parseIssues(mods: Array<Record<string, unknown>>): FixableIssue[] {
-  const moduleLikes: ModuleLike[] = mods.map((m) => ({
-    name: m.name as string,
-    status: m.status as string,
-    details: (m.details as string[]) || [],
-  }));
-  const { fixable } = extractIssuesFromModules(moduleLikes, { failedOnly: false });
-  return fixable;
+  return extractIssuesFromModules(toModuleLikes(mods), { failedOnly: false }).fixable;
 }
 
-// Returns the unparseable findings the auto-fixer can't act on so the
-// operator can triage them by hand. Replaces the silent `.filter(i => i.file)`
-// drop that hid 39% of real-world findings from the customer.
+// The findings the fixer can't act on (no parseable file), surfaced to the
+// operator for manual triage instead of being silently dropped.
 export function parseUnparseableIssues(mods: Array<Record<string, unknown>>): UnparseableIssue[] {
-  const moduleLikes: ModuleLike[] = mods.map((m) => ({
-    name: m.name as string,
-    status: m.status as string,
-    details: (m.details as string[]) || [],
-  }));
-  const { unparseable } = extractIssuesFromModules(moduleLikes, { failedOnly: false });
-  return unparseable;
-}
-
-function buildFileProgress(fixableIssues: FixableIssue[]): FileProgress[] {
-  const seen = new Set<string>();
-  return fixableIssues
-    .filter((i) => i.file && !seen.has(i.file) && seen.add(i.file))
-    .map((i) => ({ file: i.file, status: "pending" as FileFixStatus }));
-}
-
-function applyFixResultForBatch(progress: FileProgress[], data: FixResult, batchFiles: Set<string>): FileProgress[] {
-  const failedSet = new Set<string>((data.failedFiles || []).map((f) => f.file));
-  const timeoutSet = new Set<string>();
-  for (const e of data.errors || []) {
-    const m = e.match(/^([\w./\-@+]+?\.[\w]{1,8}):\s*(request timed out|Anthropic API)/);
-    if (m) timeoutSet.add(m[1]);
-  }
-  return progress.map((fp) => {
-    if (!batchFiles.has(fp.file)) return fp;
-    if (timeoutSet.has(fp.file)) return { ...fp, status: "timeout", error: "timed out — queued for retry" };
-    if (failedSet.has(fp.file)) {
-      const ff = (data.failedFiles || []).find((f) => f.file === fp.file);
-      return { ...fp, status: "failed", error: ff?.reason || "api error" };
-    }
-    return { ...fp, status: "done" };
-  });
+  return extractIssuesFromModules(toModuleLikes(mods), { failedOnly: false }).unparseable;
 }
 
 export function useAutoFix({
@@ -106,136 +75,71 @@ export function useAutoFix({
   const [fixing, setFixing] = useState(false);
   const [fixResult, setFixResult] = useState<FixResult | null>(null);
   const [fileProgress, setFileProgress] = useState<FileProgress[]>([]);
+  // The issues this run started from, by file — a retry re-sends them with
+  // their real module names instead of a placeholder.
+  const originals = useRef<Map<string, FixableIssue[]>>(new Map());
 
   function resetFix() {
     setFixResult(null);
+    setFileProgress([]);
+    originals.current = new Map();
+  }
+
+  async function postFixBatch(issues: FixableIssue[]): Promise<BatchOutcome> {
+    try {
+      const res = await fetch("/api/scan/fix", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repoUrl, issues, tier }),
+      });
+      const body = await readJsonBody(res);
+      return readFixResponse(res.ok, res.status, body);
+    } catch (err) {
+      return requestFailed(err instanceof Error ? err.message : "request failed");
+    }
+  }
+
+  async function runFixBatches(groups: FileIssues[], base: FixResult) {
+    setFixing(true);
+    onError("");
+    let acc = base;
+    for (const batch of planBatches(groups, FIX_BATCH_SIZE)) {
+      const batchFiles = new Set(batch.map((g) => g.file));
+      setFileProgress((prev) => prev.map((fp) =>
+        batchFiles.has(fp.file) && fp.status === "pending" ? { ...fp, status: "fixing" } : fp,
+      ));
+      const outcome = await postFixBatch(batch.flatMap((g) => g.issues));
+      acc = mergeBatch(acc, outcome, batch);
+      setFileProgress((prev) => applyBatchToProgress(prev, outcome, batchFiles));
+    }
+    setFixResult(finalizeFixResult(acc));
+    setFixing(false);
   }
 
   async function fixIssues(fixable: FixableIssue[]) {
     if (!repoUrl || fixing) return;
-
-    if (fixable.length === 0) {
+    const groups = groupIssuesByFile(fixable);
+    if (groups.length === 0) {
       onError("No auto-fixable issues found.");
       return;
     }
-
-    const initialProgress = buildFileProgress(fixable);
-    setFileProgress(initialProgress);
-    setFixing(true);
+    originals.current = new Map(groups.map((g) => [g.file, g.issues]));
+    setFileProgress(buildFileProgress(groups));
     setFixResult(null);
-    onError("");
-
-    // Group issues by unique file, then process in batches of 5 so each
-    // request fits within the host's function timeout and the user sees real
-    // progress as each batch completes instead of a frozen spinner.
-    const BATCH_SIZE = 5;
-    const fileMap = new Map<string, FixableIssue[]>();
-    for (const issue of fixable) {
-      if (!fileMap.has(issue.file)) fileMap.set(issue.file, []);
-      fileMap.get(issue.file)!.push(issue);
-    }
-    const uniqueFiles = [...fileMap.keys()];
-
-    const accumulated: FixResult = {
-      status: "complete",
-      failedFiles: [],
-      errors: [],
-      filesFixed: 0,
-      issuesFixed: 0,
-    };
-
-    for (let start = 0; start < uniqueFiles.length; start += BATCH_SIZE) {
-      const batchFiles = uniqueFiles.slice(start, start + BATCH_SIZE);
-      const batchSet = new Set(batchFiles);
-      const batchIssues = batchFiles.flatMap((f) => fileMap.get(f)!);
-
-      setFileProgress((prev) => prev.map((fp) =>
-        batchSet.has(fp.file) && fp.status === "pending" ? { ...fp, status: "fixing" } : fp,
-      ));
-
-      try {
-        const res = await fetch("/api/scan/fix", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ repoUrl, issues: batchIssues, tier }),
-        });
-        const data = await res.json() as FixResult;
-        accumulated.failedFiles = [...(accumulated.failedFiles ?? []), ...(data.failedFiles ?? [])];
-        accumulated.errors = [...(accumulated.errors ?? []), ...(data.errors ?? [])];
-        accumulated.filesFixed = (accumulated.filesFixed ?? 0) + (data.filesFixed ?? 0);
-        accumulated.issuesFixed = (accumulated.issuesFixed ?? 0) + (data.issuesFixed ?? 0);
-        if (data.prUrl) accumulated.prUrl = data.prUrl;
-        if (data.prNumber) accumulated.prNumber = data.prNumber;
-        setFileProgress((prev) => applyFixResultForBatch(prev, data, batchSet));
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "request failed";
-        accumulated.errors = [...(accumulated.errors ?? []), `Batch failed: ${msg}`];
-        setFileProgress((prev) => prev.map((fp) =>
-          batchSet.has(fp.file) && fp.status !== "done" ? { ...fp, status: "failed", error: msg } : fp,
-        ));
-      }
-    }
-
-    setFixResult(accumulated);
-    setFixing(false);
+    await runFixBatches(groups, emptyFixResult());
   }
 
   async function retryFailedFiles() {
-    if (!fixResult?.failedFiles?.length || !repoUrl) return;
-
-    const BATCH_SIZE = 5;
-    const failedFiles = fixResult.failedFiles;
-    const retrySet = new Set(failedFiles.map((ff) => ff.file));
-    setFileProgress((prev) => prev.map((fp) => retrySet.has(fp.file) ? { ...fp, status: "pending", error: undefined } : fp));
-    setFixing(true);
-    onError("");
-
-    const accumulated: FixResult = {
-      status: "complete",
-      failedFiles: [],
-      errors: [],
-      filesFixed: (fixResult.filesFixed ?? 0),
-      issuesFixed: (fixResult.issuesFixed ?? 0),
-      prUrl: fixResult.prUrl,
-      prNumber: fixResult.prNumber,
-    };
-
-    for (let start = 0; start < failedFiles.length; start += BATCH_SIZE) {
-      const batch = failedFiles.slice(start, start + BATCH_SIZE);
-      const batchSet = new Set(batch.map((ff) => ff.file));
-      const batchIssues = batch.flatMap((ff) => ff.issues.map((i) => ({ file: ff.file, issue: i, module: "retry" })));
-
-      setFileProgress((prev) => prev.map((fp) =>
-        batchSet.has(fp.file) && fp.status === "pending" ? { ...fp, status: "fixing" } : fp,
-      ));
-
-      try {
-        const res = await fetch("/api/scan/fix", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ repoUrl, issues: batchIssues, tier }),
-        });
-        const data = await res.json() as FixResult;
-        accumulated.failedFiles = [...(accumulated.failedFiles ?? []), ...(data.failedFiles ?? [])];
-        accumulated.errors = [...(accumulated.errors ?? []), ...(data.errors ?? [])];
-        accumulated.filesFixed = (accumulated.filesFixed ?? 0) + (data.filesFixed ?? 0);
-        accumulated.issuesFixed = (accumulated.issuesFixed ?? 0) + (data.issuesFixed ?? 0);
-        if (data.prUrl) accumulated.prUrl = data.prUrl;
-        setFileProgress((prev) => applyFixResultForBatch(prev, data, batchSet));
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "request failed";
-        accumulated.failedFiles = [
-          ...(accumulated.failedFiles ?? []),
-          ...batch.map((ff) => ({ file: ff.file, issues: ff.issues, reason: msg })),
-        ];
-        setFileProgress((prev) => prev.map((fp) =>
-          batchSet.has(fp.file) && fp.status !== "done" ? { ...fp, status: "failed", error: msg } : fp,
-        ));
-      }
-    }
-
-    setFixResult(accumulated);
-    setFixing(false);
+    if (!fixResult?.failedFiles.length || !repoUrl || fixing) return;
+    const groups = retryGroups(fixResult.failedFiles, originals.current);
+    if (groups.length === 0) return;
+    const retrying = new Set(groups.map((g) => g.file));
+    setFileProgress((prev) => {
+      const known = new Set(prev.map((fp) => fp.file));
+      const reset = prev.map((fp) => retrying.has(fp.file) ? { ...fp, status: "pending" as const, error: undefined } : fp);
+      return [...reset, ...buildFileProgress(groups.filter((g) => !known.has(g.file)))];
+    });
+    await runFixBatches(groups, retryBase(fixResult));
   }
 
   return { fixing, fixResult, fileProgress, fixIssues, retryFailedFiles, resetFix };
