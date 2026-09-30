@@ -76,6 +76,7 @@ class JsonReporter {
         // `reportOnlyUntil` means neither the flag nor the config key was set.
         enforcing: summary.reportOnly !== true,
         reportOnlyUntil: summary.reportOnlyUntil || null,
+        flake: summary.flake || null,
       },
       results: summary.results,
       failures: summary.failedModules,
@@ -91,6 +92,14 @@ class JsonReporter {
       // reading this file must be able to see it without cross-referencing
       // every finding's `overriddenBy`.
       overrides: Array.isArray(summary.overrides) ? summary.overrides : [],
+      // Flaky tests measured by the ledger that FAILED this run (launch move
+      // 6, src/core/flaky-ledger.js): each carries its state — quarantined
+      // (its failure is a warning), expired (blocking again), off / unaccounted
+      // (blocking, listed for information). Always an array: a run with none
+      // says "none", it does not omit the key (Forbidden #16). The flake rate
+      // is `summary.flake`, `measured: false` with a reason when nothing could
+      // be recorded — never a made-up 0%.
+      flaky: Array.isArray(summary.flaky) ? summary.flaky : [],
       // Fields scheduled for removal (src/core/report-schema.js). Always an
       // array; a field is removed only one minor after it is listed here.
       deprecated: REPORT_DEPRECATED,

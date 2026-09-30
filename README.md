@@ -414,6 +414,31 @@ one-line stderr hint after the summary the first time it notices that repo's
 own `.gitignore` doesn't cover it (never in `--format json` mode, never with
 `--no-artifacts`).
 
+### Flaky tests: measured, quarantined, and they expire
+
+The `flakyTests` module reads test source for the shapes that flake. The
+engine also *measures* it: each time it runs your tests (`unitTests`, when the
+runner is `node --test` — TAP or spec output), it records every test's
+pass/fail per run in `.gatetest/memory.json` (same consent switch as telemetry;
+test names are hashed, never stored or uploaded). A test that passed **and**
+failed on the same commit, or flipped 2 or more times in its last 10 runs, is
+flaky.
+
+A flaky test's failure is reported as a warning — `quarantined flaky test
+(flipped 3 of last 10 runs)` — instead of blocking, and is listed in the
+console, the JSON report (`flaky[]`, `summary.flake`) and the PR comment. The
+quarantine lasts 14 days from the first time the test was flagged; after that
+the failure blocks again unless the flake is fixed. A test that fails on every
+run is never quarantined — that is a real failure.
+
+```bash
+gatetest --suite standard --no-quarantine   # block on every failing test again
+```
+
+Tune it in `.gatetest.json`: `"flaky": { "flips": 2, "window": 10, "quarantineDays": 14, "quarantine": true }`.
+The README badge gets a last segment, `flake N%`, once a run is on record, and
+`flake not measured` before that.
+
 ### Gitignored paths and build output
 
 By default, a scan skips anything matched by the repo's `.gitignore` (root +

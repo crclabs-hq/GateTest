@@ -306,6 +306,36 @@ describe('UnitTestsModule under --diff — the selection is what EXECUTES', () =
   });
 });
 
+describe('test-impact + flaky ledger (launch moves 5 and 6 together)', () => {
+  const persistentMemory = require('../src/core/persistent-memory');
+  const recorded = async (runnerOptions) => {
+    const root = repo();
+    const saved = { t: process.env.GATETEST_TELEMETRY, n: process.env.GATETEST_NO_TELEMETRY, a: process.env.GATETEST_NO_ARTIFACTS };
+    process.env.GATETEST_TELEMETRY = '1';
+    delete process.env.GATETEST_NO_TELEMETRY;
+    delete process.env.GATETEST_NO_ARTIFACTS;
+    try {
+      const result = { checks: [], addCheck(name, passed, d = {}) { this.checks.push({ name, passed, ...d }); } };
+      await new UnitTestsModule().run(result, { projectRoot: root, _runnerOptions: runnerOptions });
+      const led = persistentMemory.load(root).flakyLedger;
+      return { result, tests: led && led.lastRun ? led.lastRun.tests : 0 };
+    } finally {
+      for (const [k, v] of Object.entries({ GATETEST_TELEMETRY: saved.t, GATETEST_NO_TELEMETRY: saved.n, GATETEST_NO_ARTIFACTS: saved.a })) {
+        if (v === undefined) delete process.env[k]; else process.env[k] = v;
+      }
+    }
+  };
+
+  it('a narrowed run records exactly the tests it ran; the full run records all four', async () => {
+    const narrowed = await recorded({ diffOnly: true, changedFiles: ['src/a.js'] });
+    assert.strictEqual(narrowed.tests, 2, 'only a.test.js and b.test.js were recorded');
+    assert.strictEqual(narrowed.result.testImpact.selected.length, 2);
+    assert.ok(narrowed.result.checks.some((c) => c.name === 'unit-tests:flake-ledger'), 'the ledger still reports on a narrowed run');
+    const full = await recorded({});
+    assert.strictEqual(full.tests, 4);
+  });
+});
+
 describe('gatetest --diff end to end (real git diff, --format json)', () => {
   let root;
   before(() => {

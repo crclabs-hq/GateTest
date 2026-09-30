@@ -233,6 +233,11 @@ function buildJsonOutput(summary, ctx) {
     // .gatetestignore. Always an array, never omitted (Forbidden #16):
     // an empty run must say "no overrides", not leave the key absent.
     overrides: Array.isArray(summary.overrides) ? summary.overrides : [],
+    // Measured-flaky tests that failed this run (launch move 6) and the flake
+    // rate. Always present: `flaky: []` and `flake.measured: false` are
+    // statements, an absent key is a silence (Forbidden #16).
+    flaky: Array.isArray(summary.flaky) ? summary.flaky : [],
+    flake: summary.flake || null,
   };
 }
 

@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="en" data-theme="white" data-density="compact">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GateTest Admin — operator cockpit (Designer A mock)</title>
+<style>
+/* ---------- tokens: same names in both themes; only values change ---------- */
+:root, :root[data-theme="white"]{
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#f5f6f7; --surface-3:#eceef0;
+  --line:#e5e7ea; --line-strong:#c8ccd2;
+  --ink-1:#0b0f14; --ink-2:#525a63; --ink-3:#9aa1a9;
+  --accent:#0f766e; --accent-soft:rgba(15,118,110,.10); --accent-fg:#ffffff;
+  --focus:#0f766e;
+  --scrim:rgba(11,15,20,.35);
+  --shadow:0 1px 2px rgba(11,15,20,.06),0 8px 24px rgba(11,15,20,.08);
+}
+:root[data-theme="black"]{
+  --bg:#000000; --surface:#0a0a0a; --surface-2:#131313; --surface-3:#1c1c1c;
+  --line:#242424; --line-strong:#3a3a3a;
+  --ink-1:#f2f2f2; --ink-2:#a3a8ad; --ink-3:#5d6167;
+  --accent:#2dd4bf; --accent-soft:rgba(45,212,191,.12); --accent-fg:#03201c;
+  --focus:#2dd4bf;
+  --scrim:rgba(0,0,0,.6);
+  --shadow:0 1px 2px rgba(0,0,0,.6),0 8px 24px rgba(0,0,0,.5);
+}
+
+/* ---------- base ---------- */
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink-1);font-family:Geist,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:13px;line-height:18px}
+a{color:inherit;text-decoration:none}
+a:hover{text-decoration:underline;text-decoration-color:var(--ink-3);text-underline-offset:2px}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:3px}
+[hidden]{display:none!important}
+.mono{font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+.muted{color:var(--ink-2)}.faint{color:var(--ink-3)}
+.kbd{display:inline-block;font-family:"Geist Mono",ui-monospace,monospace;font-size:10.5px;line-height:14px;min-width:16px;text-align:center;padding:0 4px;border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:3px;color:var(--ink-2);background:var(--surface)}
+.copy{opacity:0;margin-left:4px;font-size:11px;color:var(--ink-3)}
+.mono:hover .copy,.hasc:hover .copy{opacity:1}
+
+/* ---------- severity / status mark set (shape + label, never hue) ---------- */
+.mk{display:inline-block;width:10px;height:10px;flex:none;vertical-align:-1px;margin-right:6px}
+.mk-blocker{background:var(--ink-1)}
+.mk-high{background:var(--ink-1);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);width:12px;height:12px;vertical-align:-2px}
+.mk-medium{border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-1);background:linear-gradient(90deg,var(--ink-1) 50%,transparent 50%)}
+.mk-low{border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.mk-pass{border-radius:50%;background:var(--accent)}
+.mk-notrun{border-radius:50%;border:1.5px dashed var(--ink-3)}
+.sev{display:inline-flex;align-items:center;font-size:12px;white-space:nowrap}
+.sev-blocker{font-weight:600}
+.sev-low{color:var(--ink-2)}
+.sev-notrun{color:var(--ink-2)}
+
+/* ---------- shell ---------- */
+.shell{display:grid;grid-template-columns:216px minmax(0,1fr);min-height:100vh}
+.rail{position:sticky;top:0;height:100vh;border-right:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;overflow:auto}
+.brand{display:flex;align-items:center;gap:8px;padding:14px 16px 8px;font-weight:600;font-size:14px}
+.brand .bm{width:20px;height:20px;border-radius:4px;background:var(--ink-1);color:var(--bg);display:grid;place-items:center;font-size:12px;font-weight:600}
+.rail nav{padding:4px 8px 8px;flex:1}
+.grp{margin-top:10px}
+.grp-h{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding:6px 8px 2px;font-weight:500}
+.navl{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;color:var(--ink-2);font-weight:500;width:100%;text-align:left}
+.navl:hover{background:var(--surface-2);text-decoration:none;color:var(--ink-1)}
+.navl[aria-current="page"]{background:var(--surface-2);color:var(--ink-1);box-shadow:inset 2px 0 0 var(--accent)}
+.navl .sig{margin-left:auto;font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;color:var(--ink-3);display:inline-flex;align-items:center}
+.navl .sig .mk{margin-right:4px;width:8px;height:8px}
+.navl[aria-disabled="true"]{color:var(--ink-3)}
+.rail-f{padding:10px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-2);display:flex;justify-content:space-between;align-items:center}
+
+.main{min-width:0}
+.topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:8px 20px;border-bottom:1px solid var(--line);background:var(--bg)}
+.build{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);white-space:nowrap}
+.search{flex:1;max-width:520px;display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2);color:var(--ink-3);text-align:left}
+.search:hover{border-color:var(--line-strong)}
+.search .kbd{margin-left:auto}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;flex:none}
+.seg button{padding:0 10px;height:28px;font-size:12px;color:var(--ink-2);font-weight:500}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-checked="true"]{background:var(--ink-1);color:var(--bg)}
+.iconb{width:28px;height:28px;border:1px solid var(--line);border-radius:6px;display:grid;place-items:center;font-size:13px;color:var(--ink-2);flex:none}
+.iconb:hover{background:var(--surface-2)}
+
+/* ---------- page ---------- */
+.screen{padding:16px 20px 48px}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.ph .l{min-width:0}
+h1{font-size:20px;line-height:28px;font-weight:600;margin:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+h2{font-size:14px;line-height:20px;font-weight:600;margin:0}
+.crumb{font-size:12px;color:var(--ink-3);margin-bottom:2px}
+.sub{color:var(--ink-2);font-size:12px;margin-top:4px}
+.actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--ink-2);background:var(--surface);white-space:nowrap}
+.chip[aria-pressed="true"]{border-color:var(--ink-1);color:var(--ink-1);font-weight:500}
+a.chip:hover{border-color:var(--line-strong);text-decoration:none;color:var(--ink-1)}
+.chip .mk{margin-right:0}
+
+.btn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--line-strong);border-radius:5px;font-size:12px;font-weight:500;background:var(--surface);color:var(--ink-1);white-space:nowrap}
+.btn:hover{background:var(--surface-2);text-decoration:none}
+.btn-primary{background:var(--ink-1);color:var(--bg);border-color:var(--ink-1)}
+.btn-primary:hover{background:var(--ink-1);opacity:.88}
+.btn-sm{height:24px;padding:0 8px}
+.btn .kbd{margin-left:2px}
+.btn-primary .kbd{border-color:rgba(127,127,127,.5);color:inherit;background:transparent}
+
+/* ---------- verdict strip ---------- */
+.verdict{display:grid;grid-template-columns:minmax(220px,1.3fr) repeat(5,minmax(0,1fr));border:1px solid var(--line);border-radius:6px;background:var(--surface);margin-bottom:12px;overflow:hidden}
+.verdict>*{padding:12px 14px;border-right:1px solid var(--line);min-width:0}
+.verdict>*:last-child{border-right:0}
+.v-head .big{font-size:24px;line-height:32px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.v-head .big .mk{width:12px;height:12px}
+.v-cell{display:flex;flex-direction:column;gap:1px;color:inherit}
+a.v-cell:hover{background:var(--surface-2);text-decoration:none}
+.v-cell .lbl{font-size:12px;color:var(--ink-2);display:flex;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v-cell .val{font-family:"Geist Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:20px;line-height:28px;font-weight:500}
+.v-cell .d{font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- grid + panels ---------- */
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}
+.c8{grid-column:span 8}.c4{grid-column:span 4}.c6{grid-column:span 6}.c12{grid-column:span 12}
+.stack{display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;min-width:0}
+.panel-h{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--line);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.panel-h .r{margin-left:auto;display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:12px;color:var(--ink-3);font-weight:400}
+.panel-b{padding:12px}
+.panel-b.flush{padding:0}
+.st{margin:12px;padding:10px 12px;border-radius:4px}
+.st-failed{border-left:2px solid var(--ink-1);background:var(--surface-2)}
+.st-unknown{border:1px dashed var(--line-strong);color:var(--ink-2)}
+.st .lbl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:6px;color:var(--ink-1)}
+.st-unknown .lbl{color:var(--ink-2)}
+.st .why{margin-top:2px}
+.st .meta{margin-top:8px;display:flex;gap:10px;align-items:center;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
+.st-empty{border:1px solid var(--line);color:var(--ink-2)}
+.st pre{margin:6px 0 0;padding:8px 10px;background:var(--surface-3);border-radius:4px;font-size:12px;overflow:auto}
+
+/* readiness strip */
+.ready{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.ready>a{padding:10px 12px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px;min-width:0}
+.ready>a:last-child{border-right:0}
+.ready>a:hover{background:var(--surface-2);text-decoration:none}
+.ready .k{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ready .v{display:flex;align-items:center;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ready .d{font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* next actions */
+.nx{list-style:none;margin:0;padding:0}
+.nx li{display:grid;grid-template-columns:16px 1fr auto;gap:8px;align-items:start;padding:8px 12px;border-bottom:1px solid var(--line)}
+.nx li:last-child{border-bottom:0}
+.nx li.is-focused{background:var(--accent-soft)}
+.nx .mk{margin:4px 0 0}
+.nx .t{font-weight:500}
+.nx .t.b{font-weight:600}
+.nx .d{font-size:12px;color:var(--ink-2)}
+.nx .go{white-space:nowrap}
+
+/* tables */
+.tw{overflow:auto;max-width:100%}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+.tbl th{position:sticky;top:0;background:var(--surface);z-index:2;text-align:left;font-size:11px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th[aria-sort="descending"]::after{content:" ↓";color:var(--ink-2)}
+.tbl td{padding:0 10px;height:28px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+[data-density="comfortable"] .tbl td{height:40px}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl tbody tr:hover td{background:var(--surface-2)}
+.tbl tbody tr.is-focused td,.tbl tbody tr[aria-selected="true"] td{background:var(--accent-soft)}
+.tbl tbody tr.is-focused td:first-child{box-shadow:inset 2px 0 0 var(--accent)}
+.tbl tbody tr.row-blocker td:first-child{box-shadow:inset 2px 0 0 var(--ink-1)}
+.tbl tbody tr.is-focused.row-blocker td:first-child{box-shadow:inset 2px 0 0 var(--accent)}
+.tbl th.num,.tbl td.num{text-align:right}
+.tbl .sticky{position:sticky;left:0;background:var(--surface);z-index:1}
+.tbl tbody tr:hover .sticky{background:var(--surface-2)}
+.tbl tbody tr.is-focused .sticky,.tbl tbody tr[aria-selected="true"] .sticky{background:var(--accent-soft)}
+.tbl .act{opacity:0;display:inline-flex;gap:4px}
+.tbl tr:hover .act,.tbl tr.is-focused .act{opacity:1}
+.tbl .trunc{max-width:220px;overflow:hidden;text-overflow:ellipsis}
+#findings .trunc{max-width:190px}
+.lbl-h{margin-top:16px;padding:0 0 6px;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.tfoot{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3)}
+
+/* tabs */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:4px 0 12px;overflow:auto}
+.tab{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;font-size:13px;font-weight:500;color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink-1);border-bottom-color:var(--ink-1)}
+.tab .cnt{font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;color:var(--ink-3)}
+.tab .cnt.b{color:var(--ink-1);font-weight:600}
+
+/* lifecycle rail */
+.lcw{position:relative;padding:6px 0 2px}
+.rail-lc{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:relative}
+.rail-lc::before{content:"";position:absolute;left:10%;right:10%;top:6px;border-top:1px solid var(--line-strong)}
+.lc{display:flex;flex-direction:column;align-items:center;text-align:center;gap:3px;position:relative;font-size:12px;min-width:0}
+.lc .mk{margin:0;width:12px;height:12px;outline:3px solid var(--surface);z-index:1}
+.lc .mk-high{width:13px;height:13px}
+.lc .sha{font-family:"Geist Mono",ui-monospace,monospace;color:var(--ink-2)}
+.lc .lbl{font-weight:500}
+.lc .d{color:var(--ink-3);font-size:11px}
+.lc.now .lbl{font-weight:600}
+.lc.now::after{content:"this scan";position:absolute;top:-16px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.hist{list-style:none;margin:10px 0 0;padding:0;font-size:12px;color:var(--ink-2)}
+.hist li{display:flex;gap:8px;padding:3px 0;border-top:1px solid var(--line)}
+.hist .t{font-family:"Geist Mono",ui-monospace,monospace;color:var(--ink-3);flex:none;width:56px}
+
+/* coverage */
+.cov{display:flex;height:10px;border-radius:3px;overflow:hidden;gap:2px;margin:6px 0 8px}
+.cov>i{display:block;height:100%}
+.cov .ran{background:var(--ink-1);flex:116}
+.cov .skip{background:var(--ink-3);flex:4}
+.cov .to{background:repeating-linear-gradient(45deg,var(--ink-2) 0 3px,transparent 3px 6px);flex:1;min-width:8px}
+.cov .na{border:1px dashed var(--ink-3);flex:1;min-width:8px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.legend i{display:inline-block;width:10px;height:10px;margin-right:5px;vertical-align:-1px;border-radius:2px}
+.callout{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line-strong);border-radius:5px;margin-bottom:12px}
+.callout .mk{margin-top:4px}
+.callout b{font-weight:600}
+
+/* waterfall */
+.wf{display:grid;grid-template-columns:170px minmax(0,1fr) 72px 64px;gap:0 10px;font-size:12px;align-items:center}
+.wf>div{padding:6px 0;border-bottom:1px solid var(--line);min-width:0}
+.wf .h{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.wf .bar{position:relative;height:12px;background:var(--surface-2);border-radius:2px}
+.wf .bar i{position:absolute;top:0;bottom:0;background:var(--ink-1);border-radius:2px}
+.wf .bar i.wait{background:repeating-linear-gradient(90deg,var(--ink-3) 0 4px,transparent 4px 7px)}
+.wf .bar i.to{border:1px dashed var(--ink-2);background:none}
+.wf .n{font-family:"Geist Mono",ui-monospace,monospace;text-align:right;font-variant-numeric:tabular-nums}
+.wf .lbl{display:flex;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wf .sub{padding-left:14px;color:var(--ink-2);margin:0}
+
+/* tiles */
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0;color:inherit}
+a.tile:hover{background:var(--surface-2);text-decoration:none}
+.tile .lbl{font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.tile .val{font-family:"Geist Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:20px;line-height:28px;font-weight:500;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.tile .val small{font-family:Geist,ui-sans-serif,system-ui,sans-serif;font-size:12px;color:var(--ink-3);font-weight:400}
+.tile .sp{color:var(--ink-2);margin-top:2px}
+
+/* timeline */
+.tl{list-style:none;margin:0;padding:0}
+.tl .day{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding:10px 12px 4px;font-weight:500}
+.tl .ev{display:grid;grid-template-columns:44px 16px minmax(0,1fr) auto;gap:8px;align-items:center;padding:0 12px;min-height:28px;border-top:1px solid var(--line)}
+[data-density="comfortable"] .tl .ev{min-height:40px}
+.tl .ev:hover{background:var(--surface-2)}
+.tl .ev.is-focused{background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent)}
+.tl .t{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;color:var(--ink-3)}
+.tl .txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl .txt b{font-weight:600}
+.tl .txt .id{font-family:"Geist Mono",ui-monospace,monospace;color:var(--ink-2)}
+.tl .amt{font-family:"Geist Mono",ui-monospace,monospace;color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tl .ev .mk{margin:0}
+
+/* key rows */
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;font-size:12px}
+.kv dt{color:var(--ink-3)}.kv dd{margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rowlist{list-style:none;margin:0;padding:0}
+.rowlist li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:8px 12px;border-bottom:1px solid var(--line);align-items:center}
+.rowlist li:last-child{border-bottom:0}
+.rowlist .d{font-size:12px;color:var(--ink-2);grid-column:1/-1}
+.rowlist .sp{color:var(--ink-2);justify-self:end}
+
+/* chart */
+.chart{position:relative;color:var(--ink-1)}
+.chart svg{display:block;width:100%;height:150px}
+.chart .gl{stroke:var(--line);stroke-width:1}
+.chart .ax{font-family:"Geist Mono",ui-monospace,monospace;font-size:10px;fill:var(--ink-3)}
+.chart .dp{stroke:var(--ink-3);stroke-dasharray:2 3}
+.chart .dl{font-family:"Geist Mono",ui-monospace,monospace;font-size:10px;fill:var(--ink-2)}
+.chart .s1{fill:none;stroke:var(--ink-1);stroke-width:1.5}
+.chart .s2{fill:none;stroke:var(--ink-1);stroke-width:1.5;stroke-dasharray:4 3}
+.chart .a1{fill:var(--ink-1);opacity:.06}
+.chart .now{fill:var(--accent)}
+.chart .m1{fill:var(--ink-1)}
+.chart .m2{fill:var(--surface);stroke:var(--ink-1);stroke-width:1.5}
+
+/* overlays */
+.ov{position:fixed;inset:0;background:var(--scrim);display:grid;place-items:start center;padding:12vh 16px 0;z-index:50}
+.dlg{width:min(680px,100%);background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;box-shadow:var(--shadow);overflow:hidden}
+.pal input{width:100%;height:44px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink-1);font:inherit;font-size:14px;padding:0 14px;outline:none}
+.pal ul{list-style:none;margin:0;padding:6px;max-height:50vh;overflow:auto}
+.pal li{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:5px;cursor:pointer;min-width:0}
+.pal li[aria-selected="true"]{background:var(--surface-2)}
+.pal .k{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);width:64px;flex:none}
+.pal .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pal li .id{margin-left:auto;font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;color:var(--ink-3);flex:none}
+.pal .hint{padding:8px 14px 10px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--line);display:flex;gap:12px;flex-wrap:wrap}
+.pal .none{padding:14px;color:var(--ink-2)}
+.km .h{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line)}
+.km .rows{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 20px;padding:12px 14px 16px}
+.km .kr{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2)}
+.km .kr span:last-child{margin-left:4px;color:var(--ink-1)}
+
+.note{font-size:12px;color:var(--ink-3);margin-top:8px}
+.updated{font-size:12px;color:var(--ink-3);white-space:nowrap}
+
+@media (prefers-reduced-motion:no-preference){
+  .screen{animation:fade .12s ease-out}
+  @keyframes fade{from{opacity:.4}to{opacity:1}}
+}
+
+/* ---------- 390px ---------- */
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .rail{position:static;height:auto;flex-direction:row;align-items:center;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden}
+  .brand{padding:10px 12px;flex:none}
+  .brand span:last-child{display:none}
+  .rail nav{display:flex;padding:6px 8px;gap:2px;flex:none}
+  .grp{margin:0;display:flex;align-items:center}
+  .grp-h{display:none}
+  .navl{padding:5px 8px;white-space:nowrap}
+  .navl .sig{margin-left:4px}
+  .rail-f{display:none}
+  .topbar{flex-wrap:wrap;padding:8px 16px;gap:8px}
+  .search{max-width:none;order:9;flex-basis:100%}
+  .screen{padding:12px 16px 40px}
+  .verdict{grid-template-columns:1fr 1fr}
+  .verdict>*{border-right:0;border-top:1px solid var(--line)}
+  .verdict>.v-head{grid-column:span 2;border-top:0}
+  .verdict>.v-cell:nth-child(even){border-right:1px solid var(--line)}
+  .c8,.c4,.c6{grid-column:span 12}
+  .ready{grid-template-columns:1fr 1fr}
+  .ready>a{border-bottom:1px solid var(--line)}
+  .ready>a:nth-child(odd){border-right:1px solid var(--line)}
+  .ready>a:nth-child(even){border-right:0}
+  .tiles{grid-template-columns:1fr 1fr}
+  .wf{grid-template-columns:110px minmax(0,1fr) 60px}
+  .wf .cost{display:none}
+  .tl .ev{grid-template-columns:40px 14px minmax(0,1fr) auto;padding:6px 12px}
+  .tl .txt{white-space:normal}
+  .rail-lc{grid-template-columns:1fr;gap:8px;padding-left:4px}
+  .rail-lc::before{left:9px;right:auto;top:8px;bottom:8px;border-top:0;border-left:1px solid var(--line-strong)}
+  .lc{flex-direction:row;text-align:left;align-items:center;gap:10px}
+  .lc.now::after{position:static;margin-left:auto}
+  .tbl .trunc{max-width:180px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail" aria-label="Admin sections">
+    <div class="brand"><span class="bm">G</span><span>GateTest Admin</span></div>
+    <nav>
+      <div class="grp">
+        <a class="navl" href="#overview" data-nav="overview"><span>Overview</span><span class="sig"><i class="mk mk-blocker"></i>1</span></a>
+      </div>
+      <div class="grp"><div class="grp-h">Work</div>
+        <a class="navl" href="#scan/scn_7f3a2c" data-nav="scan"><span>Scans</span><span class="sig"><i class="mk mk-high"></i>2</span></a>
+        <a class="navl" href="#" aria-disabled="true" title="Not in this mock"><span>Findings</span><span class="sig">14</span></a>
+        <a class="navl" href="#" aria-disabled="true" title="Not in this mock"><span>Watchdog</span><span class="sig"><i class="mk mk-notrun"></i>1</span></a>
+      </div>
+      <div class="grp"><div class="grp-h">Business</div>
+        <a class="navl" href="#customer/cus_4k2m9x" data-nav="customer"><span>Customers</span><span class="sig">31</span></a>
+        <a class="navl" href="#" aria-disabled="true" title="Not in this mock"><span>Revenue</span><span class="sig"><i class="mk mk-high"></i>2</span></a>
+      </div>
+      <div class="grp"><div class="grp-h">Platform</div>
+        <a class="navl" href="#" aria-disabled="true" title="Not in this mock"><span>Health</span><span class="sig"><i class="mk mk-notrun"></i>2</span></a>
+        <a class="navl" href="#" aria-disabled="true" title="Not in this mock"><span>Deploys</span><span class="sig"><i class="mk mk-medium"></i>20</span></a>
+        <a class="navl" href="#" aria-disabled="true" title="Not in this mock"><span>Keys</span></a>
+        <a class="navl" href="#" aria-disabled="true" title="Not in this mock"><span>Integrations</span></a>
+        <a class="navl" href="#" aria-disabled="true" title="Not in this mock"><span>Secrets</span><span class="sig"><i class="mk mk-low"></i>1</span></a>
+      </div>
+      <div class="grp"><div class="grp-h">Governance</div>
+        <a class="navl" href="#" aria-disabled="true" title="Not in this mock"><span>Audit</span></a>
+        <a class="navl" href="#" aria-disabled="true" title="Not in this mock"><span>Compliance</span></a>
+        <a class="navl" href="#" aria-disabled="true" title="Not in this mock"><span>Precision</span></a>
+        <a class="navl" href="#" aria-disabled="true" title="Not in this mock"><span>Feedback</span></a>
+      </div>
+      <div class="grp"><div class="grp-h">Pinned</div>
+        <a class="navl" href="#" aria-disabled="true" title="Not in this mock"><span>Launch</span><span class="sig">7/12</span></a>
+      </div>
+    </nav>
+    <div class="rail-f"><span>owner</span><span class="faint">Sign out</span></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <a class="build" href="#" title="Deployed 3f4e5d6 · origin/main 9c8b7a6 · 20 commits behind"><i class="mk mk-medium"></i><span class="mono">prod 3f4e5d6</span><span class="faint">·</span><span>20 behind main</span></a>
+      <button class="search" type="button" id="open-pal" aria-haspopup="dialog"><span>Search customers, scans, SHAs, rules…</span><span class="kbd">⌘K</span></button>
+      <div class="seg" role="radiogroup" aria-label="Density">
+        <button type="button" role="radio" data-density-btn="compact" aria-checked="true">Compact</button>
+        <button type="button" role="radio" data-density-btn="comfortable" aria-checked="false">Comfortable</button>
+      </div>
+      <div class="seg" role="radiogroup" aria-label="Theme">
+        <button type="button" role="radio" data-theme-btn="white" aria-checked="true">White</button>
+        <button type="button" role="radio" data-theme-btn="black" aria-checked="false">Black</button>
+      </div>
+      <button class="iconb" type="button" id="open-km" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">?</button>
+    </header>
+
+    <!-- ====================================================== OVERVIEW -->
+    <main class="screen" id="screen-overview" aria-labelledby="h-overview">
+      <div class="ph">
+        <div class="l"><h1 id="h-overview">Overview</h1><div class="sub">Sample data · the box, the gate and the money at a glance</div></div>
+        <div class="actions">
+          <div class="chips" role="group" aria-label="Time range"><button class="chip" aria-pressed="true">24h</button><button class="chip" aria-pressed="false">7d</button><button class="chip" aria-pressed="false">30d</button></div>
+          <span class="updated">updated 12s ago</span>
+          <a class="btn btn-primary" href="#">New scan <span class="kbd">n</span></a>
+        </div>
+      </div>
+
+      <section class="verdict" aria-label="Gate verdict, last 24 hours">
+        <div class="v-head">
+          <div class="big"><i class="mk mk-pass"></i>Gate held</div>
+          <div class="sub">128 scans in 24h · 3 merges blocked · 2 panels cannot tell, so this is a partial verdict</div>
+        </div>
+        <a class="v-cell" href="#scan/scn_7f3a2c"><span class="lbl"><i class="mk mk-blocker"></i>Merges blocked</span><span class="val">3</span><span class="d">2 with fix PRs open</span></a>
+        <a class="v-cell" href="#"><span class="lbl"><i class="mk mk-pass"></i>Passed on new code</span><span class="val">41</span><span class="d">of 52 findings on new code</span></a>
+        <a class="v-cell" href="#scan/scn_7f3a2c/not-checked"><span class="lbl"><i class="mk mk-notrun"></i>Modules not run</span><span class="val">6</span><span class="d">1 timed out with blocker rules</span></a>
+        <a class="v-cell" href="#"><span class="lbl"><i class="mk mk-high"></i>Failed scans</span><span class="val">2</span><span class="d">both on clone step</span></a>
+        <a class="v-cell" href="#"><span class="lbl"><i class="mk mk-notrun"></i>Cannot tell</span><span class="val">2</span><span class="d">worker heartbeat · mail sender</span></a>
+      </section>
+
+      <div class="grid">
+        <div class="c8 stack">
+          <section class="panel" aria-label="Box readiness">
+            <div class="panel-h">Box readiness<span class="r"><span class="mono">box-161</span> · checked 40s ago</span></div>
+            <div class="ready">
+              <a href="#"><span class="k">web</span><span class="v"><i class="mk mk-pass"></i>up</span><span class="d">2d 4h · 38 ms p50</span></a>
+              <a href="#"><span class="k">worker</span><span class="v"><i class="mk mk-notrun"></i>cannot tell</span><span class="d">no heartbeat 3h</span></a>
+              <a href="#"><span class="k">queue</span><span class="v"><i class="mk mk-high"></i>4 waiting</span><span class="d">oldest 2h 51m</span></a>
+              <a href="#"><span class="k">database</span><span class="v"><i class="mk mk-pass"></i>ok</span><span class="d">12 ms · 41 tables</span></a>
+              <a href="#"><span class="k">disk</span><span class="v"><i class="mk mk-low"></i>71%</span><span class="d">18 GB free</span></a>
+              <a href="#"><span class="k">deploy</span><span class="v"><i class="mk mk-medium"></i><span class="mono">3f4e5d6</span></span><span class="d">20 behind main</span></a>
+              <a href="#"><span class="k">mail</span><span class="v"><i class="mk mk-notrun"></i>cannot tell</span><span class="d">no send in 7d</span></a>
+            </div>
+          </section>
+
+          <section class="panel" aria-label="Throughput">
+            <div class="panel-h">Scans per day · 30d<span class="r"><span class="legend"><span><i style="background:var(--ink-1);border-radius:50%"></i>scans</span><span><i style="border:1.5px solid var(--ink-1);background:var(--surface)"></i>clean on new code</span><span><i style="border-left:1px dashed var(--ink-3);width:0;height:10px;border-radius:0"></i>deploy</span></span></span></div>
+            <div class="panel-b"><div class="chart" id="chart" role="img" aria-label="Scans per day for 30 days with deploy ticks"></div></div>
+          </section>
+
+          <div class="grid">
+            <section class="panel c6" aria-label="Revenue">
+              <div class="panel-h">Revenue · Stripe<span class="r">MRR <span class="mono">$1,240</span></span></div>
+              <div class="st st-failed" role="status">
+                <div class="lbl"><i class="mk mk-high"></i>Failed</div>
+                <div class="why">Failed payments could not be read: <span class="mono">HTTP 502 /api/admin/revenue</span></div>
+                <div class="meta"><span>since 14:02 · 3 attempts</span><button class="btn btn-sm" type="button">Retry</button><a href="#">Open trace</a></div>
+              </div>
+            </section>
+            <section class="panel c6" aria-label="Fleet">
+              <div class="panel-h">Fleet · 31 repos</div>
+              <div class="st st-unknown" role="status">
+                <div class="lbl"><i class="mk mk-notrun"></i>Cannot tell</div>
+                <div class="why">Table <span class="mono">fleet_intelligence</span> is missing · migrations pending</div>
+                <div class="meta"><a href="#">Run migrations</a><a href="#">Health</a></div>
+              </div>
+            </section>
+          </div>
+
+          <section class="panel" aria-label="Precision per rule">
+            <div class="panel-h">Precision per rule · 7d<span class="r">kill line 60% · <a href="#">all rules</a></span></div>
+            <div class="tw"><table class="tbl" data-rows>
+              <thead><tr><th class="sticky">Rule</th><th>Name</th><th class="num" aria-sort="descending">Precision</th><th class="num">Triaged</th><th>Trend</th><th>State</th></tr></thead>
+              <tbody>
+                <tr data-row><td class="sticky mono">GT-SEC-014</td><td class="trunc">Hardcoded secret</td><td class="num mono">96%</td><td class="num mono">48</td><td><span data-spark="88,90,91,94,95,96,96"></span></td><td><span class="sev sev-pass"><i class="mk mk-pass"></i>Keep</span></td></tr>
+                <tr data-row><td class="sticky mono">GT-SQL-002</td><td class="trunc">Unparameterised query</td><td class="num mono">91%</td><td class="num mono">22</td><td><span data-spark="80,84,86,88,90,90,91"></span></td><td><span class="sev sev-pass"><i class="mk mk-pass"></i>Keep</span></td></tr>
+                <tr data-row><td class="sticky mono">GT-CFG-019</td><td class="trunc">Debug enabled in production config</td><td class="num mono">58%</td><td class="num mono">31</td><td><span data-spark="79,74,70,66,63,60,58"></span></td><td><span class="sev sev-high"><i class="mk mk-high"></i>Below kill line</span></td></tr>
+                <tr data-row><td class="sticky mono">GT-DOC-002</td><td class="trunc">Missing README section</td><td class="num mono">—</td><td class="num mono">0</td><td></td><td><span class="sev sev-notrun"><i class="mk mk-notrun"></i>Not enough triage</span></td></tr>
+              </tbody>
+            </table></div>
+          </section>
+        </div>
+
+        <div class="c4 stack">
+          <section class="panel" aria-label="Next actions">
+            <div class="panel-h">Next actions<span class="r">ranked by mark</span></div>
+            <ol class="nx" data-rows>
+              <li data-row data-go="#"><i class="mk mk-blocker"></i><div><div class="t b">Worker has no heartbeat for 3h</div><div class="d">4 scans queued, oldest 2h 51m · scans will time out at 4h</div></div><a class="btn btn-sm go" href="#">Restart <span class="kbd">r</span></a></li>
+              <li data-row data-go="#scan/scn_7f3a2c"><i class="mk mk-high"></i><div><div class="t">Gate blocked on <span class="mono">sample-org/billing-api</span></div><div class="d">2 blockers, 1 regressed finding · fix PR #413 open</div></div><a class="btn btn-sm go" href="#scan/scn_7f3a2c">Open</a></li>
+              <li data-row data-go="#"><i class="mk mk-high"></i><div><div class="t">Stripe webhook: 2 deliveries failed</div><div class="d">since 09:12 · <span class="mono">invoice.paid</span> not applied to 1 customer</div></div><a class="btn btn-sm go" href="#">Inspect</a></li>
+              <li data-row data-go="#"><i class="mk mk-medium"></i><div><div class="t">Production is 20 commits behind main</div><div class="d"><span class="mono">3f4e5d6 → 9c8b7a6</span> · last deploy 3d ago</div></div><a class="btn btn-sm go" href="#">Deploy</a></li>
+              <li data-row data-go="#"><i class="mk mk-notrun"></i><div><div class="t">Mail sender: cannot tell</div><div class="d">no send in 7d · key age 212d</div></div><a class="btn btn-sm go" href="#">Send test</a></li>
+              <li data-row data-go="#customer/cus_4k2m9x"><i class="mk mk-low"></i><div><div class="t">Key <span class="mono">gk_live_…c02e</span> unused 31d</div><div class="d">Sample Customer 14 · safe to revoke</div></div><a class="btn btn-sm go" href="#customer/cus_4k2m9x">Review</a></li>
+            </ol>
+          </section>
+
+          <section class="panel" aria-label="Watchdog">
+            <div class="panel-h">Watchdog · 4 watches<span class="r"><a href="#">all</a></span></div>
+            <ul class="rowlist">
+              <li><span class="mono">sample-org/billing-api</span><span class="sev"><i class="mk mk-pass"></i>Pass</span><span class="d">every 6h · last 41m ago</span></li>
+              <li><span class="mono">status.sample.test</span><span class="sev sev-high"><i class="mk mk-high"></i>Drift</span><span class="d">2 headers changed since deploy <span class="mono">1e2f3a4</span></span></li>
+              <li><span class="mono">sample-org/web-app</span><span class="sev sev-notrun"><i class="mk mk-notrun"></i>Stale</span><span class="d">schedule 6h · last success 19h ago · silent stop, not failing</span></li>
+              <li><span class="mono">api.sample.test</span><span class="sev"><i class="mk mk-pass"></i>Pass</span><span class="d">every 1h · last 12m ago</span></li>
+            </ul>
+          </section>
+
+          <section class="panel" aria-label="Recent incidents">
+            <div class="panel-h">Incidents · 30d</div>
+            <div class="st st-empty" role="status">
+              <div class="lbl"><i class="mk mk-pass"></i>None</div>
+              <div class="why">Verified: <span class="mono">GET /api/admin/incidents → 200, 0 rows</span>. Any not-ok → ok transition opens one automatically.</div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <!-- ====================================================== SCAN -->
+    <main class="screen" id="screen-scan" aria-labelledby="h-scan" hidden>
+      <div class="ph">
+        <div class="l">
+          <div class="crumb"><a href="#overview">Overview</a> › <a href="#">Scans</a> › <span class="mono">scn_7f3a2c</span></div>
+          <h1 id="h-scan"><span class="mono">sample-org/billing-api</span><span class="sev sev-blocker" style="font-size:13px"><i class="mk mk-blocker"></i>Gate blocked</span></h1>
+          <div class="chips" style="margin-top:8px">
+            <span class="chip hasc mono">9c8b7a6<span class="copy">copy</span></span>
+            <span class="chip">Repo scan</span><span class="chip">GitHub App</span><span class="chip">Team tier</span>
+            <a class="chip" href="#customer/cus_4k2m9x">Sample Customer 14</a>
+            <span class="chip mono">4m 12s</span><span class="chip mono">$0.42</span>
+            <span class="chip">29 Sep 14:02</span>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="btn" href="#scan/scn_7f3a2c/trace">Trace</a>
+          <button class="btn" type="button">Copy link</button>
+          <button class="btn btn-primary" type="button">Re-run</button>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist" aria-label="Scan sections">
+        <button class="tab" role="tab" data-tab="findings" aria-selected="true">Findings <span class="cnt b">12</span></button>
+        <button class="tab" role="tab" data-tab="not-checked" aria-selected="false">What was not checked <span class="cnt b">6</span></button>
+        <button class="tab" role="tab" data-tab="trace" aria-selected="false">Trace</button>
+        <button class="tab" role="tab" data-tab="fix-prs" aria-selected="false">Fix PRs <span class="cnt">2</span></button>
+        <button class="tab" role="tab" data-tab="raw" aria-selected="false">Raw</button>
+        <span class="faint" style="margin-left:auto;align-self:center;font-size:12px;padding-right:4px"><span class="kbd">[</span> <span class="kbd">]</span></span>
+      </div>
+
+      <!-- findings -->
+      <section role="tabpanel" data-panel="findings">
+        <div class="grid">
+          <div class="c8 stack">
+            <section class="panel">
+              <div class="panel-h">Findings
+                <span class="r"><div class="chips"><button class="chip" aria-pressed="true">New code 9</button><button class="chip" aria-pressed="false">Overall 12</button><button class="chip" aria-pressed="false">Open 9</button><button class="chip" aria-pressed="false">Accepted 2</button><button class="chip" aria-pressed="false">False positive 1</button></div></span>
+              </div>
+              <div class="tw"><table class="tbl" data-rows id="findings">
+                <thead><tr><th class="sticky" aria-sort="descending">Severity</th><th>Rule</th><th>Finding</th><th>Location</th><th>Status</th><th>First seen</th><th class="num">Age</th><th></th></tr></thead>
+                <tbody>
+                  <tr data-row class="row-blocker" aria-selected="true" data-rule="GT-SEC-014" data-title="Hardcoded secret in source" data-fp="fp_3c9e4d…b71a" data-sev="blocker"><td class="sticky"><span class="sev sev-blocker"><i class="mk mk-blocker"></i>Blocker</span></td><td class="mono">GT-SEC-014</td><td class="trunc">Hardcoded secret in source</td><td class="mono trunc">src/billing/stripe.ts:42</td><td>Regressed</td><td class="mono">a1b2c3d</td><td class="num mono" title="2026-08-12 09:14">48d</td><td><span class="act"><button class="btn btn-sm" type="button">Accept</button><button class="btn btn-sm" type="button">FP</button></span></td></tr>
+                  <tr data-row class="row-blocker" data-rule="GT-SQL-002" data-title="Unparameterised query" data-fp="fp_91aa02…0c4e" data-sev="blocker"><td class="sticky"><span class="sev sev-blocker"><i class="mk mk-blocker"></i>Blocker</span></td><td class="mono">GT-SQL-002</td><td class="trunc">Unparameterised query</td><td class="mono trunc">src/billing/invoices.ts:118</td><td>Open</td><td class="mono">9c8b7a6</td><td class="num mono" title="2026-09-29 14:02">0d</td><td><span class="act"><button class="btn btn-sm" type="button">Accept</button><button class="btn btn-sm" type="button">FP</button></span></td></tr>
+                  <tr data-row data-rule="GT-AUTH-007" data-title="Route without authentication" data-fp="fp_7d3f10…e219" data-sev="high"><td class="sticky"><span class="sev sev-high"><i class="mk mk-high"></i>High</span></td><td class="mono">GT-AUTH-007</td><td class="trunc">Route without authentication</td><td class="mono trunc">src/api/refund.ts:9</td><td>Open</td><td class="mono">7a8b9c0</td><td class="num mono" title="2026-09-10 11:30">19d</td><td><span class="act"><button class="btn btn-sm" type="button">Accept</button><button class="btn btn-sm" type="button">FP</button></span></td></tr>
+                  <tr data-row data-rule="GT-SEC-021" data-title="Permissive CORS origin" data-fp="fp_44c1be…9a02" data-sev="high"><td class="sticky"><span class="sev sev-high"><i class="mk mk-high"></i>High</span></td><td class="mono">GT-SEC-021</td><td class="trunc">Permissive CORS origin</td><td class="mono trunc">src/server.ts:31</td><td>Open</td><td class="mono">9c8b7a6</td><td class="num mono">0d</td><td><span class="act"><button class="btn btn-sm" type="button">Accept</button><button class="btn btn-sm" type="button">FP</button></span></td></tr>
+                  <tr data-row data-rule="GT-DEP-031" data-title="Vulnerable dependency" data-fp="fp_a0b1c2…d3e4" data-sev="high"><td class="sticky"><span class="sev sev-high"><i class="mk mk-high"></i>High</span></td><td class="mono">GT-DEP-031</td><td class="trunc">Vulnerable dependency (sample-lib 1.2.0)</td><td class="mono trunc">package.json:18</td><td>Open</td><td class="mono">3f4e5d6</td><td class="num mono">27d</td><td><span class="act"><button class="btn btn-sm" type="button">Accept</button><button class="btn btn-sm" type="button">FP</button></span></td></tr>
+                  <tr data-row data-rule="GT-CFG-019" data-title="Debug enabled in production config" data-fp="fp_5e6f70…8192" data-sev="medium"><td class="sticky"><span class="sev sev-medium"><i class="mk mk-medium"></i>Medium</span></td><td class="mono">GT-CFG-019</td><td class="trunc">Debug enabled in production config</td><td class="mono trunc">config/prod.json:4</td><td>False positive</td><td class="mono">a1b2c3d</td><td class="num mono">48d</td><td><span class="act"><button class="btn btn-sm" type="button">Reopen</button></span></td></tr>
+                  <tr data-row data-rule="GT-LOG-004" data-title="Secret written to log" data-fp="fp_10ff3a…77b0" data-sev="medium"><td class="sticky"><span class="sev sev-medium"><i class="mk mk-medium"></i>Medium</span></td><td class="mono">GT-LOG-004</td><td class="trunc">Secret written to log</td><td class="mono trunc">src/billing/stripe.ts:88</td><td>Open</td><td class="mono">9c8b7a6</td><td class="num mono">0d</td><td><span class="act"><button class="btn btn-sm" type="button">Accept</button><button class="btn btn-sm" type="button">FP</button></span></td></tr>
+                  <tr data-row data-rule="GT-CI-008" data-title="Action pinned to tag, not SHA" data-fp="fp_c9d8e7…6f5a" data-sev="medium"><td class="sticky"><span class="sev sev-medium"><i class="mk mk-medium"></i>Medium</span></td><td class="mono">GT-CI-008</td><td class="trunc">Action pinned to tag, not SHA</td><td class="mono trunc">.github/workflows/ci.yml:22</td><td>Accepted</td><td class="mono">7a8b9c0</td><td class="num mono">19d</td><td><span class="act"><button class="btn btn-sm" type="button">Reopen</button></span></td></tr>
+                  <tr data-row data-rule="GT-SQL-005" data-title="Query built by string concatenation" data-fp="fp_3b2a19…08f7" data-sev="medium"><td class="sticky"><span class="sev sev-medium"><i class="mk mk-medium"></i>Medium</span></td><td class="mono">GT-SQL-005</td><td class="trunc">Query built by string concatenation</td><td class="mono trunc">src/reports/export.ts:61</td><td>Open</td><td class="mono">3f4e5d6</td><td class="num mono">27d</td><td><span class="act"><button class="btn btn-sm" type="button">Accept</button><button class="btn btn-sm" type="button">FP</button></span></td></tr>
+                  <tr data-row data-rule="GT-TEST-011" data-title="Changed file has no tests" data-fp="fp_e4d5c6…b7a8" data-sev="low"><td class="sticky"><span class="sev sev-low"><i class="mk mk-low"></i>Low</span></td><td class="mono">GT-TEST-011</td><td class="trunc">Changed file has no tests</td><td class="mono trunc">src/billing/invoices.ts</td><td>Open</td><td class="mono">9c8b7a6</td><td class="num mono">0d</td><td><span class="act"><button class="btn btn-sm" type="button">Accept</button></span></td></tr>
+                  <tr data-row data-rule="GT-DOC-002" data-title="Missing README section" data-fp="fp_2f1e0d…c9b8" data-sev="low"><td class="sticky"><span class="sev sev-low"><i class="mk mk-low"></i>Low</span></td><td class="mono">GT-DOC-002</td><td class="trunc">Missing README section: security contact</td><td class="mono trunc">README.md</td><td>Accepted</td><td class="mono">a1b2c3d</td><td class="num mono">48d</td><td><span class="act"><button class="btn btn-sm" type="button">Reopen</button></span></td></tr>
+                  <tr data-row data-rule="GT-STY-001" data-title="Unused import" data-fp="fp_77aa66…5544" data-sev="low"><td class="sticky"><span class="sev sev-low"><i class="mk mk-low"></i>Low</span></td><td class="mono">GT-STY-001</td><td class="trunc">Unused import</td><td class="mono trunc">src/util/date.ts:2</td><td>Open</td><td class="mono">9c8b7a6</td><td class="num mono">0d</td><td><span class="act"><button class="btn btn-sm" type="button">Accept</button></span></td></tr>
+                </tbody>
+              </table></div>
+              <div class="tfoot"><span>12 findings · 9 on new code · gate blocked by 2</span><span><span class="kbd">j</span> <span class="kbd">k</span> move · <span class="kbd">↵</span> select · <span class="kbd">s</span> status</span></div>
+            </section>
+          </div>
+
+          <div class="c4 stack">
+            <section class="panel" aria-label="Selected finding">
+              <div class="panel-h">Finding<span class="r"><a href="#" class="mono" id="fd-fp">fp_3c9e4d…b71a</a></span></div>
+              <div class="panel-b">
+                <div class="sev sev-blocker" id="fd-sev"><i class="mk mk-blocker"></i>Blocker</div>
+                <h2 id="fd-title" style="margin-top:4px">Hardcoded secret in source</h2>
+                <div class="sub"><span class="mono" id="fd-rule">GT-SEC-014</span> · <a href="#">rule page</a> · precision 96% over 48 triaged</div>
+
+                <div class="lbl-h">Lifecycle across commits</div>
+                <div class="lcw">
+                  <div class="rail-lc">
+                    <div class="lc"><i class="mk mk-pass"></i><span class="sha">a1b2c3d</span><span class="lbl">First seen</span><span class="d">12 Aug</span></div>
+                    <div class="lc"><i class="mk mk-high"></i><span class="sha">c4d5e6f</span><span class="lbl">Suspect</span><span class="d">introduced · 12 Aug</span></div>
+                    <div class="lc"><i class="mk mk-pass"></i><span class="sha">3f4e5d6</span><span class="lbl">Fixed</span><span class="d">2 Sep · PR #388</span></div>
+                    <div class="lc"><i class="mk mk-notrun"></i><span class="sha">7a8b9c0</span><span class="lbl">Absent</span><span class="d">10 Sep</span></div>
+                    <div class="lc now"><i class="mk mk-blocker"></i><span class="sha">9c8b7a6</span><span class="lbl">Regressed</span><span class="d">29 Sep</span></div>
+                  </div>
+                </div>
+                <ul class="hist">
+                  <li><span class="t">29 Sep</span><span>Reopened automatically: rule count on this repo rose from 0 to 1.</span></li>
+                  <li><span class="t">3 Sep</span><span>Accepted by owner — reason: "test fixture key, rotated".</span></li>
+                  <li><span class="t">12 Aug</span><span>Opened by scan <span class="mono">scn_6a01f2</span>.</span></li>
+                </ul>
+                <div class="actions" style="margin-top:12px"><a class="btn btn-primary" href="#">Open fix PR #413</a><button class="btn" type="button">Accept…</button><button class="btn" type="button">False positive…</button></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <!-- not checked -->
+      <section role="tabpanel" data-panel="not-checked" hidden>
+        <div class="callout"><i class="mk mk-notrun"></i><div><b>The verdict was computed on 116 of 122 modules.</b> One module that carries blocker rules did not run (<span class="mono">secrets-entropy</span> timed out), so "Gate blocked" is a lower bound: fixing the two blockers alone would not make this scan a pass you can trust.</div></div>
+        <div class="grid">
+          <div class="c8 stack">
+            <section class="panel">
+              <div class="panel-h">Coverage · 122 modules<span class="r">tier Team · repo config <span class="mono">.gatetest.yml</span></span></div>
+              <div class="panel-b">
+                <div class="cov" aria-hidden="true"><i class="ran"></i><i class="skip"></i><i class="to"></i><i class="na"></i></div>
+                <div class="legend"><span><i style="background:var(--ink-1)"></i>ran 116</span><span><i style="background:var(--ink-3)"></i>skipped 4</span><span><i style="background:repeating-linear-gradient(45deg,var(--ink-2) 0 3px,transparent 3px 6px)"></i>timed out 1</span><span><i style="border:1px dashed var(--ink-3)"></i>not applicable 1</span></div>
+              </div>
+              <div class="tw"><table class="tbl" data-rows>
+                <thead><tr><th class="sticky">Module</th><th>Why it did not run</th><th>Rules it carries</th><th>What would change this</th></tr></thead>
+                <tbody>
+                  <tr data-row class="row-blocker"><td class="sticky mono">secrets-entropy</td><td>Timed out · 120 s limit on 2.1 GB checkout</td><td><span class="sev sev-blocker"><i class="mk mk-blocker"></i>2 blocker</span></td><td>Exclude <span class="mono">vendor/</span> or raise the limit for this repo</td></tr>
+                  <tr data-row><td class="sticky mono">lockfile-audit</td><td>Skipped · no lockfile found</td><td><span class="sev sev-high"><i class="mk mk-high"></i>1 high</span></td><td>Commit <span class="mono">package-lock.json</span></td></tr>
+                  <tr data-row><td class="sticky mono">license-scan</td><td>Skipped · not in Team tier</td><td><span class="sev sev-medium"><i class="mk mk-medium"></i>3 medium</span></td><td>Upgrade plan or run once as a paid scan</td></tr>
+                  <tr data-row><td class="sticky mono">iac-terraform</td><td>Skipped · disabled in <span class="mono">.gatetest.yml</span></td><td><span class="sev sev-high"><i class="mk mk-high"></i>4 high</span></td><td>Remove the <span class="mono">disable:</span> entry</td></tr>
+                  <tr data-row><td class="sticky mono">e2e-smoke</td><td>Skipped · no base URL configured</td><td><span class="sev sev-medium"><i class="mk mk-medium"></i>1 medium</span></td><td>Set <span class="mono">smoke.url</span> in repo config</td></tr>
+                  <tr data-row><td class="sticky mono">dockerfile-lint</td><td>Not applicable · no Dockerfile</td><td><span class="sev sev-low"><i class="mk mk-low"></i>6 low</span></td><td>Nothing — correct for this repo</td></tr>
+                </tbody>
+              </table></div>
+            </section>
+          </div>
+          <div class="c4 stack">
+            <section class="panel"><div class="panel-h">Module timings · slowest</div>
+              <div class="tw"><table class="tbl"><thead><tr><th>Module</th><th class="num">This</th><th class="num">Δ base</th></tr></thead><tbody>
+                <tr><td class="mono">secrets-entropy</td><td class="num mono">120.0 s</td><td class="num mono">timeout</td></tr>
+                <tr><td class="mono">dep-graph</td><td class="num mono">38.4 s</td><td class="num mono">+2.1 s</td></tr>
+                <tr><td class="mono">sql-taint</td><td class="num mono">21.9 s</td><td class="num mono">−0.4 s</td></tr>
+                <tr><td class="mono">auth-routes</td><td class="num mono">9.2 s</td><td class="num mono">+0.1 s</td></tr>
+              </tbody></table></div>
+            </section>
+            <section class="panel"><div class="panel-h">Compare to base · <span class="mono">3f4e5d6</span></div>
+              <dl class="kv" style="padding:12px"><dt>Added</dt><dd class="mono">5 findings</dd><dt>Removed</dt><dd class="mono">1 finding</dd><dt>Unchanged</dt><dd class="mono">7 findings</dd><dt>Modules ran</dt><dd class="mono">116 vs 117 (−1: secrets-entropy)</dd></dl>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <!-- trace -->
+      <section role="tabpanel" data-panel="trace" hidden>
+        <section class="panel">
+          <div class="panel-h">Waterfall · 4m 12s · $0.42<span class="r">exit: gate blocked · check-run posted</span></div>
+          <div class="panel-b">
+            <div class="wf">
+              <div class="h">Step</div><div class="h">0 s → 252 s</div><div class="h n">Duration</div><div class="h n cost">Cost</div>
+              <div class="lbl"><i class="mk mk-pass"></i>Webhook received</div><div class="bar"><i style="left:0%;width:1%"></i></div><div class="n">0.2 s</div><div class="n cost">—</div>
+              <div class="lbl"><i class="mk mk-high"></i>Queued · worker busy</div><div class="bar"><i class="wait" style="left:0%;width:19%"></i></div><div class="n">48.0 s</div><div class="n cost">—</div>
+              <div class="lbl"><i class="mk mk-pass"></i>Clone</div><div class="bar"><i style="left:19%;width:2.4%"></i></div><div class="n">6.1 s</div><div class="n cost">$0.01</div>
+              <div class="lbl"><i class="mk mk-pass"></i>Modules · 116 ran</div><div class="bar"><i style="left:21.4%;width:75%"></i></div><div class="n">190.0 s</div><div class="n cost">$0.30</div>
+              <div class="lbl sub"><i class="mk mk-notrun"></i>secrets-entropy</div><div class="bar"><i class="to" style="left:48%;width:48%"></i></div><div class="n">120.0 s</div><div class="n cost">$0.19</div>
+              <div class="lbl"><i class="mk mk-pass"></i>Fix PRs · 2 opened</div><div class="bar"><i style="left:96.4%;width:2%"></i></div><div class="n">5.2 s</div><div class="n cost">$0.11</div>
+              <div class="lbl"><i class="mk mk-pass"></i>Check-run posted</div><div class="bar"><i style="left:98.4%;width:1%"></i></div><div class="n">0.4 s</div><div class="n cost">—</div>
+            </div>
+            <p class="note">Drag on the bar to filter the log below to a range. Wait time is drawn hatched so it never reads as work.</p>
+          </div>
+        </section>
+      </section>
+
+      <!-- fix prs -->
+      <section role="tabpanel" data-panel="fix-prs" hidden>
+        <section class="panel"><div class="panel-h">Fix PRs · 2<span class="r">all PRs opened by this scan are listed, not only the last one</span></div>
+          <div class="tw"><table class="tbl" data-rows><thead><tr><th class="sticky">PR</th><th>Title</th><th>Fixes</th><th>State</th><th>Checks</th><th class="num">Opened</th></tr></thead><tbody>
+            <tr data-row><td class="sticky mono">#412</td><td class="trunc">fix: parameterise invoice query</td><td class="mono">GT-SQL-002</td><td><span class="sev"><i class="mk mk-pass"></i>Merged</span></td><td class="mono">3/3</td><td class="num mono">2h ago</td></tr>
+            <tr data-row><td class="sticky mono">#413</td><td class="trunc">fix: move Stripe key to environment</td><td class="mono">GT-SEC-014, GT-LOG-004</td><td><span class="sev sev-medium"><i class="mk mk-medium"></i>Open</span></td><td class="mono">1/3 pending</td><td class="num mono">1h ago</td></tr>
+          </tbody></table></div>
+        </section>
+      </section>
+
+      <!-- raw -->
+      <section role="tabpanel" data-panel="raw" hidden>
+        <section class="panel"><div class="panel-h">Raw record<span class="r"><button class="btn btn-sm" type="button">Copy JSON</button></span></div>
+          <pre class="mono" style="margin:0;padding:12px;font-size:12px;line-height:18px;overflow:auto">{
+  "id": "scn_7f3a2c",
+  "kind": "repo",
+  "source": "github_app",
+  "repo": "sample-org/billing-api",
+  "sha": "9c8b7a6",
+  "status": "gate_blocked",
+  "modules": { "ran": 116, "skipped": 4, "timed_out": 1, "not_applicable": 1 },
+  "duration_ms": 252400,
+  "cost_usd": 0.42,
+  "fix_prs": ["#412", "#413"]
+}</pre>
+        </section>
+      </section>
+    </main>
+
+    <!-- ====================================================== CUSTOMER -->
+    <main class="screen" id="screen-customer" aria-labelledby="h-customer" hidden>
+      <div class="ph">
+        <div class="l">
+          <div class="crumb"><a href="#overview">Overview</a> › <a href="#">Customers</a> › <span class="mono">cus_4k2m9x</span></div>
+          <h1 id="h-customer">Sample Customer 14 <span class="sev" style="font-size:13px"><i class="mk mk-pass"></i>Active</span></h1>
+          <div class="chips" style="margin-top:8px">
+            <span class="chip mono">owner@example.test</span>
+            <span class="chip">Team · $99/mo</span>
+            <a class="chip hasc mono" href="#">cus_4k2m9x<span class="copy">Stripe ↗</span></a>
+            <span class="chip">2 keys</span><span class="chip">3 repos</span><span class="chip">since 3 Jun 2026</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button">Email</button>
+          <button class="btn" type="button">Credit…</button>
+          <button class="btn btn-primary" type="button">Refund…</button>
+        </div>
+      </div>
+
+      <div class="tiles">
+        <a class="tile" href="#"><span class="lbl">Scans · 30d</span><span class="val">84 <small>2 failed</small></span><span class="sp" data-spark="2,3,4,2,5,3,4,6,3,2,4,5,3,4,2,3,5,4,3,6,4,3,2,4,5,3,4,3,2,4" data-w="120"></span></a>
+        <a class="tile" href="#"><span class="lbl"><i class="mk mk-blocker"></i>Gate blocks · 30d</span><span class="val">6 <small>1 open</small></span><span class="sp" data-spark="0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1" data-w="120"></span></a>
+        <a class="tile" href="#"><span class="lbl">Fix PRs merged</span><span class="val">11 <small>of 14</small></span><span class="sp faint" style="font-size:12px;font-family:Geist,ui-sans-serif">median 3h to merge</span></a>
+        <a class="tile" href="#"><span class="lbl">Margin per scan</span><span class="val">$0.61 <small>price $1.18 − cost $0.57</small></span><span class="sp faint" style="font-size:12px;font-family:Geist,ui-sans-serif">compute $0.44 · model $0.13</span></a>
+      </div>
+
+      <div class="grid">
+        <div class="c8 stack">
+          <section class="panel" aria-label="Timeline">
+            <div class="panel-h">Timeline<span class="r"><div class="chips" role="group" aria-label="Timeline filters"><button class="chip" aria-pressed="true">All</button><button class="chip" aria-pressed="false">Payments</button><button class="chip" aria-pressed="false">Scans</button><button class="chip" aria-pressed="false">Gate blocks</button><button class="chip" aria-pressed="false">Fix PRs</button><button class="chip" aria-pressed="false">Feedback</button></div></span></div>
+            <ol class="tl" data-rows>
+              <li class="day">Today · 29 Sep</li>
+              <li class="ev" data-row data-go="#scan/scn_7f3a2c"><span class="t">14:02</span><i class="mk mk-blocker"></i><span class="txt"><b>Gate blocked</b> · <span class="id">sample-org/billing-api</span> at <span class="id">9c8b7a6</span> · 2 blockers, 1 regressed</span><a class="btn btn-sm" href="#scan/scn_7f3a2c">Open</a></li>
+              <li class="ev" data-row data-go="#scan/scn_7f3a2c/fix-prs"><span class="t">14:03</span><i class="mk mk-medium"></i><span class="txt">Fix PR <span class="id">#413</span> opened · move Stripe key to environment · checks pending</span><span class="amt"></span></li>
+              <li class="ev" data-row data-go="#"><span class="t">11:20</span><i class="mk mk-pass"></i><span class="txt"><b>Payment</b> · subscription invoice <span class="id">in_1ab2…9f</span> paid</span><span class="amt">$99.00</span></li>
+              <li class="ev" data-row data-go="#"><span class="t">09:12</span><i class="mk mk-high"></i><span class="txt"><b>Webhook delivery failed</b> · <span class="id">invoice.paid</span> · retried twice · applied by reconcile at 11:20</span><a class="btn btn-sm" href="#">Inspect</a></li>
+              <li class="day">Yesterday · 28 Sep</li>
+              <li class="ev" data-row data-go="#"><span class="t">17:44</span><i class="mk mk-pass"></i><span class="txt">Fix PR <span class="id">#412</span> merged · parameterise invoice query · 2h 10m to merge</span><span class="amt"></span></li>
+              <li class="ev" data-row data-go="#"><span class="t">16:05</span><i class="mk mk-low"></i><span class="txt"><b>Feedback</b> · "GT-CFG-019 is a false positive on our staging config" · triaged as FP, precision event recorded</span><a class="btn btn-sm" href="#">Reply</a></li>
+              <li class="ev" data-row data-go="#"><span class="t">15:30</span><i class="mk mk-high"></i><span class="txt"><b>Payment failed</b> · per-scan charge · card declined · retry scheduled 30 Sep</span><span class="amt">$1.18</span></li>
+              <li class="ev" data-row data-go="#"><span class="t">10:02</span><i class="mk mk-pass"></i><span class="txt">Scan passed · <span class="id">sample-org/web-app</span> at <span class="id">b2c3d4e</span> · 0 findings on new code</span><span class="amt">3m 40s</span></li>
+              <li class="day">27 Sep</li>
+              <li class="ev" data-row data-go="#"><span class="t">—</span><i class="mk mk-pass"></i><span class="txt">12 scans passed · <span class="id">billing-api</span> ×8, <span class="id">web-app</span> ×4 <a href="#">expand</a></span><span class="amt"></span></li>
+              <li class="ev" data-row data-go="#"><span class="t">08:15</span><i class="mk mk-blocker"></i><span class="txt"><b>Gate blocked</b> · <span class="id">sample-org/billing-api</span> at <span class="id">7a8b9c0</span> · fixed same day by <span class="id">#401</span></span><a class="btn btn-sm" href="#">Open</a></li>
+              <li class="day">3 Jun</li>
+              <li class="ev" data-row data-go="#"><span class="t">12:00</span><i class="mk mk-pass"></i><span class="txt"><b>Subscription started</b> · Team · first key issued</span><span class="amt">$99.00</span></li>
+            </ol>
+            <div class="tfoot"><span>Payments from Stripe · scans, gate blocks and fix PRs from the gate · feedback from the widget</span><a href="#">Export CSV</a></div>
+          </section>
+        </div>
+
+        <div class="c4 stack">
+          <section class="panel" aria-label="API keys">
+            <div class="panel-h">Keys · 2<span class="r"><a href="#">issue key</a></span></div>
+            <ul class="rowlist">
+              <li><span class="mono hasc">gk_live_…a91f<span class="copy">copy</span></span><span class="sp" data-spark="120,180,160,210,190,230,214" data-w="60" data-h="16"></span><span class="d">last used 3m ago from <span class="mono">203.0.113.7</span> · 1,204 calls / 7d · scopes scan, read</span></li>
+              <li><span class="mono hasc">gk_live_…c02e<span class="copy">copy</span></span><span class="sev sev-low"><i class="mk mk-low"></i>Unused 31d</span><span class="d">created by owner 3 Jun · no calls since 29 Aug · <a href="#">revoke</a></span></li>
+            </ul>
+          </section>
+          <section class="panel" aria-label="Repositories">
+            <div class="panel-h">Repos · 3</div>
+            <ul class="rowlist">
+              <li><a class="mono" href="#">sample-org/billing-api</a><span class="sev sev-blocker"><i class="mk mk-blocker"></i>Blocked</span><span class="d">precision 82% · 12 findings · last scan 14:02</span></li>
+              <li><a class="mono" href="#">sample-org/web-app</a><span class="sev"><i class="mk mk-pass"></i>Pass</span><span class="d">precision 91% · 0 open · last scan yesterday</span></li>
+              <li><a class="mono" href="#">sample-org/infra</a><span class="sev sev-notrun"><i class="mk mk-notrun"></i>Not scanned</span><span class="d">no scan in 40d · Action not installed</span></li>
+            </ul>
+          </section>
+          <section class="panel" aria-label="Usage by key">
+            <div class="panel-h">Usage by key · 30d</div>
+            <div class="st st-unknown" role="status">
+              <div class="lbl"><i class="mk mk-notrun"></i>Cannot tell</div>
+              <div class="why">Table <span class="mono">key_usage</span> is missing on this box · the keys above are real, their call counts come from the gateway log</div>
+              <div class="meta"><a href="#">Run migrations</a></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ====================================================== overlays -->
+<div class="ov" id="pal-ov" hidden>
+  <div class="dlg pal" role="dialog" aria-modal="true" aria-label="Search">
+    <input id="pal-in" type="text" placeholder="Search customers, repos, scans, findings, rules, keys, secrets, deploys — or paste a SHA" autocomplete="off" spellcheck="false">
+    <ul id="pal-list" role="listbox"></ul>
+    <div class="hint"><span><span class="kbd">↑</span> <span class="kbd">↓</span> move</span><span><span class="kbd">↵</span> open</span><span><span class="kbd">esc</span> close</span><span>7–40 hex characters resolve as a SHA</span></div>
+  </div>
+</div>
+
+<div class="ov" id="km-ov" hidden>
+  <div class="dlg km" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+    <div class="h"><h2>Keyboard</h2><button class="btn btn-sm" type="button" id="km-close">Close <span class="kbd">esc</span></button></div>
+    <div class="rows">
+      <div class="kr"><span class="kbd">⌘</span><span class="kbd">k</span><span>Search / commands</span></div>
+      <div class="kr"><span class="kbd">/</span><span>Search</span></div>
+      <div class="kr"><span class="kbd">g</span><span class="kbd">o</span><span>Go to Overview</span></div>
+      <div class="kr"><span class="kbd">g</span><span class="kbd">s</span><span>Go to Scans</span></div>
+      <div class="kr"><span class="kbd">g</span><span class="kbd">c</span><span>Go to Customers</span></div>
+      <div class="kr"><span class="kbd">g</span><span class="kbd">f</span><span>Go to Findings</span></div>
+      <div class="kr"><span class="kbd">j</span><span class="kbd">k</span><span>Next / previous row</span></div>
+      <div class="kr"><span class="kbd">↵</span><span>Open or select row</span></div>
+      <div class="kr"><span class="kbd">.</span><span>Row actions</span></div>
+      <div class="kr"><span class="kbd">[</span><span class="kbd">]</span><span>Previous / next tab</span></div>
+      <div class="kr"><span class="kbd">n</span><span>New scan</span></div>
+      <div class="kr"><span class="kbd">s</span><span>Set finding status</span></div>
+      <div class="kr"><span class="kbd">\</span><span>Toggle white / black</span></div>
+      <div class="kr"><span class="kbd">d</span><span>Toggle density</span></div>
+      <div class="kr"><span class="kbd">?</span><span>This map</span></div>
+      <div class="kr"><span class="kbd">esc</span><span>Close</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)};
+  var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+  var root=document.documentElement;
+
+  /* ---------- theme (identical DOM; tokens only) ---------- */
+  function setTheme(t){
+    root.setAttribute('data-theme',t);
+    $$('[data-theme-btn]').forEach(function(b){b.setAttribute('aria-checked',String(b.getAttribute('data-theme-btn')===t))});
+    try{localStorage.setItem('gt-admin-theme',t)}catch(e){}
+  }
+  var theme='white';
+  try{theme=localStorage.getItem('gt-admin-theme')||(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'black':'white')}catch(e){}
+  setTheme(theme);
+  $$('[data-theme-btn]').forEach(function(b){b.addEventListener('click',function(){setTheme(b.getAttribute('data-theme-btn'))})});
+
+  /* ---------- density ---------- */
+  function setDensity(d){
+    root.setAttribute('data-density',d);
+    $$('[data-density-btn]').forEach(function(b){b.setAttribute('aria-checked',String(b.getAttribute('data-density-btn')===d))});
+    try{localStorage.setItem('gt-admin-density',d)}catch(e){}
+  }
+  var dens='compact'; try{dens=localStorage.getItem('gt-admin-density')||'compact'}catch(e){}
+  setDensity(dens);
+  $$('[data-density-btn]').forEach(function(b){b.addEventListener('click',function(){setDensity(b.getAttribute('data-density-btn'))})});
+
+  /* ---------- screens by hash: #overview · #scan/:id/:tab · #customer/:id ---------- */
+  var TITLES={overview:'Overview',scan:'Scan scn_7f3a2c',customer:'Sample Customer 14'};
+  function parse(){
+    var h=(location.hash||'#overview').slice(1).split('/');
+    var s=h[0]||'overview'; if(!TITLES[s]) s='overview';
+    return {screen:s,id:h[1]||'',tab:h[2]||''};
+  }
+  function show(){
+    var p=parse();
+    $$('.screen').forEach(function(m){m.hidden=(m.id!=='screen-'+p.screen)});
+    $$('[data-nav]').forEach(function(a){ if(a.getAttribute('data-nav')===p.screen) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
+    document.title=TITLES[p.screen]+' — GateTest Admin';
+    if(p.screen==='scan') setTab(p.tab||'findings',true);
+    clearFocus();
+    window.scrollTo(0,0);
+    renderChart();
+  }
+  window.addEventListener('hashchange',show);
+
+  /* ---------- scan tabs ---------- */
+  var TABS=['findings','not-checked','trace','fix-prs','raw'];
+  function setTab(id,silent){
+    if(TABS.indexOf(id)<0) id='findings';
+    $$('.tab[data-tab]').forEach(function(t){t.setAttribute('aria-selected',String(t.getAttribute('data-tab')===id))});
+    $$('[data-panel]').forEach(function(p){p.hidden=(p.getAttribute('data-panel')!==id)});
+    if(!silent){ var p=parse(); if(p.screen==='scan'){ history.replaceState(null,'','#scan/'+(p.id||'scn_7f3a2c')+'/'+id); } }
+    clearFocus();
+  }
+  $$('.tab[data-tab]').forEach(function(t){t.addEventListener('click',function(){setTab(t.getAttribute('data-tab'))})});
+  function cycleTab(dir){
+    var p=parse(); if(p.screen!=='scan') return;
+    var cur=$('.tab[aria-selected="true"]').getAttribute('data-tab');
+    var i=(TABS.indexOf(cur)+dir+TABS.length)%TABS.length; setTab(TABS[i]);
+  }
+
+  /* ---------- row focus (j / k / enter) ---------- */
+  var focused=null;
+  function visibleRows(){
+    return $$('[data-row]').filter(function(r){return r.offsetParent!==null});
+  }
+  function clearFocus(){ if(focused){focused.classList.remove('is-focused')} focused=null; }
+  function moveRow(dir){
+    var rows=visibleRows(); if(!rows.length) return;
+    var i=focused?rows.indexOf(focused):-1;
+    i=Math.min(rows.length-1,Math.max(0,i+dir)); if(i<0)i=0;
+    if(focused) focused.classList.remove('is-focused');
+    focused=rows[i]; focused.classList.add('is-focused');
+    focused.scrollIntoView({block:'nearest'});
+  }
+  function openRow(){
+    if(!focused) return;
+    if(focused.hasAttribute('data-fp')) { selectFinding(focused); return; }
+    var go=focused.getAttribute('data-go'); if(go && go!=='#') location.hash=go.slice(1);
+  }
+  function selectFinding(tr){
+    $$('#findings tbody tr').forEach(function(r){r.removeAttribute('aria-selected')});
+    tr.setAttribute('aria-selected','true');
+    $('#fd-rule').textContent=tr.getAttribute('data-rule');
+    $('#fd-title').textContent=tr.getAttribute('data-title');
+    $('#fd-fp').textContent=tr.getAttribute('data-fp');
+    var sev=tr.getAttribute('data-sev'); var el=$('#fd-sev');
+    el.className='sev sev-'+sev; el.innerHTML='<i class="mk mk-'+sev+'"></i>'+sev.charAt(0).toUpperCase()+sev.slice(1);
+  }
+  $$('#findings tbody tr').forEach(function(tr){tr.addEventListener('click',function(e){ if(e.target.closest('button,a')) return; selectFinding(tr); })});
+  $$('[data-row][data-go]').forEach(function(r){ r.addEventListener('dblclick',function(){ var go=r.getAttribute('data-go'); if(go&&go!=='#') location.hash=go.slice(1); }); });
+
+  /* ---------- palette ---------- */
+  var ENT=[
+    {k:'scan',t:'sample-org/billing-api — gate blocked',id:'scn_7f3a2c',sha:'9c8b7a6',go:'scan/scn_7f3a2c'},
+    {k:'scan',t:'sample-org/web-app — passed',id:'scn_7e11d0',sha:'b2c3d4e',go:'scan/scn_7f3a2c'},
+    {k:'scan',t:'sample-org/billing-api — gate blocked (27 Sep)',id:'scn_6b77c1',sha:'7a8b9c0',go:'scan/scn_7f3a2c'},
+    {k:'customer',t:'Sample Customer 14 · owner@example.test',id:'cus_4k2m9x',go:'customer/cus_4k2m9x'},
+    {k:'customer',t:'Sample Customer 07 · dev@example.test',id:'cus_1a8b3c',go:'customer/cus_4k2m9x'},
+    {k:'repo',t:'sample-org/billing-api',id:'3 open',go:'customer/cus_4k2m9x'},
+    {k:'finding',t:'GT-SEC-014 hardcoded secret · src/billing/stripe.ts:42',id:'fp_3c9e4d…b71a',go:'scan/scn_7f3a2c/findings'},
+    {k:'rule',t:'GT-CFG-019 Debug enabled in production config · 58%',id:'GT-CFG-019',go:'overview'},
+    {k:'key',t:'gk_live_…c02e · Sample Customer 14 · unused 31d',id:'key_2f9a',go:'customer/cus_4k2m9x'},
+    {k:'secret',t:'MAIL_SENDER_KEY · age 212d · 1 unit',id:'secret',go:'overview'},
+    {k:'deploy',t:'prod 3f4e5d6 · 20 behind main',id:'3f4e5d6',sha:'3f4e5d6',go:'overview'},
+    {k:'fix pr',t:'#413 move Stripe key to environment · open',id:'#413',go:'scan/scn_7f3a2c/fix-prs'},
+    {k:'command',t:'New scan…',id:'n',go:'overview'},
+    {k:'command',t:'Toggle white / black',id:'\\',run:function(){setTheme(root.getAttribute('data-theme')==='white'?'black':'white')}},
+    {k:'command',t:'Toggle density',id:'d',run:function(){setDensity(root.getAttribute('data-density')==='compact'?'comfortable':'compact')}}
+  ];
+  var palOv=$('#pal-ov'), palIn=$('#pal-in'), palList=$('#pal-list'), palSel=0, palRes=[];
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function renderPal(){
+    var q=palIn.value.trim().toLowerCase();
+    var isSha=/^[0-9a-f]{7,40}$/.test(q);
+    palRes=ENT.filter(function(e){ if(!q) return e.k!=='command'||true; return (e.t+' '+e.id+' '+(e.sha||'')+' '+e.k).toLowerCase().indexOf(q)>=0; });
+    if(isSha){ var hit=ENT.filter(function(e){return e.sha&&e.sha.indexOf(q)===0}); palRes=hit.length?hit:[]; }
+    palSel=0;
+    if(!palRes.length){ palList.innerHTML='<li class="none">No scan, deploy or finding matches <span class="mono">'+esc(q)+'</span>. If the search index is down this reads FAILED, never empty.</li>'; return; }
+    palList.innerHTML=palRes.slice(0,10).map(function(e,i){return '<li role="option" aria-selected="'+(i===palSel)+'" data-i="'+i+'"><span class="k">'+esc(e.k)+'</span><span class="t">'+esc(e.t)+'</span><span class="id">'+esc(e.id)+'</span></li>'}).join('');
+  }
+  function openPal(){ palOv.hidden=false; palIn.value=''; renderPal(); setTimeout(function(){palIn.focus()},0); }
+  function closePal(){ palOv.hidden=true; }
+  function runPal(){
+    var e=palRes[palSel]; if(!e) return; closePal();
+    if(e.run){e.run();return}
+    if(e.go){ if(('#'+e.go)===location.hash) show(); else location.hash=e.go; }
+  }
+  $('#open-pal').addEventListener('click',openPal);
+  palIn.addEventListener('input',renderPal);
+  palIn.addEventListener('keydown',function(e){
+    if(e.key==='ArrowDown'){palSel=Math.min(palRes.length-1,palSel+1);e.preventDefault()}
+    else if(e.key==='ArrowUp'){palSel=Math.max(0,palSel-1);e.preventDefault()}
+    else if(e.key==='Enter'){runPal();return}
+    else return;
+    $$('#pal-list li').forEach(function(li,i){li.setAttribute('aria-selected',String(i===palSel))});
+  });
+  palList.addEventListener('click',function(e){ var li=e.target.closest('li[data-i]'); if(!li) return; palSel=+li.getAttribute('data-i'); runPal(); });
+  palOv.addEventListener('click',function(e){ if(e.target===palOv) closePal(); });
+
+  /* ---------- keymap ---------- */
+  var kmOv=$('#km-ov');
+  function toggleKm(){ kmOv.hidden=!kmOv.hidden; }
+  $('#open-km').addEventListener('click',toggleKm);
+  $('#km-close').addEventListener('click',toggleKm);
+  kmOv.addEventListener('click',function(e){ if(e.target===kmOv) kmOv.hidden=true; });
+
+  /* ---------- global keys ---------- */
+  var pending=null, pendingT=null;
+  document.addEventListener('keydown',function(e){
+    var tag=(e.target.tagName||'').toLowerCase();
+    var typing=tag==='input'||tag==='textarea'||e.target.isContentEditable;
+    if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openPal();return}
+    if(e.key==='Escape'){closePal();kmOv.hidden=true;clearFocus();return}
+    if(typing||e.metaKey||e.ctrlKey||e.altKey) return;
+    if(e.key==='?'){toggleKm();return}
+    if(e.key==='/'){e.preventDefault();openPal();return}
+    if(pending==='g'){pending=null;clearTimeout(pendingT);var map={o:'overview',s:'scan/scn_7f3a2c',c:'customer/cus_4k2m9x'};if(map[e.key]){location.hash=map[e.key]}return}
+    if(e.key==='g'){pending='g';pendingT=setTimeout(function(){pending=null},900);return}
+    if(e.key==='j'||e.key==='k'){e.preventDefault();moveRow(e.key==='j'?1:-1);return}
+    if(e.key==='Enter'){openRow();return}
+    if(e.key==='['||e.key===']'){cycleTab(e.key===']'?1:-1);return}
+    if(e.key==='\\'){setTheme(root.getAttribute('data-theme')==='white'?'black':'white');return}
+    if(e.key==='d'){setDensity(root.getAttribute('data-density')==='compact'?'comfortable':'compact');return}
+  });
+
+  /* ---------- sparklines: one ink stroke, current point in accent ---------- */
+  function spark(el){
+    var v=el.getAttribute('data-spark').split(',').map(Number);
+    var w=+(el.getAttribute('data-w')||72), h=+(el.getAttribute('data-h')||18);
+    var max=Math.max.apply(null,v), min=Math.min.apply(null,v), span=(max-min)||1;
+    var pts=v.map(function(y,i){return [1+i/(v.length-1)*(w-2), h-1.5-((y-min)/span)*(h-3)]});
+    var d='M'+pts.map(function(p){return p[0].toFixed(1)+' '+p[1].toFixed(1)}).join('L');
+    var l=pts[pts.length-1];
+    el.innerHTML='<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" aria-hidden="true" style="display:block"><path d="'+d+'" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/><circle cx="'+l[0].toFixed(1)+'" cy="'+l[1].toFixed(1)+'" r="2" fill="var(--accent)"/></svg>';
+  }
+  $$('[data-spark]').forEach(spark);
+
+  /* ---------- 30-day chart: series by dash + marker, deploy ticks, no hue ---------- */
+  var SCANS=[96,104,98,110,121,117,101,88,109,131,128,119,124,133,140,126,112,98,108,127,136,129,141,138,122,117,131,144,139,128];
+  var CLEAN=[70,77,74,84,91,88,79,66,84,101,99,92,95,104,110,98,86,74,83,99,106,101,112,108,95,90,103,116,109,101];
+  var DEPLOYS=[{i:9,sha:'1e2f3a4'},{i:22,sha:'3f4e5d6'}];
+  function renderChart(){
+    var el=$('#chart'); if(!el||el.offsetParent===null) return;
+    var W=Math.max(320,el.clientWidth), H=150, L=34, R=10, T=18, B=22;
+    var iw=W-L-R, ih=H-T-B, n=SCANS.length, max=150;
+    function x(i){return L+i/(n-1)*iw} function y(v){return T+ih-(v/max)*ih}
+    var s='<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'">';
+    [0,75,150].forEach(function(g){s+='<line class="gl" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(g)+'" y2="'+y(g)+'"/><text class="ax" x="'+(L-6)+'" y="'+(y(g)+3)+'" text-anchor="end">'+g+'</text>'});
+    [0,9,19,29].forEach(function(i){s+='<text class="ax" x="'+x(i)+'" y="'+(H-6)+'" text-anchor="middle">'+(i+1)+' Sep</text>'});
+    DEPLOYS.forEach(function(d){s+='<line class="dp" x1="'+x(d.i)+'" x2="'+x(d.i)+'" y1="'+(T-4)+'" y2="'+(T+ih)+'"/><text class="dl" x="'+(x(d.i)+4)+'" y="'+(T-6)+'">'+d.sha+'</text>'});
+    var p1=SCANS.map(function(v,i){return (i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)}).join('');
+    var p2=CLEAN.map(function(v,i){return (i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)}).join('');
+    s+='<path class="a1" d="'+p1+'L'+x(n-1)+' '+y(0)+'L'+x(0)+' '+y(0)+'Z"/>';
+    s+='<path class="s1" d="'+p1+'"/><path class="s2" d="'+p2+'"/>';
+    [0,9,19,29].forEach(function(i){ s+='<circle class="m1" cx="'+x(i)+'" cy="'+y(SCANS[i])+'" r="2.5"/><rect class="m2" x="'+(x(i)-2.5)+'" y="'+(y(CLEAN[i])-2.5)+'" width="5" height="5"/>'; });
+    s+='<circle class="now" cx="'+x(n-1)+'" cy="'+y(SCANS[n-1])+'" r="3.5"/>';
+    s+='</svg>';
+    el.innerHTML=s;
+  }
+  var rt; window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(renderChart,120)});
+
+  show();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<body>
+<!-- One mark sprite: six subject marks plus the read-failed bar. Same optical size at 12px in both themes. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="m-blocker" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" rx="1" fill="currentColor"/></symbol>
+  <symbol id="m-high" viewBox="0 0 12 12"><path d="M6 .4 11.6 6 6 11.6.4 6z" fill="currentColor"/></symbol>
+  <symbol id="m-medium" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6 1.4a4.6 4.6 0 0 0 0 9.2z" fill="currentColor"/></symbol>
+  <symbol id="m-low" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.4" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+  <symbol id="m-pass" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="currentColor"/></symbol>
+  <symbol id="m-notrun" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.3 1.9"/></symbol>
+  <symbol id="m-failed" viewBox="0 0 12 12"><rect x="4.5" y=".5" width="3" height="11" fill="currentColor"/></symbol>
+</svg>
+<a class="sr" href="#content">Skip to content</a>
+<div class="app">
+  <aside class="rail" id="rail" aria-label="Admin sections">
+    <div class="brand"><span class="g" aria-hidden="true">G</span>Admin<span class="env" title="Deployed build">prod · 7c41d0e</span></div>
+    <nav class="nav" aria-label="Primary">
+      <a href="#/admin" data-root="overview">Overview</a>
+      <div class="group">Gate</div>
+      <a href="#/admin/scans" data-root="scans">Scans<span class="sig" title="Gate path cannot tell: no scan in 26 h">{{m:notrun}}1</span></a>
+      <a href="#/admin/findings" data-root="findings">Findings<span class="sig b" title="2 blockers open">{{m:blocker}}2</span></a>
+      <a href="#/admin/watchdog" data-root="watchdog">Watchdog<span class="sig" title="2 watches stale">{{m:notrun}}2</span></a>
+      <div class="group">Customers</div>
+      <a href="#/admin/customers" data-root="customers">Customers<span class="sig" title="1 failed payment">{{m:high}}1</span></a>
+      <a href="#/admin/repos" data-root="repos">Repos</a>
+      <a href="#/admin/revenue" data-root="revenue">Revenue<span class="sig" title="Billing read failed">{{m:failed}}1</span></a>
+      <a href="#/admin/feedback" data-root="feedback">Feedback<span class="sig" title="1 unanswered">{{m:low}}1</span></a>
+      <div class="group">Platform</div>
+      <a href="#/admin/health" data-root="health">Health<span class="sig" title="Worker cannot tell">{{m:notrun}}1</span></a>
+      <a href="#/admin/deploys" data-root="deploys">Deploys</a>
+      <a href="#/admin/keys" data-root="keys">Keys<span class="sig" title="1 key unused 30 days">{{m:low}}1</span></a>
+      <a href="#/admin/integrations" data-root="integrations">Integrations<span class="sig" title="Marketplace webhook cannot tell">{{m:notrun}}1</span></a>
+      <a href="#/admin/secrets" data-root="secrets">Secrets<span class="sig" title="1 important secret missing">{{m:high}}1</span></a>
+      <div class="group">Governance</div>
+      <a href="#/admin/audit" data-root="audit">Audit</a>
+      <a href="#/admin/compliance" data-root="compliance">Compliance</a>
+      <a href="#/admin/rules" data-root="rules">Rules &amp; precision</a>
+      <div class="group">Pinned</div>
+      <a href="#/admin/launch" data-root="launch">Launch checklist<span class="sig">9/12</span></a>
+    </nav>
+    <div class="rail-foot">
+      <div class="phone-only"><span>Rows</span><span class="seg" role="group" aria-label="Row density"><button type="button" data-density-set="compact">Compact</button><button type="button" data-density-set="comfortable">Comfortable</button></span></div>
+      <div>Signed in as <b class="sec">owner</b> · <a class="lnk" href="#/admin/signout">Sign out</a></div>
+      <div>Sample data. <span class="w2" style="margin-left:0">W2</span> = needs backend data first.</div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button type="button" class="iconbtn menubtn" id="menubtn" aria-label="Open navigation" aria-controls="rail" aria-expanded="false">Menu</button>
+      <div class="crumb" id="crumb" aria-label="Current URL"><b>/admin</b></div>
+      <button type="button" class="searchbtn" id="open-pal" aria-haspopup="dialog" aria-keyshortcuts="Control+K"><span aria-hidden="true">&#8981;</span><span class="t">Search ids, SHAs, emails, repos…</span><kbd class="k">Ctrl K</kbd></button>
+      <span class="seg density" role="group" aria-label="Row density"><button type="button" data-density-set="compact">Compact</button><button type="button" data-density-set="comfortable">Comfortable</button></span>
+      <span class="seg" role="group" aria-label="Theme"><button type="button" data-theme-set="light">White</button><button type="button" data-theme-set="dark">Black</button></span>
+      <button type="button" class="iconbtn helpbtn" id="helpbtn" aria-label="Keyboard map" aria-keyshortcuts="?">?</button>
+    </header>
+
+    <main class="content" id="content" tabindex="-1">
+
+<!-- ============================================================ OVERVIEW -->
+<section class="screen" id="screen-overview" aria-labelledby="ov-h">
+  <div class="ph">
+    <h1 id="ov-h">Overview</h1>
+    <span class="sub">Tue 29 Sep · 11:40 UTC · every number links to the list behind it</span>
+    <span class="sp"></span>
+    <span class="seg" role="group" aria-label="Range"><button type="button" aria-pressed="false">24h</button><button type="button" aria-pressed="true">7d</button><button type="button" aria-pressed="false">30d</button></span>
+    <button type="button" class="btn primary" data-pal="new scan">New scan <kbd class="k">N</kbd></button>
+  </div>
+
+  <div class="ov">
+    <!-- verdict headline: takes the worst state on the gate path -->
+    <section class="panel a-vhead" aria-labelledby="verdict-h">
+      <div class="vhead">
+        <div class="lbl"><span>Gate verdict · last 7 days</span><span aria-hidden="true">·</span>
+          <details class="how"><summary>How is this decided?</summary>
+            <div class="howbody">The headline takes the worst state on the gate path (worker, queue, git-host deliveries, engine, deployed build):
+              <ol><li>any gate-path read failed: <b>Cannot confirm the gate</b></li><li>any gate-path signal cannot tell: <b>Cannot tell whether the gate is running</b></li><li>worker stalled or deliveries failing: <b>Gate is not running</b></li><li>running with blockers open: <b>Gate running · N merges blocked</b></li><li>only when all of the above are clear and every panel reads: <b>Gate held</b>, the one place the pass mark appears.</li></ol>
+            </div>
+          </details>
+        </div>
+        <h2 class="headline" id="verdict-h">{{m:notrun}}Cannot tell whether the gate is running</h2>
+        <p class="why">No push, scan or worker signal for 26 h, since Mon 09:36 UTC. Either nobody pushed or the pipeline is down, and this page cannot decide which. A canary scan will.</p>
+        <p class="week">Up to then this week the gate blocked <a href="#/admin/scans?verdict=blocked&amp;range=7d">14 merges</a>, passed <a href="#/admin/findings?code=new&amp;status=passed&amp;range=7d">312 findings on new code</a> and did not run <a href="#/admin/scans?coverage=partial&amp;range=7d">9 modules</a> it should have. Last week: 11 · 290 · 12. <b class="w6" style="color:var(--ink-1)">Partial verdict: 3 panels are not ok.</b></p>
+      </div>
+    </section>
+
+    <div class="a-vstrip">
+      <div class="strip" style="--n:5" aria-label="Verdict counts, last 7 days">
+        <a class="cell" href="#/admin/scans?verdict=blocked&amp;range=7d"><span class="l">{{m:blocker}}Merges blocked</span><span class="v">14</span><span class="d">2 still open · last week 11</span></a>
+        <a class="cell" href="#/admin/findings?code=new&amp;status=passed"><span class="l">{{m:pass}}Passed, new code</span><span class="v">312</span><span class="d">of 353 findings on new code</span></a>
+        <a class="cell" href="#/admin/scans?coverage=partial"><span class="l">{{m:notrun}}Modules not run</span><span class="v">9</span><span class="d">on 6 scans · 1 carried blocker rules</span></a>
+        <a class="cell" href="#/admin/scans?status=failed&amp;range=7d"><span class="l">Failed scans</span><span class="v">0</span><span class="d">verified · 200, 0 rows</span></a>
+        <a class="cell" href="#/admin/health?state=not-ok" data-state="failed"><span class="l">{{m:failed}}Panels not ok</span><span class="v">3</span><span class="d">1 failed read · 2 cannot tell</span></a>
+      </div>
+      <p class="s12 muted" style="margin:6px 2px 0">Merges blocked = pull-request check runs the gate failed. Passed on new code = findings in files the commit changed that stayed under the gate threshold. Modules not run = registry 122 − modules_run, summed over scans.</p>
+    </div>
+
+    <section class="panel a-ready" aria-labelledby="ready-h">
+      <div class="panel-h"><h2 id="ready-h">Box readiness</h2><span class="rs">Read 12s ago</span></div>
+      <div class="panel-b" style="padding-bottom:0">
+        <div class="strip" style="--n:3">
+          <a class="cell" href="#/admin/health#units"><span class="l">{{m:pass}}Units</span><span class="v">4 / 4 active</span><span class="d">web · worker · proxy · db</span></a>
+          <a class="cell" href="#/admin/health#worker" data-state="cannot"><span class="l">{{m:notrun}}Worker</span><span class="v">Cannot tell</span><span class="d">no job in 26 h · no heartbeat signal</span></a>
+          <a class="cell" href="#/admin/health#queue"><span class="l">{{m:pass}}Queue</span><span class="v">0 waiting</span><span class="d">consistent with a silent worker or a quiet day</span></a>
+          <a class="cell" href="#/admin/integrations/git-host" data-state="cannot"><span class="l">{{m:notrun}}Git-host deliveries</span><span class="v">Quiet 26 h</span><span class="d">0 failed in 7 d · last Mon 09:31</span></a>
+          <a class="cell" href="#/admin/health#disk"><span class="l">{{m:low}}Disk</span><span class="v">71% used</span><span class="d">18 GB free</span></a>
+          <a class="cell" href="#/admin/secrets/MAIL_API_KEY"><span class="l">{{m:high}}Mail sender</span><span class="v">No sender</span><span class="d">MAIL_API_KEY missing</span></a>
+        </div>
+      </div>
+      <div class="def" style="margin-top:12px;border-top:0;padding-top:0">Deployed <a class="lnk id" href="#/admin/deploys/7c41d0e">7c41d0e</a> <b class="w5" style="color:var(--ink-1)">= main</b> · 0 behind · 09:38 today · slot blue · <button type="button" class="lnk" data-dialog="rollback">Roll back to 5e02a17</button>. Stale means deployed ≠ main, never age.</div>
+    </section>
+
+    <section class="panel a-actions" aria-labelledby="nx-h">
+      <div class="panel-h"><h2 id="nx-h">Next actions</h2><span class="rs">gate path first, then by mark · keys 1–8</span></div>
+      <ol class="nx" id="nx">
+        <li tabindex="0">{{m:notrun}}<div><div class="t b">Gate path silent for 26 h</div><div class="d">No push, scan or worker signal since Mon 09:36. 2 repo watches are stale for the same reason.</div></div><button type="button" class="btn sm primary" data-toast="Canary scan queued on sample-org/canary (mock)">Run canary scan <kbd class="k">1</kbd></button></li>
+        <li tabindex="0">{{m:blocker}}<div><div class="t b">2 blockers open on acme-sample/checkout-api</div><div class="d">1 regressed · fix PR #212 closed unmerged</div></div><a class="btn sm" href="#/admin/scans/scn_01J9K3M8QF/findings">Open scan <kbd class="k">2</kbd></a></li>
+        <li tabindex="0">{{m:failed}}<div><div class="t">Billing read failed</div><div class="d">payments API timeout · 3 attempts since 09:52</div></div><button type="button" class="btn sm" data-toast="Retrying GET /api/admin/overview → billing (mock)">Retry <kbd class="k">3</kbd></button></li>
+        <li tabindex="0">{{m:high}}<div><div class="t">Payment failed · cus_7QX2…</div><div class="d">card declined, attempt 2 of 4 · from stored payment events, current to 09:41 <span class="w2" title="Needs the payment-event store (wave 2)">W2</span></div></div><a class="btn sm" href="#/admin/customers/cus_7QX2R4">Open customer <kbd class="k">4</kbd></a></li>
+        <li tabindex="0">{{m:high}}<div><div class="t">MAIL_API_KEY missing</div><div class="d">important tier · no outbound mail since 20 Sep</div></div><a class="btn sm" href="#/admin/secrets">Set secret <kbd class="k">5</kbd></a></li>
+        <li tabindex="0">{{m:notrun}}<div><div class="t">Marketplace webhook silent 30 d</div><div class="d">3 installs recorded · no delivery since 30 Aug</div></div><button type="button" class="btn sm" data-toast="Test delivery sent to /api/marketplace/webhook (mock)">Send test <kbd class="k">6</kbd></button></li>
+        <li tabindex="0" hidden data-more>{{m:low}}<div><div class="t">Key gt_live_4k1… unused 30 d</div><div class="d">Sample Customer 7 · safe to revoke</div></div><a class="btn sm" href="#/admin/customers/cus_7QX2R4/keys">Review <kbd class="k">7</kbd></a></li>
+        <li tabindex="0" hidden data-more>{{m:low}}<div><div class="t">1 feedback unanswered</div><div class="d">“http.no-timeout is noisy on our retry wrapper” · 2 d</div></div><a class="btn sm" href="#/admin/customers/cus_7QX2R4/feedback">Reply <kbd class="k">8</kbd></a></li>
+      </ol>
+      <div class="nxmore"><button type="button" class="lnk" id="nx-more" aria-expanded="false" aria-controls="nx">Show 2 more</button><span>both {{m:low}} low</span></div>
+      <div class="def">Built from the same reads as the panels on this page, so the list cannot disagree with them.</div>
+    </section>
+
+    <div class="a-panels grid g3">
+      <section class="panel" data-state="ok" aria-labelledby="p-scans">
+        <div class="panel-h"><h2 id="p-scans">Scans</h2><span class="rs">Read 12s ago</span></div>
+        <div class="panel-b">
+          <div style="display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap">
+            <div><div class="big">0</div><div class="s12 muted">today · last done 26 h ago</div></div>
+            <div><div class="mid">84</div><div class="s12 muted">7 days</div></div>
+            <div><div class="mid">2m 41s</div><div class="s12 muted">median</div></div>
+          </div>
+          <svg class="chart" viewBox="0 0 360 118" role="img" aria-label="Scans per day, Wednesday to Tuesday: 17, 19, 16, 7, 6, 19, and none on Tuesday. Blocked 3, 4, 2, 1, 0, 4. Last week dashed. Deploy 7c41d0e on Tuesday at 09:38." style="margin-top:10px">
+            <defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="var(--ink-3)" stroke-width="1"/></pattern></defs>
+            <g fill="none" stroke="var(--ink-1)" stroke-width="1">
+              <rect x="16.5" y="25.5" width="23" height="54"/><rect x="64.5" y="16.5" width="23" height="55"/><rect x="112.5" y="29.5" width="23" height="59"/><rect x="160.5" y="67.5" width="23" height="25"/><rect x="208.5" y="71.5" width="23" height="25"/><rect x="256.5" y="16.5" width="23" height="50"/>
+            </g>
+            <g fill="url(#hatch)" stroke="var(--ink-3)" stroke-dasharray="2 2">
+              <rect x="16.5" y="79.5" width="23" height="4"/><rect x="64.5" y="71.5" width="23" height="8"/><rect x="256.5" y="66.5" width="23" height="13"/>
+              <rect x="300.5" y="16.5" width="31" height="80"/>
+            </g>
+            <g fill="var(--ink-1)">
+              <rect x="16" y="83" width="24" height="13"/><rect x="64" y="79" width="24" height="17"/><rect x="112" y="88" width="24" height="8"/><rect x="160" y="92" width="24" height="4"/><rect x="256" y="79" width="24" height="17"/>
+            </g>
+            <polyline fill="none" stroke="var(--ink-3)" stroke-width="1.25" stroke-dasharray="4 3" points="28,33 76,25 124,33 172,75 220,71 268,20 316,29"/>
+            <line x1="318.5" y1="12" x2="318.5" y2="98" stroke="var(--ink-2)" stroke-dasharray="3 3"/>
+            <text x="314" y="9" text-anchor="end">deploy 7c41d0e</text>
+            <line x1="8" y1="96.5" x2="352" y2="96.5" stroke="var(--line-strong)"/>
+            <text x="18" y="112">Wed</text><text x="66" y="112">Thu</text><text x="114" y="112">Fri</text><text x="162" y="112">Sat</text><text x="210" y="112">Sun</text><text x="258" y="112">Mon</text><text x="304" y="112">Tue</text>
+          </svg>
+          <div class="legend"><span><i class="solid"></i>blocked</span><span><i class="hatch"></i>partial coverage · no data</span><span><i></i>other scans</span><span><i class="tick"></i>deploy · dashed line = last week</span></div>
+        </div>
+        <div class="def">A scan counts once the worker finishes it, completed or failed. Waiting scans are counted under Queue.</div>
+      </section>
+
+      <section class="panel" data-state="failed" aria-labelledby="p-billing">
+        <div class="panel-h"><h2 id="p-billing">Billing</h2><span class="rs">{{m:failed}}<b>Failed</b> · 12s ago</span></div>
+        <div class="panel-b">
+          <div class="fail" role="status">
+            <div class="t">Failed — the payments API did not answer</div>
+            <div>MRR, failed payments and refunds are unknown. No number is shown because none was read.</div>
+            <div class="ep">GET /api/admin/overview → billing · 502 · req_8f2a…c1<br>since 09:52 · 3 attempts · timeout 2.5 s</div>
+            <div class="acts"><button type="button" class="btn sm" data-toast="Retrying (mock)">Retry</button><a class="btn sm ghost" href="#/admin/audit?request=req_8f2a">Open request log</a></div>
+          </div>
+        </div>
+        <div class="def">MRR = active subscription prices from the payments API. “Billed (scans)” on customer pages is not money received.</div>
+      </section>
+
+      <section class="panel" data-state="cannot" aria-labelledby="p-market">
+        <div class="panel-h"><h2 id="p-market">Marketplace webhook</h2><span class="rs">{{m:notrun}}<b>Cannot tell</b></span></div>
+        <div class="panel-b cannot">
+          <div class="t">No delivery in 30 days</div>
+          <p>3 active installs are recorded, but the endpoint has not been called since 30 Aug. Either nobody bought, or the webhook is not reaching us — this panel cannot decide.</p>
+          <div class="acts"><button type="button" class="btn sm" data-toast="Test delivery sent (mock)">Send test delivery</button><a class="btn sm ghost" href="#/admin/integrations/marketplace">Integration page</a></div>
+        </div>
+        <div class="def">An integration is not live until its first event arrives. Silence is never read as healthy.</div>
+      </section>
+
+      <section class="panel" data-state="ok" aria-labelledby="p-secrets">
+        <div class="panel-h"><h2 id="p-secrets">Secrets</h2><span class="rs">Read 12s ago</span></div>
+        <div class="panel-b">
+          <dl class="kv">
+            <dt>Required</dt><dd>6 / 6 set · 3 alive · 1 cannot tell · 2 have no live check</dd>
+            <dt>Important</dt><dd>2 / 3 set · <span class="sev">{{m:high}}<span class="id">MAIL_API_KEY</span> missing</span></dd>
+            <dt>Pending apply</dt><dd><span class="sev">{{m:medium}}1 · <span class="id">WEBHOOK_SIGNING_SECRET</span></span></dd>
+            <dt>Oldest rotation</dt><dd><span class="id">GIT_HOST_APP_KEY</span> · 212 d</dd>
+          </dl>
+          <div style="margin-top:10px"><a class="lnk s13" href="#/admin/secrets">Open secrets</a></div>
+        </div>
+        <div class="def">Alive = the last Verify reached the vendor with this value. Unchecked secrets are not counted as alive.</div>
+      </section>
+
+      <section class="panel" data-state="ok" aria-labelledby="p-watch">
+        <div class="panel-h"><h2 id="p-watch">Watchdog</h2><span class="rs">Read 40s ago</span></div>
+        <div class="panel-b">
+          <ul class="rows">
+            <li><a class="lnk id" href="#/admin/watchdog/wt_11">api.sample.test</a><span class="sev">{{m:pass}}Pass</span><span class="d">site · every 1 h · last 12 m ago</span></li>
+            <li><a class="lnk id" href="#/admin/watchdog/wt_14">status.sample.test</a><span class="sev">{{m:medium}}Drift</span><span class="d">2 headers changed since deploy 1e2f3a4</span></li>
+            <li><a class="lnk id" href="#/admin/watchdog/wt_18">sample-org/web-app</a><span class="sev sev-notrun">{{m:notrun}}Stale</span><span class="d">repo · schedule 6 h · last success 26 h ago — same silence as Worker</span></li>
+            <li><a class="lnk id" href="#/admin/watchdog/wt_19">sample-org/billing-api</a><span class="sev sev-notrun">{{m:notrun}}Stale</span><span class="d">repo · schedule 12 h · last success 27 h ago</span></li>
+          </ul>
+        </div>
+        <div class="def">Stale = last success older than the schedule. A silent stop is not a failure and not a pass.</div>
+      </section>
+
+      <section class="panel" data-state="ok" aria-labelledby="p-failed">
+        <div class="panel-h"><h2 id="p-failed">Failed scans · 7 d</h2><span class="rs">Read 12s ago</span></div>
+        <div class="panel-b verified">
+          <div class="t">None</div>
+          <div class="ep">Verified: GET /api/admin/scans?status=failed&amp;range=7d → 200, 0 rows</div>
+          <p style="margin-top:8px">A failed scan would be listed here with the step it died on and its exit reason. Zero is shown only after a read that succeeded.</p>
+        </div>
+        <div class="def">Failed = the worker picked the scan up and could not finish it. A blocked merge is not a failed scan.</div>
+      </section>
+    </div>
+  </div>
+</section>
