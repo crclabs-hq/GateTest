@@ -7,30 +7,25 @@ import { SiteHeader, SiteFooter } from "./components/SiteChrome";
 import { organizationSchema, webSiteSchema, jsonLd } from "./lib/seo/schema";
 import { SITE_URL } from "./lib/site-url";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
-import { THEME_INIT_SCRIPT } from "./components/ThemeToggle";
 
-// Editorial display face for headlines — gives the marketing surfaces a
-// distinctive, premium voice without restyling body copy. Exposed as a CSS
-// variable so only elements that opt in (.font-display) use it.
-const displayFont = localFont({
-  src: [
-    {
-      path: "../public/fonts/bricolage-grotesque-latin-600-800.woff2",
-      weight: "600",
-      style: "normal",
-    },
-    {
-      path: "../public/fonts/bricolage-grotesque-latin-600-800.woff2",
-      weight: "700",
-      style: "normal",
-    },
-    {
-      path: "../public/fonts/bricolage-grotesque-latin-600-800.woff2",
-      weight: "800",
-      style: "normal",
-    },
-  ],
-  variable: "--font-display",
+// The clean white system (Craig 2026-09-29) sets everything in one family:
+// Geist for text and headlines, Geist Mono for code and numbers. Both are
+// variable fonts (weight axis 400-600), self-hosted from website/public/fonts
+// so the build never fetches a font (tests/website-no-network-fonts.test.js).
+// globals.css reads the two variables below into --font-sans / --font-mono.
+const geist = localFont({
+  src: "../public/fonts/geist-latin.woff2",
+  weight: "400 600",
+  style: "normal",
+  variable: "--font-geist",
+  display: "swap",
+});
+
+const geistMono = localFont({
+  src: "../public/fonts/geist-mono-latin.woff2",
+  weight: "400 600",
+  style: "normal",
+  variable: "--font-geist-mono",
   display: "swap",
 });
 
@@ -38,7 +33,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#0f766e",
+  themeColor: "#ffffff",
+  colorScheme: "light",
 };
 
 export const metadata: Metadata = {
@@ -119,15 +115,10 @@ export default async function RootLayout({
   // whole tree into dynamic rendering, which per-request nonces require.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
-    <html lang="en" className={`h-full antialiased ${displayFont.variable}`}>
+    <html lang="en" className={`h-full antialiased ${geist.variable} ${geistMono.variable}`}>
       <head>
-        {/* Theme system (issue #690): read the stored light/dark choice and
-            stamp data-theme on <html> before first paint. Must be the first
-            thing in <head> and a plain synchronous script (not next/script,
-            which defers) — otherwise a stored explicit theme flashes the
-            other one for a frame. "system" needs no JS: globals.css's
-            prefers-color-scheme media query handles it on its own. */}
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* One light theme (Craig 2026-09-29): no theme bootstrap script and
+            no OS-driven dark palette — the site is white end to end. */}
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="min-h-full flex flex-col">

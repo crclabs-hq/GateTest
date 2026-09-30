@@ -1,158 +1,98 @@
 @import "tailwindcss";
 
 /* ===================================================================== */
-/* THEME SYSTEM — light, dark and system (issue #690, owner 23 Sep)      */
-/* Three states: system (default, follows prefers-color-scheme), and an  */
-/* explicit "light" or "dark" stamped as data-theme on <html> by the     */
-/* Navbar's ThemeToggle (website/app/components/ThemeToggle.tsx) and     */
-/* persisted to localStorage. Every colour on every page is one of these */
-/* tokens — never a literal — so the site (and the admin, on top of the  */
-/* same tokens) can actually change theme instead of only opting into    */
-/* dark. The cascade, in the order the browser resolves it:              */
-/*   1. :root                                            — light, always the base */
-/*   2. @media (prefers-color-scheme: dark) :root:not([data-theme="light"]) */
-/*                                                        — system says dark, and the */
-/*                                                          visitor did not force light */
-/*   3. :root[data-theme="dark"]                         — explicit dark, any OS setting */
-/* data-theme="light" matches only rule 1 (rule 2's :not() excludes it,  */
-/* rule 3 doesn't match), so an explicit light choice always wins over a */
-/* dark OS. Both palettes are designed for AA contrast on their own      */
-/* ground, not one inverted from the other. */
+/* GATETEST — CLEAN WHITE SYSTEM (Craig 2026-09-29)                      */
+/* "A very clean white system over the complete website end to end, no   */
+/*  reds, no yellows, nice fonts."                                        */
+/*                                                                        */
+/* One light theme, always. The previous system followed the OS           */
+/* (prefers-color-scheme) and rendered a green-black site on a dark OS;   */
+/* that path is gone, not hidden. Every colour on every page is one of    */
+/* the tokens below — never a literal, never a Tailwind hue class         */
+/* (tests/no-hardcoded-color-literals.test.js,                            */
+/*  tests/design-system-compliance.test.js).                              */
+/*                                                                        */
+/* Severity is carried by ink, weight and shape — never by red, orange    */
+/* or yellow:                                                             */
+/*   error / blocking  → ink, solid mark, semibold                        */
+/*   warning           → neutral grey, hollow mark                        */
+/*   pass / ok         → the one accent                                   */
+/* ===================================================================== */
 :root {
-  /* === LIGHT PALETTE (default / explicit data-theme="light") === */
+  /* === Canvas and ink === */
   --background: #ffffff;
-  --background-alt: #f8f9fa;
-  --foreground: #111827;
-  --foreground-secondary: #374151;
+  --background-alt: #fafafa;
+  --foreground: #0a0a0a;
+  --foreground-secondary: #404040;
+  --muted: #6b6b6b;              /* 5.3:1 on white, 5.0:1 on --background-alt */
+  --faint: #a3a3a3;              /* decoration only, never body text */
 
-  /* Single accent: refined teal — professional, distinctive. AA on white
-     at this weight (4.6:1) for text; controls use the same hue. */
+  /* === The one accent (brand teal, deepened for white) ===
+     Links, focus rings, pass marks, the active step. Used sparingly:
+     primary buttons are ink, not accent. 5.5:1 on white. */
   --accent: #0f766e;
-  --accent-light: #14b8a6;
-  --accent-hover: #0d6560;
+  --accent-light: #0f766e;
+  --accent-hover: #115e59;
+  --accent-wash: rgba(15, 118, 110, 0.06);
 
-  /* Surfaces */
-  --surface: rgba(255, 255, 255, 0.9);
+  /* === Surfaces and lines === */
+  --surface: rgba(255, 255, 255, 0.86);
   --surface-solid: #ffffff;
-  --border: rgba(0, 0, 0, 0.08);
-  --border-strong: rgba(0, 0, 0, 0.15);
-  --muted: #6b7280;
+  --border: rgba(10, 10, 10, 0.08);
+  --border-strong: rgba(10, 10, 10, 0.14);
 
-  /* Status — separate from the accent on purpose (a "good" state must
-     read as good even on a page whose accent is used for something else). */
-  --success: #059669;
-  --danger: #dc2626;
-  --warning: #d97706;
+  /* === Status — no red, no yellow === */
+  --success: #0f766e;            /* the accent */
+  --danger: #0a0a0a;             /* ink; weight and a solid mark say "blocking" */
+  --warning: #737373;            /* neutral; a hollow mark says "look at this" */
 
-  /* Typography */
-  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, sans-serif;
+  /* === Type === Geist + Geist Mono, self-hosted (website/public/fonts,
+     loaded in app/layout.tsx; tests/website-no-network-fonts.test.js). */
+  --font-sans: var(--font-geist), -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
 
-  /* === ELEVATION SCALE ===
-     Use these instead of ad-hoc box-shadow / Tailwind shadow-* so depth is
-     consistent site-wide. sm = resting card, md = hover, lg = popular/CTA. */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
-  --shadow-accent: 0 1px 2px rgba(15, 118, 110, 0.10);
+  /* === Elevation — barely there === */
+  --shadow-sm: 0 1px 2px rgba(10, 10, 10, 0.04);
+  --shadow-md: 0 1px 2px rgba(10, 10, 10, 0.04), 0 4px 12px rgba(10, 10, 10, 0.04);
+  --shadow-lg: 0 1px 2px rgba(10, 10, 10, 0.04), 0 12px 32px rgba(10, 10, 10, 0.06);
+  --shadow-accent: 0 0 0 4px var(--accent-wash);
 
-  /* === RADIUS SCALE ===
-     sm = inputs/chips, md = buttons, lg = cards, xl = hero/panels. */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.625rem;
-  --radius-xl: 0.75rem;
+  /* === Radius === */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
-  /* Dark PANELS inside a light page (terminals, code, "what the CI sees").
-     These are deliberate accents and stay dark in both themes. */
-  --panel: #0b1210;
-  --panel-alt: #121a18;
-  --panel-foreground: #e8eeeb;
-  --panel-muted: #8f9e99;
-  --panel-border: rgba(255, 255, 255, 0.08);
+  /* === Panels (code, terminals, captured output) — light, like the page.
+     They used to be dark accents on a light page; in the white system a
+     panel is a quiet grey plate with a hairline. */
+  --panel: #fafafa;
+  --panel-alt: #f4f4f4;
+  --panel-foreground: #171717;
+  --panel-muted: #737373;
+  --panel-border: rgba(10, 10, 10, 0.08);
 
-  /* === V2 DESIGN SYSTEM TOKENS (site-wide, issue #686 phase 1) ===
-     Lifted out of website/app/preview/preview.css — the owner's call,
-     2026-09-23: "much better, we need the same on all the other pages."
-     Additive: the names above stay live until every page has migrated
-     onto website/app/components/v2/, then the duplicated old names go. */
+  /* === V2 names (issue #686) — aliases onto the tokens above === */
   --v2-bg: var(--background);
   --v2-bg-alt: var(--background-alt);
   --v2-fg: var(--foreground);
   --v2-muted: var(--muted);
   --v2-line: var(--border);
   --v2-line-strong: var(--border-strong);
-  --v2-accent: var(--accent-light);
-  /* Same hex as --success/--danger/--warning at the root — the light theme
-     already tuned these for a white surface. Dark overrides below. */
+  --v2-accent: var(--accent);
   --v2-ok: var(--success);
   --v2-warn: var(--warning);
   --v2-bad: var(--danger);
   --v2-mono: var(--font-mono);
 
-  /* Radius scale (the 2026-09-22 "restrained engineering" pass: 6-12px,
-     never the old --radius-xl pill shapes on v2 surfaces). */
   --v2-radius-sm: 6px;
   --v2-radius: 8px;
   --v2-radius-lg: 12px;
 
-  /* Motion: fast for hover/focus state changes, base for reveal-on-scroll
-     and rail transitions. prefers-reduced-motion zeroes both out below. */
   --v2-motion-fast: 0.15s;
   --v2-motion-base: 0.3s;
-}
 
-/* === DARK PALETTE — system says dark, and the visitor has not forced === */
-/* === light. Same values as the explicit :root[data-theme="dark"]    === */
-/* === block below (issue #690 asks for both selectors, deliberately  === */
-/* === duplicated rather than only one, so an explicit "light" choice === */
-/* === on a dark OS is a simple :not() away rather than a specificity  === */
-/* === fight). The v2 homepage (/preview) is the source these numbers === */
-/* === were tuned against; both palettes hit AA on body text.         === */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --background: #0b1210;
-    --background-alt: #101816;
-    --foreground: #e8eeeb;
-    --foreground-secondary: #c3cdc8;
-    --surface: rgba(16, 24, 22, 0.85);
-    --surface-solid: #121a18;
-    --border: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.16);
-    --muted: #8f9e99;
-    --accent: #14b8a6;
-    --accent-light: #2dd4bf;
-    --accent-hover: #0d9488;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
-    --v2-ok: #34d399;
-    --v2-warn: #fbbf24;
-    --v2-bad: #f87171;
-  }
-}
-
-/* === DARK PALETTE — explicit choice, any OS setting. Identical values === */
-/* === to the media-query block above; see that block's comment. ===     */
-:root[data-theme="dark"] {
-  --background: #0b1210;
-  --background-alt: #101816;
-  --foreground: #e8eeeb;
-  --foreground-secondary: #c3cdc8;
-  --surface: rgba(16, 24, 22, 0.85);
-  --surface-solid: #121a18;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --muted: #8f9e99;
-  --accent: #14b8a6;
-  --accent-light: #2dd4bf;
-  --accent-hover: #0d9488;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
-  --v2-ok: #34d399;
-  --v2-warn: #fbbf24;
-  --v2-bad: #f87171;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -170,6 +110,7 @@
   --color-surface-solid: var(--surface-solid);
   --color-border: var(--border);
   --color-muted: var(--muted);
+  --color-faint: var(--faint);
   --color-success: var(--success);
   --color-danger: var(--danger);
   --color-warning: var(--warning);
@@ -179,8 +120,6 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 
-  /* Expose elevation + radius to Tailwind arbitrary values, e.g.
-     shadow-[var(--shadow-md)] rounded-[var(--radius-lg)]. */
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
   --shadow-lg: var(--shadow-lg);
@@ -193,388 +132,228 @@
 
 /* === BASE === */
 
+html {
+  background: var(--background);
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), sans-serif;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  font-feature-settings: "ss01" on, "cv11" on;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+h1, h2, h3, h4 {
+  color: var(--foreground);
+  letter-spacing: -0.025em;
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+p { text-wrap: pretty; }
+
+a { text-underline-offset: 3px; text-decoration-thickness: 1px; }
+
 ::selection {
-  background: rgba(15, 118, 110, 0.12);
+  background: rgba(15, 118, 110, 0.14);
   color: var(--foreground);
 }
 
-/* Inside a dark panel the page selection colour (dark text on a faint wash)
-   made selected text vanish — "when I try and copy it the text goes black"
-   (Craig 2026-09-10). Panels get a visible teal wash and light text. */
-.bg-panel ::selection,
-.bg-panel::selection,
-.stats-band ::selection,
-.product-card ::selection {
-  background: rgba(45, 212, 191, 0.35);
-  color: #ffffff;
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
-/* === BACKGROUNDS === */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(10, 10, 10, 0.12); border-radius: 999px; border: 2px solid var(--background); }
+::-webkit-scrollbar-thumb:hover { background: rgba(10, 10, 10, 0.22); }
 
-.hero-dark {
-  background: #14141d;
-  position: relative;
+/* === TYPE UTILITIES === */
+
+/* Headlines. Same family as the body — the white system reads as one voice.
+   Tight tracking and weight 600 carry the display role. */
+.font-display {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.035em;
 }
 
-/* === MOBILE PERFORMANCE / VISIBILITY === */
-@media (max-width: 767px) {
-  /* The 40s grid drift animation pegs mobile GPUs and is invisible at
-     phone framerate anyway. Show the grid, skip the motion. */
-  .hero-grid { animation: none; }
-  /* Decorative gradient shimmer is GPU-heavy and adds nothing semantic. */
-  .gradient-text { animation: none; }
-}
+.gradient-text { color: var(--accent); }
 
-@media (prefers-reduced-motion: reduce) {
-  .hero-grid,
-  .hero-blob,
-  .status-pulse,
-  .gradient-text,
-  .fade-up,
-  .slide-in,
-  .progress-glow,
-  .module-pulse,
-  .flash-pass,
-  .flash-fail { animation: none !important; }
-}
+/* === SURFACES === */
 
-.hero-accent-text {
-  color: #2dd4bf;
-}
+.hero-bg,
+.grid-bg { background: var(--background); }
 
-.hero-cta {
-  background: #2dd4bf;
-  color: #0a0a12;
-  font-weight: 700;
-  transition: all 0.15s ease;
-  display: inline-block;
-}
-
-.hero-cta:hover {
-  background: #5eead4;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(45, 212, 191, 0.2);
-}
-
-.hero-bg {
+.hero-warm {
   background: var(--background);
+  border-bottom: 1px solid var(--border);
 }
 
-.section-alt {
-  background: var(--background-alt);
-}
-
-.section-accent {
-  background: var(--background-alt);
-}
-
-.grid-bg {
-  background: var(--background);
-}
-
-/* === GLASS === */
+.section-alt,
+.section-accent { background: var(--background-alt); }
 
 .glass {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: var(--surface);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
   border: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .glass-strong {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(40px) saturate(200%);
-  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid var(--border);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-/* === CARDS ===
-   Aligned onto the v2 tokens (issue #686 phase 2) so every page still using
-   the plain `.card` class (rather than the <Card> component from
-   website/app/components/v2/) gets the same look, and the same min-width: 0
-   overflow fix .v2-card carries — see the comment on .v2-card below for why
-   that fix exists. This is now byte-identical to .v2-card on purpose: the
-   two names can merge once every page has moved to the <Card> component. */
-.card {
-  background: var(--v2-bg-alt);
-  border: 1px solid var(--v2-line-strong);
-  border-radius: var(--v2-radius-lg);
-  min-width: 0;
-  transition: border-color var(--v2-motion-fast) ease;
-}
-
-.card:hover {
-  border-color: var(--v2-accent);
-}
-
+/* === CARDS === white plate, hairline, lifts a hair on hover */
+.card,
 .card-highlight {
-  background: var(--v2-bg-alt);
-  border: 1px solid var(--v2-accent);
-  border-radius: var(--v2-radius-lg);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   min-width: 0;
-  box-shadow: none;
+  transition: border-color var(--v2-motion-fast) ease, box-shadow var(--v2-motion-fast) ease;
 }
+.card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+.card-highlight { border-color: var(--foreground); }
 
-/* 3D perspective tilt on module cards — subtle depth, not a fairground ride */
 .module-card-3d {
-  transform-style: preserve-3d;
-  will-change: transform;
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.22s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .module-card-3d:hover {
-    border-color: var(--border-strong);
-  }
+@media (hover: hover) {
+  .module-card-3d:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
 }
 
-/* === ACCENT TEXT (subtle gradient shimmer) === */
-
-.gradient-text {
-  color: var(--accent);
-}
-
-@keyframes gradient-shimmer {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-
-/* === TERMINAL === */
-
+/* === TERMINAL (legacy name; same plate as .term) === */
 .terminal {
-  background: #1a1a2e;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+  background: var(--panel);
+  color: var(--panel-foreground);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
 }
 
-.terminal-header {
-  background: rgba(255, 255, 255, 0.04);
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.terminal-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-/* === BUTTONS — solid, no gradients ===
-   Aligned onto the v2 tokens (issue #686 phase 2): .btn-cta/.btn-secondary
-   now match <button className="v2-btn v2-btn-primary"> / "v2-btn" in
-   look and hover behaviour, for the many pages still using the class names
-   directly rather than the v2 components. This also removed the one literal
-   hex colour in this file (`.btn-cta:hover` used to hard-code #1f2937 for a
-   dark hover state that never adapted to light mode). */
+/* === BUTTONS === primary is ink; the accent is not a button colour */
+.btn-cta,
 .btn-primary {
-  background: var(--accent);
-  color: white;
-  font-weight: 600;
-  border-radius: var(--v2-radius-sm);
-  transition: background var(--v2-motion-fast) ease;
+  background: var(--foreground);
+  color: var(--background);
+  font-weight: 500;
+  border-radius: var(--radius-md);
   display: inline-block;
+  transition: background var(--v2-motion-fast) ease, box-shadow var(--v2-motion-fast) ease;
 }
-
-.btn-primary:hover {
-  background: var(--accent-hover);
-}
-
-.btn-primary:active {
-  background: var(--accent-hover);
-}
-
-.btn-cta {
-  background: var(--v2-fg);
-  color: var(--v2-bg);
-  font-weight: 600;
-  border-radius: var(--v2-radius-sm);
-  transition: opacity var(--v2-motion-fast) ease;
-  display: inline-block;
-}
-
-.btn-cta:hover {
-  opacity: 0.88;
-}
+.btn-cta:hover,
+.btn-primary:hover,
+.btn-primary:active { background: #262626; box-shadow: var(--shadow-md); }
 
 .btn-secondary {
-  background: transparent;
-  border: 1px solid var(--v2-line-strong);
-  color: var(--v2-fg);
-  font-weight: 600;
-  border-radius: var(--v2-radius-sm);
-  transition: border-color var(--v2-motion-fast) ease;
-  display: inline-block;
-}
-
-.btn-secondary:hover {
-  border-color: var(--v2-fg);
-}
-
-/* === BADGE === */
-
-.badge-accent {
-  background: rgba(15, 118, 110, 0.06);
-  color: var(--accent);
-  border: 1px solid rgba(15, 118, 110, 0.12);
-  border-radius: 999px;
+  background: var(--background);
+  border: 1px solid var(--border-strong);
+  color: var(--foreground);
   font-weight: 500;
+  border-radius: var(--radius-md);
+  display: inline-block;
+  transition: border-color var(--v2-motion-fast) ease, background var(--v2-motion-fast) ease;
+}
+.btn-secondary:hover { border-color: var(--foreground); background: var(--background-alt); }
+
+.replace-pill {
+  background: var(--background);
+  border: 1px solid var(--border);
 }
 
-/* === GLOW (minimal) === */
+/* === BANDS === */
 
-.glow-border {
-  border: 2px solid var(--accent);
+/* Stats band: a quiet grey plate between hairlines, ink numbers. */
+.stats-band {
+  background: var(--background-alt);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground);
+}
+.stats-band .stat-num {
+  font-family: var(--font-mono);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
-.pulse-glow {
-  /* No animation — clean and still */
+/* Product card: the framed product shot on the home page. White with a
+   hairline and a soft lift, like a real window on a white desk. */
+.product-card {
+  background: var(--background);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  color: var(--foreground);
 }
-
-/* === HERO GRID BACKGROUND === */
-
-.hero-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(20, 184, 166, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(20, 184, 166, 0.07) 1px, transparent 1px);
-  background-size: 48px 48px;
-  -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 40%, #000 0%, transparent 75%);
-  mask-image: radial-gradient(ellipse 60% 60% at 50% 40%, #000 0%, transparent 75%);
-  pointer-events: none;
-  animation: hero-grid-drift 40s linear infinite;
-}
-
-@keyframes hero-grid-drift {
-  0% { background-position: 0 0, 0 0; }
-  100% { background-position: 48px 48px, 48px 48px; }
-}
-
-/* === HERO BLOB — animated teal gradient that drifts so the page feels alive ===
-   Slow drift (18s) + subtle scale breathing keeps it from reading as a banner. */
-.hero-blob {
-  animation: hero-blob-drift 18s ease-in-out infinite;
-  will-change: transform, opacity;
-}
-
-@keyframes hero-blob-drift {
-  0%, 100% {
-    transform: translateX(-50%) translateY(0) scale(1);
-    opacity: 0.9;
-  }
-  33% {
-    transform: translateX(-30%) translateY(-12px) scale(1.05);
-    opacity: 1;
-  }
-  66% {
-    transform: translateX(-70%) translateY(8px) scale(0.95);
-    opacity: 0.85;
-  }
-}
-
-/* === GLASS CARD — used for hero chips, sample buttons, status cells ===
-   Layered: low-opacity fill + backdrop blur + accent-tinted border + inner highlight. */
-.glass-card {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.06) inset,
-    0 8px 32px rgba(0, 0, 0, 0.12);
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-}
-.glass-card:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(20, 184, 166, 0.30);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.08) inset,
-    0 12px 40px rgba(15, 118, 110, 0.20);
-}
-
-/* === STATUS PULSE — soft accent ping on hero stat cells so they feel live === */
-@keyframes status-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.15); }
-  50%      { box-shadow: 0 0 0 6px rgba(20, 184, 166, 0.00); }
-}
-.status-pulse { animation: status-pulse 2.4s ease-in-out infinite; }
-
-/* === FOOTER ACCENT BAR === */
 
 .footer-accent-bar {
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, rgba(15, 118, 110, 0.5) 50%, transparent 100%);
+  height: 1px;
+  background: var(--border);
 }
 
-/* === ANIMATIONS === */
+/* === MOTION === */
 
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
-.fade-up {
-  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
+.fade-up { animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .stagger > *:nth-child(1) { animation-delay: 0s; }
 .stagger > *:nth-child(2) { animation-delay: 0.06s; }
 .stagger > *:nth-child(3) { animation-delay: 0.12s; }
 .stagger > *:nth-child(4) { animation-delay: 0.18s; }
-
-/* === SCAN PAGE === */
+.count-up { animation: fade-up 0.3s ease-out; }
 
 @keyframes slide-in {
-  from { opacity: 0; transform: translateX(-8px); }
+  from { opacity: 0; transform: translateX(-6px); }
   to { opacity: 1; transform: translateX(0); }
 }
 .slide-in { animation: slide-in 0.25s ease-out forwards; }
 
+/* Scan page states — a wash of the accent while running, a brief grey
+   flash on a finding. No red flash: blocking is said by ink and weight. */
 @keyframes module-pulse {
-  0%, 100% { background: rgba(15, 118, 110, 0.03); }
-  50% { background: rgba(15, 118, 110, 0.06); }
+  0%, 100% { background: transparent; }
+  50% { background: var(--accent-wash); }
 }
 .module-running {
   animation: module-pulse 1.5s ease-in-out infinite;
   border-left: 2px solid var(--accent);
 }
 
-@keyframes flash-green {
-  0% { background: rgba(5, 150, 105, 0.1); }
+@keyframes flash-pass {
+  0% { background: var(--accent-wash); }
   100% { background: transparent; }
 }
-.flash-pass { animation: flash-green 0.5s ease-out; }
+.flash-pass { animation: flash-pass 0.5s ease-out; }
 
-@keyframes flash-red {
-  0% { background: rgba(220, 38, 38, 0.1); }
+@keyframes flash-fail {
+  0% { background: rgba(10, 10, 10, 0.05); }
   100% { background: transparent; }
 }
-.flash-fail { animation: flash-red 0.5s ease-out; }
+.flash-fail { animation: flash-fail 0.5s ease-out; }
 
 @keyframes progress-glow {
   0%, 100% { box-shadow: none; }
-  50% { box-shadow: 0 0 8px rgba(15, 118, 110, 0.2); }
+  50% { box-shadow: 0 0 0 3px var(--accent-wash); }
 }
 .progress-glow { animation: progress-glow 2s ease-in-out infinite; }
 
 @keyframes celebrate {
-  0% { transform: scale(0.97); opacity: 0; }
+  0% { transform: scale(0.98); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
 .celebrate { animation: celebrate 0.3s ease-out forwards; }
@@ -589,23 +368,8 @@ body {
   color: var(--accent);
 }
 
-@keyframes scan {
-  0% { transform: translateY(-100%); opacity: 0; }
-  10% { opacity: 0.2; }
-  90% { opacity: 0.2; }
-  100% { transform: translateY(100vh); opacity: 0; }
-}
-
-.scan-line {
-  position: absolute;
-  width: 100%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  animation: scan 4s linear infinite;
-}
-
 @keyframes terminal-scan {
-  0% { top: 0; opacity: 0.3; }
+  0% { top: 0; opacity: 0.4; }
   100% { top: 100%; opacity: 0; }
 }
 .terminal-scan-line {
@@ -613,154 +377,34 @@ body {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent 5%, rgba(20, 184, 166, 0.4) 50%, transparent 95%);
+  background: linear-gradient(90deg, transparent 5%, var(--accent) 50%, transparent 95%);
+  opacity: 0.35;
   animation: terminal-scan 2.5s linear infinite;
   pointer-events: none;
 }
 
-.count-up { animation: fade-up 0.3s ease-out; }
-
-/* === DIVIDER — gradient fade, not flat line === */
-
-.section-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(15, 118, 110, 0.18) 50%, transparent 100%);
-}
-
-/* === SCROLL === */
-
-html {
-  scroll-behavior: smooth;
-  scroll-padding-top: 80px;
-}
-
-/* === SCROLLBAR === */
-
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
-
-/* ===================================================================== */
-/* KLAVIYO-TIER HERO (prototype) — warm editorial light treatment        */
-/* ===================================================================== */
-
-/* Opt-in editorial display face for headlines. */
-.font-display {
-  font-family: var(--font-sans), system-ui, sans-serif;
-  letter-spacing: -0.025em;
-  letter-spacing: -0.025em;
-}
-
-/* Warm cream hero canvas with soft teal light, à la premium B2B SaaS. */
-.hero-warm {
-  background: var(--background);
-  border-bottom: 1px solid var(--border);
-}
-
-/* Faint dotted grid for texture (very low contrast). */
-.hero-warm-grid { display: none; }
-
-/* Dark product card that pops on the cream canvas (Klaviyo shows dark UI
-   shots on light backgrounds). Deep, layered shadow gives real elevation. */
-.product-card {
-  background: linear-gradient(180deg, #11141b 0%, #0c0e14 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
-}
-
-/* Floating "kpi" chip overlapping the product card for depth. */
-.product-chip {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 12px 30px -10px rgba(15, 23, 42, 0.25);
-}
-
-/* Soft gentle float for the product card (respects reduced-motion). */
-@keyframes card-float {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-8px); }
-}
-.card-float { animation: none; }
-
-/* Pill for the "replaces" marquee row. */
-.replace-pill {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-
-@media (max-width: 767px) {
-  .card-float { animation: none; }
-}
 @media (prefers-reduced-motion: reduce) {
-  .card-float { animation: none; }
+  .fade-up,
+  .slide-in,
+  .module-running,
+  .flash-pass,
+  .flash-fail,
+  .progress-glow,
+  .celebrate,
+  .count-up,
+  .terminal-scan-line,
+  .cursor-blink::after { animation: none !important; }
 }
 
 /* ===================================================================== */
-/* HERO PASS 2 — signature texture, bold stats band, browser frame       */
-/* ===================================================================== */
-
-/* Signature teal aurora — our answer to Klaviyo's iridescent shimmer.
-   Layered soft radial glows; calm, premium, unmistakably ours. */
-.hero-aurora {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(40% 50% at 78% 8%, rgba(20, 184, 166, 0.16), transparent 70%),
-    radial-gradient(35% 45% at 12% 18%, rgba(45, 212, 191, 0.10), transparent 70%),
-    radial-gradient(50% 60% at 95% 90%, rgba(15, 118, 110, 0.08), transparent 70%);
-}
-
-/* Full-bleed stats band — refined DARK, not a loud color fill.
-   White display numbers + teal labels; gives the clean dark/light rhythm
-   without the bright band Craig (rightly) didn't want. */
-.stats-band {
-  background: #0f1115;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-.stats-band .stat-num {
-  font-family: var(--font-mono), monospace;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Browser-window frame for the product screenshot — makes the auto-fix PR
-   read as a real captured screenshot rather than a floating card. */
-.browser-frame .url-bar {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-/* Marquee-free, accessible: the band is static. */
-
-/* Keyboard focus must be visible on every interactive element (a11y; live audit 2026-09-10). */
-:focus-visible {
-  outline: 2px solid var(--accent, #0d9488);
-  outline-offset: 2px;
-}
-
-/* ===================================================================== */
-/* V2 PRIMITIVES — SHARED CLASSES (issue #686 phase 1)                   */
-/* Lifted from website/app/preview/preview.css, unscoped so every public */
-/* page can use them (the old rules were locked behind ".gt-v2 …").      */
-/* website/app/components/v2/* is the JS side of this system; these      */
-/* classes are its CSS side. Both themes work because every value below  */
-/* is a token, never a literal hex. */
+/* V2 PRIMITIVES — shared classes (issue #686); the JS side lives in      */
+/* website/app/components/v2/. Every value is a token.                    */
 /* ===================================================================== */
 
 /* min-width: 0 on both wraps: a page's top-level element is a flex item of
-   the root layout's column flex container (app/layout.tsx), and a flex
-   item's automatic min-width is its content's min-content size, not 0 — a
-   single wide-but-unbreakable descendant (a multi-column table, in the
-   /trust regression this shipped with) can silently force the WHOLE PAGE
-   wider than the viewport at 375px even though that descendant has its own
-   overflow-x: auto. min-width: 0 makes the wrap respect the viewport
-   instead of its content's intrinsic size. */
+   the root layout's column flex container, and a flex item's automatic
+   min-width is its content's min-content size — one wide unbreakable
+   descendant could otherwise force the whole page wider than 375px. */
 .v2-wrap {
   width: 100%;
   max-width: 1120px;
@@ -772,11 +416,9 @@ html {
 @media (min-width: 1024px) {
   .v2-wrap { padding-left: 88px; }
 }
-/* A narrower, prose-width wrap for text-heavy pages (docs, legal, glossary)
-   — no fixed left rail to clear, and a shorter line length reads better. */
 .v2-wrap-narrow {
   width: 100%;
-  max-width: 760px;
+  max-width: 720px;
   min-width: 0;
   margin: 0 auto;
   padding-left: 24px;
@@ -784,33 +426,33 @@ html {
 }
 
 .v2-mono { font-family: var(--v2-mono); font-variant-numeric: tabular-nums; }
+
 .v2-h1 {
-  font-size: clamp(2.4rem, 5.2vw, 4.25rem);
+  font-size: clamp(2.5rem, 5.4vw, 4.5rem);
   line-height: 1.02;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.045em;
   font-weight: 600;
 }
 .v2-h2 {
-  font-size: clamp(1.6rem, 2.6vw, 2.25rem);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
+  font-size: clamp(1.75rem, 2.8vw, 2.5rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
   font-weight: 600;
 }
 .v2-kicker {
   font-family: var(--v2-mono);
   font-size: 12px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--v2-muted);
 }
 .v2-section {
-  padding: 96px 0;
+  padding: 112px 0;
   border-top: 1px solid var(--v2-line);
 }
 .v2-section:first-of-type { border-top: 0; }
-/* A tighter section for pages that are mostly text (legal, glossary) rather
-   than full-bleed marketing sections. */
 .v2-section-tight {
-  padding: 56px 0;
+  padding: 64px 0;
   border-top: 1px solid var(--v2-line);
 }
 .v2-section-tight:first-of-type { border-top: 0; }
@@ -833,32 +475,34 @@ html {
   align-items: center;
   gap: 12px;
   height: 56px;
-  color: var(--v2-muted);
+  color: var(--faint);
   font-family: var(--v2-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   text-decoration: none;
   transition: color var(--v2-motion-base) ease;
 }
+.v2-rail-stage:hover { color: var(--v2-fg); }
 .v2-rail-dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 999px;
   border: 1px solid var(--v2-line-strong);
   background: var(--v2-bg);
   transition: background var(--v2-motion-base) ease, border-color var(--v2-motion-base) ease, box-shadow var(--v2-motion-base) ease;
 }
-.v2-rail-stage[data-state="done"] .v2-rail-dot { background: var(--v2-ok); border-color: var(--v2-ok); }
+.v2-rail-stage[data-state="done"] { color: var(--v2-muted); }
+.v2-rail-stage[data-state="done"] .v2-rail-dot { background: var(--v2-fg); border-color: var(--v2-fg); }
 .v2-rail-stage[data-state="active"] { color: var(--v2-fg); }
 .v2-rail-stage[data-state="active"] .v2-rail-dot {
   background: var(--v2-accent);
   border-color: var(--v2-accent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--v2-accent) 15%, transparent);
+  box-shadow: 0 0 0 4px var(--accent-wash);
 }
 .v2-rail-line {
   position: absolute;
-  left: 4.5px;
+  left: 4px;
   top: 28px;
   width: 1px;
   height: calc(100% - 56px);
@@ -870,21 +514,20 @@ html {
   top: 0;
   width: 100%;
   height: 100%;
-  background: var(--v2-ok);
+  background: var(--v2-fg);
   transform: scaleY(0);
   transform-origin: top;
-  /* transform, never height: height changes on a scroll handler force a
-     layout reflow on every frame (measured jank on iPad Safari WebKit,
-     issue #678 defect 1 follow-up). transform is compositor-only. */
+  /* transform, never height: compositor-only (issue #678 defect 1). */
   transition: transform var(--v2-motion-base) ease;
 }
 
-/* ── GitHub-styled panels ───────────────────────────────────────────── */
+/* ── Git-host panels (the PR mock) ──────────────────────────────────── */
 .gh {
   border: 1px solid var(--v2-line-strong);
-  border-radius: var(--v2-radius);
-  background: var(--v2-bg-alt);
+  border-radius: var(--v2-radius-lg);
+  background: var(--v2-bg);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 .gh-head {
   display: flex;
@@ -892,6 +535,7 @@ html {
   gap: 8px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--v2-line);
+  background: var(--v2-bg-alt);
   font-size: 13px;
   color: var(--v2-muted);
 }
@@ -904,95 +548,90 @@ html {
   font-size: 13.5px;
 }
 .gh-row:first-child { border-top: 0; }
+/* Status marks: shape does the work. Solid ink = blocking, hollow grey =
+   still running, solid accent = passed. */
 .gh-dot { width: 8px; height: 8px; border-radius: 999px; flex: none; }
-.gh-dot[data-s="pending"] { background: var(--v2-warn); animation: v2-pulse 1.2s ease-in-out infinite; }
+.gh-dot[data-s="pending"] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--v2-warn); animation: v2-pulse 1.2s ease-in-out infinite; }
 .gh-dot[data-s="failure"] { background: var(--v2-bad); }
 .gh-dot[data-s="success"] { background: var(--v2-ok); }
-.gh-comment { padding: 12px 14px; font-size: 13.5px; line-height: 1.55; }
+.gh-comment { padding: 12px 14px; font-size: 13.5px; line-height: 1.6; }
 .gh-comment code, .gh-diff { font-family: var(--v2-mono); font-size: 12.5px; }
-.gh-diff { line-height: 1.6; white-space: pre; overflow-x: auto; padding: 10px 14px; max-width: 100%; }
-.gh-diff .del { color: var(--v2-bad); }
+.gh-diff { line-height: 1.7; white-space: pre; overflow-x: auto; padding: 10px 14px; max-width: 100%; background: var(--panel); }
+.gh-diff .del { color: var(--v2-muted); text-decoration: line-through; text-decoration-color: var(--faint); }
 .gh-diff .add { color: var(--v2-ok); }
 .gh-label {
   font-size: 11px;
-  padding: 1px 7px;
+  padding: 1px 8px;
   border-radius: 999px;
   border: 1px solid var(--v2-line-strong);
   color: var(--v2-muted);
+  background: var(--v2-bg);
 }
 
-/* ── Terminal ───────────────────────────────────────────────────────── */
-/* max-width + overflow-x live on the block itself (not just its parent),
-   so no page — however it lays this out — can scroll sideways at 375px. */
+/* ── Terminal ─────────────────────────────────────────────────────────
+   A light plate. max-width + overflow-x live on the block itself so no
+   page can scroll sideways at 375px (issue #678 defect 3). */
 .term {
   border: 1px solid var(--v2-line-strong);
-  border-radius: var(--v2-radius);
-  background: #07090b;
+  border-radius: var(--v2-radius-lg);
+  background: var(--panel);
+  color: var(--panel-foreground);
   font-family: var(--v2-mono);
   font-size: 12.5px;
-  line-height: 1.6;
-  /* Belt-and-suspenders on top of the grid item's own min-w-0 (LiveRun.tsx):
-     this box never grows past its container, whatever lays it out (issue
-     #678 defect 3 — the page body scrolled sideways at 375px). */
+  line-height: 1.65;
   max-width: 100%;
   min-width: 0;
+  box-shadow: var(--shadow-sm);
 }
 .term-head {
   display: flex;
   justify-content: space-between;
-  padding: 8px 14px;
+  padding: 9px 14px;
   border-bottom: 1px solid var(--v2-line);
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--v2-muted);
 }
-.term-body { padding: 12px 14px; min-height: 17.5em; white-space: pre; overflow-x: auto; color: rgba(255, 255, 255, 0.82); max-width: 100%; }
-.term .bad { color: var(--v2-bad); }
-.term .dim { color: rgba(255, 255, 255, 0.45); }
+.term-body { padding: 14px; min-height: 17.5em; white-space: pre; overflow-x: auto; color: var(--panel-foreground); max-width: 100%; }
+.term .bad { color: var(--v2-bad); font-weight: 600; }
+.term .dim { color: var(--faint); }
 .term .caret::after {
   content: "";
   display: inline-block;
   width: 7px;
   height: 1.1em;
   vertical-align: -0.2em;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--v2-fg);
   animation: v2-blink 1s steps(1) infinite;
 }
 
-/* ── Cards, stat tiles, callouts (new primitives, phase 1) ───────────── */
+/* ── Cards, stat tiles, callouts ─────────────────────────────────────── */
 .v2-card {
-  border: 1px solid var(--v2-line-strong);
+  border: 1px solid var(--v2-line);
   border-radius: var(--v2-radius-lg);
-  background: var(--v2-bg-alt);
+  background: var(--v2-bg);
   padding: 24px;
-  /* min-width: 0 — a Card is almost always a flex or grid item (a card
-     grid), and a flex/grid item's default min-width is "auto" (its
-     content's min-content size), not 0. A card holding a wide-but-
-     scrollable block (a <Terminal>, a code sample) can otherwise force
-     itself, and the whole grid row, wider than the viewport at 375px even
-     though that block has its own overflow-x: auto — the same class of bug
-     .v2-wrap/.v2-wrap-narrow were fixed for. See the /developers regression
-     this shipped with (the new "exact CI workflow" section's YAML block). */
+  /* min-width: 0 — a card is almost always a grid or flex item; see .v2-wrap. */
   min-width: 0;
-  transition: border-color var(--v2-motion-fast) ease;
+  transition: border-color var(--v2-motion-fast) ease, box-shadow var(--v2-motion-fast) ease;
 }
-.v2-card:hover { border-color: var(--v2-accent); }
+.v2-card:hover { border-color: var(--v2-line-strong); box-shadow: var(--shadow-md); }
 
 .v2-stat {
-  border-top: 1px solid var(--v2-line-strong);
+  border-top: 1px solid var(--v2-fg);
   padding-top: 16px;
 }
 .v2-stat-value {
   font-family: var(--v2-mono);
-  font-size: 2.6rem;
+  font-size: 2.75rem;
   line-height: 1;
   font-weight: 500;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
 }
 .v2-stat-label { margin-top: 12px; font-size: 14px; }
 .v2-stat-source { margin-top: 4px; }
 
 .v2-callout {
-  border: 1px solid var(--v2-line-strong);
-  border-left: 3px solid var(--v2-accent);
+  border: 1px solid var(--v2-line);
+  border-left: 2px solid var(--v2-accent);
   border-radius: var(--v2-radius-sm);
   background: var(--v2-bg-alt);
   padding: 14px 16px;
@@ -1003,10 +642,9 @@ html {
 .v2-callout[data-tone="bad"] { border-left-color: var(--v2-bad); }
 .v2-callout[data-tone="ok"] { border-left-color: var(--v2-ok); }
 
-.v2-hero { padding: 64px 0 32px; }
-@media (min-width: 1024px) { .v2-hero { padding: 96px 0 48px; } }
+.v2-hero { padding: 72px 0 40px; }
+@media (min-width: 1024px) { .v2-hero { padding: 112px 0 56px; } }
 
-/* ── Motion ─────────────────────────────────────────────────────────── */
 @keyframes v2-blink { 50% { opacity: 0; } }
 @keyframes v2-pulse { 50% { opacity: 0.35; } }
 @keyframes v2-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -1023,7 +661,7 @@ html {
   text-align: left;
   font-family: var(--v2-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--v2-muted);
   font-weight: 500;
@@ -1031,11 +669,11 @@ html {
   border-bottom: 1px solid var(--v2-line-strong);
 }
 .v2-table td {
-  padding: 12px 12px 12px 0;
+  padding: 14px 12px 14px 0;
   border-bottom: 1px solid var(--v2-line);
   vertical-align: top;
 }
-.v2-table tr:hover td { background: color-mix(in srgb, var(--v2-fg) 2%, transparent); }
+.v2-table tr:hover td { background: var(--v2-bg-alt); }
 
 /* ── Buttons ────────────────────────────────────────────────────────── */
 .v2-btn {
@@ -1044,14 +682,15 @@ html {
   gap: 8px;
   height: 40px;
   padding: 0 16px;
-  border-radius: var(--v2-radius-sm);
+  border-radius: var(--radius-md);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
+  background: var(--v2-bg);
   border: 1px solid var(--v2-line-strong);
   color: var(--v2-fg);
-  transition: border-color var(--v2-motion-fast) ease, background var(--v2-motion-fast) ease;
+  transition: border-color var(--v2-motion-fast) ease, background var(--v2-motion-fast) ease, box-shadow var(--v2-motion-fast) ease;
 }
-.v2-btn:hover { border-color: var(--v2-fg); }
+.v2-btn:hover { border-color: var(--v2-fg); background: var(--v2-bg-alt); }
 .v2-btn-primary { background: var(--v2-fg); color: var(--v2-bg); border-color: var(--v2-fg); }
-.v2-btn-primary:hover { opacity: 0.88; }
+.v2-btn-primary:hover { background: #262626; border-color: #262626; box-shadow: var(--shadow-md); }
