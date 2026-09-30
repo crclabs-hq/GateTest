@@ -10,6 +10,7 @@ import { cookies } from "next/headers";
 import {
   getOAuthConfig,
   signCustomerSession,
+  githubSessionEmail,
   CUSTOMER_COOKIE_NAME,
   CUSTOMER_MAX_AGE_SECONDS,
 } from "../../../lib/customer-session";
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest) {
   // Fetch user profile
   let login: string;
   let email: string;
+  let emailVerified: boolean;
   try {
     const userRes = await fetch("https://api.github.com/user", {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -75,19 +77,26 @@ export async function GET(req: NextRequest) {
     const user = await userRes.json();
     login = user.login;
 
-    // Get primary email
-    email = user.email || "";
-    if (!email) {
+    // /user/emails (scope user:email) says whether the address is verified —
+    // the admin allowlist by email needs that. It is always read now; a
+    // failure there is only fatal when there is no public email to fall back
+    // on (as before, when it was read only in that case).
+    const profileEmail = typeof user.email === "string" ? user.email : "";
+    let emails: unknown = null;
+    try {
       const emailsRes = await fetch("https://api.github.com/user/emails", {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      const emails = await emailsRes.json();
-      const primary = emails.find(
-        (e: { primary: boolean; verified: boolean; email: string }) =>
-          e.primary && e.verified
-      );
-      email = primary?.email || emails[0]?.email || "";
+      emails = await emailsRes.json();
+    } catch {
+      emails = null;
     }
+    if (!profileEmail && !Array.isArray(emails)) {
+      return NextResponse.redirect(`${baseUrl}/login?error=user_failed`);
+    }
+    const picked = githubSessionEmail(profileEmail, emails);
+    email = picked.email;
+    emailVerified = picked.verified;
 
     if (!login) {
       return NextResponse.redirect(`${baseUrl}/login?error=user_failed`);
@@ -101,7 +110,7 @@ export async function GET(req: NextRequest) {
   // re-prompting for a PAT. The token is AES-256-GCM encrypted inside
   // the cookie payload; httpOnly prevents browser-script access; never
   // logged.
-  const token = signCustomerSession(login, email, sessionSecret, accessToken);
+  const token = signCustomerSession(login, email, sessionSecret, accessToken, emailVerified);
   const isProduction = process.env.NODE_ENV === "production";
 
   const response = NextResponse.redirect(`${baseUrl}${landing}`);

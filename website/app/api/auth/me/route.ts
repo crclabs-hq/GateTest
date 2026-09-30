@@ -1,6 +1,9 @@
 /**
  * GET /api/auth/me — return current customer session info.
- * Returns { login, email } if authenticated, 401 if not.
+ * Returns { login, email, admin } if authenticated, 401 if not. `admin` is
+ * true when this same request would be let into /admin
+ * (getAdminLoginFromCookies — e.g. a provider-verified email on the admin
+ * allowlist), so the dashboard can link there; it grants nothing itself.
  */
 
 import { NextResponse } from "next/server";
@@ -10,6 +13,7 @@ import {
   verifyCustomerSession,
   CUSTOMER_COOKIE_NAME,
 } from "../../../lib/customer-session";
+import { getAdminLoginFromCookies } from "../../../lib/admin-session";
 
 export const dynamic = "force-dynamic";
 
@@ -27,5 +31,6 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  return NextResponse.json({ login: session.u, email: session.e });
+  const admin = Boolean(getAdminLoginFromCookies(cookieStore));
+  return NextResponse.json({ login: session.u, email: session.e, admin });
 }
