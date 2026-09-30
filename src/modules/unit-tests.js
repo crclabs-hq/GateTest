@@ -8,8 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { looksLikeMissingToolchain, looksLikeToolchainBuildFailure, firstToolchainErrorLine } = require('../core/toolchain-signals');
 const { repoRelative } = require('../core/repo-path');
-const flakyLedger = require('../core/flaky-ledger');
-const { parseTestOutcomes } = require('../core/test-outcomes');
+const { planTestRun } = require('../core/test-impact');
 
 class UnitTestsModule extends BaseModule {
   constructor() {
@@ -82,7 +81,27 @@ class UnitTestsModule extends BaseModule {
     const env = { ...process.env };
     for (const k of Object.keys(env)) if (/^GATETEST_/.test(k)) delete env[k];
     delete env.NODE_TEST_CONTEXT;
-    const { exitCode, stdout, stderr, timedOut } = this._exec(testCommand.command, {
+    // `--diff`: run only the test files the import graph says the diff can
+    // touch (src/core/test-impact.js). Null when the scan is not narrowed.
+    let command = testCommand.command;
+    let narrowed = false;
+    const plan = planTestRun({ projectRoot, runnerOptions: config._runnerOptions, testCommand });
+    if (plan) {
+      result.testImpact = plan.impact;
+      result.addCheck('unit-tests:impact', true, { severity: 'info', message: plan.impact.line });
+      if (plan.command === null) {
+        result.addCheck('unit-tests:run', true, {
+          severity: 'info',
+          message: `Not executed — no test file imports a changed file (0 of ${plan.impact.totalTestFiles} selected); the unchanged tests were not run`,
+          suggestion: 'Run the full set with --all-tests (or without --diff) to include every test',
+        });
+        this._checkCoverage(projectRoot, config, result);
+        return;
+      }
+      command = plan.command;
+      narrowed = plan.impact.mode === 'selected';
+    }
+    const { exitCode, stdout, stderr, timedOut } = this._exec(command, {
       cwd: projectRoot,
       timeout: this._testTimeoutMs, // 5 minutes
       env,
@@ -90,11 +109,11 @@ class UnitTestsModule extends BaseModule {
 
     const out = stdout + stderr;
     if (exitCode === 0) {
-      // Green runs are recorded too: a flip is a pass next to a fail, and the
-      // pass is the half only a green run can supply.
-      const ledger = this._flakyLedger(projectRoot, config, out);
-      result.addCheck('unit-tests:run', true, { message: 'All unit tests passed' });
-      this._reportFlakyLedger(result, ledger, []);
+      result.addCheck('unit-tests:run', true, {
+        message: narrowed
+          ? `Selected unit tests passed (${plan.impact.selected.length} of ${plan.impact.totalTestFiles} test files; the rest were not run)`
+          : 'All unit tests passed',
+      });
     } else if (timedOut) {
       // Never derive a verdict from a timeout (doctrine, move 18): ktor's
       // Gradle build ran for the full five minutes on CI and was reported
@@ -333,7 +352,7 @@ class UnitTestsModule extends BaseModule {
       try {
         const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
         if (pkg.scripts?.test && pkg.scripts.test !== 'echo "Error: no test specified" && exit 1') {
-          return { name: 'npm test', command: 'npm test 2>&1' };
+          return { name: 'npm test', command: 'npm test 2>&1', script: pkg.scripts.test };
         }
       } catch { /* error-ok — unreadable package.json — the syntax module reports it; this check has nothing to read */ }
     }

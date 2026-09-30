@@ -207,6 +207,10 @@ function buildJsonOutput(summary, ctx) {
     checks: summary.checks || null,
     duration: typeof summary.duration === 'number' ? summary.duration : null,
     deferred: Array.isArray(summary.deferred) ? summary.deferred : [],
+    // Launch move 5 — which of the project's test files a --diff scan ran, per
+    // test-running module (selected / not run / why the full set ran). Null
+    // when no module narrowed its tests; never omitted.
+    testImpact: summary.testImpact || null,
     // Move 4 (time-to-verdict contract) — never let a --budget-limited
     // run's JSON read like a full one. See runner.js `_buildSummary`.
     budgetLimited: summary.budgetLimited === true,

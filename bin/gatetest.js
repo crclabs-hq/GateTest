@@ -164,7 +164,15 @@ const HELP = `
     --pr               Incremental scan: auto-detect base branch from
                        GITHUB_BASE_REF (CI) or fall back to origin/main.
                        Shortcut for --since in pull-request workflows.
-    --diff             Only scan git-changed files (fast pre-commit mode)
+    --diff             Only scan git-changed files (fast pre-commit mode), and
+                       run only the project's test files that transitively
+                       import a changed file (import graph). Falls back to
+                       the full test set, and says why, when a change cannot
+                       be mapped (config, deleted or non-JS files, a test
+                       script it cannot pass files to). Tests that reach a
+                       computed require are kept and named.
+    --all-tests        With --diff: run every test file, not just the ones
+                       the diff touches.
     --report-only      Report findings but NEVER fail the gate. Use this
                        on a fresh GateTest install so CI stays green from
                        day 1 while the team triages pre-existing findings.
@@ -813,6 +821,7 @@ async function main() {
     stopOnFirstFailure: args['stop-first'] || false,
     autoFix: args.fix || false,
     diffOnly: args.diff || fileFilter !== null,
+    allTests: args.allTests === true,
     ...(fileFilter ? { changedFiles: fileFilter } : {}),
     silent: jsonMode,
     sarif: args.sarif || false,

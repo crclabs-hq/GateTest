@@ -135,6 +135,7 @@ At version 1, `deprecated` is empty.
 - `errors`, `blockingErrors`, `softErrors`, `warnings`, `softWarnings`, `flywheelSoftened`, `modelJudged`, `infoFindings` - the module's share of the `summary.checks` counts.
 - `suppressedChecks` - checks suppressed by ignore or baseline.
 - `scopedOut` - findings dropped by a narrowed (`--diff`) scan.
+- `testImpact` - present only on a test-running module (`unitTests`, `integrationTests`) of a `--diff` scan: which test files ran (`selected`, of `totalTestFiles`), `mode` (`selected` or `full`), `reason` (why the full set ran, else `null`), `conservative` (tests kept because they reach a computed `require`/`import`), `changed`, `ignored` (docs and images), `unmapped` (what forced the full set) and the printed `line`.
 - `fixes`, `appliedFixes` - count and detail of fixes applied.
 - `error` - the module's crash message, or `null`.
 - `checks` - the module's checks (below).
