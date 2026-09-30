@@ -367,9 +367,12 @@ describe('header: Install Gluecron replaces Install GitHub App', () => {
     }
   });
 
-  it('the home hero keeps the GitHub App as the primary button and adds Install Gluecron beside it', () => {
+  // Owner 30 Sep: Gluecron is promoted first. It is the primary (filled) hero
+  // button and comes before the GitHub App, which stays one click away.
+  it('the home hero leads with Install Gluecron as the primary button, GitHub App second', () => {
     const home = read('app/page.tsx');
-    assert.match(home, /<a href=\{appInstallUrl\(\)\} className="v2-btn v2-btn-primary">Install the GitHub App<\/a>\s*<a href="https:\/\/gluecron\.com" className="v2-btn" target="_blank" rel="noopener noreferrer">Install Gluecron<\/a>/);
+    assert.match(home, /<a href="https:\/\/gluecron\.com" className="v2-btn v2-btn-primary" target="_blank" rel="noopener noreferrer">Install Gluecron<\/a>\s*<a href=\{appInstallUrl\(\)\} className="v2-btn">Install the GitHub App<\/a>/);
+    assert.ok(home.indexOf('>Install Gluecron</a>') < home.indexOf('>Install the GitHub App</a>'), 'Gluecron comes first');
   });
 });
 
