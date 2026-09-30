@@ -1,0 +1,147 @@
+{
+  "generatedAt": "2026-09-30T09:23:49.327Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 8,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 4,
+      "SonarQube": 0,
+      "Semgrep": 0,
+      "CodeQL": 3,
+      "DeepSource": 0,
+      "Codacy": 0,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49903963",
+        "author": "N_Lens",
+        "type": "comment",
+        "title": null,
+        "text": "I personally recommend Voldemort. His snakelike demeanour and disregard for human life impresses me with a sense of ominous authority!",
+        "url": "https://news.ycombinator.com/item?id=49903963",
+        "points": null,
+        "numComments": null,
+        "storyId": 49893144,
+        "createdAt": "2026-09-30T03:15:39Z",
+        "createdAtUnix": 1790738139,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49902933",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": "I wish this were the case; if it were for cool points the F-117 would be back!",
+        "url": "https://news.ycombinator.com/item?id=49902933",
+        "points": null,
+        "numComments": null,
+        "storyId": 49890733,
+        "createdAt": "2026-09-30T00:44:22Z",
+        "createdAtUnix": 1790729062,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49902701",
+        "author": "AstroNutt",
+        "type": "comment",
+        "title": null,
+        "text": "I'm fortunate to now live under Bortle 3 skies. I got a telescope when I was a kid and stayed hooked on amateur astronomy for most of my life. But back then I lived in the city with Bortle 8 or 9 night skies...I kinda lost interest in the hobby.In 2011 I left the Dallas Fort Worth area and headed west, met a nice girl that lives on a 180 acre family farm and the night skies are amazing! You can see the dark voids (dense dust) snaking through the Milky Way. Now, I'm saving money to build a small observatory out front, new telescope and a permanent pier to set it all on.",
+        "url": "https://news.ycombinator.com/item?id=49902701",
+        "points": null,
+        "numComments": null,
+        "storyId": 49898050,
+        "createdAt": "2026-09-30T00:18:24Z",
+        "createdAtUnix": 1790727504,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49899132",
+        "author": "datsci_est_2015",
+        "type": "comment",
+        "title": null,
+        "text": "> There are also plenty of people who don't do anything and siphon off valueTrue, I forgot the whole category of rent-seekers. And grifters as well. Liars. Cheats. Snake-oil salesmen.Boy this is fun.",
+        "url": "https://news.ycombinator.com/item?id=49899132",
+        "points": null,
+        "numComments": null,
+        "storyId": 49891480,
+        "createdAt": "2026-09-29T19:33:19Z",
+        "createdAtUnix": 1790710399,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [],
+    "CodeQL": [
+      {
+        "objectId": "49901386",
+        "author": "Izkata",
+        "type": "comment",
+        "title": null,
+        "text": "Around here it is, and I'm pretty sure elsewhere too: https:&#x2F;&#x2F;codelibrary.amlegal.com&#x2F;codes&#x2F;chicago&#x2F;latest&#x2F;chicago...",
+        "url": "https://news.ycombinator.com/item?id=49901386",
+        "points": null,
+        "numComments": null,
+        "storyId": 49891480,
+        "createdAt": "2026-09-29T22:05:55Z",
+        "createdAtUnix": 1790719555,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49898917",
+        "author": "sigbottle",
+        "type": "comment",
+        "title": null,
+        "text": "> It’s 50&#x2F;50 on whether it will fuck up implementing an integration test suite when given a list of tests to write and examples of existing tests. It still adds needless abstractions (the reference count codelens in VS Code is good for detecting this sort of thing).Yes, still running into this, but surprised about this> On these metrics it is much better than it was in March of 2025 but no better than it was in March of 2026.I was super hyped at the agentic thing a year ago (Fall 2025), but designing functional software was hell. It would not just \"grasp\" the right level of \"here is the essence of what we need\" versus \"these are all the small impl details\". But idk I feel like Astra's the first model in quite a while that I don't feel genuinely annoyed at handholding a toddler with a PhD.But I totally believe you on the 50&#x2F;50 thing. Even recently as a few days ago, Astra did the thing where it ran into an error, and instead of making the sensible bounded decision of \"make user retry in this case\", it silently built an extremely elaborate recovery state machine w&#x2F;o looking. These pathologies by no means gone, and I'm still careful in the design phases (which themselves are bounded and incremental) to sus out if Astra's gonna do this kind of RL slop failure mode.For my use cases personally though, it's been better and better. I can't use AI at work, so you have much harier edge cases than I do, but still.",
+        "url": "https://news.ycombinator.com/item?id=49898917",
+        "points": null,
+        "numComments": null,
+        "storyId": 49896586,
+        "createdAt": "2026-09-29T19:18:52Z",
+        "createdAtUnix": 1790709532,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49898471",
+        "author": "nxc18",
+        "type": "comment",
+        "title": null,
+        "text": "It’s 50&#x2F;50 on whether it will fuck up implementing an integration test suite when given a list of tests to write and examples of existing tests. It still adds needless abstractions (the reference count codelens in VS Code is good for detecting this sort of thing).On these metrics it is much better than it was in March of 2025 but no better than it was in March of 2026.5.6 Sol in the last two weeks became much dumber such that what used to be one correction turned into endless rounds of corrections before just giving up and coding it manually. I’m mostly having it do the “chore” part of coding so it is disappointing that it isn’t better at that.",
+        "url": "https://news.ycombinator.com/item?id=49898471",
+        "points": null,
+        "numComments": null,
+        "storyId": 49896586,
+        "createdAt": "2026-09-29T18:50:33Z",
+        "createdAtUnix": 1790707833,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "49903929",
+        "author": "corvad",
+        "type": "comment",
+        "title": null,
+        "text": "That's what caught my eye also if you click it on mobile it does a scanning animation and a green checkmark...",
+        "url": "https://news.ycombinator.com/item?id=49903929",
+        "points": null,
+        "numComments": null,
+        "storyId": 49893509,
+        "createdAt": "2026-09-30T03:10:01Z",
+        "createdAtUnix": 1790737801,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
