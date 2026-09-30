@@ -104,9 +104,7 @@ const SHRINKING_ALLOWLIST = {
   'admin/learning/page.tsx': 8,
   'admin/hn-launch/page.tsx': 2, // deliberate: inline #000/#fff, not a token gap — see the code comment at its <main> tag for why (admin.css's .gt-admin-page background loses the cascade to a plain utility class here; this page's terminal look is meant to stay black regardless of theme anyway)
   'admin/tabs/NuclearScanTab.tsx': 2,
-  'admin/tabs/FixResultCard.tsx': 1,
   'admin/tabs/PlatformSiblings.tsx': 1,
-  'admin/tabs/RepoScanTab.tsx': 1,
   'admin/tabs/ServerScanTab.tsx': 1,
   'admin/tabs/WatchdogPanel.tsx': 1,
 
