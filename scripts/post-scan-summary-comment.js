@@ -127,9 +127,41 @@ function renderOverridesSection(overrides) {
   return lines;
 }
 
+/**
+ * "Flaky tests" section (launch move 6) — a quarantined failure stops
+ * blocking, so it must be visible in the PR without opening the raw report:
+ * which test, how often it flipped, when the quarantine ends. A flaky test
+ * that is NOT quarantined (expired, --no-quarantine, or the runner output
+ * could not be fully accounted for) is listed too, marked as still blocking.
+ */
+function renderFlakySection(flaky, flake) {
+  const list = Array.isArray(flaky) ? flaky : [];
+  if (list.length === 0) return [];
+  const quarantined = list.filter((f) => f.state === 'quarantined').length;
+  const rate = flake && flake.measured && typeof flake.rate === 'number' ? ` · flake rate ${flake.rate}%` : '';
+  const lines = [`<details><summary>Flaky tests (${list.length}, ${quarantined} quarantined${rate})</summary>`, ''];
+  for (const f of list) {
+    const flips = `flipped ${f.flips} of last ${f.runs} runs`;
+    let status;
+    if (f.state === 'quarantined') {
+      status = `quarantined, warning only — ends ${f.expiresAt ? String(f.expiresAt).slice(0, 10) : 'soon'}, then it blocks again unless fixed`;
+    } else if (f.state === 'expired') {
+      status = `quarantine expired ${f.expiresAt ? String(f.expiresAt).slice(0, 10) : ''} — blocking`.replace(/\s+—/, ' —');
+    } else if (f.state === 'off') {
+      status = 'quarantine is off — blocking';
+    } else {
+      status = 'blocking (the run could not be fully accounted for)';
+    }
+    const where = f.file ? ` (\`${f.file}${f.line ? `:${f.line}` : ''}\`)` : '';
+    lines.push(`- \`${f.name}\`${where} — ${flips}; ${status}`);
+  }
+  lines.push('', '</details>', '');
+  return lines;
+}
+
 function renderBody({
   grade, runUrl, overrides, deferred, budgetLimited, rootCause,
-  enforcing, reportOnlyUntil, wouldBlock,
+  enforcing, reportOnlyUntil, wouldBlock, flaky, flake,
 }) {
   const gradeEmoji = { A: '🟢', B: '🟢', C: '🟡', D: '🟠', F: '🔴' }[grade.grade] || '⚪';
   const budgetNote = budgetLimited ? ' ⏱️ budget-limited' : '';
@@ -181,6 +213,7 @@ function renderBody({
   }
 
   lines.push(...renderOverridesSection(overrides));
+  lines.push(...renderFlakySection(flaky, flake));
 
   // Root cause on every red run (move 12): why this blocked, which commit
   // git blame resolves it to (or an honest "not checked"/"unknown"), and
@@ -270,6 +303,8 @@ async function main() {
     grade,
     runUrl,
     overrides: Array.isArray(report.overrides) ? report.overrides : [],
+    flaky: Array.isArray(report.flaky) ? report.flaky : [],
+    flake: report?.summary?.flake || null,
     deferred: report?.summary?.deferred,
     budgetLimited: report?.summary?.budgetLimited === true,
     rootCause,
@@ -321,4 +356,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { computeGrade, topFindings, renderBody, renderOverridesSection };
+module.exports = { computeGrade, topFindings, renderBody, renderOverridesSection, renderFlakySection };

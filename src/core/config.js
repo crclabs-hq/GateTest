@@ -714,6 +714,22 @@ const DEFAULT_CONFIG = {
     modelVerdictsBlock: false,
   },
 
+  // Flaky-test ledger (launch board move 6, src/core/flaky-ledger.js). When
+  // the engine runs the customer's tests it records each test's pass/fail in
+  // `.gatetest/memory.json` (same consent as telemetry; names are hashed). A
+  // test that passed AND failed on one commit, or flipped `flips` times in the
+  // last `window` runs, is flaky: its failure is a warning, not a block, for
+  // `quarantineDays` days from when it was first flagged — then it blocks
+  // again unless the flake is fixed. `quarantine: false` (or --no-quarantine)
+  // keeps the measuring and turns the downgrading off. A test that fails on
+  // every run in the window never quarantines.
+  flaky: {
+    flips: 2,
+    window: 10,
+    quarantineDays: 14,
+    quarantine: true,
+  },
+
   // Onboarding mode (LAUNCH_BOARD row 15 / the Fifty, move 15): time-boxed
   // `--report-only` for a fresh install on a mature repo. `null` — no
   // config-level onboarding window (the default). A string is read as a

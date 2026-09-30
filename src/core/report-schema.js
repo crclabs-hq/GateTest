@@ -54,12 +54,13 @@ const REPORT_DEPRECATED = [];
 const REPORT_CONTRACT = {
   top: [
     'schemaVersion', 'gatetest', 'summary', 'results', 'failures', 'findings',
-    'findingSummary', 'overrides', 'deprecated', 'provenance', 'signature',
+    'findingSummary', 'overrides', 'flaky', 'deprecated', 'provenance', 'signature',
   ],
   gatetest: ['version', 'timestamp', 'gateStatus'],
   summary: [
     'duration', 'modules', 'checks', 'modelVerdictsBlock', 'nothingChecked',
     'deferred', 'budgetLimited', 'rootCause', 'enforcing', 'reportOnlyUntil',
+    'flake',
   ],
   'summary.modules': ['total', 'passed', 'failed', 'skipped'],
   'summary.checks': [

@@ -1433,6 +1433,22 @@ class GateTestRunner extends EventEmitter {
       }
     }
 
+    // Flaky-test ledger (launch move 6, src/core/flaky-ledger.js). The unit
+    // test module attaches `flaky[]` (every measured-flaky test that failed
+    // this run, with its state: quarantined / expired / off / unaccounted) and
+    // `flake` (the flake rate) to its ledger check. A quarantined failure is a
+    // warning, never hidden — it is listed here, in the JSON and in the PR
+    // comment. `flake` is `measured: false` with a reason when nothing could
+    // be recorded, never a made-up 0%.
+    const flaky = [];
+    let flake = { measured: false, rate: null, flakyTests: 0, quarantined: 0, expired: 0, tests: 0, runs: 0, state: 'not-run', reason: 'the unit tests were not run in this scan' };
+    for (const r of this.results) {
+      for (const c of r.checks) {
+        if (Array.isArray(c.flaky)) flaky.push(...c.flaky);
+        if (c.flake && typeof c.flake === 'object') flake = c.flake;
+      }
+    }
+
     // Baseline capture (`gatetest --baseline`) — snapshot the full current
     // failure surface so future runs only fail on NEW findings.
     let baselineInfo = null;
@@ -1642,6 +1658,8 @@ class GateTestRunner extends EventEmitter {
       baseline: baselineInfo,
       suppressedRules,
       overrides: acceptedRiskOverrides,
+      flaky,
+      flake,
       modules: {
         total: this.results.length,
         passed: passed.length,
