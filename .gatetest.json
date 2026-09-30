@@ -5,7 +5,8 @@
       "maxLinesChangedWarning": 1000,
       "maxLinesChangedError": 3000,
       "maxFilesChangedWarning": 80,
-      "maxFilesChangedError": 150
+      "maxFilesChangedError": 150,
+      "excludePatterns": ["(?:^|/)docs/admin-audit/.+\\.html$"]
     },
     "codeQuality": {
       "excludePaths": [

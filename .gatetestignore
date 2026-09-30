@@ -42,3 +42,13 @@ benchmarks/bench-target/**
 # extensionless shell scripts (KI #106). Line 88's clone is NOT here — its
 # outcome is tested on the next line and the rule downgrades it itself.
 bashSafety:pipe-true@integrations/husky/pre-push
+
+# docs/admin-audit/ holds the admin redesign round's mockups: standalone HTML
+# pages judged by rendering them in a browser (both themes, 1440 and 390 px),
+# never shipped or served. final-src/*.html are deliberate fragments that
+# final-src/build.js concatenates into mock-final.html, so "missing DOCTYPE" /
+# "unclosed <html>" on a fragment is the build input working as designed.
+# The same HTML is excluded from prSize line counts in .gatetest.json
+# (modules.prSize.excludePatterns) for the same reason: a reviewer judges a
+# mock by looking at it, not line by line. Owner-directed redesign, 2026-09-30.
+docs/admin-audit/**

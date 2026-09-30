@@ -1,0 +1,125 @@
+
+<!-- ============================================================ CUSTOMER -->
+<section class="screen" id="screen-customer" aria-labelledby="cu-h">
+  <div class="obj">
+    <div class="back"><a class="lnk" href="#/admin/customers">Customers</a> / <span class="id">cus_7QX2R4</span></div>
+    <div class="otop">
+      <h1 class="otitle" id="cu-h">Sample Customer 7</h1>
+      <span class="masked s13"><span class="id" id="cu-email">s•••••7@example.test</span><button type="button" class="btn sm ghost" data-dialog="reveal-email">Reveal</button></span>
+      <span class="chip">Team · $99 / mo</span>
+      <span class="chip strong">{{m:high}}Payment failed · attempt 2 of 4</span>
+      <span class="sp"></span>
+      <a class="btn" href="#/admin/customers/cus_7QX2R4/payments" data-toast="Opens this customer in the payments dashboard (new tab)">Open in payments ↗</a>
+      <button type="button" class="btn" data-toast="Email composer: not in this mock">Email</button>
+      <button type="button" class="btn primary" data-dialog="credit">Credit scans…</button>
+    </div>
+    <div class="meta">
+      <span>since <b>2 Jun 2026</b></span>
+      <span>git-host login <b class="id">sample-org-7</b></span>
+      <span>installation <b class="id">inst_4471</b> · 3 repos</span>
+      <span>keys <b>2</b> · 1 unused 30 d</span>
+      <span>last scan <b title="2026-09-28 09:36:02 UTC">26 h ago</b></span>
+    </div>
+    <div class="strip" style="--n:6" aria-label="Customer facts">
+      <a class="cell" href="#/admin/scans?customer=cus_7QX2R4"><span class="l">Scans</span><span class="v">84</span><span class="d">21 in the last 30 d</span></a>
+      <a class="cell" href="#/admin/scans?customer=cus_7QX2R4&amp;verdict=blocked"><span class="l">{{m:blocker}}Gate blocks</span><span class="v">9</span><span class="d">2 overridden, both audited</span></a>
+      <a class="cell" href="#/admin/fix-prs?customer=cus_7QX2R4"><span class="l">Fix PRs</span><span class="v">6 merged · 1 closed</span><span class="d">median 1 d 2 h to merge</span></a>
+      <a class="cell" href="#/admin/scans?customer=cus_7QX2R4&amp;range=30d"><span class="l">Billed (scans), 30 d</span><span class="v id">$522.00</span><span class="d">18 Full × $29 · 3 plan scans at $0</span></a>
+      <div class="cell" data-state="failed"><span class="l">{{m:failed}}MRR</span><span class="v">Not read</span><span class="d">payments API did not answer</span></div>
+      <div class="cell" data-state="cannot"><span class="l">{{m:notrun}}Margin, 30 d <span class="w2" title="Needs compute seconds per scan (wave 2)">W2</span></span><span class="v">Cannot tell</span><span class="d">AI $19.60 known · compute not recorded</span></div>
+    </div>
+    <p class="s12 muted" style="margin:0 2px">Billed (scans) = tier price of completed scans. It is not money received; that comes from payment events.</p>
+    <div class="related">
+      <span class="lbl">Related</span>
+      <a class="rel" href="#/admin/repos/host-1/acme-sample/checkout-api"><span class="k">repo</span>acme-sample/checkout-api</a>
+      <a class="rel" href="#/admin/repos/host-1/acme-sample/web"><span class="k">repo</span>acme-sample/web</a>
+      <a class="rel" href="#/admin/repos/host-1/acme-sample/infra"><span class="k">repo</span>acme-sample/infra</a>
+      <a class="rel" href="#/admin/keys/gt_live_9m3"><span class="k">key</span><span class="id">gt_live_9m3…</span></a>
+      <a class="rel" href="#/admin/keys/gt_live_4k1"><span class="k">key</span><span class="id">gt_live_4k1…</span> unused</a>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Customer sections" data-tabs="customer">
+    <button type="button" role="tab" id="t-timeline" aria-controls="tp-timeline" data-tab="timeline">Timeline</button>
+    <button type="button" role="tab" id="t-cscans" aria-controls="tp-cother" data-tab="scans">Scans<span class="n">84</span></button>
+    <button type="button" role="tab" id="t-crepos" aria-controls="tp-cother" data-tab="repos">Repos<span class="n">3</span></button>
+    <button type="button" role="tab" id="t-ckeys" aria-controls="tp-cother" data-tab="keys">Keys<span class="n">2</span></button>
+    <button type="button" role="tab" id="t-cbilling" aria-controls="tp-cother" data-tab="billing">Billing</button>
+    <button type="button" role="tab" id="t-cfeedback" aria-controls="tp-cother" data-tab="feedback">Feedback<span class="n">1</span></button>
+    <button type="button" role="tab" id="t-caudit" aria-controls="tp-cother" data-tab="audit">Audit<span class="n">41</span></button>
+  </div>
+
+  <div role="tabpanel" id="tp-timeline" aria-labelledby="t-timeline" tabindex="-1">
+    <div class="two">
+      <div>
+        <div class="filters" role="group" aria-label="Filter timeline">
+          <button type="button" class="fchip" aria-pressed="true">All</button>
+          <button type="button" class="fchip" aria-pressed="false">Payments</button>
+          <button type="button" class="fchip" aria-pressed="false">Scans</button>
+          <button type="button" class="fchip" aria-pressed="false">Gate blocks</button>
+          <button type="button" class="fchip" aria-pressed="false">Fix PRs</button>
+          <button type="button" class="fchip" aria-pressed="false">Keys</button>
+          <button type="button" class="fchip" aria-pressed="false">Feedback</button>
+          <span class="sp"></span><span class="muted s12">newest first · UTC on hover</span>
+        </div>
+        <ul class="ctl">
+          <li class="day">Today · Tue 29 Sep</li>
+          <li class="ev"><span class="kind fill">PAY</span><div class="what">{{m:high}}<b class="w6">Payment failed</b> · invoice <span class="id">in_0M8K…</span> · card declined, attempt 2 of 4<div class="sub">next retry 1 Oct · access is lost if the last retry fails · from stored payment events <span class="w2" title="Needs the payment-event store (wave 2)">W2</span></div></div><div class="amt">$99.00<small>failed</small></div></li>
+          <li class="ev"><span class="kind">AUD</span><div class="what">Owner revealed the email address<div class="sub">reason “support reply” · <a class="lnk id" href="#/admin/audit/al_89102">al_89102</a></div></div><div class="amt muted s12" title="2026-09-29 11:38 UTC">2 m ago</div></li>
+          <li class="day">Mon 28 Sep</li>
+          <li class="ev"><span class="kind">PR</span><div class="what">Fix PR <a class="lnk id" href="#/admin/fix-prs/fpr_212">#212</a> closed without merge<div class="sub">by sample-dev-2 · “will fix by hand” · 2 fingerprints still open</div></div><div class="amt muted s12" title="2026-09-28 12:49 UTC">23 h ago</div></li>
+          <li class="ev"><span class="kind fill">GATE</span><div class="what">{{m:blocker}}<b class="w6">Merge blocked</b> on <span class="id">checkout-api</span> @ <span class="id">4f1e9c2</span><div class="sub">2 blockers, 1 regressed · <a class="lnk" href="#/admin/scans/scn_01J9K3M8QF/findings">scan scn_01J9K3…</a></div></div><div class="amt muted s12" title="2026-09-28 09:36 UTC">26 h ago</div></li>
+          <li class="ev"><span class="kind">SCAN</span><div class="what">Scan <a class="lnk id" href="#/admin/scans/scn_01J9K3M8QF/findings">scn_01J9K3M8QF</a> · Full · 2m 41s<div class="sub">score 74 (partial: 113 of 122 modules) · AI $1.12</div></div><div class="amt">$29.00<small>billed</small></div></li>
+          <li class="day">Sun 27 Sep</li>
+          <li class="ev"><span class="kind">FB</span><div class="what">Feedback on <a class="lnk id" href="#/admin/scans/scn_01J9H0PQ22/findings">scn_01J9H0…</a>: “<span class="id">http.no-timeout</span> is noisy on our retry wrapper”<div class="sub">unanswered · will count as a false-positive verdict once triaged</div></div><div class="amt"><button type="button" class="btn sm" data-toast="Reply composer: not in this mock">Reply</button></div></li>
+          <li class="ev"><span class="kind">SCAN</span><div class="what">{{m:pass}}Scan passed · <span class="id">acme-sample/web</span> @ <span class="id">0b91c7d</span><div class="sub">122 of 122 modules · 0 new findings · 1m 58s</div></div><div class="amt">$0.00<small>plan</small></div></li>
+          <li class="day">Earlier in September</li>
+          <li class="ev"><span class="kind">KEY</span><div class="what">Key <a class="lnk id" href="#/admin/keys/gt_live_4k1">gt_live_4k1…</a> passed 30 days without a call<div class="sub">last used 29 Aug · 0 calls since · safe to revoke</div></div><div class="amt muted s12">3 d ago</div></li>
+          <li class="ev"><span class="kind">PR</span><div class="what">{{m:pass}}Fix PR <a class="lnk id" href="#/admin/fix-prs/fpr_198">#198</a> merged · 1 d 4 h to merge<div class="sub">fixed fp_9c1e…d204 · came back 28 Sep</div></div><div class="amt muted s12">18 Sep</div></li>
+          <li class="ev"><span class="kind fill">GATE</span><div class="what">{{m:blocker}}<b class="w6">Merge blocked</b>, then <b class="w6">overridden by owner</b> · “vendor sandbox key”<div class="sub"><span class="id">checkout-api</span> @ <span class="id">a91c0e4</span> · <a class="lnk id" href="#/admin/audit/al_88213">al_88213</a></div></div><div class="amt muted s12">12 Sep</div></li>
+          <li class="ev"><span class="kind">PAY</span><div class="what">{{m:pass}}Payment succeeded · invoice <span class="id">in_0M7C…</span><div class="sub">Team plan · monthly <span class="w2" title="Needs the payment-event store (wave 2)">W2</span></div></div><div class="amt">$99.00<small>paid</small></div></li>
+        </ul>
+        <div class="tfoot" style="padding-left:0;padding-right:0">Showing 11 of 231 events · <a class="lnk" href="#/admin/customers/cus_7QX2R4/timeline?before=2026-09-01">older</a></div>
+      </div>
+
+      <div class="stack">
+        <section class="panel" data-state="failed" aria-labelledby="cp-bill">
+          <div class="panel-h"><h2 id="cp-bill">Billing</h2><span class="rs">{{m:failed}}<b>Failed</b> · 12s ago</span></div>
+          <div class="panel-b">
+            <div class="fail">
+              <div class="t">Failed — the payments API did not answer</div>
+              <div>MRR, next invoice and card status are unknown. The failed-payment chip above comes from our stored payment events, current to 09:41.</div>
+              <div class="ep">GET /api/admin/customers/cus_7QX2R4/billing · 504 · timeout 2.5 s</div>
+              <div class="acts"><button type="button" class="btn sm" data-toast="Retrying (mock)">Retry</button><a class="btn sm ghost" href="#/admin/customers/cus_7QX2R4/payments">Open in payments ↗</a></div>
+            </div>
+          </div>
+        </section>
+        <section class="panel" data-state="ok" aria-labelledby="cp-keys">
+          <div class="panel-h"><h2 id="cp-keys">Keys</h2><span class="rs">Read 12s ago</span></div>
+          <div class="panel-b">
+            <ul class="rows">
+              <li><a class="lnk id" href="#/admin/keys/gt_live_9m3">gt_live_9m3…</a><span class="sev">{{m:pass}}Active</span><span class="d">5,120 calls in total · last used 26 h ago · scan:write</span></li>
+              <li><a class="lnk id" href="#/admin/keys/gt_live_4k1">gt_live_4k1…</a><span class="sev sev-low">{{m:low}}Unused 30 d</span><span class="d">last used 29 Aug · <button type="button" class="lnk" data-dialog="revoke">Revoke…</button></span></li>
+            </ul>
+          </div>
+          <div class="def">Calls per day and the calling address need usage logging <span class="w2" title="Wave 2">W2</span>; today only the total and last use are stored.</div>
+        </section>
+        <section class="panel" data-state="ok" aria-labelledby="cp-audit">
+          <div class="panel-h"><h2 id="cp-audit">Audit for this customer</h2><span class="rs">Read 12s ago</span></div>
+          <div class="panel-b">
+            <ul class="rows">
+              <li><span><span class="id muted">al_89102</span> owner revealed email</span><span class="muted s12">today</span></li>
+              <li><span><span class="id muted">al_88213</span> owner overrode the gate</span><span class="muted s12">12 Sep</span></li>
+              <li><span><span class="id muted">al_87940</span> key gt_live_9m3 issued</span><span class="muted s12">2 Jun</span></li>
+            </ul>
+            <div style="margin-top:10px;display:flex;gap:12px;flex-wrap:wrap"><a class="lnk s13" href="#/admin/audit?resource=cus_7QX2R4">Open in audit</a><a class="lnk s13" href="#/admin/audit.csv?resource=cus_7QX2R4">CSV</a></div>
+          </div>
+          <div class="def">Every reveal, credit, override and revoke writes an entry with the reason given.</div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div role="tabpanel" id="tp-cother" aria-labelledby="t-cscans" tabindex="-1">
+    <section class="panel"><div class="panel-b" style="padding-top:14px"><p class="s13 sec" id="cother-text">This tab lists the same objects as the timeline, filtered to one kind. Not drawn in this mock.</p></div></section>
+  </div>
+</section>
