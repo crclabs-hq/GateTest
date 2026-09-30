@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="en" data-density="comfortable">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GateTest Owner Console — mock (Designer B)</title>
+<style>
+/* ============================================================
+   Tokens — one structure, two palettes. Nothing else changes.
+   ============================================================ */
+:root{
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#f6f7f7;
+  --ink-1:#0b0f0e; --ink-2:#5b6663; --ink-3:#98a29f;
+  --line:#e6e9e8; --line-strong:#c6cdcb;
+  --accent:#0f766e; --accent-soft:rgba(15,118,110,.10);
+  --on-ink:#ffffff;
+  --shadow:0 8px 24px rgba(11,15,14,.08);
+  --r-sm:6px; --r-md:8px; --r-lg:10px;
+  --row:40px; --cell-y:10px; --tbl:13px;
+  --font:Geist, ui-sans-serif, system-ui, sans-serif;
+  --mono:"Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a0b0b; --surface:#111313; --surface-2:#171a19;
+    --ink-1:#f2f4f3; --ink-2:#a3adaa; --ink-3:#66706d;
+    --line:#232827; --line-strong:#384040;
+    --accent:#2dd4bf; --accent-soft:rgba(45,212,191,.14);
+    --on-ink:#0a0b0b; --shadow:0 8px 24px rgba(0,0,0,.5);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0a0b0b; --surface:#111313; --surface-2:#171a19;
+  --ink-1:#f2f4f3; --ink-2:#a3adaa; --ink-3:#66706d;
+  --line:#232827; --line-strong:#384040;
+  --accent:#2dd4bf; --accent-soft:rgba(45,212,191,.14);
+  --on-ink:#0a0b0b; --shadow:0 8px 24px rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+:root[data-density="compact"]{ --row:28px; --cell-y:4px; --tbl:12px; }
+
+/* ============================================================
+   Base
+   ============================================================ */
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink-1);font-family:var(--font);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+a.link,button.link{color:var(--accent);text-decoration:underline;text-underline-offset:2px;background:none;border:0;padding:0;font:inherit;cursor:pointer}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.93em}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.muted{color:var(--ink-2)}
+.faint{color:var(--ink-3)}
+.w600{font-weight:600}
+.w500{font-weight:500}
+.sm{font-size:12px}
+.label{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+hr.rule{border:0;border-top:1px solid var(--line);margin:0}
+
+/* ============================================================
+   Marks — shape, weight, label. Never hue.
+   ============================================================ */
+.mk{display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;vertical-align:-1px;color:var(--ink-1);flex:none}
+.mk svg{width:12px;height:12px;display:block}
+.mk-low,.mk-notrun{color:var(--ink-3)}
+.mk-pass{color:var(--accent)}
+.sev{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.sev-blocker{font-weight:600}
+.sev-low{color:var(--ink-2)}
+.sev-notrun{color:var(--ink-2)}
+
+/* ============================================================
+   Shell
+   ============================================================ */
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+.rail{border-right:1px solid var(--line);background:var(--surface);position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;padding:14px 12px 16px}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 14px}
+.brand-mark{width:22px;height:22px;border-radius:6px;background:var(--ink-1);color:var(--on-ink);display:grid;place-items:center;font-weight:600;font-size:12px}
+.brand b{font-weight:600;font-size:14px;display:block;line-height:1.2}
+.brand span{font-size:12px;color:var(--ink-3);display:block}
+.nav-group{margin-top:14px}
+.nav-group .label{padding:0 10px 6px}
+.nav a,.nav button{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;gap:8px;padding:6px 10px;border-radius:var(--r-sm);font-size:13px;color:var(--ink-2);border:0;background:none;cursor:pointer;position:relative;line-height:1.4}
+.nav a:hover,.nav button:hover{background:var(--surface-2);color:var(--ink-1)}
+.nav a[aria-current="page"]{color:var(--ink-1);font-weight:500;background:var(--surface-2)}
+.nav a[aria-current="page"]::before{content:"";position:absolute;left:-12px;top:6px;bottom:6px;width:2px;background:var(--accent);border-radius:2px}
+.nav .count{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.nav .count.strong{color:var(--ink-1);font-weight:600}
+.nav [data-inert]{color:var(--ink-3)}
+.rail-foot{margin-top:auto;padding:14px 10px 0;font-size:12px;color:var(--ink-3);border-top:1px solid var(--line)}
+.rail-foot b{color:var(--ink-2);font-weight:500}
+.pin{font-size:11px;color:var(--ink-3)}
+
+.main{min-width:0}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:10px 24px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.crumbs{font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crumbs b{color:var(--ink-1);font-weight:500}
+.crumbs .sep{margin:0 6px;color:var(--ink-3)}
+.search{margin-left:auto;display:flex;align-items:center;gap:8px;height:32px;padding:0 10px 0 12px;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface);color:var(--ink-3);font-size:13px;width:280px;cursor:text}
+.search kbd{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-3);border:1px solid var(--line);border-radius:4px;padding:0 5px;line-height:18px}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:var(--r-md);overflow:hidden;height:32px}
+.seg button{border:0;background:var(--surface);color:var(--ink-2);padding:0 12px;font-size:13px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line-strong)}
+.seg button[aria-checked="true"]{background:var(--ink-1);color:var(--on-ink);font-weight:500}
+.iconbtn{height:32px;padding:0 10px;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface);color:var(--ink-2);font-size:13px;cursor:pointer;white-space:nowrap}
+.iconbtn:hover{color:var(--ink-1)}
+.menubtn{display:none}
+
+.page{padding:24px 24px 64px;max-width:1280px}
+.screen{display:none}
+.screen.is-active{display:block}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+h1{font-size:20px;font-weight:600;margin:0;letter-spacing:-.01em;line-height:1.3}
+h2{font-size:16px;font-weight:600;margin:0}
+.head-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--ink-2);margin-top:6px}
+.head-meta .mono{color:var(--ink-1)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Buttons: primary is ink, secondary is outline, destructive is ink outline */
+.btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:var(--r-md);border:1px solid var(--line-strong);background:var(--surface);color:var(--ink-1);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background 120ms ease,border-color 120ms ease}
+.btn:hover{border-color:var(--ink-2)}
+.btn.primary{background:var(--ink-1);color:var(--on-ink);border-color:var(--ink-1)}
+.btn.primary:hover{opacity:.9}
+.btn.destructive{border-color:var(--ink-1)}
+.btn.destructive:hover{background:var(--ink-1);color:var(--on-ink)}
+.btn.small{height:26px;padding:0 8px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ============================================================
+   Verdict headline
+   ============================================================ */
+.verdict{font-size:24px;line-height:1.35;font-weight:500;letter-spacing:-.012em;margin:0 0 6px;max-width:52rem}
+.verdict a{color:var(--ink-1);font-weight:600;border-bottom:1.5px solid var(--line-strong);transition:border-color 120ms ease}
+.verdict a:hover{border-color:var(--accent)}
+.verdict .num{font-weight:600}
+.verdict-sub{font-size:13px;color:var(--ink-2);margin:0 0 24px}
+.range{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface);font-size:13px;color:var(--ink-1);cursor:pointer}
+.range .chev{color:var(--ink-3);font-size:11px}
+
+/* ============================================================
+   Panels — three states
+   ============================================================ */
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid .span-2{grid-column:span 2}
+.grid .span-3{grid-column:1/-1}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px 12px;display:flex;flex-direction:column;gap:8px;min-width:0;transition:border-color 120ms ease}
+.panel-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.panel-head h2{font-size:13px;font-weight:500;color:var(--ink-2)}
+.panel-head a{font-size:12px;color:var(--ink-3)}
+.panel-head a:hover{color:var(--accent)}
+.panel-value{font-size:24px;font-weight:600;letter-spacing:-.01em;line-height:1.2;display:flex;align-items:center;gap:10px;font-variant-numeric:tabular-nums}
+.panel-value .mk{width:14px;height:14px}.panel-value .mk svg{width:14px;height:14px}
+.panel-value small{font-size:13px;font-weight:400;color:var(--ink-2);letter-spacing:0}
+.panel-body{font-size:13px;color:var(--ink-2)}
+.panel-body p{margin:0}
+.panel-foot{margin-top:auto;padding-top:8px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.panel-foot a{color:var(--ink-2);text-decoration:underline;text-underline-offset:2px}
+.panel[data-state="failed"]{border-top:2px solid var(--ink-1)}
+.panel[data-state="failed"] .panel-value{font-weight:600}
+.panel[data-state="unknown"]{border-style:dashed;border-color:var(--line-strong)}
+.panel[data-state="unknown"] .panel-value{color:var(--ink-2);font-weight:500}
+.state-tag{font-size:12px;font-weight:500;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px}
+.checklist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.checklist li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.checklist li:first-child{border-top:0}
+.checklist .k{display:flex;align-items:center;gap:8px;color:var(--ink-1);min-width:0}
+.checklist .v{color:var(--ink-2);font-size:12px;white-space:nowrap}
+.checklist .v.strong{color:var(--ink-1);font-weight:600}
+
+/* Charts without hue */
+.chart{width:100%;height:auto;display:block}
+.bar{fill:var(--ink-3)}
+.bar.now{fill:var(--ink-1)}
+.bar.past{fill:var(--line-strong)}
+.tick{stroke:var(--ink-2);stroke-dasharray:2 3;stroke-width:1}
+.tick-lbl{font-family:var(--mono);font-size:9px;fill:var(--ink-3)}
+.axis{font-family:var(--mono);font-size:9px;fill:var(--ink-3)}
+.spark{fill:none;stroke:var(--ink-1);stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
+.spark-dot{fill:var(--ink-1)}
+.spark-area{fill:var(--ink-1);opacity:.06}
+.cov{display:flex;align-items:center;gap:12px}
+.cov-bar{flex:1;height:8px;border-radius:4px;background:repeating-linear-gradient(90deg,var(--line-strong) 0 3px,transparent 3px 6px);position:relative;overflow:hidden}
+.cov-bar i{position:absolute;inset:0;width:96.7%;background:var(--ink-1);border-radius:4px}
+
+/* Deploy strip */
+.strip{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px 16px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);font-size:13px}
+.strip .k{color:var(--ink-3);font-size:12px;letter-spacing:.04em;text-transform:uppercase;font-weight:500}
+.strip .sha{font-family:var(--mono);color:var(--ink-1)}
+.strip .eq{color:var(--accent);font-weight:600}
+.strip .spacer{margin-left:auto}
+
+/* ============================================================
+   Tabs
+   ============================================================ */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:18px 0 16px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{position:relative;border:0;background:none;padding:8px 12px;font-size:13px;color:var(--ink-2);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.tabs button .count{font-family:var(--mono);font-size:11px;color:var(--ink-3);border:1px solid var(--line);border-radius:10px;padding:0 6px;line-height:16px}
+.tabs button[aria-selected="true"]{color:var(--ink-1);font-weight:500}
+.tabs button[aria-selected="true"]::after{content:"";position:absolute;left:8px;right:8px;bottom:-1px;height:2px;background:var(--ink-1);border-radius:2px}
+.tabs button[aria-selected="true"] .count{color:var(--ink-1);border-color:var(--line-strong)}
+.tabs button:hover{color:var(--ink-1)}
+.tabpanel{display:none}
+.tabpanel.is-active{display:block}
+
+/* ============================================================
+   Tables
+   ============================================================ */
+.tbl-wrap{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);overflow:auto;max-width:100%}
+table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:var(--tbl);min-width:640px}
+.tbl th{position:sticky;top:0;z-index:2;text-align:left;font-size:12px;font-weight:500;color:var(--ink-3);letter-spacing:.02em;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th.r,.tbl td.r{text-align:right}
+.tbl th .sort{color:var(--ink-1)}
+.tbl td{padding:var(--cell-y) 12px;border-bottom:1px solid var(--line);height:var(--row);vertical-align:middle;color:var(--ink-1);white-space:nowrap}
+.tbl tr:last-child td{border-bottom:0}
+.tbl td:first-child,.tbl th:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
+.tbl th:first-child{z-index:3}
+.tbl tbody tr{cursor:pointer;transition:background 120ms ease}
+.tbl tbody tr:hover td{background:var(--surface-2)}
+.tbl tbody tr[aria-selected="true"] td{background:var(--accent-soft)}
+.tbl tbody tr[aria-selected="true"] td:first-child{box-shadow:inset 2px 0 0 var(--accent)}
+.tbl tbody tr:focus-visible{outline:none}
+.tbl tbody tr:focus-visible td{background:var(--surface-2)}
+.tbl tbody tr:focus-visible td:first-child{box-shadow:inset 2px 0 0 var(--accent)}
+.tbl td.dim{color:var(--ink-2)}
+.tbl .row-act{opacity:0;transition:opacity 120ms ease;font-size:12px;color:var(--accent)}
+.tbl tr:hover .row-act,.tbl tr:focus-visible .row-act{opacity:1}
+.tbl .rowbar td:first-child{box-shadow:inset 2px 0 0 var(--ink-1)}
+.tbl tfoot td{font-size:12px;color:var(--ink-3);height:auto;padding:8px 12px;background:var(--surface-2);border-top:1px solid var(--line);white-space:normal}
+.chip{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:10px;border:1px solid var(--line-strong);font-size:11px;color:var(--ink-2);font-weight:500;white-space:nowrap}
+.chip.ink{border-color:var(--ink-1);color:var(--ink-1)}
+.chip.new{background:var(--ink-1);color:var(--on-ink);border-color:var(--ink-1)}
+.chip.muted{border-style:dashed;color:var(--ink-3)}
+.copy{font-family:var(--mono);cursor:copy;border-bottom:1px dotted var(--line-strong)}
+.copy:hover{border-bottom-color:var(--accent)}
+
+/* Filter row */
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:13px}
+.filters .fchip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--line-strong);border-radius:14px;background:var(--surface);color:var(--ink-2);cursor:pointer}
+.filters .fchip b{color:var(--ink-1);font-weight:500}
+.filters .fchip.on{border-color:var(--ink-1);color:var(--ink-1)}
+.filters .right{margin-left:auto;color:var(--ink-3);font-size:12px}
+
+/* ============================================================
+   Split: table + detail
+   ============================================================ */
+.split{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:14px;align-items:start}
+.detail{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);padding:16px;position:sticky;top:68px}
+.detail h3{font-size:14px;font-weight:600;margin:0 0 2px;display:flex;align-items:center;gap:8px}
+.detail .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px;margin:12px 0}
+.detail .kv dt{color:var(--ink-3)}
+.detail .kv dd{margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.detail .actions{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.detail p.note{font-size:12px;color:var(--ink-3);margin:8px 0 0}
+
+/* Lifecycle across commits */
+.life{margin:8px 0 0}
+.life .label{margin-bottom:10px;display:block}
+.track{position:relative;display:grid;grid-template-columns:repeat(var(--n,5),1fr);gap:4px;padding-top:6px}
+.track::before{content:"";position:absolute;left:8%;right:8%;top:11px;height:1px;background:var(--line-strong)}
+.node{position:relative;text-align:center;font-size:11px;color:var(--ink-2);min-width:0}
+.node .mk{display:inline-flex;background:var(--surface);padding:0 2px;position:relative}
+.node .sha{display:block;font-family:var(--mono);color:var(--ink-1);margin-top:4px;font-size:11px}
+.node .ev{display:block;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .ev.strong{font-weight:600;color:var(--ink-1)}
+.node .when{display:block;color:var(--ink-3);font-size:10px}
+.node.here .sha{border-bottom:2px solid var(--accent)}
+
+/* Not checked */
+.group{margin-bottom:18px}
+.group h3{font-size:13px;font-weight:500;color:var(--ink-2);margin:0 0 6px;display:flex;align-items:baseline;gap:8px}
+.group h3 .count{font-family:var(--mono);color:var(--ink-3);font-size:12px}
+.nc{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface)}
+.nc li{display:grid;grid-template-columns:20px minmax(180px,1fr) minmax(0,1.6fr) auto;gap:12px;align-items:start;padding:10px 14px;border-top:1px solid var(--line);font-size:13px}
+.nc li:first-child{border-top:0}
+.nc .mod{font-family:var(--mono);color:var(--ink-1)}
+.nc .why{color:var(--ink-2)}
+.nc .why b{color:var(--ink-1);font-weight:500}
+.nc .act{white-space:nowrap}
+
+/* Waterfall */
+.wf{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);overflow:hidden}
+.wf li{display:grid;grid-template-columns:150px 1fr 90px 90px;gap:12px;align-items:center;padding:8px 14px;border-top:1px solid var(--line);font-size:13px}
+.wf li:first-child{border-top:0;color:var(--ink-3);font-size:12px}
+.wf .lane{height:14px;position:relative}
+.wf .lane i{position:absolute;top:1px;height:12px;border-radius:2px;background:var(--ink-2)}
+.wf .lane i.hatch{background:repeating-linear-gradient(135deg,var(--ink-2) 0 2px,transparent 2px 5px)}
+.wf .lane i.solid{background:var(--ink-1)}
+.wf .d{font-family:var(--mono);text-align:right;color:var(--ink-1)}
+.wf .c{font-family:var(--mono);text-align:right;color:var(--ink-2)}
+
+pre.raw{margin:0;padding:14px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);font-family:var(--mono);font-size:12px;line-height:1.55;color:var(--ink-2);overflow:auto}
+pre.raw b{color:var(--ink-1);font-weight:500}
+
+/* ============================================================
+   Customer
+   ============================================================ */
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);overflow:hidden;margin-bottom:20px}
+.stat{padding:12px 16px;border-left:1px solid var(--line);min-width:0}
+.stat:first-child{border-left:0}
+.stat .k{font-size:12px;color:var(--ink-2);display:block}
+.stat .v{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em;display:flex;align-items:baseline;gap:6px}
+.stat .v small{font-size:12px;font-weight:400;color:var(--ink-2)}
+.stat .def{font-size:11px;color:var(--ink-3);display:block;margin-top:2px}
+.cols{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:20px;align-items:start}
+.tl{list-style:none;margin:0;padding:0}
+.tl .day{font-size:12px;color:var(--ink-3);letter-spacing:.04em;text-transform:uppercase;font-weight:500;padding:14px 0 6px}
+.tl .day:first-child{padding-top:0}
+.tl .ev{display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:start;padding:9px 0;border-top:1px solid var(--line)}
+.tl .ev .mk{margin-top:4px}
+.tl .t{font-size:13px}
+.tl .t b{font-weight:600}
+.tl .t .w500{font-weight:500}
+.tl .s{font-size:12px;color:var(--ink-2);margin-top:1px}
+.tl .when{font-size:12px;color:var(--ink-3);white-space:nowrap;font-variant-numeric:tabular-nums}
+.tl .ev a.row-act{font-size:12px;color:var(--accent);opacity:0;transition:opacity 120ms ease;margin-left:8px}
+.tl .ev:hover a.row-act{opacity:1}
+.side .panel{margin-bottom:14px}
+.side .checklist .k{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.side .checklist .v{display:inline-flex;align-items:center;gap:6px;flex:none}
+.side .k .mono{font-size:12px}
+.mini{width:60px;height:16px;flex:none}
+
+/* Toast, palette */
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,8px);background:var(--ink-1);color:var(--on-ink);font-size:13px;padding:8px 12px;border-radius:var(--r-md);opacity:0;pointer-events:none;transition:opacity 160ms ease,transform 160ms ease;z-index:50;box-shadow:var(--shadow)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.pal-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:40}
+.pal-bg.open{display:block}
+.pal{position:fixed;left:50%;top:12vh;transform:translateX(-50%);width:min(640px,calc(100% - 32px));background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;box-shadow:var(--shadow);z-index:41;display:none;overflow:hidden}
+.pal.open{display:block;animation:rise 200ms ease}
+@keyframes rise{from{opacity:0;transform:translateX(-50%) translateY(6px)}to{opacity:1;transform:translateX(-50%)}}
+.pal input{width:100%;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink-1);font:inherit;font-size:15px;padding:14px 16px;outline:none}
+.pal .grp{padding:8px 8px 4px;font-size:11px;color:var(--ink-3);letter-spacing:.04em;text-transform:uppercase;font-weight:500}
+.pal .res{list-style:none;margin:0;padding:0 8px 8px;max-height:52vh;overflow:auto}
+.pal .res li{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);font-size:13px;cursor:pointer}
+.pal .res li:hover,.pal .res li.on{background:var(--surface-2)}
+.pal .res .id{font-family:var(--mono);color:var(--ink-1)}
+.pal .res .what{color:var(--ink-2);margin-left:auto;font-size:12px;white-space:nowrap}
+.pal .res .kind{font-size:11px;color:var(--ink-3);width:64px;flex:none}
+.pal .foot{display:flex;gap:14px;padding:8px 16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-3)}
+.pal .foot kbd{font-family:var(--mono);border:1px solid var(--line);border-radius:3px;padding:0 4px}
+
+/* Keyboard map sheet */
+.kmap{position:fixed;right:16px;bottom:16px;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:12px 14px;font-size:12px;display:none;z-index:45;min-width:240px}
+.kmap.open{display:block}
+.kmap dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:6px 0 0}
+.kmap dt{font-family:var(--mono);color:var(--ink-1)}
+.kmap dd{margin:0;color:var(--ink-2)}
+
+/* ============================================================
+   Phone (≤ 900px): rail becomes a drawer, grids stack.
+   ============================================================ */
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  .rail{position:fixed;left:0;top:0;bottom:0;width:min(280px,84vw);z-index:60;transform:translateX(-102%);transition:transform 200ms ease;box-shadow:none}
+  .rail.open{transform:none;box-shadow:var(--shadow)}
+  .rail-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:59;display:none}
+  .rail-bg.open{display:block}
+  .menubtn{display:inline-flex}
+  .topbar{padding:8px 16px;gap:8px}
+  .crumbs{display:none}
+  .search{margin-left:0;width:auto;flex:1;min-width:0}
+  .search span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .search kbd{display:none}
+  .hide-sm{display:none !important}
+  .page{padding:16px 16px 56px}
+  .verdict{font-size:20px}
+  .grid{grid-template-columns:1fr}
+  .grid .span-2,.grid .span-3{grid-column:auto}
+  .split,.cols{grid-template-columns:1fr}
+  .detail{position:static}
+  .stats{grid-template-columns:1fr 1fr}
+  .stat{border-left:0;border-top:1px solid var(--line)}
+  .stat:nth-child(-n+2){border-top:0}
+  .stat:nth-child(2n){border-left:1px solid var(--line)}
+  .nc li{grid-template-columns:20px 1fr;gap:4px 10px}
+  .nc li .why{grid-column:2}
+  .nc li .act{grid-column:2}
+  .wf li{grid-template-columns:110px 1fr 64px;font-size:12px}
+  .wf li .c{display:none}
+  .track{grid-template-columns:repeat(var(--n,5),minmax(56px,1fr));overflow-x:auto}
+  .strip .spacer{margin-left:0;width:100%}
+  .tl .ev{grid-template-columns:20px 1fr}
+  .tl .when{grid-column:2}
+  .checklist li{flex-wrap:wrap;row-gap:2px}
+  .checklist .v{white-space:normal;text-align:right;margin-left:auto}
+  .side .checklist .k{white-space:normal}
+}
+@media (max-width:420px){
+  .stats{grid-template-columns:1fr}
+  .stat{border-left:0 !important;border-top:1px solid var(--line)}
+  .stat:first-child{border-top:0}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important}}
+</style>
+</head>
+<body>
+
+<!-- Mark sprite: blocker ■, high ◆, medium ◐, low ○, pass ●, not run ◌ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="m-blocker" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" rx="1" fill="currentColor"/></symbol>
+  <symbol id="m-high" viewBox="0 0 12 12"><path d="M6 .6 11.4 6 6 11.4.6 6z" fill="currentColor"/></symbol>
+  <symbol id="m-medium" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6 1.4a4.6 4.6 0 0 0 0 9.2z" fill="currentColor"/></symbol>
+  <symbol id="m-low" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.4" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+  <symbol id="m-pass" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="currentColor"/></symbol>
+  <symbol id="m-notrun" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.3 1.9"/></symbol>
+</svg>
+
+<div class="rail-bg" id="railbg"></div>
+<div class="app">
+  <!-- ================= Rail ================= -->
+  <aside class="rail" id="rail" aria-label="Console sections">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">G</span>
+      <div><b>GateTest</b><span>Owner console</span></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">
+        <a href="#overview" data-screen="overview">Overview</a>
+        <a href="#scan" data-screen="scan">Scans <span class="count">214</span></a>
+        <button type="button" data-inert>Findings <span class="count strong">7</span></button>
+        <button type="button" data-inert>Watchdog <span class="count">12</span></button>
+      </div>
+      <div class="nav-group">
+        <div class="label">Business</div>
+        <a href="#customer" data-screen="customer">Customers <span class="count">9</span></a>
+        <button type="button" data-inert>Revenue</button>
+      </div>
+      <div class="nav-group">
+        <div class="label">Platform</div>
+        <button type="button" data-inert>Health <span class="count strong">1</span></button>
+        <button type="button" data-inert>Deploys</button>
+        <button type="button" data-inert>Keys</button>
+        <button type="button" data-inert>Integrations</button>
+        <button type="button" data-inert>Secrets</button>
+      </div>
+      <div class="nav-group">
+        <div class="label">Governance</div>
+        <button type="button" data-inert>Audit</button>
+        <button type="button" data-inert>Compliance</button>
+        <button type="button" data-inert>Precision</button>
+        <button type="button" data-inert>Feedback</button>
+      </div>
+      <div class="nav-group">
+        <button type="button" data-inert>Launch prep <span class="pin">pinned · 4 left</span></button>
+      </div>
+    </nav>
+    <div class="rail-foot">Signed in as <b>owner</b><br>Deployed <span class="mono">cb26ff38</span> · current</div>
+  </aside>
+
+  <!-- ================= Main ================= -->
+  <div class="main">
+    <header class="topbar">
+      <button type="button" class="iconbtn menubtn" id="menubtn" aria-label="Open navigation" aria-controls="rail" aria-expanded="false">Menu</button>
+      <div class="crumbs" id="crumbs"><b>Overview</b></div>
+      <button type="button" class="search" id="searchbtn" aria-label="Search or jump to (Cmd K)"><span>Search or jump to…</span><kbd>⌘K</kbd></button>
+      <button type="button" class="iconbtn hide-sm" id="densitybtn" aria-pressed="false" title="Density (D)">Comfortable</button>
+      <div class="seg" role="radiogroup" aria-label="Theme">
+        <button type="button" role="radio" data-theme-set="light" aria-checked="true">White</button>
+        <button type="button" role="radio" data-theme-set="dark" aria-checked="false">Black</button>
+      </div>
+    </header>
+
+    <div class="page">
+
+      <!-- ================= OVERVIEW ================= -->
+      <section class="screen is-active" id="s-overview" data-title="Overview" aria-labelledby="h-overview">
+        <div class="page-head">
+          <div>
+            <h1 id="h-overview">Overview</h1>
+            <div class="head-meta"><span>Sample data · 9 customers · 23 repos</span></div>
+          </div>
+          <div class="actions">
+            <button type="button" class="range" aria-haspopup="listbox">Last 7 days <span class="chev">▾</span></button>
+            <button type="button" class="btn primary">Run a scan</button>
+          </div>
+        </div>
+
+        <p class="verdict">This week the gate <a href="#scan">blocked <span class="num">12</span> merges</a>, passed <a href="#scan"><span class="num">3</span> findings</a> on new code, and did not run <a href="#scan"><span class="num">4</span> modules</a> it should have.</p>
+        <p class="verdict-sub">Week before: 9 blocked, 5 passed, 5 not run. "Passed on new code" counts findings introduced in a changed file that the gate let through under an accepted rule.</p>
+
+        <div class="grid">
+          <!-- OK -->
+          <article class="panel" data-state="ok">
+            <div class="panel-head"><h2>Readiness</h2><a href="#overview">Definition</a></div>
+            <div class="panel-value"><i class="mk mk-pass" aria-hidden="true"><svg><use href="#m-pass"/></svg></i>Ready</div>
+            <ul class="checklist">
+              <li><span class="k">Required secrets</span><span class="v">6 of 6 present</span></li>
+              <li><span class="k">Payments</span><span class="v">live mode</span></li>
+              <li><span class="k">Git-host app</span><span class="v">installed · 14 orgs</span></li>
+              <li><span class="k">Database</span><span class="v">migration 014</span></li>
+            </ul>
+            <div class="panel-foot"><span>Same definition as Health.</span><a href="#overview">Open health</a></div>
+          </article>
+
+          <!-- FAILED -->
+          <article class="panel" data-state="failed">
+            <div class="panel-head"><h2>Scan worker</h2><span class="state-tag"><i class="mk mk-blocker" aria-hidden="true"><svg><use href="#m-blocker"/></svg></i>Failed</span></div>
+            <div class="panel-value">Stale <small>26 h without a successful run</small></div>
+            <div class="panel-body"><p>The schedule expects a run every 15 minutes. The last successful run finished at 09:14 yesterday; 3 queued scans are waiting.</p></div>
+            <div class="panel-foot"><a href="#overview">Retry check</a><a href="#overview">Open worker log</a></div>
+          </article>
+
+          <!-- CANNOT TELL -->
+          <article class="panel" data-state="unknown">
+            <div class="panel-head"><h2>Payments</h2><span class="state-tag"><i class="mk mk-notrun" aria-hidden="true"><svg><use href="#m-notrun"/></svg></i>Cannot tell</span></div>
+            <div class="panel-value">Not checked</div>
+            <div class="panel-body"><p>The <span class="mono">payment_events</span> table is missing, so failed and succeeded payments cannot be counted. Run migration 014 and reload.</p></div>
+            <div class="panel-foot"><a href="#overview">How to run migrations</a><a href="#overview">Retry</a></div>
+          </article>
+
+          <!-- Revenue chart -->
+          <article class="panel span-2" data-state="ok">
+            <div class="panel-head"><h2>Revenue, paid</h2><a href="#customer">Open revenue</a></div>
+            <div class="panel-value"><span class="num">$1,240</span> <small>this month · $4,860 last 8 weeks</small></div>
+            <svg class="chart" viewBox="0 0 560 110" role="img" aria-label="Paid revenue per week for eight weeks, with deploy ticks">
+              <g class="axis">
+                <text x="0" y="106">w-7</text><text x="536" y="106">now</text>
+              </g>
+              <rect class="bar past" x="10" y="62" width="54" height="30"/>
+              <rect class="bar past" x="78" y="54" width="54" height="38"/>
+              <rect class="bar past" x="146" y="58" width="54" height="34"/>
+              <rect class="bar past" x="214" y="40" width="54" height="52"/>
+              <rect class="bar past" x="282" y="46" width="54" height="46"/>
+              <rect class="bar past" x="350" y="30" width="54" height="62"/>
+              <rect class="bar past" x="418" y="36" width="54" height="56"/>
+              <rect class="bar now"  x="486" y="22" width="54" height="70"/>
+              <line class="tick" x1="240" y1="8" x2="240" y2="94"/><text class="tick-lbl" x="244" y="14">a91c4e</text>
+              <line class="tick" x1="500" y1="8" x2="500" y2="94"/><text class="tick-lbl" x="504" y="14">cb26ff</text>
+              <line x1="0" y1="92.5" x2="560" y2="92.5" stroke="var(--line-strong)" stroke-width="1"/>
+            </svg>
+            <div class="panel-foot"><span>Paid = succeeded payment events, refunds subtracted. Not tier price × scans.</span><span>Ticks are deploys.</span></div>
+          </article>
+
+          <!-- Scans sparkline -->
+          <article class="panel" data-state="ok">
+            <div class="panel-head"><h2>Scans</h2><a href="#scan">Open scans</a></div>
+            <div class="panel-value"><span class="num">38</span> <small>today</small></div>
+            <svg class="chart" viewBox="0 0 300 60" role="img" aria-label="Scans per day, last 14 days">
+              <path class="spark-area" d="M0 44 L23 40 L46 42 L69 30 L92 34 L115 26 L138 28 L161 18 L184 24 L207 14 L230 20 L253 12 L276 16 L300 10 L300 60 L0 60Z"/>
+              <polyline class="spark" points="0,44 23,40 46,42 69,30 92,34 115,26 138,28 161,18 184,24 207,14 230,20 253,12 276,16 300,10"/>
+              <circle class="spark-dot" cx="300" cy="10" r="2.5"/>
+            </svg>
+            <div class="panel-foot"><span>214 this week · avg score 81 · median 42 s</span></div>
+          </article>
+
+          <!-- Integrations -->
+          <article class="panel span-2" data-state="ok">
+            <div class="panel-head"><h2>Integrations</h2><a href="#overview">Open integrations</a></div>
+            <ul class="checklist">
+              <li><span class="k"><i class="mk mk-pass" aria-hidden="true"><svg><use href="#m-pass"/></svg></i>Git-host app</span><span class="v">last delivery 4 m ago · 0 failed of 312 this week</span></li>
+              <li><span class="k"><i class="mk mk-notrun" aria-hidden="true"><svg><use href="#m-notrun"/></svg></i>Marketplace webhook</span><span class="v">never received an event · not live</span></li>
+              <li><span class="k"><i class="mk mk-pass" aria-hidden="true"><svg><use href="#m-pass"/></svg></i>Site-scan worker</span><span class="v">last result 2 m ago</span></li>
+              <li><span class="k"><i class="mk mk-medium" aria-hidden="true"><svg><use href="#m-medium"/></svg></i>Sibling platforms</span><span class="v strong">1 of 3 degraded · <span class="mono">worker-2</span> queue depth 41</span></li>
+              <li><span class="k"><i class="mk mk-pass" aria-hidden="true"><svg><use href="#m-pass"/></svg></i>Outbound email</span><span class="v">key rotated 3 d ago · 41 sent</span></li>
+            </ul>
+            <div class="panel-foot"><span>A row reads "not live" until the first event arrives; silence is never "healthy".</span></div>
+          </article>
+
+          <!-- Open findings -->
+          <article class="panel" data-state="ok">
+            <div class="panel-head"><h2>Findings queue</h2><a href="#scan">Open queue</a></div>
+            <ul class="checklist">
+              <li><span class="k sev sev-blocker"><i class="mk mk-blocker" aria-hidden="true"><svg><use href="#m-blocker"/></svg></i>Blocker</span><span class="v strong">2 unresolved</span></li>
+              <li><span class="k sev"><i class="mk mk-high" aria-hidden="true"><svg><use href="#m-high"/></svg></i>High</span><span class="v">5 unresolved · 1 regressed</span></li>
+              <li><span class="k sev"><i class="mk mk-medium" aria-hidden="true"><svg><use href="#m-medium"/></svg></i>Medium</span><span class="v">14 for review</span></li>
+              <li><span class="k sev sev-low"><i class="mk mk-low" aria-hidden="true"><svg><use href="#m-low"/></svg></i>Low</span><span class="v">31 · 12 accepted</span></li>
+            </ul>
+            <div class="panel-foot"><span>Accepted and false positives are excluded from scores.</span></div>
+          </article>
+
+          <!-- Deploy strip -->
+          <div class="strip span-3">
+            <span class="k">Deployed</span>
+            <span class="sha copy" title="cb26ff38a1d4e9c07b53f6a2d8e14c0b9a7f3e21">cb26ff38</span>
+            <span class="eq">= main</span>
+            <span class="muted">2 h ago by CI · previous <span class="sha">a91c4e2d</span> · 0 commits behind</span>
+            <span class="spacer"></span>
+            <a href="#overview" class="btn small">Deploy history</a>
+            <button type="button" class="btn small destructive">Roll back</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SCAN DETAIL ================= -->
+      <section class="screen" id="s-scan" data-title="Scan scn_7c2f…b0a3" aria-labelledby="h-scan">
+        <div class="page-head">
+          <div>
+            <div class="sm faint" style="margin-bottom:4px"><a href="#scan">Scans</a> <span class="faint">/</span> <span class="copy" title="scn_7c2f19e4b0a3">scn_7c2f…b0a3</span></div>
+            <h1 id="h-scan"><span class="sev sev-blocker"><i class="mk mk-blocker" aria-hidden="true"><svg><use href="#m-blocker"/></svg></i>Gate blocked</span> <span class="muted" style="font-weight:400">— 2 blockers on new code</span></h1>
+            <div class="head-meta">
+              <span><span class="mono">orchard-labs/checkout-api</span></span>
+              <span>commit <span class="mono copy" title="9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e">9f8e7d6</span> on <span class="mono">feat/refunds</span></span>
+              <span>Repo scan · Full tier</span>
+              <span title="2026-09-29 08:41 UTC">2 h ago</span>
+              <span><span class="num">48.1 s</span> · <span class="num">118/122</span> modules · AI spend <span class="num">$0.42</span></span>
+              <span>customer <a class="link" href="#customer">Orchard Labs</a></span>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn">Compare with base</button>
+            <button type="button" class="btn">Re-run</button>
+            <button type="button" class="btn primary">Open fix PR</button>
+          </div>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Scan sections">
+          <button type="button" role="tab" aria-selected="true" aria-controls="tp-findings" data-tab="findings">Findings <span class="count">12</span></button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="tp-notchecked" data-tab="notchecked">What was not checked <span class="count">4</span></button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="tp-trace" data-tab="trace">Trace</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="tp-fixprs" data-tab="fixprs">Fix PRs <span class="count">2</span></button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="tp-raw" data-tab="raw">Raw</button>
+        </div>
+
+        <!-- Findings -->
+        <div class="tabpanel is-active" id="tp-findings" role="tabpanel">
+          <div class="filters">
+            <button type="button" class="fchip on">New code <b>6</b></button>
+            <button type="button" class="fchip">All <b>12</b></button>
+            <button type="button" class="fchip">Regressed <b>1</b></button>
+            <button type="button" class="fchip">Accepted <b>2</b></button>
+            <span class="right">J / K to move · Enter to open · S to set status</span>
+          </div>
+          <div class="split">
+            <div class="tbl-wrap">
+              <table class="tbl" id="findings">
+                <thead><tr>
+                  <th>Severity</th><th>Rule</th><th>Location</th><th>Code</th><th>Status</th><th class="r">First seen <span class="sort">↓</span></th>
+                </tr></thead>
+                <tbody>
+                  <tr tabindex="0" aria-selected="true" class="rowbar" data-sev="blocker" data-rule="sql/raw-query-concat" data-loc="src/refunds/query.ts:41" data-fp="fp_3e9a11c7…c71d" data-life="regressed" data-status="Regressed">
+                    <td><span class="sev sev-blocker"><i class="mk mk-blocker" aria-hidden="true"><svg><use href="#m-blocker"/></svg></i>Blocker</span></td>
+                    <td class="mono">sql/raw-query-concat</td><td class="mono dim">src/refunds/query.ts:41</td><td><span class="chip new">New</span></td><td><span class="chip ink">Regressed</span></td><td class="r dim"><span class="mono">a1b2c3d</span> · 14 d</td>
+                  </tr>
+                  <tr tabindex="0" class="rowbar" data-sev="blocker" data-rule="secrets/hardcoded-token" data-loc="src/config.ts:8" data-fp="fp_91be04d2…07aa" data-life="new" data-status="New">
+                    <td><span class="sev sev-blocker"><i class="mk mk-blocker" aria-hidden="true"><svg><use href="#m-blocker"/></svg></i>Blocker</span></td>
+                    <td class="mono">secrets/hardcoded-token</td><td class="mono dim">src/config.ts:8</td><td><span class="chip new">New</span></td><td><span class="chip">New</span></td><td class="r dim">this scan</td>
+                  </tr>
+                  <tr tabindex="0" data-sev="high" data-rule="auth/missing-check" data-loc="src/api/refund.ts:22" data-fp="fp_c0ffee12…4d2e" data-life="recurring" data-status="Recurring">
+                    <td><span class="sev"><i class="mk mk-high" aria-hidden="true"><svg><use href="#m-high"/></svg></i>High</span></td>
+                    <td class="mono">auth/missing-check</td><td class="mono dim">src/api/refund.ts:22</td><td><span class="chip muted">—</span></td><td><span class="chip">Recurring</span></td><td class="r dim"><span class="mono">7a7b7c7</span> · 21 d</td>
+                  </tr>
+                  <tr tabindex="0" data-sev="high" data-rule="deps/vulnerable-package" data-loc="package.json" data-fp="fp_dead10cc…9b21" data-life="recurring" data-status="Recurring">
+                    <td><span class="sev"><i class="mk mk-high" aria-hidden="true"><svg><use href="#m-high"/></svg></i>High</span></td>
+                    <td class="mono">deps/vulnerable-package</td><td class="mono dim">package.json</td><td><span class="chip muted">—</span></td><td><span class="chip">Recurring</span></td><td class="r dim"><span class="mono">2f2f2f2</span> · 30 d</td>
+                  </tr>
+                  <tr tabindex="0" data-sev="medium" data-rule="perf/n-plus-one" data-loc="src/orders/list.ts:77" data-fp="fp_5150aa19…e3f0" data-life="new" data-status="New">
+                    <td><span class="sev"><i class="mk mk-medium" aria-hidden="true"><svg><use href="#m-medium"/></svg></i>Medium</span></td>
+                    <td class="mono">perf/n-plus-one</td><td class="mono dim">src/orders/list.ts:77</td><td><span class="chip new">New</span></td><td><span class="chip">New</span></td><td class="r dim">this scan</td>
+                  </tr>
+                  <tr tabindex="0" data-sev="medium" data-rule="lint/unused-export" data-loc="src/util/money.ts:12" data-fp="fp_0b0b0b0b…1111" data-life="recurring" data-status="Recurring">
+                    <td><span class="sev"><i class="mk mk-medium" aria-hidden="true"><svg><use href="#m-medium"/></svg></i>Medium</span></td>
+                    <td class="mono">lint/unused-export</td><td class="mono dim">src/util/money.ts:12</td><td><span class="chip muted">—</span></td><td><span class="chip">Recurring</span></td><td class="r dim"><span class="mono">4e4e4e4</span> · 9 d</td>
+                  </tr>
+                  <tr tabindex="0" data-sev="low" data-rule="style/naming" data-loc="src/util/format.ts:3" data-fp="fp_77aa77aa…2c2c" data-life="accepted" data-status="Accepted">
+                    <td><span class="sev sev-low"><i class="mk mk-low" aria-hidden="true"><svg><use href="#m-low"/></svg></i>Low</span></td>
+                    <td class="mono dim">style/naming</td><td class="mono dim">src/util/format.ts:3</td><td><span class="chip muted">—</span></td><td><span class="chip muted">Accepted</span></td><td class="r dim"><span class="mono">1d1d1d1</span> · 40 d</td>
+                  </tr>
+                  <tr tabindex="0" data-sev="low" data-rule="docs/readme-section" data-loc="README.md" data-fp="fp_ab12cd34…ef56" data-life="recurring" data-status="Recurring">
+                    <td><span class="sev sev-low"><i class="mk mk-low" aria-hidden="true"><svg><use href="#m-low"/></svg></i>Low</span></td>
+                    <td class="mono dim">docs/readme-section</td><td class="mono dim">README.md</td><td><span class="chip muted">—</span></td><td><span class="chip">Recurring</span></td><td class="r dim"><span class="mono">1d1d1d1</span> · 40 d</td>
+                  </tr>
+                </tbody>
+                <tfoot><tr><td colspan="6">Showing 8 of 12. "Code" is New when the finding sits in a file changed by this commit. "First seen" is the earliest commit carrying this fingerprint in any scan of this repo.</td></tr></tfoot>
+              </table>
+            </div>
+
+            <aside class="detail" id="fdetail" aria-live="polite">
+              <h3 id="fd-title"><span class="sev sev-blocker"><i class="mk mk-blocker" aria-hidden="true"><svg><use href="#m-blocker"/></svg></i>Blocker</span> <span class="mono" id="fd-rule">sql/raw-query-concat</span></h3>
+              <dl class="kv">
+                <dt>Location</dt><dd class="mono" id="fd-loc">src/refunds/query.ts:41</dd>
+                <dt>Fingerprint</dt><dd><span class="copy" id="fd-fp" title="Copy">fp_3e9a11c7…c71d</span></dd>
+                <dt>Status</dt><dd id="fd-status">Regressed — fixed 9 d ago, back in this commit</dd>
+                <dt>Elsewhere</dt><dd id="fd-else">Same pattern in 2 other repos of this customer</dd>
+              </dl>
+              <div class="life">
+                <span class="label">Lifecycle across commits</span>
+                <div class="track" id="fd-track" style="--n:5"></div>
+              </div>
+              <div class="actions">
+                <button type="button" class="btn small primary">Open fix PR</button>
+                <button type="button" class="btn small">Accept…</button>
+                <button type="button" class="btn small">False positive…</button>
+                <button type="button" class="btn small">Apply to all matching</button>
+              </div>
+              <p class="note">Accept and False positive require a reason; each verdict feeds Precision for this rule.</p>
+            </aside>
+          </div>
+        </div>
+
+        <!-- What was not checked -->
+        <div class="tabpanel" id="tp-notchecked" role="tabpanel">
+          <article class="panel" data-state="ok" style="margin-bottom:16px">
+            <div class="panel-head"><h2>Coverage</h2><a href="#scan">Module catalogue</a></div>
+            <div class="panel-value"><span class="num">118</span> <small>of 122 modules ran · 4 did not</small></div>
+            <div class="cov"><div class="cov-bar" role="img" aria-label="118 of 122 modules ran"><i></i></div><span class="sm faint num">96.7%</span></div>
+            <div class="panel-foot"><span>A score is only comparable when coverage is equal. This scan's score of 74 is marked "partial" on the customer page.</span></div>
+          </article>
+
+          <div class="group">
+            <h3>Module error <span class="count">1</span></h3>
+            <ul class="nc">
+              <li><i class="mk mk-notrun" aria-hidden="true"><svg><use href="#m-notrun"/></svg></i><span class="mod">secrets/entropy-scan</span><span class="why">Crashed on a binary file (<span class="mono">assets/font.woff2</span>) — engine issue <span class="mono">#1183</span>. <b>This is the module that finds leaked keys</b>; the hard-coded token above was caught by the pattern module only.</span><span class="act"><a class="link" href="#scan">Re-run module</a></span></li>
+            </ul>
+          </div>
+          <div class="group">
+            <h3>Timed out <span class="count">1</span></h3>
+            <ul class="nc">
+              <li><i class="mk mk-notrun" aria-hidden="true"><svg><use href="#m-notrun"/></svg></i><span class="mod">deps/license-audit</span><span class="why">Reached the 30 s limit at 84% of the package tree. Would have reported license conflicts in production dependencies.</span><span class="act"><a class="link" href="#scan">Raise limit for this repo</a></span></li>
+            </ul>
+          </div>
+          <div class="group">
+            <h3>No matching files <span class="count">2</span></h3>
+            <ul class="nc">
+              <li><i class="mk mk-notrun" aria-hidden="true"><svg><use href="#m-notrun"/></svg></i><span class="mod">iac/terraform-validate</span><span class="why">No <span class="mono">*.tf</span> files in the repository. Expected for this repo.</span><span class="act"><a class="link" href="#scan">Mark expected</a></span></li>
+              <li><i class="mk mk-notrun" aria-hidden="true"><svg><use href="#m-notrun"/></svg></i><span class="mod">mobile/android-manifest</span><span class="why">No <span class="mono">AndroidManifest.xml</span>. Expected for this repo.</span><span class="act"><a class="link" href="#scan">Mark expected</a></span></li>
+            </ul>
+          </div>
+          <p class="sm faint">Modules marked "expected" stop counting toward "did not run" on the Overview for this repo.</p>
+        </div>
+
+        <!-- Trace -->
+        <div class="tabpanel" id="tp-trace" role="tabpanel">
+          <ul class="wf" aria-label="Scan waterfall">
+            <li><span>Stage</span><span>0 s → 48.1 s · drag to select a range</span><span class="d">Duration</span><span class="c">Cost</span></li>
+            <li><span>Webhook received</span><div class="lane"><i class="solid" style="left:0%;width:1%"></i></div><span class="d">0.05 s</span><span class="c">—</span></li>
+            <li><span>Queued</span><div class="lane"><i class="hatch" style="left:1%;width:2.5%"></i></div><span class="d">1.2 s</span><span class="c">—</span></li>
+            <li><span>Clone</span><div class="lane"><i style="left:3.5%;width:10%"></i></div><span class="d">4.8 s</span><span class="c">—</span></li>
+            <li><span>Modules <span class="faint">118 ran</span></span><div class="lane"><i class="solid" style="left:13.5%;width:79%"></i></div><span class="d">38.1 s</span><span class="c">—</span></li>
+            <li><span>AI review</span><div class="lane"><i style="left:92.5%;width:7%"></i></div><span class="d">3.4 s</span><span class="c">$0.42</span></li>
+            <li><span>Check run posted</span><div class="lane"><i class="solid" style="left:99%;width:1%"></i></div><span class="d">0.6 s</span><span class="c">—</span></li>
+          </ul>
+          <p class="sm faint" style="margin-top:8px">Exit reason: gate blocked (policy <span class="mono">blockers-on-new-code</span>). Log lines for the selected range appear below the waterfall in the real page.</p>
+        </div>
+
+        <!-- Fix PRs -->
+        <div class="tabpanel" id="tp-fixprs" role="tabpanel">
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>PR</th><th>Rules</th><th>Files</th><th>Checks</th><th>Outcome</th><th class="r">Opened</th></tr></thead>
+              <tbody>
+                <tr tabindex="0"><td><span class="mono">#418</span></td><td class="mono">sql/raw-query-concat</td><td class="num">2</td><td><span class="sev sev-notrun"><i class="mk mk-notrun" aria-hidden="true"><svg><use href="#m-notrun"/></svg></i>Pending</span></td><td class="dim">Open</td><td class="r dim">2 h ago</td></tr>
+                <tr tabindex="0"><td><span class="mono">#412</span></td><td class="mono">sql/raw-query-concat</td><td class="num">1</td><td><span class="sev"><i class="mk mk-pass" aria-hidden="true"><svg><use href="#m-pass"/></svg></i>Passed</span></td><td>Merged in 6 h · <span class="w500">fingerprint returned</span></td><td class="r dim">9 d ago</td></tr>
+              </tbody>
+              <tfoot><tr><td colspan="6">Every PR URL is kept. A merged PR whose fingerprint returns is counted against the rule in Precision.</td></tr></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- Raw -->
+        <div class="tabpanel" id="tp-raw" role="tabpanel">
+<pre class="raw">{
+  <b>"id"</b>: "scn_7c2f19e4b0a3",
+  <b>"kind"</b>: "repo", <b>"tier"</b>: "full",
+  <b>"commit"</b>: "9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e",
+  <b>"verdict"</b>: { "gate": "blocked", "policy": "blockers-on-new-code", "blockers_new_code": 2 },
+  <b>"coverage"</b>: { "ran": 118, "catalogue": 122, "not_run": ["secrets/entropy-scan", "deps/license-audit", "iac/terraform-validate", "mobile/android-manifest"] },
+  <b>"duration_ms"</b>: 48100, <b>"ai_cost_usd"</b>: 0.42,
+  <b>"findings"</b>: 12
+}</pre>
+        </div>
+      </section>
+
+      <!-- ================= CUSTOMER ================= -->
+      <section class="screen" id="s-customer" data-title="Orchard Labs" aria-labelledby="h-customer">
+        <div class="page-head">
+          <div>
+            <div class="sm faint" style="margin-bottom:4px"><a href="#customer">Customers</a> <span class="faint">/</span> Orchard Labs</div>
+            <h1 id="h-customer">Orchard Labs</h1>
+            <div class="head-meta">
+              <span>billing@orchard.example</span>
+              <span>git login <span class="mono">orchard-labs</span></span>
+              <span>Team plan · <span class="num">$99</span>/mo</span>
+              <span>customer since Mar 2026</span>
+              <span>id <span class="copy" title="cus_4a91be2c7d">cus_4a91…2c7d</span></span>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn">Open in payments</button>
+            <button type="button" class="btn">Email…</button>
+            <button type="button" class="btn">Credit…</button>
+            <button type="button" class="btn primary">Run scan</button>
+          </div>
+        </div>
+
+        <div class="stats" role="list">
+          <div class="stat" role="listitem"><span class="k">Paid to date</span><span class="v num">$1,860</span><span class="def">succeeded payments, refunds subtracted</span></div>
+          <div class="stat" role="listitem"><span class="k">Scans</span><span class="v num">142 <small>3 repos</small></span><span class="def">11 partial coverage</span></div>
+          <div class="stat" role="listitem"><span class="k">Gate blocks</span><span class="v num">9 <small>6%</small></span><span class="def">of scans on new code</span></div>
+          <div class="stat" role="listitem"><span class="k">Fix PRs merged</span><span class="v num">6 <small>of 8</small></span><span class="def">1 fingerprint returned</span></div>
+          <div class="stat" role="listitem"><span class="k">Keys</span><span class="v num">2 <small>1 unused 30 d</small></span><span class="def">safe to revoke</span></div>
+        </div>
+
+        <div class="cols">
+          <div>
+            <div class="filters">
+              <button type="button" class="fchip on">All</button>
+              <button type="button" class="fchip">Payments</button>
+              <button type="button" class="fchip">Scans</button>
+              <button type="button" class="fchip">Gate</button>
+              <button type="button" class="fchip">Fix PRs</button>
+              <button type="button" class="fchip">Keys</button>
+              <span class="right">Timeline · newest first</span>
+            </div>
+            <ol class="tl" aria-label="Customer timeline">
+              <li class="day">Today</li>
+              <li class="ev"><i class="mk mk-blocker" aria-hidden="true"><svg><use href="#m-blocker"/></svg></i><div><div class="t"><b>Payment failed</b> — <span class="num">$99.00</span> monthly, card declined<a class="row-act" href="#customer">Open in payments</a></div><div class="s">Retry scheduled in 3 d. Subscription stays active until then.</div></div><span class="when" title="2026-09-29 10:02 UTC">10:02</span></li>
+              <li class="ev"><i class="mk mk-blocker" aria-hidden="true"><svg><use href="#m-blocker"/></svg></i><div><div class="t"><b>Gate blocked</b> — <span class="mono">checkout-api</span> PR <span class="mono">#302</span><a class="row-act" href="#scan">Open scan</a></div><div class="s">2 blockers on new code: <span class="mono">sql/raw-query-concat</span> (regressed), <span class="mono">secrets/hardcoded-token</span>.</div></div><span class="when" title="2026-09-29 08:41 UTC">08:41</span></li>
+              <li class="ev"><i class="mk mk-notrun" aria-hidden="true"><svg><use href="#m-notrun"/></svg></i><div><div class="t"><span class="w500">Fix PR opened</span> — <span class="mono">#418</span> for <span class="mono">sql/raw-query-concat</span><a class="row-act" href="#scan">Open PR</a></div><div class="s">Checks pending.</div></div><span class="when" title="2026-09-29 08:42 UTC">08:42</span></li>
+              <li class="ev"><i class="mk mk-pass" aria-hidden="true"><svg><use href="#m-pass"/></svg></i><div><div class="t"><span class="w500">Scan completed</span> — <span class="mono">checkout-api</span> at <span class="mono">9f8e7d6</span><a class="row-act" href="#scan">Open scan</a></div><div class="s">Score <span class="num">74</span> (partial: 118 of 122 modules) · <span class="num">48 s</span> · AI spend <span class="num">$0.42</span></div></div><span class="when" title="2026-09-29 08:41 UTC">08:41</span></li>
+
+              <li class="day">Yesterday</li>
+              <li class="ev"><i class="mk mk-pass" aria-hidden="true"><svg><use href="#m-pass"/></svg></i><div><div class="t"><span class="w500">Scan completed</span> — <span class="mono">web-storefront</span> at <span class="mono">1c2d3e4</span><a class="row-act" href="#scan">Open scan</a></div><div class="s">Score <span class="num">91</span> · full coverage · <span class="num">31 s</span></div></div><span class="when" title="2026-09-28 16:20 UTC">16:20</span></li>
+              <li class="ev"><i class="mk mk-low" aria-hidden="true"><svg><use href="#m-low"/></svg></i><div><div class="t"><span class="w500">Key created</span> — <span class="mono">gt_live_7a3f…</span> "CI runner"<a class="row-act" href="#customer">Open key</a></div><div class="s">By owner@orchard.example · scope scan:write</div></div><span class="when" title="2026-09-28 09:05 UTC">09:05</span></li>
+
+              <li class="day">9 days ago</li>
+              <li class="ev"><i class="mk mk-pass" aria-hidden="true"><svg><use href="#m-pass"/></svg></i><div><div class="t"><span class="w500">Fix PR merged</span> — <span class="mono">#412</span> in 6 h<a class="row-act" href="#scan">Open PR</a></div><div class="s">Fingerprint <span class="mono">fp_3e9a…c71d</span> returned today — counted against the rule.</div></div><span class="when" title="2026-09-20 11:30 UTC">Sep 20</span></li>
+              <li class="ev"><i class="mk mk-medium" aria-hidden="true"><svg><use href="#m-medium"/></svg></i><div><div class="t"><span class="w500">Feedback</span> — "the license audit keeps timing out on our monorepo"<a class="row-act" href="#customer">Reply</a></div><div class="s">Linked to scan <span class="mono">scn_5b1e…9a07</span>. No reply yet.</div></div><span class="when" title="2026-09-20 09:12 UTC">Sep 20</span></li>
+
+              <li class="day">14 days ago</li>
+              <li class="ev"><i class="mk mk-pass" aria-hidden="true"><svg><use href="#m-pass"/></svg></i><div><div class="t"><span class="w500">Payment succeeded</span> — <span class="num">$99.00</span> monthly<a class="row-act" href="#customer">Open in payments</a></div><div class="s">Invoice <span class="mono">in_88c1…e0b3</span></div></div><span class="when" title="2026-09-15 10:02 UTC">Sep 15</span></li>
+
+              <li class="day">March 2026</li>
+              <li class="ev"><i class="mk mk-low" aria-hidden="true"><svg><use href="#m-low"/></svg></i><div><div class="t"><span class="w500">Customer created</span> via git-host marketplace</div><div class="s">First scan 4 minutes later.</div></div><span class="when" title="2026-03-12 14:48 UTC">Mar 12</span></li>
+            </ol>
+          </div>
+
+          <aside class="side">
+            <article class="panel" data-state="ok">
+              <div class="panel-head"><h2>Repositories</h2><a href="#scan">All scans</a></div>
+              <ul class="checklist">
+                <li><span class="k"><i class="mk mk-blocker" aria-hidden="true"><svg><use href="#m-blocker"/></svg></i><span class="mono">checkout-api</span></span><span class="v strong">blocked · 2 h ago</span></li>
+                <li><span class="k"><i class="mk mk-pass" aria-hidden="true"><svg><use href="#m-pass"/></svg></i><span class="mono">web-storefront</span></span><span class="v">passed · 1 d ago</span></li>
+                <li><span class="k"><i class="mk mk-notrun" aria-hidden="true"><svg><use href="#m-notrun"/></svg></i><span class="mono">infra-modules</span></span><span class="v">never scanned</span></li>
+              </ul>
+              <div class="panel-foot"><span>"Never scanned" shows the Action snippet on the repo page.</span></div>
+            </article>
+
+            <article class="panel" data-state="ok">
+              <div class="panel-head"><h2>Keys</h2><a href="#customer">Manage</a></div>
+              <ul class="checklist">
+                <li><span class="k"><span class="mono">gt_live_7a3f…</span> <span class="sm muted">CI runner</span></span><span class="v"><svg class="mini" viewBox="0 0 60 16" aria-hidden="true"><polyline class="spark" points="0,12 8,10 16,11 24,7 32,8 40,5 48,6 60,3"/></svg> 12 m ago</span></li>
+                <li><span class="k"><span class="mono">gt_live_c91e…</span> <span class="sm muted">Laptop</span></span><span class="v"><a class="link" href="#customer">unused 41 d — revoke</a></span></li>
+              </ul>
+              <div class="panel-foot"><span>Sparkline is calls per day, 14 days.</span></div>
+            </article>
+
+            <article class="panel" data-state="failed">
+              <div class="panel-head"><h2>Subscription</h2><span class="state-tag"><i class="mk mk-blocker" aria-hidden="true"><svg><use href="#m-blocker"/></svg></i>Attention</span></div>
+              <div class="panel-value" style="font-size:16px">Team · <span class="num">$99</span>/mo</div>
+              <div class="panel-body"><p>Latest payment failed today. Renews in 14 d; access is lost if the retry in 3 d fails too.</p></div>
+              <div class="panel-foot"><a href="#customer">Open in payments</a><a href="#customer">Email the customer</a></div>
+            </article>
+
+            <article class="panel" data-state="unknown">
+              <div class="panel-head"><h2>Margin</h2><span class="state-tag"><i class="mk mk-notrun" aria-hidden="true"><svg><use href="#m-notrun"/></svg></i>Cannot tell</span></div>
+              <div class="panel-body"><p>Compute seconds are not recorded for scans before Sep 20. Margin is shown once 30 days of complete data exist.</p></div>
+            </article>
+          </aside>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- Palette -->
+<div class="pal-bg" id="palbg"></div>
+<div class="pal" id="pal" role="dialog" aria-modal="true" aria-label="Search or jump to">
+  <input type="text" id="palin" placeholder="Search a scan id, SHA, fingerprint, rule, email, repo, key prefix… or type > for commands" autocomplete="off">
+  <div class="grp">Results</div>
+  <ul class="res" id="palres">
+    <li data-go="scan" data-k="scn_7c2f19e4b0a3 9f8e7d6 checkout-api scan"><span class="kind">Scan</span><span class="id">scn_7c2f…b0a3</span><span class="what">checkout-api · gate blocked · 2 h ago</span></li>
+    <li data-go="scan" data-k="fp_3e9a11c7 finding sql/raw-query-concat"><span class="kind">Finding</span><span class="id">fp_3e9a…c71d</span><span class="what">sql/raw-query-concat · regressed</span></li>
+    <li data-go="customer" data-k="orchard labs billing@orchard.example cus_4a91be2c7d customer"><span class="kind">Customer</span><span class="id">Orchard Labs</span><span class="what">Team · payment failed today</span></li>
+    <li data-go="customer" data-k="gt_live_7a3f key ci runner"><span class="kind">Key</span><span class="id">gt_live_7a3f…</span><span class="what">Orchard Labs · CI runner</span></li>
+    <li data-go="overview" data-k="cb26ff38 deploy main"><span class="kind">Deploy</span><span class="id">cb26ff38</span><span class="what">= main · 2 h ago</span></li>
+    <li data-go="overview" data-k="> theme toggle white black"><span class="kind">Command</span><span class="id">Toggle theme</span><span class="what">T</span></li>
+    <li data-go="overview" data-k="> density compact comfortable"><span class="kind">Command</span><span class="id">Toggle density</span><span class="what">D</span></li>
+  </ul>
+  <div class="foot"><span><kbd>↑↓</kbd> move</span><span><kbd>↵</kbd> open</span><span><kbd>esc</kbd> close</span><span><kbd>G</kbd> then <kbd>O</kbd>/<kbd>S</kbd>/<kbd>C</kbd> jump</span></div>
+</div>
+
+<div class="kmap" id="kmap" aria-label="Keyboard map">
+  <b>Keyboard</b>
+  <dl>
+    <dt>⌘K</dt><dd>search / jump</dd>
+    <dt>G O / S / C</dt><dd>overview / scans / customers</dd>
+    <dt>J / K</dt><dd>move between rows</dd>
+    <dt>↵</dt><dd>open row</dd>
+    <dt>T</dt><dd>white / black</dd>
+    <dt>D</dt><dd>density</dd>
+    <dt>?</dt><dd>this map</dd>
+  </dl>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  var $=function(s,c){return (c||document).querySelector(s)};
+  var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s))};
+
+  /* ---------- theme (white / black, identical structure) ---------- */
+  function setTheme(t){
+    root.setAttribute('data-theme',t);
+    try{localStorage.setItem('gt-theme',t)}catch(e){}
+    $$('[data-theme-set]').forEach(function(b){b.setAttribute('aria-checked',String(b.getAttribute('data-theme-set')===t))});
+  }
+  var saved=null; try{saved=localStorage.getItem('gt-theme')}catch(e){}
+  setTheme(saved|| (window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+  $$('[data-theme-set]').forEach(function(b){b.addEventListener('click',function(){setTheme(b.getAttribute('data-theme-set'))})});
+  function toggleTheme(){setTheme(root.getAttribute('data-theme')==='dark'?'light':'dark')}
+
+  /* ---------- density ---------- */
+  var dbtn=$('#densitybtn');
+  function setDensity(d){
+    root.setAttribute('data-density',d);
+    dbtn.textContent=d==='compact'?'Compact':'Comfortable';
+    dbtn.setAttribute('aria-pressed',String(d==='compact'));
+    try{localStorage.setItem('gt-density',d)}catch(e){}
+  }
+  var sd=null; try{sd=localStorage.getItem('gt-density')}catch(e){}
+  setDensity(sd||'comfortable');
+  dbtn.addEventListener('click',function(){setDensity(root.getAttribute('data-density')==='compact'?'comfortable':'compact')});
+
+  /* ---------- toast ---------- */
+  var toast=$('#toast'),tt;
+  function say(m){toast.textContent=m;toast.classList.add('show');clearTimeout(tt);tt=setTimeout(function(){toast.classList.remove('show')},1600)}
+
+  /* ---------- screens (hash = URL) ---------- */
+  var rail=$('#rail'),railbg=$('#railbg'),menubtn=$('#menubtn');
+  function openRail(o){rail.classList.toggle('open',o);railbg.classList.toggle('open',o);menubtn.setAttribute('aria-expanded',String(o))}
+  menubtn.addEventListener('click',function(){openRail(!rail.classList.contains('open'))});
+  railbg.addEventListener('click',function(){openRail(false)});
+
+  function show(id){
+    var target=$('#s-'+id); if(!target) return;
+    $$('.screen').forEach(function(s){s.classList.toggle('is-active',s===target)});
+    $$('.nav a[data-screen]').forEach(function(a){
+      if(a.getAttribute('data-screen')===id) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current');
+    });
+    $('#crumbs').innerHTML='<b>'+target.getAttribute('data-title')+'</b>';
+    document.title=target.getAttribute('data-title')+' — GateTest Owner Console';
+    openRail(false);
+    window.scrollTo(0,0);
+  }
+  function fromHash(){var h=(location.hash||'#overview').slice(1); show($('#s-'+h)?h:'overview')}
+  window.addEventListener('hashchange',fromHash);
+  fromHash();
+  $$('.nav [data-inert]').forEach(function(b){b.addEventListener('click',function(){say('Not in this mock — '+b.firstChild.textContent.trim())})});
+
+  /* ---------- tabs ---------- */
+  $$('[role=tablist]').forEach(function(list){
+    var tabs=$$('[role=tab]',list);
+    function pick(t){
+      tabs.forEach(function(x){x.setAttribute('aria-selected',String(x===t))});
+      tabs.forEach(function(x){var p=$('#'+x.getAttribute('aria-controls')); if(p) p.classList.toggle('is-active',x===t)});
+    }
+    tabs.forEach(function(t){t.addEventListener('click',function(){pick(t)})});
+    list.addEventListener('keydown',function(e){
+      var i=tabs.findIndex(function(x){return x.getAttribute('aria-selected')==='true'});
+      if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();var n=e.key==='ArrowRight'?(i+1)%tabs.length:(i-1+tabs.length)%tabs.length;pick(tabs[n]);tabs[n].focus()}
+    });
+  });
+
+  /* ---------- findings: selection + lifecycle ---------- */
+  var LIFE={
+    regressed:[
+      {sha:'a1b2c3d',ev:'First seen',when:'14 d ago',mk:'high'},
+      {sha:'b2c3d4e',ev:'Present',when:'12 d ago',mk:'high'},
+      {sha:'c3d4e5f',ev:'Fixed #412',when:'9 d ago',mk:'pass'},
+      {sha:'d4e5f6a',ev:'Absent',when:'3 d ago',mk:'pass'},
+      {sha:'9f8e7d6',ev:'Regressed',when:'this scan',mk:'blocker',here:true,strong:true}
+    ],
+    new:[{sha:'9f8e7d6',ev:'First seen',when:'this scan',mk:'blocker',here:true,strong:true}],
+    recurring:[
+      {sha:'7a7b7c7',ev:'First seen',when:'21 d ago',mk:'high'},
+      {sha:'4e4e4e4',ev:'Present',when:'9 d ago',mk:'high'},
+      {sha:'9f8e7d6',ev:'Present',when:'this scan',mk:'high',here:true}
+    ],
+    accepted:[
+      {sha:'1d1d1d1',ev:'First seen',when:'40 d ago',mk:'low'},
+      {sha:'2e2e2e2',ev:'Accepted · "style only"',when:'33 d ago',mk:'low'},
+      {sha:'9f8e7d6',ev:'Excluded',when:'this scan',mk:'low',here:true}
+    ]
+  };
+  var STATUS={regressed:'Regressed — fixed 9 d ago, back in this commit',new:'New — first seen in this scan',recurring:'Recurring — present in the last 3 scans',accepted:'Accepted — excluded from the score, reopens if the rule count worsens'};
+  var ELSE={regressed:'Same pattern in 2 other repos of this customer',new:'Not seen elsewhere',recurring:'Same pattern in 1 other repo',accepted:'—'};
+  var SEVLBL={blocker:'Blocker',high:'High',medium:'Medium',low:'Low'};
+  function mark(m){return '<i class="mk mk-'+m+'" aria-hidden="true"><svg><use href="#m-'+m+'"/></svg></i>'}
+  function renderLife(kind){
+    var nodes=LIFE[kind]||LIFE.new, tr=$('#fd-track');
+    tr.style.setProperty('--n',nodes.length);
+    tr.innerHTML=nodes.map(function(n){
+      return '<div class="node'+(n.here?' here':'')+'">'+mark(n.mk)+'<span class="sha">'+n.sha+'</span><span class="ev'+(n.strong?' strong':'')+'">'+n.ev+'</span><span class="when">'+n.when+'</span></div>';
+    }).join('');
+  }
+  function selectRow(tr){
+    $$('#findings tbody tr').forEach(function(r){r.setAttribute('aria-selected',String(r===tr))});
+    var sev=tr.getAttribute('data-sev');
+    $('#fd-title').innerHTML='<span class="sev sev-'+sev+'">'+mark(sev)+SEVLBL[sev]+'</span> <span class="mono" id="fd-rule">'+tr.getAttribute('data-rule')+'</span>';
+    $('#fd-loc').textContent=tr.getAttribute('data-loc');
+    $('#fd-fp').textContent=tr.getAttribute('data-fp');
+    $('#fd-status').textContent=STATUS[tr.getAttribute('data-life')];
+    $('#fd-else').textContent=ELSE[tr.getAttribute('data-life')];
+    renderLife(tr.getAttribute('data-life'));
+  }
+  $$('#findings tbody tr').forEach(function(tr){
+    tr.addEventListener('click',function(){selectRow(tr)});
+    tr.addEventListener('keydown',function(e){if(e.key==='Enter'){selectRow(tr)}});
+  });
+  renderLife('regressed');
+
+  /* ---------- copy on click ---------- */
+  $$('.copy').forEach(function(el){el.addEventListener('click',function(e){
+    e.stopPropagation(); var v=el.getAttribute('title')||el.textContent;
+    if(navigator.clipboard){navigator.clipboard.writeText(v).then(function(){say('Copied '+v.slice(0,18)+(v.length>18?'…':''))},function(){say('Copy blocked in this context')})} else say('Copy not available');
+  })});
+
+  /* ---------- palette ---------- */
+  var pal=$('#pal'),palbg=$('#palbg'),palin=$('#palin'),res=$$('#palres li'),cur=0;
+  function openPal(o){pal.classList.toggle('open',o);palbg.classList.toggle('open',o);if(o){palin.value='';filter();palin.focus()}}
+  function visible(){return res.filter(function(l){return l.style.display!=='none'})}
+  function hi(i){var v=visible();cur=Math.max(0,Math.min(i,v.length-1));res.forEach(function(l){l.classList.remove('on')});if(v[cur])v[cur].classList.add('on')}
+  function filter(){var q=palin.value.trim().toLowerCase();res.forEach(function(l){l.style.display=(!q||l.getAttribute('data-k').toLowerCase().indexOf(q)>-1||l.textContent.toLowerCase().indexOf(q)>-1)?'':'none'});hi(0)}
+  function go(l){if(!l)return;var k=l.getAttribute('data-k');openPal(false);if(k.indexOf('> theme')===0){toggleTheme();return}if(k.indexOf('> density')===0){dbtn.click();return}location.hash='#'+l.getAttribute('data-go')}
+  palin.addEventListener('input',filter);
+  palin.addEventListener('keydown',function(e){
+    if(e.key==='ArrowDown'){e.preventDefault();hi(cur+1)}
+    else if(e.key==='ArrowUp'){e.preventDefault();hi(cur-1)}
+    else if(e.key==='Enter'){e.preventDefault();go(visible()[cur])}
+    else if(e.key==='Escape'){openPal(false)}
+  });
+  res.forEach(function(l){l.addEventListener('click',function(){go(l)})});
+  palbg.addEventListener('click',function(){openPal(false)});
+  $('#searchbtn').addEventListener('click',function(){openPal(true)});
+
+  /* ---------- keyboard map ---------- */
+  var kmap=$('#kmap'),pendingG=false,gT;
+  function rows(){var s=$('.screen.is-active');return $$('.tbl tbody tr[tabindex]',s).filter(function(r){return r.offsetParent!==null})}
+  document.addEventListener('keydown',function(e){
+    var tag=(e.target.tagName||'').toLowerCase();
+    if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openPal(!pal.classList.contains('open'));return}
+    if(tag==='input'||tag==='textarea'||e.metaKey||e.ctrlKey||e.altKey) return;
+    if(e.key==='Escape'){kmap.classList.remove('open');openRail(false);return}
+    var k=e.key.toLowerCase();
+    if(pendingG){pendingG=false;clearTimeout(gT);if(k==='o')location.hash='#overview';else if(k==='s')location.hash='#scan';else if(k==='c')location.hash='#customer';return}
+    if(k==='g'){pendingG=true;clearTimeout(gT);gT=setTimeout(function(){pendingG=false},900);return}
+    if(k==='t'){toggleTheme();return}
+    if(k==='d'){dbtn.click();return}
+    if(e.key==='?'){kmap.classList.toggle('open');return}
+    if(k==='j'||k==='k'){var r=rows();if(!r.length)return;var i=r.indexOf(document.activeElement);var n=k==='j'?Math.min(i+1,r.length-1):Math.max(i-1,0);if(i<0)n=0;r[n].focus();e.preventDefault()}
+  });
+})();
+</script>
+</body>
+</html>

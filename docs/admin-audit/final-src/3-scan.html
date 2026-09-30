@@ -1,0 +1,183 @@
+
+<!-- ============================================================ SCAN -->
+<section class="screen" id="screen-scan" aria-labelledby="sc-h">
+  <div class="obj">
+    <div class="back"><a class="lnk" href="#/admin/scans">Scans</a> / <span class="id">scn_01J9K3M8QF</span></div>
+    <div class="otop">
+      <h1 class="otitle" id="sc-h"><span class="id">acme-sample/checkout-api</span><span class="at">@</span><span class="id copyable" title="4f1e9c2e0b7a1d9c5e61">4f1e9c2<button type="button" class="cp" data-copy="4f1e9c2e0b7a1d9c5e61">copy</button></span></h1>
+      <span class="chip strong">{{m:blocker}}Blocked</span>
+      <a class="chip dash" href="#/admin/scans/scn_01J9K3M8QF/not-checked" title="Verdict computed on 113 of 122 modules">partial · 113 of 122</a>
+      <span class="sp"></span>
+      <button type="button" class="btn" data-toast="Re-run queued (mock)">Re-run</button>
+      <button type="button" class="btn" data-toast="Compare to base: not in this mock">Compare to base</button>
+      <button type="button" class="btn primary" data-toast="Fix PR drafted for 2 blockers (mock)">New fix PR</button>
+    </div>
+    <div class="meta">
+      <span>Repo scan · <b>Full</b> tier</span>
+      <span>branch <b class="id">main</b> · push by <b>sample-dev-2</b></span>
+      <span><b title="2026-09-28 09:33:04 UTC">Mon 09:33</b> · 26 h ago · <b>2m 41s</b></span>
+      <span>modules <b>113 run</b> · <span class="sev sev-notrun">{{m:notrun}}9 not run</span></span>
+      <span>billed <b class="id">$29.00</b> · AI <b class="id">$1.12</b> · compute not recorded → margin cannot tell<span class="w2" title="Needs compute seconds per scan (wave 2)">W2</span></span>
+    </div>
+    <div class="related">
+      <span class="lbl">Related</span>
+      <a class="rel" href="#/admin/customers/cus_7QX2R4"><span class="k">customer</span>Sample Customer 7</a>
+      <a class="rel" href="#/admin/repos/host-1/acme-sample/checkout-api"><span class="k">repo</span>acme-sample/checkout-api</a>
+      <a class="rel" href="#/admin/fix-prs/fpr_212"><span class="k">fix PR</span>#212 · closed unmerged</a>
+      <a class="rel" href="#/admin/deploys/5e02a17"><span class="k">engine build</span><span class="id">5e02a17</span></a>
+      <a class="rel" href="#/admin/scans/scn_01J9J2W4AB"><span class="k">base</span><span class="id">scn_01J9J2…</span> · 3 commits earlier</a>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Scan sections" data-tabs="scan">
+    <button type="button" role="tab" id="t-findings" aria-controls="tp-findings" data-tab="findings">Findings<span class="n">12</span></button>
+    <button type="button" role="tab" id="t-not-checked" aria-controls="tp-not-checked" data-tab="not-checked">What was not checked<span class="n">9</span></button>
+    <button type="button" role="tab" id="t-trace" aria-controls="tp-trace" data-tab="trace">Trace<span class="w2" style="margin-left:0" title="Needs stage timings (wave 2)">W2</span></button>
+    <button type="button" role="tab" id="t-fix-prs" aria-controls="tp-fix-prs" data-tab="fix-prs">Fix PRs<span class="n">2</span></button>
+    <button type="button" role="tab" id="t-raw" aria-controls="tp-raw" data-tab="raw">Raw</button>
+  </div>
+
+  <!-- findings -->
+  <div role="tabpanel" id="tp-findings" aria-labelledby="t-findings" tabindex="-1">
+    <p class="note">{{m:notrun}}<span><b class="w5" style="color:var(--ink-1)">Blocked is a lower bound:</b> secrets.entropy timed out. <a class="lnk" href="#/admin/scans/scn_01J9K3M8QF/not-checked">What was not checked</a></span></p>
+    <div class="filters" role="group" aria-label="Filter findings" id="ffilters">
+      <button type="button" class="fchip" data-f="all" aria-pressed="true">All <span class="n">12</span></button>
+      <button type="button" class="fchip" data-f="sev:blocker" aria-pressed="false">{{m:blocker}}Blocker <span class="n">2</span></button>
+      <button type="button" class="fchip" data-f="sev:high" aria-pressed="false">{{m:high}}High <span class="n">3</span></button>
+      <button type="button" class="fchip" data-f="sev:medium" aria-pressed="false">{{m:medium}}Medium <span class="n">4</span></button>
+      <button type="button" class="fchip" data-f="sev:low" aria-pressed="false">{{m:low}}Low <span class="n">3</span></button>
+      <span class="muted s12" aria-hidden="true">·</span>
+      <button type="button" class="fchip" data-f="life:new" aria-pressed="false">New on this commit <span class="n">5</span></button>
+      <button type="button" class="fchip" data-f="life:regressed" aria-pressed="false">Regressed <span class="n">1</span></button>
+      <span class="sp"></span>
+      <span class="muted s12">J K move · Enter expand · C copy</span>
+    </div>
+    <div class="tw">
+      <table data-rows aria-label="Findings">
+        <thead><tr><th aria-sort="descending">Severity</th><th>Rule</th><th>Location</th><th>Lifecycle<span class="w2" title="Needs the per-finding fingerprint store (wave 2)">W2</span></th><th class="num">Rule precision<span class="w2" title="Needs triage verdict events (wave 2)">W2</span></th><th><span class="sr">Actions</span></th></tr></thead>
+        <tbody id="fbody">
+          <tr class="blocker" tabindex="0" data-sev="blocker" data-life="regressed" data-expand="life-1" aria-expanded="true">
+            <td><span class="sev sev-blocker">{{m:blocker}}Blocker</span></td>
+            <td><a class="lnk id" href="#/admin/rules/secrets.hardcoded-token">secrets.hardcoded-token</a></td>
+            <td class="id">src/pay/client.ts:61</td>
+            <td><span class="w6">Regressed</span> <span class="muted s12">· fixed 18 Sep, back 10 d later</span></td>
+            <td class="num">0.97</td>
+            <td><span class="rowact"><button type="button" class="btn sm ghost" data-expand-btn="life-1" aria-controls="life-1" aria-expanded="true">Lifecycle</button></span></td>
+          </tr>
+          <tr class="x" id="life-1">
+            <td colspan="6"><div class="inner">
+              <div class="life">
+                <div>
+                  <div class="s12 muted" style="margin-bottom:10px">Finding <a class="lnk id" href="#/admin/findings/fp_9c1e7a3f0b2cd204">fp_9c1e…d204</a> across commits on <span class="id">main</span> · one object, stable across line moves</div>
+                  <ul class="tl">
+                    <li>{{m:blocker}}<div class="h"><span class="id">a91c0e4</span><span class="w5">First seen · suspect commit</span><span class="when">12 Sep</span></div><div class="b">Introduced at <span class="id">src/pay/client.ts:42</span> by sample-dev-2. The gate blocked the merge; the owner overrode it: “vendor sandbox key” (<a class="lnk id" href="#/admin/audit/al_88213">al_88213</a>).</div></li>
+                    <li>{{m:blocker}}<div class="h"><span class="id">b7d33f1</span><span>Persisting</span><span class="when">15 Sep</span></div><div class="b">Line moved to <span class="id">:58</span>; fingerprint unchanged.</div></li>
+                    <li>{{m:pass}}<div class="h"><span class="id">c2e8a90</span><span>Fixed by <a class="lnk" href="#/admin/fix-prs/fpr_198">fix PR #198</a></span><span class="when">18 Sep</span></div><div class="b">Token moved to <span class="id">PAY_SANDBOX_KEY</span>; absent on the next 3 scans. Merged in 1 d 4 h.</div></li>
+                    <li>{{m:blocker}}<div class="h"><span class="id">4f1e9c2</span><span class="w6">Regressed · reopened automatically</span><span class="when">28 Sep · this scan</span></div><div class="b">Same fingerprint at <span class="id">:61</span>, 10 days after the fix. Fix PR #212 opened 09:37 and was closed unmerged at 12:49: “will fix by hand”.</div></li>
+                  </ul>
+                  <div class="verbs">
+                    <button type="button" class="btn sm primary" data-toast="Fix PR drafted (mock)">New fix PR</button>
+                    <button type="button" class="btn sm" data-dialog="accept">Accept…</button>
+                    <button type="button" class="btn sm" data-dialog="fp">False positive…</button>
+                    <a class="btn sm ghost" href="#/admin/findings/fp_9c1e7a3f0b2cd204">Finding page</a>
+                  </div>
+                </div>
+                <div>
+                  <div class="s12 muted" style="margin-bottom:10px">Snippet at <span class="id">4f1e9c2</span> · value redacted</div>
+<pre class="snip"><span class="ln">59</span>const client = new PayClient({
+<span class="ln">60</span>  mode: "live",
+<span class="ln">61</span>  <b>apiKey: "</b><span aria-label="redacted value">••••••••••••</span><b>",</b>
+<span class="ln">62</span>});</pre>
+                  <p class="s12 muted" style="margin-top:6px">Values matched by a secrets rule are never rendered in admin, not even a prefix.</p>
+                  <dl class="kv s12" style="margin-top:10px"><dt>Rule precision</dt><dd>0.97 · 61 triaged, 2 false positive</dd><dt>Fix outcome</dt><dd>#198 merged; the fingerprint came back after 10 days</dd><dt>Same pattern</dt><dd>3 repos in this org</dd></dl>
+                </div>
+              </div>
+            </div></td>
+          </tr>
+          <tr class="blocker" tabindex="0" data-sev="blocker" data-life="new"><td><span class="sev sev-blocker">{{m:blocker}}Blocker</span></td><td><a class="lnk id" href="#/admin/rules/sql.raw-interpolation">sql.raw-interpolation</a></td><td class="id">src/orders/repo.ts:118</td><td>New on this commit</td><td class="num">0.91</td><td><span class="rowact"><button type="button" class="btn sm ghost" data-toast="Lifecycle: first seen on this commit">Lifecycle</button></span></td></tr>
+          <tr tabindex="0" data-sev="high" data-life="persisting"><td><span class="sev">{{m:high}}High</span></td><td><a class="lnk id" href="#/admin/rules/auth.missing-check">auth.missing-check</a></td><td class="id">src/api/admin.ts:14</td><td>Persisting <span class="muted s12">· 4 commits</span></td><td class="num">0.88</td><td></td></tr>
+          <tr tabindex="0" data-sev="high" data-life="new"><td><span class="sev">{{m:high}}High</span></td><td><a class="lnk id" href="#/admin/rules/deps.known-vuln">deps.known-vuln</a></td><td class="id">package-lock.json</td><td>New on this commit</td><td class="num">0.99</td><td></td></tr>
+          <tr tabindex="0" data-sev="high" data-life="persisting"><td><span class="sev">{{m:high}}High</span></td><td><a class="lnk id" href="#/admin/rules/http.no-timeout">http.no-timeout</a></td><td class="id">src/pay/client.ts:22</td><td>Persisting <span class="muted s12">· 9 commits</span></td><td class="num">0.74</td><td></td></tr>
+          <tr tabindex="0" data-sev="medium" data-life="new"><td><span class="sev">{{m:medium}}Medium</span></td><td><a class="lnk id" href="#/admin/rules/money.float-arith">money.float-arith</a></td><td class="id">src/orders/total.ts:40</td><td>New on this commit</td><td class="num">0.83</td><td></td></tr>
+          <tr tabindex="0" data-sev="medium" data-life="accepted"><td><span class="sev">{{m:medium}}Medium</span></td><td><a class="lnk id" href="#/admin/rules/log.pii-leak">log.pii-leak</a></td><td class="id">src/api/webhook.ts:77</td><td>Accepted <span class="muted s12">· expires 12 Oct · reopens if count worsens</span></td><td class="num">0.66</td><td></td></tr>
+          <tr tabindex="0" data-sev="medium" data-life="new"><td><span class="sev">{{m:medium}}Medium</span></td><td><a class="lnk id" href="#/admin/rules/async.unawaited">async.unawaited</a></td><td class="id">src/jobs/retry.ts:9</td><td>New on this commit</td><td class="num">0.79</td><td></td></tr>
+          <tr tabindex="0" data-sev="medium" data-life="persisting"><td><span class="sev">{{m:medium}}Medium</span></td><td><a class="lnk id" href="#/admin/rules/test.skipped">test.skipped</a></td><td class="id">tests/pay.test.ts:3</td><td>Persisting <span class="muted s12">· 2 commits</span></td><td class="num">0.95</td><td></td></tr>
+          <tr tabindex="0" data-sev="low" data-life="new"><td><span class="sev sev-low">{{m:low}}Low</span></td><td><a class="lnk id" href="#/admin/rules/style.unused-import">style.unused-import</a></td><td class="id">src/util/fmt.ts:1</td><td class="muted">New on this commit</td><td class="num">0.99</td><td></td></tr>
+          <tr tabindex="0" data-sev="low" data-life="persisting"><td><span class="sev sev-low">{{m:low}}Low</span></td><td><a class="lnk id" href="#/admin/rules/docs.missing-readme-section">docs.missing-readme-section</a></td><td class="id">README.md</td><td class="muted">Persisting · 31 commits</td><td class="num"><span class="w6">0.52</span> <span class="muted s12">below 0.60</span></td><td></td></tr>
+          <tr tabindex="0" data-sev="low" data-life="persisting"><td><span class="sev sev-low">{{m:low}}Low</span></td><td><a class="lnk id" href="#/admin/rules/ci.no-cache">ci.no-cache</a></td><td class="id">ci/pipeline.yml</td><td class="muted">Persisting · 12 commits</td><td class="num">0.61</td><td></td></tr>
+        </tbody>
+      </table>
+      <div class="tfoot"><span id="fcount">12 findings · 5 new on this commit · 1 regressed · sorted by severity</span><span class="sp"></span><a class="lnk" href="#/admin/scans/scn_01J9K3M8QF/findings.csv">CSV</a><a class="lnk" href="#/admin/scans/scn_01J9K3M8QF/raw">JSON</a></div>
+      <div class="tfoot">New = the finding sits in a file this commit changed. Fingerprint = rule + path extension + pattern hash + normalised snippet, so a moved line keeps its identity. Precision = 1 − false positives ÷ triaged; the kill line is 0.60.</div>
+    </div>
+  </div>
+
+  <!-- what was not checked -->
+  <div role="tabpanel" id="tp-not-checked" aria-labelledby="t-not-checked" tabindex="-1">
+    <div class="callout">{{m:notrun}}<div><b>The verdict was computed on 113 of 122 modules.</b> <span class="id">secrets.entropy</span> timed out and carries blocker rules, so “Blocked” is a lower bound: fixing the two blockers alone would not make this a pass you can trust. Tell the customer the same.</div></div>
+    <div class="strip" style="--n:3;margin-bottom:12px">
+      <div class="cell"><span class="l">Coverage</span><span class="v">113 / 122</span><span class="d">92.6% of the registry ran</span></div>
+      <div class="cell"><span class="l">{{m:blocker}}Carries blocker rules</span><span class="v">1 module</span><span class="d">secrets.entropy · timed out</span></div>
+      <div class="cell" data-state="cannot"><span class="l">{{m:notrun}}Reason not recorded</span><span class="v">1 module</span><span class="d">the runner did not say why · cannot tell</span></div>
+    </div>
+    <div class="tw">
+      <table data-rows aria-label="Modules that did not run">
+        <thead><tr><th>Module</th><th>Why it did not run</th><th>What it would have caught</th><th>Carries</th><th><span class="sr">Action</span></th></tr></thead>
+        <tbody>
+          <tr class="grp"><td colspan="5">Timed out <span class="muted">· 1 · neither pass nor fail, not counted in the verdict</span></td></tr>
+          <tr tabindex="0"><td><span class="sev sev-notrun">{{m:notrun}}<span class="id">secrets.entropy</span></span></td><td>Stopped at the 60 s limit, 71% of files read</td><td>High-entropy strings the pattern rules have no rule for</td><td><span class="sev sev-blocker">{{m:blocker}}Blocker</span></td><td><button type="button" class="btn sm" data-toast="Module re-run queued (mock)">Re-run module</button></td></tr>
+          <tr class="grp"><td colspan="5">Needs setup <span class="muted">· 2</span></td></tr>
+          <tr tabindex="0"><td><span class="sev sev-notrun">{{m:notrun}}<span class="id">org.branch-protection</span></span></td><td>Missing secret: no git-host token with org scope</td><td>Unprotected default branch, force-push allowed</td><td><span class="sev">{{m:high}}High</span></td><td><a class="btn sm ghost" href="#/admin/secrets">Set secret</a></td></tr>
+          <tr tabindex="0"><td><span class="sev sev-notrun">{{m:notrun}}<span class="id">license.header</span></span></td><td>Licence policy not configured for this org</td><td>Files missing a licence header</td><td><span class="sev sev-low">{{m:low}}Low</span></td><td><a class="btn sm ghost" href="#/admin/repos/host-1/acme-sample/checkout-api/settings">Configure</a></td></tr>
+          <tr class="grp"><td colspan="5">Excluded by tier or sandbox <span class="muted">· 2</span></td></tr>
+          <tr tabindex="0"><td><span class="sev sev-notrun">{{m:notrun}}<span class="id">secrets.history-deep</span></span></td><td>Full tier excludes the full-history sweep</td><td>Keys committed and later removed</td><td><span class="sev">{{m:high}}High</span></td><td><button type="button" class="btn sm" data-toast="One-off deep sweep queued (mock)">Run once</button></td></tr>
+          <tr tabindex="0"><td><span class="sev sev-notrun">{{m:notrun}}<span class="id">deps.audit-network</span></span></td><td>Needs network; sandbox egress is blocked</td><td>Advisories newer than the offline database (6 days old)</td><td><span class="sev">{{m:medium}}Medium</span></td><td></td></tr>
+          <tr class="grp"><td colspan="5">Not applicable or disabled <span class="muted">· 3</span></td></tr>
+          <tr tabindex="0"><td><span class="sev sev-notrun">{{m:notrun}}<span class="id">py.typing</span></span></td><td>No Python files</td><td class="muted">—</td><td class="muted">—</td><td><button type="button" class="btn sm ghost" data-toast="Mark expected needs the per-repo expected-module store (W2)">Mark expected</button></td></tr>
+          <tr tabindex="0"><td><span class="sev sev-notrun">{{m:notrun}}<span class="id">py.secrets-env</span></span></td><td>No Python files</td><td class="muted">—</td><td class="muted">—</td><td><button type="button" class="btn sm ghost" data-toast="Mark expected needs the per-repo expected-module store (W2)">Mark expected</button></td></tr>
+          <tr tabindex="0"><td><span class="sev sev-notrun">{{m:notrun}}<span class="id">a11y.dom-snapshot</span></span></td><td>Disabled in <span class="id">.gatetest.yml</span>: “storybook only”</td><td>Form controls without labels</td><td><span class="sev sev-low">{{m:low}}Low</span></td><td></td></tr>
+          <tr class="grp"><td colspan="5">Reason not recorded <span class="muted">· 1 · cannot tell</span></td></tr>
+          <tr tabindex="0"><td><span class="sev sev-notrun">{{m:notrun}}<span class="id">perf.bundle-size</span></span></td><td>The runner recorded no status for this module</td><td>Bundle growth over budget</td><td><span class="sev sev-low">{{m:low}}Low</span></td><td><button type="button" class="btn sm" data-toast="Module re-run queued (mock)">Re-run module</button></td></tr>
+        </tbody>
+      </table>
+      <div class="tfoot">Registry 122 − modules_run 113 = 9. Reasons come from the runner’s status in the scan results; where none was recorded the row says so instead of guessing.</div>
+    </div>
+  </div>
+
+  <!-- trace -->
+  <div role="tabpanel" id="tp-trace" aria-labelledby="t-trace" tabindex="-1">
+    <section class="panel">
+      <div class="panel-h"><h2>Waterfall</h2><span class="rs">Read 12s ago · 2m 41s · AI <b>$1.12</b></span></div>
+      <div class="panel-b wf">
+        <div class="r h"><span>Stage</span><span>0 s — 161 s</span><span class="num">Time</span><span class="num">Cost</span></div>
+        <div class="r"><span class="id">webhook</span><div class="track"><div class="bar" style="left:0;width:1%"></div></div><span class="num">0.4s</span><span class="num">—</span></div>
+        <div class="r"><span class="id">queue wait</span><div class="track"><div class="bar hatch" style="left:1%;width:25%"></div></div><span class="num">41s</span><span class="num">—</span></div>
+        <div class="r"><span class="id">clone</span><div class="track"><div class="bar" style="left:26%;width:5%"></div></div><span class="num">8s</span><span class="num">—</span></div>
+        <div class="r"><span class="id">modules ×113</span><div class="track"><div class="bar" style="left:31%;width:44%"></div></div><span class="num">71s</span><span class="num">—</span></div>
+        <div class="r"><span class="id">secrets.entropy</span><div class="track"><div class="bar hatch" style="left:38%;width:37%"></div></div><span class="num">60s ×</span><span class="num">—</span></div>
+        <div class="r"><span class="id">AI review</span><div class="track"><div class="bar" style="left:75%;width:17%"></div></div><span class="num">27s</span><span class="num">$1.12</span></div>
+        <div class="r"><span class="id">fix PR #212</span><div class="track"><div class="bar out" style="left:92%;width:5%"></div></div><span class="num">9s</span><span class="num">—</span></div>
+        <div class="r"><span class="id">check-run</span><div class="track"><div class="bar" style="left:97%;width:3%"></div></div><span class="num">4s</span><span class="num">—</span></div>
+      </div>
+      <div class="def">Compute cost per stage is not recorded yet, so only AI spend is priced. Hatched = time that was not work: queue wait, or a module that ran out of time. Outlined = a step whose result was later discarded (fix PR closed unmerged).</div>
+    </section>
+  </div>
+
+  <div role="tabpanel" id="tp-fix-prs" aria-labelledby="t-fix-prs" tabindex="-1">
+    <div class="tw"><table data-rows aria-label="Fix PRs">
+      <thead><tr><th>Fix PR</th><th>Outcome</th><th>Fingerprints</th><th class="num">Time to close</th><th>Came back</th></tr></thead>
+      <tbody>
+        <tr tabindex="0"><td><a class="lnk id" href="#/admin/fix-prs/fpr_212">#212</a></td><td><span class="w5">Closed unmerged</span> <span class="muted s12">“will fix by hand”</span></td><td class="id">fp_9c1e…, fp_2b77…</td><td class="num">3h 12m</td><td class="muted">—</td></tr>
+        <tr tabindex="0"><td><a class="lnk id" href="#/admin/fix-prs/fpr_198">#198</a> <span class="muted s12">earlier scan</span></td><td><span class="sev">{{m:pass}}Merged</span></td><td class="id">fp_9c1e…</td><td class="num">1d 4h</td><td class="w6">Yes · 10 days later</td></tr>
+      </tbody>
+    </table>
+    <div class="tfoot">Every fix PR a scan opened is listed. Came back = the fixed fingerprint reappeared on a later scan.</div></div>
+  </div>
+
+  <div role="tabpanel" id="tp-raw" aria-labelledby="t-raw" tabindex="-1">
+<pre class="snip">{ "id": "scn_01J9K3M8QF", "kind": "repo", "tier": "full", "status": "completed", "verdict": "blocked",
+  "commit": "4f1e9c2e0b7a1d9c5e61", "modules_run": 113, "registry": 122, "duration_ms": 161400,
+  "tier_price_usd": 29.00, "ai_cost_usd": 1.12, "compute_seconds": null,
+  "findings": 12, "secret_values": "never stored or shown" }</pre>
+  </div>
+</section>
