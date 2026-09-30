@@ -172,6 +172,13 @@ class SourceCache {
   }
 }
 
+/** `{ module: impact }` for every module that narrowed its tests, or null. */
+function _testImpactOf(resultsJson) {
+  const out = {};
+  for (const r of resultsJson) if (r && r.testImpact) out[r.module] = r.testImpact;
+  return Object.keys(out).length ? out : null;
+}
+
 class TestResult {
   constructor(moduleName, options = {}) {
     this.module = moduleName;
@@ -581,6 +588,10 @@ class TestResult {
       // Findings a narrowed scan (--diff / --pr) dropped because they sat in
       // files the diff never touched. Zero on a full scan.
       scopedOut: this.scopedOut || 0,
+      // Which of the customer's test files a narrowed scan ran (unitTests /
+      // integrationTests, src/core/test-impact.js). Absent on every module
+      // that does not run tests and on any scan that was not narrowed.
+      ...(this.testImpact ? { testImpact: this.testImpact } : {}),
       fixes: this.fixes.length,
       checks: this.checks,
       appliedFixes: this.fixes,
@@ -1623,6 +1634,10 @@ class GateTestRunner extends EventEmitter {
       duration: endTime - startTime,
       diffOnly: this.options.diffOnly,
       changedFiles: this.options.changedFiles,
+      // Test-impact selection per test-running module (`--diff`): which test
+      // files ran, which were not run, and why the full set ran when it did.
+      // Null when no module narrowed its tests (a full scan, or no runner).
+      testImpact: _testImpactOf(resultsJson),
       // Air-gapped mode (src/core/offline.js): nothing left the machine.
       offline: _isOffline(),
       // The repository's path filter, so every report can say what was
