@@ -582,7 +582,146 @@ test('gatetest-pull-deploy-onfailure.service is a tiny oneshot that runs the onf
   assert.match(unit, /pull-deploy-onfailure\.sh$/m);
 });
 
-test('pull-deploy-onfailure.sh appends (never overwrites) a "failed" record to the status file', { skip: !HAVE_BASH && 'bash not available' }, () => {
+// ── OnFailure must only speak for a run that did not speak for itself ───────
+// 2026-09-30, box 161: every tick refused with "origin/main is not a
+// fast-forward" and recorded it through fail()/write_status — then systemd ran
+// the OnFailure unit (it fires on ANY non-zero exit) and the script appended a
+// "killed" line on top, so the last line, the one every reader shows, named the
+// wrong cause for three days. The script now compares the failed unit's systemd
+// InvocationID with the "run" pull-deploy.sh wrote. `systemctl` is faked on
+// PATH (the real one has no unit to show on a test machine, and Windows has none).
+const ONFAILURE_PATH = path.join(ROOT, 'scripts', 'deploy', 'pull-deploy-onfailure.sh');
+const FAKE_SYSTEMCTL = `#!/usr/bin/env bash
+# fake: systemctl show -p PROPERTY --value UNIT
+case "\${3:-}" in
+  InvocationID) printf '%s\\n' "\${FAKE_INVOCATION_ID:-}" ;;
+  Result) printf '%s\\n' "\${FAKE_RESULT:-}" ;;
+esac
+`;
+
+function fakeSystemctlDir(tmp) {
+  const dir = path.join(tmp, 'fakebin');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'systemctl'), FAKE_SYSTEMCTL, { mode: 0o755 });
+  return dir;
+}
+
+/** Run the OnFailure script as systemd would, with the failed unit reporting `invocationId` / `result`. */
+function runOnFailure(tmp, statusFile, { invocationId = '', result = '' } = {}) {
+  const binDir = fakeSystemctlDir(tmp);
+  const pathKey = Object.keys(process.env).find((k) => k.toLowerCase() === 'path') || 'PATH';
+  const env = { ...process.env, PULL_DEPLOY_STATUS_FILE: statusFile, FAKE_INVOCATION_ID: invocationId, FAKE_RESULT: result };
+  env[pathKey] = binDir + path.delimiter + (process.env[pathKey] || '');
+  return spawnSync('bash', [ONFAILURE_PATH], { encoding: 'utf8', env });
+}
+
+const olderRunLine = (run) => JSON.stringify({
+  at: '2026-01-01T00:00:00Z', before: 'a', after: 'a', result: 'up-to-date', reason: '',
+  consecutiveFailures: 0, firstFailedAt: '', run,
+});
+
+function lastLineOf(statusFile) {
+  const lines = fs.readFileSync(statusFile, 'utf8').split('\n').filter((l) => l.trim());
+  return { lines, last: JSON.parse(lines[lines.length - 1]) };
+}
+
+test('pull-deploy.sh and pull-deploy-onfailure.sh pass `bash -n`', { skip: !HAVE_BASH && 'bash not available' }, () => {
+  for (const script of [SCRIPT_PATH, ONFAILURE_PATH]) {
+    const r = spawnSync('bash', ['-n', script], { encoding: 'utf8' });
+    assert.equal(r.status, 0, `${path.basename(script)}: ${r.stderr}`);
+  }
+});
+
+test('POSITIVE CONTROL: an ordinary failure (not a fast-forward) followed by the OnFailure script leaves that reason as the last line', { skip: SKIP_REAL_RUN }, () => {
+  const { tmp, box, origin, originUrl } = makeBoxAtV1();
+  try {
+    const deployedSha = git(box, 'rev-parse', 'HEAD');
+    rewriteOriginHistory(tmp, origin);
+    const { r, statusFile } = run(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl, INVOCATION_ID: 'inv-nff-0001' });
+    assert.notEqual(r.status, 0);
+    const before = fs.readFileSync(statusFile, 'utf8');
+    // systemd now runs OnFailure= for the unit that just exited non-zero.
+    const of = runOnFailure(tmp, statusFile, { invocationId: 'inv-nff-0001', result: 'exit-code' });
+    assert.equal(of.status, 0, of.stdout + of.stderr);
+    assert.equal(fs.readFileSync(statusFile, 'utf8'), before, 'the run recorded itself: OnFailure must not touch the file');
+    const { lines, last } = lastLineOf(statusFile);
+    assert.equal(lines.length, 1);
+    assert.equal(last.result, 'failed');
+    assert.equal(last.run, 'inv-nff-0001');
+    assert.match(last.reason, /not a fast-forward/);
+    assert.doesNotMatch(last.reason, /killed/);
+    // Actionable: names the deployed sha, says it is not on origin/main, points at recovery.
+    assert.ok(last.reason.includes(deployedSha.slice(0, 12)), `reason must name the deployed sha ${deployedSha.slice(0, 12)}: ${last.reason}`);
+    assert.match(last.reason, /is not on origin\/main/);
+    assert.match(last.reason, /DEPLOY_RECOVER=1/);
+    assert.match(last.reason, /PULL-DEPLOY\.md/);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('the not-fast-forward refusal never resets the box: HEAD is where it was and the stub never ran', { skip: SKIP_REAL_RUN }, () => {
+  const { tmp, box, origin, originUrl } = makeBoxAtV1();
+  try {
+    const deployedSha = git(box, 'rev-parse', 'HEAD');
+    rewriteOriginHistory(tmp, origin);
+    const recordFile = path.join(tmp, 'stub-record.txt');
+    const { r } = run(box, tmp, { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl, STUB_RECORD_FILE: recordFile });
+    assert.notEqual(r.status, 0);
+    assert.equal(git(box, 'rev-parse', 'HEAD'), deployedSha);
+    assert.equal(fs.existsSync(recordFile), false);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('pull-deploy.sh writes the systemd invocation id as "run" (empty outside systemd)', { skip: SKIP_REAL_RUN }, () => {
+  const { tmp, box, origin, originUrl } = makeBoxAtV1();
+  try {
+    advanceOriginLinear(tmp, origin);
+    const recordFile = path.join(tmp, 'stub-record.txt');
+    const extra = { PULL_DEPLOY_EXPECTED_ORIGIN: originUrl, STUB_RECORD_FILE: recordFile };
+    const under = run(box, tmp, { ...extra, INVOCATION_ID: 'abc123-DEF-456' });
+    assert.equal(under.r.status, 0, under.r.stdout + under.r.stderr);
+    assert.equal(readStatus(under.statusFile).run, 'abc123-DEF-456');
+    const { env } = envFor(box, tmp, extra);
+    delete env.INVOCATION_ID;
+    const manual = spawnSync('bash', [SCRIPT_PATH], { cwd: box, encoding: 'utf8', env });
+    assert.equal(manual.status, 0, manual.stdout + manual.stderr);
+    assert.equal(readStatus(under.statusFile).run, '');
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('OnFailure leaves the file untouched when the last line carries the failed unit\'s invocation id (no flock needed)', { skip: !HAVE_BASH && 'bash not available' }, () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-onfailure-'));
+  try {
+    const statusFile = path.join(tmp, 'status.json');
+    const recorded = JSON.stringify({ at: '2026-09-30T00:00:00Z', before: 'x', after: 'y', result: 'failed', reason: 'origin/main is not a fast-forward of the deployed commit x', consecutiveFailures: 3, firstFailedAt: '2026-09-27T00:00:00Z', run: 'same-run-id' }) + '\n';
+    fs.writeFileSync(statusFile, olderRunLine('older') + '\n' + recorded);
+    const before = fs.readFileSync(statusFile, 'utf8');
+    const r = runOnFailure(tmp, statusFile, { invocationId: 'same-run-id', result: 'exit-code' });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.equal(fs.readFileSync(statusFile, 'utf8'), before);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('a run killed before it wrote (last line belongs to an OLDER run) still gets the killed record appended', { skip: !HAVE_BASH && 'bash not available' }, () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-onfailure-'));
+  try {
+    const statusFile = path.join(tmp, 'status.json');
+    fs.writeFileSync(statusFile, olderRunLine('older-run') + '\n');
+    const r = runOnFailure(tmp, statusFile, { invocationId: 'killed-run', result: 'timeout' });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const { lines, last } = lastLineOf(statusFile);
+    assert.equal(lines.length, 2, 'must APPEND a second line, never overwrite the first');
+    assert.equal(last.result, 'failed');
+    assert.equal(last.run, 'killed-run');
+    assert.match(last.reason, /killed before it could record its own status/);
+    assert.match(last.reason, /Result=timeout/);
+    // A second OnFailure for the same invocation finds it already recorded.
+    const again = runOnFailure(tmp, statusFile, { invocationId: 'killed-run', result: 'timeout' });
+    assert.equal(again.status, 0);
+    assert.equal(lastLineOf(statusFile).lines.length, 2);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('OnFailure on a run that exited non-zero without writing says "exited non-zero", not "killed"; an old line without "run" counts as an older run', { skip: !HAVE_BASH && 'bash not available' }, () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-onfailure-'));
   try {
     const statusFile = path.join(tmp, 'status.json');
@@ -590,14 +729,27 @@ test('pull-deploy-onfailure.sh appends (never overwrites) a "failed" record to t
       statusFile,
       JSON.stringify({ at: '2026-01-01T00:00:00Z', before: 'a', after: 'a', result: 'up-to-date', reason: '' }) + '\n',
     );
-    const script = path.join(ROOT, 'scripts', 'deploy', 'pull-deploy-onfailure.sh');
-    const r = spawnSync('bash', [script], { encoding: 'utf8', env: { ...process.env, PULL_DEPLOY_STATUS_FILE: statusFile } });
+    const r = runOnFailure(tmp, statusFile, { invocationId: 'run-x', result: 'exit-code' });
     assert.equal(r.status, 0, r.stdout + r.stderr);
-    const lines = fs.readFileSync(statusFile, 'utf8').trim().split('\n');
-    assert.equal(lines.length, 2, 'must APPEND a second line, never overwrite the first');
-    const last = JSON.parse(lines[lines.length - 1]);
+    const { lines, last } = lastLineOf(statusFile);
+    assert.equal(lines.length, 2);
+    assert.match(last.reason, /exited non-zero before it could record its own status/);
+    assert.doesNotMatch(last.reason, /was killed/);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('OnFailure with no systemd evidence appends an honest "could not tell" record instead of guessing a cause', { skip: !HAVE_BASH && 'bash not available' }, () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-onfailure-'));
+  try {
+    const statusFile = path.join(tmp, 'status.json');
+    fs.writeFileSync(statusFile, olderRunLine('older-run') + '\n');
+    const r = runOnFailure(tmp, statusFile, { invocationId: '' });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const { lines, last } = lastLineOf(statusFile);
+    assert.equal(lines.length, 2);
     assert.equal(last.result, 'failed');
-    assert.match(last.reason, /killed before it could record its own status/);
+    assert.match(last.reason, /could not tell whether that run recorded its own status/);
+    assert.doesNotMatch(last.reason, /was killed/);
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 

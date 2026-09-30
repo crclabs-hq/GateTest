@@ -290,6 +290,16 @@ a script that runs unattended every 5 minutes.
 cat /var/lib/gatetest/pull-deploy-status.json
 ```
 
+**The OnFailure safety net** (`gatetest-pull-deploy-onfailure.service`,
+`scripts/deploy/pull-deploy-onfailure.sh`) appends its "killed before it could
+record its own status" line only when the failed run did not record itself:
+`pull-deploy.sh` writes its systemd `$INVOCATION_ID` as `"run"` in every status
+line, and the safety net appends only if that is not the failed unit's
+`InvocationID` (from `systemctl show -p InvocationID --value`). An ordinary
+refusal or failure that `pull-deploy.sh` already explained (such as "not a
+fast-forward") is left exactly as written; if systemd cannot say which
+invocation failed, the appended line says so instead of guessing a cause.
+
 **Logs** — everything `pull-deploy.sh` and (when it runs)
 `deploy-on-box.sh` printed:
 
