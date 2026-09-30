@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-29T09:59:05.267Z",
+  "generatedAt": "2026-09-30T09:53:28.240Z",
   "source": "scripts/real-world-precision.js",
   "note": "Measured on every run against pinned commits of repositories we do not control. Ceilings only ratchet down. Do not hand-edit — run the script.",
   "engineVersion": "1.61.1",
-  "engineCommit": "0ae1e2bc",
+  "engineCommit": "ac161dbb",
   "repos": [
     {
       "name": "express",
@@ -73,9 +73,9 @@
       "url": "https://github.com/rails/rails.git",
       "sha": "1ec64ce82451c52d7407fa665ea5f95291430c23",
       "why": "Ruby at scale — instance_eval in the routes loader, backtick-quoted words in error messages that a naive shell-interp rule read as commands",
-      "blocking": 35,
+      "blocking": 34,
       "ceiling": 35,
-      "softened": 19
+      "softened": 17
     },
     {
       "name": "spring-petclinic",
@@ -145,7 +145,7 @@
       "url": "https://github.com/nestjs/nest.git",
       "sha": "39fbddae51281ca56bf2fed9123d98e61509066c",
       "why": "TypeScript monorepo (npm workspaces) with an integration/ e2e tree and sample apps — first contact 39 blocking: a logger class told it uses console, tsconfig flags as build verdicts, mongodb://localhost fixtures as secrets, `.catch(() => {})` on a stored promise the caller awaits; what remains is six `reduce(async …)` in the e2e app, two npm-audit advisories and one committed PKCS#8 key",
-      "blocking": 9,
+      "blocking": 10,
       "ceiling": 9,
       "softened": 1
     },
@@ -165,7 +165,7 @@
       "why": "npm-workspaces monorepo with a docs site — first contact 4 blocking: a CA bundle read as a private key, a README link the resolver could not follow, a destructured parameter the scope harvester missed; nothing remains",
       "blocking": 0,
       "ceiling": 0,
-      "softened": 2
+      "softened": 3
     },
     {
       "name": "prisma",
@@ -300,8 +300,8 @@
       "controlPairs": 0
     },
     {
-      "rule": "perf:event-cleanup",
-      "module": "performance",
+      "rule": "security:innerHTML assignment",
+      "module": "security",
       "findings": 13,
       "onZeroCeilingRepos": 0,
       "repos": [
@@ -321,9 +321,9 @@
       "controlPairs": 0
     },
     {
-      "rule": "security:innerHTML assignment",
-      "module": "security",
-      "findings": 13,
+      "rule": "perf:event-cleanup",
+      "module": "performance",
+      "findings": 12,
       "onZeroCeilingRepos": 0,
       "repos": [
         {
@@ -973,19 +973,6 @@
       "controlPairs": 0
     },
     {
-      "rule": "security:CSRF protection disabled",
-      "module": "security",
-      "findings": 2,
-      "onZeroCeilingRepos": 0,
-      "repos": [
-        {
-          "name": "rails",
-          "sha": "1ec64ce82451c52d7407fa665ea5f95291430c23"
-        }
-      ],
-      "controlPairs": 0
-    },
-    {
       "rule": "ruby:system-interp",
       "module": "ruby",
       "findings": 2,
@@ -1224,6 +1211,19 @@
       "controlPairs": 0
     },
     {
+      "rule": "security:npm-audit:@nestjs/microservices",
+      "module": "security",
+      "findings": 1,
+      "onZeroCeilingRepos": 0,
+      "repos": [
+        {
+          "name": "nest",
+          "sha": "39fbddae51281ca56bf2fed9123d98e61509066c"
+        }
+      ],
+      "controlPairs": 0
+    },
+    {
       "rule": "security:npm-audit:ws",
       "module": "security",
       "findings": 1,
@@ -1336,6 +1336,19 @@
         {
           "name": "trpc",
           "sha": "66d054454a3339dd8421da9dcf0648f92816f704"
+        }
+      ],
+      "controlPairs": 0
+    },
+    {
+      "rule": "security:CSRF protection disabled",
+      "module": "security",
+      "findings": 1,
+      "onZeroCeilingRepos": 1,
+      "repos": [
+        {
+          "name": "apollo-server",
+          "sha": "53ac3c13fcf36dd22fb0dbb757a270ae58e89227"
         }
       ],
       "controlPairs": 0
@@ -1669,16 +1682,16 @@
             "auth-bypass": 1,
             "quality:console.log/debug/info found": 7,
             "quality:innerHTML assignment detected — use textContent or sanitize": 4,
-            "perf:event-cleanup": 13,
+            "perf:event-cleanup": 12,
             "security:innerHTML assignment": 3,
             "error-swallow:empty-catch": 7,
             "n-plus-one:query-in-loop": 2,
             "race-condition:fs-toctou": 1,
             "hardcoded-url:localhost": 1,
             "visual:viewport": 5,
-            "a11y:input-label": 10,
             "a11y:html-lang": 4,
             "a11y:landmark-main": 5,
+            "a11y:input-label": 10,
             "perf:render-blocking": 1,
             "perf:lazy-loading": 1,
             "security:secret": 2,
@@ -1702,6 +1715,7 @@
             "bash-safety:pipe-true": 2,
             "secrets:gitignore-.env": 1,
             "kotlin:todo-call": 6,
+            "security:npm-audit:@nestjs/microservices": 1,
             "security:npm-audit:ws": 1,
             "security:npm-audit": 1,
             "async-iteration:async-reduce": 6,
@@ -1716,10 +1730,10 @@
             "secrets": 5,
             "quality:eval() usage detected": 3,
             "visual:viewport": 1,
-            "a11y:input-label": 6,
             "a11y:html-lang": 1,
             "a11y:landmark-main": 5,
             "a11y:img-alt": 1,
+            "a11y:input-label": 6,
             "perf:render-blocking": 2,
             "security:npm-audit:body-parser": 1,
             "security:npm-audit:bson": 1,
@@ -1750,15 +1764,14 @@
       },
       {
         "confidence": 0.6,
-        "precision": 92,
+        "precision": 64,
         "recall": 0,
         "rules": {
           "precision": {
             "security:secrets-scan": 1,
             "quality:eval() usage detected": 10,
             "a11y:html-lang": 5,
-            "a11y:img-alt": 11,
-            "a11y:input-label": 37,
+            "a11y:input-label": 19,
             "perf:lazy-loading": 2,
             "security:eval()": 4,
             "bash-safety:pipe-true": 1,
@@ -1769,6 +1782,7 @@
             "security:innerHTML assignment": 2,
             "a11y:invalid-role": 3,
             "retry-hygiene:unbounded-loop": 4,
+            "security:CSRF protection disabled": 1,
             "security:sql-injection": 6
           },
           "recall": {}
@@ -1812,13 +1826,14 @@
       },
       {
         "confidence": 0.24,
-        "precision": 18,
+        "precision": 45,
         "recall": 0,
         "rules": {
           "precision": {
+            "a11y:img-alt": 11,
+            "a11y:input-label": 18,
             "quality:innerHTML assignment detected — use textContent or sanitize": 8,
-            "security:innerHTML assignment": 8,
-            "security:CSRF protection disabled": 2
+            "security:innerHTML assignment": 8
           },
           "recall": {}
         }
@@ -1850,13 +1865,13 @@
     "sweep": [
       {
         "threshold": 0.5,
-        "precisionBlocking": 250,
+        "precisionBlocking": 222,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.6,
-        "precisionBlocking": 250,
+        "precisionBlocking": 222,
         "recallBlocking": 53,
         "shipped": false
       },
@@ -1914,9 +1929,9 @@
       "above": 1
     },
     "softened": {
-      "precisionTotal": 325,
+      "precisionTotal": 324,
       "precisionBlocking": 158,
-      "precisionSoftened": 167,
+      "precisionSoftened": 166,
       "recallTotal": 53,
       "recallBlocking": 53,
       "recallLost": 0
