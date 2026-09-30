@@ -121,6 +121,20 @@ describe('wiring', () => {
     assert.match(src, /CUSTOMER_COOKIE_NAME/);
   });
 
+  // 30 Sep production 500: a relative Location from the proxy made Next throw
+  // `TypeError: Invalid URL` with input "/login?next=%2Fdashboard".
+  it('proxy.ts redirects to an absolute URL on the canonical origin, never a relative Location', () => {
+    const src = read('proxy.ts');
+    assert.match(src, /Location: siteUrl\(gate\.location\)/);
+    assert.doesNotMatch(src, /Location: gate\.location/);
+    const { siteUrl } = require(path.join(WEB, 'app', 'lib', 'site-url.js'));
+    const loc = siteUrl(gate({}).location);
+    const u = new URL(loc); // throws on a relative value, as Next did
+    assert.equal(u.pathname, '/login');
+    assert.equal(u.searchParams.get('next'), '/dashboard');
+    assert.throws(() => new URL(gate({}).location), /Invalid URL/, 'control: the relative form is what threw in production');
+  });
+
   it('there is exactly one session-gate definition (no second isProtectedPath / requireSession)', () => {
     const hits = [];
     (function walk(dir) {
