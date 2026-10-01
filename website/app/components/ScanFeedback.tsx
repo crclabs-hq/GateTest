@@ -123,7 +123,7 @@ export function ScanFeedback({ surface, scanId, tier, contextKey, className = ""
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="What was wrong or missing? (optional)"
-            className="flex-1 min-w-[200px] px-3 py-1.5 rounded-lg border border-border bg-white text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
+            className="flex-1 min-w-[200px] px-3 py-1.5 rounded-lg border border-border bg-surface-solid text-foreground text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
           />
           <button type="submit" className={BUTTON}>Send</button>
           <button
