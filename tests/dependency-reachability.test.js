@@ -78,8 +78,50 @@ describe('dependency-reachability — imports from real files', () => {
       assert.equal(cls['express-session'], 'reachable');
       assert.equal(cls.lodash, 'installed-unused');
       assert.equal(cls.minimatch, 'dev-only');
-      assert.deepEqual(r.counts, { reachable: 2, 'installed-unused': 1, 'dev-only': 3 });
+      assert.deepEqual(r.counts, { reachable: 2, 'installed-unused': 1, 'dev-only': 3, workspace: 0 });
     } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  });
+});
+
+// control-pair: security:npm-audit
+// nest @ 39fbddae (2026-09-30): advisories published overnight against
+// @nestjs/microservices and @nestjs/platform-fastify — nest's OWN packages/*
+// at 12.0.1 — blocked its gate as "imported from production source". The
+// ws advisory beside them is a real third-party dependency and must keep
+// blocking: that is the control.
+describe('dependency-reachability — an advisory against the repo\'s own workspace package does not block', () => {
+  const MONO_AUDIT = {
+    vulnerabilities: {
+      '@acme/transport': { severity: 'high', isDirect: true, via: [{ title: 'own release' }], effects: [], range: '12.0.0 - 12.0.2', fixAvailable: false },
+      ws: { severity: 'high', isDirect: false, via: [{ title: 'DoS' }], effects: [], range: '8.0.0 - 8.20.1', fixAvailable: true },
+    },
+    metadata: { vulnerabilities: { critical: 0, high: 2, moderate: 0, low: 0 } },
+  };
+
+  it('fires on the third-party dependency, stays quiet (warning) on the workspace member', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-reach-ws-'));
+    try {
+      fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ private: true, workspaces: ['packages/*'], dependencies: { ws: '8' } }));
+      for (const [dir, name] of [['transport', '@acme/transport'], ['app', '@acme/app']]) {
+        fs.mkdirSync(path.join(root, 'packages', dir), { recursive: true });
+        fs.writeFileSync(path.join(root, 'packages', dir, 'package.json'), JSON.stringify({ name, version: '12.0.1' }));
+      }
+      fs.writeFileSync(path.join(root, 'packages', 'transport', 'index.js'), "const WebSocket = require('ws');\nmodule.exports = WebSocket;\n");
+      fs.writeFileSync(path.join(root, 'packages', 'app', 'index.js'), "const t = require('@acme/transport');\nmodule.exports = t;\n");
+      const r = analyseProject(MONO_AUDIT, root);
+      const byName = Object.fromEntries(r.items.map((i) => [i.name, i]));
+      assert.equal(byName.ws.class, 'reachable');
+      assert.equal(gateSeverity(byName.ws), 'error');
+      assert.equal(byName['@acme/transport'].class, 'workspace');
+      assert.match(byName['@acme/transport'].reason, /published from this repository/);
+      assert.equal(gateSeverity(byName['@acme/transport']), 'warning');
+      assert.equal(r.counts.workspace, 1);
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it('without workspaces the same package name is still classified by reachability', () => {
+    const items = classifyAdvisories(MONO_AUDIT, { manifest: { prod: new Set(['@acme/transport']), dev: new Set() }, imported: new Set(['@acme/transport']) });
+    assert.equal(items.find((i) => i.name === '@acme/transport').class, 'reachable');
   });
 });
 

@@ -415,7 +415,7 @@ class SecurityModule extends BaseModule {
               severity: sev,
               file: 'package.json',
               message: `${item.severity} advisory in ${item.name}${item.range ? ` (${item.range})` : ''} — ${item.reason}`,
-              suggestion: item.fixAvailable ? `Run "npm audit fix" (a non-breaking fix is available for ${item.name})` : `Upgrade or replace ${item.name}; no automatic fix is available`,
+              suggestion: item.class === 'workspace' ? `Fix it in this repository's source and publish a release of ${item.name}` : item.fixAvailable ? `Run "npm audit fix" (a non-breaking fix is available for ${item.name})` : `Upgrade or replace ${item.name}; no automatic fix is available`,
               reachability: item.class,
             });
           }
@@ -427,7 +427,7 @@ class SecurityModule extends BaseModule {
           } else {
             result.addCheck('security:npm-audit', true, {
               severity: 'info',
-              message: `No reachable critical/high advisories. ${critical + high} critical/high advisor${critical + high === 1 ? 'y' : 'ies'} exist in dev-only (${c['dev-only']}) or installed-but-unused (${c['installed-unused']}) packages — shown above, not blocking. ${moderate} moderate.`,
+              message: `No reachable critical/high advisories. ${critical + high} critical/high advisor${critical + high === 1 ? 'y' : 'ies'} exist in dev-only (${c['dev-only']}), installed-but-unused (${c['installed-unused']})${c.workspace ? ` or this repository's own published (${c.workspace})` : ''} packages — shown above, not blocking. ${moderate} moderate.`,
             });
           }
         } else if (critical > 0 || high > 0) {
