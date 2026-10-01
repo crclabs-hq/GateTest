@@ -217,7 +217,9 @@ describe('route wiring (source level)', () => {
     assert.match(cb, /endpoints\.token_endpoint/);
     assert.match(cb, /endpoints\.userinfo_endpoint/);
     assert.match(cb, /profileFromUserinfo\(userRes\.status, body\)/);
-    assert.match(cb, /signCustomerSession\(login, email, sessionSecret\)/);
+    // `true`: profileFromUserinfo already refused an unverified address, so the
+    // session carries the provider-verified flag (admin-by-email needs it).
+    assert.match(cb, /signCustomerSession\(login, email, sessionSecret, undefined, true\)/);
     // Same cookie shape as the Google callback.
     const google = read('app/api/auth/google/callback/route.ts');
     const cookieBlock = (s) => s.match(/response\.headers\.set\(\s*"Set-Cookie",[\s\S]*?\);/)[0];

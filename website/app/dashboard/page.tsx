@@ -33,6 +33,8 @@ interface ScanRecord {
 interface CustomerInfo {
   login: string;
   email: string;
+  /** From /api/auth/me: this session is let into /admin. */
+  admin?: boolean;
 }
 
 interface DashboardData {
@@ -104,6 +106,7 @@ export default function Dashboard() {
           <p className="text-muted text-sm mb-8">
             View your scan history, detailed results, and manage your repos.
           </p>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- an API route that redirects to GitHub: a full navigation, never a client-side page change */}
           <a
             href="/api/auth/github"
             className="btn-cta w-full py-3.5 text-sm block text-center rounded-xl font-semibold"
@@ -135,6 +138,11 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex items-center gap-4">
+            {customer.admin && (
+              <Link href="/admin" className="text-sm text-muted hover:text-foreground">
+                Admin
+              </Link>
+            )}
             <Link href="/dashboard/usage" className="text-sm text-muted hover:text-foreground">
               Usage
             </Link>

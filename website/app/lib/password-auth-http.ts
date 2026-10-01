@@ -114,8 +114,14 @@ function sessionCookieHeader(token: string): string {
   ].join("; ");
 }
 
+/**
+ * The session for a password sign-in. Only called with the customer that
+ * login() (password-auth-core.js) returned, and login() answers `unverified`
+ * — no customer — until the #837 verify or reset link has set
+ * email_verified_at. So the address in this session is verified.
+ */
 export function signInCookie(customer: { email: string; github_login: string | null }): string {
-  return sessionCookieHeader(signCustomerSession(sessionLogin(customer), customer.email, sessionSecret()));
+  return sessionCookieHeader(signCustomerSession(sessionLogin(customer), customer.email, sessionSecret(), undefined, true));
 }
 
 export function store() {
